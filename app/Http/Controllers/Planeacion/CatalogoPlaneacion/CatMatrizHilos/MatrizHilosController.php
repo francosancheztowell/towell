@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatMatrizHilos;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\Planeacion\ReqMatrizHilos;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqProgramaTejidoLine;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class MatrizHilosController extends Controller
@@ -20,7 +20,7 @@ class MatrizHilosController extends Controller
         $matrizHilos = ReqMatrizHilos::orderBy('Hilo')->get();
 
         // Asegurar que todos los registros tengan un ID accesible como 'id' (minúscula) para compatibilidad con la vista
-        $matrizHilos = $matrizHilos->map(function($item) {
+        $matrizHilos = $matrizHilos->map(function ($item) {
             // Obtener el ID real (Id con mayúscula)
             $id = $item->getKey(); // Esto obtendrá 'Id' porque es la clave primaria
 
@@ -32,7 +32,7 @@ class MatrizHilosController extends Controller
         });
 
         return view('catalagos.matriz-hilos', [
-            'matrizHilos' => $matrizHilos
+            'matrizHilos' => $matrizHilos,
         ]);
     }
 
@@ -49,12 +49,12 @@ class MatrizHilosController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $hilos
+                'data' => $hilos,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener hilos: ' . $e->getMessage()
+                'message' => 'Error al obtener hilos: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -82,19 +82,19 @@ class MatrizHilosController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Registro creado exitosamente',
-                'data' => $matrizHilo
+                'data' => $matrizHilo,
             ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al crear registro: ' . $e->getMessage()
+                'message' => 'Error al crear registro: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -108,20 +108,20 @@ class MatrizHilosController extends Controller
         $matrizHilo = ReqMatrizHilos::find($id);
 
         // Si no se encuentra, intentar buscar directamente por Id
-        if (!$matrizHilo) {
+        if (! $matrizHilo) {
             $matrizHilo = ReqMatrizHilos::where('Id', $id)->first();
         }
 
-        if (!$matrizHilo) {
+        if (! $matrizHilo) {
             return response()->json([
                 'success' => false,
-                'message' => 'Registro no encontrado'
+                'message' => 'Registro no encontrado',
             ], 404);
         }
 
         return response()->json([
             'success' => true,
-            'data' => $matrizHilo
+            'data' => $matrizHilo,
         ]);
     }
 
@@ -135,14 +135,14 @@ class MatrizHilosController extends Controller
             $matrizHilo = ReqMatrizHilos::find($id);
 
             // Si no se encuentra, intentar buscar directamente por Id
-            if (!$matrizHilo) {
+            if (! $matrizHilo) {
                 $matrizHilo = ReqMatrizHilos::where('Id', $id)->first();
             }
 
-            if (!$matrizHilo) {
+            if (! $matrizHilo) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Registro no encontrado con ID: ' . $id
+                    'message' => 'Registro no encontrado con ID: '.$id,
                 ], 404);
             }
 
@@ -168,7 +168,7 @@ class MatrizHilosController extends Controller
             if ($enUso && $hiloOriginal !== $hiloNuevo) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No se puede cambiar el nombre del hilo "' . $hiloOriginal . '" porque está siendo utilizado en el programa de tejido (campo FibraRizo).'
+                    'message' => 'No se puede cambiar el nombre del hilo "'.$hiloOriginal.'" porque está siendo utilizado en el programa de tejido (campo FibraRizo).',
                 ], 422);
             }
 
@@ -201,25 +201,25 @@ class MatrizHilosController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Registro actualizado exitosamente',
-                'data' => $matrizHilo
+                'data' => $matrizHilo,
             ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             Log::error('Error al actualizar MatrizHilos', [
                 'id' => $id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al actualizar registro: ' . $e->getMessage()
+                'message' => 'Error al actualizar registro: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -227,7 +227,7 @@ class MatrizHilosController extends Controller
     /**
      * Recalcula MtsRizo en todas las líneas de programa de tejido que usan el hilo especificado
      *
-     * @param string $hilo Nombre del hilo
+     * @param  string  $hilo  Nombre del hilo
      */
     private function recalcularMtsRizoEnLineas(string $hilo)
     {
@@ -239,7 +239,7 @@ class MatrizHilosController extends Controller
 
             // Obtener el registro actualizado de MatrizHilos
             $matrizHilo = ReqMatrizHilos::where('Hilo', $hilo)->first();
-            if (!$matrizHilo) {
+            if (! $matrizHilo) {
                 return;
             }
 
@@ -270,7 +270,7 @@ class MatrizHilosController extends Controller
             foreach ($programas as $programa) {
                 // Obtener CuentaRizo del programa
                 $cuentaRizo = $programa->CuentaRizo;
-                if (!$cuentaRizo || $cuentaRizo <= 0) {
+                if (! $cuentaRizo || $cuentaRizo <= 0) {
                     continue;
                 }
 
@@ -304,7 +304,7 @@ class MatrizHilosController extends Controller
             Log::error('Error al recalcular MtsRizo en líneas', [
                 'hilo' => $hilo,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
         }
     }
@@ -318,15 +318,15 @@ class MatrizHilosController extends Controller
             // Buscar el registro usando la clave primaria 'Id'
             $matrizHilo = ReqMatrizHilos::find($id);
 
-            if (!$matrizHilo) {
+            if (! $matrizHilo) {
                 // Si no se encuentra, intentar buscar directamente por Id
                 $matrizHilo = ReqMatrizHilos::where('Id', $id)->first();
             }
 
-            if (!$matrizHilo) {
+            if (! $matrizHilo) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Registro no encontrado con ID: ' . $id
+                    'message' => 'Registro no encontrado con ID: '.$id,
                 ], 404);
             }
 
@@ -338,7 +338,7 @@ class MatrizHilosController extends Controller
                 if ($enUso) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'No se puede eliminar el hilo "' . $hilo . '" porque está siendo utilizado en el programa de tejido (campo FibraRizo).'
+                        'message' => 'No se puede eliminar el hilo "'.$hilo.'" porque está siendo utilizado en el programa de tejido (campo FibraRizo).',
                     ], 422);
                 }
             }
@@ -346,29 +346,29 @@ class MatrizHilosController extends Controller
             // Eliminar el registro
             $deleted = $matrizHilo->delete();
 
-            if (!$deleted) {
+            if (! $deleted) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No se pudo eliminar el registro'
+                    'message' => 'No se pudo eliminar el registro',
                 ], 500);
             }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Registro eliminado exitosamente',
-                'deleted_id' => $id
+                'deleted_id' => $id,
             ]);
 
         } catch (\Exception $e) {
             Log::error('Error al eliminar MatrizHilos', [
                 'id' => $id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al eliminar registro: ' . $e->getMessage()
+                'message' => 'Error al eliminar registro: '.$e->getMessage(),
             ], 500);
         }
     }

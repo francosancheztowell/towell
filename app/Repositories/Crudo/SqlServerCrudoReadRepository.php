@@ -211,7 +211,13 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
             ->whereIn('NoTelarId', $telares)
             ->orderByDesc('FechaInicio')
             ->orderByDesc('Id')
-            ->get(['NoTelarId', 'NombreProducto', 'NoProduccion'])
+            ->get([
+                'NoTelarId',
+                'NoProduccion',
+                'TamanoClave',
+                'ItemId',
+                'NombreProducto',
+            ])
             ->all();
     }
 

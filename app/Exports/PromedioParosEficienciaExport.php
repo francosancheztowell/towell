@@ -294,8 +294,8 @@ class PromedioParosEficienciaExport implements FromArray, WithCharts, WithEvents
             DataSeries::EMPTY_AS_GAP,
             null,
             null,
-            new Axis(),
-            new Axis()
+            new Axis,
+            new Axis
         );
 
         $chartTopRow = $lastDataRow + 3;

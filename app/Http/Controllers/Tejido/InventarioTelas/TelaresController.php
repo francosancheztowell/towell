@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Tejido\InventarioTelas;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class TelaresController extends Controller
 {
@@ -26,7 +25,7 @@ class TelaresController extends Controller
         $telarEnProceso = $this->fetchTelarEnProceso($salones, $candidatos);
 
         // Si no hay datos en proceso, crear objeto mínimo
-        if (!$telarEnProceso) {
+        if (! $telarEnProceso) {
             $telarEnProceso = $this->objTelarVacio($telar);
         }
 
@@ -34,7 +33,7 @@ class TelaresController extends Controller
         $ordenSig = null;
         if ($telarEnProceso->en_proceso) {
             $noTelarIdUsado = $telarEnProceso->NoTelarIdOriginal ?? $telarEnProceso->Telar ?? $telar;
-            $posicionActual = isset($telarEnProceso->Posicion) ? (int)$telarEnProceso->Posicion : null;
+            $posicionActual = isset($telarEnProceso->Posicion) ? (int) $telarEnProceso->Posicion : null;
             $ordenSig = $this->fetchSiguienteOrden(
                 $salones,
                 $noTelarIdUsado,
@@ -43,7 +42,7 @@ class TelaresController extends Controller
                 $posicionActual
             );
             // Si no encuentra con posición, buscar cualquier orden disponible
-            if (!$ordenSig) {
+            if (! $ordenSig) {
                 $ordenSig = $this->fetchPrimeraOrdenDisponible($salones, $noTelarIdUsado);
             }
         }
@@ -74,7 +73,7 @@ class TelaresController extends Controller
                 'SaldoPedido as Cantidad',
                 DB::raw("CASE WHEN EnProceso = 1 THEN 'En Proceso' ELSE 'Programado' END as Estado"),
                 'NoProduccion as Orden_Prod',
-                'EntregaCte as Entrega'
+                'EntregaCte as Entrega',
             ])
             ->orderBy('EnProceso', 'desc')
             ->orderBy('FechaInicio', 'asc')
@@ -101,7 +100,7 @@ class TelaresController extends Controller
 
             if ($telarEnProceso && $telarEnProceso->en_proceso) {
                 // Si hay telar en proceso, buscar siguiente orden usando su posición (secuencia)
-                $posicionActual = isset($telarEnProceso->Posicion) ? (int)$telarEnProceso->Posicion : null;
+                $posicionActual = isset($telarEnProceso->Posicion) ? (int) $telarEnProceso->Posicion : null;
 
                 $ordenSig = $this->fetchSiguienteOrden(
                     $salones,
@@ -112,7 +111,7 @@ class TelaresController extends Controller
                 );
 
                 // Si no encuentra con posición, buscar cualquier orden disponible
-                if (!$ordenSig) {
+                if (! $ordenSig) {
                     $ordenSig = $this->fetchPrimeraOrdenDisponible($salones, $numeroTelar);
                 }
             } else {
@@ -123,18 +122,18 @@ class TelaresController extends Controller
 
             $julios = $this->ultimoJulioRizoPiePorTelar($numeroTelar);
             $telarEnProceso->ultimoJulioRizo = $julios['ultimoJulioRizo'];
-            $telarEnProceso->ultimoJulioPie  = $julios['ultimoJulioPie'];
+            $telarEnProceso->ultimoJulioPie = $julios['ultimoJulioPie'];
 
             $datosTelaresCompletos[$numeroTelar] = [
                 'telarData' => $telarEnProceso,
-                'ordenSig'  => $ordenSig
+                'ordenSig' => $ordenSig,
             ];
         }
 
         return view('modulos/tejido/inventario-telas/inventario-telas', [
-            'telares'              => $telaresOrdenados,
+            'telares' => $telaresOrdenados,
             'datosTelaresCompletos' => $datosTelaresCompletos,
-            'tipoInventario'       => 'jacquard'
+            'tipoInventario' => 'jacquard',
         ]);
     }
 
@@ -177,7 +176,7 @@ class TelaresController extends Controller
                     $telarEnProceso->ProgramaId ?? null
                 );
                 // Si no encuentra con fecha, buscar cualquier orden disponible
-                if (!$ordenSig) {
+                if (! $ordenSig) {
                     $ordenSig = $this->fetchPrimeraOrdenDisponibleConCandidatos($salones, $candidatosOrden);
                 }
             } else {
@@ -195,18 +194,18 @@ class TelaresController extends Controller
             $candidatosJulio = $this->resolverCandidatosTelar($numeroTelar, 'ITEMA');
             $julios = $this->ultimoJulioRizoPiePorTelar($candidatosJulio);
             $telarEnProceso->ultimoJulioRizo = $julios['ultimoJulioRizo'];
-            $telarEnProceso->ultimoJulioPie  = $julios['ultimoJulioPie'];
+            $telarEnProceso->ultimoJulioPie = $julios['ultimoJulioPie'];
 
             $datosTelaresCompletos[$numeroTelar] = [
                 'telarData' => $telarEnProceso,
-                'ordenSig'  => $ordenSig
+                'ordenSig' => $ordenSig,
             ];
         }
 
         return view('modulos/tejido/inventario-telas/inventario-telas', [
-            'telares'              => $telaresOrdenados,
+            'telares' => $telaresOrdenados,
             'datosTelaresCompletos' => $datosTelaresCompletos,
-            'tipoInventario'       => 'itema'
+            'tipoInventario' => 'itema',
         ]);
     }
 
@@ -227,7 +226,7 @@ class TelaresController extends Controller
             $ordenSig = null;
 
             if ($telarEnProceso && $telarEnProceso->en_proceso) {
-                $posicionActual = isset($telarEnProceso->Posicion) ? (int)$telarEnProceso->Posicion : null;
+                $posicionActual = isset($telarEnProceso->Posicion) ? (int) $telarEnProceso->Posicion : null;
                 $ordenSig = $this->fetchSiguienteOrden(
                     $salones,
                     $numeroTelar,
@@ -236,7 +235,7 @@ class TelaresController extends Controller
                     $posicionActual
                 );
                 // Si no encuentra con posición, buscar cualquier orden disponible
-                if (!$ordenSig) {
+                if (! $ordenSig) {
                     $ordenSig = $this->fetchPrimeraOrdenDisponible($salones, $numeroTelar);
                 }
             } else {
@@ -246,18 +245,18 @@ class TelaresController extends Controller
 
             $julios = $this->ultimoJulioRizoPiePorTelar($numeroTelar);
             $telarEnProceso->ultimoJulioRizo = $julios['ultimoJulioRizo'];
-            $telarEnProceso->ultimoJulioPie  = $julios['ultimoJulioPie'];
+            $telarEnProceso->ultimoJulioPie = $julios['ultimoJulioPie'];
 
             $datosTelaresCompletos[$numeroTelar] = [
                 'telarData' => $telarEnProceso,
-                'ordenSig'  => $ordenSig
+                'ordenSig' => $ordenSig,
             ];
         }
 
         return view('modulos/tejido/inventario-telas/inventario-telas', [
-            'telares'               => $telaresOrdenados,
+            'telares' => $telaresOrdenados,
             'datosTelaresCompletos' => $datosTelaresCompletos,
-            'tipoInventario'        => 'karl-mayer'
+            'tipoInventario' => 'karl-mayer',
         ]);
     }
 
@@ -267,7 +266,7 @@ class TelaresController extends Controller
     public function procesoActual($telarId)
     {
         $tipoSalon = $this->determinarTipoSalon($telarId, true);
-        if (!$tipoSalon) {
+        if (! $tipoSalon) {
             return response()->json(['error' => 'Tipo de telar no reconocido'], 400);
         }
 
@@ -282,7 +281,7 @@ class TelaresController extends Controller
                 'FibraRizo as Fibra_Rizo',
                 'CuentaPie as Cuenta_Pie',
                 'CalibrePie as Calibre_Pie',
-                'FibraPie as Fibra_Pie'
+                'FibraPie as Fibra_Pie',
             ])
             ->first();
 
@@ -295,7 +294,7 @@ class TelaresController extends Controller
     public function siguienteOrden($telarId)
     {
         $tipoSalon = $this->determinarTipoSalon($telarId, true);
-        if (!$tipoSalon) {
+        if (! $tipoSalon) {
             return response()->json(['error' => 'Tipo de telar no reconocido'], 400);
         }
 
@@ -308,7 +307,7 @@ class TelaresController extends Controller
             ->select('Id as ProgramaId', 'FechaInicio', 'Posicion')
             ->first();
 
-        if (!$telarEnProceso) {
+        if (! $telarEnProceso) {
             return response()->json(['error' => 'Telar no encontrado en proceso'], 404);
         }
 
@@ -324,7 +323,7 @@ class TelaresController extends Controller
                 'FibraRizo as Fibra_Rizo',
                 'CuentaPie as Cuenta_Pie',
                 'CalibrePie2',
-                'FibraPie as Fibra_Pie'
+                'FibraPie as Fibra_Pie',
             ]
         );
 
@@ -340,9 +339,15 @@ class TelaresController extends Controller
      */
     private function determinarTipoSalon($telar, $strict = false)
     {
-        if ($telar >= 200 && $telar <= 215) { return 'JACQUARD'; }   // Jacquard
-        if ($telar >= 299 && $telar <= 320) { return 'ITEMA'; }      // Itema
-        if ($telar >= 303 && $telar <= 306) { return 'KARL MAYER'; } // Ajustable
+        if ($telar >= 200 && $telar <= 215) {
+            return 'JACQUARD';
+        }   // Jacquard
+        if ($telar >= 299 && $telar <= 320) {
+            return 'ITEMA';
+        }      // Itema
+        if ($telar >= 303 && $telar <= 306) {
+            return 'KARL MAYER';
+        } // Ajustable
 
         return $strict ? null : 'JACQUARD';
     }
@@ -414,7 +419,7 @@ class TelaresController extends Controller
             'FibraComb2 as FIBRA_C2',
             'FibraComb3 as FIBRA_C3',
             'FibraComb4 as FIBRA_C4',
-            'FibraComb5 as FIBRA_C5'
+            'FibraComb5 as FIBRA_C5',
         ];
     }
 
@@ -444,7 +449,7 @@ class TelaresController extends Controller
      * Traer la siguiente orden programada con select configurable.
      * Si hay varias con la misma FechaInicio, se toma la de Id mayor al actual.
      */
-    private function fetchSiguienteOrden(array $salones, $noTelarId, $fechaInicioActual, $programaIdActual = null, $posicionActual = null, array $select = null)
+    private function fetchSiguienteOrden(array $salones, $noTelarId, $fechaInicioActual, $programaIdActual = null, $posicionActual = null, ?array $select = null)
     {
         $select = $select ?: [
             'NoTelarId as Telar',
@@ -460,7 +465,7 @@ class TelaresController extends Controller
             'FibraPie as Fibra_Pie',
             'TotalPedido as Saldos',
             'FechaInicio as Inicio_Tejido',
-            'EntregaCte as Entrega'
+            'EntregaCte as Entrega',
         ];
 
         // Ver todas las órdenes del telar (en proceso y no en proceso)
@@ -473,15 +478,15 @@ class TelaresController extends Controller
             ->get();
 
         // Si hay posición actual, buscar por secuencia (Posicion mayor a la actual)
-        if (!is_null($posicionActual) && $posicionActual > 0) {
+        if (! is_null($posicionActual) && $posicionActual > 0) {
             // Intentar buscar con Posicion mayor primeroggg
             // IMPORTANTE: EnProceso puede ser NULL, no solo 0
             $ordenConPosicion = DB::table('ReqProgramaTejido')
                 ->whereIn('SalonTejidoId', $salones)
                 ->where('NoTelarId', $noTelarId)
-                ->where(function($q) {
+                ->where(function ($q) {
                     $q->where('EnProceso', 0)
-                      ->orWhereNull('EnProceso');
+                        ->orWhereNull('EnProceso');
                 })
                 ->whereNotNull('Posicion')
                 ->where('Posicion', '>', $posicionActual)
@@ -502,9 +507,9 @@ class TelaresController extends Controller
         $ordenDisponible = DB::table('ReqProgramaTejido')
             ->whereIn('SalonTejidoId', $salones)
             ->where('NoTelarId', $noTelarId)
-            ->where(function($q) {
+            ->where(function ($q) {
                 $q->where('EnProceso', 0)
-                  ->orWhereNull('EnProceso');
+                    ->orWhereNull('EnProceso');
             })
             ->select($select)
             ->orderByRaw('CASE WHEN Posicion IS NOT NULL THEN 0 ELSE 1 END') // Priorizar Posicion
@@ -520,7 +525,7 @@ class TelaresController extends Controller
      * Traer la siguiente orden programada usando candidatos (útil para ITEMA con 3XX/1XX).
      * Busca en todos los candidatos y retorna la primera orden siguiente encontrada.
      */
-    private function fetchSiguienteOrdenConCandidatos(array $salones, array $candidatos, $fechaInicioActual, $programaIdActual = null, $posicionActual = null, array $select = null)
+    private function fetchSiguienteOrdenConCandidatos(array $salones, array $candidatos, $fechaInicioActual, $programaIdActual = null, $posicionActual = null, ?array $select = null)
     {
         $select = $select ?: [
             'NoTelarId as Telar',
@@ -536,19 +541,19 @@ class TelaresController extends Controller
             'FibraPie as Fibra_Pie',
             'TotalPedido as Saldos',
             'FechaInicio as Inicio_Tejido',
-            'EntregaCte as Entrega'
+            'EntregaCte as Entrega',
         ];
 
         // Si hay posición actual, buscar por secuencia (Posicion mayor a la actual)
-        if (!is_null($posicionActual) && $posicionActual > 0) {
+        if (! is_null($posicionActual) && $posicionActual > 0) {
             // Intentar buscar con Posicion mayor primero
             // IMPORTANTE: EnProceso puede ser NULL, no solo 0
             $ordenConPosicion = DB::table('ReqProgramaTejido')
                 ->whereIn('SalonTejidoId', $salones)
                 ->whereIn('NoTelarId', $candidatos)
-                ->where(function($q) {
+                ->where(function ($q) {
                     $q->where('EnProceso', 0)
-                      ->orWhereNull('EnProceso');
+                        ->orWhereNull('EnProceso');
                 })
                 ->whereNotNull('Posicion')
                 ->where('Posicion', '>', $posicionActual)
@@ -569,9 +574,9 @@ class TelaresController extends Controller
         return DB::table('ReqProgramaTejido')
             ->whereIn('SalonTejidoId', $salones)
             ->whereIn('NoTelarId', $candidatos)
-            ->where(function($q) {
+            ->where(function ($q) {
                 $q->where('EnProceso', 0)
-                  ->orWhereNull('EnProceso');
+                    ->orWhereNull('EnProceso');
             })
             ->select($select)
             ->orderByRaw('CASE WHEN Posicion IS NOT NULL THEN 0 ELSE 1 END') // Priorizar Posicion
@@ -597,7 +602,7 @@ class TelaresController extends Controller
     /**
      * Obtener la primera orden disponible para un telar (cuando no hay proceso actual).
      */
-    private function fetchPrimeraOrdenDisponible(array $salones, $noTelarId, array $select = null)
+    private function fetchPrimeraOrdenDisponible(array $salones, $noTelarId, ?array $select = null)
     {
         $select = $select ?: [
             'NoTelarId as Telar',
@@ -613,7 +618,7 @@ class TelaresController extends Controller
             'FibraPie as Fibra_Pie',
             'TotalPedido as Saldos',
             'FechaInicio as Inicio_Tejido',
-            'EntregaCte as Entrega'
+            'EntregaCte as Entrega',
         ];
 
         // Buscar ordenada por Posicion (secuencia), luego por fecha
@@ -621,9 +626,9 @@ class TelaresController extends Controller
         $orden = DB::table('ReqProgramaTejido')
             ->whereIn('SalonTejidoId', $salones)
             ->where('NoTelarId', $noTelarId)
-            ->where(function($q) {
+            ->where(function ($q) {
                 $q->where('EnProceso', 0)
-                  ->orWhereNull('EnProceso');
+                    ->orWhereNull('EnProceso');
             })
             ->whereNotNull('Posicion')
             ->select($select)
@@ -633,13 +638,13 @@ class TelaresController extends Controller
             ->first();
 
         // Si no encuentra con Posicion, buscar con FechaInicio
-        if (!$orden) {
+        if (! $orden) {
             $orden = DB::table('ReqProgramaTejido')
                 ->whereIn('SalonTejidoId', $salones)
                 ->where('NoTelarId', $noTelarId)
-                ->where(function($q) {
+                ->where(function ($q) {
                     $q->where('EnProceso', 0)
-                      ->orWhereNull('EnProceso');
+                        ->orWhereNull('EnProceso');
                 })
                 ->whereNotNull('FechaInicio')
                 ->select($select)
@@ -649,13 +654,13 @@ class TelaresController extends Controller
         }
 
         // Si aún no encuentra, buscar sin restricciones
-        if (!$orden) {
+        if (! $orden) {
             $orden = DB::table('ReqProgramaTejido')
                 ->whereIn('SalonTejidoId', $salones)
                 ->where('NoTelarId', $noTelarId)
-                ->where(function($q) {
+                ->where(function ($q) {
                     $q->where('EnProceso', 0)
-                      ->orWhereNull('EnProceso');
+                        ->orWhereNull('EnProceso');
                 })
                 ->select($select)
                 ->orderBy('Id', 'asc')
@@ -669,7 +674,7 @@ class TelaresController extends Controller
     /**
      * Obtener la primera orden disponible usando candidatos (para ITEMA).
      */
-    private function fetchPrimeraOrdenDisponibleConCandidatos(array $salones, array $candidatos, array $select = null)
+    private function fetchPrimeraOrdenDisponibleConCandidatos(array $salones, array $candidatos, ?array $select = null)
     {
         $select = $select ?: [
             'NoTelarId as Telar',
@@ -685,7 +690,7 @@ class TelaresController extends Controller
             'FibraPie as Fibra_Pie',
             'TotalPedido as Saldos',
             'FechaInicio as Inicio_Tejido',
-            'EntregaCte as Entrega'
+            'EntregaCte as Entrega',
         ];
 
         // Buscar ordenada por Posicion (secuencia), luego por fecha
@@ -693,9 +698,9 @@ class TelaresController extends Controller
         $orden = DB::table('ReqProgramaTejido')
             ->whereIn('SalonTejidoId', $salones)
             ->whereIn('NoTelarId', $candidatos)
-            ->where(function($q) {
+            ->where(function ($q) {
                 $q->where('EnProceso', 0)
-                  ->orWhereNull('EnProceso');
+                    ->orWhereNull('EnProceso');
             })
             ->whereNotNull('Posicion')
             ->select($select)
@@ -705,13 +710,13 @@ class TelaresController extends Controller
             ->first();
 
         // Si no encuentra con Posicion, buscar con FechaInicio
-        if (!$orden) {
+        if (! $orden) {
             $orden = DB::table('ReqProgramaTejido')
                 ->whereIn('SalonTejidoId', $salones)
                 ->whereIn('NoTelarId', $candidatos)
-                ->where(function($q) {
+                ->where(function ($q) {
                     $q->where('EnProceso', 0)
-                      ->orWhereNull('EnProceso');
+                        ->orWhereNull('EnProceso');
                 })
                 ->whereNotNull('FechaInicio')
                 ->select($select)
@@ -721,13 +726,13 @@ class TelaresController extends Controller
         }
 
         // Si aún no encuentra, buscar sin restricciones
-        if (!$orden) {
+        if (! $orden) {
             $orden = DB::table('ReqProgramaTejido')
                 ->whereIn('SalonTejidoId', $salones)
                 ->whereIn('NoTelarId', $candidatos)
-                ->where(function($q) {
+                ->where(function ($q) {
                     $q->where('EnProceso', 0)
-                      ->orWhereNull('EnProceso');
+                        ->orWhereNull('EnProceso');
                 })
                 ->select($select)
                 ->orderBy('Id', 'asc')
@@ -768,7 +773,7 @@ class TelaresController extends Controller
 
         return [
             'ultimoJulioRizo' => $rizo !== null && $rizo !== '' ? (string) $rizo : null,
-            'ultimoJulioPie'  => $pie !== null && $pie !== '' ? (string) $pie : null,
+            'ultimoJulioPie' => $pie !== null && $pie !== '' ? (string) $pie : null,
         ];
     }
 
@@ -778,36 +783,36 @@ class TelaresController extends Controller
     private function objTelarVacio($numeroTelar)
     {
         return (object) [
-            'ProgramaId'        => null,
-            'Telar'             => $numeroTelar,
+            'ProgramaId' => null,
+            'Telar' => $numeroTelar,
             'NoTelarIdOriginal' => $numeroTelar,
-            'en_proceso'        => false,
-            'Orden_Prod'        => null,
-            'Id_Flog'           => null,
-            'Cliente'           => null,
-            'Tiras'             => null,
-            'Tamano_AX'         => null,
-            'ItemId'            => null,
-            'Nombre_Producto'   => null,
-            'Cuenta'            => null,
-            'Calibre_Rizo'      => null,
-            'Fibra_Rizo'        => null,
-            'Cuenta_Pie'        => null,
-            'Calibre_Pie'       => null,
-            'Fibra_Pie'         => null,
-            'CALIBRE_TRA'       => null,
-            'COLOR_TRAMA'       => null,
-            'Saldos'            => null,
-            'Prod_Kg_Dia'       => null,
-            'Marbetes_Pend'     => null,
-            'MarbetesPend'      => null,
-            'Inicio_Tejido'     => null,
-            'Fin_Tejido'        => null,
-            'Fecha_Compromiso'  => null,
-            'Total_Paros'       => 0,
-            'Tiempo_Paro'       => null,
-            'ultimoJulioRizo'   => null,
-            'ultimoJulioPie'    => null,
+            'en_proceso' => false,
+            'Orden_Prod' => null,
+            'Id_Flog' => null,
+            'Cliente' => null,
+            'Tiras' => null,
+            'Tamano_AX' => null,
+            'ItemId' => null,
+            'Nombre_Producto' => null,
+            'Cuenta' => null,
+            'Calibre_Rizo' => null,
+            'Fibra_Rizo' => null,
+            'Cuenta_Pie' => null,
+            'Calibre_Pie' => null,
+            'Fibra_Pie' => null,
+            'CALIBRE_TRA' => null,
+            'COLOR_TRAMA' => null,
+            'Saldos' => null,
+            'Prod_Kg_Dia' => null,
+            'Marbetes_Pend' => null,
+            'MarbetesPend' => null,
+            'Inicio_Tejido' => null,
+            'Fin_Tejido' => null,
+            'Fecha_Compromiso' => null,
+            'Total_Paros' => 0,
+            'Tiempo_Paro' => null,
+            'ultimoJulioRizo' => null,
+            'ultimoJulioPie' => null,
         ];
     }
 }

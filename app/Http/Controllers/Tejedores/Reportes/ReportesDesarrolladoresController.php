@@ -35,7 +35,7 @@ class ReportesDesarrolladoresController extends Controller
         $fechaIni = $request->query('fecha_ini');
         $fechaFin = $request->query('fecha_fin');
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return view('modulos.desarrolladores.reportes.programa', [
                 'fechaIni' => null,
                 'fechaFin' => null,
@@ -60,7 +60,7 @@ class ReportesDesarrolladoresController extends Controller
         $fechaInicio = $request->input('fecha_inicio') ?? $request->query('fecha_ini');
         $fechaFin = $request->input('fecha_fin') ?? $request->query('fecha_fin');
 
-        if (!$fechaInicio || !$fechaFin) {
+        if (! $fechaInicio || ! $fechaFin) {
             return redirect()->back()->with('error', 'Debe seleccionar fecha inicio y fecha fin para exportar.');
         }
 
@@ -71,7 +71,7 @@ class ReportesDesarrolladoresController extends Controller
             return redirect()->back()->with('error', 'La fecha inicio no puede ser mayor que la fecha fin.');
         }
 
-        $nombreArchivo = 'desarrolladores_' . Carbon::parse($fechaInicioFormateada)->format('d-m-Y') . '_a_' . Carbon::parse($fechaFinFormateada)->format('d-m-Y') . '.xlsx';
+        $nombreArchivo = 'desarrolladores_'.Carbon::parse($fechaInicioFormateada)->format('d-m-Y').'_a_'.Carbon::parse($fechaFinFormateada)->format('d-m-Y').'.xlsx';
 
         return Excel::download(
             new DesarrolladoresReporteExport($fechaInicioFormateada, $fechaFinFormateada),

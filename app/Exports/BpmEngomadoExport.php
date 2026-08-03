@@ -156,12 +156,13 @@ class BpmEngomadoExport implements FromArray, WithEvents, WithTitle
 
         if ($table) {
             $table->setRange($range);
+
             return;
         }
 
         $newTable = new Table($range, $tableName);
         $newTable->setStyle(
-            (new TableStyle())->setTheme(TableStyle::TABLE_STYLE_MEDIUM2)
+            (new TableStyle)->setTheme(TableStyle::TABLE_STYLE_MEDIUM2)
         );
         $sheet->addTable($newTable);
     }
@@ -182,6 +183,7 @@ class BpmEngomadoExport implements FromArray, WithEvents, WithTitle
                     'color' => ['argb' => Color::COLOR_DARKGREEN],
                 ],
             ]);
+
             return;
         }
 
@@ -196,6 +198,7 @@ class BpmEngomadoExport implements FromArray, WithEvents, WithTitle
                     'color' => ['argb' => 'FF92400E'],
                 ],
             ]);
+
             return;
         }
 
@@ -229,6 +232,7 @@ class BpmEngomadoExport implements FromArray, WithEvents, WithTitle
                     'color' => ['argb' => Color::COLOR_DARKGREEN],
                 ],
             ]);
+
             return;
         }
 
@@ -243,6 +247,7 @@ class BpmEngomadoExport implements FromArray, WithEvents, WithTitle
                     'color' => ['argb' => 'FF991B1B'],
                 ],
             ]);
+
             return;
         }
 

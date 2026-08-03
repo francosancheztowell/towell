@@ -16,7 +16,7 @@ class QueryHelpers
     {
         $fibraId = $request->input('fibra_id');
         $noTelar = $request->input('no_telar_id');
-        $calTra  = $request->input('calibre_trama');
+        $calTra = $request->input('calibre_trama');
 
         if ($fibraId === null || $noTelar === null || $calTra === null) {
             return response()->json(['error' => 'Faltan parámetros requeridos'], 400);
@@ -38,6 +38,7 @@ class QueryHelpers
             ]);
         } catch (\Throwable $e) {
             Log::error("get{$campo}Std error", ['msg' => $e->getMessage()]);
+
             return response()->json(['error' => "Error al obtener {$campo} estándar"], 500);
         }
     }
@@ -64,7 +65,7 @@ class QueryHelpers
         return ReqModelosCodificados::where('SalonTejidoId', $salonDestino)
             ->where(function ($q) use ($registro) {
                 $q->where('ClaveModelo', $registro->TamanoClave)
-                  ->orWhere('TamanoClave', $registro->TamanoClave);
+                    ->orWhere('TamanoClave', $registro->TamanoClave);
             })
             ->first();
     }
@@ -98,7 +99,7 @@ class QueryHelpers
                 ->value('Velocidad');
         }
 
-        if (is_null($velocidad) && $modeloDestino && !is_null($modeloDestino->VelocidadSTD)) {
+        if (is_null($velocidad) && $modeloDestino && ! is_null($modeloDestino->VelocidadSTD)) {
             $velocidad = (float) $modeloDestino->VelocidadSTD;
         }
 
@@ -126,10 +127,7 @@ class QueryHelpers
             'eficiencia' => $eficiencia,
             'velocidad' => $velocidad,
             'densidad' => $densidad,
-            'calibre_trama' => $calibreTrama
+            'calibre_trama' => $calibreTrama,
         ];
     }
 }
-
-
-

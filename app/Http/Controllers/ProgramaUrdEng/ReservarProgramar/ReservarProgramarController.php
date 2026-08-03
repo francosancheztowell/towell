@@ -7,14 +7,13 @@ namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 use App\Http\Controllers\Controller;
 use App\Models\Inventario\InvTelasReservadas;
 use App\Models\Planeacion\ReqTelares;
-use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Tejedores\TejNotificaTejedorModel;
+use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\ProgramaUrdEng\InventarioTelaresService;
 use App\Services\ProgramaUrdEng\ProgramasUrdidoEngomadoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class ReservarProgramarController extends Controller
@@ -35,19 +34,20 @@ class ReservarProgramarController extends Controller
 
             return view('modulos.programa_urd_eng.reservar-programar', [
                 'inventarioTelares' => $this->telaresService->normalizeTelares($rows),
-                'columnOptions'     => $this->columnOptionsData(),
-                'canModificar'      => function_exists('userCan') && userCan('modificar', 'Programa Urd / Eng'),
-                'canCrear'          => function_exists('userCan') && userCan('crear', 'Programa Urd / Eng'),
-                'canEliminar'       => function_exists('userCan') && userCan('eliminar', 'Programa Urd / Eng'),
+                'columnOptions' => $this->columnOptionsData(),
+                'canModificar' => function_exists('userCan') && userCan('modificar', 'Programa Urd / Eng'),
+                'canCrear' => function_exists('userCan') && userCan('crear', 'Programa Urd / Eng'),
+                'canEliminar' => function_exists('userCan') && userCan('eliminar', 'Programa Urd / Eng'),
             ]);
         } catch (\Throwable $e) {
             Log::error('ReservarProgramarController::index', ['msg' => $e->getMessage()]);
+
             return view('modulos.programa_urd_eng.reservar-programar', [
                 'inventarioTelares' => collect([]),
-                'columnOptions'     => $this->columnOptionsData(),
-                'canModificar'      => function_exists('userCan') && userCan('modificar', 'Programa Urd / Eng'),
-                'canCrear'          => function_exists('userCan') && userCan('crear', 'Programa Urd / Eng'),
-                'canEliminar'       => function_exists('userCan') && userCan('eliminar', 'Programa Urd / Eng'),
+                'columnOptions' => $this->columnOptionsData(),
+                'canModificar' => function_exists('userCan') && userCan('modificar', 'Programa Urd / Eng'),
+                'canCrear' => function_exists('userCan') && userCan('crear', 'Programa Urd / Eng'),
+                'canEliminar' => function_exists('userCan') && userCan('eliminar', 'Programa Urd / Eng'),
             ]);
         }
     }
@@ -86,7 +86,7 @@ class ReservarProgramarController extends Controller
 
         $telar = $query->first();
 
-        if (!$telar) {
+        if (! $telar) {
             return response()->json([
                 'success' => true,
                 'grupo' => null,
@@ -125,7 +125,7 @@ class ReservarProgramarController extends Controller
 
     public function programarTelar(Request $request): JsonResponse
     {
-        if (!function_exists('userCan') || !userCan('crear', 'Programa Urd / Eng')) {
+        if (! function_exists('userCan') || ! userCan('crear', 'Programa Urd / Eng')) {
             abort(403, 'No tiene permiso para programar.');
         }
         try {
@@ -139,33 +139,34 @@ class ReservarProgramarController extends Controller
             ]);
         } catch (\Throwable $e) {
             Log::error('programarTelar', ['msg' => $e->getMessage()]);
+
             return response()->json(['success' => false, 'message' => 'Error al programar el telar'], 500);
         }
     }
 
     public function actualizarTelar(Request $request): JsonResponse
     {
-        if (!function_exists('userCan') || !userCan('modificar', 'Programa Urd / Eng')) {
+        if (! function_exists('userCan') || ! userCan('modificar', 'Programa Urd / Eng')) {
             abort(403, 'No tiene permiso para modificar.');
         }
         try {
             $request->validate([
                 'no_telar' => ['required', 'string', 'max:50'],
-                'tipo'     => ['nullable', 'string', 'max:20'],
-                'metros'   => ['nullable', 'numeric'],
+                'tipo' => ['nullable', 'string', 'max:20'],
+                'metros' => ['nullable', 'numeric'],
                 'no_julio' => ['nullable', 'string', 'max:50'],
                 'no_orden' => ['nullable', 'string', 'max:50'],
                 'localidad' => ['nullable', 'string', 'max:10'],
                 'tipo_atado' => ['nullable', 'string', 'in:Normal,Especial'],
-                'hilo'     => ['nullable', 'string', 'max:50'],
-                'cuenta'   => ['nullable', 'string', 'max:50'],
-                'calibre'  => ['nullable', 'numeric'],
-                'id'       => ['nullable', 'integer'],
-                'fecha'    => ['nullable', 'string'],
-                'turno'    => ['nullable'],
-                'folio'    => ['nullable', 'string', 'max:50'],
+                'hilo' => ['nullable', 'string', 'max:50'],
+                'cuenta' => ['nullable', 'string', 'max:50'],
+                'calibre' => ['nullable', 'numeric'],
+                'id' => ['nullable', 'integer'],
+                'fecha' => ['nullable', 'string'],
+                'turno' => ['nullable'],
+                'folio' => ['nullable', 'string', 'max:50'],
                 'lote_proveedor' => ['nullable', 'string', 'max:50'],
-                'no_proveedor'   => ['nullable', 'string', 'max:50'],
+                'no_proveedor' => ['nullable', 'string', 'max:50'],
                 'solo_inventario' => ['nullable', 'boolean'],
             ]);
 
@@ -189,7 +190,7 @@ class ReservarProgramarController extends Controller
             $actualizadosEngomado = 0;
 
             // Actualizar inventario
-            if (!empty($updateInventario)) {
+            if (! empty($updateInventario)) {
                 $actualizadosInventario = $this->actualizarInventarioTelares($id, $noTelar, $tipo, $updateInventario, $fecha, $turno);
                 if ($actualizadosInventario === -1) {
                     return response()->json(['success' => false, 'message' => 'Telar no encontrado o no está activo'], 404);
@@ -198,9 +199,9 @@ class ReservarProgramarController extends Controller
 
             // Actualizar programas (UrdProgramaUrdido / EngProgramaEngomado) solo por Folio.
             // Desde Programación de Requerimientos no se actualizan programas, solo inventario (solo_inventario=true).
-            if (!empty($updateProgramas) && !$request->boolean('solo_inventario')) {
+            if (! empty($updateProgramas) && ! $request->boolean('solo_inventario')) {
                 $telar = $this->obtenerTelarParaActualizar($id, $noTelar, $tipo);
-                $folioDesdeTelar = $telar ? trim((string)($telar->no_orden ?? '')) : '';
+                $folioDesdeTelar = $telar ? trim((string) ($telar->no_orden ?? '')) : '';
                 if ($folioDesdeTelar !== '') {
                     $tipoParaProgramas = $updateProgramas['tipo'] ?? $tipo;
                     $resultado = $this->programasService->actualizar($noTelar, $tipoParaProgramas, $updateProgramas, $folioDesdeTelar);
@@ -220,20 +221,21 @@ class ReservarProgramarController extends Controller
             ]);
         } catch (\Throwable $e) {
             Log::error('actualizarTelar', ['msg' => $e->getMessage()]);
-            return response()->json(['success' => false, 'message' => 'Error al actualizar el telar: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'message' => 'Error al actualizar el telar: '.$e->getMessage()], 500);
         }
     }
 
     public function liberarTelar(Request $request): JsonResponse
     {
-        if (!function_exists('userCan') || !userCan('eliminar', 'Programa Urd / Eng')) {
+        if (! function_exists('userCan') || ! userCan('eliminar', 'Programa Urd / Eng')) {
             abort(403, 'No tiene permiso para liberar.');
         }
         try {
             $request->validate([
-                'id'       => ['nullable', 'integer'],
+                'id' => ['nullable', 'integer'],
                 'no_telar' => ['required', 'string', 'max:50'],
-                'tipo'     => ['nullable', 'string', 'max:20'],
+                'tipo' => ['nullable', 'string', 'max:20'],
             ]);
 
             $id = $request->filled('id') ? (int) $request->input('id') : null;
@@ -242,12 +244,12 @@ class ReservarProgramarController extends Controller
 
             // Buscar telar activo
             $telar = $this->buscarTelarParaLiberar($id, $noTelar, $tipo);
-            if (!$telar) {
+            if (! $telar) {
                 return response()->json(['success' => false, 'message' => 'Telar no encontrado o no esta activo'], 404);
             }
 
-            $noJulio = trim((string)($telar->no_julio ?? ''));
-            $noOrden = trim((string)($telar->no_orden ?? ''));
+            $noJulio = trim((string) ($telar->no_julio ?? ''));
+            $noOrden = trim((string) ($telar->no_orden ?? ''));
             $tipoTelar = $this->telaresService->normalizeTipo($telar->tipo ?? $tipo);
             if ($noJulio === '' || $noOrden === '') {
                 return response()->json([
@@ -311,12 +313,13 @@ class ReservarProgramarController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => "Telar {$noTelar} liberado correctamente. {$eliminadas} reserva(s) eliminada(s).",
-                'data'    => $telar->fresh(),
+                'data' => $telar->fresh(),
                 'reservas_eliminadas' => $eliminadas,
             ]);
         } catch (\Throwable $e) {
             Log::error('liberarTelar', ['msg' => $e->getMessage()]);
-            return response()->json(['success' => false, 'message' => 'Error al liberar el telar: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'message' => 'Error al liberar el telar: '.$e->getMessage()], 500);
         }
     }
 
@@ -366,7 +369,7 @@ class ReservarProgramarController extends Controller
     private function enriquecerTelaresConId(array $telares): array
     {
         foreach ($telares as &$t) {
-            if (!empty($t['id'])) {
+            if (! empty($t['id'])) {
                 continue;
             }
 
@@ -383,7 +386,7 @@ class ReservarProgramarController extends Controller
                 $query->where('tipo', $tipo);
             }
 
-            if (!empty($t['fecha'])) {
+            if (! empty($t['fecha'])) {
                 $query->whereDate('fecha', $t['fecha']);
             }
             if (isset($t['turno']) && $t['turno'] !== '' && $t['turno'] !== null) {
@@ -411,12 +414,15 @@ class ReservarProgramarController extends Controller
             }
         }
         unset($t);
+
         return $telares;
     }
 
     private function parseTelaresFromQuery(?string $telaresJson): array
     {
-        if (!$telaresJson) return [];
+        if (! $telaresJson) {
+            return [];
+        }
         try {
             // Laravel ya decodifica los query params automáticamente,
             // no aplicar urldecode() adicional para evitar doble decodificación
@@ -424,6 +430,7 @@ class ReservarProgramarController extends Controller
             return json_decode($telaresJson, true) ?: [];
         } catch (\Throwable $e) {
             Log::error('parseTelaresFromQuery', ['msg' => $e->getMessage()]);
+
             return [];
         }
     }
@@ -443,37 +450,64 @@ class ReservarProgramarController extends Controller
         if ($tipo !== null && $tipo !== '') {
             $query->where('tipo', $tipo);
         }
+
         return $query->first();
     }
-
-
 
     private function extraerCamposInventario(Request $request): array
     {
         $update = [];
-        if ($request->filled('metros'))   $update['metros'] = (float) $request->input('metros');
-        if ($request->filled('no_julio')) $update['no_julio'] = (string) $request->input('no_julio');
+        if ($request->filled('metros')) {
+            $update['metros'] = (float) $request->input('metros');
+        }
+        if ($request->filled('no_julio')) {
+            $update['no_julio'] = (string) $request->input('no_julio');
+        }
         if ($request->filled('no_orden')) {
             $update['no_orden'] = (string) $request->input('no_orden');
             $update['LoteProveedor'] = (string) $request->input('no_orden');
         }
-        if ($request->filled('localidad'))   $update['localidad'] = (string) $request->input('localidad');
-        if ($request->filled('tipo_atado'))  $update['tipo_atado'] = (string) $request->input('tipo_atado');
-        if ($request->filled('hilo'))        $update['hilo'] = (string) $request->input('hilo');
-        if ($request->has('cuenta'))         $update['cuenta'] = (string) ($request->input('cuenta') ?? '');
-        if ($request->has('calibre'))        $update['calibre'] = $request->input('calibre') !== '' && $request->input('calibre') !== null ? (float) $request->input('calibre') : null;
-        if ($request->filled('lote_proveedor')) $update['LoteProveedor'] = (string) $request->input('lote_proveedor');
-        if ($request->filled('no_proveedor'))   $update['NoProveedor'] = (string) $request->input('no_proveedor');
+        if ($request->filled('localidad')) {
+            $update['localidad'] = (string) $request->input('localidad');
+        }
+        if ($request->filled('tipo_atado')) {
+            $update['tipo_atado'] = (string) $request->input('tipo_atado');
+        }
+        if ($request->filled('hilo')) {
+            $update['hilo'] = (string) $request->input('hilo');
+        }
+        if ($request->has('cuenta')) {
+            $update['cuenta'] = (string) ($request->input('cuenta') ?? '');
+        }
+        if ($request->has('calibre')) {
+            $update['calibre'] = $request->input('calibre') !== '' && $request->input('calibre') !== null ? (float) $request->input('calibre') : null;
+        }
+        if ($request->filled('lote_proveedor')) {
+            $update['LoteProveedor'] = (string) $request->input('lote_proveedor');
+        }
+        if ($request->filled('no_proveedor')) {
+            $update['NoProveedor'] = (string) $request->input('no_proveedor');
+        }
+
         return $update;
     }
 
     private function extraerCamposProgramas(Request $request): array
     {
         $update = [];
-        if ($request->filled('hilo'))    $update['hilo'] = (string) $request->input('hilo');
-        if ($request->filled('cuenta'))  $update['cuenta'] = (string) $request->input('cuenta');
-        if ($request->filled('calibre')) $update['calibre'] = (float) $request->input('calibre');
-        if ($request->filled('tipo'))    $update['tipo'] = $this->telaresService->normalizeTipo($request->input('tipo'));
+        if ($request->filled('hilo')) {
+            $update['hilo'] = (string) $request->input('hilo');
+        }
+        if ($request->filled('cuenta')) {
+            $update['cuenta'] = (string) $request->input('cuenta');
+        }
+        if ($request->filled('calibre')) {
+            $update['calibre'] = (float) $request->input('calibre');
+        }
+        if ($request->filled('tipo')) {
+            $update['tipo'] = $this->telaresService->normalizeTipo($request->input('tipo'));
+        }
+
         return $update;
     }
 
@@ -484,8 +518,11 @@ class ReservarProgramarController extends Controller
     {
         if ($id) {
             $telar = TejInventarioTelares::where('id', $id)->where('status', self::STATUS_ACTIVO)->first();
-            if (!$telar) return -1;
+            if (! $telar) {
+                return -1;
+            }
             $telar->update($updateData);
+
             return 1;
         }
 
@@ -503,13 +540,16 @@ class ReservarProgramarController extends Controller
 
         /** @var \Illuminate\Database\Eloquent\Collection<int, TejInventarioTelares> $telares */
         $telares = $query->get();
-        if ($telares->isEmpty()) return -1;
+        if ($telares->isEmpty()) {
+            return -1;
+        }
 
         $count = 0;
         foreach ($telares as $telar) {
             $telar->update($updateData);
             $count++;
         }
+
         return $count;
     }
 
@@ -520,7 +560,9 @@ class ReservarProgramarController extends Controller
             $q->where('id', (int) $id);
         } else {
             $q->where('no_telar', $noTelar);
-            if ($tipo !== null) $q->where('tipo', $tipo);
+            if ($tipo !== null) {
+                $q->where('tipo', $tipo);
+            }
         }
 
         // Priorizar registros realmente reservados
@@ -535,12 +577,18 @@ class ReservarProgramarController extends Controller
     private function construirMensajeActualizacion(string $noTelar, int $inv, int $urd, int $eng): string
     {
         $partes = [];
-        if ($inv > 0) $partes[] = "{$inv} registro(s) en TejInventarioTelares";
-        if ($urd > 0) $partes[] = "{$urd} registro(s) en UrdProgramaUrdido";
-        if ($eng > 0) $partes[] = "{$eng} registro(s) en EngProgramaEngomado";
+        if ($inv > 0) {
+            $partes[] = "{$inv} registro(s) en TejInventarioTelares";
+        }
+        if ($urd > 0) {
+            $partes[] = "{$urd} registro(s) en UrdProgramaUrdido";
+        }
+        if ($eng > 0) {
+            $partes[] = "{$eng} registro(s) en EngProgramaEngomado";
+        }
 
         $msg = "Telar {$noTelar} actualizado";
-        return !empty($partes) ? $msg . ': ' . implode(', ', $partes) : $msg . ' (no se encontraron registros para actualizar)';
-    }
 
+        return ! empty($partes) ? $msg.': '.implode(', ', $partes) : $msg.' (no se encontraron registros para actualizar)';
+    }
 }

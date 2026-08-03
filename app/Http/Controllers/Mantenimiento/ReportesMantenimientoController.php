@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Mantenimiento;
 
-use App\Http\Controllers\Controller;
 use App\Exports\ReporteMantenimientoExport;
+use App\Http\Controllers\Controller;
 use App\Models\Mantenimiento\ManFallasParos;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
@@ -77,7 +77,7 @@ class ReportesMantenimientoController extends Controller
 
         return Excel::download(
             new ReporteMantenimientoExport($registros),
-            'Reporte_Mantenimiento_' . now()->format('Y-m-d_His') . '.xlsx'
+            'Reporte_Mantenimiento_'.now()->format('Y-m-d_His').'.xlsx'
         );
     }
 }

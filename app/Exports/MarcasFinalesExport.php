@@ -2,25 +2,26 @@
 
 namespace App\Exports;
 
+use App\Models\Tejido\TejMarcas;
+use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithEvents;
-use Maatwebsite\Excel\Concerns\WithColumnFormatting;
 use Maatwebsite\Excel\Events\AfterSheet;
-use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
-use Carbon\Carbon;
-use App\Models\Tejido\TejMarcas;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class MarcasFinalesExport implements FromCollection, WithHeadings, WithStyles, WithColumnWidths, WithTitle, WithEvents, WithColumnFormatting
+class MarcasFinalesExport implements FromCollection, WithColumnFormatting, WithColumnWidths, WithEvents, WithHeadings, WithStyles, WithTitle
 {
     protected $tablas;
+
     protected $fecha;
 
     public function __construct($tablas, $fecha)
@@ -44,6 +45,7 @@ class MarcasFinalesExport implements FromCollection, WithHeadings, WithStyles, W
                     if (is_object($obj) && isset($obj->NoTelarId)) {
                         return [$obj->NoTelarId => ($obj->SalonId ?? null)];
                     }
+
                     return [$obj => null];
                 });
             });
@@ -51,13 +53,15 @@ class MarcasFinalesExport implements FromCollection, WithHeadings, WithStyles, W
         // Orden: Turno 1, 2, 3; dentro de cada turno, telar en el orden provisto
         foreach ([1, 2, 3] as $turno) {
             $tabla = $porTurno->get($turno);
-            if (!$tabla) continue;
+            if (! $tabla) {
+                continue;
+            }
 
             $folio = $tabla['folio'];
             $infoFolio = [
                 'Status' => '',
                 'numero_empleado' => '',
-                'nombreEmpl' => ''
+                'nombreEmpl' => '',
             ];
             if ($folio) {
                 $m = TejMarcas::find($folio);
@@ -93,7 +97,9 @@ class MarcasFinalesExport implements FromCollection, WithHeadings, WithStyles, W
                 if ($linea) {
                     $e = $linea->Eficiencia ?? $linea->EficienciaSTD ?? $linea->EficienciaStd ?? null;
                     if ($e !== null && $e !== '') {
-                        if (is_numeric($e) && $e <= 1) $e = $e * 100; // si viene 0-1
+                        if (is_numeric($e) && $e <= 1) {
+                            $e = $e * 100;
+                        } // si viene 0-1
                         $ef = intval(round($e));
                     }
                 }
@@ -189,7 +195,8 @@ class MarcasFinalesExport implements FromCollection, WithHeadings, WithStyles, W
         } catch (\Throwable $th) {
             $f = (string) $this->fecha;
         }
-        return 'Reporte Marcas finales ' . $f;
+
+        return 'Reporte Marcas finales '.$f;
     }
 
     public function registerEvents(): array
@@ -199,14 +206,14 @@ class MarcasFinalesExport implements FromCollection, WithHeadings, WithStyles, W
                 $sheet = $event->sheet->getDelegate();
                 $highestRow = $sheet->getHighestRow();
                 $highestColumn = $sheet->getHighestColumn();
-                $range = 'A1:' . $highestColumn . $highestRow;
+                $range = 'A1:'.$highestColumn.$highestRow;
 
                 // Bordes negros para toda la tabla
                 $sheet->getStyle($range)->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color('000000'));
 
                 // Altura del encabezado
                 $sheet->getRowDimension(1)->setRowHeight(20);
-            }
+            },
         ];
     }
 

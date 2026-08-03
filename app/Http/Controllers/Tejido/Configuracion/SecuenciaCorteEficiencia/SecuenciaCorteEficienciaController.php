@@ -17,7 +17,8 @@ class SecuenciaCorteEficienciaController extends Controller
 
             return view('modulos.tejido.secuencia.corte-eficiencia', compact('registros'));
         } catch (\Exception $e) {
-            Log::error('Error al cargar Secuencia Corte Eficiencia: ' . $e->getMessage());
+            Log::error('Error al cargar Secuencia Corte Eficiencia: '.$e->getMessage());
+
             return back()->with('error', 'Error al cargar los registros');
         }
     }
@@ -57,13 +58,14 @@ class SecuenciaCorteEficienciaController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-            Log::error('Error al crear Secuencia Corte Eficiencia: ' . $e->getMessage());
+            Log::error('Error al crear Secuencia Corte Eficiencia: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al crear el registro: ' . $e->getMessage()
+                'message' => 'Error al crear el registro: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -102,13 +104,14 @@ class SecuenciaCorteEficienciaController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-            Log::error('Error al actualizar Secuencia Corte Eficiencia: ' . $e->getMessage());
+            Log::error('Error al actualizar Secuencia Corte Eficiencia: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al actualizar el registro: ' . $e->getMessage()
+                'message' => 'Error al actualizar el registro: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -121,13 +124,14 @@ class SecuenciaCorteEficienciaController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Registro eliminado exitosamente'
+                'message' => 'Registro eliminado exitosamente',
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al eliminar Secuencia Corte Eficiencia: ' . $e->getMessage());
+            Log::error('Error al eliminar Secuencia Corte Eficiencia: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al eliminar el registro: ' . $e->getMessage()
+                'message' => 'Error al eliminar el registro: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -158,10 +162,11 @@ class SecuenciaCorteEficienciaController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Datos inválidos',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
-            Log::error('Error al actualizar orden Secuencia Corte Eficiencia: ' . $e->getMessage());
+            Log::error('Error al actualizar orden Secuencia Corte Eficiencia: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al actualizar el orden',

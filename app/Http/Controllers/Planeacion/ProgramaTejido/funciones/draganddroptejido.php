@@ -27,7 +27,7 @@ class DragAndDropTejido
         $antes = [
             'salon' => $registro->SalonTejidoId,
             'telar' => $registro->NoTelarId,
-            'posicion' => $registro->Posicion ?? 0
+            'posicion' => $registro->Posicion ?? 0,
         ];
 
         // Validación: Registro no debe estar en proceso
@@ -46,7 +46,7 @@ class DragAndDropTejido
             $despues = [
                 'salon' => $registro->SalonTejidoId,
                 'telar' => $registro->NoTelarId,
-                'posicion' => $registro->Posicion ?? (int) $data['new_position']
+                'posicion' => $registro->Posicion ?? (int) $data['new_position'],
             ];
             \App\Helpers\AuditoriaHelper::logDragDrop(
                 'ReqProgramaTejido',
@@ -57,13 +57,13 @@ class DragAndDropTejido
             );
 
             return response()->json([
-                'success'          => true,
-                'message'          => 'Prioridad actualizada correctamente',
+                'success' => true,
+                'message' => 'Prioridad actualizada correctamente',
                 'cascaded_records' => count($resultado['detalles']),
-                'detalles'         => $resultado['detalles'],
-                'updates'          => $resultado['updates'] ?? [],
-                'registro_id'      => $registro->Id,
-                'deseleccionar'    => true,
+                'detalles' => $resultado['detalles'],
+                'updates' => $resultado['updates'] ?? [],
+                'registro_id' => $registro->Id,
+                'deseleccionar' => true,
             ]);
         } catch (\Throwable $e) {
             return response()->json([
@@ -92,7 +92,7 @@ class DragAndDropTejido
                 self::validarCantidadRegistros($registros);
 
                 $inicioOriginal = self::obtenerInicioOriginal($registros);
-                $idxActual      = self::obtenerIndiceRegistro($registros, $registro);
+                $idxActual = self::obtenerIndiceRegistro($registros, $registro);
 
                 self::validarPosicionPermitida($registros, $nuevaPosicion);
                 self::validarRangoPosicion($registros, $nuevaPosicion);
@@ -115,11 +115,11 @@ class DragAndDropTejido
                 // agregando explícitamente la posición para cada registro según su orden en la colección reordenada
                 $idsAfectados = [];
                 foreach ($registrosReordenados->values() as $index => $r) {
-                    $idRegistro = (int)$r->Id;
+                    $idRegistro = (int) $r->Id;
                     $nuevaPosicion = $index + 1;
 
                     // Asegurar que el update incluya la posición correcta
-                    if (!isset($updates[$idRegistro])) {
+                    if (! isset($updates[$idRegistro])) {
                         $updates[$idRegistro] = [];
                     }
                     // Forzar la actualización de la posición según el nuevo orden
@@ -127,7 +127,7 @@ class DragAndDropTejido
                     $idsAfectados[] = $idRegistro;
                 }
 
-                if (!empty($idsAfectados)) {
+                if (! empty($idsAfectados)) {
                     // Evitar colisiones temporales con el índice único (telar+posición)
                     // IMPORTANTE: Solo actualizar registros del mismo telar para evitar afectar otros telares
                     DB::table(ReqProgramaTejido::tableName())
@@ -143,7 +143,7 @@ class DragAndDropTejido
                     // Verificar que el registro pertenece al mismo telar antes de actualizar
                     // IMPORTANTE: Asegurar que Posicion esté presente y sea un entero
                     if (isset($dataU['Posicion'])) {
-                        $dataU['Posicion'] = (int)$dataU['Posicion'];
+                        $dataU['Posicion'] = (int) $dataU['Posicion'];
                     }
 
                     DB::table(ReqProgramaTejido::tableName())
@@ -159,9 +159,9 @@ class DragAndDropTejido
                 }
 
                 return [
-                    'detalles'     => $detalles,
+                    'detalles' => $detalles,
                     'idsAfectados' => $idsAfectados,
-                    'updates'      => $updatesById,
+                    'updates' => $updatesById,
                 ];
             }, 3);
 
@@ -171,7 +171,7 @@ class DragAndDropTejido
             // 6) Regenerar líneas (fuera del lock/transaction para no alargar bloqueos)
             //    OPTIMIZADO: un solo query en vez de N finds
             $idsAfectados = $resultado['idsAfectados'] ?? [];
-            if (!empty($idsAfectados)) {
+            if (! empty($idsAfectados)) {
                 ReqProgramaTejido::regenerarLineas(
                     ReqProgramaTejido::query()
                         ->whereIn('Id', $idsAfectados)
@@ -182,16 +182,13 @@ class DragAndDropTejido
             }
 
             return [
-                'success'  => true,
+                'success' => true,
                 'detalles' => $resultado['detalles'] ?? [],
-                'updates'  => $resultado['updates'] ?? [],
+                'updates' => $resultado['updates'] ?? [],
             ];
         } catch (\Throwable $e) {
             // Restaurar dispatcher aunque explote
             ReqProgramaTejido::restoreObservers($dispatcher);
-
-
-
 
             throw $e;
         }
@@ -232,7 +229,7 @@ class DragAndDropTejido
             ? Carbon::parse($primero->FechaInicio)
             : null;
 
-        if (!$inicioOriginal) {
+        if (! $inicioOriginal) {
             throw new \RuntimeException('El primer registro debe tener una fecha de inicio válida.');
         }
 
@@ -268,7 +265,7 @@ class DragAndDropTejido
 
         if ($nuevaPosicion < $posicionMinima) {
             throw new \RuntimeException(
-                'No se puede colocar un registro antes de uno que está en proceso. La posición mínima permitida es ' . ($posicionMinima + 1) . '.'
+                'No se puede colocar un registro antes de uno que está en proceso. La posición mínima permitida es '.($posicionMinima + 1).'.'
             );
         }
     }

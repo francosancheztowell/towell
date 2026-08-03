@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
 use App\Helpers\StringTruncator;
-use App\Models\Planeacion\ReqProgramaTejido;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\EliminarTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\EditTejido;
+use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\EliminarTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\UpdateTejido;
+use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UpdateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UtilityHelpers;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
+use App\Models\Planeacion\ReqProgramaTejido;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB as DBFacade;
@@ -18,9 +18,11 @@ use Illuminate\Support\Facades\Log as LogFacade;
 
 /**
  * @file ProgramaTejidoController.php
+ *
  * @description Controlador principal para el programa de tejido. Mantiene: index, edit, update, store,
  *              destroy, destroyEnProceso. Catálogos, operaciones, balanceo y calendarios están
  *              en ProgramaTejido*Controller dedicados. También sirve la vista de Muestras.
+ *
  * @dependencies EditTejido, UpdateTejido, EliminarTejido, UpdateHelpers, UtilityHelpers, TejidoHelpers
  */
 class ProgramaTejidoController extends Controller
@@ -132,7 +134,7 @@ class ProgramaTejidoController extends Controller
                 'EntregaProduc',
                 'EntregaPT',
                 'EntregaCte',
-                'PTvsCte'
+                'PTvsCte',
             ])->ordenado()->get();
 
             $columns = UtilityHelpers::getTableColumns();
@@ -148,13 +150,13 @@ class ProgramaTejidoController extends Controller
         } catch (\Throwable $e) {
             LogFacade::error('Error al cargar programa de tejido', [
                 'msg' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return view('modulos.programa-tejido.req-programa-tejido', [
                 'registros' => collect(),
                 'columns' => UtilityHelpers::getTableColumns(),
-                'error' => 'Error al cargar los datos: ' . $e->getMessage(),
+                'error' => 'Error al cargar los datos: '.$e->getMessage(),
                 'basePath' => $basePath ?? '/planeacion/programa-tejido',
                 'apiPath' => $apiPath ?? '/programa-tejido',
                 'linePath' => $linePath ?? '/planeacion/req-programa-tejido-line',
@@ -209,7 +211,7 @@ class ProgramaTejidoController extends Controller
             $telaresData = $request->input('telares', []);
             $telaresUnicos = collect($telaresData)->pluck('no_telar_id')->unique()->values()->all();
 
-            if (!empty($telaresUnicos)) {
+            if (! empty($telaresUnicos)) {
                 ReqProgramaTejido::where('SalonTejidoId', $salon)
                     ->whereIn('NoTelarId', $telaresUnicos)
                     ->where('Ultimo', '1')
@@ -222,16 +224,16 @@ class ProgramaTejidoController extends Controller
             foreach ($telaresData as $fila) {
                 $noTelarId = $fila['no_telar_id'];
 
-                $nuevo = new ReqProgramaTejido();
-                $nuevo->EnProceso      = 0;
-                $nuevo->SalonTejidoId  = $salon;
-                $nuevo->NoTelarId      = $noTelarId;
-                $nuevo->Ultimo         = 1;
-                $nuevo->TamanoClave    = $tamanoClave;
-                $nuevo->FibraRizo      = $hilo;
-                $nuevo->FlogsId        = $flogsId;
-                $nuevo->CalendarioId   = $calendarioId;
-                $nuevo->AplicacionId   = $aplicacionId;
+                $nuevo = new ReqProgramaTejido;
+                $nuevo->EnProceso = 0;
+                $nuevo->SalonTejidoId = $salon;
+                $nuevo->NoTelarId = $noTelarId;
+                $nuevo->Ultimo = 1;
+                $nuevo->TamanoClave = $tamanoClave;
+                $nuevo->FibraRizo = $hilo;
+                $nuevo->FlogsId = $flogsId;
+                $nuevo->CalendarioId = $calendarioId;
+                $nuevo->AplicacionId = $aplicacionId;
 
                 if (isset($fila['cambio_hilo'])) {
                     $nuevo->CambioHilo = $fila['cambio_hilo'];
@@ -239,13 +241,13 @@ class ProgramaTejidoController extends Controller
                     $nuevo->CambioHilo = $request->input('CambioHilo', 0);
                 }
 
-                $nuevo->FechaInicio     = $fila['fecha_inicio'] ?? null;
-                $nuevo->FechaFinal      = $fila['fecha_final'] ?? null;
-                $nuevo->EntregaProduc   = $fila['compromiso_tejido'] ?? null;
-                $nuevo->EntregaCte      = $fila['fecha_cliente'] ?? null;
-                $nuevo->EntregaPT       = $fila['fecha_entrega'] ?? null;
-                $nuevo->TotalPedido     = $fila['cantidad'] ?? null;
-                $nuevo->TipoPedido      = $tipoPedido ?? $request->input('TipoPedido');
+                $nuevo->FechaInicio = $fila['fecha_inicio'] ?? null;
+                $nuevo->FechaFinal = $fila['fecha_final'] ?? null;
+                $nuevo->EntregaProduc = $fila['compromiso_tejido'] ?? null;
+                $nuevo->EntregaCte = $fila['fecha_cliente'] ?? null;
+                $nuevo->EntregaPT = $fila['fecha_entrega'] ?? null;
+                $nuevo->TotalPedido = $fila['cantidad'] ?? null;
+                $nuevo->TipoPedido = $tipoPedido ?? $request->input('TipoPedido');
 
                 if ($request->filled('Maquina')) {
                     $nuevo->Maquina = (string) $request->input('Maquina');
@@ -286,7 +288,7 @@ class ProgramaTejidoController extends Controller
                         'AplicacionId',
                         'CalendarioId',
                         'Observaciones',
-                        'Rasurado'
+                        'Rasurado',
                     ] as $campoStr
                 ) {
                     if (isset($nuevo->{$campoStr}) && is_string($nuevo->{$campoStr})) {
@@ -307,11 +309,12 @@ class ProgramaTejidoController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Programa de tejido creado correctamente',
-                'data'    => $creados,
+                'data' => $creados,
             ]);
         } catch (\Throwable $e) {
             DBFacade::rollBack();
-            return response()->json(['success' => false, 'message' => 'Error al crear programa de tejido: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'message' => 'Error al crear programa de tejido: '.$e->getMessage()], 500);
         }
     }
 

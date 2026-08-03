@@ -2,25 +2,25 @@
 
 namespace App\Exports;
 
-use App\Models\Atadores\AtaMontadoTelasModel;
 use App\Models\Atadores\AtaMontadoActividadesModel;
+use App\Models\Atadores\AtaMontadoTelasModel;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use Carbon\Carbon;
 
-class AtaMontadoActividadesSheet implements FromCollection, WithHeadings, WithStyles, WithColumnWidths, WithTitle, WithEvents
+class AtaMontadoActividadesSheet implements FromCollection, WithColumnWidths, WithEvents, WithHeadings, WithStyles, WithTitle
 {
     protected string $fecha;
+
     protected Collection $datos;
 
     public function __construct(string $fecha)
@@ -47,12 +47,12 @@ class AtaMontadoActividadesSheet implements FromCollection, WithHeadings, WithSt
             if ($index === 0) {
                 $query->where(function ($q) use ($folio) {
                     $q->where('NoJulio', $folio->NoJulio)
-                      ->where('NoProduccion', $folio->NoProduccion);
+                        ->where('NoProduccion', $folio->NoProduccion);
                 });
             } else {
                 $query->orWhere(function ($q) use ($folio) {
                     $q->where('NoJulio', $folio->NoJulio)
-                      ->where('NoProduccion', $folio->NoProduccion);
+                        ->where('NoProduccion', $folio->NoProduccion);
                 });
             }
         });
@@ -67,7 +67,7 @@ class AtaMontadoActividadesSheet implements FromCollection, WithHeadings, WithSt
                 'No. Julio' => $item->NoJulio ?? '-',
                 'No. Producción' => $item->NoProduccion ?? '-',
                 'Actividad ID' => $item->ActividadId ?? '-',
-                'Porcentaje' => $item->Porcentaje !== null ? number_format($item->Porcentaje, 2) . '%' : '-',
+                'Porcentaje' => $item->Porcentaje !== null ? number_format($item->Porcentaje, 2).'%' : '-',
                 'Estado' => $item->Estado ?? '-',
                 'Cve. Empleado' => $item->CveEmpl ?? '-',
                 'Nom. Empleado' => $item->NomEmpl ?? '-',

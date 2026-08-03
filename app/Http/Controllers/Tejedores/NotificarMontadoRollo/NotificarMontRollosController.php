@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Tejedores\NotificarMontadoRollo;
 
 use App\Http\Controllers\Controller;
+use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Tejedores\TelMarbeteLiberadoModel;
+use App\Models\Tejedores\TelTelaresOperador;
+use App\Models\Tejido\TejInventarioTelares;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use App\Models\Tejedores\TelTelaresOperador;
-use App\Models\Tejido\TejInventarioTelares;
-use App\Models\Tejedores\TelMarbeteLiberadoModel;
-use App\Models\Planeacion\ReqProgramaTejido;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class NotificarMontRollosController extends Controller
@@ -47,7 +47,7 @@ class NotificarMontRollosController extends Controller
 
                 return response()->json([
                     'telares' => $telaresUsuario->pluck('NoTelarId')->values(),
-                    'telaresDetalle' => $query->get()
+                    'telaresDetalle' => $query->get(),
                 ]);
             }
 
@@ -106,7 +106,7 @@ class NotificarMontRollosController extends Controller
             ->get();
 
         return response()->json([
-            'telares' => $telares
+            'telares' => $telares,
         ]);
     }
 
@@ -115,7 +115,7 @@ class NotificarMontRollosController extends Controller
         $user = Auth::user();
         $noTelar = $request->query('no_telar');
 
-        if (!$noTelar) {
+        if (! $noTelar) {
             return response()->json(['error' => 'No se proporciono el numero de telar'], 400);
         }
 
@@ -128,7 +128,7 @@ class NotificarMontRollosController extends Controller
             ->select('id', 'no_telar', 'cuenta', 'calibre', 'tipo', 'tipo_atado', 'no_orden', 'no_rollo', 'metros', 'horaParo')
             ->first();
 
-        if (!$detalles) {
+        if (! $detalles) {
             return response()->json(['error' => 'Telar no encontrado'], 404);
         }
 
@@ -140,7 +140,7 @@ class NotificarMontRollosController extends Controller
         try {
             $registro = TejInventarioTelares::find($request->id);
 
-            if (!$registro) {
+            if (! $registro) {
                 return response()->json(['error' => 'Registro no encontrado'], 404);
             }
 
@@ -152,7 +152,7 @@ class NotificarMontRollosController extends Controller
             return response()->json([
                 'success' => true,
                 'horaParo' => $horaActual,
-                'message' => 'Notificación de rollo registrada correctamente'
+                'message' => 'Notificación de rollo registrada correctamente',
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
@@ -167,16 +167,16 @@ class NotificarMontRollosController extends Controller
     {
         try {
             $user = Auth::user();
-            
+
             // Validar que el telar pertenece al operador
             $telaresOperador = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
                 ->pluck('NoTelarId')
                 ->toArray();
 
-            if (!in_array($telarId, $telaresOperador)) {
+            if (! in_array($telarId, $telaresOperador)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No tiene permisos para ver este telar'
+                    'message' => 'No tiene permisos para ver este telar',
                 ], 403);
             }
 
@@ -198,17 +198,17 @@ class NotificarMontRollosController extends Controller
 
             return response()->json([
                 'success' => true,
-                'ordenes' => $ordenes
+                'ordenes' => $ordenes,
             ]);
         } catch (\Exception $e) {
             Log::error('Error en obtenerOrdenesEnProceso - Cortado de Rollo', [
                 'error' => $e->getMessage(),
-                'telarId' => $telarId
+                'telarId' => $telarId,
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener las órdenes: ' . $e->getMessage()
+                'message' => 'Error al obtener las órdenes: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -221,16 +221,16 @@ class NotificarMontRollosController extends Controller
         try {
             $noTelar = $request->query('no_telar');
 
-            if (!$noTelar) {
+            if (! $noTelar) {
                 return response()->json(['error' => 'No se proporcionó el número de telar'], 400);
             }
 
             // Probar conexión a TOW_PRO
             try {
                 $testConexion = DB::connection('sqlsrv_ti')->select('SELECT @@VERSION as version');
-                $conexionTowPro = 'OK - ' . ($testConexion[0]->version ?? 'Conectado');
+                $conexionTowPro = 'OK - '.($testConexion[0]->version ?? 'Conectado');
             } catch (\Exception $e) {
-                $conexionTowPro = 'ERROR: ' . $e->getMessage();
+                $conexionTowPro = 'ERROR: '.$e->getMessage();
             }
 
             // Buscar orden activa en ReqProgramaTejido para el telar
@@ -240,13 +240,13 @@ class NotificarMontRollosController extends Controller
                 ->select('NoProduccion', 'NoTelarId', 'SalonTejidoId')
                 ->first();
 
-            if (!$ordenActiva) {
+            if (! $ordenActiva) {
                 return response()->json([
                     'error' => 'No se encontró orden de producción activa para este telar',
                     'debug' => [
                         'telar_buscado' => $noTelar,
-                        'conexion_tow_pro' => $conexionTowPro
-                    ]
+                        'conexion_tow_pro' => $conexionTowPro,
+                    ],
                 ], 404);
             }
 
@@ -254,12 +254,12 @@ class NotificarMontRollosController extends Controller
                 'success' => true,
                 'orden' => $ordenActiva,
                 'debug' => [
-                    'conexion_tow_pro' => $conexionTowPro
-                ]
+                    'conexion_tow_pro' => $conexionTowPro,
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Error al obtener orden de producción: ' . $e->getMessage()
+                'error' => 'Error al obtener orden de producción: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -274,7 +274,7 @@ class NotificarMontRollosController extends Controller
             $noTelar = $request->query('no_telar');
             $salon = $request->query('salon');
 
-            if (!$noProduccion || !$noTelar) {
+            if (! $noProduccion || ! $noTelar) {
                 return response()->json(['error' => 'Faltan parámetros requeridos (no_produccion, no_telar)'], 400);
             }
 
@@ -294,7 +294,7 @@ class NotificarMontRollosController extends Controller
                     ->where('prodId', $ordenLocal->ProdId)
                     ->where('StatusMarebete', 0)
                     ->get();
-                
+
                 if ($datosProduccion->isNotEmpty()) {
                     $fuente = 'TWMarbetes';
                 }
@@ -330,8 +330,8 @@ class NotificarMontRollosController extends Controller
                         'no_produccion' => $noProduccion,
                         'no_telar' => $noTelar,
                         'prod_id' => $ordenLocal->ProdId ?? 'N/A',
-                        'fuente_intentada' => $fuente
-                    ]
+                        'fuente_intentada' => $fuente,
+                    ],
                 ], 404);
             }
 
@@ -344,22 +344,23 @@ class NotificarMontRollosController extends Controller
             foreach ($datosProduccion as $dato) {
                 // Mapeo flexible para soportar TWMarbetes (asumiendo nombres similares o fallback a los de ProdTable)
                 $barCode = $dato->PurchBarCode ?? ($dato->Marbete ?? null);
-                
+
                 // Saltar este registro si ya fue liberado
                 if ($barCode && in_array($barCode, $marbetesLiberados)) {
                     $excluidos++;
+
                     continue;
                 }
 
                 $datosFormateados[] = [
                     'PurchBarCode' => $barCode,
-                    'ItemId'       => $dato->ItemId ?? null,
-                    'QtySched'     => $dato->QtySched ?? ($dato->Metros ?? ($dato->Cantidad ?? 0)),
-                    'CUANTAS'      => $dato->CUANTAS ?? ($dato->Cuantas ?? null),
+                    'ItemId' => $dato->ItemId ?? null,
+                    'QtySched' => $dato->QtySched ?? ($dato->Metros ?? ($dato->Cantidad ?? 0)),
+                    'CUANTAS' => $dato->CUANTAS ?? ($dato->Cuantas ?? null),
                     'InventSizeId' => $dato->InventSizeId ?? ($dato->Size ?? null),
-                    'InventBatchId'=> $dato->InventBatchId ?? ($dato->Orden ?? $noProduccion),
-                    'WMSLocationId'=> $dato->WMSLocationId ?? ($dato->Telar ?? $noTelar),
-                    'Salon'        => $salon
+                    'InventBatchId' => $dato->InventBatchId ?? ($dato->Orden ?? $noProduccion),
+                    'WMSLocationId' => $dato->WMSLocationId ?? ($dato->Telar ?? $noTelar),
+                    'Salon' => $salon,
                 ];
             }
 
@@ -372,8 +373,8 @@ class NotificarMontRollosController extends Controller
                     'debug' => [
                         'total_encontrados' => $datosProduccion->count(),
                         'excluidos' => $excluidos,
-                        'fuente' => $fuente
-                    ]
+                        'fuente' => $fuente,
+                    ],
                 ]);
             }
 
@@ -382,12 +383,12 @@ class NotificarMontRollosController extends Controller
                 'datos' => $datosFormateados,
                 'total' => count($datosFormateados),
                 'fuente' => $fuente,
-                'mensaje' => "Se encontraron " . count($datosFormateados) . " marbetes disponibles en " . $fuente . ($excluidos > 0 ? " ({$excluidos} ya liberados)" : "")
+                'mensaje' => 'Se encontraron '.count($datosFormateados).' marbetes disponibles en '.$fuente.($excluidos > 0 ? " ({$excluidos} ya liberados)" : ''),
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Error al obtener datos de producción: ' . $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'error' => 'Error al obtener datos de producción: '.$e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ], 500);
         }
     }
@@ -416,6 +417,7 @@ class NotificarMontRollosController extends Controller
                     if ($marbeteExistente) {
                         // Si ya existe, solo contamos pero no actualizamos
                         $yaExistian++;
+
                         continue;
                     }
 
@@ -434,13 +436,13 @@ class NotificarMontRollosController extends Controller
                     TelMarbeteLiberadoModel::create($datosAGuardar);
                     $insertados++;
                 } catch (\Exception $e) {
-                    $errores[] = "Error en marbete {$marbete['PurchBarCode']}: " . $e->getMessage();
+                    $errores[] = "Error en marbete {$marbete['PurchBarCode']}: ".$e->getMessage();
                 }
             }
 
-            $mensaje = "Marbete liberado correctamente";
+            $mensaje = 'Marbete liberado correctamente';
             if ($yaExistian > 0) {
-                $mensaje .= " (Ya existía en la base de datos)";
+                $mensaje .= ' (Ya existía en la base de datos)';
             }
 
             return response()->json([
@@ -448,11 +450,11 @@ class NotificarMontRollosController extends Controller
                 'insertados' => $insertados,
                 'yaExistian' => $yaExistian,
                 'errores' => $errores,
-                'mensaje' => $mensaje
+                'mensaje' => $mensaje,
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Error al insertar marbetes: ' . $e->getMessage()
+                'error' => 'Error al insertar marbetes: '.$e->getMessage(),
             ], 500);
         }
     }

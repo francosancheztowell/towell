@@ -3,29 +3,30 @@
 namespace App\Http\Controllers\Atadores\ProgramaAtadores;
 
 use App\Http\Controllers\Controller;
+use App\Models\Atadores\AtaActividadesModel;
+use App\Models\Atadores\AtaComentariosModel;
+use App\Models\Atadores\AtaDevolucionesModel;
+use App\Models\Atadores\AtaMaquinasModel;
+use App\Models\Atadores\AtaMontadoActividadesModel;
+use App\Models\Atadores\AtaMontadoMaquinasModel;
+use App\Models\Atadores\AtaMontadoTelasModel;
+use App\Models\Planeacion\ReqTelares;
+use App\Models\Sistema\SYSMensaje;
+use App\Models\Tejedores\TelTelaresOperador;
+use App\Models\Tejido\TejInventarioTelares;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use Carbon\Carbon;
-use App\Models\Tejido\TejInventarioTelares;
-use App\Models\Atadores\AtaMontadoTelasModel;
-use App\Models\Atadores\AtaDevolucionesModel;
-use App\Models\Atadores\AtaMontadoMaquinasModel;
-use App\Models\Atadores\AtaMontadoActividadesModel;
-use App\Models\Atadores\AtaMaquinasModel;
-use App\Models\Atadores\AtaActividadesModel;
-use App\Models\Atadores\AtaComentariosModel;
-use App\Models\Planeacion\ReqTelares;
-use App\Models\Tejedores\TelTelaresOperador;
-use App\Models\Sistema\SYSMensaje;
 
 class AtadoresController extends Controller
 {
     //
-    public function index(Request $request){
+    public function index(Request $request)
+    {
         $user = Auth::user();
         $area = $user->area ?? '';
         $puesto = $user->puesto ?? '';
@@ -64,12 +65,12 @@ class AtadoresController extends Controller
                 ELSE 'Activo'
             END as status_proceso")
         )
-        ->leftJoin('AtaMontadoTelas', function($join) {
-            $join->on('tej_inventario_telares.no_julio', '=', 'AtaMontadoTelas.NoJulio')
-                 ->on('tej_inventario_telares.no_orden', '=', 'AtaMontadoTelas.NoProduccion');
-        })
-        ->whereNotNull('tej_inventario_telares.no_julio')
-        ->where('tej_inventario_telares.no_julio', '!=', ''); // No_julio debe estar lleno
+            ->leftJoin('AtaMontadoTelas', function ($join) {
+                $join->on('tej_inventario_telares.no_julio', '=', 'AtaMontadoTelas.NoJulio')
+                    ->on('tej_inventario_telares.no_orden', '=', 'AtaMontadoTelas.NoProduccion');
+            })
+            ->whereNotNull('tej_inventario_telares.no_julio')
+            ->where('tej_inventario_telares.no_julio', '!=', ''); // No_julio debe estar lleno
 
         // Verificar rol/área para visibilidad y filtros
         $areaUpper = strtoupper(trim($area));
@@ -109,7 +110,7 @@ class AtadoresController extends Controller
         if ($restringirAtador) {
             $query->where(function ($q) {
                 $q->whereNull('AtaMontadoTelas.Estatus')
-                  ->orWhere('AtaMontadoTelas.Estatus', 'En Proceso');
+                    ->orWhere('AtaMontadoTelas.Estatus', 'En Proceso');
             });
 
             $inventarioTelares = $query->orderBy('tej_inventario_telares.fecha', 'asc')
@@ -139,7 +140,7 @@ class AtadoresController extends Controller
                     // Solo Activo (sin registro en AtaMontadoTelas) o En Proceso
                     $query->where(function ($q) {
                         $q->whereNull('AtaMontadoTelas.Estatus')
-                          ->orWhere('AtaMontadoTelas.Estatus', 'En Proceso');
+                            ->orWhere('AtaMontadoTelas.Estatus', 'En Proceso');
                     });
                 } else {
                     $query->whereRaw('0 = 1');
@@ -149,7 +150,7 @@ class AtadoresController extends Controller
             elseif ($esSupervisor) {
                 $query->where(function ($q) {
                     $q->whereNull('AtaMontadoTelas.Estatus')
-                      ->orWhereIn('AtaMontadoTelas.Estatus', ['En Proceso', 'Calificado']);
+                        ->orWhereIn('AtaMontadoTelas.Estatus', ['En Proceso', 'Calificado']);
                 });
             }
             // Si no es ninguno de los roles anteriores, no mostrar registros
@@ -165,7 +166,7 @@ class AtadoresController extends Controller
         $vista = $request->get('vista'); // filtros cliente separados por coma cuando filtro=todos
         $filtroGlobalActivo = $filtroPersonalizado !== null; // true = se usó el botón filtrar, backend devolvió todos
 
-        return view("modulos.atadores.programaAtadores.index", compact('inventarioTelares', 'filtroAplicado', 'telaresUsuario', 'esTejedor', 'esSupervisor', 'vista', 'filtroGlobalActivo'));
+        return view('modulos.atadores.programaAtadores.index', compact('inventarioTelares', 'filtroAplicado', 'telaresUsuario', 'esTejedor', 'esSupervisor', 'vista', 'filtroGlobalActivo'));
     }
 
     /**
@@ -187,6 +188,7 @@ class AtadoresController extends Controller
 
             if ($inv) {
                 $inv->setAttribute('status_proceso', 'Autorizado');
+
                 return $inv;
             }
 
@@ -223,7 +225,7 @@ class AtadoresController extends Controller
         $fechaInicio = $request->input('fecha_inicio');
         $fechaFin = $request->input('fecha_fin');
 
-        if (!$fechaInicio || !$fechaFin) {
+        if (! $fechaInicio || ! $fechaFin) {
             return redirect()->back()->with('error', 'Debe seleccionar fecha inicio y fecha fin para exportar.');
         }
 
@@ -234,7 +236,7 @@ class AtadoresController extends Controller
             return redirect()->back()->with('error', 'La fecha inicio no puede ser mayor que la fecha fin.');
         }
 
-        $nombreArchivo = 'atadores_' . Carbon::parse($fechaInicioFormateada)->format('d-m-Y') . '_a_' . Carbon::parse($fechaFinFormateada)->format('d-m-Y') . '.xlsx';
+        $nombreArchivo = 'atadores_'.Carbon::parse($fechaInicioFormateada)->format('d-m-Y').'_a_'.Carbon::parse($fechaFinFormateada)->format('d-m-Y').'.xlsx';
 
         return \Maatwebsite\Excel\Facades\Excel::download(
             new \App\Exports\ProgramaAtadoresExport($fechaInicioFormateada, $fechaFinFormateada),
@@ -258,20 +260,20 @@ class AtadoresController extends Controller
             if ($existente) {
                 return redirect()->route('atadores.calificar', [
                     'no_julio' => $noJulioRequest,
-                    'no_orden' => $noOrdenRequest
+                    'no_orden' => $noOrdenRequest,
                 ])->with('info', $existente->Estatus === 'Autorizado' ? 'Visualizando registro autorizado (solo lectura)' : 'Continuando con atado en proceso');
             }
         }
 
         // Validar que se recibió un ID cuando no hay no_julio/no_orden
-        if (!$request->has('id')) {
+        if (! $request->has('id')) {
             return redirect()->route('atadores.programa')->with('error', 'Debe seleccionar un registro');
         }
 
         // Obtener el registro específico del inventario de telares
         $item = TejInventarioTelares::find($id);
 
-        if (!$item) {
+        if (! $item) {
             return redirect()->route('atadores.programa')->with('error', 'Registro no encontrado');
         }
 
@@ -298,7 +300,7 @@ class AtadoresController extends Controller
         if ($existente) {
             return redirect()->route('atadores.calificar', [
                 'no_julio' => $item->no_julio,
-                'no_orden' => $item->no_orden
+                'no_orden' => $item->no_orden,
             ])->with('info', $existente->Estatus === 'Autorizado' ? 'Visualizando registro autorizado (solo lectura)' : 'Continuando con atado en proceso');
         }
 
@@ -360,14 +362,14 @@ class AtadoresController extends Controller
                 'Estado' => 0, // Por defecto inactivo
                 'CveEmpl' => null,
                 'NomEmpl' => null,
-                'Turno' => $item->turno
+                'Turno' => $item->turno,
             ]);
         }
 
         // Redirigir a la página de calificar atadores con los parámetros del registro seleccionado
         return redirect()->route('atadores.calificar', [
             'no_julio' => $item->no_julio,
-            'no_orden' => $item->no_orden
+            'no_orden' => $item->no_orden,
         ])->with('success', 'Atado iniciado correctamente');
     }
 
@@ -410,7 +412,7 @@ class AtadoresController extends Controller
                 if ($actual->NoJulio != $noJulio || $actual->NoProduccion != $noOrden) {
                     // Si no coincide, mostrar mensaje de error
                     return redirect()->route('atadores.programa')
-                        ->with('error', 'No se encontró el proceso especificado (No. Julio: ' . $noJulio . ', No. Orden: ' . $noOrden . ')');
+                        ->with('error', 'No se encontró el proceso especificado (No. Julio: '.$noJulio.', No. Orden: '.$noOrden.')');
                 }
             }
 
@@ -432,7 +434,7 @@ class AtadoresController extends Controller
             // Asegurar que existan filas base de actividades para el folio actual.
             // Esto evita que el guardado falle cuando por datos históricos no se generaron al iniciar.
             $faltantes = $actividadesCatalogo->filter(function ($act) use ($actividadesMontado) {
-                return !$actividadesMontado->has((string) $act->ActividadId);
+                return ! $actividadesMontado->has((string) $act->ActividadId);
             });
 
             if ($faltantes->isNotEmpty()) {
@@ -487,7 +489,7 @@ class AtadoresController extends Controller
         $action = $request->input('action');
 
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['ok' => false, 'message' => 'No autenticado'], 401);
         }
 
@@ -496,7 +498,7 @@ class AtadoresController extends Controller
         $noOrden = $request->input('no_orden');
 
         // Validar que se proporcionen los parámetros necesarios
-        if (!$noJulio || !$noOrden) {
+        if (! $noJulio || ! $noOrden) {
             return response()->json(['ok' => false, 'message' => 'Faltan parámetros necesarios (no_julio o no_orden)'], 422);
         }
 
@@ -509,8 +511,8 @@ class AtadoresController extends Controller
             ->orderBy('Turno', 'desc')
             ->first();
 
-        if (!$montado) {
-            return response()->json(['ok' => false, 'message' => 'No hay atado activo para el registro especificado (No. Julio: ' . $noJulio . ', No. Orden: ' . $noOrden . ')'], 404);
+        if (! $montado) {
+            return response()->json(['ok' => false, 'message' => 'No hay atado activo para el registro especificado (No. Julio: '.$noJulio.', No. Orden: '.$noOrden.')'], 404);
         }
 
         // Validar que los parámetros coincidan con el registro encontrado
@@ -522,6 +524,7 @@ class AtadoresController extends Controller
             $montado->CveTejedor = $user->numero_empleado;
             $montado->NomTejedor = $user->nombre;
             $montado->save();
+
             return response()->json(['ok' => true, 'message' => 'Operador asignado']);
         }
 
@@ -573,12 +576,12 @@ class AtadoresController extends Controller
                 // Preparar HoraParo (remover microsegundos si existen)
                 $horaParo = null;
                 if ($montado->HoraParo) {
-                    $horaParoStr = trim((string)$montado->HoraParo);
+                    $horaParoStr = trim((string) $montado->HoraParo);
                     // Remover microsegundos si existen
                     if (preg_match('/^(\d{1,2}:\d{2}:\d{2})/', $horaParoStr, $matches)) {
                         $horaParo = $matches[1];
                     } elseif (preg_match('/^(\d{1,2}:\d{2})/', $horaParoStr, $matches)) {
-                        $horaParo = $matches[1] . ':00';
+                        $horaParo = $matches[1].':00';
                     }
                 }
 
@@ -632,7 +635,7 @@ class AtadoresController extends Controller
                 $maquinasCatalogo = AtaMaquinasModel::all();
                 foreach ($maquinasCatalogo as $maq) {
                     $existe = $maquinasActuales->where('MaquinaId', $maq->MaquinaId)->first();
-                    if (!$existe) {
+                    if (! $existe) {
                         // Crear registro por defecto
                         AtaMontadoMaquinasModel::create([
                             'NoJulio' => $montado->NoJulio,
@@ -648,7 +651,7 @@ class AtadoresController extends Controller
                 $actividadesCatalogo = AtaActividadesModel::all();
                 foreach ($actividadesCatalogo as $act) {
                     $existe = $actividadesActuales->where('ActividadId', $act->ActividadId)->first();
-                    if (!$existe) {
+                    if (! $existe) {
                         // Crear registro por defecto
                         AtaMontadoActividadesModel::create([
                             'NoJulio' => $montado->NoJulio,
@@ -658,7 +661,7 @@ class AtadoresController extends Controller
                             'Estado' => 0, // Por defecto inactivo
                             'CveEmpl' => null,
                             'NomEmpl' => null,
-                            'Turno' => $montado->Turno
+                            'Turno' => $montado->Turno,
                         ]);
                     }
                 }
@@ -669,7 +672,7 @@ class AtadoresController extends Controller
             } catch (\Exception $e) {
                 DB::connection('sqlsrv')->rollBack();
 
-                return response()->json(['ok' => false, 'message' => 'Error al autorizar: ' . $e->getMessage()]);
+                return response()->json(['ok' => false, 'message' => 'Error al autorizar: '.$e->getMessage()]);
             }
 
             // 4. Eliminar el registro original de tej_inventario_telares (MySQL)
@@ -683,7 +686,7 @@ class AtadoresController extends Controller
                         ->where('no_orden', $montado->NoProduccion)
                         ->delete();
 
-                    if (!$eliminado) {
+                    if (! $eliminado) {
                         // Fallback por id directo
                         TejInventarioTelares::whereKey($registroOriginal->getKey())->delete();
                     }
@@ -706,8 +709,8 @@ class AtadoresController extends Controller
                 'redirect' => route('atadores.programa'),
                 'supervisor' => [
                     'cve' => $user->numero_empleado,
-                    'nombre' => $user->nombre
-                ]
+                    'nombre' => $user->nombre,
+                ],
             ]);
         }
 
@@ -718,9 +721,9 @@ class AtadoresController extends Controller
             }
 
             $data = $request->validate([
-                'calidad' => ['required','integer','min:1','max:10'],
-                'limpieza' => ['required','integer','min:5','max:10'],
-                'comments_tej' => ['nullable','string','max:500'],
+                'calidad' => ['required', 'integer', 'min:1', 'max:10'],
+                'limpieza' => ['required', 'integer', 'min:5', 'max:10'],
+                'comments_tej' => ['nullable', 'string', 'max:500'],
             ]);
 
             // Eloquent save para disparar AtaMontadoTelasObserver (sync Estatus → AtaDevoluciones)
@@ -742,8 +745,8 @@ class AtadoresController extends Controller
                 'message' => 'Calificación guardada',
                 'tejedor' => [
                     'cve' => $user->numero_empleado,
-                    'nombre' => $user->nombre
-                ]
+                    'nombre' => $user->nombre,
+                ],
             ]);
         }
 
@@ -794,13 +797,13 @@ class AtadoresController extends Controller
                     'ok' => true,
                     'message' => 'Merma guardada correctamente',
                     'mergaKg' => $mergaKg,
-                    'affected' => $affected
+                    'affected' => $affected,
                 ]);
             } else {
 
                 return response()->json([
                     'ok' => false,
-                    'message' => 'No se pudo actualizar la merma. Verifica que el registro exista.'
+                    'message' => 'No se pudo actualizar la merma. Verifica que el registro exista.',
                 ], 500);
             }
         }
@@ -815,7 +818,7 @@ class AtadoresController extends Controller
 
             try {
                 $schema = Schema::connection('sqlsrv');
-                if (!$schema->hasColumn('AtaMontadoTelas', 'FolioParo')) {
+                if (! $schema->hasColumn('AtaMontadoTelas', 'FolioParo')) {
                     return response()->json([
                         'ok' => false,
                         'message' => 'La columna FolioParo no existe en AtaMontadoTelas (SQL Server).',
@@ -850,14 +853,14 @@ class AtadoresController extends Controller
 
                 return response()->json([
                     'ok' => false,
-                    'message' => 'No se pudo guardar FolioParo: ' . $e->getMessage(),
+                    'message' => 'No se pudo guardar FolioParo: '.$e->getMessage(),
                 ], 500);
             }
 
             return response()->json([
                 'ok' => true,
                 'message' => 'Folio Paro guardado correctamente',
-                'folio_paro' => $folioParo
+                'folio_paro' => $folioParo,
             ]);
         }
 
@@ -868,8 +871,8 @@ class AtadoresController extends Controller
             }
 
             $data = $request->validate([
-                'maquinaId' => ['required','string','max:50'],
-                'estado' => ['required','boolean']
+                'maquinaId' => ['required', 'string', 'max:50'],
+                'estado' => ['required', 'boolean'],
             ]);
 
             $estado = $data['estado'] ? 1 : 0;
@@ -888,7 +891,7 @@ class AtadoresController extends Controller
 
             return response()->json([
                 'ok' => true,
-                'message' => 'Estado de máquina actualizado'
+                'message' => 'Estado de máquina actualizado',
             ]);
         }
 
@@ -902,7 +905,7 @@ class AtadoresController extends Controller
             if (is_null($montado->MergaKg) || $montado->MergaKg === '') {
                 return response()->json([
                     'ok' => false,
-                    'message' => 'Debe capturar la merma (Kg) antes de terminar el atado.'
+                    'message' => 'Debe capturar la merma (Kg) antes de terminar el atado.',
                 ], 422);
             }
 
@@ -925,7 +928,7 @@ class AtadoresController extends Controller
 
             // Calcular TiempoParo como diferencia entre HrInicio y HoraArranque (formato time HH:MM:SS)
             $tiempoParo = null;
-            if (!empty($montado->HrInicio)) {
+            if (! empty($montado->HrInicio)) {
                 try {
                     $hrInicio = Carbon::parse($montado->HrInicio);
                     $hrArranque = Carbon::parse($horaArranque);
@@ -942,7 +945,7 @@ class AtadoresController extends Controller
                     Log::warning('Error calculando TiempoParo', [
                         'HrInicio' => $montado->HrInicio,
                         'HoraArranque' => $horaArranque,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
@@ -1011,14 +1014,14 @@ class AtadoresController extends Controller
                 );
 
             // Devolver el operador actualizado para reflejar en la UI
-            $operador = $estado ? trim(($user->numero_empleado ?? '') . ' - ' . ($user->nombre ?? '')) : '-';
+            $operador = $estado ? trim(($user->numero_empleado ?? '').' - '.($user->nombre ?? '')) : '-';
 
             return response()->json([
                 'ok' => true,
                 'message' => 'Estado de actividad actualizado',
                 'operador' => $operador,
                 'cveEmpl' => $estado ? $user->numero_empleado : null,
-                'nomEmpl' => $estado ? $user->nombre : null
+                'nomEmpl' => $estado ? $user->nombre : null,
             ]);
         }
 
@@ -1048,6 +1051,7 @@ class AtadoresController extends Controller
         $botToken = config('services.telegram.bot_token');
         if (empty($botToken)) {
             Log::warning('No se pudo enviar notificacion a Telegram: TELEGRAM_BOT_TOKEN no configurado');
+
             return;
         }
 
@@ -1059,6 +1063,7 @@ class AtadoresController extends Controller
                 Log::info('Usando TELEGRAM_CHAT_ID global como destinatario para atadores');
             } else {
                 Log::warning('No hay destinatarios con Atadores activo en SYSMensajes ni TELEGRAM_CHAT_ID configurado');
+
                 return;
             }
         }
@@ -1072,33 +1077,34 @@ class AtadoresController extends Controller
 
         if (empty($chatIds)) {
             Log::warning('No hay chat IDs validos para notificacion de atadores');
+
             return;
         }
 
         $mensaje = "ATADO TERMINADO\n\n";
-        $mensaje .= "Telar: " . ($montado->NoTelarId ?? 'N/A') . "\n";
-        $mensaje .= "Tipo: " . ($montado->Tipo ?? 'N/A') . "\n";
-        $mensaje .= "No. Julio: " . ($montado->NoJulio ?? 'N/A') . "\n";
-        $mensaje .= "No. Orden: " . ($montado->NoProduccion ?? 'N/A') . "\n";
-        if (!empty($montado->Metros)) {
+        $mensaje .= 'Telar: '.($montado->NoTelarId ?? 'N/A')."\n";
+        $mensaje .= 'Tipo: '.($montado->Tipo ?? 'N/A')."\n";
+        $mensaje .= 'No. Julio: '.($montado->NoJulio ?? 'N/A')."\n";
+        $mensaje .= 'No. Orden: '.($montado->NoProduccion ?? 'N/A')."\n";
+        if (! empty($montado->Metros)) {
             $mensaje .= "Metros: {$montado->Metros}\n";
         }
-        if (!empty($montado->MergaKg)) {
+        if (! empty($montado->MergaKg)) {
             $mensaje .= "Merma Kg: {$montado->MergaKg}\n";
         }
-        if (!empty($montado->HoraParo)) {
+        if (! empty($montado->HoraParo)) {
             $mensaje .= "Hora Paro: {$montado->HoraParo}\n";
         }
-        if (!empty($horaArranque)) {
+        if (! empty($horaArranque)) {
             $mensaje .= "Hora Arranque: {$horaArranque}\n";
         }
-        $mensaje .= "Fecha: " . Carbon::now()->format('d/m/Y') . "\n";
+        $mensaje .= 'Fecha: '.Carbon::now()->format('d/m/Y')."\n";
 
         $nombreUsuario = $usuario->nombre ?? $usuario->name ?? null;
         $numeroEmpleado = $usuario->numero_empleado ?? null;
-        if (!empty($nombreUsuario)) {
+        if (! empty($nombreUsuario)) {
             $mensaje .= "Operador: {$nombreUsuario}";
-            if (!empty($numeroEmpleado)) {
+            if (! empty($numeroEmpleado)) {
                 $mensaje .= " ({$numeroEmpleado})";
             }
             $mensaje .= "\n";
@@ -1109,11 +1115,11 @@ class AtadoresController extends Controller
             $response = Http::timeout(20)
                 ->retry(2, 200)
                 ->post($url, [
-                'chat_id' => $chatId,
-                'text' => $mensaje,
-            ]);
+                    'chat_id' => $chatId,
+                    'text' => $mensaje,
+                ]);
 
-            if (!$response->successful() || !($response->json()['ok'] ?? false)) {
+            if (! $response->successful() || ! ($response->json()['ok'] ?? false)) {
                 Log::warning('Error al enviar notificacion de atado terminado a Telegram', [
                     'chat_id' => $chatId,
                     'no_julio' => $montado->NoJulio ?? null,

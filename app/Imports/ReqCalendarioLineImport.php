@@ -3,19 +3,22 @@
 namespace App\Imports;
 
 use App\Models\Planeacion\ReqCalendarioLine;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\ToModel;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithBatchInserts;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Events\BeforeImport;
-use Illuminate\Support\Facades\Log;
 
-class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInserts, WithChunkReading, WithEvents
+class ReqCalendarioLineImport implements ToModel, WithBatchInserts, WithChunkReading, WithEvents, WithHeadingRow
 {
     private $procesados = 0;
+
     private $creados = 0;
+
     private $errores = [];
+
     private $buffer = [];
 
     public function model(array $row)
@@ -26,25 +29,27 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
             // ⚡ Detección rápida de filas vacías
             if (empty(array_filter($row))) {
                 Log::debug("Fila {$filaNum}: Fila vacía - Saltando");
+
                 return null;
             }
 
             // ⚡ Extracción directa y rápida
-            $calendarioId = trim((string)($row['no_calendario'] ?? $row['No Calendario'] ?? ''));
-            $fechaInicio = trim((string)($row['inicio_fecha_hora'] ?? $row['Inicio (Fecha Hora)'] ?? $row['Inicio_Fecha_Hora'] ?? ''));
-            $fechaFin = trim((string)($row['fin_fecha_hora'] ?? $row['Fin (Fecha Hora)'] ?? $row['Fin_Fecha_Hora'] ?? ''));
-            $horas = trim((string)($row['horas'] ?? ''));
-            $turno = trim((string)($row['turno'] ?? ''));
+            $calendarioId = trim((string) ($row['no_calendario'] ?? $row['No Calendario'] ?? ''));
+            $fechaInicio = trim((string) ($row['inicio_fecha_hora'] ?? $row['Inicio (Fecha Hora)'] ?? $row['Inicio_Fecha_Hora'] ?? ''));
+            $fechaFin = trim((string) ($row['fin_fecha_hora'] ?? $row['Fin (Fecha Hora)'] ?? $row['Fin_Fecha_Hora'] ?? ''));
+            $horas = trim((string) ($row['horas'] ?? ''));
+            $turno = trim((string) ($row['turno'] ?? ''));
 
             // ⚠️ DETECCIÓN: Si solo tiene no_calendario y nombre, es formato de calendarios, no líneas
-            $tieneSoloCalendario = !empty($calendarioId) && empty($fechaInicio) && empty($fechaFin) && isset($row['nombre']);
+            $tieneSoloCalendario = ! empty($calendarioId) && empty($fechaInicio) && empty($fechaFin) && isset($row['nombre']);
             if ($tieneSoloCalendario) {
                 $this->errores[] = "Fila {$filaNum}: El archivo parece ser de CALENDARIOS (tiene 'no_calendario' y 'nombre'), no de LÍNEAS. Las líneas requieren columnas: 'Inicio (Fecha Hora)', 'Fin (Fecha Hora)', 'Horas', 'Turno'";
                 Log::error("✗✗✗ Fila {$filaNum}: Formato incorrecto - Este archivo es de calendarios, no de líneas", [
                     'columnas_encontradas' => array_keys($row),
-                    'columnas_requeridas' => ['no_calendario', 'inicio_fecha_hora', 'fin_fecha_hora', 'horas', 'turno']
+                    'columnas_requeridas' => ['no_calendario', 'inicio_fecha_hora', 'fin_fecha_hora', 'horas', 'turno'],
                 ]);
                 $this->procesados++;
+
                 return null;
             }
 
@@ -53,9 +58,10 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
                     'calendarioId_vacio' => empty($calendarioId),
                     'fechaInicio_vacia' => empty($fechaInicio),
                     'fechaFin_vacia' => empty($fechaFin),
-                    'sugerencia' => 'Verifica que el Excel tenga las columnas: No Calendario, Inicio (Fecha Hora), Fin (Fecha Hora), Horas, Turno'
+                    'sugerencia' => 'Verifica que el Excel tenga las columnas: No Calendario, Inicio (Fecha Hora), Fin (Fecha Hora), Horas, Turno',
                 ]);
                 $this->procesados++;
+
                 return null;
             }
 
@@ -69,26 +75,26 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
             if ($fechaInicioFormato === null || $fechaFinFormato === null) {
                 Log::warning("Fila {$filaNum}: No se pudieron parsear las fechas - Saltando", [
                     'fechaInicio_parseada' => $fechaInicioFormato,
-                    'fechaFin_parseada' => $fechaFinFormato
+                    'fechaFin_parseada' => $fechaFinFormato,
                 ]);
                 $this->procesados++;
+
                 return null;
             }
 
-            $horasNum = !empty($horas) ? (float)$horas : 0;
-            $turnoNum = !empty($turno) ? (int)$turno : 0;
+            $horasNum = ! empty($horas) ? (float) $horas : 0;
+            $turnoNum = ! empty($turno) ? (int) $turno : 0;
 
             ReqCalendarioLine::create([
                 'CalendarioId' => $calendarioId,
                 'FechaInicio' => $fechaInicioFormato,
                 'FechaFin' => $fechaFinFormato,
                 'HorasTurno' => $horasNum,
-                'Turno' => $turnoNum
+                'Turno' => $turnoNum,
             ]);
 
             $this->procesados++;
             $this->creados++;
-
 
             return null;
 
@@ -97,8 +103,9 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
             $this->errores[] = "Fila {$filaNum}: {$e->getMessage()}";
             Log::error("✗✗✗ ERROR en fila {$filaNum}: {$e->getMessage()}", [
                 'exception' => $e->getTraceAsString(),
-                'row_data' => $row
+                'row_data' => $row,
             ]);
+
             return null;
         }
     }
@@ -109,16 +116,15 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
     public function registerEvents(): array
     {
         return [
-            BeforeImport::class => function(BeforeImport $event) {
+            BeforeImport::class => function (BeforeImport $event) {
                 try {
                     // Limpiar todas las líneas de calendario para evitar duplicados
                     ReqCalendarioLine::truncate();
                 } catch (\Exception $e) {
                 }
-            }
+            },
         ];
     }
-
 
     private function parseDatetime($value)
     {
@@ -127,7 +133,7 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
         }
 
         $originalValue = $value;
-        $value = (string)$value;
+        $value = (string) $value;
         $value = trim($value);
 
         if (empty($value)) {
@@ -138,7 +144,7 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
         $formatos = [
             'd/m/Y H:i',        // 01/01/2025 06:30 (más común)
             'Y-m-d H:i:s',      // 2025-01-01 06:30:45
-            'd-m-Y H:i'         // 01-01-2025 06:30
+            'd-m-Y H:i',         // 01-01-2025 06:30
         ];
 
         foreach ($formatos as $formato) {
@@ -155,7 +161,7 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
         // 🎯 SEGUNDO: Si es un número, es un serial date de Excel
         if (is_numeric($value)) {
             try {
-                $excelDate = (float)$value;
+                $excelDate = (float) $value;
 
                 // Validar que sea un número razonable (entre 1 y 60000 = años 1900-2100 aprox)
                 if ($excelDate > 0 && $excelDate < 60000) {
@@ -177,13 +183,13 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
 
                     // Sumar los días
                     if ($days > 1) {
-                        $baseDate->modify('+' . ($days - 1) . ' days');
+                        $baseDate->modify('+'.($days - 1).' days');
                     }
 
                     // Convertir fracción a segundos (la fracción es la hora del día)
                     $seconds = round($fraction * 86400);
                     if ($seconds > 0) {
-                        $baseDate->modify('+' . $seconds . ' seconds');
+                        $baseDate->modify('+'.$seconds.' seconds');
                     }
 
                     return $baseDate->format('Y-m-d H:i:s');
@@ -211,7 +217,7 @@ class ReqCalendarioLineImport implements ToModel, WithHeadingRow, WithBatchInser
         return [
             'procesados' => $this->procesados,
             'creados' => $this->creados,
-            'errores' => $this->errores
+            'errores' => $this->errores,
         ];
     }
 }

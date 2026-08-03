@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Tejedores\Desarrolladores\Funciones;
 
-use App\Models\Planeacion\Muestras;
 use App\Helpers\TelDesarrolladoresHelper;
+use App\Models\Planeacion\Muestras;
 use Exception;
 use Illuminate\Support\Collection;
 
@@ -28,8 +28,8 @@ class ConsultasMuestrasDesarrolladorService extends ConsultasDesarrolladorServic
                 $telar = trim((string) ($row->NoTelarId ?? ''));
 
                 return [
-                    'value' => $salon . '|' . $telar,
-                    'label' => $telar . ' (' . $salon . ')',
+                    'value' => $salon.'|'.$telar,
+                    'label' => $telar.' ('.$salon.')',
                 ];
             })
             ->values();
@@ -42,14 +42,15 @@ class ConsultasMuestrasDesarrolladorService extends ConsultasDesarrolladorServic
     {
         $datos = parent::obtenerDatosIndex();
         $datos['telaresDestino'] = $this->obtenerTelaresDestinoMuestras();
+
         return $datos;
     }
 
     /**
      * Obtiene producciones desde MuestrasPrograma.
      *
-     * @param mixed $telarId Se acepta sin tipo para mantener compatibilidad LSP con firmas antiguas del padre.
-     * @param bool $soloConOrden Ignorado: el filtro por orden no vacía siempre aplica en esta variante.
+     * @param  mixed  $telarId  Se acepta sin tipo para mantener compatibilidad LSP con firmas antiguas del padre.
+     * @param  bool  $soloConOrden  Ignorado: el filtro por orden no vacía siempre aplica en esta variante.
      */
     public function obtenerProducciones($telarId, bool $soloConOrden = false): array
     {
@@ -66,12 +67,12 @@ class ConsultasMuestrasDesarrolladorService extends ConsultasDesarrolladorServic
 
             return [
                 'success' => true,
-                'producciones' => $producciones
+                'producciones' => $producciones,
             ];
         } catch (Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Error al obtener las producciones: ' . $e->getMessage()
+                'message' => 'Error al obtener las producciones: '.$e->getMessage(),
             ];
         }
     }
@@ -87,20 +88,26 @@ class ConsultasMuestrasDesarrolladorService extends ConsultasDesarrolladorServic
 
             $isZeroish = static function ($value): bool {
                 $text = trim((string) ($value ?? ''));
-                if ($text === '') return true;
+                if ($text === '') {
+                    return true;
+                }
+
                 return (bool) preg_match('/^0+(?:\.0+)?$/', $text);
             };
 
             $shouldIncludeDetalle = static function (array $fila) use ($isZeroish): bool {
                 $calibre = trim((string) ($fila['Calibre'] ?? ''));
-                if ($calibre === '') return false;
+                if ($calibre === '') {
+                    return false;
+                }
 
                 $keys = ['Calibre', 'Hilo', 'Fibra', 'CodColor', 'NombreColor', 'Pasadas'];
                 foreach ($keys as $key) {
-                    if (!$isZeroish($fila[$key] ?? '')) {
+                    if (! $isZeroish($fila[$key] ?? '')) {
                         return true;
                     }
                 }
+
                 return false;
             };
 
@@ -129,12 +136,12 @@ class ConsultasMuestrasDesarrolladorService extends ConsultasDesarrolladorServic
 
             return [
                 'success' => true,
-                'detalles' => $detalles
+                'detalles' => $detalles,
             ];
         } catch (Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Error al obtener los detalles: ' . $e->getMessage()
+                'message' => 'Error al obtener los detalles: '.$e->getMessage(),
             ];
         }
     }

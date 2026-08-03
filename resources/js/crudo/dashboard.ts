@@ -25,11 +25,31 @@ type Machine = {
   programa: Record<string, string | null> | null
 }
 
+type QualityDefectCatalogItem = {
+  Falla?: unknown
+  Descripcion?: unknown
+  Departamento?: unknown
+}
+
+type QualityDefectsResponse = {
+  success?: boolean
+  data?: QualityDefectCatalogItem[]
+  error?: string
+}
+
+type QualityDefectOption = {
+  value: string
+  label: string
+}
+
 const DASHBOARD_SELECTOR = '[data-crudo-dashboard]'
 const MACHINE_DATA_SELECTOR = '[data-crudo-machines-data]'
 const MACHINE_GRID_SELECTOR = '[data-crudo-machine-grid]'
 const MACHINE_SELECTOR = '[data-crudo-machine]'
 const RELATIVE_TIME_SELECTOR = '[data-crudo-relative-time]'
+const AUDIT_DEFECT_EDITOR_SELECTOR = '[data-crudo-audit-defects]'
+const AUDIT_CONTENT_SELECTOR = '[data-crudo-audit-content]'
+const QUALITY_DEFECT_SELECT_SELECTOR = '[data-crudo-quality-defect-select]'
 
 const formatInteger = (value: number): string => Math.round(value).toLocaleString('es-MX')
 const formatDecimal = (value: number, decimals: number = 1): string => {
@@ -43,7 +63,9 @@ const formatDecimal = (value: number, decimals: number = 1): string => {
 let previousMachines: MachineSnapshot = new Map()
 let observedDashboard: HTMLElement | null = null
 let mutationObserver: MutationObserver | null = null
+let auditDefectObserver: MutationObserver | null = null
 let relativeTimeTimer: number | null = null
+const qualityDefectRequests = new Map<string, Promise<QualityDefectOption[]>>()
 
 const parseMachinesJson = (): Machine[] => {
   const element = document.querySelector<HTMLScriptElement>(MACHINE_DATA_SELECTOR)
@@ -209,6 +231,149 @@ const toggleFullscreen = async (): Promise<void> => {
   }
 }
 
+const normalizeCatalogText = (value: unknown): string => {
+  if (value === null || value === undefined) {
+    return ''
+  }
+
+  return String(value).trim()
+}
+
+const loadQualityDefectOptions = (url: string): Promise<QualityDefectOption[]> => {
+  const existingRequest = qualityDefectRequests.get(url)
+  if (existingRequest) {
+    return existingRequest
+  }
+
+  const request = fetch(url, {
+    credentials: 'same-origin',
+    headers: {
+      Accept: 'application/json',
+    },
+  })
+    .then(async (response): Promise<QualityDefectOption[]> => {
+      const payload = (await response.json()) as QualityDefectsResponse
+      if (!response.ok || payload.success === false) {
+        throw new Error(payload.error || 'No fue posible consultar el catálogo de defectos.')
+      }
+
+      const options = new Map<string, QualityDefectOption>()
+      ;(Array.isArray(payload.data) ? payload.data : []).forEach((item) => {
+        const department = normalizeCatalogText(item.Departamento)
+        const defect = normalizeCatalogText(item.Falla)
+        const description = normalizeCatalogText(item.Descripcion)
+
+        if (department.toLocaleUpperCase('es-MX') !== 'CALIDAD' || defect === '') {
+          return
+        }
+
+        const key = `${defect}|${description}`.toLocaleUpperCase('es-MX')
+        options.set(key, {
+          value: defect,
+          label: description !== '' && description.toLocaleUpperCase('es-MX') !== defect.toLocaleUpperCase('es-MX')
+            ? `${defect} — ${description}`
+            : defect,
+        })
+      })
+
+      return Array.from(options.values()).sort((left, right) => left.label.localeCompare(right.label, 'es-MX'))
+    })
+    .catch((error: unknown) => {
+      qualityDefectRequests.delete(url)
+      throw error
+    })
+
+  qualityDefectRequests.set(url, request)
+
+  return request
+}
+
+const replaceSelectOptions = (
+  select: HTMLSelectElement,
+  options: QualityDefectOption[],
+): void => {
+  const currentValue = select.value
+  const placeholder = new Option('Seleccione un defecto', '')
+  select.replaceChildren(placeholder)
+
+  options.forEach((option) => {
+    select.add(new Option(option.label, option.value))
+  })
+
+  if (options.some((option) => option.value === currentValue)) {
+    select.value = currentValue
+  }
+
+  select.disabled = false
+}
+
+const showQualityDefectLoadError = (editor: HTMLElement, message: string): void => {
+  editor.dataset.qualityDefectsState = 'error'
+  editor.querySelectorAll<HTMLSelectElement>(QUALITY_DEFECT_SELECT_SELECTOR).forEach((select) => {
+    select.replaceChildren(new Option(message, ''))
+    select.disabled = true
+  })
+}
+
+const hydrateQualityDefectEditors = (): void => {
+  document.querySelectorAll<HTMLElement>(AUDIT_DEFECT_EDITOR_SELECTOR).forEach((editor) => {
+    if (editor.closest<HTMLElement>(AUDIT_CONTENT_SELECTOR)?.hidden) {
+      return
+    }
+
+    if (editor.dataset.qualityDefectsState === 'loading' || editor.dataset.qualityDefectsState === 'loaded') {
+      return
+    }
+
+    const url = editor.dataset.crudoQualityDefectsUrl
+    if (!url) {
+      showQualityDefectLoadError(editor, 'Catálogo no configurado')
+      return
+    }
+
+    editor.dataset.qualityDefectsState = 'loading'
+    const selects = editor.querySelectorAll<HTMLSelectElement>(QUALITY_DEFECT_SELECT_SELECTOR)
+    selects.forEach((select) => {
+      select.disabled = true
+    })
+
+    void loadQualityDefectOptions(url)
+      .then((options) => {
+        if (options.length === 0) {
+          showQualityDefectLoadError(editor, 'Sin defectos de Calidad')
+          return
+        }
+
+        selects.forEach((select) => replaceSelectOptions(select, options))
+        editor.dataset.qualityDefectsState = 'loaded'
+      })
+      .catch(() => {
+        showQualityDefectLoadError(editor, 'Error al cargar catálogo')
+      })
+  })
+}
+
+const observeQualityDefectEditors = (): void => {
+  hydrateQualityDefectEditors()
+
+  if (auditDefectObserver || !document.body) {
+    return
+  }
+
+  auditDefectObserver = new MutationObserver((mutations) => {
+    if (mutations.some((mutation) => mutation.addedNodes.length > 0 || mutation.attributeName === 'hidden')) {
+      hydrateQualityDefectEditors()
+    }
+  })
+
+  auditDefectObserver.observe(document.body, {
+    attributes: true,
+    attributeFilter: ['hidden'],
+    childList: true,
+    subtree: true,
+  })
+}
+
 document.addEventListener('click', (event) => {
   const target = event.target
   if (!(target instanceof Element)) {
@@ -274,6 +439,9 @@ document.addEventListener('fullscreenchange', () => {
 document.addEventListener('livewire:init', observeDashboard)
 document.addEventListener('livewire:navigated', observeDashboard)
 document.addEventListener('DOMContentLoaded', observeDashboard)
+document.addEventListener('livewire:init', observeQualityDefectEditors)
+document.addEventListener('livewire:navigated', observeQualityDefectEditors)
+document.addEventListener('DOMContentLoaded', observeQualityDefectEditors)
 
 relativeTimeTimer = window.setInterval(updateRelativeTimes, 5000)
 
@@ -282,4 +450,5 @@ window.addEventListener('beforeunload', () => {
     window.clearInterval(relativeTimeTimer)
   }
   mutationObserver?.disconnect()
+  auditDefectObserver?.disconnect()
 })

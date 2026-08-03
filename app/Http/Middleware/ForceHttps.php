@@ -4,14 +4,12 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 
 class ForceHttps
 {
     /**
      * Handle an incoming request.
      *
-     * @param  \Illuminate\Http\Request  $request
      * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse)  $next
      * @return \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
      */
@@ -27,7 +25,7 @@ class ForceHttps
         $shouldForceHttps = $forceHttps || ($environments[$currentEnv] ?? false);
 
         // Forzar HTTPS si es necesario
-        if ($shouldForceHttps && !$request->secure()) {
+        if ($shouldForceHttps && ! $request->secure()) {
             return redirect()->secure($request->getRequestUri(), 301);
         }
 

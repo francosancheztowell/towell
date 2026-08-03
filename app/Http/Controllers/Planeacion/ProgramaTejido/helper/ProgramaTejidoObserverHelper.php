@@ -7,8 +7,10 @@ use App\Observers\ReqProgramaTejidoObserver;
 
 /**
  * @file ProgramaTejidoObserverHelper.php
+ *
  * @description Encapsula el patrón unset/observe de ReqProgramaTejido. Útil cuando se ejecutan
  *              transacciones que no deben disparar el observer (ej. saveQuietly masivo).
+ *
  * @dependencies ReqProgramaTejido, ReqProgramaTejidoObserver
  */
 class ProgramaTejidoObserverHelper
@@ -16,7 +18,7 @@ class ProgramaTejidoObserverHelper
     /**
      * Ejecuta el callable sin el observer activo. Restaura el observer al terminar.
      *
-     * @param callable $fn Función a ejecutar (puede retornar valor)
+     * @param  callable  $fn  Función a ejecutar (puede retornar valor)
      * @return mixed Valor retornado por el callable
      */
     public static function withoutObserver(callable $fn): mixed

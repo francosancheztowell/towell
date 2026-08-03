@@ -140,9 +140,9 @@ class UtilityHelpers
             'TotalPedido' => $r->TotalPedido,
             'PedidoTempo' => $r->PedidoTempo,
             'SaldoPedido' => $r->SaldoPedido,
-            'Produccion'  => $r->Produccion,
+            'Produccion' => $r->Produccion,
             'FechaInicio' => $r->FechaInicio,
-            'FechaFinal'  => $r->FechaFinal,
+            'FechaFinal' => $r->FechaFinal,
             'EntregaProduc' => $r->EntregaProduc,
             'EntregaPT' => $r->EntregaPT,
             'EntregaCte' => $r->EntregaCte,
@@ -167,81 +167,83 @@ class UtilityHelpers
             'DobladilloId' => $r->DobladilloId,
             'MedidaPlano' => $r->MedidaPlano,
             'PasadasTrama' => $r->PasadasTrama,
-            'CalibreTrama'=> $r->CalibreTrama,
-            'CalibreTrama2'=> $r->CalibreTrama2,
-            'FibraTrama'  => $r->FibraTrama,
-            'CodColorTrama'=> $r->CodColorTrama,
+            'CalibreTrama' => $r->CalibreTrama,
+            'CalibreTrama2' => $r->CalibreTrama2,
+            'FibraTrama' => $r->FibraTrama,
+            'CodColorTrama' => $r->CodColorTrama,
             'ColorTrama' => $r->ColorTrama,
             'PasadasComb1' => $r->PasadasComb1,
             'CalibreComb1' => $r->CalibreComb1,
-            'CalibreComb12'=> $r->CalibreComb12,
-            'FibraComb1'  => $r->FibraComb1,
-            'CodColorComb1'=> $r->CodColorComb1,
-            'NombreCC1'   => $r->NombreCC1,
+            'CalibreComb12' => $r->CalibreComb12,
+            'FibraComb1' => $r->FibraComb1,
+            'CodColorComb1' => $r->CodColorComb1,
+            'NombreCC1' => $r->NombreCC1,
             'PasadasComb2' => $r->PasadasComb2,
             'CalibreComb2' => $r->CalibreComb2,
-            'CalibreComb22'=> $r->CalibreComb22,
-            'FibraComb2'  => $r->FibraComb2,
-            'CodColorComb2'=> $r->CodColorComb2,
-            'NombreCC2'   => $r->NombreCC2,
+            'CalibreComb22' => $r->CalibreComb22,
+            'FibraComb2' => $r->FibraComb2,
+            'CodColorComb2' => $r->CodColorComb2,
+            'NombreCC2' => $r->NombreCC2,
             'PasadasComb3' => $r->PasadasComb3,
             'CalibreComb3' => $r->CalibreComb3,
-            'CalibreComb32'=> $r->CalibreComb32,
-            'FibraComb3'  => $r->FibraComb3,
-            'CodColorComb3'=> $r->CodColorComb3,
-            'NombreCC3'   => $r->NombreCC3,
+            'CalibreComb32' => $r->CalibreComb32,
+            'FibraComb3' => $r->FibraComb3,
+            'CodColorComb3' => $r->CodColorComb3,
+            'NombreCC3' => $r->NombreCC3,
             'PasadasComb4' => $r->PasadasComb4,
             'CalibreComb4' => $r->CalibreComb4,
-            'CalibreComb42'=> $r->CalibreComb42,
-            'FibraComb4'  => $r->FibraComb4,
-            'CodColorComb4'=> $r->CodColorComb4,
-            'NombreCC4'   => $r->NombreCC4,
+            'CalibreComb42' => $r->CalibreComb42,
+            'FibraComb4' => $r->FibraComb4,
+            'CodColorComb4' => $r->CodColorComb4,
+            'NombreCC4' => $r->NombreCC4,
             'PasadasComb5' => $r->PasadasComb5,
             'CalibreComb5' => $r->CalibreComb5,
-            'CalibreComb52'=> $r->CalibreComb52,
-            'FibraComb5'  => $r->FibraComb5,
-            'CodColorComb5'=> $r->CodColorComb5,
-            'NombreCC5'   => $r->NombreCC5,
+            'CalibreComb52' => $r->CalibreComb52,
+            'FibraComb5' => $r->FibraComb5,
+            'CodColorComb5' => $r->CodColorComb5,
+            'NombreCC5' => $r->NombreCC5,
         ];
     }
 
     public static function resolveTipoPedidoFromFlog(?string $flogsId): ?string
     {
-        if (!$flogsId || strlen($flogsId) < 2) {
+        if (! $flogsId || strlen($flogsId) < 2) {
             return null;
         }
-        return strtoupper(substr($flogsId,0,2));
+
+        return strtoupper(substr($flogsId, 0, 2));
     }
 
     public static function resolverAliases(Request $req): array
     {
         $map = [
-            'NombreProducto' => ['Nombre','NombreProducto','Modelo','Producto'],
-            'NoTiras'        => ['NoTiras','Tiras'],
-            'Luchaje'        => ['Luchaje','LargoToalla','Largo','Altura','Alto'],
-            'ColorTrama'     => ['ColorTrama'],
-            'NombreCC1'      => ['NombreCC1','NomColorC1'],
-            'NombreCC2'      => ['NombreCC2','NomColorC2'],
-            'MedidaPlano'    => ['MedidaPlano','Plano'],
-            'NombreCPie'     => ['NombreCPie','Color Pie','Nombre C Pie'],
-            'PasadasTrama'   => ['PasadasTrama','Total'],
-            'CodColorComb2'  => ['CodColorC2','FibraC2','FibraComb2'],
+            'NombreProducto' => ['Nombre', 'NombreProducto', 'Modelo', 'Producto'],
+            'NoTiras' => ['NoTiras', 'Tiras'],
+            'Luchaje' => ['Luchaje', 'LargoToalla', 'Largo', 'Altura', 'Alto'],
+            'ColorTrama' => ['ColorTrama'],
+            'NombreCC1' => ['NombreCC1', 'NomColorC1'],
+            'NombreCC2' => ['NombreCC2', 'NomColorC2'],
+            'MedidaPlano' => ['MedidaPlano', 'Plano'],
+            'NombreCPie' => ['NombreCPie', 'Color Pie', 'Nombre C Pie'],
+            'PasadasTrama' => ['PasadasTrama', 'Total'],
+            'CodColorComb2' => ['CodColorC2', 'FibraC2', 'FibraComb2'],
         ];
         $out = [];
         foreach ($map as $db => $aliases) {
             foreach ($aliases as $a) {
                 if ($req->has($a) && $req->filled($a)) {
                     $val = $req->input($a);
-                    if (in_array($db,['NoTiras','Luchaje','MedidaPlano','PasadasTrama'])) {
-                        $val = is_numeric($val) ? (int)$val : $val;
+                    if (in_array($db, ['NoTiras', 'Luchaje', 'MedidaPlano', 'PasadasTrama'])) {
+                        $val = is_numeric($val) ? (int) $val : $val;
                     } else {
-                        $val = (string)$val;
+                        $val = (string) $val;
                     }
                     $out[$db] = $val;
                     break;
                 }
             }
         }
+
         return $out;
     }
 
@@ -251,10 +253,10 @@ class UtilityHelpers
             $anterior = ReqProgramaTejido::query()
                 ->salon($salon)
                 ->telar($noTelarId)
-                ->where('Ultimo',1)
+                ->where('Ultimo', 1)
                 ->first();
 
-            if (!$anterior) {
+            if (! $anterior) {
                 $anterior = ReqProgramaTejido::query()
                     ->salon($salon)
                     ->telar($noTelarId)
@@ -267,7 +269,7 @@ class UtilityHelpers
                 $anterior->save();
             }
         } catch (\Throwable $e) {
-            Log::warning('marcarCambioHiloAnterior error', ['msg'=>$e->getMessage()]);
+            Log::warning('marcarCambioHiloAnterior error', ['msg' => $e->getMessage()]);
         }
     }
 
@@ -275,9 +277,7 @@ class UtilityHelpers
      * Versión bulk de marcarCambioHiloAnterior para múltiples telares.
      * Reduce N*2 queries a 2 queries (1 bulk get + 1 bulk update si hay cambios).
      *
-     * @param string $salon
-     * @param array $telaresIds Array de telar IDs
-     * @param string|null $nuevoHilo
+     * @param  array  $telaresIds  Array de telar IDs
      * @return array Array con IDs de registros actualizados
      */
     public static function marcarCambioHiloBulk(string $salon, array $telaresIds, ?string $nuevoHilo): array
@@ -297,14 +297,14 @@ class UtilityHelpers
 
             // Para telares sin Ultimo=1, obtener el más reciente
             $telaresSinUltimo = array_diff($telaresIds, $anteriores->keys()->all());
-            if (!empty($telaresSinUltimo)) {
+            if (! empty($telaresSinUltimo)) {
                 $alternativos = ReqProgramaTejido::query()
                     ->salon($salon)
                     ->whereIn('NoTelarId', $telaresSinUltimo)
                     ->orderByDesc('Id')
                     ->get(['Id', 'NoTelarId', 'FibraRizo'])
                     ->groupBy('NoTelarId')
-                    ->map(fn($group) => $group->first())
+                    ->map(fn ($group) => $group->first())
                     ->filter();
 
                 foreach ($alternativos as $telarId => $registro) {
@@ -321,7 +321,7 @@ class UtilityHelpers
             }
 
             // Bulk update si hay cambios
-            if (!empty($idsActualizar)) {
+            if (! empty($idsActualizar)) {
                 ReqProgramaTejido::whereIn('Id', $idsActualizar)
                     ->update(['CambioHilo' => 1, 'UpdatedAt' => now()]);
             }
@@ -329,10 +329,8 @@ class UtilityHelpers
             return $idsActualizar;
         } catch (\Throwable $e) {
             Log::warning('marcarCambioHiloBulk error', ['msg' => $e->getMessage()]);
+
             return [];
         }
     }
 }
-
-
-

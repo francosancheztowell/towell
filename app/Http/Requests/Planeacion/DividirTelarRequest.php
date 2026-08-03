@@ -14,11 +14,11 @@ class DividirTelarRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'salon_tejido_id'   => 'required|string',
-            'no_telar_id'       => 'required|string',
+            'salon_tejido_id' => 'required|string',
+            'no_telar_id' => 'required|string',
             'posicion_division' => 'required|integer|min:0',
-            'nuevo_telar'       => 'required|string',
-            'nuevo_salon'       => 'nullable|string',
+            'nuevo_telar' => 'required|string',
+            'nuevo_salon' => 'nullable|string',
         ];
     }
 }

@@ -40,8 +40,10 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
         config()->set('crudo.tables.lines', 'TWCRUDOLINE');
         config()->set('crudo.tables.machines', 'ReqTelares');
         config()->set('crudo.tables.sequence', 'InvSecuenciaTelares');
+        config()->set('crudo.tables.paros', 'ManFallasParos');
         config()->set('crudo.catalog_salons', ['Jacquard', 'Smith', 'KM']);
         config()->set('crudo.data_area_id', 'pro');
+        config()->set('planeacion.programa_tejido_table', 'ReqProgramaTejido');
 
         DB::purge('crudo_test_source');
         DB::purge('crudo_test_catalog');
@@ -184,6 +186,58 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
         $this->assertSame('201', $machines[0]['telar']);
     }
 
+    public function test_it_reads_active_stops_from_every_department(): void
+    {
+        DB::connection('crudo_test_catalog')->table('ManFallasParos')->insert([
+            $this->paro('201', 'Calidad', 'Activo'),
+            $this->paro('300', 'Tejedores', 'Activo'),
+            $this->paro('Mc Coy 3', 'Urdido', 'Activo'),
+            $this->paro('306', 'Desarrolladores', 'Terminado'),
+        ]);
+
+        $rows = (new SqlServerCrudoReadRepository)->activeParos();
+
+        $this->assertCount(3, $rows);
+        $this->assertEqualsCanonicalizing(
+            ['Calidad', 'Tejedores', 'Urdido'],
+            array_map(static fn (object $row): string => (string) $row->Depto, $rows),
+        );
+    }
+
+    public function test_it_reads_the_active_program_display_fields_for_a_machine(): void
+    {
+        DB::connection('crudo_test_catalog')->table('ReqProgramaTejido')->insert([
+            [
+                'Id' => 10,
+                'NoTelarId' => '201',
+                'NoProduccion' => 'ORD-PROG-201',
+                'TamanoClave' => 'MOD-201-GDE',
+                'ItemId' => 'AX-201',
+                'NombreProducto' => 'Producto de prueba',
+                'FechaInicio' => '2026-08-03 08:00:00',
+                'EnProceso' => 1,
+            ],
+            [
+                'Id' => 11,
+                'NoTelarId' => '202',
+                'NoProduccion' => 'OTRA-ORDEN',
+                'TamanoClave' => 'OTRO-MODELO',
+                'ItemId' => 'OTRO-AX',
+                'NombreProducto' => 'Otro producto',
+                'FechaInicio' => '2026-08-03 09:00:00',
+                'EnProceso' => 1,
+            ],
+        ]);
+
+        $rows = (new SqlServerCrudoReadRepository)->activePrograms(['201']);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('ORD-PROG-201', $rows[0]->NoProduccion);
+        $this->assertSame('MOD-201-GDE', $rows[0]->TamanoClave);
+        $this->assertSame('AX-201', $rows[0]->ItemId);
+        $this->assertSame('Producto de prueba', $rows[0]->NombreProducto);
+    }
+
     private function createSchema(): void
     {
         Schema::connection('crudo_test_source')->create('TWCRUDOTABLE', function (Blueprint $table): void {
@@ -231,6 +285,45 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
             $table->string('TipoTelar');
             $table->integer('Secuencia');
         });
+
+        Schema::connection('crudo_test_catalog')->create('ManFallasParos', function (Blueprint $table): void {
+            $table->string('MaquinaId');
+            $table->string('Falla');
+            $table->string('Descripcion');
+            $table->string('NomEmpl');
+            $table->date('Fecha');
+            $table->string('Hora');
+            $table->string('Depto');
+            $table->string('Estatus');
+        });
+
+        Schema::connection('crudo_test_catalog')->create('ReqProgramaTejido', function (Blueprint $table): void {
+            $table->integer('Id');
+            $table->string('NoTelarId');
+            $table->string('NoProduccion')->nullable();
+            $table->string('TamanoClave')->nullable();
+            $table->string('ItemId')->nullable();
+            $table->string('NombreProducto')->nullable();
+            $table->dateTime('FechaInicio')->nullable();
+            $table->boolean('EnProceso');
+        });
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function paro(string $machine, string $department, string $status): array
+    {
+        return [
+            'MaquinaId' => $machine,
+            'Falla' => 'Falla de prueba',
+            'Descripcion' => 'Descripción de prueba',
+            'NomEmpl' => 'Operador',
+            'Fecha' => '2026-08-03',
+            'Hora' => '08:00:00',
+            'Depto' => $department,
+            'Estatus' => $status,
+        ];
     }
 
     /**

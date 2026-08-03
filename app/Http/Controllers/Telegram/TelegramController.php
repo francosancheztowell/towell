@@ -20,7 +20,6 @@ class TelegramController extends Controller
      * - Grupos: hasta 20 mensajes por segundo
      * - Tamaño de mensaje: máximo 4,096 caracteres
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function sendMessage(Request $request)
@@ -30,7 +29,7 @@ class TelegramController extends Controller
             if (empty($botToken)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Configure TELEGRAM_BOT_TOKEN en el archivo .env'
+                    'message' => 'Configure TELEGRAM_BOT_TOKEN en el archivo .env',
                 ], 500);
             }
 
@@ -58,7 +57,7 @@ class TelegramController extends Controller
                     'success' => false,
                     'message' => $modulo
                         ? "No hay destinatarios en SYSMensajes con módulo \"{$modulo}\" activo (y Activo=1). Configure registros en Configuración > Mensajes."
-                        : 'Indique el parámetro "modulo" (ej: InvTrama) o configure TELEGRAM_CHAT_ID en .env'
+                        : 'Indique el parámetro "modulo" (ej: InvTrama) o configure TELEGRAM_CHAT_ID en .env',
                 ], 400);
             }
 
@@ -69,14 +68,14 @@ class TelegramController extends Controller
             foreach ($chatIds as $chatId) {
                 $response = Http::post($url, [
                     'chat_id' => $chatId,
-                    'text' => $mensaje
+                    'text' => $mensaje,
                 ]);
                 if ($response->successful() && ($response->json()['ok'] ?? false)) {
                     $enviados++;
                 } else {
                     $errores[] = [
                         'chat_id' => $chatId,
-                        'description' => $response->json()['description'] ?? 'Error desconocido'
+                        'description' => $response->json()['description'] ?? 'Error desconocido',
                     ];
                 }
             }
@@ -85,21 +84,21 @@ class TelegramController extends Controller
                 'success' => $enviados > 0,
                 'message' => $enviados === count($chatIds)
                     ? "Mensaje enviado a {$enviados} destinatario(s)."
-                    : "Enviado a {$enviados} de " . count($chatIds) . ". Algunos fallaron.",
+                    : "Enviado a {$enviados} de ".count($chatIds).'. Algunos fallaron.',
                 'enviados' => $enviados,
                 'total' => count($chatIds),
-                'errores' => $errores
+                'errores' => $errores,
             ]);
 
         } catch (\Exception $e) {
             Log::error('Excepción al enviar mensaje a Telegram', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al enviar mensaje: ' . $e->getMessage()
+                'message' => 'Error al enviar mensaje: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -107,7 +106,6 @@ class TelegramController extends Controller
     /**
      * Obtener información del bot de Telegram
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse|\Illuminate\View\View
      */
     public function getBotInfo(Request $request)
@@ -117,6 +115,7 @@ class TelegramController extends Controller
 
             if (empty($botToken)) {
                 $payload = ['success' => false, 'message' => 'Token del bot no configurado'];
+
                 return $request->wantsJson()
                     ? response()->json($payload, 500)
                     : view('modulos.telegram.bot-info', $payload);
@@ -128,6 +127,7 @@ class TelegramController extends Controller
             if ($response->successful()) {
                 $data = $response->json();
                 $payload = ['success' => true, 'data' => $data];
+
                 return $request->wantsJson()
                     ? response()->json($payload)
                     : view('modulos.telegram.bot-info', $payload);
@@ -136,14 +136,16 @@ class TelegramController extends Controller
             $payload = [
                 'success' => false,
                 'message' => 'No se pudo obtener información del bot',
-                'error' => $response->json()
+                'error' => $response->json(),
             ];
+
             return $request->wantsJson()
                 ? response()->json($payload, 500)
                 : view('modulos.telegram.bot-info', $payload);
 
         } catch (\Exception $e) {
-            $payload = ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+            $payload = ['success' => false, 'message' => 'Error: '.$e->getMessage()];
+
             return $request->wantsJson()
                 ? response()->json($payload, 500)
                 : view('modulos.telegram.bot-info', $payload);
@@ -155,7 +157,6 @@ class TelegramController extends Controller
      *
      * IMPORTANTE: El usuario debe enviar un mensaje al bot primero
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse|\Illuminate\View\View
      */
     public function getChatId(Request $request)
@@ -168,8 +169,9 @@ class TelegramController extends Controller
                     'success' => false,
                     'message' => 'Token del bot no configurado',
                     'chat_ids' => [],
-                    'instructions' => []
+                    'instructions' => [],
                 ];
+
                 return $request->wantsJson()
                     ? response()->json($payload, 500)
                     : view('modulos.telegram.get-chat-id', $payload);
@@ -191,12 +193,12 @@ class TelegramController extends Controller
                             $firstName = $update['message']['chat']['first_name'] ?? 'Sin nombre';
                             $username = $update['message']['chat']['username'] ?? 'Sin username';
 
-                            if (!in_array($chatId, array_column($chatIds, 'chat_id'))) {
+                            if (! in_array($chatId, array_column($chatIds, 'chat_id'))) {
                                 $chatIds[] = [
                                     'chat_id' => $chatId,
                                     'first_name' => $firstName,
                                     'username' => $username,
-                                    'type' => $update['message']['chat']['type'] ?? 'private'
+                                    'type' => $update['message']['chat']['type'] ?? 'private',
                                 ];
                             }
                         }
@@ -213,8 +215,9 @@ class TelegramController extends Controller
                             'Recarga esta página con el botón de abajo.',
                             'Copia el Chat ID que aparece en la tabla (botón "Copiar").',
                             'Agrégalo a tu archivo .env como: TELEGRAM_CHAT_ID=tu_chat_id_aqui',
-                        ]
+                        ],
                     ];
+
                     return $request->wantsJson()
                         ? response()->json($payload)
                         : view('modulos.telegram.get-chat-id', $payload);
@@ -226,8 +229,9 @@ class TelegramController extends Controller
                 'message' => 'No se pudo obtener los updates',
                 'error' => $response->json(),
                 'chat_ids' => [],
-                'instructions' => []
+                'instructions' => [],
             ];
+
             return $request->wantsJson()
                 ? response()->json($payload, 500)
                 : view('modulos.telegram.get-chat-id', $payload);
@@ -235,14 +239,14 @@ class TelegramController extends Controller
         } catch (\Exception $e) {
             $payload = [
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage(),
+                'message' => 'Error: '.$e->getMessage(),
                 'chat_ids' => [],
-                'instructions' => []
+                'instructions' => [],
             ];
+
             return $request->wantsJson()
                 ? response()->json($payload, 500)
                 : view('modulos.telegram.get-chat-id', $payload);
         }
     }
 }
-

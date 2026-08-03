@@ -10,7 +10,7 @@ class EditTejido
     /**
      * Mostrar el formulario de edición de un registro de programa de tejido
      *
-     * @param int $id ID del registro a editar
+     * @param  int  $id  ID del registro a editar
      * @return \Illuminate\View\View
      */
     public static function editar(int $id)
@@ -20,7 +20,6 @@ class EditTejido
             ? ReqModelosCodificados::where('TamanoClave', $registro->TamanoClave)->first()
             : null;
 
-        return view('modulos.programa-tejido.programatejidoform.edit', compact('registro','modeloCodificado'));
+        return view('modulos.programa-tejido.programatejidoform.edit', compact('registro', 'modeloCodificado'));
     }
 }
-

@@ -3,20 +3,22 @@
 namespace App\Http\Controllers\Configuracion;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Imports\ReqProgramaTejidoSimpleImport;
 use App\Imports\ReqProgramaTejidoUpdateImport;
 use App\Models\Planeacion\ReqProgramaTejido;
-use Maatwebsite\Excel\Facades\Excel;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Artisan;
 use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use Maatwebsite\Excel\Facades\Excel;
+
 class ConfiguracionController extends Controller
 {
     private int $processedRows = 0;
+
     private int $skippedRows = 0;
 
     /**
@@ -37,15 +39,16 @@ class ConfiguracionController extends Controller
             set_time_limit(600); // 10 minutos para importación + regeneración de líneas
             ini_set('max_execution_time', 600);
             $validator = Validator::make($request->all(), [
-                'excel_file' => 'required|file|mimes:xlsx,xls|max:10240'
+                'excel_file' => 'required|file|mimes:xlsx,xls|max:10240',
             ]);
 
             if ($validator->fails()) {
-                Log::error("Validación fallida: " . json_encode($validator->errors()->all()));
+                Log::error('Validación fallida: '.json_encode($validator->errors()->all()));
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Archivo inválido. Debe ser un archivo Excel (.xlsx o .xls) de máximo 10MB.',
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 400);
             }
 
@@ -64,7 +67,7 @@ class ConfiguracionController extends Controller
                         DB::statement('DBCC CHECKIDENT (ReqProgramaTejido, RESEED, 0)');
                         DB::statement('DBCC CHECKIDENT (ReqProgramaTejidoLine, RESEED, 0)');
                     } catch (\Throwable $delEx) {
-                        Log::error("No se pudo limpiar las tablas: " . $delEx->getMessage());
+                        Log::error('No se pudo limpiar las tablas: '.$delEx->getMessage());
                         throw $delEx;
                     }
                 }
@@ -74,7 +77,7 @@ class ConfiguracionController extends Controller
                 // Deshabilitar query log para mejor rendimiento durante importación masiva
                 DB::connection()->disableQueryLog();
 
-                $import = new ReqProgramaTejidoSimpleImport();
+                $import = new ReqProgramaTejidoSimpleImport;
                 Excel::import($import, $archivo);
 
                 ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
@@ -95,7 +98,7 @@ class ConfiguracionController extends Controller
                 $totalRegenerados = 0;
                 $saltadosPorFecha = 0;
                 $errores = 0;
-                $observer = new ReqProgramaTejidoObserver();
+                $observer = new ReqProgramaTejidoObserver;
 
                 // Procesar en chunks para evitar sobrecarga de memoria
                 $idsValidos = [];
@@ -108,12 +111,14 @@ class ConfiguracionController extends Controller
                         // Validar que las fechas sean del año 2000 en adelante
                         if ($fechaInicio->year < 2000 || $fechaFinal->year < 2000) {
                             $saltadosPorFecha++;
+
                             continue;
                         }
 
                         // Validar que FechaFinal sea mayor que FechaInicio
                         if ($fechaFinal->lte($fechaInicio)) {
                             $saltadosPorFecha++;
+
                             continue;
                         }
 
@@ -158,7 +163,7 @@ class ConfiguracionController extends Controller
                     'deleted' => $registrosAntes,
                     'total_before' => $registrosAntes,
                     'total_after' => $registrosDespues,
-                    'errors' => []
+                    'errors' => [],
                 ];
 
                 return response()->json($response);
@@ -169,45 +174,45 @@ class ConfiguracionController extends Controller
                     try {
                         DB::rollback();
                     } catch (\Exception $rollbackEx) {
-                        Log::error("Error al hacer rollback: " . $rollbackEx->getMessage());
+                        Log::error('Error al hacer rollback: '.$rollbackEx->getMessage());
                     }
                 }
 
                 // Asegurar que el Observer se re-habilite incluso si hay error
                 ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
 
-                Log::error("Error durante la importación", [
+                Log::error('Error durante la importación', [
                     'message' => $e->getMessage(),
                     'file' => $e->getFile(),
                     'line' => $e->getLine(),
-                    'trace' => $e->getTraceAsString()
+                    'trace' => $e->getTraceAsString(),
                 ]);
 
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error al procesar el archivo: ' . $e->getMessage(),
+                    'message' => 'Error al procesar el archivo: '.$e->getMessage(),
                     'error_details' => config('app.debug') ? [
                         'file' => $e->getFile(),
-                        'line' => $e->getLine()
-                    ] : null
+                        'line' => $e->getLine(),
+                    ] : null,
                 ], 500);
             }
 
         } catch (\Throwable $e) {
-            Log::error("Error general en procesarExcel", [
+            Log::error('Error general en procesarExcel', [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error interno del servidor: ' . $e->getMessage(),
+                'message' => 'Error interno del servidor: '.$e->getMessage(),
                 'error_details' => config('app.debug') ? [
                     'file' => $e->getFile(),
-                    'line' => $e->getLine()
-                ] : null
+                    'line' => $e->getLine(),
+                ] : null,
             ], 500);
         }
     }
@@ -223,15 +228,16 @@ class ConfiguracionController extends Controller
             ini_set('max_execution_time', 600);
 
             $validator = Validator::make($request->all(), [
-                'excel_file' => 'required|file|mimes:xlsx,xls|max:10240'
+                'excel_file' => 'required|file|mimes:xlsx,xls|max:10240',
             ]);
 
             if ($validator->fails()) {
-                Log::error("Validación fallida: " . json_encode($validator->errors()->all()));
+                Log::error('Validación fallida: '.json_encode($validator->errors()->all()));
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Archivo inválido. Debe ser un archivo Excel (.xlsx o .xls) de máximo 10MB.',
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 400);
             }
 
@@ -245,7 +251,7 @@ class ConfiguracionController extends Controller
                 // Deshabilitar query log para mejor rendimiento
                 DB::connection()->disableQueryLog();
 
-                $import = new ReqProgramaTejidoUpdateImport();
+                $import = new ReqProgramaTejidoUpdateImport;
                 Excel::import($import, $archivo);
 
                 ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
@@ -266,7 +272,7 @@ class ConfiguracionController extends Controller
                 $totalRegenerados = 0;
                 $saltadosPorFecha = 0;
                 $errores = 0;
-                $observer = new ReqProgramaTejidoObserver();
+                $observer = new ReqProgramaTejidoObserver;
 
                 $idsValidos = [];
                 foreach ($registrosConFechas as $registro) {
@@ -276,11 +282,13 @@ class ConfiguracionController extends Controller
 
                         if ($fechaInicio->year < 2000 || $fechaFinal->year < 2000) {
                             $saltadosPorFecha++;
+
                             continue;
                         }
 
                         if ($fechaFinal->lte($fechaInicio)) {
                             $saltadosPorFecha++;
+
                             continue;
                         }
 
@@ -323,7 +331,7 @@ class ConfiguracionController extends Controller
                     'deleted' => 0,
                     'total_before' => $registrosAntes,
                     'total_after' => $registrosDespues,
-                    'errors' => []
+                    'errors' => [],
                 ];
 
                 return response()->json($response);
@@ -333,44 +341,44 @@ class ConfiguracionController extends Controller
                     try {
                         DB::rollback();
                     } catch (\Exception $rollbackEx) {
-                        Log::error("Error al hacer rollback: " . $rollbackEx->getMessage());
+                        Log::error('Error al hacer rollback: '.$rollbackEx->getMessage());
                     }
                 }
 
                 ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
 
-                Log::error("Error durante la importación de actualización", [
+                Log::error('Error durante la importación de actualización', [
                     'message' => $e->getMessage(),
                     'file' => $e->getFile(),
                     'line' => $e->getLine(),
-                    'trace' => $e->getTraceAsString()
+                    'trace' => $e->getTraceAsString(),
                 ]);
 
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error al procesar el archivo: ' . $e->getMessage(),
+                    'message' => 'Error al procesar el archivo: '.$e->getMessage(),
                     'error_details' => config('app.debug') ? [
                         'file' => $e->getFile(),
-                        'line' => $e->getLine()
-                    ] : null
+                        'line' => $e->getLine(),
+                    ] : null,
                 ], 500);
             }
 
         } catch (\Throwable $e) {
-            Log::error("Error general en procesarExcelUpdate", [
+            Log::error('Error general en procesarExcelUpdate', [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error interno del servidor: ' . $e->getMessage(),
+                'message' => 'Error interno del servidor: '.$e->getMessage(),
                 'error_details' => config('app.debug') ? [
                     'file' => $e->getFile(),
-                    'line' => $e->getLine()
-                ] : null
+                    'line' => $e->getLine(),
+                ] : null,
             ], 500);
         }
     }

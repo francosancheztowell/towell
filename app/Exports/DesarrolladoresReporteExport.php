@@ -17,10 +17,12 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class DesarrolladoresReporteExport implements FromCollection, WithHeadings, WithStyles, WithColumnWidths, WithTitle, WithEvents
+class DesarrolladoresReporteExport implements FromCollection, WithColumnWidths, WithEvents, WithHeadings, WithStyles, WithTitle
 {
     protected string $fechaInicio;
+
     protected string $fechaFin;
+
     protected Collection $datos;
 
     public function __construct(string $fechaInicio, string $fechaFin)

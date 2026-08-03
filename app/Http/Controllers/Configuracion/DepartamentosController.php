@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Configuracion;
 
 use App\Http\Controllers\Controller;
 use App\Models\Sistema\SysDepartamento;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\JsonResponse;
 
 class DepartamentosController extends Controller
 {
@@ -29,8 +29,8 @@ class DepartamentosController extends Controller
     public function store(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
-            'Depto'        => ['required', 'string', 'max:100'],
-            'Descripcion'  => ['nullable', 'string', 'max:255'],
+            'Depto' => ['required', 'string', 'max:100'],
+            'Descripcion' => ['nullable', 'string', 'max:255'],
         ]);
 
         $depto = SysDepartamento::create($validated);
@@ -56,8 +56,8 @@ class DepartamentosController extends Controller
         $depto = SysDepartamento::findOrFail($id);
 
         $validated = $request->validate([
-            'Depto'        => ['required', 'string', 'max:100'],
-            'Descripcion'  => ['nullable', 'string', 'max:255'],
+            'Depto' => ['required', 'string', 'max:100'],
+            'Descripcion' => ['nullable', 'string', 'max:255'],
         ]);
 
         $depto->update($validated);

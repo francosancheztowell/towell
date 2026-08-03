@@ -8,18 +8,20 @@ use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatCalendarios\Calendario
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
  * @file ProgramaTejidoCalendariosController.php
+ *
  * @description Controlador de calendarios para Programa Tejido. Actualización masiva de calendarios,
  *              reprogramar registro, recalcular fechas. Regla: EnProceso no permite edición de fechas.
+ *
  * @dependencies CalendarioController, BalancearTejido, ReqProgramaTejido
  */
 class ProgramaTejidoCalendariosController extends Controller
@@ -34,12 +36,12 @@ class ProgramaTejidoCalendariosController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $registros
+                'data' => $registros,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener los registros: ' . $e->getMessage()
+                'message' => 'Error al obtener los registros: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -52,7 +54,7 @@ class ProgramaTejidoCalendariosController extends Controller
             $request->validate([
                 'calendario_id' => 'required|string',
                 'registros_ids' => 'required|array|min:1',
-                'registros_ids.*' => ['required', 'integer', Rule::exists(ReqProgramaTejido::tableName(), 'Id')]
+                'registros_ids.*' => ['required', 'integer', Rule::exists(ReqProgramaTejido::tableName(), 'Id')],
             ]);
 
             $calendarioId = $request->input('calendario_id');
@@ -96,10 +98,10 @@ class ProgramaTejidoCalendariosController extends Controller
                         'ProdKgDia2',
                         'DiasJornada',
                         'Ultimo',
-                        'EnProceso'
+                        'EnProceso',
                     ]);
 
-                $calendarioController = new CalendarioController();
+                $calendarioController = new CalendarioController;
                 $prevFin = null;
                 $prevTelar = null;
 
@@ -107,6 +109,7 @@ class ProgramaTejidoCalendariosController extends Controller
                     try {
                         if (empty($p->FechaInicio)) {
                             $errores++;
+
                             continue;
                         }
 
@@ -125,17 +128,17 @@ class ProgramaTejidoCalendariosController extends Controller
                             $inicio = $inicioOriginal->copy();
                         } else {
                             if ($prevFin) {
-                                if (!$prevFin->equalTo($inicioOriginal)) {
+                                if (! $prevFin->equalTo($inicioOriginal)) {
                                     $inicio = $prevFin->copy();
                                 }
                             }
                             $snap = $calendarioController->snapInicioAlCalendario($calendarioId, $inicio);
-                            if ($snap && !$snap->equalTo($inicio)) {
+                            if ($snap && ! $snap->equalTo($inicio)) {
                                 $inicio = $snap;
                             }
                         }
 
-                        $horas = (float)($p->HorasProd ?? 0);
+                        $horas = (float) ($p->HorasProd ?? 0);
                         if ($horas <= 0) {
                             $horas = $calendarioController->calcularHorasProd($p);
                             if ($horas > 0) {
@@ -144,12 +147,13 @@ class ProgramaTejidoCalendariosController extends Controller
                         }
                         if ($horas <= 0) {
                             $errores++;
+
                             continue;
                         }
 
                         $fin = BalancearTejido::calcularFechaFinalDesdeInicio($calendarioId, $inicio, $horas);
-                        if (!$fin) {
-                            $fin = $inicio->copy()->addSeconds((int)round($horas * 3600));
+                        if (! $fin) {
+                            $fin = $inicio->copy()->addSeconds((int) round($horas * 3600));
                         }
                         if ($fin->lt($inicio)) {
                             $fin = $inicio->copy();
@@ -164,16 +168,16 @@ class ProgramaTejidoCalendariosController extends Controller
                         } catch (\Throwable $e) {
                         }
                         $oldFinStr = null;
-                        if (!empty($p->FechaFinal)) {
+                        if (! empty($p->FechaFinal)) {
                             try {
                                 $oldFinStr = Carbon::parse($p->FechaFinal)->format('Y-m-d H:i:s');
                             } catch (\Throwable $e) {
                             }
                         }
 
-                        $cambio = (!$esEnProceso && $oldInicioStr !== $inicioStr) || ($oldFinStr !== $finStr);
+                        $cambio = (! $esEnProceso && $oldInicioStr !== $inicioStr) || ($oldFinStr !== $finStr);
 
-                        if (!$esEnProceso && $oldInicioStr !== $inicioStr) {
+                        if (! $esEnProceso && $oldInicioStr !== $inicioStr) {
                             AuditoriaHelper::logCambioFechaInicio(
                                 'ReqProgramaTejido',
                                 $p->Id,
@@ -185,7 +189,7 @@ class ProgramaTejidoCalendariosController extends Controller
                             );
                         }
 
-                        if (!$esEnProceso) {
+                        if (! $esEnProceso) {
                             $p->FechaInicio = $inicioStr;
                         }
                         $p->FechaFinal = $finStr;
@@ -211,7 +215,7 @@ class ProgramaTejidoCalendariosController extends Controller
                         $errores++;
                         LogFacade::error('Error recalculando registro', [
                             'registro_id' => $p->Id ?? null,
-                            'error' => $e->getMessage()
+                            'error' => $e->getMessage(),
                         ]);
                     }
                 }
@@ -231,8 +235,8 @@ class ProgramaTejidoCalendariosController extends Controller
                         'actualizados' => $actualizados,
                         'procesados' => $procesados,
                         'errores' => $errores,
-                        'tiempo_segundos' => $tiempo
-                    ]
+                        'tiempo_segundos' => $tiempo,
+                    ],
                 ]);
             } catch (\Exception $e) {
                 DBFacade::rollBack();
@@ -245,17 +249,17 @@ class ProgramaTejidoCalendariosController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             LogFacade::error('Error en actualizarCalendariosMasivo', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al actualizar calendarios: ' . $e->getMessage()
+                'message' => 'Error al actualizar calendarios: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -264,7 +268,7 @@ class ProgramaTejidoCalendariosController extends Controller
     {
         try {
             $request->validate([
-                'reprogramar' => 'nullable|string|in:1,2'
+                'reprogramar' => 'nullable|string|in:1,2',
             ]);
 
             $registro = ReqProgramaTejido::findOrFail($id);
@@ -272,7 +276,7 @@ class ProgramaTejidoCalendariosController extends Controller
             if ($registro->EnProceso != 1) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Solo se puede actualizar Reprogramar en registros que están en proceso'
+                    'message' => 'Solo se puede actualizar Reprogramar en registros que están en proceso',
                 ], 422);
             }
 
@@ -287,23 +291,23 @@ class ProgramaTejidoCalendariosController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Reprogramar actualizado correctamente',
-                'reprogramar' => $registro->Reprogramar
+                'reprogramar' => $registro->Reprogramar,
             ]);
         } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Registro no encontrado'
+                'message' => 'Registro no encontrado',
             ], 404);
         } catch (\Exception $e) {
             LogFacade::error('Error al actualizar Reprogramar', [
                 'id' => $id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al actualizar Reprogramar: ' . $e->getMessage()
+                'message' => 'Error al actualizar Reprogramar: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -313,9 +317,10 @@ class ProgramaTejidoCalendariosController extends Controller
         try {
             Artisan::call('programa-tejido:recalcular-fechas-produccion', ['--all' => true]);
             $output = Artisan::output();
+
             return response()->json(['ok' => true, 'message' => trim($output) ?: 'Recálculo completado.']);
         } catch (\Throwable $e) {
-            return response()->json(['ok' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+            return response()->json(['ok' => false, 'message' => 'Error: '.$e->getMessage()], 500);
         }
     }
 }

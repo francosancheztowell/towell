@@ -610,7 +610,7 @@ class CatLMatController extends Controller
                 ->table('InventTable')
                 ->whereIn('ItemId', $itemIdsAValidarEnInvent)
                 ->where('DATAAREAID', 'PRO')
-                ->where('TwVigente', 1)
+
                 ->pluck('ItemId')
                 ->all();
             $itemsPermitidos = array_merge($itemsPermitidos, $itemsEnAx);

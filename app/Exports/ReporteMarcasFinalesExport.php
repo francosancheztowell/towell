@@ -8,6 +8,7 @@ use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 class ReporteMarcasFinalesExport implements WithMultipleSheets
 {
     protected Collection $datosPorDia;
+
     protected Collection $velocidadesPorTelar;
 
     public function __construct(Collection $datosPorDia, Collection $velocidadesPorTelar)

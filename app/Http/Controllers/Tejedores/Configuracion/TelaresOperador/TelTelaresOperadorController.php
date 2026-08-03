@@ -38,7 +38,7 @@ class TelTelaresOperadorController extends Controller
             ->orderBy('SalonTejidoId')
             ->orderBy('NoTelarId')
             ->get()
-            ->map(fn($t) => [
+            ->map(fn ($t) => [
                 'SalonTejidoId' => $t->SalonTejidoId,
                 'NoTelarId' => $t->NoTelarId,
             ]);
@@ -77,7 +77,7 @@ class TelTelaresOperadorController extends Controller
             ->where('NoTelarId', '!=', '')
             ->distinct()
             ->get()
-            ->map(fn($t) => (object) [
+            ->map(fn ($t) => (object) [
                 'SalonTejidoId' => $t->SalonTejidoId,
                 'NoTelarId' => $t->NoTelarId,
                 'Nombre' => $t->NoTelarId,

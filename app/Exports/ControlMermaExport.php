@@ -18,17 +18,22 @@ use RuntimeException;
 class ControlMermaExport implements FromArray, WithEvents, WithTitle
 {
     private const DATA_START_ROW = 6;
+
     private const TEMPLATE_FIRST_DATA_ROW = 6;
+
     private const TEMPLATE_MIDDLE_DATA_ROW = 7;
+
     private const TEMPLATE_LAST_DATA_ROW = 19;
+
     private const TEMPLATE_TOTAL_ROW = 20;
+
     private const TEMPLATE_MAX_COLUMN = 28; // AB
+
     private const TEMPLATE_VISIBLE_DATA_ROWS = 14;
 
     public function __construct(
         private readonly Collection $rows
-    ) {
-    }
+    ) {}
 
     public function array(): array
     {
@@ -217,9 +222,9 @@ class ControlMermaExport implements FromArray, WithEvents, WithTitle
 
     private function writeTotalFormulas(Worksheet $sheet, int $lastDataRow, int $totalRow): void
     {
-        $sheet->setCellValue("C{$totalRow}", "=SUM(C" . self::DATA_START_ROW . ":C{$lastDataRow})");
-        $sheet->setCellValue("D{$totalRow}", "=SUM(D" . self::DATA_START_ROW . ":D{$lastDataRow})");
-        $sheet->setCellValue("E{$totalRow}", "=SUM(E" . self::DATA_START_ROW . ":E{$lastDataRow})");
+        $sheet->setCellValue("C{$totalRow}", '=SUM(C'.self::DATA_START_ROW.":C{$lastDataRow})");
+        $sheet->setCellValue("D{$totalRow}", '=SUM(D'.self::DATA_START_ROW.":D{$lastDataRow})");
+        $sheet->setCellValue("E{$totalRow}", '=SUM(E'.self::DATA_START_ROW.":E{$lastDataRow})");
     }
 
     private function buildMtsFormula(string $mermaColumn, string $totalColumn, string $countColumn, int $row): string

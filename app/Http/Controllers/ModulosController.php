@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Helpers\ImageOptimizer;
 use App\Models\Sistema\SYSRoles;
 use App\Models\Sistema\SYSUsuario;
 use App\Models\Sistema\SYSUsuariosRoles;
-use App\Helpers\ImageOptimizer;
 use App\Services\ModuloService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Auth;
 
 class ModulosController extends Controller
 {
@@ -36,7 +36,8 @@ class ModulosController extends Controller
 
             return view('modulos.gestion-modulos.index', compact('modulos', 'modulosPrincipales'));
         } catch (\Exception $e) {
-            Log::error('Error al cargar mÃ³dulos: ' . $e->getMessage());
+            Log::error('Error al cargar mÃ³dulos: '.$e->getMessage());
+
             return redirect()->back()->with('error', 'Error al cargar los mÃ³dulos');
         }
     }
@@ -105,7 +106,7 @@ class ModulosController extends Controller
             $ordenExistente = SYSRoles::where('orden', $request->orden)->exists();
             if ($ordenExistente) {
                 return back()
-                    ->withErrors(['orden' => 'El orden "' . $request->orden . '" ya existe. Debe ser Ãºnico.'])
+                    ->withErrors(['orden' => 'El orden "'.$request->orden.'" ya existe. Debe ser Ãºnico.'])
                     ->withInput();
             }
 
@@ -113,7 +114,7 @@ class ModulosController extends Controller
             $nivel = (int) $request->Nivel;
             $dependencia = $request->Dependencia;
 
-            if ($nivel === 1 && !empty($dependencia)) {
+            if ($nivel === 1 && ! empty($dependencia)) {
                 return back()
                     ->withErrors(['Dependencia' => 'Los mÃ³dulos de Nivel 1 no deben tener dependencia.'])
                     ->withInput();
@@ -121,24 +122,24 @@ class ModulosController extends Controller
 
             if ($nivel > 1 && empty($dependencia)) {
                 return back()
-                    ->withErrors(['Dependencia' => 'Los mÃ³dulos de Nivel ' . $nivel . ' deben tener una dependencia.'])
+                    ->withErrors(['Dependencia' => 'Los mÃ³dulos de Nivel '.$nivel.' deben tener una dependencia.'])
                     ->withInput();
             }
 
             // Si tiene dependencia, verificar que el mÃ³dulo padre exista
-            if (!empty($dependencia)) {
+            if (! empty($dependencia)) {
                 $moduloPadre = SYSRoles::where('orden', $dependencia)->first();
 
-                if (!$moduloPadre) {
+                if (! $moduloPadre) {
                     return back()
-                        ->withErrors(['Dependencia' => 'El mÃ³dulo padre con orden "' . $dependencia . '" no existe.'])
+                        ->withErrors(['Dependencia' => 'El mÃ³dulo padre con orden "'.$dependencia.'" no existe.'])
                         ->withInput();
                 }
 
                 // Validar que el nivel sea correcto respecto al padre
                 if ($nivel <= $moduloPadre->Nivel) {
                     return back()
-                        ->withErrors(['Nivel' => 'El nivel del submÃ³dulo debe ser mayor que el nivel del mÃ³dulo padre (' . $moduloPadre->Nivel . ').'])
+                        ->withErrors(['Nivel' => 'El nivel del submÃ³dulo debe ser mayor que el nivel del mÃ³dulo padre ('.$moduloPadre->Nivel.').'])
                         ->withInput();
                 }
             }
@@ -161,24 +162,23 @@ class ModulosController extends Controller
             // Manejar subida de imagen (optimizada: redimensionada y comprimida)
             if ($request->hasFile('imagen_archivo')) {
                 $imagen = $request->file('imagen_archivo');
-                $nombreImagen = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $imagen->getClientOriginalName());
+                $nombreImagen = time().'_'.preg_replace('/[^a-zA-Z0-9._-]/', '_', $imagen->getClientOriginalName());
                 $rutaImagenes = public_path('images/fotos_modulos');
                 if (! file_exists($rutaImagenes)) {
                     mkdir($rutaImagenes, 0777, true);
                 }
-                $destPath = $rutaImagenes . DIRECTORY_SEPARATOR . $nombreImagen;
+                $destPath = $rutaImagenes.DIRECTORY_SEPARATOR.$nombreImagen;
                 try {
                     ImageOptimizer::optimizeAndSave($imagen, $destPath);
                     $data['imagen'] = $nombreImagen;
                 } catch (\Exception $e) {
-                    Log::warning('Imagen no optimizada, guardando original: ' . $e->getMessage());
+                    Log::warning('Imagen no optimizada, guardando original: '.$e->getMessage());
                     $imagen->move($rutaImagenes, $nombreImagen);
                     $data['imagen'] = $nombreImagen;
                 }
             } else {
                 $data['imagen'] = null;
             }
-
 
             // Crear el modulo
             $modulo = SYSRoles::create($data);
@@ -199,15 +199,15 @@ class ModulosController extends Controller
                 ->with('show_sweetalert', true);
 
         } catch (\Exception $e) {
-            Log::error('Error al crear mÃ³dulo: ' . $e->getMessage(), [
+            Log::error('Error al crear mÃ³dulo: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'user_id' => Auth::id(),
                 'user_authenticated' => Auth::check(),
-                'request_data' => $request->all()
+                'request_data' => $request->all(),
             ]);
 
             return back()
-                ->with('error', 'Error al crear el mÃ³dulo: ' . $e->getMessage())
+                ->with('error', 'Error al crear el mÃ³dulo: '.$e->getMessage())
                 ->withInput();
         }
     }
@@ -258,18 +258,18 @@ class ModulosController extends Controller
 
             // Manejar subida de nueva imagen (optimizada: redimensionada y comprimida)
             if ($request->hasFile('imagen_archivo')) {
-                if ($modulo->imagen && file_exists(public_path('images/fotos_modulos/' . $modulo->imagen))) {
-                    unlink(public_path('images/fotos_modulos/' . $modulo->imagen));
+                if ($modulo->imagen && file_exists(public_path('images/fotos_modulos/'.$modulo->imagen))) {
+                    unlink(public_path('images/fotos_modulos/'.$modulo->imagen));
                 }
                 $imagen = $request->file('imagen_archivo');
-                $nombreImagen = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $imagen->getClientOriginalName());
+                $nombreImagen = time().'_'.preg_replace('/[^a-zA-Z0-9._-]/', '_', $imagen->getClientOriginalName());
                 $rutaImagenes = public_path('images/fotos_modulos');
-                $destPath = $rutaImagenes . DIRECTORY_SEPARATOR . $nombreImagen;
+                $destPath = $rutaImagenes.DIRECTORY_SEPARATOR.$nombreImagen;
                 try {
                     ImageOptimizer::optimizeAndSave($imagen, $destPath);
                     $data['imagen'] = $nombreImagen;
                 } catch (\Exception $e) {
-                    Log::warning('Imagen no optimizada, guardando original: ' . $e->getMessage());
+                    Log::warning('Imagen no optimizada, guardando original: '.$e->getMessage());
                     $imagen->move($rutaImagenes, $nombreImagen);
                     $data['imagen'] = $nombreImagen;
                 }
@@ -285,13 +285,14 @@ class ModulosController extends Controller
                 ->with('show_sweetalert', true);
 
         } catch (\Exception $e) {
-            Log::error('Error al actualizar modulo: ' . $e->getMessage(), [
+            Log::error('Error al actualizar modulo: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'user_id' => Auth::id(),
                 'user_authenticated' => Auth::check(),
-                'module_id' => $id
+                'module_id' => $id,
             ]);
-            return back()->with('error', 'Error al actualizar el modulo: ' . $e->getMessage())->withInput();
+
+            return back()->with('error', 'Error al actualizar el modulo: '.$e->getMessage())->withInput();
         }
     }
 
@@ -324,7 +325,8 @@ class ModulosController extends Controller
                 ->with('success', "Modulo '{$nombreModulo}' y permisos asociados eliminados correctamente");
 
         } catch (\Exception $e) {
-            Log::error('Error al eliminar modulo: ' . $e->getMessage());
+            Log::error('Error al eliminar modulo: '.$e->getMessage());
+
             return back()->with('error', 'Error al eliminar el modulo');
         }
     }
@@ -341,13 +343,14 @@ class ModulosController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => "Permisos sincronizados para {$registrosActualizados} usuario(s)",
-                'registros' => $registrosActualizados
+                'registros' => $registrosActualizados,
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al sincronizar permisos: ' . $e->getMessage());
+            Log::error('Error al sincronizar permisos: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al sincronizar permisos: ' . $e->getMessage()
+                'message' => 'Error al sincronizar permisos: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -364,12 +367,12 @@ class ModulosController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $modulos
+                'data' => $modulos,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener modulos'
+                'message' => 'Error al obtener modulos',
             ], 500);
         }
     }
@@ -387,12 +390,12 @@ class ModulosController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $submodulos
+                'data' => $submodulos,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener submÃ³dulos'
+                'message' => 'Error al obtener submÃ³dulos',
             ], 500);
         }
     }
@@ -407,15 +410,16 @@ class ModulosController extends Controller
 
             // Crear una copia del mÃ³dulo
             $nuevoModulo = $modulo->replicate();
-            $nuevoModulo->orden = $modulo->orden . '_copia';
-            $nuevoModulo->modulo = $modulo->modulo . ' (Copia)';
+            $nuevoModulo->orden = $modulo->orden.'_copia';
+            $nuevoModulo->modulo = $modulo->modulo.' (Copia)';
             $nuevoModulo->save();
 
             return redirect()->route($this->getModulosIndexRoute())
                 ->with('success', "MÃ³dulo '{$modulo->modulo}' duplicado exitosamente");
 
         } catch (\Exception $e) {
-            Log::error('Error al duplicar mÃ³dulo: ' . $e->getMessage());
+            Log::error('Error al duplicar mÃ³dulo: '.$e->getMessage());
+
             return back()->with('error', 'Error al duplicar el mÃ³dulo');
         }
     }
@@ -428,21 +432,23 @@ class ModulosController extends Controller
         try {
             $modulo = SYSRoles::findOrFail($id);
 
-            $modulo->acceso = !$modulo->acceso;
+            $modulo->acceso = ! $modulo->acceso;
             $modulo->save();
 
             $estado = $modulo->acceso ? 'activado' : 'desactivado';
+
             return response()->json([
                 'success' => true,
                 'message' => "Acceso {$estado} para el mÃ³dulo '{$modulo->modulo}'",
-                'acceso' => $modulo->acceso
+                'acceso' => $modulo->acceso,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error al cambiar estado de acceso: ' . $e->getMessage());
+            Log::error('Error al cambiar estado de acceso: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al cambiar el estado de acceso'
+                'message' => 'Error al cambiar el estado de acceso',
             ], 500);
         }
     }
@@ -459,10 +465,10 @@ class ModulosController extends Controller
             $campo = $request->input('campo');
             $valor = $request->input('valor');
 
-            if (!$campo || !in_array($campo, ['crear', 'modificar', 'eliminar', 'reigstrar'])) {
+            if (! $campo || ! in_array($campo, ['crear', 'modificar', 'eliminar', 'reigstrar'])) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Campo invÃ¡lido: ' . $campo
+                    'message' => 'Campo invÃ¡lido: '.$campo,
                 ], 400);
             }
 
@@ -480,13 +486,13 @@ class ModulosController extends Controller
                 'success' => true,
                 'message' => "Permiso '{$nombreCampo}' {$estado} para el mÃ³dulo '{$modulo->modulo}'",
                 'campo' => $campo,
-                'valor' => $valorBool
+                'valor' => $valorBool,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al cambiar el permiso: ' . $e->getMessage()
+                'message' => 'Error al cambiar el permiso: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -494,7 +500,7 @@ class ModulosController extends Controller
     /**
      * Actualizar permisos para todos los usuarios cuando se crea un nuevo mÃ³dulo
      *
-     * @param SYSRoles $modulo El mÃ³dulo reciÃ©n creado
+     * @param  SYSRoles  $modulo  El mÃ³dulo reciÃ©n creado
      * @return int NÃºmero de registros actualizados
      */
     /**
@@ -522,7 +528,7 @@ class ModulosController extends Controller
      * Solo se crean/actualizan filas (idusuario, idrol) con idrol = modulo recien creado.
      * No se tocan los permisos de otros modulos.
      *
-     * @param SYSRoles $modulo El modulo recien creado
+     * @param  SYSRoles  $modulo  El modulo recien creado
      * @return int Numero de registros creados o actualizados (solo de este modulo)
      */
     private function actualizarPermisosNuevoModulo(SYSRoles $modulo): int
@@ -565,7 +571,8 @@ class ModulosController extends Controller
 
             return $registrosActualizados;
         } catch (\Exception $e) {
-            Log::error('Error al actualizar permisos del nuevo modulo: ' . $e->getMessage());
+            Log::error('Error al actualizar permisos del nuevo modulo: '.$e->getMessage());
+
             return 0;
         }
     }
@@ -584,5 +591,3 @@ class ModulosController extends Controller
         }
     }
 }
-
-

@@ -8,16 +8,14 @@ use Illuminate\Http\Request;
 
 class UrdActividadesBpmController extends Controller
 {
-
     public function index(Request $request)
     {
-        $q       = trim((string) $request->get('q', ''));
+        $q = trim((string) $request->get('q', ''));
         $perPage = (int) $request->get('per_page', 15);
 
         $items = UrdActividadesBpmModel::query()
-            ->when($q !== '', fn($qry) =>
-                $qry->where('Actividad', 'like', "%{$q}%")
-                    ->orWhere('Orden', 'like', "%{$q}%")
+            ->when($q !== '', fn ($qry) => $qry->where('Actividad', 'like', "%{$q}%")
+                ->orWhere('Orden', 'like', "%{$q}%")
             )
             ->orderByRaw("CASE WHEN Maquina = 'MC' THEN 0 ELSE 1 END")
             ->orderBy('Orden')
@@ -33,9 +31,9 @@ class UrdActividadesBpmController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'Orden'     => ['nullable', 'integer', 'min:1'],
+            'Orden' => ['nullable', 'integer', 'min:1'],
             'Actividad' => ['required', 'string', 'max:100'],
-            'Maquina'   => ['required', 'in:MC,KM'],
+            'Maquina' => ['required', 'in:MC,KM'],
         ]);
 
         UrdActividadesBpmModel::create($data);
@@ -49,9 +47,9 @@ class UrdActividadesBpmController extends Controller
     public function update(Request $request, UrdActividadesBpmModel $urdActividadesBpm)
     {
         $data = $request->validate([
-            'Orden'     => ['nullable', 'integer', 'min:1'],
+            'Orden' => ['nullable', 'integer', 'min:1'],
             'Actividad' => ['required', 'string', 'max:100'],
-            'Maquina'   => ['required', 'in:MC,KM'],
+            'Maquina' => ['required', 'in:MC,KM'],
         ]);
 
         $urdActividadesBpm->update($data);

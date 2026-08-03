@@ -46,7 +46,7 @@ class NotificacionTelegramMuestrasService
         string $codigoDibujo
     ): string {
         $telarActual = (string) ($validated['NoTelarId'] ?? '');
-        $hayCambioTelar = !empty($validated['CambioTelarActivo']);
+        $hayCambioTelar = ! empty($validated['CambioTelarActivo']);
         $telarOrigen = (string) ($validated['NoTelarOrigen'] ?? '');
         $telarDestino = (string) ($validated['NoTelarDestino'] ?? $telarActual);
         $salonOrigen = (string) ($validated['SalonOrigen'] ?? '');
@@ -57,12 +57,12 @@ class NotificacionTelegramMuestrasService
         $mensaje .= " *Produccion:* {$validated['NoProduccion']}\n";
 
         if ($hayCambioTelar && $telarOrigen !== '' && $telarDestino !== '') {
-            $origen = $telarOrigen . ($salonOrigen !== '' ? " ({$salonOrigen})" : '');
-            $destino = $telarDestino . ($salonDestino !== '' ? " ({$salonDestino})" : '');
+            $origen = $telarOrigen.($salonOrigen !== '' ? " ({$salonOrigen})" : '');
+            $destino = $telarDestino.($salonDestino !== '' ? " ({$salonDestino})" : '');
             $mensaje .= " *Cambio de Telar:* {$origen} -> {$destino}\n";
         }
 
-        if (!empty($validated['Desarrollador'])) {
+        if (! empty($validated['Desarrollador'])) {
             $mensaje .= " *Desarrollador:* {$validated['Desarrollador']}\n";
         }
 
@@ -75,19 +75,19 @@ class NotificacionTelegramMuestrasService
 
         $mensaje .= " *Total Pasadas:* {$validated['TotalPasadasDibujo']}\n";
 
-        if (!empty($validated['NumeroJulioRizo'])) {
+        if (! empty($validated['NumeroJulioRizo'])) {
             $mensaje .= " *Julio Rizo:* {$validated['NumeroJulioRizo']}\n";
         }
 
-        if (!empty($validated['NumeroJulioPie'])) {
+        if (! empty($validated['NumeroJulioPie'])) {
             $mensaje .= " *Julio Pie:* {$validated['NumeroJulioPie']}\n";
         }
 
-        if (!empty($validated['HoraInicio'])) {
+        if (! empty($validated['HoraInicio'])) {
             $mensaje .= " *Hora Inicio:* {$validated['HoraInicio']}\n";
         }
 
-        if (!empty($validated['HoraFinal'])) {
+        if (! empty($validated['HoraFinal'])) {
             $mensaje .= " *Hora Final:* {$validated['HoraFinal']}\n";
         }
 
@@ -99,12 +99,12 @@ class NotificacionTelegramMuestrasService
             $mensaje .= " *Eficiencia Final:* {$validated['EficienciaFinal']}%\n";
         }
 
-        if (!empty($programa->FechaInicio)) {
+        if (! empty($programa->FechaInicio)) {
             $fechaInicio = Carbon::parse($programa->FechaInicio)->format('d/m/Y H:i');
             $mensaje .= " *Fecha Inicio Programada:* {$fechaInicio}\n";
         }
 
-        if (!empty($programa->FechaFinal)) {
+        if (! empty($programa->FechaFinal)) {
             $fechaFinal = Carbon::parse($programa->FechaFinal)->format('d/m/Y H:i');
             $mensaje .= " *Fecha Final Programada:* {$fechaFinal}\n";
         }

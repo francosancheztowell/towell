@@ -21,7 +21,7 @@ class ReimprimirOrdenesController extends Controller
             // Buscar el registro en CatCodificados
             $catCodificado = CatCodificados::find($id);
 
-            if (!$catCodificado) {
+            if (! $catCodificado) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No se encontró el registro especificado.',
@@ -52,7 +52,7 @@ class ReimprimirOrdenesController extends Controller
                 ->where('NoProduccion', '!=', '')
                 ->first();
 
-            if (!$registroReqProgramaTejido) {
+            if (! $registroReqProgramaTejido) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No se encontró el registro de producción correspondiente a esta orden.',
@@ -60,7 +60,7 @@ class ReimprimirOrdenesController extends Controller
             }
 
             // Usar el controlador de orden de cambio para generar el Excel
-            $ordenCambioController = new OrdenDeCambioFelpaController();
+            $ordenCambioController = new OrdenDeCambioFelpaController;
             $response = $ordenCambioController->generarExcelDesdeBD(collect([$registroReqProgramaTejido]));
 
             // Si la respuesta es un StreamedResponse, retornarla directamente
@@ -79,7 +79,7 @@ class ReimprimirOrdenesController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al reimprimir la orden: ' . $e->getMessage(),
+                'message' => 'Error al reimprimir la orden: '.$e->getMessage(),
             ], 500);
         }
     }

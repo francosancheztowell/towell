@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Mantenimiento\CatParosFallas;
 use App\Models\Mantenimiento\CatTipoFalla;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class CatalogosFallasController extends Controller
@@ -84,18 +83,19 @@ class CatalogosFallasController extends Controller
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json(['success' => false, 'message' => 'Error de validación', 'errors' => $e->errors()], 422);
             }
+
             return back()->withErrors($e->errors())->withInput();
         } catch (\Throwable $e) {
             Log::error('Error al crear falla', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             if ($request->expectsJson() || $request->ajax()) {
-                return response()->json(['success' => false, 'message' => 'Error al crear la falla: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Error al crear la falla: '.$e->getMessage()], 500);
             }
-            
-            return back()->with('error', 'Error al crear la falla: ' . $e->getMessage())->withInput();
+
+            return back()->with('error', 'Error al crear la falla: '.$e->getMessage())->withInput();
         }
     }
 
@@ -125,6 +125,7 @@ class CatalogosFallasController extends Controller
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json(['success' => false, 'message' => 'Error de validación', 'errors' => $e->errors()], 422);
             }
+
             return back()->withErrors($e->errors())->withInput();
         } catch (\Throwable $e) {
             Log::error('Error al actualizar falla', [
@@ -132,12 +133,12 @@ class CatalogosFallasController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             if ($request->expectsJson() || $request->ajax()) {
-                return response()->json(['success' => false, 'message' => 'Error al actualizar la falla: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Error al actualizar la falla: '.$e->getMessage()], 500);
             }
-            
-            return back()->with('error', 'Error al actualizar la falla: ' . $e->getMessage())->withInput();
+
+            return back()->with('error', 'Error al actualizar la falla: '.$e->getMessage())->withInput();
         }
     }
 
@@ -148,23 +149,23 @@ class CatalogosFallasController extends Controller
     {
         try {
             $catalogosFalla->delete();
-            
+
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json(['success' => true, 'message' => 'Falla eliminada correctamente.']);
             }
-            
+
             return back()->with('success', 'Falla eliminada correctamente.');
         } catch (\Throwable $e) {
             Log::error('Error al eliminar falla', [
                 'id' => $catalogosFalla->Id,
                 'error' => $e->getMessage(),
             ]);
-            
+
             if ($request->expectsJson() || $request->ajax()) {
-                return response()->json(['success' => false, 'message' => 'Error al eliminar la falla: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Error al eliminar la falla: '.$e->getMessage()], 500);
             }
-            
-            return back()->with('error', 'Error al eliminar la falla: ' . $e->getMessage());
+
+            return back()->with('error', 'Error al eliminar la falla: '.$e->getMessage());
         }
     }
 }

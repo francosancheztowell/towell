@@ -101,8 +101,7 @@ class Reporte00EAtadoresRangoExport implements FromArray, WithEvents
         Worksheet $templateSource,
         array $sectionSnapshot,
         int $sectionTopRow
-    ): void
-    {
+    ): void {
         $rowOffset = $sectionTopRow - 1;
         $columns = $this->getColumnLabels();
 

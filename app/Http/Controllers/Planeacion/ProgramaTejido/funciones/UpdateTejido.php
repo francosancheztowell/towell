@@ -615,7 +615,7 @@ class UpdateTejido
             // SaldoPedido→Saldos, FlogsId, NombreProyecto, PesoCrudo→P_crudo). saveQuietly() NO dispara observers,
             // por eso lo llamamos explícitamente. wasChanged() detecta qué campos efectivamente cambiaron.
             try {
-                $observer = new \App\Observers\ReqProgramaTejidoObserver();
+                $observer = new \App\Observers\ReqProgramaTejidoObserver;
                 $observer->sincronizarCatCodificados($registro);
 
                 // Si cambió un input que afecta la cadena de fórmulas, recalcular Repeticiones/PzasRollo/

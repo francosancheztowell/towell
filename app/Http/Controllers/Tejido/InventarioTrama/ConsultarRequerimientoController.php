@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Tejido\InventarioTrama;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
+use App\Models\Sistema\SYSMensaje;
 use App\Models\Tejido\TejTrama;
 use App\Models\Tejido\TejTramaConsumos;
-use App\Models\Sistema\SYSMensaje;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class ConsultarRequerimientoController extends Controller
 {
@@ -50,14 +50,15 @@ class ConsultarRequerimientoController extends Controller
 
         // Obtener requerimientos ordenados por fecha descendente
         $requerimientos = $query->orderBy('Fecha', 'desc')
-                                ->orderBy('Folio', 'desc')
-                                ->get();
+            ->orderBy('Folio', 'desc')
+            ->get();
 
         // Para cada requerimiento, obtener sus consumos
         $requerimientosConConsumos = $requerimientos->map(function ($req) {
             $consumos = TejTramaConsumos::where('Folio', $req->Folio)->get();
             // Agregar dinámicamente la propiedad consumos al objeto
             $req->consumos = $consumos; // @phpstan-ignore-line
+
             return $req;
         });
 
@@ -69,7 +70,7 @@ class ConsultarRequerimientoController extends Controller
                 'fecha_fin' => $fechaFin,
                 'status' => $statusFiltro,
                 'turno' => $turnoFiltro,
-            ]
+            ],
         ]);
     }
 
@@ -80,10 +81,10 @@ class ConsultarRequerimientoController extends Controller
     {
         $requerimiento = TejTrama::where('Folio', $folio)->first();
 
-        if (!$requerimiento) {
+        if (! $requerimiento) {
             return response()->json([
                 'success' => false,
-                'message' => 'Requerimiento no encontrado'
+                'message' => 'Requerimiento no encontrado',
             ], 404);
         }
 
@@ -92,7 +93,7 @@ class ConsultarRequerimientoController extends Controller
         return response()->json([
             'success' => true,
             'requerimiento' => $requerimiento,
-            'consumos' => $consumos
+            'consumos' => $consumos,
         ]);
     }
 
@@ -104,15 +105,15 @@ class ConsultarRequerimientoController extends Controller
         try {
 
             $request->validate([
-                'status' => 'required|in:En Proceso,Solicitado,Surtido,Cancelado,Creado'
+                'status' => 'required|in:En Proceso,Solicitado,Surtido,Cancelado,Creado',
             ]);
 
             $requerimiento = TejTrama::where('Folio', $folio)->first();
 
-            if (!$requerimiento) {
+            if (! $requerimiento) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Requerimiento no encontrado'
+                    'message' => 'Requerimiento no encontrado',
                 ], 404);
             }
 
@@ -125,18 +126,19 @@ class ConsultarRequerimientoController extends Controller
                 'Solicitado' => ['Surtido', 'Cancelado'],
                 'Surtido' => [], // No puede cambiar
                 'Cancelado' => [], // No puede cambiar
-                'Creado' => ['En Proceso', 'Cancelado']
+                'Creado' => ['En Proceso', 'Cancelado'],
             ];
 
-            if (!in_array($nuevoStatus, $transicionesPermitidas[$statusActual] ?? [])) {
+            if (! in_array($nuevoStatus, $transicionesPermitidas[$statusActual] ?? [])) {
                 Log::warning('UpdateStatus - Transición no permitida', [
                     'folio' => $folio,
                     'status_actual' => $statusActual,
-                    'nuevo_status' => $nuevoStatus
+                    'nuevo_status' => $nuevoStatus,
                 ]);
+
                 return response()->json([
                     'success' => false,
-                    'message' => "No se puede cambiar de '$statusActual' a '$nuevoStatus'"
+                    'message' => "No se puede cambiar de '$statusActual' a '$nuevoStatus'",
                 ], 400);
             }
 
@@ -150,28 +152,30 @@ class ConsultarRequerimientoController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Status cambiado de '$statusActual' a '$nuevoStatus' correctamente"
+                'message' => "Status cambiado de '$statusActual' a '$nuevoStatus' correctamente",
             ]);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('UpdateStatus - Error de validación', [
                 'folio' => $folio,
                 'errors' => $e->errors(),
-                'request_data' => $request->all()
+                'request_data' => $request->all(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error de validación: ' . implode(', ', collect($e->errors())->flatten()->toArray())
+                'message' => 'Error de validación: '.implode(', ', collect($e->errors())->flatten()->toArray()),
             ], 422);
         } catch (\Exception $e) {
             Log::error('UpdateStatus - Error general', [
                 'folio' => $folio,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error interno del servidor: ' . $e->getMessage()
+                'message' => 'Error interno del servidor: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -183,7 +187,7 @@ class ConsultarRequerimientoController extends Controller
     {
         $requerimiento = TejTrama::where('Folio', $folio)->first();
 
-        if (!$requerimiento) {
+        if (! $requerimiento) {
             abort(404, 'Requerimiento no encontrado');
         }
 
@@ -195,7 +199,7 @@ class ConsultarRequerimientoController extends Controller
         return view('modulos.inventario-trama.resumen-articulos', [
             'requerimiento' => $requerimiento,
             'consumosPorSalon' => $consumosPorSalon,
-            'totalConsumos' => $consumos->count()
+            'totalConsumos' => $consumos->count(),
         ]);
     }
 
@@ -209,27 +213,29 @@ class ConsultarRequerimientoController extends Controller
             $botToken = config('services.telegram.bot_token');
             if (empty($botToken)) {
                 Log::warning('Telegram: TELEGRAM_BOT_TOKEN no configurado');
+
                 return;
             }
 
             $chatIds = SYSMensaje::getChatIdsPorModulo('InvTrama');
             if (empty($chatIds)) {
                 Log::warning('Telegram: no hay destinatarios con InvTrama activo en SYSMensajes');
+
                 return;
             }
 
-            $mensaje  = "📦 *SOLICITAR CONSUMO TRAMA*\n";
+            $mensaje = "📦 *SOLICITAR CONSUMO TRAMA*\n";
             $mensaje .= "Folio: {$req->Folio}\n";
-            $mensaje .= "Fecha: " . now()->format('d/m/Y H:i') . "\n";
-            $mensaje .= "Turno: " . ($req->Turno ?? 'N/A') . "\n";
-            $mensaje .= "Operador: " . ($req->numero_empleado ?? 'N/A') . "\n";
+            $mensaje .= 'Fecha: '.now()->format('d/m/Y H:i')."\n";
+            $mensaje .= 'Turno: '.($req->Turno ?? 'N/A')."\n";
+            $mensaje .= 'Operador: '.($req->numero_empleado ?? 'N/A')."\n";
 
             $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
             foreach ($chatIds as $chatId) {
                 $resp = Http::post($url, [
                     'chat_id' => $chatId,
                     'text' => $mensaje,
-                    'parse_mode' => 'Markdown'
+                    'parse_mode' => 'Markdown',
                 ]);
                 if ($resp->failed()) {
                     Log::error('Telegram: fallo al enviar', ['folio' => $req->Folio, 'chat_id' => $chatId, 'status' => $resp->status(), 'body' => $resp->body()]);

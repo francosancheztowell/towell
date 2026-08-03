@@ -98,10 +98,39 @@ final class CrudoStatusResolverTest extends TestCase
     {
         $timezone = new DateTimeZone('America/Mexico_City');
         $date = new DateTimeImmutable('2026-07-28 00:00:00', $timezone);
+        $eightAm = new DateTimeImmutable('2026-07-28 08:00:00', $timezone);
+        $tenThirtyAm = new DateTimeImmutable('2026-07-28 10:30:00', $timezone);
         $noon = new DateTimeImmutable('2026-07-28 12:00:00', $timezone);
 
+        // Meta diaria 300 / 24 = 12.5 kg por hora.
+        $this->assertSame(100.0, $this->resolver->expectedKilos('Jacquard', $date, 'todos', $eightAm));
+        $this->assertSame(131.25, $this->resolver->expectedKilos('Jacquard', $date, 'todos', $tenThirtyAm));
         $this->assertSame(150.0, $this->resolver->expectedKilos('Jacquard', $date, 'todos', $noon));
         $this->assertSame(75.0, $this->resolver->expectedKilos('Jacquard', $date, '1', $noon));
+    }
+
+    public function test_machine_turns_green_when_it_reaches_the_accumulated_hourly_target(): void
+    {
+        $timezone = new DateTimeZone('America/Mexico_City');
+        $date = new DateTimeImmutable('2026-07-28 00:00:00', $timezone);
+        $eightAm = new DateTimeImmutable('2026-07-28 08:00:00', $timezone);
+        $expectedKilos = $this->resolver->expectedKilos('Jacquard', $date, 'todos', $eightAm);
+
+        $this->assertSame(100.0, $expectedKilos);
+        $this->assertSame(CrudoMachineState::LowKilos, $this->resolver->resolve(
+            captureCount: 1,
+            pieces: 1,
+            secondsPercent: 0,
+            kilos: 99.9,
+            expectedKilos: $expectedKilos,
+        ));
+        $this->assertSame(CrudoMachineState::Operating, $this->resolver->resolve(
+            captureCount: 1,
+            pieces: 1,
+            secondsPercent: 0,
+            kilos: 100,
+            expectedKilos: $expectedKilos,
+        ));
     }
 
     public function test_expected_kilos_for_a_range_sums_past_days_and_prorates_today(): void

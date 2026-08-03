@@ -35,7 +35,7 @@ class ReportesTejedoresController extends Controller
         $fechaIni = $request->query('fecha_ini');
         $fechaFin = $request->query('fecha_fin');
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return view('modulos.tejedores.reportes.programa', [
                 'fechaIni' => null,
                 'fechaFin' => null,
@@ -60,7 +60,7 @@ class ReportesTejedoresController extends Controller
         $fechaInicio = $request->input('fecha_inicio') ?? $request->query('fecha_ini');
         $fechaFin = $request->input('fecha_fin') ?? $request->query('fecha_fin');
 
-        if (!$fechaInicio || !$fechaFin) {
+        if (! $fechaInicio || ! $fechaFin) {
             return redirect()->back()->with('error', 'Debe seleccionar fecha inicio y fecha fin para exportar.');
         }
 
@@ -72,10 +72,10 @@ class ReportesTejedoresController extends Controller
         }
 
         $nombreArchivo = 'tejedores_bpm_'
-            . Carbon::parse($fechaInicioFormateada)->format('d-m-Y')
-            . '_a_'
-            . Carbon::parse($fechaFinFormateada)->format('d-m-Y')
-            . '.xlsx';
+            .Carbon::parse($fechaInicioFormateada)->format('d-m-Y')
+            .'_a_'
+            .Carbon::parse($fechaFinFormateada)->format('d-m-Y')
+            .'.xlsx';
 
         return Excel::download(
             new TejedoresReporteExport($fechaInicioFormateada, $fechaFinFormateada),

@@ -3,23 +3,24 @@
 namespace App\Exports;
 
 use App\Models\Planeacion\Catalogos\CatCodificados;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use Carbon\Carbon;
 
-class DesarrolladoresExport implements FromCollection, WithHeadings, WithStyles, WithColumnWidths, WithTitle, WithEvents
+class DesarrolladoresExport implements FromCollection, WithColumnWidths, WithEvents, WithHeadings, WithStyles, WithTitle
 {
     protected string $fecha;
+
     protected Collection $datos;
 
     public function __construct(string $fecha)
@@ -123,7 +124,7 @@ class DesarrolladoresExport implements FromCollection, WithHeadings, WithStyles,
 
     public function title(): string
     {
-        return 'Desarrolladores ' . Carbon::parse($this->fecha)->format('d-m-Y');
+        return 'Desarrolladores '.Carbon::parse($this->fecha)->format('d-m-Y');
     }
 
     public function registerEvents(): array

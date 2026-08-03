@@ -4,11 +4,11 @@ namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
 use App\Services\ProgramaUrdEng\InventarioReservasService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Throwable;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Consultas de inventario disponible y reservas (solo GET).
@@ -31,11 +31,11 @@ class InventarioDisponibleController extends Controller
                 $request->input('filtros', $request->query('filtros', []))
             );
 
-            if (!empty($filtros)) {
+            if (! empty($filtros)) {
                 $request->validate([
-                    'filtros'            => ['array'],
-                    'filtros.*.columna'  => ['required', 'string', Rule::in(InventarioReservasService::ALLOWED_FILTERS)],
-                    'filtros.*.valor'    => ['required', 'string'],
+                    'filtros' => ['array'],
+                    'filtros.*.columna' => ['required', 'string', Rule::in(InventarioReservasService::ALLOWED_FILTERS)],
+                    'filtros.*.valor' => ['required', 'string'],
                 ]);
             }
 
@@ -43,11 +43,12 @@ class InventarioDisponibleController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data'    => $result['data'],
-                'total'   => $result['total'],
+                'data' => $result['data'],
+                'total' => $result['total'],
             ]);
         } catch (Throwable $e) {
             Log::error('InventarioDisponible.disponible error', ['msg' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener inventario disponible',
@@ -59,10 +60,11 @@ class InventarioDisponibleController extends Controller
     public function porTelar(string $noTelar): JsonResponse
     {
         $rows = $this->reservasService->getReservasPorTelar($noTelar);
+
         return response()->json([
             'success' => true,
-            'data'    => $rows,
-            'total'   => $rows->count(),
+            'data' => $rows,
+            'total' => $rows->count(),
         ]);
     }
 
@@ -94,14 +96,15 @@ class InventarioDisponibleController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data'    => $diagnostico,
-                'total'   => $reservas->count(),
+                'data' => $diagnostico,
+                'total' => $reservas->count(),
             ]);
         } catch (Throwable $e) {
             Log::error('InventarioDisponible.diagnosticarReservas error', ['msg' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al diagnosticar reservas: ' . $e->getMessage(),
+                'message' => 'Error al diagnosticar reservas: '.$e->getMessage(),
             ], 500);
         }
     }

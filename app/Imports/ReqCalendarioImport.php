@@ -2,24 +2,30 @@
 
 namespace App\Imports;
 
-use App\Models\Planeacion\ReqCalendarioTab;
 use App\Models\Planeacion\ReqCalendarioLine;
+use App\Models\Planeacion\ReqCalendarioTab;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\ToModel;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithBatchInserts;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Events\BeforeImport;
-use Illuminate\Support\Facades\Log;
 
-class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, WithChunkReading, WithEvents
+class ReqCalendarioImport implements ToModel, WithBatchInserts, WithChunkReading, WithEvents, WithHeadingRow
 {
     private $calendariosProcesados = 0;
+
     private $lineasProcesadas = 0;
+
     private $calendariosCreados = 0;
+
     private $lineasCreadas = 0;
+
     private $errores = [];
+
     private $rowCounter = 0;
+
     private $seccionActual = null; // 'calendarios' o 'lineas'
 
     public function model(array $row)
@@ -30,7 +36,7 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
             // ⚡ OPTIMIZACIÓN: Detectar rápidamente filas completamente vacías
             $allEmpty = true;
             foreach ($row as $cell) {
-                if (!empty(trim((string)$cell))) {
+                if (! empty(trim((string) $cell))) {
                     $allEmpty = false;
                     break;
                 }
@@ -53,9 +59,11 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
             // Procesar según la sección
             if ($this->seccionActual === 'calendarios') {
                 $resultado = $this->procesarCalendario($row);
+
                 return $resultado;
             } elseif ($this->seccionActual === 'lineas') {
                 $resultado = $this->procesarLinea($row);
+
                 return $resultado;
             }
 
@@ -65,9 +73,10 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
             Log::error("EXCEPCIÓN en fila {$this->rowCounter}: {$e->getMessage()}", [
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
             $this->errores[] = "Fila {$this->rowCounter}: {$e->getMessage()}";
+
             return null;
         }
     }
@@ -78,14 +87,14 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
     public function registerEvents(): array
     {
         return [
-            BeforeImport::class => function(BeforeImport $event) {
+            BeforeImport::class => function (BeforeImport $event) {
 
                 // Limpiar todas las líneas de calendario
                 $deletedLines = ReqCalendarioLine::truncate();
 
                 // Limpiar todas las tablas de calendario
                 $deletedTabs = ReqCalendarioTab::truncate();
-            }
+            },
         ];
     }
 
@@ -99,9 +108,10 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
         $normalized = [];
         foreach ($row as $key => $value) {
             if ($key !== null && $value !== null) {
-                $normalized[$this->normalizeKey((string)$key)] = $value;
+                $normalized[$this->normalizeKey((string) $key)] = $value;
             }
         }
+
         return $normalized;
     }
 
@@ -109,10 +119,11 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
     {
         foreach ($possibleKeys as $key) {
             $normalizedKey = $this->normalizeKey($key);
-            if (isset($row[$normalizedKey]) && !empty(trim((string)$row[$normalizedKey]))) {
-                return trim((string)$row[$normalizedKey]);
+            if (isset($row[$normalizedKey]) && ! empty(trim((string) $row[$normalizedKey]))) {
+                return trim((string) $row[$normalizedKey]);
             }
         }
+
         return null;
     }
 
@@ -122,10 +133,10 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
         // Buscar indicadores de sección
         $hasNoCalendario = $this->getValue($row, ['No Calendario', 'nocalendario', 'calendario']) !== null;
         $hasNombre = $this->getValue($row, ['Nombre']) !== null;
-        $hasInicio = $this->getValue($row, ['Inicio', 'inicio', 'fechainicio','Inicio (fecha Hora)']) !== null;
-        $hasFin = $this->getValue($row, ['Fin', 'fin', 'fechafin','Fin (Fecha Hora)']) !== null;
+        $hasInicio = $this->getValue($row, ['Inicio', 'inicio', 'fechainicio', 'Inicio (fecha Hora)']) !== null;
+        $hasFin = $this->getValue($row, ['Fin', 'fin', 'fechafin', 'Fin (Fecha Hora)']) !== null;
 
-        if ($hasNoCalendario && $hasNombre && !$hasInicio && !$hasFin) {
+        if ($hasNoCalendario && $hasNombre && ! $hasInicio && ! $hasFin) {
             $this->seccionActual = 'calendarios';
         } elseif ($hasNoCalendario && $hasInicio && $hasFin) {
             $this->seccionActual = 'lineas';
@@ -161,6 +172,7 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
             return null;
         } catch (\Exception $e) {
             $this->errores[] = "Fila {$this->rowCounter}: Error al guardar calendario: {$e->getMessage()}";
+
             return null;
         }
     }
@@ -188,19 +200,20 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
 
             if ($fechaInicioFormato === null || $fechaFinFormato === null) {
                 $this->errores[] = "Fila {$this->rowCounter}: No se pudieron parsear las fechas";
+
                 return null;
             }
 
             // Convertir valores
-            $horas = !empty($horas) ? (float)$horas : 0;
-            $turno = !empty($turno) ? (int)$turno : 0;
+            $horas = ! empty($horas) ? (float) $horas : 0;
+            $turno = ! empty($turno) ? (int) $turno : 0;
 
             ReqCalendarioLine::create([
                 'CalendarioId' => $calendarioId,
                 'FechaInicio' => $fechaInicioFormato,
                 'FechaFin' => $fechaFinFormato,
                 'HorasTurno' => $horas,
-                'Turno' => $turno
+                'Turno' => $turno,
             ]);
 
             $this->lineasProcesadas++;
@@ -209,6 +222,7 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
             return null;
         } catch (\Exception $e) {
             $this->errores[] = "Fila {$this->rowCounter}: Error al guardar línea: {$e->getMessage()}";
+
             return null;
         }
     }
@@ -220,7 +234,7 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
         }
 
         // Convertir a string
-        $value = (string)$value;
+        $value = (string) $value;
         $value = trim($value);
 
         if (empty($value)) {
@@ -230,8 +244,9 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
         // Si es un número Excel (días desde 1900)
         if (is_numeric($value)) {
             try {
-                $excelDate = (int)$value;
+                $excelDate = (int) $value;
                 $unixDate = ($excelDate - 25569) * 86400;
+
                 return date('Y-m-d H:i:s', $unixDate);
             } catch (\Exception $e) {
                 return null;
@@ -245,7 +260,7 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
             'Y-m-d H:i:s',
             'Y-m-d H:i',
             'd/m/Y',
-            'Y-m-d'
+            'Y-m-d',
         ];
 
         foreach ($formatos as $formato) {
@@ -279,7 +294,7 @@ class ReqCalendarioImport implements ToModel, WithHeadingRow, WithBatchInserts, 
             'lineas_procesadas' => $this->lineasProcesadas,
             'calendarios_creados' => $this->calendariosCreados,
             'lineas_creadas' => $this->lineasCreadas,
-            'errores' => $this->errores
+            'errores' => $this->errores,
         ];
     }
 }

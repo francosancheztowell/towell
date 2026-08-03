@@ -39,7 +39,7 @@ class OptimizeModuleImagesCommand extends Command
         $maxSize = (int) $this->option('max');
         $dryRun = $this->option('dry-run');
 
-        $basePath = public_path('images/' . $folder);
+        $basePath = public_path('images/'.$folder);
         if (! is_dir($basePath)) {
             $this->error("La carpeta no existe: {$basePath}");
 
@@ -64,11 +64,11 @@ class OptimizeModuleImagesCommand extends Command
             return self::SUCCESS;
         }
 
-        $this->info('Imágenes encontradas: ' . count($files));
+        $this->info('Imágenes encontradas: '.count($files));
         if ($dryRun) {
             $this->line('Modo dry-run: no se modificará ningún archivo.');
             foreach ($files as $path) {
-                $this->line('  - ' . basename($path));
+                $this->line('  - '.basename($path));
             }
 
             return self::SUCCESS;

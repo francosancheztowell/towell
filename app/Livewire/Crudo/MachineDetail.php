@@ -50,6 +50,8 @@ class MachineDetail extends Component
 
     public ?string $detailError = null;
 
+    public bool $auditExpanded = false;
+
     private CrudoDashboardProvider $provider;
 
     private CrudoStatusResolver $statusResolver;
@@ -75,6 +77,7 @@ class MachineDetail extends Component
         $this->selectedTelar = mb_substr(trim($telar), 0, 20);
         $this->machine = $machine;
         $this->detailError = null;
+        $this->auditExpanded = false;
         $this->loadDetail();
     }
 
@@ -84,6 +87,18 @@ class MachineDetail extends Component
         $this->machine = null;
         $this->detail = null;
         $this->detailError = null;
+        $this->auditExpanded = false;
+    }
+
+    public function toggleAudit(): void
+    {
+        if ($this->selectedTelar === null) {
+            $this->auditExpanded = false;
+
+            return;
+        }
+
+        $this->auditExpanded = ! $this->auditExpanded;
     }
 
     #[On('crudo-refrescado')]

@@ -326,7 +326,6 @@ class ReportesAtadoresController extends Controller
             ->startOfDay();
     }
 
-
     private function bootOeeQueueWorker(): void
     {
         $queueConnection = (string) config('queue.default', env('QUEUE_CONNECTION', 'sync'));

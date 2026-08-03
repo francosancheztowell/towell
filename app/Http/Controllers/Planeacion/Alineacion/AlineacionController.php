@@ -206,7 +206,7 @@ class AlineacionController extends Controller
             'generadoEn' => now()->locale('es')->translatedFormat('d M Y H:i'),
         ])->render();
 
-        $options = new Options();
+        $options = new Options;
         $options->set('isHtml5ParserEnabled', true);
         $options->set('defaultFont', 'Arial');
         $options->set('isPhpEnabled', false);

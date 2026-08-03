@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Configuracion;
 
 use App\Http\Controllers\Controller;
-use App\Models\Sistema\SYSMensaje;
 use App\Models\Sistema\SysDepartamento;
-use Illuminate\Http\Request;
-use Illuminate\View\View;
-use Illuminate\Http\RedirectResponse;
+use App\Models\Sistema\SYSMensaje;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\View\View;
 
 class MensajesController extends Controller
 {
@@ -85,22 +85,22 @@ class MensajesController extends Controller
                     }
                 },
             ],
-            'Telefono'       => ['required', 'string', 'max:20'],
-            'Token'          => ['required', 'string', 'max:255'],
-            'Activo'         => ['nullable', 'boolean'],
-            'Nombre'         => ['nullable', 'string', 'max:150'],
-            'Desarrolladores'         => ['nullable', 'boolean'],
-            'DesarrolladoresPrue'    => ['nullable', 'boolean'],
-            'NotificarAtadoJulio'     => ['nullable', 'boolean'],
-            'CorteSEF'                => ['nullable', 'boolean'],
-            'MarcasFinales'           => ['nullable', 'boolean'],
-            'ReporteElectrico'        => ['nullable', 'boolean'],
-            'ReporteMecanico'         => ['nullable', 'boolean'],
-            'ReporteTiempoMuerto'     => ['nullable', 'boolean'],
-            'Atadores'                => ['nullable', 'boolean'],
-            'InvTrama'                => ['nullable', 'boolean'],
-            'UrdidoCalidad'           => ['nullable', 'boolean'],
-            'Calidad'                 => ['nullable', 'boolean'],
+            'Telefono' => ['required', 'string', 'max:20'],
+            'Token' => ['required', 'string', 'max:255'],
+            'Activo' => ['nullable', 'boolean'],
+            'Nombre' => ['nullable', 'string', 'max:150'],
+            'Desarrolladores' => ['nullable', 'boolean'],
+            'DesarrolladoresPrue' => ['nullable', 'boolean'],
+            'NotificarAtadoJulio' => ['nullable', 'boolean'],
+            'CorteSEF' => ['nullable', 'boolean'],
+            'MarcasFinales' => ['nullable', 'boolean'],
+            'ReporteElectrico' => ['nullable', 'boolean'],
+            'ReporteMecanico' => ['nullable', 'boolean'],
+            'ReporteTiempoMuerto' => ['nullable', 'boolean'],
+            'Atadores' => ['nullable', 'boolean'],
+            'InvTrama' => ['nullable', 'boolean'],
+            'UrdidoCalidad' => ['nullable', 'boolean'],
+            'Calidad' => ['nullable', 'boolean'],
         ]);
 
         $validated['Activo'] = (bool) ($request->boolean('Activo') ?? true);
@@ -122,6 +122,7 @@ class MensajesController extends Controller
 
         if ($request->expectsJson()) {
             $mensaje->load('departamento');
+
             return response()->json([
                 'ok' => true,
                 'message' => 'Mensaje creado correctamente.',
@@ -148,22 +149,22 @@ class MensajesController extends Controller
                     }
                 },
             ],
-            'Telefono'       => ['required', 'string', 'max:20'],
-            'Token'          => ['required', 'string', 'max:255'],
-            'Activo'         => ['nullable', 'boolean'],
-            'Nombre'         => ['nullable', 'string', 'max:150'],
-            'Desarrolladores'         => ['nullable', 'boolean'],
-            'DesarrolladoresPrue'    => ['nullable', 'boolean'],
-            'NotificarAtadoJulio'     => ['nullable', 'boolean'],
-            'CorteSEF'                => ['nullable', 'boolean'],
-            'MarcasFinales'           => ['nullable', 'boolean'],
-            'ReporteElectrico'        => ['nullable', 'boolean'],
-            'ReporteMecanico'         => ['nullable', 'boolean'],
-            'ReporteTiempoMuerto'     => ['nullable', 'boolean'],
-            'Atadores'                => ['nullable', 'boolean'],
-            'InvTrama'                => ['nullable', 'boolean'],
-            'UrdidoCalidad'           => ['nullable', 'boolean'],
-            'Calidad'                 => ['nullable', 'boolean'],
+            'Telefono' => ['required', 'string', 'max:20'],
+            'Token' => ['required', 'string', 'max:255'],
+            'Activo' => ['nullable', 'boolean'],
+            'Nombre' => ['nullable', 'string', 'max:150'],
+            'Desarrolladores' => ['nullable', 'boolean'],
+            'DesarrolladoresPrue' => ['nullable', 'boolean'],
+            'NotificarAtadoJulio' => ['nullable', 'boolean'],
+            'CorteSEF' => ['nullable', 'boolean'],
+            'MarcasFinales' => ['nullable', 'boolean'],
+            'ReporteElectrico' => ['nullable', 'boolean'],
+            'ReporteMecanico' => ['nullable', 'boolean'],
+            'ReporteTiempoMuerto' => ['nullable', 'boolean'],
+            'Atadores' => ['nullable', 'boolean'],
+            'InvTrama' => ['nullable', 'boolean'],
+            'UrdidoCalidad' => ['nullable', 'boolean'],
+            'Calidad' => ['nullable', 'boolean'],
         ]);
 
         $validated['Activo'] = (bool) ($request->boolean('Activo') ?? true);
@@ -185,6 +186,7 @@ class MensajesController extends Controller
 
         if ($request->expectsJson()) {
             $mensaje->load('departamento');
+
             return response()->json([
                 'ok' => true,
                 'message' => 'Mensaje actualizado correctamente.',
@@ -243,6 +245,7 @@ class MensajesController extends Controller
         $mensaje->save();
 
         $mensaje->load('departamento');
+
         return response()->json([
             'ok' => true,
             'message' => 'Chat ID (Token) actualizado correctamente.',
@@ -253,6 +256,7 @@ class MensajesController extends Controller
     private function itemToArray(SYSMensaje $mensaje): array
     {
         $depto = $mensaje->departamento;
+
         return [
             'Id' => $mensaje->Id,
             'DepartamentoId' => $mensaje->DepartamentoId,

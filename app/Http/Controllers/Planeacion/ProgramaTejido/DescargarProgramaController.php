@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
 use App\Http\Controllers\Controller;
 use App\Models\Planeacion\ReqProgramaTejidoLine;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
 
 class DescargarProgramaController extends Controller
 {
@@ -38,10 +38,10 @@ class DescargarProgramaController extends Controller
         'DiasJornada', 'HorasProd', 'StdHrsEfect',
         'Calc4', 'Calc5', 'Calc6', 'ProdKgDia',
     ];
+
     /**
      * Descarga el programa de tejido como archivo TXT
      *
-     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function descargar(Request $request)
@@ -49,7 +49,7 @@ class DescargarProgramaController extends Controller
         try {
             // Validar fecha inicial
             $request->validate([
-                'fecha_inicial' => 'required|date'
+                'fecha_inicial' => 'required|date',
             ]);
 
             $fechaInicial = $request->input('fecha_inicial');
@@ -68,7 +68,7 @@ class DescargarProgramaController extends Controller
             if ($lineas->isEmpty()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No se encontraron registros para la fecha especificada.'
+                    'message' => 'No se encontraron registros para la fecha especificada.',
                 ], 404);
             }
 
@@ -82,7 +82,7 @@ class DescargarProgramaController extends Controller
             $columnasLine = [
                 'Fecha', 'Cantidad', 'Kilos', 'Aplicacion',
                 'Trama', 'Combina1', 'Combina2', 'Combina3', 'Combina4', 'Combina5',
-                'Pie', 'Rizo', 'MtsRizo', 'MtsPie'
+                'Pie', 'Rizo', 'MtsRizo', 'MtsPie',
             ];
 
             // Generar contenido del TXT
@@ -112,12 +112,12 @@ class DescargarProgramaController extends Controller
                 // Obtener el programa relacionado
                 $programa = $linea->programa;
 
-                if (!$programa) {
+                if (! $programa) {
                     continue; // Saltar si no hay programa relacionado
                 }
 
                 // Crear clave única con TamanoClave + NoProduccion
-                $claveActual = ($programa->TamanoClave ?? '') . '|' . ($programa->NoProduccion ?? '');
+                $claveActual = ($programa->TamanoClave ?? '').'|'.($programa->NoProduccion ?? '');
 
                 // Solo incrementar el consecutivo si cambia la combinación TamanoClave + NoProduccion
                 if ($claveActual !== $claveAnterior) {
@@ -153,30 +153,30 @@ class DescargarProgramaController extends Controller
             if ($resultado === false) {
                 Log::error('Error al escribir archivo en ruta de red', [
                     'ruta' => $rutaArchivo,
-                    'error' => error_get_last()
+                    'error' => error_get_last(),
                 ]);
 
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error al guardar el archivo. Verifique que la ruta de red sea accesible.'
+                    'message' => 'Error al guardar el archivo. Verifique que la ruta de red sea accesible.',
                 ], 500);
             }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Archivo guardado correctamente. Registros procesados: ' . count($lineasTxt),
-                'registros' => count($lineasTxt)
+                'message' => 'Archivo guardado correctamente. Registros procesados: '.count($lineasTxt),
+                'registros' => count($lineasTxt),
             ]);
 
         } catch (\Exception $e) {
             Log::error('Error en descargarPrograma', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al procesar la solicitud: ' . $e->getMessage()
+                'message' => 'Error al procesar la solicitud: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -375,7 +375,7 @@ class DescargarProgramaController extends Controller
             'EntregaProduc',
             'EntregaPT',
             'EntregaCte',
-            'PTvsCte'
+            'PTvsCte',
         ];
     }
 
@@ -397,8 +397,9 @@ class DescargarProgramaController extends Controller
                     return $esSoloFecha
                         ? $valor->format('Y-m-d')
                         : $valor->format('Y-m-d H:i:s');
-                } elseif (is_string($valor) && !empty($valor)) {
+                } elseif (is_string($valor) && ! empty($valor)) {
                     $carbon = Carbon::parse($valor);
+
                     return $esSoloFecha
                         ? $carbon->format('Y-m-d')
                         : $carbon->format('Y-m-d H:i:s');
@@ -415,11 +416,13 @@ class DescargarProgramaController extends Controller
 
         if (is_numeric($valor) && in_array($columna, self::COLUMNAS_DECIMALES, true)) {
             $valor = round((float) $valor, 3);
+
             return number_format($valor, 3, '.', '');
         }
 
         $valor = (string) $valor;
-        $valor = str_replace(["\n", "\r", "|"], [' ', ' ', ''], $valor);
+        $valor = str_replace(["\n", "\r", '|'], [' ', ' ', ''], $valor);
+
         return trim($valor);
     }
 }

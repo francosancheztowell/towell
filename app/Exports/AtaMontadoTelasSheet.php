@@ -22,14 +22,20 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, WithColumnWidths, WithTitle, WithEvents
+class AtaMontadoTelasSheet implements FromCollection, WithColumnWidths, WithEvents, WithHeadings, WithStyles, WithTitle
 {
     protected string $fechaInicio;
+
     protected string $fechaFin;
+
     protected Collection $datos;
+
     protected array $maquinas = [];
+
     protected array $actividades = [];
+
     protected array $maquinasPorFolio = [];
+
     protected array $actividadesPorFolio = [];
 
     public function __construct(string $fechaInicio, string $fechaFin)
@@ -52,12 +58,12 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
     protected function construirFoliosUnicos(): Collection
     {
         return $this->datos
-            ->map(fn($item) => [
+            ->map(fn ($item) => [
                 'NoJulio' => (string) ($item->NoJulio ?? ''),
                 'NoProduccion' => (string) ($item->NoProduccion ?? ''),
             ])
-            ->filter(fn($folio) => $folio['NoJulio'] !== '' || $folio['NoProduccion'] !== '')
-            ->unique(fn($folio) => $folio['NoJulio'] . '|' . $folio['NoProduccion'])
+            ->filter(fn ($folio) => $folio['NoJulio'] !== '' || $folio['NoProduccion'] !== '')
+            ->unique(fn ($folio) => $folio['NoJulio'].'|'.$folio['NoProduccion'])
             ->values();
     }
 
@@ -84,6 +90,7 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
             if ($index === 0) {
                 $queryMaquinas->where($build);
                 $queryActividades->where($build);
+
                 return;
             }
 
@@ -97,18 +104,18 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
         $catalogoMaquinas = AtaMaquinasModel::query()
             ->orderBy('MaquinaId')
             ->pluck('MaquinaId')
-            ->map(fn($id) => (string) $id)
+            ->map(fn ($id) => (string) $id)
             ->all();
 
         $catalogoActividades = AtaActividadesModel::query()
             ->orderBy('ActividadId')
             ->pluck('ActividadId')
-            ->map(fn($id) => (string) $id)
+            ->map(fn ($id) => (string) $id)
             ->all();
 
         $maquinasPresentes = $registrosMaquinas
             ->pluck('MaquinaId')
-            ->map(fn($id) => (string) $id)
+            ->map(fn ($id) => (string) $id)
             ->filter()
             ->unique()
             ->sort()
@@ -117,7 +124,7 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
 
         $actividadesPresentes = $registrosActividades
             ->pluck('ActividadId')
-            ->map(fn($id) => (string) $id)
+            ->map(fn ($id) => (string) $id)
             ->filter()
             ->unique()
             ->sort()
@@ -171,7 +178,7 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
 
     protected function formatearResponsable(bool $estado, $noEmpleado, $nombre): string
     {
-        if (!$estado) {
+        if (! $estado) {
             return '-';
         }
 
@@ -179,7 +186,7 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
         $nombre = trim((string) ($nombre ?? ''));
 
         if ($noEmpleado !== '' && $nombre !== '') {
-            return $noEmpleado . ' - ' . $nombre;
+            return $noEmpleado.' - '.$nombre;
         }
 
         if ($noEmpleado !== '') {
@@ -229,11 +236,11 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
         $headings = $this->baseHeadings();
 
         foreach ($this->maquinas as $maquinaId) {
-            $headings[] = 'Maq: ' . $maquinaId;
+            $headings[] = 'Maq: '.$maquinaId;
         }
 
         foreach ($this->actividades as $actividadId) {
-            $headings[] = 'Act: ' . $actividadId;
+            $headings[] = 'Act: '.$actividadId;
         }
 
         return $headings;
@@ -273,11 +280,11 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
             $folioKey = $this->folioKey($item->NoJulio, $item->NoProduccion);
 
             foreach ($this->maquinas as $maquinaId) {
-                $fila['Maq: ' . $maquinaId] = $this->maquinasPorFolio[$folioKey][$maquinaId] ?? '-';
+                $fila['Maq: '.$maquinaId] = $this->maquinasPorFolio[$folioKey][$maquinaId] ?? '-';
             }
 
             foreach ($this->actividades as $actividadId) {
-                $fila['Act: ' . $actividadId] = $this->actividadesPorFolio[$folioKey][$actividadId] ?? '-';
+                $fila['Act: '.$actividadId] = $this->actividadesPorFolio[$folioKey][$actividadId] ?? '-';
             }
 
             return $fila;
@@ -379,7 +386,7 @@ class AtaMontadoTelasSheet implements FromCollection, WithHeadings, WithStyles, 
 
     protected function folioKey($noJulio, $noProduccion): string
     {
-        return trim((string) $noJulio) . '|' . trim((string) $noProduccion);
+        return trim((string) $noJulio).'|'.trim((string) $noProduccion);
     }
 
     protected function lastColumnLetter(): string

@@ -3,16 +3,16 @@
 namespace App\Http\Controllers\Tejedores\NotificarMontadoJulios;
 
 use App\Http\Controllers\Controller;
+use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Sistema\SYSMensaje;
+use App\Models\Tejedores\TejNotificaTejedorModel;
+use App\Models\Tejedores\TelTelaresOperador;
+use App\Models\Tejido\TejInventarioTelares;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use App\Models\Tejedores\TelTelaresOperador;
-use App\Models\Tejedores\TejNotificaTejedorModel;
-use App\Models\Tejido\TejInventarioTelares;
-use App\Models\Planeacion\ReqProgramaTejido;
-use App\Models\Sistema\SYSMensaje;
-use Carbon\Carbon;
 
 class NotificarMontadoJulioController extends Controller
 {
@@ -23,12 +23,13 @@ class NotificarMontadoJulioController extends Controller
         $telaresOperador = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
             ->pluck('NoTelarId')
             ->toArray();
-        
+
         // Si es una petición AJAX
         if ($request->ajax() || $request->wantsJson()) {
             // Si se solicita solo el listado de telares: retornar TODOS los asignados al usuario
             if ($request->has('listado')) {
                 $telares = collect($telaresOperador)->sort()->values();
+
                 return response()->json(['telares' => $telares]);
             }
 
@@ -51,6 +52,7 @@ class NotificarMontadoJulioController extends Controller
                 if ($detalles) {
                     $result = $detalles->toArray();
                     $result['registroCompleto'] = true;
+
                     return response()->json(['detalles' => $result]);
                 }
 
@@ -72,17 +74,17 @@ class NotificarMontadoJulioController extends Controller
                 if ($parcial) {
                     return response()->json([
                         'detalles' => [
-                            'id'               => $parcial->id,
-                            'no_telar'         => $parcial->no_telar,
-                            'tipo'             => $parcial->tipo,
-                            'tipo_atado'       => $parcial->tipo_atado ?? '',
-                            'metros'           => $parcial->metros ?? '',
-                            'cuenta'           => $cuentaReq,
-                            'calibre'          => $calibreReq,
-                            'no_orden'         => '',
-                            'no_julio'         => '',
+                            'id' => $parcial->id,
+                            'no_telar' => $parcial->no_telar,
+                            'tipo' => $parcial->tipo,
+                            'tipo_atado' => $parcial->tipo_atado ?? '',
+                            'metros' => $parcial->metros ?? '',
+                            'cuenta' => $cuentaReq,
+                            'calibre' => $calibreReq,
+                            'no_orden' => '',
+                            'no_julio' => '',
                             'registroCompleto' => false,
-                        ]
+                        ],
                     ]);
                 }
 
@@ -90,17 +92,17 @@ class NotificarMontadoJulioController extends Controller
                 if (in_array($request->no_telar, $telaresOperador)) {
                     return response()->json([
                         'detalles' => [
-                            'id'               => null,
-                            'no_telar'         => $request->no_telar,
-                            'tipo'             => $request->tipo,
-                            'tipo_atado'       => '',
-                            'metros'           => '',
-                            'cuenta'           => $cuentaReq,
-                            'calibre'          => $calibreReq,
-                            'no_orden'         => '',
-                            'no_julio'         => '',
+                            'id' => null,
+                            'no_telar' => $request->no_telar,
+                            'tipo' => $request->tipo,
+                            'tipo_atado' => '',
+                            'metros' => '',
+                            'cuenta' => $cuentaReq,
+                            'calibre' => $calibreReq,
+                            'no_orden' => '',
+                            'no_julio' => '',
                             'registroCompleto' => false,
-                        ]
+                        ],
                     ]);
                 }
 
@@ -109,33 +111,33 @@ class NotificarMontadoJulioController extends Controller
 
             return response()->json(['error' => 'Parámetros inválidos'], 400);
         }
-        
+
         // Si no es AJAX, devolver vista (por compatibilidad)
         $telares = TejInventarioTelares::whereIn('no_telar', $telaresOperador)
             ->select('no_telar', 'tipo')
             ->distinct()
             ->orderBy('no_telar')
             ->get();
-            
+
         return view('modulos.notificar-montado-julios.index', compact('telares'));
     }
 
     public function notificar(Request $request)
     {
         try {
-            $user        = Auth::user();
-            $horaActual  = Carbon::now()->format('H:i:s');
-            $noTelar     = $request->no_telar;
-            $tipo        = $request->tipo;
-            $fecha       = Carbon::now()->toDateString();
+            $user = Auth::user();
+            $horaActual = Carbon::now()->format('H:i:s');
+            $noTelar = $request->no_telar;
+            $tipo = $request->tipo;
+            $fecha = Carbon::now()->toDateString();
 
             // Buscar registro en tej_inventario_telares si viene id
             $registro = $request->id ? TejInventarioTelares::find($request->id) : null;
 
             // Registro completo: tiene no_julio y no_orden
             $esCompleto = $registro
-                && !empty($registro->no_julio)
-                && !empty($registro->no_orden);
+                && ! empty($registro->no_julio)
+                && ! empty($registro->no_orden);
 
             if ($esCompleto) {
                 // Flujo normal: actualizar horaParo y notificar por Telegram
@@ -144,15 +146,15 @@ class NotificarMontadoJulioController extends Controller
 
                 // Evitar duplicados en TejNotificaTejedor: actualizar si ya existe, insertar si no.
                 $this->registrarNotificacionTejedor([
-                    'telar'       => $registro->no_telar,
-                    'tipo'        => $registro->tipo,
-                    'hora'        => $horaActual,
+                    'telar' => $registro->no_telar,
+                    'tipo' => $registro->tipo,
+                    'hora' => $horaActual,
                     'NomEmpleado' => $user->nombre ?? $user->name ?? null,
-                    'NoEmpleado'  => $user->numero_empleado ?? null,
-                    'Reserva'     => 1,
-                    'no_julio'    => $registro->no_julio,
-                    'no_orden'    => $registro->no_orden,
-                    'Fecha'       => $fecha,
+                    'NoEmpleado' => $user->numero_empleado ?? null,
+                    'Reserva' => 1,
+                    'no_julio' => $registro->no_julio,
+                    'no_orden' => $registro->no_orden,
+                    'Fecha' => $fecha,
                 ], true);
 
                 try {
@@ -175,30 +177,30 @@ class NotificarMontadoJulioController extends Controller
 
                 // Registro incompleto o sin registro: evitar duplicados (actualizar fecha/hora si existe pendiente).
                 $this->registrarNotificacionTejedor([
-                    'telar'       => $noTelar,
-                    'tipo'        => $tipo,
-                    'hora'        => $horaActual,
+                    'telar' => $noTelar,
+                    'tipo' => $tipo,
+                    'hora' => $horaActual,
                     'NomEmpleado' => $user->nombre ?? $user->name ?? null,
-                    'NoEmpleado'  => $user->numero_empleado ?? null,
-                    'Reserva'     => 0,
-                    'no_julio'    => 0,
-                    'no_orden'    => 0,
-                    'Fecha'       => $fecha,
+                    'NoEmpleado' => $user->numero_empleado ?? null,
+                    'Reserva' => 0,
+                    'no_julio' => 0,
+                    'no_orden' => 0,
+                    'Fecha' => $fecha,
                 ], false);
 
                 // Enviar Telegram con los datos disponibles
                 try {
                     $datosNotificacion = [
-                        'no_telar'   => $noTelar,
-                        'tipo'       => $tipo,
+                        'no_telar' => $noTelar,
+                        'tipo' => $tipo,
                         'tipo_atado' => $registro->tipo_atado ?? null,
-                        'cuenta'     => null,
-                        'calibre'    => null,
-                        'no_orden'   => null,
-                        'no_julio'   => null,
-                        'Fecha'      => $fecha,
-                        'metros'     => $registro->metros ?? null,
-                        'horaParo'   => $horaActual,
+                        'cuenta' => null,
+                        'calibre' => null,
+                        'no_orden' => null,
+                        'no_julio' => null,
+                        'Fecha' => $fecha,
+                        'metros' => $registro->metros ?? null,
+                        'horaParo' => $horaActual,
                     ];
                     $this->enviarNotificacionTelegram((object) $datosNotificacion, $user);
                 } catch (\Throwable $e) {
@@ -210,9 +212,9 @@ class NotificarMontadoJulioController extends Controller
             }
 
             return response()->json([
-                'success'  => true,
+                'success' => true,
                 'horaParo' => $horaActual,
-                'message'  => 'Notificación registrada correctamente',
+                'message' => 'Notificación registrada correctamente',
             ]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
@@ -227,7 +229,7 @@ class NotificarMontadoJulioController extends Controller
     private function registrarNotificacionTejedor(array $payload, bool $esCompleto): void
     {
         $telar = trim((string) ($payload['telar'] ?? ''));
-        $tipo  = strtolower(trim((string) ($payload['tipo'] ?? '')));
+        $tipo = strtolower(trim((string) ($payload['tipo'] ?? '')));
         $fecha = $payload['Fecha'] ?? Carbon::now()->toDateString();
 
         $query = TejNotificaTejedorModel::query()
@@ -239,12 +241,12 @@ class NotificarMontadoJulioController extends Controller
             $noJulio = trim((string) ($payload['no_julio'] ?? ''));
             $noOrden = trim((string) ($payload['no_orden'] ?? ''));
 
-            $query->where(function($q) use ($noJulio, $noOrden) {
+            $query->where(function ($q) use ($noJulio, $noOrden) {
                 $q->whereRaw('LTRIM(RTRIM(no_julio)) = ?', [$noJulio])
-                  ->whereRaw('LTRIM(RTRIM(no_orden)) = ?', [$noOrden])
-                  ->orWhere(function($sq) {
-                      $sq->whereNull('no_julio')->orWhere('no_julio', '0')->orWhere('no_julio', '');
-                  });
+                    ->whereRaw('LTRIM(RTRIM(no_orden)) = ?', [$noOrden])
+                    ->orWhere(function ($sq) {
+                        $sq->whereNull('no_julio')->orWhere('no_julio', '0')->orWhere('no_julio', '');
+                    });
             });
         }
 
@@ -252,9 +254,9 @@ class NotificarMontadoJulioController extends Controller
         if ($existente) {
             // Actualización inteligente: No sobreescribir datos buenos con vacíos/0
             $updateData = [
-                'hora'        => $payload['hora'] ?? $existente->hora,
+                'hora' => $payload['hora'] ?? $existente->hora,
                 'NomEmpleado' => $payload['NomEmpleado'] ?? $existente->NomEmpleado,
-                'NoEmpleado'  => $payload['NoEmpleado'] ?? $existente->NoEmpleado,
+                'NoEmpleado' => $payload['NoEmpleado'] ?? $existente->NoEmpleado,
             ];
 
             // Solo actualizar Reserva si el nuevo es 1 o el actual es 0
@@ -263,14 +265,15 @@ class NotificarMontadoJulioController extends Controller
             }
 
             // Solo actualizar julio/orden si el nuevo no es vacío/0
-            if (!empty($payload['no_julio']) && $payload['no_julio'] !== '0') {
+            if (! empty($payload['no_julio']) && $payload['no_julio'] !== '0') {
                 $updateData['no_julio'] = $payload['no_julio'];
             }
-            if (!empty($payload['no_orden']) && $payload['no_orden'] !== '0') {
+            if (! empty($payload['no_orden']) && $payload['no_orden'] !== '0') {
                 $updateData['no_orden'] = $payload['no_orden'];
             }
 
             $existente->update($updateData);
+
             return;
         }
 
@@ -290,7 +293,7 @@ class NotificarMontadoJulioController extends Controller
             ->select('CuentaRizo', 'CalibreRizo', 'CuentaPie', 'CalibrePie')
             ->first();
 
-        if (!$programa) {
+        if (! $programa) {
             return ['', ''];
         }
 
@@ -322,12 +325,14 @@ class NotificarMontadoJulioController extends Controller
         $botToken = config('services.telegram.bot_token');
         if (empty($botToken)) {
             Log::warning('No se pudo enviar notificacion a Telegram: TELEGRAM_BOT_TOKEN no configurado');
+
             return;
         }
 
         $chatIds = SYSMensaje::getChatIdsPorModulo('NotificarAtadoJulio');
         if (empty($chatIds)) {
             Log::warning('No hay destinatarios con NotificarAtadoJulio activo en SYSMensajes');
+
             return;
         }
 
@@ -335,35 +340,35 @@ class NotificarMontadoJulioController extends Controller
         $numeroEmpleado = $usuario->numero_empleado ?? null;
 
         $mensaje = "*ATADO DE JULIO NOTIFICADO*\n\n";
-        $mensaje .= "*Telar:* " . ($registro->no_telar ?? 'N/A') . "\n";
-        $mensaje .= "*Tipo:* " . ($registro->tipo ?? 'N/A') . "\n";
-        if (!empty($registro->tipo_atado)) {
+        $mensaje .= '*Telar:* '.($registro->no_telar ?? 'N/A')."\n";
+        $mensaje .= '*Tipo:* '.($registro->tipo ?? 'N/A')."\n";
+        if (! empty($registro->tipo_atado)) {
             $mensaje .= "*Tipo Atado:* {$registro->tipo_atado}\n";
         }
-        if (!empty($registro->cuenta)) {
+        if (! empty($registro->cuenta)) {
             $mensaje .= "*Cuenta:* {$registro->cuenta}\n";
         }
-        if (!empty($registro->calibre)) {
+        if (! empty($registro->calibre)) {
             $mensaje .= "*Calibre:* {$registro->calibre}\n";
         }
-        if (!empty($registro->no_orden)) {
+        if (! empty($registro->no_orden)) {
             $mensaje .= "*No. Orden:* {$registro->no_orden}\n";
         }
-        if (!empty($registro->no_julio)) {
+        if (! empty($registro->no_julio)) {
             $mensaje .= "*No. Julio:* {$registro->no_julio}\n";
         }
-        if (!empty($registro->metros)) {
+        if (! empty($registro->metros)) {
             $mensaje .= "*Metros:* {$registro->metros}\n";
         }
-        if (!empty($registro->horaParo)) {
+        if (! empty($registro->horaParo)) {
             $mensaje .= "*Hora Paro:* {$registro->horaParo}\n";
         }
 
-        $mensaje .= "*Fecha:* " . Carbon::now()->format('d/m/Y') . "\n";
+        $mensaje .= '*Fecha:* '.Carbon::now()->format('d/m/Y')."\n";
 
-        if (!empty($nombreUsuario)) {
+        if (! empty($nombreUsuario)) {
             $mensaje .= "*Operador:* {$nombreUsuario}";
-            if (!empty($numeroEmpleado)) {
+            if (! empty($numeroEmpleado)) {
                 $mensaje .= " ({$numeroEmpleado})";
             }
             $mensaje .= "\n";
@@ -374,10 +379,10 @@ class NotificarMontadoJulioController extends Controller
             $response = Http::timeout(20)->post($url, [
                 'chat_id' => $chatId,
                 'text' => $mensaje,
-                'parse_mode' => 'Markdown'
+                'parse_mode' => 'Markdown',
             ]);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::error('Error al enviar notificacion de atado de julio a Telegram', [
                     'status' => $response->status(),
                     'response' => $response->json(),

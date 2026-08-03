@@ -72,19 +72,20 @@ final class CrudoStatusResolver
             return ($dailyTarget / max(1, (int) config('crudo.turns_per_day', 4))) * $days;
         }
 
-        $secondsElapsed = ((int) $now->format('H') * 3600)
-            + ((int) $now->format('i') * 60)
-            + (int) $now->format('s');
+        $hoursElapsed = (int) $now->format('H')
+            + ((int) $now->format('i') / 60)
+            + ((int) $now->format('s') / 3600);
+        $hourlyTarget = $dailyTarget / 24;
 
-        $days = 0.0;
+        $expectedKilos = 0.0;
         while ($cursor <= $lastDay) {
-            $days += $cursor->format('Y-m-d') === $today->format('Y-m-d')
-                ? min(1, max(0, $secondsElapsed / 86400))
-                : 1.0;
+            $expectedKilos += $cursor->format('Y-m-d') === $today->format('Y-m-d')
+                ? min($dailyTarget, max(0, $hourlyTarget * $hoursElapsed))
+                : $dailyTarget;
 
             $cursor = $cursor->add(new DateInterval('P1D'));
         }
 
-        return $dailyTarget * $days;
+        return $expectedKilos;
     }
 }

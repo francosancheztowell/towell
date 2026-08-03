@@ -16,19 +16,25 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 class ReporteInvTelasExport implements FromArray, WithEvents, WithTitle
 {
     private const FILA_DIA_SEMANA = 3;
+
     private const FILA_FECHA = 4;
+
     private const COLUMNA_INICIO_DIAS = 5;
+
     private const COLUMNAS_POR_DIA = 3;
+
     private const FILL_COLORS = [
         'blue' => '3B82F6',
         'orange' => 'FB923C',
         'yellow' => 'FDE047',
     ];
+
     private const FONT_COLORS = [
         'blue' => 'FFFFFF',
         'orange' => 'FFFFFF',
         'yellow' => '713F12',
     ];
+
     private const TURNO_ALIGNMENT = [
         1 => Alignment::HORIZONTAL_LEFT,
         2 => Alignment::HORIZONTAL_CENTER,
@@ -36,6 +42,7 @@ class ReporteInvTelasExport implements FromArray, WithEvents, WithTitle
     ];
 
     protected array $secciones;
+
     protected array $dias;
 
     public function __construct(array $secciones, array $dias)
@@ -91,6 +98,7 @@ class ReporteInvTelasExport implements FromArray, WithEvents, WithTitle
                 return $path;
             }
         }
+
         return null;
     }
 
@@ -176,15 +184,15 @@ class ReporteInvTelasExport implements FromArray, WithEvents, WithTitle
             $fecha = (string) ($dia['fecha_excel'] ?? $dia['label'] ?? '');
 
             // Fila dia de semana: merge 3 celdas
-            $sheet->setCellValue("{$letraInicio}" . self::FILA_DIA_SEMANA, $diaNombre);
-            $sheet->mergeCells("{$letraInicio}" . self::FILA_DIA_SEMANA . ":{$letraFin}" . self::FILA_DIA_SEMANA);
+            $sheet->setCellValue("{$letraInicio}".self::FILA_DIA_SEMANA, $diaNombre);
+            $sheet->mergeCells("{$letraInicio}".self::FILA_DIA_SEMANA.":{$letraFin}".self::FILA_DIA_SEMANA);
 
             // Fila fecha: merge 3 celdas
-            $sheet->setCellValue("{$letraInicio}" . self::FILA_FECHA, $fecha);
-            $sheet->mergeCells("{$letraInicio}" . self::FILA_FECHA . ":{$letraFin}" . self::FILA_FECHA);
+            $sheet->setCellValue("{$letraInicio}".self::FILA_FECHA, $fecha);
+            $sheet->mergeCells("{$letraInicio}".self::FILA_FECHA.":{$letraFin}".self::FILA_FECHA);
 
             // Estilo encabezados
-            $rangoHeader = "{$letraInicio}" . self::FILA_DIA_SEMANA . ":{$letraFin}" . self::FILA_FECHA;
+            $rangoHeader = "{$letraInicio}".self::FILA_DIA_SEMANA.":{$letraFin}".self::FILA_FECHA;
             $sheet->getStyle($rangoHeader)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle($rangoHeader)->getFont()->setBold(true);
 
@@ -203,10 +211,10 @@ class ReporteInvTelasExport implements FromArray, WithEvents, WithTitle
             return "R: {$cuentaRizo}\nP: {$cuentaPie}";
         }
         if ($cuentaRizo !== '') {
-            return 'R: ' . $cuentaRizo;
+            return 'R: '.$cuentaRizo;
         }
         if ($cuentaPie !== '') {
-            return 'P: ' . $cuentaPie;
+            return 'P: '.$cuentaPie;
         }
 
         return '';
@@ -214,7 +222,7 @@ class ReporteInvTelasExport implements FromArray, WithEvents, WithTitle
 
     protected function aplicarColorCelda(Worksheet $sheet, string $coordenada, ?string $color): void
     {
-        if ($color === null || !isset(self::FILL_COLORS[$color])) {
+        if ($color === null || ! isset(self::FILL_COLORS[$color])) {
             return;
         }
 
@@ -250,6 +258,7 @@ class ReporteInvTelasExport implements FromArray, WithEvents, WithTitle
                     'posicion' => $posicionEnSeccion,
                 ];
                 $posicionEnSeccion++;
+
                 continue;
             }
 

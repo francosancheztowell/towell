@@ -182,8 +182,10 @@ final readonly class CrudoDashboardService
             }
 
             $programs[$telar] = [
-                'nombre' => trim((string) ($row->NombreProducto ?? '')) ?: null,
-                'clave' => trim((string) ($row->NoProduccion ?? '')) ?: null,
+                'orden' => trim((string) ($row->NoProduccion ?? '')) ?: null,
+                'claveModelo' => trim((string) ($row->TamanoClave ?? '')) ?: null,
+                'itemId' => trim((string) ($row->ItemId ?? '')) ?: null,
+                'nombreProducto' => trim((string) ($row->NombreProducto ?? '')) ?: null,
             ];
         }
 

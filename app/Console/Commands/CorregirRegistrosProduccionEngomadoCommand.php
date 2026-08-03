@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Engomado\EngProduccionEngomado;
+use App\Models\Engomado\EngProgramaEngomado;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -37,11 +37,12 @@ class CorregirRegistrosProduccionEngomadoCommand extends Command
 
         // Solo permitir correccion si se especifica --folio explicitamente
         // Para correccion sin --folio, usar --dry-run primero para ver problemas
-        if (!$dryRun && empty($folioEspecifico)) {
+        if (! $dryRun && empty($folioEspecifico)) {
             $this->error('ERROR: Para corregir registros debe especificar --folio=<folio>');
             $this->info('');
             $this->info('Ejemplo: php artisan engomado:corregir-registros --folio=00278');
             $this->info('O usar --dry-run para ver todos los problemas: php artisan engomado:corregir-registros --dry-run');
+
             return Command::FAILURE;
         }
 
@@ -81,7 +82,7 @@ class CorregirRegistrosProduccionEngomadoCommand extends Command
 
                 $puedeCorregir = $programa->Status !== 'Finalizado' || $includeFinalizados;
 
-                if (!$dryRun && $puedeCorregir) {
+                if (! $dryRun && $puedeCorregir) {
                     if ($diferencia > 0) {
                         // Hay registros de más - eliminar con prioridad: NoJulio=NULL, KgNeto=NULL, Id mas antiguo
                         $registrosAEliminar = $diferencia;
@@ -121,9 +122,9 @@ class CorregirRegistrosProduccionEngomadoCommand extends Command
                             $idsAEliminar = array_merge($idsAEliminar, $idsRestantes);
                         }
 
-                        if (!empty($idsAEliminar)) {
+                        if (! empty($idsAEliminar)) {
                             EngProduccionEngomado::whereIn('Id', $idsAEliminar)->delete();
-                            $this->info("  -> ELIMINADOS: " . count($idsAEliminar) . " registros (Ids: " . implode(', ', $idsAEliminar) . ")");
+                            $this->info('  -> ELIMINADOS: '.count($idsAEliminar).' registros (Ids: '.implode(', ', $idsAEliminar).')');
                             Log::info('Corrección EngProduccionEngomado: registros eliminados', [
                                 'folio' => $programa->Folio,
                                 'ids_eliminados' => $idsAEliminar,
@@ -132,11 +133,11 @@ class CorregirRegistrosProduccionEngomadoCommand extends Command
                         }
                     } else {
                         // Hay registros de menos - crear los faltantes
-                        $this->warn("  -> NO SE PUEDE CORREGIR AUTOMATICAMENTE: faltan registros. Requiere intervención manual.");
+                        $this->warn('  -> NO SE PUEDE CORREGIR AUTOMATICAMENTE: faltan registros. Requiere intervención manual.');
                     }
                 } elseif ($dryRun && $diferencia > 0) {
-                    if ($programa->Status === 'Finalizado' && !$includeFinalizados) {
-                        $this->info("  -> NO se corregira (programa Finalizado). Usar --include-finalizados para forzar.");
+                    if ($programa->Status === 'Finalizado' && ! $includeFinalizados) {
+                        $this->info('  -> NO se corregira (programa Finalizado). Usar --include-finalizados para forzar.');
                     } elseif ($puedeCorregir) {
                         $this->info("  -> Se eliminaran {$diferencia} registros (los mas recientes sin HoraInicial)");
                     }
@@ -144,7 +145,7 @@ class CorregirRegistrosProduccionEngomadoCommand extends Command
                     if ($diferencia > 0 && $programa->Status !== 'Finalizado') {
                         $this->info("  -> Se eliminarán {$diferencia} registros (los más recientes sin HoraInicial)");
                     } elseif ($diferencia > 0 && $programa->Status === 'Finalizado') {
-                        $this->info("  -> Programa FINALIZADO - no se corrige automáticamente");
+                        $this->info('  -> Programa FINALIZADO - no se corrige automáticamente');
                     }
                 }
             }
@@ -154,10 +155,10 @@ class CorregirRegistrosProduccionEngomadoCommand extends Command
         $this->info('=== Resumen ===');
         $this->info("Problemas encontrados: {$problemasEncontrados}");
 
-        if (!$dryRun) {
+        if (! $dryRun) {
             $this->info("Corregidos: {$corregidos}");
         } else {
-            $this->info("(Ejecutar sin --dry-run para corregir)");
+            $this->info('(Ejecutar sin --dry-run para corregir)');
         }
 
         return Command::SUCCESS;

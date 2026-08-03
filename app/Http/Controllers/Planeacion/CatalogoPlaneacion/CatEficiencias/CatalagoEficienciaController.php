@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatEficiencias;
 
+use App\Http\Controllers\Controller;
+use App\Imports\ReqEficienciaStdImport;
 use App\Models\Planeacion\ReqEficienciaStd;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Imports\ReqEficienciaStdImport;
-use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
@@ -20,9 +20,9 @@ class CatalagoEficienciaController extends Controller
         // Obtener todos los resultados sin filtros del servidor
         // Los filtros se manejan del lado del cliente con JavaScript
         $eficiencia = ReqEficienciaStd::orderBy('SalonTejidoId')
-                                    ->orderBy('NoTelarId')
-                                    ->orderBy('FibraId')
-                                    ->get();
+            ->orderBy('NoTelarId')
+            ->orderBy('FibraId')
+            ->get();
 
         // Siempre hay resultados ya que no filtramos del lado del servidor
         $noResults = false;
@@ -42,7 +42,7 @@ class CatalagoEficienciaController extends Controller
         try {
             // Validar el archivo
             $request->validate([
-                'archivo_excel' => 'required|file|mimes:xlsx,xls|max:10240' // 10MB máximo
+                'archivo_excel' => 'required|file|mimes:xlsx,xls|max:10240', // 10MB máximo
             ]);
 
             $archivo = $request->file('archivo_excel');
@@ -51,7 +51,7 @@ class CatalagoEficienciaController extends Controller
 
             try {
                 // Crear instancia del importador
-                $import = new ReqEficienciaStdImport();
+                $import = new ReqEficienciaStdImport;
 
                 // Importar el archivo
                 Excel::import($import, $archivo);
@@ -69,8 +69,8 @@ class CatalagoEficienciaController extends Controller
                         'registros_creados' => $stats['created_rows'],
                         'registros_actualizados' => $stats['updated_rows'],
                         'total_errores' => count($stats['errores']),
-                        'errores' => array_slice($stats['errores'], 0, 10) // Primeros 10 errores
-                    ]
+                        'errores' => array_slice($stats['errores'], 0, 10), // Primeros 10 errores
+                    ],
                 ]);
 
             } catch (\Exception $e) {
@@ -81,7 +81,7 @@ class CatalagoEficienciaController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error interno del servidor al procesar el archivo Excel: ' . $e->getMessage()
+                'message' => 'Error interno del servidor al procesar el archivo Excel: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -97,7 +97,7 @@ class CatalagoEficienciaController extends Controller
                 'NoTelarId' => 'required|string|max:10',
                 'FibraId' => 'required|string|max:120',
                 'Eficiencia' => 'required|numeric|min:0|max:1',
-                'Densidad' => 'nullable|string|max:10'
+                'Densidad' => 'nullable|string|max:10',
             ]);
 
             // Usar solo el número del telar para evitar problemas de longitud
@@ -105,13 +105,13 @@ class CatalagoEficienciaController extends Controller
 
             // Verificar duplicados en una sola consulta
             if (ReqEficienciaStd::where('SalonTejidoId', $salon)
-                               ->where('NoTelarId', $request->NoTelarId)
-                               ->where('FibraId', $request->FibraId)
-                               ->where('Densidad', $request->Densidad ?? 'Normal')
-                               ->exists()) {
+                ->where('NoTelarId', $request->NoTelarId)
+                ->where('FibraId', $request->FibraId)
+                ->where('Densidad', $request->Densidad ?? 'Normal')
+                ->exists()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Ya existe una eficiencia para este telar y tipo de fibra'
+                    'message' => 'Ya existe una eficiencia para este telar y tipo de fibra',
                 ], 422);
             }
 
@@ -121,18 +121,18 @@ class CatalagoEficienciaController extends Controller
                 'NoTelarId' => $request->NoTelarId, // Solo el número del telar
                 'FibraId' => $request->FibraId,
                 'Eficiencia' => $request->Eficiencia,
-                'Densidad' => $request->Densidad ?? 'Normal'
+                'Densidad' => $request->Densidad ?? 'Normal',
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => "Eficiencia para '{$salon} {$request->NoTelarId} - {$request->FibraId}' creada exitosamente"
+                'message' => "Eficiencia para '{$salon} {$request->NoTelarId} - {$request->FibraId}' creada exitosamente",
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al crear la eficiencia: ' . $e->getMessage()
+                'message' => 'Error al crear la eficiencia: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -147,11 +147,11 @@ class CatalagoEficienciaController extends Controller
                 'NoTelarId' => 'required|string|max:20',
                 'FibraId' => 'required|string|max:120',
                 'Eficiencia' => 'required|numeric|min:0|max:1',
-                'Densidad' => 'nullable|string|max:10'
+                'Densidad' => 'nullable|string|max:10',
             ]);
 
             // Guardar valores ANTES de actualizar para buscar programas relacionados
-            $eficienciaOriginal = (float)($eficiencia->Eficiencia ?? 0);
+            $eficienciaOriginal = (float) ($eficiencia->Eficiencia ?? 0);
             $telarOriginal = $eficiencia->NoTelarId;
             $fibraOriginal = $eficiencia->FibraId;
             $densidadOriginal = $eficiencia->Densidad ?? 'Normal';
@@ -161,20 +161,20 @@ class CatalagoEficienciaController extends Controller
 
             // Verificar duplicados excluyendo el registro actual
             if (ReqEficienciaStd::where('SalonTejidoId', $salon)
-                               ->where('NoTelarId', $request->NoTelarId)
-                               ->where('FibraId', $request->FibraId)
-                               ->where('Densidad', $request->Densidad ?? 'Normal')
-                               ->where('Id', '!=', (int)$eficiencia->Id)
-                               ->exists()) {
+                ->where('NoTelarId', $request->NoTelarId)
+                ->where('FibraId', $request->FibraId)
+                ->where('Densidad', $request->Densidad ?? 'Normal')
+                ->where('Id', '!=', (int) $eficiencia->Id)
+                ->exists()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Ya existe otra eficiencia para este telar y tipo de fibra'
+                    'message' => 'Ya existe otra eficiencia para este telar y tipo de fibra',
                 ], 422);
             }
 
             // Verificar si cambió la eficiencia ANTES de actualizar
-            $eficienciaCambiada = abs($eficienciaOriginal - (float)$request->Eficiencia) > 0.0001;
-            $nuevaEficiencia = (float)$request->Eficiencia;
+            $eficienciaCambiada = abs($eficienciaOriginal - (float) $request->Eficiencia) > 0.0001;
+            $nuevaEficiencia = (float) $request->Eficiencia;
             $nuevoTelar = $request->NoTelarId;
             $nuevaFibra = $request->FibraId;
             $nuevaDensidad = $request->Densidad ?? 'Normal';
@@ -185,7 +185,7 @@ class CatalagoEficienciaController extends Controller
                 'NoTelarId' => $nuevoTelar,
                 'FibraId' => $nuevaFibra,
                 'Eficiencia' => $nuevaEficiencia,
-                'Densidad' => $nuevaDensidad
+                'Densidad' => $nuevaDensidad,
             ]);
 
             // Si cambió la eficiencia, actualizar programas relacionados y recalcular fórmulas
@@ -202,13 +202,13 @@ class CatalagoEficienciaController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Eficiencia para '{$salon} {$request->NoTelarId} - {$request->FibraId}' actualizada exitosamente"
+                'message' => "Eficiencia para '{$salon} {$request->NoTelarId} - {$request->FibraId}' actualizada exitosamente",
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al actualizar la eficiencia: ' . $e->getMessage()
+                'message' => 'Error al actualizar la eficiencia: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -223,7 +223,7 @@ class CatalagoEficienciaController extends Controller
             $programas = ReqProgramaTejido::where('NoTelarId', $telar)
                 ->where(function ($query) use ($fibra) {
                     $query->where('FibraRizo', $fibra)
-                          ->orWhere('FibraTrama', $fibra);
+                        ->orWhere('FibraTrama', $fibra);
                 })
                 ->get();
 
@@ -231,17 +231,17 @@ class CatalagoEficienciaController extends Controller
             foreach ($programas as $programa) {
                 // Calcular la densidad del programa basándose en CalibreTrama
                 $calibreTrama = $programa->CalibreTrama ?? $programa->CalibreTrama2;
-                $densidadPrograma = ($calibreTrama !== null && (float)$calibreTrama > 40) ? 'Alta' : 'Normal';
+                $densidadPrograma = ($calibreTrama !== null && (float) $calibreTrama > 40) ? 'Alta' : 'Normal';
 
                 // Si la densidad coincide, actualizar EficienciaSTD y recalcular
                 if ($densidadPrograma === $densidad) {
                     // Verificar si el valor es diferente antes de actualizar
-                    $eficienciaActual = (float)($programa->EficienciaSTD ?? 0);
+                    $eficienciaActual = (float) ($programa->EficienciaSTD ?? 0);
                     if (abs($eficienciaActual - $nuevaEficiencia) > 0.0001) {
                         // Guardar valores antes de actualizar para logging
                         $horasProdAntes = $programa->HorasProd ?? 0;
                         $stdToaHraAntes = $programa->StdToaHra ?? 0;
-                        $eficienciaAntes = (float)($programa->EficienciaSTD ?? 0);
+                        $eficienciaAntes = (float) ($programa->EficienciaSTD ?? 0);
 
                         // Asegurarse de que el modelo tenga todos los valores necesarios cargados
                         // Recargar el modelo para tener todos los campos actualizados
@@ -293,7 +293,7 @@ class CatalagoEficienciaController extends Controller
             $programas = ReqProgramaTejido::where('NoTelarId', $telar)
                 ->where(function ($query) use ($fibra) {
                     $query->where('FibraRizo', $fibra)
-                          ->orWhere('FibraTrama', $fibra);
+                        ->orWhere('FibraTrama', $fibra);
                 })
                 ->get();
 
@@ -303,7 +303,7 @@ class CatalagoEficienciaController extends Controller
             foreach ($programas as $programa) {
                 // Calcular la densidad del programa basándose en CalibreTrama
                 $calibreTrama = $programa->CalibreTrama ?? $programa->CalibreTrama2;
-                $densidadPrograma = ($calibreTrama !== null && (float)$calibreTrama > 40) ? 'Alta' : 'Normal';
+                $densidadPrograma = ($calibreTrama !== null && (float) $calibreTrama > 40) ? 'Alta' : 'Normal';
 
                 // Si la densidad coincide, entonces esta eficiencia está en uso
                 if ($densidadPrograma === $densidad) {
@@ -314,7 +314,7 @@ class CatalagoEficienciaController extends Controller
 
             if ($enUso) {
                 return response()->json([
-                    'message' => "No se puede eliminar la eficiencia porque esta siendo utilizada en el programa de tejido."
+                    'message' => 'No se puede eliminar la eficiencia porque esta siendo utilizada en el programa de tejido.',
                 ], 422);
             }
 
@@ -322,15 +322,14 @@ class CatalagoEficienciaController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Eficiencia para '{$telar} - {$fibra}' eliminada exitosamente"
+                'message' => "Eficiencia para '{$telar} - {$fibra}' eliminada exitosamente",
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al eliminar la eficiencia: ' . $e->getMessage()
+                'message' => 'Error al eliminar la eficiencia: '.$e->getMessage(),
             ], 500);
         }
     }
-
 }

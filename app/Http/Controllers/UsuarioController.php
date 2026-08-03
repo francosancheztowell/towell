@@ -3,18 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreUsuarioRequest;
-use App\Repositories\UsuarioRepository;
-use App\Services\ModuloService;
-use App\Services\UsuarioService;
-use App\Services\PermissionService;
 use App\Models\Sistema\SysDepartamentos;
 use App\Models\Sistema\SYSRoles;
 use App\Models\Sistema\SYSUsuariosRoles;
 use App\Models\Sistema\Usuario;
+use App\Repositories\UsuarioRepository;
+use App\Services\ModuloService;
+use App\Services\PermissionService;
+use App\Services\UsuarioService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+
 class UsuarioController extends Controller
 {
     public function __construct(
@@ -31,7 +32,7 @@ class UsuarioController extends Controller
     {
         $usuarioActual = Auth::user();
 
-        if (!$usuarioActual || !$usuarioActual->numero_empleado) {
+        if (! $usuarioActual || ! $usuarioActual->numero_empleado) {
             return redirect()->route('login')
                 ->with('error', 'Debes iniciar sesión para acceder a los módulos');
         }
@@ -67,7 +68,7 @@ class UsuarioController extends Controller
         return view('produccionProceso', [
             'modulos' => $modulos,
             'tieneConfiguracion' => $tieneConfiguracion,
-            'pageTitle' => 'Producción en Proceso'
+            'pageTitle' => 'Producción en Proceso',
         ]);
     }
 
@@ -87,7 +88,7 @@ class UsuarioController extends Controller
             'permisosUsuario' => collect(),
             'departamentos' => $departamentos,
             'isEdit' => false,
-            'modulosDescendientes' => $modulosDescendientes
+            'modulosDescendientes' => $modulosDescendientes,
         ]);
     }
 
@@ -101,7 +102,7 @@ class UsuarioController extends Controller
             $foto = $request->hasFile('foto') ? $request->file('foto') : null;
 
             // Extraer permisos del request (todos los campos que empiezan con "modulo_")
-            $permisos = array_filter($request->all(), function($key) {
+            $permisos = array_filter($request->all(), function ($key) {
                 return strpos($key, 'modulo_') === 0;
             }, ARRAY_FILTER_USE_KEY);
 
@@ -112,6 +113,7 @@ class UsuarioController extends Controller
                 ->with('success', 'Usuario registrado correctamente');
         } catch (\Exception $e) {
             Log::error('Error al crear usuario', ['error' => $e->getMessage()]);
+
             return back()
                 ->with('error', 'No se pudo registrar el usuario. Intenta de nuevo.')
                 ->withInput();
@@ -149,7 +151,7 @@ class UsuarioController extends Controller
     {
         $usuario = $this->usuarioRepository->findById($idusuario);
 
-        if (!$usuario) {
+        if (! $usuario) {
             return redirect()->route('configuracion.usuarios.select')
                 ->with('error', 'Usuario no encontrado');
         }
@@ -164,7 +166,7 @@ class UsuarioController extends Controller
     {
         $usuario = $this->usuarioRepository->findById($id);
 
-        if (!$usuario) {
+        if (! $usuario) {
             return redirect()->route('configuracion.usuarios.select')
                 ->with('error', 'Usuario no encontrado');
         }
@@ -181,7 +183,7 @@ class UsuarioController extends Controller
             'permisosUsuario' => $permisosUsuario,
             'departamentos' => $departamentos,
             'isEdit' => true,
-            'modulosDescendientes' => $modulosDescendientes
+            'modulosDescendientes' => $modulosDescendientes,
         ]);
     }
 
@@ -195,14 +197,14 @@ class UsuarioController extends Controller
             $foto = $request->hasFile('foto') ? $request->file('foto') : null;
 
             // Extraer permisos del request (todos los campos que empiezan con "modulo_")
-            $permisos = array_filter($request->all(), function($key) {
+            $permisos = array_filter($request->all(), function ($key) {
                 return strpos($key, 'modulo_') === 0;
             }, ARRAY_FILTER_USE_KEY);
 
             // Actualizar usuario y permisos desde el formulario
             $actualizado = $this->usuarioService->update($id, $data, $foto, $permisos);
 
-            if (!$actualizado) {
+            if (! $actualizado) {
                 return redirect()->route('configuracion.usuarios.select')
                     ->with('error', 'Usuario no encontrado');
             }
@@ -216,8 +218,9 @@ class UsuarioController extends Controller
         } catch (\Exception $e) {
             Log::error('Error al actualizar usuario', [
                 'usuario_id' => $id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return back()
                 ->with('error', 'No se pudo actualizar el usuario.')
                 ->withInput();
@@ -232,7 +235,7 @@ class UsuarioController extends Controller
         try {
             $usuario = $this->usuarioRepository->findById($id);
 
-            if (!$usuario) {
+            if (! $usuario) {
                 return redirect()->route('usuarios.select')
                     ->with('error', 'Usuario no encontrado');
             }
@@ -246,7 +249,7 @@ class UsuarioController extends Controller
         } catch (\Exception $e) {
             Log::error('Error al eliminar usuario', [
                 'usuario_id' => $id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return redirect()
@@ -278,7 +281,7 @@ class UsuarioController extends Controller
                     ->where('idrol', $idrol)
                     ->update([
                         $campo => $valor,
-                        'assigned_at' => now()
+                        'assigned_at' => now(),
                     ]);
             } else {
                 // Si no existe, crear con todos los campos inicializados
@@ -290,13 +293,13 @@ class UsuarioController extends Controller
                     'modificar' => $campo === 'modificar' ? $valor : 0,
                     'eliminar' => $campo === 'eliminar' ? $valor : 0,
                     'registrar' => $campo === 'registrar' ? $valor : 0,
-                    'assigned_at' => now()
+                    'assigned_at' => now(),
                 ]);
             }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Permiso actualizado correctamente'
+                'message' => 'Permiso actualizado correctamente',
             ]);
         } catch (\Exception $e) {
             Log::error('Error al actualizar permiso', [
@@ -304,12 +307,12 @@ class UsuarioController extends Controller
                 'idrol' => $idrol,
                 'campo' => $campo,
                 'valor' => $valor,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al actualizar el permiso'
+                'message' => 'Error al actualizar el permiso',
             ], 500);
         }
     }
@@ -322,7 +325,7 @@ class UsuarioController extends Controller
         $usuarioActual = Auth::user();
         $moduloConfiguracion = $this->moduloService->buscarModuloPrincipal('configuracion');
 
-        if (!$moduloConfiguracion) {
+        if (! $moduloConfiguracion) {
             return redirect('/produccionProceso')
                 ->with('error', 'Módulo de configuración no encontrado');
         }
@@ -335,7 +338,7 @@ class UsuarioController extends Controller
 
         return view('modulos.configuracion', [
             'moduloPrincipal' => 'Configuración',
-            'subModulos' => $subModulos
+            'subModulos' => $subModulos,
         ]);
     }
 
@@ -347,7 +350,7 @@ class UsuarioController extends Controller
         $usuarioActual = Auth::user();
         $moduloPadre = SYSRoles::where('orden', $serie)->first();
 
-        if (!$moduloPadre) {
+        if (! $moduloPadre) {
             return redirect('/configuracion')
                 ->with('error', 'Módulo de configuración no encontrado');
         }
@@ -360,7 +363,7 @@ class UsuarioController extends Controller
         return view('modulos.submodulos', [
             'moduloPrincipal' => $moduloPadre->modulo,
             'subModulos' => $subModulos,
-            'rango' => ['inicio' => $serie, 'nombre' => $moduloPadre->modulo]
+            'rango' => ['inicio' => $serie, 'nombre' => $moduloPadre->modulo],
         ]);
     }
 
@@ -395,7 +398,7 @@ class UsuarioController extends Controller
 
         // Si no encuentra por nombre/ruta, intentar buscar por orden si es numérico
         // Optimización: Usa índice IX_SYSRoles_orden para búsqueda rápida
-        if (!$moduloPadre && is_numeric($moduloPrincipal)) {
+        if (! $moduloPadre && is_numeric($moduloPrincipal)) {
             $moduloPadre = SYSRoles::where('Nivel', 1)
                 ->whereNull('Dependencia')
                 ->where('orden', $moduloPrincipal)
@@ -405,8 +408,8 @@ class UsuarioController extends Controller
 
         // Si aún no encuentra, intentar buscar por ruta exacta de la URL
         // Optimización: Ruta está en INCLUDE del índice IX_SYSRoles_Nivel_Dependencia
-        if (!$moduloPadre) {
-            $rutaBuscada = '/' . ltrim($moduloPrincipal, '/');
+        if (! $moduloPadre) {
+            $rutaBuscada = '/'.ltrim($moduloPrincipal, '/');
             $moduloPadre = SYSRoles::where('Nivel', 1)
                 ->whereNull('Dependencia')
                 ->where('Ruta', $rutaBuscada)
@@ -414,11 +417,12 @@ class UsuarioController extends Controller
                 ->first();
         }
 
-        if (!$moduloPadre) {
+        if (! $moduloPadre) {
             Log::warning('Módulo no encontrado', [
                 'modulo_principal' => $moduloPrincipal,
-                'usuario' => $usuarioActual->idusuario
+                'usuario' => $usuarioActual->idusuario,
             ]);
+
             return redirect('/produccionProceso')
                 ->with('error', 'Módulo no encontrado. Puede que haya sido eliminado o no tengas acceso.');
         }
@@ -430,12 +434,13 @@ class UsuarioController extends Controller
             ->where('acceso', true)
             ->exists();
 
-        if (!$tieneAcceso) {
+        if (! $tieneAcceso) {
             Log::warning('Usuario sin acceso al módulo', [
                 'modulo' => $moduloPadre->modulo,
                 'idrol' => $moduloPadre->idrol,
-                'usuario' => $usuarioActual->idusuario
+                'usuario' => $usuarioActual->idusuario,
             ]);
+
             return redirect('/produccionProceso')
                 ->with('error', 'No tienes acceso a este módulo.');
         }
@@ -452,10 +457,10 @@ class UsuarioController extends Controller
         // (p. ej. /submodulos/1000 → /trazabilidad).
         if (count($subModulos) === 0) {
             $rutaPropia = trim((string) ($moduloPadre->Ruta ?? ''));
-            if ($rutaPropia !== '' && !str_starts_with($rutaPropia, '/submodulos')) {
-                $rutaNormalizada = '/' . ltrim(str_replace('\\', '/', $rutaPropia), '/');
+            if ($rutaPropia !== '' && ! str_starts_with($rutaPropia, '/submodulos')) {
+                $rutaNormalizada = '/'.ltrim(str_replace('\\', '/', $rutaPropia), '/');
                 // Evitar bucle si justamente se llegó por la propia Ruta del módulo
-                if ($rutaNormalizada !== '/' . ltrim($moduloPrincipal, '/')) {
+                if ($rutaNormalizada !== '/'.ltrim($moduloPrincipal, '/')) {
                     return redirect($rutaNormalizada);
                 }
             }
@@ -465,7 +470,7 @@ class UsuarioController extends Controller
         return view('modulos.submodulos', [
             'moduloPrincipal' => $moduloPadre->modulo,
             'subModulos' => $subModulos,
-            'rango' => ['inicio' => $moduloPadre->orden, 'nombre' => $moduloPadre->modulo]
+            'rango' => ['inicio' => $moduloPadre->orden, 'nombre' => $moduloPadre->modulo],
         ]);
     }
 
@@ -492,14 +497,15 @@ class UsuarioController extends Controller
                 'subModulos' => $subModulos,
                 'rango' => [
                     'inicio' => $moduloPadre,
-                    'nombre' => $moduloPadreInfo->modulo ?? 'Submódulos'
-                ]
+                    'nombre' => $moduloPadreInfo->modulo ?? 'Submódulos',
+                ],
             ]);
         } catch (\Exception $e) {
             Log::error('Error al obtener submódulos nivel 3', [
                 'error' => $e->getMessage(),
-                'modulo_padre' => $moduloPadre
+                'modulo_padre' => $moduloPadre,
             ]);
+
             return redirect('/produccionProceso')
                 ->with('error', 'Error al cargar los submódulos');
         }
@@ -512,7 +518,7 @@ class UsuarioController extends Controller
     {
         $usuarioActual = Auth::user();
 
-        if (!$usuarioActual) {
+        if (! $usuarioActual) {
             return response()->json(['error' => 'No autenticado'], 401);
         }
 
@@ -526,8 +532,9 @@ class UsuarioController extends Controller
         } catch (\Exception $e) {
             Log::error('Error al obtener submódulos API', [
                 'error' => $e->getMessage(),
-                'modulo' => $moduloPrincipal
+                'modulo' => $moduloPrincipal,
             ]);
+
             return response()->json(['error' => 'Error al obtener submódulos'], 500);
         }
     }
@@ -541,7 +548,7 @@ class UsuarioController extends Controller
             $rutaActual = $request->input('ruta', $request->path());
 
             // Normalizar ruta
-            $rutaActual = '/' . ltrim($rutaActual, '/');
+            $rutaActual = '/'.ltrim($rutaActual, '/');
 
             // Buscar módulo por ruta exacta primero
             // Optimización: Ruta está en INCLUDE del índice, acceso rápido
@@ -551,10 +558,10 @@ class UsuarioController extends Controller
 
             // Si no encuentra, buscar por coincidencia (la ruta más específica que coincida)
             // NOTA: LIKE 'texto%' puede usar índices parcialmente, pero LIKE '%texto%' no puede
-            if (!$modulo) {
-                $modulo = SYSRoles::where('Ruta', 'LIKE', $rutaActual . '%')
+            if (! $modulo) {
+                $modulo = SYSRoles::where('Ruta', 'LIKE', $rutaActual.'%')
                     ->select('idrol', 'orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
-                    ->orderByRaw("CASE WHEN Ruta = ? THEN 0 ELSE 1 END", [$rutaActual])
+                    ->orderByRaw('CASE WHEN Ruta = ? THEN 0 ELSE 1 END', [$rutaActual])
                     ->orderByRaw('LEN(Ruta) DESC')
                     ->orderBy('Nivel', 'desc')
                     ->first();
@@ -562,18 +569,18 @@ class UsuarioController extends Controller
 
             // Si aún no encuentra, derivar el padre quitando el último segmento de la ruta
             // (p.ej. /tejido/reportes → busca /tejido directamente)
-            if (!$modulo) {
+            if (! $modulo) {
                 $partes = array_filter(array_values(explode('/', trim($rutaActual, '/'))));
                 if (count($partes) >= 2) {
                     $parentPartes = array_slice($partes, 0, -1);
-                    $rutaPadreDerivada = '/' . implode('/', $parentPartes);
+                    $rutaPadreDerivada = '/'.implode('/', $parentPartes);
                     $moduloPadreDerivado = SYSRoles::where('Ruta', $rutaPadreDerivada)
                         ->select('orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
                         ->first();
                     if ($moduloPadreDerivado && $moduloPadreDerivado->Ruta) {
                         return response()->json([
                             'success' => true,
-                            'rutaPadre' => $moduloPadreDerivado->Ruta
+                            'rutaPadre' => $moduloPadreDerivado->Ruta,
                         ]);
                     }
                 }
@@ -581,24 +588,24 @@ class UsuarioController extends Controller
 
             // Si aún no encuentra, intentar buscar por partes de la ruta
             // NOTA: LIKE '%texto%' no puede usar índices eficientemente, pero es necesario como fallback
-            if (!$modulo) {
+            if (! $modulo) {
                 $partes = array_filter(array_values(explode('/', trim($rutaActual, '/'))));
                 if (count($partes) > 0) {
                     $ultimaParte = end($partes);
                     // Primero intentar con el mismo prefijo de módulo base para evitar falsos positivos
                     // (p.ej. /tejido/reportes no debe resolverse con /tejedores/reportes-tejedores)
                     if (count($partes) >= 2) {
-                        $prefijoPrincipal = '/' . $partes[0] . '/';
-                        $modulo = SYSRoles::where('Ruta', 'LIKE', '%' . $ultimaParte . '%')
-                            ->where('Ruta', 'LIKE', $prefijoPrincipal . '%')
+                        $prefijoPrincipal = '/'.$partes[0].'/';
+                        $modulo = SYSRoles::where('Ruta', 'LIKE', '%'.$ultimaParte.'%')
+                            ->where('Ruta', 'LIKE', $prefijoPrincipal.'%')
                             ->select('idrol', 'orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
                             ->orderByRaw('LEN(Ruta) DESC')
                             ->orderBy('Nivel', 'desc')
                             ->first();
                     }
                     // Fallback sin restricción de prefijo
-                    if (!$modulo) {
-                        $modulo = SYSRoles::where('Ruta', 'LIKE', '%' . $ultimaParte . '%')
+                    if (! $modulo) {
+                        $modulo = SYSRoles::where('Ruta', 'LIKE', '%'.$ultimaParte.'%')
                             ->select('idrol', 'orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
                             ->orderByRaw('LEN(Ruta) DESC')
                             ->orderBy('Nivel', 'desc')
@@ -607,10 +614,10 @@ class UsuarioController extends Controller
                 }
             }
 
-            if (!$modulo) {
+            if (! $modulo) {
                 return response()->json([
                     'success' => false,
-                    'rutaPadre' => '/produccionProceso'
+                    'rutaPadre' => '/produccionProceso',
                 ]);
             }
 
@@ -618,7 +625,7 @@ class UsuarioController extends Controller
             if ($modulo->Nivel == 1) {
                 return response()->json([
                     'success' => true,
-                    'rutaPadre' => '/produccionProceso'
+                    'rutaPadre' => '/produccionProceso',
                 ]);
             }
 
@@ -632,7 +639,7 @@ class UsuarioController extends Controller
                 if ($moduloPadre && $moduloPadre->Ruta) {
                     return response()->json([
                         'success' => true,
-                        'rutaPadre' => $moduloPadre->Ruta
+                        'rutaPadre' => $moduloPadre->Ruta,
                     ]);
                 }
             }
@@ -640,18 +647,18 @@ class UsuarioController extends Controller
             // Fallback
             return response()->json([
                 'success' => false,
-                'rutaPadre' => '/produccionProceso'
+                'rutaPadre' => '/produccionProceso',
             ]);
 
         } catch (\Exception $e) {
             Log::error('Error al obtener módulo padre', [
                 'error' => $e->getMessage(),
-                'ruta' => $request->input('ruta')
+                'ruta' => $request->input('ruta'),
             ]);
 
             return response()->json([
                 'success' => false,
-                'rutaPadre' => '/produccionProceso'
+                'rutaPadre' => '/produccionProceso',
             ]);
         }
     }
@@ -660,7 +667,7 @@ class UsuarioController extends Controller
      * Obtener para cada módulo de Nivel 1 el listado de idrol de sus descendientes (Nivel 2 y 3).
      * Se usa en el formulario de usuario para cascada de permisos.
      *
-     * @param \Illuminate\Support\Collection $modulos
+     * @param  \Illuminate\Support\Collection  $modulos
      * @return array [ idrol_raiz => [ idrol_hijo1, idrol_hijo2, ... ], ... ]
      */
     private function obtenerDescendientesPorIdrolRaiz($modulos): array

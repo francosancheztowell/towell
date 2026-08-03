@@ -20,7 +20,7 @@ class ColumnasProgramaTejidoController extends Controller
     public function index(Request $request)
     {
         $userId = $request->input('usuario_id') ?? Auth::id();
-        if (!$userId) {
+        if (! $userId) {
             return response()->json([
                 'success' => false,
                 'message' => 'usuario_id requerido',
@@ -58,7 +58,7 @@ class ColumnasProgramaTejidoController extends Controller
     public function getColumnasVisibles(Request $request)
     {
         $userId = $request->input('usuario_id') ?? Auth::id();
-        if (!$userId) {
+        if (! $userId) {
             return response()->json([
                 'success' => false,
                 'message' => 'usuario_id requerido',
@@ -95,7 +95,7 @@ class ColumnasProgramaTejidoController extends Controller
         ]);
 
         $userId = $request->input('usuario_id') ?? Auth::id();
-        if (!$userId) {
+        if (! $userId) {
             return response()->json([
                 'success' => false,
                 'message' => 'usuario_id requerido',
@@ -115,8 +115,8 @@ class ColumnasProgramaTejidoController extends Controller
         foreach ($columnas as $col => $estado) {
             $rows[] = [
                 'UsuarioId' => $userId,
-                'Columna'   => $col,
-                'Estado'    => (bool) $estado,
+                'Columna' => $col,
+                'Estado' => (bool) $estado,
             ];
         }
 
@@ -133,5 +133,4 @@ class ColumnasProgramaTejidoController extends Controller
             'message' => 'Estados de columnas guardados',
         ])->header('Content-Type', 'application/json; charset=utf-8');
     }
-
 }

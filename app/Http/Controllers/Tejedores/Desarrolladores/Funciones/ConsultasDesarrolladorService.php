@@ -1,16 +1,17 @@
 <?php
+
 namespace App\Http\Controllers\Tejedores\Desarrolladores\Funciones;
 
-use App\Models\Tejedores\TelTelaresOperador;
-use App\Models\Sistema\Usuario;
-use App\Models\Atadores\AtaMontadoTelasModel;
-use App\Models\Planeacion\ReqProgramaTejido;
-use App\Models\Planeacion\ReqModelosCodificados;
 use App\Helpers\TelDesarrolladoresHelper;
-use Illuminate\Support\Facades\Auth;
+use App\Models\Atadores\AtaMontadoTelasModel;
+use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Sistema\Usuario;
+use App\Models\Tejedores\TelTelaresOperador;
 use Exception;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 
 class ConsultasDesarrolladorService
 {
@@ -69,7 +70,7 @@ class ConsultasDesarrolladorService
                 $telar = trim((string) ($row->NoTelarId ?? ''));
 
                 return [
-                    'value' => $salon . '|' . $telar,
+                    'value' => $salon.'|'.$telar,
                     'label' => $telar,
                 ];
             })
@@ -98,9 +99,6 @@ class ConsultasDesarrolladorService
 
     /**
      * Obtiene julios de rizo y pie filtrados por telar.
-     *
-     * @param string $telarId
-     * @return array
      */
     public function obtenerJuliosPorTelar(string $telarId): array
     {
@@ -113,7 +111,7 @@ class ConsultasDesarrolladorService
         } catch (Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Error al obtener los julios: ' . $e->getMessage(),
+                'message' => 'Error al obtener los julios: '.$e->getMessage(),
             ];
         }
     }
@@ -129,7 +127,7 @@ class ConsultasDesarrolladorService
             ->activos()
             ->get();
 
-        if ($usuarioActual && !$desarrolladores->contains('idusuario', $usuarioActual->idusuario)) {
+        if ($usuarioActual && ! $desarrolladores->contains('idusuario', $usuarioActual->idusuario)) {
             $usuarioParaLista = $usuarioActual instanceof Usuario ? $usuarioActual : Usuario::find($usuarioActual->idusuario);
             if ($usuarioParaLista) {
                 $desarrolladores = collect([$usuarioParaLista])->merge($desarrolladores)->sortBy('nombre')->values();
@@ -141,9 +139,6 @@ class ConsultasDesarrolladorService
 
     /**
      * Obtiene las producciones disponibles para un telar específico.
-     *
-     * @param string $telarId
-     * @return array
      */
     public function obtenerProducciones(string $telarId): array
     {
@@ -160,12 +155,12 @@ class ConsultasDesarrolladorService
 
             return [
                 'success' => true,
-                'producciones' => $producciones
+                'producciones' => $producciones,
             ];
         } catch (Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Error al obtener las producciones: ' . $e->getMessage()
+                'message' => 'Error al obtener las producciones: '.$e->getMessage(),
             ];
         }
     }
@@ -182,7 +177,7 @@ class ConsultasDesarrolladorService
         } catch (Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Error al obtener los detalles: ' . $e->getMessage()
+                'message' => 'Error al obtener los detalles: '.$e->getMessage(),
             ];
         }
     }
@@ -190,18 +185,18 @@ class ConsultasDesarrolladorService
     /**
      * Obtiene los detalles de la orden para una producción determinada.
      *
-     * @param string $noProduccion
-     * @return array
+     * @param  string  $noProduccion
      */
     public function obtenerDetallesOrden($noProduccion): array
     {
         try {
             $ordenData = ReqProgramaTejido::where('NoProduccion', $noProduccion)->first();
+
             return $this->buildDetallesFromOrdenData($ordenData);
         } catch (Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Error al obtener los detalles: ' . $e->getMessage()
+                'message' => 'Error al obtener los detalles: '.$e->getMessage(),
             ];
         }
     }
@@ -209,9 +204,8 @@ class ConsultasDesarrolladorService
     /**
      * Consulta el código de dibujo de ReqModelosCodificados.
      *
-     * @param string $salonTejidoId
-     * @param string $tamanoClave
-     * @return array
+     * @param  string  $salonTejidoId
+     * @param  string  $tamanoClave
      */
     public function obtenerCodigoDibujo($salonTejidoId, $tamanoClave): array
     {
@@ -223,21 +217,21 @@ class ConsultasDesarrolladorService
                 ->orderByDesc('Id')
                 ->value('CodigoDibujo');
 
-            if (!$codigoDibujo) {
+            if (! $codigoDibujo) {
                 return [
                     'success' => false,
-                    'message' => 'No se encontró CodigoDibujo para los parámetros proporcionados.'
+                    'message' => 'No se encontró CodigoDibujo para los parámetros proporcionados.',
                 ];
             }
 
             return [
                 'success' => true,
-                'codigoDibujo' => $codigoDibujo
+                'codigoDibujo' => $codigoDibujo,
             ];
         } catch (Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Error al obtener CodigoDibujo'
+                'message' => 'Error al obtener CodigoDibujo',
             ];
         }
     }
@@ -245,9 +239,8 @@ class ConsultasDesarrolladorService
     /**
      * Obtiene información preexistente de CatCodificados para un Telar y Producción.
      *
-     * @param string $telarId
-     * @param string $noProduccion
-     * @return array
+     * @param  string  $telarId
+     * @param  string  $noProduccion
      */
     public function obtenerRegistroCatCodificado($telarId, $noProduccion): array
     {
@@ -257,14 +250,14 @@ class ConsultasDesarrolladorService
 
             if ($registro) {
                 $registro = $registro->only([
-                'JulioRizo', 'JulioPie', 'EfiInicial', 'EfiFinal', 'DesperdicioTrama',
+                    'JulioRizo', 'JulioPie', 'EfiInicial', 'EfiFinal', 'DesperdicioTrama',
                 ]);
             }
 
-            if (!$registro) {
+            if (! $registro) {
                 return [
                     'success' => false,
-                    'message' => 'No se encontró información registrada'
+                    'message' => 'No se encontró información registrada',
                 ];
             }
 
@@ -275,7 +268,7 @@ class ConsultasDesarrolladorService
         } catch (Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Error al obtener la información'
+                'message' => 'Error al obtener la información',
             ];
         }
     }
@@ -286,19 +279,25 @@ class ConsultasDesarrolladorService
 
         $isZeroish = static function ($value): bool {
             $text = trim((string) ($value ?? ''));
-            if ($text === '') return true;
+            if ($text === '') {
+                return true;
+            }
+
             return (bool) preg_match('/^0+(?:\.0+)?$/', $text);
         };
 
         $shouldIncludeDetalle = static function (array $fila) use ($isZeroish): bool {
             $calibre = trim((string) ($fila['Calibre'] ?? ''));
-            if ($calibre === '') return false;
+            if ($calibre === '') {
+                return false;
+            }
 
             foreach (['Calibre', 'Hilo', 'Fibra', 'CodColor', 'NombreColor', 'Pasadas'] as $key) {
-                if (!$isZeroish($fila[$key] ?? '')) {
+                if (! $isZeroish($fila[$key] ?? '')) {
                     return true;
                 }
             }
+
             return false;
         };
 

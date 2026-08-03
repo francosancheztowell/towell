@@ -3,6 +3,7 @@
 namespace App\Imports;
 
 use App\Exceptions\ImportCancelledException;
+use App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Services\Planeacion\CatCodificados\Excel\CatCodificadosExcelRowMapper;
 use Illuminate\Support\Collection;
@@ -17,10 +18,9 @@ use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithStartRow;
 use Maatwebsite\Excel\Events\AfterImport;
 use Maatwebsite\Excel\Events\BeforeImport;
-use App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController;
 use Throwable;
 
-class CatCodificadosImport implements ToCollection, WithStartRow, WithChunkReading, SkipsEmptyRows, WithEvents
+class CatCodificadosImport implements SkipsEmptyRows, ToCollection, WithChunkReading, WithEvents, WithStartRow
 {
     private int $rowCount = 0;
 
@@ -79,7 +79,7 @@ class CatCodificadosImport implements ToCollection, WithStartRow, WithChunkReadi
                     @ini_set('max_execution_time', '0');
                 }
 
-                $connection = DB::connection((new CatCodificados())->getConnectionName());
+                $connection = DB::connection((new CatCodificados)->getConnectionName());
                 $connection->disableQueryLog();
 
                 if ($connection->getDriverName() === 'sqlsrv') {
@@ -87,7 +87,7 @@ class CatCodificadosImport implements ToCollection, WithStartRow, WithChunkReadi
                 }
             },
             AfterImport::class => function (): void {
-                $connection = DB::connection((new CatCodificados())->getConnectionName());
+                $connection = DB::connection((new CatCodificados)->getConnectionName());
 
                 if ($connection->getDriverName() === 'sqlsrv') {
                     $connection->unprepared('SET NOCOUNT OFF;');
@@ -120,7 +120,7 @@ class CatCodificadosImport implements ToCollection, WithStartRow, WithChunkReadi
     {
         $this->throwIfCancelled();
 
-        $mapper = new CatCodificadosExcelRowMapper();
+        $mapper = new CatCodificadosExcelRowMapper;
         $preparedRows = [];
         $processedRows = 0;
 
@@ -145,6 +145,7 @@ class CatCodificadosImport implements ToCollection, WithStartRow, WithChunkReadi
             $ordenTejido = trim((string) ($payload['OrdenTejido'] ?? ''));
             if ($ordenTejido === '') {
                 $this->pushError($excelRow, 'OrdenTejido no puede estar vacio.');
+
                 continue;
             }
 
@@ -168,7 +169,7 @@ class CatCodificadosImport implements ToCollection, WithStartRow, WithChunkReadi
 
     private function cacheKey(): string
     {
-        return 'excel_import_progress:' . ($this->importId ?? (string) Str::uuid());
+        return 'excel_import_progress:'.($this->importId ?? (string) Str::uuid());
     }
 
     /**
@@ -187,7 +188,7 @@ class CatCodificadosImport implements ToCollection, WithStartRow, WithChunkReadi
         )));
         $created = 0;
         $updated = 0;
-        $table = (new CatCodificados())->getTable();
+        $table = (new CatCodificados)->getTable();
         $insertBatch = [];
         $insertMeta = [];
 
@@ -201,6 +202,7 @@ class CatCodificadosImport implements ToCollection, WithStartRow, WithChunkReadi
                         ->update($entry['payload']);
 
                     $updated++;
+
                     continue;
                 }
 
@@ -270,7 +272,7 @@ class CatCodificadosImport implements ToCollection, WithStartRow, WithChunkReadi
 
     private function lookupKey(string $ordenTejido): string
     {
-        return 'ord:' . $ordenTejido;
+        return 'ord:'.$ordenTejido;
     }
 
     private function pushError(int $excelRow, string $message): void
@@ -309,7 +311,7 @@ class CatCodificadosImport implements ToCollection, WithStartRow, WithChunkReadi
 
     public function failed(Throwable $e): void
     {
-        if (!$e instanceof ImportCancelledException) {
+        if (! $e instanceof ImportCancelledException) {
             return;
         }
 
@@ -338,7 +340,7 @@ class CatCodificadosImport implements ToCollection, WithStartRow, WithChunkReadi
 
     protected function throwIfCancelled(): void
     {
-        if (!$this->isCancelled()) {
+        if (! $this->isCancelled()) {
             return;
         }
 

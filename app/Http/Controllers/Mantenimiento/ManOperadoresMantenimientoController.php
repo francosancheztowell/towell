@@ -43,7 +43,7 @@ class ManOperadoresMantenimientoController extends Controller
             ->whereNotNull('Turno')
             ->orderBy('Turno')
             ->pluck('Turno');
-        
+
         $departamentos = ManOperadoresMantenimiento::select('Depto')
             ->distinct()
             ->whereNotNull('Depto')
@@ -85,18 +85,19 @@ class ManOperadoresMantenimientoController extends Controller
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json(['success' => false, 'message' => 'Error de validación', 'errors' => $e->errors()], 422);
             }
+
             return back()->withErrors($e->errors())->withInput();
         } catch (\Throwable $e) {
             Log::error('Error al crear operador de mantenimiento', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             if ($request->expectsJson() || $request->ajax()) {
-                return response()->json(['success' => false, 'message' => 'Error al crear el operador: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Error al crear el operador: '.$e->getMessage()], 500);
             }
-            
-            return back()->with('error', 'Error al crear el operador: ' . $e->getMessage())->withInput();
+
+            return back()->with('error', 'Error al crear el operador: '.$e->getMessage())->withInput();
         }
     }
 
@@ -125,6 +126,7 @@ class ManOperadoresMantenimientoController extends Controller
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json(['success' => false, 'message' => 'Error de validación', 'errors' => $e->errors()], 422);
             }
+
             return back()->withErrors($e->errors())->withInput();
         } catch (\Throwable $e) {
             Log::error('Error al actualizar operador de mantenimiento', [
@@ -132,12 +134,12 @@ class ManOperadoresMantenimientoController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             if ($request->expectsJson() || $request->ajax()) {
-                return response()->json(['success' => false, 'message' => 'Error al actualizar el operador: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Error al actualizar el operador: '.$e->getMessage()], 500);
             }
-            
-            return back()->with('error', 'Error al actualizar el operador: ' . $e->getMessage())->withInput();
+
+            return back()->with('error', 'Error al actualizar el operador: '.$e->getMessage())->withInput();
         }
     }
 
@@ -160,12 +162,12 @@ class ManOperadoresMantenimientoController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            
+
             if ($request->expectsJson() || $request->ajax()) {
-                return response()->json(['success' => false, 'message' => 'Error al eliminar el operador: ' . $e->getMessage()], 500);
+                return response()->json(['success' => false, 'message' => 'Error al eliminar el operador: '.$e->getMessage()], 500);
             }
-            
-            return back()->with('error', 'Error al eliminar el operador: ' . $e->getMessage());
+
+            return back()->with('error', 'Error al eliminar el operador: '.$e->getMessage());
         }
     }
 }

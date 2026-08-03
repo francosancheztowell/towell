@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Tejedores\Desarrolladores;
 
 use App\Http\Controllers\Controller;
@@ -11,10 +12,11 @@ use Illuminate\Http\Request;
 class TelDesarrolladoresController extends Controller
 {
     protected ConsultasDesarrolladorService $consultasService;
+
     protected ProcesarDesarrolladorService $procesarService;
 
     public function __construct(
-        ConsultasDesarrolladorService $consultasService, 
+        ConsultasDesarrolladorService $consultasService,
         ProcesarDesarrolladorService $procesarService
     ) {
         $this->consultasService = $consultasService;
@@ -27,6 +29,7 @@ class TelDesarrolladoresController extends Controller
     public function index()
     {
         $datos = $this->consultasService->obtenerDatosIndex();
+
         return view('modulos.desarrolladores.desarrolladores', $datos);
     }
 
@@ -37,12 +40,12 @@ class TelDesarrolladoresController extends Controller
     {
         $fecha = $request->input('fecha');
 
-        if (!$fecha) {
+        if (! $fecha) {
             return redirect()->back()->with('error', 'Debe seleccionar una fecha para exportar.');
         }
 
         $fechaFormateada = Carbon::parse($fecha)->format('Y-m-d');
-        $nombreArchivo = 'desarrolladores_' . Carbon::parse($fecha)->format('d-m-Y') . '.xlsx';
+        $nombreArchivo = 'desarrolladores_'.Carbon::parse($fecha)->format('d-m-Y').'.xlsx';
 
         return \Maatwebsite\Excel\Facades\Excel::download(
             new \App\Exports\DesarrolladoresExport($fechaFormateada),
@@ -69,7 +72,7 @@ class TelDesarrolladoresController extends Controller
     {
         $resultado = $this->consultasService->obtenerProducciones($telarId);
 
-        if (!$resultado['success']) {
+        if (! $resultado['success']) {
             return response('', 500);
         }
 
@@ -93,6 +96,7 @@ class TelDesarrolladoresController extends Controller
     {
         $resultado = $this->consultasService->obtenerProducciones($telarId);
         $status = $resultado['success'] ? 200 : 500;
+
         return response()->json($resultado, $status);
     }
 
@@ -106,6 +110,7 @@ class TelDesarrolladoresController extends Controller
             return response()->json(['exists' => false]);
         }
         $exists = ReqProgramaTejido::where('NoProduccion', $noProduccion)->exists();
+
         return response()->json(['exists' => $exists]);
     }
 
@@ -125,7 +130,7 @@ class TelDesarrolladoresController extends Controller
                 'noProduccion' => $orden->NoProduccion,
                 'nombreProducto' => $orden->NombreProducto ?? '',
                 'fechaInicio' => $orden->FechaInicio ? $orden->FechaInicio->format('d/m/Y') : '',
-            ] : null
+            ] : null,
         ]);
     }
 
@@ -136,6 +141,7 @@ class TelDesarrolladoresController extends Controller
     {
         $resultado = $this->consultasService->obtenerJuliosPorTelar($telarId);
         $status = $resultado['success'] ? 200 : 500;
+
         return response()->json($resultado, $status);
     }
 
@@ -146,6 +152,7 @@ class TelDesarrolladoresController extends Controller
     {
         $resultado = $this->consultasService->obtenerDetallesOrden($noProduccion);
         $status = $resultado['success'] ? 200 : 500;
+
         return response()->json($resultado, $status);
     }
 
@@ -156,6 +163,7 @@ class TelDesarrolladoresController extends Controller
     {
         $resultado = $this->consultasService->obtenerDetallesOrdenPorId((int) $id);
         $status = $resultado['success'] ? 200 : 500;
+
         return response()->json($resultado, $status);
     }
 
@@ -166,6 +174,7 @@ class TelDesarrolladoresController extends Controller
     {
         $resultado = $this->consultasService->obtenerCodigoDibujo($salonTejidoId, $tamanoClave);
         $status = $resultado['success'] ? 200 : 404;
+
         return response()->json($resultado, $status);
     }
 
@@ -176,6 +185,7 @@ class TelDesarrolladoresController extends Controller
     {
         $resultado = $this->consultasService->obtenerRegistroCatCodificado($telarId, $noProduccion);
         $status = $resultado['success'] ? 200 : 404;
+
         return response()->json($resultado, $status);
     }
 

@@ -20,6 +20,7 @@ use Illuminate\Validation\ValidationException;
 class ProcesarMuestrasDesarrolladorService
 {
     protected NotificacionTelegramMuestrasService $telegramService;
+
     protected CatCodificadosDesarrolladorService $catCodificadosService;
 
     public function __construct(
@@ -93,7 +94,7 @@ class ProcesarMuestrasDesarrolladorService
                     ? $registroCodificado->getAttribute('ClaveModelo')
                     : data_get($ordenData, 'TamanoClave');
 
-                if (!$contextoDestino['esCambioTelar']) {
+                if (! $contextoDestino['esCambioTelar']) {
                     $this->actualizarModeloDestinoSiCorresponde(
                         $claveModelo,
                         $contextoDestino['salonDestino'],
@@ -125,7 +126,7 @@ class ProcesarMuestrasDesarrolladorService
                         ->orderByDesc('Id')
                         ->value('CodigoDibujo');
 
-                    if (!$codigoDibujoAnterior) {
+                    if (! $codigoDibujoAnterior) {
                         $codigoDibujoAnterior = $this->catCodificadosService->resolveCodigoDibujo(
                             (string) $validated['NoProduccion'],
                             (string) $contextoOrigen['telarOrigen']
@@ -153,7 +154,7 @@ class ProcesarMuestrasDesarrolladorService
                 ];
             });
 
-            if (!empty($resultado['programa'])) {
+            if (! empty($resultado['programa'])) {
                 $this->enviarNotificacion(
                     $validated,
                     $resultado['programa'],
@@ -185,11 +186,11 @@ class ProcesarMuestrasDesarrolladorService
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Ocurrio un error: ' . $e->getMessage(),
+                    'message' => 'Ocurrio un error: '.$e->getMessage(),
                 ], 500);
             }
 
-            return back()->with('error', 'Ocurrio un error: ' . $e->getMessage())->withInput();
+            return back()->with('error', 'Ocurrio un error: '.$e->getMessage())->withInput();
         }
     }
 
@@ -209,6 +210,7 @@ class ProcesarMuestrasDesarrolladorService
 
         if ($registroEnProceso) {
             $registroEnProceso->delete();
+
             return;
         }
 
@@ -272,7 +274,7 @@ class ProcesarMuestrasDesarrolladorService
             ->lockForUpdate()
             ->first();
 
-        if (!$programa) {
+        if (! $programa) {
             throw ValidationException::withMessages([
                 'NoProduccion' => 'No se encontro la orden seleccionada para el telar indicado.',
             ]);
@@ -324,7 +326,7 @@ class ProcesarMuestrasDesarrolladorService
                 ->where('NoTelarId', $telarDestino)
                 ->exists();
 
-            if (!$existeDestino) {
+            if (! $existeDestino) {
                 $existeDestino = TelTelaresOperador::query()
                     ->where('NoTelarId', $telarDestino)
                     ->where(function ($query) use ($salonDestino) {
@@ -334,7 +336,7 @@ class ProcesarMuestrasDesarrolladorService
                     ->exists();
             }
 
-            if (!$existeDestino) {
+            if (! $existeDestino) {
                 throw ValidationException::withMessages([
                     'TelarDestino' => 'El telar destino seleccionado no existe o no esta disponible.',
                 ]);
@@ -360,11 +362,11 @@ class ProcesarMuestrasDesarrolladorService
         ?int $longitudLuchaTot,
         ?ReqModelosCodificados $modeloDestino
     ): ?CatCodificados {
-        $modeloCat = new CatCodificados();
+        $modeloCat = new CatCodificados;
         $columns = Schema::getColumnListing($modeloCat->getTable());
         $registro = $this->catCodificadosService->resolveCanonical((string) $validated['NoProduccion']);
 
-        if (!$registro) {
+        if (! $registro) {
             return null;
         }
 
@@ -403,13 +405,14 @@ class ProcesarMuestrasDesarrolladorService
         }
 
         foreach ($payload as $column => $value) {
-            if (!in_array($column, $columns, true)) {
+            if (! in_array($column, $columns, true)) {
                 continue;
             }
             $registro->setAttribute($column, $value);
         }
 
         $registro->save();
+
         return $registro;
     }
 
@@ -434,7 +437,7 @@ class ProcesarMuestrasDesarrolladorService
             return $modeloDestino;
         }
 
-        if (!$contextoDestino['esCambioTelar']) {
+        if (! $contextoDestino['esCambioTelar']) {
             return null;
         }
 
@@ -444,13 +447,13 @@ class ProcesarMuestrasDesarrolladorService
             ->where('SalonTejidoId', $salonOrigen)
             ->first();
 
-        if (!$modeloOrigen) {
+        if (! $modeloOrigen) {
             $modeloOrigen = ReqModelosCodificados::query()
                 ->where('TamanoClave', $tamanoClave)
                 ->first();
         }
 
-        if (!$modeloOrigen) {
+        if (! $modeloOrigen) {
             return null;
         }
 
@@ -474,6 +477,7 @@ class ProcesarMuestrasDesarrolladorService
         }
 
         $nuevoModelo->save();
+
         return $nuevoModelo;
     }
 
@@ -482,7 +486,7 @@ class ProcesarMuestrasDesarrolladorService
         ?ReqModelosCodificados $modeloDestino,
         array $contextoDestino
     ): void {
-        if (!$contextoDestino['esCambioTelar']) {
+        if (! $contextoDestino['esCambioTelar']) {
             return;
         }
 
@@ -493,10 +497,10 @@ class ProcesarMuestrasDesarrolladorService
             $contextoDestino['salonDestino']
         );
 
-        if (!is_null($nuevaEficiencia)) {
+        if (! is_null($nuevaEficiencia)) {
             $programaOrigen->EficienciaSTD = round((float) $nuevaEficiencia, 2);
         }
-        if (!is_null($nuevaVelocidad)) {
+        if (! is_null($nuevaVelocidad)) {
             $programaOrigen->VelocidadSTD = (float) $nuevaVelocidad;
         }
 
@@ -507,10 +511,10 @@ class ProcesarMuestrasDesarrolladorService
         );
 
         if ($modeloDestino) {
-            if (!is_null($modeloDestino->CuentaRizo)) {
+            if (! is_null($modeloDestino->CuentaRizo)) {
                 $programaOrigen->CuentaRizo = (string) $modeloDestino->CuentaRizo;
             }
-            if (!is_null($modeloDestino->CuentaPie)) {
+            if (! is_null($modeloDestino->CuentaPie)) {
                 $programaOrigen->CuentaPie = (string) $modeloDestino->CuentaPie;
             }
         }
@@ -539,7 +543,7 @@ class ProcesarMuestrasDesarrolladorService
             ->where('SalonTejidoId', $salonDestino)
             ->first();
 
-        if (!$registroModelo) {
+        if (! $registroModelo) {
             return;
         }
 
@@ -562,7 +566,7 @@ class ProcesarMuestrasDesarrolladorService
 
         $columnasModelo = Schema::getColumnListing($registroModelo->getTable());
         foreach ($payloadModelo as $column => $value) {
-            if (!in_array($column, $columnasModelo, true)) {
+            if (! in_array($column, $columnasModelo, true)) {
                 continue;
             }
             $registroModelo->setAttribute($column, $value);
@@ -577,7 +581,7 @@ class ProcesarMuestrasDesarrolladorService
     ): Collection {
         $programas = collect();
 
-        if (!empty($programaInicial->OrdCompartida)) {
+        if (! empty($programaInicial->OrdCompartida)) {
             $programas = Muestras::query()
                 ->where('OrdCompartida', (int) $programaInicial->OrdCompartida)
                 ->lockForUpdate()
@@ -594,7 +598,7 @@ class ProcesarMuestrasDesarrolladorService
             return collect([$programaInicial]);
         }
 
-        if (!$fuenteDatos) {
+        if (! $fuenteDatos) {
             return $programas;
         }
 
@@ -644,7 +648,7 @@ class ProcesarMuestrasDesarrolladorService
 
         foreach ($programas as $programa) {
             foreach ($payloadPrograma as $column => $value) {
-                if (!in_array($column, $columnasPrograma, true)) {
+                if (! in_array($column, $columnasPrograma, true)) {
                     continue;
                 }
                 $programa->setAttribute($column, $value);
@@ -667,7 +671,7 @@ class ProcesarMuestrasDesarrolladorService
         $payload = $validated;
         $payload['NoTelarId'] = $contextoDestino['telarDestino'];
 
-        if (!empty($contextoDestino['esCambioTelar'])) {
+        if (! empty($contextoDestino['esCambioTelar'])) {
             $payload['CambioTelarActivo'] = true;
             $payload['NoTelarOrigen'] = $contextoDestino['telarOrigen'];
             $payload['SalonOrigen'] = $contextoDestino['salonOrigen'];
@@ -689,6 +693,7 @@ class ProcesarMuestrasDesarrolladorService
 
         try {
             $horaFinalCarbon = Carbon::createFromFormat('H:i', $horaFinal);
+
             return Carbon::today()
                 ->setTimeFromTimeString($horaFinalCarbon->format('H:i'))
                 ->format('Y-m-d H:i:s');
@@ -732,6 +737,7 @@ class ProcesarMuestrasDesarrolladorService
                 $pasadasPayload[$field] = (int) $combValue;
             }
         }
+
         return $pasadasPayload;
     }
 
@@ -749,7 +755,8 @@ class ProcesarMuestrasDesarrolladorService
         }
 
         $suffix = $this->resolverSufijoCodigoPorTelar($telarId);
-        return $suffix === '' ? $normalized : ($normalized . '.' . $suffix);
+
+        return $suffix === '' ? $normalized : ($normalized.'.'.$suffix);
     }
 
     private function resolverSufijoCodigoPorTelar(?string $telarId): string
@@ -758,12 +765,13 @@ class ProcesarMuestrasDesarrolladorService
         if ($n >= 300) {
             return '';
         }
+
         return 'JC5';
     }
 
     private function buildDetallePayloadFromOrden($ordenData): array
     {
-        if (!$ordenData) {
+        if (! $ordenData) {
             return [];
         }
         $colorTrama = data_get($ordenData, 'ColorTrama') ?: data_get($ordenData, 'FibraTrama');
@@ -795,7 +803,7 @@ class ProcesarMuestrasDesarrolladorService
 
     private function calcularMinutosCambio(?string $horaInicio, ?string $horaFinal): ?int
     {
-        if (!$horaInicio || !$horaFinal) {
+        if (! $horaInicio || ! $horaFinal) {
             return null;
         }
         try {
@@ -804,6 +812,7 @@ class ProcesarMuestrasDesarrolladorService
             if ($final->lt($inicio)) {
                 $final->addDay();
             }
+
             return max(0, $inicio->diffInMinutes($final));
         } catch (Exception $e) {
             return null;

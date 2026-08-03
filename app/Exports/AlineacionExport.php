@@ -30,15 +30,20 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
 {
     private const COLOR_HEADER = 'D9EAD3';
+
     private const COLOR_COLUMNA_AZUL = 'CCFFFF';
+
     private const COLOR_COLUMNA_BLANCA = 'FFFFFF';
 
     /** Margen (en caracteres) que se suma al contenido más largo de cada columna. */
     private const ANCHO_MARGEN = 6;
+
     private const ANCHO_MINIMO = 8;
 
     private const FUENTE = 'Arial';
+
     private const TAMANO_FUENTE_DEFAULT = 23;
+
     private const TAMANOS_FUENTE = [
         'NoTelarId' => 25,
         'NoProduccion' => 25,
@@ -54,6 +59,7 @@ class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
      * solo para calcular el ancho, para que subir TAMANOS_FUENTE no ensanche columnas.
      */
     private const TAMANO_FUENTE_REFERENCIA_DEFAULT = 18;
+
     private const TAMANOS_FUENTE_REFERENCIA = [
         'NoTelarId' => 20,
         'NoProduccion' => 20,
@@ -69,7 +75,9 @@ class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
 
     /** Fila donde empieza el encabezado de la tabla (deja espacio arriba para el logo). */
     private const FILA_ENCABEZADO_1 = 11;
+
     private const FILA_ENCABEZADO_2 = 12;
+
     private const FILA_DATOS = 13;
 
     public function __construct(
@@ -100,7 +108,7 @@ class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
             return [];
         }
 
-        $drawing = new Drawing();
+        $drawing = new Drawing;
         $drawing->setPath($this->rutaLogo);
         $drawing->setHeight(150);
         $drawing->setCoordinates('A1');
@@ -155,7 +163,7 @@ class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
                 $sheet->mergeCells("{$letra}{$fila1}:{$letra}{$fila2}");
             }
 
-            if (!empty($colInGroup[$columna])) {
+            if (! empty($colInGroup[$columna])) {
                 $sheet->setCellValue("{$letra}{$fila2}", $this->subColumnLabels[$columna] ?? '');
             }
 

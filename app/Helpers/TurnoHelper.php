@@ -8,8 +8,6 @@ class TurnoHelper
 {
     /**
      * Determina el turno basado en la hora actual de México
-     *
-     * @return string
      */
     public static function getTurnoActual(): string
     {
@@ -25,7 +23,7 @@ class TurnoHelper
         // Turno 1: 6:30 AM - 2:30 PM (390 - 870 minutos)
         // Turno 2: 2:30 PM - 10:30 PM (870 - 1350 minutos)
         // Turno 3: 10:30 PM - 6:30 AM (1350 - 390 minutos, cruza medianoche)
-        // recibe tomalo del usuario actual, 
+        // recibe tomalo del usuario actual,
         if ($minutosActuales >= 390 && $minutosActuales < 870) {
             return '1'; // 6:30 AM - 2:30 PM
         } elseif ($minutosActuales >= 870 && $minutosActuales < 1350) {
@@ -37,9 +35,6 @@ class TurnoHelper
 
     /**
      * Obtiene la descripción del turno
-     *
-     * @param string $turno
-     * @return string
      */
     public static function getDescripcionTurno(string $turno): string
     {
@@ -57,9 +52,6 @@ class TurnoHelper
 
     /**
      * Obtiene la descripción del turno en formato "Turno X"
-     *
-     * @param string $turno
-     * @return string
      */
     public static function getTurnoFormato(string $turno): string
     {
@@ -104,8 +96,6 @@ class TurnoHelper
 
     /**
      * Genera un folio único basado en fecha y turno
-     *
-     * @return string
      */
     public static function generarFolio(): string
     {
@@ -113,6 +103,6 @@ class TurnoHelper
         $turno = self::getTurnoActual();
 
         // Formato: TRAMA-YYYYMMDD-T
-        return 'TRAMA-' . $fecha->format('Ymd') . '-' . $turno;
+        return 'TRAMA-'.$fecha->format('Ymd').'-'.$turno;
     }
 }

@@ -174,13 +174,15 @@ class CrearOrdenKarlMayerController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
             Log::error('CrearOrdenKarlMayer: validación', ['errors' => $e->errors()]);
+
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('CrearOrdenKarlMayer', ['msg' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
             return response()->json([
                 'success' => false,
-                'error' => 'Error al crear la orden: ' . $e->getMessage(),
+                'error' => 'Error al crear la orden: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -197,13 +199,17 @@ class CrearOrdenKarlMayerController extends Controller
     private function emptyToNull(?string $v): ?string
     {
         $s = trim((string) ($v ?? ''));
+
         return $s === '' ? null : $s;
     }
 
     private function parseFloatOrNull($v): ?float
     {
-        if ($v === null || $v === '') return null;
+        if ($v === null || $v === '') {
+            return null;
+        }
         $f = filter_var($v, FILTER_VALIDATE_FLOAT);
+
         return $f !== false ? (float) $f : null;
     }
 
@@ -217,23 +223,28 @@ class CrearOrdenKarlMayerController extends Controller
                 return $prefijo;
             }
         }
+
         return trim($inventBatchId);
     }
 
     private function parseProdDate($prodDate): ?string
     {
-        if ($prodDate === null || $prodDate === '') return null;
+        if ($prodDate === null || $prodDate === '') {
+            return null;
+        }
         if (is_string($prodDate)) {
             try {
                 $parsed = Carbon::parse($prodDate);
                 if ($parsed->year === 1900 && $parsed->month === 1 && $parsed->day === 1) {
                     return null;
                 }
+
                 return $parsed->format('Y-m-d');
             } catch (\Throwable) {
                 return null;
             }
         }
+
         return null;
     }
 
@@ -244,6 +255,7 @@ class CrearOrdenKarlMayerController extends Controller
             $valor = $modelo->getAttribute($campo);
             $partes[] = AuditoriaUrdEng::formatoCampo($campo, null, $valor);
         }
+
         return implode(', ', $partes);
     }
 }

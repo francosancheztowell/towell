@@ -131,7 +131,7 @@ class ProgramarUrdEngController extends Controller
             }
 
             foreach ($construccionUrdido as $julio) {
-                if (!empty($julio['julios']) || !empty($julio['hilos'])) {
+                if (! empty($julio['julios']) || ! empty($julio['hilos'])) {
                     UrdJuliosOrden::create([
                         'Folio' => $folio,
                         'Julios' => isset($julio['julios']) && $julio['julios'] !== '' ? (int) $julio['julios'] : null,
@@ -190,11 +190,13 @@ class ProgramarUrdEngController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
             Log::error('crearOrdenes: validación', ['errors' => $e->errors()]);
+
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('crearOrdenes', ['msg' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-            return response()->json(['success' => false, 'error' => 'Error al crear órdenes: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'error' => 'Error al crear órdenes: '.$e->getMessage()], 500);
         }
     }
 
@@ -209,7 +211,9 @@ class ProgramarUrdEngController extends Controller
 
     private function obtenerBomFormula(?string $bomEngId): ?string
     {
-        if (empty($bomEngId)) return null;
+        if (empty($bomEngId)) {
+            return null;
+        }
         try {
             $row = DB::connection('sqlsrv_ti')
                 ->table('BOM')
@@ -217,9 +221,11 @@ class ProgramarUrdEngController extends Controller
                 ->where('DATAAREAID', 'PRO')
                 ->where('ITEMID', 'like', 'TE-PD-ENF%')
                 ->value('ITEMID');
+
             return $row ?: null;
         } catch (\Throwable $e) {
             Log::warning('obtenerBomFormula', ['bomId' => $bomEngId, 'error' => $e->getMessage()]);
+
             return null;
         }
     }
@@ -227,21 +233,28 @@ class ProgramarUrdEngController extends Controller
     private function obtenerLoteProveedor(array $materialesEngomado): ?string
     {
         foreach ($materialesEngomado as $m) {
-            if (!empty($m['inventBatchId'])) return $m['inventBatchId'];
+            if (! empty($m['inventBatchId'])) {
+                return $m['inventBatchId'];
+            }
         }
+
         return null;
     }
 
     private function obtenerFechaReq(?string $telaresStr, ?string $tipo, $fallback = null): ?string
     {
-        if (empty($telaresStr)) return $fallback;
+        if (empty($telaresStr)) {
+            return $fallback;
+        }
 
         $telares = array_filter(array_map('trim', explode(',', $telaresStr)));
         $fechas = [];
 
         foreach ($telares as $noTelar) {
             $q = TejInventarioTelares::where('no_telar', $noTelar)->where('status', self::STATUS_ACTIVO);
-            if ($tipo) $q->where('tipo', $tipo);
+            if ($tipo) {
+                $q->where('tipo', $tipo);
+            }
             $telar = $q->first();
             if ($telar && $telar->fecha) {
                 try {
@@ -252,7 +265,10 @@ class ProgramarUrdEngController extends Controller
             }
         }
 
-        if (empty($fechas)) return $fallback;
+        if (empty($fechas)) {
+            return $fallback;
+        }
+
         return min($fechas)->format('Y-m-d');
     }
 
@@ -265,14 +281,18 @@ class ProgramarUrdEngController extends Controller
      */
     private function marcarTelaresProgramados(?string $telaresStr, ?string $tipo, string $folio): int
     {
-        if (empty($telaresStr)) return 0;
+        if (empty($telaresStr)) {
+            return 0;
+        }
 
         $telares = array_filter(array_map('trim', explode(',', $telaresStr)));
         $count = 0;
 
         foreach ($telares as $noTelar) {
             $q = TejInventarioTelares::where('no_telar', $noTelar)->where('status', self::STATUS_ACTIVO);
-            if ($tipo) $q->where('tipo', $tipo);
+            if ($tipo) {
+                $q->where('tipo', $tipo);
+            }
             $telar = $q->first();
             if ($telar) {
                 $telar->update(['no_orden' => $folio, 'Programado' => true]);
@@ -285,21 +305,37 @@ class ProgramarUrdEngController extends Controller
 
     private function normalizeTipo($tipo): ?string
     {
-        if ($tipo === null || $tipo === '') return null;
+        if ($tipo === null || $tipo === '') {
+            return null;
+        }
         $t = strtoupper(trim((string) $tipo));
+
         return $t === 'RIZO' ? 'Rizo' : ($t === 'PIE' ? 'Pie' : null);
     }
 
     private function parseProdDate($prodDate): ?string
     {
-        if ($prodDate === null || $prodDate === '') return null;
-        if ($prodDate instanceof Carbon) return $prodDate->format('Y-m-d');
+        if ($prodDate === null || $prodDate === '') {
+            return null;
+        }
+        if ($prodDate instanceof Carbon) {
+            return $prodDate->format('Y-m-d');
+        }
         if (is_string($prodDate)) {
-            try { return Carbon::parse($prodDate)->format('Y-m-d'); } catch (\Throwable $e) { return null; }
+            try {
+                return Carbon::parse($prodDate)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                return null;
+            }
         }
         if (is_numeric($prodDate)) {
-            try { return Carbon::createFromTimestamp($prodDate)->format('Y-m-d'); } catch (\Throwable $e) { return null; }
+            try {
+                return Carbon::createFromTimestamp($prodDate)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                return null;
+            }
         }
+
         return null;
     }
 
@@ -311,6 +347,7 @@ class ProgramarUrdEngController extends Controller
             $valor = $modelo->getAttribute($campo);
             $partes[] = AuditoriaUrdEng::formatoCampo($campo, null, $valor);
         }
+
         return implode(', ', $partes);
     }
 }

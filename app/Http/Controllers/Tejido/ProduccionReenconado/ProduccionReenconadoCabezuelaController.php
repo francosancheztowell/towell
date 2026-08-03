@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers\Tejido\ProduccionReenconado;
 
+use App\Helpers\FolioHelper;
+use App\Helpers\TurnoHelper;
 use App\Http\Controllers\Controller;
+use App\Models\Tejido\TejProduccionReenconado;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
-use App\Models\Tejido\TejProduccionReenconado;
-use Illuminate\Support\Facades\Auth;
-use App\Helpers\FolioHelper;
-use App\Helpers\TurnoHelper;
 
 class ProduccionReenconadoCabezuelaController extends Controller
 {
@@ -20,6 +20,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
             ->orderByDesc('Folio')
             ->limit(300)
             ->get();
+
         return view('modulos.produccion-reenconado-cabezuela', compact('registros'));
     }
 
@@ -38,6 +39,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
             return response()->json(['success' => true, 'data' => $items]);
         } catch (\Throwable $e) {
             Log::error('Error obteniendo calibres', ['exception' => $e]);
+
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -45,7 +47,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
     public function getFibras(Request $request)
     {
         $itemId = $request->query('itemId');
-        if (!$itemId) {
+        if (! $itemId) {
             return response()->json(['success' => false, 'message' => 'ItemId requerido'], 400);
         }
 
@@ -62,6 +64,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
             return response()->json(['success' => true, 'data' => $fibras]);
         } catch (\Throwable $e) {
             Log::error('Error obteniendo fibras', ['exception' => $e, 'itemId' => $itemId]);
+
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -69,7 +72,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
     public function getColores(Request $request)
     {
         $itemId = $request->query('itemId');
-        if (!$itemId) {
+        if (! $itemId) {
             return response()->json(['success' => false, 'message' => 'ItemId requerido'], 400);
         }
 
@@ -85,6 +88,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
             return response()->json(['success' => true, 'data' => $colores]);
         } catch (\Throwable $e) {
             Log::error('Error obteniendo colores', ['exception' => $e, 'itemId' => $itemId]);
+
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -104,57 +108,58 @@ class ProduccionReenconadoCabezuelaController extends Controller
                 if ($request->expectsJson()) {
                     return response()->json(['success' => false, 'message' => 'Error generando folio: '.$e->getMessage()], 500);
                 }
+
                 return back()->withErrors(['folio' => 'Error generando folio: '.$e->getMessage()])->withInput();
             }
 
             // Calcular capacidad: Horas * 9.3
-            $horas = isset($data['Horas']) ? (float)$data['Horas'] : null;
+            $horas = isset($data['Horas']) ? (float) $data['Horas'] : null;
             $capacidad = $horas !== null ? round($horas * 9.3, 2) : null;
 
             // Calcular eficiencia: Cantidad / Capacidad
-            $cantidad = isset($data['Cantidad']) ? (float)$data['Cantidad'] : null;
+            $cantidad = isset($data['Cantidad']) ? (float) $data['Cantidad'] : null;
             $eficiencia = ($cantidad !== null && $capacidad !== null && $capacidad > 0)
                 ? round($cantidad / $capacidad, 2)
                 : null;
 
             $clean = [
-                'Folio'           => $folioGenerado,
-                'Date'            => isset($data['Date']) && $data['Date'] ? date('Y-m-d', strtotime($data['Date'])) : null,
-                'Turno'           => isset($data['Turno']) ? (int)$data['Turno'] : null,
-                'numero_empleado' => $data['numero_empleado']  ?? null,
-                'nombreEmpl'      => $data['nombreEmpl']       ?? null,
-                'Calibre'         => $data['Calibre']         ?? null,
-                'FibraTrama'      => $data['FibraTrama']       ?? null,
-                'CodColor'        => $data['CodColor']         ?? null,
-                'Color'           => $data['Color']            ?? null,
-                'Cantidad'        => $cantidad,
-                'Cabezuela'       => isset($data['Cabezuela']) ? (float)$data['Cabezuela'] : null,
-                'Conos'           => isset($data['Conos']) ? (int)$data['Conos'] : null,
-                'Horas'           => $horas,
-                'Eficiencia'      => $eficiencia, // Calculada automáticamente
-                'Obs'             => $data['Obs']              ?? null,
-                'status'          => 'Creado', // Inicializar con estado "Creado"
-                'capacidad'       => $capacidad, // Horas * 9.3
+                'Folio' => $folioGenerado,
+                'Date' => isset($data['Date']) && $data['Date'] ? date('Y-m-d', strtotime($data['Date'])) : null,
+                'Turno' => isset($data['Turno']) ? (int) $data['Turno'] : null,
+                'numero_empleado' => $data['numero_empleado'] ?? null,
+                'nombreEmpl' => $data['nombreEmpl'] ?? null,
+                'Calibre' => $data['Calibre'] ?? null,
+                'FibraTrama' => $data['FibraTrama'] ?? null,
+                'CodColor' => $data['CodColor'] ?? null,
+                'Color' => $data['Color'] ?? null,
+                'Cantidad' => $cantidad,
+                'Cabezuela' => isset($data['Cabezuela']) ? (float) $data['Cabezuela'] : null,
+                'Conos' => isset($data['Conos']) ? (int) $data['Conos'] : null,
+                'Horas' => $horas,
+                'Eficiencia' => $eficiencia, // Calculada automáticamente
+                'Obs' => $data['Obs'] ?? null,
+                'status' => 'Creado', // Inicializar con estado "Creado"
+                'capacidad' => $capacidad, // Horas * 9.3
             ];
 
             // Reglas: Calibre, FibraTrama, CodColor, Color y Obs son opcionales
             // Eficiencia es calculada automáticamente (Cantidad / Capacidad)
             $rules = [
-                'Folio'            => ['required','string','max:10'],
-                'Date'             => ['required','date'],
-                'Turno'            => ['required','integer','min:1','max:3'],
-                'numero_empleado'  => ['required','string','max:30'],
-                'nombreEmpl'       => ['required','string','max:150'],
-                'Calibre'          => ['nullable','string','max:20'],
-                'FibraTrama'       => ['nullable','string','max:30'],
-                'CodColor'         => ['nullable','string','max:10'],
-                'Color'            => ['nullable','string','max:60'],
-                'Cantidad'         => ['required','numeric'],
-                'Cabezuela'        => ['nullable','numeric'],
-                'Conos'            => ['required','integer'],
-                'Horas'            => ['required','numeric'],
-                'Eficiencia'       => ['nullable','numeric'],
-                'Obs'              => ['nullable','string','max:60'],
+                'Folio' => ['required', 'string', 'max:10'],
+                'Date' => ['required', 'date'],
+                'Turno' => ['required', 'integer', 'min:1', 'max:3'],
+                'numero_empleado' => ['required', 'string', 'max:30'],
+                'nombreEmpl' => ['required', 'string', 'max:150'],
+                'Calibre' => ['nullable', 'string', 'max:20'],
+                'FibraTrama' => ['nullable', 'string', 'max:30'],
+                'CodColor' => ['nullable', 'string', 'max:10'],
+                'Color' => ['nullable', 'string', 'max:60'],
+                'Cantidad' => ['required', 'numeric'],
+                'Cabezuela' => ['nullable', 'numeric'],
+                'Conos' => ['required', 'integer'],
+                'Horas' => ['required', 'numeric'],
+                'Eficiencia' => ['nullable', 'numeric'],
+                'Obs' => ['nullable', 'string', 'max:60'],
             ];
 
             $validator = Validator::make($clean, $rules);
@@ -162,6 +167,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
                 if ($request->expectsJson()) {
                     return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
                 }
+
                 return back()->withErrors($validator)->withInput();
             }
 
@@ -172,6 +178,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
                 if ($request->expectsJson()) {
                     return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
                 }
+
                 return back()->withErrors(['db' => 'No se pudo guardar: '.$e->getMessage()])->withInput();
             }
 
@@ -179,6 +186,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
                 // Normalizar formato de salida
                 $out = $created->toArray();
                 $out['Date'] = optional($created->Date)->format('Y-m-d');
+
                 return response()->json(['success' => true, 'data' => $out]);
             }
 
@@ -189,16 +197,21 @@ class ProduccionReenconadoCabezuelaController extends Controller
         // 2) Guardado masivo (compatibilidad con la tabla de captura anterior)
         $rows = $request->input('rows', []);
 
-        if (!is_array($rows)) {
+        if (! is_array($rows)) {
             return back()->withErrors(['rows' => 'Formato inválido recibido.'])->withInput();
         }
 
         // Filtrar filas completamente vacías
         $rows = array_values(array_filter($rows, function ($r) {
-            if (!is_array($r)) return false;
-            $values = array_map(function($v){ return is_string($v) ? trim($v) : $v; }, $r);
+            if (! is_array($r)) {
+                return false;
+            }
+            $values = array_map(function ($v) {
+                return is_string($v) ? trim($v) : $v;
+            }, $r);
+
             // Si todos están vacíos/null
-            return (bool)array_filter($values, fn($v) => $v !== null && $v !== '');
+            return (bool) array_filter($values, fn ($v) => $v !== null && $v !== '');
         }));
 
         if (count($rows) === 0) {
@@ -206,21 +219,21 @@ class ProduccionReenconadoCabezuelaController extends Controller
         }
 
         $rules = [
-            'Folio'            => ['required','string','max:10'],
-            'Date'             => ['required','date'],
-            'Turno'            => ['required','integer','min:1','max:3'],
-            'numero_empleado'  => ['required','string','max:30'],
-            'nombreEmpl'       => ['required','string','max:150'],
-            'Calibre'          => ['nullable','numeric'],
-            'FibraTrama'       => ['nullable','string','max:30'],
-            'CodColor'         => ['nullable','string','max:10'],
-            'Color'            => ['nullable','string','max:60'],
-            'Cantidad'         => ['required','numeric'],
-            'Cabezuela'        => ['nullable','numeric'],
-            'Conos'            => ['required','integer'],
-            'Horas'            => ['required','numeric'],
-            'Eficiencia'       => ['required','numeric'],
-            'Obs'              => ['required','string','max:60'],
+            'Folio' => ['required', 'string', 'max:10'],
+            'Date' => ['required', 'date'],
+            'Turno' => ['required', 'integer', 'min:1', 'max:3'],
+            'numero_empleado' => ['required', 'string', 'max:30'],
+            'nombreEmpl' => ['required', 'string', 'max:150'],
+            'Calibre' => ['nullable', 'numeric'],
+            'FibraTrama' => ['nullable', 'string', 'max:30'],
+            'CodColor' => ['nullable', 'string', 'max:10'],
+            'Color' => ['nullable', 'string', 'max:60'],
+            'Cantidad' => ['required', 'numeric'],
+            'Cabezuela' => ['nullable', 'numeric'],
+            'Conos' => ['required', 'integer'],
+            'Horas' => ['required', 'numeric'],
+            'Eficiencia' => ['required', 'numeric'],
+            'Obs' => ['required', 'string', 'max:60'],
         ];
 
         $validatedRows = [];
@@ -234,21 +247,21 @@ class ProduccionReenconadoCabezuelaController extends Controller
             $Fecha = isset($row['Date']) && $row['Date'] ? date('Y-m-d', strtotime($row['Date'])) : null;
 
             $validatedRows[] = [
-                'Folio'           => $row['Folio']            ?? null,
-                'Date'            => $Fecha,
-                'Turno'           => isset($row['Turno']) ? (int)$row['Turno'] : null,
-                'numero_empleado' => $row['numero_empleado']  ?? null,
-                'nombreEmpl'      => $row['nombreEmpl']       ?? null,
-                'Calibre'         => $row['Calibre']         ?? null,
-                'FibraTrama'      => $row['FibraTrama']       ?? null,
-                'CodColor'        => $row['CodColor']         ?? null,
-                'Color'           => $row['Color']            ?? null,
-                'Cantidad'        => isset($row['Cantidad']) ? (float)$row['Cantidad'] : null,
-                'Cabezuela'       => isset($row['Cabezuela']) ? (float)$row['Cabezuela'] : null,
-                'Conos'           => isset($row['Conos']) ? (int)$row['Conos'] : null,
-                'Horas'           => isset($row['Horas']) ? (float)$row['Horas'] : null,
-                'Eficiencia'      => isset($row['Eficiencia']) ? (float)$row['Eficiencia'] : null,
-                'Obs'             => $row['Obs']              ?? null,
+                'Folio' => $row['Folio'] ?? null,
+                'Date' => $Fecha,
+                'Turno' => isset($row['Turno']) ? (int) $row['Turno'] : null,
+                'numero_empleado' => $row['numero_empleado'] ?? null,
+                'nombreEmpl' => $row['nombreEmpl'] ?? null,
+                'Calibre' => $row['Calibre'] ?? null,
+                'FibraTrama' => $row['FibraTrama'] ?? null,
+                'CodColor' => $row['CodColor'] ?? null,
+                'Color' => $row['Color'] ?? null,
+                'Cantidad' => isset($row['Cantidad']) ? (float) $row['Cantidad'] : null,
+                'Cabezuela' => isset($row['Cabezuela']) ? (float) $row['Cabezuela'] : null,
+                'Conos' => isset($row['Conos']) ? (int) $row['Conos'] : null,
+                'Horas' => isset($row['Horas']) ? (float) $row['Horas'] : null,
+                'Eficiencia' => isset($row['Eficiencia']) ? (float) $row['Eficiencia'] : null,
+                'Obs' => $row['Obs'] ?? null,
             ];
         }
 
@@ -260,6 +273,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error('Error insertando TejProduccionReenconado', ['e' => $e->getMessage()]);
+
             return back()->withErrors(['db' => 'No se pudo guardar: '.$e->getMessage()])->withInput();
         }
 
@@ -293,13 +307,13 @@ class ProduccionReenconadoCabezuelaController extends Controller
         } catch (\Throwable $e) {
             Log::error('Generar folio endpoint fallo', [
                 'exception' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
-                'folio' => 'TEMP-' . time(),
+                'folio' => 'TEMP-'.time(),
                 'turno' => '1',
                 'usuario' => '',
                 'numero_empleado' => '',
@@ -313,20 +327,20 @@ class ProduccionReenconadoCabezuelaController extends Controller
         $data = $request->input('record', $request->all());
 
         $rules = [
-            'Date'             => ['required','date'],
-            'Turno'            => ['required','integer','min:1','max:3'],
-            'numero_empleado'  => ['required','string','max:30'],
-            'nombreEmpl'       => ['required','string','max:150'],
-            'Calibre'          => ['nullable','string','max:20'],
-            'FibraTrama'       => ['nullable','string','max:30'],
-            'CodColor'         => ['nullable','string','max:10'],
-            'Color'            => ['nullable','string','max:60'],
-            'Cantidad'         => ['required','numeric'],
-            'Cabezuela'        => ['nullable','numeric'],
-            'Conos'            => ['required','integer'],
-            'Horas'            => ['required','numeric'],
-            'Eficiencia'       => ['nullable','numeric'],
-            'Obs'              => ['nullable','string','max:60'],
+            'Date' => ['required', 'date'],
+            'Turno' => ['required', 'integer', 'min:1', 'max:3'],
+            'numero_empleado' => ['required', 'string', 'max:30'],
+            'nombreEmpl' => ['required', 'string', 'max:150'],
+            'Calibre' => ['nullable', 'string', 'max:20'],
+            'FibraTrama' => ['nullable', 'string', 'max:30'],
+            'CodColor' => ['nullable', 'string', 'max:10'],
+            'Color' => ['nullable', 'string', 'max:60'],
+            'Cantidad' => ['required', 'numeric'],
+            'Cabezuela' => ['nullable', 'numeric'],
+            'Conos' => ['required', 'integer'],
+            'Horas' => ['required', 'numeric'],
+            'Eficiencia' => ['nullable', 'numeric'],
+            'Obs' => ['nullable', 'string', 'max:60'],
         ];
 
         $validator = Validator::make($data, $rules);
@@ -335,31 +349,31 @@ class ProduccionReenconadoCabezuelaController extends Controller
         }
 
         // Calcular capacidad: Horas * 9.3
-        $horas = isset($data['Horas']) ? (float)$data['Horas'] : null;
+        $horas = isset($data['Horas']) ? (float) $data['Horas'] : null;
         $capacidad = $horas !== null ? round($horas * 9.3, 2) : null;
 
         // Calcular eficiencia: Cantidad / Capacidad
-        $cantidad = isset($data['Cantidad']) ? (float)$data['Cantidad'] : null;
+        $cantidad = isset($data['Cantidad']) ? (float) $data['Cantidad'] : null;
         $eficiencia = ($cantidad !== null && $capacidad !== null && $capacidad > 0)
             ? round($cantidad / $capacidad, 2)
             : null;
 
         $clean = [
-            'Date'            => isset($data['Date']) && $data['Date'] ? date('Y-m-d', strtotime($data['Date'])) : null,
-            'Turno'           => isset($data['Turno']) ? (int)$data['Turno'] : null,
-            'numero_empleado' => $data['numero_empleado']  ?? null,
-            'nombreEmpl'      => $data['nombreEmpl']       ?? null,
-            'Calibre'         => $data['Calibre']         ?? null,
-            'FibraTrama'      => $data['FibraTrama']       ?? null,
-            'CodColor'        => $data['CodColor']         ?? null,
-            'Color'           => $data['Color']            ?? null,
-            'Cantidad'        => $cantidad,
-            'Cabezuela'       => isset($data['Cabezuela']) ? (float)$data['Cabezuela'] : null,
-            'Conos'           => isset($data['Conos']) ? (int)$data['Conos'] : null,
-            'Horas'           => $horas,
-            'Eficiencia'      => $eficiencia, // Calculada automáticamente
-            'Obs'             => $data['Obs']              ?? null,
-            'capacidad'       => $capacidad, // Horas * 9.3
+            'Date' => isset($data['Date']) && $data['Date'] ? date('Y-m-d', strtotime($data['Date'])) : null,
+            'Turno' => isset($data['Turno']) ? (int) $data['Turno'] : null,
+            'numero_empleado' => $data['numero_empleado'] ?? null,
+            'nombreEmpl' => $data['nombreEmpl'] ?? null,
+            'Calibre' => $data['Calibre'] ?? null,
+            'FibraTrama' => $data['FibraTrama'] ?? null,
+            'CodColor' => $data['CodColor'] ?? null,
+            'Color' => $data['Color'] ?? null,
+            'Cantidad' => $cantidad,
+            'Cabezuela' => isset($data['Cabezuela']) ? (float) $data['Cabezuela'] : null,
+            'Conos' => isset($data['Conos']) ? (int) $data['Conos'] : null,
+            'Horas' => $horas,
+            'Eficiencia' => $eficiencia, // Calculada automáticamente
+            'Obs' => $data['Obs'] ?? null,
+            'capacidad' => $capacidad, // Horas * 9.3
         ];
 
         try {
@@ -367,6 +381,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
             $registro->update($clean);
         } catch (\Throwable $e) {
             Log::error('Actualizar Reenconado fallo', ['folio' => $folio, 'exception' => $e]);
+
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
 
@@ -383,9 +398,11 @@ class ProduccionReenconadoCabezuelaController extends Controller
         try {
             $registro = TejProduccionReenconado::findOrFail($folio);
             $registro->delete();
+
             return response()->json(['success' => true]);
         } catch (\Throwable $e) {
             Log::error('Eliminar Reenconado fallo', ['folio' => $folio, 'exception' => $e]);
+
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
@@ -413,13 +430,14 @@ class ProduccionReenconadoCabezuelaController extends Controller
             return response()->json([
                 'success' => true,
                 'status' => $nuevoStatus,
-                'message' => "Status cambiado a: {$nuevoStatus}"
+                'message' => "Status cambiado a: {$nuevoStatus}",
             ]);
         } catch (\Throwable $e) {
             Log::error('Cambiar status fallo', ['folio' => $folio, 'exception' => $e]);
+
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
     }

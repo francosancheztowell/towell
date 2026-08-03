@@ -27,9 +27,6 @@ return [
         'paros' => env('CRUDO_PAROS_TABLE', 'dbo.ManFallasParos'),
     ],
 
-    // Departamentos de Mantenimiento cuyos paros aplican a los telares de Crudo.
-    'paro_departments' => ['Calidad', 'Tejido'],
-
     'data_area_id' => env('CRUDO_DATA_AREA_ID', 'pro'),
 
     /*

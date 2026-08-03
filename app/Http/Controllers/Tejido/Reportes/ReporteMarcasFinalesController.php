@@ -78,7 +78,7 @@ class ReporteMarcasFinalesController extends Controller
         return ReqTelares::query()
             ->whereNotNull('NoTelarId')
             ->pluck('VelocidadSTD', 'NoTelarId')
-            ->map(fn($vel) => (float) ($vel ?? 0));
+            ->map(fn ($vel) => (float) ($vel ?? 0));
     }
 
     private function obtenerPreview(string $fechaIni, string $fechaFin): Collection
@@ -163,7 +163,7 @@ class ReporteMarcasFinalesController extends Controller
             ->distinct()
             ->orderBy('Date')
             ->pluck('Date')
-            ->map(fn($date) => Carbon::parse($date)->format('Y-m-d'))
+            ->map(fn ($date) => Carbon::parse($date)->format('Y-m-d'))
             ->unique()
             ->values();
     }
@@ -290,6 +290,7 @@ class ReporteMarcasFinalesController extends Controller
         return $registros
             ->map(function ($registro) {
                 $telar = (int) $registro->NoTelarId;
+
                 return (object) [
                     'telar' => $telar,
                     'turno' => (int) $registro->Turno,
@@ -297,10 +298,10 @@ class ReporteMarcasFinalesController extends Controller
                     'maquina' => $this->resolverMaquinaPorTelar($telar),
                 ];
             })
-            ->filter(fn($item) => in_array($item->maquina, $maquinasConPromedio, true))
+            ->filter(fn ($item) => in_array($item->maquina, $maquinasConPromedio, true))
             ->groupBy('telar')
             ->map(function (Collection $lineas, int|string $telar) {
-                $marcasPorTurno = $lineas->groupBy('turno')->map(fn($t) => $t->sum('marcas'));
+                $marcasPorTurno = $lineas->groupBy('turno')->map(fn ($t) => $t->sum('marcas'));
 
                 $marcasT1 = (int) ($marcasPorTurno->get(1) ?? 0);
                 $marcasT2 = (int) ($marcasPorTurno->get(2) ?? 0);
@@ -335,7 +336,7 @@ class ReporteMarcasFinalesController extends Controller
 
         $export = new \App\Exports\ReporteMarcasFinalesExport($datosPorDia, $velocidadesPorTelar);
 
-        $filename = 'EFICIENCIAS_' . $fechaIniFormateada . '_' . $fechaFinFormateada . '.xlsx';
+        $filename = 'EFICIENCIAS_'.$fechaIniFormateada.'_'.$fechaFinFormateada.'.xlsx';
 
         return Excel::download($export, $filename);
     }
@@ -356,6 +357,7 @@ class ReporteMarcasFinalesController extends Controller
         return $registros
             ->map(function ($registro) {
                 $telar = (int) $registro->NoTelarId;
+
                 return (object) [
                     'fecha' => Carbon::parse($registro->Date)->format('Y-m-d'),
                     'turno' => (int) $registro->Turno,
@@ -376,7 +378,7 @@ class ReporteMarcasFinalesController extends Controller
                                 $telares = $itemsMaquina
                                     ->sortBy('telar')
                                     ->values()
-                                    ->map(fn($item) => (object) [
+                                    ->map(fn ($item) => (object) [
                                         'telar' => $item->telar,
                                         'marcas' => $item->marcas,
                                         'horas' => $item->horas,

@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Engomado\EngProgramaEngomado;
-use App\Models\Urdido\UrdProgramaUrdido;
 use App\Models\Engomado\EngProduccionEngomado;
-use App\Models\Urdido\UrdProduccionUrdido;
+use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\UrdJuliosOrden;
+use App\Models\Urdido\UrdProduccionUrdido;
+use App\Models\Urdido\UrdProgramaUrdido;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Http\Request;
@@ -29,20 +29,20 @@ class PDFController extends Controller
             $ordenId = $request->query('orden_id');
             $tipo = $request->query('tipo', 'urdido'); // 'urdido' o 'engomado'
 
-            if (!$ordenId) {
+            if (! $ordenId) {
                 return response()->json([
                     'success' => false,
-                    'error'   => 'El parámetro "orden_id" es requerido.',
+                    'error' => 'El parámetro "orden_id" es requerido.',
                 ], 422);
             }
 
             // 1) Obtener orden según el tipo
             $orden = $this->obtenerOrden($ordenId, $tipo);
 
-            if (!$orden) {
+            if (! $orden) {
                 return response()->json([
                     'success' => false,
-                    'error'   => 'Orden no encontrada.',
+                    'error' => 'Orden no encontrada.',
                 ], 404);
             }
 
@@ -52,13 +52,13 @@ class PDFController extends Controller
                 if (strtolower($tipo) === 'engomado' && ($orden->Status ?? '') !== 'Finalizado') {
                     return response()->json([
                         'success' => false,
-                        'error'   => 'Solo se pueden reimprimir ordenes con status Finalizado.',
+                        'error' => 'Solo se pueden reimprimir ordenes con status Finalizado.',
                     ], 422);
                 }
                 if (strtolower($tipo) === 'urdido' && ($orden->Status ?? '') !== 'Finalizado') {
                     return response()->json([
                         'success' => false,
-                        'error'   => 'Solo se pueden reimprimir ordenes con status Finalizado.',
+                        'error' => 'Solo se pueden reimprimir ordenes con status Finalizado.',
                     ], 422);
                 }
             }
@@ -72,10 +72,10 @@ class PDFController extends Controller
             // 3) Registros de producción
             $registrosProduccion = $this->obtenerRegistrosProduccion($orden->Folio, $tipo, $esParcial, $request->boolean('reimpresion'));
 
-            if ($esParcial && (!$registrosProduccion || $registrosProduccion->count() === 0)) {
+            if ($esParcial && (! $registrosProduccion || $registrosProduccion->count() === 0)) {
                 return response()->json([
                     'success' => false,
-                    'error'   => 'No hay registros pendientes de impresión. Todos los registros ya fueron impresos anteriormente.',
+                    'error' => 'No hay registros pendientes de impresión. Todos los registros ya fueron impresos anteriormente.',
                 ], 422);
             }
 
@@ -93,10 +93,10 @@ class PDFController extends Controller
             $registrosPorJulio = collect();
             if (strtolower($tipo) === 'engomado' && $registrosProduccion && $registrosProduccion->count() > 0) {
                 // Filtrar solo registros que tienen NoJulio asignado
-                $registrosConJulio = $registrosProduccion->filter(function($registro) {
-                    return !empty($registro->NoJulio);
+                $registrosConJulio = $registrosProduccion->filter(function ($registro) {
+                    return ! empty($registro->NoJulio);
                 });
-                
+
                 if ($registrosConJulio->count() > 0) {
                     $registrosPorJulio = $registrosConJulio->groupBy('NoJulio');
                 } else {
@@ -111,14 +111,14 @@ class PDFController extends Controller
                 : 'pdf.orden-urdido-engomado';
 
             $html = view($vistaPdf, [
-                'orden'              => $orden,
-                'ordenEngomado'      => $ordenEngomado, // Datos de engomado para urdido
-                'registrosProduccion'=> $registrosProduccion,
-                'registrosPorJulio'  => $registrosPorJulio, // Agrupados por NoJulio
-                'julios'             => $julios,
-                'tipo'               => $tipo,
-                'logoBase64'         => $logoBase64,
-                'esReimpresion'      => $esReimpresion,
+                'orden' => $orden,
+                'ordenEngomado' => $ordenEngomado, // Datos de engomado para urdido
+                'registrosProduccion' => $registrosProduccion,
+                'registrosPorJulio' => $registrosPorJulio, // Agrupados por NoJulio
+                'julios' => $julios,
+                'tipo' => $tipo,
+                'logoBase64' => $logoBase64,
+                'esReimpresion' => $esReimpresion,
             ])->render();
 
             // 6) Configurar DomPDF
@@ -127,11 +127,11 @@ class PDFController extends Controller
             // 6.1) Si es impresión parcial de engomado, marcar registros como impresos
             if ($esParcial && strtolower($tipo) === 'engomado' && $registrosProduccion && $registrosProduccion->count() > 0) {
                 $ids = $registrosProduccion->pluck('Id')->filter()->values()->all();
-                if (!empty($ids)) {
+                if (! empty($ids)) {
                     try {
                         EngProduccionEngomado::whereIn('Id', $ids)->update(['Impresion' => 1]);
                     } catch (\Throwable $e) {
-                        Log::warning('No se pudo marcar Impresion=1 (¿columna existe?): ' . $e->getMessage());
+                        Log::warning('No se pudo marcar Impresion=1 (¿columna existe?): '.$e->getMessage());
                     }
                 }
             }
@@ -142,7 +142,7 @@ class PDFController extends Controller
 
             return response($dompdf->output(), 200)
                 ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', $disposition . '; filename="' . $nombreArchivo . '"');
+                ->header('Content-Disposition', $disposition.'; filename="'.$nombreArchivo.'"');
 
         } catch (\Throwable $e) {
             Log::error('Error al generar PDF de urdido/engomado', [
@@ -152,7 +152,7 @@ class PDFController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error'   => 'Error al generar PDF: ' . $e->getMessage(),
+                'error' => 'Error al generar PDF: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -176,8 +176,8 @@ class PDFController extends Controller
      * Tras generar el PDF parcial se marcan con Impresion=1 para no repetirlos.
      * Al desmarcar Finalizar (→0), Impresion se resetea a NULL vía onRegistroDesmarcado.
      *
-     * @param  bool  $esParcial       Si true (engomado): marca Impresion=1 en los registros tras generar el PDF
-     * @param  bool  $esReimpresion   No afecta el filtrado en engomado
+     * @param  bool  $esParcial  Si true (engomado): marca Impresion=1 en los registros tras generar el PDF
+     * @param  bool  $esReimpresion  No afecta el filtrado en engomado
      */
     protected function obtenerRegistrosProduccion(string $folio, string $tipo, bool $esParcial = false, bool $esReimpresion = false)
     {
@@ -193,7 +193,8 @@ class PDFController extends Controller
                     ->get();
             } catch (\Throwable $e) {
                 // Columna Impresion puede no existir aún; usar todos los registros con Finalizar=1
-                Log::warning('Columna Impresion no encontrada, usando registros con Finalizar=1: ' . $e->getMessage());
+                Log::warning('Columna Impresion no encontrada, usando registros con Finalizar=1: '.$e->getMessage());
+
                 return EngProduccionEngomado::where('Folio', $folio)
                     ->where('Finalizar', 1)
                     ->orderBy('Id')
@@ -208,20 +209,19 @@ class PDFController extends Controller
 
     /**
      * Cargar el logo como base64 sin usar GD.
-     *
-     * @return string|null
      */
     protected function cargarLogoBase64(): ?string
     {
         try {
             $logoPath = public_path('images/fondosTowell/logo.png');
 
-            if (!file_exists($logoPath) || !is_readable($logoPath)) {
+            if (! file_exists($logoPath) || ! is_readable($logoPath)) {
                 Log::warning('Logo no encontrado o sin permisos de lectura para PDF', [
-                    'path'   => $logoPath,
+                    'path' => $logoPath,
                     'exists' => file_exists($logoPath),
                     'readable' => is_readable($logoPath),
                 ]);
+
                 return null;
             }
 
@@ -231,10 +231,11 @@ class PDFController extends Controller
                 Log::warning('No se pudo leer el archivo de logo o está vacío', [
                     'path' => $logoPath,
                 ]);
+
                 return null;
             }
 
-            return 'data:image/png;base64,' . base64_encode($logoData);
+            return 'data:image/png;base64,'.base64_encode($logoData);
         } catch (\Throwable $e) {
             Log::warning('Excepción al cargar el logo para PDF', [
                 'error' => $e->getMessage(),
@@ -249,7 +250,7 @@ class PDFController extends Controller
      */
     protected function crearDompdf(string $html): Dompdf
     {
-        $options = new Options();
+        $options = new Options;
         $options->set('isHtml5ParserEnabled', true);
         $options->set('isRemoteEnabled', true);     // por si en el futuro usas imágenes remotas
         $options->set('defaultFont', 'Arial');
@@ -279,7 +280,7 @@ class PDFController extends Controller
     protected function construirNombreArchivo($orden, string $tipo, bool $esParcial = false): string
     {
         $folio = $orden->Folio ?? 'ORDEN';
-        $tipo  = strtoupper($tipo);
+        $tipo = strtoupper($tipo);
         $sufijo = $esParcial ? '_PARCIAL' : '';
 
         if ($tipo === 'ENGOMADO') {

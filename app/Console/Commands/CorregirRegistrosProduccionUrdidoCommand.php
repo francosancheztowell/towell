@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Urdido\UrdProgramaUrdido;
 use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProduccionUrdido;
+use App\Models\Urdido\UrdProgramaUrdido;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -22,11 +22,12 @@ class CorregirRegistrosProduccionUrdidoCommand extends Command
         $this->info('=== Corrección de Registros de Producción Urdido ===');
         $this->info('');
 
-        if (!$dryRun && empty($folioEspecifico)) {
+        if (! $dryRun && empty($folioEspecifico)) {
             $this->error('ERROR: Para corregir registros debe especificar --folio=<folio>');
             $this->info('');
             $this->info('Ejemplo: php artisan urdido:corregir-registros --folio=00311');
             $this->info('O usar --dry-run para ver todos los problemas: php artisan urdido:corregir-registros --dry-run');
+
             return Command::FAILURE;
         }
 
@@ -76,9 +77,9 @@ class CorregirRegistrosProduccionUrdidoCommand extends Command
                 $problemasEncontrados++;
                 $tipo = $diferencia > 0 ? 'EXCESO' : 'DEFICIT';
 
-                $this->line("{$programa->Folio} | Expected: {$totalExpected} | Existentes: {$totalExistentes} | {$tipo}: " . abs($diferencia) . " | Status: {$programa->Status}");
+                $this->line("{$programa->Folio} | Expected: {$totalExpected} | Existentes: {$totalExistentes} | {$tipo}: ".abs($diferencia)." | Status: {$programa->Status}");
 
-                if (!$dryRun) {
+                if (! $dryRun) {
                     // Determinar ids a eliminar y crear
                     $idsAEliminar = [];
                     $registrosACrear = [];
@@ -139,9 +140,9 @@ class CorregirRegistrosProduccionUrdidoCommand extends Command
                         }
                     }
 
-                    if (!empty($idsAEliminar)) {
+                    if (! empty($idsAEliminar)) {
                         UrdProduccionUrdido::whereIn('Id', $idsAEliminar)->delete();
-                        $this->info("  -> ELIMINADOS: " . count($idsAEliminar) . " registros");
+                        $this->info('  -> ELIMINADOS: '.count($idsAEliminar).' registros');
                         Log::info('Correccion UrdProduccionUrdido: registros eliminados', [
                             'folio' => $programa->Folio,
                             'ids_eliminados' => $idsAEliminar,
@@ -152,7 +153,7 @@ class CorregirRegistrosProduccionUrdidoCommand extends Command
                         UrdProduccionUrdido::create($data);
                     }
 
-                    if (!empty($idsAEliminar) || !empty($registrosACrear)) {
+                    if (! empty($idsAEliminar) || ! empty($registrosACrear)) {
                         $corregidos++;
                     }
                 }
@@ -163,10 +164,10 @@ class CorregirRegistrosProduccionUrdidoCommand extends Command
         $this->info('=== Resumen ===');
         $this->info("Problemas encontrados: {$problemasEncontrados}");
 
-        if (!$dryRun) {
+        if (! $dryRun) {
             $this->info("Corregidos: {$corregidos}");
         } else {
-            $this->info("(Ejecutar sin --dry-run para corregir)");
+            $this->info('(Ejecutar sin --dry-run para corregir)');
         }
 
         return Command::SUCCESS;

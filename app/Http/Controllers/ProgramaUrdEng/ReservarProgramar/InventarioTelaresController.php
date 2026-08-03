@@ -26,11 +26,12 @@ class InventarioTelaresController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data'    => $this->service->normalizeTelares($rows)->values(),
-                'total'   => $rows->count(),
+                'data' => $this->service->normalizeTelares($rows)->values(),
+                'total' => $rows->count(),
             ]);
         } catch (\Throwable $e) {
             Log::error('getInventarioTelares', ['msg' => $e->getMessage()]);
+
             return response()->json(['success' => false, 'message' => 'Error al obtener inventario de telares'], 500);
         }
     }

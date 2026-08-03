@@ -7,14 +7,13 @@ class TelDesarrolladoresHelper
     /**
      * Mapea una fila de detalle de una orden a un arreglo estándar.
      *
-     * @param mixed  $ordenData
-     * @param string $calibreKey
-     * @param string $hiloKey
-     * @param string $fibraKey
-     * @param string $colorKey
-     * @param string $nombreColorKey
-     * @param string $pasadasKey
-     * @return array
+     * @param  mixed  $ordenData
+     * @param  string  $calibreKey
+     * @param  string  $hiloKey
+     * @param  string  $fibraKey
+     * @param  string  $colorKey
+     * @param  string  $nombreColorKey
+     * @param  string  $pasadasKey
      */
     public static function mapDetalleFila($ordenData, $calibreKey, $hiloKey, $fibraKey, $colorKey, $nombreColorKey, $pasadasKey): array
     {
@@ -37,4 +36,3 @@ class TelDesarrolladoresHelper
         ];
     }
 }
-

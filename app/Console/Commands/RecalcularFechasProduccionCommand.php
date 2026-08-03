@@ -54,7 +54,7 @@ class RecalcularFechasProduccionCommand extends Command
         // Agregar los recién asignados al set si no estaban ya
         $idsYaEnSet = $registros->pluck('Id')->flip();
         foreach ($idsNuevosEnProceso as $nuevoId) {
-            if (!$idsYaEnSet->has($nuevoId)) {
+            if (! $idsYaEnSet->has($nuevoId)) {
                 $nuevo = ReqProgramaTejido::find($nuevoId);
                 if ($nuevo) {
                     $registros->push($nuevo);
@@ -62,7 +62,7 @@ class RecalcularFechasProduccionCommand extends Command
             }
         }
 
-        $this->info('Procesando ' . $registros->count() . ' registro(s)...');
+        $this->info('Procesando '.$registros->count().' registro(s)...');
         $ok = 0;
         $fail = 0;
 
@@ -71,7 +71,7 @@ class RecalcularFechasProduccionCommand extends Command
             foreach ($registros as $r) {
                 try {
                     $refreshed = ReqProgramaTejido::find($r->Id);
-                    if (!$refreshed) {
+                    if (! $refreshed) {
                         continue;
                     }
                     if (BalancearTejido::recalcularRegistroPorProduccion($refreshed)) {
@@ -107,7 +107,7 @@ class RecalcularFechasProduccionCommand extends Command
             ->select('SalonTejidoId', 'NoTelarId')
             ->distinct()
             ->get()
-            ->map(fn($r) => $r->SalonTejidoId . '|' . $r->NoTelarId)
+            ->map(fn ($r) => $r->SalonTejidoId.'|'.$r->NoTelarId)
             ->unique()
             ->values();
 
@@ -128,7 +128,7 @@ class RecalcularFechasProduccionCommand extends Command
                 continue;
             }
 
-            $primero   = $todos->first();
+            $primero = $todos->first();
             $enProceso = $todos->firstWhere('EnProceso', 1);
 
             // Correcto: el primero ya tiene EnProceso=1
@@ -154,12 +154,12 @@ class RecalcularFechasProduccionCommand extends Command
             $this->info("Telar {$salon}/{$telar}: EnProceso corregido → Id={$primero->Id} (Pos={$primero->Posicion}). Motivo: {$motivo}");
 
             Log::info('RecalcularFechasProduccion: asignado EnProceso=1', [
-                'salon'          => $salon,
-                'telar'          => $telar,
-                'id'             => $primero->Id,
-                'posicion'       => $primero->Posicion,
-                'anterior_id'    => $enProceso?->Id,
-                'anterior_pos'   => $enProceso?->Posicion,
+                'salon' => $salon,
+                'telar' => $telar,
+                'id' => $primero->Id,
+                'posicion' => $primero->Posicion,
+                'anterior_id' => $enProceso?->Id,
+                'anterior_pos' => $enProceso?->Posicion,
             ]);
         }
 

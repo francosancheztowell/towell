@@ -3,26 +3,26 @@
 namespace App\Http\Controllers\Planeacion\CatalogoPlaneacion\ModelosCodificados;
 
 use App\Http\Controllers\Controller;
-use App\Models\Planeacion\ReqModelosCodificados;
+use App\Imports\ReqModelosCodificadosImport;
 use App\Models\Planeacion\Catalogos\CatCodificados;
-use Illuminate\Http\Request;
+use App\Models\Planeacion\ReqModelosCodificados;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\DB as DBFacade;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Imports\ReqModelosCodificadosImport;
-use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
 use PhpOffice\PhpSpreadsheet\Reader\Xls as XlsReader;
+use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
 
 class CodificacionController extends Controller
 {
     /** Columnas de la tabla (headers) */
-        private const COLUMNAS = [
+    private const COLUMNAS = [
         'Tamaño Clave', 'Rasema', 'Fecha Orden', 'Fecha Cumplimiento', 'Departamento',
         'Telar Actual', 'Prioridad', 'Modelo', 'Clave Modelo', 'Clave AX', 'Tamaño AX',
         'Tolerancia', 'Codigo Dibujo', 'Fecha Compromiso', 'Flogs', 'Nombre de Formato Logístico',
@@ -39,11 +39,11 @@ class CodificacionController extends Controller
         'OBS C4 Trama de Fondo', 'Pasadas C4 ', 'C5 Trama de Fondo', 'Hilo C5 Trama de Fondo',
         'OBS C5 Trama de Fondo', 'Pasadas C5', 'Total', 'Pasadas Dibujo', 'Contraccion', 'Tramas cm/Tejido',
         'Contrac Rizo', 'Clasificación(KG)', 'KG/Día', 'Densidad', 'Pzas/Día/ pasadas', 'Pzas/Día/ formula',
-        'DIF', 'EFIC.', 'Rev', 'Tiras', 'Pasadas', 'ColumCT', 'ColumCU', 'ColumCV', 'Comprobar modelos duplicados'
+        'DIF', 'EFIC.', 'Rev', 'Tiras', 'Pasadas', 'ColumCT', 'ColumCU', 'ColumCV', 'Comprobar modelos duplicados',
     ];
 
     /** Mapeo campo => tipo (date|zero|null para string) */
-        private const CAMPOS_MODELO = [
+    private const CAMPOS_MODELO = [
         'TamanoClave' => null,
         'OrdenTejido' => null,
         'FechaTejido' => 'date',
@@ -168,11 +168,12 @@ class CodificacionController extends Controller
     private function getColumnMaxLengths(string $table): array
     {
         $cacheKey = "column_lengths_{$table}";
+
         return Cache::remember($cacheKey, 3600, function () use ($table) {
             $rows = DB::select(
-                "SELECT COLUMN_NAME, CHARACTER_MAXIMUM_LENGTH AS max_len
+                'SELECT COLUMN_NAME, CHARACTER_MAXIMUM_LENGTH AS max_len
                  FROM INFORMATION_SCHEMA.COLUMNS
-                 WHERE TABLE_NAME = ? AND CHARACTER_MAXIMUM_LENGTH IS NOT NULL",
+                 WHERE TABLE_NAME = ? AND CHARACTER_MAXIMUM_LENGTH IS NOT NULL',
                 [$table]
             );
 
@@ -191,9 +192,10 @@ class CodificacionController extends Controller
     private function getTableColumns(string $table): array
     {
         $cacheKey = "columns_{$table}";
+
         return Cache::remember($cacheKey, 3600, function () use ($table) {
             $rows = DB::select(
-                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ?",
+                'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ?',
                 [$table]
             );
 
@@ -210,11 +212,12 @@ class CodificacionController extends Controller
     {
         $normalized = [];
         foreach ($data as $column => $value) {
-            if (!isset($columns[$column])) {
+            if (! isset($columns[$column])) {
                 continue;
             }
             $normalized[$column] = $this->truncateValueForColumn($column, $value, $lengths);
         }
+
         return $normalized;
     }
 
@@ -362,7 +365,7 @@ class CodificacionController extends Controller
         }
 
         $limit = $lengths[$column] ?? null;
-        if (!$limit) {
+        if (! $limit) {
             return $value;
         }
 
@@ -377,7 +380,7 @@ class CodificacionController extends Controller
     /** Obtener configuración de columnas para JavaScript */
     public static function getColumnasConfig(): array
     {
-        return array_map(fn($col, $idx) => ['index' => $idx, 'nombre' => $col], self::COLUMNAS, array_keys(self::COLUMNAS));
+        return array_map(fn ($col, $idx) => ['index' => $idx, 'nombre' => $col], self::COLUMNAS, array_keys(self::COLUMNAS));
     }
 
     /** Obtener campos del modelo con sus tipos */
@@ -391,7 +394,7 @@ class CodificacionController extends Controller
     {
         try {
             // Solo enviamos la estructura, los datos se cargan via fetch
-            $total = Cache::remember('codificacion_total', 300, fn() => ReqModelosCodificados::count());
+            $total = Cache::remember('codificacion_total', 300, fn () => ReqModelosCodificados::count());
 
             return view('catalagos.catalogoCodificacion', [
                 'columnas' => self::COLUMNAS,
@@ -402,13 +405,14 @@ class CodificacionController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('CodificacionController::index', ['error' => $e->getMessage()]);
+
             return view('catalagos.catalogoCodificacion', [
                 'columnas' => self::COLUMNAS,
                 'camposModelo' => self::CAMPOS_MODELO,
                 'columnasConfig' => self::getColumnasConfig(),
                 'totalRegistros' => 0,
                 'apiUrl' => '/planeacion/catalogos/codificacion-modelos/api/all-fast',
-                'error' => 'Error al cargar: ' . $e->getMessage()
+                'error' => 'Error al cargar: '.$e->getMessage(),
             ]);
         }
     }
@@ -422,7 +426,7 @@ class CodificacionController extends Controller
             $duplicateId = $request->query('duplicate');
             $original = ReqModelosCodificados::find($duplicateId);
 
-            if (!$original) {
+            if (! $original) {
                 return redirect()->route('codificacion.index')
                     ->with('error', 'Registro no encontrado para duplicar');
             }
@@ -436,7 +440,7 @@ class CodificacionController extends Controller
             unset($attributes['updated_at']);
 
             // Crear una nueva instancia vacía
-            $codificacion = new ReqModelosCodificados();
+            $codificacion = new ReqModelosCodificados;
 
             // Usar makeHidden para asegurar que todos los atributos estén disponibles
             // y luego asignar todos los atributos usando setRawAttributes para preservar valores null
@@ -454,6 +458,7 @@ class CodificacionController extends Controller
     public function edit($id)
     {
         $codificacion = ReqModelosCodificados::findOrFail($id);
+
         return view('catalagos.codificacion-form', compact('codificacion'));
     }
 
@@ -474,10 +479,11 @@ class CodificacionController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $codificaciones,
-                'total' => $codificaciones->count()
+                'total' => $codificaciones->count(),
             ])->header('Cache-Control', 'private, max-age=60'); // Cache 1 min
         } catch (\Exception $e) {
             Log::error('CodificacionController::getAll', ['error' => $e->getMessage()]);
+
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
@@ -495,7 +501,7 @@ class CodificacionController extends Controller
                 ? "codificacion_fast_id_{$idFilter}"
                 : 'codificacion_fast_all';
 
-            if (!$skipCache) {
+            if (! $skipCache) {
                 $cached = Cache::get($cacheKey);
                 if ($cached !== null) {
                     return response()->json($cached)
@@ -506,7 +512,7 @@ class CodificacionController extends Controller
 
             DB::connection()->disableQueryLog();
 
-            $columnsStr = implode(', ', array_map(fn($col) => "[{$col}]", $campos));
+            $columnsStr = implode(', ', array_map(fn ($col) => "[{$col}]", $campos));
             $query = ReqModelosCodificados::query()
                 ->selectRaw($columnsStr)
                 ->orderByDesc('Id')
@@ -523,7 +529,7 @@ class CodificacionController extends Controller
                     'c' => $campos,
                 ];
 
-                if (!$skipCache) {
+                if (! $skipCache) {
                     Cache::put($cacheKey, $response, 60);
                 }
 
@@ -535,7 +541,7 @@ class CodificacionController extends Controller
             $estimatedCount = Cache::remember(
                 'codificacion_estimated_count',
                 300,
-                fn() => ReqModelosCodificados::query()->toBase()->count()
+                fn () => ReqModelosCodificados::query()->toBase()->count()
             );
 
             $data = $estimatedCount > 1000
@@ -549,7 +555,7 @@ class CodificacionController extends Controller
                 'c' => $campos,
             ];
 
-            if (!$skipCache) {
+            if (! $skipCache) {
                 Cache::put($cacheKey, $response, 60);
             }
 
@@ -558,6 +564,7 @@ class CodificacionController extends Controller
                 ->header('X-Cache', 'MISS');
         } catch (\Exception $e) {
             Log::error('CodificacionController::getAllFast', ['error' => $e->getMessage()]);
+
             return response()->json(['s' => false, 'e' => $e->getMessage()], 500);
         }
     }
@@ -589,6 +596,7 @@ class CodificacionController extends Controller
     public function show($id): JsonResponse
     {
         $codificacion = ReqModelosCodificados::find($id);
+
         return $codificacion
             ? response()->json(['success' => true, 'data' => $codificacion])
             : response()->json(['success' => false, 'message' => 'No encontrado'], 404);
@@ -622,7 +630,7 @@ class CodificacionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Validación incorrecta',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -632,7 +640,7 @@ class CodificacionController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Registro creado',
-            'data' => $codificacion
+            'data' => $codificacion,
         ], 201);
     }
 
@@ -640,7 +648,7 @@ class CodificacionController extends Controller
     public function update(Request $request, $id): JsonResponse
     {
         $codificacion = ReqModelosCodificados::find($id);
-        if (!$codificacion) {
+        if (! $codificacion) {
             return response()->json(['success' => false, 'message' => 'No encontrado'], 404);
         }
 
@@ -649,7 +657,7 @@ class CodificacionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Validación incorrecta',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -659,7 +667,7 @@ class CodificacionController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Registro actualizado',
-            'data' => $codificacion
+            'data' => $codificacion,
         ]);
     }
 
@@ -667,7 +675,7 @@ class CodificacionController extends Controller
     public function destroy($id): JsonResponse
     {
         $codificacion = ReqModelosCodificados::find($id);
-        if (!$codificacion) {
+        if (! $codificacion) {
             return response()->json(['success' => false, 'message' => 'No encontrado'], 404);
         }
 
@@ -682,7 +690,7 @@ class CodificacionController extends Controller
             if ($enUso) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No se puede eliminar el registro porque la clave mod "' . $claveMod . '" está siendo utilizada en Programa Tejido'
+                    'message' => 'No se puede eliminar el registro porque la clave mod "'.$claveMod.'" está siendo utilizada en Programa Tejido',
                 ], 422);
             }
         }
@@ -699,10 +707,10 @@ class CodificacionController extends Controller
         try {
             $original = ReqModelosCodificados::find($id);
 
-            if (!$original) {
+            if (! $original) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Registro no encontrado'
+                    'message' => 'Registro no encontrado',
                 ], 404);
             }
 
@@ -720,17 +728,17 @@ class CodificacionController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Registro duplicado exitosamente',
-                'data' => $duplicado
+                'data' => $duplicado,
             ], 201);
         } catch (\Exception $e) {
             Log::error('CodificacionController::duplicate', [
                 'id' => $id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al duplicar el registro: ' . $e->getMessage()
+                'message' => 'Error al duplicar el registro: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -740,7 +748,7 @@ class CodificacionController extends Controller
     {
         try {
             $request->validate([
-                'archivo_excel' => 'required|file|mimes:xlsx,xls|max:10240'
+                'archivo_excel' => 'required|file|mimes:xlsx,xls|max:10240',
             ]);
 
             $importId = (string) Str::uuid();
@@ -749,11 +757,11 @@ class CodificacionController extends Controller
 
             $totalRows = null;
             try {
-                $reader = $ext === 'xls' ? new XlsReader() : new XlsxReader();
+                $reader = $ext === 'xls' ? new XlsReader : new XlsxReader;
                 $info = $reader->listWorksheetInfo($path);
-                $totalRows = isset($info[0]['totalRows']) ? max(0, (int)$info[0]['totalRows'] - 2) : null;
+                $totalRows = isset($info[0]['totalRows']) ? max(0, (int) $info[0]['totalRows'] - 2) : null;
             } catch (\Throwable $e) {
-                Log::warning('No se pudo obtener totalRows: ' . $e->getMessage());
+                Log::warning('No se pudo obtener totalRows: '.$e->getMessage());
             }
 
             Excel::queueImport(new ReqModelosCodificadosImport($importId, $totalRows), $request->file('archivo_excel'));
@@ -764,41 +772,42 @@ class CodificacionController extends Controller
                 'data' => [
                     'import_id' => $importId,
                     'total_rows' => $totalRows,
-                    'poll_url' => '/planeacion/catalogos/codificacion-modelos/excel-progress/' . $importId
-                ]
+                    'poll_url' => '/planeacion/catalogos/codificacion-modelos/excel-progress/'.$importId,
+                ],
             ], 202);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['success' => false, 'message' => 'Validación fallida', 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
             Log::error('Error importación Excel', ['error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+
+            return response()->json(['success' => false, 'message' => 'Error: '.$e->getMessage()], 500);
         }
     }
 
     /** Consultar progreso del import */
     public function importProgress($id): JsonResponse
     {
-        $state = Cache::get('excel_import_progress:' . $id);
-            if (!$state) {
-                return response()->json(['success' => false, 'message' => 'Progreso no encontrado'], 404);
-            }
+        $state = Cache::get('excel_import_progress:'.$id);
+        if (! $state) {
+            return response()->json(['success' => false, 'message' => 'Progreso no encontrado'], 404);
+        }
 
-        $pct = !empty($state['total_rows']) && $state['total_rows'] > 0
+        $pct = ! empty($state['total_rows']) && $state['total_rows'] > 0
             ? round(100 * (($state['processed_rows'] ?? 0) / $state['total_rows']), 1)
             : null;
 
-        $errors = array_map(fn($e) => [
+        $errors = array_map(fn ($e) => [
             'fila' => $e['fila'] ?? 'N/A',
-            'error' => substr($e['error'] ?? 'Error desconocido', 0, 150)
+            'error' => substr($e['error'] ?? 'Error desconocido', 0, 150),
         ], $state['errors'] ?? []);
 
-            return response()->json([
-                'success' => true,
-                'data' => $state,
-                'percent' => $pct,
-                'errors' => $errors,
-                'has_errors' => !empty($errors)
-            ]);
+        return response()->json([
+            'success' => true,
+            'data' => $state,
+            'percent' => $pct,
+            'errors' => $errors,
+            'has_errors' => ! empty($errors),
+        ]);
     }
 
     /** Búsqueda con filtros - Optimizado para usar índices */
@@ -814,7 +823,7 @@ class CodificacionController extends Controller
         if ($tamanoClave && $salonTejido) {
             // ⚡ Usar índice compuesto IX_RMC_Tamano_Salon
             $q->where('TamanoClave', 'like', "%{$tamanoClave}%")
-              ->where('SalonTejidoId', $salonTejido);
+                ->where('SalonTejidoId', $salonTejido);
         } elseif ($tamanoClave) {
             // Si solo hay TamanoClave, usar índice simple
             $q->where('TamanoClave', 'like', "%{$tamanoClave}%");
@@ -852,10 +861,10 @@ class CodificacionController extends Controller
             }
 
             // Si hay fechas sin salón, agregarlas
-            if ($fechaDesde && !$salonTejido) {
+            if ($fechaDesde && ! $salonTejido) {
                 $q->where('FechaTejido', '>=', $fechaDesde);
             }
-            if ($fechaHasta && !$salonTejido) {
+            if ($fechaHasta && ! $salonTejido) {
                 $q->where('FechaTejido', '<=', $fechaHasta);
             }
 
@@ -872,7 +881,7 @@ class CodificacionController extends Controller
                 'success' => true,
                 'data' => $data,
                 'total' => $data->count(),
-                'mensaje' => $data->isEmpty() ? 'Sin resultados' : null
+                'mensaje' => $data->isEmpty() ? 'Sin resultados' : null,
             ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'error' => $e->getMessage()]);
@@ -910,8 +919,8 @@ class CodificacionController extends Controller
                 }
 
                 // Convertir a string y limpiar
-                $salon = trim((string)$salon);
-                $telar = trim((string)$telar);
+                $salon = trim((string) $salon);
+                $telar = trim((string) $telar);
 
                 // Saltar si están vacíos después de trim
                 if ($salon === '' || $telar === '') {
@@ -919,41 +928,41 @@ class CodificacionController extends Controller
                 }
 
                 // Convertir telar a string para consistencia
-                $telarStr = (string)$telar;
+                $telarStr = (string) $telar;
 
                 // ITEMA se trata como SMIT - unificar ambos
                 if ($salon === 'ITEMA' || $salon === 'SMIT') {
                     // Agrupar todos los telares de ITEMA y SMIT juntos bajo SMIT
-                    if (!in_array($telarStr, $telaresITEMASMIT, true)) {
+                    if (! in_array($telarStr, $telaresITEMASMIT, true)) {
                         $telaresITEMASMIT[] = $telarStr;
                     }
                     // Agregar ITEMA a la lista de salones (se mostrará como ITEMA pero se manejará como SMIT)
-                    if ($salon === 'ITEMA' && !in_array('ITEMA', $salones, true)) {
+                    if ($salon === 'ITEMA' && ! in_array('ITEMA', $salones, true)) {
                         $salones[] = 'ITEMA';
                     }
                     // También agregar SMIT si existe en la base de datos
-                    if ($salon === 'SMIT' && !in_array('SMIT', $salones, true)) {
+                    if ($salon === 'SMIT' && ! in_array('SMIT', $salones, true)) {
                         $salones[] = 'SMIT';
                     }
                 } else {
                     // Otros salones normales
-                    if (!isset($telaresPorSalon[$salon])) {
+                    if (! isset($telaresPorSalon[$salon])) {
                         $telaresPorSalon[$salon] = [];
                     }
 
-                    if (!in_array($telarStr, $telaresPorSalon[$salon], true)) {
+                    if (! in_array($telarStr, $telaresPorSalon[$salon], true)) {
                         $telaresPorSalon[$salon][] = $telarStr;
                     }
 
                     // Agregar salón único
-                    if (!in_array($salon, $salones, true)) {
+                    if (! in_array($salon, $salones, true)) {
                         $salones[] = $salon;
                     }
                 }
             }
 
             // Asignar telares compartidos a SMIT e ITEMA (ITEMA se trata como SMIT)
-            if (!empty($telaresITEMASMIT)) {
+            if (! empty($telaresITEMASMIT)) {
                 sort($telaresITEMASMIT);
                 // Siempre asignar a SMIT
                 $telaresPorSalon['SMIT'] = $telaresITEMASMIT;
@@ -973,25 +982,25 @@ class CodificacionController extends Controller
                 'success' => true,
                 'data' => [
                     'salones' => array_values($salones),
-                    'telaresPorSalon' => $telaresPorSalon
-                ]
+                    'telaresPorSalon' => $telaresPorSalon,
+                ],
             ]);
         } catch (\Throwable $e) {
             Log::error('Error obteniendo salones y telares', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'file' => $e->getFile(),
-                'line' => $e->getLine()
+                'line' => $e->getLine(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener salones y telares: ' . $e->getMessage(),
+                'message' => 'Error al obtener salones y telares: '.$e->getMessage(),
                 'debug' => config('app.debug') ? [
                     'file' => $e->getFile(),
                     'line' => $e->getLine(),
-                    'trace' => explode("\n", $e->getTraceAsString())
-                ] : null
+                    'trace' => explode("\n", $e->getTraceAsString()),
+                ] : null,
             ], 500);
         }
     }
@@ -1019,7 +1028,7 @@ class CodificacionController extends Controller
                         ->orderBy('Prioridad')
                         ->get(),
                 ];
-            })
+            }),
         ]);
     }
 
@@ -1035,7 +1044,7 @@ class CodificacionController extends Controller
             if (empty($itemId) || empty($inventSizeId)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'ItemId e InventSizeId son requeridos'
+                    'message' => 'ItemId e InventSizeId son requeridos',
                 ], 400);
             }
 
@@ -1049,10 +1058,10 @@ class CodificacionController extends Controller
                 ->orderByDesc('ft.IDFLOG')
                 ->first();
 
-            if (!$flogs) {
+            if (! $flogs) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No se encontraron datos para la combinación de Clave AX y Tamaño'
+                    'message' => 'No se encontraron datos para la combinación de Clave AX y Tamaño',
                 ], 404);
             }
 
@@ -1061,18 +1070,19 @@ class CodificacionController extends Controller
                 'data' => [
                     'idflog' => $flogs->IDFLOG ?? null,
                     'nombre' => $flogs->NAMEPROYECT ?? '',
-                    'custname' => $flogs->CUSTNAME ?? ''
-                ]
+                    'custname' => $flogs->CUSTNAME ?? '',
+                ],
             ]);
         } catch (\Exception $e) {
             Log::error('CodificacionController::getFlogsData', [
                 'error' => $e->getMessage(),
                 'item_id' => $request->input('item_id'),
-                'invent_size_id' => $request->input('invent_size_id')
+                'invent_size_id' => $request->input('invent_size_id'),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener datos: ' . $e->getMessage()
+                'message' => 'Error al obtener datos: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1086,15 +1096,15 @@ class CodificacionController extends Controller
         if ($orden === '') {
             return response()->json([
                 'success' => false,
-                'message' => 'Orden de trabajo requerida'
+                'message' => 'Orden de trabajo requerida',
             ], 422);
         }
 
         $registro = $this->findCatCodificadoByOrden($orden);
-        if (!$registro) {
+        if (! $registro) {
             return response()->json([
                 'success' => false,
-                'message' => 'No se encontro registro en CatCodificados'
+                'message' => 'No se encontro registro en CatCodificados',
             ], 404);
         }
 
@@ -1112,7 +1122,7 @@ class CodificacionController extends Controller
                 'clave_ax' => trim((string) ($registro->ItemId ?? '')),
                 'tamano' => trim((string) ($registro->InventSizeId ?? '')),
                 'nombre' => trim((string) ($registro->Nombre ?? '')),
-            ]
+            ],
         ]);
     }
 
@@ -1138,7 +1148,7 @@ class CodificacionController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'Error de validación',
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
@@ -1148,10 +1158,10 @@ class CodificacionController extends Controller
 
             // Obtener el registro original
             $registroOriginal = ReqModelosCodificados::find($registroOriginalId);
-            if (!$registroOriginal) {
+            if (! $registroOriginal) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Registro original no encontrado'
+                    'message' => 'Registro original no encontrado',
                 ], 404);
             }
 
@@ -1166,11 +1176,12 @@ class CodificacionController extends Controller
                     if ($modo === 'importar') {
                         $ordenTrabajo = trim((string) ($dato['orden_trabajo'] ?? ''));
                         $catRegistro = $this->findCatCodificadoByOrden($ordenTrabajo);
-                        if (!$catRegistro) {
+                        if (! $catRegistro) {
                             DB::rollBack();
+
                             return response()->json([
                                 'success' => false,
-                                'message' => "No se encontro CatCodificados para orden {$ordenTrabajo}"
+                                'message' => "No se encontro CatCodificados para orden {$ordenTrabajo}",
                             ], 404);
                         }
 
@@ -1194,10 +1205,11 @@ class CodificacionController extends Controller
                         }
 
                         $data = $this->normalizeDataForTable($data, $columns, $lengths);
-                        $nuevoRegistro = new ReqModelosCodificados();
+                        $nuevoRegistro = new ReqModelosCodificados;
                         $nuevoRegistro->forceFill($data);
                         $nuevoRegistro->save();
                         $registrosCreados[] = $nuevoRegistro->Id;
+
                         continue;
                     }
 
@@ -1231,8 +1243,8 @@ class CodificacionController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => count($registrosCreados) . ' registro(s) creado(s) correctamente',
-                    'registros_ids' => $registrosCreados
+                    'message' => count($registrosCreados).' registro(s) creado(s) correctamente',
+                    'registros_ids' => $registrosCreados,
                 ]);
             } catch (\Exception $e) {
                 DB::rollBack();
@@ -1241,11 +1253,12 @@ class CodificacionController extends Controller
         } catch (\Exception $e) {
             Log::error('CodificacionController::duplicarImportar', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al crear los registros: ' . $e->getMessage()
+                'message' => 'Error al crear los registros: '.$e->getMessage(),
             ], 500);
         }
     }

@@ -14,6 +14,7 @@ class AtaMaquinasController extends Controller
     public function index()
     {
         $maquinas = AtaMaquinasModel::all();
+
         return view('modulos.catalogos-atadores.maquinas.index', compact('maquinas'));
     }
 
@@ -24,21 +25,21 @@ class AtaMaquinasController extends Controller
     {
         try {
             $request->validate([
-                'MaquinaId' => 'required|string|max:255|unique:AtaMaquinas,MaquinaId'
+                'MaquinaId' => 'required|string|max:255|unique:AtaMaquinas,MaquinaId',
             ]);
 
             AtaMaquinasModel::create([
-                'MaquinaId' => $request->MaquinaId
+                'MaquinaId' => $request->MaquinaId,
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Máquina creada exitosamente'
+                'message' => 'Máquina creada exitosamente',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al crear la máquina: ' . $e->getMessage()
+                'message' => 'Error al crear la máquina: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -52,21 +53,21 @@ class AtaMaquinasController extends Controller
             $maquina = AtaMaquinasModel::where('MaquinaId', $maquinaId)->firstOrFail();
 
             $request->validate([
-                'MaquinaId' => 'required|string|max:255|unique:AtaMaquinas,MaquinaId,' . $maquinaId . ',MaquinaId'
+                'MaquinaId' => 'required|string|max:255|unique:AtaMaquinas,MaquinaId,'.$maquinaId.',MaquinaId',
             ]);
 
             $maquina->update([
-                'MaquinaId' => $request->MaquinaId
+                'MaquinaId' => $request->MaquinaId,
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Máquina actualizada exitosamente'
+                'message' => 'Máquina actualizada exitosamente',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al actualizar la máquina: ' . $e->getMessage()
+                'message' => 'Error al actualizar la máquina: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -82,12 +83,12 @@ class AtaMaquinasController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Máquina eliminada exitosamente'
+                'message' => 'Máquina eliminada exitosamente',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al eliminar la máquina: ' . $e->getMessage()
+                'message' => 'Error al eliminar la máquina: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -99,14 +100,15 @@ class AtaMaquinasController extends Controller
     {
         try {
             $maquina = AtaMaquinasModel::where('MaquinaId', $maquinaId)->firstOrFail();
+
             return response()->json([
                 'success' => true,
-                'data' => $maquina
+                'data' => $maquina,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Máquina no encontrada'
+                'message' => 'Máquina no encontrada',
             ], 404);
         }
     }

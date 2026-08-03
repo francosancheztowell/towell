@@ -3,18 +3,22 @@
 namespace App\Imports;
 
 use App\Models\Planeacion\ReqEficienciaStd;
-use Maatwebsite\Excel\Concerns\ToCollection;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Concerns\ToCollection;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class ReqEficienciaStdImport implements ToCollection, WithHeadingRow, WithChunkReading
+class ReqEficienciaStdImport implements ToCollection, WithChunkReading, WithHeadingRow
 {
     private int $rowCounter = 0;
+
     private int $processedRows = 0;
+
     private int $skippedRows = 0;
+
     private int $createdRows = 0;
+
     private int $updatedRows = 0;
 
     private array $errores = [];
@@ -28,10 +32,11 @@ class ReqEficienciaStdImport implements ToCollection, WithHeadingRow, WithChunkR
         if (is_null($key)) {
             return null;
         }
-        $key = trim((string)$key);
+        $key = trim((string) $key);
         $key = strtolower($key);
         // Normalizar espacios múltiples a uno
         $key = preg_replace('/\s+/', ' ', $key);
+
         // Normalizar guiones y guiones bajos a espacios para comparación flexible
         // Pero primero intentamos preservar el formato original
         return trim($key);
@@ -110,7 +115,7 @@ class ReqEficienciaStdImport implements ToCollection, WithHeadingRow, WithChunkR
                     'notelarid',
                     'no telar id',
                     'No. Telar',
-                    'No. de Telar'
+                    'No. de Telar',
                 ]), 10);
 
                 $fibra = $this->parseString($this->getValueByKey($row, 'Fibra', ['FibraId', 'fibra', 'fibraid', 'TipoHilo', 'Tipo de Hilo', 'Hilo', 'hilo']), 120);
@@ -121,6 +126,7 @@ class ReqEficienciaStdImport implements ToCollection, WithHeadingRow, WithChunkR
                 if (empty($telar) || empty($fibra) || is_null($eficiencia)) {
                     $this->errores[] = "Fila {$this->rowCounter}: Faltan datos requeridos (Telar: '{$telar}', Fibra: '{$fibra}', Eficiencia: '{$eficiencia}')";
                     $this->skippedRows++;
+
                     continue;
                 }
 
@@ -135,7 +141,7 @@ class ReqEficienciaStdImport implements ToCollection, WithHeadingRow, WithChunkR
                 if ($existe) {
                     // Actualizar registro existente
                     $existe->update([
-                        'Eficiencia' => $eficiencia
+                        'Eficiencia' => $eficiencia,
                     ]);
                     $this->updatedRows++;
                 } else {
@@ -145,7 +151,7 @@ class ReqEficienciaStdImport implements ToCollection, WithHeadingRow, WithChunkR
                         'NoTelarId' => $telar,
                         'FibraId' => $fibra,
                         'Eficiencia' => $eficiencia,
-                        'Densidad' => $densidad
+                        'Densidad' => $densidad,
                     ]);
                     $this->createdRows++;
                 }
@@ -153,13 +159,13 @@ class ReqEficienciaStdImport implements ToCollection, WithHeadingRow, WithChunkR
                 $this->processedRows++;
 
             } catch (\Exception $e) {
-                Log::error('Error importing row: ' . $e->getMessage(), [
+                Log::error('Error importing row: '.$e->getMessage(), [
                     'row' => $row->toArray(),
                     'row_counter' => $this->rowCounter,
                     'error_line' => $e->getLine(),
-                    'error_file' => $e->getFile()
+                    'error_file' => $e->getFile(),
                 ]);
-                $this->errores[] = "Fila {$this->rowCounter}: Error al procesar - " . $e->getMessage();
+                $this->errores[] = "Fila {$this->rowCounter}: Error al procesar - ".$e->getMessage();
                 $this->skippedRows++;
             }
         }
@@ -181,7 +187,7 @@ class ReqEficienciaStdImport implements ToCollection, WithHeadingRow, WithChunkR
             'updated_rows' => $this->updatedRows,
             'skipped_rows' => $this->skippedRows,
             'total_rows' => $this->rowCounter,
-            'errores' => $this->errores
+            'errores' => $this->errores,
         ];
     }
 
@@ -266,7 +272,7 @@ class ReqEficienciaStdImport implements ToCollection, WithHeadingRow, WithChunkR
         }
 
         // Convertir a string preservando el valor original
-        $s = (string)$value;
+        $s = (string) $value;
 
         // Limpiar solo espacios al inicio y final, NO normalizar espacios internos
         // para preservar el formato original del texto
@@ -284,14 +290,10 @@ class ReqEficienciaStdImport implements ToCollection, WithHeadingRow, WithChunkR
             } else {
                 $s = substr($s, 0, $maxLength);
             }
-        } elseif (!function_exists('mb_strlen') && strlen($s) > $maxLength) {
+        } elseif (! function_exists('mb_strlen') && strlen($s) > $maxLength) {
             $s = substr($s, 0, $maxLength);
         }
 
         return $s;
     }
-
-
-
 }
-

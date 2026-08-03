@@ -4,9 +4,10 @@ namespace App\Exports;
 
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
-use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithColumnFormatting;
 use Maatwebsite\Excel\Concerns\WithCharts;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Chart\Chart;
 use PhpOffice\PhpSpreadsheet\Chart\DataSeries;
 use PhpOffice\PhpSpreadsheet\Chart\DataSeriesValues;
@@ -14,13 +15,12 @@ use PhpOffice\PhpSpreadsheet\Chart\Layout;
 use PhpOffice\PhpSpreadsheet\Chart\Legend;
 use PhpOffice\PhpSpreadsheet\Chart\PlotArea;
 use PhpOffice\PhpSpreadsheet\Chart\Title;
-
-use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ReporteResumenSemanalEngomadoExport implements FromArray, WithTitle, ShouldAutoSize, WithColumnFormatting, WithCharts, WithStyles
+class ReporteResumenSemanalEngomadoExport implements FromArray, ShouldAutoSize, WithCharts, WithColumnFormatting, WithStyles, WithTitle
 {
     protected array $datosSemanales;
+
     private int $rowCount;
 
     public function __construct(array $datosSemanales)
@@ -153,7 +153,7 @@ class ReporteResumenSemanalEngomadoExport implements FromArray, WithTitle, Shoul
             $series1
         );
 
-        $plotArea1 = new PlotArea(new Layout(), [$dataSeries1]);
+        $plotArea1 = new PlotArea(new Layout, [$dataSeries1]);
         $legend1 = new Legend(Legend::POSITION_TOP, null, false);
         $title1 = new Title('Promedios por Semana');
 
@@ -187,7 +187,7 @@ class ReporteResumenSemanalEngomadoExport implements FromArray, WithTitle, Shoul
             $series2
         );
 
-        $plotArea2 = new PlotArea(new Layout(), [$dataSeries2]);
+        $plotArea2 = new PlotArea(new Layout, [$dataSeries2]);
         $legend2 = new Legend(Legend::POSITION_TOP, null, false);
         $title2 = new Title('Eficiencia por Semana');
 

@@ -99,7 +99,7 @@ class ReporteMantenimientoExport implements FromArray, WithEvents, WithTitle
 
         throw new RuntimeException(
             'No se encontró la plantilla ReporteMantenimiento.xlsx. '
-            . 'Colócala en resources/templates/ o en storage/app/templates/.'
+            .'Colócala en resources/templates/ o en storage/app/templates/.'
         );
     }
 
@@ -118,22 +118,23 @@ class ReporteMantenimientoExport implements FromArray, WithEvents, WithTitle
         $numCols = count(self::HEADERS);
         $lastRow = 1 + max(1, $dataRowCount); // al menos header + 1 fila para que Excel reconozca la tabla
         $lastCol = Coordinate::stringFromColumnIndex($numCols);
-        $range = 'A1:' . $lastCol . $lastRow;
+        $range = 'A1:'.$lastCol.$lastRow;
 
         $table = $sheet->getTableByName('Tabla2');
-        if (!$table) {
+        if (! $table) {
             $tables = $sheet->getTableCollection();
             $table = count($tables) > 0 ? $tables[0] : null;
         }
 
         if ($table) {
             $table->setRange($range);
+
             return;
         }
 
         $newTable = new Table($range, 'TablaMantenimiento');
         $newTable->setStyle(
-            (new TableStyle())->setTheme(TableStyle::TABLE_STYLE_MEDIUM2)
+            (new TableStyle)->setTheme(TableStyle::TABLE_STYLE_MEDIUM2)
         );
         $sheet->addTable($newTable);
     }
@@ -234,6 +235,7 @@ class ReporteMantenimientoExport implements FromArray, WithEvents, WithTitle
                     'color' => ['argb' => Color::COLOR_DARKGREEN],
                 ],
             ]);
+
             return;
         }
 
@@ -267,6 +269,7 @@ class ReporteMantenimientoExport implements FromArray, WithEvents, WithTitle
                     'color' => ['argb' => 'FF374151'],
                 ],
             ]);
+
             return;
         }
 
@@ -281,6 +284,7 @@ class ReporteMantenimientoExport implements FromArray, WithEvents, WithTitle
                     'color' => ['argb' => 'FF1E3A8A'],
                 ],
             ]);
+
             return;
         }
 
@@ -313,6 +317,7 @@ class ReporteMantenimientoExport implements FromArray, WithEvents, WithTitle
         $text = mb_strtolower(trim($text), 'UTF-8');
         $from = ['á', 'é', 'í', 'ó', 'ú', 'ü', 'ñ'];
         $to = ['a', 'e', 'i', 'o', 'u', 'u', 'n'];
+
         return str_replace($from, $to, $text);
     }
 
@@ -375,7 +380,8 @@ class ReporteMantenimientoExport implements FromArray, WithEvents, WithTitle
         $minutes = (int) $diff->i;
 
         $text = "{$days}d {$hours}h {$minutes}m";
-        return $negative ? '-' . $text : $text;
+
+        return $negative ? '-'.$text : $text;
     }
 
     private function buildDateTime(mixed $date, mixed $time): ?Carbon
@@ -387,7 +393,7 @@ class ReporteMantenimientoExport implements FromArray, WithEvents, WithTitle
                 return null;
             }
 
-            return Carbon::parse($d . ' ' . $t);
+            return Carbon::parse($d.' '.$t);
         } catch (\Throwable $e) {
             return null;
         }

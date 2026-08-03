@@ -18,23 +18,37 @@ use RuntimeException;
 class ReportesUrdidoExport implements FromArray, WithEvents, WithTitle
 {
     protected array $porFecha;
+
     protected array $defectosData;
 
     private const TEMPLATE_COL_MAX = 30; // AD
+
     private const TEMPLATE_ROW_MAX = 44;
+
     private const BLOCK_ROWS = 44;
+
     private const SPACER_ROWS = 2;
+
     private const DATA_ROWS = 40;
+
     private const OP_COLS = ['W', 'X', 'Y', 'Z', 'AA', 'AB'];
 
     private const DEFECT_QUALITY_START_ROW = 14;
+
     private const DEFECT_QUALITY_TEMPLATE_ROWS = 25;
+
     private const DEFECT_SECURITY_START_ROW = 39;
+
     private const DEFECT_SECURITY_TEMPLATE_ROWS = 20;
+
     private const DEFECT_FOOTER_START_ROW = 60;
+
     private const DEFECT_DATA_FIRST_COL = 2; // B
+
     private const DEFECT_DATA_LAST_COL = 8; // H
+
     private const DEFECT_FOOTER_COL_START = 2; // B
+
     private const DEFECT_FOOTER_VISIBLE_COLS = 6; // B:G
 
     public function __construct(array $porFecha, array $defectosData = [])
@@ -133,7 +147,7 @@ class ReportesUrdidoExport implements FromArray, WithEvents, WithTitle
 
         throw new RuntimeException(
             'No se encontro la plantilla "formato reportes.xlsx". '
-            . 'Colocala en resources/templates/ o en storage/app/templates/.'
+            .'Colocala en resources/templates/ o en storage/app/templates/.'
         );
     }
 
@@ -509,9 +523,9 @@ class ReportesUrdidoExport implements FromArray, WithEvents, WithTitle
         $sheet->setCellValue("A{$qualityPenaltyRow2}", 'Penalizar');
         $sheet->setCellValue("A{$qualityScoreRow2}", 'Calidad');
         $sheet->setCellValue("A{$securityPenaltyRow1}", 'Penalizar');
-        $sheet->setCellValue("A{$securityScoreRow1}", "Seguridad 5`s");
+        $sheet->setCellValue("A{$securityScoreRow1}", 'Seguridad 5`s');
         $sheet->setCellValue("A{$securityPenaltyRow2}", 'Penalizar');
-        $sheet->setCellValue("A{$securityScoreRow2}", "Seguridad 5`s");
+        $sheet->setCellValue("A{$securityScoreRow2}", 'Seguridad 5`s');
 
         $qualityCriteriaRange = '$G$'.$layout['quality_start'].':$G$'.$layout['quality_end'];
         $qualityValueRange = '$H$'.$layout['quality_start'].':$H$'.$layout['quality_end'];

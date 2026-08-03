@@ -3,19 +3,21 @@
 namespace App\Http\Controllers\Tejedores\BPMTejedores;
 
 use App\Http\Controllers\Controller;
-use App\Models\Tejedores\TelBpmModel;
-use App\Models\Tejedores\TelBpmLineModel;
-use App\Models\Tejedores\TelActividadesBPM;
 use App\Models\Sistema\SYSUsuario;
+use App\Models\Tejedores\TelActividadesBPM;
+use App\Models\Tejedores\TelBpmLineModel;
+use App\Models\Tejedores\TelBpmModel;
+use App\Models\Tejedores\TelTelaresOperador;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Models\Tejedores\TelTelaresOperador;
 
 class TelBpmLineController extends Controller
 {
     private const EST_CREADO = 'Creado';
-    private const EST_TERM   = 'Terminado';
-    private const EST_AUTO   = 'Autorizado';
+
+    private const EST_TERM = 'Terminado';
+
+    private const EST_AUTO = 'Autorizado';
 
     /** Vista de edición del checklist por Folio */
     public function index(string $folio)
@@ -23,23 +25,23 @@ class TelBpmLineController extends Controller
         $header = TelBpmModel::with('lines')->findOrFail($folio);
 
         // Catálogo de actividades para mostrar filas (si quieres listar todas)
-        $actividades = TelActividadesBPM::orderBy('Orden')->get(['Orden','Actividad'])
-                        ->map(fn($a)=>['Orden'=>$a->Orden, 'Actividad'=>$a->Actividad]);
+        $actividades = TelActividadesBPM::orderBy('Orden')->get(['Orden', 'Actividad'])
+            ->map(fn ($a) => ['Orden' => $a->Orden, 'Actividad' => $a->Actividad]);
 
         // Agrupar líneas existentes por (Orden, NoTelarId)
         $lineas = TelBpmLineModel::where('Folio', $folio)
-                    ->orderBy('Orden')
-                    ->get();
+            ->orderBy('Orden')
+            ->get();
 
         // Los telares visibles: asociados al usuario que RECIBE (TelTelaresOperador)
         $telares = collect();
         $salonPorTelar = [];
         try {
             $asignados = TelTelaresOperador::query()
-                ->where('numero_empleado', (string)$header->CveEmplRec)
-                ->get(['NoTelarId','SalonTejidoId']);
+                ->where('numero_empleado', (string) $header->CveEmplRec)
+                ->get(['NoTelarId', 'SalonTejidoId']);
             $telares = $asignados->pluck('NoTelarId')->filter()->unique()->values();
-            $salonPorTelar = $asignados->mapWithKeys(fn($r)=>[$r->NoTelarId => $r->SalonTejidoId])->all();
+            $salonPorTelar = $asignados->mapWithKeys(fn ($r) => [$r->NoTelarId => $r->SalonTejidoId])->all();
         } catch (\Throwable $e) {
             // Fallback a los que existan en líneas
             $telares = $lineas->pluck('NoTelarId')->filter()->unique()->values();
@@ -51,28 +53,28 @@ class TelBpmLineController extends Controller
             try {
                 $existentesSet = [];
                 foreach ($lineas as $ln) {
-                    $existentesSet[((int)($ln->Orden ?? 0)) . '_' . (string)$ln->NoTelarId] = true;
+                    $existentesSet[((int) ($ln->Orden ?? 0)).'_'.(string) $ln->NoTelarId] = true;
                 }
                 $inserts = [];
                 foreach ($actividades as $a) {
-                    $orden = (int)$a['Orden'];
-                    $actividad = (string)$a['Actividad'];
+                    $orden = (int) $a['Orden'];
+                    $actividad = (string) $a['Actividad'];
                     foreach ($telares as $t) {
-                        $key = $orden . '_' . (string)$t;
-                        if (!isset($existentesSet[$key])) {
+                        $key = $orden.'_'.(string) $t;
+                        if (! isset($existentesSet[$key])) {
                             $inserts[] = [
-                                'Folio'         => $folio,
-                                'Orden'         => $orden,
-                                'NoTelarId'     => (string)$t,
-                                'Actividad'     => $actividad,
+                                'Folio' => $folio,
+                                'Orden' => $orden,
+                                'NoTelarId' => (string) $t,
+                                'Actividad' => $actividad,
                                 'SalonTejidoId' => $salonPorTelar[$t] ?? null,
-                                'TurnoRecibe'   => (string)$header->TurnoRecibe,
-                                'Valor'         => null,
+                                'TurnoRecibe' => (string) $header->TurnoRecibe,
+                                'Valor' => null,
                             ];
                         }
                     }
                 }
-                if (!empty($inserts)) {
+                if (! empty($inserts)) {
                     DB::transaction(function () use ($inserts) {
                         foreach (array_chunk($inserts, 50) as $chunk) {
                             DB::table('TelBPMLine')->insert($chunk);
@@ -96,7 +98,7 @@ class TelBpmLineController extends Controller
                 $num = $u->numero_empleado ?? $u->cve ?? null;
                 if ($num) {
                     $sysU = SYSUsuario::where('numero_empleado', $num)->first();
-                    $puesto = strtolower(trim((string)($sysU->puesto ?? '')));
+                    $puesto = strtolower(trim((string) ($sysU->puesto ?? '')));
                     $esSupervisor = ($puesto === 'supervisor');
                 }
             }
@@ -105,11 +107,11 @@ class TelBpmLineController extends Controller
         }
 
         return view('modulos.bpm-tejedores.tel-bpm-line.index', [
-            'folio'       => $folio,
-            'header'      => $header,
+            'folio' => $folio,
+            'header' => $header,
             'actividades' => $actividades,
-            'lineas'      => $lineas,
-            'telares'     => $telares,
+            'lineas' => $lineas,
+            'telares' => $telares,
             'salonPorTelar' => $salonPorTelar,
             'comentarios' => $comentarios,
             'esSupervisor' => $esSupervisor,
@@ -126,35 +128,35 @@ class TelBpmLineController extends Controller
         }
 
         $data = $request->validate([
-            'Orden'       => ['required','integer','min:1'],
-            'NoTelarId'   => ['required','string','max:10'],
-            'SalonTejidoId' => ['nullable','string','max:10'],
-            'TurnoRecibe' => ['nullable','string','max:10'],
-            'Actividad'   => ['nullable','string','max:100'], // opcional (por si el front lo manda)
+            'Orden' => ['required', 'integer', 'min:1'],
+            'NoTelarId' => ['required', 'string', 'max:10'],
+            'SalonTejidoId' => ['nullable', 'string', 'max:10'],
+            'TurnoRecibe' => ['nullable', 'string', 'max:10'],
+            'Actividad' => ['nullable', 'string', 'max:100'], // opcional (por si el front lo manda)
         ]);
 
         try {
             // Leer valor actual para esta celda específica
             $curr = DB::table('TelBPMLine')
                 ->where('Folio', $folio)
-                ->where('Orden', (int)$data['Orden'])
-                ->where('NoTelarId', (string)$data['NoTelarId'])
+                ->where('Orden', (int) $data['Orden'])
+                ->where('NoTelarId', (string) $data['NoTelarId'])
                 ->value('Valor');
 
             $next = $this->nextValor($curr);
-            $actividad = $data['Actividad'] ?? TelActividadesBPM::where('Orden', (int)$data['Orden'])->value('Actividad');
+            $actividad = $data['Actividad'] ?? TelActividadesBPM::where('Orden', (int) $data['Orden'])->value('Actividad');
 
             DB::table('TelBPMLine')->updateOrInsert(
                 [
-                    'Folio'     => $folio,
-                    'Orden'     => (int)$data['Orden'],
-                    'NoTelarId' => (string)$data['NoTelarId'],
+                    'Folio' => $folio,
+                    'Orden' => (int) $data['Orden'],
+                    'NoTelarId' => (string) $data['NoTelarId'],
                 ],
                 [
-                    'Actividad'     => $actividad,
+                    'Actividad' => $actividad,
                     'SalonTejidoId' => $data['SalonTejidoId'] ?? null,
-                    'TurnoRecibe'   => $data['TurnoRecibe'] ?? null,
-                    'Valor'         => $next,
+                    'TurnoRecibe' => $data['TurnoRecibe'] ?? null,
+                    'Valor' => $next,
                 ]
             );
 
@@ -174,42 +176,51 @@ class TelBpmLineController extends Controller
         }
 
         $rows = $request->validate([
-            'rows' => ['required','array','min:1'],
-            'rows.*.Orden'       => ['required','integer','min:1'],
-            'rows.*.NoTelarId'   => ['required','string','max:10'],
-            'rows.*.Actividad'   => ['nullable','string','max:100'],
-            'rows.*.SalonTejidoId' => ['nullable','string','max:10'],
-            'rows.*.TurnoRecibe' => ['nullable','string','max:10'],
-            'rows.*.Valor'       => ['nullable','string','max:50'], // 'OK' | 'X' | 'M' | null
+            'rows' => ['required', 'array', 'min:1'],
+            'rows.*.Orden' => ['required', 'integer', 'min:1'],
+            'rows.*.NoTelarId' => ['required', 'string', 'max:10'],
+            'rows.*.Actividad' => ['nullable', 'string', 'max:100'],
+            'rows.*.SalonTejidoId' => ['nullable', 'string', 'max:10'],
+            'rows.*.TurnoRecibe' => ['nullable', 'string', 'max:10'],
+            'rows.*.Valor' => ['nullable', 'string', 'max:50'], // 'OK' | 'X' | 'M' | null
         ])['rows'];
 
         DB::transaction(function () use ($rows, $folio) {
             foreach ($rows as $r) {
-                $orden = (int)($r['Orden'] ?? 0);
-                $telar = (string)($r['NoTelarId'] ?? '');
-                if ($orden <= 0 || $telar === '') continue;
+                $orden = (int) ($r['Orden'] ?? 0);
+                $telar = (string) ($r['NoTelarId'] ?? '');
+                if ($orden <= 0 || $telar === '') {
+                    continue;
+                }
 
                 $actividad = $r['Actividad'] ?? TelActividadesBPM::where('Orden', $orden)->value('Actividad');
                 $valor = $r['Valor'] ?? null;
-                if ($valor === '') $valor = null;
-                if ($valor !== null && !in_array($valor, ['OK','X','M'], true)) {
-                    if ($valor === '1') $valor = 'OK';
-                    elseif ($valor === '-1') $valor = 'X';
-                    elseif (strtoupper($valor) === 'M' || $valor === 'Mantenimiento') $valor = 'M';
-                    else $valor = null;
+                if ($valor === '') {
+                    $valor = null;
+                }
+                if ($valor !== null && ! in_array($valor, ['OK', 'X', 'M'], true)) {
+                    if ($valor === '1') {
+                        $valor = 'OK';
+                    } elseif ($valor === '-1') {
+                        $valor = 'X';
+                    } elseif (strtoupper($valor) === 'M' || $valor === 'Mantenimiento') {
+                        $valor = 'M';
+                    } else {
+                        $valor = null;
+                    }
                 }
 
                 DB::table('TelBPMLine')->updateOrInsert(
                     [
-                        'Folio'     => $folio,
-                        'Orden'     => $orden,
+                        'Folio' => $folio,
+                        'Orden' => $orden,
                         'NoTelarId' => $telar,
                     ],
                     [
-                        'Actividad'     => $actividad,
+                        'Actividad' => $actividad,
                         'SalonTejidoId' => $r['SalonTejidoId'] ?? null,
-                        'TurnoRecibe'   => $r['TurnoRecibe'] ?? null,
-                        'Valor'         => $valor,
+                        'TurnoRecibe' => $r['TurnoRecibe'] ?? null,
+                        'Valor' => $valor,
                     ]
                 );
             }
@@ -228,7 +239,7 @@ class TelBpmLineController extends Controller
         }
 
         $data = $request->validate([
-            'Comentarios' => ['nullable','string','max:150'],
+            'Comentarios' => ['nullable', 'string', 'max:150'],
         ]);
 
         $valor = $data['Comentarios'] ?? null;
@@ -246,6 +257,7 @@ class TelBpmLineController extends Controller
             $msg = $valor === null || $valor === ''
                 ? 'Comentarios actualizados.'
                 : 'Comentario guardado correctamente.';
+
             return response()->json(['ok' => true, 'msg' => $msg]);
         } catch (\Throwable $e) {
             return response()->json(['ok' => false, 'msg' => $e->getMessage()], 500);
@@ -264,6 +276,7 @@ class TelBpmLineController extends Controller
         }
 
         $item->update(['Status' => self::EST_TERM]);
+
         // Ruta real de navegación
         return redirect()->route('tejedores.bpm')->with('success', 'Folio marcado como Terminado.');
     }
@@ -284,9 +297,9 @@ class TelBpmLineController extends Controller
         }
 
         $item->update([
-            'Status'          => self::EST_AUTO,
-            'CveEmplAutoriza' => $code !== null ? (string)$code : '',
-            'NomEmplAutoriza' => $name !== null ? (string)$name : '',
+            'Status' => self::EST_AUTO,
+            'CveEmplAutoriza' => $code !== null ? (string) $code : '',
+            'NomEmplAutoriza' => $name !== null ? (string) $name : '',
         ]);
 
         // Ruta real de navegación
@@ -309,7 +322,7 @@ class TelBpmLineController extends Controller
         }
 
         $item->update([
-            'Status'          => self::EST_CREADO,
+            'Status' => self::EST_CREADO,
             'CveEmplAutoriza' => null,
             'NomEmplAutoriza' => null,
         ]);
@@ -323,26 +336,33 @@ class TelBpmLineController extends Controller
     private function nextValor($curr): ?string
     {
         // NULL → 'OK' → 'X' → 'M' (Mantenimiento) → NULL
-        if ($curr === null || $curr === '') return 'OK';
-        if ($curr === 'OK') return 'X';
-        if ($curr === 'X') return 'M';
+        if ($curr === null || $curr === '') {
+            return 'OK';
+        }
+        if ($curr === 'OK') {
+            return 'X';
+        }
+        if ($curr === 'X') {
+            return 'M';
+        }
+
         return null;
     }
 
     private function getSupervisorInfo(string $accion): array
     {
         $u = \Illuminate\Support\Facades\Auth::user();
-        if (!$u) {
+        if (! $u) {
             throw new \RuntimeException('Usuario no autenticado.');
         }
 
         $numeroEmpleado = $u->numero_empleado ?? $u->cve ?? null;
-        if (!$numeroEmpleado) {
+        if (! $numeroEmpleado) {
             throw new \RuntimeException("No se pudo identificar el usuario para validar permisos de {$accion}.");
         }
 
         $sysUsuario = SYSUsuario::where('numero_empleado', $numeroEmpleado)->first();
-        if (!$sysUsuario || strtolower(trim($sysUsuario->puesto ?? '')) !== 'supervisor') {
+        if (! $sysUsuario || strtolower(trim($sysUsuario->puesto ?? '')) !== 'supervisor') {
             throw new \RuntimeException("No tienes permisos para {$accion}. Solo los supervisores pueden realizar esta acción.");
         }
 

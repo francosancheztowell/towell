@@ -14,13 +14,12 @@ class EngActividadesBpmController extends Controller
      */
     public function index(Request $request)
     {
-        $q       = trim((string) $request->get('q', ''));
+        $q = trim((string) $request->get('q', ''));
         $perPage = (int) $request->get('per_page', 15);
 
         $items = EngActividadesBpmModel::query()
-            ->when($q !== '', fn($qry) =>
-                $qry->where('Actividad', 'like', "%{$q}%")
-                    ->orWhere('Orden', 'like', "%{$q}%")
+            ->when($q !== '', fn ($qry) => $qry->where('Actividad', 'like', "%{$q}%")
+                ->orWhere('Orden', 'like', "%{$q}%")
             )
             ->orderBy('Orden')
             ->orderBy('Id')
@@ -37,7 +36,7 @@ class EngActividadesBpmController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'Orden'     => ['nullable', 'integer', 'min:1'],
+            'Orden' => ['nullable', 'integer', 'min:1'],
             'Actividad' => ['required', 'string', 'max:100'],
             // Si quieres que no se repita el nombre:
             // 'Actividad' => ['required','string','max:100','unique:EngActividadesBPM,Actividad'],
@@ -56,7 +55,7 @@ class EngActividadesBpmController extends Controller
     public function update(Request $request, EngActividadesBpmModel $engActividadesBpm)
     {
         $data = $request->validate([
-            'Orden'     => ['nullable', 'integer', 'min:1'],
+            'Orden' => ['nullable', 'integer', 'min:1'],
             'Actividad' => ['required', 'string', 'max:100'],
             // Si activaste unique en store, cámbialo a:
             // 'Actividad' => ['required','string','max:100','unique:EngActividadesBPM,Actividad,'.$engActividadesBpm->Id.',Id'],

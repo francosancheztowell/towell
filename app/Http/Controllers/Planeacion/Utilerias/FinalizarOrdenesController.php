@@ -2,8 +2,11 @@
 
 /**
  * @file FinalizarOrdenesController.php
+ *
  * @description Controlador para finalizar órdenes de producción en telares.
+ *
  * @dependencies ReqProgramaTejido, CatCodificados, TejidoHelpers
+ *
  * @relatedFiles MoverOrdenesController.php, resources/views/planeacion/utileria/finalizar-ordenes.blade.php
  *
  * ! REPORTE DE FUNCIONALIDAD - Finalizar Órdenes
@@ -31,8 +34,8 @@ use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\MovimientoDesarroll
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\OrdenFinalizadaAuditoria;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Support\Planeacion\TelarSalonResolver;
 use App\Support\Http\Concerns\HandlesApiErrors;
+use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -64,12 +67,12 @@ class FinalizarOrdenesController extends Controller
                     return [
                         'salon' => $salon,
                         'telar' => $telar,
-                        'label' => $salon . ' - ' . $telar,
+                        'label' => $salon.' - '.$telar,
                     ];
                 })
                 ->filter(fn (array $telar) => $telar['telar'] !== '')
-                ->unique(fn (array $telar) => $telar['salon'] . '|' . $telar['telar'])
-                ->sortBy(fn (array $telar) => $telar['salon'] . '|' . TelarSalonResolver::telarSortKey($telar['telar']))
+                ->unique(fn (array $telar) => $telar['salon'].'|'.$telar['telar'])
+                ->sortBy(fn (array $telar) => $telar['salon'].'|'.TelarSalonResolver::telarSortKey($telar['telar']))
                 ->values();
 
             return response()->json(['success' => true, 'telares' => $telares]);
@@ -87,8 +90,8 @@ class FinalizarOrdenesController extends Controller
      * Cruza con CatCodificados para obtener FechaTejido (fecha de cambio).
      * Incluye enProceso para marcar en la UI cuáles están en proceso.
      *
-     * @param string $salonId Salón del telar
-     * @param string $noTelarId Número de telar
+     * @param  string  $salonId  Salón del telar
+     * @param  string  $noTelarId  Número de telar
      */
     public function getOrdenesByTelar(Request $request): JsonResponse
     {
@@ -96,17 +99,17 @@ class FinalizarOrdenesController extends Controller
             $noTelarId = TelarSalonResolver::normalizeTelar($request->query('telar'));
             $salonId = TelarSalonResolver::normalizeSalon($request->query('salon'), $noTelarId);
 
-            if (!$salonId || !$noTelarId) {
+            if (! $salonId || ! $noTelarId) {
                 return response()->json(['success' => false, 'message' => 'Salón y telar son requeridos'], 422);
             }
 
             $registros = TelarSalonResolver::applyTelarFilter(
                 ReqProgramaTejido::query()
-                ->select('Id', 'NoProduccion', 'TamanoClave', 'NombreProducto', 'SalonTejidoId', 'NoTelarId', 'Posicion', 'EnProceso', 'SaldoPedido', 'Produccion', 'TotalPedido')
-                ->whereNotNull('NoProduccion')
-                ->where('NoProduccion', '!=', '')
-                ->orderBy('Posicion', 'asc')
-                ->orderBy('FechaInicio', 'asc'),
+                    ->select('Id', 'NoProduccion', 'TamanoClave', 'NombreProducto', 'SalonTejidoId', 'NoTelarId', 'Posicion', 'EnProceso', 'SaldoPedido', 'Produccion', 'TotalPedido')
+                    ->whereNotNull('NoProduccion')
+                    ->where('NoProduccion', '!=', '')
+                    ->orderBy('Posicion', 'asc')
+                    ->orderBy('FechaInicio', 'asc'),
                 $salonId,
                 $noTelarId
             )->get();
@@ -115,7 +118,7 @@ class FinalizarOrdenesController extends Controller
             $ordenes = $registros->pluck('NoProduccion')->filter()->unique()->values()->toArray();
             $catMap = [];
 
-            if (!empty($ordenes)) {
+            if (! empty($ordenes)) {
                 $placeholders = implode(',', array_fill(0, count($ordenes), '?'));
                 $cats = CatCodificados::query()
                     ->select('OrdenTejido', 'FechaTejido')
@@ -124,7 +127,7 @@ class FinalizarOrdenesController extends Controller
 
                 foreach ($cats as $cat) {
                     $key = trim((string) ($cat->OrdenTejido ?? ''));
-                    if ($key !== '' && !isset($catMap[$key])) {
+                    if ($key !== '' && ! isset($catMap[$key])) {
                         $catMap[$key] = $cat->FechaTejido
                             ? Carbon::parse($cat->FechaTejido)->format('d/m/Y')
                             : '';
@@ -134,6 +137,7 @@ class FinalizarOrdenesController extends Controller
 
             $items = $registros->map(function (ReqProgramaTejido $r) use ($catMap) {
                 $noOrden = trim((string) ($r->NoProduccion ?? ''));
+
                 return [
                     'id' => $r->Id,
                     'noOrden' => $noOrden,
@@ -179,15 +183,15 @@ class FinalizarOrdenesController extends Controller
     public function finalizarOrdenes(Request $request): JsonResponse
     {
         $request->validate([
-            'ids'   => 'required|array|min:1',
+            'ids' => 'required|array|min:1',
             'ids.*' => 'required|integer',
         ]);
 
         $ids = $request->input('ids');
 
-        $dispatcher     = ReqProgramaTejido::getEventDispatcher();
-        $idsAfectados   = [];   // IDs de registros restantes en telares afectados
-        $tabla          = ReqProgramaTejido::tableName();
+        $dispatcher = ReqProgramaTejido::getEventDispatcher();
+        $idsAfectados = [];   // IDs de registros restantes en telares afectados
+        $tabla = ReqProgramaTejido::tableName();
 
         DB::beginTransaction();
         try {
@@ -199,28 +203,29 @@ class FinalizarOrdenesController extends Controller
 
             if ($registros->isEmpty()) {
                 DB::rollBack();
+
                 return response()->json([
                     'success' => false,
                     'message' => 'No se encontraron órdenes con NoOrden válido en los IDs proporcionados',
                 ], 422);
             }
 
-            $telaresAfectados        = [];
+            $telaresAfectados = [];
             $telaresNecesitanEnProceso = [];  // telares cuyo EnProceso=1 fue eliminado
-            $ahora                   = Carbon::now();
-            $movimientoService       = new MovimientoDesarrolladorService();
-            $ordCompartidasVistas    = [];
+            $ahora = Carbon::now();
+            $movimientoService = new MovimientoDesarrolladorService;
+            $ordCompartidasVistas = [];
 
             // ─── PASO 1: Finalizar cada registro y sincronizar CatCodificados ────────
             /** @var ReqProgramaTejido $registro */
             foreach ($registros as $registro) {
                 $salonTejido = TelarSalonResolver::normalizeSalon($registro->SalonTejidoId, $registro->NoTelarId);
-                $noTelarId   = TelarSalonResolver::normalizeTelar($registro->NoTelarId);
-                $key         = $salonTejido . '|' . $noTelarId;
+                $noTelarId = TelarSalonResolver::normalizeTelar($registro->NoTelarId);
+                $key = $salonTejido.'|'.$noTelarId;
 
                 // 1a) Manejar OrdCompartida: transferir saldo al líder
                 $ordCompartidaRaw = trim((string) ($registro->OrdCompartida ?? ''));
-                $ordCompartida    = $ordCompartidaRaw !== '' ? (int) $ordCompartidaRaw : null;
+                $ordCompartida = $ordCompartidaRaw !== '' ? (int) $ordCompartidaRaw : null;
 
                 if ($ordCompartida && $ordCompartida > 0) {
                     $saldoTransferir = (float) ($registro->SaldoPedido ?? 0);
@@ -232,7 +237,7 @@ class FinalizarOrdenesController extends Controller
                             ->lockForUpdate()
                             ->first();
 
-                        if (!$lider) {
+                        if (! $lider) {
                             $lider = ReqProgramaTejido::query()
                                 ->where('OrdCompartida', $ordCompartida)
                                 ->where('Id', '!=', $registro->Id)
@@ -286,7 +291,7 @@ class FinalizarOrdenesController extends Controller
                 $registro->delete();
 
                 // Registrar telar afectado
-                if (!isset($telaresAfectados[$key])) {
+                if (! isset($telaresAfectados[$key])) {
                     $telaresAfectados[$key] = [
                         'salon' => $salonTejido,
                         'telar' => $noTelarId,
@@ -301,18 +306,18 @@ class FinalizarOrdenesController extends Controller
 
             // 1g) Asignar EnProceso=1 al primer restante en telares que lo perdieron
             foreach ($telaresNecesitanEnProceso as $key => $_) {
-                if (!isset($telaresAfectados[$key])) {
+                if (! isset($telaresAfectados[$key])) {
                     continue;
                 }
-                $info  = $telaresAfectados[$key];
+                $info = $telaresAfectados[$key];
                 $salon = $info['salon'];
                 $telar = $info['telar'];
 
                 $primerRestante = TelarSalonResolver::applyTelarFilter(
                     ReqProgramaTejido::query()
-                    ->orderBy('Posicion', 'asc')
-                    ->orderBy('FechaInicio', 'asc')
-                    ->lockForUpdate(),
+                        ->orderBy('Posicion', 'asc')
+                        ->orderBy('FechaInicio', 'asc')
+                        ->lockForUpdate(),
                     $salon,
                     $telar
                 )->first();
@@ -336,9 +341,9 @@ class FinalizarOrdenesController extends Controller
 
                 $registrosTelar = TelarSalonResolver::applyTelarFilter(
                     ReqProgramaTejido::query()
-                    ->orderBy('Posicion', 'asc')
-                    ->orderBy('FechaInicio', 'asc')
-                    ->lockForUpdate(),
+                        ->orderBy('Posicion', 'asc')
+                        ->orderBy('FechaInicio', 'asc')
+                        ->lockForUpdate(),
                     $salon,
                     $telar
                 )->get();
@@ -347,8 +352,8 @@ class FinalizarOrdenesController extends Controller
                     continue;
                 }
 
-                $primeroConFecha = $registrosTelar->first(fn ($r) => !empty($r->FechaInicio));
-                if (!$primeroConFecha) {
+                $primeroConFecha = $registrosTelar->first(fn ($r) => ! empty($r->FechaInicio));
+                if (! $primeroConFecha) {
                     continue;
                 }
 
@@ -398,6 +403,7 @@ class FinalizarOrdenesController extends Controller
         } catch (\Throwable $e) {
             ReqProgramaTejido::setEventDispatcher($dispatcher);
             DB::rollBack();
+
             return $this->apiErrorResponse(
                 $e,
                 'Utileria/Finalizar - Error al finalizar ordenes',
@@ -409,15 +415,15 @@ class FinalizarOrdenesController extends Controller
 
         // ─── PASO 4: Disparar observer (fuera de transacción) ────────────────────
         $idsAfectados = array_values(array_unique(array_filter($idsAfectados)));
-        if (!empty($idsAfectados)) {
+        if (! empty($idsAfectados)) {
             ReqProgramaTejido::regenerarLineas(
                 ReqProgramaTejido::query()->whereIn('Id', $idsAfectados)->get()
             );
         }
 
         return response()->json([
-            'success'     => true,
-            'message'     => 'Se finalizaron ' . $registros->count() . ' orden(es) correctamente',
+            'success' => true,
+            'message' => 'Se finalizaron '.$registros->count().' orden(es) correctamente',
             'finalizadas' => $registros->count(),
         ]);
     }

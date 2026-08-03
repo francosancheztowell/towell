@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Urdido\BPMUrdido;
 
-use App\Http\Controllers\Controller;
-use App\Models\Urdido\UrdBpmModel;
-use App\Models\Sistema\SYSUsuario;
-use App\Models\Urdido\URDCatalogoMaquina;
 use App\Helpers\FolioHelper;
+use App\Http\Controllers\Controller;
+use App\Models\Sistema\SYSUsuario;
+use App\Models\Urdido\UrdBpmModel;
+use App\Models\Urdido\URDCatalogoMaquina;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -17,11 +17,11 @@ class UrdBpmController extends Controller
     {
         try {
             $items = UrdBpmModel::orderBy('Id', 'desc')->get();
-            $usuarios = SYSUsuario::where('area', 'Urdido')->whereNotNull('numero_empleado')->orderBy('nombre','asc')->get();
+            $usuarios = SYSUsuario::where('area', 'Urdido')->whereNotNull('numero_empleado')->orderBy('nombre', 'asc')->get();
             $maquinas = URDCatalogoMaquina::where(function ($q) {
-                    $q->where('Departamento', 'Urdido')
-                      ->orWhereIn('MaquinaId', ['401', '402']);
-                })
+                $q->where('Departamento', 'Urdido')
+                    ->orWhereIn('MaquinaId', ['401', '402']);
+            })
                 ->where('Nombre', 'not like', '%Karl Mayer%')
                 ->orderBy('Nombre', 'asc')
                 ->get();
@@ -31,12 +31,12 @@ class UrdBpmController extends Controller
             $usuarios = collect([]);
             $maquinas = collect([]);
             $folioSugerido = '';
-            Log::error('Error al cargar BPM Urdido: ' . $e->getMessage());
+            Log::error('Error al cargar BPM Urdido: '.$e->getMessage());
         }
 
         $esSupervisorBpm = $this->currentUserIsSupervisor();
 
-        return view("modulos.urdido.BPM-Urdido.index", compact("items", "usuarios", "maquinas", "folioSugerido", "esSupervisorBpm"));
+        return view('modulos.urdido.BPM-Urdido.index', compact('items', 'usuarios', 'maquinas', 'folioSugerido', 'esSupervisorBpm'));
     }
 
     public function store(Request $request)
@@ -76,9 +76,9 @@ class UrdBpmController extends Controller
 
             // Redirigir a la vista de líneas del folio creado
             return redirect()->route('urd-bpm-line.index', $folio)
-                ->with('success', 'Registro creado exitosamente con folio: ' . $folio);
+                ->with('success', 'Registro creado exitosamente con folio: '.$folio);
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error al crear el registro: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al crear el registro: '.$e->getMessage());
         }
     }
 
@@ -101,9 +101,10 @@ class UrdBpmController extends Controller
         try {
             $item = UrdBpmModel::findOrFail($id);
             $item->update($validated);
+
             return redirect()->back()->with('success', 'Registro actualizado exitosamente');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error al actualizar el registro: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al actualizar el registro: '.$e->getMessage());
         }
     }
 
@@ -112,16 +113,17 @@ class UrdBpmController extends Controller
         try {
             $item = UrdBpmModel::findOrFail($id);
             $item->delete();
+
             return redirect()->back()->with('success', 'Registro eliminado exitosamente');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error al eliminar el registro: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al eliminar el registro: '.$e->getMessage());
         }
     }
 
     private function currentUserIsSupervisor(): bool
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -132,11 +134,11 @@ class UrdBpmController extends Controller
             $sysUsuario = SYSUsuario::where('numero_empleado', $numeroEmpleado)->first();
         }
 
-        if (!$sysUsuario && isset($user->idusuario)) {
+        if (! $sysUsuario && isset($user->idusuario)) {
             $sysUsuario = SYSUsuario::where('idusuario', $user->idusuario)->first();
         }
 
-        if (!$sysUsuario) {
+        if (! $sysUsuario) {
             return false;
         }
 

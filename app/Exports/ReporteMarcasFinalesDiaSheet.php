@@ -2,20 +2,21 @@
 
 namespace App\Exports;
 
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
-use Carbon\Carbon;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ReporteMarcasFinalesDiaSheet implements WithStyles, WithTitle, WithEvents
+class ReporteMarcasFinalesDiaSheet implements WithEvents, WithStyles, WithTitle
 {
     protected object $grupoDia;
+
     protected Collection $velocidadesPorTelar;
 
     private const TURNO_NAMES = [
@@ -57,7 +58,8 @@ class ReporteMarcasFinalesDiaSheet implements WithStyles, WithTitle, WithEvents
     {
         $fecha = Carbon::parse($this->grupoDia->fecha);
         $diaSemana = self::DIAS_SEMANA[$fecha->format('l')] ?? '';
-        return $fecha->format('d') . ' (' . $diaSemana . ')';
+
+        return $fecha->format('d').' ('.$diaSemana.')';
     }
 
     public function registerEvents(): array
@@ -66,7 +68,7 @@ class ReporteMarcasFinalesDiaSheet implements WithStyles, WithTitle, WithEvents
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
                 $this->buildSheet($sheet);
-            }
+            },
         ];
     }
 

@@ -10,9 +10,12 @@ use Illuminate\Support\Facades\Log as LogFacade;
 
 /**
  * @file OrdCompartidaHelper.php
+ *
  * @description Helper para operaciones con OrdCompartida. El valor de OrdCompartida se deriva
  *              del NoProduccion del registro líder del grupo (no es un contador sintético).
+ *
  * @dependencies ReqProgramaTejido
+ *
  * @relatedFiles DuplicarTejido.php, VincularTejido.php, DividirTejido.php
  */
 class OrdCompartidaHelper
@@ -38,7 +41,7 @@ class OrdCompartidaHelper
         }
 
         $limpio = trim((string) $noProduccion);
-        if ($limpio === '' || !is_numeric($limpio)) {
+        if ($limpio === '' || ! is_numeric($limpio)) {
             return null;
         }
 
@@ -53,6 +56,7 @@ class OrdCompartidaHelper
                 return false;
             }
             $limpio = trim((string) $np);
+
             return $limpio !== '' && is_numeric($limpio);
         });
 
@@ -61,27 +65,27 @@ class OrdCompartidaHelper
         }
 
         $todosMismaFechaInicio = $elegibles
-            ->map(fn($registro) => self::normalizarFechaInicioDia($registro))
+            ->map(fn ($registro) => self::normalizarFechaInicioDia($registro))
             ->uniqueStrict()
             ->count() <= 1;
 
         return $elegibles->sort(function ($a, $b) use ($todosMismaFechaInicio) {
-            if (!$todosMismaFechaInicio) {
+            if (! $todosMismaFechaInicio) {
                 return self::compararPorFechaInicio($a, $b);
             }
 
             $fechaCreacionA = self::combinarFechaCreacion($a);
             $fechaCreacionB = self::combinarFechaCreacion($b);
 
-            if ($fechaCreacionA && $fechaCreacionB && !$fechaCreacionA->equalTo($fechaCreacionB)) {
+            if ($fechaCreacionA && $fechaCreacionB && ! $fechaCreacionA->equalTo($fechaCreacionB)) {
                 return $fechaCreacionA->lt($fechaCreacionB) ? -1 : 1;
             }
 
-            if ($fechaCreacionA && !$fechaCreacionB) {
+            if ($fechaCreacionA && ! $fechaCreacionB) {
                 return -1;
             }
 
-            if (!$fechaCreacionA && $fechaCreacionB) {
+            if (! $fechaCreacionA && $fechaCreacionB) {
                 return 1;
             }
 
@@ -115,11 +119,12 @@ class OrdCompartidaHelper
         }
 
         $lider = self::seleccionarLider($registros);
-        if (!$lider) {
+        if (! $lider) {
             LogFacade::warning('recalcularLiderYOrdPrincipalPorOrdCompartida: ningún registro del grupo tiene NoProduccion válido para ser líder', [
                 'OrdCompartida' => $ordCompartida,
                 'ids' => $registros->pluck('Id')->all(),
             ]);
+
             return null;
         }
 
@@ -166,7 +171,7 @@ class OrdCompartidaHelper
                 $hora = '00:00:00';
             }
 
-            return Carbon::parse($fecha . ' ' . $hora);
+            return Carbon::parse($fecha.' '.$hora);
         } catch (\Throwable) {
             return null;
         }
@@ -174,18 +179,18 @@ class OrdCompartidaHelper
 
     private static function compararPorFechaInicio(ReqProgramaTejido $a, ReqProgramaTejido $b): int
     {
-        $inicioA = !empty($a->FechaInicio) ? Carbon::parse($a->FechaInicio) : null;
-        $inicioB = !empty($b->FechaInicio) ? Carbon::parse($b->FechaInicio) : null;
+        $inicioA = ! empty($a->FechaInicio) ? Carbon::parse($a->FechaInicio) : null;
+        $inicioB = ! empty($b->FechaInicio) ? Carbon::parse($b->FechaInicio) : null;
 
-        if ($inicioA && $inicioB && !$inicioA->equalTo($inicioB)) {
+        if ($inicioA && $inicioB && ! $inicioA->equalTo($inicioB)) {
             return $inicioA->lt($inicioB) ? -1 : 1;
         }
 
-        if ($inicioA && !$inicioB) {
+        if ($inicioA && ! $inicioB) {
             return -1;
         }
 
-        if (!$inicioA && $inicioB) {
+        if (! $inicioA && $inicioB) {
             return 1;
         }
 

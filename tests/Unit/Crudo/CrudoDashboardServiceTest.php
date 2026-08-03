@@ -165,6 +165,29 @@ final class CrudoDashboardServiceTest extends TestCase
         $this->assertSame(5.0, array_sum(array_column($detail['defects'], 'quantity')));
     }
 
+    public function test_active_program_exposes_order_model_key_and_ax_item(): void
+    {
+        $this->repository->programs = [
+            (object) [
+                'NoTelarId' => '201',
+                'NoProduccion' => 'ORD-PROG-201',
+                'TamanoClave' => 'MOD-201-GDE',
+                'ItemId' => 'AX-201',
+                'NombreProducto' => 'Producto de prueba',
+            ],
+        ];
+
+        $today = new DateTimeImmutable('today', new DateTimeZone('America/Mexico_City'));
+        $data = $this->service->build($today, 'todos')->toArray();
+
+        $this->assertSame([
+            'orden' => 'ORD-PROG-201',
+            'claveModelo' => 'MOD-201-GDE',
+            'itemId' => 'AX-201',
+            'nombreProducto' => 'Producto de prueba',
+        ], $data['machines'][0]['programa']);
+    }
+
     private function date(): DateTimeImmutable
     {
         return new DateTimeImmutable('2026-07-28', new DateTimeZone('America/Mexico_City'));
@@ -177,6 +200,9 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
     public array $requestedHeaderIds = [];
 
     public int $aggregateCalls = 0;
+
+    /** @var list<object> */
+    public array $programs = [];
 
     /**
      * @param  list<object>  $headers
@@ -249,6 +275,6 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
 
     public function activePrograms(array $telares): array
     {
-        return [];
+        return $this->programs;
     }
 }

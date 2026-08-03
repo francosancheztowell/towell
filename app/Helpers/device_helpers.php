@@ -1,10 +1,8 @@
 <?php
 
-if (!function_exists('getClientIpv4')) {
+if (! function_exists('getClientIpv4')) {
     /**
      * Obtiene la dirección IPv4 del cliente cuando esté disponible.
-     *
-     * @return string
      */
     function getClientIpv4(): string
     {
@@ -21,15 +19,14 @@ if (!function_exists('getClientIpv4')) {
                 }
             }
         }
+
         return $ip ?: '0.0.0.0';
     }
 }
 
-if (!function_exists('getDeviceInfo')) {
+if (! function_exists('getDeviceInfo')) {
     /**
      * Obtiene información del dispositivo basándose en el User Agent
-     *
-     * @return array
      */
     function getDeviceInfo(): array
     {
@@ -46,11 +43,10 @@ if (!function_exists('getDeviceInfo')) {
     }
 }
 
-if (!function_exists('detectDeviceType')) {
+if (! function_exists('detectDeviceType')) {
     /**
      * Detecta el tipo de dispositivo con modelo específico cuando es posible
      *
-     * @param string $userAgent
      * @return array ['nombre' => string, 'modelo' => string, 'icono' => string, 'tipo' => string]
      */
     function detectDeviceType(string $userAgent): array
@@ -88,8 +84,9 @@ if (!function_exists('detectDeviceType')) {
         ];
 
         foreach ($tablets as $pattern => $info) {
-            if (preg_match('/' . $pattern . '/i', $userAgent)) {
+            if (preg_match('/'.$pattern.'/i', $userAgent)) {
                 $info['modelo'] = $modelo;
+
                 return $info;
             }
         }
@@ -112,22 +109,23 @@ if (!function_exists('detectDeviceType')) {
         ];
 
         foreach ($mobiles as $pattern => $info) {
-            if (preg_match('/' . $pattern . '/i', $userAgent)) {
+            if (preg_match('/'.$pattern.'/i', $userAgent)) {
                 $info['modelo'] = $modelo;
+
                 return $info;
             }
         }
 
         // Verificación adicional: Android sin Mobile generalmente es Tablet
         // Muchas tablets Samsung/Lenovo no incluyen "Mobile" en el User Agent
-        if (preg_match('/android/i', $userAgent) && !preg_match('/mobile/i', $userAgent)) {
+        if (preg_match('/android/i', $userAgent) && ! preg_match('/mobile/i', $userAgent)) {
             // Si tiene Samsung en el User Agent, es Galaxy Tab
             if (preg_match('/samsung/i', $userAgent)) {
                 return [
                     'nombre' => 'Samsung Galaxy Tab',
                     'modelo' => $modelo,
                     'icono' => 'fa-tablet',
-                    'tipo' => 'tablet'
+                    'tipo' => 'tablet',
                 ];
             }
             // Si tiene Lenovo, es Lenovo Tab
@@ -136,15 +134,16 @@ if (!function_exists('detectDeviceType')) {
                     'nombre' => 'Lenovo Tab',
                     'modelo' => $modelo,
                     'icono' => 'fa-tablet',
-                    'tipo' => 'tablet'
+                    'tipo' => 'tablet',
                 ];
             }
+
             // Cualquier Android sin Mobile = Tablet
             return [
                 'nombre' => 'Tablet Android',
                 'modelo' => $modelo,
                 'icono' => 'fa-tablet',
-                'tipo' => 'tablet'
+                'tipo' => 'tablet',
             ];
         }
 
@@ -153,42 +152,55 @@ if (!function_exists('detectDeviceType')) {
     }
 }
 
-if (!function_exists('detectDeviceModel')) {
+if (! function_exists('detectDeviceModel')) {
     /**
      * Intenta detectar el modelo específico del dispositivo
-     *
-     * @param string $userAgent
-     * @return string
      */
     function detectDeviceModel(string $userAgent): string
     {
         // iPadOS en modo desktop puede reportar Macintosh + Mobile
-        if (!preg_match('/iPad|iPhone/i', $userAgent) && preg_match('/Macintosh/i', $userAgent) && preg_match('/Mobile\/[A-Z0-9]+/i', $userAgent)) {
+        if (! preg_match('/iPad|iPhone/i', $userAgent) && preg_match('/Macintosh/i', $userAgent) && preg_match('/Mobile\/[A-Z0-9]+/i', $userAgent)) {
             return 'iPad';
         }
 
         // iPad - detectar generación si es posible
         if (preg_match('/iPad/i', $userAgent)) {
             if (preg_match('/\b(iPad\d{1,2},\d{1,2})\b/i', $userAgent, $matches)) {
-                return 'iPad (' . $matches[1] . ')';
+                return 'iPad ('.$matches[1].')';
             }
             if (preg_match('/iPad.*OS\s(\d+)/i', $userAgent, $matches)) {
-                $iosVersion = (int)$matches[1];
+                $iosVersion = (int) $matches[1];
                 // iOS 17+ generalmente es iPad 10th gen o Pro reciente
-                if ($iosVersion >= 17) return 'iPad (10ª gen o Pro)';
-                if ($iosVersion >= 15) return 'iPad (9ª gen+)';
-                if ($iosVersion >= 13) return 'iPad (7ª gen+)';
+                if ($iosVersion >= 17) {
+                    return 'iPad (10ª gen o Pro)';
+                }
+                if ($iosVersion >= 15) {
+                    return 'iPad (9ª gen+)';
+                }
+                if ($iosVersion >= 13) {
+                    return 'iPad (7ª gen+)';
+                }
             }
+
             return 'iPad';
         }
 
         // iPhone - detectar modelo aproximado por versión de iOS
         if (preg_match('/iPhone.*OS\s(\d+)_(\d+)/i', $userAgent, $matches)) {
-            $iosVersion = (int)$matches[1];
-            if ($iosVersion >= 17) return 'iPhone 15/14/SE 3';
-            if ($iosVersion >= 16) return 'iPhone 14/13/SE 3';
-            if ($iosVersion >= 15) return 'iPhone 13/12/SE 2';
-            if ($iosVersion >= 14) return 'iPhone 12/11/SE 2';
+            $iosVersion = (int) $matches[1];
+            if ($iosVersion >= 17) {
+                return 'iPhone 15/14/SE 3';
+            }
+            if ($iosVersion >= 16) {
+                return 'iPhone 14/13/SE 3';
+            }
+            if ($iosVersion >= 15) {
+                return 'iPhone 13/12/SE 2';
+            }
+            if ($iosVersion >= 14) {
+                return 'iPhone 12/11/SE 2';
+            }
+
             return 'iPhone';
         }
 
@@ -202,66 +214,73 @@ if (!function_exists('detectDeviceModel')) {
             // Galaxy Tab series (T, X, P)
             if (in_array($firstChar, ['T', 'X', 'P'])) {
                 $tabName = getSamsungTabName($model);
-                return $tabName ?: ('Galaxy Tab SM-' . $model);
+
+                return $tabName ?: ('Galaxy Tab SM-'.$model);
             }
 
             // Galaxy S series (S, G para modelos antiguos)
             if ($firstChar === 'S' || $firstChar === 'G') {
                 if ($firstChar === 'S') {
-                    $num = (int)$modelNum;
-                    if ($num >= 900) return 'Galaxy S24/S23 Ultra';
-                    if ($num >= 700) return 'Galaxy S23/S22';
+                    $num = (int) $modelNum;
+                    if ($num >= 900) {
+                        return 'Galaxy S24/S23 Ultra';
+                    }
+                    if ($num >= 700) {
+                        return 'Galaxy S23/S22';
+                    }
+
                     return 'Galaxy S Series';
                 }
                 if ($firstChar === 'G') {
-                    return 'Galaxy S Series (SM-G' . $modelNum . ')';
+                    return 'Galaxy S Series (SM-G'.$modelNum.')';
                 }
             }
 
             // Galaxy A series
             if ($firstChar === 'A') {
-                return 'Galaxy A' . $modelNum;
+                return 'Galaxy A'.$modelNum;
             }
 
             // Galaxy M series
             if ($firstChar === 'M') {
-                return 'Galaxy M' . $modelNum;
+                return 'Galaxy M'.$modelNum;
             }
 
             // Galaxy F series
             if ($firstChar === 'F') {
-                return 'Galaxy F' . $modelNum;
+                return 'Galaxy F'.$modelNum;
             }
 
             // Galaxy Note series (N)
             if ($firstChar === 'N') {
-                return 'Galaxy Note SM-N' . $modelNum;
+                return 'Galaxy Note SM-N'.$modelNum;
             }
 
-            return 'Samsung SM-' . $model;
+            return 'Samsung SM-'.$model;
         }
 
         // Fallback: buscar "Galaxy Tab" en el User Agent
         if (preg_match('/Galaxy\s*Tab\s*([^\s;)]+)?/i', $userAgent, $matches)) {
-            return 'Galaxy Tab ' . trim($matches[1] ?? '');
+            return 'Galaxy Tab '.trim($matches[1] ?? '');
         }
 
         // Samsung sin código SM- pero con Android (probablemente tablet)
-        if (preg_match('/samsung/i', $userAgent) && preg_match('/android/i', $userAgent) && !preg_match('/mobile/i', $userAgent)) {
+        if (preg_match('/samsung/i', $userAgent) && preg_match('/android/i', $userAgent) && ! preg_match('/mobile/i', $userAgent)) {
             // Intentar extraer cualquier identificador numérico/alfanumérico después de Samsung
             if (preg_match('/samsung[^;]*?([A-Z0-9]{6,10})/i', $userAgent, $matches)) {
                 $id = strtoupper($matches[1]);
                 // Si parece un ID de dispositivo (como 311C0240)
                 if (preg_match('/^[0-9A-F]{6,10}$/i', $id)) {
-                    return 'Galaxy Tab (' . $id . ')';
+                    return 'Galaxy Tab ('.$id.')';
                 }
             }
+
             return 'Galaxy Tab';
         }
 
         // Google Pixel
         if (preg_match('/Pixel\s*(\d+[a-z]?)/i', $userAgent, $matches)) {
-            return 'Pixel ' . $matches[1];
+            return 'Pixel '.$matches[1];
         }
 
         // Xiaomi/Redmi/POCO
@@ -271,39 +290,40 @@ if (!function_exists('detectDeviceModel')) {
 
         // Surface
         if (preg_match('/Surface\s*(Pro\s*\d+|Go\s*\d*|Laptop\s*\d*|Book\s*\d*)?/i', $userAgent, $matches)) {
-            return 'Surface ' . trim($matches[1] ?? '');
+            return 'Surface '.trim($matches[1] ?? '');
         }
 
         // Lenovo tablets - capturar modelo completo
         // Formatos comunes: "Lenovo TB-X606F", "Lenovo TB-J606F", "Lenovo Tab M10", "TB-8505F"
         if (preg_match('/(?:Lenovo\s*)?(TB-[A-Z0-9]+[A-Z]?)/i', $userAgent, $matches)) {
             $model = strtoupper($matches[1]);
-            return 'Lenovo ' . $model . ' ' . getLenovoModelName($model);
+
+            return 'Lenovo '.$model.' '.getLenovoModelName($model);
         }
 
         // Lenovo TAB 2 A10-70, TAB 4 10, etc.
         if (preg_match('/Lenovo\s*TAB\s*([0-9]+\s*[A-Z0-9-]+)/i', $userAgent, $matches)) {
-            return 'Lenovo TAB ' . trim($matches[1]);
+            return 'Lenovo TAB '.trim($matches[1]);
         }
 
         // Lenovo Tab con nombre
         if (preg_match('/Lenovo\s+(Tab\s*[A-Z]?\d+[^;)\s]*)/i', $userAgent, $matches)) {
-            return 'Lenovo ' . trim($matches[1]);
+            return 'Lenovo '.trim($matches[1]);
         }
 
         // Cualquier Lenovo
         if (preg_match('/Lenovo\s+([^;)\s]+)/i', $userAgent, $matches)) {
-            return 'Lenovo ' . trim($matches[1]);
+            return 'Lenovo '.trim($matches[1]);
         }
 
         // Huawei tablets
         if (preg_match('/\bHUAWEI\s*((?:MediaPad|MatePad)[^;)]*)/i', $userAgent, $matches)) {
-            return 'Huawei ' . trim($matches[1] ?? '');
+            return 'Huawei '.trim($matches[1] ?? '');
         }
 
         // Honor Pad
         if (preg_match('/\bHONOR\s*(Pad[^;)]*)/i', $userAgent, $matches)) {
-            return 'Honor ' . trim($matches[1]);
+            return 'Honor '.trim($matches[1]);
         }
 
         // Xiaomi / Redmi tablets
@@ -316,12 +336,12 @@ if (!function_exists('detectDeviceModel')) {
             return trim($matches[0]);
         }
         if (preg_match('/\bOPD\d{3,4}\b/i', $userAgent, $matches)) {
-            return 'OnePlus Pad (' . strtoupper($matches[0]) . ')';
+            return 'OnePlus Pad ('.strtoupper($matches[0]).')';
         }
 
         // Amazon Kindle/Fire (KF* codes)
         if (preg_match('/\bKF[A-Z0-9]{3,5}\b/i', $userAgent, $matches) && preg_match('/(Kindle|Silk|Amazon)/i', $userAgent)) {
-            return 'Kindle Fire (' . strtoupper($matches[0]) . ')';
+            return 'Kindle Fire ('.strtoupper($matches[0]).')';
         }
 
         // Google tablets
@@ -337,7 +357,7 @@ if (!function_exists('detectDeviceModel')) {
         // Android generico: extraer modelo antes de "Build/"
         if (preg_match('/Android\s[\d.]+;\s*([^;)]*?)\s+Build\//i', $userAgent, $matches)) {
             $model = trim($matches[1]);
-            if ($model !== '' && !preg_match('/^(?:Linux|Android)$/i', $model)) {
+            if ($model !== '' && ! preg_match('/^(?:Linux|Android)$/i', $model)) {
                 return $model;
             }
         }
@@ -346,11 +366,10 @@ if (!function_exists('detectDeviceModel')) {
     }
 }
 
-if (!function_exists('detectBrowser')) {
+if (! function_exists('detectBrowser')) {
     /**
      * Detecta el navegador
      *
-     * @param string $userAgent
      * @return array ['nombre' => string, 'version' => string, 'icono' => string]
      */
     function detectBrowser(string $userAgent): array
@@ -374,6 +393,7 @@ if (!function_exists('detectBrowser')) {
                     // Solo mostrar versión mayor
                     $version = explode('.', $version)[0];
                 }
+
                 return [
                     'nombre' => $browser['nombre'],
                     'version' => $version,
@@ -386,11 +406,10 @@ if (!function_exists('detectBrowser')) {
     }
 }
 
-if (!function_exists('detectOS')) {
+if (! function_exists('detectOS')) {
     /**
      * Detecta el sistema operativo
      *
-     * @param string $userAgent
      * @return array ['nombre' => string, 'version' => string, 'icono' => string]
      */
     function detectOS(string $userAgent): array
@@ -428,8 +447,9 @@ if (!function_exists('detectOS')) {
                     $version = str_replace('_', '.', $vMatches[1] ?? '');
                     // Solo mostrar versión mayor.menor
                     $parts = explode('.', $version);
-                    $version = $parts[0] . (isset($parts[1]) ? '.' . $parts[1] : '');
+                    $version = $parts[0].(isset($parts[1]) ? '.'.$parts[1] : '');
                 }
+
                 return [
                     'nombre' => $system['nombre'],
                     'version' => $version,
@@ -442,12 +462,11 @@ if (!function_exists('detectOS')) {
     }
 }
 
-if (!function_exists('getSamsungTabName')) {
+if (! function_exists('getSamsungTabName')) {
     /**
      * Traduce el código de modelo Samsung Tab a nombre comercial
      *
-     * @param string $modelCode (sin el prefijo SM-)
-     * @return string
+     * @param  string  $modelCode  (sin el prefijo SM-)
      */
     function getSamsungTabName(string $modelCode): string
     {
@@ -544,20 +563,36 @@ if (!function_exists('getSamsungTabName')) {
 
         // Identificar serie por patrón
         $firstChar = substr($modelCode, 0, 1);
-        $num = (int)substr($modelCode, 1, 3);
+        $num = (int) substr($modelCode, 1, 3);
 
         if ($firstChar === 'T') {
-            if ($num >= 800) return 'Galaxy Tab S Series';
-            if ($num >= 500) return 'Galaxy Tab A Series';
-            if ($num >= 200) return 'Galaxy Tab A Lite';
+            if ($num >= 800) {
+                return 'Galaxy Tab S Series';
+            }
+            if ($num >= 500) {
+                return 'Galaxy Tab A Series';
+            }
+            if ($num >= 200) {
+                return 'Galaxy Tab A Lite';
+            }
+
             return 'Galaxy Tab';
         }
 
         if ($firstChar === 'X') {
-            if ($num >= 700) return 'Galaxy Tab S Series';
-            if ($num >= 500) return 'Galaxy Tab S FE';
-            if ($num >= 200) return 'Galaxy Tab A Series';
-            if ($num >= 100) return 'Galaxy Tab A9';
+            if ($num >= 700) {
+                return 'Galaxy Tab S Series';
+            }
+            if ($num >= 500) {
+                return 'Galaxy Tab S FE';
+            }
+            if ($num >= 200) {
+                return 'Galaxy Tab A Series';
+            }
+            if ($num >= 100) {
+                return 'Galaxy Tab A9';
+            }
+
             return 'Galaxy Tab';
         }
 
@@ -569,12 +604,9 @@ if (!function_exists('getSamsungTabName')) {
     }
 }
 
-if (!function_exists('getLenovoModelName')) {
+if (! function_exists('getLenovoModelName')) {
     /**
      * Traduce el código de modelo Lenovo a nombre comercial
-     *
-     * @param string $modelCode
-     * @return string
      */
     function getLenovoModelName(string $modelCode): string
     {
@@ -658,12 +690,10 @@ if (!function_exists('getLenovoModelName')) {
     }
 }
 
-if (!function_exists('getDeviceIdentifier')) {
+if (! function_exists('getDeviceIdentifier')) {
     /**
      * Genera un identificador único para el dispositivo basado en características
      * Nota: Este identificador puede cambiar si el usuario actualiza el navegador
-     *
-     * @return string
      */
     function getDeviceIdentifier(): string
     {
@@ -672,7 +702,7 @@ if (!function_exists('getDeviceIdentifier')) {
         $acceptLanguage = request()->header('Accept-Language', '');
 
         // Crear un hash basado en características del dispositivo
-        $fingerprint = md5($userAgent . $ip . $acceptLanguage);
+        $fingerprint = md5($userAgent.$ip.$acceptLanguage);
 
         // Retornar versión corta (8 caracteres)
         return strtoupper(substr($fingerprint, 0, 8));

@@ -2,21 +2,21 @@
 
 namespace App\Http\Controllers\Tejido\MarcasFinales;
 
+use App\Exports\MarcasFinalesExport;
 use App\Http\Controllers\Controller;
+use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Sistema\SYSMensaje;
 use App\Models\Tejido\TejMarcas;
 use App\Models\Tejido\TejMarcasLine;
-use App\Models\Planeacion\ReqProgramaTejido;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
-use App\Exports\MarcasFinalesExport;
-use Maatwebsite\Excel\Facades\Excel;
 use Dompdf\Dompdf;
 use Dompdf\Options;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use App\Models\Sistema\SYSMensaje;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 
 class MarcasController extends Controller
 {
@@ -63,7 +63,7 @@ class MarcasController extends Controller
             return view('modulos.marcas-finales.marcasFinales', [
                 'marcas' => collect([]),
                 'ultimoFolio' => null,
-                'esSupervisor' => false
+                'esSupervisor' => false,
             ]);
         }
     }
@@ -72,10 +72,10 @@ class MarcasController extends Controller
     {
         try {
             $usuario = Auth::user();
-            if (!$usuario) {
+            if (! $usuario) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Usuario no autenticado'
+                    'message' => 'Usuario no autenticado',
                 ], 401);
             }
 
@@ -85,7 +85,7 @@ class MarcasController extends Controller
             if (empty($fechaInput) || empty($turnoInput)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Debe seleccionar fecha y turno para crear el folio.'
+                    'message' => 'Debe seleccionar fecha y turno para crear el folio.',
                 ], 422);
             }
 
@@ -94,15 +94,15 @@ class MarcasController extends Controller
             } catch (\Exception $e) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Fecha inválida.'
+                    'message' => 'Fecha inválida.',
                 ], 422);
             }
 
-            $turno = (int)$turnoInput;
-            if (!in_array($turno, [1, 2, 3], true)) {
+            $turno = (int) $turnoInput;
+            if (! in_array($turno, [1, 2, 3], true)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Turno inválido.'
+                    'message' => 'Turno inválido.',
                 ], 422);
             }
 
@@ -117,9 +117,9 @@ class MarcasController extends Controller
                 if ($folioEnProceso) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Ya existe un folio en proceso: ' . $folioEnProceso->Folio . '. Debe finalizarlo antes de crear uno nuevo.',
+                        'message' => 'Ya existe un folio en proceso: '.$folioEnProceso->Folio.'. Debe finalizarlo antes de crear uno nuevo.',
                         'folio_existente' => $folioEnProceso->Folio,
-                        'creado_por_otro' => true
+                        'creado_por_otro' => true,
                     ], 400);
                 }
 
@@ -131,8 +131,8 @@ class MarcasController extends Controller
                 if ($folioMismoTurno) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Ya existe un folio para la fecha y turno seleccionados: ' . $folioMismoTurno->Folio,
-                        'folio_existente' => $folioMismoTurno->Folio
+                        'message' => 'Ya existe un folio para la fecha y turno seleccionados: '.$folioMismoTurno->Folio,
+                        'folio_existente' => $folioMismoTurno->Folio,
                     ], 409);
                 }
 
@@ -144,7 +144,7 @@ class MarcasController extends Controller
                 if ($ultimoFolio) {
                     $soloDigitos = preg_replace('/\D/', '', $ultimoFolio);
                     $numero = intval($soloDigitos) + 1;
-                    $nuevoFolio = 'FM' . str_pad($numero, 4, '0', STR_PAD_LEFT);
+                    $nuevoFolio = 'FM'.str_pad($numero, 4, '0', STR_PAD_LEFT);
                 } else {
                     $nuevoFolio = 'FM0001';
                 }
@@ -155,15 +155,16 @@ class MarcasController extends Controller
                     'turno' => $turno,
                     'fecha' => $fechaNorm,
                     'usuario' => $usuario->nombre ?? 'Usuario',
-                    'numero_empleado' => $usuario->numero_empleado ?? ''
+                    'numero_empleado' => $usuario->numero_empleado ?? '',
                 ]);
             }, 5); // 5 intentos máximo si hay deadlock
 
         } catch (\Exception $e) {
-            Log::error('Error al generar folio: ' . $e->getMessage());
+            Log::error('Error al generar folio: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al generar folio. Por favor, intente nuevamente.'
+                'message' => 'Error al generar folio. Por favor, intente nuevamente.',
             ], 500);
         }
     }
@@ -176,7 +177,7 @@ class MarcasController extends Controller
             if ($secuencia->isEmpty()) {
                 return response()->json([
                     'success' => true,
-                    'datos' => []
+                    'datos' => [],
                 ]);
             }
 
@@ -194,24 +195,24 @@ class MarcasController extends Controller
             $datos = $secuencia->map(function ($row) use ($eficiencias) {
                 $eficiencia = $eficiencias->get($row->NoTelarId);
                 $porcentajeEfi = $eficiencia
-                    ? (int)round(($eficiencia->EficienciaSTD ?? 0) * 100)
+                    ? (int) round(($eficiencia->EficienciaSTD ?? 0) * 100)
                     : 0;
 
                 return [
                     'telar' => $row->NoTelarId,
                     'salon' => $eficiencia->SalonTejidoId ?? $row->SalonId ?? '-',
-                    'porcentaje_efi' => $porcentajeEfi
+                    'porcentaje_efi' => $porcentajeEfi,
                 ];
             })->values()->toArray();
 
             return response()->json([
                 'success' => true,
-                'datos' => $datos
+                'datos' => $datos,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener datos STD'
+                'message' => 'Error al obtener datos STD',
             ], 500);
         }
     }
@@ -220,10 +221,10 @@ class MarcasController extends Controller
     {
         try {
             $usuario = Auth::user();
-            if (!$usuario) {
+            if (! $usuario) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Usuario no autenticado'
+                    'message' => 'Usuario no autenticado',
                 ], 401);
             }
 
@@ -236,7 +237,7 @@ class MarcasController extends Controller
             if (empty($folio) || empty($fecha) || empty($turno)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Faltan datos requeridos (folio, fecha o turno).'
+                    'message' => 'Faltan datos requeridos (folio, fecha o turno).',
                 ], 422);
             }
 
@@ -245,15 +246,15 @@ class MarcasController extends Controller
             } catch (\Exception $e) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Fecha inválida.'
+                    'message' => 'Fecha inválida.',
                 ], 422);
             }
 
-            $turno = (int)$turno;
-            if (!in_array($turno, [1, 2, 3], true)) {
+            $turno = (int) $turno;
+            if (! in_array($turno, [1, 2, 3], true)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Turno inválido.'
+                    'message' => 'Turno inválido.',
                 ], 422);
             }
 
@@ -266,9 +267,10 @@ class MarcasController extends Controller
 
             if ($existeMismoTurno) {
                 DB::rollBack();
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Ya existe un folio con la misma fecha y turno.'
+                    'message' => 'Ya existe un folio con la misma fecha y turno.',
                 ], 409);
             }
 
@@ -279,10 +281,10 @@ class MarcasController extends Controller
                 'Status' => $status,
                 'numero_empleado' => $usuario->numero_empleado ?? null,
                 'nombreEmpl' => $usuario->nombre ?? null,
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
 
-            if (!$marca->exists) {
+            if (! $marca->exists) {
                 $marca->created_at = now();
             }
 
@@ -290,7 +292,7 @@ class MarcasController extends Controller
 
             TejMarcasLine::where('Folio', $folio)->delete();
 
-            if (!empty($lineas)) {
+            if (! empty($lineas)) {
                 $noTelares = collect($lineas)->pluck('NoTelarId')->unique()->toArray();
 
                 $eficienciasStd = ReqProgramaTejido::select('NoTelarId', 'SalonTejidoId', 'EficienciaSTD')
@@ -298,7 +300,7 @@ class MarcasController extends Controller
                     ->orderByDesc('FechaInicio')
                     ->get()
                     ->groupBy('NoTelarId')
-                    ->map(fn($group) => $group->first());
+                    ->map(fn ($group) => $group->first());
 
                 // Mapa de salón por telar desde la secuencia (fallback si no hay STD)
                 $secuencia = $this->obtenerSecuenciaTelares();
@@ -306,7 +308,7 @@ class MarcasController extends Controller
 
                 $lineasParaInsertar = [];
                 foreach ($lineas as $linea) {
-                    if (!is_array($linea) || !isset($linea['NoTelarId'])) {
+                    if (! is_array($linea) || ! isset($linea['NoTelarId'])) {
                         continue;
                     }
 
@@ -318,14 +320,18 @@ class MarcasController extends Controller
 
                     // STD eficiencia original viene como decimal (0-1), convertir a entero porcentaje
                     $stdEfiDecimal = $std->EficienciaSTD ?? null;
-                    $stdEfiPercent = $stdEfiDecimal !== null ? (int)round($stdEfiDecimal * 100) : 0;
+                    $stdEfiPercent = $stdEfiDecimal !== null ? (int) round($stdEfiDecimal * 100) : 0;
 
                     // Prioridad: valor capturado (PorcentajeEfi) si viene, si no STD convertido, si no 0
-                    $efiPercent = isset($linea['PorcentajeEfi']) ? (int)$linea['PorcentajeEfi'] : $stdEfiPercent;
+                    $efiPercent = isset($linea['PorcentajeEfi']) ? (int) $linea['PorcentajeEfi'] : $stdEfiPercent;
 
                     // Asegurar rango 0-100
-                    if ($efiPercent < 0) $efiPercent = 0;
-                    if ($efiPercent > 100) $efiPercent = 100;
+                    if ($efiPercent < 0) {
+                        $efiPercent = 0;
+                    }
+                    if ($efiPercent > 100) {
+                        $efiPercent = 100;
+                    }
 
                     $lineasParaInsertar[] = [
                         'Folio' => $folio,
@@ -334,14 +340,14 @@ class MarcasController extends Controller
                         'SalonTejidoId' => $stdSalon,
                         'NoTelarId' => $noTelar,
                         'Eficiencia' => $efiPercent, // Guardar como ENTERO 0-100
-                        'Marcas' => (int)($linea['Marcas'] ?? 0),
-                        'Horas' => (float)($linea['Horas'] ?? 0),
-                        'Trama' => (int)($linea['Trama'] ?? 0),
-                        'Pie' => (int)($linea['Pie'] ?? 0),
-                        'Rizo' => (int)($linea['Rizo'] ?? 0),
-                        'Otros' => (int)($linea['Otros'] ?? 0),
+                        'Marcas' => (int) ($linea['Marcas'] ?? 0),
+                        'Horas' => (float) ($linea['Horas'] ?? 0),
+                        'Trama' => (int) ($linea['Trama'] ?? 0),
+                        'Pie' => (int) ($linea['Pie'] ?? 0),
+                        'Rizo' => (int) ($linea['Rizo'] ?? 0),
+                        'Otros' => (int) ($linea['Otros'] ?? 0),
                         'created_at' => now(),
-                        'updated_at' => now()
+                        'updated_at' => now(),
                     ];
                 }
 
@@ -352,7 +358,7 @@ class MarcasController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Datos guardados correctamente'
+                'message' => 'Datos guardados correctamente',
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -360,10 +366,11 @@ class MarcasController extends Controller
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al guardar datos',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -373,10 +380,10 @@ class MarcasController extends Controller
         try {
             $marca = TejMarcas::find($folio);
 
-            if (!$marca) {
+            if (! $marca) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Marca no encontrada'
+                    'message' => 'Marca no encontrada',
                 ], 404);
             }
 
@@ -387,12 +394,12 @@ class MarcasController extends Controller
             return response()->json([
                 'success' => true,
                 'marca' => $marca,
-                'lineas' => $lineas
+                'lineas' => $lineas,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener marca'
+                'message' => 'Error al obtener marca',
             ], 500);
         }
     }
@@ -410,7 +417,7 @@ class MarcasController extends Controller
     {
         try {
             $user = Auth::user();
-            if (!$user) {
+            if (! $user) {
                 return response()->json(['success' => false, 'message' => 'Usuario no autenticado'], 401);
             }
 
@@ -420,7 +427,7 @@ class MarcasController extends Controller
             }
 
             $marca = TejMarcas::find($folio);
-            if (!$marca) {
+            if (! $marca) {
                 return response()->json(['success' => false, 'message' => 'Folio no encontrado'], 404);
             }
 
@@ -430,15 +437,16 @@ class MarcasController extends Controller
 
             $marca->update([
                 'Status' => 'En Proceso',
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Folio reabierto correctamente. Ahora puede editarlo.'
+                'message' => 'Folio reabierto correctamente. Ahora puede editarlo.',
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al reabrir folio: ' . $e->getMessage());
+            Log::error('Error al reabrir folio: '.$e->getMessage());
+
             return response()->json(['success' => false, 'message' => 'Error al reabrir el folio'], 500);
         }
     }
@@ -450,7 +458,7 @@ class MarcasController extends Controller
     {
         try {
             $user = Auth::user();
-            if (!$user) {
+            if (! $user) {
                 return response()->json(['success' => false, 'message' => 'Usuario no autenticado'], 401);
             }
 
@@ -460,7 +468,7 @@ class MarcasController extends Controller
             }
 
             $marca = TejMarcas::find($folio);
-            if (!$marca) {
+            if (! $marca) {
                 return response()->json(['success' => false, 'message' => 'Folio no encontrado'], 404);
             }
 
@@ -476,7 +484,7 @@ class MarcasController extends Controller
 
             if ($request->has('Turno')) {
                 $turno = (int) $request->input('Turno');
-                if (!in_array($turno, [1, 2, 3], true)) {
+                if (! in_array($turno, [1, 2, 3], true)) {
                     return response()->json(['success' => false, 'message' => 'Turno inválido (debe ser 1, 2 o 3)'], 422);
                 }
                 $datos['Turno'] = $turno;
@@ -484,7 +492,7 @@ class MarcasController extends Controller
 
             if ($request->has('Status')) {
                 $statusPermitidos = ['En Proceso', 'Finalizado'];
-                if (!in_array($request->input('Status'), $statusPermitidos, true)) {
+                if (! in_array($request->input('Status'), $statusPermitidos, true)) {
                     return response()->json(['success' => false, 'message' => 'Status inválido'], 422);
                 }
                 $datos['Status'] = $request->input('Status');
@@ -518,7 +526,7 @@ class MarcasController extends Controller
                 $datosLine['Turno'] = $datos['Turno'];
             }
 
-            if (!empty($datosLine)) {
+            if (! empty($datosLine)) {
                 $datosLine['updated_at'] = now();
                 TejMarcasLine::where('Folio', $folio)
                     ->update($datosLine);
@@ -527,10 +535,11 @@ class MarcasController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Registro actualizado correctamente',
-                'marca' => $marca->fresh()
+                'marca' => $marca->fresh(),
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al actualizar registro de marca: ' . $e->getMessage());
+            Log::error('Error al actualizar registro de marca: '.$e->getMessage());
+
             return response()->json(['success' => false, 'message' => 'Error al actualizar el registro'], 500);
         }
     }
@@ -538,38 +547,39 @@ class MarcasController extends Controller
     public function finalizar($folio)
     {
         try {
-        if (!Auth::check()) {
+            if (! Auth::check()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Usuario no autenticado',
+                ], 401);
+            }
+
+            $marca = TejMarcas::find($folio);
+            if (! $marca) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Marca no encontrada',
+                ], 404);
+            }
+
+            // Ya no se bloquea por valores vacíos; la confirmación se maneja en frontend.
+
+            $marca->update([
+                'Status' => 'Finalizado',
+                'updated_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Marca finalizada correctamente',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al finalizar marca: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Usuario no autenticado'
-            ], 401);
-        }
-
-        $marca = TejMarcas::find($folio);
-        if (!$marca) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Marca no encontrada'
-            ], 404);
-        }
-
-        // Ya no se bloquea por valores vacíos; la confirmación se maneja en frontend.
-
-        $marca->update([
-            'Status' => 'Finalizado',
-            'updated_at' => now()
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Marca finalizada correctamente'
-        ]);
-    } catch (\Exception $e) {
-        Log::error('Error al finalizar marca: ' . $e->getMessage());
-        return response()->json([
-            'success' => false,
-            'message' => 'Error al finalizar marca'
-        ], 500);
+                'message' => 'Error al finalizar marca',
+            ], 500);
         }
     }
 
@@ -578,7 +588,7 @@ class MarcasController extends Controller
         try {
             $marca = TejMarcas::find($folio);
 
-            if (!$marca) {
+            if (! $marca) {
                 return redirect()->route('marcas.consultar')
                     ->with('error', 'Folio no encontrado');
             }
@@ -591,7 +601,8 @@ class MarcasController extends Controller
                 'folioInicial' => $folio,
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al visualizar folio de marcas: ' . $e->getMessage());
+            Log::error('Error al visualizar folio de marcas: '.$e->getMessage());
+
             return redirect()->route('marcas.consultar')
                 ->with('error', 'Error al visualizar el folio');
         }
@@ -605,7 +616,7 @@ class MarcasController extends Controller
     {
         try {
             $fecha = $request->query('fecha');
-            if (!$fecha) {
+            if (! $fecha) {
                 return redirect()->route('marcas.consultar')->with('warning', 'Debe proporcionar una fecha');
             }
 
@@ -618,7 +629,7 @@ class MarcasController extends Controller
                 'tablas' => $tablas,
             ]);
         } catch (\Exception $e) {
-            return redirect()->route('marcas.consultar')->with('error', 'Error al generar reporte: ' . $e->getMessage());
+            return redirect()->route('marcas.consultar')->with('error', 'Error al generar reporte: '.$e->getMessage());
         }
     }
 
@@ -626,18 +637,18 @@ class MarcasController extends Controller
     {
         try {
             $fecha = $request->input('fecha');
-            if (!$fecha) {
+            if (! $fecha) {
                 return response()->json(['error' => 'Fecha requerida'], 400);
             }
 
             $fechaNorm = str_replace('/', '-', $fecha);
             $tablas = $this->obtenerDatosReporte($fechaNorm);
 
-            $filename = 'marcas_finales_' . $fechaNorm . '.xlsx';
+            $filename = 'marcas_finales_'.$fechaNorm.'.xlsx';
 
             return Excel::download(new MarcasFinalesExport($tablas, $fechaNorm), $filename);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Error al exportar: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Error al exportar: '.$e->getMessage()], 500);
         }
     }
 
@@ -645,7 +656,7 @@ class MarcasController extends Controller
     {
         try {
             $fecha = $request->input('fecha');
-            if (!$fecha) {
+            if (! $fecha) {
                 return response()->json(['error' => 'Fecha requerida'], 400);
             }
 
@@ -664,13 +675,13 @@ class MarcasController extends Controller
             $telares = $telares->unique()->sort()->values();
 
             $html = view('modulos.marcas-finales.reporte-marcas-pdf', [
-                'fecha'   => $fechaNorm,
-                'tablas'  => $tablas,
+                'fecha' => $fechaNorm,
+                'tablas' => $tablas,
                 'telares' => $telares,
-                'porTurno'=> $porTurno,
+                'porTurno' => $porTurno,
             ])->render();
 
-            $options = new Options();
+            $options = new Options;
             $options->set('isHtml5ParserEnabled', true);
             $options->set('isRemoteEnabled', true);
             $options->set('defaultFont', 'Arial');
@@ -683,13 +694,14 @@ class MarcasController extends Controller
             $dompdf->setPaper('a4', 'landscape');
             $dompdf->render();
 
-            $filename = 'marcas_finales_' . $fechaNorm . '.pdf';
+            $filename = 'marcas_finales_'.$fechaNorm.'.pdf';
 
             $pdfContent = $dompdf->output();
 
             // Validar que el PDF se generó correctamente
             if (empty($pdfContent)) {
                 Log::error('PDF generado está vacío', ['fecha' => $fechaNorm]);
+
                 return response()->json(['error' => 'Error: PDF generado está vacío'], 500);
             }
 
@@ -697,9 +709,9 @@ class MarcasController extends Controller
 
             return response($pdfContent, 200)
                 ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+                ->header('Content-Disposition', 'attachment; filename="'.$filename.'"');
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Error al generar PDF: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Error al generar PDF: '.$e->getMessage()], 500);
         }
     }
 
@@ -710,7 +722,7 @@ class MarcasController extends Controller
     {
         try {
             $fecha = $request->input('fecha');
-            if (!$fecha) {
+            if (! $fecha) {
                 return response()->json(['success' => false, 'message' => 'Fecha requerida'], 400);
             }
 
@@ -729,13 +741,13 @@ class MarcasController extends Controller
             $telares = $telares->unique()->sort()->values();
 
             $html = view('modulos.marcas-finales.reporte-marcas-pdf', [
-                'fecha'   => $fechaNorm,
-                'tablas'  => $tablas,
+                'fecha' => $fechaNorm,
+                'tablas' => $tablas,
                 'telares' => $telares,
-                'porTurno'=> $porTurno,
+                'porTurno' => $porTurno,
             ])->render();
 
-            $options = new Options();
+            $options = new Options;
             $options->set('isHtml5ParserEnabled', true);
             $options->set('isRemoteEnabled', true);
             $options->set('defaultFont', 'Arial');
@@ -748,7 +760,7 @@ class MarcasController extends Controller
             $dompdf->setPaper('a4', 'landscape');
             $dompdf->render();
 
-            $filename = 'marcas_finales_' . $fechaNorm . '.pdf';
+            $filename = 'marcas_finales_'.$fechaNorm.'.pdf';
 
             $pdfContent = $dompdf->output();
 
@@ -769,9 +781,10 @@ class MarcasController extends Controller
                 'mensaje' => $th->getMessage(),
                 'trace' => $th->getTraceAsString(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al enviar por Telegram: ' . $th->getMessage(),
+                'message' => 'Error al enviar por Telegram: '.$th->getMessage(),
             ], 500);
         }
     }
@@ -786,12 +799,14 @@ class MarcasController extends Controller
             $botToken = config('services.telegram.bot_token');
             if (empty($botToken)) {
                 Log::warning('No se pudo enviar PDF a Telegram: TELEGRAM_BOT_TOKEN no configurado');
+
                 return;
             }
 
             $chatIds = SYSMensaje::getChatIdsPorModulo('MarcasFinales');
             if (empty($chatIds)) {
                 Log::warning('No hay destinatarios con MarcasFinales activo en SYSMensajes');
+
                 return;
             }
 
@@ -800,6 +815,7 @@ class MarcasController extends Controller
                     'fecha' => $fecha,
                     'filename' => $filename,
                 ]);
+
                 return;
             }
 
@@ -810,6 +826,7 @@ class MarcasController extends Controller
                     'filename' => $filename,
                     'size_mb' => round($pdfSizeMB, 2),
                 ]);
+
                 return;
             }
 
@@ -818,9 +835,9 @@ class MarcasController extends Controller
 
             $caption = "Reporte Marcas Finales\n";
             $caption .= "Fecha: {$fecha}\n";
-            if (!empty($nombreUsuario)) {
+            if (! empty($nombreUsuario)) {
                 $caption .= "Generado por: {$nombreUsuario}";
-                if (!empty($numeroEmpleado)) {
+                if (! empty($numeroEmpleado)) {
                     $caption .= " ({$numeroEmpleado})";
                 }
             }
@@ -837,7 +854,7 @@ class MarcasController extends Controller
 
                 if ($response->successful()) {
                     $data = $response->json();
-                    if (!($data['ok'] ?? false)) {
+                    if (! ($data['ok'] ?? false)) {
                         Log::error('Telegram respondió ok=false para marcas finales', [
                             'response' => $data,
                             'fecha' => $fecha,
@@ -875,13 +892,14 @@ class MarcasController extends Controller
                 ->where('Turno', $turno)
                 ->first();
 
-            if (!$folioTurno) {
+            if (! $folioTurno) {
                 $tablas[] = [
                     'turno' => $turno,
                     'folio' => null,
                     'lineas' => collect(),
                     'telares' => $telaresSecuencia,
                 ];
+
                 continue;
             }
 
@@ -909,9 +927,9 @@ class MarcasController extends Controller
                 ->select('NoTelarId', 'SalonTejidoId')
                 ->get()
                 ->map(function ($row) {
-                    return (object)[
+                    return (object) [
                         'NoTelarId' => $row->NoTelarId,
-                        'SalonId' => $row->SalonTejidoId
+                        'SalonId' => $row->SalonTejidoId,
                     ];
                 });
         } catch (\Exception $e) {
@@ -921,9 +939,9 @@ class MarcasController extends Controller
                     ->selectRaw('NoTelar as NoTelarId')
                     ->get()
                     ->map(function ($row) {
-                        return (object)[
+                        return (object) [
                             'NoTelarId' => $row->NoTelarId,
-                            'SalonId' => null
+                            'SalonId' => null,
                         ];
                     });
             } catch (\Exception $e2) {

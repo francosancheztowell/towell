@@ -10,7 +10,7 @@ class TelActividadesBPMController extends Controller
 {
     //
 
-     /**
+    /**
      * Listado + búsqueda por Actividad
      */
     public function index(Request $request)
@@ -18,7 +18,7 @@ class TelActividadesBPMController extends Controller
         $q = trim((string) $request->get('q', ''));
 
         $items = TelActividadesBPM::query()
-            ->when($q !== '', fn($qry) => $qry->where('Actividad', 'like', "%{$q}%"))
+            ->when($q !== '', fn ($qry) => $qry->where('Actividad', 'like', "%{$q}%"))
             ->orderBy('Orden', 'asc')
             ->get();
 

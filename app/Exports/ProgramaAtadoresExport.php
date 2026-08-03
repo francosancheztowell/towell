@@ -7,6 +7,7 @@ use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 class ProgramaAtadoresExport implements WithMultipleSheets
 {
     protected string $fechaInicio;
+
     protected string $fechaFin;
 
     public function __construct(string $fechaInicio, string $fechaFin)

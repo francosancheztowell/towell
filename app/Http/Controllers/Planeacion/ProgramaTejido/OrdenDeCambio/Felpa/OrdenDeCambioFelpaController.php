@@ -3,21 +3,21 @@
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa;
 
 use App\Http\Controllers\Controller;
-use App\Models\Planeacion\ReqProgramaTejido;
-use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\Catalogos\ReqPesosRollosTejido;
+use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Planeacion\ReqProgramaTejido;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
-use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class OrdenDeCambioFelpaController extends Controller
 {
@@ -30,7 +30,7 @@ class OrdenDeCambioFelpaController extends Controller
      * Generar Excel de Orden de Cambio de Modelo desde datos de la BD.
      * Usado cuando se libera una ordeddn desde LiberarOrdenesController.
      *
-     * @param iterable<ReqProgramaTejido> $registros
+     * @param  iterable<ReqProgramaTejido>  $registros
      */
     public function generarExcelDesdeBD(iterable $registros)
     {
@@ -38,7 +38,7 @@ class OrdenDeCambioFelpaController extends Controller
 
         try {
             // 1) Cargar plantilla fija
-            $spreadsheet = $this->cargarPlantillaExcel(new Request());
+            $spreadsheet = $this->cargarPlantillaExcel(new Request);
 
             // 2) Crear/asegurar hoja REGISTRO con encabezados
             $this->generarTablaRegistro($spreadsheet);
@@ -61,7 +61,7 @@ class OrdenDeCambioFelpaController extends Controller
                 if (isset($registro->Repeticiones) && is_numeric($registro->Repeticiones) && (float) $registro->Repeticiones > 0) {
                     $repeticionesCalculada = (string) (int) (float) $registro->Repeticiones;
                 } elseif ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
-                    $repeticionesCalculada = (string) floor(((41.5 / (float)$pCrudo) / (float)$tiras) * 1000);
+                    $repeticionesCalculada = (string) floor(((41.5 / (float) $pCrudo) / (float) $tiras) * 1000);
                 }
 
                 // AY se toma directo del campo ya guardado (SaldoMarbete)
@@ -77,7 +77,7 @@ class OrdenDeCambioFelpaController extends Controller
                 // Calcular mts_rollo y toallas_rollo usando repeticiones calculada
                 $largo = $datosRegistro['largo'] ?? $registro->LargoToalla ?? $registro->AnchoToalla ?? $registro->LargoCrudo ?? '';
                 $mtsRollo = '';
-                if (!empty($largo) && !empty($repeticionesCalculada) && is_numeric($repeticionesCalculada)) {
+                if (! empty($largo) && ! empty($repeticionesCalculada) && is_numeric($repeticionesCalculada)) {
                     $largoNum = (float) str_replace([' Cms.', 'Cms.', 'cm', 'CM'], '', (string) $largo);
                     $repNum = (float) $repeticionesCalculada;
                     if ($largoNum > 0 && $repNum > 0) {
@@ -88,7 +88,7 @@ class OrdenDeCambioFelpaController extends Controller
                 $datosRegistro['programa_corte_rollo'] = $mtsRollo;
 
                 $toallasRollo = '';
-                if (!empty($repeticionesCalculada) && !empty($tiras) && is_numeric($repeticionesCalculada) && is_numeric($tiras)) {
+                if (! empty($repeticionesCalculada) && ! empty($tiras) && is_numeric($repeticionesCalculada) && is_numeric($tiras)) {
                     $repNum = (float) $repeticionesCalculada;
                     $tirasNum = (float) $tiras;
                     if ($repNum > 0 && $tirasNum > 0) {
@@ -104,9 +104,9 @@ class OrdenDeCambioFelpaController extends Controller
                 $this->crearOActualizarModeloCodificado($registro, $datosRegistro);
 
                 $registrosParaFormato[] = [
-                    'fila'  => $filaRegistro,
+                    'fila' => $filaRegistro,
                     'datos' => $datosRegistro,
-                    'bd'    => $registro,
+                    'bd' => $registro,
                 ];
 
                 $filaRegistro++;
@@ -121,7 +121,7 @@ class OrdenDeCambioFelpaController extends Controller
 
             // 4) Obtener hoja plantilla (primera que no sea REGISTRO)
             $hojaPlantilla = $this->obtenerHojaPlantilla($spreadsheet);
-            if (!$hojaPlantilla) {
+            if (! $hojaPlantilla) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No se encontró una hoja plantilla en el archivo Excel.',
@@ -134,19 +134,19 @@ class OrdenDeCambioFelpaController extends Controller
             // 6) Crear una hoja por registro
             foreach ($registrosParaFormato as $indice => $info) {
                 /** @var ReqProgramaTejido $registroBD */
-                $registroBD   = $info['bd'];
+                $registroBD = $info['bd'];
                 $filaRegistro = $info['fila'];
-                $datos        = $info['datos'];
+                $datos = $info['datos'];
 
                 $tipoFormato = $this->determinarTipoFormatoDesdeBD($registroBD);
 
                 // Crear hoja nueva copiando la plantilla (mantiene estilos e imágenes)
                 $nuevaHoja = $hojaPlantilla->copy();
-                $nuevaHoja->setTitle('TEMP_' . ($indice + 1));
+                $nuevaHoja->setTitle('TEMP_'.($indice + 1));
                 $spreadsheet->addSheet($nuevaHoja);
 
                 // Nombrar hoja
-                $nombreHoja = $this->generarNombreHoja($tipoFormato, (string)($datos['orden_numero'] ?? ''), $indice + 1);
+                $nombreHoja = $this->generarNombreHoja($tipoFormato, (string) ($datos['orden_numero'] ?? ''), $indice + 1);
                 $nuevaHoja->setTitle($nombreHoja);
 
                 // Llenar fórmulas que referencian a REGISTRO
@@ -161,7 +161,7 @@ class OrdenDeCambioFelpaController extends Controller
             $this->activarPrimeraHojaNoRegistro($spreadsheet);
 
             // 9) Descargar archivo
-            $nombreArchivo = 'ORDEN_CAMBIO_MODELO_' . date('Ymd_His') . '.xlsx';
+            $nombreArchivo = 'ORDEN_CAMBIO_MODELO_'.date('Ymd_His').'.xlsx';
 
             return response()->streamDownload(
                 function () use ($spreadsheet) {
@@ -172,8 +172,7 @@ class OrdenDeCambioFelpaController extends Controller
                 },
                 $nombreArchivo,
                 [
-                    'Content-Type' =>
-                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 ]
             );
         } catch (\Throwable $e) {
@@ -184,7 +183,7 @@ class OrdenDeCambioFelpaController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al generar Excel: ' . $e->getMessage(),
+                'message' => 'Error al generar Excel: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -217,7 +216,7 @@ class OrdenDeCambioFelpaController extends Controller
 
             // 4) Obtener hoja plantilla
             $hojaPlantilla = $this->obtenerHojaPlantilla($spreadsheet);
-            if (!$hojaPlantilla) {
+            if (! $hojaPlantilla) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No se encontró una hoja plantilla en el archivo Excel.',
@@ -230,15 +229,15 @@ class OrdenDeCambioFelpaController extends Controller
             // 6) Crear una hoja por registro
             foreach ($registros as $indice => $registroInfo) {
                 $filaRegistro = $registroInfo['fila'];
-                $datos        = $registroInfo['datos'];
+                $datos = $registroInfo['datos'];
 
                 $tipoFormato = $this->determinarTipoFormato($datos);
 
                 $nuevaHoja = $hojaPlantilla->copy();
-                $nuevaHoja->setTitle('TEMP_' . ($indice + 1));
+                $nuevaHoja->setTitle('TEMP_'.($indice + 1));
                 $spreadsheet->addSheet($nuevaHoja);
 
-                $nombreHoja = $this->generarNombreHoja($tipoFormato, (string)($datos['orden_numero'] ?? ''), $indice + 1);
+                $nombreHoja = $this->generarNombreHoja($tipoFormato, (string) ($datos['orden_numero'] ?? ''), $indice + 1);
                 $nuevaHoja->setTitle($nombreHoja);
 
                 $this->llenarFormatoEnHoja($nuevaHoja, $filaRegistro, $tipoFormato, $datos);
@@ -252,7 +251,7 @@ class OrdenDeCambioFelpaController extends Controller
             $this->activarPrimeraHojaNoRegistro($spreadsheet);
 
             // 9) Descargar
-            $nombreArchivo = 'ORDEN_CAMBIO_MODELO_' . date('Ymd_His') . '.xlsx';
+            $nombreArchivo = 'ORDEN_CAMBIO_MODELO_'.date('Ymd_His').'.xlsx';
 
             return response()->streamDownload(
                 function () use ($spreadsheet) {
@@ -263,8 +262,7 @@ class OrdenDeCambioFelpaController extends Controller
                 },
                 $nombreArchivo,
                 [
-                    'Content-Type' =>
-                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 ]
             );
         } catch (\Throwable $e) {
@@ -275,7 +273,7 @@ class OrdenDeCambioFelpaController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al generar Excel: ' . $e->getMessage(),
+                'message' => 'Error al generar Excel: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -289,112 +287,109 @@ class OrdenDeCambioFelpaController extends Controller
         $this->establecerFormulaCelda($sheet, 'D5', '=NOW()');
 
         // Fecha de orden
-        $this->establecerFormulaCelda($sheet, 'D6', '=REGISTRO!B' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'E6', '=REGISTRO!B' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'D6', '=REGISTRO!B'.$filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'E6', '=REGISTRO!B'.$filaRegistro);
 
         // Número de orden
-        $this->establecerFormulaCelda($sheet, 'P4', '=REGISTRO!A' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'P5', '=REGISTRO!A' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'P4', '=REGISTRO!A'.$filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'P5', '=REGISTRO!A'.$filaRegistro);
 
         // Telar
-        $this->establecerFormulaCelda($sheet, 'I7', '=REGISTRO!E' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'I7', '=REGISTRO!E'.$filaRegistro);
 
         // Modelo
         foreach (['L7', 'M7', 'N7', 'O7', 'P7'] as $celda) {
-            $this->establecerFormulaCelda($sheet, $celda, '=REGISTRO!G' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, $celda, '=REGISTRO!G'.$filaRegistro);
         }
 
         // Departamento
-        $this->establecerFormulaCelda($sheet, 'D7', '=REGISTRO!D' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'E7', '=REGISTRO!D' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'D7', '=REGISTRO!D'.$filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'E7', '=REGISTRO!D'.$filaRegistro);
 
         // Prioridad
         foreach (['J6', 'K6', 'L6', 'M6', 'N6', 'O6', 'P6'] as $celda) {
-            $this->establecerFormulaCelda($sheet, $celda, '=REGISTRO!F' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, $celda, '=REGISTRO!F'.$filaRegistro);
         }
 
         // Rizo
-        $this->establecerFormulaCelda($sheet, 'O9', '=REGISTRO!AF' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'P9', '=REGISTRO!AF' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'O9', '=REGISTRO!AF'.$filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'P9', '=REGISTRO!AF'.$filaRegistro);
 
         // Pie
-        $this->establecerFormulaCelda($sheet, 'O10', '=REGISTRO!AJ' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'P10', '=REGISTRO!AJ' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'O10', '=REGISTRO!AJ'.$filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'P10', '=REGISTRO!AJ'.$filaRegistro);
 
         // Clave AX
-        $this->establecerFormulaCelda($sheet, 'J10', '=REGISTRO!I' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'K10', '=REGISTRO!I' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'J10', '=REGISTRO!I'.$filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'K10', '=REGISTRO!I'.$filaRegistro);
 
         // Calidad (M10)
-        $this->establecerFormulaCelda($sheet, 'M10', '=REGISTRO!CT' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'M10', '=REGISTRO!CT'.$filaRegistro);
 
         // Clave sistema
         foreach (['D10', 'E10', 'F10', 'G10'] as $celda) {
-            $this->establecerFormulaCelda($sheet, $celda, '=REGISTRO!H' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, $celda, '=REGISTRO!H'.$filaRegistro);
         }
 
         // Cantidad a producir
         foreach (['D8', 'E8', 'F8'] as $celda) {
-            $this->establecerFormulaCelda($sheet, $celda, '=REGISTRO!O' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, $celda, '=REGISTRO!O'.$filaRegistro);
         }
 
         // Fecha compromiso
-        $this->establecerFormulaCelda($sheet, 'I8', '=REGISTRO!L' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'J8', '=REGISTRO!L' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'I8', '=REGISTRO!L'.$filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'J8', '=REGISTRO!L'.$filaRegistro);
 
         // Descripción
         foreach (['L8', 'M8', 'N8', 'O8', 'P8'] as $celda) {
-            $this->establecerFormulaCelda($sheet, $celda, '=REGISTRO!M' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, $celda, '=REGISTRO!M'.$filaRegistro);
         }
 
         // Clave
-        $this->establecerFormulaCelda($sheet, 'B9', '=REGISTRO!N' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'B9', '=REGISTRO!N'.$filaRegistro);
 
         // Tolerancia
-        $this->establecerFormulaCelda($sheet, 'F9', '=REGISTRO!J' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'F9', '=REGISTRO!J'.$filaRegistro);
 
         // Rasurada
-        $this->establecerFormulaCelda($sheet, 'I9', '=REGISTRO!AV' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'I9', '=REGISTRO!AV'.$filaRegistro);
 
         // Cambio de repaso
-        $this->establecerFormulaCelda($sheet, 'M9', '=REGISTRO!AZ' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'M9', '=REGISTRO!AZ'.$filaRegistro);
 
         // Largo / peso / luchaje
-        $this->establecerFormulaCelda($sheet, 'A14', '=REGISTRO!R' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'B14', '=REGISTRO!S' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'C14', '=REGISTRO!T' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'D14', '=REGISTRO!X' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'E14', '=REGISTRO!Y' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'A14', '=REGISTRO!R'.$filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'B14', '=REGISTRO!S'.$filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'C14', '=REGISTRO!T'.$filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'D14', '=REGISTRO!X'.$filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'E14', '=REGISTRO!Y'.$filaRegistro);
         // Observaciones
-        $this->establecerFormulaCelda($sheet, 'O14', '=REGISTRO!BC' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'P14', '=REGISTRO!BC' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'O14', '=REGISTRO!BC'.$filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'P14', '=REGISTRO!BC'.$filaRegistro);
 
         // Densidad
-        $this->establecerFormulaCelda($sheet, 'N16', '=REGISTRO!CI' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'N16', '=REGISTRO!CI'.$filaRegistro);
 
         // Rizo / pie / ancho
-        $this->establecerFormulaCelda($sheet, 'F16', '=REGISTRO!AF' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'I16', '=REGISTRO!AJ' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'B16', '=REGISTRO!Q' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'F16', '=REGISTRO!AF'.$filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'I16', '=REGISTRO!AJ'.$filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'B16', '=REGISTRO!Q'.$filaRegistro);
         // Metros de rollo
         // Primero establecer K17 para que H17 pueda referenciarlo
-        $this->establecerFormulaCelda($sheet, 'K17', '=REGISTRO!AX' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'K17', '=REGISTRO!AX'.$filaRegistro);
         $this->establecerFormulaCelda(
             $sheet,
             'H17',
-            '=(K17*REGISTRO!R' . $filaRegistro . ')/100'
+            '=(K17*REGISTRO!R'.$filaRegistro.')/100'
         );
 
-
         // Cenefa
-        $this->establecerFormulaCelda($sheet, 'C17', '=REGISTRO!AT' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'D17', '=REGISTRO!AT' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'C17', '=REGISTRO!AT'.$filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'D17', '=REGISTRO!AT'.$filaRegistro);
 
         // Med inicio rizo a cenefa
-        $this->establecerFormulaCelda($sheet, 'C19', '=REGISTRO!AU' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'D19', '=REGISTRO!AU' . $filaRegistro);
-
-
+        $this->establecerFormulaCelda($sheet, 'C19', '=REGISTRO!AU'.$filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'D19', '=REGISTRO!AU'.$filaRegistro);
 
         // Fórmula K19
         if ($tipoFormato === 'smit' || $tipoFormato === 'jacquard') {
@@ -404,13 +399,13 @@ class OrdenDeCambioFelpaController extends Controller
         }
 
         // Velocidad / tiras
-        $this->establecerFormulaCelda($sheet, 'H19', '=REGISTRO!AC' . $filaRegistro);
-        $this->establecerFormulaCelda($sheet, 'M19', '=REGISTRO!AW' . $filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'H19', '=REGISTRO!AC'.$filaRegistro);
+        $this->establecerFormulaCelda($sheet, 'M19', '=REGISTRO!AW'.$filaRegistro);
 
         // Codigo de dibujo en bloque M:N:O:P, filas 26 a 28.
         foreach (range(26, 28) as $fila) {
             foreach (['M', 'N', 'O', 'P'] as $columna) {
-                $this->establecerFormulaCelda($sheet, $columna . $fila, '=REGISTRO!K' . $filaRegistro);
+                $this->establecerFormulaCelda($sheet, $columna.$fila, '=REGISTRO!K'.$filaRegistro);
             }
         }
 
@@ -464,10 +459,12 @@ class OrdenDeCambioFelpaController extends Controller
             // Si inicia con "=", Excel lo toma como formula; se fuerza texto.
             if ($valorLimpio !== '' && str_starts_with($valorLimpio, '=')) {
                 $worksheet->setCellValueExplicit($celda, $valorLimpio, DataType::TYPE_STRING);
+
                 return;
             }
 
             $worksheet->setCellValue($celda, $valorLimpio);
+
             return;
         }
 
@@ -530,11 +527,11 @@ class OrdenDeCambioFelpaController extends Controller
         if ($request->hasFile('plantilla')) {
             $path = $request->file('plantilla')->getRealPath();
         } else {
-            $path = __DIR__ . '/ordfelpa.xlsx';
+            $path = __DIR__.'/ordfelpa.xlsx';
         }
 
-        if (!file_exists($path)) {
-            throw new \RuntimeException('No se encontró la plantilla Excel: ' . $path);
+        if (! file_exists($path)) {
+            throw new \RuntimeException('No se encontró la plantilla Excel: '.$path);
         }
 
         $reader = IOFactory::createReaderForFile($path);
@@ -554,7 +551,7 @@ class OrdenDeCambioFelpaController extends Controller
         $worksheet = $this->generarTablaRegistro($spreadsheet);
 
         $ultimaFila = $worksheet->getHighestRow();
-        $registros  = [];
+        $registros = [];
 
         for ($fila = 2; $fila <= $ultimaFila; $fila++) {
             $ordenNumero = $this->obtenerValorCelda($worksheet, $fila, 'A');
@@ -566,7 +563,7 @@ class OrdenDeCambioFelpaController extends Controller
             $datos = $this->leerDatosDesdeHojaRegistro($worksheet, $fila, $horaActual);
 
             $registros[] = [
-                'fila'  => $fila,
+                'fila' => $fila,
                 'datos' => $datos,
             ];
         }
@@ -579,7 +576,7 @@ class OrdenDeCambioFelpaController extends Controller
      */
     protected function determinarTipoFormato(array $datos): string
     {
-        $modelo        = strtoupper($datos['modelo'] ?? '');
+        $modelo = strtoupper($datos['modelo'] ?? '');
         $nombreFormato = strtoupper($datos['nombre_formato_logistico'] ?? '');
 
         if (stripos($modelo, 'JACQUARD') !== false || stripos($nombreFormato, 'JACQUARD') !== false) {
@@ -598,17 +595,16 @@ class OrdenDeCambioFelpaController extends Controller
      */
     protected function generarNombreHoja(string $tipoFormato, string $ordenNumero, int $indice): string
     {
-        $tipoMayus   = strtoupper($tipoFormato);
-        $nombreBase  = $tipoMayus . '_' . $ordenNumero;
-        $nombreFinal = $nombreBase . '_' . $indice;
+        $tipoMayus = strtoupper($tipoFormato);
+        $nombreBase = $tipoMayus.'_'.$ordenNumero;
+        $nombreFinal = $nombreBase.'_'.$indice;
 
         if (strlen($nombreFinal) > 31) {
-            $nombreFinal = substr($tipoMayus, 0, 5) . '_' . substr($ordenNumero, -10) . '_' . $indice;
+            $nombreFinal = substr($tipoMayus, 0, 5).'_'.substr($ordenNumero, -10).'_'.$indice;
         }
 
         return $nombreFinal;
     }
-
 
     /**
      * Leer datos de una fila de REGISTRO.
@@ -619,134 +615,134 @@ class OrdenDeCambioFelpaController extends Controller
         $filaAUsar = max(2, $filaNumero);
 
         $datos = [
-            'orden_numero'         => $this->obtenerValorCelda($worksheet, $filaAUsar, 'A'),
-            'fecha_orden'          => $this->formatearFecha($this->obtenerValorCelda($worksheet, $filaAUsar, 'B')),
-            'fecha_cumplimiento'   => $this->formatearFecha($this->obtenerValorCelda($worksheet, $filaAUsar, 'C')),
-            'departamento'         => $this->obtenerValorCelda($worksheet, $filaAUsar, 'D'),
-            'telar'                => $this->obtenerValorCelda($worksheet, $filaAUsar, 'E'),
-            'prioridad'            => $this->obtenerValorCelda($worksheet, $filaAUsar, 'F'),
-            'modelo'               => $this->obtenerValorCelda($worksheet, $filaAUsar, 'G'),
-            'clave_modelo'         => $this->obtenerValorCelda($worksheet, $filaAUsar, 'H'),
-            'clave_ax'             => $this->obtenerValorCelda($worksheet, $filaAUsar, 'I'),
-            'tolerancia'           => $this->obtenerValorCelda($worksheet, $filaAUsar, 'J'),
-            'codigo_dibujo'        => $this->obtenerValorCelda($worksheet, $filaAUsar, 'K'),
-            'fecha_compromiso'     => $this->formatearFecha($this->obtenerValorCelda($worksheet, $filaAUsar, 'L')),
+            'orden_numero' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'A'),
+            'fecha_orden' => $this->formatearFecha($this->obtenerValorCelda($worksheet, $filaAUsar, 'B')),
+            'fecha_cumplimiento' => $this->formatearFecha($this->obtenerValorCelda($worksheet, $filaAUsar, 'C')),
+            'departamento' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'D'),
+            'telar' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'E'),
+            'prioridad' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'F'),
+            'modelo' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'G'),
+            'clave_modelo' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'H'),
+            'clave_ax' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'I'),
+            'tolerancia' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'J'),
+            'codigo_dibujo' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'K'),
+            'fecha_compromiso' => $this->formatearFecha($this->obtenerValorCelda($worksheet, $filaAUsar, 'L')),
             'nombre_formato_logistico' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'M'),
-            'clave'                => $this->obtenerValorCelda($worksheet, $filaAUsar, 'N'),
-            'cantidad_producir'    => $this->obtenerValorCelda($worksheet, $filaAUsar, 'O'),
-            'peine'                => $this->obtenerValorCelda($worksheet, $filaAUsar, 'P'),
-            'ancho'                => $this->obtenerValorCelda($worksheet, $filaAUsar, 'Q'),
-            'largo'                => $this->obtenerValorCelda($worksheet, $filaAUsar, 'R'),
-            'p_crudo'              => $this->obtenerValorCelda($worksheet, $filaAUsar, 'S'),
-            'luchaje'              => $this->obtenerValorCelda($worksheet, $filaAUsar, 'T'),
-            'tra'                  => $this->obtenerValorCelda($worksheet, $filaAUsar, 'U'),
-            'hilo_tra'             => $this->obtenerValorCelda($worksheet, $filaAUsar, 'V'),
-            'obs_tra'              => $this->obtenerValorCelda($worksheet, $filaAUsar, 'W'),
-            'tipo_plano'           => $this->obtenerValorCelda($worksheet, $filaAUsar, 'X'),
-            'med_plano'            => $this->obtenerValorCelda($worksheet, $filaAUsar, 'Y'),
-            'tipo_rizo'            => $this->obtenerValorCelda($worksheet, $filaAUsar, 'Z'),
-            'alt_rizo'             => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AA'),
-            'obs_rizo'             => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AB'),
-            'velocidad_minima'     => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AC'),
-            'rizo'                 => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AD'),
-            'hilo_rizo'            => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AE'),
-            'cuenta_rizo'          => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AF'),
-            'obs_rizo_detalle'     => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AG'),
-            'pie'                  => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AH'),
-            'hilo_pie'             => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AI'),
-            'cuenta_pie'           => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AJ'),
-            'obs_pie'              => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AK'),
-            'c1'                   => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AL'),
-            'obs_c1'               => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AM'),
-            'c2'                   => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AN'),
-            'obs_c2'               => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AO'),
-            'c3'                   => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AP'),
-            'obs_c3'               => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AQ'),
-            'c4'                   => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AR'),
-            'obs_c4'               => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AS'),
-            'med_cenefa'           => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AT'),
+            'clave' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'N'),
+            'cantidad_producir' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'O'),
+            'peine' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'P'),
+            'ancho' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'Q'),
+            'largo' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'R'),
+            'p_crudo' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'S'),
+            'luchaje' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'T'),
+            'tra' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'U'),
+            'hilo_tra' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'V'),
+            'obs_tra' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'W'),
+            'tipo_plano' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'X'),
+            'med_plano' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'Y'),
+            'tipo_rizo' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'Z'),
+            'alt_rizo' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AA'),
+            'obs_rizo' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AB'),
+            'velocidad_minima' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AC'),
+            'rizo' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AD'),
+            'hilo_rizo' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AE'),
+            'cuenta_rizo' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AF'),
+            'obs_rizo_detalle' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AG'),
+            'pie' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AH'),
+            'hilo_pie' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AI'),
+            'cuenta_pie' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AJ'),
+            'obs_pie' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AK'),
+            'c1' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AL'),
+            'obs_c1' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AM'),
+            'c2' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AN'),
+            'obs_c2' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AO'),
+            'c3' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AP'),
+            'obs_c3' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AQ'),
+            'c4' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AR'),
+            'obs_c4' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AS'),
+            'med_cenefa' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AT'),
             'med_inicio_rizo_cenefa' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AU'),
-            'rasurada'             => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AV'),
-            'tiras'                => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AW'),
-            'repeticiones'         => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AX'),
-            'no_marbetes'          => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AY'),
-            'cambio_repaso'        => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AZ'),
-            'vendedor'             => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BA'),
-            'no_orden'             => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BB'),
-            'observaciones'        => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BC'),
-            'trama_ancho_peine'    => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BD'),
-            'log_lucha_total'      => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BE'),
-            'c1_trama_fondo'       => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BF'),
-            'hilo_c1_trama'        => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BG'),
-            'obs_c1_trama'         => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BH'),
-            'pasadasc1'            => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BI'),
-            'c1_pasadas'           => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BJ'),
-            'hilo_c1_pasadas'      => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BK'),
-            'obs_c1_pasadas'       => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BL'),
-            'pasadasc2'            => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BM'),
-            'c2_pasadas'           => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BN'),
-            'hilo_c2_pasadas'      => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BO'),
-            'obs_c2_pasadas'       => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BP'),
-            'pasadasc3'            => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BQ'),
-            'c3_pasadas'           => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BR'),
-            'hilo_c3_pasadas'      => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BS'),
-            'obs_c3_pasadas'       => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BT'),
-            'pasadasc4'            => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BU'),
-            'c4_pasadas'           => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BV'),
-            'hilo_c4_pasadas'      => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BW'),
-            'obs_c4_pasadas'       => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BX'),
-            'pasadasc5'            => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BY'),
-            'c5_pasadas'           => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BZ'),
-            'hilo_c5_pasadas'      => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CA'),
-            'obs_c5_pasadas'       => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CB'),
-            'total_pasadas'        => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CC'),
-            'contraccion'          => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CD'),
-            'tramas_cm_tejido'     => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CE'),
-            'contrac_rizo'         => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CF'),
-            'clasificacion_kg'     => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CG'),
-            'kg_dia'               => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CH'),
-            'densidad'             => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CI'),
-            'pzas_dia_pasadas'     => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CJ'),
-            'pzas_dia_formula'     => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CK'),
-            'dif'                  => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CL'),
-            'efic'                 => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CM'),
-            'rev'                  => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CN'),
-            'tiras_final'          => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CO'),
-            'pasadastotal'         => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CQ'),
-            'folio_codificacion'   => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CR'),
-            'peso_rollo'           => $this->obtenerPesoRolloDesdeRegistro($worksheet, $filaAUsar),
+            'rasurada' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AV'),
+            'tiras' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AW'),
+            'repeticiones' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AX'),
+            'no_marbetes' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AY'),
+            'cambio_repaso' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AZ'),
+            'vendedor' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BA'),
+            'no_orden' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BB'),
+            'observaciones' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BC'),
+            'trama_ancho_peine' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BD'),
+            'log_lucha_total' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BE'),
+            'c1_trama_fondo' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BF'),
+            'hilo_c1_trama' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BG'),
+            'obs_c1_trama' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BH'),
+            'pasadasc1' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BI'),
+            'c1_pasadas' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BJ'),
+            'hilo_c1_pasadas' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BK'),
+            'obs_c1_pasadas' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BL'),
+            'pasadasc2' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BM'),
+            'c2_pasadas' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BN'),
+            'hilo_c2_pasadas' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BO'),
+            'obs_c2_pasadas' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BP'),
+            'pasadasc3' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BQ'),
+            'c3_pasadas' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BR'),
+            'hilo_c3_pasadas' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BS'),
+            'obs_c3_pasadas' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BT'),
+            'pasadasc4' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BU'),
+            'c4_pasadas' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BV'),
+            'hilo_c4_pasadas' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BW'),
+            'obs_c4_pasadas' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BX'),
+            'pasadasc5' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BY'),
+            'c5_pasadas' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'BZ'),
+            'hilo_c5_pasadas' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CA'),
+            'obs_c5_pasadas' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CB'),
+            'total_pasadas' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CC'),
+            'contraccion' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CD'),
+            'tramas_cm_tejido' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CE'),
+            'contrac_rizo' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CF'),
+            'clasificacion_kg' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CG'),
+            'kg_dia' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CH'),
+            'densidad' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CI'),
+            'pzas_dia_pasadas' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CJ'),
+            'pzas_dia_formula' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CK'),
+            'dif' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CL'),
+            'efic' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CM'),
+            'rev' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CN'),
+            'tiras_final' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CO'),
+            'pasadastotal' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CQ'),
+            'folio_codificacion' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CR'),
+            'peso_rollo' => $this->obtenerPesoRolloDesdeRegistro($worksheet, $filaAUsar),
 
             // Campos extra para compatibilidad con código
-            'clave_sistema'        => $this->obtenerValorCelda($worksheet, $filaAUsar, 'H')
+            'clave_sistema' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'H')
                 ?: $this->obtenerValorCelda($worksheet, $filaAUsar, 'N'),
-            'descripcion'          => $this->obtenerValorCelda($worksheet, $filaAUsar, 'M'),
-            'rs_bata_nov'          => $this->obtenerValorCelda($worksheet, $filaAUsar, 'M'),
-            'calidad'              => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CT'),
-            'plano_tipo'           => $this->obtenerValorCelda($worksheet, $filaAUsar, 'X'),
-            'plano_largo'          => $this->obtenerValorCelda($worksheet, $filaAUsar, 'Y'),
-            'plano_rizo'           => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AD'),
-            'cuentas'              => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AF'),
-            'minimo'               => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AC'),
-            'tamano_cenefa'        => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AT'),
-            'mts_rollo'            => '',
+            'descripcion' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'M'),
+            'rs_bata_nov' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'M'),
+            'calidad' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'CT'),
+            'plano_tipo' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'X'),
+            'plano_largo' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'Y'),
+            'plano_rizo' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AD'),
+            'cuentas' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AF'),
+            'minimo' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AC'),
+            'tamano_cenefa' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AT'),
+            'mts_rollo' => '',
             'programa_corte_rollo' => '',
-            'toallas_rollo'        => '',
-            'nombre_archivo'       => $this->obtenerValorCelda($worksheet, $filaAUsar, 'M'),
-            'version'              => '',
-            'talon_total'          => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AW') ?: '4',
-            'fecha_formato'        => $this->formatearFecha($this->obtenerValorCelda($worksheet, $filaAUsar, 'B')),
-            'hora_impresion'       => $horaActual,
+            'toallas_rollo' => '',
+            'nombre_archivo' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'M'),
+            'version' => '',
+            'talon_total' => $this->obtenerValorCelda($worksheet, $filaAUsar, 'AW') ?: '4',
+            'fecha_formato' => $this->formatearFecha($this->obtenerValorCelda($worksheet, $filaAUsar, 'B')),
+            'hora_impresion' => $horaActual,
         ];
 
         // Derivados
-        $largo        = $datos['largo'] ?? '';
+        $largo = $datos['largo'] ?? '';
         $repeticiones = $datos['repeticiones'] ?? '';
-        $tiras        = $datos['tiras'] ?? '';
+        $tiras = $datos['tiras'] ?? '';
 
         // Metros de rollo
-        if (!empty($largo) && !empty($repeticiones)) {
+        if (! empty($largo) && ! empty($repeticiones)) {
             $largoNum = (float) str_replace([' Cms.', 'Cms.', 'cm', 'CM'], '', (string) $largo);
-            $repNum   = (float) $repeticiones;
+            $repNum = (float) $repeticiones;
 
             if ($largoNum > 0 && $repNum > 0) {
                 $datos['mts_rollo'] = (string) round($largoNum * $repNum / 100, 2);
@@ -757,8 +753,8 @@ class OrdenDeCambioFelpaController extends Controller
         $datos['programa_corte_rollo'] = $datos['mts_rollo'] ?? '';
 
         // Toallas por rollo
-        if (!empty($repeticiones) && !empty($tiras)) {
-            $repNum   = (float) $repeticiones;
+        if (! empty($repeticiones) && ! empty($tiras)) {
+            $repNum = (float) $repeticiones;
             $tirasNum = (float) $tiras;
 
             if ($repNum > 0 && $tirasNum > 0) {
@@ -774,7 +770,8 @@ class OrdenDeCambioFelpaController extends Controller
      */
     protected function obtenerValorCelda(Worksheet $worksheet, int $fila, string $columna): string
     {
-        $valor = $worksheet->getCell($columna . $fila)->getValue();
+        $valor = $worksheet->getCell($columna.$fila)->getValue();
+
         return $valor !== null ? (string) $valor : '';
     }
 
@@ -790,6 +787,7 @@ class OrdenDeCambioFelpaController extends Controller
         if (is_numeric($fecha)) {
             try {
                 $fechaPhp = Date::excelToDateTimeObject($fecha);
+
                 return $fechaPhp->format('d-m-Y');
             } catch (\Exception $e) {
                 return (string) $fecha;
@@ -801,6 +799,7 @@ class OrdenDeCambioFelpaController extends Controller
             if ($timestamp !== false) {
                 return date('d-m-Y', $timestamp);
             }
+
             return $fecha;
         }
 
@@ -812,10 +811,10 @@ class OrdenDeCambioFelpaController extends Controller
      */
     protected function obtenerHoraActual(): string
     {
-        $hora    = date('g:i');
+        $hora = date('g:i');
         $periodo = date('A') === 'AM' ? 'a. m.' : 'p. m.';
 
-        return $hora . ' ' . $periodo;
+        return $hora.' '.$periodo;
     }
 
     /**
@@ -833,43 +832,43 @@ class OrdenDeCambioFelpaController extends Controller
             }
         }
 
-        if (!$worksheet) {
+        if (! $worksheet) {
             $worksheet = $spreadsheet->createSheet();
             $worksheet->setTitle('REGISTRO');
         }
 
         $primerEncabezado = $worksheet->getCell('A1')->getValue();
-        if (!empty($primerEncabezado) && $primerEncabezado === 'Num de Orden') {
+        if (! empty($primerEncabezado) && $primerEncabezado === 'Num de Orden') {
             return $worksheet;
         }
 
         $encabezados = [
-            'A'  => 'Num de Orden',
-            'B'  => 'Fecha Orden',
-            'C'  => 'Fecha Cumplimiento',
-            'D'  => 'Departamento',
-            'E'  => 'Telar Actual',
-            'F'  => 'Prioridad',
-            'G'  => 'Modelo',
-            'H'  => 'CLAVE MODELO',
-            'I'  => 'CLAVE AX',
-            'J'  => 'Tolerancia',
-            'K'  => 'CODIGO DE DIBUJO',
-            'L'  => 'Fecha Compromiso',
-            'M'  => 'Nombre de Formato Logístico',
-            'N'  => 'Clave',
-            'O'  => 'Cantidad a Producir',
-            'P'  => 'Peine',
-            'Q'  => 'Ancho',
-            'R'  => 'Largo',
-            'S'  => 'P_crudo',
-            'T'  => 'Luchaje',
-            'U'  => 'Tra',
-            'V'  => 'Hilo (Tra)',
-            'W'  => 'OBS. (Tra)',
-            'X'  => 'Tipo plano',
-            'Y'  => 'Med plano',
-            'Z'  => 'TIPO DE RIZO',
+            'A' => 'Num de Orden',
+            'B' => 'Fecha Orden',
+            'C' => 'Fecha Cumplimiento',
+            'D' => 'Departamento',
+            'E' => 'Telar Actual',
+            'F' => 'Prioridad',
+            'G' => 'Modelo',
+            'H' => 'CLAVE MODELO',
+            'I' => 'CLAVE AX',
+            'J' => 'Tolerancia',
+            'K' => 'CODIGO DE DIBUJO',
+            'L' => 'Fecha Compromiso',
+            'M' => 'Nombre de Formato Logístico',
+            'N' => 'Clave',
+            'O' => 'Cantidad a Producir',
+            'P' => 'Peine',
+            'Q' => 'Ancho',
+            'R' => 'Largo',
+            'S' => 'P_crudo',
+            'T' => 'Luchaje',
+            'U' => 'Tra',
+            'V' => 'Hilo (Tra)',
+            'W' => 'OBS. (Tra)',
+            'X' => 'Tipo plano',
+            'Y' => 'Med plano',
+            'Z' => 'TIPO DE RIZO',
             'AA' => 'ALTURA DE RIZO',
             'AB' => 'OBS (Rizo)',
             'AC' => 'Veloc. Mínima',
@@ -945,10 +944,10 @@ class OrdenDeCambioFelpaController extends Controller
         ];
 
         foreach ($encabezados as $columna => $titulo) {
-            $cell = $worksheet->getCell($columna . '1');
+            $cell = $worksheet->getCell($columna.'1');
             $cell->setValue($titulo);
 
-            $style = $worksheet->getStyle($columna . '1');
+            $style = $worksheet->getStyle($columna.'1');
             $style->getFont()->setBold(true)->setSize(10)->getColor()->setRGB('FFFFFF');
             $style->getFill()
                 ->setFillType(Fill::FILL_SOLID)
@@ -974,17 +973,17 @@ class OrdenDeCambioFelpaController extends Controller
     protected function establecerFormulaCelda(Worksheet $sheet, string $celda, string $formula): void
     {
         try {
-            $cell       = $sheet->getCell($celda);
-            $estilo     = $cell->getStyle();
+            $cell = $sheet->getCell($celda);
+            $estilo = $cell->getStyle();
             $estiloData = $estilo->exportArray();
 
             $cell->setValue($formula);
             $estilo->applyFromArray($estiloData);
         } catch (\Exception $e) {
             Log::warning('Error al establecer fórmula en celda', [
-                'celda'   => $celda,
+                'celda' => $celda,
                 'formula' => $formula,
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -996,19 +995,19 @@ class OrdenDeCambioFelpaController extends Controller
     {
         try {
             // Tipo plano - X
-            $this->establecerFormulaCelda($sheet, 'F11', '=REGISTRO!X' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'G11', '=REGISTRO!X' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'H11', '=REGISTRO!X' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'F11', '=REGISTRO!X'.$filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'G11', '=REGISTRO!X'.$filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'H11', '=REGISTRO!X'.$filaRegistro);
 
             // Altura de rizo - AA
-            $this->establecerFormulaCelda($sheet, 'F14', '=REGISTRO!AD' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'G14', '=REGISTRO!AA' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'H14', '=REGISTRO!Z' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'F14', '=REGISTRO!AD'.$filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'G14', '=REGISTRO!AA'.$filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'H14', '=REGISTRO!Z'.$filaRegistro);
 
             // Obs rizo - AB
-            $this->establecerFormulaCelda($sheet, 'F15', '=REGISTRO!AG' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'I15', '=REGISTRO!AG' . $filaRegistro);
-          } catch (\Exception $e) {
+            $this->establecerFormulaCelda($sheet, 'F15', '=REGISTRO!AG'.$filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'I15', '=REGISTRO!AG'.$filaRegistro);
+        } catch (\Exception $e) {
             Log::warning('Error al establecer plano de dobladillo con fórmulas', [
                 'error' => $e->getMessage(),
             ]);
@@ -1022,14 +1021,14 @@ class OrdenDeCambioFelpaController extends Controller
     {
         try {
             // Tipo rizo - Z
-            $this->establecerFormulaCelda($sheet, 'I11', '=REGISTRO!Z' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'J11', '=REGISTRO!Z' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'K11', '=REGISTRO!Z' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'I11', '=REGISTRO!Z'.$filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'J11', '=REGISTRO!Z'.$filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'K11', '=REGISTRO!Z'.$filaRegistro);
 
             // Tra: U, hilo V, obs W
-            $this->establecerFormulaCelda($sheet, 'I14', '=REGISTRO!AH' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'J14', '=REGISTRO!U' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'K14', '=REGISTRO!AL' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'I14', '=REGISTRO!AH'.$filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'J14', '=REGISTRO!U'.$filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'K14', '=REGISTRO!AL'.$filaRegistro);
         } catch (\Exception $e) {
             Log::warning('Error al establecer hilos con fórmulas', [
                 'error' => $e->getMessage(),
@@ -1044,15 +1043,15 @@ class OrdenDeCambioFelpaController extends Controller
     {
         try {
             // C1 - AL, AM
-            $this->establecerFormulaCelda($sheet, 'L11', '=REGISTRO!AL' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'M11', '=REGISTRO!AL' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'N11', '=REGISTRO!AL' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'O11', '=REGISTRO!AM' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'L11', '=REGISTRO!AL'.$filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'M11', '=REGISTRO!AL'.$filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'N11', '=REGISTRO!AL'.$filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'O11', '=REGISTRO!AM'.$filaRegistro);
 
             // C4 - AR, AS
-            $this->establecerFormulaCelda($sheet, 'L14', '=REGISTRO!AN' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'M14', '=REGISTRO!AP' . $filaRegistro);
-            $this->establecerFormulaCelda($sheet, 'N14', '=REGISTRO!AR' . $filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'L14', '=REGISTRO!AN'.$filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'M14', '=REGISTRO!AP'.$filaRegistro);
+            $this->establecerFormulaCelda($sheet, 'N14', '=REGISTRO!AR'.$filaRegistro);
         } catch (\Exception $e) {
             Log::warning('Error al establecer cenefa trama con fórmulas', [
                 'error' => $e->getMessage(),
@@ -1084,42 +1083,42 @@ class OrdenDeCambioFelpaController extends Controller
         }
 
         $fechaCumplimiento = '';
-        $fechaCompromiso   = '';
+        $fechaCompromiso = '';
         if ($registro->FechaFinal) {
             if ($registro->FechaFinal instanceof \Carbon\Carbon) {
                 $fechaCumplimiento = $registro->FechaFinal->format('d-m-Y');
-                $fechaCompromiso   = $registro->FechaFinal->format('d-m-Y');
+                $fechaCompromiso = $registro->FechaFinal->format('d-m-Y');
             } elseif (is_string($registro->FechaFinal)) {
                 try {
-                    $dt                = \Carbon\Carbon::parse($registro->FechaFinal);
+                    $dt = \Carbon\Carbon::parse($registro->FechaFinal);
                     $fechaCumplimiento = $dt->format('d-m-Y');
-                    $fechaCompromiso   = $dt->format('d-m-Y');
+                    $fechaCompromiso = $dt->format('d-m-Y');
                 } catch (\Exception $e) {
                     $fechaCumplimiento = $registro->FechaFinal;
-                    $fechaCompromiso   = $registro->FechaFinal;
+                    $fechaCompromiso = $registro->FechaFinal;
                 }
             }
         }
 
         // Metros de rollo y toallas por rollo
         // Usar datos de ReqProgramaTejido (NO de ReqModelosCodificados)
-        $largo        = $registro->LargoToalla ?? $registro->AnchoToalla ?? $registro->LargoCrudo ?? '';
+        $largo = $registro->LargoToalla ?? $registro->AnchoToalla ?? $registro->LargoCrudo ?? '';
         // Repeticiones se toma desde BD
         $repeticiones = $registro->Repeticiones ?? '';
-        $tiras        = $registro->NoTiras ?? 2;
+        $tiras = $registro->NoTiras ?? 2;
 
         $mtsRollo = '';
-        if (!empty($largo) && !empty($repeticiones)) {
+        if (! empty($largo) && ! empty($repeticiones)) {
             $largoNum = (float) str_replace([' Cms.', 'Cms.', 'cm', 'CM'], '', (string) $largo);
-            $repNum   = (float) $repeticiones;
+            $repNum = (float) $repeticiones;
             if ($largoNum > 0 && $repNum > 0) {
                 $mtsRollo = (string) round($largoNum * $repNum / 100, 2);
             }
         }
 
         $toallasRollo = '';
-        if (!empty($repeticiones) && !empty($tiras)) {
-            $repNum   = (float) $repeticiones;
+        if (! empty($repeticiones) && ! empty($tiras)) {
+            $repNum = (float) $repeticiones;
             $tirasNum = (float) $tiras;
             if ($repNum > 0 && $tirasNum > 0) {
                 $toallasRollo = (string) round($repNum * $tirasNum, 0);
@@ -1130,108 +1129,109 @@ class OrdenDeCambioFelpaController extends Controller
         if (isset($registro->SaldoMarbete) && is_numeric($registro->SaldoMarbete)) {
             $noMarbetes = (string) (int) $registro->SaldoMarbete;
         }
+
         return [
-            'orden_numero'         => $registro->NoProduccion ?? '',
-            'fecha_orden'          => $fechaOrden,
-            'fecha_cumplimiento'   => $fechaCumplimiento,
-            'departamento'         => $registro->SalonTejidoId ?? '',
-            'telar'                => $registro->NoTelarId ?? '',
-            'prioridad'            => $registro->Prioridad ?? $modeloCodificado?->Prioridad ?? '',
-            'modelo'               => $modeloCodificado?->Nombre ?? $registro->NombreProducto ?? $registro->NombreProyecto ?? '',
-            'clave_modelo'         => $modeloCodificado?->ClaveModelo ?? $registro->TamanoClave ?? '',
-            'clave_ax'             => $modeloCodificado?->ItemId ?? $registro->ItemId ?? '',
-            'tolerancia'           => $modeloCodificado?->Tolerancia ?? $registro->Tolerancia ?? '',
-            'codigo_dibujo'        => $modeloCodificado?->CodigoDibujo ?? $registro->CodigoDibujo ?? '',
-            'fecha_compromiso'     => $fechaCompromiso,
+            'orden_numero' => $registro->NoProduccion ?? '',
+            'fecha_orden' => $fechaOrden,
+            'fecha_cumplimiento' => $fechaCumplimiento,
+            'departamento' => $registro->SalonTejidoId ?? '',
+            'telar' => $registro->NoTelarId ?? '',
+            'prioridad' => $registro->Prioridad ?? $modeloCodificado?->Prioridad ?? '',
+            'modelo' => $modeloCodificado?->Nombre ?? $registro->NombreProducto ?? $registro->NombreProyecto ?? '',
+            'clave_modelo' => $modeloCodificado?->ClaveModelo ?? $registro->TamanoClave ?? '',
+            'clave_ax' => $modeloCodificado?->ItemId ?? $registro->ItemId ?? '',
+            'tolerancia' => $modeloCodificado?->Tolerancia ?? $registro->Tolerancia ?? '',
+            'codigo_dibujo' => $modeloCodificado?->CodigoDibujo ?? $registro->CodigoDibujo ?? '',
+            'fecha_compromiso' => $fechaCompromiso,
             'nombre_formato_logistico' => $modeloCodificado?->NombreProyecto ?? $registro->NombreProyecto ?? '',
-            'clave'                => $modeloCodificado?->Clave ?? '',
-            'cantidad_producir'    => $registro->SaldoPedido ?? '',
-            'peine'                => $modeloCodificado?->Peine ?? $registro->Peine ?? '',
-            'ancho'                => ($modeloCodificado?->AnchoToalla ?? $registro->Ancho) ? (string) ($modeloCodificado?->AnchoToalla ?? $registro->Ancho) : '',
-            'largo'                => $modeloCodificado?->LargoToalla ?? $registro->LargoToalla ?? '',
-            'p_crudo'              => $modeloCodificado?->PesoCrudo ?? $registro->PesoCrudo ?? '',
-            'luchaje'              => $modeloCodificado?->Luchaje ?? $registro->Luchaje ?? '',
-            'tra'                  => $modeloCodificado?->CalibreTrama ?? $registro->Tra ?? '',
-            'hilo_tra'             => $modeloCodificado?->FibraId ?? $registro->FibraTrama ?? '',
-            'obs_tra'              => $modeloCodificado?->Obs ?? '',
-            'tipo_plano'           => '',
-            'med_plano'            => $modeloCodificado?->MedidaPlano ?? $registro->MedidaPlano ?? '',
-            'tipo_rizo'            => $modeloCodificado?->TipoRizo ?? $registro->TipoRizo ?? '',
-            'alt_rizo'             => $modeloCodificado?->AlturaRizo ?? '',
-            'obs_rizo'             => $modeloCodificado?->Obs ?? '',
-            'velocidad_minima'     => $modeloCodificado?->VelocidadSTD ?? $registro->VelocidadSTD ?? '',
-            'rizo'                 => $modeloCodificado?->CalibreRizo ?? $registro->CalibreRizo ?? '',
-            'hilo_rizo'            => $modeloCodificado?->FibraRizo ?? $registro->FibraRizo ?? '',
-            'cuenta_rizo'          => $modeloCodificado?->CuentaRizo ?? $registro->CuentaRizo ?? '',
-            'obs_rizo_detalle'     => $modeloCodificado?->Obs ?? '',
-            'pie'                  => $modeloCodificado?->CalibrePie ?? $registro->CalibrePie ?? '',
-            'hilo_pie'             => $modeloCodificado?->FibraPie ?? $registro->FibraPie ?? '',
-            'cuenta_pie'           => $modeloCodificado?->CuentaPie ?? $registro->CuentaPie ?? '',
-            'obs_pie'              => $modeloCodificado?->Obs ?? '',
-            'c1'                   => $modeloCodificado?->CalibreComb1 ?? $registro->CalibreComb1 ?? '',
-            'obs_c1'               => $modeloCodificado?->Obs1 ?? '',
-            'c2'                   => $modeloCodificado?->CalibreComb2 ?? $registro->CalibreComb2 ?? '',
-            'obs_c2'               => $modeloCodificado?->Obs2 ?? '',
-            'c3'                   => $modeloCodificado?->CalibreComb3 ?? $registro->CalibreComb3 ?? '',
-            'obs_c3'               => $modeloCodificado?->Obs3 ?? '',
-            'c4'                   => $modeloCodificado?->CalibreComb4 ?? $registro->CalibreComb4 ?? '',
-            'obs_c4'               => $modeloCodificado?->Obs4 ?? '',
-            'med_cenefa'           => $modeloCodificado?->MedidaCenefa ?? '',
+            'clave' => $modeloCodificado?->Clave ?? '',
+            'cantidad_producir' => $registro->SaldoPedido ?? '',
+            'peine' => $modeloCodificado?->Peine ?? $registro->Peine ?? '',
+            'ancho' => ($modeloCodificado?->AnchoToalla ?? $registro->Ancho) ? (string) ($modeloCodificado?->AnchoToalla ?? $registro->Ancho) : '',
+            'largo' => $modeloCodificado?->LargoToalla ?? $registro->LargoToalla ?? '',
+            'p_crudo' => $modeloCodificado?->PesoCrudo ?? $registro->PesoCrudo ?? '',
+            'luchaje' => $modeloCodificado?->Luchaje ?? $registro->Luchaje ?? '',
+            'tra' => $modeloCodificado?->CalibreTrama ?? $registro->Tra ?? '',
+            'hilo_tra' => $modeloCodificado?->FibraId ?? $registro->FibraTrama ?? '',
+            'obs_tra' => $modeloCodificado?->Obs ?? '',
+            'tipo_plano' => '',
+            'med_plano' => $modeloCodificado?->MedidaPlano ?? $registro->MedidaPlano ?? '',
+            'tipo_rizo' => $modeloCodificado?->TipoRizo ?? $registro->TipoRizo ?? '',
+            'alt_rizo' => $modeloCodificado?->AlturaRizo ?? '',
+            'obs_rizo' => $modeloCodificado?->Obs ?? '',
+            'velocidad_minima' => $modeloCodificado?->VelocidadSTD ?? $registro->VelocidadSTD ?? '',
+            'rizo' => $modeloCodificado?->CalibreRizo ?? $registro->CalibreRizo ?? '',
+            'hilo_rizo' => $modeloCodificado?->FibraRizo ?? $registro->FibraRizo ?? '',
+            'cuenta_rizo' => $modeloCodificado?->CuentaRizo ?? $registro->CuentaRizo ?? '',
+            'obs_rizo_detalle' => $modeloCodificado?->Obs ?? '',
+            'pie' => $modeloCodificado?->CalibrePie ?? $registro->CalibrePie ?? '',
+            'hilo_pie' => $modeloCodificado?->FibraPie ?? $registro->FibraPie ?? '',
+            'cuenta_pie' => $modeloCodificado?->CuentaPie ?? $registro->CuentaPie ?? '',
+            'obs_pie' => $modeloCodificado?->Obs ?? '',
+            'c1' => $modeloCodificado?->CalibreComb1 ?? $registro->CalibreComb1 ?? '',
+            'obs_c1' => $modeloCodificado?->Obs1 ?? '',
+            'c2' => $modeloCodificado?->CalibreComb2 ?? $registro->CalibreComb2 ?? '',
+            'obs_c2' => $modeloCodificado?->Obs2 ?? '',
+            'c3' => $modeloCodificado?->CalibreComb3 ?? $registro->CalibreComb3 ?? '',
+            'obs_c3' => $modeloCodificado?->Obs3 ?? '',
+            'c4' => $modeloCodificado?->CalibreComb4 ?? $registro->CalibreComb4 ?? '',
+            'obs_c4' => $modeloCodificado?->Obs4 ?? '',
+            'med_cenefa' => $modeloCodificado?->MedidaCenefa ?? '',
             'med_inicio_rizo_cenefa' => $modeloCodificado?->MedIniRizoCenefa ?? '',
-            'rasurada'             => $registro->Rasurado ?? 'NO',
-            'tiras'                => $tiras,
-            'repeticiones'         => $repeticiones,
-            'no_marbetes'          => $noMarbetes,
-            'cambio_repaso'        => strtoupper(trim((string) ($registro->CambioHilo ?? ''))) === 'SI' ? 'SI' : 'NO',
-            'vendedor'             => $modeloCodificado?->Vendedor ?? '',
-            'no_orden'             => $registro->NoProduccion ?? '',
-            'observaciones'        => $registro->Observaciones ?? '',
-            'trama_ancho_peine'    => $modeloCodificado?->AnchoPeineTrama ?? $registro->Ancho ?? '',
-            'log_lucha_total'      => $modeloCodificado?->LogLuchaTotal ?? '',
-            'c1_trama_fondo'       => $modeloCodificado?->CalTramaFondoC1 ?? '',
-            'hilo_c1_trama'        => $modeloCodificado?->FibraTramaFondoC1 ?? '',
-            'obs_c1_trama'         => '',
-            'pasadasc1'            => $modeloCodificado?->PasadasComb1 ?? $registro->PasadasComb1 ?? '',
-            'c1_pasadas'           => $modeloCodificado?->CalibreComb1 ?? $registro->CalibreComb1 ?? '',
-            'hilo_c1_pasadas'      => $modeloCodificado?->FibraComb1 ?? $registro->FibraComb1 ?? '',
-            'obs_c1_pasadas'       => $modeloCodificado?->Obs1 ?? '',
-            'pasadasc2'            => $modeloCodificado?->PasadasComb2 ?? $registro->PasadasComb2 ?? '',
-            'c2_pasadas'           => $modeloCodificado?->CalibreComb2 ?? $registro->CalibreComb2 ?? '',
-            'hilo_c2_pasadas'      => $modeloCodificado?->FibraComb2 ?? $registro->FibraComb2 ?? '',
-            'obs_c2_pasadas'       => $modeloCodificado?->Obs2 ?? '',
-            'pasadasc3'            => $modeloCodificado?->PasadasComb3 ?? $registro->PasadasComb3 ?? '',
-            'c3_pasadas'           => $modeloCodificado?->CalibreComb3 ?? $registro->CalibreComb3 ?? '',
-            'hilo_c3_pasadas'      => $modeloCodificado?->FibraComb3 ?? $registro->FibraComb3 ?? '',
-            'obs_c3_pasadas'       => $modeloCodificado?->Obs3 ?? '',
-            'pasadasc4'            => $modeloCodificado?->PasadasComb4 ?? $registro->PasadasComb4 ?? '',
-            'c4_pasadas'           => $modeloCodificado?->CalibreComb4 ?? $registro->CalibreComb4 ?? '',
-            'hilo_c4_pasadas'      => $modeloCodificado?->FibraComb4 ?? $registro->FibraComb4 ?? '',
-            'obs_c4_pasadas'       => $modeloCodificado?->Obs4 ?? '',
-            'pasadasc5'            => $modeloCodificado?->PasadasComb5 ?? $registro->PasadasComb5 ?? '',
-            'c5_pasadas'           => $modeloCodificado?->CalibreComb5 ?? $registro->CalibreComb5 ?? '',
-            'hilo_c5_pasadas'      => $modeloCodificado?->FibraComb5 ?? $registro->FibraComb5 ?? '',
-            'obs_c5_pasadas'       => $modeloCodificado?->Obs5 ?? '',
-            'total_pasadas'        => $modeloCodificado?->Total ?? '',
-            'contraccion'          => $modeloCodificado?->Contraccion ?? '',
-            'tramas_cm_tejido'     => $modeloCodificado?->TramasCMTejido ?? '',
-            'contrac_rizo'         => $modeloCodificado?->ContracRizo ?? '',
-            'clasificacion_kg'     => $modeloCodificado?->ClasificacionKG ?? '',
-            'kg_dia'               => $modeloCodificado?->KGDia ?? '',
-            'densidad'             => $modeloCodificado?->Densidad ?? $registro->PesoGRM2 ?? '',
-            'pzas_dia_pasadas'     => $modeloCodificado?->PzasDiaPasadas ?? '',
-            'pzas_dia_formula'     => $modeloCodificado?->PzasDiaFormula ?? '',
-            'dif'                  => $modeloCodificado?->DIF ?? '',
-            'efic'                 => $modeloCodificado?->EFIC ?? $registro->EficienciaSTD ?? '',
-            'rev'                  => $modeloCodificado?->Rev ?? '',
-            'tiras_final'          => $tiras,
-            'pasadastotal'         => $modeloCodificado?->PASADAS ?? '',
-            'folio_codificacion'   => $registro->NoProduccion ?? '',
-            'peso_rollo'           => $this->obtenerPesoRolloDesdeBD($registro) ?? 0,
-            'calidad'              => $registro->CategoriaCalidad ?? $registro->CatCalidad ?? '',
-            'hora_impresion'       => $horaActual,
-            'mts_rollo'            => $mtsRollo,
+            'rasurada' => $registro->Rasurado ?? 'NO',
+            'tiras' => $tiras,
+            'repeticiones' => $repeticiones,
+            'no_marbetes' => $noMarbetes,
+            'cambio_repaso' => strtoupper(trim((string) ($registro->CambioHilo ?? ''))) === 'SI' ? 'SI' : 'NO',
+            'vendedor' => $modeloCodificado?->Vendedor ?? '',
+            'no_orden' => $registro->NoProduccion ?? '',
+            'observaciones' => $registro->Observaciones ?? '',
+            'trama_ancho_peine' => $modeloCodificado?->AnchoPeineTrama ?? $registro->Ancho ?? '',
+            'log_lucha_total' => $modeloCodificado?->LogLuchaTotal ?? '',
+            'c1_trama_fondo' => $modeloCodificado?->CalTramaFondoC1 ?? '',
+            'hilo_c1_trama' => $modeloCodificado?->FibraTramaFondoC1 ?? '',
+            'obs_c1_trama' => '',
+            'pasadasc1' => $modeloCodificado?->PasadasComb1 ?? $registro->PasadasComb1 ?? '',
+            'c1_pasadas' => $modeloCodificado?->CalibreComb1 ?? $registro->CalibreComb1 ?? '',
+            'hilo_c1_pasadas' => $modeloCodificado?->FibraComb1 ?? $registro->FibraComb1 ?? '',
+            'obs_c1_pasadas' => $modeloCodificado?->Obs1 ?? '',
+            'pasadasc2' => $modeloCodificado?->PasadasComb2 ?? $registro->PasadasComb2 ?? '',
+            'c2_pasadas' => $modeloCodificado?->CalibreComb2 ?? $registro->CalibreComb2 ?? '',
+            'hilo_c2_pasadas' => $modeloCodificado?->FibraComb2 ?? $registro->FibraComb2 ?? '',
+            'obs_c2_pasadas' => $modeloCodificado?->Obs2 ?? '',
+            'pasadasc3' => $modeloCodificado?->PasadasComb3 ?? $registro->PasadasComb3 ?? '',
+            'c3_pasadas' => $modeloCodificado?->CalibreComb3 ?? $registro->CalibreComb3 ?? '',
+            'hilo_c3_pasadas' => $modeloCodificado?->FibraComb3 ?? $registro->FibraComb3 ?? '',
+            'obs_c3_pasadas' => $modeloCodificado?->Obs3 ?? '',
+            'pasadasc4' => $modeloCodificado?->PasadasComb4 ?? $registro->PasadasComb4 ?? '',
+            'c4_pasadas' => $modeloCodificado?->CalibreComb4 ?? $registro->CalibreComb4 ?? '',
+            'hilo_c4_pasadas' => $modeloCodificado?->FibraComb4 ?? $registro->FibraComb4 ?? '',
+            'obs_c4_pasadas' => $modeloCodificado?->Obs4 ?? '',
+            'pasadasc5' => $modeloCodificado?->PasadasComb5 ?? $registro->PasadasComb5 ?? '',
+            'c5_pasadas' => $modeloCodificado?->CalibreComb5 ?? $registro->CalibreComb5 ?? '',
+            'hilo_c5_pasadas' => $modeloCodificado?->FibraComb5 ?? $registro->FibraComb5 ?? '',
+            'obs_c5_pasadas' => $modeloCodificado?->Obs5 ?? '',
+            'total_pasadas' => $modeloCodificado?->Total ?? '',
+            'contraccion' => $modeloCodificado?->Contraccion ?? '',
+            'tramas_cm_tejido' => $modeloCodificado?->TramasCMTejido ?? '',
+            'contrac_rizo' => $modeloCodificado?->ContracRizo ?? '',
+            'clasificacion_kg' => $modeloCodificado?->ClasificacionKG ?? '',
+            'kg_dia' => $modeloCodificado?->KGDia ?? '',
+            'densidad' => $modeloCodificado?->Densidad ?? $registro->PesoGRM2 ?? '',
+            'pzas_dia_pasadas' => $modeloCodificado?->PzasDiaPasadas ?? '',
+            'pzas_dia_formula' => $modeloCodificado?->PzasDiaFormula ?? '',
+            'dif' => $modeloCodificado?->DIF ?? '',
+            'efic' => $modeloCodificado?->EFIC ?? $registro->EficienciaSTD ?? '',
+            'rev' => $modeloCodificado?->Rev ?? '',
+            'tiras_final' => $tiras,
+            'pasadastotal' => $modeloCodificado?->PASADAS ?? '',
+            'folio_codificacion' => $registro->NoProduccion ?? '',
+            'peso_rollo' => $this->obtenerPesoRolloDesdeBD($registro) ?? 0,
+            'calidad' => $registro->CategoriaCalidad ?? $registro->CatCalidad ?? '',
+            'hora_impresion' => $horaActual,
+            'mts_rollo' => $mtsRollo,
             'programa_corte_rollo' => $mtsRollo,
-            'toallas_rollo'        => $toallasRollo,
+            'toallas_rollo' => $toallasRollo,
         ];
     }
 
@@ -1244,14 +1244,14 @@ class OrdenDeCambioFelpaController extends Controller
             // Primero intentar leer desde la columna CS
             $pesoRollo = $this->obtenerValorCelda($worksheet, $fila, 'CS');
 
-            if (!empty($pesoRollo) && is_numeric($pesoRollo)) {
+            if (! empty($pesoRollo) && is_numeric($pesoRollo)) {
                 return (float) $pesoRollo;
             }
 
             // Si está vacío, calcularlo desde BD usando ItemId (columna I)
             $itemId = trim($this->obtenerValorCelda($worksheet, $fila, 'I'));
 
-            if (!empty($itemId)) {
+            if (! empty($itemId)) {
                 $pesoRollo = ReqPesosRollosTejido::where('ItemId', $itemId)
                     ->orderBy('Id')
                     ->first();
@@ -1277,7 +1277,7 @@ class OrdenDeCambioFelpaController extends Controller
             $inventSizeId = trim($registro->InventSizeId ?? '');
 
             // Buscar por ItemId e InventSizeId si ambos están disponibles
-            if (!empty($itemId) && !empty($inventSizeId)) {
+            if (! empty($itemId) && ! empty($inventSizeId)) {
                 $pesoRollo = ReqPesosRollosTejido::where('ItemId', $itemId)
                     ->where('InventSizeId', $inventSizeId)
                     ->first();
@@ -1288,7 +1288,7 @@ class OrdenDeCambioFelpaController extends Controller
             }
 
             // Si no se encuentra con ambos, buscar solo por ItemId
-            if (!empty($itemId)) {
+            if (! empty($itemId)) {
                 $pesoRollo = ReqPesosRollosTejido::where('ItemId', $itemId)
                     ->orderBy('Id')
                     ->first();
@@ -1296,6 +1296,7 @@ class OrdenDeCambioFelpaController extends Controller
                     return (float) $pesoRollo->PesoRollo;
                 }
             }
+
             return null;
         } catch (\Exception $e) {
             Log::error('Error al obtener PesoRollo desde BD', [
@@ -1303,6 +1304,7 @@ class OrdenDeCambioFelpaController extends Controller
                 'invent_size_id' => $registro->InventSizeId ?? '',
                 'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -1322,7 +1324,7 @@ class OrdenDeCambioFelpaController extends Controller
                 return null;
             }
 
-            $cacheKey = strtoupper(trim((string)$tamanoClave)) . '|' . strtoupper(trim((string)$salonTejidoId));
+            $cacheKey = strtoupper(trim((string) $tamanoClave)).'|'.strtoupper(trim((string) $salonTejidoId));
             if (array_key_exists($cacheKey, self::$modeloCodificadoCache)) {
                 return self::$modeloCodificadoCache[$cacheKey];
             }
@@ -1330,7 +1332,7 @@ class OrdenDeCambioFelpaController extends Controller
             $modelo = null;
 
             // 1. Buscar por TamanoClave + SalonTejidoId (Departamento)
-            if (!empty($tamanoClave) && !empty($salonTejidoId)) {
+            if (! empty($tamanoClave) && ! empty($salonTejidoId)) {
                 $query = ReqModelosCodificados::query()
                     ->where('TamanoClave', $tamanoClave)
                     ->where('SalonTejidoId', $salonTejidoId)
@@ -1339,7 +1341,7 @@ class OrdenDeCambioFelpaController extends Controller
             }
 
             // 2. Si no se encuentra, buscar solo por SalonTejidoId (Departamento)
-            if (!$modelo && !empty($salonTejidoId)) {
+            if (! $modelo && ! empty($salonTejidoId)) {
                 $query = ReqModelosCodificados::query()
                     ->where('SalonTejidoId', $salonTejidoId)
                     ->orderByDesc('FechaTejido');
@@ -1347,7 +1349,7 @@ class OrdenDeCambioFelpaController extends Controller
             }
 
             // 3. Si no se encuentra, buscar solo por TamanoClave
-            if (!$modelo && !empty($tamanoClave)) {
+            if (! $modelo && ! empty($tamanoClave)) {
                 $query = ReqModelosCodificados::query()
                     ->where('TamanoClave', $tamanoClave)
                     ->orderByDesc('FechaTejido');
@@ -1355,6 +1357,7 @@ class OrdenDeCambioFelpaController extends Controller
             }
 
             self::$modeloCodificadoCache[$cacheKey] = $modelo;
+
             return $modelo;
         } catch (\Exception $e) {
             return null;
@@ -1388,8 +1391,8 @@ class OrdenDeCambioFelpaController extends Controller
                 ->first();
 
             // Si no existe, crear nuevo registro
-            if (!$catCodificado) {
-                $catCodificado = new CatCodificados();
+            if (! $catCodificado) {
+                $catCodificado = new CatCodificados;
             }
 
             // Mapear datos desde ReqProgramaTejido y datosRegistro a CatCodificados
@@ -1415,8 +1418,6 @@ class OrdenDeCambioFelpaController extends Controller
                 $catCodificado->FechaCumplimiento = null;
                 $catCodificado->FechaCompromiso = null;
             }
-
-
 
             $catCodificado->Departamento = $salonTejidoId;
             $catCodificado->TelarId = $registro->NoTelarId ?? null;
@@ -1559,8 +1560,8 @@ class OrdenDeCambioFelpaController extends Controller
             // Campos de rollos - usar valores de ReqProgramaTejido si están disponibles, sino de datosRegistro
             $catCodificado->MtsRollo = $registro->MtsRollo ?? (isset($datosRegistro['mts_rollo']) && is_numeric($datosRegistro['mts_rollo']) ? (float) $datosRegistro['mts_rollo'] : null);
             $catCodificado->PzasRollo = $registro->PzasRollo ?? (isset($datosRegistro['toallas_rollo']) && is_numeric($datosRegistro['toallas_rollo']) ? (float) $datosRegistro['toallas_rollo'] : null);
-            $catCodificado->TotalRollos = $registro->TotalRollos !== null ? (float)$registro->TotalRollos : null;
-            $catCodificado->TotalPzas = $registro->TotalPzas !== null ? (float)$registro->TotalPzas : null;
+            $catCodificado->TotalRollos = $registro->TotalRollos !== null ? (float) $registro->TotalRollos : null;
+            $catCodificado->TotalPzas = $registro->TotalPzas !== null ? (float) $registro->TotalPzas : null;
             $catCodificado->CombinaTram = $registro->CombinaTram ?? null;
             $catCodificado->BomId = $registro->BomId ?? null;
             $catCodificado->BomName = $registro->BomName ?? null;
@@ -1584,7 +1585,7 @@ class OrdenDeCambioFelpaController extends Controller
             $fechaActual = now();
 
             // Si es un registro nuevo, establecer campos de creación
-            $esNuevo = !$catCodificado->exists;
+            $esNuevo = ! $catCodificado->exists;
             if ($esNuevo) {
                 $catCodificado->setAttribute('FechaCreacion', $fechaActual);
                 $catCodificado->HoraCreacion = $fechaActual->format('H:i:s');
@@ -1618,9 +1619,6 @@ class OrdenDeCambioFelpaController extends Controller
     /**
      * Actualiza ReqModelosCodificados con OrdPrincipal y PesoMuestra desde ReqProgramaTejido.
      * Busca por TamanoClave, ClaveModelo o OrdenTejido (NoProduccion).
-     *
-     * @param ReqProgramaTejido $registro
-     * @return void
      */
     protected function actualizarReqModelosCodificadosDesdeLiberacion(ReqProgramaTejido $registro): void
     {
@@ -1636,13 +1634,13 @@ class OrdenDeCambioFelpaController extends Controller
             $query = ReqModelosCodificados::query();
 
             // Buscar por OrdenTejido (NoProduccion) si está disponible
-            if (!empty($noProduccion)) {
+            if (! empty($noProduccion)) {
                 $query->where('OrdenTejido', $noProduccion);
-            } elseif (!empty($tamanoClave)) {
+            } elseif (! empty($tamanoClave)) {
                 // Si no hay OrdenTejido, buscar por TamanoClave
                 $query->where('TamanoClave', $tamanoClave);
                 // Si hay SalonTejidoId, filtrar por él también
-                if (!empty($salonTejidoId)) {
+                if (! empty($salonTejidoId)) {
                     $query->where('SalonTejidoId', $salonTejidoId);
                 }
             } else {
@@ -1690,7 +1688,7 @@ class OrdenDeCambioFelpaController extends Controller
             Log::warning('Error al actualizar ReqModelosCodificados desde liberación (OrdenDeCambioFelpa)', [
                 'no_produccion' => $registro->NoProduccion ?? null,
                 'tamano_clave' => $registro->TamanoClave ?? null,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -1709,37 +1707,37 @@ class OrdenDeCambioFelpaController extends Controller
             }
         }
 
-        if (!$worksheet) {
+        if (! $worksheet) {
             return;
         }
 
         $mapeo = [
-            'A'  => 'orden_numero',
-            'B'  => 'fecha_orden',
-            'C'  => 'fecha_cumplimiento',
-            'D'  => 'departamento',
-            'E'  => 'telar',
-            'F'  => 'prioridad',
-            'G'  => 'modelo',
-            'H'  => 'clave_modelo',
-            'I'  => 'clave_ax',
-            'J'  => 'tolerancia',
-            'K'  => 'codigo_dibujo',
-            'L'  => 'fecha_compromiso',
-            'M'  => 'nombre_formato_logistico',
-            'N'  => 'clave',
-            'O'  => 'cantidad_producir',
-            'P'  => 'peine',
-            'Q'  => 'ancho',
-            'R'  => 'largo',
-            'S'  => 'p_crudo',
-            'T'  => 'luchaje',
-            'U'  => 'tra',
-            'V'  => 'hilo_tra',
-            'W'  => 'obs_tra',
-            'X'  => 'tipo_plano',
-            'Y'  => 'med_plano',
-            'Z'  => 'tipo_rizo',
+            'A' => 'orden_numero',
+            'B' => 'fecha_orden',
+            'C' => 'fecha_cumplimiento',
+            'D' => 'departamento',
+            'E' => 'telar',
+            'F' => 'prioridad',
+            'G' => 'modelo',
+            'H' => 'clave_modelo',
+            'I' => 'clave_ax',
+            'J' => 'tolerancia',
+            'K' => 'codigo_dibujo',
+            'L' => 'fecha_compromiso',
+            'M' => 'nombre_formato_logistico',
+            'N' => 'clave',
+            'O' => 'cantidad_producir',
+            'P' => 'peine',
+            'Q' => 'ancho',
+            'R' => 'largo',
+            'S' => 'p_crudo',
+            'T' => 'luchaje',
+            'U' => 'tra',
+            'V' => 'hilo_tra',
+            'W' => 'obs_tra',
+            'X' => 'tipo_plano',
+            'Y' => 'med_plano',
+            'Z' => 'tipo_rizo',
             'AA' => 'alt_rizo',
             'AB' => 'obs_rizo',
             'AC' => 'velocidad_minima',
@@ -1827,9 +1825,9 @@ class OrdenDeCambioFelpaController extends Controller
                     $valor = is_numeric($valor) ? (float) $valor : 0;
                 }
             }
-            $this->setCellValueSeguro($worksheet, $columna . $fila, $valor);
+            $this->setCellValueSeguro($worksheet, $columna.$fila, $valor);
 
-            $style = $worksheet->getStyle($columna . $fila);
+            $style = $worksheet->getStyle($columna.$fila);
             $style->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
             $style->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
         }
@@ -1847,7 +1845,7 @@ class OrdenDeCambioFelpaController extends Controller
             return 'felpa';
         }
 
-        $salon          = strtoupper($registro->SalonTejidoId ?? '');
+        $salon = strtoupper($registro->SalonTejidoId ?? '');
         $nombreProyecto = strtoupper($registro->NombreProyecto ?? '');
         $nombreProducto = strtoupper($registro->NombreProducto ?? '');
 

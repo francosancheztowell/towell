@@ -31,12 +31,13 @@ class CatUbicacionesController extends Controller
         } catch (\Exception $e) {
             Log::error('Error en CatUbicacionesController::index', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return view('modulos.engomado.configuracion.catalogo-ubicaciones', [
                 'ubicaciones' => collect(),
-                'noResults' => true
-            ])->with('error', 'Error al cargar los datos: ' . $e->getMessage());
+                'noResults' => true,
+            ])->with('error', 'Error al cargar los datos: '.$e->getMessage());
         }
     }
 
@@ -56,21 +57,22 @@ class CatUbicacionesController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Ubicación creada exitosamente'
+                'message' => 'Ubicación creada exitosamente',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->errors()
+                'message' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             Log::error('Error al crear ubicación', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al crear la ubicación: ' . $e->getMessage()
+                'message' => 'Error al crear la ubicación: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -100,21 +102,22 @@ class CatUbicacionesController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Ubicación actualizada exitosamente'
+                'message' => 'Ubicación actualizada exitosamente',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->errors()
+                'message' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             Log::error('Error al actualizar ubicación', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al actualizar la ubicación: ' . $e->getMessage()
+                'message' => 'Error al actualizar la ubicación: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -130,21 +133,22 @@ class CatUbicacionesController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Ubicación eliminada exitosamente'
+                'message' => 'Ubicación eliminada exitosamente',
             ]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'La ubicación no fue encontrada'
+                'message' => 'La ubicación no fue encontrada',
             ], 404);
         } catch (\Exception $e) {
             Log::error('Error al eliminar ubicación', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al eliminar la ubicación: ' . $e->getMessage()
+                'message' => 'Error al eliminar la ubicación: '.$e->getMessage(),
             ], 500);
         }
     }

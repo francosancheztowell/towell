@@ -2,7 +2,6 @@
 
 namespace App\Exports;
 
-use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithTitle;
@@ -15,6 +14,7 @@ use RuntimeException;
 class KaizenExport implements FromArray, WithEvents, WithTitle
 {
     protected array $filasEngomado;
+
     protected array $filasUrdido;
 
     private const MESES = [

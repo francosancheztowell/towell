@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Urdido\BPMUrdido;
 
 use App\Http\Controllers\Controller;
-use App\Models\Urdido\UrdBpmModel;
+use App\Models\Sistema\SYSUsuario;
 use App\Models\Urdido\UrdActividadesBpmModel;
 use App\Models\Urdido\UrdBpmLineModel;
-use App\Models\Sistema\SYSUsuario;
+use App\Models\Urdido\UrdBpmModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -75,9 +75,10 @@ class UrdBpmLineController extends Controller
         // Solo permitir cambios si está en estado "Creado"
         if ($header->Status !== 'Creado') {
             Log::warning('Intento de modificar actividad con status incorrecto', ['status' => $header->Status]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'No se pueden modificar actividades en estado ' . $header->Status
+                'message' => 'No se pueden modificar actividades en estado '.$header->Status,
             ], 403);
         }
 
@@ -179,7 +180,7 @@ class UrdBpmLineController extends Controller
     private function getSupervisorInfo(string $accion): array
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             throw new \RuntimeException('Usuario no autenticado.');
         }
 
@@ -190,11 +191,11 @@ class UrdBpmLineController extends Controller
             $sysUsuario = SYSUsuario::where('numero_empleado', $numeroEmpleado)->first();
         }
 
-        if (!$sysUsuario && isset($user->idusuario)) {
+        if (! $sysUsuario && isset($user->idusuario)) {
             $sysUsuario = SYSUsuario::where('idusuario', $user->idusuario)->first();
         }
 
-        if (!$sysUsuario) {
+        if (! $sysUsuario) {
             throw new \RuntimeException("No se pudo identificar el usuario para validar permisos de {$accion}.");
         }
 
@@ -203,7 +204,7 @@ class UrdBpmLineController extends Controller
 
         $esSupervisor = str_contains($puesto, 'supervisor') || str_contains($area, 'supervisor');
 
-        if (!$esSupervisor) {
+        if (! $esSupervisor) {
             throw new \RuntimeException("No tienes permisos para {$accion}. Solo los supervisores pueden realizar esta acción.");
         }
 

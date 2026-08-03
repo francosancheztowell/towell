@@ -2,26 +2,26 @@
 
 namespace App\Http\Controllers\Tejido\CortesEficiencia;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Http;
-use Dompdf\Dompdf;
-use Dompdf\Options;
 use App\Exports\CortesEficienciaExport;
-use Maatwebsite\Excel\Facades\Excel;
-use App\Helpers\TurnoHelper;
 use App\Helpers\FolioHelper;
 use App\Helpers\StringTruncator;
+use App\Helpers\TurnoHelper;
+use App\Http\Controllers\Controller;
 use App\Models\Inventario\InvSecuenciaCorteEf;
-use App\Models\Tejido\TejEficienciaLine;
-use App\Models\Tejido\TejEficiencia;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Models\Tejido\TejeFallasCeModel;
 use App\Models\Sistema\SYSMensaje;
+use App\Models\Tejido\TejeFallasCeModel;
+use App\Models\Tejido\TejEficiencia;
+use App\Models\Tejido\TejEficienciaLine;
 use Carbon\Carbon;
+use Dompdf\Dompdf;
+use Dompdf\Options;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 
 class CortesEficienciaController extends Controller
 {
@@ -36,9 +36,9 @@ class CortesEficienciaController extends Controller
             ->first();
 
         // Si hay un folio en proceso y no se está editando específicamente, redirigir
-        if ($folioEnProceso && !$request->has('folio')) {
+        if ($folioEnProceso && ! $request->has('folio')) {
             return redirect()->route('cortes.eficiencia.consultar')
-                ->with('warning', 'Ya existe un folio en proceso: ' . $folioEnProceso->Folio . '. Debe finalizarlo antes de crear uno nuevo.');
+                ->with('warning', 'Ya existe un folio en proceso: '.$folioEnProceso->Folio.'. Debe finalizarlo antes de crear uno nuevo.');
         }
 
         // Obtener orden de telares desde InvSecuenciaCorteEf
@@ -64,7 +64,7 @@ class CortesEficienciaController extends Controller
                 'usuario',
                 'lineas' => function ($q) {
                     $q->orderBy('NoTelarId');
-                }
+                },
             ])
                 ->orderBy('Date', 'desc')
                 ->orderBy('created_at', 'desc')
@@ -78,10 +78,11 @@ class CortesEficienciaController extends Controller
                 ->header('Expires', '0');
 
         } catch (\Exception $e) {
-            Log::error('Error al consultar cortes de eficiencia: ' . $e->getMessage());
+            Log::error('Error al consultar cortes de eficiencia: '.$e->getMessage());
 
             // Si hay error, retornar vista vacía y sin caché
             $cortes = collect([]);
+
             return response()
                 ->view('modulos.cortes-eficiencia.consultar-cortes-eficiencia', compact('cortes'))
                 ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
@@ -102,15 +103,15 @@ class CortesEficienciaController extends Controller
             return response()->json([
                 'success' => true,
                 'turno' => $turno,
-                'descripcion' => $descripcion
+                'descripcion' => $descripcion,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error al obtener información del turno: ' . $e->getMessage());
+            Log::error('Error al obtener información del turno: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener información del turno: ' . $e->getMessage()
+                'message' => 'Error al obtener información del turno: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -145,22 +146,22 @@ class CortesEficienciaController extends Controller
                 foreach ($recentLines as $line) {
                     // Buscar última RPM real != 0: priorizar Horario 3 > 2 > 1
                     if ($lastRpm === null) {
-                        if (!empty($line->RpmR3) && (float) $line->RpmR3 != 0) {
+                        if (! empty($line->RpmR3) && (float) $line->RpmR3 != 0) {
                             $lastRpm = $line->RpmR3;
-                        } elseif (!empty($line->RpmR2) && (float) $line->RpmR2 != 0) {
+                        } elseif (! empty($line->RpmR2) && (float) $line->RpmR2 != 0) {
                             $lastRpm = $line->RpmR2;
-                        } elseif (!empty($line->RpmR1) && (float) $line->RpmR1 != 0) {
+                        } elseif (! empty($line->RpmR1) && (float) $line->RpmR1 != 0) {
                             $lastRpm = $line->RpmR1;
                         }
                     }
 
                     // Buscar última Eficiencia real != 0: misma lógica Horario 3 > 2 > 1
                     if ($lastEficiencia === null) {
-                        if (!empty($line->EficienciaR3) && (float) $line->EficienciaR3 != 0) {
+                        if (! empty($line->EficienciaR3) && (float) $line->EficienciaR3 != 0) {
                             $lastEficiencia = $line->EficienciaR3;
-                        } elseif (!empty($line->EficienciaR2) && (float) $line->EficienciaR2 != 0) {
+                        } elseif (! empty($line->EficienciaR2) && (float) $line->EficienciaR2 != 0) {
                             $lastEficiencia = $line->EficienciaR2;
-                        } elseif (!empty($line->EficienciaR1) && (float) $line->EficienciaR1 != 0) {
+                        } elseif (! empty($line->EficienciaR1) && (float) $line->EficienciaR1 != 0) {
                             $lastEficiencia = $line->EficienciaR1;
                         }
                     }
@@ -185,10 +186,11 @@ class CortesEficienciaController extends Controller
             return response()->json(['success' => true, 'telares' => $list]);
 
         } catch (\Exception $e) {
-            Log::error('Error al obtener datos de telares: ' . $e->getMessage());
+            Log::error('Error al obtener datos de telares: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener datos de telares: ' . $e->getMessage()
+                'message' => 'Error al obtener datos de telares: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -202,10 +204,10 @@ class CortesEficienciaController extends Controller
             // Obtener información del usuario autenticado
             $user = Auth::user();
 
-            if (!$user) {
+            if (! $user) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Usuario no autenticado'
+                    'message' => 'Usuario no autenticado',
                 ], 401);
             }
 
@@ -222,9 +224,9 @@ class CortesEficienciaController extends Controller
             if ($folioExistenteTurno) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Ya existe un folio para la fecha ' . $fecha . ' y turno ' . $turno . ': ' . $folioExistenteTurno->Folio,
+                    'message' => 'Ya existe un folio para la fecha '.$fecha.' y turno '.$turno.': '.$folioExistenteTurno->Folio,
                     'folio_existente' => $folioExistenteTurno->Folio,
-                    'status' => $folioExistenteTurno->Status
+                    'status' => $folioExistenteTurno->Status,
                 ], 400);
             }
 
@@ -236,8 +238,8 @@ class CortesEficienciaController extends Controller
             if ($folioEnProceso) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Ya existe un folio en proceso: ' . $folioEnProceso->Folio . '. Debe finalizarlo antes de crear uno nuevo.',
-                    'folio_existente' => $folioEnProceso->Folio
+                    'message' => 'Ya existe un folio en proceso: '.$folioEnProceso->Folio.'. Debe finalizarlo antes de crear uno nuevo.',
+                    'folio_existente' => $folioEnProceso->Folio,
                 ], 400);
             }
 
@@ -252,7 +254,7 @@ class CortesEficienciaController extends Controller
                     return response()->json([
                         'success' => false,
                         'message' => 'Ya existe un folio para esta fecha y turno',
-                        'folio_existente' => $folioExistenteTurno->Folio
+                        'folio_existente' => $folioExistenteTurno->Folio,
                     ], 400);
                 }
 
@@ -277,23 +279,23 @@ class CortesEficienciaController extends Controller
                 // Obtener información del usuario actual desde la autenticación
                 $usuario = [
                     'nombre' => $user->nombre ?? 'Usuario',
-                    'numero_empleado' => $user->numero_empleado ?? 'N/A'
+                    'numero_empleado' => $user->numero_empleado ?? 'N/A',
                 ];
 
                 return response()->json([
                     'success' => true,
                     'folio' => $folio,
                     'turno' => $turno,
-                    'usuario' => $usuario
+                    'usuario' => $usuario,
                 ]);
             });
 
         } catch (\Exception $e) {
-            Log::error('Error al generar folio: ' . $e->getMessage());
+            Log::error('Error al generar folio: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al generar el folio: ' . $e->getMessage()
+                'message' => 'Error al generar el folio: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -325,8 +327,8 @@ class CortesEficienciaController extends Controller
             if ($folioEnProceso) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Ya existe un folio en proceso: ' . $folioEnProceso->Folio . '. Debe finalizarlo antes de crear uno nuevo.',
-                    'folio_existente' => $folioEnProceso->Folio
+                    'message' => 'Ya existe un folio en proceso: '.$folioEnProceso->Folio.'. Debe finalizarlo antes de crear uno nuevo.',
+                    'folio_existente' => $folioEnProceso->Folio,
                 ], 400);
             }
 
@@ -340,8 +342,8 @@ class CortesEficienciaController extends Controller
             if ($folioExistenteTurno) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Ya existe un folio para la fecha ' . $validated['fecha'] . ' y turno ' . $validated['turno'] . ': ' . $folioExistenteTurno->Folio,
-                    'folio_existente' => $folioExistenteTurno->Folio
+                    'message' => 'Ya existe un folio para la fecha '.$validated['fecha'].' y turno '.$validated['turno'].': '.$folioExistenteTurno->Folio,
+                    'folio_existente' => $folioExistenteTurno->Folio,
                 ], 400);
             }
 
@@ -386,7 +388,7 @@ class CortesEficienciaController extends Controller
                 $salonesByTelar = InvSecuenciaCorteEf::pluck('SalonTejidoId', 'NoTelarId')->toArray();
                 foreach ($validated['datos_telares'] as $telar) {
                     // Verificar que el telar tenga los datos necesarios
-                    if (!isset($telar['NoTelar'])) {
+                    if (! isset($telar['NoTelar'])) {
                         continue;
                     }
                     $noTelar = (int) $telar['NoTelar'];
@@ -435,7 +437,7 @@ class CortesEficienciaController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Corte de eficiencia guardado exitosamente',
-                    'folio' => $folioFinal
+                    'folio' => $folioFinal,
                 ]);
 
             } catch (\Exception $e) {
@@ -444,13 +446,13 @@ class CortesEficienciaController extends Controller
             }
 
         } catch (\Exception $e) {
-            Log::error('Error al guardar corte de eficiencia: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
+            Log::error('Error al guardar corte de eficiencia: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al guardar el corte de eficiencia: ' . $e->getMessage()
+                'message' => 'Error al guardar el corte de eficiencia: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -468,21 +470,21 @@ class CortesEficienciaController extends Controller
                 'status' => 'required|string|max:20',
                 'usuario' => 'required|string|max:100',
                 'noEmpleado' => 'required|string|max:20',
-                'datos_telares' => 'required|array'
+                'datos_telares' => 'required|array',
             ]);
 
             // Aquí iría la lógica para actualizar en la base de datos
             return response()->json([
                 'success' => true,
-                'message' => 'Corte de eficiencia actualizado exitosamente'
+                'message' => 'Corte de eficiencia actualizado exitosamente',
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error al actualizar corte de eficiencia: ' . $e->getMessage());
+            Log::error('Error al actualizar corte de eficiencia: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al actualizar el corte de eficiencia: ' . $e->getMessage()
+                'message' => 'Error al actualizar el corte de eficiencia: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -494,7 +496,7 @@ class CortesEficienciaController extends Controller
     {
         try {
             $user = Auth::user();
-            if (!$user) {
+            if (! $user) {
                 return response()->json(['success' => false, 'message' => 'Usuario no autenticado'], 401);
             }
 
@@ -504,7 +506,7 @@ class CortesEficienciaController extends Controller
             }
 
             $corte = TejEficiencia::find($folio);
-            if (!$corte) {
+            if (! $corte) {
                 return response()->json(['success' => false, 'message' => 'Folio no encontrado'], 404);
             }
 
@@ -520,7 +522,7 @@ class CortesEficienciaController extends Controller
 
             if ($request->has('Turno')) {
                 $turno = (int) $request->input('Turno');
-                if (!in_array($turno, [1, 2, 3], true)) {
+                if (! in_array($turno, [1, 2, 3], true)) {
                     return response()->json(['success' => false, 'message' => 'Turno inválido (debe ser 1, 2 o 3)'], 422);
                 }
                 $datos['Turno'] = $turno;
@@ -528,7 +530,7 @@ class CortesEficienciaController extends Controller
 
             if ($request->has('Status')) {
                 $statusPermitidos = ['En Proceso', 'Finalizado'];
-                if (!in_array($request->input('Status'), $statusPermitidos, true)) {
+                if (! in_array($request->input('Status'), $statusPermitidos, true)) {
                     return response()->json(['success' => false, 'message' => 'Status inválido'], 422);
                 }
                 $datos['Status'] = $request->input('Status');
@@ -562,7 +564,7 @@ class CortesEficienciaController extends Controller
                 $datosLine['Turno'] = $datos['Turno'];
             }
 
-            if (!empty($datosLine)) {
+            if (! empty($datosLine)) {
                 $datosLine['updated_at'] = now();
                 TejEficienciaLine::where('Folio', $folio)
                     ->update($datosLine);
@@ -571,10 +573,11 @@ class CortesEficienciaController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Registro actualizado correctamente',
-                'corte' => $corte->fresh()
+                'corte' => $corte->fresh(),
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al actualizar registro de corte de eficiencia: ' . $e->getMessage());
+            Log::error('Error al actualizar registro de corte de eficiencia: '.$e->getMessage());
+
             return response()->json(['success' => false, 'message' => 'Error al actualizar el registro'], 500);
         }
     }
@@ -588,10 +591,10 @@ class CortesEficienciaController extends Controller
             // Buscar el corte por folio
             $corte = TejEficiencia::where('Folio', $id)->first();
 
-            if (!$corte) {
+            if (! $corte) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Corte no encontrado'
+                    'message' => 'Corte no encontrado',
                 ], 404);
             }
 
@@ -599,7 +602,7 @@ class CortesEficienciaController extends Controller
             if ($corte->Status === 'Finalizado') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'El corte ya está finalizado'
+                    'message' => 'El corte ya está finalizado',
                 ], 400);
             }
 
@@ -640,15 +643,15 @@ class CortesEficienciaController extends Controller
                     'folio' => $corte->Folio,
                     'status' => $corte->Status,
                     'pdf_url' => $pdfUrl,
-                ]
+                ],
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error al finalizar corte de eficiencia: ' . $e->getMessage());
+            Log::error('Error al finalizar corte de eficiencia: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al finalizar el corte de eficiencia: ' . $e->getMessage()
+                'message' => 'Error al finalizar el corte de eficiencia: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -662,10 +665,10 @@ class CortesEficienciaController extends Controller
             // Buscar corte por Folio
             $corte = TejEficiencia::where('Folio', $id)->first();
 
-            if (!$corte) {
+            if (! $corte) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Corte no encontrado'
+                    'message' => 'Corte no encontrado',
                 ], 404);
             }
 
@@ -708,14 +711,14 @@ class CortesEficienciaController extends Controller
                     'horario_1' => $this->formatearHora($corte->Horario1),
                     'horario_2' => $this->formatearHora($corte->Horario2),
                     'horario_3' => $this->formatearHora($corte->Horario3),
-                    'datos_telares' => $lineas
-                ]
+                    'datos_telares' => $lineas,
+                ],
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener el corte de eficiencia: ' . $e->getMessage()
+                'message' => 'Error al obtener el corte de eficiencia: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -726,7 +729,7 @@ class CortesEficienciaController extends Controller
     public function pdf($id)
     {
         $corte = TejEficiencia::where('Folio', $id)->first();
-        if (!$corte) {
+        if (! $corte) {
             return redirect()->route('cortes.eficiencia.consultar')->with('error', 'Folio no encontrado');
         }
 
@@ -751,7 +754,7 @@ class CortesEficienciaController extends Controller
             'lineasPorTelar' => $lineasPorTelar,
         ])->render();
 
-        $options = new Options();
+        $options = new Options;
         $options->set('isHtml5ParserEnabled', true);
         $options->set('isRemoteEnabled', true);
         $options->set('defaultFont', 'Arial');
@@ -768,7 +771,7 @@ class CortesEficienciaController extends Controller
 
         return response($pdfContent, 200)
             ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'attachment; filename="corte-eficiencia-' . $corte->Folio . '.pdf"');
+            ->header('Content-Disposition', 'attachment; filename="corte-eficiencia-'.$corte->Folio.'.pdf"');
     }
 
     /**
@@ -788,6 +791,7 @@ class CortesEficienciaController extends Controller
         if (strlen($str) >= 5) {
             return substr($str, 0, 5);
         }
+
         return $str;
     }
 
@@ -807,18 +811,18 @@ class CortesEficienciaController extends Controller
                 ->where('EnProceso', 1)
                 ->select('NoTelarId', 'VelocidadSTD', 'EficienciaSTD')
                 ->get()
-                ->map(function ($telar) use ($telaresOrden) {
+                ->map(function ($telar) {
                     return [
                         'NoTelar' => $telar->NoTelarId,
                         'VelocidadSTD' => $telar->VelocidadSTD ?? 0,
-                        'EficienciaSTD' => $telar->EficienciaSTD ?? 0
+                        'EficienciaSTD' => $telar->EficienciaSTD ?? 0,
                     ];
                 });
 
             // Si no se encontraron telares en proceso, intentar obtener los últimos datos disponibles
             if ($telares->isEmpty()) {
                 Log::warning('No se encontraron telares con EnProceso=1, buscando últimos registros disponibles', [
-                    'telares_solicitados' => $telaresOrden
+                    'telares_solicitados' => $telaresOrden,
                 ]);
 
                 $telares = collect($telaresOrden)->map(function ($telarId) {
@@ -831,30 +835,31 @@ class CortesEficienciaController extends Controller
                         return [
                             'NoTelar' => $ultimoRegistro->NoTelarId,
                             'VelocidadSTD' => $ultimoRegistro->VelocidadSTD ?? 0,
-                            'EficienciaSTD' => $ultimoRegistro->EficienciaSTD ?? 0
+                            'EficienciaSTD' => $ultimoRegistro->EficienciaSTD ?? 0,
                         ];
                     }
 
                     Log::warning('No se encontraron datos para telar', ['NoTelarId' => $telarId]);
+
                     return [
                         'NoTelar' => $telarId,
                         'VelocidadSTD' => 0,
-                        'EficienciaSTD' => 0
+                        'EficienciaSTD' => 0,
                     ];
                 })->filter();
             }
 
             return response()->json([
                 'success' => true,
-                'telares' => $telares
+                'telares' => $telares,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error al obtener datos de programa tejido: ' . $e->getMessage());
+            Log::error('Error al obtener datos de programa tejido: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener datos de programa tejido: ' . $e->getMessage()
+                'message' => 'Error al obtener datos de programa tejido: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -875,7 +880,8 @@ class CortesEficienciaController extends Controller
                 'data' => $fallas,
             ]);
         } catch (\Throwable $e) {
-            Log::error('Error al obtener fallas CE: ' . $e->getMessage());
+            Log::error('Error al obtener fallas CE: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
                 'message' => 'No se pudieron obtener las fallas',
@@ -894,11 +900,11 @@ class CortesEficienciaController extends Controller
                 'turno' => 'required|integer',
                 'horario' => 'required|integer|min:1|max:3',
                 'hora' => 'required|string',
-                'fecha' => 'required|date'
+                'fecha' => 'required|date',
             ]);
 
             // Determinar el campo de horario correcto según el número
-            $campoHorario = 'Horario' . $validated['horario'];
+            $campoHorario = 'Horario'.$validated['horario'];
 
             // Buscar si ya existe el registro por Folio y Turno
             $registro = DB::table('TejEficiencia')
@@ -911,7 +917,7 @@ class CortesEficienciaController extends Controller
                 'Turno' => $validated['turno'],
                 $campoHorario => $validated['hora'], // Usar Horario1, Horario2 o Horario3
                 'Date' => $validated['fecha'],
-                'updated_at' => now()
+                'updated_at' => now(),
             ];
 
             if ($registro) {
@@ -931,15 +937,15 @@ class CortesEficienciaController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Hora guardada exitosamente',
-                'data' => $datos
+                'data' => $datos,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error al guardar hora en TejEficiencia: ' . $e->getMessage());
+            Log::error('Error al guardar hora en TejEficiencia: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al guardar hora: ' . $e->getMessage()
+                'message' => 'Error al guardar hora: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -951,7 +957,7 @@ class CortesEficienciaController extends Controller
     {
         try {
             $corteBase = TejEficiencia::where('Folio', $folio)->first();
-            if (!$corteBase) {
+            if (! $corteBase) {
                 return redirect()->route('cortes.eficiencia.consultar')
                     ->with('error', 'Folio no encontrado');
             }
@@ -967,9 +973,10 @@ class CortesEficienciaController extends Controller
                 'maxTurno' => $corteBase->Turno,
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al visualizar cortes de eficiencia: ' . $e->getMessage());
+            Log::error('Error al visualizar cortes de eficiencia: '.$e->getMessage());
+
             return redirect()->route('cortes.eficiencia.consultar')
-                ->with('error', 'Error al visualizar: ' . $e->getMessage());
+                ->with('error', 'Error al visualizar: '.$e->getMessage());
         }
     }
 
@@ -977,7 +984,7 @@ class CortesEficienciaController extends Controller
     {
         try {
             $corte = TejEficiencia::where('Folio', $folio)->first();
-            if (!$corte) {
+            if (! $corte) {
                 return redirect()->route('cortes.eficiencia.consultar')
                     ->with('error', 'Folio no encontrado');
             }
@@ -992,7 +999,8 @@ class CortesEficienciaController extends Controller
                 'folioInicial' => $corte->Folio,
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al visualizar folio de cortes: ' . $e->getMessage());
+            Log::error('Error al visualizar folio de cortes: '.$e->getMessage());
+
             return redirect()->route('cortes.eficiencia.consultar')
                 ->with('error', 'Error al visualizar folio');
         }
@@ -1010,11 +1018,12 @@ class CortesEficienciaController extends Controller
                 if (empty($datosRango)) {
                     return response()->json(['error' => 'Sin datos para el rango seleccionado'], 404);
                 }
-                $filename = 'cortes_eficiencia_' . $fecha_inicio . '_a_' . $fecha_fin . '.xlsx';
+                $filename = 'cortes_eficiencia_'.$fecha_inicio.'_a_'.$fecha_fin.'.xlsx';
+
                 return Excel::download(new CortesEficienciaExport($datosRango, $fecha_inicio, true), $filename);
             }
 
-            if (!$fecha) {
+            if (! $fecha) {
                 return response()->json(['error' => 'Fecha requerida'], 400);
             }
 
@@ -1025,14 +1034,15 @@ class CortesEficienciaController extends Controller
                 return response()->json(['error' => 'Sin datos para la fecha seleccionada'], 404);
             }
 
-            $filename = 'cortes_eficiencia_' . $fechaNorm . '.xlsx';
+            $filename = 'cortes_eficiencia_'.$fechaNorm.'.xlsx';
 
             return Excel::download(new CortesEficienciaExport($info, $fechaNorm), $filename);
         } catch (\Throwable $th) {
             Log::error('Error al exportar Excel de cortes de eficiencia', [
-                'mensaje' => $th->getMessage()
+                'mensaje' => $th->getMessage(),
             ]);
-            return response()->json(['error' => 'Error al exportar: ' . $th->getMessage()], 500);
+
+            return response()->json(['error' => 'Error al exportar: '.$th->getMessage()], 500);
         }
     }
 
@@ -1055,7 +1065,7 @@ class CortesEficienciaController extends Controller
                     'fecha_fin' => $fecha_fin,
                 ])->render();
 
-                $options = new Options();
+                $options = new Options;
                 $options->set('isHtml5ParserEnabled', true);
                 $options->set('isRemoteEnabled', true);
                 $options->set('defaultFont', 'Arial');
@@ -1069,14 +1079,14 @@ class CortesEficienciaController extends Controller
                 $dompdf->render();
 
                 $pdfContent = $dompdf->output();
-                $filename = 'cortes_eficiencia_' . $fecha_inicio . '_a_' . $fecha_fin . '.pdf';
+                $filename = 'cortes_eficiencia_'.$fecha_inicio.'_a_'.$fecha_fin.'.pdf';
 
                 return response($pdfContent, 200)
                     ->header('Content-Type', 'application/pdf')
-                    ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+                    ->header('Content-Disposition', 'attachment; filename="'.$filename.'"');
             }
 
-            if (!$fecha) {
+            if (! $fecha) {
                 return response()->json(['error' => 'Fecha requerida'], 400);
             }
 
@@ -1094,7 +1104,7 @@ class CortesEficienciaController extends Controller
                 'maxTurno' => $info['maxTurno'] ?? 3,
             ])->render();
 
-            $options = new Options();
+            $options = new Options;
             $options->set('isHtml5ParserEnabled', true);
             $options->set('isRemoteEnabled', true);
             $options->set('defaultFont', 'Arial');
@@ -1108,21 +1118,23 @@ class CortesEficienciaController extends Controller
             $dompdf->render();
 
             $pdfContent = $dompdf->output();
-            $filename = 'cortes_eficiencia_' . $fechaNorm . '.pdf';
+            $filename = 'cortes_eficiencia_'.$fechaNorm.'.pdf';
 
             if (empty($pdfContent)) {
                 Log::error('PDF de cortes de eficiencia generado vacío', ['fecha' => $fechaNorm]);
+
                 return response()->json(['error' => 'Error: PDF generado está vacío'], 500);
             }
 
             return response($pdfContent, 200)
                 ->header('Content-Type', 'application/pdf')
-                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+                ->header('Content-Disposition', 'attachment; filename="'.$filename.'"');
         } catch (\Throwable $th) {
             Log::error('Error al generar PDF de cortes de eficiencia', [
-                'mensaje' => $th->getMessage()
+                'mensaje' => $th->getMessage(),
             ]);
-            return response()->json(['error' => 'Error al generar PDF: ' . $th->getMessage()], 500);
+
+            return response()->json(['error' => 'Error al generar PDF: '.$th->getMessage()], 500);
         }
     }
 
@@ -1172,13 +1184,13 @@ class CortesEficienciaController extends Controller
         foreach ($lineasFecha as $linea) {
             $telar = $linea->NoTelarId;
             $turno = (string) $linea->Turno;
-            if (!isset($porTelarTurno[$telar])) {
+            if (! isset($porTelarTurno[$telar])) {
                 $porTelarTurno[$telar] = [];
             }
-            if (!isset($porTelarTurno[$telar][$turno])) {
+            if (! isset($porTelarTurno[$telar][$turno])) {
                 $porTelarTurno[$telar][$turno] = $linea;
             }
-            if (!isset($foliosPorTurno[$turno])) {
+            if (! isset($foliosPorTurno[$turno])) {
                 $foliosPorTurno[$turno] = $linea->Folio;
             }
         }
@@ -1187,13 +1199,13 @@ class CortesEficienciaController extends Controller
             ->whereIn('Turno', [1, 2, 3])
             ->get()
             ->groupBy(function ($corte) {
-                return (string) $corte->Turno . '|' . (string) $corte->Folio;
+                return (string) $corte->Turno.'|'.(string) $corte->Folio;
             });
 
         $horariosPorTurno = [];
         foreach ([1, 2, 3] as $turno) {
             $folioTurno = $foliosPorTurno[(string) $turno] ?? null;
-            $key = (string) $turno . '|' . (string) $folioTurno;
+            $key = (string) $turno.'|'.(string) $folioTurno;
             $corteTurno = ($folioTurno !== null && isset($cortesPorTurnoFolio[$key]))
                 ? $cortesPorTurnoFolio[$key]->first()
                 : null;
@@ -1209,6 +1221,7 @@ class CortesEficienciaController extends Controller
             $t1 = $porTelarTurno[$telar]['1'] ?? null;
             $t2 = $porTelarTurno[$telar]['2'] ?? null;
             $t3 = $porTelarTurno[$telar]['3'] ?? null;
+
             return [
                 'telar' => $telar,
                 't1' => $t1,
@@ -1235,6 +1248,7 @@ class CortesEficienciaController extends Controller
             $botToken = config('services.telegram.bot_token');
             if (empty($botToken)) {
                 Log::warning('No se pudo enviar PDF de cortes: TELEGRAM_BOT_TOKEN no configurado');
+
                 return;
             }
 
@@ -1243,6 +1257,7 @@ class CortesEficienciaController extends Controller
 
             if (empty($chatIds)) {
                 Log::warning('No hay destinatarios con CorteSEF activo en SYSMensajes');
+
                 return;
             }
 
@@ -1251,6 +1266,7 @@ class CortesEficienciaController extends Controller
                     'fecha' => $fecha,
                     'filename' => $filename,
                 ]);
+
                 return;
             }
 
@@ -1261,6 +1277,7 @@ class CortesEficienciaController extends Controller
                     'filename' => $filename,
                     'size_mb' => round($pdfSizeMB, 2),
                 ]);
+
                 return;
             }
 
@@ -1269,9 +1286,9 @@ class CortesEficienciaController extends Controller
 
             $caption = "Reporte Cortes de Eficiencia\n";
             $caption .= "Fecha: {$fecha}\n";
-            if (!empty($nombreUsuario)) {
+            if (! empty($nombreUsuario)) {
                 $caption .= "Generado por: {$nombreUsuario}";
-                if (!empty($numeroEmpleado)) {
+                if (! empty($numeroEmpleado)) {
                     $caption .= " ({$numeroEmpleado})";
                 }
             }
@@ -1288,7 +1305,7 @@ class CortesEficienciaController extends Controller
 
                 if ($response->successful()) {
                     $data = $response->json();
-                    if (!($data['ok'] ?? false)) {
+                    if (! ($data['ok'] ?? false)) {
                         Log::error('Telegram respondió ok=false para cortes', [
                             'response' => $data,
                             'fecha' => $fecha,
@@ -1328,7 +1345,7 @@ class CortesEficienciaController extends Controller
 
             if ($folio !== '') {
                 $corte = TejEficiencia::where('Folio', $folio)->first();
-                if (!$corte) {
+                if (! $corte) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Folio no encontrado',
@@ -1341,7 +1358,7 @@ class CortesEficienciaController extends Controller
                 $fecha = $request->input('fecha');
             }
 
-            if (!$fecha) {
+            if (! $fecha) {
                 return response()->json(['success' => false, 'message' => 'Fecha o folio requerido'], 400);
             }
 
@@ -1351,7 +1368,7 @@ class CortesEficienciaController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => $folio !== ''
-                        ? 'Reporte enviado por Telegram exitosamente para el folio ' . $folio
+                        ? 'Reporte enviado por Telegram exitosamente para el folio '.$folio
                         : 'Reporte enviado por Telegram exitosamente',
                 ]);
             } else {
@@ -1365,9 +1382,10 @@ class CortesEficienciaController extends Controller
                 'mensaje' => $th->getMessage(),
                 'trace' => $th->getTraceAsString(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al enviar por Telegram: ' . $th->getMessage(),
+                'message' => 'Error al enviar por Telegram: '.$th->getMessage(),
             ], 500);
         }
     }
@@ -1384,7 +1402,7 @@ class CortesEficienciaController extends Controller
             ]);
 
             $imagen = $request->file('imagen');
-            if (!$imagen || !$imagen->isValid()) {
+            if (! $imagen || ! $imagen->isValid()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Imagen inválida para enviar por Telegram',
@@ -1394,12 +1412,12 @@ class CortesEficienciaController extends Controller
             $fecha = $request->input('fecha') ?: now()->toDateString();
             $fechaNorm = $this->normalizarFecha($fecha);
             $extension = strtolower($imagen->getClientOriginalExtension() ?: 'jpg');
-            $filename = 'cortes_eficiencia_' . $fechaNorm . '.' . $extension;
+            $filename = 'cortes_eficiencia_'.$fechaNorm.'.'.$extension;
             $imageContent = file_get_contents($imagen->getRealPath());
 
             $success = $this->enviarReporteCortesImagenTelegram($imageContent, $filename, $fechaNorm, Auth::user());
 
-            if (!$success) {
+            if (! $success) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No se pudo enviar la imagen por Telegram',
@@ -1415,9 +1433,10 @@ class CortesEficienciaController extends Controller
                 'mensaje' => $th->getMessage(),
                 'trace' => $th->getTraceAsString(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al enviar imagen por Telegram: ' . $th->getMessage(),
+                'message' => 'Error al enviar imagen por Telegram: '.$th->getMessage(),
             ], 500);
         }
     }
@@ -1431,12 +1450,14 @@ class CortesEficienciaController extends Controller
             $botToken = config('services.telegram.bot_token');
             if (empty($botToken)) {
                 Log::warning('No se pudo enviar imagen de cortes: TELEGRAM_BOT_TOKEN no configurado');
+
                 return false;
             }
 
             $chatIds = SYSMensaje::getChatIdsPorModulo('CorteSEF');
             if (empty($chatIds)) {
                 Log::warning('No hay destinatarios con CorteSEF activo en SYSMensajes (imagen)');
+
                 return false;
             }
 
@@ -1445,6 +1466,7 @@ class CortesEficienciaController extends Controller
                     'fecha' => $fecha,
                     'filename' => $filename,
                 ]);
+
                 return false;
             }
 
@@ -1455,6 +1477,7 @@ class CortesEficienciaController extends Controller
                     'filename' => $filename,
                     'size_mb' => round($imageSizeMB, 2),
                 ]);
+
                 return false;
             }
 
@@ -1463,9 +1486,9 @@ class CortesEficienciaController extends Controller
 
             $caption = "Reporte Cortes de Eficiencia (Imagen)\n";
             $caption .= "Fecha: {$fecha}\n";
-            if (!empty($nombreUsuario)) {
+            if (! empty($nombreUsuario)) {
                 $caption .= "Generado por: {$nombreUsuario}";
-                if (!empty($numeroEmpleado)) {
+                if (! empty($numeroEmpleado)) {
                     $caption .= " ({$numeroEmpleado})";
                 }
             }
@@ -1512,6 +1535,7 @@ class CortesEficienciaController extends Controller
                 'fecha' => $fecha,
                 'filename' => $filename,
             ]);
+
             return false;
         }
     }
@@ -1528,6 +1552,7 @@ class CortesEficienciaController extends Controller
 
         if ($info['datos']->isEmpty()) {
             Log::warning('No se encontraron datos para la visualización en enviarReporteTelegramInternal', ['fecha' => $fechaNorm, 'maxTurno' => $maxTurno]);
+
             return false;
         }
 
@@ -1542,7 +1567,7 @@ class CortesEficienciaController extends Controller
             'maxTurno' => $maxTurno,
         ])->render();
 
-        $options = new Options();
+        $options = new Options;
         $options->set('isHtml5ParserEnabled', true);
         $options->set('isRemoteEnabled', true);
         $options->set('defaultFont', 'Arial');
@@ -1556,10 +1581,11 @@ class CortesEficienciaController extends Controller
         $dompdf->render();
 
         $pdfContent = $dompdf->output();
-        $filename = 'cortes_eficiencia_' . $fechaNorm . '.pdf';
+        $filename = 'cortes_eficiencia_'.$fechaNorm.'.pdf';
 
         if (empty($pdfContent)) {
             Log::error('PDF de cortes de eficiencia generado vacío', ['fecha' => $fechaNorm]);
+
             return false;
         }
 
@@ -1576,6 +1602,7 @@ class CortesEficienciaController extends Controller
         if ($fecha instanceof \Carbon\Carbon) {
             return $fecha->toDateString();
         }
+
         return date('Y-m-d', strtotime(str_replace('/', '-', (string) $fecha)));
     }
 
@@ -1669,7 +1696,7 @@ class CortesEficienciaController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Datos guardados exitosamente en TejEficienciaLine',
-                    'registros_guardados' => $registrosGuardados
+                    'registros_guardados' => $registrosGuardados,
                 ]);
 
             } catch (\Exception $e) {
@@ -1681,17 +1708,17 @@ class CortesEficienciaController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
 
         } catch (\Exception $e) {
-            Log::error('Error al guardar datos de tabla en TejEficienciaLine: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
+            Log::error('Error al guardar datos de tabla en TejEficienciaLine: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al guardar los datos: ' . $e->getMessage()
+                'message' => 'Error al guardar los datos: '.$e->getMessage(),
             ], 500);
         }
     }

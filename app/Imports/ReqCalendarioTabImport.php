@@ -3,19 +3,22 @@
 namespace App\Imports;
 
 use App\Models\Planeacion\ReqCalendarioTab;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\ToModel;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithBatchInserts;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Events\BeforeImport;
-use Illuminate\Support\Facades\Log;
 
-class ReqCalendarioTabImport implements ToModel, WithHeadingRow, WithBatchInserts, WithChunkReading, WithEvents
+class ReqCalendarioTabImport implements ToModel, WithBatchInserts, WithChunkReading, WithEvents, WithHeadingRow
 {
     private $procesados = 0;
+
     private $creados = 0;
+
     private $errores = [];
+
     private $rowCounter = 0;
 
     public function model(array $row)
@@ -26,7 +29,7 @@ class ReqCalendarioTabImport implements ToModel, WithHeadingRow, WithBatchInsert
             // ⚡ Detectar rápidamente filas vacías
             $allEmpty = true;
             foreach ($row as $cell) {
-                if (!empty(trim((string)$cell))) {
+                if (! empty(trim((string) $cell))) {
                     $allEmpty = false;
                     break;
                 }
@@ -35,11 +38,12 @@ class ReqCalendarioTabImport implements ToModel, WithHeadingRow, WithBatchInsert
                 return null;
             }
 
-            $calendarioId = isset($row['no_calendario']) ? trim((string)$row['no_calendario']) : null;
-            $nombre = isset($row['nombre']) ? trim((string)$row['nombre']) : null;
+            $calendarioId = isset($row['no_calendario']) ? trim((string) $row['no_calendario']) : null;
+            $nombre = isset($row['nombre']) ? trim((string) $row['nombre']) : null;
 
             if (empty($calendarioId) || empty($nombre)) {
                 Log::warning("Fila {$this->rowCounter}: Datos incompletos");
+
                 return null;
             }
 
@@ -54,11 +58,13 @@ class ReqCalendarioTabImport implements ToModel, WithHeadingRow, WithBatchInsert
 
             $this->procesados++;
             $this->creados++;
+
             return null;
 
         } catch (\Exception $e) {
             $this->errores[] = "Fila {$this->rowCounter}: {$e->getMessage()}";
             Log::error("✗ Error fila {$this->rowCounter}: {$e->getMessage()}");
+
             return null;
         }
     }
@@ -69,11 +75,11 @@ class ReqCalendarioTabImport implements ToModel, WithHeadingRow, WithBatchInsert
     public function registerEvents(): array
     {
         return [
-            BeforeImport::class => function(BeforeImport $event) {
+            BeforeImport::class => function (BeforeImport $event) {
 
                 // Limpiar todas las tablas de calendario
                 $deleted = ReqCalendarioTab::truncate();
-            }
+            },
         ];
     }
 
@@ -92,15 +98,7 @@ class ReqCalendarioTabImport implements ToModel, WithHeadingRow, WithBatchInsert
         return [
             'procesados' => $this->procesados,
             'creados' => $this->creados,
-            'errores' => $this->errores
+            'errores' => $this->errores,
         ];
     }
 }
-
-
-
-
-
-
-
-

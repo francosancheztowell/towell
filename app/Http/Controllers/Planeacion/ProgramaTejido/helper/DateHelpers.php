@@ -47,37 +47,37 @@ class DateHelpers
         Collection $registrosOrdenados,
         Carbon $inicioOriginal,
         bool $respetarInicioPrimerRegistro = false
-    ): array
-    {
-        $updates  = [];
+    ): array {
+        $updates = [];
         $detalles = [];
-        $now      = now();
-        $n        = $registrosOrdenados->count();
+        $now = now();
+        $n = $registrosOrdenados->count();
 
-        if ($n < 1) return [[], []];
+        if ($n < 1) {
+            return [[], []];
+        }
 
         $cursor = $inicioOriginal->copy();
 
         foreach ($registrosOrdenados->values() as $i => $r) {
             /** @var ReqProgramaTejido $r */
-
             $esEnProceso = ($r->EnProceso == 1 || $r->EnProceso === true);
 
             // 1) Inicio base = cursor (o now() para EnProceso)
             $nuevoInicio = $esEnProceso ? Carbon::now() : $cursor->copy();
 
             // snap al calendario si cae en gap (no aplicar a EnProceso)
-            if (!$esEnProceso && !empty($r->CalendarioId) && !($respetarInicioPrimerRegistro && $i === 0)) {
+            if (! $esEnProceso && ! empty($r->CalendarioId) && ! ($respetarInicioPrimerRegistro && $i === 0)) {
                 $nuevoInicio = self::snapInicioAlCalendario($r->CalendarioId, $nuevoInicio) ?? $nuevoInicio;
             }
 
             // 2) Horas necesarias (FUENTE DE VERDAD)
             $metricas = self::calcularMetricasBase($r);
-            $horasNecesarias = (float)($metricas['HorasProdRaw'] ?? 0);
+            $horasNecesarias = (float) ($metricas['HorasProdRaw'] ?? 0);
 
             // fallback: si no se pudieron calcular, usa HorasProd guardadas
-            if ($horasNecesarias <= 0 && !empty($r->HorasProd)) {
-                $horasNecesarias = (float)$r->HorasProd;
+            if ($horasNecesarias <= 0 && ! empty($r->HorasProd)) {
+                $horasNecesarias = (float) $r->HorasProd;
             }
 
             // 3) Fin con calendario real (o fallback continuo)
@@ -90,28 +90,28 @@ class DateHelpers
                     ? Carbon::now()
                     : Carbon::parse($r->FechaInicio)->copy()->endOfDay();
             } elseif ($horasNecesarias > 0) {
-                if (!empty($r->CalendarioId)) {
+                if (! empty($r->CalendarioId)) {
                     $finCalc = self::calcularFechaFinalDesdeInicio($r->CalendarioId, $nuevoInicio, $horasNecesarias);
                     if ($finCalc) {
                         $nuevoFin = $finCalc;
                     } else {
                         // sin líneas suficientes => continuo
-                        $nuevoFin = $nuevoInicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
+                        $nuevoFin = $nuevoInicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
                     }
                 } else {
-                    $nuevoFin = $nuevoInicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
+                    $nuevoFin = $nuevoInicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
                 }
             } else {
                 // Saldo >= 0 pero horasNecesarias <= 0: Fallback cuando no se pudieron calcular horas
                 if ($esEnProceso) {
                     // EnProceso: usar HorasProd guardado como referencia de duración (no diff FechaInicio-FechaFinal).
-                    $horasGuardadas = (float)($r->HorasProd ?? 0);
+                    $horasGuardadas = (float) ($r->HorasProd ?? 0);
                     if ($horasGuardadas > 0) {
-                        if (!empty($r->CalendarioId)) {
+                        if (! empty($r->CalendarioId)) {
                             $finCalc = self::calcularFechaFinalDesdeInicio($r->CalendarioId, $nuevoInicio, $horasGuardadas);
-                            $nuevoFin = $finCalc ?: $nuevoInicio->copy()->addSeconds((int)round($horasGuardadas * 3600));
+                            $nuevoFin = $finCalc ?: $nuevoInicio->copy()->addSeconds((int) round($horasGuardadas * 3600));
                         } else {
-                            $nuevoFin = $nuevoInicio->copy()->addSeconds((int)round($horasGuardadas * 3600));
+                            $nuevoFin = $nuevoInicio->copy()->addSeconds((int) round($horasGuardadas * 3600));
                         }
                     } else {
                         // Repasos: medio día; resto: 30 días
@@ -121,7 +121,7 @@ class DateHelpers
                     }
                 } else {
                     // No EnProceso: conservar duración previa si existía, si no repaso=12h / resto=30d
-                    if (!empty($r->FechaInicio) && !empty($r->FechaFinal)) {
+                    if (! empty($r->FechaInicio) && ! empty($r->FechaFinal)) {
                         try {
                             $iniOld = Carbon::parse($r->FechaInicio);
                             $finOld = Carbon::parse($r->FechaFinal);
@@ -144,42 +144,42 @@ class DateHelpers
             $cambioHilo = '0';
             if ($i > 0) {
                 $prev = $registrosOrdenados->values()[$i - 1];
-                $fibraAct  = trim((string)$r->FibraRizo);
-                $fibraPrev = trim((string)$prev->FibraRizo);
+                $fibraAct = trim((string) $r->FibraRizo);
+                $fibraPrev = trim((string) $prev->FibraRizo);
                 $cambioHilo = ($fibraAct !== $fibraPrev) ? '1' : '0';
             }
 
             // 5) Fórmulas: calculadas con diffDias = (FechaFinal - FechaInicio)
             $tmp = clone $r;
             $tmp->FechaInicio = $nuevoInicio->format('Y-m-d H:i:s');
-            $tmp->FechaFinal  = $nuevoFin->format('Y-m-d H:i:s');
+            $tmp->FechaFinal = $nuevoFin->format('Y-m-d H:i:s');
 
             // Reusar StdToaHra / HorasProdRaw si ya lo calculamos
             $formulas = self::calcularFormulasEficiencia($tmp, $metricas);
 
             $baseUpdate = [
                 'FechaInicio' => $tmp->FechaInicio,
-                'FechaFinal'  => $tmp->FechaFinal,
-                'EnProceso'   => $i === 0 ? 1 : 0,
-                'Ultimo'      => $i === ($n - 1) ? '1' : '0',
-                'CambioHilo'  => $cambioHilo,
-                'Posicion'    => $i + 1,
-                'UpdatedAt'   => $now,
+                'FechaFinal' => $tmp->FechaFinal,
+                'EnProceso' => $i === 0 ? 1 : 0,
+                'Ultimo' => $i === ($n - 1) ? '1' : '0',
+                'CambioHilo' => $cambioHilo,
+                'Posicion' => $i + 1,
+                'UpdatedAt' => $now,
             ];
 
-            $updates[(int)$r->Id] = array_merge($baseUpdate, $formulas);
+            $updates[(int) $r->Id] = array_merge($baseUpdate, $formulas);
 
             $detalles[] = [
-                'Id'               => (int)$r->Id,
-                'NoTelar'          => $r->NoTelarId,
-                'Posicion'         => $i + 1,
-                'FechaInicio_nueva'=> $updates[(int)$r->Id]['FechaInicio'] ?? $r->FechaInicio,
-                'FechaFinal_nueva' => $updates[(int)$r->Id]['FechaFinal'],
-                'EnProceso_nuevo'  => $updates[(int)$r->Id]['EnProceso'],
-                'Ultimo_nuevo'     => $updates[(int)$r->Id]['Ultimo'],
+                'Id' => (int) $r->Id,
+                'NoTelar' => $r->NoTelarId,
+                'Posicion' => $i + 1,
+                'FechaInicio_nueva' => $updates[(int) $r->Id]['FechaInicio'] ?? $r->FechaInicio,
+                'FechaFinal_nueva' => $updates[(int) $r->Id]['FechaFinal'],
+                'EnProceso_nuevo' => $updates[(int) $r->Id]['EnProceso'],
+                'Ultimo_nuevo' => $updates[(int) $r->Id]['Ultimo'],
                 'CambioHilo_nuevo' => $cambioHilo,
-                'CalendarioId'     => $r->CalendarioId ?? null,
-                'HorasProd_calc'   => $updates[(int)$r->Id]['HorasProd'] ?? null,
+                'CalendarioId' => $r->CalendarioId ?? null,
+                'HorasProd_calc' => $updates[(int) $r->Id]['HorasProd'] ?? null,
             ];
 
             // siguiente inicio
@@ -213,9 +213,10 @@ class DateHelpers
                 ->get()
                 ->values();
 
-            $idx = $todos->search(fn($r) => $r->Id === $registroActualizado->Id);
+            $idx = $todos->search(fn ($r) => $r->Id === $registroActualizado->Id);
             if ($idx === false) {
                 DB::commit();
+
                 return [];
             }
 
@@ -228,7 +229,7 @@ class DateHelpers
             $cursor = $finActual->copy();
 
             // Fibra para CambioHilo: parte desde el registro actualizado
-            $fibraPrev = trim((string)$registroActualizado->FibraRizo);
+            $fibraPrev = trim((string) $registroActualizado->FibraRizo);
 
             for ($i = $idx + 1; $i < $todos->count(); $i++) {
                 /** @var ReqProgramaTejido $row */
@@ -236,15 +237,15 @@ class DateHelpers
 
                 // inicio
                 $nuevoInicio = $cursor->copy();
-                if (!empty($row->CalendarioId)) {
+                if (! empty($row->CalendarioId)) {
                     $nuevoInicio = self::snapInicioAlCalendario($row->CalendarioId, $nuevoInicio) ?? $nuevoInicio;
                 }
 
                 // horas
                 $metricas = self::calcularMetricasBase($row);
-                $horasNecesarias = (float)($metricas['HorasProdRaw'] ?? 0);
-                if ($horasNecesarias <= 0 && !empty($row->HorasProd)) {
-                    $horasNecesarias = (float)$row->HorasProd;
+                $horasNecesarias = (float) ($metricas['HorasProdRaw'] ?? 0);
+                if ($horasNecesarias <= 0 && ! empty($row->HorasProd)) {
+                    $horasNecesarias = (float) $row->HorasProd;
                 }
 
                 // fin (cascade no toca EnProceso; saldo negativo => fin = mismo día que inicio)
@@ -253,15 +254,15 @@ class DateHelpers
                 if ($saldoRow < 0) {
                     $nuevoFin = $nuevoInicio->copy()->endOfDay();
                 } elseif ($horasNecesarias > 0) {
-                    if (!empty($row->CalendarioId)) {
+                    if (! empty($row->CalendarioId)) {
                         $finCalc = self::calcularFechaFinalDesdeInicio($row->CalendarioId, $nuevoInicio, $horasNecesarias);
-                        $nuevoFin = $finCalc ?: $nuevoInicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
+                        $nuevoFin = $finCalc ?: $nuevoInicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
                     } else {
-                        $nuevoFin = $nuevoInicio->copy()->addSeconds((int)round($horasNecesarias * 3600));
+                        $nuevoFin = $nuevoInicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
                     }
                 } else {
                     // saldo >= 0 y horasNecesarias <= 0: conservar duración previa si existía, si no repaso=12h / resto=30d
-                    if (!empty($row->FechaInicio) && !empty($row->FechaFinal)) {
+                    if (! empty($row->FechaInicio) && ! empty($row->FechaFinal)) {
                         try {
                             $iniOld = Carbon::parse($row->FechaInicio);
                             $finOld = Carbon::parse($row->FechaFinal);
@@ -280,14 +281,14 @@ class DateHelpers
                 }
 
                 // CambioHilo vs previo
-                $fibraAct = trim((string)$row->FibraRizo);
+                $fibraAct = trim((string) $row->FibraRizo);
                 $cambioHilo = ($fibraAct !== $fibraPrev) ? '1' : '0';
                 $fibraPrev = $fibraAct;
 
                 // fórmulas
                 $tmp = clone $row;
                 $tmp->FechaInicio = $nuevoInicio->format('Y-m-d H:i:s');
-                $tmp->FechaFinal  = $nuevoFin->format('Y-m-d H:i:s');
+                $tmp->FechaFinal = $nuevoFin->format('Y-m-d H:i:s');
 
                 $formulas = self::calcularFormulasEficiencia($tmp, $metricas);
 
@@ -296,22 +297,22 @@ class DateHelpers
 
                 DB::table(ReqProgramaTejido::tableName())->where('Id', $row->Id)->update(array_merge([
                     'FechaInicio' => $tmp->FechaInicio,
-                    'FechaFinal'  => $tmp->FechaFinal,
-                    'Ultimo'      => $ultimo,
-                    'CambioHilo'  => $cambioHilo,
-                    'UpdatedAt'   => now(),
+                    'FechaFinal' => $tmp->FechaFinal,
+                    'Ultimo' => $ultimo,
+                    'CambioHilo' => $cambioHilo,
+                    'UpdatedAt' => now(),
                 ], $formulas));
 
-                $idsActualizados[] = (int)$row->Id;
+                $idsActualizados[] = (int) $row->Id;
 
                 $detalles[] = [
-                    'Id'                => (int)$row->Id,
-                    'NoTelar'           => $row->NoTelarId,
+                    'Id' => (int) $row->Id,
+                    'NoTelar' => $row->NoTelarId,
                     'FechaInicio_nueva' => $tmp->FechaInicio,
-                    'FechaFinal_nueva'  => $tmp->FechaFinal,
-                    'CambioHilo_nuevo'  => $cambioHilo,
-                    'Ultimo_nuevo'      => $ultimo,
-                    'HorasProd_calc'    => $formulas['HorasProd'] ?? null,
+                    'FechaFinal_nueva' => $tmp->FechaFinal,
+                    'CambioHilo_nuevo' => $cambioHilo,
+                    'Ultimo_nuevo' => $ultimo,
+                    'HorasProd_calc' => $formulas['HorasProd'] ?? null,
                 ];
 
                 $cursor = $nuevoFin->copy();
@@ -327,7 +328,7 @@ class DateHelpers
             // regenerar líneas en batch (evita N+1).
             // regenerarLineas() bypassa el guard shouldRegenerateLines() del observer,
             // porque los modelos refetcheados desde BD no tienen isDirty()/wasChanged().
-            if (!empty($idsActualizados)) {
+            if (! empty($idsActualizados)) {
                 ReqProgramaTejido::regenerarLineas(
                     ReqProgramaTejido::whereIn('Id', $idsActualizados)->get()
                 );
@@ -342,8 +343,8 @@ class DateHelpers
             }
 
             Log::error('cascadeFechas error', [
-                'id'    => $registroActualizado->Id ?? null,
-                'msg'   => $e->getMessage(),
+                'id' => $registroActualizado->Id ?? null,
+                'msg' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
@@ -375,15 +376,17 @@ class DateHelpers
      */
     private static function calcularMetricasBase(ReqProgramaTejido $p): array
     {
-        $vel   = (float)($p->VelocidadSTD ?? 0);
-        $efic  = (float)($p->EficienciaSTD ?? 0);
-        $cant  = self::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
+        $vel = (float) ($p->VelocidadSTD ?? 0);
+        $efic = (float) ($p->EficienciaSTD ?? 0);
+        $cant = self::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
 
-        $noTiras = (float)($p->NoTiras ?? 0);
-        $luchaje = (float)($p->Luchaje ?? 0);
-        $rep     = (float)($p->Repeticiones ?? 0);
+        $noTiras = (float) ($p->NoTiras ?? 0);
+        $luchaje = (float) ($p->Luchaje ?? 0);
+        $rep = (float) ($p->Repeticiones ?? 0);
 
-        if ($efic > 1) $efic = $efic / 100;
+        if ($efic > 1) {
+            $efic = $efic / 100;
+        }
 
         $total = self::obtenerTotalModelo($p->TamanoClave ?? null);
 
@@ -403,11 +406,11 @@ class DateHelpers
         }
 
         return [
-            'StdToaHra'    => $stdToaHra,
+            'StdToaHra' => $stdToaHra,
             'HorasProdRaw' => $horasProdRaw,
-            'Efic'         => $efic,
-            'Cant'         => $cant,
-            'TotalModelo'  => $total,
+            'Efic' => $efic,
+            'Cant' => $cant,
+            'TotalModelo' => $total,
         ];
     }
 
@@ -422,65 +425,65 @@ class DateHelpers
         try {
             $metricasBase = $metricasBase ?: self::calcularMetricasBase($programa);
 
-            $stdToaHra = (float)($metricasBase['StdToaHra'] ?? 0);
-            $horasProdRaw = (float)($metricasBase['HorasProdRaw'] ?? 0);
-            $efic = (float)($metricasBase['Efic'] ?? 0);
-            $cantidad = (float)($metricasBase['Cant'] ?? self::sanitizeNumber($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0));
+            $stdToaHra = (float) ($metricasBase['StdToaHra'] ?? 0);
+            $horasProdRaw = (float) ($metricasBase['HorasProdRaw'] ?? 0);
+            $efic = (float) ($metricasBase['Efic'] ?? 0);
+            $cantidad = (float) ($metricasBase['Cant'] ?? self::sanitizeNumber($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0));
 
-            $pesoCrudo = (float)($programa->PesoCrudo ?? 0);
+            $pesoCrudo = (float) ($programa->PesoCrudo ?? 0);
 
             $inicio = Carbon::parse($programa->FechaInicio);
-            $fin    = Carbon::parse($programa->FechaFinal);
-            $diffSeg  = abs($fin->getTimestamp() - $inicio->getTimestamp());
+            $fin = Carbon::parse($programa->FechaFinal);
+            $diffSeg = abs($fin->getTimestamp() - $inicio->getTimestamp());
             $diffDias = $diffSeg / 86400;
 
             if ($stdToaHra > 0) {
-                $formulas['StdToaHra'] = (float)round($stdToaHra, 2);
+                $formulas['StdToaHra'] = (float) round($stdToaHra, 2);
             }
 
             // PesoGRM2
-            $largoToalla = (float)($programa->LargoToalla ?? 0);
-            $anchoToalla = (float)($programa->AnchoToalla ?? 0);
+            $largoToalla = (float) ($programa->LargoToalla ?? 0);
+            $anchoToalla = (float) ($programa->AnchoToalla ?? 0);
             if ($pesoCrudo > 0 && $largoToalla > 0 && $anchoToalla > 0) {
-                $formulas['PesoGRM2'] = (float)round(($pesoCrudo * 10000) / ($largoToalla * $anchoToalla), 2);
+                $formulas['PesoGRM2'] = (float) round(($pesoCrudo * 10000) / ($largoToalla * $anchoToalla), 2);
             }
 
             // DiasEficiencia
             if ($diffDias > 0) {
-                $formulas['DiasEficiencia'] = (float)round($diffDias, 2);
+                $formulas['DiasEficiencia'] = (float) round($diffDias, 2);
             }
 
             // StdDia / ProdKgDia
             if ($stdToaHra > 0 && $efic > 0) {
                 $stdDia = $stdToaHra * $efic * 24;
-                $formulas['StdDia'] = (float)round($stdDia, 2);
+                $formulas['StdDia'] = (float) round($stdDia, 2);
 
                 if ($pesoCrudo > 0) {
-                    $formulas['ProdKgDia'] = (float)round(($stdDia * $pesoCrudo) / 1000, 2);
+                    $formulas['ProdKgDia'] = (float) round(($stdDia * $pesoCrudo) / 1000, 2);
                 }
             }
 
             // StdHrsEfect / ProdKgDia2
             if ($diffDias > 0) {
                 $stdHrsEfect = ($cantidad / $diffDias) / 24;
-                $formulas['StdHrsEfect'] = (float)round($stdHrsEfect, 2);
+                $formulas['StdHrsEfect'] = (float) round($stdHrsEfect, 2);
 
                 if ($pesoCrudo > 0) {
-                    $formulas['ProdKgDia2'] = (float)round((($pesoCrudo * $stdHrsEfect) * 24) / 1000, 2);
+                    $formulas['ProdKgDia2'] = (float) round((($pesoCrudo * $stdHrsEfect) * 24) / 1000, 2);
                 }
             }
 
             // HorasProd / DiasJornada (usa horasProdRaw)
             if ($horasProdRaw > 0) {
-                $formulas['HorasProd'] = (float)round($horasProdRaw, 2);
-                $formulas['DiasJornada'] = (float)round($horasProdRaw / 24, 2);
+                $formulas['HorasProd'] = (float) round($horasProdRaw, 2);
+                $formulas['DiasJornada'] = (float) round($horasProdRaw / 24, 2);
             }
 
             // EntregaCte = FechaFinal + 12/16 dias
             $diasEntrega = TejidoHelpers::resolverDiasEntrega($programa);
             $entregaCteCalculada = null;
             $entregaPT = null;
-            if (!empty($programa->FechaFinal)) {
+            if (! empty($programa->FechaFinal)) {
                 try {
                     $fechaFinal = Carbon::parse($programa->FechaFinal);
                     $entregaCteCalculada = $fechaFinal->copy()->addDays($diasEntrega);
@@ -498,7 +501,7 @@ class DateHelpers
             }
 
             // PTvsCte = EntregaCte - EntregaPT (diferencia en días)
-            if (!$entregaPT && !empty($programa->EntregaPT)) {
+            if (! $entregaPT && ! empty($programa->EntregaPT)) {
                 try {
                     $entregaPT = Carbon::parse($programa->EntregaPT);
                 } catch (\Carbon\Exceptions\InvalidFormatException $e) {
@@ -519,11 +522,11 @@ class DateHelpers
             if ($entregaPT) {
                 // Usar EntregaCte calculada si existe, sino usar la del programa si existe
                 $entregaCteParaCalcular = $entregaCteCalculada
-                    ?: (!empty($programa->EntregaCte) ? Carbon::parse($programa->EntregaCte) : null);
+                    ?: (! empty($programa->EntregaCte) ? Carbon::parse($programa->EntregaCte) : null);
 
                 if ($entregaCteParaCalcular) {
                     $diferenciaDias = $entregaCteParaCalcular->diffInDays($entregaPT, false);
-                    $formulas['PTvsCte'] = (float)round($diferenciaDias, 2);
+                    $formulas['PTvsCte'] = (float) round($diferenciaDias, 2);
                 }
             }
 
@@ -539,26 +542,34 @@ class DateHelpers
 
     private static function obtenerTotalModelo(?string $tamanoClave): float
     {
-        $key = trim((string)$tamanoClave);
-        if ($key === '') return 0.0;
+        $key = trim((string) $tamanoClave);
+        if ($key === '') {
+            return 0.0;
+        }
 
         if (isset(self::$totalModeloCache[$key])) {
             return self::$totalModeloCache[$key];
         }
 
         $modelo = ReqModelosCodificados::where('TamanoClave', $key)->first();
-        $total = $modelo ? (float)($modelo->Total ?? 0) : 0.0;
+        $total = $modelo ? (float) ($modelo->Total ?? 0) : 0.0;
 
         self::$totalModeloCache[$key] = $total;
+
         return $total;
     }
 
     private static function sanitizeNumber($value): float
     {
-        if ($value === null) return 0.0;
-        if (is_numeric($value)) return (float)$value;
+        if ($value === null) {
+            return 0.0;
+        }
+        if (is_numeric($value)) {
+            return (float) $value;
+        }
 
-        $clean = str_replace([',', ' '], '', (string)$value);
-        return is_numeric($clean) ? (float)$clean : 0.0;
+        $clean = str_replace([',', ' '], '', (string) $value);
+
+        return is_numeric($clean) ? (float) $clean : 0.0;
     }
 }

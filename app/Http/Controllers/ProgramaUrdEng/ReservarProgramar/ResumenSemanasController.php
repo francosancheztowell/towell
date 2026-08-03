@@ -31,10 +31,11 @@ class ResumenSemanasController extends Controller
         } catch (\Throwable $e) {
             Log::error('getResumenSemanas', ['msg' => $e->getMessage()]);
             $semanas = $this->service->construirSemanas(5);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener resumen de semanas: ' . $e->getMessage(),
-                'data'    => ['rizo' => [], 'pie' => []],
+                'message' => 'Error al obtener resumen de semanas: '.$e->getMessage(),
+                'data' => ['rizo' => [], 'pie' => []],
                 'semanas' => $semanas,
             ], 500);
         }
@@ -42,10 +43,13 @@ class ResumenSemanasController extends Controller
 
     private function parseTelares($raw): array
     {
-        if (!$raw) return [];
+        if (! $raw) {
+            return [];
+        }
 
         if (is_string($raw)) {
             $decoded = json_decode(urldecode($raw), true);
+
             return is_array($decoded) ? $decoded : [];
         }
 

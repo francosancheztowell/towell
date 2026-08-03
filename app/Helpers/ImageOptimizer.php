@@ -27,7 +27,7 @@ class ImageOptimizer
      * @param  UploadedFile  $file  Archivo subido (imagen)
      * @param  string  $destPath  Ruta completa donde guardar (ej. public_path('images/fotos_modulos/nombre.jpg'))
      * @param  int  $maxSize  Lado máximo en píxeles (ancho o alto). Por defecto 400.
-     * @return string  Nombre del archivo guardado (sin ruta)
+     * @return string Nombre del archivo guardado (sin ruta)
      *
      * @throws Exception si GD no está disponible o la imagen no se puede procesar
      */
@@ -82,7 +82,7 @@ class ImageOptimizer
      *
      * @param  string  $filePath  Ruta completa al archivo (ej. public_path('images/fotos_modulos/foo.jpg'))
      * @param  int  $maxSize  Lado máximo en píxeles
-     * @return bool  true si se optimizó correctamente
+     * @return bool true si se optimizó correctamente
      */
     public static function optimizeFile(string $filePath, int $maxSize = self::DEFAULT_MAX_SIZE): bool
     {
@@ -106,6 +106,7 @@ class ImageOptimizer
             $resized = imagecreatetruecolor($newDimensions['width'], $newDimensions['height']);
             if (! $resized) {
                 imagedestroy($image);
+
                 return false;
             }
             imagecopyresampled(
@@ -153,7 +154,6 @@ class ImageOptimizer
      * Guarda el recurso GD en la ruta indicada con la extensión dada.
      *
      * @param  \GdImage  $image
-     * @return bool
      */
     private static function saveImage($image, string $destPath, string $extension): bool
     {
@@ -174,6 +174,7 @@ class ImageOptimizer
                 if (function_exists('imagewebp')) {
                     return imagewebp($image, $destPath, 82);
                 }
+
                 return imagepng($image, $destPath, self::PNG_COMPRESSION);
             default:
                 return imagejpeg($image, $destPath, self::JPEG_QUALITY);

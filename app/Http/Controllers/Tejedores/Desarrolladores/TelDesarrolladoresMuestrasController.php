@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 class TelDesarrolladoresMuestrasController extends Controller
 {
     protected ConsultasMuestrasDesarrolladorService $consultasService;
+
     protected ProcesarMuestrasDesarrolladorService $procesarService;
 
     public function __construct(
@@ -23,6 +24,7 @@ class TelDesarrolladoresMuestrasController extends Controller
     public function index()
     {
         $datos = $this->consultasService->obtenerDatosIndex();
+
         return view('modulos.desarrolladores.desarrolladores-muestras', $datos);
     }
 
@@ -30,6 +32,7 @@ class TelDesarrolladoresMuestrasController extends Controller
     {
         $resultado = $this->consultasService->obtenerProducciones($telarId);
         $status = $resultado['success'] ? 200 : 500;
+
         return response()->json($resultado, $status);
     }
 
@@ -37,6 +40,7 @@ class TelDesarrolladoresMuestrasController extends Controller
     {
         $resultado = $this->consultasService->obtenerDetallesOrden($noProduccion);
         $status = $resultado['success'] ? 200 : 500;
+
         return response()->json($resultado, $status);
     }
 
@@ -44,6 +48,7 @@ class TelDesarrolladoresMuestrasController extends Controller
     {
         $resultado = $this->consultasService->obtenerCodigoDibujo($salonTejidoId, $tamanoClave);
         $status = $resultado['success'] ? 200 : 404;
+
         return response()->json($resultado, $status);
     }
 
@@ -51,6 +56,7 @@ class TelDesarrolladoresMuestrasController extends Controller
     {
         $resultado = $this->consultasService->obtenerRegistroCatCodificado($telarId, $noProduccion);
         $status = $resultado['success'] ? 200 : 404;
+
         return response()->json($resultado, $status);
     }
 

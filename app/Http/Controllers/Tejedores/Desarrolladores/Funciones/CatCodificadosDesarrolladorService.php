@@ -10,7 +10,7 @@ class CatCodificadosDesarrolladorService
 {
     public function getColumns(): array
     {
-        $modelo = new CatCodificados();
+        $modelo = new CatCodificados;
 
         return Schema::getColumnListing($modelo->getTable());
     }
@@ -58,7 +58,7 @@ class CatCodificadosDesarrolladorService
     public function resolveCodigoDibujo(string $noProduccion, ?string $telarId = null): ?string
     {
         $registro = $this->resolveForRead($noProduccion, $telarId);
-        if (!$registro) {
+        if (! $registro) {
             return null;
         }
 
@@ -70,6 +70,7 @@ class CatCodificadosDesarrolladorService
     public function resolveCanonical(string $noProduccion): ?CatCodificados
     {
         $columns = $this->getColumns();
+
         return $this->buildOrderQuery($noProduccion, $columns)
             ->orderByDesc('Id')
             ->first();

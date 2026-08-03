@@ -14,6 +14,7 @@ class AtaComentariosController extends Controller
     public function index()
     {
         $comentarios = AtaComentariosModel::all();
+
         return view('modulos.catalogos-atadores.comentarios.index', compact('comentarios'));
     }
 
@@ -25,22 +26,22 @@ class AtaComentariosController extends Controller
         try {
             $request->validate([
                 'Nota1' => 'required|string|max:500',
-                'Nota2' => 'nullable|string|max:500'
+                'Nota2' => 'nullable|string|max:500',
             ]);
 
             AtaComentariosModel::create([
                 'Nota1' => $request->Nota1,
-                'Nota2' => $request->Nota2
+                'Nota2' => $request->Nota2,
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Comentario creado exitosamente'
+                'message' => 'Comentario creado exitosamente',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al crear el comentario: ' . $e->getMessage()
+                'message' => 'Error al crear el comentario: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -52,25 +53,25 @@ class AtaComentariosController extends Controller
     {
         try {
             $comentario = AtaComentariosModel::where('Nota1', $nota1)->firstOrFail();
-            
+
             $request->validate([
-                'Nota1' => 'required|string|max:500|unique:AtaComentarios,Nota1,' . $nota1 . ',Nota1',
-                'Nota2' => 'nullable|string|max:500'
+                'Nota1' => 'required|string|max:500|unique:AtaComentarios,Nota1,'.$nota1.',Nota1',
+                'Nota2' => 'nullable|string|max:500',
             ]);
 
             $comentario->update([
                 'Nota1' => $request->Nota1,
-                'Nota2' => $request->Nota2
+                'Nota2' => $request->Nota2,
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Comentario actualizado exitosamente'
+                'message' => 'Comentario actualizado exitosamente',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al actualizar el comentario: ' . $e->getMessage()
+                'message' => 'Error al actualizar el comentario: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -86,12 +87,12 @@ class AtaComentariosController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Comentario eliminado exitosamente'
+                'message' => 'Comentario eliminado exitosamente',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al eliminar el comentario: ' . $e->getMessage()
+                'message' => 'Error al eliminar el comentario: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -103,14 +104,15 @@ class AtaComentariosController extends Controller
     {
         try {
             $comentario = AtaComentariosModel::where('Nota1', $nota1)->firstOrFail();
+
             return response()->json([
                 'success' => true,
-                'data' => $comentario
+                'data' => $comentario,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Comentario no encontrado'
+                'message' => 'Comentario no encontrado',
             ], 404);
         }
     }

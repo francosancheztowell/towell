@@ -2,34 +2,38 @@
 
 namespace App\Http\Controllers\Tejedores\BPMTejedores;
 
+use App\Helpers\TurnoHelper;
 use App\Http\Controllers\Controller;
-use App\Models\Tejedores\TelBpmModel;
 use App\Models\Sistema\SSYSFoliosSecuencia;
 use App\Models\Sistema\SYSUsuario;
+use App\Models\Tejedores\TelActividadesBPM;
+use App\Models\Tejedores\TelBpmModel;
 use App\Models\Tejedores\TelTelaresOperador;
-use App\Helpers\TurnoHelper;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
-use Carbon\Carbon;
-use App\Models\Tejedores\TelActividadesBPM;
 
 class TelBpmController extends Controller
 {
     /** Clave para SSYSFoliosSecuencias (debe coincidir con la columna Modulo en la BD) */
-    private const FOLIO_KEY   = 'BPMTEjido';
-    private const PAD_LENGTH  = 5;        // BT00001 → 5 ceros
-    private const EST_CREADO  = 'Creado';
-    private const EST_TERM    = 'Terminado';
-    private const EST_AUTO    = 'Autorizado';
+    private const FOLIO_KEY = 'BPMTEjido';
+
+    private const PAD_LENGTH = 5;        // BT00001 → 5 ceros
+
+    private const EST_CREADO = 'Creado';
+
+    private const EST_TERM = 'Terminado';
+
+    private const EST_AUTO = 'Autorizado';
 
     /** Listado con filtros; último primero (acceso controlado por rutas/menú) */
     public function index(Request $request)
     {
-        $q       = trim((string) $request->get('q', ''));
-        $status  = $request->get('status');
+        $q = trim((string) $request->get('q', ''));
+        $status = $request->get('status');
         // El listado no muestra paginación visual; limitamos para evitar páginas demasiado pesadas.
         $perPage = (int) $request->get('per_page', 300);
         $perPage = max(50, min($perPage, 1000));
@@ -56,7 +60,7 @@ class TelBpmController extends Controller
                     ->orWhere('TelBPM.CveEmplEnt', 'like', "%{$q}%")
                     ->orWhere('TelBPM.NombreEmplEnt', 'like', "%{$q}%");
             })
-            ->when($status, fn($qry) => $qry->where('TelBPM.Status', $status))
+            ->when($status, fn ($qry) => $qry->where('TelBPM.Status', $status))
             ->orderByDesc('TelBPM.Fecha') // último primero
             ->orderByDesc('TelBPM.Folio')
             ->simplePaginate($perPage)
@@ -73,8 +77,8 @@ class TelBpmController extends Controller
         // Detectar si el usuario es supervisor (por campo Supervisor=1 o por área/puesto 'Supervisor')
         $esSupervisor = $this->esSupervisor($user);
         $this->logTurnoDebug('index.es_supervisor', [
-            'user_area'    => $user->area ?? null,
-            'user_puesto'  => $user->puesto ?? null,
+            'user_area' => $user->area ?? null,
+            'user_puesto' => $user->puesto ?? null,
             'es_supervisor' => $esSupervisor,
         ]);
         $this->logTurnoDebug('index.modal_recibe', [
@@ -86,9 +90,9 @@ class TelBpmController extends Controller
         ]);
 
         return view('modulos.bpm-tejedores.tel-bpm.index', [
-            'items'   => $items,
-            'q'       => $q,
-            'status'  => $status,
+            'items' => $items,
+            'q' => $q,
+            'status' => $status,
             'turnoActual' => $turnoActual,
             'fechaActual' => $fechaActual,
             'operadorUsuario' => $operadorUsuario,
@@ -117,23 +121,24 @@ class TelBpmController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user) {
+        if (! $user) {
             if ($request->expectsJson()) {
                 return response()->json(['error' => 'Usuario no autenticado'], 401);
             }
+
             return redirect()->back()->with('error', 'Debes iniciar sesión para crear un folio.');
         }
 
         try {
             $data = $request->validate([
                 // Recibe (automático del usuario logueado si no viene en request)
-                'CveEmplRec'    => ['nullable','string','max:30'],
-                'NombreEmplRec' => ['nullable','string','max:150'],
-                'TurnoRecibe'   => ['nullable','string','max:10'],
+                'CveEmplRec' => ['nullable', 'string', 'max:30'],
+                'NombreEmplRec' => ['nullable', 'string', 'max:150'],
+                'TurnoRecibe' => ['nullable', 'string', 'max:10'],
                 // Entrega (estos sí los captura el usuario)
-                'CveEmplEnt'    => ['required','string','max:30'],
-                'NombreEmplEnt' => ['required','string','max:150'],
-                'TurnoEntrega'  => ['required','string','max:10'],
+                'CveEmplEnt' => ['required', 'string', 'max:30'],
+                'NombreEmplEnt' => ['required', 'string', 'max:150'],
+                'TurnoEntrega' => ['required', 'string', 'max:10'],
             ]);
         } catch (ValidationException $e) {
             return redirect()->back()
@@ -143,7 +148,7 @@ class TelBpmController extends Controller
 
         try {
             // Valores por defecto cuando no vienen en el request (usuario autenticado)
-            $data['CveEmplRec']    = $data['CveEmplRec']    ?? (string) ($user->cve ?? $user->numero_empleado ?? '');
+            $data['CveEmplRec'] = $data['CveEmplRec'] ?? (string) ($user->cve ?? $user->numero_empleado ?? '');
             $data['NombreEmplRec'] = $data['NombreEmplRec'] ?? (string) ($user->name ?? $user->nombre ?? '');
             $turnoRecibeResuelto = $this->resolverTurnoEmpleado($data['CveEmplRec'], $user, false);
             $data['TurnoRecibe'] = $turnoRecibeResuelto
@@ -161,24 +166,24 @@ class TelBpmController extends Controller
             ]);
 
             // Validar: Entrega y Recibe no pueden ser el mismo operador
-            if (!empty($data['CveEmplRec']) && !empty($data['CveEmplEnt']) && $data['CveEmplRec'] === $data['CveEmplEnt']) {
+            if (! empty($data['CveEmplRec']) && ! empty($data['CveEmplEnt']) && $data['CveEmplRec'] === $data['CveEmplEnt']) {
                 return redirect()->back()->with('error', 'Entrega y Recibe no pueden ser el mismo operador.');
             }
 
             $folio = $this->generarFolio();
 
             TelBpmModel::create([
-                'Folio'            => $folio,
-                'Fecha'            => Carbon::now(),
-                'CveEmplRec'       => $data['CveEmplRec'],
-                'NombreEmplRec'    => $data['NombreEmplRec'],
-                'TurnoRecibe'      => $data['TurnoRecibe'],
-                'CveEmplEnt'       => $data['CveEmplEnt'],
-                'NombreEmplEnt'    => $data['NombreEmplEnt'],
-                'TurnoEntrega'     => $data['TurnoEntrega'],
-                'CveEmplAutoriza'  => null,
-                'NomEmplAutoriza'  => null,
-                'Status'           => self::EST_CREADO,
+                'Folio' => $folio,
+                'Fecha' => Carbon::now(),
+                'CveEmplRec' => $data['CveEmplRec'],
+                'NombreEmplRec' => $data['NombreEmplRec'],
+                'TurnoRecibe' => $data['TurnoRecibe'],
+                'CveEmplEnt' => $data['CveEmplEnt'],
+                'NombreEmplEnt' => $data['NombreEmplEnt'],
+                'TurnoEntrega' => $data['TurnoEntrega'],
+                'CveEmplAutoriza' => null,
+                'NomEmplAutoriza' => null,
+                'Status' => self::EST_CREADO,
             ]);
 
             $this->inicializarLineasChecklist($folio, $data['CveEmplRec'], $data['TurnoRecibe']);
@@ -187,7 +192,7 @@ class TelBpmController extends Controller
                 ->route('tel-bpm-line.index', $folio)
                 ->with('success', "Folio $folio creado. Completa el checklist.");
         } catch (\Throwable $e) {
-            return redirect()->back()->with('error', 'Error al crear el folio: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error al crear el folio: '.$e->getMessage());
         }
     }
 
@@ -200,9 +205,9 @@ class TelBpmController extends Controller
         }
 
         $data = $request->validate([
-            'CveEmplEnt'    => ['required','string','max:30'],
-            'NombreEmplEnt' => ['required','string','max:150'],
-            'TurnoEntrega'  => ['required','string','max:10'],
+            'CveEmplEnt' => ['required', 'string', 'max:30'],
+            'NombreEmplEnt' => ['required', 'string', 'max:150'],
+            'TurnoEntrega' => ['required', 'string', 'max:10'],
         ]);
 
         $item->update($data);
@@ -219,6 +224,7 @@ class TelBpmController extends Controller
         }
 
         $item->delete(); // ON DELETE CASCADE eliminará sus líneas
+
         // Ruta real de navegación
         return redirect()->route('tejedores.bpm')->with('success', "Folio $folio eliminado.");
     }
@@ -231,47 +237,47 @@ class TelBpmController extends Controller
         return DB::transaction(function () {
             $row = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', self::FOLIO_KEY)->lockForUpdate()->first();
 
-            if (!$row) {
+            if (! $row) {
                 $maxFolio = DB::table('TelBPM')->where('Folio', 'like', 'BT%')->orderBy('Folio', 'desc')->value('Folio');
                 $start = $maxFolio ? (int) substr($maxFolio, strlen('BT')) : 0;
                 SSYSFoliosSecuencia::create(['modulo' => self::FOLIO_KEY, 'prefijo' => 'BT', 'consecutivo' => $start]);
-                    $row = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', self::FOLIO_KEY)->lockForUpdate()->first();
+                $row = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', self::FOLIO_KEY)->lockForUpdate()->first();
 
-                    if (!$row) {
-                        throw new \RuntimeException('No existe configuración de folio para BPM Tejedores en SSYSFoliosSecuencias y no se pudo crear.');
-                    }
+                if (! $row) {
+                    throw new \RuntimeException('No existe configuración de folio para BPM Tejedores en SSYSFoliosSecuencias y no se pudo crear.');
                 }
+            }
 
-                $prefijo = $row->prefijo ?? ($row->Prefijo ?? 'BT');
-                $currConsec = (int)($row->consecutivo ?? ($row->Consecutivo ?? 0));
+            $prefijo = $row->prefijo ?? ($row->Prefijo ?? 'BT');
+            $currConsec = (int) ($row->consecutivo ?? ($row->Consecutivo ?? 0));
 
-                // Calcular máximo actual en TelBPM con ese prefijo
-                $maxFolio = DB::table('TelBPM')->where('Folio', 'like', $prefijo.'%')->orderBy('Folio','desc')->value('Folio');
-                $maxNum = 0;
-                if ($maxFolio) {
-                    $maxNum = (int) substr($maxFolio, strlen($prefijo));
-                }
-                if ($maxNum > $currConsec) {
-                    DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', self::FOLIO_KEY)->update(['consecutivo' => $maxNum]);
-                }
+            // Calcular máximo actual en TelBPM con ese prefijo
+            $maxFolio = DB::table('TelBPM')->where('Folio', 'like', $prefijo.'%')->orderBy('Folio', 'desc')->value('Folio');
+            $maxNum = 0;
+            if ($maxFolio) {
+                $maxNum = (int) substr($maxFolio, strlen($prefijo));
+            }
+            if ($maxNum > $currConsec) {
+                DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', self::FOLIO_KEY)->update(['consecutivo' => $maxNum]);
+            }
 
-                try {
-                    $f = SSYSFoliosSecuencia::nextFolio(self::FOLIO_KEY, self::PAD_LENGTH);
-                } catch (\Throwable $e) {
-                    $f = SSYSFoliosSecuencia::nextFolioByPrefijo($prefijo, self::PAD_LENGTH);
-                }
+            try {
+                $f = SSYSFoliosSecuencia::nextFolio(self::FOLIO_KEY, self::PAD_LENGTH);
+            } catch (\Throwable $e) {
+                $f = SSYSFoliosSecuencia::nextFolioByPrefijo($prefijo, self::PAD_LENGTH);
+            }
+            $folio = $f['folio'];
+
+            // Si por alguna razón sigue duplicado, incrementar hasta encontrar libre
+            $guard = 0;
+            while (TelBpmModel::find($folio) && $guard < 5) {
+                $f = SSYSFoliosSecuencia::nextFolioByPrefijo($prefijo, self::PAD_LENGTH);
                 $folio = $f['folio'];
+                $guard++;
+            }
 
-                // Si por alguna razón sigue duplicado, incrementar hasta encontrar libre
-                $guard = 0;
-                while (TelBpmModel::find($folio) && $guard < 5) {
-                    $f = SSYSFoliosSecuencia::nextFolioByPrefijo($prefijo, self::PAD_LENGTH);
-                    $folio = $f['folio'];
-                    $guard++;
-                }
-
-                return $folio;
-            });
+            return $folio;
+        });
     }
 
     /** Obtiene datos del operador y operadores de entrega */
@@ -281,7 +287,7 @@ class TelBpmController extends Controller
         $usuarioEsOperador = false;
         $operadoresEntrega = collect();
 
-        if (!$user) {
+        if (! $user) {
             return [$operadorUsuario, $usuarioEsOperador, $operadoresEntrega];
         }
 
@@ -290,13 +296,13 @@ class TelBpmController extends Controller
             $userCodeAlt = (string) ($user->numero_empleado ?? '');
             $userName = (string) ($user->name ?? $user->nombre ?? '');
 
-            $codes = collect([$userCode, $userCodeAlt])->filter(fn($v) => $v !== '')->unique()->values()->all();
+            $codes = collect([$userCode, $userCodeAlt])->filter(fn ($v) => $v !== '')->unique()->values()->all();
 
             // Primero buscar por códigos
             $operadorUsuario = $this->operadorQuery($codes, '')->first();
 
             // Si no encuentra por código, intentar por nombre
-            if (!$operadorUsuario && $userName !== '') {
+            if (! $operadorUsuario && $userName !== '') {
                 $operadorUsuario = TelTelaresOperador::where('nombreEmpl', 'like', "%{$userName}%")->first();
             }
 
@@ -315,9 +321,9 @@ class TelBpmController extends Controller
                 if ($telaresUsuario->isNotEmpty()) {
                     $operadoresRaw = TelTelaresOperador::query()
                         ->whereIn('NoTelarId', $telaresUsuario)
-                        ->where(function($query) {
+                        ->where(function ($query) {
                             $query->where('Supervisor', '!=', 1)
-                                  ->orWhereNull('Supervisor');
+                                ->orWhereNull('Supervisor');
                         }) // Excluir supervisores (Supervisor = 1)
                         ->select(['numero_empleado', 'nombreEmpl', 'Turno', 'Id'])
                         ->orderByDesc('Id')
@@ -367,7 +373,7 @@ class TelBpmController extends Controller
                 ->get(['NoTelarId', 'SalonTejidoId']);
 
             $telares = $asignados->pluck('NoTelarId')->filter()->unique()->values();
-            $salonPorTelar = $asignados->mapWithKeys(fn($r) => [$r->NoTelarId => $r->SalonTejidoId])->all();
+            $salonPorTelar = $asignados->mapWithKeys(fn ($r) => [$r->NoTelarId => $r->SalonTejidoId])->all();
 
             if ($actividades->isEmpty()) {
                 return;
@@ -382,7 +388,7 @@ class TelBpmController extends Controller
                     ->where('Folio', $folio)
                     ->select('Orden', 'NoTelarId')
                     ->get()
-                    ->map(fn($row) => ((int) $row->Orden) . '|' . (string) $row->NoTelarId)
+                    ->map(fn ($row) => ((int) $row->Orden).'|'.(string) $row->NoTelarId)
                     ->flip();
 
                 $pendientes = [];
@@ -392,8 +398,8 @@ class TelBpmController extends Controller
                     $actividadNombre = (string) $actividad->Actividad;
 
                     foreach ($telares as $telar) {
-                        $clave = $orden . '|' . (string) $telar;
-                        if (!$existentes->has($clave)) {
+                        $clave = $orden.'|'.(string) $telar;
+                        if (! $existentes->has($clave)) {
                             $pendientes[] = [
                                 'Folio' => $folio,
                                 'Orden' => $orden,
@@ -421,7 +427,7 @@ class TelBpmController extends Controller
         return TelTelaresOperador::query()
             ->where(function ($q) use ($codes, $userName) {
                 // Buscar por códigos de empleado (exacto o LIKE para manejar espacios/formatos)
-                if (!empty($codes)) {
+                if (! empty($codes)) {
                     $q->where(function ($sub) use ($codes) {
                         foreach ($codes as $code) {
                             $sub->orWhere('numero_empleado', $code)
@@ -438,7 +444,7 @@ class TelBpmController extends Controller
 
     private function completarTurnoOperador($operadorUsuario, $user)
     {
-        if (!$operadorUsuario) {
+        if (! $operadorUsuario) {
             return $operadorUsuario;
         }
 
@@ -468,6 +474,7 @@ class TelBpmController extends Controller
                     'numero_empleado_input' => $numeroEmpleado,
                     'turno' => (string) $sysUsuarioAuth->turno,
                 ]);
+
                 return (string) $sysUsuarioAuth->turno;
             }
         }
@@ -491,6 +498,7 @@ class TelBpmController extends Controller
                     'numero_empleado_numeric' => $numeroEmpleadoNumerico,
                     'turno' => (string) $sysUsuarioExacto->turno,
                 ]);
+
                 return (string) $sysUsuarioExacto->turno;
             }
 
@@ -507,6 +515,7 @@ class TelBpmController extends Controller
                         'numero_empleado_match' => $sysUsuarioNumerico->numero_empleado ?? null,
                         'turno' => (string) $sysUsuarioNumerico->turno,
                     ]);
+
                     return (string) $sysUsuarioNumerico->turno;
                 }
             }
@@ -524,6 +533,7 @@ class TelBpmController extends Controller
                     'numero_empleado_numeric' => $numeroEmpleadoNumerico,
                     'turno' => (string) $telarOperadorExacto->Turno,
                 ]);
+
                 return (string) $telarOperadorExacto->Turno;
             }
 
@@ -539,6 +549,7 @@ class TelBpmController extends Controller
                         'numero_empleado_match' => $telarOperadorNumerico->numero_empleado ?? null,
                         'turno' => (string) $telarOperadorNumerico->Turno,
                     ]);
+
                     return (string) $telarOperadorNumerico->Turno;
                 }
             }
@@ -557,7 +568,7 @@ class TelBpmController extends Controller
     private function logTurnoDebug(string $evento, array $context = []): void
     {
         try {
-            Log::warning('[TEL-BPM TURNO] ' . $evento, $context);
+            Log::warning('[TEL-BPM TURNO] '.$evento, $context);
         } catch (\Throwable $e) {
         }
     }
@@ -565,14 +576,14 @@ class TelBpmController extends Controller
     /** Detecta si el usuario es supervisor por campo Supervisor=1 o área 'Supervisor' */
     private function esSupervisor($user): bool
     {
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
         try {
             $userCode = (string) ($user->cve ?? '');
             $userCodeAlt = (string) ($user->numero_empleado ?? '');
-            $userArea  = trim((string) ($user->area   ?? ''));
+            $userArea = trim((string) ($user->area ?? ''));
             $userPuesto = trim((string) ($user->puesto ?? ''));
 
             // Por área o puesto
@@ -581,8 +592,8 @@ class TelBpmController extends Controller
             }
 
             // Por campo Supervisor en TelTelaresOperador
-            $codes = collect([$userCode, $userCodeAlt])->filter(fn($v) => $v !== '')->unique()->values()->all();
-            if (!empty($codes)) {
+            $codes = collect([$userCode, $userCodeAlt])->filter(fn ($v) => $v !== '')->unique()->values()->all();
+            if (! empty($codes)) {
                 $esSupervisorPorCampo = TelTelaresOperador::query()
                     ->where(function ($q) use ($codes) {
                         foreach ($codes as $code) {

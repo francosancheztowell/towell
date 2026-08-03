@@ -63,7 +63,7 @@ class ReportesEngomadoController extends Controller
         $fechaIni = $request->query('fecha_ini');
         $fechaFin = $request->query('fecha_fin');
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return view('modulos.engomado.reportes-control-merma', [
                 'filas' => collect(),
                 'fechaIni' => $fechaIni ?? '',
@@ -85,7 +85,7 @@ class ReportesEngomadoController extends Controller
         $fechaIni = $request->query('fecha_ini');
         $fechaFin = $request->query('fecha_fin');
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return redirect()->route('engomado.reportes.control-merma')
                 ->with('error', 'Seleccione un rango de fechas para exportar.');
         }
@@ -94,7 +94,7 @@ class ReportesEngomadoController extends Controller
 
         $fechaIniCarbon = $this->parseReportDate($fechaIni);
         $fechaFinCarbon = $this->parseReportDate($fechaFin);
-        $fileName = 'control-merma-' . $fechaIniCarbon->format('Ymd') . '-' . $fechaFinCarbon->format('Ymd') . '.xlsx';
+        $fileName = 'control-merma-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
         return Excel::download(new ControlMermaExport($filas), $fileName);
     }
@@ -105,7 +105,7 @@ class ReportesEngomadoController extends Controller
         $fechaFin = $request->query('fecha_fin');
         $soloFinalizados = $request->query('solo_finalizados', '1') === '1';
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return view('modulos.engomado.reportes-bpm-engomado', [
                 'filas' => [],
                 'fechaIni' => $fechaIni ?? '',
@@ -148,6 +148,7 @@ class ReportesEngomadoController extends Controller
                 $row->CveEmplEnt = $this->normalizarClaveNumero($row->CveEmplEnt ?? null);
                 $row->CveEmplRec = $this->normalizarClaveNumero($row->CveEmplRec ?? null);
                 $row->CveEmplAutoriza = $this->normalizarClaveNumero($row->CveEmplAutoriza ?? null);
+
                 return $row;
             });
 
@@ -167,7 +168,7 @@ class ReportesEngomadoController extends Controller
         $fechaFin = $request->query('fecha_fin');
         $soloFinalizados = $request->query('solo_finalizados', '1') === '1';
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return redirect()->route('engomado.reportes.bpm')
                 ->with('error', 'Seleccione un rango de fechas para exportar.');
         }
@@ -206,12 +207,14 @@ class ReportesEngomadoController extends Controller
                 $row->CveEmplEnt = $this->normalizarClaveNumero($row->CveEmplEnt ?? null);
                 $row->CveEmplRec = $this->normalizarClaveNumero($row->CveEmplRec ?? null);
                 $row->CveEmplAutoriza = $this->normalizarClaveNumero($row->CveEmplAutoriza ?? null);
+
                 return $row;
             });
 
         $filas = $this->marcarInicioPorFolio($filas);
 
-        $fileName = 'bpm-engomado-' . now()->format('Ymd-His') . '.xlsx';
+        $fileName = 'bpm-engomado-'.now()->format('Ymd-His').'.xlsx';
+
         return Excel::download(new BpmEngomadoExport($filas), $fileName);
     }
 
@@ -265,7 +268,7 @@ class ReportesEngomadoController extends Controller
         $fechaIni = $request->query('fecha_ini');
         $fechaFin = $request->query('fecha_fin');
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return view('modulos.engomado.reporte-resumen-engomado', [
                 'datosSemanales' => [],
                 'fechaIni' => $fechaIni ?? '',
@@ -287,7 +290,7 @@ class ReportesEngomadoController extends Controller
         $fechaIni = $request->query('fecha_ini');
         $fechaFin = $request->query('fecha_fin');
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return redirect()->route('engomado.reportes.resumen-engomado')
                 ->with('error', 'Seleccione un rango de fechas para exportar.');
         }
@@ -296,7 +299,7 @@ class ReportesEngomadoController extends Controller
 
         $fechaIniCarbon = $this->parseReportDate($fechaIni);
         $fechaFinCarbon = $this->parseReportDate($fechaFin);
-        $fileName = 'resumen-semanal-engomado-' . $fechaIniCarbon->format('Ymd') . '-' . $fechaFinCarbon->format('Ymd') . '.xlsx';
+        $fileName = 'resumen-semanal-engomado-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
         return Excel::download(new ReporteResumenSemanalEngomadoExport($datosSemanales), $fileName);
     }
@@ -323,9 +326,9 @@ class ReportesEngomadoController extends Controller
             $fecha = $prod->Fecha instanceof Carbon ? $prod->Fecha : Carbon::parse($prod->Fecha);
             $weekYear = $fecha->format('W-o');
 
-            if (!isset($porSemana[$weekYear])) {
+            if (! isset($porSemana[$weekYear])) {
                 $porSemana[$weekYear] = [
-                    'semana_label' => 'SEM-' . $fecha->format('W-o'),
+                    'semana_label' => 'SEM-'.$fecha->format('W-o'),
                     'total_ordenes' => 0,
                     'total_julios' => 0,
                     'total_kg' => 0,
@@ -336,7 +339,7 @@ class ReportesEngomadoController extends Controller
                 $foliosPorSemana[$weekYear] = [];
             }
 
-            if (!in_array($prod->Folio, $foliosPorSemana[$weekYear])) {
+            if (! in_array($prod->Folio, $foliosPorSemana[$weekYear])) {
                 $foliosPorSemana[$weekYear][] = $prod->Folio;
                 $porSemana[$weekYear]['total_ordenes']++;
             }
@@ -387,7 +390,7 @@ class ReportesEngomadoController extends Controller
         foreach ($producciones as $prod) {
             $fecha = $prod->Fecha instanceof Carbon ? $prod->Fecha->format('Y-m-d') : Carbon::parse($prod->Fecha)->format('Y-m-d');
 
-            if (!isset($porFecha[$fecha])) {
+            if (! isset($porFecha[$fecha])) {
                 $porFecha[$fecha] = [
                     'totalKg' => 0,
                     'porMaquina' => [
@@ -400,7 +403,7 @@ class ReportesEngomadoController extends Controller
             $programa = EngProgramaEngomado::where('Folio', $prod->Folio)->first();
             $maquina = $programa->MaquinaEng ?? 'WP2';
 
-            if (!in_array($maquina, ['WP2', 'WP3'])) {
+            if (! in_array($maquina, ['WP2', 'WP3'])) {
                 $maquina = 'WP2';
             }
 

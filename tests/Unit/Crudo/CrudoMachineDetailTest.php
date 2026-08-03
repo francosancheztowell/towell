@@ -31,14 +31,26 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSet('detail.kilos', 40.0)
             ->assertSee('crudo-modal-overview', false)
             ->assertSee('crudo-modal-identity-card', false)
+            ->assertSee('crudo-process-defects-panel', false)
+            ->assertSee('crudo-audit-defects-grid', false)
+            ->assertSee('crudo-audit-defects-panel', false)
             ->assertSee('Órdenes y turnos')
             ->assertSee('Meta a esta hora')
-            ->assertSee('PurchBarcode')
+            ->assertSee('No. Rollo')
             ->assertSee('PB-1001')
-            ->assertSee('Peso captura (kg)')
+            ->assertSee('Peso (kg)')
             ->assertSee('Error de trama')
+            ->assertSee('Defectos registrados')
+            ->assertSee('Agregar auditoría')
+            ->assertSee('data-crudo-audit-toggle', false)
+            ->assertSee('data-crudo-audit-content', false)
+            ->assertSee('Defecto 1')
+            ->assertSee('Defecto 5')
+            ->assertSee('Cargando catálogo...')
+            ->assertSee('Selecciona hasta cinco defectos del catálogo de Calidad; son independientes de la consulta de producción superior.')
+            ->assertDontSee('Agregar defecto')
             ->assertSee('crudo-defect-table', false)
-            ->assertSee('Defectos encontrados y desglose por turno')
+            ->assertSee('Defectos consultados de producción y desglose por turno')
             ->assertSee('T1')
             ->assertSee('T2')
             ->assertSee('T3')
@@ -48,9 +60,88 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSee('¿El dibujo de Jacquard está bien definido?')
             ->assertSee('¿Es correcta la identificación en el julio del lote de hilo y proveedor?')
             ->assertSee('crudo-audit-table', false)
+            ->assertSee('crudo-audit-observations', false)
+            ->assertSee('Obs.')
+            ->assertSee('Observaciones de la auditoría')
             ->call('close')
             ->assertSet('selectedTelar', null)
             ->assertDontSee('crudo-modal-overview', false);
+    }
+
+    public function test_it_renders_exactly_five_quality_catalog_selects(): void
+    {
+        $component = Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData());
+
+        $html = $component->html();
+
+        $this->assertSame(5, substr_count($html, 'data-crudo-quality-defect-select'));
+        $this->assertSame(5, substr_count($html, 'name="crudo-audit-defect[]"'));
+        $this->assertStringContainsString('/api/mantenimiento/fallas/Calidad', $html);
+        $this->assertStringNotContainsString('data-crudo-add-audit-defect', $html);
+        $this->assertStringNotContainsString('data-crudo-remove-audit-defect', $html);
+    }
+
+    public function test_audit_form_and_save_actions_are_collapsed_initially(): void
+    {
+        $component = Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData());
+
+        $html = $component->html();
+
+        $this->assertMatchesRegularExpression(
+            '/data-crudo-audit-toggle[^>]*aria-expanded="false"/s',
+            $html,
+        );
+        $this->assertMatchesRegularExpression('/data-crudo-audit-content\s+hidden/s', $html);
+        $this->assertMatchesRegularExpression('/data-crudo-save-audit\s+hidden/s', $html);
+        $this->assertMatchesRegularExpression('/data-crudo-save-stop\s+hidden/s', $html);
+    }
+
+    public function test_audit_disclosure_stays_open_across_refresh_until_hidden_or_modal_closed(): void
+    {
+        $component = Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
+            ->call('toggleAudit')
+            ->assertSet('auditExpanded', true)
+            ->assertSee('Ocultar auditoría');
+
+        $this->assertStringContainsString('aria-expanded="true"', $component->html());
+
+        $component
+            ->dispatch('crudo-refrescado')
+            ->assertSet('auditExpanded', true)
+            ->assertSee('Ocultar auditoría')
+            ->call('toggleAudit')
+            ->assertSet('auditExpanded', false)
+            ->assertSee('Agregar auditoría')
+            ->call('toggleAudit')
+            ->call('close')
+            ->assertSet('auditExpanded', false)
+            ->assertSet('selectedTelar', null);
+
+        $this->assertSame(2, $this->provider->detailCalls);
+    }
+
+    public function test_program_order_is_in_the_title_and_model_key_is_next_to_ax_key(): void
+    {
+        $machine = $this->machineData();
+        $machine['programa'] = [
+            'orden' => 'ORD-PROG-201',
+            'claveModelo' => 'MOD-201-GDE',
+            'itemId' => 'AX-201',
+            'nombreProducto' => 'Producto de prueba',
+        ];
+
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $machine)
+            ->assertSee('crudo-modal-order', false)
+            ->assertSee('ORD-PROG-201')
+            ->assertSee('Clave modelo')
+            ->assertSee('MOD-201-GDE')
+            ->assertSee('Clave AX')
+            ->assertSee('AX-201')
+            ->assertDontSee('Clave ORD-PROG-201');
     }
 
     public function test_it_renders_an_active_stop_inside_the_compact_status_card(): void

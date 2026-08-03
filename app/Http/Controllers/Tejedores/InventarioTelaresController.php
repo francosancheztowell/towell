@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Tejedores;
 
 use App\Http\Controllers\Controller;
-use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Inventario\InvTelasReservadas;
+use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Urdido\UrdProgramaUrdido;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class InventarioTelaresController extends Controller
@@ -37,7 +37,7 @@ class InventarioTelaresController extends Controller
                     } catch (\Throwable $e) {
                         $data['fecha'] = is_scalar($rawFecha) ? (string) $rawFecha : null;
                     }
-                } elseif (!empty($row->fecha)) {
+                } elseif (! empty($row->fecha)) {
                     try {
                         $data['fecha'] = Carbon::parse($row->fecha)->format('Y-m-d');
                     } catch (\Throwable $e) {
@@ -52,17 +52,17 @@ class InventarioTelaresController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $inventarioNormalizado
+                'data' => $inventarioNormalizado,
             ]);
         } catch (\Exception $e) {
             Log::error('Error al obtener inventario de telares', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener inventario: ' . $e->getMessage()
+                'message' => 'Error al obtener inventario: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -134,18 +134,18 @@ class InventarioTelaresController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             Log::error('Error al guardar inventario de telares', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'request' => $request->all()
+                'request' => $request->all(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al guardar: ' . $e->getMessage()
+                'message' => 'Error al guardar: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -167,10 +167,10 @@ class InventarioTelaresController extends Controller
             $fecha = $fecha ? trim(strval($fecha)) : null;
             $turno = $turno !== null ? (is_numeric($turno) ? intval($turno) : trim(strval($turno))) : null;
 
-            if (!$noTelar || !$tipo) {
+            if (! $noTelar || ! $tipo) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Faltan parámetros requeridos: no_telar, tipo'
+                    'message' => 'Faltan parámetros requeridos: no_telar, tipo',
                 ], 422);
             }
 
@@ -200,7 +200,7 @@ class InventarioTelaresController extends Controller
                 }
 
                 // Convertir turno a entero si viene como string
-                $turnoInt = is_numeric($turno) ? (int)$turno : $turno;
+                $turnoInt = is_numeric($turno) ? (int) $turno : $turno;
 
                 // Buscar el registro específico con múltiples intentos para asegurar que lo encontramos
                 // Primero intentar con fecha exacta
@@ -212,13 +212,13 @@ class InventarioTelaresController extends Controller
                     ->first();
 
                 // Si no se encuentra, intentar con diferentes formatos de fecha (por si hay problemas de formato)
-                if (!$registro) {
+                if (! $registro) {
                     // Intentar parsear la fecha de diferentes maneras
                     try {
                         $fechaAlternativa = \Carbon\Carbon::parse($fechaFormato)->format('Y-m-d');
                         $registro = TejInventarioTelares::where('no_telar', $noTelar)
                             ->where('tipo', $tipoNormalizado)
-                            ->whereRaw("CONVERT(DATE, fecha) = ?", [$fechaAlternativa])
+                            ->whereRaw('CONVERT(DATE, fecha) = ?', [$fechaAlternativa])
                             ->where('turno', $turnoInt)
                             ->where('status', 'Activo')
                             ->first();
@@ -231,7 +231,7 @@ class InventarioTelaresController extends Controller
                 // porque podría ser un registro diferente con el mismo telar/tipo/turno
                 // Es mejor devolver error que usar el registro incorrecto
 
-                if (!$registro) {
+                if (! $registro) {
                     // Log detallado para debugging
                     $registrosSimilares = TejInventarioTelares::where('no_telar', $noTelar)
                         ->where('tipo', $tipoNormalizado)
@@ -243,7 +243,7 @@ class InventarioTelaresController extends Controller
                         'tipo' => $tipoNormalizado,
                         'fecha_buscada' => $fechaFormato,
                         'turno_buscado' => $turnoInt,
-                        'registros_similares' => $registrosSimilares->toArray()
+                        'registros_similares' => $registrosSimilares->toArray(),
                     ]);
 
                     return response()->json([
@@ -252,8 +252,8 @@ class InventarioTelaresController extends Controller
                         'debug' => [
                             'fecha_buscada' => $fechaFormato,
                             'turno_buscado' => $turnoInt,
-                            'registros_disponibles' => $registrosSimilares->count()
-                        ]
+                            'registros_disponibles' => $registrosSimilares->count(),
+                        ],
                     ], 404);
                 }
 
@@ -277,7 +277,7 @@ class InventarioTelaresController extends Controller
                     // PRIORIDAD 2: Buscar por Fecha y Turno (campos específicos del registro)
                     try {
                         $fechaFormatoDB = \Carbon\Carbon::parse($fechaFormato)->format('Y-m-d');
-                        $turnoIntDB = is_numeric($turnoInt) ? (int)$turnoInt : null;
+                        $turnoIntDB = is_numeric($turnoInt) ? (int) $turnoInt : null;
 
                         if ($fechaFormatoDB && $turnoIntDB) {
                             $reservasPorFechaTurno = InvTelasReservadas::where('NoTelarId', $noTelar)
@@ -299,12 +299,12 @@ class InventarioTelaresController extends Controller
                     }
 
                     // PRIORIDAD 3: Buscar por ProdDate (comportamiento legacy - menos preciso)
-                    if (!$tieneReservasActivas) {
+                    if (! $tieneReservasActivas) {
                         try {
                             $fechaProdDate = \Carbon\Carbon::parse($fechaFormato)->format('Y-m-d');
                             $reservasPorProdDate = InvTelasReservadas::where('NoTelarId', $noTelar)
                                 ->where('Status', 'Reservado')
-                                ->whereRaw("CONVERT(DATE, ProdDate) = ?", [$fechaProdDate]);
+                                ->whereRaw('CONVERT(DATE, ProdDate) = ?', [$fechaProdDate]);
 
                             if ($tipoNormalizado) {
                                 $reservasPorProdDate->where('Tipo', $tipoNormalizado);
@@ -325,7 +325,7 @@ class InventarioTelaresController extends Controller
                 // 2. O hay reservas activas que correspondan a este registro específico (verificado arriba)
                 // IMPORTANTE: Si Reservado = 1, SIEMPRE considerar reservado, incluso si no se encuentran reservas activas
                 // (puede ser una reserva antigua sin TejInventarioTelaresId o con datos inconsistentes)
-                $campoReservado = (bool)($registro->Reservado ?? false);
+                $campoReservado = (bool) ($registro->Reservado ?? false);
 
                 // Si el campo Reservado = 1, SIEMPRE considerar reservado
                 // Esto es crítico porque el campo Reservado es la fuente de verdad más confiable
@@ -342,9 +342,9 @@ class InventarioTelaresController extends Controller
                 // - metros: Si tiene valor (no NULL), puede indicar reserva
                 // Estos campos ayudan a distinguir registros reservados de no reservados
                 // cuando hay múltiples fechas/turnos del mismo telar/tipo
-                $tieneNoJulio = !empty($registro->no_julio);
-                $tieneNoOrden = !empty($registro->no_orden);
-                $tieneMetros = !empty($registro->metros);
+                $tieneNoJulio = ! empty($registro->no_julio);
+                $tieneNoOrden = ! empty($registro->no_orden);
+                $tieneMetros = ! empty($registro->metros);
 
                 // REGLA CRÍTICA: Si Reservado = 0 y todos los indicadores son NULL (no_julio, no_orden, metros),
                 // el registro NO está reservado, aunque otros registros del mismo telar/tipo puedan estarlo.
@@ -355,7 +355,7 @@ class InventarioTelaresController extends Controller
                 // Si está programado, obtener el Status en UrdProgramaUrdido (solo informativo)
                 // IMPORTANTE: Usar no_orden (= Folio en UrdProgramaUrdido) como identificador primario
                 // para evitar confusiones cuando NoTelarId tiene múltiples telares (ej: "211,214,210")
-                $estaProgramado = (bool)($registro->Programado ?? false);
+                $estaProgramado = (bool) ($registro->Programado ?? false);
                 $statusUrdido = null;
 
                 if ($estaProgramado) {
@@ -377,7 +377,7 @@ class InventarioTelaresController extends Controller
                     'programado' => $estaProgramado,
                     'registro_id' => $registro->id,
                     'status_urdido' => $statusUrdido, // Informativo: Status en UrdProgramaUrdido
-                    'puede_eliminar' => true // Siempre se puede eliminar/editar registros programados
+                    'puede_eliminar' => true, // Siempre se puede eliminar/editar registros programados
                 ]);
             }
 
@@ -388,10 +388,10 @@ class InventarioTelaresController extends Controller
                 ->where('status', 'Activo')
                 ->first();
 
-            if (!$telar) {
+            if (! $telar) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Telar no encontrado'
+                    'message' => 'Telar no encontrado',
                 ], 404);
             }
 
@@ -422,22 +422,22 @@ class InventarioTelaresController extends Controller
             // El telar está reservado si:
             // 1. El campo Reservado está en true, O
             // 2. Hay reservas activas en InvTelasReservadas
-            $estaReservado = (bool)($telar->Reservado ?? false) || $tieneReservasActivas;
+            $estaReservado = (bool) ($telar->Reservado ?? false) || $tieneReservasActivas;
 
             return response()->json([
                 'success' => true,
                 'reservado' => $estaReservado,
-                'programado' => (bool)($telar->Programado ?? false)
+                'programado' => (bool) ($telar->Programado ?? false),
             ]);
         } catch (\Exception $e) {
             Log::error('Error al verificar estado del telar', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al verificar estado: ' . $e->getMessage()
+                'message' => 'Error al verificar estado: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -454,10 +454,10 @@ class InventarioTelaresController extends Controller
             $fecha = $request->input('fecha') ?? $request->query('fecha');
             $turno = $request->input('turno') ?? $request->query('turno');
 
-            if (!$noTelar || !$tipo || !$fecha || !$turno) {
+            if (! $noTelar || ! $tipo || ! $fecha || ! $turno) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Faltan parámetros requeridos: no_telar, tipo, fecha, turno'
+                    'message' => 'Faltan parámetros requeridos: no_telar, tipo, fecha, turno',
                 ], 422);
             }
 
@@ -469,10 +469,10 @@ class InventarioTelaresController extends Controller
                 ->where('status', 'Activo')
                 ->first();
 
-            if (!$registro) {
+            if (! $registro) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Registro no encontrado'
+                    'message' => 'Registro no encontrado',
                 ], 404);
             }
 
@@ -510,7 +510,7 @@ class InventarioTelaresController extends Controller
                 if ($reservasEliminadas === 0) {
                     try {
                         $fechaFormatoDB = Carbon::parse($fecha)->format('Y-m-d');
-                        $turnoIntDB = is_numeric($turno) ? (int)$turno : null;
+                        $turnoIntDB = is_numeric($turno) ? (int) $turno : null;
 
                         if ($fechaFormatoDB && $turnoIntDB) {
                             $reservasPorFechaTurno = InvTelasReservadas::where('NoTelarId', $noTelar)
@@ -539,7 +539,7 @@ class InventarioTelaresController extends Controller
                         $fechaProdDate = \Carbon\Carbon::parse($fecha)->format('Y-m-d');
                         $reservasPorProdDate = InvTelasReservadas::where('NoTelarId', $noTelar)
                             ->where('Status', 'Reservado')
-                            ->whereRaw("CONVERT(DATE, ProdDate) = ?", [$fechaProdDate]);
+                            ->whereRaw('CONVERT(DATE, ProdDate) = ?', [$fechaProdDate]);
 
                         if ($tipoNormalizado) {
                             $reservasPorProdDate->where('Tipo', $tipoNormalizado);
@@ -559,7 +559,7 @@ class InventarioTelaresController extends Controller
                     'registro_id' => $registro->id ?? null,
                     'no_telar' => $noTelar,
                     'tipo' => $tipoNormalizado,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
 
@@ -581,7 +581,7 @@ class InventarioTelaresController extends Controller
                     ->where('Status', 'Reservado')
                     ->exists();
 
-                if (!$tieneOtrasReservas) {
+                if (! $tieneOtrasReservas) {
                     // No quedan reservas, actualizar todos los telares de este número y tipo
                     // que aún estén activos y tengan Reservado = 1
                     $telares = TejInventarioTelares::where('no_telar', $noTelar)
@@ -598,25 +598,25 @@ class InventarioTelaresController extends Controller
                 Log::warning('Error al actualizar campo Reservado después de eliminar', [
                     'no_telar' => $noTelar,
                     'tipo' => $tipoNormalizado,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Registro eliminado con éxito',
-                'reservas_eliminadas' => $reservasEliminadas
+                'reservas_eliminadas' => $reservasEliminadas,
             ]);
         } catch (\Exception $e) {
             Log::error('Error al eliminar inventario de telares', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'request' => $request->all()
+                'request' => $request->all(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al eliminar: ' . $e->getMessage()
+                'message' => 'Error al eliminar: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -635,10 +635,10 @@ class InventarioTelaresController extends Controller
             $fecha = $request->input('fecha');
             $registroIdExcluir = $request->input('registro_id_excluir'); // ID del registro que se está actualizando (excluir de la verificación)
 
-            if (!$noTelar || !$tipo || !$fecha) {
+            if (! $noTelar || ! $tipo || ! $fecha) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Faltan parámetros requeridos: no_telar, tipo, fecha'
+                    'message' => 'Faltan parámetros requeridos: no_telar, tipo, fecha',
                 ], 422);
             }
 
@@ -674,7 +674,7 @@ class InventarioTelaresController extends Controller
             foreach ($registros as $registro) {
                 $turno = $registro->turno;
                 if ($turno) {
-                    $turnosOcupados[] = (int)$turno;
+                    $turnosOcupados[] = (int) $turno;
                 }
             }
 
@@ -685,17 +685,17 @@ class InventarioTelaresController extends Controller
             return response()->json([
                 'success' => true,
                 'turnos_ocupados' => $turnosOcupados,
-                'turnos_disponibles' => array_values(array_diff([1, 2, 3], $turnosOcupados))
+                'turnos_disponibles' => array_values(array_diff([1, 2, 3], $turnosOcupados)),
             ]);
         } catch (\Exception $e) {
             Log::error('Error al verificar turnos ocupados', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al verificar turnos ocupados: ' . $e->getMessage()
+                'message' => 'Error al verificar turnos ocupados: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -710,10 +710,10 @@ class InventarioTelaresController extends Controller
             $fechaNueva = $request->input('fecha_nueva');
             $turnoNuevo = $request->input('turno_nuevo'); // Nuevo turno seleccionado
 
-            if (!$noTelar || !$tipo || !$fechaOriginal || !$turnoOriginal || !$fechaNueva) {
+            if (! $noTelar || ! $tipo || ! $fechaOriginal || ! $turnoOriginal || ! $fechaNueva) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Faltan parámetros requeridos: no_telar, tipo, fecha_original, turno, fecha_nueva'
+                    'message' => 'Faltan parámetros requeridos: no_telar, tipo, fecha_original, turno, fecha_nueva',
                 ], 422);
             }
 
@@ -725,10 +725,10 @@ class InventarioTelaresController extends Controller
                 ->where('status', 'Activo')
                 ->first();
 
-            if (!$registro) {
+            if (! $registro) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Registro no encontrado'
+                    'message' => 'Registro no encontrado',
                 ], 404);
             }
 
@@ -750,16 +750,16 @@ class InventarioTelaresController extends Controller
 
             $calibreRegistro = $registro->calibre ?? null;
             $fechaOriginalFormato = \Carbon\Carbon::parse($fechaOriginal)->format('Y-m-d');
-            $noTelarNormalizado = (string)trim($noTelar);
+            $noTelarNormalizado = (string) trim($noTelar);
 
             // Si se proporciona turno_nuevo, validar que no esté ocupado
             // Excluir el registro actual de la verificación
             if ($turnoNuevo) {
                 $turnosOcupados = $this->verificarTurnosOcupadosInterno($noTelar, $tipoNormalizado, $fechaNueva, $registro->id);
-                if (in_array((int)$turnoNuevo, $turnosOcupados)) {
+                if (in_array((int) $turnoNuevo, $turnosOcupados)) {
                     return response()->json([
                         'success' => false,
-                        'message' => "El turno {$turnoNuevo} ya está ocupado para esta fecha"
+                        'message' => "El turno {$turnoNuevo} ya está ocupado para esta fecha",
                     ], 400);
                 }
             }
@@ -767,7 +767,7 @@ class InventarioTelaresController extends Controller
             // 1) Actualizar la fecha y turno (si se proporciona) en el registro de tej_inventario_telares
             $registro->fecha = $fechaNueva;
             if ($turnoNuevo) {
-                $registro->turno = (int)$turnoNuevo;
+                $registro->turno = (int) $turnoNuevo;
             }
             $registro->save();
 
@@ -782,7 +782,7 @@ class InventarioTelaresController extends Controller
                 $programaUrdido = UrdProgramaUrdido::where('Folio', trim($noOrdenRegistro))->first();
 
                 if ($programaUrdido) {
-                    $noTelarIdStr = (string)trim($programaUrdido->NoTelarId ?? '');
+                    $noTelarIdStr = (string) trim($programaUrdido->NoTelarId ?? '');
                     $telaresEnPrograma = array_map('trim', explode(',', $noTelarIdStr));
 
                     // Solo actualizar FechaReq si NoTelarId tiene UN SOLO telar
@@ -795,7 +795,7 @@ class InventarioTelaresController extends Controller
                             'Folio' => $programaUrdido->Folio,
                             'NoTelarId' => $noTelarIdStr,
                             'FechaReq_anterior' => $fechaOriginalFormato,
-                            'FechaReq_nueva' => $fechaNuevaFormato
+                            'FechaReq_nueva' => $fechaNuevaFormato,
                         ]);
                     } else {
                         Log::info('FechaReq NO actualizada en UrdProgramaUrdido: múltiples telares comparten el registro', [
@@ -803,7 +803,7 @@ class InventarioTelaresController extends Controller
                             'NoTelarId' => $noTelarIdStr,
                             'telares_count' => count($telaresEnPrograma),
                             'telar_editado' => $noTelarNormalizado,
-                            'motivo' => 'Actualizar FechaReq afectaría a todos los telares del grupo'
+                            'motivo' => 'Actualizar FechaReq afectaría a todos los telares del grupo',
                         ]);
                     }
                 }
@@ -834,11 +834,11 @@ class InventarioTelaresController extends Controller
                 // Actualizar ProdDate, Fecha y Turno en las reservas encontradas
                 $updateData = [
                     'ProdDate' => $fechaProdDate,
-                    'Fecha' => $fechaFormato
+                    'Fecha' => $fechaFormato,
                 ];
 
                 if ($turnoNuevo) {
-                    $updateData['Turno'] = (int)$turnoNuevo;
+                    $updateData['Turno'] = (int) $turnoNuevo;
                 }
 
                 $reservasEncontradas = $reservas->get();
@@ -846,7 +846,7 @@ class InventarioTelaresController extends Controller
                     $reserva->ProdDate = $fechaProdDate;
                     $reserva->Fecha = $fechaFormato;
                     if ($turnoNuevo) {
-                        $reserva->Turno = (int)$turnoNuevo;
+                        $reserva->Turno = (int) $turnoNuevo;
                     }
                     $reserva->save();
                 }
@@ -855,7 +855,7 @@ class InventarioTelaresController extends Controller
                     'no_telar' => $noTelar,
                     'tipo' => $tipoNormalizado,
                     'fecha_nueva' => $fechaNueva,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
                 // No fallar si no se puede actualizar InvTelasReservadas
             }
@@ -863,18 +863,18 @@ class InventarioTelaresController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Fecha y turno actualizados con éxito',
-                'registro' => $registro
+                'registro' => $registro,
             ]);
         } catch (\Exception $e) {
             Log::error('Error al actualizar fecha de inventario de telares', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'request' => $request->all()
+                'request' => $request->all(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al actualizar fecha: ' . $e->getMessage()
+                'message' => 'Error al actualizar fecha: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -916,7 +916,7 @@ class InventarioTelaresController extends Controller
         foreach ($registros as $registro) {
             $turno = $registro->turno;
             if ($turno) {
-                $turnosOcupados[] = (int)$turno;
+                $turnosOcupados[] = (int) $turno;
             }
         }
 

@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Configuracion;
 
 use App\Http\Controllers\Controller;
 use App\Models\Sistema\SSYSFoliosSecuencia;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\JsonResponse;
 
 class SecuenciaFoliosController extends Controller
 {
@@ -29,14 +29,14 @@ class SecuenciaFoliosController extends Controller
     public function store(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
-            'Modulo'      => ['nullable', 'string', 'max:100'],
-            'Prefijo'     => ['nullable', 'string', 'max:20'],
+            'Modulo' => ['nullable', 'string', 'max:100'],
+            'Prefijo' => ['nullable', 'string', 'max:20'],
             'Consecutivo' => ['required', 'integer', 'min:0'],
         ]);
 
         $row = SSYSFoliosSecuencia::create([
-            'modulo'      => $validated['Modulo'] ?? null,
-            'prefijo'     => $validated['Prefijo'] ?? null,
+            'modulo' => $validated['Modulo'] ?? null,
+            'prefijo' => $validated['Prefijo'] ?? null,
             'consecutivo' => (int) $validated['Consecutivo'],
         ]);
 
@@ -66,13 +66,13 @@ class SecuenciaFoliosController extends Controller
         $row = SSYSFoliosSecuencia::findOrFail($id);
 
         $validated = $request->validate([
-            'Modulo'      => ['nullable', 'string', 'max:100'],
-            'Prefijo'     => ['nullable', 'string', 'max:20'],
+            'Modulo' => ['nullable', 'string', 'max:100'],
+            'Prefijo' => ['nullable', 'string', 'max:20'],
             'Consecutivo' => ['required', 'integer', 'min:0'],
         ]);
 
-        $row->modulo      = $validated['Modulo'] ?? $row->modulo;
-        $row->prefijo     = $validated['Prefijo'] ?? $row->prefijo;
+        $row->modulo = $validated['Modulo'] ?? $row->modulo;
+        $row->prefijo = $validated['Prefijo'] ?? $row->prefijo;
         $row->consecutivo = (int) $validated['Consecutivo'];
         $row->save();
 

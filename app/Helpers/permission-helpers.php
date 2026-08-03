@@ -1,30 +1,29 @@
 <?php
 
-use App\Models\Sistema\SYSUsuariosRoles;
 use App\Models\Sistema\SYSRoles;
+use App\Models\Sistema\SYSUsuariosRoles;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
-if (!function_exists('userCan')) {
+if (! function_exists('userCan')) {
     /**
      * Verificar si el usuario actual tiene un permiso específico
      *
-     * @param string $action - 'crear', 'modificar', 'eliminar', 'acceso', 'registrar'
-     * @param string|int $module - Nombre del módulo o ID del rol
-     * @return bool
+     * @param  string  $action  - 'crear', 'modificar', 'eliminar', 'acceso', 'registrar'
+     * @param  string|int  $module  - Nombre del módulo o ID del rol
      */
     function userCan(string $action, $module): bool
     {
         $userId = Auth::id();
 
-        if (!$userId) {
+        if (! $userId) {
             return false;
         }
 
         try {
             $permission = userPermissions($module);
 
-            if (!$permission) {
+            if (! $permission) {
                 return false;
             }
 
@@ -34,7 +33,7 @@ if (!function_exists('userCan')) {
             Log::error('Error checking permission', [
                 'action' => $action,
                 'module' => $module,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return false;
@@ -42,18 +41,18 @@ if (!function_exists('userCan')) {
     }
 }
 
-if (!function_exists('moduleNameForRoute')) {
+if (! function_exists('moduleNameForRoute')) {
     /**
      * Obtener el nombre del módulo en SYSRoles para una ruta.
      * Útil para validar permisos en pantallas que tienen su propio módulo (ej. Producción Urdido).
      *
-     * @param string|null $path Ruta a buscar (ej. 'urdido/modulo-produccion-urdido'). Si null, usa request()->path()
+     * @param  string|null  $path  Ruta a buscar (ej. 'urdido/modulo-produccion-urdido'). Si null, usa request()->path()
      * @return string|null Nombre del módulo o null si no se encuentra
      */
     function moduleNameForRoute(?string $path = null): ?string
     {
         $ruta = $path ?? request()->path();
-        $rutaNormalizada = '/' . ltrim($ruta, '/');
+        $rutaNormalizada = '/'.ltrim($ruta, '/');
 
         // 1. Buscar coincidencia exacta
         $modulo = SYSRoles::where('Ruta', $rutaNormalizada)->select('modulo')->first();
@@ -62,7 +61,7 @@ if (!function_exists('moduleNameForRoute')) {
         }
 
         // 2. Buscar por prefijo (ruta más específica)
-        $modulo = SYSRoles::where('Ruta', 'LIKE', $rutaNormalizada . '%')
+        $modulo = SYSRoles::where('Ruta', 'LIKE', $rutaNormalizada.'%')
             ->select('modulo')
             ->orderByRaw('LEN(Ruta) DESC')
             ->first();
@@ -74,7 +73,7 @@ if (!function_exists('moduleNameForRoute')) {
         $partes = array_filter(explode('/', trim($rutaNormalizada, '/')));
         if (count($partes) > 0) {
             $ultimaParte = end($partes);
-            $modulo = SYSRoles::where('Ruta', 'LIKE', '%' . $ultimaParte . '%')
+            $modulo = SYSRoles::where('Ruta', 'LIKE', '%'.$ultimaParte.'%')
                 ->select('modulo')
                 ->orderByRaw('LEN(Ruta) DESC')
                 ->first();
@@ -87,18 +86,18 @@ if (!function_exists('moduleNameForRoute')) {
     }
 }
 
-if (!function_exists('userPermissions')) {
+if (! function_exists('userPermissions')) {
     /**
      * Obtener todos los permisos del usuario para un módulo
      *
-     * @param string|int $module - Nombre del módulo o ID del rol
+     * @param  string|int  $module  - Nombre del módulo o ID del rol
      * @return object|null
      */
     function userPermissions($module, ?int $userId = null)
     {
         $userId = $userId ?? Auth::id();
 
-        if (!$userId) {
+        if (! $userId) {
             return null;
         }
 
@@ -118,14 +117,14 @@ if (!function_exists('userPermissions')) {
             } else {
                 $rol = $rolesPorModulo[mb_strtolower($module)] ?? null;
 
-                if (!$rol) {
+                if (! $rol) {
                     return null;
                 }
 
                 $rolId = $rol->idrol;
             }
 
-            if (!array_key_exists($userId, $permisosPorRol)) {
+            if (! array_key_exists($userId, $permisosPorRol)) {
                 $permisosPorRol[$userId] = SYSUsuariosRoles::where('idusuario', $userId)->get()->keyBy('idrol');
             }
 
@@ -134,7 +133,7 @@ if (!function_exists('userPermissions')) {
         } catch (\Exception $e) {
             Log::error('Error getting user permissions', [
                 'module' => $module,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return null;

@@ -3,17 +3,17 @@
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
+use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DragAndDropTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DuplicarTejido;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\VincularTejido;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\QueryHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
-use App\Http\Requests\Planeacion\DuplicarTejidoRequest;
 use App\Http\Requests\Planeacion\DividirSaldoRequest;
 use App\Http\Requests\Planeacion\DividirTelarRequest;
+use App\Http\Requests\Planeacion\DuplicarTejidoRequest;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
@@ -23,9 +23,11 @@ use Illuminate\Support\Facades\Log as LogFacade;
 
 /**
  * @file ProgramaTejidoOperacionesController.php
+ *
  * @description Controlador de operaciones para Programa Tejido. Cambio de telar, mover posición,
  *              duplicar, dividir, vincular registros, desvincular. Regla: OrdCompartida agrupa
  *              registros vinculados; OrdCompartidaLider marca el líder del grupo.
+ *
  * @dependencies DragAndDropTejido, DuplicarTejido, DividirTejido, VincularTejido, QueryHelpers
  */
 class ProgramaTejidoOperacionesController extends Controller
@@ -34,7 +36,7 @@ class ProgramaTejidoOperacionesController extends Controller
     {
         $request->validate([
             'nuevo_salon' => 'required|string',
-            'nuevo_telar' => 'required|string'
+            'nuevo_telar' => 'required|string',
         ]);
 
         try {
@@ -46,20 +48,20 @@ class ProgramaTejidoOperacionesController extends Controller
                 return response()->json([
                     'puede_mover' => true,
                     'requiere_confirmacion' => false,
-                    'mensaje' => 'Mismo telar'
+                    'mensaje' => 'Mismo telar',
                 ]);
             }
 
             $modeloDestino = QueryHelpers::findModeloDestino($nuevoSalon, $registro);
 
-            if (!$modeloDestino) {
+            if (! $modeloDestino) {
                 return response()->json([
                     'puede_mover' => false,
                     'requiere_confirmacion' => false,
                     'mensaje' => 'La clave modelo no existe en el telar destino. No se puede realizar el cambio.',
                     'clave_modelo' => $registro->TamanoClave,
                     'telar_destino' => $nuevoTelar,
-                    'salon_destino' => $nuevoSalon
+                    'salon_destino' => $nuevoSalon,
                 ]);
             }
 
@@ -102,12 +104,12 @@ class ProgramaTejidoOperacionesController extends Controller
             $cambios[] = [
                 'campo' => 'Fecha Inicio',
                 'actual' => $registro->FechaInicio ? Carbon::parse($registro->FechaInicio)->format('d/m/Y H:i') : 'N/A',
-                'nuevo' => 'Se recalculará'
+                'nuevo' => 'Se recalculará',
             ];
             $cambios[] = [
                 'campo' => 'Fecha Final',
                 'actual' => $registro->FechaFinal ? Carbon::parse($registro->FechaFinal)->format('d/m/Y H:i') : 'N/A',
-                'nuevo' => 'Se recalculará'
+                'nuevo' => 'Se recalculará',
             ];
             if ($registro->Calc4 || $registro->Calc5 || $registro->Calc6) {
                 $cambios[] = ['campo' => 'Cálculos (Calc4, Calc5, Calc6)', 'actual' => 'Tienen valores', 'nuevo' => 'Se recalcularán'];
@@ -122,12 +124,12 @@ class ProgramaTejidoOperacionesController extends Controller
                 'salon_origen' => $registro->SalonTejidoId,
                 'telar_destino' => $nuevoTelar,
                 'salon_destino' => $nuevoSalon,
-                'cambios' => $cambios
+                'cambios' => $cambios,
             ]);
         } catch (\Throwable $e) {
             return response()->json([
                 'puede_mover' => false,
-                'mensaje' => 'Error al verificar: ' . $e->getMessage()
+                'mensaje' => 'Error al verificar: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -137,39 +139,39 @@ class ProgramaTejidoOperacionesController extends Controller
         $request->validate([
             'nuevo_salon' => 'required|string',
             'nuevo_telar' => 'required|string',
-            'target_position' => 'required|integer|min:0'
+            'target_position' => 'required|integer|min:0',
         ]);
 
         $registro = ReqProgramaTejido::findOrFail($id);
         $antes = [
             'salon' => $registro->SalonTejidoId,
             'telar' => $registro->NoTelarId,
-            'posicion' => $registro->Posicion ?? 0
+            'posicion' => $registro->Posicion ?? 0,
         ];
 
         if ($registro->EnProceso == 1) {
             return response()->json([
                 'success' => false,
-                'message' => 'No se puede mover un registro en proceso. Debe finalizar el proceso antes de moverlo.'
+                'message' => 'No se puede mover un registro en proceso. Debe finalizar el proceso antes de moverlo.',
             ], 422);
         }
 
         $nuevoSalon = $request->input('nuevo_salon');
         $nuevoTelar = $request->input('nuevo_telar');
-        $targetPosition = max(0, (int)$request->input('target_position'));
+        $targetPosition = max(0, (int) $request->input('target_position'));
 
         if ($registro->SalonTejidoId === $nuevoSalon && $registro->NoTelarId === $nuevoTelar) {
             return response()->json([
                 'success' => false,
-                'message' => 'Selecciona un telar diferente para aplicar el cambio.'
+                'message' => 'Selecciona un telar diferente para aplicar el cambio.',
             ], 422);
         }
 
         $modeloDestino = QueryHelpers::findModeloDestino($nuevoSalon, $registro);
-        if (!$modeloDestino) {
+        if (! $modeloDestino) {
             return response()->json([
                 'success' => false,
-                'message' => 'La clave modelo no existe en el telar destino.'
+                'message' => 'La clave modelo no existe en el telar destino.',
             ], 422);
         }
 
@@ -188,7 +190,7 @@ class ProgramaTejidoOperacionesController extends Controller
                 ->where('Id', $registro->Id)
                 ->where('SalonTejidoId', $origenSalon)
                 ->where('NoTelarId', $origenTelar)
-                ->update(['Posicion' => -1 * (int)$registro->Id]);
+                ->update(['Posicion' => -1 * (int) $registro->Id]);
 
             $origenRegistros = ReqProgramaTejido::query()
                 ->salon($origenSalon)
@@ -199,7 +201,7 @@ class ProgramaTejidoOperacionesController extends Controller
                 ->get();
 
             $inicioOrigen = $origenRegistros->first()?->FechaInicio;
-            $origenSin = $origenRegistros->reject(fn($item) => $item->Id === $registro->Id)->values();
+            $origenSin = $origenRegistros->reject(fn ($item) => $item->Id === $registro->Id)->values();
 
             $destRegistrosOriginal = ReqProgramaTejido::query()
                 ->salon($nuevoSalon)
@@ -222,9 +224,10 @@ class ProgramaTejidoOperacionesController extends Controller
                 if ($targetPosition < $posicionMinima) {
                     DBFacade::rollBack();
                     ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+
                     return response()->json([
                         'success' => false,
-                        'message' => 'No se puede colocar un registro antes de uno que está en proceso. La posición mínima permitida es ' . ($posicionMinima + 1) . '.'
+                        'message' => 'No se puede colocar un registro antes de uno que está en proceso. La posición mínima permitida es '.($posicionMinima + 1).'.',
                     ], 422);
                 }
             }
@@ -232,10 +235,10 @@ class ProgramaTejidoOperacionesController extends Controller
             $registro->SalonTejidoId = $nuevoSalon;
             $registro->NoTelarId = $nuevoTelar;
             [$nuevaEficiencia, $nuevaVelocidad] = QueryHelpers::resolverStdSegunTelar($registro, $modeloDestino, $nuevoTelar, $nuevoSalon);
-            if (!is_null($nuevaEficiencia)) {
+            if (! is_null($nuevaEficiencia)) {
                 $registro->EficienciaSTD = round($nuevaEficiencia, 2);
             }
-            if (!is_null($nuevaVelocidad)) {
+            if (! is_null($nuevaVelocidad)) {
                 $registro->VelocidadSTD = $nuevaVelocidad;
             }
             $registro->Maquina = $this->construirMaquinaSegunSalon($registro->Maquina ?? '', $nuevoSalon, $nuevoTelar);
@@ -267,14 +270,14 @@ class ProgramaTejidoOperacionesController extends Controller
                 $inicioOrigenCarbon = Carbon::parse($inicioOrigen ?? $registro->FechaInicio ?? now());
                 [$updatesOrigen, $detallesOrigen] = DateHelpers::recalcularFechasSecuencia($origenSin, $inicioOrigenCarbon);
                 foreach ($origenSin->values() as $index => $r) {
-                    $idRegistro = (int)$r->Id;
+                    $idRegistro = (int) $r->Id;
                     $nuevaPosicion = $index + 1;
-                    if (!isset($updatesOrigen[$idRegistro])) {
+                    if (! isset($updatesOrigen[$idRegistro])) {
                         $updatesOrigen[$idRegistro] = [];
                     }
                     $updatesOrigen[$idRegistro]['Posicion'] = $nuevaPosicion;
                 }
-                if (!empty($updatesOrigen)) {
+                if (! empty($updatesOrigen)) {
                     DBFacade::table(ReqProgramaTejido::tableName())
                         ->whereIn('Id', array_keys($updatesOrigen))
                         ->where('SalonTejidoId', $origenSalon)
@@ -283,7 +286,7 @@ class ProgramaTejidoOperacionesController extends Controller
                 }
                 foreach ($updatesOrigen as $idU => $data) {
                     if (isset($data['Posicion'])) {
-                        $data['Posicion'] = (int)$data['Posicion'];
+                        $data['Posicion'] = (int) $data['Posicion'];
                     }
                     DBFacade::table(ReqProgramaTejido::tableName())
                         ->where('Id', $idU)
@@ -298,9 +301,9 @@ class ProgramaTejidoOperacionesController extends Controller
             $destInicioCarbon = Carbon::parse($destInicio ?? now());
             [$updatesDestino, $detallesDestino] = DateHelpers::recalcularFechasSecuencia($destRegistros, $destInicioCarbon);
             foreach ($destRegistros->values() as $index => $r) {
-                $idRegistro = (int)$r->Id;
+                $idRegistro = (int) $r->Id;
                 $nuevaPosicion = $index + 1;
-                if (!isset($updatesDestino[$idRegistro])) {
+                if (! isset($updatesDestino[$idRegistro])) {
                     $updatesDestino[$idRegistro] = [];
                 }
                 $updatesDestino[$idRegistro]['Posicion'] = $nuevaPosicion;
@@ -320,7 +323,7 @@ class ProgramaTejidoOperacionesController extends Controller
                 $updateRegistroMovido['AnchoToalla'] = $modeloDestino->AnchoToalla;
             }
 
-            if (!isset($updatesDestino[$registro->Id])) {
+            if (! isset($updatesDestino[$registro->Id])) {
                 $updatesDestino[$registro->Id] = [];
             }
             $updatesDestino[$registro->Id] = array_merge($updatesDestino[$registro->Id], [
@@ -347,24 +350,24 @@ class ProgramaTejidoOperacionesController extends Controller
                 ->where('NoTelarId', $origenTelar)
                 ->update([
                     'SalonTejidoId' => $nuevoSalon,
-                    'NoTelarId'     => $nuevoTelar,
-                    'Posicion'      => DBFacade::raw('Id + 1000000'),
+                    'NoTelarId' => $nuevoTelar,
+                    'Posicion' => DBFacade::raw('Id + 1000000'),
                 ]);
 
             $updatesDestinoOrdenados = [];
             foreach ($updatesDestino as $idU => $data) {
-                $posicion = isset($data['Posicion']) ? (int)$data['Posicion'] : 999999;
-                $updatesDestinoOrdenados[] = ['id' => (int)$idU, 'posicion' => $posicion, 'data' => $data];
+                $posicion = isset($data['Posicion']) ? (int) $data['Posicion'] : 999999;
+                $updatesDestinoOrdenados[] = ['id' => (int) $idU, 'posicion' => $posicion, 'data' => $data];
             }
-            usort($updatesDestinoOrdenados, fn($a, $b) => $a['posicion'] <=> $b['posicion']);
+            usort($updatesDestinoOrdenados, fn ($a, $b) => $a['posicion'] <=> $b['posicion']);
 
             foreach ($updatesDestinoOrdenados as $item) {
-                $idU  = (int)$item['id'];
+                $idU = (int) $item['id'];
                 $data = $item['data'];
                 if (isset($data['Posicion'])) {
-                    $data['Posicion'] = (int)$data['Posicion'];
+                    $data['Posicion'] = (int) $data['Posicion'];
                 }
-                if ($idU === (int)$registro->Id) {
+                if ($idU === (int) $registro->Id) {
                     $data = array_merge($data, $updateRegistroMovido);
                 }
                 DBFacade::table(ReqProgramaTejido::tableName())
@@ -392,7 +395,7 @@ class ProgramaTejidoOperacionesController extends Controller
             }
 
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
-            if (!empty($idsAfectados)) {
+            if (! empty($idsAfectados)) {
                 ReqProgramaTejido::regenerarLineas(
                     ReqProgramaTejido::whereIn('Id', $idsAfectados)->get()
                 );
@@ -401,7 +404,7 @@ class ProgramaTejidoOperacionesController extends Controller
             $despues = [
                 'salon' => $registro->SalonTejidoId,
                 'telar' => $registro->NoTelarId,
-                'posicion' => $registro->Posicion ?? $targetPosition
+                'posicion' => $registro->Posicion ?? $targetPosition,
             ];
             \App\Helpers\AuditoriaHelper::logDragDrop(
                 'ReqProgramaTejido',
@@ -417,7 +420,7 @@ class ProgramaTejidoOperacionesController extends Controller
                 'registros_afectados' => count($idsAfectados),
                 'detalles' => $detallesTotales,
                 'updates' => $updatesMerged,
-                'registro_id' => $registro->Id
+                'registro_id' => $registro->Id,
             ]);
         } catch (\Throwable $e) {
             DBFacade::rollBack();
@@ -425,11 +428,12 @@ class ProgramaTejidoOperacionesController extends Controller
             LogFacade::error('cambiarTelar error', [
                 'id' => $id ?? null,
                 'mensaje' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al cambiar de telar: ' . $e->getMessage()
+                'message' => 'Error al cambiar de telar: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -466,14 +470,14 @@ class ProgramaTejidoOperacionesController extends Controller
             if ($registros->count() < 2) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Se requieren al menos 2 registros para dividir un telar'
+                    'message' => 'Se requieren al menos 2 registros para dividir un telar',
                 ], 422);
             }
 
             if ($posicionDivision < 0 || $posicionDivision >= $registros->count()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'La posición de división está fuera del rango válido'
+                    'message' => 'La posición de división está fuera del rango válido',
                 ], 422);
             }
 
@@ -518,7 +522,7 @@ class ProgramaTejidoOperacionesController extends Controller
             DBFacade::commit();
 
             ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
-            if (!empty($idsActualizados)) {
+            if (! empty($idsActualizados)) {
                 ReqProgramaTejido::regenerarLineas(
                     ReqProgramaTejido::whereIn('Id', $idsActualizados)->get()
                 );
@@ -529,7 +533,7 @@ class ProgramaTejidoOperacionesController extends Controller
                 'message' => "Telar dividido correctamente. Se movieron {$registrosNuevos->count()} registro(s) al nuevo telar.",
                 'registros_movidos' => count($idsActualizados),
                 'nuevo_telar' => $nuevoTelar,
-                'nuevo_salon' => $nuevoSalon
+                'nuevo_salon' => $nuevoSalon,
             ]);
         } catch (\Throwable $e) {
             DBFacade::rollBack();
@@ -539,11 +543,12 @@ class ProgramaTejidoOperacionesController extends Controller
                 'telar' => $telar,
                 'posicion_division' => $posicionDivision,
                 'msg' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error al dividir el telar: ' . $e->getMessage()
+                'message' => 'Error al dividir el telar: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -556,6 +561,7 @@ class ProgramaTejidoOperacionesController extends Controller
     public function vincularTelar(Request $request)
     {
         $request->merge(['vincular' => true]);
+
         return DuplicarTejido::duplicar($request);
     }
 
@@ -575,7 +581,7 @@ class ProgramaTejidoOperacionesController extends Controller
         if ($ordCompartida === null) {
             return response()->json([
                 'success' => false,
-                'message' => 'OrdCompartida invalida'
+                'message' => 'OrdCompartida invalida',
             ], 400);
         }
 
@@ -588,9 +594,10 @@ class ProgramaTejidoOperacionesController extends Controller
             return null;
         }
         $trimmed = trim((string) $value);
-        if ($trimmed === '' || !is_numeric($trimmed)) {
+        if ($trimmed === '' || ! is_numeric($trimmed)) {
             return null;
         }
+
         return (int) $trimmed;
     }
 
@@ -606,18 +613,18 @@ class ProgramaTejidoOperacionesController extends Controller
             }
         }
 
-        if (!isset($prefijo)) {
+        if (! isset($prefijo)) {
             if (preg_match('/^([A-Za-z]+)/', $maquinaBase, $m)) {
                 $prefijo = $m[1];
             }
         }
 
-        if (!isset($prefijo)) {
+        if (! isset($prefijo)) {
             $prefijo = substr($salonNorm, 0, 4);
             $prefijo = rtrim($prefijo, '0123456789');
         }
 
-        return trim($prefijo) . ' ' . $nuevoTelar;
+        return trim($prefijo).' '.$nuevoTelar;
     }
 
     /**
@@ -633,10 +640,10 @@ class ProgramaTejidoOperacionesController extends Controller
         }
 
         try {
-            DBFacade::table((new \App\Models\Planeacion\Catalogos\CatCodificados())->getTable())
+            DBFacade::table((new \App\Models\Planeacion\Catalogos\CatCodificados)->getTable())
                 ->where('OrdenTejido', $noProduccion)
                 ->update([
-                    'TelarId'      => $nuevoTelar,
+                    'TelarId' => $nuevoTelar,
                     'Departamento' => $nuevoSalon,
                 ]);
         } catch (\Throwable $e) {

@@ -13,12 +13,12 @@ class NoCacheHtmlResponses
         /** @var Response $response */
         $response = $next($request);
 
-        if (!$request->isMethod('GET') && !$request->isMethod('HEAD')) {
+        if (! $request->isMethod('GET') && ! $request->isMethod('HEAD')) {
             return $response;
         }
 
         $contentType = strtolower((string) $response->headers->get('Content-Type', ''));
-        if (!str_contains($contentType, 'text/html')) {
+        if (! str_contains($contentType, 'text/html')) {
             return $response;
         }
 

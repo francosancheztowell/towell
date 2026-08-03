@@ -41,10 +41,10 @@ class PromedioParosEficienciaController extends Controller
         $report = $service->build($resolved['fecha_ini'], $resolved['fecha_fin']);
 
         $fileName = 'promedio_paros_eficiencia_'
-            . Carbon::parse($resolved['fecha_ini'])->format('d-m-Y')
-            . '_a_'
-            . Carbon::parse($resolved['fecha_fin'])->format('d-m-Y')
-            . '.xlsx';
+            .Carbon::parse($resolved['fecha_ini'])->format('d-m-Y')
+            .'_a_'
+            .Carbon::parse($resolved['fecha_fin'])->format('d-m-Y')
+            .'.xlsx';
 
         return Excel::download(
             new PromedioParosEficienciaExport($report),
@@ -57,14 +57,14 @@ class PromedioParosEficienciaController extends Controller
         $fechaIni = $request->query('fecha_ini', $request->input('fecha_ini'));
         $fechaFin = $request->query('fecha_fin', $request->input('fecha_fin'));
 
-        if (!$fechaIni && !$fechaFin && !$requireRange) {
+        if (! $fechaIni && ! $fechaFin && ! $requireRange) {
             return [
                 'fecha_ini' => null,
                 'fecha_fin' => null,
             ];
         }
 
-        if (!$fechaIni || !$fechaFin) {
+        if (! $fechaIni || ! $fechaFin) {
             return redirect()
                 ->route('tejido.reportes.promedio-paros-eficiencia')
                 ->with('error', 'Debe seleccionar fecha inicial y fecha final.');

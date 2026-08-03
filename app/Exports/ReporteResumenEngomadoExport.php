@@ -19,9 +19,13 @@ class ReporteResumenEngomadoExport implements FromArray, WithEvents, WithTitle
     protected array $porFecha;
 
     private const TEMPLATE_COL_MAX = 30;
+
     private const TEMPLATE_ROW_MAX = 44;
+
     private const BLOCK_ROWS = 44;
+
     private const SPACER_ROWS = 2;
+
     private const DATA_ROWS = 40;
 
     public function __construct(array $porFecha)
@@ -59,7 +63,7 @@ class ReporteResumenEngomadoExport implements FromArray, WithEvents, WithTitle
                 $firstBlock = true;
 
                 foreach ($this->porFecha as $fecha => $datos) {
-                    if (!$firstBlock) {
+                    if (! $firstBlock) {
                         $this->copyTemplateBlockWithinSheet($sheet, 1, $rowCursor);
                     }
                     $this->fillBlockData($sheet, $rowCursor, (string) $fecha, $datos, $firstBlock);
@@ -86,7 +90,7 @@ class ReporteResumenEngomadoExport implements FromArray, WithEvents, WithTitle
 
         throw new RuntimeException(
             'No se encontró la plantilla "reporte-resumen-urd-eng.xlsx". '
-            . 'Colócala en resources/templates/ o en storage/app/templates/.'
+            .'Colócala en resources/templates/ o en storage/app/templates/.'
         );
     }
 
@@ -106,8 +110,8 @@ class ReporteResumenEngomadoExport implements FromArray, WithEvents, WithTitle
 
             for ($col = 1; $col <= self::TEMPLATE_COL_MAX; $col++) {
                 $colLetter = Coordinate::stringFromColumnIndex($col);
-                $srcCoord = $colLetter . $sourceRow;
-                $dstCoord = $colLetter . $targetRow;
+                $srcCoord = $colLetter.$sourceRow;
+                $dstCoord = $colLetter.$targetRow;
 
                 $value = $sheet->getCell($srcCoord)->getValue();
                 if (is_string($value) && str_starts_with($value, '=')) {
@@ -177,10 +181,10 @@ class ReporteResumenEngomadoExport implements FromArray, WithEvents, WithTitle
             $sheet->setCellValue("B{$startRow}", '');
         }
 
-        $sheet->setCellValue("A" . ($startRow + 1), round($totalKgDia, 1));
-        $sheet->setCellValue("B" . ($startRow + 1), 'Kg');
-        $sheet->setCellValue("V" . ($startRow + 1), $diaMap[(int) $date->dayOfWeek] ?? '');
-        $sheet->setCellValue("A" . ($startRow + 2), ucfirst($date->locale('es')->translatedFormat('l, d \\d\\e F \\d\\e Y')));
+        $sheet->setCellValue('A'.($startRow + 1), round($totalKgDia, 1));
+        $sheet->setCellValue('B'.($startRow + 1), 'Kg');
+        $sheet->setCellValue('V'.($startRow + 1), $diaMap[(int) $date->dayOfWeek] ?? '');
+        $sheet->setCellValue('A'.($startRow + 2), ucfirst($date->locale('es')->translatedFormat('l, d \\d\\e F \\d\\e Y')));
 
         foreach ($machineLabels as $label) {
             $maq = $mapMaquina[$label] ?? ['label' => $label, 'filas' => []];
@@ -197,8 +201,8 @@ class ReporteResumenEngomadoExport implements FromArray, WithEvents, WithTitle
             $colMts = Coordinate::stringFromColumnIndex($base + 3);
 
             $sheet->setCellValueByColumnAndRow($base + 2, $startRow + 1, $label);
-            $sheet->setCellValue("{$colKg}" . ($startRow + 2), round($kgM, 1));
-            $sheet->setCellValue("{$colMts}" . ($startRow + 2), (int) round($mtsM));
+            $sheet->setCellValue("{$colKg}".($startRow + 2), round($kgM, 1));
+            $sheet->setCellValue("{$colMts}".($startRow + 2), (int) round($mtsM));
         }
 
         for ($i = 0; $i < self::DATA_ROWS; $i++) {

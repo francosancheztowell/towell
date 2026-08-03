@@ -42,7 +42,6 @@ final class MatrizCalibresServiceTest extends TestCase
             $table->string('ItemId', 60);
             $table->string('ItemGroupId', 60)->nullable();
             $table->string('DATAAREAID', 10);
-            $table->integer('TwVigente')->default(1);
         });
         Schema::connection('sqlsrv_ti')->create('InventColor', function (Blueprint $table): void {
             $table->string('ItemId', 60);
