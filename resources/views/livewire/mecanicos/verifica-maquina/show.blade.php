@@ -8,7 +8,7 @@
 @endphp
 
 <div
-    class="flex flex-col items-stretch gap-3 sm:gap-4 lg:flex-row lg:items-start"
+    class="flex flex-row items-start gap-3 sm:gap-4"
     wire:key="verifica-maquina-show-{{ $folio }}"
     x-data="{
         estatus: @js($estatus),
@@ -190,7 +190,7 @@
     <style x-ref="colStyle"></style>
 
     {{-- Barra lateral: selección de máquina y sus telares --}}
-    <aside class="w-full shrink-0 self-stretch lg:sticky lg:top-3 lg:w-72 lg:self-start xl:w-80">
+    <aside class="sticky top-3 z-20 w-60 shrink-0 self-start sm:w-64 md:w-72">
         <div class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
             <h2 class="text-sm font-bold text-gray-900">Máquina</h2>
             <p class="mt-0.5 text-[11px] text-gray-500">Selecciona una máquina para elegir sus telares.</p>
