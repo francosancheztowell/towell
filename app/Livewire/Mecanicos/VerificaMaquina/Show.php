@@ -57,9 +57,15 @@ class Show extends Component
 
     public bool $esSupervisorFlag = false;
 
+    public bool $soloLectura = false;
+
     public function mount(string $folio): void
     {
         $this->authorizeAccess();
+
+        // ?modo=ver fuerza esta pantalla a solo-lectura sin importar permisos
+        // o estatus del folio: es el botón "Ver" del listado.
+        $this->soloLectura = request()->query('modo') === 'ver';
 
         $verificacion = MecVerificaMaquinaModel::query()
             ->whereKey($folio)
@@ -78,6 +84,10 @@ class Show extends Component
             ? substr((string) $verificacion->HoraFin, 0, 5)
             : '—';
         $this->estatus = (string) ($verificacion->Estatus ?: self::ESTATUS_ACTIVO);
+
+        if ($this->soloLectura) {
+            return;
+        }
 
         $this->esSupervisorFlag = $this->resolverEsSupervisor();
         $this->puedeCapturarFlag = userCan('crear', self::MODULO_PERMISO) || userCan('modificar', self::MODULO_PERMISO);
@@ -176,6 +186,7 @@ class Show extends Component
             'conteoPorMaquina' => $this->conteoPorMaquina($telares),
             'totalTelares' => count($telares),
             'puedeCapturar' => $this->puedeCapturarFlag && $this->estatus === self::ESTATUS_ACTIVO,
+            'soloLectura' => $this->soloLectura,
         ]);
     }
 

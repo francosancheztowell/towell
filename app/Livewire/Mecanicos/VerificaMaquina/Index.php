@@ -152,6 +152,7 @@ class Index extends Component
             'operadorClave' => $usuario?->numero_empleado,
             'operadorNombre' => $usuario?->nombre,
             'puedeCrear' => userCan('crear', self::MODULO_PERMISO),
+            'puedeEditar' => userCan('modificar', self::MODULO_PERMISO),
         ]);
     }
 

@@ -3,11 +3,12 @@
     $telaresAlpine = array_map(fn (array $telar) => [
         'id' => $telar['NoTelarId'],
         'salon' => $telar['SalonTejidoId'],
+        'nombre' => $telar['Nombre'],
     ], $telares);
 @endphp
 
 <div
-    class="flex flex-row items-start gap-3 sm:gap-4"
+    class="flex flex-col items-stretch gap-3 sm:gap-4 lg:flex-row lg:items-start"
     wire:key="verifica-maquina-show-{{ $folio }}"
     x-data="{
         estatus: @js($estatus),
@@ -15,6 +16,7 @@
         puedeFinalizarFlag: @js($puedeFinalizarFlag),
         esSupervisorFlag: @js($esSupervisorFlag),
         puedeCapturarFlag: @js($puedeCapturarFlag),
+        soloLectura: @js($soloLectura),
 
         modalFinalizar: false,
         modalIncompletos: false,
@@ -22,20 +24,21 @@
         procesando: false,
 
         telares: @js($telaresAlpine),
-        filtroMaquina: '',
-        rangoDesde: '',
-        rangoHasta: '',
 
-        menuAbierto: false,
-        menuTop: 0,
-        menuLeft: 0,
-        menuValor: null,
-        celdaActiva: null,
+        // '' = Todas (vista general, siempre solo-lectura). Cualquier otro
+        // valor = una de las 3 máquinas, con acordeón exclusivo: solo una
+        // máquina puede estar abierta/seleccionada a la vez.
+        maquinaAbierta: '',
+        telaresSeleccionados: [],
 
         get puedeCapturar() { return this.estatus === 'Activo' && this.puedeCapturarFlag },
         get puedeFinalizar() { return this.estatus === 'Activo' && this.puedeFinalizarFlag },
         get puedeAutorizar() { return this.estatus === 'Terminado' && this.esSupervisorFlag },
         get esSoloLectura() { return this.estatus !== 'Activo' },
+
+        // 'Todas' es siempre de solo-lectura, sin importar permisos o estatus:
+        // solo se puede capturar dentro de una máquina específica.
+        get puedeEditarAhora() { return this.puedeCapturar && this.maquinaAbierta !== '' },
 
         badgeClass() {
             if (this.estatus === 'Activo') return 'bg-blue-100 text-blue-800'
@@ -44,72 +47,70 @@
             return 'bg-gray-100 text-gray-700'
         },
 
-        coincide(telar) {
-            if (this.filtroMaquina !== '' && telar.salon !== this.filtroMaquina) return false
-            const numero = parseInt(telar.id, 10)
-            const desde = parseInt(this.rangoDesde, 10)
-            const hasta = parseInt(this.rangoHasta, 10)
-            if (!isNaN(desde) && numero < desde) return false
-            if (!isNaN(hasta) && numero > hasta) return false
-            return true
+        get telaresDeMaquina() { return this.telares.filter((telar) => telar.salon === this.maquinaAbierta) },
+
+        get visibles() {
+            if (this.maquinaAbierta === '') return this.telares
+            return this.telares.filter((telar) => this.telaresSeleccionados.includes(telar.id))
         },
 
-        get visibles() { return this.telares.filter((telar) => this.coincide(telar)) },
+        estaSeleccionado(id) { return this.telaresSeleccionados.includes(id) },
+
+        toggleTelar(id) {
+            const indice = this.telaresSeleccionados.indexOf(id)
+            if (indice === -1) this.telaresSeleccionados.push(id)
+            else this.telaresSeleccionados.splice(indice, 1)
+        },
+
+        seleccionarTodos() { this.telaresSeleccionados = this.telaresDeMaquina.map((telar) => telar.id) },
+        deseleccionarTodos() { this.telaresSeleccionados = [] },
+
+        seleccionarMaquina(valor) {
+            if (this.maquinaAbierta === valor) return
+            this.maquinaAbierta = valor
+            // Acordeón exclusivo: cambiar de máquina limpia la selección anterior.
+            this.telaresSeleccionados = []
+        },
 
         /*
          * Ocultar columnas reescribiendo una sola regla CSS es O(1) en el DOM:
          * evita recorrer las ~1.1k celdas y evita un viaje al servidor.
          */
         aplicarFiltroColumnas() {
+            if (this.maquinaAbierta === '') {
+                this.$refs.colStyle.textContent = ''
+                return
+            }
             const ocultos = this.telares
-                .filter((telar) => !this.coincide(telar))
+                .filter((telar) => !this.telaresSeleccionados.includes(telar.id))
                 .map((telar) => '.vm-col-' + telar.id)
             this.$refs.colStyle.textContent = ocultos.length ? ocultos.join(',') + '{display:none}' : ''
         },
 
-        limpiarFiltros() {
-            this.filtroMaquina = ''
-            this.rangoDesde = ''
-            this.rangoHasta = ''
-        },
+        async onCeldaClick(event) {
+            const boton = event.target.closest('.vm-mini')
+            if (!boton || !this.puedeEditarAhora) return
 
-        abrirMenu(event) {
-            const boton = event.target.closest('.vm-cell')
-            if (!boton || !this.puedeCapturar) return
-            if (this.menuAbierto && this.celdaActiva === boton) { this.menuAbierto = false; return }
-            this.celdaActiva = boton
-            this.menuValor = boton.dataset.v || null
-            const caja = boton.getBoundingClientRect()
-            this.menuLeft = caja.left + (caja.width / 2)
-            this.menuTop = caja.bottom + 6
-            this.menuAbierto = true
-        },
+            const contenedor = boton.closest('.vm-triple')
+            if (!contenedor) return
 
-        async elegir(valor) {
-            const boton = this.celdaActiva
-            if (!boton) return
-            this.menuAbierto = false
+            const valor = boton.dataset.val
+            if (contenedor.dataset.v === valor) return
 
-            const anterior = boton.dataset.v || ''
+            const anterior = contenedor.dataset.v || ''
             // Pintado optimista: la celda responde al instante.
-            boton.dataset.v = valor
-            boton.textContent = valor
-            boton.classList.remove('vm-off')
-            boton.classList.add('vm-on')
+            contenedor.dataset.v = valor
+            contenedor.querySelectorAll('.vm-mini').forEach((b) => b.classList.toggle('vm-mini-on', b.dataset.val === valor))
 
             try {
-                const promedio = await $wire.capturar(boton.dataset.t, parseInt(boton.dataset.a, 10), valor)
-                const celdaPromedio = this.$refs.matriz.querySelector('[data-prom=\'' + boton.dataset.a + '\']')
+                const promedio = await $wire.capturar(contenedor.dataset.t, parseInt(contenedor.dataset.a, 10), valor)
+                const celdaPromedio = this.$refs.matriz.querySelector('[data-prom=\'' + contenedor.dataset.a + '\']')
                 if (celdaPromedio) {
                     celdaPromedio.textContent = (promedio === null || promedio === undefined) ? '—' : promedio
                 }
             } catch (error) {
-                boton.dataset.v = anterior
-                boton.textContent = anterior || '—'
-                if (!anterior) {
-                    boton.classList.remove('vm-on')
-                    boton.classList.add('vm-off')
-                }
+                contenedor.dataset.v = anterior
+                contenedor.querySelectorAll('.vm-mini').forEach((b) => b.classList.toggle('vm-mini-on', b.dataset.val === anterior))
             }
         },
 
@@ -167,76 +168,88 @@
     <style>
         .vm-td{padding:.625rem .5rem;text-align:center}
         .vm-th{min-width:4.5rem;padding:.875rem .625rem;text-align:center;font-size:.875rem}
-        .vm-cell{display:inline-flex;align-items:center;justify-content:center;height:3rem;width:3.5rem;border-radius:.75rem;border-width:2px;border-style:solid;font-size:1.25rem;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:transform .12s,border-color .12s;cursor:pointer}
-        .vm-on{border-color:#111827;background:#111827;color:#fff}
-        .vm-off{border-color:#d1d5db;background:#fff;color:#9ca3af}
-        .vm-cell:hover{border-color:#374151;transform:scale(1.05)}
-        .vm-locked .vm-cell{cursor:not-allowed;opacity:.45}
-        .vm-locked .vm-cell:hover{border-color:inherit;transform:none}
+
+        /* Vista "Todas": una sola celda de solo lectura (comportamiento previo). */
+        .vm-view{display:inline-flex;align-items:center;justify-content:center;height:3rem;width:3.5rem;border-radius:.75rem;border-width:2px;border-style:solid;font-size:1.25rem;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+        .vm-view-on{border-color:#111827;background:#111827;color:#fff}
+        .vm-view-off{border-color:#d1d5db;background:#fff;color:#9ca3af}
+
+        /* Vista "Máquina seleccionada": 3 cuadros (1/2/3) en línea, sin menú flotante. */
+        .vm-triple{display:none;align-items:center;justify-content:center;gap:.375rem}
+        .vm-mini{display:inline-flex;align-items:center;justify-content:center;height:2.75rem;width:2.75rem;border-radius:.625rem;border-width:2px;border-style:solid;font-size:1.05rem;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:transform .12s,border-color .12s;cursor:pointer;border-color:#d1d5db;background:#fff;color:#9ca3af}
+        .vm-mini:hover{border-color:#374151;transform:scale(1.05)}
+        .vm-mini-on{border-color:#111827;background:#111827;color:#fff}
+
+        .vm-modo-editar .vm-view{display:none}
+        .vm-modo-editar .vm-triple{display:inline-flex}
+
+        .vm-locked .vm-view{opacity:.45}
+        .vm-locked .vm-mini{cursor:not-allowed;opacity:.45}
+        .vm-locked .vm-mini:hover{border-color:inherit;transform:none}
     </style>
     <style x-ref="colStyle"></style>
 
-    {{-- Barra lateral fija a la izquierda --}}
-    <aside class="sticky top-3 z-20 w-52 shrink-0 self-start sm:w-56 md:w-60">
+    {{-- Barra lateral: selección de máquina y sus telares --}}
+    <aside class="w-full shrink-0 self-stretch lg:sticky lg:top-3 lg:w-72 lg:self-start xl:w-80">
         <div class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
-            <h2 class="text-sm font-bold text-gray-900">Filtros</h2>
-            <p class="mt-0.5 text-[11px] text-gray-500">Máquina y rango de telares</p>
+            <h2 class="text-sm font-bold text-gray-900">Máquina</h2>
+            <p class="mt-0.5 text-[11px] text-gray-500">Selecciona una máquina para elegir sus telares.</p>
 
-            <div class="mt-4 space-y-4">
-                <div>
-                    <h3 class="text-[11px] font-bold uppercase tracking-wide text-gray-500">Máquina</h3>
-                    <div class="mt-2 space-y-1.5">
-                        @php
-                            $opcionesMaquina = [
-                                '' => ['label' => 'Todas', 'count' => $totalTelares],
-                                'Jacquard' => ['label' => 'Jacquard', 'count' => (int) ($conteoPorMaquina['Jacquard'] ?? 0)],
-                                'Smith' => ['label' => 'Smith', 'count' => (int) ($conteoPorMaquina['Smith'] ?? 0)],
-                                'KM' => ['label' => 'Karl Mayer', 'count' => (int) ($conteoPorMaquina['KM'] ?? 0)],
-                            ];
-                        @endphp
-                        @foreach ($opcionesMaquina as $valor => $opcion)
-                            <label
-                                class="flex cursor-pointer items-center justify-between rounded-lg border px-2.5 py-2 text-sm font-semibold transition"
-                                :class="filtroMaquina === @js($valor) ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-400'"
-                            >
-                                <span class="inline-flex items-center gap-2">
-                                    <input type="radio" x-model="filtroMaquina" value="{{ $valor }}" class="sr-only">
-                                    {{ $opcion['label'] }}
-                                </span>
-                                <span
-                                    class="rounded-full px-1.5 py-0.5 text-[11px] font-bold"
-                                    :class="filtroMaquina === @js($valor) ? 'bg-white/20 text-white' : 'bg-white text-gray-600'"
-                                >{{ $opcion['count'] }}</span>
-                            </label>
-                        @endforeach
+            <div class="mt-3 space-y-2">
+                @php
+                    $opcionesMaquina = [
+                        '' => ['label' => 'Todas', 'count' => $totalTelares],
+                        'Jacquard' => ['label' => 'Jacquard', 'count' => (int) ($conteoPorMaquina['Jacquard'] ?? 0)],
+                        'Smith' => ['label' => 'Smith', 'count' => (int) ($conteoPorMaquina['Smith'] ?? 0)],
+                        'KM' => ['label' => 'Karl Mayer', 'count' => (int) ($conteoPorMaquina['KM'] ?? 0)],
+                    ];
+                @endphp
+                @foreach ($opcionesMaquina as $valor => $opcion)
+                    <div class="overflow-hidden rounded-lg border transition" :class="maquinaAbierta === @js($valor) ? 'border-gray-900' : 'border-gray-200'">
+                        <button type="button" @click="seleccionarMaquina(@js($valor))"
+                            class="flex w-full items-center justify-between px-3 py-2.5 text-sm font-semibold transition"
+                            :class="maquinaAbierta === @js($valor) ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'">
+                            <span class="inline-flex items-center gap-2">
+                                @if ($valor !== '')
+                                    <i class="fas fa-chevron-right text-[10px] transition-transform" :class="maquinaAbierta === @js($valor) ? 'rotate-90' : ''"></i>
+                                @endif
+                                {{ $opcion['label'] }}
+                            </span>
+                            <span class="rounded-full px-1.5 py-0.5 text-[11px] font-bold"
+                                :class="maquinaAbierta === @js($valor) ? 'bg-white/20 text-white' : 'bg-white text-gray-600'">
+                                {{ $opcion['count'] }}
+                            </span>
+                        </button>
+
+                        @if ($valor !== '')
+                            <div x-show="maquinaAbierta === @js($valor)" x-cloak class="border-t border-gray-100 bg-white p-2.5">
+                                <div class="mb-2 flex items-center justify-between gap-2 text-[11px]">
+                                    <span class="font-semibold text-gray-500">
+                                        <span x-text="telaresSeleccionados.length"></span> seleccionado(s)
+                                    </span>
+                                    <div class="flex gap-2">
+                                        <button type="button" @click="seleccionarTodos()" class="font-semibold text-gray-900 hover:underline">Todos</button>
+                                        <button type="button" @click="deseleccionarTodos()" class="font-semibold text-gray-500 hover:underline">Ninguno</button>
+                                    </div>
+                                </div>
+                                <div class="max-h-64 space-y-1 overflow-y-auto pr-1 lg:max-h-[28rem]">
+                                    <template x-for="telar in telaresDeMaquina" :key="telar.id">
+                                        <label class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition hover:bg-gray-50">
+                                            <input type="checkbox" :checked="estaSeleccionado(telar.id)" @change="toggleTelar(telar.id)"
+                                                class="h-4 w-4 shrink-0 rounded border-gray-300 text-gray-900 focus:ring-gray-900">
+                                            <span class="shrink-0 font-semibold text-gray-900" x-text="telar.id"></span>
+                                            <span class="truncate text-xs text-gray-500" x-text="telar.nombre"></span>
+                                        </label>
+                                    </template>
+                                </div>
+                            </div>
+                        @endif
                     </div>
-                </div>
+                @endforeach
+            </div>
 
-                <div>
-                    <h3 class="text-[11px] font-bold uppercase tracking-wide text-gray-500">Rango</h3>
-                    <div class="mt-2 grid grid-cols-1 gap-2">
-                        <div>
-                            <label for="rango-desde" class="mb-1 block text-[11px] font-medium text-gray-600">Desde</label>
-                            <input id="rango-desde" type="number" x-model="rangoDesde" placeholder="201"
-                                class="w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2 text-sm font-semibold text-gray-900 outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                        </div>
-                        <div>
-                            <label for="rango-hasta" class="mb-1 block text-[11px] font-medium text-gray-600">Hasta</label>
-                            <input id="rango-hasta" type="number" x-model="rangoHasta" placeholder="215"
-                                class="w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2 text-sm font-semibold text-gray-900 outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                        </div>
-                    </div>
-                    <p class="mt-1.5 text-[11px] leading-snug text-gray-500">Ej. 201–215, 299–320, 401–402.</p>
-                </div>
-
-                <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-2.5 py-2 text-center text-xs text-gray-600">
-                    Mostrando <span class="font-bold text-gray-900" x-text="visibles.length"></span> telar(es)
-                </div>
-
-                <button type="button" @click="limpiarFiltros()"
-                    class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100">
-                    Limpiar filtros
-                </button>
+            <div class="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-2.5 py-2 text-center text-xs text-gray-600">
+                Mostrando <span class="font-bold text-gray-900" x-text="visibles.length"></span> telar(es)
             </div>
         </div>
     </aside>
@@ -247,6 +260,9 @@
             <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <h1 class="shrink-0 text-base font-bold text-gray-900">Verificación</h1>
                 <span class="inline-flex shrink-0 rounded bg-gray-900 px-2 py-0.5 text-xs font-bold text-white">{{ $folio }}</span>
+                <span x-show="soloLectura" x-cloak class="inline-flex shrink-0 items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600">
+                    <i class="fas fa-eye"></i> Solo lectura
+                </span>
 
                 <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
                     <span><span class="font-medium text-gray-400">Fecha</span> {{ $fecha }}</span>
@@ -279,6 +295,9 @@
             <p x-show="esSoloLectura" x-cloak class="mt-2 text-[11px] text-amber-700">
                 Folio en estatus <strong x-text="estatus"></strong>. Solo los <strong>Activo</strong> se pueden editar.
             </p>
+            <p x-show="!esSoloLectura && maquinaAbierta === ''" x-cloak class="mt-2 text-[11px] text-gray-500">
+                <i class="fas fa-circle-info"></i> "Todas" es solo de consulta. Selecciona una máquina en el panel izquierdo para capturar sus telares.
+            </p>
         </section>
 
         <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -291,11 +310,10 @@
             <div
                 wire:ignore
                 x-ref="matriz"
-                :class="{ 'vm-locked': !puedeCapturar }"
+                :class="{ 'vm-modo-editar': maquinaAbierta !== '', 'vm-locked': !puedeEditarAhora }"
                 class="max-w-full overflow-x-auto overscroll-x-contain"
                 tabindex="0"
                 aria-label="Cuadrícula de verificación por telar y actividad; desplázate horizontalmente"
-                @scroll="menuAbierto = false"
             >
                 {{--
                     El markup de las ~1.1k celdas va compactado en una sola línea a
@@ -312,14 +330,14 @@
                             <th scope="col" class="whitespace-nowrap bg-gray-100 px-4 py-3.5 text-center text-sm">Todos los telares</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100 bg-white" @click="abrirMenu($event)">
+                    <tbody class="divide-y divide-gray-100 bg-white" @click="onCeldaClick($event)">
                         @forelse ($actividades as $actividad)
                             @php $nombreActividad = $actividad['Actividad']; @endphp
                             <tr class="hover:bg-gray-50">
                                 <th scope="row" class="sticky left-0 z-20 min-w-80 max-w-md bg-white px-4 py-4 text-left">
                                     <span class="line-clamp-2 text-lg font-bold leading-snug text-gray-900" title="{{ $nombreActividad }}">{{ $nombreActividad }}</span>
                                 </th>
-                                @foreach ($telares as $telar)@php $v = $valores[$telar['NoTelarId'].'|'.$nombreActividad] ?? ''; @endphp<td class="vm-col-{{ $telar['NoTelarId'] }} vm-td"><button class="vm-cell {{ $v !== '' ? 'vm-on' : 'vm-off' }}" data-t="{{ $telar['NoTelarId'] }}" data-a="{{ $actividad['Id'] }}"@if ($v !== '') data-v="{{ $v }}"@endif>{{ $v !== '' ? $v : '—' }}</button></td>@endforeach
+                                @foreach ($telares as $telar)@php $v = $valores[$telar['NoTelarId'].'|'.$nombreActividad] ?? ''; @endphp<td class="vm-col-{{ $telar['NoTelarId'] }} vm-td"><span class="vm-view {{ $v !== '' ? 'vm-view-on' : 'vm-view-off' }}">{{ $v !== '' ? $v : '—' }}</span><div class="vm-triple" data-t="{{ $telar['NoTelarId'] }}" data-a="{{ $actividad['Id'] }}"@if ($v !== '') data-v="{{ $v }}"@endif><button type="button" class="vm-mini {{ $v === '1' ? 'vm-mini-on' : '' }}" data-val="1">1</button><button type="button" class="vm-mini {{ $v === '2' ? 'vm-mini-on' : '' }}" data-val="2">2</button><button type="button" class="vm-mini {{ $v === '3' ? 'vm-mini-on' : '' }}" data-val="3">3</button></div></td>@endforeach
                                 <td data-prom="{{ $actividad['Id'] }}" class="whitespace-nowrap bg-gray-50 px-4 py-3 text-center text-base font-bold text-gray-800">{{ $promedios[$nombreActividad] ?? '—' }}</td>
                             </tr>
                         @empty
@@ -331,28 +349,10 @@
                 </table>
             </div>
 
-            <div x-show="visibles.length === 0" x-cloak class="px-4 py-8 text-center text-sm text-gray-500">
-                No hay telares con los filtros seleccionados. Ajusta la máquina o el rango.
+            <div x-show="maquinaAbierta !== '' && visibles.length === 0" x-cloak class="px-4 py-8 text-center text-sm text-gray-500">
+                No hay telares seleccionados de esta máquina. Márcalos en el panel izquierdo.
             </div>
         </section>
-    </div>
-
-    {{-- Menú de calificación compartido: uno solo para toda la matriz. --}}
-    <div
-        x-show="menuAbierto"
-        x-cloak
-        x-transition.opacity.duration.100ms
-        @click.outside="menuAbierto = false"
-        @keydown.escape.window="menuAbierto = false"
-        :style="'top:' + menuTop + 'px; left:' + menuLeft + 'px'"
-        class="fixed z-40 w-16 -translate-x-1/2 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-xl"
-        role="listbox"
-    >
-        @foreach (['1', '2', '3'] as $opcion)
-            <button type="button" role="option" @click="elegir('{{ $opcion }}')"
-                :class="menuValor === '{{ $opcion }}' ? 'bg-gray-900 text-white' : 'text-gray-800 hover:bg-gray-100'"
-                class="flex h-11 w-full items-center justify-center text-xl font-extrabold tabular-nums transition">{{ $opcion }}</button>
-        @endforeach
     </div>
 
     {{-- Modal: confirmar finalizar --}}

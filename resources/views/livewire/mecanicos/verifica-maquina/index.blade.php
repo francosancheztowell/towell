@@ -21,62 +21,77 @@
             <i class="fas fa-arrows-alt-h mr-1"></i> Desliza horizontalmente para consultar todas las columnas.
         </div>
         <div class="max-w-full overflow-x-auto overscroll-x-contain" tabindex="0" aria-label="Tabla de verificaciones de máquina; desplázate horizontalmente para ver todas las columnas">
-            <table class="min-w-[980px] divide-y divide-gray-200 text-sm">
+            <table class="w-full min-w-[1100px] divide-y divide-gray-200 text-sm">
                 <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                     <tr>
-                        <th class="whitespace-nowrap px-4 py-3">Folio</th>
-                        <th class="whitespace-nowrap px-4 py-3">Status</th>
-                        <th class="whitespace-nowrap px-4 py-3">Fecha y Hr</th>
-                        <th class="whitespace-nowrap px-4 py-3 text-center">Turno</th>
-                        <th class="whitespace-nowrap px-4 py-3">Clave</th>
-                        <th class="min-w-44 px-4 py-3">Nombre</th>
-                        <th class="whitespace-nowrap px-4 py-3 text-center">Hr Inicio</th>
-                        <th class="whitespace-nowrap px-4 py-3 text-center">Hr Fin</th>
+                        <th class="whitespace-nowrap px-5 py-4">Folio</th>
+                        <th class="whitespace-nowrap px-5 py-4">Status</th>
+                        <th class="whitespace-nowrap px-5 py-4">Fecha y Hr</th>
+                        <th class="whitespace-nowrap px-5 py-4 text-center">Turno</th>
+                        <th class="whitespace-nowrap px-5 py-4">Clave</th>
+                        <th class="min-w-52 px-5 py-4">Nombre</th>
+                        <th class="whitespace-nowrap px-5 py-4 text-center">Hr Inicio</th>
+                        <th class="whitespace-nowrap px-5 py-4 text-center">Hr Fin</th>
+                        <th class="whitespace-nowrap px-5 py-4 text-right">Acciones</th>
                     </tr>
                 </thead>
-                {{--
-                    Al hacer clic en cualquier parte del renglón se dispara el enlace
-                    con wire:navigate (navegación SPA). Antes se usaba
-                    window.location.href, que forzaba una recarga completa.
-                --}}
-                <tbody class="divide-y divide-gray-100 bg-white" x-data
-                    @click="if (! $event.target.closest('a')) $event.target.closest('tr')?.querySelector('.js-ir-folio')?.click()">
+                <tbody class="divide-y divide-gray-100 bg-white">
                     @forelse ($verificaciones as $verificacion)
-                        <tr class="cursor-pointer transition hover:bg-gray-50">
-                            <td class="whitespace-nowrap px-4 py-3 font-semibold text-gray-900">
-                                <a href="{{ route('mecanicos.estado-maquina.show', $verificacion->Folio) }}" wire:navigate class="js-ir-folio hover:underline">
+                        <tr class="transition hover:bg-gray-50">
+                            <td class="whitespace-nowrap px-5 py-4">
+                                <span class="inline-flex items-center rounded-md bg-gray-900 px-2.5 py-1 text-sm font-bold text-white">
                                     {{ $verificacion->Folio }}
-                                </a>
+                                </span>
                             </td>
-                            <td class="whitespace-nowrap px-4 py-3">
+                            <td class="whitespace-nowrap px-5 py-4">
                                 @php $estatusFila = $verificacion->Estatus ?: 'Activo'; @endphp
                                 <span @class([
-                                    'inline-flex rounded-full px-2 py-1 text-xs font-semibold',
+                                    'inline-flex rounded-full px-3 py-1.5 text-xs font-bold',
                                     'bg-blue-100 text-blue-800' => $estatusFila === 'Activo',
                                     'bg-amber-100 text-amber-800' => $estatusFila === 'Terminado',
                                     'bg-green-100 text-green-800' => $estatusFila === 'Autorizado',
                                     'bg-gray-100 text-gray-700' => ! in_array($estatusFila, ['Activo', 'Terminado', 'Autorizado'], true),
                                 ])>{{ $estatusFila }}</span>
                             </td>
-                            <td class="whitespace-nowrap px-4 py-3 text-gray-700">
-                                {{ optional($verificacion->Fecha)->format('d/m/Y') ?? '—' }}
+                            <td class="whitespace-nowrap px-5 py-4 text-gray-700">
+                                <div class="font-semibold text-gray-900">{{ optional($verificacion->Fecha)->format('d/m/Y') ?? '—' }}</div>
                                 @if ($verificacion->HoraInicio)
-                                    {{ \Illuminate\Support\Str::of((string) $verificacion->HoraInicio)->substr(0, 5) }}
+                                    <div class="text-xs text-gray-500">{{ \Illuminate\Support\Str::of((string) $verificacion->HoraInicio)->substr(0, 5) }}</div>
                                 @endif
                             </td>
-                            <td class="px-4 py-3 text-center text-gray-700">{{ $verificacion->TurnoRecibe ?: '—' }}</td>
-                            <td class="whitespace-nowrap px-4 py-3 text-gray-700">{{ $verificacion->CveOperador ?: '—' }}</td>
-                            <td class="px-4 py-3 text-gray-700">{{ $verificacion->NomOperador ?: '—' }}</td>
-                            <td class="whitespace-nowrap px-4 py-3 text-center text-gray-700">
+                            <td class="px-5 py-4 text-center">
+                                <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-700">
+                                    {{ $verificacion->TurnoRecibe ?: '—' }}
+                                </span>
+                            </td>
+                            <td class="whitespace-nowrap px-5 py-4 text-gray-700">{{ $verificacion->CveOperador ?: '—' }}</td>
+                            <td class="px-5 py-4 font-semibold text-gray-900">{{ $verificacion->NomOperador ?: '—' }}</td>
+                            <td class="whitespace-nowrap px-5 py-4 text-center text-gray-700">
                                 {{ $verificacion->HoraInicio ? \Illuminate\Support\Str::of((string) $verificacion->HoraInicio)->substr(0, 5) : '—' }}
                             </td>
-                            <td class="whitespace-nowrap px-4 py-3 text-center text-gray-700">
+                            <td class="whitespace-nowrap px-5 py-4 text-center text-gray-700">
                                 {{ $verificacion->HoraFin ? \Illuminate\Support\Str::of((string) $verificacion->HoraFin)->substr(0, 5) : '—' }}
+                            </td>
+                            <td class="whitespace-nowrap px-5 py-4 text-right">
+                                <div class="flex items-center justify-end gap-2">
+                                    <a href="{{ route('mecanicos.estado-maquina.show', ['folio' => $verificacion->Folio, 'modo' => 'ver']) }}" wire:navigate
+                                        class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-100"
+                                        title="Ver (solo lectura)">
+                                        <i class="fas fa-eye"></i> Ver
+                                    </a>
+                                    @if ($puedeEditar)
+                                        <a href="{{ route('mecanicos.estado-maquina.show', $verificacion->Folio) }}" wire:navigate
+                                            class="inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-black"
+                                            title="Editar / capturar">
+                                            <i class="fas fa-pen"></i> Editar
+                                        </a>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-4 py-10 text-center text-sm text-gray-500">No hay verificaciones con los filtros seleccionados.</td>
+                            <td colspan="9" class="px-5 py-12 text-center text-sm text-gray-500">No hay verificaciones con los filtros seleccionados.</td>
                         </tr>
                     @endforelse
                 </tbody>
