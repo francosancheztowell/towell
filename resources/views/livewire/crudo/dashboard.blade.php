@@ -10,10 +10,17 @@
         ['key' => 'no_data', 'label' => 'Sin datos', 'description' => 'Sin captura', 'icon' => 'fa-minus'],
     ];
     $auditChecklist = [
-        '¿La alineación coincide con la orden?',
-        '¿El dibujo de Jacquard está bien definido?',
-        '¿Es correcta la identificación en el julio del lote de hilo y proveedor?',
+        ['question' => '¿La alineación coincide con la orden?', 'salon' => null],
+        ['question' => '¿El dibujo de Jacquard está bien definido?', 'salon' => 'Jacquard'],
+        ['question' => '¿Es correcta la identificación en el julio del lote de hilo y proveedor?', 'salon' => null],
     ];
+    $isSelectedMachineJacquard = strcasecmp(
+        trim((string) ($selectedMachine['salon'] ?? '')),
+        'Jacquard',
+    ) === 0;
+    $visibleAuditChecklist = $isSelectedMachineJacquard
+        ? $auditChecklist
+        : [$auditChecklist[0], $auditChecklist[2]];
 @endphp
 
 <div
@@ -393,36 +400,24 @@
                                 <table class="crudo-detail-table">
                                     <thead>
                                         <tr>
-                                            <th>RECID</th>
-                                            <th>Orden</th>
+                                            <th>PurchBarcode</th>
                                             <th>Operador</th>
                                             <th>Peso captura (kg)</th>
-                                            <th>T1</th>
-                                            <th>T2</th>
-                                            <th>T3</th>
-                                            <th>T4</th>
                                             <th>Piezas</th>
                                             <th>Seg.</th>
-                                            <th>Líneas</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @forelse ($selectedMachine['captures'] as $capture)
                                             <tr>
-                                                <td>{{ $capture['recId'] }}</td>
-                                                <td class="font-bold text-slate-900">{{ $capture['order'] }}</td>
+                                                <td>{{ $capture['purchBarcode'] ?: '—' }}</td>
                                                 <td>{{ $capture['operator'] }}</td>
                                                 <td>{{ number_format((float) $capture['weight'], 1) }}</td>
-                                                <td>{{ number_format((float) $capture['piecesT1']) }}</td>
-                                                <td>{{ number_format((float) $capture['piecesT2']) }}</td>
-                                                <td>{{ number_format((float) $capture['piecesT3']) }}</td>
-                                                <td>{{ number_format((float) $capture['piecesT4']) }}</td>
                                                 <td>{{ number_format((float) $capture['pieces']) }}</td>
                                                 <td>{{ number_format((float) $capture['seconds']) }}</td>
-                                                <td>{{ number_format((int) ($capture['defectLineCount'] ?? 0)) }}</td>
                                             </tr>
                                         @empty
-                                            <tr><td colspan="11">Sin capturas en el periodo seleccionado.</td></tr>
+                                            <tr><td colspan="5">Sin capturas en el periodo seleccionado.</td></tr>
                                         @endforelse
                                     </tbody>
                                 </table>
@@ -441,21 +436,42 @@
                                 </span>
                             </div>
 
-                            <div class="crudo-defect-list">
-                                @forelse ($selectedMachine['defects'] as $defect)
-                                    <article>
-                                        <span>{{ number_format((float) $defect['quantity']) }}</span>
-                                        <div>
-                                            <strong>{{ $defect['description'] }}</strong>
-                                            <small>piezas</small>
-                                        </div>
-                                    </article>
-                                @empty
-                                    <div class="crudo-detail-empty">
-                                        <i class="fa-solid fa-circle-check"></i>
-                                        <p>Sin defectos detallados en este periodo.</p>
-                                    </div>
-                                @endforelse
+                            <div class="crudo-defect-table-wrap">
+                                <table class="crudo-detail-table crudo-defect-table">
+                                    <caption class="sr-only">
+                                        Defectos encontrados y desglose por turno
+                                    </caption>
+                                    <thead>
+                                        <tr>
+                                            <th>Defecto</th>
+                                            <th>T1</th>
+                                            <th>T2</th>
+                                            <th>T3</th>
+                                            <th>T4</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse ($selectedMachine['defects'] as $defect)
+                                            <tr>
+                                                <td class="font-bold text-slate-900">
+                                                    {{ $defect['description'] }}
+                                                </td>
+                                                @foreach (['1', '2', '3', '4'] as $defectTurn)
+                                                    <td>
+                                                        {{ number_format((float) ($defect['turns'][$defectTurn] ?? 0)) }}
+                                                    </td>
+                                                @endforeach
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td class="crudo-defect-empty" colspan="5">
+                                                    <i class="fa-solid fa-circle-check"></i>
+                                                    Sin defectos detallados en este periodo.
+                                                </td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
                             </div>
                         </section>
                     </div>
@@ -466,7 +482,7 @@
                                 <p class="crudo-eyebrow">Auditoría</p>
                                 <h3>Checklist de telares reincidentes de defectos</h3>
                             </div>
-                            <span class="crudo-detail-count">{{ count($auditChecklist) }} puntos</span>
+                            <span class="crudo-detail-count">{{ count($visibleAuditChecklist) }} puntos</span>
                         </div>
 
                         <fieldset class="crudo-audit-table">
@@ -478,11 +494,11 @@
                                 <span>Mal <i class="fa-regular fa-circle-xmark"></i></span>
                             </div>
 
-                            @foreach ($auditChecklist as $question)
+                            @foreach ($visibleAuditChecklist as $item)
                                 <div class="crudo-audit-row">
                                     <p class="crudo-audit-question">
                                         <strong>{{ $loop->iteration }}.</strong>
-                                        <span>{{ $question }}</span>
+                                        <span>{{ $item['question'] }}</span>
                                     </p>
 
                                     <label class="crudo-audit-option crudo-audit-option-good">

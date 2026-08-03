@@ -1,7 +1,7 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 
 @section('page-title')
-    <x-layout.page-title title="Control de Crudo" />
+    <x-layout.page-title title="Crudo" />
 @endsection
 
 @section('navbar-right')

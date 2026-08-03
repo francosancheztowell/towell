@@ -73,6 +73,7 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
         $this->assertCount(1, $rows);
         $this->assertSame(1, (int) $rows[0]->RECID);
         $this->assertSame('201', $rows[0]->TELAR);
+        $this->assertSame('PB-1', $rows[0]->PURCHBARCODE);
         $this->assertObjectNotHasProperty('UNUSED', $rows[0]);
     }
 
@@ -188,6 +189,7 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
         Schema::connection('crudo_test_source')->create('TWCRUDOTABLE', function (Blueprint $table): void {
             $table->integer('RECID');
             $table->string('PRODID');
+            $table->string('PURCHBARCODE')->nullable();
             $table->dateTime('TRANSDATE');
             $table->string('TELAR');
             $table->decimal('PESO', 18, 4);
@@ -239,6 +241,7 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
         return [
             'RECID' => $recId,
             'PRODID' => 'ORD-'.$recId,
+            'PURCHBARCODE' => 'PB-'.$recId,
             'TRANSDATE' => $date,
             'TELAR' => $telar,
             'PESO' => 40,

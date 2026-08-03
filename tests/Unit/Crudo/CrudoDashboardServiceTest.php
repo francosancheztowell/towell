@@ -36,6 +36,7 @@ final class CrudoDashboardServiceTest extends TestCase
                 (object) [
                     'RECID' => '1001',
                     'PRODID' => 'ORD-100',
+                    'PURCHBARCODE' => 'PB-1001',
                     'TRANSDATE' => '2026-07-28 00:00:00',
                     'TELAR' => '201',
                     'PESO' => 40,
@@ -135,13 +136,33 @@ final class CrudoDashboardServiceTest extends TestCase
         $this->assertCount(1, $detail['defects']);
         $this->assertSame('01', $detail['defects'][0]['code']);
         $this->assertSame(2.0, $detail['defects'][0]['quantity']);
+        $this->assertSame([
+            '1' => 2.0,
+            '2' => 0.0,
+            '3' => 0.0,
+            '4' => 0.0,
+            'other' => 0.0,
+        ], $detail['defects'][0]['turns']);
         $this->assertSame(1, $detail['captureCount']);
         $this->assertSame(24.0, $detail['kilos']);
         $this->assertSame(1, $detail['defectLineCount']);
         $this->assertSame('1001', $detail['captures'][0]['recId']);
+        $this->assertSame('PB-1001', $detail['captures'][0]['purchBarcode']);
         $this->assertSame(1, $detail['captures'][0]['defectLineCount']);
         $this->assertSame(60.0, $detail['captures'][0]['pieces']);
         $this->assertSame(2.0, $detail['captures'][0]['seconds']);
+    }
+
+    public function test_machine_detail_breaks_defects_down_by_shift(): void
+    {
+        $detail = $this->service->machineDetail('201', $this->date(), $this->date(), 'todos');
+        $defectsByCode = array_column($detail['defects'], null, 'code');
+
+        $this->assertSame(2.0, $defectsByCode['01']['turns']['1']);
+        $this->assertSame(0.0, $defectsByCode['01']['turns']['3']);
+        $this->assertSame(0.0, $defectsByCode['09']['turns']['1']);
+        $this->assertSame(3.0, $defectsByCode['09']['turns']['3']);
+        $this->assertSame(5.0, array_sum(array_column($detail['defects'], 'quantity')));
     }
 
     private function date(): DateTimeImmutable

@@ -149,6 +149,9 @@ class CatLMatController extends Controller
             'filas.*.qty.gt' => 'La cantidad debe ser mayor a 0.',
         ]);
 
+        // Validar que artículo/config/tamaño/color existan en AX antes de guardar.
+        $this->validarFilasContraAx($data['filas']);
+
         $updatedBom = false;
         $bomIdResultado = null;
         $bomNameResultado = null;
@@ -571,6 +574,120 @@ class CatLMatController extends Controller
             ]);
 
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Valida que ItemId, ConfigId, InventSizeId e InventColorId de cada fila existan
+     * en los catálogos de AX (sqlsrv_ti). Los códigos internos JU-ENG-RI-C y
+     * JU-ENG-PI-C se permiten aunque no estén en InventTable.
+     *
+     * @param  array<int, array<string, mixed>>  $filas
+     *
+     * @throws ValidationException
+     */
+    private function validarFilasContraAx(array $filas): void
+    {
+        if ($filas === []) {
+            return;
+        }
+
+        $itemIds = array_values(array_unique(array_filter(array_map(
+            static fn (array $f): string => trim((string) ($f['itemId'] ?? '')),
+            $filas
+        ))));
+
+        if ($itemIds === []) {
+            return;
+        }
+
+        $itemIdsInternos = ['JU-ENG-RI-C', 'JU-ENG-PI-C'];
+        $itemIdsAValidarEnInvent = array_values(array_diff($itemIds, $itemIdsInternos));
+
+        $itemsPermitidos = $itemIdsInternos;
+        if ($itemIdsAValidarEnInvent !== []) {
+            $itemsEnAx = DB::connection('sqlsrv_ti')
+                ->table('InventTable')
+                ->whereIn('ItemId', $itemIdsAValidarEnInvent)
+                ->where('DATAAREAID', 'PRO')
+                ->where('TwVigente', 1)
+                ->pluck('ItemId')
+                ->all();
+            $itemsPermitidos = array_merge($itemsPermitidos, $itemsEnAx);
+        }
+
+        $itemsPermitidos = array_values(array_unique($itemsPermitidos));
+
+        $configs = DB::connection('sqlsrv_ti')
+            ->table('ConfigTable')
+            ->whereIn('ItemId', $itemsPermitidos)
+            ->where('DATAAREAID', 'PRO')
+            ->where('TwVigente', 1)
+            ->select('ItemId', 'ConfigId')
+            ->get();
+
+        $tamanos = DB::connection('sqlsrv_ti')
+            ->table('InventSize')
+            ->whereIn('ItemId', $itemsPermitidos)
+            ->where('DATAAREAID', 'PRO')
+            ->where('TwVigente', 1)
+            ->select('ItemId', 'InventSizeId')
+            ->get();
+
+        $colores = DB::connection('sqlsrv_ti')
+            ->table('InventColor')
+            ->whereIn('ItemId', $itemsPermitidos)
+            ->where('DATAAREAID', 'PRO')
+            ->where('TwVigente', 1)
+            ->select('ItemId', 'InventColorId')
+            ->get();
+
+        $configsPorItem = [];
+        foreach ($configs as $c) {
+            $configsPorItem[$c->ItemId][$c->ConfigId] = true;
+        }
+
+        $tamanosPorItem = [];
+        foreach ($tamanos as $t) {
+            $tamanosPorItem[$t->ItemId][$t->InventSizeId] = true;
+        }
+
+        $coloresPorItem = [];
+        foreach ($colores as $c) {
+            $coloresPorItem[$c->ItemId][$c->InventColorId] = true;
+        }
+
+        $errors = [];
+        foreach ($filas as $idx => $f) {
+            $itemId = trim((string) ($f['itemId'] ?? ''));
+            $configId = trim((string) ($f['configId'] ?? ''));
+            $inventSizeId = trim((string) ($f['inventSizeId'] ?? ''));
+            $inventColorId = trim((string) ($f['inventColorId'] ?? ''));
+            $filaNum = $idx + 1;
+
+            if (! in_array($itemId, $itemsPermitidos, true)) {
+                $errors["filas.{$idx}.itemId"] = "El artículo {$itemId} no existe en AX.";
+
+                continue;
+            }
+
+            if ($configId === '') {
+                $errors["filas.{$idx}.configId"] = "El Config es obligatorio en la fila {$filaNum}.";
+            } elseif (! isset($configsPorItem[$itemId][$configId])) {
+                $errors["filas.{$idx}.configId"] = "El Config {$configId} no existe en AX para el artículo {$itemId}.";
+            }
+
+            if ($inventSizeId !== '' && ! isset($tamanosPorItem[$itemId][$inventSizeId])) {
+                $errors["filas.{$idx}.inventSizeId"] = "El tamaño {$inventSizeId} no existe en AX para el artículo {$itemId}.";
+            }
+
+            if ($inventColorId !== '' && ! isset($coloresPorItem[$itemId][$inventColorId])) {
+                $errors["filas.{$idx}.inventColorId"] = "El color {$inventColorId} no existe en AX para el artículo {$itemId}.";
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
         }
     }
 }

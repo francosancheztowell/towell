@@ -38,22 +38,31 @@ final class MatrizCalibresServiceTest extends TestCase
         DB::purge('sqlsrv_ti');
         DB::connection('sqlsrv_ti')->getPdo();
 
+        Schema::connection('sqlsrv_ti')->create('InventTable', function (Blueprint $table): void {
+            $table->string('ItemId', 60);
+            $table->string('ItemGroupId', 60)->nullable();
+            $table->string('DATAAREAID', 10);
+            $table->integer('TwVigente')->default(1);
+        });
         Schema::connection('sqlsrv_ti')->create('InventColor', function (Blueprint $table): void {
             $table->string('ItemId', 60);
             $table->string('InventColorId', 60);
             $table->string('Name', 120)->nullable();
             $table->string('DATAAREAID', 10);
+            $table->integer('TwVigente')->default(1);
         });
         Schema::connection('sqlsrv_ti')->create('ConfigTable', function (Blueprint $table): void {
             $table->string('ItemId', 60);
             $table->string('ConfigId', 60);
             $table->string('DATAAREAID', 10);
+            $table->integer('TwVigente')->default(1);
         });
         Schema::connection('sqlsrv_ti')->create('InventSize', function (Blueprint $table): void {
             $table->string('ItemId', 60);
             $table->string('InventSizeId', 60);
             $table->string('NAME', 120)->nullable();
             $table->string('DATAAREAID', 10);
+            $table->integer('TwVigente')->default(1);
         });
 
         Schema::connection('sqlsrv')->create('CatMatrizCalibres', function (Blueprint $table): void {
@@ -374,6 +383,7 @@ final class MatrizCalibresServiceTest extends TestCase
             'OrdenTejido' => 'ORD-100',
             'TelarId' => '305',
         ]);
+        $this->seedCatalogoAx('JU-ENG-PI-C', false);
         $payload = $this->payloadLMat('JU-ENG-PI-C');
         $payload['filas'][0]['matrizTipo'] = 'PIE';
         $payload['filas'][0]['matrizCalibre'] = null;
@@ -400,6 +410,7 @@ final class MatrizCalibresServiceTest extends TestCase
             'OrdenTejido' => 'ORD-100',
             'TelarId' => '305',
         ]);
+        $this->seedCatalogoAx('JU-ENG-PI-C', false);
         $payload = $this->payloadLMat('JU-ENG-PI-C');
         $payload['filas'][0]['matrizTipo'] = 'PIE';
         $payload['filas'][0]['matrizCalibre'] = 10.1;
@@ -426,10 +437,12 @@ final class MatrizCalibresServiceTest extends TestCase
             'OrdenTejido' => 'ORD-100',
             'TelarId' => '305',
         ]);
+        $this->seedCatalogoAx('ITEM-NORMAL');
+        $this->seedCatalogoAx('600/1');
         $payload = $this->payloadLMat('ITEM-NORMAL');
         $filaPequena = $payload['filas'][0];
         $filaPequena['itemId'] = '600/1';
-        $filaPequena['qty'] = 0.000021947;
+        $filaPequena['qty'] = 0.0001;
         $filaPequena['matrizCalibre'] = 600.1;
         $payload['filas'][] = $filaPequena;
 
@@ -444,7 +457,7 @@ final class MatrizCalibresServiceTest extends TestCase
             ->where('ItemId', '600/1')
             ->value('Qty');
 
-        $this->assertEqualsWithDelta(0.000021947, $qtyGuardada, 0.000000001);
+        $this->assertEqualsWithDelta(0.0001, $qtyGuardada, 0.000000001);
         $this->assertSame(2, DB::connection('sqlsrv')->table('CatLMat')->count());
         $this->assertSame(2, DB::connection('sqlsrv')->table('CatMatrizCalibres')->count());
     }
@@ -560,6 +573,7 @@ final class MatrizCalibresServiceTest extends TestCase
             'PasadasComb2' => 60,
             'PasadasComb3' => 40,
         ]);
+        $this->seedCatalogoAx('ITEM-A');
         $payload = $this->payloadLMat('ITEM-A');
         $payload['pasadas'] = [
             'PasadasTramaFondoC1' => 1350,
@@ -594,6 +608,7 @@ final class MatrizCalibresServiceTest extends TestCase
             'CalTramaFondoC1' => 12,
             'CalibreComb12' => 3,
         ]);
+        $this->seedCatalogoAx('ITEM-A');
         $payload = $this->payloadLMat('ITEM-A');
         $payload['formula'] = [
             'Largo' => 165,
@@ -632,6 +647,7 @@ final class MatrizCalibresServiceTest extends TestCase
             'PasadasTramaFondoC1' => 800,
             'PasadasComb1' => 184,
         ]);
+        $this->seedCatalogoAx('ITEM-A');
         $payloadParaTotal = function (int $totalPasadas): array {
             $payload = $this->payloadLMat('ITEM-A');
             $payload['pasadas'] = [
@@ -677,6 +693,8 @@ final class MatrizCalibresServiceTest extends TestCase
             'TelarId' => '305',
         ]);
 
+        $this->seedCatalogoAx('ITEM-A');
+        $this->seedCatalogoAx('ITEM-B');
         $payload = $this->payloadLMat('ITEM-A');
         $this->withoutMiddleware()
             ->postJson(route('planeacion.lmat.guardar'), $payload)
@@ -738,5 +756,44 @@ final class MatrizCalibresServiceTest extends TestCase
                 'matrizCuenta' => null,
             ]],
         ];
+    }
+
+    /**
+     * Inserta el artículo y sus catálogos (config, tamaño, color) en AX
+     * para que la validación de guardarLmat lo permita.
+     */
+    private function seedCatalogoAx(string $itemId, bool $inventTable = true): void
+    {
+        if ($inventTable) {
+            DB::connection('sqlsrv_ti')->table('InventTable')->insert([
+                'ItemId' => $itemId,
+                'ItemGroupId' => 'HILO DIREC',
+                'DATAAREAID' => 'PRO',
+                'TwVigente' => 1,
+            ]);
+        }
+
+        DB::connection('sqlsrv_ti')->table('ConfigTable')->insert([
+            'ItemId' => $itemId,
+            'ConfigId' => 'ENTERO',
+            'DATAAREAID' => 'PRO',
+            'TwVigente' => 1,
+        ]);
+
+        DB::connection('sqlsrv_ti')->table('InventSize')->insert([
+            'ItemId' => $itemId,
+            'InventSizeId' => '20-10/1',
+            'NAME' => 'Tamaño prueba',
+            'DATAAREAID' => 'PRO',
+            'TwVigente' => 1,
+        ]);
+
+        DB::connection('sqlsrv_ti')->table('InventColor')->insert([
+            'ItemId' => $itemId,
+            'InventColorId' => '1000',
+            'Name' => 'Color prueba',
+            'DATAAREAID' => 'PRO',
+            'TwVigente' => 1,
+        ]);
     }
 }

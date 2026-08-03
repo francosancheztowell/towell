@@ -44,10 +44,23 @@ final class CrudoLivewireTest extends TestCase
             ->assertSee('crudo-modal-identity-card', false)
             ->assertDontSee('crudo-modal-header', false)
             ->assertSee('Órdenes y turnos')
-            ->assertSee('1001')
+            ->assertSee('PurchBarcode')
+            ->assertSee('PB-1001')
             ->assertSee('Peso captura (kg)')
-            ->assertSee('ORD-100')
+            ->assertDontSee('<th>RECID</th>', false)
+            ->assertDontSee('<th>Orden</th>', false)
+            ->assertDontSee('<th>Líneas</th>', false)
             ->assertSee('Error de trama')
+            ->assertSee('crudo-defect-table', false)
+            ->assertSee('Defectos encontrados y desglose por turno')
+            ->assertSee('<th>Defecto</th>', false)
+            ->assertDontSee('crudo-defect-total', false)
+            ->assertSee('T1')
+            ->assertSee('T2')
+            ->assertSee('T3')
+            ->assertSee('T4')
+            ->assertDontSee('crudo-defect-other', false)
+            ->assertDontSee('<th>S/T</th>', false)
             ->assertSee('Checklist de telares reincidentes de defectos')
             ->assertSee('¿La alineación coincide con la orden?')
             ->assertSee('¿El dibujo de Jacquard está bien definido?')
@@ -79,6 +92,24 @@ final class CrudoLivewireTest extends TestCase
             ->assertSee('Falla mecánica')
             ->assertSee('Desde 31/07/2026 08:15')
             ->assertDontSee('crudo-paro-alert', false);
+    }
+
+    public function test_jacquard_drawing_question_is_hidden_for_other_saloons(): void
+    {
+        $data = $this->dashboardData();
+        $data['machines'][0]['salon'] = 'Smith';
+        $data['machines'][0]['group'] = 'Smith';
+        $data['machines'][0]['name'] = 'SMI 201';
+
+        $this->provider = new FakeCrudoDashboardProvider($data);
+        $this->app->instance(CrudoDashboardProvider::class, $this->provider);
+
+        Livewire::test(TestableCrudoDashboard::class)
+            ->call('selectMachine', '201')
+            ->assertSee('2 puntos')
+            ->assertSee('¿La alineación coincide con la orden?')
+            ->assertDontSee('¿El dibujo de Jacquard está bien definido?')
+            ->assertSee('¿Es correcta la identificación en el julio del lote de hilo y proveedor?');
     }
 
     public function test_it_normalizes_shift_and_forces_refresh_on_manual_action(): void
@@ -174,10 +205,18 @@ final class CrudoLivewireTest extends TestCase
                     'code' => '01',
                     'description' => 'Error de trama',
                     'quantity' => 5.0,
+                    'turns' => [
+                        '1' => 2.0,
+                        '2' => 1.0,
+                        '3' => 0.0,
+                        '4' => 2.0,
+                        'other' => 0.0,
+                    ],
                 ]],
                 'captures' => [[
                     'recId' => '1001',
                     'order' => 'ORD-100',
+                    'purchBarcode' => 'PB-1001',
                     'operator' => 'Operador uno',
                     'weight' => 40.0,
                     'piecesT1' => 100.0,

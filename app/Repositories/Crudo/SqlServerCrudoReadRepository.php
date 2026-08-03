@@ -69,6 +69,7 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
             ->select([
                 'RECID',
                 'PRODID',
+                'PURCHBARCODE',
                 'TRANSDATE',
                 'TELAR',
                 'PESO',

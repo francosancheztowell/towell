@@ -759,7 +759,7 @@ async function openLMatModal(context = {}) {
                 // Nombre color: se resuelve con GET AX InventColor.Name al cargar colores.
                 nombreColor: '',
                 config: '',
-                tamano: 'ENTERO',
+                tamano: '',
                 color: registroSeleccionado?.CodColorTrama || '',
                 almacen: '',
                 cantidad: trama.cantidad,
@@ -785,7 +785,7 @@ async function openLMatModal(context = {}) {
                 pasadasField: campoPasadasPorRolLMat[`c${n}`],
                 nombreColor: '',
                 config: '',
-                tamano: 'ENTERO',
+                tamano: '',
                 color: registroSeleccionado?.[`CodColorC${n}`] || '',
                 almacen: '',
                 cantidad: comb.cantidad,
@@ -1836,10 +1836,9 @@ async function openLMatModal(context = {}) {
                     const configVigente = configPreferido !== null
                         ? configInicial
                         : (configSelect?.value || configInicial);
-                    // Si AX no devuelve configs para este ItemId (p.ej. los códigos internos
-                    // JU-ENG-RI-C / JU-ENG-PI-C de Rizo/Pie no existen en AX), no dejar el
-                    // select vacío: conservar "ENTERO" como opción genérica seleccionable.
-                    if (configSelect) setSelectOptionsLMat(configSelect, configsItem.length ? configsItem : ['ENTERO'], configVigente);
+                    // Si AX no devuelve configs para este ItemId, el select queda vacío.
+                    // El backend validará que Config exista; no se permite "ENTERO" genérico.
+                    if (configSelect) setSelectOptionsLMat(configSelect, configsItem, configVigente);
                     if (tamanoSelect) setSelectOptionsLMat(tamanoSelect, tamanos, tamanoSelect.value);
                     // Color + Nombre color dependen del ItemId (Artículos) vía GET AX.
                     aplicarColoresAxFilaLMat(fila, colores, colorInicial);

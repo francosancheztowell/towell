@@ -972,10 +972,8 @@
 
 .crudo-detail-table th:first-child,
 .crudo-detail-table th:nth-child(2),
-.crudo-detail-table th:nth-child(3),
 .crudo-detail-table td:first-child,
-.crudo-detail-table td:nth-child(2),
-.crudo-detail-table td:nth-child(3) {
+.crudo-detail-table td:nth-child(2) {
     text-align: left;
 }
 
@@ -991,47 +989,40 @@
     text-transform: uppercase;
 }
 
-.crudo-defect-list {
-    display: grid;
-    gap: 0.45rem;
-}
-
-.crudo-defect-list article {
-    display: grid;
-    grid-template-columns: 2.75rem minmax(0, 1fr);
-    gap: 0.55rem;
-    align-items: center;
+.crudo-defect-table-wrap {
+    overflow: auto;
     border: 1px solid #e2e8f0;
     border-radius: 0.7rem;
-    background: #f8fafc;
-    padding: 0.55rem;
 }
 
-.crudo-defect-list article > span {
-    display: grid;
-    min-width: 2.75rem;
-    height: 2.3rem;
-    padding: 0 0.3rem;
-    place-items: center;
-    border-radius: 0.55rem;
-    background: #ffe4e6;
-    color: #be123c;
-    font-size: 0.9rem;
-    font-weight: 950;
+.crudo-defect-table {
+    min-width: 30rem;
 }
 
-.crudo-defect-list article div {
-    display: grid;
+.crudo-defect-table th,
+.crudo-defect-table td {
+    text-align: center;
 }
 
-.crudo-defect-list strong {
-    color: #1e293b;
-    font-size: 0.85rem;
+.crudo-defect-table th:first-child,
+.crudo-defect-table td:first-child {
+    min-width: 15rem;
+    text-align: left;
 }
 
-.crudo-defect-list small {
-    color: #475569;
-    font-size: 0.73rem;
+.crudo-defect-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.crudo-defect-table .crudo-defect-empty {
+    padding: 1.5rem 1rem;
+    color: #64748b;
+    text-align: center;
+}
+
+.crudo-defect-empty i {
+    margin-right: 0.35rem;
+    color: #16a34a;
 }
 
 .crudo-audit-panel {
@@ -1228,7 +1219,183 @@
     }
 }
 
-@media (max-width: 780px) {
+@media (min-width: 641px) and (max-width: 1024px) {
+    .crudo-sidebar {
+        gap: 0.4rem;
+    }
+
+    .crudo-panel {
+        padding: 0.55rem;
+    }
+
+    .crudo-status-card {
+        min-height: 3.1rem;
+        padding: 0.38rem 0.45rem;
+    }
+
+    .crudo-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.35rem;
+    }
+
+    .crudo-kpi-grid article {
+        grid-template-columns: 2.1rem minmax(0, 1fr);
+        min-height: 3.2rem;
+        padding: 0.42rem 0.5rem;
+    }
+
+    .crudo-kpi-grid i {
+        width: 1.85rem;
+        height: 1.85rem;
+        font-size: 0.82rem;
+    }
+
+    .crudo-kpi-grid strong {
+        font-size: 1.05rem;
+    }
+
+    .crudo-kpi-grid span {
+        font-size: 0.64rem;
+    }
+
+    .crudo-modal-backdrop {
+        padding: 0.45rem;
+    }
+
+    .crudo-modal {
+        width: 100%;
+        max-height: 98vh;
+        border-radius: 0.85rem;
+    }
+
+    .crudo-modal-body {
+        max-height: 98vh;
+        padding: 0.55rem;
+    }
+
+    .crudo-modal-close {
+        top: 0.65rem;
+        right: 0.65rem;
+        width: 2rem;
+        height: 2rem;
+    }
+
+    .crudo-modal-overview {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.4rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .crudo-modal-identity-card {
+        grid-column: 1 / -1;
+        min-height: 4.1rem;
+        padding: 0.45rem 3rem 0.45rem 0.55rem;
+    }
+
+    .crudo-modal-identity-card h2 {
+        font-size: 1.12rem;
+    }
+
+    .crudo-modal-kpi {
+        min-height: 4.1rem;
+        padding: 0.42rem 0.5rem;
+    }
+
+    .crudo-modal-kpi strong {
+        font-size: 1.05rem;
+    }
+
+    .crudo-modal-kpi small {
+        font-size: 0.7rem;
+    }
+
+    .crudo-modal-overview > .crudo-modal-kpi:last-child {
+        padding-right: 0.5rem;
+    }
+
+    .crudo-modal-columns {
+        grid-template-columns: minmax(0, 1.1fr) minmax(17.5rem, 0.9fr);
+        gap: 0.4rem;
+    }
+
+    .crudo-detail-panel {
+        padding: 0.5rem;
+    }
+
+    .crudo-detail-panel-heading {
+        gap: 0.45rem;
+        margin-bottom: 0.45rem;
+    }
+
+    .crudo-detail-panel-heading h3 {
+        font-size: 0.95rem;
+    }
+
+    .crudo-detail-table th,
+    .crudo-detail-table td {
+        padding: 0.38rem 0.35rem;
+        font-size: 0.7rem;
+    }
+
+    .crudo-detail-table th {
+        font-size: 0.62rem;
+        letter-spacing: 0.035em;
+    }
+
+    .crudo-defect-table {
+        width: 100%;
+        min-width: 0;
+        table-layout: fixed;
+    }
+
+    .crudo-defect-table th:first-child,
+    .crudo-defect-table td:first-child {
+        width: 48%;
+        min-width: 0;
+        white-space: normal;
+    }
+
+    .crudo-defect-table th:not(:first-child),
+    .crudo-defect-table td:not(:first-child) {
+        width: 13%;
+    }
+
+    .crudo-audit-panel {
+        margin-top: 0.4rem;
+    }
+
+    .crudo-audit-heading {
+        align-items: center;
+    }
+
+    .crudo-audit-row {
+        grid-template-columns: minmax(0, 1fr) 4.25rem 4.25rem;
+        min-height: 2.65rem;
+    }
+
+    .crudo-audit-header {
+        min-height: 2rem;
+        font-size: 0.63rem;
+    }
+
+    .crudo-audit-header > span {
+        padding: 0.35rem 0.45rem;
+    }
+
+    .crudo-audit-question {
+        gap: 0.4rem;
+        padding: 0.42rem 0.55rem;
+        font-size: 0.75rem;
+    }
+
+    .crudo-audit-option > span {
+        width: 1.75rem;
+        height: 1.75rem;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 860px) {
     #crudo-navbar-controls {
         max-width: 48vw;
         overflow-x: auto;
@@ -1243,23 +1410,8 @@
         display: none;
     }
 
-    .crudo-sidebar,
-    .crudo-salons-grid,
-    .crudo-modal-columns {
+    .crudo-salons-grid {
         grid-template-columns: 1fr;
-    }
-
-    .crudo-modal-overview {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-
-    .crudo-modal-identity-card {
-        grid-column: 1 / -1;
-        padding-right: 3.5rem;
-    }
-
-    .crudo-modal-overview > .crudo-modal-kpi:last-child {
-        padding-right: 0.65rem;
     }
 
     .crudo-salon-smith {
@@ -1276,6 +1428,26 @@
 
     .crudo-salon-smith .crudo-machine-column:nth-child(n + 3)::before {
         min-height: 8.4rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .crudo-sidebar,
+    .crudo-modal-columns {
+        grid-template-columns: 1fr;
+    }
+
+    .crudo-modal-overview {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .crudo-modal-identity-card {
+        grid-column: 1 / -1;
+        padding-right: 3.5rem;
+    }
+
+    .crudo-modal-overview > .crudo-modal-kpi:last-child {
+        padding-right: 0.65rem;
     }
 }
 
@@ -1298,10 +1470,6 @@
         width: 100%;
         max-height: 94vh;
         border-radius: 1rem 1rem 0 0;
-    }
-
-    .crudo-modal-overview {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .crudo-audit-row {

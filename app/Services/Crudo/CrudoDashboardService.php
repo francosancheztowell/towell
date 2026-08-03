@@ -266,13 +266,24 @@ final readonly class CrudoDashboardService
                     'code' => $code,
                     'description' => $description,
                     'quantity' => 0.0,
+                    'turns' => [
+                        '1' => 0.0,
+                        '2' => 0.0,
+                        '3' => 0.0,
+                        '4' => 0.0,
+                        'other' => 0.0,
+                    ],
                 ];
-                $metrics[$telar]['defects'][$defectKey]['quantity'] += $this->number($defect->CANTIDAD ?? 0);
+                $quantity = $this->number($defect->CANTIDAD ?? 0);
+                $turn = $this->defectTurn($defect) ?? 'other';
+                $metrics[$telar]['defects'][$defectKey]['quantity'] += $quantity;
+                $metrics[$telar]['defects'][$defectKey]['turns'][$turn] += $quantity;
             }
 
             $metrics[$telar]['captures'][] = [
                 'recId' => trim((string) $header->RECID),
                 'order' => $order ?: 'Sin orden',
+                'purchBarcode' => trim((string) ($header->PURCHBARCODE ?? '')),
                 'operator' => $operator ?: 'Sin operador',
                 'weight' => round($weight, 2),
                 'piecesT1' => round($this->number($header->PIEZAST1 ?? 0)),
@@ -581,7 +592,14 @@ final readonly class CrudoDashboardService
             return true;
         }
 
-        return preg_replace('/\D+/', '', (string) ($defect->TURNO ?? '')) === $shift;
+        return $this->defectTurn($defect) === $shift;
+    }
+
+    private function defectTurn(object $defect): ?string
+    {
+        $turn = preg_replace('/\D+/', '', (string) ($defect->TURNO ?? ''));
+
+        return in_array($turn, ['1', '2', '3', '4'], true) ? $turn : null;
     }
 
     private function modifiedAt(object $header): ?string
