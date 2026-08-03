@@ -29,7 +29,8 @@
         // valor = una de las 3 máquinas, con acordeón exclusivo: solo una
         // máquina puede estar abierta/seleccionada a la vez.
         maquinaAbierta: '',
-        telaresSeleccionados: [],
+        // Solo un telar a la vez: la matriz enfoca un telar por captura.
+        telarSeleccionado: null,
 
         get puedeCapturar() { return this.estatus === 'Activo' && this.puedeCapturarFlag },
         get puedeFinalizar() { return this.estatus === 'Activo' && this.puedeFinalizarFlag },
@@ -51,25 +52,19 @@
 
         get visibles() {
             if (this.maquinaAbierta === '') return this.telares
-            return this.telares.filter((telar) => this.telaresSeleccionados.includes(telar.id))
+            return this.telarSeleccionado ? this.telares.filter((telar) => telar.id === this.telarSeleccionado) : []
         },
 
-        estaSeleccionado(id) { return this.telaresSeleccionados.includes(id) },
-
-        toggleTelar(id) {
-            const indice = this.telaresSeleccionados.indexOf(id)
-            if (indice === -1) this.telaresSeleccionados.push(id)
-            else this.telaresSeleccionados.splice(indice, 1)
+        seleccionarTelar(id) {
+            // Un solo telar a la vez: tocar el mismo lo deselecciona.
+            this.telarSeleccionado = this.telarSeleccionado === id ? null : id
         },
-
-        seleccionarTodos() { this.telaresSeleccionados = this.telaresDeMaquina.map((telar) => telar.id) },
-        deseleccionarTodos() { this.telaresSeleccionados = [] },
 
         seleccionarMaquina(valor) {
             if (this.maquinaAbierta === valor) return
             this.maquinaAbierta = valor
             // Acordeón exclusivo: cambiar de máquina limpia la selección anterior.
-            this.telaresSeleccionados = []
+            this.telarSeleccionado = null
         },
 
         /*
@@ -82,7 +77,7 @@
                 return
             }
             const ocultos = this.telares
-                .filter((telar) => !this.telaresSeleccionados.includes(telar.id))
+                .filter((telar) => telar.id !== this.telarSeleccionado)
                 .map((telar) => '.vm-col-' + telar.id)
             this.$refs.colStyle.textContent = ocultos.length ? ocultos.join(',') + '{display:none}' : ''
         },
@@ -174,14 +169,19 @@
         .vm-view-on{border-color:#111827;background:#111827;color:#fff}
         .vm-view-off{border-color:#d1d5db;background:#fff;color:#9ca3af}
 
-        /* Vista "Máquina seleccionada": 3 cuadros (1/2/3) en línea, sin menú flotante. */
-        .vm-triple{display:none;align-items:center;justify-content:center;gap:.375rem}
-        .vm-mini{display:inline-flex;align-items:center;justify-content:center;height:2.75rem;width:2.75rem;border-radius:.625rem;border-width:2px;border-style:solid;font-size:1.05rem;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:transform .12s,border-color .12s;cursor:pointer;border-color:#d1d5db;background:#fff;color:#9ca3af}
+        /*
+         * Vista "Máquina seleccionada": ahora solo se captura un telar a la
+         * vez, así que sobra espacio horizontal y los 3 cuadros (1/2/3) se
+         * pintan un poco más grandes que la celda de solo lectura de "Todas".
+         */
+        .vm-triple{display:none;align-items:center;justify-content:center;gap:.75rem}
+        .vm-mini{display:inline-flex;align-items:center;justify-content:center;height:4rem;width:4.25rem;border-radius:.875rem;border-width:2px;border-style:solid;font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:transform .12s,border-color .12s;cursor:pointer;border-color:#d1d5db;background:#fff;color:#9ca3af}
         .vm-mini:hover{border-color:#374151;transform:scale(1.05)}
         .vm-mini-on{border-color:#111827;background:#111827;color:#fff}
 
         .vm-modo-editar .vm-view{display:none}
         .vm-modo-editar .vm-triple{display:inline-flex}
+        .vm-modo-editar .vm-td{padding:1rem .875rem}
 
         .vm-locked .vm-view{opacity:.45}
         .vm-locked .vm-mini{cursor:not-allowed;opacity:.45}
@@ -225,21 +225,19 @@
                             <div x-show="maquinaAbierta === @js($valor)" x-cloak class="border-t border-gray-100 bg-white p-2.5">
                                 <div class="mb-2 flex items-center justify-between gap-2 text-[11px]">
                                     <span class="font-semibold text-gray-500">
-                                        <span x-text="telaresSeleccionados.length"></span> seleccionado(s)
+                                        <template x-if="telarSeleccionado"><span>Telar <span class="text-gray-900" x-text="telarSeleccionado"></span></span></template>
+                                        <template x-if="!telarSeleccionado"><span>Ninguno seleccionado</span></template>
                                     </span>
-                                    <div class="flex gap-2">
-                                        <button type="button" @click="seleccionarTodos()" class="font-semibold text-gray-900 hover:underline">Todos</button>
-                                        <button type="button" @click="deseleccionarTodos()" class="font-semibold text-gray-500 hover:underline">Ninguno</button>
-                                    </div>
+                                    <button type="button" x-show="telarSeleccionado" x-cloak @click="telarSeleccionado = null" class="font-semibold text-gray-500 hover:underline">Quitar</button>
                                 </div>
                                 <div class="max-h-64 space-y-1 overflow-y-auto pr-1 lg:max-h-[28rem]">
                                     <template x-for="telar in telaresDeMaquina" :key="telar.id">
-                                        <label class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition hover:bg-gray-50">
-                                            <input type="checkbox" :checked="estaSeleccionado(telar.id)" @change="toggleTelar(telar.id)"
-                                                class="h-4 w-4 shrink-0 rounded border-gray-300 text-gray-900 focus:ring-gray-900">
-                                            <span class="shrink-0 font-semibold text-gray-900" x-text="telar.id"></span>
-                                            <span class="truncate text-xs text-gray-500" x-text="telar.nombre"></span>
-                                        </label>
+                                        <button type="button" @click="seleccionarTelar(telar.id)"
+                                            class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition"
+                                            :class="telarSeleccionado === telar.id ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-50'">
+                                            <span class="shrink-0 font-semibold" x-text="telar.id"></span>
+                                            <span class="truncate text-xs" :class="telarSeleccionado === telar.id ? 'text-white/70' : 'text-gray-500'" x-text="telar.nombre"></span>
+                                        </button>
                                     </template>
                                 </div>
                             </div>
@@ -352,7 +350,7 @@
             </div>
 
             <div x-show="maquinaAbierta !== '' && visibles.length === 0" x-cloak class="px-4 py-8 text-center text-sm text-gray-500">
-                No hay telares seleccionados de esta máquina. Márcalos en el panel izquierdo.
+                Selecciona un telar de esta máquina en el panel izquierdo.
             </div>
         </section>
     </div>
