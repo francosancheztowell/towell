@@ -69,8 +69,9 @@
         <div class="space-y-4 p-4 sm:p-5">
             <div>
                 <label for="filtro-fecha" class="mb-1 block text-xs font-medium text-gray-700">Fecha</label>
-                <input id="filtro-fecha" type="date" value="{{ $fechaInicial }}"
+                <input id="filtro-fecha" type="date"
                     class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+                <p class="mt-1 text-xs text-gray-500">Dejar vacío para ver todos los registros.</p>
             </div>
 
             <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Estatus</p>
