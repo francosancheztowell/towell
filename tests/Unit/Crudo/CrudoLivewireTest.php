@@ -108,7 +108,7 @@ final class CrudoLivewireTest extends TestCase
 
         $this->assertIsString($css);
         $matched = preg_match(
-            '/@media \(min-width: 641px\) and \(max-width: 1050px\) \{(?<rules>.*?)\n\}\n\n@media \(max-width: 860px\)/s',
+            '/@media \(min-width: 641px\) and \(max-width: 1050px\),\s*\(hover: none\) and \(pointer: coarse\) and \(min-width: 641px\) and \(max-width: 1366px\) \{(?<rules>.*?)\n\}\n\n@media \(max-width: 860px\)/s',
             $css,
             $matches,
         );
@@ -116,13 +116,14 @@ final class CrudoLivewireTest extends TestCase
         $this->assertSame(1, $matched);
         $tabletRules = $matches['rules'];
         $this->assertStringContainsString(
-            'grid-template-columns: clamp(11.75rem, 20vw, 12.75rem) minmax(0, 1fr)',
+            'grid-template-columns: clamp(9.5rem, 14vw, 10.25rem) minmax(0, 1fr)',
             $tabletRules,
         );
         $this->assertStringContainsString('.crudo-sidebar {', $tabletRules);
         $this->assertStringContainsString('grid-template-columns: minmax(0, 1fr)', $tabletRules);
         $this->assertStringContainsString('.crudo-kpi-grid i {', $tabletRules);
         $this->assertStringContainsString('display: none', $tabletRules);
+        $this->assertStringContainsString('grid-template-columns: 1.5rem 1.65rem minmax(0, 1fr)', $tabletRules);
     }
 
     /**

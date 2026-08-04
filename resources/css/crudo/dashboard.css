@@ -2019,9 +2019,10 @@
     }
 }
 
-@media (min-width: 641px) and (max-width: 1050px) {
+@media (min-width: 641px) and (max-width: 1050px),
+       (hover: none) and (pointer: coarse) and (min-width: 641px) and (max-width: 1366px) {
     .crudo-content-grid {
-        grid-template-columns: clamp(11.75rem, 20vw, 12.75rem) minmax(0, 1fr);
+        grid-template-columns: clamp(9.5rem, 14vw, 10.25rem) minmax(0, 1fr);
         gap: 0.45rem;
     }
 
@@ -2040,12 +2041,60 @@
     }
 
     .crudo-panel {
-        padding: 0.55rem;
+        padding: 0.45rem;
+    }
+
+    .crudo-panel-heading {
+        gap: 0.35rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .crudo-panel-heading h2 {
+        font-size: 0.76rem;
+    }
+
+    .crudo-eyebrow {
+        font-size: 0.5rem;
+        letter-spacing: 0.1em;
+    }
+
+    .crudo-total-badge {
+        min-width: 1.65rem;
+        height: 1.65rem;
+        font-size: 0.72rem;
+    }
+
+    .crudo-status-list {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.25rem;
     }
 
     .crudo-status-card {
-        min-height: 3.1rem;
-        padding: 0.38rem 0.45rem;
+        grid-template-columns: 1.5rem 1.65rem minmax(0, 1fr);
+        grid-template-rows: minmax(1.5rem, auto);
+        gap: 0.25rem;
+        min-height: 2.1rem;
+        padding: 0.28rem 0.35rem;
+    }
+
+    .crudo-status-icon {
+        grid-row: auto;
+        width: 1.5rem;
+        height: 1.5rem;
+        font-size: 0.68rem;
+    }
+
+    .crudo-status-value {
+        align-self: center;
+        font-size: 0.95rem;
+    }
+
+    .crudo-status-copy {
+        align-self: center;
+    }
+
+    .crudo-status-copy strong {
+        font-size: 0.58rem;
     }
 
     .crudo-kpi-grid {
@@ -2056,8 +2105,8 @@
     .crudo-kpi-grid article {
         grid-template-columns: minmax(0, 1fr);
         grid-template-rows: auto auto;
-        min-height: 3.2rem;
-        padding: 0.42rem 0.5rem;
+        min-height: 2.8rem;
+        padding: 0.35rem 0.3rem;
     }
 
     .crudo-kpi-grid i {
@@ -2065,11 +2114,35 @@
     }
 
     .crudo-kpi-grid strong {
-        font-size: 1.05rem;
+        overflow: hidden;
+        font-size: 0.92rem;
+        text-overflow: ellipsis;
     }
 
     .crudo-kpi-grid span {
-        font-size: 0.64rem;
+        overflow: hidden;
+        font-size: 0.55rem;
+        text-overflow: ellipsis;
+    }
+
+    .crudo-compact-label {
+        margin-top: 0.45rem;
+        font-size: 0.5rem;
+    }
+
+    .crudo-rules-note {
+        padding: 0.3rem;
+        font-size: 0.5rem;
+    }
+
+    .crudo-area-table th,
+    .crudo-area-table td {
+        padding: 0.25rem 0.1rem;
+        font-size: 0.55rem;
+    }
+
+    .crudo-area-table th {
+        font-size: 0.48rem;
     }
 
     .crudo-modal-backdrop {
