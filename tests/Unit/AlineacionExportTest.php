@@ -36,15 +36,15 @@ class AlineacionExportTest extends TestCase
         $this->assertSame(60.0, $sheet->getColumnDimension('B')->getWidth());
     }
 
-    public function test_export_uses_equal_side_margins_and_centers_the_print_area(): void
+    public function test_export_reduces_left_margin_and_reserves_space_on_the_right(): void
     {
         $sheet = $this->loadWorkbook([
             ['NoTelarId' => '201', 'Observaciones' => 'Prueba'],
         ])->getSheet(0);
 
-        $this->assertSame(0.2, $sheet->getPageMargins()->getLeft());
-        $this->assertSame(0.2, $sheet->getPageMargins()->getRight());
-        $this->assertTrue($sheet->getPageSetup()->getHorizontalCentered());
+        $this->assertSame(0.1, $sheet->getPageMargins()->getLeft());
+        $this->assertSame(0.5, $sheet->getPageMargins()->getRight());
+        $this->assertFalse($sheet->getPageSetup()->getHorizontalCentered());
         $this->assertSame('A1:B13', $sheet->getPageSetup()->getPrintArea());
     }
 

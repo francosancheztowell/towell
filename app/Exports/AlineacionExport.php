@@ -383,8 +383,8 @@ class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
         $pageSetup->setFitToWidth(1);
         $pageSetup->setFitToHeight(0);
         $pageSetup->setPrintArea("A1:{$ultimaColumna}{$ultimaFila}");
-        $pageSetup->setHorizontalCentered(true);
+        $pageSetup->setHorizontalCentered(false);
 
-        $sheet->getPageMargins()->setTop(0.3)->setBottom(0.3)->setLeft(0.2)->setRight(0.2);
+        $sheet->getPageMargins()->setTop(0.3)->setBottom(0.3)->setLeft(0.1)->setRight(0.5);
     }
 }

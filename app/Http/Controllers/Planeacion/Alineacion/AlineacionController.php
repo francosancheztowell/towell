@@ -352,7 +352,7 @@ class AlineacionController extends Controller
             'TipoPlano' => null,
             'PesoMin' => null,
             'PesoMax' => null,
-            'ProdAcumMesAnt' => null,
+            'ProdAcumMesAnt' => 'Produccion',
             'ProdAcumMes' => null,
         ];
 
@@ -403,7 +403,7 @@ class AlineacionController extends Controller
                     continue;
                 }
                 $value = $r->getAttribute($attr);
-                $item[$key] = $value ? (
+                $item[$key] = $value !== null && $value !== '' ? (
                     $attr === 'UpdatedAt' ? $this->formatDateAlineacion($value, 'd M Y H:i') : (
                         $attr === 'EntregaCte' ? $this->formatDateAlineacion($value, 'd M Y') : $value
                     )
