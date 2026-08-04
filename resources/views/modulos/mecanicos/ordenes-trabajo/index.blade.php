@@ -1,68 +1,54 @@
 @extends('layouts.app')
 
-@section('page-title', 'Órdenes de trabajo mecánicas')
+@section('page-title', 'Órdenes de trabajo')
+
+@section('navbar-right')
+    <div class="flex items-center gap-2">
+        <x-navbar.button-report
+            id="btn-filtrar-ordenes-trabajo"
+            title="Filtrar órdenes"
+            text="Filtrar"
+            icon="fa-filter"
+            bg="bg-green-600"
+            iconColor="text-white"
+            :checkPermission="false"
+        />
+        <x-navbar.button-create
+            module="Ordenes de Trabajo"
+            id="btn-nueva-orden"
+            title="Nueva orden de trabajo"
+            text="Nuevo"
+        />
+    </div>
+@endsection
 
 @section('content')
-<div class="w-full p-3 sm:p-4 md:p-6 lg:p-8">
-    <div class="mx-auto max-w-[96rem] space-y-4">
-        <section class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-5 md:p-6">
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900 md:text-2xl">Órdenes de trabajo diarias</h1>
-                    <p class="mt-1 text-sm text-gray-600">Registra las intervenciones de mecánicos por telar y falla.</p>
-                </div>
-
-                <button id="btn-nueva-orden" type="button"
-                    class="inline-flex w-full items-center justify-center gap-2 rounded-md bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black sm:w-auto">
-                    <i class="fas fa-plus"></i>
-                    Nueva orden
-                </button>
-            </div>
-
-            <div class="mt-5 grid grid-cols-1 gap-3 border-t border-gray-100 pt-4 sm:grid-cols-2 xl:grid-cols-4">
-                <div>
-                    <label for="filtro-fecha" class="mb-1 block text-xs font-medium text-gray-700">Fecha</label>
-                    <input id="filtro-fecha" type="date" value="{{ $fechaInicial }}"
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                </div>
-
-                <div>
-                    <label for="filtro-estatus" class="mb-1 block text-xs font-medium text-gray-700">Estatus</label>
-                    <select id="filtro-estatus"
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                        <option value="">Todos</option>
-                        <option value="Activo">Activo</option>
-                        <option value="Terminado">Terminado</option>
-                        <option value="Cancelado">Cancelado</option>
-                    </select>
-                </div>
-
-            </div>
-        </section>
-
-        <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-            <div class="border-b border-gray-100 px-4 py-2 text-xs text-gray-500 lg:hidden">
-                <i class="fas fa-arrows-alt-h mr-1"></i> Desliza horizontalmente para consultar todas las columnas.
-            </div>
-            <div class="max-w-full overflow-x-auto overscroll-x-contain" tabindex="0" aria-label="Tabla de órdenes de trabajo; desplázate horizontalmente para ver todas las columnas">
-                <table id="tabla-ordenes" class="min-w-[1100px] divide-y divide-gray-200 text-sm">
-                    <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
+<div class="flex h-[calc(100vh-64px)] w-full flex-col overflow-hidden p-3 sm:p-4 md:p-5">
+    <div class="mx-auto flex min-h-0 w-full max-w-[96rem] flex-1 flex-col">
+        <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div
+                class="min-h-0 flex-1 overflow-auto overscroll-contain"
+                tabindex="0"
+                aria-label="Tabla de órdenes de trabajo"
+            >
+                <table id="tabla-ordenes" class="w-full min-w-[1100px] divide-y divide-gray-200 text-sm">
+                    <thead class="sticky top-0 z-10 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 shadow-sm">
                         <tr>
-                            <th class="whitespace-nowrap px-4 py-3">Folio</th>
-                            <th class="whitespace-nowrap px-4 py-3">Fecha</th>
-                            <th class="whitespace-nowrap px-4 py-3">Telar</th>
-                            <th class="min-w-56 px-4 py-3">Falla</th>
-                            <th class="whitespace-nowrap px-4 py-3">Folio paro</th>
-                            <th class="whitespace-nowrap px-4 py-3"># Orden</th>
-                            <th class="whitespace-nowrap px-4 py-3 text-center">Turno</th>
-                            <th class="whitespace-nowrap px-4 py-3 text-center">Mecánicos</th>
-                            <th class="whitespace-nowrap px-4 py-3">Estatus</th>
-                            <th class="whitespace-nowrap px-4 py-3 text-right">Acciones</th>
+                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Folio</th>
+                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Status</th>
+                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Fecha</th>
+                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Telar</th>
+                            <th class="min-w-52 bg-gray-50 px-5 py-4">Falla</th>
+                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Folio paro</th>
+                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4"># Orden</th>
+                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4 text-center">Turno</th>
+                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4 text-center">Mecánicos</th>
+                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4 text-right">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="ordenes-body" class="divide-y divide-gray-100 bg-white">
                         <tr>
-                            <td colspan="10" class="px-4 py-10 text-center text-sm text-gray-500">
+                            <td colspan="10" class="px-5 py-12 text-center text-sm text-gray-500">
                                 Cargando órdenes de trabajo…
                             </td>
                         </tr>
@@ -70,6 +56,31 @@
                 </table>
             </div>
         </section>
+    </div>
+</div>
+
+<div id="modal-filtros" class="fixed inset-0 z-50 hidden items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-filtros-ordenes">
+    <div class="w-full max-w-md rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
+        <div class="flex items-center justify-between border-b border-gray-200 px-4 py-4 sm:px-5">
+            <h2 id="titulo-modal-filtros-ordenes" class="text-lg font-bold text-gray-900">Filtrar órdenes</h2>
+            <button type="button" data-close-modal="modal-filtros" class="flex h-10 w-10 items-center justify-center rounded-full text-2xl leading-none text-gray-500 transition hover:bg-gray-100 hover:text-gray-900" aria-label="Cerrar">&times;</button>
+        </div>
+
+        <div class="space-y-4 p-4 sm:p-5">
+            <div>
+                <label for="filtro-fecha" class="mb-1 block text-xs font-medium text-gray-700">Fecha</label>
+                <input id="filtro-fecha" type="date" value="{{ $fechaInicial }}"
+                    class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+            </div>
+
+            <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Estatus</p>
+            <div class="grid grid-cols-2 gap-3" id="filtro-estatus-opciones">
+                <button type="button" data-estatus="" class="filtro-estatus-btn min-h-14 rounded-xl border border-gray-300 bg-white px-3 py-3 text-base font-bold text-gray-700 transition active:scale-[0.98]">Todos</button>
+                <button type="button" data-estatus="Activo" class="filtro-estatus-btn min-h-14 rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 text-base font-bold text-blue-800 transition active:scale-[0.98]">Activo</button>
+                <button type="button" data-estatus="Terminado" class="filtro-estatus-btn min-h-14 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-base font-bold text-amber-800 transition active:scale-[0.98]">Finalizado</button>
+                <button type="button" data-estatus="Cancelado" class="filtro-estatus-btn min-h-14 rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-base font-bold text-red-800 transition active:scale-[0.98]">Cancelado</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -308,8 +319,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || @json(csrf_token());
     const fechaActual = @json($fechaInicial);
     const operadores = @json($operadores);
+    const puedeEditar = @json($puedeEditar);
     const operadoresPorClave = new Map(operadores.map(operador => [String(operador.CveEmpl), operador]));
-    const state = { ordenes: [], orden: null, paros: [] };
+    const state = { ordenes: [], orden: null, paros: [], filtroEstatus: '' };
 
     const $ = (selector) => document.querySelector(selector);
     const ordenesBody = $('#ordenes-body');
@@ -317,6 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalCabecera = $('#modal-cabecera');
     const modalDetalle = $('#modal-detalle');
     const modalLinea = $('#modal-linea');
+    const modalFiltros = $('#modal-filtros');
 
     const escapeHtml = (value) => String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -340,14 +353,24 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     function statusBadge(estatus) {
-        const value = String(estatus || '').trim();
+        const value = String(estatus || 'Activo').trim() || 'Activo';
+        const label = value === 'Terminado' ? 'Finalizado' : value;
         const classes = value === 'Terminado'
-            ? 'bg-green-100 text-green-800'
+            ? 'bg-amber-100 text-amber-800'
             : value === 'Cancelado'
                 ? 'bg-red-100 text-red-800'
-                : 'bg-blue-100 text-blue-800';
+                : value === 'Activo'
+                    ? 'bg-blue-100 text-blue-800'
+                    : 'bg-gray-100 text-gray-700';
 
-        return `<span class="inline-flex whitespace-nowrap rounded-full px-2 py-1 text-xs font-semibold ${classes}">${display(value)}</span>`;
+        return `<span class="inline-flex rounded-full px-3 py-1.5 text-xs font-bold ${classes}">${escapeHtml(label)}</span>`;
+    }
+
+    function turnoBadge(turno) {
+        const value = String(turno ?? '').trim();
+        const content = value !== '' ? escapeHtml(value) : '—';
+
+        return `<span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-700">${content}</span>`;
     }
 
     function iconoBooleano(value) {
@@ -420,45 +443,85 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function obtenerFiltros() {
         const params = new URLSearchParams();
-        if ($('#filtro-fecha').value) params.set('fecha', $('#filtro-fecha').value);
-        if ($('#filtro-estatus').value) params.set('estatus', $('#filtro-estatus').value);
-        if ($('#filtro-buscar').value.trim()) params.set('buscar', $('#filtro-buscar').value.trim());
+        const fecha = $('#filtro-fecha')?.value;
+        if (fecha) params.set('fecha', fecha);
+        if (state.filtroEstatus) params.set('estatus', state.filtroEstatus);
         return params;
+    }
+
+    function actualizarBotonesFiltroEstatus() {
+        document.querySelectorAll('.filtro-estatus-btn').forEach(button => {
+            const estatus = button.dataset.estatus ?? '';
+            const activo = estatus === state.filtroEstatus;
+            button.className = 'filtro-estatus-btn min-h-14 rounded-xl px-3 py-3 text-base font-bold transition active:scale-[0.98]';
+
+            if (estatus === '') {
+                button.classList.add(activo ? 'bg-gray-900' : 'border', 'border-gray-300', 'bg-white', 'text-gray-700');
+                if (activo) button.classList.add('text-white', 'shadow');
+            } else if (estatus === 'Activo') {
+                button.classList.add(activo ? 'bg-blue-600 text-white shadow' : 'border border-blue-200 bg-blue-50 text-blue-800');
+            } else if (estatus === 'Terminado') {
+                button.classList.add(activo ? 'bg-amber-500 text-white shadow' : 'border border-amber-200 bg-amber-50 text-amber-800');
+            } else if (estatus === 'Cancelado') {
+                button.classList.add(activo ? 'bg-red-600 text-white shadow' : 'border border-red-200 bg-red-50 text-red-800');
+            }
+        });
     }
 
     function renderOrdenes() {
         if (! state.ordenes.length) {
-            ordenesBody.innerHTML = '<tr><td colspan="10" class="px-4 py-10 text-center text-sm text-gray-500">No hay órdenes con los filtros seleccionados.</td></tr>';
+            ordenesBody.innerHTML = '<tr><td colspan="10" class="px-5 py-12 text-center text-sm text-gray-500">No hay órdenes con los filtros seleccionados.</td></tr>';
             return;
         }
 
-        ordenesBody.innerHTML = state.ordenes.map(orden => `
+        ordenesBody.innerHTML = state.ordenes.map(orden => {
+            const folio = escapeHtml(orden.Folio);
+            const capturaUrl = `${baseUrl}/${encodeURIComponent(orden.Folio)}/captura`;
+            const editarBtn = puedeEditar
+                ? `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-black" title="Editar / capturar"><i class="fas fa-pen"></i> Editar</a>`
+                : '';
+
+            return `
             <tr class="transition hover:bg-gray-50">
-                <td class="whitespace-nowrap px-4 py-3 font-semibold text-gray-900">${display(orden.Folio)}</td>
-                <td class="whitespace-nowrap px-4 py-3 text-gray-700">${dateDisplay(orden.Fecha)}</td>
-                <td class="whitespace-nowrap px-4 py-3 text-gray-700">${display(orden.TelarId)}</td>
-                <td class="max-w-xs px-4 py-3 text-gray-700">${display(orden.Falla)}</td>
-                <td class="whitespace-nowrap px-4 py-3 text-gray-700">${display(orden.FolioParo)}</td>
-                <td class="whitespace-nowrap px-4 py-3 text-gray-700">${display(orden.Orden)}</td>
-                <td class="px-4 py-3 text-center text-gray-700">${display(orden.Turno)}</td>
-                <td class="px-4 py-3 text-center text-gray-700">${orden.lineas_count ?? orden.lineas?.length ?? 0}</td>
-                <td class="px-4 py-3">${statusBadge(orden.Estatus)}</td>
-                <td class="whitespace-nowrap px-4 py-3 text-right">
-                    <button type="button" data-action="capturar-orden" data-folio="${escapeHtml(orden.Folio)}" class="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-100">Capturar</button>
+                <td class="whitespace-nowrap px-5 py-4">
+                    <span class="inline-flex items-center rounded-md bg-gray-900 px-2.5 py-1 text-sm font-bold text-white">${folio}</span>
+                </td>
+                <td class="whitespace-nowrap px-5 py-4">${statusBadge(orden.Estatus)}</td>
+                <td class="whitespace-nowrap px-5 py-4 text-gray-700">
+                    <div class="font-semibold text-gray-900">${dateDisplay(orden.Fecha)}</div>
+                </td>
+                <td class="whitespace-nowrap px-5 py-4 text-gray-700">${display(orden.TelarId)}</td>
+                <td class="min-w-52 px-5 py-4 font-semibold text-gray-900">${display(orden.Falla)}</td>
+                <td class="whitespace-nowrap px-5 py-4 text-gray-700">${display(orden.FolioParo)}</td>
+                <td class="whitespace-nowrap px-5 py-4 text-gray-700">${display(orden.Orden)}</td>
+                <td class="px-5 py-4 text-center">${turnoBadge(orden.Turno)}</td>
+                <td class="px-5 py-4 text-center">
+                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-700">${orden.lineas_count ?? orden.lineas?.length ?? 0}</span>
+                </td>
+                <td class="whitespace-nowrap px-5 py-4 text-right">
+                    <div class="flex items-center justify-end gap-2">
+                        <button type="button" data-action="ver-orden" data-folio="${folio}"
+                            class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-100"
+                            title="Ver (solo lectura)">
+                            <i class="fas fa-eye"></i> Ver
+                        </button>
+                        ${editarBtn}
+                    </div>
                 </td>
             </tr>
-        `).join('');
+        `;
+        }).join('');
     }
 
     async function cargarOrdenes() {
-        ordenesBody.innerHTML = '<tr><td colspan="10" class="px-4 py-10 text-center text-sm text-gray-500">Cargando órdenes de trabajo…</td></tr>';
+        ordenesBody.innerHTML = '<tr><td colspan="10" class="px-5 py-12 text-center text-sm text-gray-500">Cargando órdenes de trabajo…</td></tr>';
 
         try {
             const result = await api(`${baseUrl}/registros?${obtenerFiltros().toString()}`);
             state.ordenes = result.data || [];
             renderOrdenes();
         } catch (error) {
-            ordenesBody.innerHTML = `<tr><td colspan="10" class="px-4 py-10 text-center text-sm text-red-600">${escapeHtml(mensajeError(error))}</td></tr>`;
+            ordenesBody.innerHTML = `<tr><td colspan="10" class="px-5 py-12 text-center text-sm text-red-600">${escapeHtml(mensajeError(error))}</td></tr>`;
         }
     }
 
@@ -739,8 +802,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     $('#tabla-ordenes').addEventListener('click', (event) => {
-        const button = event.target.closest('[data-action="capturar-orden"]');
-        if (button) window.location.assign(`${baseUrl}/${encodeURIComponent(button.dataset.folio)}/captura`);
+        const verButton = event.target.closest('[data-action="ver-orden"]');
+        if (verButton) {
+            cargarDetalle(verButton.dataset.folio);
+        }
     });
 
     $('#tabla-lineas').addEventListener('click', async (event) => {
@@ -798,26 +863,31 @@ document.addEventListener('DOMContentLoaded', () => {
         button.addEventListener('click', () => cerrarModal(document.getElementById(button.dataset.closeModal)));
     });
 
-    [modalCabecera, modalDetalle, modalLinea].forEach(modal => {
+    [modalCabecera, modalDetalle, modalLinea, modalFiltros].forEach(modal => {
         modal.addEventListener('click', event => {
             if (event.target === modal) cerrarModal(modal);
         });
     });
 
-    let searchTimer;
-    $('#filtro-fecha').addEventListener('change', cargarOrdenes);
-    $('#filtro-estatus').addEventListener('change', cargarOrdenes);
-    $('#filtro-buscar').addEventListener('input', () => {
-        window.clearTimeout(searchTimer);
-        searchTimer = window.setTimeout(cargarOrdenes, 300);
+    $('#btn-filtrar-ordenes-trabajo')?.addEventListener('click', () => {
+        actualizarBotonesFiltroEstatus();
+        abrirModal(modalFiltros);
     });
-    $('#btn-limpiar-filtros').addEventListener('click', () => {
-        $('#filtro-fecha').value = @json($fechaInicial);
-        $('#filtro-estatus').value = '';
-        $('#filtro-buscar').value = '';
+
+    $('#filtro-fecha')?.addEventListener('change', () => {
         cargarOrdenes();
     });
 
+    document.querySelectorAll('.filtro-estatus-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            state.filtroEstatus = button.dataset.estatus ?? '';
+            actualizarBotonesFiltroEstatus();
+            cerrarModal(modalFiltros);
+            cargarOrdenes();
+        });
+    });
+
+    actualizarBotonesFiltroEstatus();
     cargarOrdenes();
 });
 </script>

@@ -31,6 +31,7 @@ class OrdenesTrabajoMecaController extends Controller
         return view('modulos.mecanicos.ordenes-trabajo.index', [
             'fechaInicial' => now('America/Mexico_City')->toDateString(),
             'operadores' => $this->operadoresMecanicos(),
+            'puedeEditar' => userCan('modificar', 'Ordenes de Trabajo'),
         ]);
     }
 
@@ -494,6 +495,21 @@ class OrdenesTrabajoMecaController extends Controller
                 'consecutivo' => $consecutivoInicial,
             ]);
         });
+    }
+
+    /**
+     * Garantiza el primer renglón vacío al crear la cabecera.
+     * Si el trigger de BD ya insertó la línea, no duplica.
+     */
+    private function asegurarLineaInicial(MecOrdenTrabajoModel $orden): void
+    {
+        if ($orden->lineas()->exists()) {
+            return;
+        }
+
+        MecOrdenTrabajoLineModel::create([
+            'Folio' => $orden->Folio,
+        ]);
     }
 
     private function validarFolioParoDisponible(?string $folioParo, ?string $folioActual = null): void
