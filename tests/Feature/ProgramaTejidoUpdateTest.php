@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\UpdateTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
@@ -35,11 +37,19 @@ class ProgramaTejidoUpdateTest extends TestCase
             $table->integer('EnProceso')->default(0);
             $table->string('FibraRizo')->nullable();
             $table->string('CalendarioId')->nullable();
+            $table->string('NoProduccion', 80)->nullable();
+        });
+
+        Schema::connection('sqlsrv')->create('CatCodificados', function (Blueprint $table) {
+            $table->increments('Id');
+            $table->string('OrdenTejido', 20)->nullable()->index();
+            $table->boolean('cierre_ax')->nullable();
         });
     }
 
     protected function tearDown(): void
     {
+        Schema::connection('sqlsrv')->dropIfExists('CatCodificados');
         Schema::connection('sqlsrv')->dropIfExists('ReqProgramaTejido');
         parent::tearDown();
     }
@@ -98,5 +108,31 @@ class ProgramaTejidoUpdateTest extends TestCase
     public function test_update_metodo_existe_en_clase(): void
     {
         $this->assertTrue(method_exists(UpdateTejido::class, 'actualizar'));
+    }
+
+    public function test_update_no_produccion_rechaza_orden_cerrada_en_ax(): void
+    {
+        $registro = ReqProgramaTejido::create([
+            'SalonTejidoId' => 'JAC1',
+            'NoTelarId' => '01',
+            'NoProduccion' => '36709',
+        ]);
+
+        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+            'OrdenTejido' => '36708',
+            'cierre_ax' => 1,
+        ]);
+
+        $request = Request::create(
+            "/planeacion/programa-tejido/{$registro->Id}",
+            'PUT',
+            ['no_produccion' => ' 36708 '],
+        );
+
+        $response = UpdateTejido::actualizar($request, (int) $registro->Id);
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertSame('orden_cerrada_ax', $response->getData(true)['code']);
+        $this->assertSame('36709', $registro->fresh()->NoProduccion);
     }
 }

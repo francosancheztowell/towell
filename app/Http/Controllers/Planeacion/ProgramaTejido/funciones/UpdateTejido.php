@@ -12,6 +12,7 @@ use App\Models\Planeacion\ReqAplicaciones;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqProgramaTejidoLine;
+use App\Services\Planeacion\NoProduccionCierreAxService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
@@ -361,7 +362,23 @@ class UpdateTejido
         }
 
         if (array_key_exists('no_produccion', $data)) {
-            $registro->NoProduccion = ($data['no_produccion'] === null || trim($data['no_produccion']) === '') ? null : trim($data['no_produccion']);
+            $noProduccionActual = trim((string) ($registro->NoProduccion ?? ''));
+            $nuevaNoProduccion = trim((string) ($data['no_produccion'] ?? ''));
+
+            if (
+                $nuevaNoProduccion !== ''
+                && $nuevaNoProduccion !== $noProduccionActual
+                && app(NoProduccionCierreAxService::class)->estaCerrada($nuevaNoProduccion)
+            ) {
+                return response()->json([
+                    'success' => false,
+                    'code' => 'orden_cerrada_ax',
+                    'field' => 'no_produccion',
+                    'message' => "La orden {$nuevaNoProduccion} ya está cerrada en AX y no puede asignarse como No. Producción.",
+                ], 422);
+            }
+
+            $registro->NoProduccion = $nuevaNoProduccion !== '' ? $nuevaNoProduccion : null;
         }
 
         if (array_key_exists('rasurado', $data)) {

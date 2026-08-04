@@ -326,6 +326,8 @@ function setSelectOptionsLMat(selectEl, opciones, valorActual) {
     if (!selectEl) return;
     const esConfig = selectEl.name === 'config[]';
     const esArticulo = selectEl.name === 'articulo[]';
+    const esTamano = selectEl.name === 'tamano[]';
+    const esColor = selectEl.name === 'color[]';
     let actual = valorActual !== null && valorActual !== undefined ? String(valorActual) : '';
     if (esConfig && actual.trim().toUpperCase() === 'HILO') actual = '';
     let lista = (opciones || []).map(String);
@@ -337,9 +339,9 @@ function setSelectOptionsLMat(selectEl, opciones, valorActual) {
         else lista = [actual, ...lista];
     }
     if (lista.length === 0) lista = [''];
-    // Config/Artículo: siempre opción vacía para que el navegador NO auto-seleccione el primero de AX
+    // Config/Artículo/Tamaño/Color: opción vacía inicial para forzar elección manual.
     // (si FibraPie es null, Config debe quedar en "Seleccione..." y Fibra vacía).
-    if ((esConfig || esArticulo) && !lista.includes('')) lista = ['', ...lista];
+    if ((esConfig || esArticulo || esTamano || esColor) && !lista.includes('')) lista = ['', ...lista];
 
     selectEl.innerHTML = lista.map((valor) => {
         const selected = valor === actual ? ' selected' : '';
@@ -2146,6 +2148,8 @@ async function openLMatModal(context = {}) {
                 let omitidasSinCantidad = 0;
                 const filasSinArticulo = [];
                 const filasSinConfig = [];
+                const filasSinTamano = [];
+                const filasSinColor = [];
                 const pasadasData = {};
                 const pasadasInvalidas = [];
                 document.querySelectorAll('.swal2-html-container tbody tr').forEach((fila, index) => {
@@ -2163,9 +2167,11 @@ async function openLMatModal(context = {}) {
                     }
                     const qty = obtenerCantidadRawLMat(fila.querySelector('.lmat-cantidad-input'));
                     const configSelect = fila.querySelector('select[name="config[]"]');
-                    if (configSelect) {
-                        configSelect.classList.remove('border-red-500', 'ring-1', 'ring-red-500');
-                    }
+                    const tamanoSelect = fila.querySelector('select[name="tamano[]"]');
+                    const colorSelect = fila.querySelector('select[name="color[]"]');
+                    [configSelect, tamanoSelect, colorSelect].forEach((sel) => {
+                        if (sel) sel.classList.remove('border-red-500', 'ring-1', 'ring-red-500');
+                    });
                     if (qty <= 0) {
                         omitidasSinCantidad += 1;
                         return;
@@ -2179,9 +2185,19 @@ async function openLMatModal(context = {}) {
                     const configVal = String(configSelect?.value || '').trim();
                     if (!configVal) {
                         filasSinConfig.push(rolLabel);
-                        if (configSelect) {
-                            configSelect.classList.add('border-red-500', 'ring-1', 'ring-red-500');
-                        }
+                        if (configSelect) configSelect.classList.add('border-red-500', 'ring-1', 'ring-red-500');
+                        return;
+                    }
+                    const tamanoVal = String(tamanoSelect?.value || '').trim();
+                    if (!tamanoVal) {
+                        filasSinTamano.push(rolLabel);
+                        if (tamanoSelect) tamanoSelect.classList.add('border-red-500', 'ring-1', 'ring-red-500');
+                        return;
+                    }
+                    const colorVal = String(colorSelect?.value || '').trim();
+                    if (!colorVal) {
+                        filasSinColor.push(rolLabel);
+                        if (colorSelect) colorSelect.classList.add('border-red-500', 'ring-1', 'ring-red-500');
                         return;
                     }
                     const almacenVal = (fila.querySelector('.lmat-almacen-cell')?.textContent || '').trim()
@@ -2250,6 +2266,16 @@ async function openLMatModal(context = {}) {
 
                 if (filasSinConfig.length > 0) {
                     showToast('Selecciona Config en: ' + filasSinConfig.join(', ') + '. Es obligatorio en líneas con cantidad.', 'error');
+                    return;
+                }
+
+                if (filasSinTamano.length > 0) {
+                    showToast('Selecciona Tamaño en: ' + filasSinTamano.join(', ') + '. Es obligatorio en líneas con cantidad.', 'error');
+                    return;
+                }
+
+                if (filasSinColor.length > 0) {
+                    showToast('Selecciona Color en: ' + filasSinColor.join(', ') + '. Es obligatorio en líneas con cantidad.', 'error');
                     return;
                 }
 

@@ -1,8 +1,20 @@
 @php
     $auditChecklist = [
-        ['question' => '¿La alineación coincide con la orden?', 'salon' => null],
-        ['question' => '¿El dibujo de Jacquard está bien definido?', 'salon' => 'Jacquard'],
-        ['question' => '¿Es correcta la identificación en el julio del lote de hilo y proveedor?', 'salon' => null],
+        [
+            'key' => 'alineacion_orden',
+            'question' => '¿La alineación coincide con la orden?',
+            'salon' => null,
+        ],
+        [
+            'key' => 'dibujo_jacquard',
+            'question' => '¿El dibujo de Jacquard está bien definido?',
+            'salon' => 'Jacquard',
+        ],
+        [
+            'key' => 'identificacion_julio',
+            'question' => '¿Es correcta la identificación en el julio del lote de hilo y proveedor?',
+            'salon' => null,
+        ],
     ];
     $isSelectedMachineJacquard = strcasecmp(
         trim((string) ($selectedMachine['salon'] ?? '')),
@@ -318,21 +330,54 @@
                         </section>
                     </div>
 
-                    <div class="crudo-audit-disclosure">
-                        <button
-                            type="button"
-                            class="crudo-audit-toggle"
-                            wire:click="toggleAudit"
-                            data-crudo-audit-toggle
-                            aria-expanded="{{ $auditExpanded ? 'true' : 'false' }}"
-                            aria-controls="crudo-audit-content"
-                        >
-                            <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i>
-                            <span data-crudo-audit-toggle-label>
-                                {{ $auditExpanded ? 'Ocultar auditoría' : 'Agregar auditoría' }}
-                            </span>
-                            <i class="fa-solid fa-chevron-down crudo-audit-toggle-chevron" aria-hidden="true"></i>
-                        </button>
+                    <div
+                        class="crudo-audit-disclosure"
+                        data-crudo-audit-form
+                        data-crudo-audit-url="{{ route('crudo.auditorias.store') }}"
+                        data-crudo-audit-stop-url="{{ route('crudo.auditorias.store-with-stop') }}"
+                        data-crudo-audit-history-url="{{ route('crudo.auditorias.today', ['telar' => $selectedMachine['telar']]) }}"
+                        data-crudo-audit-telar="{{ $selectedMachine['telar'] }}"
+                        data-crudo-audit-salon="{{ $selectedMachine['salon'] }}"
+                        data-crudo-audit-order="{{ $programOrder }}"
+                    >
+                        <div class="crudo-audit-toolbar">
+                            <button
+                                type="button"
+                                class="crudo-audit-toggle"
+                                wire:click="toggleAudit"
+                                data-crudo-audit-toggle
+                                aria-expanded="{{ $auditExpanded ? 'true' : 'false' }}"
+                                aria-controls="crudo-audit-content"
+                            >
+                                <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i>
+                                <span data-crudo-audit-toggle-label>
+                                    {{ $auditExpanded ? 'Ocultar auditoría' : 'Agregar auditoría' }}
+                                </span>
+                                <i class="fa-solid fa-chevron-down crudo-audit-toggle-chevron" aria-hidden="true"></i>
+                            </button>
+
+                            <div class="crudo-modal-actions" aria-label="Acciones del detalle del telar">
+                                <button
+                                    type="button"
+                                    class="crudo-modal-action crudo-modal-action-audit"
+                                    data-crudo-save-audit
+                                    @if (! $auditExpanded) hidden @endif
+                                >
+                                    <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+                                    <span>Guardar auditoría</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    class="crudo-modal-action crudo-modal-action-stop"
+                                    data-crudo-save-stop
+                                    @if (! $auditExpanded) hidden @endif
+                                >
+                                    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                                    <span>Guardar paro</span>
+                                </button>
+                            </div>
+                        </div>
 
                         <div
                             id="crudo-audit-content"
@@ -370,6 +415,7 @@
                                                 data-crudo-audit-result
                                                 data-state="empty"
                                                 data-question-number="{{ $loop->iteration }}"
+                                                data-question-key="{{ $item['key'] }}"
                                                 aria-label="Pregunta {{ $loop->iteration }}: Sin evaluar"
                                                 title="Clic para cambiar: palomita, tache o vacío"
                                             >
@@ -379,9 +425,10 @@
                                             </button>
                                             <input
                                                 type="hidden"
-                                                name="crudo-audit-{{ $loop->iteration }}"
+                                                name="checklist[{{ $item['key'] }}]"
                                                 value=""
                                                 data-crudo-audit-result-input
+                                                data-question-key="{{ $item['key'] }}"
                                             >
                                         </div>
                                     </div>
@@ -446,30 +493,33 @@
                                 </p>
                             </div>
                         </section>
+
+                        <section class="crudo-detail-panel crudo-audit-history-panel" wire:ignore>
+                            <div class="crudo-detail-panel-heading">
+                                <div>
+                                    <h3>Auditorías de hoy</h3>
+                                </div>
+                                <span class="crudo-detail-count" data-crudo-audit-history-count>0</span>
+                            </div>
+
+                            <div
+                                class="crudo-audit-history-list"
+                                data-crudo-audit-history-list
+                                aria-live="polite"
+                            >
+                                <p class="crudo-audit-history-state">Cargando auditorías…</p>
+                            </div>
+                        </section>
                         </div>
+
+                        <p
+                            class="crudo-audit-feedback"
+                            data-crudo-audit-feedback
+                            role="status"
+                            aria-live="polite"
+                            hidden
+                        ></p>
                     </div>
-
-                    <footer class="crudo-modal-actions" aria-label="Acciones del detalle del telar">
-                        <button
-                            type="button"
-                            class="crudo-modal-action crudo-modal-action-audit"
-                            data-crudo-save-audit
-                            @if (! $auditExpanded) hidden @endif
-                        >
-                            <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
-                            <span>Guardar auditoría</span>
-                        </button>
-
-                        <button
-                            type="button"
-                            class="crudo-modal-action crudo-modal-action-stop"
-                            data-crudo-save-stop
-                            @if (! $auditExpanded) hidden @endif
-                        >
-                            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-                            <span>Guardar paro</span>
-                        </button>
-                    </footer>
                 </div>
             </article>
         </div>

@@ -129,8 +129,8 @@ class CatLMatController extends Controller
             'filas' => 'required|array|min:1',
             'filas.*.itemId' => 'required|string|max:60',
             'filas.*.configId' => 'required|string|max:60',
-            'filas.*.inventSizeId' => 'nullable|string|max:60',
-            'filas.*.inventColorId' => 'nullable|string|max:60',
+            'filas.*.inventSizeId' => 'required|string|max:60',
+            'filas.*.inventColorId' => 'required|string|max:60',
             'filas.*.nombreColor' => 'nullable|string|max:60',
             'filas.*.inventLocationId' => 'nullable|string|max:60',
             'filas.*.qty' => 'required|numeric|gt:0',
@@ -145,6 +145,8 @@ class CatLMatController extends Controller
             'filas.min' => 'Debe enviar al menos una fila de L.Mat.',
             'filas.*.itemId.required' => 'El artículo es obligatorio en cada línea con cantidad.',
             'filas.*.configId.required' => 'El Config es obligatorio en cada línea con cantidad.',
+            'filas.*.inventSizeId.required' => 'El Tamaño es obligatorio en cada línea con cantidad.',
+            'filas.*.inventColorId.required' => 'El Color es obligatorio en cada línea con cantidad.',
             'filas.*.qty.required' => 'La cantidad es obligatoria en cada línea.',
             'filas.*.qty.gt' => 'La cantidad debe ser mayor a 0.',
         ]);
@@ -677,11 +679,15 @@ class CatLMatController extends Controller
                 $errors["filas.{$idx}.configId"] = "El Config {$configId} no existe en AX para el artículo {$itemId}.";
             }
 
-            if ($inventSizeId !== '' && ! isset($tamanosPorItem[$itemId][$inventSizeId])) {
+            if ($inventSizeId === '') {
+                $errors["filas.{$idx}.inventSizeId"] = "El Tamaño es obligatorio en la fila {$filaNum}.";
+            } elseif (! isset($tamanosPorItem[$itemId][$inventSizeId])) {
                 $errors["filas.{$idx}.inventSizeId"] = "El tamaño {$inventSizeId} no existe en AX para el artículo {$itemId}.";
             }
 
-            if ($inventColorId !== '' && ! isset($coloresPorItem[$itemId][$inventColorId])) {
+            if ($inventColorId === '') {
+                $errors["filas.{$idx}.inventColorId"] = "El Color es obligatorio en la fila {$filaNum}.";
+            } elseif (! isset($coloresPorItem[$itemId][$inventColorId])) {
                 $errors["filas.{$idx}.inventColorId"] = "El color {$inventColorId} no existe en AX para el artículo {$itemId}.";
             }
         }

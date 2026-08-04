@@ -1163,6 +1163,28 @@
     margin-top: 0.55rem;
 }
 
+.crudo-audit-toolbar {
+    display: flex;
+    width: 100%;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.crudo-audit-toolbar .crudo-modal-actions {
+    flex: 0 1 auto;
+    justify-content: flex-start;
+    margin: 0 0 0 auto;
+    border-top: 0;
+    padding: 0;
+}
+
+.crudo-audit-toolbar .crudo-audit-toggle,
+.crudo-audit-toolbar .crudo-modal-action {
+    width: 10.5rem;
+    min-height: 2.55rem;
+}
+
 .crudo-audit-toggle {
     display: inline-flex;
     min-height: 2.55rem;
@@ -1593,6 +1615,12 @@
     display: none;
 }
 
+.crudo-modal-action:disabled {
+    cursor: wait;
+    opacity: 0.62;
+    transform: none;
+}
+
 .crudo-modal-action:hover {
     transform: translateY(-1px);
 }
@@ -1624,6 +1652,159 @@
     border-color: #fca5a5;
     background: #ffe4e6;
     box-shadow: 0 0.35rem 0.8rem rgb(185 28 28 / 12%);
+}
+
+.crudo-audit-feedback {
+    margin: 0.5rem 0 0;
+    border: 1px solid #bfdbfe;
+    border-radius: 0.65rem;
+    background: #eff6ff;
+    padding: 0.55rem 0.7rem;
+    color: #1e40af;
+    font-size: 0.76rem;
+    font-weight: 800;
+}
+
+.crudo-audit-feedback[hidden] {
+    display: none;
+}
+
+.crudo-audit-feedback[data-state="success"] {
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+    color: #166534;
+}
+
+.crudo-audit-feedback[data-state="error"] {
+    border-color: #fecaca;
+    background: #fff1f2;
+    color: #b91c1c;
+}
+
+.crudo-audit-history-panel {
+    grid-column: 1 / -1;
+    min-width: 0;
+}
+
+.crudo-audit-history-list {
+    display: grid;
+    max-height: 14rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+    gap: 0.45rem;
+    overflow-y: auto;
+    padding-right: 0.15rem;
+}
+
+.crudo-audit-history-state {
+    grid-column: 1 / -1;
+    margin: 0;
+    border: 1px dashed #cbd5e1;
+    border-radius: 0.65rem;
+    padding: 0.7rem;
+    color: #64748b;
+    font-size: 0.73rem;
+    font-weight: 750;
+    text-align: center;
+}
+
+.crudo-audit-history-card {
+    min-width: 0;
+    border: 1px solid #dbe5ee;
+    border-left: 0.25rem solid #2563eb;
+    border-radius: 0.7rem;
+    background: #fff;
+    padding: 0.52rem 0.58rem;
+}
+
+.crudo-audit-history-card.has-stop {
+    border-left-color: #dc2626;
+}
+
+.crudo-audit-history-head,
+.crudo-audit-history-meta,
+.crudo-audit-history-checks,
+.crudo-audit-history-defects {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+}
+
+.crudo-audit-history-head {
+    justify-content: space-between;
+    gap: 0.45rem;
+}
+
+.crudo-audit-history-head strong {
+    color: #0f172a;
+    font-size: 0.78rem;
+    font-weight: 950;
+}
+
+.crudo-audit-history-kind {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: #dbeafe;
+    padding: 0.2rem 0.42rem;
+    color: #1d4ed8;
+    font-size: 0.61rem;
+    font-weight: 900;
+}
+
+.crudo-audit-history-kind.has-stop {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.crudo-audit-history-meta {
+    gap: 0.3rem;
+    margin-top: 0.2rem;
+    color: #64748b;
+    font-size: 0.65rem;
+    font-weight: 700;
+}
+
+.crudo-audit-history-checks,
+.crudo-audit-history-defects {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.38rem;
+}
+
+.crudo-audit-history-check {
+    border-radius: 0.35rem;
+    background: #f1f5f9;
+    padding: 0.18rem 0.34rem;
+    color: #475569;
+    font-size: 0.6rem;
+    font-weight: 850;
+}
+
+.crudo-audit-history-check[data-result="bien"] {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.crudo-audit-history-check[data-result="mal"] {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.crudo-audit-history-defect {
+    color: #334155;
+    font-size: 0.64rem;
+    font-weight: 800;
+}
+
+.crudo-audit-history-defect.is-principal {
+    color: #b91c1c;
+}
+
+.crudo-audit-history-observations {
+    margin: 0.35rem 0 0;
+    color: #475569;
+    font-size: 0.64rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
 }
 
 .crudo-modal-skeleton {

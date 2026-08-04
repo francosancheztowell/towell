@@ -40,6 +40,9 @@ class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
 
     private const ANCHO_MINIMO = 8;
 
+    /** Ancho controlado para evitar que una observación larga ensanche toda la hoja. */
+    private const ANCHO_OBSERVACIONES = 60;
+
     private const FUENTE = 'Arial';
 
     private const TAMANO_FUENTE_DEFAULT = 23;
@@ -73,12 +76,30 @@ class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
     /** Alto de fila para datos: filas altas para que la tabla rellene más la hoja al imprimir. */
     private const ALTURA_FILA_DATOS = 95.0;
 
+    /** Alto visual de cada fila en blanco que separa los telares 215 y 299. */
+    private const ALTURA_FILA_SEPARACION = 24.0;
+
+    private const CANTIDAD_FILAS_SEPARACION = 2;
+
+    /** Aproximación de texto visible por renglón en la columna Observaciones. */
+    private const CARACTERES_OBSERVACION_POR_LINEA = 30;
+
+    private const ALTURA_LINEA_OBSERVACION = 29.0;
+
+    /** Excel admite como máximo 409.5 puntos de alto por fila. */
+    private const ALTURA_FILA_MAXIMA = 409.0;
+
     /** Fila donde empieza el encabezado de la tabla (deja espacio arriba para el logo). */
     private const FILA_ENCABEZADO_1 = 11;
 
     private const FILA_ENCABEZADO_2 = 12;
 
     private const FILA_DATOS = 13;
+
+    /** @var array<int, array<string, mixed>> Items indexados por su fila real en Excel. */
+    private array $itemsPorFila = [];
+
+    private ?int $filaSeparacionTelares = null;
 
     public function __construct(
         private array $items,
@@ -173,14 +194,29 @@ class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
 
     private function escribirDatos(Worksheet $sheet): void
     {
+        $this->itemsPorFila = [];
+        $this->filaSeparacionTelares = null;
+
         $filaActual = self::FILA_DATOS;
+        $telarAnterior = null;
+
         foreach ($this->items as $item) {
+            $telarActual = trim((string) ($item['NoTelarId'] ?? ''));
+
+            if ($telarAnterior === '215' && $telarActual === '299') {
+                $this->filaSeparacionTelares = $filaActual;
+                $filaActual += self::CANTIDAD_FILAS_SEPARACION;
+            }
+
             $col = 1;
             foreach ($this->columnas as $columna) {
                 $letra = Coordinate::stringFromColumnIndex($col);
                 $sheet->setCellValue("{$letra}{$filaActual}", $item[$columna] ?? '');
                 $col++;
             }
+
+            $this->itemsPorFila[$filaActual] = $item;
+            $telarAnterior = $telarActual;
             $filaActual++;
         }
     }
@@ -189,7 +225,9 @@ class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
     {
         $fila1 = self::FILA_ENCABEZADO_1;
         $fila2 = self::FILA_ENCABEZADO_2;
-        $ultimaFilaDatos = self::FILA_DATOS + count($this->items) - 1;
+        $ultimaFilaDatos = empty($this->itemsPorFila)
+            ? $fila2
+            : max(array_keys($this->itemsPorFila));
         $ultimaFila = max($ultimaFilaDatos, $fila2);
         $ultimaColumna = Coordinate::stringFromColumnIndex(count($this->columnas));
 
@@ -237,8 +275,39 @@ class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
             ]);
         }
 
-        for ($fila = self::FILA_DATOS; $fila <= $ultimaFilaDatos; $fila++) {
-            $sheet->getRowDimension($fila)->setRowHeight(self::ALTURA_FILA_DATOS);
+        $indiceObservaciones = array_search('Observaciones', $this->columnas, true);
+        $letraObservaciones = $indiceObservaciones !== false
+            ? Coordinate::stringFromColumnIndex($indiceObservaciones + 1)
+            : null;
+
+        foreach ($this->itemsPorFila as $fila => $item) {
+            $sheet->getRowDimension($fila)->setRowHeight(
+                $this->alturaFilaDatos((string) ($item['Observaciones'] ?? ''))
+            );
+            $sheet->getStyle("A{$fila}:{$ultimaColumna}{$fila}")
+                ->getAlignment()
+                ->setVertical(Alignment::VERTICAL_CENTER);
+
+            if ($letraObservaciones !== null) {
+                $sheet->getStyle("{$letraObservaciones}{$fila}")
+                    ->getAlignment()
+                    ->setWrapText(true)
+                    ->setHorizontal(Alignment::HORIZONTAL_LEFT);
+            }
+        }
+
+        if ($this->filaSeparacionTelares !== null) {
+            $primeraFilaSeparacion = $this->filaSeparacionTelares;
+            $ultimaFilaSeparacion = $primeraFilaSeparacion + self::CANTIDAD_FILAS_SEPARACION - 1;
+
+            for ($fila = $primeraFilaSeparacion; $fila <= $ultimaFilaSeparacion; $fila++) {
+                $sheet->getRowDimension($fila)->setRowHeight(self::ALTURA_FILA_SEPARACION);
+            }
+
+            $sheet->getStyle("A{$primeraFilaSeparacion}:{$ultimaColumna}{$ultimaFilaSeparacion}")->applyFromArray([
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => self::COLOR_COLUMNA_BLANCA]],
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_NONE]],
+            ]);
         }
 
         $sheet->freezePane('A'.self::FILA_DATOS);
@@ -256,6 +325,10 @@ class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
      */
     private function anchoColumna(string $columna, int $tamanoFuente): int
     {
+        if ($columna === 'Observaciones') {
+            return self::ANCHO_OBSERVACIONES;
+        }
+
         $etiqueta = $this->subColumnLabels[$columna] ?? $this->columnLabels[$columna] ?? $columna;
         $maxLargo = mb_strlen((string) $etiqueta);
 
@@ -267,6 +340,33 @@ class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
         $factorFuente = $tamanoFuente / 11;
 
         return max(self::ANCHO_MINIMO, (int) ceil(($maxLargo + self::ANCHO_MARGEN) * $factorFuente));
+    }
+
+    /**
+     * Mantiene el alto habitual para observaciones cortas y aumenta solo la fila que
+     * necesita más renglones. Se consideran también los saltos de línea escritos.
+     */
+    private function alturaFilaDatos(string $observaciones): float
+    {
+        $texto = trim(str_replace(["\r\n", "\r"], "\n", $observaciones));
+        if ($texto === '') {
+            return self::ALTURA_FILA_DATOS;
+        }
+
+        $lineasVisuales = 0;
+        foreach (explode("\n", $texto) as $linea) {
+            $lineasVisuales += max(
+                1,
+                (int) ceil(mb_strlen($linea) / self::CARACTERES_OBSERVACION_POR_LINEA)
+            );
+        }
+
+        $alturaCalculada = ($lineasVisuales * self::ALTURA_LINEA_OBSERVACION) + 8;
+
+        return min(
+            self::ALTURA_FILA_MAXIMA,
+            max(self::ALTURA_FILA_DATOS, $alturaCalculada)
+        );
     }
 
     /**
@@ -283,7 +383,8 @@ class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
         $pageSetup->setFitToWidth(1);
         $pageSetup->setFitToHeight(0);
         $pageSetup->setPrintArea("A1:{$ultimaColumna}{$ultimaFila}");
+        $pageSetup->setHorizontalCentered(true);
 
-        $sheet->getPageMargins()->setTop(0.3)->setBottom(0.3)->setLeft(0.4)->setRight(0.3);
+        $sheet->getPageMargins()->setTop(0.3)->setBottom(0.3)->setLeft(0.2)->setRight(0.2);
     }
 }

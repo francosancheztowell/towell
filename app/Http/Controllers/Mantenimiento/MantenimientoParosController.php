@@ -338,7 +338,7 @@ class MantenimientoParosController extends Controller
             $items = $query
                 ->orderByRaw('CASE WHEN Departamento = ? THEN 0 ELSE 1 END', ['Calidad'])
                 ->orderBy('Falla')
-                ->get(['Falla', 'Descripcion', 'Abreviado', 'Seccion', 'TipoFallaId', 'Departamento'])
+                ->get(['Id', 'Falla', 'Descripcion', 'Abreviado', 'Seccion', 'TipoFallaId', 'Departamento'])
                 ->unique(function ($item) {
                     return mb_strtoupper(trim((string) $item->Falla))
                         .'|'

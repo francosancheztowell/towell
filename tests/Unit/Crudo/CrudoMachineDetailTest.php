@@ -142,6 +142,10 @@ final class CrudoMachineDetailTest extends TestCase
 
         $this->assertStringNotContainsString('hidden', $this->stopButtonTag($component->html()));
         $this->assertStringContainsString('Guardar paro', $component->html());
+        $this->assertMatchesRegularExpression(
+            '/crudo-audit-toolbar.*data-crudo-audit-toggle.*data-crudo-save-audit.*data-crudo-save-stop.*id="crudo-audit-content"/s',
+            $component->html(),
+        );
 
         $component->call('toggleAudit');
 

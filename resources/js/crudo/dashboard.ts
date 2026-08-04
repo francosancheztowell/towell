@@ -26,6 +26,7 @@ type Machine = {
 }
 
 type QualityDefectCatalogItem = {
+  Id?: unknown
   Falla?: unknown
   Descripcion?: unknown
   Departamento?: unknown
@@ -42,12 +43,80 @@ type QualityDefectOption = {
   label: string
 }
 
+type AuditChecklistKey = 'alineacion_orden' | 'dibujo_jacquard' | 'identificacion_julio'
+
+type AuditPayload = {
+  no_telar_id: string
+  salon: string
+  orden_trabajo: string | null
+  checklist: Record<AuditChecklistKey, boolean | null>
+  observaciones: string | null
+  defectos: Array<{
+    defecto_id: number
+    piezas: number
+  }>
+}
+
+type AuditSaveResponse = {
+  success?: boolean
+  message?: string
+  error?: string
+  errors?: Record<string, string[]>
+}
+
+type AuditHistoryItem = {
+  id: number
+  fecha: string | null
+  hora: string | null
+  orden: string | null
+  turno: number
+  auditor: string
+  checklist: Array<{
+    key: string
+    label: string
+    resultado: 'bien' | 'mal' | 'sin_evaluar'
+  }>
+  observaciones: string | null
+  defectos: Array<{
+    id: number
+    falla: string
+    descripcion: string | null
+    piezas: number
+    principal: boolean
+  }>
+  paro: {
+    id: number
+    folio: string | null
+    falla: string | null
+    estatus: string | null
+  } | null
+}
+
+type AuditHistoryResponse = {
+  data?: AuditHistoryItem[]
+  meta?: {
+    fecha?: string
+    total?: number
+  }
+  message?: string
+}
+
+type CrudoWindow = Window & typeof globalThis & {
+  Livewire?: {
+    dispatch: (event: string) => void
+  }
+}
+
 const DASHBOARD_SELECTOR = '[data-crudo-dashboard]'
 const MACHINE_DATA_SELECTOR = '[data-crudo-machines-data]'
 const MACHINE_SELECTOR = '[data-crudo-machine]'
 const RELATIVE_TIME_SELECTOR = '[data-crudo-relative-time]'
 const AUDIT_DEFECT_EDITOR_SELECTOR = '[data-crudo-audit-defects]'
 const AUDIT_CONTENT_SELECTOR = '[data-crudo-audit-content]'
+const AUDIT_FORM_SELECTOR = '[data-crudo-audit-form]'
+const AUDIT_FEEDBACK_SELECTOR = '[data-crudo-audit-feedback]'
+const AUDIT_HISTORY_LIST_SELECTOR = '[data-crudo-audit-history-list]'
+const AUDIT_HISTORY_COUNT_SELECTOR = '[data-crudo-audit-history-count]'
 const QUALITY_DEFECT_SELECT_SELECTOR = '[data-crudo-quality-defect-select]'
 const PENDING_DETAIL_SELECTOR = '[data-crudo-detail-pending]'
 
@@ -277,17 +346,17 @@ const loadQualityDefectOptions = (url: string): Promise<QualityDefectOption[]> =
 
       const options = new Map<string, QualityDefectOption>()
       ;(Array.isArray(payload.data) ? payload.data : []).forEach((item) => {
+        const id = normalizeCatalogText(item.Id)
         const department = normalizeCatalogText(item.Departamento)
         const defect = normalizeCatalogText(item.Falla)
         const description = normalizeCatalogText(item.Descripcion)
 
-        if (department.toLocaleUpperCase('es-MX') !== 'CALIDAD' || defect === '') {
+        if (department.toLocaleUpperCase('es-MX') !== 'CALIDAD' || id === '' || defect === '') {
           return
         }
 
-        const key = `${defect}|${description}`.toLocaleUpperCase('es-MX')
-        options.set(key, {
-          value: defect,
+        options.set(id, {
+          value: id,
           label: description !== '' && description.toLocaleUpperCase('es-MX') !== defect.toLocaleUpperCase('es-MX')
             ? `${defect} — ${description}`
             : defect,
@@ -371,8 +440,160 @@ const hydrateQualityDefectEditors = (): void => {
   })
 }
 
+const appendTextElement = <K extends keyof HTMLElementTagNameMap>(
+  parent: HTMLElement,
+  tag: K,
+  className: string,
+  text: string,
+): HTMLElementTagNameMap[K] => {
+  const element = document.createElement(tag)
+  element.className = className
+  element.textContent = text
+  parent.append(element)
+
+  return element
+}
+
+const renderAuditHistory = (form: HTMLElement, audits: AuditHistoryItem[]): void => {
+  const list = form.querySelector<HTMLElement>(AUDIT_HISTORY_LIST_SELECTOR)
+  const count = form.querySelector<HTMLElement>(AUDIT_HISTORY_COUNT_SELECTOR)
+  if (!list || !count) {
+    return
+  }
+
+  count.textContent = `${audits.length}`
+  list.replaceChildren()
+
+  if (audits.length === 0) {
+    appendTextElement(list, 'p', 'crudo-audit-history-state', 'Sin auditorías registradas hoy para este telar.')
+    return
+  }
+
+  audits.forEach((audit) => {
+    const card = document.createElement('article')
+    card.className = `crudo-audit-history-card${audit.paro ? ' has-stop' : ''}`
+
+    const head = document.createElement('div')
+    head.className = 'crudo-audit-history-head'
+    appendTextElement(head, 'strong', '', `#${audit.id} · ${audit.hora || 'Sin hora'}`)
+    appendTextElement(
+      head,
+      'span',
+      `crudo-audit-history-kind${audit.paro ? ' has-stop' : ''}`,
+      audit.paro ? `Paro ${audit.paro.folio || ''}`.trim() : 'Auditoría',
+    )
+    card.append(head)
+
+    const meta = document.createElement('div')
+    meta.className = 'crudo-audit-history-meta'
+    const metaParts = [`T${audit.turno}`, audit.auditor]
+    if (audit.orden) {
+      metaParts.push(audit.orden)
+    }
+    appendTextElement(meta, 'span', '', metaParts.join(' · '))
+    card.append(meta)
+
+    const checks = document.createElement('div')
+    checks.className = 'crudo-audit-history-checks'
+    audit.checklist.forEach((check) => {
+      const icon = check.resultado === 'bien' ? '✓' : check.resultado === 'mal' ? '✕' : '—'
+      const badge = appendTextElement(
+        checks,
+        'span',
+        'crudo-audit-history-check',
+        `${icon} ${check.label}`,
+      )
+      badge.dataset.result = check.resultado
+    })
+    card.append(checks)
+
+    const defects = document.createElement('div')
+    defects.className = 'crudo-audit-history-defects'
+    if (audit.defectos.length === 0) {
+      appendTextElement(defects, 'span', 'crudo-audit-history-defect', 'Sin defectos capturados')
+    } else {
+      audit.defectos.forEach((defect) => {
+        const concept = defect.descripcion || defect.falla
+        appendTextElement(
+          defects,
+          'span',
+          `crudo-audit-history-defect${defect.principal ? ' is-principal' : ''}`,
+          `${defect.principal ? '★ ' : ''}${concept}: ${defect.piezas} pzas`,
+        )
+      })
+    }
+    card.append(defects)
+
+    if (audit.observaciones) {
+      appendTextElement(
+        card,
+        'p',
+        'crudo-audit-history-observations',
+        `Obs: ${audit.observaciones}`,
+      )
+    }
+
+    list.append(card)
+  })
+}
+
+const loadAuditHistory = async (form: HTMLElement, force = false): Promise<void> => {
+  const state = form.dataset.auditHistoryState
+  if (!force && (state === 'loading' || state === 'loaded')) {
+    return
+  }
+
+  const list = form.querySelector<HTMLElement>(AUDIT_HISTORY_LIST_SELECTOR)
+  const url = form.dataset.crudoAuditHistoryUrl
+  if (!list || !url) {
+    return
+  }
+
+  form.dataset.auditHistoryState = 'loading'
+  list.replaceChildren()
+  appendTextElement(list, 'p', 'crudo-audit-history-state', 'Cargando auditorías…')
+
+  try {
+    const response = await fetch(url, {
+      credentials: 'same-origin',
+      headers: {
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    })
+    const payload = await response.json().catch((): AuditHistoryResponse => ({})) as AuditHistoryResponse
+
+    if (!response.ok) {
+      throw new Error(payload.message || 'No fue posible consultar las auditorías de hoy.')
+    }
+
+    renderAuditHistory(form, Array.isArray(payload.data) ? payload.data : [])
+    form.dataset.auditHistoryState = 'loaded'
+  } catch {
+    list.replaceChildren()
+    appendTextElement(
+      list,
+      'p',
+      'crudo-audit-history-state',
+      'No fue posible cargar las auditorías. Puedes intentar guardar o volver a abrir el detalle.',
+    )
+    form.dataset.auditHistoryState = 'error'
+  }
+}
+
+const hydrateAuditHistories = (): void => {
+  document.querySelectorAll<HTMLElement>(AUDIT_FORM_SELECTOR).forEach((form) => {
+    if (form.querySelector<HTMLElement>(AUDIT_CONTENT_SELECTOR)?.hidden) {
+      return
+    }
+
+    void loadAuditHistory(form)
+  })
+}
+
 const observeQualityDefectEditors = (): void => {
   hydrateQualityDefectEditors()
+  hydrateAuditHistories()
   syncPendingDetail()
 
   if (auditDefectObserver || !document.body) {
@@ -383,6 +604,7 @@ const observeQualityDefectEditors = (): void => {
     syncPendingDetail()
     if (mutations.some((mutation) => mutation.addedNodes.length > 0 || mutation.attributeName === 'hidden')) {
       hydrateQualityDefectEditors()
+      hydrateAuditHistories()
     }
   })
 
@@ -419,6 +641,223 @@ const cycleAuditResult = (button: HTMLElement): void => {
   }
 }
 
+const auditAnswer = (value: string): boolean | null => {
+  if (value === 'bien') {
+    return true
+  }
+
+  if (value === 'mal') {
+    return false
+  }
+
+  return null
+}
+
+const collectAuditPayload = (form: HTMLElement): AuditPayload => {
+  const telar = form.dataset.crudoAuditTelar?.trim() ?? ''
+  const salon = form.dataset.crudoAuditSalon?.trim() ?? ''
+
+  if (telar === '' || salon === '') {
+    throw new Error('No se pudo identificar el telar o su salón. Cierra el detalle e inténtalo nuevamente.')
+  }
+
+  const checklist: Record<AuditChecklistKey, boolean | null> = {
+    alineacion_orden: null,
+    dibujo_jacquard: null,
+    identificacion_julio: null,
+  }
+
+  form.querySelectorAll<HTMLInputElement>('[data-crudo-audit-result-input]').forEach((input) => {
+    const key = input.dataset.questionKey as AuditChecklistKey | undefined
+    if (key && key in checklist) {
+      checklist[key] = auditAnswer(input.value)
+    }
+  })
+
+  const defects: AuditPayload['defectos'] = []
+  const selectedDefects = new Set<number>()
+
+  form.querySelectorAll<HTMLElement>('[data-crudo-audit-defect-row]').forEach((row, index) => {
+    const select = row.querySelector<HTMLSelectElement>(QUALITY_DEFECT_SELECT_SELECTOR)
+    const quantity = row.querySelector<HTMLInputElement>('input[name="crudo-audit-defect-pieces[]"]')
+    const selectedId = Number.parseInt(select?.value ?? '', 10)
+    const pieces = Number.parseInt(quantity?.value ?? '0', 10)
+    const hasDefect = Number.isInteger(selectedId) && selectedId > 0
+    const hasPieces = Number.isInteger(pieces) && pieces > 0
+
+    if (!hasDefect && !hasPieces) {
+      return
+    }
+
+    if (!hasDefect) {
+      throw new Error(`Selecciona el defecto ${index + 1}.`)
+    }
+
+    if (!hasPieces) {
+      throw new Error(`Las piezas del defecto ${index + 1} deben ser mayores a cero.`)
+    }
+
+    if (selectedDefects.has(selectedId)) {
+      throw new Error(`El defecto ${index + 1} está repetido.`)
+    }
+
+    selectedDefects.add(selectedId)
+    defects.push({ defecto_id: selectedId, piezas: pieces })
+  })
+
+  const observations = form.querySelector<HTMLTextAreaElement>('textarea[name="crudo-audit-observations"]')
+    ?.value.trim() ?? ''
+  const order = form.dataset.crudoAuditOrder?.trim() ?? ''
+
+  return {
+    no_telar_id: telar,
+    salon,
+    orden_trabajo: order === '' ? null : order,
+    checklist,
+    observaciones: observations === '' ? null : observations,
+    defectos: defects,
+  }
+}
+
+const validationMessage = (payload: AuditSaveResponse, fallback: string): string => {
+  const messages = Object.values(payload.errors ?? {}).flat().filter((message) => message.trim() !== '')
+
+  return messages[0] ?? payload.error ?? payload.message ?? fallback
+}
+
+const showAuditFeedback = (
+  form: HTMLElement,
+  message: string,
+  state: 'loading' | 'success' | 'error',
+): void => {
+  const feedback = form.querySelector<HTMLElement>(AUDIT_FEEDBACK_SELECTOR)
+  if (!feedback) {
+    return
+  }
+
+  feedback.hidden = false
+  feedback.dataset.state = state
+  feedback.textContent = message
+}
+
+const setAuditSubmitting = (form: HTMLElement, submitting: boolean): void => {
+  form.dataset.submitting = submitting ? 'true' : 'false'
+  form.querySelectorAll<HTMLButtonElement>('[data-crudo-save-audit], [data-crudo-save-stop]')
+    .forEach((button) => {
+      button.disabled = submitting
+      button.setAttribute('aria-busy', submitting ? 'true' : 'false')
+    })
+}
+
+const resetAuditForm = (form: HTMLElement): void => {
+  form.querySelectorAll<HTMLElement>('[data-crudo-audit-result]').forEach((button) => {
+    const questionNumber = button.dataset.questionNumber || ''
+    button.dataset.state = 'empty'
+    button.setAttribute('aria-label', `Pregunta ${questionNumber}: Sin evaluar`)
+
+    const label = button.querySelector<HTMLElement>('[data-crudo-audit-result-label]')
+    if (label) {
+      label.textContent = 'Sin evaluar'
+    }
+  })
+
+  form.querySelectorAll<HTMLInputElement>('[data-crudo-audit-result-input]').forEach((input) => {
+    input.value = ''
+  })
+
+  form.querySelectorAll<HTMLSelectElement>(QUALITY_DEFECT_SELECT_SELECTOR).forEach((select) => {
+    select.value = ''
+  })
+
+  form.querySelectorAll<HTMLInputElement>('input[name="crudo-audit-defect-pieces[]"]').forEach((input) => {
+    input.value = '0'
+  })
+
+  const observations = form.querySelector<HTMLTextAreaElement>('textarea[name="crudo-audit-observations"]')
+  if (observations) {
+    observations.value = ''
+  }
+}
+
+const submitAudit = async (button: HTMLElement, withStop: boolean): Promise<void> => {
+  const form = button.closest<HTMLElement>(AUDIT_FORM_SELECTOR)
+  if (!form || form.dataset.submitting === 'true') {
+    return
+  }
+
+  const url = withStop ? form.dataset.crudoAuditStopUrl : form.dataset.crudoAuditUrl
+  if (!url) {
+    showAuditFeedback(form, 'La ruta para guardar la auditoría no está configurada.', 'error')
+    return
+  }
+
+  let payload: AuditPayload
+  try {
+    payload = collectAuditPayload(form)
+  } catch (error) {
+    showAuditFeedback(
+      form,
+      error instanceof Error ? error.message : 'Revisa los datos de la auditoría.',
+      'error',
+    )
+    return
+  }
+
+  if (withStop && payload.defectos.length === 0) {
+    showAuditFeedback(form, 'Captura al menos un defecto con piezas para generar el paro.', 'error')
+    return
+  }
+
+  const csrfToken = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
+  setAuditSubmitting(form, true)
+  showAuditFeedback(
+    form,
+    withStop ? 'Guardando auditoría y generando paro…' : 'Guardando auditoría…',
+    'loading',
+  )
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': csrfToken,
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: JSON.stringify(payload),
+    })
+    const responsePayload = await response.json().catch((): AuditSaveResponse => ({})) as AuditSaveResponse
+
+    if (!response.ok || responsePayload.success === false) {
+      throw new Error(validationMessage(responsePayload, 'No fue posible guardar la auditoría.'))
+    }
+
+    resetAuditForm(form)
+    await loadAuditHistory(form, true)
+    showAuditFeedback(
+      form,
+      responsePayload.message ?? (withStop
+        ? 'Auditoría y paro guardados correctamente.'
+        : 'Auditoría guardada correctamente.'),
+      'success',
+    )
+
+    if (withStop) {
+      ;(window as CrudoWindow).Livewire?.dispatch('crudo-paro-guardado')
+    }
+  } catch (error) {
+    showAuditFeedback(
+      form,
+      error instanceof Error ? error.message : 'No fue posible guardar la auditoría.',
+      'error',
+    )
+  } finally {
+    setAuditSubmitting(form, false)
+  }
+}
+
 document.addEventListener('click', (event) => {
   const target = event.target
   if (!(target instanceof Element)) {
@@ -428,6 +867,18 @@ document.addEventListener('click', (event) => {
   const auditResultButton = target.closest<HTMLElement>('[data-crudo-audit-result]')
   if (auditResultButton) {
     cycleAuditResult(auditResultButton)
+    return
+  }
+
+  const saveAuditButton = target.closest<HTMLElement>('[data-crudo-save-audit]')
+  if (saveAuditButton) {
+    void submitAudit(saveAuditButton, false)
+    return
+  }
+
+  const saveStopButton = target.closest<HTMLElement>('[data-crudo-save-stop]')
+  if (saveStopButton) {
+    void submitAudit(saveStopButton, true)
     return
   }
 

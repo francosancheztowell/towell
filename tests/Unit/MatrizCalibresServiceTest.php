@@ -42,6 +42,7 @@ final class MatrizCalibresServiceTest extends TestCase
             $table->string('ItemId', 60);
             $table->string('ItemGroupId', 60)->nullable();
             $table->string('DATAAREAID', 10);
+            $table->integer('TwVigente')->default(1);
         });
         Schema::connection('sqlsrv_ti')->create('InventColor', function (Blueprint $table): void {
             $table->string('ItemId', 60);
@@ -712,6 +713,42 @@ final class MatrizCalibresServiceTest extends TestCase
         $this->assertSame(1, DB::connection('sqlsrv')->table('CatMatrizCalibres')->count());
         $this->assertSame('ITEM-B', DB::connection('sqlsrv')->table('CatMatrizCalibres')->value('ItemId'));
         $this->assertSame('ITEM-B', DB::connection('sqlsrv')->table('CatLMat')->value('ItemId'));
+    }
+
+    public function test_guardar_lmat_rechaza_fila_sin_tamano(): void
+    {
+        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+            'OrdenTejido' => 'ORD-100',
+            'TelarId' => '305',
+        ]);
+        $this->seedCatalogoAx('ITEM-A');
+        $payload = $this->payloadLMat('ITEM-A');
+        $payload['filas'][0]['inventSizeId'] = '';
+
+        $this->withoutMiddleware()
+            ->postJson(route('planeacion.lmat.guardar'), $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('filas.0.inventSizeId');
+
+        $this->assertSame(0, DB::connection('sqlsrv')->table('CatLMat')->count());
+    }
+
+    public function test_guardar_lmat_rechaza_fila_sin_color(): void
+    {
+        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+            'OrdenTejido' => 'ORD-100',
+            'TelarId' => '305',
+        ]);
+        $this->seedCatalogoAx('ITEM-A');
+        $payload = $this->payloadLMat('ITEM-A');
+        $payload['filas'][0]['inventColorId'] = '';
+
+        $this->withoutMiddleware()
+            ->postJson(route('planeacion.lmat.guardar'), $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('filas.0.inventColorId');
+
+        $this->assertSame(0, DB::connection('sqlsrv')->table('CatLMat')->count());
     }
 
     /**

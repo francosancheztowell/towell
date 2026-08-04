@@ -11,6 +11,7 @@ use DateInterval;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Contracts\View\View;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Throwable;
@@ -102,6 +103,13 @@ class Dashboard extends Component
     }
 
     public function refreshNow(): void
+    {
+        $this->forceRefreshOnNextRender = true;
+        $this->dispatch('crudo-refrescado');
+    }
+
+    #[On('crudo-paro-guardado')]
+    public function refreshAfterStop(): void
     {
         $this->forceRefreshOnNextRender = true;
         $this->dispatch('crudo-refrescado');
