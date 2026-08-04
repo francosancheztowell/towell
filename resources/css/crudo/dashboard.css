@@ -2245,19 +2245,24 @@
     }
 
     .crudo-modal-overview {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: minmax(11rem, 1.35fr) repeat(4, minmax(0, 0.75fr));
         gap: 0.4rem;
         margin-bottom: 0.4rem;
     }
 
     .crudo-modal-identity-card {
-        grid-column: 1 / -1;
+        grid-column: auto;
         min-height: 4.1rem;
-        padding: 0.45rem 3rem 0.45rem 0.55rem;
+        padding: 0.4rem 0.45rem;
     }
 
     .crudo-modal-identity-card h2 {
-        font-size: 1.12rem;
+        font-size: 1rem;
+    }
+
+    .crudo-modal-program {
+        gap: 0.2rem;
+        font-size: 0.58rem;
     }
 
     .crudo-modal-kpi {
@@ -2274,7 +2279,7 @@
     }
 
     .crudo-modal-overview > .crudo-modal-kpi:last-child {
-        padding-right: 0.5rem;
+        padding-right: 2.65rem;
     }
 
     .crudo-modal-columns {
@@ -2283,12 +2288,55 @@
     }
 
     .crudo-production-detail-grid {
-        grid-template-columns: minmax(0, 0.85fr) minmax(19rem, 1.15fr);
+        grid-template-columns: minmax(0, 1.05fr) minmax(13rem, 0.95fr) minmax(11rem, 0.8fr);
         gap: 0.4rem;
     }
 
     .crudo-flog-panel {
-        grid-column: 1 / -1;
+        grid-column: auto;
+    }
+
+    .crudo-flog-fields {
+        gap: 0.25rem;
+    }
+
+    .crudo-flog-fields > div {
+        padding: 0.3rem 0.35rem;
+    }
+
+    .crudo-flog-fields dt,
+    .crudo-flog-simulations > p {
+        font-size: 0.52rem;
+    }
+
+    .crudo-flog-fields dd {
+        margin-top: 0.04rem;
+        font-size: 0.66rem;
+    }
+
+    .crudo-flog-simulations {
+        margin-top: 0.3rem;
+    }
+
+    .crudo-flog-simulation-grid {
+        gap: 0.25rem;
+        margin-top: 0.15rem;
+    }
+
+    .crudo-flog-simulation img {
+        height: 3.4rem;
+    }
+
+    .crudo-flog-empty-simulation {
+        min-height: 3.4rem;
+        padding: 0.35rem;
+        font-size: 0.62rem;
+    }
+
+    .crudo-flog-line-warning {
+        margin-top: 0.25rem;
+        padding: 0.3rem 0.35rem;
+        font-size: 0.56rem;
     }
 
     .crudo-skeleton-columns {
