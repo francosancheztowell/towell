@@ -127,10 +127,13 @@
 
                 <!-- Atendio (Columna 1) -->
                 <div>
-                    <label for="atendio" class="block text-xs md:text-sm font-medium text-gray-700">Atendio</label>
+                    <label for="atendio" class="block text-xs md:text-sm font-medium text-gray-700">
+                        Atendio <span class="text-red-600">*</span>
+                    </label>
                     <select
                         id="atendio"
                         name="atendio"
+                        required
                         class="w-full px-2 py-1.5 md:px-3 md:py-2 mt-1 text-xs md:text-sm border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none mb-1"
                     >
                         <option value="">Seleccione un operador</option>
@@ -140,7 +143,9 @@
 
                 <!-- Calidad (Ocupa 2 columnas: 2 y 3, misma fila que Atendio) -->
                 <div class="md:col-span-2">
-                    <label class="block text-sm md:text-md font-medium text-gray-700">Calidad (1-5)</label>
+                    <label class="block text-sm md:text-md font-medium text-gray-700">
+                        Calidad (1-5) <span class="text-red-600">*</span>
+                    </label>
                     <div class="flex items-center justify-start gap-8 md:gap-12 w-full ml-2 md:ml-4" id="calidad-stars">
                         <!-- Las estrellas se generarán dinámicamente -->
                     </div>
@@ -421,6 +426,36 @@ document.addEventListener('DOMContentLoaded', function() {
     // Submit del formulario
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
+
+        const atendioValue = document.getElementById('atendio').value.trim();
+        const calidadValue = parseInt(document.getElementById('calidad').value) || 0;
+
+        if (!atendioValue) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Campo requerido',
+                    text: 'Debe seleccionar quién atendió el paro.'
+                });
+            } else {
+                alert('Debe seleccionar quién atendió el paro.');
+            }
+            document.getElementById('atendio').focus();
+            return;
+        }
+
+        if (calidadValue < 1 || calidadValue > maxCalidad) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Campo requerido',
+                    text: 'Debe seleccionar una calificación entre 1 y ' + maxCalidad + '.'
+                });
+            } else {
+                alert('Debe seleccionar una calificación entre 1 y ' + maxCalidad + '.');
+            }
+            return;
+        }
 
         const formData = new FormData(form);
 

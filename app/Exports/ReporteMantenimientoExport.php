@@ -39,6 +39,7 @@ class ReporteMantenimientoExport implements FromArray, WithEvents, WithTitle
         'Obs',
         'CveAtendio',
         'NomAtendio',
+        'Calificacion',
         'ObsCierre',
         'OrdenTrabajo',
     ];
@@ -109,8 +110,8 @@ class ReporteMantenimientoExport implements FromArray, WithEvents, WithTitle
             $sheet->setCellValueByColumnAndRow($col + 1, 1, $val);
         }
 
-        // Limpia columna heredada del template si existe más allá de las 19 columnas actuales.
-        $sheet->setCellValueByColumnAndRow(20, 1, '');
+        // Limpia columna heredada del template si existe más allá de las 20 columnas actuales.
+        $sheet->setCellValueByColumnAndRow(21, 1, '');
     }
 
     private function syncTableFormat(Worksheet $sheet, int $dataRowCount): void
@@ -162,6 +163,7 @@ class ReporteMantenimientoExport implements FromArray, WithEvents, WithTitle
                 $r->Obs ?? '',
                 $r->CveAtendio ?? '',
                 $r->NomAtendio ?? '',
+                $r->Calidad ?? '',
                 $r->ObsCierre ?? '',
                 $r->OrdenTrabajo ?? '',
             ];
@@ -206,15 +208,15 @@ class ReporteMantenimientoExport implements FromArray, WithEvents, WithTitle
         $widths = [
             'A' => 12, 'B' => 14, 'C' => 12, 'D' => 12, 'E' => 11, 'F' => 11,
             'G' => 14, 'H' => 14, 'I' => 12, 'J' => 12, 'K' => 24, 'L' => 14,
-            'M' => 20, 'N' => 8, 'O' => 28, 'P' => 12, 'Q' => 20, 'R' => 28,
-            'S' => 20,
+            'M' => 20, 'N' => 8, 'O' => 28, 'P' => 12, 'Q' => 20, 'R' => 12,
+            'S' => 28, 'T' => 20,
         ];
         foreach ($widths as $col => $width) {
             $sheet->getColumnDimension($col)->setWidth($width);
         }
 
         // Centrados para columnas cortas.
-        foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'L', 'N', 'P'] as $col) {
+        foreach (['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'L', 'N', 'P', 'R'] as $col) {
             $sheet->getStyle("{$col}1:{$col}{$lastRow}")
                 ->getAlignment()
                 ->setHorizontal(Alignment::HORIZONTAL_CENTER);

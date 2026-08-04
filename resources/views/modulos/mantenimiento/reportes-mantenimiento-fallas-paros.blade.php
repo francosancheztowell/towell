@@ -46,6 +46,7 @@
                     <th class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Obs</th>
                     <th class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">CveAtendio</th>
                     <th class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">NomAtend</th>
+                    <th class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Calificacion</th>
                     <th class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">ObsCierre</th>
                     <th class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">FechaFin</th>
                     <th class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Orden de Trabajo</th>
@@ -73,13 +74,14 @@
                     <td class="px-2 py-2 text-gray-900 text-center">{{ $r->Obs }}</td>
                     <td class="px-2 py-2 text-gray-900 text-center">{{ $r->CveAtendio }}</td>
                     <td class="px-2 py-2 text-gray-900 text-center">{{ $r->NomAtendio }}</td>
+                    <td class="px-2 py-2 text-gray-900 text-center">{{ $r->Calidad ?? '—' }}</td>
                     <td class="px-2 py-2 text-gray-900 text-center">{{ $r->ObsCierre }}</td>
                     <td class="px-2 py-2 text-gray-900 text-center">{{ $r->FechaFin ? $r->FechaFin->format('d/m/Y') : '' }}</td>
                     <td class="px-2 py-2 text-gray-900 text-center">{{ $r->OrdenTrabajo }}</td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="18" class="border border-gray-300 px-2 py-2 text-center text-gray-500">
+                    <td colspan="19" class="border border-gray-300 px-2 py-2 text-center text-gray-500">
                         {{ ($fechaIni && $fechaFin) ? 'No hay registros para el rango de fechas seleccionado.' : 'Seleccione un rango de fechas para consultar.' }}
                     </td>
                 </tr>

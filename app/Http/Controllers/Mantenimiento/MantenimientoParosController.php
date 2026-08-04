@@ -1026,9 +1026,9 @@ class MantenimientoParosController extends Controller
             }
 
             $request->validate([
-                'atendio' => 'nullable|string|max:100',
+                'atendio' => 'required|string|max:100',
                 'turno' => 'nullable|integer|in:1,2,3',
-                'calidad' => 'nullable|integer|min:1|max:10',
+                'calidad' => 'required|integer|min:1|max:10',
                 'obs_cierre' => 'nullable|string|max:255',
                 'enviar_telegram' => 'nullable|boolean',
             ]);
