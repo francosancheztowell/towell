@@ -133,8 +133,8 @@ final class CrudoLivewireTest extends TestCase
             $tabletRules,
         );
         $this->assertStringContainsString('[data-crudo-detail-modal] .crudo-modal {', $tabletRules);
-        $this->assertStringContainsString('width: min(72rem, calc(100vw - 3rem))', $tabletRules);
-        $this->assertStringContainsString('max-height: 92vh', $tabletRules);
+        $this->assertStringContainsString('width: min(66rem, calc(100vw - 5rem))', $tabletRules);
+        $this->assertStringContainsString('max-height: 84vh', $tabletRules);
     }
 
     /**
