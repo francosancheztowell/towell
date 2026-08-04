@@ -157,7 +157,7 @@
                     @endif
 
                     <div class="crudo-production-detail-grid">
-                        <section class="crudo-detail-panel">
+                        <section class="crudo-detail-panel crudo-orders-panel">
                             <div class="crudo-detail-panel-heading">
                                 <div>
                                     <h3>Órdenes y turnos</h3>
@@ -180,11 +180,11 @@
                                         <tr>
                                             <th>Fecha</th>
                                             <th>No. Rollo</th>
-                                            <th>Orden tejido</th>
+                                            <th>Orden</th>
                                             <th>Kg</th>
                                             <th>Pzas</th>
                                             <th>2das</th>
-                                            <th>Lote proveedor</th>
+                                            <th>Lote</th>
                                         </tr>
                                     </thead>
                                     <tbody>

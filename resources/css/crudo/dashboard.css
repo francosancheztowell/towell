@@ -2288,8 +2288,34 @@
     }
 
     .crudo-production-detail-grid {
-        grid-template-columns: minmax(0, 1.05fr) minmax(13rem, 0.95fr) minmax(11rem, 0.8fr);
+        grid-template-columns: minmax(0, 1.6fr) minmax(8rem, 0.65fr) minmax(9rem, 0.75fr);
         gap: 0.4rem;
+    }
+
+    .crudo-orders-table .crudo-orders-col-date {
+        width: 15%;
+    }
+
+    .crudo-orders-table .crudo-orders-col-roll {
+        width: 17%;
+    }
+
+    .crudo-orders-table .crudo-orders-col-order {
+        width: 16%;
+    }
+
+    .crudo-orders-table .crudo-orders-col-number {
+        width: 10%;
+    }
+
+    .crudo-orders-table .crudo-orders-col-lot {
+        width: 22%;
+    }
+
+    .crudo-orders-table th,
+    .crudo-orders-table td {
+        padding-right: 0.15rem;
+        padding-left: 0.15rem;
     }
 
     .crudo-flog-panel {
@@ -2369,6 +2395,21 @@
     .crudo-detail-table th {
         font-size: 0.62rem;
         letter-spacing: 0.035em;
+    }
+
+    .crudo-process-defects-panel .crudo-detail-panel-heading {
+        align-items: flex-start;
+    }
+
+    .crudo-process-defects-panel .crudo-detail-count {
+        max-width: 5rem;
+        height: auto;
+        min-height: 1.65rem;
+        padding: 0.25rem 0.4rem;
+        font-size: 0.58rem;
+        line-height: 1.05;
+        text-align: center;
+        white-space: normal;
     }
 
     .crudo-audit-panel {
