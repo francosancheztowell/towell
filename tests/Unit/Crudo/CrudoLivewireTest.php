@@ -124,6 +124,14 @@ final class CrudoLivewireTest extends TestCase
         $this->assertStringContainsString('.crudo-kpi-grid i {', $tabletRules);
         $this->assertStringContainsString('display: none', $tabletRules);
         $this->assertStringContainsString('grid-template-columns: 1.5rem 1.65rem minmax(0, 1fr)', $tabletRules);
+        $this->assertStringContainsString(
+            'grid-template-columns: minmax(0, 0.42fr) minmax(0, 1fr) minmax(0, 1.15fr)',
+            $tabletRules,
+        );
+        $this->assertStringContainsString(
+            'grid-template-columns: repeat(4, minmax(0, 1fr))',
+            $tabletRules,
+        );
     }
 
     /**

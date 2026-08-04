@@ -2032,12 +2032,80 @@
     }
 
     .crudo-salons-grid {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: minmax(0, 0.42fr) minmax(0, 1fr) minmax(0, 1.15fr);
         gap: 0.45rem;
+        align-items: start;
     }
 
     .crudo-salon-smith {
         grid-column: auto;
+    }
+
+    .crudo-salon {
+        padding: 0.4rem;
+    }
+
+    .crudo-salon > header {
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 0.2rem;
+        min-height: 3.15rem;
+        padding: 0 0.3rem 0.4rem;
+    }
+
+    .crudo-salon > header h2 {
+        max-width: 100%;
+        overflow: hidden;
+        font-size: 0.68rem;
+        text-overflow: ellipsis;
+    }
+
+    .crudo-salon > header > span {
+        max-width: 100%;
+        overflow: hidden;
+        padding: 0.2rem 0.3rem;
+        font-size: 0.5rem;
+        text-overflow: ellipsis;
+    }
+
+    .crudo-salon-karl-mayer .crudo-machine-grid-physical {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .crudo-salon-jacquard .crudo-machine-grid-physical {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .crudo-salon-smith .crudo-machine-grid-physical {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .crudo-machine-grid-physical,
+    .crudo-machine-column {
+        gap: 0.25rem;
+    }
+
+    .crudo-machine-grid-physical {
+        padding-top: 0.45rem;
+    }
+
+    .crudo-machine-grid-physical .crudo-machine-card {
+        min-height: 6.8rem;
+        padding: 0.25rem 0.75rem;
+    }
+
+    .crudo-machine-grid-physical .crudo-loom {
+        height: 4.25rem;
+    }
+
+    .crudo-machine-grid-physical .crudo-machine-quality,
+    .crudo-machine-grid-physical .crudo-machine-metric {
+        font-size: 0.9rem;
+    }
+
+    .crudo-salon-smith .crudo-machine-column:nth-child(n + 3)::before {
+        min-height: 6.8rem;
     }
 
     .crudo-panel {
@@ -2296,14 +2364,6 @@
         display: none;
     }
 
-    .crudo-salons-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .crudo-salon-smith {
-        grid-column: auto;
-    }
-
     .crudo-machine-grid {
         grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
     }
@@ -2318,6 +2378,14 @@
 }
 
 @media (max-width: 640px) {
+    .crudo-salons-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .crudo-salon-smith {
+        grid-column: auto;
+    }
+
     .crudo-sidebar,
     .crudo-modal-columns,
     .crudo-production-detail-grid,
