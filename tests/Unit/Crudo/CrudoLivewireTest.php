@@ -102,6 +102,29 @@ final class CrudoLivewireTest extends TestCase
             ->assertSee('<strong>81%</strong>', false);
     }
 
+    public function test_tablet_keeps_the_summary_in_a_compact_sidebar(): void
+    {
+        $css = file_get_contents(resource_path('css/crudo/dashboard.css'));
+
+        $this->assertIsString($css);
+        $matched = preg_match(
+            '/@media \(min-width: 641px\) and \(max-width: 1050px\) \{(?<rules>.*?)\n\}\n\n@media \(max-width: 860px\)/s',
+            $css,
+            $matches,
+        );
+
+        $this->assertSame(1, $matched);
+        $tabletRules = $matches['rules'];
+        $this->assertStringContainsString(
+            'grid-template-columns: clamp(11.75rem, 20vw, 12.75rem) minmax(0, 1fr)',
+            $tabletRules,
+        );
+        $this->assertStringContainsString('.crudo-sidebar {', $tabletRules);
+        $this->assertStringContainsString('grid-template-columns: minmax(0, 1fr)', $tabletRules);
+        $this->assertStringContainsString('.crudo-kpi-grid i {', $tabletRules);
+        $this->assertStringContainsString('display: none', $tabletRules);
+    }
+
     /**
      * @return array<string, mixed>
      */

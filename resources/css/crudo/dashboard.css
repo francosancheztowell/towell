@@ -2019,9 +2019,24 @@
     }
 }
 
-@media (min-width: 641px) and (max-width: 1024px) {
+@media (min-width: 641px) and (max-width: 1050px) {
+    .crudo-content-grid {
+        grid-template-columns: clamp(11.75rem, 20vw, 12.75rem) minmax(0, 1fr);
+        gap: 0.45rem;
+    }
+
     .crudo-sidebar {
+        grid-template-columns: minmax(0, 1fr);
         gap: 0.4rem;
+    }
+
+    .crudo-salons-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.45rem;
+    }
+
+    .crudo-salon-smith {
+        grid-column: auto;
     }
 
     .crudo-panel {
@@ -2039,15 +2054,14 @@
     }
 
     .crudo-kpi-grid article {
-        grid-template-columns: 2.1rem minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto auto;
         min-height: 3.2rem;
         padding: 0.42rem 0.5rem;
     }
 
     .crudo-kpi-grid i {
-        width: 1.85rem;
-        height: 1.85rem;
-        font-size: 0.82rem;
+        display: none;
     }
 
     .crudo-kpi-grid strong {
