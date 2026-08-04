@@ -153,7 +153,14 @@ class Dashboard extends Component
     private function filtersChanged(): void
     {
         $this->dataError = null;
-        $this->dispatch('crudo-filtros-cambiados');
+        $this->dispatch(
+            'crudo-filtros-cambiados',
+            fecha: $this->fecha,
+            fechaInicio: $this->fechaInicio,
+            fechaFin: $this->fechaFin,
+            modo: $this->modo,
+            turno: $this->turno,
+        );
     }
 
     /**

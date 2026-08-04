@@ -564,6 +564,8 @@
                                 type="button"
                                 class="crudo-modal-action crudo-modal-action-audit"
                                 data-crudo-save-audit
+                                disabled
+                                aria-disabled="true"
                             >
                                 <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
                                 <span>Guardar auditoría</span>
@@ -573,6 +575,8 @@
                                 type="button"
                                 class="crudo-modal-action crudo-modal-action-stop"
                                 data-crudo-save-stop
+                                disabled
+                                aria-disabled="true"
                             >
                                 <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
                                 <span>Guardar paro</span>

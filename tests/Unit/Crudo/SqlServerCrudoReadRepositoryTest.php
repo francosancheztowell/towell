@@ -81,6 +81,33 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
         $this->assertObjectNotHasProperty('UNUSED', $rows[0]);
     }
 
+    public function test_it_recovers_a_missing_weaving_order_from_the_latest_capture_of_the_same_prod_id(): void
+    {
+        DB::connection('crudo_test_source')->table('TWCRUDOTABLE')->insert([
+            [
+                ...$this->header('1', '2026-07-28 08:00:00', '201'),
+                'PRODID' => 'PROD-SHARED',
+                'ORDENTEJIDO' => '36541',
+            ],
+            [
+                ...$this->header('2', '2026-08-04 08:00:00', '201'),
+                'PRODID' => 'PROD-SHARED',
+                'ORDENTEJIDO' => '',
+            ],
+        ]);
+
+        $rows = (new SqlServerCrudoReadRepository)
+            ->headersForTelarInRange(
+                '201',
+                new DateTimeImmutable('2026-08-04'),
+                new DateTimeImmutable('2026-08-04'),
+            );
+
+        $this->assertCount(1, $rows);
+        $this->assertSame(2, (int) $rows[0]->RECID);
+        $this->assertSame('36541', $rows[0]->ORDENTEJIDO);
+    }
+
     public function test_it_aggregates_the_dashboard_totals_by_machine_in_sql(): void
     {
         DB::connection('crudo_test_source')->table('TWCRUDOTABLE')->insert([

@@ -84,6 +84,23 @@ final class CrudoLivewireTest extends TestCase
         }
     }
 
+    public function test_filter_change_dispatches_the_complete_period_context_for_the_detail(): void
+    {
+        $today = now(config('app.timezone'))->format('Y-m-d');
+        $selectedDate = now(config('app.timezone'))->subDay()->format('Y-m-d');
+
+        Livewire::test(TestableCrudoDashboard::class)
+            ->set('fecha', $selectedDate)
+            ->assertDispatched(
+                'crudo-filtros-cambiados',
+                fecha: $selectedDate,
+                fechaInicio: $today,
+                fechaFin: $today,
+                modo: 'dia',
+                turno: 'todos',
+            );
+    }
+
     public function test_summary_production_and_percentages_are_rendered_as_rounded_integers(): void
     {
         $data = $this->dashboardData();
@@ -147,6 +164,17 @@ final class CrudoLivewireTest extends TestCase
         $this->assertStringContainsString('width: 22%', $tabletRules);
         $this->assertStringContainsString('.crudo-flog-simulation img {', $tabletRules);
         $this->assertStringContainsString('height: 3.4rem', $tabletRules);
+    }
+
+    public function test_desktop_gives_orders_more_width_than_defects_and_flog(): void
+    {
+        $css = file_get_contents(resource_path('css/crudo/dashboard.css'));
+
+        $this->assertIsString($css);
+        $this->assertStringContainsString(
+            'grid-template-columns: minmax(22rem, 1.2fr) minmax(17rem, 0.85fr) minmax(19rem, 0.95fr)',
+            $css,
+        );
     }
 
     /**

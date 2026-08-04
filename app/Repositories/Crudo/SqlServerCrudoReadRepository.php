@@ -48,10 +48,78 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
 
     public function headersForTelarInRange(string $telar, DateTimeImmutable $from, DateTimeImmutable $to): array
     {
-        return $this->queryHeaders($from, $to)
-            ->where('TELAR', $telar)
-            ->get()
+        return $this->backfillMissingWeavingOrders(
+            $this->queryHeaders($from, $to)
+                ->where('TELAR', $telar)
+                ->get()
+                ->all(),
+        );
+    }
+
+    /**
+     * TI puede guardar la captura reciente con ORDENTEJIDO vacío aunque el
+     * mismo PRODID ya haya sido relacionado antes. Se resuelve en una sola
+     * consulta por lote y se conserva siempre el valor de la captura actual.
+     *
+     * @param  list<object>  $headers
+     * @return list<object>
+     */
+    private function backfillMissingWeavingOrders(array $headers): array
+    {
+        $missingProdIds = [];
+
+        foreach ($headers as $header) {
+            $prodId = trim((string) ($header->PRODID ?? ''));
+            $weavingOrder = trim((string) ($header->ORDENTEJIDO ?? ''));
+
+            if ($prodId !== '' && $weavingOrder === '') {
+                $missingProdIds[$prodId] = true;
+            }
+        }
+
+        if ($missingProdIds === []) {
+            return $headers;
+        }
+
+        $rankedOrders = $this->source()
+            ->table($this->table('headers').' as history')
+            ->where('history.DATAAREAID', $this->dataAreaId())
+            ->whereIn('history.PRODID', array_keys($missingProdIds))
+            ->whereNotNull('history.ORDENTEJIDO')
+            ->whereRaw("LTRIM(RTRIM(history.ORDENTEJIDO)) <> ''")
+            ->select([
+                'history.PRODID',
+                'history.ORDENTEJIDO',
+            ])
+            ->selectRaw('
+                ROW_NUMBER() OVER (
+                    PARTITION BY history.PRODID
+                    ORDER BY history.TRANSDATE DESC, history.RECID DESC
+                ) AS rowNumber
+            ');
+
+        $ordersByProdId = $this->source()
+            ->query()
+            ->fromSub($rankedOrders, 'ranked_orders')
+            ->where('rowNumber', 1)
+            ->get(['PRODID', 'ORDENTEJIDO'])
+            ->mapWithKeys(static fn (object $row): array => [
+                trim((string) $row->PRODID) => trim((string) $row->ORDENTEJIDO),
+            ])
             ->all();
+
+        foreach ($headers as $header) {
+            if (trim((string) ($header->ORDENTEJIDO ?? '')) !== '') {
+                continue;
+            }
+
+            $prodId = trim((string) ($header->PRODID ?? ''));
+            if (isset($ordersByProdId[$prodId]) && $ordersByProdId[$prodId] !== '') {
+                $header->ORDENTEJIDO = $ordersByProdId[$prodId];
+            }
+        }
+
+        return $headers;
     }
 
     private function queryHeaders(DateTimeImmutable $from, DateTimeImmutable $to): Builder

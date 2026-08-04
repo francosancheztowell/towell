@@ -184,6 +184,10 @@ final class CrudoMachineDetailTest extends TestCase
         $component->call('openAudit');
 
         $this->assertStringNotContainsString('hidden', $this->stopButtonTag($component->html()));
+        $this->assertStringContainsString('disabled', $this->auditButtonTag($component->html()));
+        $this->assertStringContainsString('aria-disabled="true"', $this->auditButtonTag($component->html()));
+        $this->assertStringContainsString('disabled', $this->stopButtonTag($component->html()));
+        $this->assertStringContainsString('aria-disabled="true"', $this->stopButtonTag($component->html()));
         $this->assertStringContainsString('Guardar paro', $component->html());
         $this->assertMatchesRegularExpression(
             '/id="crudo-audit-content".*data-crudo-save-audit.*data-crudo-save-stop/s',
@@ -343,6 +347,66 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertDontSee('data-crudo-modal', false);
     }
 
+    public function test_next_open_uses_the_latest_day_and_shift_received_from_the_dashboard(): void
+    {
+        $component = Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch(
+                'crudo-filtros-cambiados',
+                fecha: '2026-08-03',
+                fechaInicio: '2026-08-03',
+                fechaFin: '2026-08-03',
+                modo: 'dia',
+                turno: '2',
+            )
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData());
+
+        $this->assertSame([
+            'telar' => '201',
+            'from' => '2026-08-03',
+            'to' => '2026-08-03',
+            'shift' => '2',
+        ], $this->provider->detailArguments[array_key_last($this->provider->detailArguments)]);
+
+        $component
+            ->dispatch(
+                'crudo-filtros-cambiados',
+                fecha: '2026-08-04',
+                fechaInicio: '2026-08-04',
+                fechaFin: '2026-08-04',
+                modo: 'dia',
+                turno: 'todos',
+            )
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData());
+
+        $this->assertSame([
+            'telar' => '201',
+            'from' => '2026-08-04',
+            'to' => '2026-08-04',
+            'shift' => 'todos',
+        ], $this->provider->detailArguments[array_key_last($this->provider->detailArguments)]);
+    }
+
+    public function test_next_open_uses_the_latest_range_received_from_the_dashboard(): void
+    {
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch(
+                'crudo-filtros-cambiados',
+                fecha: '2026-08-04',
+                fechaInicio: '2026-08-01',
+                fechaFin: '2026-08-03',
+                modo: 'rango',
+                turno: '4',
+            )
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData());
+
+        $this->assertSame([
+            'telar' => '201',
+            'from' => '2026-08-01',
+            'to' => '2026-08-03',
+            'shift' => '4',
+        ], $this->provider->detailArguments[array_key_last($this->provider->detailArguments)]);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -410,6 +474,15 @@ final class CrudoMachineDetailTest extends TestCase
 
         return $matches[0];
     }
+
+    private function auditButtonTag(string $html): string
+    {
+        $matched = preg_match('/<button(?=[^>]*data-crudo-save-audit)[^>]*>/s', $html, $matches);
+
+        $this->assertSame(1, $matched, 'No se encontró el botón Guardar auditoría.');
+
+        return $matches[0];
+    }
 }
 
 final class FakeCrudoFlogProviderForDetail implements CrudoFlogProvider
@@ -442,6 +515,9 @@ final class FakeCrudoDashboardProviderForDetail implements CrudoDashboardProvide
 
     public int $detailCalls = 0;
 
+    /** @var list<array{telar: string, from: string, to: string, shift: string}> */
+    public array $detailArguments = [];
+
     public float $detailKilos = 40.0;
 
     public ?float $detailQualityPercent = null;
@@ -468,6 +544,12 @@ final class FakeCrudoDashboardProviderForDetail implements CrudoDashboardProvide
     public function detail(string $telar, DateTimeImmutable $from, DateTimeImmutable $to, string $shift): array
     {
         $this->detailCalls++;
+        $this->detailArguments[] = [
+            'telar' => $telar,
+            'from' => $from->format('Y-m-d'),
+            'to' => $to->format('Y-m-d'),
+            'shift' => $shift,
+        ];
 
         if ($this->failDetail) {
             throw new \RuntimeException('SQL no disponible');

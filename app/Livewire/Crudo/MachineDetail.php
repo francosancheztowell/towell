@@ -96,8 +96,33 @@ class MachineDetail extends Component
     }
 
     #[On('crudo-filtros-cambiados')]
-    public function closeForFilterChange(): void
-    {
+    public function closeForFilterChange(
+        ?string $fecha = null,
+        ?string $fechaInicio = null,
+        ?string $fechaFin = null,
+        ?string $modo = null,
+        ?string $turno = null,
+    ): void {
+        if ($fecha !== null) {
+            $this->fecha = $this->normalizeDate($fecha);
+        }
+
+        if ($fechaInicio !== null) {
+            $this->fechaInicio = $this->normalizeDate($fechaInicio);
+        }
+
+        if ($fechaFin !== null) {
+            $this->fechaFin = $this->normalizeDate($fechaFin);
+        }
+
+        if ($modo !== null) {
+            $this->modo = $modo === 'rango' ? 'rango' : 'dia';
+        }
+
+        if ($turno !== null) {
+            $this->turno = $this->normalizeShift($turno);
+        }
+
         $this->close();
     }
 

@@ -4,6 +4,7 @@ import {
   shouldSkipAuditHistoryLoad,
 } from './audit-history-state'
 import { AuditHistoryRequestCoordinator } from './audit-history-request'
+import { auditActionAvailability } from './audit-form-state'
 import { hidePendingDetail, isIntentionalMachineActivation } from './pending-detail'
 
 type Machine = {
@@ -642,6 +643,7 @@ const hydrateAuditHistories = (): void => {
 const observeQualityDefectEditors = (): void => {
   hydrateQualityDefectEditors()
   hydrateAuditHistories()
+  syncAuditActionStates()
   syncPendingDetail()
 
   if (auditDefectObserver || !document.body) {
@@ -687,6 +689,11 @@ const cycleAuditResult = (button: HTMLElement): void => {
   const resultInput = button.parentElement?.querySelector<HTMLInputElement>('[data-crudo-audit-result-input]')
   if (resultInput) {
     resultInput.value = value
+  }
+
+  const form = button.closest<HTMLElement>(AUDIT_FORM_SELECTOR)
+  if (form) {
+    syncAuditActionState(form)
   }
 }
 
@@ -808,13 +815,53 @@ const showAuditSuccess = (message: string): void => {
   window.setTimeout(() => window.alert(message), 0)
 }
 
+const syncAuditActionState = (form: HTMLElement): void => {
+  const checklistValues = Array.from(
+    form.querySelectorAll<HTMLInputElement>('[data-crudo-audit-result-input]'),
+  ).map((input) => input.value)
+  const observations = form.querySelector<HTMLTextAreaElement>('textarea[name="crudo-audit-observations"]')
+    ?.value ?? ''
+  const defects = Array.from(form.querySelectorAll<HTMLElement>('[data-crudo-audit-defect-row]'))
+    .map((row) => ({
+      defectId: row.querySelector<HTMLSelectElement>(QUALITY_DEFECT_SELECT_SELECTOR)?.value ?? '',
+      pieces: row.querySelector<HTMLInputElement>('input[name="crudo-audit-defect-pieces[]"]')?.value ?? '',
+    }))
+  const availability = auditActionAvailability({ checklistValues, observations, defects })
+  const submitting = form.dataset.submitting === 'true'
+
+  const auditButton = form.querySelector<HTMLButtonElement>('[data-crudo-save-audit]')
+  const stopButton = form.querySelector<HTMLButtonElement>('[data-crudo-save-stop]')
+
+  if (auditButton) {
+    auditButton.disabled = submitting || !availability.canSaveAudit
+    auditButton.setAttribute('aria-disabled', auditButton.disabled ? 'true' : 'false')
+  }
+
+  if (stopButton) {
+    stopButton.disabled = submitting || !availability.canSaveStop
+    stopButton.setAttribute('aria-disabled', stopButton.disabled ? 'true' : 'false')
+  }
+
+  ;[auditButton, stopButton].forEach((button) => {
+    if (!button) {
+      return
+    }
+
+    if (submitting) {
+      button.setAttribute('aria-busy', 'true')
+    } else {
+      button.removeAttribute('aria-busy')
+    }
+  })
+}
+
+const syncAuditActionStates = (): void => {
+  document.querySelectorAll<HTMLElement>(AUDIT_FORM_SELECTOR).forEach(syncAuditActionState)
+}
+
 const setAuditSubmitting = (form: HTMLElement, submitting: boolean): void => {
   form.dataset.submitting = submitting ? 'true' : 'false'
-  form.querySelectorAll<HTMLButtonElement>('[data-crudo-save-audit], [data-crudo-save-stop]')
-    .forEach((button) => {
-      button.disabled = submitting
-      button.setAttribute('aria-busy', submitting ? 'true' : 'false')
-    })
+  syncAuditActionState(form)
 }
 
 const resetAuditForm = (form: HTMLElement): void => {
@@ -845,6 +892,8 @@ const resetAuditForm = (form: HTMLElement): void => {
   if (observations) {
     observations.value = ''
   }
+
+  syncAuditActionState(form)
 }
 
 const submitAudit = async (button: HTMLElement, withStop: boolean): Promise<void> => {
@@ -988,6 +1037,21 @@ document.addEventListener('click', (event) => {
     }
   }
 })
+
+const syncAuditFormFromFieldEvent = (event: Event): void => {
+  const target = event.target
+  if (!(target instanceof Element)) {
+    return
+  }
+
+  const form = target.closest<HTMLElement>(AUDIT_FORM_SELECTOR)
+  if (form) {
+    syncAuditActionState(form)
+  }
+}
+
+document.addEventListener('input', syncAuditFormFromFieldEvent)
+document.addEventListener('change', syncAuditFormFromFieldEvent)
 
 document.addEventListener('pointerdown', (event) => {
   const target = event.target
