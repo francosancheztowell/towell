@@ -101,6 +101,12 @@ class MachineDetail extends Component
         $this->close();
     }
 
+    #[On('crudo-auditoria-guardada')]
+    public function closeAfterAuditSave(): void
+    {
+        $this->close();
+    }
+
     public function openAudit(): void
     {
         if ($this->selectedTelar === null) {

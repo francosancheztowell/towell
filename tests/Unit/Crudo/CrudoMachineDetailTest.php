@@ -41,9 +41,18 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertDontSee('data-crudo-audit-modal', false)
             ->assertSee('Órdenes y turnos')
             ->assertSee('Meta a esta hora')
+            ->assertSee('Fecha')
             ->assertSee('No. Rollo')
+            ->assertSee('Orden tejido')
             ->assertSee('PB-1001')
-            ->assertSee('Peso (kg)')
+            ->assertSee('28/07/2026')
+            ->assertSee('36541')
+            ->assertSee('Kg')
+            ->assertSee('Pzas')
+            ->assertSee('2das')
+            ->assertSee('Lote proveedor')
+            ->assertSee('LOTE-PROV-1001')
+            ->assertDontSee('Peso (kg)')
             ->assertSee('Error de trama')
             ->assertSee('Defectos registrados')
             ->assertSee('crudo-defect-table', false)
@@ -198,6 +207,21 @@ final class CrudoMachineDetailTest extends TestCase
 
         $this->assertSame(1, $this->provider->detailCalls);
         $this->assertSame(1, $this->flogProvider->calls);
+    }
+
+    public function test_successful_audit_event_closes_the_modal(): void
+    {
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
+            ->call('openAudit')
+            ->assertSet('selectedTelar', '201')
+            ->assertSet('auditModalOpen', true)
+            ->dispatch('crudo-auditoria-guardada')
+            ->assertSet('selectedTelar', null)
+            ->assertSet('machine', null)
+            ->assertSet('flogSummary', null)
+            ->assertSet('auditModalOpen', false)
+            ->assertDontSee('data-crudo-modal', false);
     }
 
     public function test_program_order_is_in_the_title_and_model_key_is_next_to_ax_key(): void
@@ -355,7 +379,10 @@ final class CrudoMachineDetailTest extends TestCase
             'captures' => [[
                 'recId' => '1001',
                 'order' => 'ORD-100',
+                'date' => '28/07/2026',
                 'purchBarcode' => 'PB-1001',
+                'weavingOrder' => '36541',
+                'supplierLot' => 'LOTE-PROV-1001',
                 'operator' => 'Operador uno',
                 'weight' => 40.0,
                 'piecesT1' => 100.0,

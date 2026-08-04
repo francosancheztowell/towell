@@ -621,13 +621,11 @@ class UpdateTejido
             ]);
         }
 
-        $registro->saveQuietly();
-
-        // ===== Transacción única: si la cascada o regeneración fallan, también se revierte saveQuietly().
-        //      Antes, saveQuietly() commiteaba solo y cascadeFechas() rollbackaba solo su savepoint,
-        //      dejando el registro actualizado con la cascada del telar inconsistente. =====
+        // ===== Transacción única: pedido, fórmulas, CatCodificados y cascada se confirman juntos. =====
         DBFacade::beginTransaction();
         try {
+            $registro->saveQuietly();
+
             // Sincronizar campos editables hacia CatCodificados (TamanoClave→ClaveModelo, ItemId, TotalPedido→Pedido,
             // SaldoPedido→Saldos, FlogsId, NombreProyecto, PesoCrudo→P_crudo). saveQuietly() NO dispara observers,
             // por eso lo llamamos explícitamente. wasChanged() detecta qué campos efectivamente cambiaron.
@@ -645,10 +643,17 @@ class UpdateTejido
                     }
                 }
                 if ($cambioInputFormula) {
-                    $observer->recalcularFormulasProduccion($registro);
+                    $recalculado = $observer->recalcularFormulasProduccion($registro);
+                    if (! $recalculado) {
+                        throw new \RuntimeException('No se pudieron persistir las fórmulas de rollos en ReqProgramaTejido.');
+                    }
+
+                    // Trabajar desde aquí con el valor confirmado en SQL Server, no con el modelo previo al UPDATE directo.
+                    $registro->refresh();
                 }
             } catch (\Throwable $e) {
                 LogFacade::warning('UpdateTejido: sincronizarCatCodificados/recalc error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
+                throw $e;
             }
 
             // ===== 6) Cascada (solo si cambió FechaFinal y NO es Ultimo) =====
@@ -681,7 +686,7 @@ class UpdateTejido
             DBFacade::commit();
         } catch (\Throwable $e) {
             DBFacade::rollBack();
-            LogFacade::error('UpdateTejido: transacción fallida, saveQuietly revertido', [
+            LogFacade::error('UpdateTejido: transacción fallida, cambios revertidos', [
                 'id' => $id, 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString(),
             ]);
 

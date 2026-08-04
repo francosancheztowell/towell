@@ -123,7 +123,7 @@ class ReqProgramaTejidoObserver
      * Público para poder llamarse desde flujos con saveQuietly() (UpdateTejido, etc.) o desde
      * scripts de mantenimiento masivo.
      */
-    public function recalcularFormulasProduccion(ReqProgramaTejido $programa): void
+    public function recalcularFormulasProduccion(ReqProgramaTejido $programa): bool
     {
         try {
             $pCrudo = (float) ($programa->PesoCrudo ?? 0);
@@ -141,7 +141,7 @@ class ReqProgramaTejidoObserver
                     'PesoCrudo' => $pCrudo,
                     'NoTiras' => $tiras,
                 ]);
-                return;
+                return false;
             }
 
             // Misma semántica que LiberarOrdenesController:
@@ -160,7 +160,7 @@ class ReqProgramaTejidoObserver
                     'pCrudo' => $pCrudo,
                     'tiras' => $tiras,
                 ]);
-                return;
+                return false;
             }
 
             $pzasRollo = (float) round($repeticiones * $tiras, 0);
@@ -205,6 +205,21 @@ class ReqProgramaTejidoObserver
                     'UpdatedAt'         => \Carbon\Carbon::now(),
                 ]);
 
+            // SQL Server puede devolver una cantidad de filas afectadas poco confiable cuando hay
+            // triggers. Confirmar el valor realmente persistido antes de copiarlo a CatCodificados.
+            $totalRollosPersistido = $connection->table($tabla)
+                ->where('Id', $programa->Id)
+                ->value('TotalRollos');
+
+            $totalRollosCoincide = $totalRollos === null
+                ? $totalRollosPersistido === null
+                : $totalRollosPersistido !== null
+                    && abs((float) $totalRollosPersistido - $totalRollos) < 0.001;
+
+            if (! $totalRollosCoincide) {
+                throw new \RuntimeException('No se confirmó TotalRollos en ReqProgramaTejido.');
+            }
+
             // Sincronizar las mismas fórmulas a CatCodificados (si existe la fila)
             $noProduccion = trim((string) ($programa->NoProduccion ?? ''));
             $afectadasCat = 0;
@@ -235,11 +250,15 @@ class ReqProgramaTejidoObserver
                 'filas_RPT_afectadas' => $afectadasRpt,
                 'filas_CAT_afectadas' => $afectadasCat,
             ]);
+
+            return true;
         } catch (Throwable $e) {
             Log::warning('ReqProgramaTejidoObserver::recalcularFormulasProduccion error', [
                 'id' => $programa->Id ?? null,
                 'message' => $e->getMessage(),
             ]);
+
+            return false;
         }
     }
 

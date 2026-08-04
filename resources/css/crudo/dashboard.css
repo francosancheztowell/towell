@@ -1467,6 +1467,45 @@
     max-height: 14.5rem;
 }
 
+.crudo-orders-table {
+    table-layout: fixed;
+}
+
+.crudo-orders-table .crudo-orders-col-date {
+    width: 14%;
+}
+
+.crudo-orders-table .crudo-orders-col-roll {
+    width: 18%;
+}
+
+.crudo-orders-table .crudo-orders-col-order {
+    width: 15%;
+}
+
+.crudo-orders-table .crudo-orders-col-number {
+    width: 9%;
+}
+
+.crudo-orders-table .crudo-orders-col-lot {
+    width: 26%;
+}
+
+.crudo-orders-table th,
+.crudo-orders-table td {
+    overflow: hidden;
+    padding-right: 0.25rem;
+    padding-left: 0.25rem;
+    text-overflow: ellipsis;
+}
+
+.crudo-orders-table th:nth-child(-n + 3),
+.crudo-orders-table td:nth-child(-n + 3),
+.crudo-orders-table th:last-child,
+.crudo-orders-table td:last-child {
+    text-align: left;
+}
+
 .crudo-orders-table tbody tr {
     height: 2.45rem;
 }

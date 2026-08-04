@@ -70,6 +70,8 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
                 'RECID',
                 'PRODID',
                 'PURCHBARCODE',
+                'PURCHBARCODEORIG',
+                'ORDENTEJIDO',
                 'TRANSDATE',
                 'TELAR',
                 'PESO',

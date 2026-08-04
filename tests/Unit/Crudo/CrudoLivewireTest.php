@@ -143,7 +143,10 @@ final class CrudoLivewireTest extends TestCase
                 'captures' => [[
                     'recId' => '1001',
                     'order' => 'ORD-100',
+                    'date' => '28/07/2026',
                     'purchBarcode' => 'PB-1001',
+                    'weavingOrder' => '36541',
+                    'supplierLot' => 'LOTE-PROV-1001',
                     'operator' => 'Operador uno',
                     'weight' => 40.0,
                     'piecesT1' => 100.0,

@@ -37,6 +37,8 @@ final class CrudoDashboardServiceTest extends TestCase
                     'RECID' => '1001',
                     'PRODID' => 'ORD-100',
                     'PURCHBARCODE' => 'PB-1001',
+                    'PURCHBARCODEORIG' => 'LOTE-PROV-1001',
+                    'ORDENTEJIDO' => '36541',
                     'TRANSDATE' => '2026-07-28 00:00:00',
                     'TELAR' => '201',
                     'PESO' => 40,
@@ -147,7 +149,10 @@ final class CrudoDashboardServiceTest extends TestCase
         $this->assertSame(24.0, $detail['kilos']);
         $this->assertSame(1, $detail['defectLineCount']);
         $this->assertSame('1001', $detail['captures'][0]['recId']);
+        $this->assertSame('28/07/2026', $detail['captures'][0]['date']);
         $this->assertSame('PB-1001', $detail['captures'][0]['purchBarcode']);
+        $this->assertSame('36541', $detail['captures'][0]['weavingOrder']);
+        $this->assertSame('LOTE-PROV-1001', $detail['captures'][0]['supplierLot']);
         $this->assertSame(1, $detail['captures'][0]['defectLineCount']);
         $this->assertSame(60.0, $detail['captures'][0]['pieces']);
         $this->assertSame(2.0, $detail['captures'][0]['seconds']);

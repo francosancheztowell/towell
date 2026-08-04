@@ -76,6 +76,8 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
         $this->assertSame(1, (int) $rows[0]->RECID);
         $this->assertSame('201', $rows[0]->TELAR);
         $this->assertSame('PB-1', $rows[0]->PURCHBARCODE);
+        $this->assertSame('LOTE-1', $rows[0]->PURCHBARCODEORIG);
+        $this->assertSame('OT-1', $rows[0]->ORDENTEJIDO);
         $this->assertObjectNotHasProperty('UNUSED', $rows[0]);
     }
 
@@ -250,6 +252,8 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
             $table->integer('RECID');
             $table->string('PRODID');
             $table->string('PURCHBARCODE')->nullable();
+            $table->string('PURCHBARCODEORIG')->nullable();
+            $table->string('ORDENTEJIDO')->nullable();
             $table->dateTime('TRANSDATE');
             $table->string('TELAR');
             $table->decimal('PESO', 18, 4);
@@ -343,6 +347,8 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
             'RECID' => $recId,
             'PRODID' => 'ORD-'.$recId,
             'PURCHBARCODE' => 'PB-'.$recId,
+            'PURCHBARCODEORIG' => 'LOTE-'.$recId,
+            'ORDENTEJIDO' => 'OT-'.$recId,
             'TRANSDATE' => $date,
             'TELAR' => $telar,
             'PESO' => 40,

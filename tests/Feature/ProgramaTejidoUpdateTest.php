@@ -38,12 +38,46 @@ class ProgramaTejidoUpdateTest extends TestCase
             $table->string('FibraRizo')->nullable();
             $table->string('CalendarioId')->nullable();
             $table->string('NoProduccion', 80)->nullable();
+            $table->string('InventSizeId')->nullable();
+            $table->string('NombreProducto')->nullable();
+            $table->float('NoTiras')->default(4);
+            $table->float('PesoCrudo')->default(500);
+            $table->float('LargoCrudo')->nullable();
+            $table->integer('Repeticiones')->nullable();
+            $table->float('PzasRollo')->nullable();
+            $table->float('MtsRollo')->nullable();
+            $table->float('TotalRollos')->nullable();
+            $table->float('TotalPzas')->nullable();
+            $table->float('SaldoMarbete')->nullable();
+            $table->float('NoMarbete')->nullable();
+            $table->float('RollosProgramados')->nullable();
+            $table->string('UpdatedAt')->nullable();
         });
 
         Schema::connection('sqlsrv')->create('CatCodificados', function (Blueprint $table) {
             $table->increments('Id');
             $table->string('OrdenTejido', 20)->nullable()->index();
+            $table->string('TelarId')->nullable();
+            $table->string('Departamento')->nullable();
+            $table->string('ClaveModelo')->nullable();
+            $table->string('ItemId')->nullable();
             $table->boolean('cierre_ax')->nullable();
+            $table->float('Pedido')->nullable();
+            $table->float('Saldos')->nullable();
+            $table->float('Produccion')->nullable();
+            $table->float('ProduccionMarbetes')->nullable();
+            $table->string('FlogsId')->nullable();
+            $table->string('NombreProyecto')->nullable();
+            $table->float('P_crudo')->nullable();
+            $table->integer('Repeticiones')->nullable();
+            $table->float('PzasRollo')->nullable();
+            $table->float('MtsRollo')->nullable();
+            $table->float('TotalRollos')->nullable();
+            $table->float('TotalPzas')->nullable();
+            $table->float('NoMarbete')->nullable();
+            $table->string('FechaModificacion')->nullable();
+            $table->string('HoraModificacion')->nullable();
+            $table->string('UsuarioModifica')->nullable();
         });
     }
 
@@ -86,6 +120,45 @@ class ProgramaTejidoUpdateTest extends TestCase
         $registro->SaldoPedido = max(0, 500 - 200);
 
         $this->assertEquals(300, $registro->SaldoPedido);
+    }
+
+    public function test_update_pedido_aumenta_y_disminuye_total_rollos_en_programa_y_cat(): void
+    {
+        $registro = ReqProgramaTejido::create([
+            'SalonTejidoId' => 'JAC1',
+            'NoTelarId' => '201',
+            'NoProduccion' => '99010',
+            'TotalPedido' => 800,
+            'SaldoPedido' => 800,
+            'Produccion' => 0,
+            'NoTiras' => 4,
+            'PesoCrudo' => 500,
+            'LargoCrudo' => 100,
+        ]);
+
+        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+            'OrdenTejido' => '99010',
+        ]);
+
+        $responseAumento = UpdateTejido::actualizar(
+            Request::create("/planeacion/programa-tejido/{$registro->Id}", 'PUT', ['pedido' => 1600]),
+            (int) $registro->Id,
+        );
+
+        $this->assertSame(200, $responseAumento->getStatusCode());
+        $this->assertSame(20.0, (float) $registro->fresh()->TotalRollos);
+        $this->assertSame(20.0, (float) DB::connection('sqlsrv')->table('CatCodificados')->where('OrdenTejido', '99010')->value('TotalRollos'));
+        $this->assertSame(20.0, (float) $responseAumento->getData(true)['data']['TotalRollos']);
+
+        $responseDisminucion = UpdateTejido::actualizar(
+            Request::create("/planeacion/programa-tejido/{$registro->Id}", 'PUT', ['pedido' => 800]),
+            (int) $registro->Id,
+        );
+
+        $this->assertSame(200, $responseDisminucion->getStatusCode());
+        $this->assertSame(10.0, (float) $registro->fresh()->TotalRollos);
+        $this->assertSame(10.0, (float) DB::connection('sqlsrv')->table('CatCodificados')->where('OrdenTejido', '99010')->value('TotalRollos'));
+        $this->assertSame(10.0, (float) $responseDisminucion->getData(true)['data']['TotalRollos']);
     }
 
     public function test_update_fecha_inicio_y_final_calcula_duracion(): void

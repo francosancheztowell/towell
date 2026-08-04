@@ -167,24 +167,39 @@
 
                             <div class="crudo-detail-table-scroll crudo-orders-table-wrap">
                                 <table class="crudo-detail-table crudo-orders-table">
+                                    <colgroup>
+                                        <col class="crudo-orders-col-date">
+                                        <col class="crudo-orders-col-roll">
+                                        <col class="crudo-orders-col-order">
+                                        <col class="crudo-orders-col-number">
+                                        <col class="crudo-orders-col-number">
+                                        <col class="crudo-orders-col-number">
+                                        <col class="crudo-orders-col-lot">
+                                    </colgroup>
                                     <thead>
                                         <tr>
+                                            <th>Fecha</th>
                                             <th>No. Rollo</th>
-                                            <th>Peso (kg)</th>
-                                            <th>Piezas</th>
-                                            <th>Segundas</th>
+                                            <th>Orden tejido</th>
+                                            <th>Kg</th>
+                                            <th>Pzas</th>
+                                            <th>2das</th>
+                                            <th>Lote proveedor</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @forelse ($selectedMachine['captures'] as $capture)
                                             <tr>
-                                                <td>{{ $capture['purchBarcode'] ?: '—' }}</td>
-                                                <td>{{ number_format((int) $capture['weight'], 1) }}</td>
+                                                <td title="{{ $capture['date'] ?? '' }}">{{ ($capture['date'] ?? '') ?: '—' }}</td>
+                                                <td title="{{ $capture['purchBarcode'] ?? '' }}">{{ ($capture['purchBarcode'] ?? '') ?: '—' }}</td>
+                                                <td title="{{ $capture['weavingOrder'] ?? '' }}">{{ ($capture['weavingOrder'] ?? '') ?: '—' }}</td>
+                                                <td>{{ number_format((float) $capture['weight'], 1) }}</td>
                                                 <td>{{ number_format((int) $capture['pieces']) }}</td>
                                                 <td>{{ number_format((int) $capture['seconds']) }}</td>
+                                                <td title="{{ $capture['supplierLot'] ?? '' }}">{{ ($capture['supplierLot'] ?? '') ?: '—' }}</td>
                                             </tr>
                                         @empty
-                                            <tr><td colspan="4">Sin capturas en el periodo seleccionado.</td></tr>
+                                            <tr><td colspan="7">Sin capturas en el periodo seleccionado.</td></tr>
                                         @endforelse
                                     </tbody>
                                 </table>

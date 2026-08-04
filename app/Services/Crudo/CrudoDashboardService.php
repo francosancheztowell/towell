@@ -316,7 +316,10 @@ final readonly class CrudoDashboardService
             $metrics[$telar]['captures'][] = [
                 'recId' => trim((string) $header->RECID),
                 'order' => $order ?: 'Sin orden',
+                'date' => $this->formatCaptureDate($header->TRANSDATE ?? null),
                 'purchBarcode' => trim((string) ($header->PURCHBARCODE ?? '')),
+                'weavingOrder' => trim((string) ($header->ORDENTEJIDO ?? '')),
+                'supplierLot' => trim((string) ($header->PURCHBARCODEORIG ?? '')),
                 'operator' => $operator ?: 'Sin operador',
                 'weight' => round($weight, 2),
                 'piecesT1' => round($this->number($header->PIEZAST1 ?? 0)),
@@ -331,6 +334,19 @@ final readonly class CrudoDashboardService
         }
 
         return $metrics;
+    }
+
+    private function formatCaptureDate(mixed $date): string
+    {
+        if ($date === null || $date === '') {
+            return '';
+        }
+
+        try {
+            return CarbonImmutable::parse($date)->format('d/m/Y');
+        } catch (\Throwable) {
+            return is_scalar($date) ? trim((string) $date) : '';
+        }
     }
 
     /**

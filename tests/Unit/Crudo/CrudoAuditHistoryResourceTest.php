@@ -80,7 +80,9 @@ final class CrudoAuditHistoryResourceTest extends TestCase
         $this->assertStringContainsString('wire:key="crudo-audit-form-', $blade);
         $this->assertStringContainsString('Auditorías de hoy', $blade);
         $this->assertStringContainsString('data-crudo-audit-history-list', $blade);
-        $this->assertStringContainsString('await loadAuditHistory(form, true)', $typescript);
+        $this->assertStringContainsString('showAuditSuccess(successMessage)', $typescript);
+        $this->assertStringContainsString("Livewire?.dispatch('crudo-auditoria-guardada')", $typescript);
+        $this->assertStringNotContainsString('await loadAuditHistory(form, true)', $typescript);
         $this->assertStringNotContainsString(
             'if (form.querySelector<HTMLElement>(AUDIT_CONTENT_SELECTOR)?.hidden)',
             $typescript,

@@ -112,6 +112,9 @@ type CrudoWindow = Window & typeof globalThis & {
   Livewire?: {
     dispatch: (event: string) => void
   }
+  Swal?: {
+    fire: (options: Record<string, unknown>) => Promise<unknown>
+  }
 }
 
 const DASHBOARD_SELECTOR = '[data-crudo-dashboard]'
@@ -786,6 +789,25 @@ const showAuditFeedback = (
   feedback.textContent = message
 }
 
+const showAuditSuccess = (message: string): void => {
+  const swal = (window as CrudoWindow).Swal
+  if (swal) {
+    void swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: message,
+      showConfirmButton: false,
+      timer: 2800,
+      timerProgressBar: true,
+    })
+
+    return
+  }
+
+  window.setTimeout(() => window.alert(message), 0)
+}
+
 const setAuditSubmitting = (form: HTMLElement, submitting: boolean): void => {
   form.dataset.submitting = submitting ? 'true' : 'false'
   form.querySelectorAll<HTMLButtonElement>('[data-crudo-save-audit], [data-crudo-save-stop]')
@@ -880,15 +902,13 @@ const submitAudit = async (button: HTMLElement, withStop: boolean): Promise<void
       throw new Error(validationMessage(responsePayload, 'No fue posible guardar la auditoría.'))
     }
 
+    const successMessage = responsePayload.message ?? (withStop
+      ? 'Auditoría y paro guardados correctamente.'
+      : 'Auditoría guardada correctamente.')
+
     resetAuditForm(form)
-    await loadAuditHistory(form, true)
-    showAuditFeedback(
-      form,
-      responsePayload.message ?? (withStop
-        ? 'Auditoría y paro guardados correctamente.'
-        : 'Auditoría guardada correctamente.'),
-      'success',
-    )
+    showAuditSuccess(successMessage)
+    ;(window as CrudoWindow).Livewire?.dispatch('crudo-auditoria-guardada')
 
     if (withStop) {
       ;(window as CrudoWindow).Livewire?.dispatch('crudo-paro-guardado')
