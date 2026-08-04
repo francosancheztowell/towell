@@ -68,31 +68,31 @@ class Dashboard extends Component
     public function updatedFecha(): void
     {
         $this->fecha = $this->normalizeDate($this->fecha);
-        $this->dataError = null;
+        $this->filtersChanged();
     }
 
     public function updatedFechaInicio(): void
     {
         $this->fechaInicio = $this->normalizeDate($this->fechaInicio);
-        $this->dataError = null;
+        $this->filtersChanged();
     }
 
     public function updatedFechaFin(): void
     {
         $this->fechaFin = $this->normalizeDate($this->fechaFin);
-        $this->dataError = null;
+        $this->filtersChanged();
     }
 
     public function updatedModo(): void
     {
         $this->modo = $this->modo === 'rango' ? 'rango' : 'dia';
-        $this->dataError = null;
+        $this->filtersChanged();
     }
 
     public function updatedTurno(): void
     {
         $this->turno = $this->normalizeShift($this->turno);
-        $this->dataError = null;
+        $this->filtersChanged();
     }
 
     public function refreshDashboard(): void
@@ -148,6 +148,12 @@ class Dashboard extends Component
     protected function authorizeAccess(): void
     {
         $this->access->authorize();
+    }
+
+    private function filtersChanged(): void
+    {
+        $this->dataError = null;
+        $this->dispatch('crudo-filtros-cambiados');
     }
 
     /**

@@ -131,8 +131,10 @@ final readonly class CrudoFlogService implements CrudoFlogProvider
     /** @return Collection<int, object> */
     private function rowsForFlog(string $flogId): Collection
     {
+        // Comparación directa (SARGable): SQL Server ignora espacios finales en
+        // columnas CHAR/NCHAR, mismo criterio que TrazabilidadFlogsService.
         return $this->baseQuery()
-            ->whereRaw('LTRIM(RTRIM(ft.IDFLOG)) = ?', [$flogId])
+            ->where('ft.IDFLOG', $flogId)
             ->orderBy('fil.LINENUM')
             ->get();
     }
@@ -144,7 +146,7 @@ final readonly class CrudoFlogService implements CrudoFlogProvider
     private function rowsForBarcodes(array $barcodes): Collection
     {
         return $this->baseQuery()
-            ->whereIn(DB::raw('LTRIM(RTRIM(fil.PURCHBARCODE))'), $barcodes)
+            ->whereIn('fil.PURCHBARCODE', $barcodes)
             ->orderByDesc('ft.IDFLOG')
             ->limit(50)
             ->get();
@@ -154,8 +156,8 @@ final readonly class CrudoFlogService implements CrudoFlogProvider
     private function rowsForItemAndSize(string $itemId, string $sizeId): Collection
     {
         return $this->baseQuery()
-            ->whereRaw('LTRIM(RTRIM(fil.ITEMID)) = ?', [$itemId])
-            ->whereRaw('LTRIM(RTRIM(fil.INVENTSIZEID)) = ?', [$sizeId])
+            ->where('fil.ITEMID', $itemId)
+            ->where('fil.INVENTSIZEID', $sizeId)
             ->whereIn('ft.ESTADOFLOG', self::ACTIVE_FLOG_STATES)
             ->orderByDesc('ft.IDFLOG')
             ->limit(50)

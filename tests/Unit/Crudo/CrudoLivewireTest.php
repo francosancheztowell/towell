@@ -69,6 +69,21 @@ final class CrudoLivewireTest extends TestCase
             ->assertDontSee('wire:poll.visible', false);
     }
 
+    public function test_every_filter_change_dispatches_the_detail_close_event(): void
+    {
+        foreach ([
+            ['fecha', now()->subDay()->format('Y-m-d')],
+            ['fechaInicio', now()->subDays(2)->format('Y-m-d')],
+            ['fechaFin', now()->subDay()->format('Y-m-d')],
+            ['modo', 'rango'],
+            ['turno', '2'],
+        ] as [$property, $value]) {
+            Livewire::test(TestableCrudoDashboard::class)
+                ->set($property, $value)
+                ->assertDispatched('crudo-filtros-cambiados');
+        }
+    }
+
     public function test_summary_production_and_percentages_are_rendered_as_rounded_integers(): void
     {
         $data = $this->dashboardData();

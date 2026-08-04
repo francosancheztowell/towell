@@ -11,6 +11,8 @@ use DateInterval;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Cache;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -42,19 +44,12 @@ class MachineDetail extends Component
      */
     public ?array $machine = null;
 
-    /**
-     * Detalle en vivo del telar (capturas y defectos).
-     *
-     * @var array<string, mixed>|null
-     */
-    public ?array $detail = null;
-
     public ?string $detailError = null;
 
     /** @var array<string, mixed>|null */
     public ?array $flogSummary = null;
 
-    public bool $auditExpanded = false;
+    public bool $auditModalOpen = false;
 
     private CrudoDashboardProvider $provider;
 
@@ -87,8 +82,7 @@ class MachineDetail extends Component
         $this->selectedTelar = mb_substr(trim($telar), 0, 20);
         $this->machine = $machine;
         $this->detailError = null;
-        $this->auditExpanded = false;
-        $this->loadDetail();
+        $this->auditModalOpen = false;
         $this->loadFlogSummary();
     }
 
@@ -96,31 +90,36 @@ class MachineDetail extends Component
     {
         $this->selectedTelar = null;
         $this->machine = null;
-        $this->detail = null;
         $this->detailError = null;
         $this->flogSummary = null;
-        $this->auditExpanded = false;
+        $this->auditModalOpen = false;
     }
 
-    public function toggleAudit(): void
+    #[On('crudo-filtros-cambiados')]
+    public function closeForFilterChange(): void
+    {
+        $this->close();
+    }
+
+    public function openAudit(): void
     {
         if ($this->selectedTelar === null) {
-            $this->auditExpanded = false;
+            $this->auditModalOpen = false;
 
             return;
         }
 
-        $this->auditExpanded = ! $this->auditExpanded;
+        $this->auditModalOpen = true;
     }
 
     #[On('crudo-refrescado')]
     public function refreshDetail(): void
     {
-        if ($this->selectedTelar === null) {
+        // El detalle se resuelve en la computed property `detail` al renderizar;
+        // este guard solo evita volver a consultarlo con el modal de auditoría abierto.
+        if ($this->selectedTelar === null || $this->auditModalOpen) {
             return;
         }
-
-        $this->loadDetail();
     }
 
     public function render(): View
@@ -180,24 +179,59 @@ class MachineDetail extends Component
         return $machine;
     }
 
-    private function loadDetail(): void
+    /**
+     * El detalle en vivo del telar (capturas y defectos) no se persiste como
+     * propiedad pública: en rangos de varios días las listas de capturas son
+     * grandes y viajarían en el snapshot de Livewire en cada petición. La
+     * computed property se evalúa al renderizar (memoizada por petición) y, si
+     * la consulta falla, devuelve el último detalle exitoso cacheado en servidor.
+     *
+     * @return array<string, mixed>|null
+     */
+    #[Computed]
+    public function detail(): ?array
     {
-        if ($this->selectedTelar === null) {
-            return;
+        if ($this->selectedTelar === null || $this->auditModalOpen) {
+            return null;
         }
 
+        $fallbackKey = $this->detailFallbackKey();
+
         try {
-            $this->detail = $this->provider->detail(
+            $detail = $this->provider->detail(
                 $this->selectedTelar,
                 $this->rangeFrom(),
                 $this->rangeTo(),
                 $this->turno,
             );
+
+            Cache::put(
+                $fallbackKey,
+                $detail,
+                now()->addSeconds((int) config('crudo.detail_fallback_seconds', 900)),
+            );
             $this->detailError = null;
+
+            return $detail;
         } catch (Throwable $exception) {
             report($exception);
             $this->detailError = 'No fue posible actualizar el detalle. El resumen puede seguir mostrando el último dato disponible.';
+
+            $cached = Cache::get($fallbackKey);
+
+            return is_array($cached) ? $cached : null;
         }
+    }
+
+    private function detailFallbackKey(): string
+    {
+        return sprintf(
+            'crudo:detail-fallback:%s:%s:%s:%s',
+            sha1(trim($this->selectedTelar ?? '')),
+            $this->rangeFrom()->format('Y-m-d'),
+            $this->rangeTo()->format('Y-m-d'),
+            $this->turno,
+        );
     }
 
     private function loadFlogSummary(): void

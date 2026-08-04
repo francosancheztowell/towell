@@ -47,4 +47,31 @@ final class CrudoPerformanceStructureTest extends TestCase
         $this->assertStringNotContainsString('mutationObserver.observe(machineGrid', $typescript);
         $this->assertStringContainsString('mutationObserver.observe(dataElement', $typescript);
     }
+
+    public function test_modal_close_keeps_the_backdrop_until_livewire_finishes(): void
+    {
+        $css = file_get_contents(resource_path('css/crudo/dashboard.css'));
+
+        $this->assertIsString($css);
+        $this->assertDoesNotMatchRegularExpression(
+            '/\.crudo-modal-backdrop\.is-closing\s*\{[^}]*display\s*:\s*none/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.crudo-modal-backdrop\.is-closing\s*\{[^}]*cursor\s*:\s*wait/s',
+            $css,
+        );
+    }
+
+    public function test_audit_history_requests_are_aborted_when_their_modal_is_removed(): void
+    {
+        $typescript = file_get_contents(resource_path('js/crudo/dashboard.ts'));
+
+        $this->assertIsString($typescript);
+        $this->assertStringContainsString('auditHistoryRequests.abortDisconnected()', $typescript);
+        $this->assertMatchesRegularExpression(
+            '/fetch\(url,\s*\{[^}]*signal:/s',
+            $typescript,
+        );
+    }
 }

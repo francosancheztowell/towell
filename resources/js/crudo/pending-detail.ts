@@ -1,5 +1,5 @@
 type HiddenElement = {
-  hidden: boolean
+  hidden: boolean | string
 }
 
 export const hidePendingDetail = (element: HiddenElement): boolean => {
@@ -11,3 +11,9 @@ export const hidePendingDetail = (element: HiddenElement): boolean => {
 
   return true
 }
+
+export const isIntentionalMachineActivation = (
+  pointerTelar: string | null,
+  clickedTelar: string,
+  clickDetail: number,
+): boolean => clickDetail === 0 || pointerTelar === clickedTelar

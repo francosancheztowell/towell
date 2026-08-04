@@ -71,15 +71,35 @@ final class CrudoAuditHistoryResourceTest extends TestCase
     {
         $blade = file_get_contents(resource_path('views/livewire/crudo/machine-detail.blade.php'));
         $typescript = file_get_contents(resource_path('js/crudo/dashboard.ts'));
+        $css = file_get_contents(resource_path('css/crudo/dashboard.css'));
 
         $this->assertIsString($blade);
         $this->assertIsString($typescript);
+        $this->assertIsString($css);
         $this->assertStringContainsString('data-crudo-audit-history-url', $blade);
+        $this->assertStringContainsString('wire:key="crudo-audit-form-', $blade);
         $this->assertStringContainsString('Auditorías de hoy', $blade);
         $this->assertStringContainsString('data-crudo-audit-history-list', $blade);
         $this->assertStringContainsString('await loadAuditHistory(form, true)', $typescript);
+        $this->assertStringNotContainsString(
+            'if (form.querySelector<HTMLElement>(AUDIT_CONTENT_SELECTOR)?.hidden)',
+            $typescript,
+        );
         $this->assertStringContainsString('data-crudo-save-audit', $blade);
         $this->assertStringContainsString('data-crudo-save-stop', $blade);
+
+        $historyPosition = strpos($blade, 'class="crudo-detail-panel crudo-audit-history-panel"');
+        $togglePosition = strpos($blade, 'class="crudo-audit-toolbar"');
+        $contentPosition = strpos($blade, 'id="crudo-audit-content"');
+
+        $this->assertIsInt($historyPosition);
+        $this->assertIsInt($togglePosition);
+        $this->assertIsInt($contentPosition);
+        $this->assertLessThan($togglePosition, $historyPosition);
+        $this->assertLessThan($contentPosition, $togglePosition);
+        $this->assertStringContainsString('flex-wrap: nowrap', $css);
+        $this->assertStringContainsString('overflow-x: auto', $css);
+        $this->assertStringContainsString('flex: 0 0 clamp(17rem, 28vw, 22rem)', $css);
     }
 
     /**

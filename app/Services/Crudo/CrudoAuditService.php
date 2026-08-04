@@ -272,10 +272,12 @@ final class CrudoAuditService
 
     private function hasActiveDuplicateStop(string $machineId, string $failureTypeId): bool
     {
+        // Comparación directa (SARGable): permite usar índices de ManFallasParos.
+        // SQL Server ignora espacios finales en columnas CHAR/NCHAR al comparar.
         return ManFallasParos::query()
             ->where('Estatus', 'Activo')
-            ->whereRaw('LTRIM(RTRIM(CAST(MaquinaId AS NVARCHAR(100)))) = ?', [trim($machineId)])
-            ->whereRaw('LTRIM(RTRIM(CAST(TipoFallaId AS NVARCHAR(100)))) = ?', [trim($failureTypeId)])
+            ->where('MaquinaId', trim($machineId))
+            ->where('TipoFallaId', trim($failureTypeId))
             ->exists();
     }
 

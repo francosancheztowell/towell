@@ -1,4 +1,10 @@
-import { hidePendingDetail } from './pending-detail'
+import {
+  auditBelongsToScope,
+  isCurrentAuditHistoryRequest,
+  shouldSkipAuditHistoryLoad,
+} from './audit-history-state'
+import { AuditHistoryRequestCoordinator } from './audit-history-request'
+import { hidePendingDetail, isIntentionalMachineActivation } from './pending-detail'
 
 type Machine = {
   telar: string
@@ -68,6 +74,7 @@ type AuditHistoryItem = {
   id: number
   fecha: string | null
   hora: string | null
+  telar: string
   orden: string | null
   turno: number
   auditor: string
@@ -124,6 +131,7 @@ const formatInteger = (value: number): string => Math.round(value).toLocaleStrin
 
 let machinesByTelar = new Map<string, Machine>()
 let machineButtonsByTelar = new Map<string, HTMLElement>()
+let pointerMachineTelar: string | null = null
 let pendingMachineButton: HTMLElement | null = null
 let pendingDetailTimer: number | null = null
 let observedDashboard: HTMLElement | null = null
@@ -131,6 +139,7 @@ let mutationObserver: MutationObserver | null = null
 let auditDefectObserver: MutationObserver | null = null
 let relativeTimeTimer: number | null = null
 const qualityDefectRequests = new Map<string, Promise<QualityDefectOption[]>>()
+const auditHistoryRequests = new AuditHistoryRequestCoordinator<HTMLElement>()
 
 const parseMachinesJson = (): Machine[] => {
   const element = document.querySelector<HTMLScriptElement>(MACHINE_DATA_SELECTOR)
@@ -538,23 +547,31 @@ const renderAuditHistory = (form: HTMLElement, audits: AuditHistoryItem[]): void
 }
 
 const loadAuditHistory = async (form: HTMLElement, force = false): Promise<void> => {
+  const url = form.dataset.crudoAuditHistoryUrl
+  if (!url) {
+    return
+  }
+
   const state = form.dataset.auditHistoryState
-  if (!force && (state === 'loading' || state === 'loaded')) {
+  if (shouldSkipAuditHistoryLoad(state, form.dataset.auditHistoryStateUrl, url, force)) {
     return
   }
 
   const list = form.querySelector<HTMLElement>(AUDIT_HISTORY_LIST_SELECTOR)
-  const url = form.dataset.crudoAuditHistoryUrl
-  if (!list || !url) {
+  if (!list) {
     return
   }
 
   form.dataset.auditHistoryState = 'loading'
+  form.dataset.auditHistoryStateUrl = url
   list.replaceChildren()
   appendTextElement(list, 'p', 'crudo-audit-history-state', 'Cargando auditorías…')
 
+  const requestSignal = auditHistoryRequests.begin(form)
+
   try {
     const response = await fetch(url, {
+      signal: requestSignal,
       credentials: 'same-origin',
       headers: {
         Accept: 'application/json',
@@ -563,13 +580,43 @@ const loadAuditHistory = async (form: HTMLElement, force = false): Promise<void>
     })
     const payload = await response.json().catch((): AuditHistoryResponse => ({})) as AuditHistoryResponse
 
+    if (requestSignal.aborted || !form.isConnected) {
+      return
+    }
+
     if (!response.ok) {
       throw new Error(payload.message || 'No fue posible consultar las auditorías de hoy.')
     }
 
-    renderAuditHistory(form, Array.isArray(payload.data) ? payload.data : [])
+    if (!isCurrentAuditHistoryRequest(url, form.dataset.crudoAuditHistoryUrl)) {
+      if (form.isConnected) {
+        void loadAuditHistory(form)
+      }
+
+      return
+    }
+
+    const expectedTelar = form.dataset.crudoAuditTelar ?? ''
+    const expectedDate = payload.meta?.fecha ?? ''
+    const audits = (Array.isArray(payload.data) ? payload.data : []).filter((audit) => (
+      auditBelongsToScope(audit.telar, audit.fecha, expectedTelar, expectedDate)
+    ))
+
+    renderAuditHistory(form, audits)
     form.dataset.auditHistoryState = 'loaded'
   } catch {
+    if (requestSignal.aborted || !form.isConnected) {
+      return
+    }
+
+    if (!isCurrentAuditHistoryRequest(url, form.dataset.crudoAuditHistoryUrl)) {
+      if (form.isConnected) {
+        void loadAuditHistory(form)
+      }
+
+      return
+    }
+
     list.replaceChildren()
     appendTextElement(
       list,
@@ -578,15 +625,13 @@ const loadAuditHistory = async (form: HTMLElement, force = false): Promise<void>
       'No fue posible cargar las auditorías. Puedes intentar guardar o volver a abrir el detalle.',
     )
     form.dataset.auditHistoryState = 'error'
+  } finally {
+    auditHistoryRequests.finish(form, requestSignal)
   }
 }
 
 const hydrateAuditHistories = (): void => {
   document.querySelectorAll<HTMLElement>(AUDIT_FORM_SELECTOR).forEach((form) => {
-    if (form.querySelector<HTMLElement>(AUDIT_CONTENT_SELECTOR)?.hidden) {
-      return
-    }
-
     void loadAuditHistory(form)
   })
 }
@@ -601,6 +646,7 @@ const observeQualityDefectEditors = (): void => {
   }
 
   auditDefectObserver = new MutationObserver((mutations) => {
+    auditHistoryRequests.abortDisconnected()
     syncPendingDetail()
     if (mutations.some((mutation) => mutation.addedNodes.length > 0 || mutation.attributeName === 'hidden')) {
       hydrateQualityDefectEditors()
@@ -864,6 +910,9 @@ document.addEventListener('click', (event) => {
     return
   }
 
+  const pointerTelar = pointerMachineTelar
+  pointerMachineTelar = null
+
   const auditResultButton = target.closest<HTMLElement>('[data-crudo-audit-result]')
   if (auditResultButton) {
     cycleAuditResult(auditResultButton)
@@ -890,6 +939,10 @@ document.addEventListener('click', (event) => {
 
     const telar = machineButton.dataset.telar
     if (!telar) {
+      return
+    }
+
+    if (!isIntentionalMachineActivation(pointerTelar, telar, event.detail)) {
       return
     }
 
@@ -921,6 +974,8 @@ document.addEventListener('pointerdown', (event) => {
   if (!(target instanceof Element)) {
     return
   }
+
+  pointerMachineTelar = target.closest<HTMLElement>(MACHINE_SELECTOR)?.dataset.telar ?? null
 
   const backdrop = target.closest<HTMLElement>('[data-crudo-modal]')
   const closesFromButton = Boolean(target.closest('[data-crudo-modal-close]'))
@@ -975,4 +1030,5 @@ window.addEventListener('beforeunload', () => {
   }
   mutationObserver?.disconnect()
   auditDefectObserver?.disconnect()
+  auditHistoryRequests.abortAll()
 })
