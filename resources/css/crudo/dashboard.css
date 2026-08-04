@@ -2230,11 +2230,11 @@
 
     [data-crudo-detail-modal] .crudo-modal {
         width: min(66rem, calc(100vw - 5rem));
-        max-height: 84vh;
+        max-height: 76vh;
     }
 
     [data-crudo-detail-modal] .crudo-modal-body {
-        max-height: 84vh;
+        max-height: 76vh;
     }
 
     .crudo-modal-close {
