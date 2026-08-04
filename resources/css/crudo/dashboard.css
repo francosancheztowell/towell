@@ -2228,6 +2228,15 @@
         padding: 0.55rem;
     }
 
+    [data-crudo-detail-modal] .crudo-modal {
+        width: min(72rem, calc(100vw - 3rem));
+        max-height: 92vh;
+    }
+
+    [data-crudo-detail-modal] .crudo-modal-body {
+        max-height: 92vh;
+    }
+
     .crudo-modal-close {
         top: 0.65rem;
         right: 0.65rem;

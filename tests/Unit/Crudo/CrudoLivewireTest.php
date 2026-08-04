@@ -132,6 +132,9 @@ final class CrudoLivewireTest extends TestCase
             'grid-template-columns: repeat(4, minmax(0, 1fr))',
             $tabletRules,
         );
+        $this->assertStringContainsString('[data-crudo-detail-modal] .crudo-modal {', $tabletRules);
+        $this->assertStringContainsString('width: min(72rem, calc(100vw - 3rem))', $tabletRules);
+        $this->assertStringContainsString('max-height: 92vh', $tabletRules);
     }
 
     /**
