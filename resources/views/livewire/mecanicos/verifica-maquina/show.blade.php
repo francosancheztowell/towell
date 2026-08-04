@@ -155,6 +155,25 @@
             } finally {
                 this.procesando = false
             }
+        },
+
+        init() {
+            if (! this.esSoloLectura) return
+
+            this.$nextTick(() => {
+                const mensaje = `Folio en estatus ${this.estatus}. Solo los Activo se pueden editar.`
+                if (window.Swal) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Solo lectura',
+                        text: mensaje,
+                        confirmButtonText: 'Entendido',
+                        confirmButtonColor: '#111827',
+                    })
+                    return
+                }
+                window.alert(mensaje)
+            })
         }
     }"
     x-effect="aplicarFiltroColumnas()"
@@ -290,9 +309,6 @@
                 </div>
             </div>
 
-            <p x-show="esSoloLectura" x-cloak class="mt-2 text-[11px] text-amber-700">
-                Folio en estatus <strong x-text="estatus"></strong>. Solo los <strong>Activo</strong> se pueden editar.
-            </p>
             <p x-show="!esSoloLectura && maquinaAbierta === ''" x-cloak class="mt-2 text-[11px] text-gray-500">
                 <i class="fas fa-circle-info"></i> "Todas" es solo de consulta. Selecciona una máquina en el panel izquierdo para capturar sus telares.
             </p>

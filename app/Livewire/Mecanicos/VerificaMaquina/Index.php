@@ -28,49 +28,21 @@ class Index extends Component
     private const LONGITUD_CONSECUTIVO_FOLIOS = 5;
 
     #[Url(except: '')]
-    public string $fecha = '';
-
-    #[Url(except: '')]
     public string $estatus = '';
-
-    public bool $mostrarModal = false;
 
     public string $turno = '';
 
     public function mount(): void
     {
         $this->authorizeAccess();
-
-        // Solo default: si viene fecha en la URL (#[Url]) hay que respetarla.
-        if ($this->fecha === '') {
-            $this->fecha = now('America/Mexico_City')->toDateString();
-        }
     }
 
-    public function abrirModal(): void
+    public function filtrarEstatus(string $estatus): void
     {
-        $this->authorizeAccess();
-        abort_unless(userCan('crear', self::MODULO_PERMISO), 403, 'No tienes permiso para crear verificaciones.');
+        $permitidos = ['', 'Activo', 'Terminado', 'Autorizado'];
+        abort_unless(in_array($estatus, $permitidos, true), 422, 'Estatus de filtro no válido.');
 
-        $this->resetErrorBag();
-        $this->turno = '';
-        $this->mostrarModal = true;
-    }
-
-    public function cerrarModal(): void
-    {
-        $this->mostrarModal = false;
-    }
-
-    public function limpiarFiltros(): void
-    {
-        $this->fecha = now('America/Mexico_City')->toDateString();
-        $this->estatus = '';
-        $this->resetPage();
-    }
-
-    public function updatedFecha(): void
-    {
+        $this->estatus = $estatus;
         $this->resetPage();
     }
 
@@ -127,9 +99,6 @@ class Index extends Component
     public function render(): View
     {
         $verificaciones = MecVerificaMaquinaModel::query()
-            // Fecha es DATE: comparar directo permite usar el índice. whereDate()
-            // envuelve la columna en un CAST y fuerza scan de tabla.
-            ->when($this->fecha !== '', fn ($query) => $query->where('Fecha', $this->fecha))
             ->when($this->estatus !== '', fn ($query) => $query->where('Estatus', $this->estatus))
             ->orderByDesc('Fecha')
             ->orderByDesc('HoraInicio')
@@ -151,7 +120,6 @@ class Index extends Component
             'verificaciones' => $verificaciones,
             'operadorClave' => $usuario?->numero_empleado,
             'operadorNombre' => $usuario?->nombre,
-            'puedeCrear' => userCan('crear', self::MODULO_PERMISO),
             'puedeEditar' => userCan('modificar', self::MODULO_PERMISO),
         ]);
     }
