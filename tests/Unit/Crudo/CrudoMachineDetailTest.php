@@ -117,6 +117,29 @@ final class CrudoMachineDetailTest extends TestCase
         $this->assertSame(0, $this->flogProvider->calls);
     }
 
+    public function test_open_uses_the_dashboard_context_and_pauses_polling_until_close(): void
+    {
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch(
+                'open-crudo-detail',
+                telar: '201',
+                machine: $this->machineData(),
+                fecha: '2026-08-04',
+                fechaInicio: '2026-08-01',
+                fechaFin: '2026-08-03',
+                modo: 'rango',
+                turno: '4',
+            )
+            ->assertSet('fecha', '2026-08-04')
+            ->assertSet('fechaInicio', '2026-08-01')
+            ->assertSet('fechaFin', '2026-08-03')
+            ->assertSet('modo', 'rango')
+            ->assertSet('turno', '4')
+            ->assertDispatched('crudo-interaction-opened')
+            ->call('close')
+            ->assertDispatched('crudo-interaction-closed');
+    }
+
     public function test_flog_load_is_isolated_from_the_machine_modal(): void
     {
         $program = ['flogId' => 'CE-NOV25-LGONZ-F001399'];

@@ -35,7 +35,7 @@ final readonly class CrudoFlogService implements CrudoFlogProvider
         }
 
         $cacheSeconds = max(0, (int) config('crudo.flog_cache_seconds', 300));
-        $cacheKey = 'crudo:flog:'.sha1(json_encode([
+        $cacheKey = 'crudo:flog:v2:'.sha1(json_encode([
             $flogId,
             $itemId,
             $sizeId,
@@ -45,7 +45,7 @@ final readonly class CrudoFlogService implements CrudoFlogProvider
         if ($cacheSeconds > 0) {
             $cached = Cache::get($cacheKey);
             if (is_array($cached)) {
-                return $cached;
+                return $this->resolveImageUrls($cached);
             }
         }
 
@@ -54,7 +54,7 @@ final readonly class CrudoFlogService implements CrudoFlogProvider
             Cache::put($cacheKey, $result, now()->addSeconds($cacheSeconds));
         }
 
-        return $result;
+        return $this->resolveImageUrls($result);
     }
 
     /**
@@ -118,12 +118,8 @@ final readonly class CrudoFlogService implements CrudoFlogProvider
             'clientName' => $clientName,
             'itemId' => $this->text($line?->itemId ?? null),
             'inventSizeId' => $this->text($line?->inventSizeId ?? null),
-            'simulationSalesUrl' => $this->flogService->resolverUrlImagen(
-                $this->text($line?->simulationSales ?? null),
-            ),
-            'simulationDesignUrl' => $this->flogService->resolverUrlImagen(
-                $this->text($line?->simulationDesign ?? null),
-            ),
+            '_simulationSalesPath' => $this->text($line?->simulationSales ?? null),
+            '_simulationDesignPath' => $this->text($line?->simulationDesign ?? null),
             'lineMatched' => $line !== null,
         ];
     }
@@ -262,10 +258,30 @@ final readonly class CrudoFlogService implements CrudoFlogProvider
             'clientName' => '',
             'itemId' => '',
             'inventSizeId' => '',
-            'simulationSalesUrl' => null,
-            'simulationDesignUrl' => null,
+            '_simulationSalesPath' => '',
+            '_simulationDesignPath' => '',
             'lineMatched' => false,
         ];
+    }
+
+    /**
+     * Las URLs se construyen después de leer el caché para que siempre utilicen
+     * el host y esquema de la petición actual, no los del proceso que creó el caché.
+     *
+     * @param  array<string, mixed>  $result
+     * @return array<string, mixed>
+     */
+    private function resolveImageUrls(array $result): array
+    {
+        $salesPath = $this->text($result['_simulationSalesPath'] ?? null);
+        $designPath = $this->text($result['_simulationDesignPath'] ?? null);
+
+        unset($result['_simulationSalesPath'], $result['_simulationDesignPath']);
+
+        $result['simulationSalesUrl'] = $this->flogService->resolverUrlImagen($salesPath);
+        $result['simulationDesignUrl'] = $this->flogService->resolverUrlImagen($designPath);
+
+        return $result;
     }
 
     private function source(): ConnectionInterface

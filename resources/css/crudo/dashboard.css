@@ -9,6 +9,48 @@
     font-variant-numeric: tabular-nums;
 }
 
+.crudo-livewire-error[hidden] {
+    display: none;
+}
+
+.crudo-livewire-error {
+    position: fixed;
+    top: 4.6rem;
+    right: 1rem;
+    z-index: 10050;
+    display: flex;
+    max-width: min(31rem, calc(100vw - 2rem));
+    align-items: center;
+    gap: 0.65rem;
+    border: 1px solid #fca5a5;
+    border-radius: 0.8rem;
+    background: #fff1f2;
+    padding: 0.7rem 0.8rem;
+    color: #991b1b;
+    box-shadow: 0 16px 38px rgba(127, 29, 29, 0.2);
+    font-size: 0.78rem;
+    font-weight: 750;
+}
+
+.crudo-livewire-error > i {
+    flex: 0 0 auto;
+    font-size: 1rem;
+}
+
+.crudo-livewire-error > span {
+    min-width: 0;
+}
+
+.crudo-livewire-error > button {
+    flex: 0 0 auto;
+    border-radius: 0.55rem;
+    background: #b91c1c;
+    padding: 0.42rem 0.68rem;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 850;
+}
+
 .crudo-loom-sprite {
     position: absolute;
     width: 0;

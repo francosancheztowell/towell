@@ -12,6 +12,7 @@ files_modified:
   - resources/js/planeacion/feedback.ts
   - resources/js/planeacion/program-board.ts
   - resources/css/planeacion/programa-tejido.css
+  - vite.config.js
   - config/planeacion.php
   - app/Support/Planeacion/ProgramaTejidoCanary.php
   - app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoController.php
@@ -189,9 +190,30 @@ Crear `resources/views/livewire/planeacion/programa-tejido-board.blade.php`: con
 
 <task type="auto">
 <name>Task 03.2: Glue JS/CSS aislado (feedback + entry Vite)</name>
-<files>resources/js/planeacion/feedback.ts, resources/js/planeacion/program-board.ts, resources/css/planeacion/programa-tejido.css</files>
+<files>resources/js/planeacion/feedback.ts, resources/js/planeacion/program-board.ts, resources/css/planeacion/programa-tejido.css, vite.config.js</files>
 <action>
-Copiar el patrón de `resources/js/urd-eng/feedback.ts` verbatim (Swal-first, fallback a `window.notify`, listeners de `program-board-notify`/`program-board-modal` renombrados a `programa-tejido-notify`/`programa-tejido-modal` para no colisionar con UrdEng) a `resources/js/planeacion/feedback.ts`. `program-board.ts` es el único entry Vite: importa `feedback.ts` y llama `initializeFeedback()` en `DOMContentLoaded`, igual que hace el entry de `program-board.ts` de UrdEng — no crear un segundo bundler config, no tocar `vite.config.js` (Vite ya soporta múltiples entries por convención de proyecto, confirmar agregando la ruta al array de entradas si `vite.config.js` lo requiere explícitamente).
+Copiar el patrón de `resources/js/urd-eng/feedback.ts` verbatim (Swal-first, fallback a `window.notify`, listeners de `program-board-notify`/`program-board-modal` renombrados a `programa-tejido-notify`/`programa-tejido-modal` para no colisionar con UrdEng) a `resources/js/planeacion/feedback.ts`. `program-board.ts` es el único entry Vite: importa `feedback.ts` y llama `initializeFeedback()` en `DOMContentLoaded`, igual que hace el entry de `program-board.ts` de UrdEng — no crear un segundo bundler config.
+
+Editar `vite.config.js`: el array `input` de `laravel-vite-plugin` es estático y explícito (sin glob), así que hay que agregar ahí, sin condición, las dos rutas nuevas siguiendo exactamente el mismo patrón que las entradas `urd-eng` ya existentes (`resources/css/urd-eng/program-board.css` / `resources/js/urd-eng/program-board.ts`):
+```js
+input: [
+  'resources/css/app.css',
+  'resources/js/app.js',
+  'resources/js/app-core.js',
+  'resources/js/app-filters.js',
+  'resources/css/trazabilidad/index.css',
+  'resources/js/trazabilidad/index.ts',
+  'resources/css/crudo/dashboard.css',
+  'resources/js/crudo/dashboard.ts',
+  'resources/css/urd-eng/program-board.css',
+  'resources/js/urd-eng/program-board.ts',
+  'resources/css/planeacion/programa-tejido.css',
+  'resources/js/planeacion/program-board.ts',
+  'resources/js/catcodificacion/index.js',
+  'resources/js/lmat-lista/index.js',
+],
+```
+Sin esta entrada, `@vite('resources/css/planeacion/programa-tejido.css')`/`@vite('resources/js/planeacion/program-board.ts')` en los wrappers de Task 03.3 lanzan "Unable to locate file in Vite manifest" en runtime y `npm run build` no genera chunk separado — el `<done>` de este task depende de este edit.
 
 `resources/css/planeacion/programa-tejido.css`: namespacear todos los selectores bajo una clase raíz (ej. `.programa-tejido-board`), sin selectores globales ni `!important`, mismo criterio que `resources/css/urd-eng/program-board.css`.
 

@@ -9,6 +9,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 final class CrudoFlogServiceTest extends TestCase
@@ -55,6 +56,8 @@ final class CrudoFlogServiceTest extends TestCase
 
     protected function tearDown(): void
     {
+        URL::forceScheme(null);
+        URL::forceRootUrl(null);
         DB::disconnect('crudo_flog_test');
         @unlink($this->database);
 
@@ -148,6 +151,42 @@ final class CrudoFlogServiceTest extends TestCase
         $this->assertSame('ok', $first['status']);
         $this->assertSame($first, $second);
         $this->assertSame(1, $queries);
+    }
+
+    public function test_cached_flog_builds_proxy_urls_with_the_current_request_host(): void
+    {
+        config()->set('crudo.flog_cache_seconds', 300);
+        $this->insertFlog('CE-FLOG-HOST', 'C101', 'Cliente host');
+        $this->insertLine(
+            'CE-FLOG-HOST',
+            1,
+            'ART-HOST',
+            'MED',
+            'PB-HOST',
+            'ventas-host.jpg',
+            'diseno-host.jpg',
+        );
+
+        $service = app(CrudoFlogService::class);
+
+        URL::forceRootUrl('http://127.0.0.1:8000');
+        $local = $service->find([
+            'flogId' => 'CE-FLOG-HOST',
+            'itemId' => 'ART-HOST',
+            'inventSizeId' => 'MED',
+        ]);
+
+        URL::forceRootUrl('https://192.168.2.15');
+        URL::forceScheme('https');
+        $network = $service->find([
+            'flogId' => 'CE-FLOG-HOST',
+            'itemId' => 'ART-HOST',
+            'inventSizeId' => 'MED',
+        ]);
+
+        $this->assertStringStartsWith('http://127.0.0.1:8000/', $local['simulationSalesUrl']);
+        $this->assertStringStartsWith('https://192.168.2.15/', $network['simulationSalesUrl']);
+        $this->assertStringNotContainsString('127.0.0.1', $network['simulationSalesUrl']);
     }
 
     private function insertFlog(string $flog, string $account, string $client, int $state = 3): void

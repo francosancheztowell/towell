@@ -72,6 +72,30 @@ final class CrudoLivewireTest extends TestCase
             ->assertDontSee('wire:poll.visible.2s', false);
     }
 
+    public function test_poll_is_removed_while_a_modal_interaction_is_open(): void
+    {
+        Livewire::test(TestableCrudoDashboard::class)
+            ->assertSee('wire:poll.visible.15s', false)
+            ->dispatch('crudo-interaction-opened')
+            ->assertSet('interactionPaused', true)
+            ->assertDontSee('wire:poll.visible', false)
+            ->dispatch('crudo-interaction-closed')
+            ->assertSet('interactionPaused', false)
+            ->assertSee('wire:poll.visible.15s', false);
+    }
+
+    public function test_dashboard_exposes_one_canonical_filter_context_for_the_detail(): void
+    {
+        $today = now(config('app.timezone'))->format('Y-m-d');
+
+        Livewire::test(TestableCrudoDashboard::class)
+            ->assertSee('data-crudo-fecha="'.$today.'"', false)
+            ->assertSee('data-crudo-fecha-inicio="'.$today.'"', false)
+            ->assertSee('data-crudo-fecha-fin="'.$today.'"', false)
+            ->assertSee('data-crudo-modo="dia"', false)
+            ->assertSee('data-crudo-turno="todos"', false);
+    }
+
     public function test_historical_and_range_views_do_not_keep_polling(): void
     {
         Livewire::test(TestableCrudoDashboard::class)

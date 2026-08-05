@@ -35,6 +35,8 @@ class Dashboard extends Component
 
     public ?string $dataError = null;
 
+    public bool $interactionPaused = false;
+
     private bool $forceRefreshOnNextRender = false;
 
     private CrudoDashboardProvider $provider;
@@ -99,6 +101,18 @@ class Dashboard extends Component
         // agenda la renovación si el dato ya venció.
     }
 
+    #[On('crudo-interaction-opened')]
+    public function pauseInteraction(): void
+    {
+        $this->interactionPaused = true;
+    }
+
+    #[On('crudo-interaction-closed')]
+    public function resumeInteraction(): void
+    {
+        $this->interactionPaused = false;
+    }
+
     public function refreshNow(): void
     {
         $this->forceRefreshOnNextRender = true;
@@ -128,6 +142,7 @@ class Dashboard extends Component
             'sourceError' => $data['sourceError'] ?? null,
             'floorLayouts' => $this->floorLayout->arrange($machines),
             'shouldPoll' => $this->modo === 'dia'
+                && ! $this->interactionPaused
                 && $this->rangeTo()->format('Y-m-d') === now(config('app.timezone'))->format('Y-m-d'),
             // Mantener una cadencia estable evita una tormenta de requests de 2 s
             // mientras SQL Server sigue renovando un snapshot vencido.

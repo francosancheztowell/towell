@@ -107,6 +107,17 @@ type AuditHistoryResponse = {
 type CrudoWindow = Window & typeof globalThis & {
   Livewire?: {
     dispatch: (event: string) => void
+    hook?: (
+      name: 'request',
+      callback: (request: {
+        url: string
+        fail: (callback: (failure: {
+          status: number
+          content: unknown
+          preventDefault: () => void
+        }) => void) => void
+      }) => void,
+    ) => void
   }
   Swal?: {
     fire: (options: Record<string, unknown>) => Promise<unknown>
@@ -126,6 +137,7 @@ const AUDIT_HISTORY_LIST_SELECTOR = '[data-crudo-audit-history-list]'
 const AUDIT_HISTORY_COUNT_SELECTOR = '[data-crudo-audit-history-count]'
 const QUALITY_DEFECT_SELECT_SELECTOR = '[data-crudo-quality-defect-select]'
 const PENDING_DETAIL_SELECTOR = '[data-crudo-detail-pending]'
+const LIVEWIRE_ERROR_SELECTOR = '[data-crudo-livewire-error]'
 
 const formatInteger = (value: number): string => Math.round(value).toLocaleString('es-MX')
 
@@ -139,8 +151,55 @@ let mutationObserver: MutationObserver | null = null
 let auditDefectObserver: MutationObserver | null = null
 let observedAuditRoot: HTMLElement | null = null
 let relativeTimeTimer: number | null = null
+let livewireErrorHookInstalled = false
 const qualityDefectRequests = new Map<string, Promise<QualityDefectOption[]>>()
 const auditHistoryRequests = new AuditHistoryRequestCoordinator<HTMLElement>()
+
+const showLivewireError = (status: number, url: string): void => {
+  const alert = document.querySelector<HTMLElement>(LIVEWIRE_ERROR_SELECTOR)
+  if (!alert) {
+    return
+  }
+
+  const message = alert.querySelector<HTMLElement>('[data-crudo-livewire-error-message]')
+  if (message) {
+    message.textContent = status === 404
+      ? 'La conexión de Livewire cambió. Recarga esta pantalla para continuar.'
+      : 'No fue posible actualizar el tablero. Conservamos la información visible.'
+  }
+
+  alert.dataset.status = String(status)
+  alert.dataset.url = url
+  alert.hidden = false
+}
+
+const installLivewireErrorHandler = (): void => {
+  if (livewireErrorHookInstalled || !document.querySelector(DASHBOARD_SELECTOR)) {
+    return
+  }
+
+  const livewire = (window as CrudoWindow).Livewire
+  if (typeof livewire?.hook !== 'function') {
+    return
+  }
+
+  livewireErrorHookInstalled = true
+  livewire.hook('request', ({ url, fail }) => {
+    if (!document.querySelector(DASHBOARD_SELECTOR)) {
+      return
+    }
+
+    fail(({ status, preventDefault }) => {
+      if (status < 400 || status === 419) {
+        return
+      }
+
+      preventDefault()
+      console.error(`[Crudo] Livewire request failed with status ${status}: ${url}`)
+      showLivewireError(status, url)
+    })
+  })
+}
 
 const parseMachinesJson = (): Machine[] => {
   const element = document.querySelector<HTMLScriptElement>(MACHINE_DATA_SELECTOR)
@@ -1032,10 +1091,19 @@ document.addEventListener('click', (event) => {
 
     const machine = machinesByTelar.get(telar)
     if (machine) {
+      const dashboard = document.querySelector<HTMLElement>(DASHBOARD_SELECTOR)
       showPendingDetail(machine, machineButton)
       window.dispatchEvent(
         new CustomEvent('open-crudo-detail', {
-          detail: { telar, machine },
+          detail: {
+            telar,
+            machine,
+            fecha: dashboard?.dataset.crudoFecha ?? null,
+            fechaInicio: dashboard?.dataset.crudoFechaInicio ?? null,
+            fechaFin: dashboard?.dataset.crudoFechaFin ?? null,
+            modo: dashboard?.dataset.crudoModo ?? null,
+            turno: dashboard?.dataset.crudoTurno ?? null,
+          },
           bubbles: true,
         }),
       )
@@ -1067,6 +1135,17 @@ const syncAuditFormFromFieldEvent = (event: Event): void => {
 
 document.addEventListener('input', syncAuditFormFromFieldEvent)
 document.addEventListener('change', syncAuditFormFromFieldEvent)
+
+document.addEventListener('click', (event) => {
+  const target = event.target
+  if (!(target instanceof Element)) {
+    return
+  }
+
+  if (target.closest('[data-crudo-livewire-error-reload]')) {
+    window.location.reload()
+  }
+})
 
 document.addEventListener('pointerdown', (event) => {
   const target = event.target
@@ -1114,6 +1193,9 @@ document.addEventListener('fullscreenchange', () => {
 document.addEventListener('livewire:init', observeDashboard)
 document.addEventListener('livewire:navigated', observeDashboard)
 document.addEventListener('DOMContentLoaded', observeDashboard)
+document.addEventListener('livewire:init', installLivewireErrorHandler)
+document.addEventListener('livewire:navigated', installLivewireErrorHandler)
+document.addEventListener('DOMContentLoaded', installLivewireErrorHandler)
 document.addEventListener('livewire:init', observeQualityDefectEditors)
 document.addEventListener('livewire:navigated', observeQualityDefectEditors)
 document.addEventListener('DOMContentLoaded', observeQualityDefectEditors)

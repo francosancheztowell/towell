@@ -12,6 +12,11 @@
 <div
     class="crudo-dashboard"
     data-crudo-dashboard
+    data-crudo-fecha="{{ $fecha }}"
+    data-crudo-fecha-inicio="{{ $fechaInicio }}"
+    data-crudo-fecha-fin="{{ $fechaFin }}"
+    data-crudo-modo="{{ $this->modo }}"
+    data-crudo-turno="{{ $turno }}"
     @if ($shouldPoll) wire:poll.visible.{{ $pollSeconds }}s="refreshDashboard" @endif
 >
     @teleport('#crudo-navbar-controls')

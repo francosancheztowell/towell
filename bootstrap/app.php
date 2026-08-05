@@ -3,6 +3,10 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -35,5 +39,26 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->render(function (NotFoundHttpException $_exception, Request $request): ?Response {
+            if (! $request->hasHeader('X-Livewire')) {
+                return null;
+            }
+
+            $components = $request->input('components');
+
+            Log::warning('Livewire update returned 404', [
+                'host' => $request->getHost(),
+                'method' => $request->method(),
+                'path' => $request->path(),
+                'route_name' => $request->route()?->getName(),
+                'route_uri' => $request->route()?->uri(),
+                'content_type' => $request->header('Content-Type'),
+                'component_count' => is_array($components) ? count($components) : null,
+            ]);
+
+            return response()->json([
+                'message' => 'No fue posible sincronizar la pantalla. Recarga la página.',
+                'code' => 'livewire_endpoint_not_found',
+            ], 404);
+        });
     })->create();

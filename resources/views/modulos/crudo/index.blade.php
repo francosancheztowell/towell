@@ -14,6 +14,22 @@
 
 @section('content')
     <div class="crudo-page min-h-full w-full px-2 py-3 sm:px-4 lg:px-5">
+        <aside
+            class="crudo-livewire-error"
+            data-crudo-livewire-error
+            role="alert"
+            aria-live="assertive"
+            hidden
+        >
+            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+            <span data-crudo-livewire-error-message>
+                No fue posible actualizar el tablero.
+            </span>
+            <button type="button" data-crudo-livewire-error-reload>
+                Recargar
+            </button>
+        </aside>
+
         <livewire:crudo.dashboard />
     </div>
 
