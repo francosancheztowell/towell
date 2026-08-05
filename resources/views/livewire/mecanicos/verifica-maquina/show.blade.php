@@ -61,9 +61,14 @@
         },
 
         seleccionarMaquina(valor) {
-            if (this.maquinaAbierta === valor) return
+            // Toggle: la misma máquina abierta se cierra (vuelve a Todas).
+            // Cambiar a otra máquina (o a Todas) limpia el telar seleccionado.
+            if (this.maquinaAbierta === valor) {
+                this.maquinaAbierta = ''
+                this.telarSeleccionado = null
+                return
+            }
             this.maquinaAbierta = valor
-            // Acordeón exclusivo: cambiar de máquina limpia la selección anterior.
             this.telarSeleccionado = null
         },
 
@@ -181,7 +186,7 @@
     {{-- Estilos de celda declarados una vez: repetir utilidades en ~1.1k celdas infla el HTML. --}}
     <style>
         .vm-td{padding:.625rem .5rem;text-align:center}
-        .vm-th{min-width:4.5rem;padding:.875rem .625rem;text-align:center;font-size:.875rem}
+        .vm-th{min-width:4.5rem;padding:.875rem .625rem;text-align:center;font-size:1.5rem;font-weight:800;color:#111827}
 
         /* Vista "Todas": una sola celda de solo lectura (comportamiento previo). */
         .vm-view{display:inline-flex;align-items:center;justify-content:center;height:3rem;width:3.5rem;border-radius:.75rem;border-width:2px;border-style:solid;font-size:1.25rem;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 1px 2px rgba(0,0,0,.05)}
