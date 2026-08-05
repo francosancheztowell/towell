@@ -45,6 +45,34 @@ class BomMaterialesController extends Controller
         }
     }
 
+    public function buscarBomFormula(Request $request): JsonResponse
+    {
+        try {
+            $query = trim((string) $request->query('q', ''));
+            $results = $this->service->buscarBomFormula($query);
+
+            return response()->json($results);
+        } catch (\Throwable $e) {
+            Log::error('buscarBomFormula', ['msg' => $e->getMessage()]);
+
+            return response()->json(['error' => 'Error al buscar formulas'], 500);
+        }
+    }
+
+    public function buscarLoteProveedor(Request $request): JsonResponse
+    {
+        try {
+            $query = trim((string) $request->query('q', ''));
+            $results = $this->service->buscarLoteProveedor($query);
+
+            return response()->json($results);
+        } catch (\Throwable $e) {
+            Log::error('buscarLoteProveedor', ['msg' => $e->getMessage()]);
+
+            return response()->json(['error' => 'Error al buscar lotes de proveedor'], 500);
+        }
+    }
+
     public function getMaterialesUrdido(Request $request): JsonResponse
     {
         try {

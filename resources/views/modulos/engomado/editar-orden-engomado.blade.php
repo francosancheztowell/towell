@@ -114,7 +114,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-0.5">Lote Proveedor</label>
-                    <input type="text" id="campo_LoteProveedor" data-campo="LoteProveedor" value="{{ $orden->LoteProveedor ?? '' }}"
+                    <input type="text" id="campo_LoteProveedor" data-campo="LoteProveedor" value="{{ $orden->LoteProveedor ?? '' }}" autocomplete="off"
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                 </div>
                 <div>
@@ -124,7 +124,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-0.5">Bom Fórmula</label>
-                    <input type="text" id="campo_BomFormula" data-campo="BomFormula" value="{{ $orden->BomFormula ?? '' }}"
+                    <input type="text" id="campo_BomFormula" data-campo="BomFormula" value="{{ $orden->BomFormula ?? '' }}" autocomplete="off"
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                 </div>
                 <div>
@@ -277,6 +277,8 @@
             const RUTA_HILOS = '{{ route("programa.urd.eng.hilos") }}';
             const RUTA_TAMANOS = '{{ route("programa.urd.eng.tamanos") }}';
             const RUTA_BOM_ENGOMADO = '{{ route("programa.urd.eng.buscar.bom.engomado") }}';
+            const RUTA_BOM_FORMULA = '{{ route("programa.urd.eng.buscar.bom.formula") }}';
+            const RUTA_LOTE_PROVEEDOR = '{{ route("programa.urd.eng.buscar.lote.proveedor") }}';
             const permiteEditarPorStatus = {{ ($permiteEditarPorStatus ?? false) ? 'true' : 'false' }};
             const permiteEditarNoTelas = {{ ($permiteEditarNoTelas ?? false) ? 'true' : 'false' }};
             const mostrarTablaProduccion = {{ ($mostrarTablaProduccion ?? false) ? 'true' : 'false' }};
@@ -681,6 +683,107 @@
                 input.addEventListener('blur', enviar);
             };
 
+            const debounce = (fn, ms) => {
+                let t;
+                return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+            };
+
+            const positionDropdown = (inputEl, container) => {
+                const rect = inputEl.getBoundingClientRect();
+                container.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+                container.style.left = (rect.left + window.scrollX) + 'px';
+                container.style.width = rect.width + 'px';
+            };
+
+            const setupAutocompleteCampo = (inputsSelector, searchRoute, containerId, opciones = {}) => {
+                const inputs = document.querySelectorAll(inputsSelector);
+                if (!inputs.length) return;
+                const getLabel = opciones.getLabel || ((s) => `${s.BOMID} - ${s.NAME || ''}`);
+                const getValue = opciones.getValue || ((s) => s.BOMID);
+                let activeInput = null, selectedIndex = -1, list = [], open = false;
+
+                let container = document.getElementById(containerId);
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = containerId;
+                    container.className = 'fixed z-[99999] bg-white border border-gray-300 rounded-md shadow-lg hidden max-h-60 overflow-y-auto';
+                    document.body.appendChild(container);
+                }
+
+                const hide = () => { container.classList.add('hidden'); open = false; selectedIndex = -1; list = []; activeInput = null; };
+                const show = (el) => { positionDropdown(el, container); container.classList.remove('hidden'); open = true; };
+
+                const render = (items) => {
+                    container.innerHTML = '';
+                    items.forEach((it, idx) => {
+                        const div = document.createElement('div');
+                        div.className = 'px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm border-gray-100';
+                        div.textContent = getLabel(it);
+                        div.addEventListener('click', () => {
+                            if (activeInput) {
+                                activeInput.value = getValue(it);
+                                activeInput.dispatchEvent(new Event('change', { bubbles: true }));
+                                hide();
+                            }
+                        });
+                        div.addEventListener('mouseenter', () => {
+                            container.querySelectorAll('div').forEach(d => d.classList.remove('bg-blue-100'));
+                            div.classList.add('bg-blue-100');
+                            selectedIndex = idx;
+                        });
+                        container.appendChild(div);
+                    });
+                };
+
+                const doSearch = debounce(async (q, inputEl) => {
+                    if (!q || String(q).trim() === '') { hide(); return; }
+                    try {
+                        const url = new URL(searchRoute, window.location.origin);
+                        url.searchParams.set('q', String(q).trim());
+                        const res = await fetch(url.toString(), { headers: { 'Accept': 'application/json' } });
+                        const data = await res.json();
+                        const arr = Array.isArray(data) ? data : (data.data || []);
+                        if (!arr.length) { hide(); return; }
+                        list = arr;
+                        activeInput = inputEl;
+                        render(list);
+                        show(inputEl);
+                    } catch (e) { hide(); }
+                }, 300);
+
+                const onKey = (e) => {
+                    if (!open) return;
+                    const items = container.querySelectorAll('div');
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                        items[selectedIndex]?.scrollIntoView({ block: 'nearest' });
+                        items.forEach((it, i) => it.classList.toggle('bg-blue-100', i === selectedIndex));
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        selectedIndex = Math.max(selectedIndex - 1, -1);
+                        items.forEach((it, i) => it.classList.toggle('bg-blue-100', i === selectedIndex));
+                    } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (selectedIndex >= 0 && items[selectedIndex]) items[selectedIndex].click();
+                        else hide();
+                    } else if (e.key === 'Escape') { hide(); }
+                };
+
+                window.addEventListener('scroll', () => { if (activeInput && open) positionDropdown(activeInput, container); }, true);
+                window.addEventListener('resize', () => { if (activeInput && open) positionDropdown(activeInput, container); });
+                document.addEventListener('click', (e) => {
+                    if (activeInput && !activeInput.contains(e.target) && !container.contains(e.target)) hide();
+                }, true);
+
+                inputs.forEach(input => {
+                    input.addEventListener('input', e => doSearch(e.target.value, e.target));
+                    input.addEventListener('focus', e => { if (e.target.value.trim()) doSearch(e.target.value, e.target); });
+                    input.addEventListener('keydown', onKey);
+                    input.addEventListener('click', e => e.stopPropagation());
+                });
+            };
+
             document.addEventListener('DOMContentLoaded', () => {
                 const camposBloqueados = ['campo_Cuenta','campo_Calibre','campo_Fibra','campo_MaquinaEng','campo_BomEng','campo_BomFormula'];
                 if (!permiteEditarPorStatus) {
@@ -811,6 +914,16 @@
                 document.addEventListener('click', e => {
                     const btn = e.target.closest('.btn-editar-empleados');
                     if (btn) { e.preventDefault(); abrirModalEditarEmpleados(btn); }
+                });
+
+                setupAutocompleteCampo('#campo_BomEng', RUTA_BOM_ENGOMADO, 'bom-engomado-suggestions-editar');
+                setupAutocompleteCampo('#campo_BomFormula', RUTA_BOM_FORMULA, 'bom-formula-suggestions-editar', {
+                    getLabel: (s) => s.BomFormula || '',
+                    getValue: (s) => s.BomFormula || '',
+                });
+                setupAutocompleteCampo('#campo_LoteProveedor', RUTA_LOTE_PROVEEDOR, 'lote-proveedor-suggestions-editar', {
+                    getLabel: (s) => s.LoteProveedor || '',
+                    getValue: (s) => s.LoteProveedor || '',
                 });
 
                 document.querySelectorAll('.produccion-input').forEach(bindProduccionInput);

@@ -37,7 +37,9 @@ return [
     |--------------------------------------------------------------------------
     */
     'poll_seconds' => $pollSeconds,
-    'cache_fresh_seconds' => max(1, (int) env('CRUDO_CACHE_FRESH_SECONDS', $pollSeconds - 1)),
+    // Dos pulsos por snapshot: evita que cada poll de 15 s lance otra consulta
+    // pesada a TI_PRO, sin dejar de actualizar el tablero aproximadamente cada 30 s.
+    'cache_fresh_seconds' => max(1, (int) env('CRUDO_CACHE_FRESH_SECONDS', $pollSeconds * 2)),
     // El snapshot puede sobrevivir una hora: los polls lo renuevan en segundo
     // plano, pero una visita después de varios minutos no vuelve a arrancar en frío.
     'cache_stale_seconds' => max(60, (int) env('CRUDO_CACHE_STALE_SECONDS', 3600)),
@@ -47,6 +49,9 @@ return [
     // Último detalle exitoso por telar/rango/turno: se sirve si la consulta a TI
     // falla al refrescar, y vive fuera del snapshot de Livewire.
     'detail_fallback_seconds' => max(60, (int) env('CRUDO_DETAIL_FALLBACK_SECONDS', 900)),
+    // El total conserva todas las capturas, pero el modal renderiza solo las
+    // últimas filas; la tabla ya dispone de scroll y no necesita miles de nodos.
+    'detail_capture_limit' => max(5, (int) env('CRUDO_DETAIL_CAPTURE_LIMIT', 25)),
     'flog_cache_seconds' => max(0, (int) env('CRUDO_FLOG_CACHE_SECONDS', 300)),
     'line_query_chunk_size' => min(1000, max(100, (int) env('CRUDO_LINE_QUERY_CHUNK_SIZE', 700))),
 

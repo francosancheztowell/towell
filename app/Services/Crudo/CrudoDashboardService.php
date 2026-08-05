@@ -55,6 +55,9 @@ final readonly class CrudoDashboardService
             static fn (array $left, array $right): int => $right['quantity'] <=> $left['quantity'],
         );
 
+        $captureLimit = max(5, (int) config('crudo.detail_capture_limit', 25));
+        $visibleCaptures = array_slice($raw['captures'], -$captureLimit);
+
         return [
             'captureCount' => (int) $raw['captureCount'],
             'pieces' => (float) $raw['pieces'],
@@ -71,7 +74,7 @@ final readonly class CrudoDashboardService
             'lastUpdatedAt' => $raw['lastUpdatedAt'],
             'defectLineCount' => (int) $raw['defectLineCount'],
             'defects' => $defectsList,
-            'captures' => $raw['captures'],
+            'captures' => $visibleCaptures,
         ];
     }
 
@@ -98,17 +101,8 @@ final readonly class CrudoDashboardService
                 $this->repository->aggregateHeadersForRange($from, $to),
             );
         } else {
-            $headers = $this->repository->headersForRange($from, $to);
-            $headerIds = array_map(
-                static fn (object $row): int|string => $row->RECID,
-                $headers,
-            );
-            $defects = $this->repository->defectsForHeaders($headerIds);
-            $metricsByTelar = $this->aggregateHeaders(
-                $headers,
-                $this->groupDefectsByHeader($defects),
-                $shift,
-                includeDetail: false,
+            $metricsByTelar = $this->metricsFromAggregateRows(
+                $this->repository->aggregateHeadersForShiftInRange($from, $to, $shift),
             );
         }
         $machines = $this->buildMachines($catalog, $metricsByTelar, $parosByTelar, $programsByTelar, $from, $to, $shift, $now);
@@ -468,12 +462,6 @@ final readonly class CrudoDashboardService
                 hasActiveParo: $paro !== null,
             );
 
-            $defects = array_values($raw['defects']);
-            usort(
-                $defects,
-                static fn (array $left, array $right): int => $right['quantity'] <=> $left['quantity'],
-            );
-
             $machines[] = new CrudoMachineMetrics(
                 telar: $telar,
                 name: (string) ($catalogRow['name'] ?? 'Telar '.$telar),
@@ -488,11 +476,6 @@ final readonly class CrudoDashboardService
                 secondsPercent: $secondsPercent,
                 expectedKilos: $expectedKilos,
                 state: $state,
-                orders: array_keys($raw['orders']),
-                operators: array_keys($raw['operators']),
-                defects: $defects,
-                captures: $raw['captures'],
-                lastUpdatedAt: $raw['lastUpdatedAt'],
                 paro: $paro,
                 programa: $programsByTelar[$telar] ?? null,
             );

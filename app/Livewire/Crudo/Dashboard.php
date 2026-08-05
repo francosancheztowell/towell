@@ -7,9 +7,7 @@ namespace App\Livewire\Crudo;
 use App\Contracts\Crudo\CrudoDashboardProvider;
 use App\Services\Crudo\CrudoAccess;
 use App\Services\Crudo\CrudoFloorLayout;
-use DateInterval;
-use DateTimeImmutable;
-use DateTimeZone;
+use App\Support\Crudo\ResolvesCrudoPeriod;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
@@ -18,6 +16,8 @@ use Throwable;
 
 class Dashboard extends Component
 {
+    use ResolvesCrudoPeriod;
+
     #[Url(except: '')]
     public string $fecha = '';
 
@@ -36,8 +36,6 @@ class Dashboard extends Component
     public ?string $dataError = null;
 
     private bool $forceRefreshOnNextRender = false;
-
-    private bool $allowSynchronousRebuildOnNextRender = false;
 
     private CrudoDashboardProvider $provider;
 
@@ -97,9 +95,8 @@ class Dashboard extends Component
 
     public function refreshDashboard(): void
     {
-        // El poll nunca debe bloquear la interfaz esperando SQL Server. Sirve el
-        // último snapshot y agenda la renovación después de enviar la respuesta.
-        $this->allowSynchronousRebuildOnNextRender = false;
+        // El render del poll pide siempre el snapshot no bloqueante. El proveedor
+        // agenda la renovación si el dato ya venció.
     }
 
     public function refreshNow(): void
@@ -117,12 +114,8 @@ class Dashboard extends Component
 
     public function render(): View
     {
-        $data = $this->loadDashboard(
-            forceRefresh: $this->forceRefreshOnNextRender,
-            allowRebuild: $this->allowSynchronousRebuildOnNextRender,
-        );
+        $data = $this->loadDashboard(forceRefresh: $this->forceRefreshOnNextRender);
         $this->forceRefreshOnNextRender = false;
-        $this->allowSynchronousRebuildOnNextRender = false;
         $machines = is_array($data['machines'] ?? null) ? $data['machines'] : [];
         $cacheState = (string) ($data['cacheState'] ?? 'unavailable');
 
@@ -136,9 +129,9 @@ class Dashboard extends Component
             'floorLayouts' => $this->floorLayout->arrange($machines),
             'shouldPoll' => $this->modo === 'dia'
                 && $this->rangeTo()->format('Y-m-d') === now(config('app.timezone'))->format('Y-m-d'),
-            'pollSeconds' => in_array($cacheState, ['stale', 'refreshing'], true)
-                ? 2
-                : (int) config('crudo.poll_seconds', 15),
+            // Mantener una cadencia estable evita una tormenta de requests de 2 s
+            // mientras SQL Server sigue renovando un snapshot vencido.
+            'pollSeconds' => (int) config('crudo.poll_seconds', 15),
             'badQualityThreshold' => (float) config('crudo.bad_quality_percent', 10),
             'modo' => $this->modo,
             'maxRangeDays' => (int) config('crudo.max_range_days', 31),
@@ -166,7 +159,7 @@ class Dashboard extends Component
     /**
      * @return array<string, mixed>
      */
-    private function loadDashboard(bool $forceRefresh = false, bool $allowRebuild = false): array
+    private function loadDashboard(bool $forceRefresh = false): array
     {
         try {
             $data = $this->provider->get(
@@ -174,7 +167,7 @@ class Dashboard extends Component
                 $this->turno,
                 $forceRefresh,
                 $this->rangeTo(),
-                $allowRebuild,
+                false,
             );
             $this->dataError = null;
 
@@ -192,64 +185,6 @@ class Dashboard extends Component
                 'sourceError' => null,
             ];
         }
-    }
-
-    /**
-     * En modo "día" el rango es un único día; en modo "rango" se acota a
-     * crudo.max_range_days para no disparar cientos de días de captura en
-     * una sola consulta (headers crecen ~linear con los días pedidos).
-     */
-    private function rangeFrom(): DateTimeImmutable
-    {
-        $timezone = new DateTimeZone((string) config('app.timezone'));
-
-        if ($this->modo !== 'rango') {
-            return new DateTimeImmutable($this->normalizeDate($this->fecha), $timezone);
-        }
-
-        $from = new DateTimeImmutable($this->normalizeDate($this->fechaInicio), $timezone);
-        $to = new DateTimeImmutable($this->normalizeDate($this->fechaFin), $timezone);
-
-        if ($from > $to) {
-            [$from, $to] = [$to, $from];
-        }
-
-        $maxDays = max(1, (int) config('crudo.max_range_days', 31));
-        $earliestAllowed = $to->sub(new DateInterval('P'.($maxDays - 1).'D'));
-
-        return $from < $earliestAllowed ? $earliestAllowed : $from;
-    }
-
-    private function rangeTo(): DateTimeImmutable
-    {
-        $timezone = new DateTimeZone((string) config('app.timezone'));
-
-        if ($this->modo !== 'rango') {
-            return new DateTimeImmutable($this->normalizeDate($this->fecha), $timezone);
-        }
-
-        $from = new DateTimeImmutable($this->normalizeDate($this->fechaInicio), $timezone);
-        $to = new DateTimeImmutable($this->normalizeDate($this->fechaFin), $timezone);
-
-        return $from > $to ? $from : $to;
-    }
-
-    private function normalizeDate(string $date): string
-    {
-        $date = trim($date);
-        $timezone = new DateTimeZone((string) config('app.timezone'));
-        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date, $timezone);
-        $errors = DateTimeImmutable::getLastErrors();
-        $valid = $parsed !== false
-            && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))
-            && $parsed->format('Y-m-d') === $date;
-
-        return $valid ? $date : now($timezone)->format('Y-m-d');
-    }
-
-    private function normalizeShift(string $shift): string
-    {
-        return in_array($shift, ['todos', '1', '2', '3', '4'], true) ? $shift : 'todos';
     }
 
     /**

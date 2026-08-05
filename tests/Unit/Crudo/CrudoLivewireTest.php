@@ -19,6 +19,7 @@ final class CrudoLivewireTest extends TestCase
         parent::setUp();
 
         config()->set('crudo.bad_quality_percent', 10);
+        config()->set('crudo.poll_seconds', 15);
         $this->provider = new FakeCrudoDashboardProvider($this->dashboardData());
         $this->app->instance(CrudoDashboardProvider::class, $this->provider);
     }
@@ -58,6 +59,17 @@ final class CrudoLivewireTest extends TestCase
 
         $this->assertSame(2, $this->provider->getCalls);
         $this->assertSame([false, false], $this->provider->allowRebuildSeen);
+    }
+
+    public function test_a_stale_snapshot_does_not_accelerate_polling_to_two_seconds(): void
+    {
+        $data = $this->dashboardData();
+        $data['cacheState'] = 'stale';
+        $this->app->instance(CrudoDashboardProvider::class, new FakeCrudoDashboardProvider($data));
+
+        Livewire::test(TestableCrudoDashboard::class)
+            ->assertSee('wire:poll.visible.15s', false)
+            ->assertDontSee('wire:poll.visible.2s', false);
     }
 
     public function test_historical_and_range_views_do_not_keep_polling(): void

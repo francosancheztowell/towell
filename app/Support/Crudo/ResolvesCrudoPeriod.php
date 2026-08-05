@@ -1,0 +1,70 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Support\Crudo;
+
+use DateInterval;
+use DateTimeImmutable;
+use DateTimeZone;
+
+trait ResolvesCrudoPeriod
+{
+    private function rangeFrom(): DateTimeImmutable
+    {
+        $timezone = $this->crudoTimezone();
+
+        if ($this->modo !== 'rango') {
+            return new DateTimeImmutable($this->normalizeDate($this->fecha), $timezone);
+        }
+
+        $from = new DateTimeImmutable($this->normalizeDate($this->fechaInicio), $timezone);
+        $to = new DateTimeImmutable($this->normalizeDate($this->fechaFin), $timezone);
+
+        if ($from > $to) {
+            [$from, $to] = [$to, $from];
+        }
+
+        $maxDays = max(1, (int) config('crudo.max_range_days', 31));
+        $earliestAllowed = $to->sub(new DateInterval('P'.($maxDays - 1).'D'));
+
+        return $from < $earliestAllowed ? $earliestAllowed : $from;
+    }
+
+    private function rangeTo(): DateTimeImmutable
+    {
+        $timezone = $this->crudoTimezone();
+
+        if ($this->modo !== 'rango') {
+            return new DateTimeImmutable($this->normalizeDate($this->fecha), $timezone);
+        }
+
+        $from = new DateTimeImmutable($this->normalizeDate($this->fechaInicio), $timezone);
+        $to = new DateTimeImmutable($this->normalizeDate($this->fechaFin), $timezone);
+
+        return $from > $to ? $from : $to;
+    }
+
+    private function normalizeDate(string $date): string
+    {
+        $date = trim($date);
+        $timezone = $this->crudoTimezone();
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date, $timezone);
+        $errors = DateTimeImmutable::getLastErrors();
+        $valid = $parsed !== false
+            && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))
+            && $parsed->format('Y-m-d') === $date;
+
+        return $valid ? $date : now($timezone)->format('Y-m-d');
+    }
+
+    private function normalizeShift(string $shift): string
+    {
+        return in_array($shift, ['todos', '1', '2', '3', '4'], true) ? $shift : 'todos';
+    }
+
+    private function crudoTimezone(): DateTimeZone
+    {
+        return new DateTimeZone((string) config('app.timezone'));
+    }
+}

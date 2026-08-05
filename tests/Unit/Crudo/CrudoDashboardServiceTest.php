@@ -112,6 +112,8 @@ final class CrudoDashboardServiceTest extends TestCase
         $this->assertSame(100.0, $data['summary']['pieces']);
         $this->assertSame(5.0, $data['summary']['seconds']);
         $this->assertSame(95.0, $data['summary']['qualityPercent']);
+        $this->assertArrayNotHasKey('defects', $data['machines'][0]);
+        $this->assertArrayNotHasKey('captures', $data['machines'][0]);
         $this->assertSame([], $this->repository->requestedHeaderIds);
         $this->assertSame(1, $this->repository->aggregateCalls);
     }
@@ -124,11 +126,11 @@ final class CrudoDashboardServiceTest extends TestCase
         $this->assertSame(60.0, $machine['pieces']);
         $this->assertSame(2.0, $machine['seconds']);
         $this->assertSame(24.0, $machine['kilos']);
-        $this->assertSame(['1001'], $this->repository->requestedHeaderIds);
-        // El snapshot compartido (build/buildRange) ya no arma defectos/capturas por
-        // telar — eso se pide aparte, en vivo, vía machineDetail() al abrir el modal.
-        $this->assertSame([], $machine['defects']);
-        $this->assertSame([], $machine['captures']);
+        $this->assertSame([], $this->repository->requestedHeaderIds);
+        $this->assertSame(1, $this->repository->aggregateShiftCalls);
+        // El snapshot compartido no serializa listas del modal.
+        $this->assertArrayNotHasKey('defects', $machine);
+        $this->assertArrayNotHasKey('captures', $machine);
     }
 
     public function test_machine_detail_builds_defects_and_captures_for_a_single_telar(): void
@@ -232,6 +234,8 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
 
     public int $aggregateCalls = 0;
 
+    public int $aggregateShiftCalls = 0;
+
     /** @var list<object> */
     public array $programs = [];
 
@@ -248,16 +252,6 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
         private readonly array $defects,
         private readonly array $machines,
     ) {}
-
-    public function headersForDate(DateTimeImmutable $date): array
-    {
-        return $this->headers;
-    }
-
-    public function headersForRange(DateTimeImmutable $from, DateTimeImmutable $to): array
-    {
-        return $this->headers;
-    }
 
     public function aggregateHeadersForRange(DateTimeImmutable $from, DateTimeImmutable $to): array
     {
@@ -277,6 +271,50 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
             $grouped[$telar]->pieces += (float) $header->PIEZASTOTAL;
             $grouped[$telar]->seconds += (float) $header->SEGUNDASTOTAL;
             $grouped[$telar]->kilos += (float) $header->PESO;
+        }
+
+        return array_values($grouped);
+    }
+
+    public function aggregateHeadersForShiftInRange(
+        DateTimeImmutable $from,
+        DateTimeImmutable $to,
+        string $shift,
+    ): array {
+        $this->aggregateShiftCalls++;
+        $pieceField = 'PIEZAST'.$shift;
+        $grouped = [];
+
+        foreach ($this->headers as $header) {
+            $pieces = (float) ($header->{$pieceField} ?? 0);
+            $seconds = 0.0;
+
+            foreach ($this->defects as $defect) {
+                $defectShift = preg_replace('/\D+/', '', (string) ($defect->TURNO ?? ''));
+                if ((string) $defect->REFRECID === (string) $header->RECID && $defectShift === $shift) {
+                    $seconds += (float) $defect->CANTIDAD;
+                }
+            }
+
+            if ($pieces <= 0 && $seconds <= 0) {
+                continue;
+            }
+
+            $telar = trim((string) $header->TELAR);
+            $grouped[$telar] ??= (object) [
+                'TELAR' => $telar,
+                'captureCount' => 0,
+                'pieces' => 0.0,
+                'seconds' => 0.0,
+                'kilos' => 0.0,
+            ];
+            $totalPieces = (float) $header->PIEZASTOTAL;
+            $grouped[$telar]->captureCount++;
+            $grouped[$telar]->pieces += $pieces;
+            $grouped[$telar]->seconds += $seconds;
+            $grouped[$telar]->kilos += $totalPieces > 0
+                ? (float) $header->PESO * ($pieces / $totalPieces)
+                : (float) $header->PESO;
         }
 
         return array_values($grouped);

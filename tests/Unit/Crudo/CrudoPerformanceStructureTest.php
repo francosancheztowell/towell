@@ -46,6 +46,21 @@ final class CrudoPerformanceStructureTest extends TestCase
         $this->assertStringNotContainsString('is-changed', $typescript);
         $this->assertStringNotContainsString('mutationObserver.observe(machineGrid', $typescript);
         $this->assertStringContainsString('mutationObserver.observe(dataElement', $typescript);
+        $this->assertStringNotContainsString('auditDefectObserver.observe(document.body', $typescript);
+        $this->assertStringContainsString('auditDefectObserver.observe(dashboard', $typescript);
+    }
+
+    public function test_the_machine_floor_is_a_stable_livewire_island(): void
+    {
+        $dashboard = file_get_contents(resource_path('views/livewire/crudo/dashboard.blade.php'));
+        $floor = file_get_contents(resource_path('views/livewire/crudo/machine-floor.blade.php'));
+
+        $this->assertIsString($dashboard);
+        $this->assertIsString($floor);
+        $this->assertStringContainsString('<livewire:crudo.machine-floor', $dashboard);
+        $this->assertStringNotContainsString('<x-crudo.machine-card', $dashboard);
+        $this->assertStringContainsString('<x-crudo.machine-card', $floor);
+        $this->assertStringNotContainsString('wire:poll', $floor);
     }
 
     public function test_modal_close_keeps_the_backdrop_until_livewire_finishes(): void

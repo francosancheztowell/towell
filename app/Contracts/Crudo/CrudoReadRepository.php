@@ -9,22 +9,24 @@ use DateTimeImmutable;
 interface CrudoReadRepository
 {
     /**
-     * @return list<object>
-     */
-    public function headersForDate(DateTimeImmutable $date): array;
-
-    /**
-     * @return list<object>
-     */
-    public function headersForRange(DateTimeImmutable $from, DateTimeImmutable $to): array;
-
-    /**
      * Totales por telar para el tablero general cuando se consultan todos los turnos.
      * La agregación ocurre en SQL para no transportar cada cabecera a PHP.
      *
      * @return list<object>
      */
     public function aggregateHeadersForRange(DateTimeImmutable $from, DateTimeImmutable $to): array;
+
+    /**
+     * Totales por telar de un turno. Piezas, segundas y kg se agregan en SQL
+     * para que el tablero no descargue cabeceras y líneas individuales.
+     *
+     * @return list<object>
+     */
+    public function aggregateHeadersForShiftInRange(
+        DateTimeImmutable $from,
+        DateTimeImmutable $to,
+        string $shift,
+    ): array;
 
     /**
      * @return list<object>

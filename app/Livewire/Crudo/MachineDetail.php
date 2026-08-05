@@ -5,11 +5,8 @@ declare(strict_types=1);
 namespace App\Livewire\Crudo;
 
 use App\Contracts\Crudo\CrudoDashboardProvider;
-use App\Contracts\Crudo\CrudoFlogProvider;
 use App\Services\Crudo\CrudoStatusResolver;
-use DateInterval;
-use DateTimeImmutable;
-use DateTimeZone;
+use App\Support\Crudo\ResolvesCrudoPeriod;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Computed;
@@ -20,6 +17,8 @@ use Throwable;
 
 class MachineDetail extends Component
 {
+    use ResolvesCrudoPeriod;
+
     #[Url(except: '')]
     public string $fecha = '';
 
@@ -46,8 +45,7 @@ class MachineDetail extends Component
 
     public ?string $detailError = null;
 
-    /** @var array<string, mixed>|null */
-    public ?array $flogSummary = null;
+    public bool $detailLoaded = false;
 
     public bool $auditModalOpen = false;
 
@@ -55,16 +53,12 @@ class MachineDetail extends Component
 
     private CrudoStatusResolver $statusResolver;
 
-    private CrudoFlogProvider $flogProvider;
-
     public function boot(
         CrudoDashboardProvider $provider,
         CrudoStatusResolver $statusResolver,
-        CrudoFlogProvider $flogProvider,
     ): void {
         $this->provider = $provider;
         $this->statusResolver = $statusResolver;
-        $this->flogProvider = $flogProvider;
     }
 
     public function mount(): void
@@ -82,8 +76,8 @@ class MachineDetail extends Component
         $this->selectedTelar = mb_substr(trim($telar), 0, 20);
         $this->machine = $machine;
         $this->detailError = null;
+        $this->detailLoaded = false;
         $this->auditModalOpen = false;
-        $this->loadFlogSummary();
     }
 
     public function close(): void
@@ -91,7 +85,7 @@ class MachineDetail extends Component
         $this->selectedTelar = null;
         $this->machine = null;
         $this->detailError = null;
-        $this->flogSummary = null;
+        $this->detailLoaded = false;
         $this->auditModalOpen = false;
     }
 
@@ -143,6 +137,15 @@ class MachineDetail extends Component
         $this->auditModalOpen = true;
     }
 
+    public function loadDetail(): void
+    {
+        if ($this->selectedTelar === null || $this->auditModalOpen || $this->detailLoaded) {
+            return;
+        }
+
+        $this->detailLoaded = true;
+    }
+
     #[On('crudo-refrescado')]
     public function refreshDetail(): void
     {
@@ -151,6 +154,8 @@ class MachineDetail extends Component
         if ($this->selectedTelar === null || $this->auditModalOpen) {
             return;
         }
+
+        $this->detailLoaded = true;
     }
 
     public function render(): View
@@ -193,13 +198,18 @@ class MachineDetail extends Component
             }
         }
 
+        $machine['orders'] = is_array($machine['orders'] ?? null) ? $machine['orders'] : [];
+        $machine['operators'] = is_array($machine['operators'] ?? null) ? $machine['operators'] : [];
+        $machine['defects'] = is_array($machine['defects'] ?? null) ? $machine['defects'] : [];
+        $machine['captures'] = is_array($machine['captures'] ?? null) ? $machine['captures'] : [];
+
         $state = $this->statusResolver->resolve(
             captureCount: (int) ($machine['captureCount'] ?? 0),
             pieces: (float) ($machine['pieces'] ?? 0),
             secondsPercent: (float) ($machine['secondsPercent'] ?? 0),
             kilos: (float) ($machine['kilos'] ?? 0),
             expectedKilos: (float) ($machine['expectedKilos'] ?? 0),
-            hasActiveParo: $machine['paro'] !== null,
+            hasActiveParo: ($machine['paro'] ?? null) !== null,
         );
 
         $machine['state'] = $state->value;
@@ -222,7 +232,7 @@ class MachineDetail extends Component
     #[Computed]
     public function detail(): ?array
     {
-        if ($this->selectedTelar === null || $this->auditModalOpen) {
+        if ($this->selectedTelar === null || $this->auditModalOpen || ! $this->detailLoaded) {
             return null;
         }
 
@@ -263,87 +273,5 @@ class MachineDetail extends Component
             $this->rangeTo()->format('Y-m-d'),
             $this->turno,
         );
-    }
-
-    private function loadFlogSummary(): void
-    {
-        $program = $this->machine['programa'] ?? null;
-        $barcodes = array_values(array_filter(array_map(
-            static fn (array $capture): string => trim((string) ($capture['purchBarcode'] ?? '')),
-            $this->detail['captures'] ?? [],
-        )));
-
-        try {
-            $this->flogSummary = $this->flogProvider->find(
-                is_array($program) ? $program : null,
-                $barcodes,
-            );
-        } catch (Throwable $exception) {
-            report($exception);
-            $this->flogSummary = [
-                'status' => 'error',
-                'source' => null,
-                'flog' => '',
-                'client' => '',
-                'itemId' => '',
-                'inventSizeId' => '',
-                'simulationSalesUrl' => null,
-                'simulationDesignUrl' => null,
-                'lineMatched' => false,
-            ];
-        }
-    }
-
-    private function rangeFrom(): DateTimeImmutable
-    {
-        $timezone = new DateTimeZone((string) config('app.timezone'));
-
-        if ($this->modo !== 'rango') {
-            return new DateTimeImmutable($this->normalizeDate($this->fecha), $timezone);
-        }
-
-        $from = new DateTimeImmutable($this->normalizeDate($this->fechaInicio), $timezone);
-        $to = new DateTimeImmutable($this->normalizeDate($this->fechaFin), $timezone);
-
-        if ($from > $to) {
-            [$from, $to] = [$to, $from];
-        }
-
-        $maxDays = max(1, (int) config('crudo.max_range_days', 31));
-        $earliestAllowed = $to->sub(new DateInterval('P'.($maxDays - 1).'D'));
-
-        return $from < $earliestAllowed ? $earliestAllowed : $from;
-    }
-
-    private function rangeTo(): DateTimeImmutable
-    {
-        $timezone = new DateTimeZone((string) config('app.timezone'));
-
-        if ($this->modo !== 'rango') {
-            return new DateTimeImmutable($this->normalizeDate($this->fecha), $timezone);
-        }
-
-        $from = new DateTimeImmutable($this->normalizeDate($this->fechaInicio), $timezone);
-        $to = new DateTimeImmutable($this->normalizeDate($this->fechaFin), $timezone);
-
-        return $from > $to ? $from : $to;
-    }
-
-    private function normalizeDate(string $date): string
-    {
-        $date = trim($date);
-        $timezone = new DateTimeZone((string) config('app.timezone'));
-        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date, $timezone);
-        $errors = DateTimeImmutable::getLastErrors();
-        $valid = $parsed !== false
-            && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))
-            && $parsed->format('Y-m-d') === $date;
-
-        return $valid ? $date : now($timezone)->format('Y-m-d');
-    }
-
-    private function normalizeShift(string $shift): string
-    {
-        return in_array($shift, ['todos', '1', '2', '3', '4'], true) ? $shift : 'todos';
     }
 }

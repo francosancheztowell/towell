@@ -54,6 +54,69 @@ class BomMaterialesService
             ->distinct()->orderBy('bt.BOMID')->limit(20)->get()->toArray();
     }
 
+    /**
+     * Búsqueda de fórmulas de engomado (TE-PD-ENF%) para autocomplete.
+     *
+     * @return list<array{BomFormula: string}>
+     */
+    public function buscarBomFormula(string $query): array
+    {
+        $q = DB::connection(self::CONN)
+            ->table('BOM')
+            ->where('DATAAREAID', self::DATAAREA)
+            ->where('ITEMID', 'like', 'TE-PD-ENF%');
+
+        $query = trim($query);
+        if ($query !== '') {
+            $q->where('ITEMID', 'LIKE', '%'.$query.'%');
+        }
+
+        return $q->select('ITEMID as BomFormula')
+            ->distinct()
+            ->orderBy('BomFormula')
+            ->limit(20)
+            ->get()
+            ->map(fn ($row) => trim((string) ($row->BomFormula ?? '')))
+            ->filter(fn (string $formula) => $formula !== '')
+            ->values()
+            ->map(fn (string $formula) => ['BomFormula' => $formula])
+            ->toArray();
+    }
+
+    /**
+     * Búsqueda de lotes de proveedor (InventBatchId) con existencia para autocomplete.
+     *
+     * @return list<array{LoteProveedor: string}>
+     */
+    public function buscarLoteProveedor(string $query): array
+    {
+        $q = DB::connection(self::CONN)
+            ->table('InventSum as sum')
+            ->join('InventDim as dim', 'dim.INVENTDIMID', '=', 'sum.INVENTDIMID')
+            ->whereRaw('sum.PhysicalInvent <> 0')
+            ->where('sum.DATAAREAID', self::DATAAREA)
+            ->where('dim.DATAAREAID', self::DATAAREA)
+            ->whereIn('dim.INVENTLOCATIONID', ['A-MP', 'A-MPBB'])
+            ->whereNotNull('dim.INVENTBATCHID')
+            ->where('dim.INVENTBATCHID', '<>', '');
+
+        $query = trim($query);
+        if ($query !== '') {
+            $q->where('dim.INVENTBATCHID', 'LIKE', '%'.$query.'%');
+        }
+
+        return $q->select('dim.INVENTBATCHID as LoteProveedor')
+            ->distinct()
+            ->orderBy('LoteProveedor')
+            ->limit(20)
+            ->get()
+            ->map(fn ($row) => trim((string) ($row->LoteProveedor ?? '')))
+            ->filter(fn (string $lote) => $lote !== '')
+            ->values()
+            ->map(fn (string $lote) => ['LoteProveedor' => $lote])
+            ->toArray();
+    }
+
     public function getMaterialesUrdido(string $bomId): array
     {
         if (empty(trim($bomId))) {

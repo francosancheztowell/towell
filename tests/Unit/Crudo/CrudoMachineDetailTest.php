@@ -7,6 +7,7 @@ namespace Tests\Unit\Crudo;
 use App\Contracts\Crudo\CrudoDashboardProvider;
 use App\Contracts\Crudo\CrudoFlogProvider;
 use App\Livewire\Crudo\MachineDetail;
+use App\Livewire\Crudo\MachineFlogSummary;
 use DateTimeImmutable;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -30,9 +31,22 @@ final class CrudoMachineDetailTest extends TestCase
 
     public function test_it_opens_and_loads_machine_detail(): void
     {
-        Livewire::test(TestableCrudoMachineDetail::class)
+        $component = Livewire::test(TestableCrudoMachineDetail::class)
             ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
             ->assertSet('selectedTelar', '201')
+            ->assertSet('detailLoaded', false)
+            ->assertSee('wire:init="loadDetail"', false)
+            ->assertSee('Consultando capturas y defectos')
+            ->assertSee('crudo-modal-overview', false)
+            ->assertSee('Agregar auditoría')
+            ->assertDontSee('Órdenes y turnos');
+
+        $this->assertSame(0, $this->provider->detailCalls);
+        $this->assertSame(0, $this->flogProvider->calls);
+
+        $component
+            ->call('loadDetail')
+            ->assertSet('detailLoaded', true)
             ->assertSet('detail.kilos', 40.0)
             ->assertSee('crudo-modal-overview', false)
             ->assertSee('crudo-modal-identity-card', false)
@@ -64,13 +78,9 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSee('T3')
             ->assertSee('T4')
             ->assertSee('Datos del Flog')
+            ->assertSee('wire:init="load"', false)
+            ->assertSee('Consultando el Flog relacionado')
             ->assertDontSee('crudo-eyebrow', false)
-            ->assertSee('CE-NOV25-LGONZ-F001399')
-            ->assertSee('C0001 Cliente de prueba')
-            ->assertSee('ART-100')
-            ->assertSee('100X200')
-            ->assertSee('Simulación')
-            ->assertSee('https://example.test/simulacion-ventas.jpg', false)
             ->assertSee('Agregar auditoría')
             ->assertSee('data-crudo-open-audit', false)
             ->assertDontSee('data-crudo-audit-content', false)
@@ -100,10 +110,35 @@ final class CrudoMachineDetailTest extends TestCase
             ->call('close')
             ->assertSet('selectedTelar', null)
             ->assertSet('auditModalOpen', false)
-            ->assertSet('flogSummary', null)
             ->assertDontSee('crudo-modal-overview', false);
 
+        $this->assertSame(1, $this->provider->detailCalls);
+        $this->assertSame(0, $this->flogProvider->calls);
+    }
+
+    public function test_flog_load_is_isolated_from_the_machine_modal(): void
+    {
+        $program = ['flogId' => 'CE-NOV25-LGONZ-F001399'];
+
+        Livewire::test(MachineFlogSummary::class, [
+            'program' => $program,
+            'purchBarcodes' => [' PB-1001 ', 'PB-1001', 'PB-1002'],
+        ])
+            ->assertSet('loaded', false)
+            ->assertSet('purchBarcodes', ['PB-1001', 'PB-1002'])
+            ->assertSee('Consultando el Flog relacionado')
+            ->call('load')
+            ->assertSet('loaded', true)
+            ->assertSee('CE-NOV25-LGONZ-F001399')
+            ->assertSee('C0001 Cliente de prueba')
+            ->assertSee('ART-100')
+            ->assertSee('100X200')
+            ->assertSee('Simulación')
+            ->assertSee('https://example.test/simulacion-ventas.jpg', false);
+
         $this->assertSame(1, $this->flogProvider->calls);
+        $this->assertSame($program, $this->flogProvider->lastProgram);
+        $this->assertSame(['PB-1001', 'PB-1002'], $this->flogProvider->lastBarcodes);
     }
 
     public function test_checklist_results_start_empty_and_use_one_cyclic_control_per_question(): void
@@ -211,8 +246,8 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSet('auditModalOpen', false)
             ->assertSet('selectedTelar', null);
 
-        $this->assertSame(1, $this->provider->detailCalls);
-        $this->assertSame(1, $this->flogProvider->calls);
+        $this->assertSame(0, $this->provider->detailCalls);
+        $this->assertSame(0, $this->flogProvider->calls);
     }
 
     public function test_successful_audit_event_closes_the_modal(): void
@@ -225,7 +260,6 @@ final class CrudoMachineDetailTest extends TestCase
             ->dispatch('crudo-auditoria-guardada')
             ->assertSet('selectedTelar', null)
             ->assertSet('machine', null)
-            ->assertSet('flogSummary', null)
             ->assertSet('auditModalOpen', false)
             ->assertDontSee('data-crudo-modal', false);
     }
@@ -287,6 +321,7 @@ final class CrudoMachineDetailTest extends TestCase
 
         Livewire::test(TestableCrudoMachineDetail::class)
             ->dispatch('open-crudo-detail', telar: '201', machine: $machine)
+            ->call('loadDetail')
             ->assertSee('41 kg')
             ->assertSee('Meta a esta hora')
             ->assertSee('51 kg')
@@ -316,6 +351,7 @@ final class CrudoMachineDetailTest extends TestCase
     {
         $component = Livewire::test(TestableCrudoMachineDetail::class)
             ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
+            ->call('loadDetail')
             ->assertSet('detail.kilos', 40.0);
 
         $this->provider->failDetail = true;
@@ -358,7 +394,8 @@ final class CrudoMachineDetailTest extends TestCase
                 modo: 'dia',
                 turno: '2',
             )
-            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData());
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
+            ->call('loadDetail');
 
         $this->assertSame([
             'telar' => '201',
@@ -376,7 +413,8 @@ final class CrudoMachineDetailTest extends TestCase
                 modo: 'dia',
                 turno: 'todos',
             )
-            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData());
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
+            ->call('loadDetail');
 
         $this->assertSame([
             'telar' => '201',
@@ -397,7 +435,8 @@ final class CrudoMachineDetailTest extends TestCase
                 modo: 'rango',
                 turno: '4',
             )
-            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData());
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
+            ->call('loadDetail');
 
         $this->assertSame([
             'telar' => '201',
@@ -489,9 +528,17 @@ final class FakeCrudoFlogProviderForDetail implements CrudoFlogProvider
 {
     public int $calls = 0;
 
+    /** @var array<string, mixed>|null */
+    public ?array $lastProgram = null;
+
+    /** @var list<string> */
+    public array $lastBarcodes = [];
+
     public function find(?array $program, array $purchBarcodes = []): array
     {
         $this->calls++;
+        $this->lastProgram = $program;
+        $this->lastBarcodes = $purchBarcodes;
 
         return [
             'status' => 'ok',

@@ -23,11 +23,6 @@ type Machine = {
   state: string
   stateLabel: string
   stateIcon: string
-  orders: string[]
-  operators: string[]
-  defects: Array<Record<string, unknown>>
-  captures: Array<Record<string, unknown>>
-  lastUpdatedAt: string | null
   paro: Record<string, string | null> | null
   programa: Record<string, string | null> | null
 }
@@ -141,6 +136,7 @@ let pendingDetailTimer: number | null = null
 let observedDashboard: HTMLElement | null = null
 let mutationObserver: MutationObserver | null = null
 let auditDefectObserver: MutationObserver | null = null
+let observedAuditRoot: HTMLElement | null = null
 let relativeTimeTimer: number | null = null
 const qualityDefectRequests = new Map<string, Promise<QualityDefectOption[]>>()
 const auditHistoryRequests = new AuditHistoryRequestCoordinator<HTMLElement>()
@@ -280,10 +276,22 @@ const updateRelativeTimes = (): void => {
   })
 }
 
+const syncRelativeTimeTimer = (): void => {
+  const hasRelativeTimes = document.querySelector(RELATIVE_TIME_SELECTOR) !== null
+
+  if (hasRelativeTimes && relativeTimeTimer === null) {
+    relativeTimeTimer = window.setInterval(updateRelativeTimes, 5000)
+  } else if (!hasRelativeTimes && relativeTimeTimer !== null) {
+    window.clearInterval(relativeTimeTimer)
+    relativeTimeTimer = null
+  }
+}
+
 const observeDashboard = (): void => {
   const dashboard = document.querySelector<HTMLElement>(DASHBOARD_SELECTOR)
   if (!dashboard || dashboard === observedDashboard) {
     updateRelativeTimes()
+    syncRelativeTimeTimer()
     return
   }
 
@@ -304,6 +312,7 @@ const observeDashboard = (): void => {
       if (observedDashboard) {
         updateDashboardCards()
         updateRelativeTimes()
+        syncRelativeTimeTimer()
       }
     })
   })
@@ -318,6 +327,7 @@ const observeDashboard = (): void => {
 
   updateDashboardCards()
   updateRelativeTimes()
+  syncRelativeTimeTimer()
 }
 
 const toggleFullscreen = async (): Promise<void> => {
@@ -646,9 +656,13 @@ const observeQualityDefectEditors = (): void => {
   syncAuditActionStates()
   syncPendingDetail()
 
-  if (auditDefectObserver || !document.body) {
+  const dashboard = document.querySelector<HTMLElement>(DASHBOARD_SELECTOR)
+  if (!dashboard || (auditDefectObserver && observedAuditRoot === dashboard)) {
     return
   }
+
+  auditDefectObserver?.disconnect()
+  observedAuditRoot = dashboard
 
   auditDefectObserver = new MutationObserver((mutations) => {
     auditHistoryRequests.abortDisconnected()
@@ -659,7 +673,7 @@ const observeQualityDefectEditors = (): void => {
     }
   })
 
-  auditDefectObserver.observe(document.body, {
+  auditDefectObserver.observe(dashboard, {
     attributes: true,
     attributeFilter: ['hidden'],
     childList: true,
@@ -1102,8 +1116,6 @@ document.addEventListener('DOMContentLoaded', observeDashboard)
 document.addEventListener('livewire:init', observeQualityDefectEditors)
 document.addEventListener('livewire:navigated', observeQualityDefectEditors)
 document.addEventListener('DOMContentLoaded', observeQualityDefectEditors)
-
-relativeTimeTimer = window.setInterval(updateRelativeTimes, 5000)
 
 window.addEventListener('beforeunload', () => {
   if (relativeTimeTimer !== null) {

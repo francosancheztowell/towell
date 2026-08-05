@@ -1937,15 +1937,23 @@
 }
 
 .crudo-modal-skeleton {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
+    position: relative;
     display: grid;
     gap: 0.55rem;
     align-content: start;
-    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.85rem;
+    background: #fff;
     padding: 0.75rem;
     pointer-events: none;
+}
+
+.crudo-detail-loading-copy {
+    margin: 0;
+    color: #475569;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-align: center;
 }
 
 .crudo-modal-body-loading .crudo-modal-skeleton {

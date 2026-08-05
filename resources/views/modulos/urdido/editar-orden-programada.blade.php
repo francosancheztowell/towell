@@ -261,6 +261,7 @@
                         id="campo_LoteProveedor"
                         data-campo="LoteProveedor"
                         value="{{ $orden->LoteProveedor ?? '' }}"
+                        autocomplete="off"
                         class="campo-editable w-full px-1.5 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
 
                     >
@@ -537,6 +538,7 @@
             const RUTA_HILOS = '{{ route("programa.urd.eng.hilos") }}';
             const RUTA_TAMANOS = '{{ route("programa.urd.eng.tamanos") }}';
             const RUTA_BOM_URDIDO = '{{ route("programa.urd.eng.buscar.bom.urdido") }}';
+            const RUTA_LOTE_PROVEEDOR = '{{ route("programa.urd.eng.buscar.lote.proveedor") }}';
             const bloqueaUrdido = {{ $bloqueaUrdido ? 'true' : 'false' }};
             const permiteEditarPorStatus = {{ ($permiteEditarPorStatus ?? false) ? 'true' : 'false' }};
             const esFinalizado = {{ $esFinalizado ? 'true' : 'false' }};
@@ -968,10 +970,12 @@
                 container.style.width = rect.width + 'px';
             };
 
-            const setupBomAutocomplete = (inputsSelector, searchRoute, containerId, onSelectExtra) => {
+            const setupBomAutocomplete = (inputsSelector, searchRoute, containerId, onSelectExtra, opciones = {}) => {
                 const inputs = document.querySelectorAll(inputsSelector);
                 if (!inputs.length) return;
                 let activeInput = null, selectedIndex = -1, list = [], open = false;
+                const getLabel = opciones.getLabel || ((s) => `${s.BOMID} - ${s.NAME || ''}`);
+                const getValue = opciones.getValue || ((s) => s.BOMID);
 
                 let container = document.getElementById(containerId);
                 if (!container) {
@@ -984,7 +988,6 @@
                 const hide = () => { container.classList.add('hidden'); open = false; selectedIndex = -1; list = []; activeInput = null; };
                 const show = (el) => { positionDropdown(el, container); container.classList.remove('hidden'); open = true; };
 
-                const getLabel = (s) => `${s.BOMID} - ${s.NAME || ''}`;
                 const render = (items) => {
                     container.innerHTML = '';
                     items.forEach((it, idx) => {
@@ -993,7 +996,7 @@
                         div.textContent = getLabel(it);
                         div.addEventListener('click', () => {
                             if (activeInput) {
-                                activeInput.value = it.BOMID;
+                                activeInput.value = getValue(it);
                                 activeInput.dispatchEvent(new Event('change', { bubbles: true }));
                                 if (typeof onSelectExtra === 'function') onSelectExtra(activeInput, it);
                                 hide();
@@ -1750,6 +1753,12 @@
 
                 // Autocomplete BOM Urdido (consulta SQL a otra DB - sqlsrv_ti)
                 setupBomAutocomplete('#campo_BomId', RUTA_BOM_URDIDO, 'bom-urdido-suggestions-editar');
+
+                // Autocomplete Lote Proveedor (InventBatchId con existencia)
+                setupBomAutocomplete('#campo_LoteProveedor', RUTA_LOTE_PROVEEDOR, 'lote-proveedor-suggestions-editar', null, {
+                    getLabel: (s) => s.LoteProveedor || '',
+                    getValue: (s) => s.LoteProveedor || '',
+                });
 
                 // Actualizar label y opciones Tipo/Barras cuando cambian Salón o Máquina (Karl Mayer = Barras 1-6, else Tipo Rizo/Pie)
                 const esKarlMayerDesdeCampos = () => {

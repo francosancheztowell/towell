@@ -13,16 +13,6 @@ use Illuminate\Support\Facades\DB;
 
 final class SqlServerCrudoReadRepository implements CrudoReadRepository
 {
-    public function headersForDate(DateTimeImmutable $date): array
-    {
-        return $this->headersForRange($date, $date);
-    }
-
-    public function headersForRange(DateTimeImmutable $from, DateTimeImmutable $to): array
-    {
-        return $this->queryHeaders($from, $to)->get()->all();
-    }
-
     public function aggregateHeadersForRange(DateTimeImmutable $from, DateTimeImmutable $to): array
     {
         $start = $from->setTime(0, 0);
@@ -42,6 +32,66 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
                 SUM(COALESCE(SEGUNDASTOTAL, 0)) AS seconds,
                 SUM(COALESCE(PESO, 0)) AS kilos
             ')
+            ->get()
+            ->all();
+    }
+
+    public function aggregateHeadersForShiftInRange(
+        DateTimeImmutable $from,
+        DateTimeImmutable $to,
+        string $shift,
+    ): array {
+        $pieceColumn = match ($shift) {
+            '1' => 'PIEZAST1',
+            '2' => 'PIEZAST2',
+            '3' => 'PIEZAST3',
+            '4' => 'PIEZAST4',
+            default => throw new \InvalidArgumentException('Turno de Crudo no válido.'),
+        };
+        $start = $from->setTime(0, 0);
+        $end = $to->setTime(0, 0)->add(new DateInterval('P1D'));
+        $turnValues = [
+            $shift,
+            'T'.$shift,
+            'T '.$shift,
+            'Turno '.$shift,
+            'TURNO '.$shift,
+            'Turno'.$shift,
+            'TURNO'.$shift,
+        ];
+
+        $secondsByHeader = $this->source()
+            ->table($this->table('lines'))
+            ->where('DATAAREAID', $this->dataAreaId())
+            ->whereIn('TURNO', $turnValues)
+            ->groupBy('REFRECID')
+            ->selectRaw('REFRECID, SUM(COALESCE(CANTIDAD, 0)) AS seconds');
+
+        return $this->source()
+            ->table($this->table('headers').' as h')
+            ->leftJoinSub($secondsByHeader, 'shift_defects', 'shift_defects.REFRECID', '=', 'h.RECID')
+            ->where('h.DATAAREAID', $this->dataAreaId())
+            ->where('h.TRANSDATE', '>=', $start->format('Y-m-d H:i:s'))
+            ->where('h.TRANSDATE', '<', $end->format('Y-m-d H:i:s'))
+            ->where(function (Builder $query) use ($pieceColumn): void {
+                $query
+                    ->whereRaw("COALESCE(h.{$pieceColumn}, 0) > 0")
+                    ->orWhereRaw('COALESCE(shift_defects.seconds, 0) > 0');
+            })
+            ->groupBy('h.TELAR')
+            ->orderBy('h.TELAR')
+            ->selectRaw("
+                h.TELAR AS TELAR,
+                COUNT(*) AS captureCount,
+                SUM(COALESCE(h.{$pieceColumn}, 0)) AS pieces,
+                SUM(COALESCE(shift_defects.seconds, 0)) AS seconds,
+                SUM(
+                    CASE
+                        WHEN COALESCE(h.PIEZASTOTAL, 0) <= 0 THEN COALESCE(h.PESO, 0)
+                        ELSE COALESCE(h.PESO, 0) * COALESCE(h.{$pieceColumn}, 0) / NULLIF(h.PIEZASTOTAL, 0)
+                    END
+                ) AS kilos
+            ")
             ->get()
             ->all();
     }
@@ -196,16 +246,6 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
 
     public function machines(): array
     {
-        $cacheSeconds = max(0, (int) config('crudo.catalog_cache_seconds', 300));
-
-        if ($cacheSeconds > 0) {
-            return cache()->remember(
-                'crudo.machines.catalog',
-                $cacheSeconds,
-                fn (): array => $this->fetchMachines(),
-            );
-        }
-
         return $this->fetchMachines();
     }
 

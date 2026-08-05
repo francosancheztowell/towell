@@ -119,6 +119,74 @@ class BomMaterialesServiceTest extends TestCase
         );
     }
 
+    public function test_buscar_bom_formula_returns_distinct_ordered_and_filters_by_query(): void
+    {
+        DB::connection('sqlsrv_ti')->table('BOM')->insert([
+            ['BOMID' => 'ENG A', 'ITEMID' => 'TE-PD-ENF-0025', 'DATAAREAID' => 'PRO'],
+            ['BOMID' => 'ENG B', 'ITEMID' => 'TE-PD-ENF-0025', 'DATAAREAID' => 'PRO'],
+            ['BOMID' => 'ENG A', 'ITEMID' => 'TE-PD-ENF-0032', 'DATAAREAID' => 'PRO'],
+            ['BOMID' => 'ENG C', 'ITEMID' => 'TE-PD-ENF-9999', 'DATAAREAID' => 'PRO'],
+            ['BOMID' => 'ENG D', 'ITEMID' => 'OTRO-ITEM', 'DATAAREAID' => 'PRO'],
+        ]);
+
+        $service = new BomMaterialesService;
+
+        $this->assertSame(
+            [['BomFormula' => 'TE-PD-ENF-0025'], ['BomFormula' => 'TE-PD-ENF-0032'], ['BomFormula' => 'TE-PD-ENF-9999']],
+            $service->buscarBomFormula('')
+        );
+
+        $this->assertSame(
+            [['BomFormula' => 'TE-PD-ENF-0025'], ['BomFormula' => 'TE-PD-ENF-0032']],
+            $service->buscarBomFormula('00')
+        );
+    }
+
+    public function test_buscar_lote_proveedor_returns_distinct_batches_with_stock_in_raw_material_warehouses(): void
+    {
+        Schema::connection('sqlsrv_ti')->create('InventSum', function (Blueprint $table) {
+            $table->string('ITEMID', 80);
+            $table->string('INVENTDIMID', 80);
+            $table->string('DATAAREAID', 10);
+            $table->decimal('PhysicalInvent', 18, 6)->default(0);
+        });
+        Schema::connection('sqlsrv_ti')->create('InventDim', function (Blueprint $table) {
+            $table->string('INVENTDIMID', 80);
+            $table->string('DATAAREAID', 10);
+            $table->string('INVENTLOCATIONID', 20)->nullable();
+            $table->string('INVENTBATCHID', 80)->nullable();
+        });
+
+        DB::connection('sqlsrv_ti')->table('InventDim')->insert([
+            ['INVENTDIMID' => 'D1', 'DATAAREAID' => 'PRO', 'INVENTLOCATIONID' => 'A-MP', 'INVENTBATCHID' => '00061'],
+            ['INVENTDIMID' => 'D2', 'DATAAREAID' => 'PRO', 'INVENTLOCATIONID' => 'A-MPBB', 'INVENTBATCHID' => '00061'],
+            ['INVENTDIMID' => 'D3', 'DATAAREAID' => 'PRO', 'INVENTLOCATIONID' => 'A-MP', 'INVENTBATCHID' => '00074'],
+            ['INVENTDIMID' => 'D4', 'DATAAREAID' => 'PRO', 'INVENTLOCATIONID' => 'A-MP', 'INVENTBATCHID' => ''],
+            ['INVENTDIMID' => 'D5', 'DATAAREAID' => 'PRO', 'INVENTLOCATIONID' => 'OTRO', 'INVENTBATCHID' => '00099'],
+            ['INVENTDIMID' => 'D6', 'DATAAREAID' => 'PRO', 'INVENTLOCATIONID' => 'A-MP', 'INVENTBATCHID' => '00050'],
+        ]);
+        DB::connection('sqlsrv_ti')->table('InventSum')->insert([
+            ['ITEMID' => 'JULIO-URDIDO', 'INVENTDIMID' => 'D1', 'DATAAREAID' => 'PRO', 'PhysicalInvent' => 10],
+            ['ITEMID' => 'JULIO-URDIDO', 'INVENTDIMID' => 'D2', 'DATAAREAID' => 'PRO', 'PhysicalInvent' => 5],
+            ['ITEMID' => 'JULIO-URDIDO', 'INVENTDIMID' => 'D3', 'DATAAREAID' => 'PRO', 'PhysicalInvent' => 7],
+            ['ITEMID' => 'JULIO-URDIDO', 'INVENTDIMID' => 'D4', 'DATAAREAID' => 'PRO', 'PhysicalInvent' => 7],
+            ['ITEMID' => 'JULIO-URDIDO', 'INVENTDIMID' => 'D5', 'DATAAREAID' => 'PRO', 'PhysicalInvent' => 7],
+            ['ITEMID' => 'JULIO-URDIDO', 'INVENTDIMID' => 'D6', 'DATAAREAID' => 'PRO', 'PhysicalInvent' => 0],
+        ]);
+
+        $service = new BomMaterialesService;
+
+        $this->assertSame(
+            [['LoteProveedor' => '00061'], ['LoteProveedor' => '00074']],
+            $service->buscarLoteProveedor('')
+        );
+
+        $this->assertSame(
+            [['LoteProveedor' => '00074']],
+            $service->buscarLoteProveedor('74')
+        );
+    }
+
     public function test_get_bom_formulas_aggregated_merges_tepd_enf_from_all_eng_boms_same_bom_version_item(): void
     {
         $engA = 'ENG ALT-A';
