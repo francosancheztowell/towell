@@ -6,6 +6,7 @@ namespace App\Livewire\Crudo;
 
 use App\Contracts\Crudo\CrudoDashboardProvider;
 use App\Services\Crudo\CrudoAccess;
+use App\Services\Crudo\CrudoProductionTargetService;
 use App\Services\Crudo\CrudoStatusResolver;
 use App\Support\Crudo\ResolvesCrudoPeriod;
 use Illuminate\Contracts\View\View;
@@ -102,24 +103,30 @@ class MachineDetail extends Component
         ?string $modo = null,
         ?string $turno = null,
     ): void {
-        if ($fecha !== null) {
-            $this->fecha = $this->normalizeDate($fecha);
-        }
+        $hasFilterContext = $fecha !== null
+            || $fechaInicio !== null
+            || $fechaFin !== null
+            || $modo !== null
+            || $turno !== null;
+        $nextFecha = $fecha !== null ? $this->normalizeDate($fecha) : $this->fecha;
+        $nextFechaInicio = $fechaInicio !== null ? $this->normalizeDate($fechaInicio) : $this->fechaInicio;
+        $nextFechaFin = $fechaFin !== null ? $this->normalizeDate($fechaFin) : $this->fechaFin;
+        $nextModo = $modo !== null ? ($modo === 'rango' ? 'rango' : 'dia') : $this->modo;
+        $nextTurno = $turno !== null ? $this->normalizeShift($turno) : $this->turno;
+        $filterContextChanged = $nextFecha !== $this->fecha
+            || $nextFechaInicio !== $this->fechaInicio
+            || $nextFechaFin !== $this->fechaFin
+            || $nextModo !== $this->modo
+            || $nextTurno !== $this->turno;
 
-        if ($fechaInicio !== null) {
-            $this->fechaInicio = $this->normalizeDate($fechaInicio);
-        }
+        $this->fecha = $nextFecha;
+        $this->fechaInicio = $nextFechaInicio;
+        $this->fechaFin = $nextFechaFin;
+        $this->modo = $nextModo;
+        $this->turno = $nextTurno;
 
-        if ($fechaFin !== null) {
-            $this->fechaFin = $this->normalizeDate($fechaFin);
-        }
-
-        if ($modo !== null) {
-            $this->modo = $modo === 'rango' ? 'rango' : 'dia';
-        }
-
-        if ($turno !== null) {
-            $this->turno = $this->normalizeShift($turno);
+        if ($hasFilterContext && ! $filterContextChanged) {
+            return;
         }
 
         $this->close();
@@ -226,7 +233,10 @@ class MachineDetail extends Component
             pieces: (float) ($machine['pieces'] ?? 0),
             secondsPercent: (float) ($machine['secondsPercent'] ?? 0),
             kilos: (float) ($machine['kilos'] ?? 0),
-            expectedKilos: (float) ($machine['expectedKilos'] ?? 0),
+            expectedKilos: ($machine['productionStandardStatus'] ?? CrudoProductionTargetService::MISSING)
+                === CrudoProductionTargetService::COMPLETE
+                    ? (float) ($machine['expectedKilos'] ?? 0)
+                    : 0.0,
             hasActiveParo: ($machine['paro'] ?? null) !== null,
         );
 

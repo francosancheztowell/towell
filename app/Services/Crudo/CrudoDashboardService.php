@@ -17,6 +17,7 @@ final readonly class CrudoDashboardService
     public function __construct(
         private CrudoReadRepository $repository,
         private CrudoStatusResolver $statusResolver,
+        private CrudoProductionTargetService $productionTargetService,
     ) {}
 
     public function build(DateTimeImmutable $date, string $shift): CrudoDashboardData
@@ -84,18 +85,14 @@ final readonly class CrudoDashboardService
         $catalog = $this->machineCatalog();
         $now = new DateTimeImmutable('now', $from->getTimezone());
 
-        // Paro y programa en proceso son condiciones en vivo: no tiene sentido
-        // pedirlas (ni mostrarlas) al ver una fecha/rango que no incluye hoy.
+        // El paro y los datos descriptivos del programa solo se muestran en
+        // periodos que incluyen hoy. ProdKgDia sí se consulta siempre porque
+        // negocio definió el programa EnProceso como estándar único, incluso
+        // al consultar fechas históricas.
         $includesToday = $from->format('Y-m-d') <= $now->format('Y-m-d')
             && $to->format('Y-m-d') >= $now->format('Y-m-d');
 
         $parosByTelar = $includesToday ? $this->groupParosByTelar($this->repository->activeParos()) : [];
-        $programsByTelar = [];
-        if ($includesToday) {
-            $telares = array_map(static fn (array $row): string => (string) $row['telar'], $catalog);
-            $programsByTelar = $this->groupProgramsByTelar($this->repository->activePrograms($telares));
-        }
-
         if ($shift === 'todos') {
             $metricsByTelar = $this->metricsFromAggregateRows(
                 $this->repository->aggregateHeadersForRange($from, $to),
@@ -105,7 +102,26 @@ final readonly class CrudoDashboardService
                 $this->repository->aggregateHeadersForShiftInRange($from, $to, $shift),
             );
         }
-        $machines = $this->buildMachines($catalog, $metricsByTelar, $parosByTelar, $programsByTelar, $from, $to, $shift, $now);
+
+        $catalogTelares = array_map(static fn (array $row): string => (string) $row['telar'], $catalog);
+        $telares = array_values(array_unique([...$catalogTelares, ...array_keys($metricsByTelar)]));
+        $activePrograms = $telares !== [] ? $this->repository->activePrograms($telares) : [];
+        $programsByTelar = $includesToday ? $this->groupProgramsByTelar($activePrograms) : [];
+        $productionTargetsByTelar = $this->productionTargetService->expectedByTelar(
+            $from,
+            $to,
+            $shift,
+            $now,
+            $activePrograms,
+        );
+
+        $machines = $this->buildMachines(
+            $catalog,
+            $metricsByTelar,
+            $parosByTelar,
+            $programsByTelar,
+            $productionTargetsByTelar,
+        );
 
         $isSingleDay = $from->format('Y-m-d') === $to->format('Y-m-d');
 
@@ -415,6 +431,7 @@ final readonly class CrudoDashboardService
     /**
      * @param  list<array<string, int|string|null>>  $catalog
      * @param  array<string, array<string, mixed>>  $metricsByTelar
+     * @param  array<string, array{expectedKilos: float, dailyKilos: float, standardStatus: string}>  $productionTargetsByTelar
      * @return list<CrudoMachineMetrics>
      */
     private function buildMachines(
@@ -422,10 +439,7 @@ final readonly class CrudoDashboardService
         array $metricsByTelar,
         array $parosByTelar,
         array $programsByTelar,
-        DateTimeImmutable $from,
-        DateTimeImmutable $to,
-        string $shift,
-        DateTimeImmutable $now,
+        array $productionTargetsByTelar,
     ): array {
         $catalogByTelar = [];
         foreach ($catalog as $row) {
@@ -451,14 +465,23 @@ final readonly class CrudoDashboardService
             $secondsPercent = $pieces > 0 ? min(100, max(0, ($seconds / $pieces) * 100)) : 0.0;
             $qualityPercent = $pieces > 0 ? max(0, 100 - $secondsPercent) : 0.0;
             $salon = $this->normalizeSalon((string) ($catalogRow['salon'] ?? ''));
-            $expectedKilos = $this->statusResolver->expectedKilos($salon, $from, $shift, $now, to: $to);
+            $productionTarget = $productionTargetsByTelar[$telar] ?? [
+                'expectedKilos' => 0.0,
+                'dailyKilos' => 0.0,
+                'standardStatus' => CrudoProductionTargetService::MISSING,
+            ];
+            $expectedKilos = (float) $productionTarget['expectedKilos'];
+            $dailyTargetKilos = (float) $productionTarget['dailyKilos'];
+            $standardStatus = (string) $productionTarget['standardStatus'];
             $paro = $parosByTelar[$telar] ?? null;
             $state = $this->statusResolver->resolve(
                 captureCount: (int) $raw['captureCount'],
                 pieces: $pieces,
                 secondsPercent: $secondsPercent,
                 kilos: (float) $raw['kilos'],
-                expectedKilos: $expectedKilos,
+                expectedKilos: $standardStatus === CrudoProductionTargetService::COMPLETE
+                    ? $expectedKilos
+                    : 0.0,
                 hasActiveParo: $paro !== null,
             );
 
@@ -475,6 +498,8 @@ final readonly class CrudoDashboardService
                 qualityPercent: $qualityPercent,
                 secondsPercent: $secondsPercent,
                 expectedKilos: $expectedKilos,
+                dailyTargetKilos: $dailyTargetKilos,
+                productionStandardStatus: $standardStatus,
                 state: $state,
                 paro: $paro,
                 programa: $programsByTelar[$telar] ?? null,
@@ -520,6 +545,7 @@ final readonly class CrudoDashboardService
             'qualityPercent' => 0.0,
             'efficiencyPercent' => 0.0,
         ];
+        $standardizedKilos = 0.0;
 
         foreach ($machines as $machine) {
             $summary[$machine->state->value]++;
@@ -532,7 +558,10 @@ final readonly class CrudoDashboardService
             $summary['pieces'] += $machine->pieces;
             $summary['seconds'] += $machine->seconds;
             $summary['kilos'] += $machine->kilos;
-            $summary['expectedKilos'] += $machine->expectedKilos;
+            if ($machine->productionStandardStatus === CrudoProductionTargetService::COMPLETE) {
+                $summary['expectedKilos'] += $machine->expectedKilos;
+                $standardizedKilos += $machine->kilos;
+            }
         }
 
         $summary['qualityPercent'] = $summary['pieces'] > 0
@@ -540,7 +569,7 @@ final readonly class CrudoDashboardService
             : 0.0;
 
         $summary['efficiencyPercent'] = $summary['expectedKilos'] > 0
-            ? max(0, min(100, ($summary['kilos'] / $summary['expectedKilos']) * 100))
+            ? max(0, min(100, ($standardizedKilos / $summary['expectedKilos']) * 100))
             : 0.0;
 
         $summary['pieces'] = round($summary['pieces']);

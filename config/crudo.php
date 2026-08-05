@@ -25,6 +25,7 @@ return [
         'machines' => env('CRUDO_MACHINES_TABLE', 'dbo.ReqTelares'),
         'sequence' => env('CRUDO_SEQUENCE_TABLE', 'dbo.InvSecuenciaTelares'),
         'paros' => env('CRUDO_PAROS_TABLE', 'dbo.ManFallasParos'),
+        'programs' => env('CRUDO_PROGRAMS_TABLE', 'dbo.ReqProgramaTejido'),
         'flogs' => env('CRUDO_FLOGS_TABLE', 'dbo.TwFlogsTable'),
         'flog_lines' => env('CRUDO_FLOG_LINES_TABLE', 'dbo.TwFlogsItemLine'),
     ],
@@ -60,20 +61,14 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Reglas provisionales del semáforo
+    | Reglas del semáforo
     |--------------------------------------------------------------------------
     |
-    | Estos valores se confirmarán con negocio. Tenerlos aquí permite
-    | corregirlos sin tocar la consulta, Livewire o el diseño.
+    | La meta de kg usa el ProdKgDia del programa EnProceso de cada telar;
+    | aquí solo permanecen umbrales y duración de turnos.
     |
     */
     'bad_quality_percent' => (float) env('CRUDO_BAD_QUALITY_PERCENT', 10),
-    'daily_kg_target' => [
-        'Karl Mayer' => (float) env('CRUDO_KG_TARGET_KARL_MAYER', 300),
-        'Jacquard' => (float) env('CRUDO_KG_TARGET_JACQUARD', 300),
-        'Smith' => (float) env('CRUDO_KG_TARGET_SMITH', 300),
-        'Sin clasificar' => (float) env('CRUDO_KG_TARGET_DEFAULT', 300),
-    ],
     'turns_per_day' => 4,
 
     'salons' => [

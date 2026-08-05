@@ -316,7 +316,7 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
         }
 
         return $this->catalog()
-            ->table((string) config('planeacion.programa_tejido_table', 'ReqProgramaTejido'))
+            ->table($this->table('programs'))
             ->where('EnProceso', 1)
             ->whereIn('NoTelarId', $telares)
             ->orderByDesc('FechaInicio')
@@ -329,6 +329,7 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
                 'InventSizeId',
                 'FlogsId',
                 'NombreProducto',
+                'ProdKgDia',
             ])
             ->all();
     }

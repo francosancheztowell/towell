@@ -116,8 +116,22 @@
                             <span>Producción</span>
                             <strong>{{ number_format(round((float) $selectedMachine['kilos'])) }} kg</strong>
                             <small>
-                                {{ $turno === 'todos' ? 'Meta a esta hora' : 'Meta' }}
-                                {{ number_format(round((float) $selectedMachine['expectedKilos'])) }} kg
+                                {{ $modo === 'rango' ? 'Meta diaria promedio' : 'Meta al día' }}
+                                @if ((float) ($selectedMachine['dailyTargetKilos'] ?? 0) > 0)
+                                    {{ number_format(round((float) $selectedMachine['dailyTargetKilos'])) }} kg
+                                @else
+                                    sin estándar
+                                @endif
+                            </small>
+                            <small>
+                                {{ $modo === 'rango' ? 'Meta acumulada del rango' : 'Meta a esta hora' }}
+                                @if (($selectedMachine['productionStandardStatus'] ?? 'missing') === 'complete')
+                                    {{ number_format(round((float) $selectedMachine['expectedKilos'])) }} kg
+                                @elseif (($selectedMachine['productionStandardStatus'] ?? 'missing') === 'partial')
+                                    {{ number_format(round((float) $selectedMachine['expectedKilos'])) }} kg parcial
+                                @else
+                                    sin estándar
+                                @endif
                             </small>
                         </article>
                         <article class="crudo-modal-kpi">

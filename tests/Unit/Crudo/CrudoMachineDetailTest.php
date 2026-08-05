@@ -54,6 +54,7 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSee('data-crudo-detail-modal', false)
             ->assertDontSee('data-crudo-audit-modal', false)
             ->assertSee('Órdenes y turnos')
+            ->assertSee('Meta al día')
             ->assertSee('Meta a esta hora')
             ->assertSee('Fecha')
             ->assertSee('No. Rollo')
@@ -334,6 +335,8 @@ final class CrudoMachineDetailTest extends TestCase
             ->dispatch('open-crudo-detail', telar: '201', machine: $machine)
             ->call('loadDetail')
             ->assertSee('41 kg')
+            ->assertSee('Meta al día')
+            ->assertSee('3 kg')
             ->assertSee('Meta a esta hora')
             ->assertSee('51 kg')
             ->assertSee('95%')
@@ -394,6 +397,26 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertDontSee('data-crudo-modal', false);
     }
 
+    public function test_initial_filter_context_sync_does_not_close_the_just_opened_detail(): void
+    {
+        $today = now(config('app.timezone'))->format('Y-m-d');
+
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
+            ->assertSet('selectedTelar', '201')
+            ->dispatch(
+                'crudo-filtros-cambiados',
+                fecha: $today,
+                fechaInicio: $today,
+                fechaFin: $today,
+                modo: 'dia',
+                turno: 'todos',
+            )
+            ->assertSet('selectedTelar', '201')
+            ->assertSet('machine.telar', '201')
+            ->assertSee('data-crudo-detail-modal', false);
+    }
+
     public function test_next_open_uses_the_latest_day_and_shift_received_from_the_dashboard(): void
     {
         $component = Livewire::test(TestableCrudoMachineDetail::class)
@@ -447,7 +470,9 @@ final class CrudoMachineDetailTest extends TestCase
                 turno: '4',
             )
             ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
-            ->call('loadDetail');
+            ->call('loadDetail')
+            ->assertSee('Meta diaria promedio')
+            ->assertSee('Meta acumulada del rango');
 
         $this->assertSame([
             'telar' => '201',
@@ -475,6 +500,9 @@ final class CrudoMachineDetailTest extends TestCase
             'qualityPercent' => 95.0,
             'secondsPercent' => 5.0,
             'expectedKilos' => 3.0,
+            'dailyTargetKilos' => 3.0,
+            'productionStandardStatus' => 'complete',
+            'hasProductionStandard' => true,
             'state' => 'operating',
             'stateLabel' => 'En operación',
             'stateIcon' => 'fa-circle-check',

@@ -6,6 +6,7 @@ namespace Tests\Unit\Crudo;
 
 use App\Contracts\Crudo\CrudoReadRepository;
 use App\Services\Crudo\CrudoDashboardService;
+use App\Services\Crudo\CrudoProductionTargetService;
 use App\Services\Crudo\CrudoStatusResolver;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -22,10 +23,6 @@ final class CrudoDashboardServiceTest extends TestCase
         parent::setUp();
 
         config()->set('crudo.bad_quality_percent', 10);
-        config()->set('crudo.daily_kg_target', [
-            'Jacquard' => 0,
-            'Sin clasificar' => 0,
-        ]);
         config()->set('crudo.salons', [
             'JACQUARD' => 'Jacquard',
         ]);
@@ -94,6 +91,7 @@ final class CrudoDashboardServiceTest extends TestCase
         $this->service = new CrudoDashboardService(
             $this->repository,
             new CrudoStatusResolver,
+            new CrudoProductionTargetService,
         );
     }
 
@@ -131,6 +129,24 @@ final class CrudoDashboardServiceTest extends TestCase
         // El snapshot compartido no serializa listas del modal.
         $this->assertArrayNotHasKey('defects', $machine);
         $this->assertArrayNotHasKey('captures', $machine);
+    }
+
+    public function test_current_in_process_prod_kg_dia_drives_the_historical_low_kilos_state(): void
+    {
+        $this->repository->programs = [
+            (object) [
+                'NoTelarId' => '201',
+                'NoProduccion' => 'ORDEN-ACTIVA',
+                'ProdKgDia' => 100.0,
+            ],
+        ];
+
+        $machine = $this->service->build($this->date(), 'todos')->toArray()['machines'][0];
+
+        $this->assertSame(100.0, $machine['expectedKilos']);
+        $this->assertSame(100.0, $machine['dailyTargetKilos']);
+        $this->assertTrue($machine['hasProductionStandard']);
+        $this->assertSame('low_kilos', $machine['state']);
     }
 
     public function test_machine_detail_builds_defects_and_captures_for_a_single_telar(): void

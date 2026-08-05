@@ -41,6 +41,7 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
         config()->set('crudo.tables.machines', 'ReqTelares');
         config()->set('crudo.tables.sequence', 'InvSecuenciaTelares');
         config()->set('crudo.tables.paros', 'ManFallasParos');
+        config()->set('crudo.tables.programs', 'ReqProgramaTejido');
         config()->set('crudo.catalog_salons', ['Jacquard', 'Smith', 'KM']);
         config()->set('crudo.data_area_id', 'pro');
         config()->set('planeacion.programa_tejido_table', 'ReqProgramaTejido');
@@ -313,6 +314,7 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
                 'NombreProducto' => 'Producto de prueba',
                 'FechaInicio' => '2026-08-03 08:00:00',
                 'EnProceso' => 1,
+                'ProdKgDia' => 326.47,
             ],
             [
                 'Id' => 11,
@@ -325,6 +327,7 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
                 'NombreProducto' => 'Otro producto',
                 'FechaInicio' => '2026-08-03 09:00:00',
                 'EnProceso' => 1,
+                'ProdKgDia' => null,
             ],
         ]);
 
@@ -337,6 +340,7 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
         $this->assertSame('100X200', $rows[0]->InventSizeId);
         $this->assertSame('CE-FLOG-201', $rows[0]->FlogsId);
         $this->assertSame('Producto de prueba', $rows[0]->NombreProducto);
+        $this->assertSame(326.47, (float) $rows[0]->ProdKgDia);
     }
 
     private function createSchema(): void
@@ -411,7 +415,9 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
             $table->string('NombreProducto')->nullable();
             $table->dateTime('FechaInicio')->nullable();
             $table->boolean('EnProceso');
+            $table->decimal('ProdKgDia', 18, 4)->nullable();
         });
+
     }
 
     /**

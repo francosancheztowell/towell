@@ -7,6 +7,7 @@ namespace Tests\Unit\Crudo;
 use App\Contracts\Crudo\CrudoReadRepository;
 use App\Services\Crudo\CachedCrudoDashboardProvider;
 use App\Services\Crudo\CrudoDashboardService;
+use App\Services\Crudo\CrudoProductionTargetService;
 use App\Services\Crudo\CrudoStatusResolver;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\Cache;
@@ -89,7 +90,11 @@ final class CachedCrudoDashboardProviderTest extends TestCase
     private function provider(CrudoReadRepository $repository): CachedCrudoDashboardProvider
     {
         return new CachedCrudoDashboardProvider(
-            new CrudoDashboardService($repository, new CrudoStatusResolver),
+            new CrudoDashboardService(
+                $repository,
+                new CrudoStatusResolver,
+                new CrudoProductionTargetService,
+            ),
         );
     }
 }

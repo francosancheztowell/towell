@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\DTOs\Crudo;
 
 use App\Enums\Crudo\CrudoMachineState;
+use App\Services\Crudo\CrudoProductionTargetService;
 
 final readonly class CrudoMachineMetrics
 {
@@ -25,6 +26,8 @@ final readonly class CrudoMachineMetrics
         public float $qualityPercent,
         public float $secondsPercent,
         public float $expectedKilos,
+        public float $dailyTargetKilos,
+        public string $productionStandardStatus,
         public CrudoMachineState $state,
         public ?array $paro = null,
         public ?array $programa = null,
@@ -48,6 +51,9 @@ final readonly class CrudoMachineMetrics
             'qualityPercent' => round($this->qualityPercent, 1),
             'secondsPercent' => round($this->secondsPercent, 1),
             'expectedKilos' => round($this->expectedKilos, 1),
+            'dailyTargetKilos' => round($this->dailyTargetKilos, 1),
+            'productionStandardStatus' => $this->productionStandardStatus,
+            'hasProductionStandard' => $this->productionStandardStatus === CrudoProductionTargetService::COMPLETE,
             'state' => $this->state->value,
             'stateLabel' => $this->state->label(),
             'stateIcon' => $this->state->icon(),

@@ -192,7 +192,7 @@
                     <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
                     <span>
                         Alerta desde {{ number_format(round((float) $badQualityThreshold)) }}%
-                        · meta provisional 300 kg/día
+                        · meta del programa en proceso con ProdKgDia prorrateada por hora
                         @if ($modo === 'rango')
                             · rango máximo {{ $maxRangeDays }} días
                         @endif
