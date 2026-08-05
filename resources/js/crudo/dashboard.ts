@@ -121,6 +121,7 @@ const AUDIT_DEFECT_EDITOR_SELECTOR = '[data-crudo-audit-defects]'
 const AUDIT_CONTENT_SELECTOR = '[data-crudo-audit-content]'
 const AUDIT_FORM_SELECTOR = '[data-crudo-audit-form]'
 const AUDIT_FEEDBACK_SELECTOR = '[data-crudo-audit-feedback]'
+const AUDIT_HISTORY_SELECTOR = '[data-crudo-audit-history]'
 const AUDIT_HISTORY_LIST_SELECTOR = '[data-crudo-audit-history-list]'
 const AUDIT_HISTORY_COUNT_SELECTOR = '[data-crudo-audit-history-count]'
 const QUALITY_DEFECT_SELECT_SELECTOR = '[data-crudo-quality-defect-select]'
@@ -477,9 +478,9 @@ const appendTextElement = <K extends keyof HTMLElementTagNameMap>(
   return element
 }
 
-const renderAuditHistory = (form: HTMLElement, audits: AuditHistoryItem[]): void => {
-  const list = form.querySelector<HTMLElement>(AUDIT_HISTORY_LIST_SELECTOR)
-  const count = form.querySelector<HTMLElement>(AUDIT_HISTORY_COUNT_SELECTOR)
+const renderAuditHistory = (history: HTMLElement, audits: AuditHistoryItem[]): void => {
+  const list = history.querySelector<HTMLElement>(AUDIT_HISTORY_LIST_SELECTOR)
+  const count = history.querySelector<HTMLElement>(AUDIT_HISTORY_COUNT_SELECTOR)
   if (!list || !count) {
     return
   }
@@ -560,28 +561,28 @@ const renderAuditHistory = (form: HTMLElement, audits: AuditHistoryItem[]): void
   })
 }
 
-const loadAuditHistory = async (form: HTMLElement, force = false): Promise<void> => {
-  const url = form.dataset.crudoAuditHistoryUrl
+const loadAuditHistory = async (history: HTMLElement, force = false): Promise<void> => {
+  const url = history.dataset.crudoAuditHistoryUrl
   if (!url) {
     return
   }
 
-  const state = form.dataset.auditHistoryState
-  if (shouldSkipAuditHistoryLoad(state, form.dataset.auditHistoryStateUrl, url, force)) {
+  const state = history.dataset.auditHistoryState
+  if (shouldSkipAuditHistoryLoad(state, history.dataset.auditHistoryStateUrl, url, force)) {
     return
   }
 
-  const list = form.querySelector<HTMLElement>(AUDIT_HISTORY_LIST_SELECTOR)
+  const list = history.querySelector<HTMLElement>(AUDIT_HISTORY_LIST_SELECTOR)
   if (!list) {
     return
   }
 
-  form.dataset.auditHistoryState = 'loading'
-  form.dataset.auditHistoryStateUrl = url
+  history.dataset.auditHistoryState = 'loading'
+  history.dataset.auditHistoryStateUrl = url
   list.replaceChildren()
   appendTextElement(list, 'p', 'crudo-audit-history-state', 'Cargando auditorías…')
 
-  const requestSignal = auditHistoryRequests.begin(form)
+  const requestSignal = auditHistoryRequests.begin(history)
 
   try {
     const response = await fetch(url, {
@@ -594,7 +595,7 @@ const loadAuditHistory = async (form: HTMLElement, force = false): Promise<void>
     })
     const payload = await response.json().catch((): AuditHistoryResponse => ({})) as AuditHistoryResponse
 
-    if (requestSignal.aborted || !form.isConnected) {
+    if (requestSignal.aborted || !history.isConnected) {
       return
     }
 
@@ -602,30 +603,30 @@ const loadAuditHistory = async (form: HTMLElement, force = false): Promise<void>
       throw new Error(payload.message || 'No fue posible consultar las auditorías de hoy.')
     }
 
-    if (!isCurrentAuditHistoryRequest(url, form.dataset.crudoAuditHistoryUrl)) {
-      if (form.isConnected) {
-        void loadAuditHistory(form)
+    if (!isCurrentAuditHistoryRequest(url, history.dataset.crudoAuditHistoryUrl)) {
+      if (history.isConnected) {
+        void loadAuditHistory(history)
       }
 
       return
     }
 
-    const expectedTelar = form.dataset.crudoAuditTelar ?? ''
+    const expectedTelar = history.dataset.crudoAuditTelar ?? ''
     const expectedDate = payload.meta?.fecha ?? ''
     const audits = (Array.isArray(payload.data) ? payload.data : []).filter((audit) => (
       auditBelongsToScope(audit.telar, audit.fecha, expectedTelar, expectedDate)
     ))
 
-    renderAuditHistory(form, audits)
-    form.dataset.auditHistoryState = 'loaded'
+    renderAuditHistory(history, audits)
+    history.dataset.auditHistoryState = 'loaded'
   } catch {
-    if (requestSignal.aborted || !form.isConnected) {
+    if (requestSignal.aborted || !history.isConnected) {
       return
     }
 
-    if (!isCurrentAuditHistoryRequest(url, form.dataset.crudoAuditHistoryUrl)) {
-      if (form.isConnected) {
-        void loadAuditHistory(form)
+    if (!isCurrentAuditHistoryRequest(url, history.dataset.crudoAuditHistoryUrl)) {
+      if (history.isConnected) {
+        void loadAuditHistory(history)
       }
 
       return
@@ -638,15 +639,15 @@ const loadAuditHistory = async (form: HTMLElement, force = false): Promise<void>
       'crudo-audit-history-state',
       'No fue posible cargar las auditorías. Puedes intentar guardar o volver a abrir el detalle.',
     )
-    form.dataset.auditHistoryState = 'error'
+    history.dataset.auditHistoryState = 'error'
   } finally {
-    auditHistoryRequests.finish(form, requestSignal)
+    auditHistoryRequests.finish(history, requestSignal)
   }
 }
 
 const hydrateAuditHistories = (): void => {
-  document.querySelectorAll<HTMLElement>(AUDIT_FORM_SELECTOR).forEach((form) => {
-    void loadAuditHistory(form)
+  document.querySelectorAll<HTMLElement>(AUDIT_HISTORY_SELECTOR).forEach((history) => {
+    void loadAuditHistory(history)
   })
 }
 

@@ -209,6 +209,17 @@ final class CrudoMachineDetailTest extends TestCase
         $this->assertStringNotContainsString('data-crudo-audit-content', $html);
     }
 
+    public function test_register_permission_hides_the_button_and_blocks_the_livewire_action(): void
+    {
+        Livewire::test(DeniedCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
+            ->assertDontSee('Agregar auditoría')
+            ->assertDontSee('data-crudo-open-audit', false)
+            ->call('openAudit')
+            ->assertForbidden()
+            ->assertSet('auditModalOpen', false);
+    }
+
     public function test_save_actions_are_rendered_only_in_the_audit_modal(): void
     {
         $component = Livewire::test(TestableCrudoMachineDetail::class)
@@ -639,4 +650,19 @@ final class FakeCrudoDashboardProviderForDetail implements CrudoDashboardProvide
 final class TestableCrudoMachineDetail extends MachineDetail
 {
     protected function authorizeAccess(): void {}
+
+    protected function canRegisterAudit(): bool
+    {
+        return true;
+    }
+
+    protected function authorizeRegisterAudit(): void {}
+}
+
+final class DeniedCrudoMachineDetail extends MachineDetail
+{
+    protected function canRegisterAudit(): bool
+    {
+        return false;
+    }
 }

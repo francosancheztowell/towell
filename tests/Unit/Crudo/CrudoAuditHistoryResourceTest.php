@@ -77,6 +77,15 @@ final class CrudoAuditHistoryResourceTest extends TestCase
         $this->assertIsString($typescript);
         $this->assertIsString($css);
         $this->assertStringContainsString('data-crudo-audit-history-url', $blade);
+        $this->assertMatchesRegularExpression(
+            '/<section(?=[^>]*wire:ignore)(?=[^>]*data-crudo-audit-history)[^>]*>/s',
+            $blade,
+        );
+        $this->assertStringContainsString("AUDIT_HISTORY_SELECTOR = '[data-crudo-audit-history]'", $typescript);
+        $this->assertStringContainsString(
+            'document.querySelectorAll<HTMLElement>(AUDIT_HISTORY_SELECTOR)',
+            $typescript,
+        );
         $this->assertStringContainsString('wire:key="crudo-audit-form-', $blade);
         $this->assertStringContainsString('Auditorías de hoy', $blade);
         $this->assertStringContainsString('data-crudo-audit-history-list', $blade);

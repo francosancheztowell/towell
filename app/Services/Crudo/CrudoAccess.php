@@ -20,4 +20,26 @@ final class CrudoAccess
             'No tienes acceso al módulo de Crudo.',
         );
     }
+
+    public function canRegister(): bool
+    {
+        return function_exists('userCan')
+            && userCan('registrar', $this->permissionModule());
+    }
+
+    public function authorizeRegister(): void
+    {
+        abort_unless(
+            $this->canRegister(),
+            403,
+            'No tienes permiso para registrar auditorías de Crudo.',
+        );
+    }
+
+    private function permissionModule(): string
+    {
+        $module = trim((string) config('crudo.permission_module', ''));
+
+        return $module !== '' ? $module : 'Crudo';
+    }
 }

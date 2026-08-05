@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Crudo;
 
 use App\Contracts\Crudo\CrudoDashboardProvider;
+use App\Services\Crudo\CrudoAccess;
 use App\Services\Crudo\CrudoStatusResolver;
 use App\Support\Crudo\ResolvesCrudoPeriod;
 use Illuminate\Contracts\View\View;
@@ -51,13 +52,17 @@ class MachineDetail extends Component
 
     private CrudoDashboardProvider $provider;
 
+    private CrudoAccess $access;
+
     private CrudoStatusResolver $statusResolver;
 
     public function boot(
         CrudoDashboardProvider $provider,
+        CrudoAccess $access,
         CrudoStatusResolver $statusResolver,
     ): void {
         $this->provider = $provider;
+        $this->access = $access;
         $this->statusResolver = $statusResolver;
     }
 
@@ -128,6 +133,8 @@ class MachineDetail extends Component
 
     public function openAudit(): void
     {
+        $this->authorizeRegisterAudit();
+
         if ($this->selectedTelar === null) {
             $this->auditModalOpen = false;
 
@@ -162,7 +169,18 @@ class MachineDetail extends Component
     {
         return view('livewire.crudo.machine-detail', [
             'selectedMachine' => $this->resolvedMachine(),
+            'canRegisterAudit' => $this->canRegisterAudit(),
         ]);
+    }
+
+    protected function canRegisterAudit(): bool
+    {
+        return $this->access->canRegister();
+    }
+
+    protected function authorizeRegisterAudit(): void
+    {
+        $this->access->authorizeRegister();
     }
 
     /**

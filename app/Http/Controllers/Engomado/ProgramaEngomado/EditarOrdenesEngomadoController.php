@@ -8,6 +8,7 @@ use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\AuditoriaUrdEng;
 use App\Models\Urdido\URDCatalogoMaquina;
+use App\Services\ProgramaUrdEng\BomMaterialesService;
 use App\Support\Programas\ProgramaConfig;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -25,6 +26,34 @@ class EditarOrdenesEngomadoController extends Controller
     private const ACCION_METROS_ACTUALIZAR_TODA = 'actualizar_produccion_toda';
 
     private const ACCION_METROS_ACTUALIZAR_SIN_HORA_INICIO = 'actualizar_produccion_sin_hora_inicio';
+
+    public function __construct(
+        private BomMaterialesService $bomMateriales
+    ) {}
+
+    /**
+     * Mensajes de error por campo cuando el valor capturado no existe en el catálogo.
+     *
+     * @return array<string, string>
+     */
+    private function mensajesExistenciaCatalogo(): array
+    {
+        return [
+            'BomEng' => 'El Bom de engomado no existe en el catálogo.',
+            'BomFormula' => 'La Bom Fórmula no existe en el catálogo.',
+            'LoteProveedor' => 'El Lote de Proveedor no existe.',
+        ];
+    }
+
+    private function existeValorEnCatalogo(string $campo, string $valor): bool
+    {
+        return match ($campo) {
+            'BomEng' => $this->bomMateriales->existeBomEngomado($valor),
+            'BomFormula' => $this->bomMateriales->existeBomFormula($valor),
+            'LoteProveedor' => $this->bomMateriales->existeLoteProveedor($valor),
+            default => true,
+        };
+    }
 
     private function usuarioPuedeEditar(): bool
     {
@@ -304,6 +333,17 @@ class EditarOrdenesEngomadoController extends Controller
             }
 
             $camposNumericos = ['Calibre', 'Metros', 'NoTelas'];
+
+            $mensajesExistencia = $this->mensajesExistenciaCatalogo();
+            if (isset($mensajesExistencia[$campo])) {
+                $valorCatalogo = trim((string) ($request->valor ?? ''));
+                if ($valorCatalogo !== '' && ! $this->existeValorEnCatalogo($campo, $valorCatalogo)) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => $mensajesExistencia[$campo],
+                    ], 422);
+                }
+            }
 
             DB::beginTransaction();
 

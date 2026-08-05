@@ -39,7 +39,7 @@ final class CrudoAuditController extends Controller
 
     public function store(StoreCrudoAuditRequest $request): JsonResponse
     {
-        $this->access->authorize();
+        $this->access->authorizeRegister();
         $audit = $this->audits->storeAudit($request->validated(), $this->user($request));
 
         return response()->json([
@@ -54,7 +54,7 @@ final class CrudoAuditController extends Controller
 
     public function storeWithStop(StoreCrudoAuditWithStopRequest $request): JsonResponse
     {
-        $this->access->authorize();
+        $this->access->authorizeRegister();
         $result = $this->audits->storeAuditWithStop($request->validated(), $this->user($request));
         $stop = $result['stop'];
         $notifier = $this->notifier;

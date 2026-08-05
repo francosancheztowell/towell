@@ -5,10 +5,20 @@ declare(strict_types=1);
 namespace App\Http\Requests\Crudo;
 
 use App\Models\Mantenimiento\CatParosFallas;
+use App\Services\Crudo\CrudoAccess;
 use Illuminate\Validation\Rule;
 
 class StoreCrudoAuditRequest extends CrudoRequest
 {
+    public function authorize(): bool
+    {
+        if (! parent::authorize()) {
+            return false;
+        }
+
+        return app(CrudoAccess::class)->canRegister();
+    }
+
     /**
      * @return array<string, mixed>
      */

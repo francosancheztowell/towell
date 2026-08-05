@@ -117,6 +117,77 @@ class BomMaterialesService
             ->toArray();
     }
 
+    /**
+     * Verifica si un BOM de urdido existe en el catálogo (mismos criterios que buscarBomUrdido).
+     */
+    public function existeBomUrdido(string $bomId): bool
+    {
+        $bomId = trim($bomId);
+        if ($bomId === '') {
+            return false;
+        }
+
+        return DB::connection(self::CONN)->table('BOMTABLE as bt')
+            ->where('bt.DATAAREAID', self::DATAAREA)
+            ->where('bt.ITEMGROUPID', 'JUL-URD')
+            ->where('bt.Vigente', 1)
+            ->where('bt.BOMID', 'LIKE', 'URD %')
+            ->where('bt.BOMID', $bomId)
+            ->exists();
+    }
+
+    /**
+     * Verifica si un BOM de engomado existe en el catálogo (mismos criterios que buscarBomEngomado).
+     */
+    public function existeBomEngomado(string $bomId): bool
+    {
+        $bomId = trim($bomId);
+        if ($bomId === '') {
+            return false;
+        }
+
+        return DB::connection(self::CONN)->table('BOMTABLE as bt')
+            ->where('bt.DATAAREAID', self::DATAAREA)
+            ->where('bt.ITEMGROUPID', 'JUL-ENG')
+            ->where('bt.Vigente', 1)
+            ->where('bt.BOMID', 'LIKE', 'ENG %')
+            ->where('bt.BOMID', $bomId)
+            ->exists();
+    }
+
+    /**
+     * Verifica si una fórmula de engomado (TE-PD-ENF%) existe.
+     */
+    public function existeBomFormula(string $formula): bool
+    {
+        $formula = trim($formula);
+        if ($formula === '') {
+            return false;
+        }
+
+        return DB::connection(self::CONN)->table('BOM')
+            ->where('DATAAREAID', self::DATAAREA)
+            ->where('ITEMID', 'like', 'TE-PD-ENF%')
+            ->where('ITEMID', $formula)
+            ->exists();
+    }
+
+    /**
+     * Verifica si un lote de proveedor (InventBatchId) existe en las dimensiones de inventario.
+     */
+    public function existeLoteProveedor(string $lote): bool
+    {
+        $lote = trim($lote);
+        if ($lote === '') {
+            return false;
+        }
+
+        return DB::connection(self::CONN)->table('InventDim')
+            ->where('DATAAREAID', self::DATAAREA)
+            ->where('INVENTBATCHID', $lote)
+            ->exists();
+    }
+
     public function getMaterialesUrdido(string $bomId): array
     {
         if (empty(trim($bomId))) {

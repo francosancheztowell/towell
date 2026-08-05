@@ -270,16 +270,19 @@
                     <div
                         class="crudo-audit-disclosure"
                         wire:key="crudo-audit-history-{{ $selectedMachine['telar'] }}"
-                        data-crudo-audit-form
-                        data-crudo-audit-history-url="{{ route('crudo.auditorias.today', ['telar' => $selectedMachine['telar']]) }}"
-                        data-crudo-audit-telar="{{ $selectedMachine['telar'] }}"
                     >
-                        <section class="crudo-detail-panel crudo-audit-history-panel" wire:ignore>
+                        <section
+                            class="crudo-detail-panel crudo-audit-history-panel"
+                            wire:ignore
+                            data-crudo-audit-history
+                            data-crudo-audit-history-url="{{ route('crudo.auditorias.today', ['telar' => $selectedMachine['telar']]) }}"
+                            data-crudo-audit-telar="{{ $selectedMachine['telar'] }}"
+                        >
                             <div class="crudo-detail-panel-heading">
                                 <div>
                                     <h3>Auditorías de hoy</h3>
                                 </div>
-                                <span class="crudo-detail-count" data-crudo-audit-history-count>0</span>
+                                <span class="crudo-detail-count" data-crudo-audit-history-count>…</span>
                             </div>
 
                             <div
@@ -291,20 +294,22 @@
                             </div>
                         </section>
 
-                        <div class="crudo-audit-toolbar">
-                            <button
-                                type="button"
-                                class="crudo-audit-toggle"
-                                wire:click="openAudit"
-                                wire:loading.attr="disabled"
-                                wire:target="openAudit"
-                                data-crudo-open-audit
-                            >
-                                <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i>
-                                <span>Agregar auditoría</span>
-                                <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-                            </button>
-                        </div>
+                        @if ($canRegisterAudit)
+                            <div class="crudo-audit-toolbar">
+                                <button
+                                    type="button"
+                                    class="crudo-audit-toggle"
+                                    wire:click="openAudit"
+                                    wire:loading.attr="disabled"
+                                    wire:target="openAudit"
+                                    data-crudo-open-audit
+                                >
+                                    <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i>
+                                    <span>Agregar auditoría</span>
+                                    <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                        @endif
                     </div>
                 </div>
             </article>
