@@ -228,7 +228,8 @@
   @endif
 
   @if(config('app.pwa_enabled', true) && !config('app.service_worker_cleanup', false))
-    <script src="{{ asset('js/app-pwa.js') }}"></script>
+    {{-- data-navigate-once: wire:navigate reinyecta scripts del layout; app-pwa.js no debe reejecutarse. --}}
+    <script src="{{ asset('js/app-pwa.js') }}" data-navigate-once></script>
   @endif
 
   <script data-navigate-once>
