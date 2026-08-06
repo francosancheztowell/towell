@@ -331,6 +331,13 @@ class MantenimientoParosController extends Controller
             $query = CatParosFallas::query()
                 ->whereIn('Departamento', $departamentosConsulta);
 
+            // ponytail: las fallas de tipo "Calidad" solo viven en el catálogo del
+            // departamento Calidad, pero aplican a cualquier departamento.
+            if (! empty($tipoFallaId) && strtoupper(trim($tipoFallaId)) === 'CALIDAD') {
+                $departamentosConsulta[] = 'Calidad';
+                $query = CatParosFallas::query()->whereIn('Departamento', array_unique($departamentosConsulta));
+            }
+
             if (! empty($tipoFallaId)) {
                 $query->where('TipoFallaId', $tipoFallaId);
             }

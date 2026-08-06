@@ -5,12 +5,13 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   build: {
     sourcemap: false,
-    minify: 'esbuild',
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['jquery', 'sweetalert2', 'select2', 'toastr', 'axios']
-        }
+        // rolldown (vite 8) solo acepta función, no objeto
+        manualChunks: (id) =>
+          /node_modules[\\/](jquery|sweetalert2|select2|toastr|axios)[\\/]/.test(id)
+            ? 'vendor'
+            : undefined,
       }
     }
   },
