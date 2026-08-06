@@ -16,7 +16,7 @@ final class CrudoStatusResolverTest extends TestCase
     {
         parent::setUp();
 
-        config()->set('crudo.bad_quality_percent', 10);
+        config()->set('crudo.bad_quality_percent', 7);
         $this->resolver = new CrudoStatusResolver;
     }
 

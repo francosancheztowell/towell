@@ -28,6 +28,8 @@ return [
         'programs' => env('CRUDO_PROGRAMS_TABLE', 'dbo.ReqProgramaTejido'),
         'flogs' => env('CRUDO_FLOGS_TABLE', 'dbo.TwFlogsTable'),
         'flog_lines' => env('CRUDO_FLOG_LINES_TABLE', 'dbo.TwFlogsItemLine'),
+        // Folio del programa de urdido = ORDENURDIDO de la captura de AX.
+        'warping_programs' => env('CRUDO_WARPING_PROGRAMS_TABLE', 'dbo.UrdProgramaUrdido'),
     ],
 
     'data_area_id' => env('CRUDO_DATA_AREA_ID', 'pro'),
@@ -68,8 +70,13 @@ return [
     | aquí solo permanecen umbrales y duración de turnos.
     |
     */
-    'bad_quality_percent' => (float) env('CRUDO_BAD_QUALITY_PERCENT', 10),
+    'bad_quality_percent' => (float) env('CRUDO_BAD_QUALITY_PERCENT', 7),
     'turns_per_day' => 4,
+
+    // El día de producción de la planta corre de 06:30 a 06:30, no de 00:00 a
+    // 00:00: una captura de las 03:00 pertenece al día anterior. 390 = 06:30 en
+    // minutos desde medianoche. Es la única perilla si la planta mueve el turno.
+    'production_day_start_minutes' => min(1439, max(0, (int) env('CRUDO_PRODUCTION_DAY_START_MINUTES', 390))),
 
     'salons' => [
         'KM' => 'Karl Mayer',

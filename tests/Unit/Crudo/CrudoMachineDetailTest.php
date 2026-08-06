@@ -22,7 +22,7 @@ final class CrudoMachineDetailTest extends TestCase
     {
         parent::setUp();
 
-        config()->set('crudo.bad_quality_percent', 10);
+        config()->set('crudo.bad_quality_percent', 7);
         $this->provider = new FakeCrudoDashboardProviderForDetail($this->machineData());
         $this->flogProvider = new FakeCrudoFlogProviderForDetail;
         $this->app->instance(CrudoDashboardProvider::class, $this->provider);
@@ -66,9 +66,10 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSee('Kg')
             ->assertSee('Pzas')
             ->assertSee('2das')
+            ->assertSee('Urdido')
+            ->assertSee('00929')
             ->assertSee('Lote')
-            ->assertDontSee('Lote proveedor')
-            ->assertSee('LOTE-PROV-1001')
+            ->assertSee('29734-AP-35')
             ->assertDontSee('Peso (kg)')
             ->assertSee('Error de trama')
             ->assertSee('Defectos registrados')
@@ -128,13 +129,11 @@ final class CrudoMachineDetailTest extends TestCase
                 fechaInicio: '2026-08-01',
                 fechaFin: '2026-08-03',
                 modo: 'rango',
-                turno: '4',
             )
             ->assertSet('fecha', '2026-08-04')
             ->assertSet('fechaInicio', '2026-08-01')
             ->assertSet('fechaFin', '2026-08-03')
             ->assertSet('modo', 'rango')
-            ->assertSet('turno', '4')
             ->assertDispatched('crudo-interaction-opened')
             ->call('close')
             ->assertDispatched('crudo-interaction-closed');
@@ -155,8 +154,10 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSet('loaded', true)
             ->assertSee('CE-NOV25-LGONZ-F001399')
             ->assertSee('C0001 Cliente de prueba')
-            ->assertSee('ART-100')
-            ->assertSee('100X200')
+            ->assertDontSee('Artículo')
+            ->assertDontSee('Tamaño')
+            ->assertDontSee('ART-100')
+            ->assertDontSee('100X200')
             ->assertSee('Simulación')
             ->assertSee('https://example.test/simulacion-ventas.jpg', false);
 
@@ -311,7 +312,7 @@ final class CrudoMachineDetailTest extends TestCase
             'nombreProducto' => 'Producto de prueba',
         ];
 
-        Livewire::test(TestableCrudoMachineDetail::class)
+        $component = Livewire::test(TestableCrudoMachineDetail::class)
             ->dispatch('open-crudo-detail', telar: '201', machine: $machine)
             ->assertSee('crudo-modal-order', false)
             ->assertSee('ORD-PROG-201')
@@ -319,7 +320,13 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSee('MOD-201-GDE')
             ->assertSee('Clave AX')
             ->assertSee('AX-201')
+            ->assertSee('crudo-modal-program-field', false)
+            ->assertSee('title="MOD-201-GDE"', false)
+            ->assertSee('title="AX-201"', false)
             ->assertDontSee('Clave ORD-PROG-201');
+
+        $html = $component->html();
+        $this->assertLessThan(strpos($html, 'Clave AX'), strpos($html, 'Clave modelo'));
     }
 
     public function test_it_renders_an_active_stop_inside_the_compact_status_card(): void
@@ -433,14 +440,13 @@ final class CrudoMachineDetailTest extends TestCase
                 fechaInicio: $today,
                 fechaFin: $today,
                 modo: 'dia',
-                turno: 'todos',
             )
             ->assertSet('selectedTelar', '201')
             ->assertSet('machine.telar', '201')
             ->assertSee('data-crudo-detail-modal', false);
     }
 
-    public function test_next_open_uses_the_latest_day_and_shift_received_from_the_dashboard(): void
+    public function test_next_open_uses_the_latest_day_received_from_the_dashboard(): void
     {
         $component = Livewire::test(TestableCrudoMachineDetail::class)
             ->dispatch(
@@ -449,7 +455,6 @@ final class CrudoMachineDetailTest extends TestCase
                 fechaInicio: '2026-08-03',
                 fechaFin: '2026-08-03',
                 modo: 'dia',
-                turno: '2',
             )
             ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
             ->call('loadDetail');
@@ -458,7 +463,6 @@ final class CrudoMachineDetailTest extends TestCase
             'telar' => '201',
             'from' => '2026-08-03',
             'to' => '2026-08-03',
-            'shift' => '2',
         ], $this->provider->detailArguments[array_key_last($this->provider->detailArguments)]);
 
         $component
@@ -468,7 +472,6 @@ final class CrudoMachineDetailTest extends TestCase
                 fechaInicio: '2026-08-04',
                 fechaFin: '2026-08-04',
                 modo: 'dia',
-                turno: 'todos',
             )
             ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
             ->call('loadDetail');
@@ -477,7 +480,6 @@ final class CrudoMachineDetailTest extends TestCase
             'telar' => '201',
             'from' => '2026-08-04',
             'to' => '2026-08-04',
-            'shift' => 'todos',
         ], $this->provider->detailArguments[array_key_last($this->provider->detailArguments)]);
     }
 
@@ -490,7 +492,6 @@ final class CrudoMachineDetailTest extends TestCase
                 fechaInicio: '2026-08-01',
                 fechaFin: '2026-08-03',
                 modo: 'rango',
-                turno: '4',
             )
             ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
             ->call('loadDetail')
@@ -501,7 +502,6 @@ final class CrudoMachineDetailTest extends TestCase
             'telar' => '201',
             'from' => '2026-08-01',
             'to' => '2026-08-03',
-            'shift' => '4',
         ], $this->provider->detailArguments[array_key_last($this->provider->detailArguments)]);
     }
 
@@ -549,7 +549,8 @@ final class CrudoMachineDetailTest extends TestCase
                 'date' => '28/07/2026',
                 'purchBarcode' => 'PB-1001',
                 'weavingOrder' => '36541',
-                'supplierLot' => 'LOTE-PROV-1001',
+                'warpingOrder' => '00929',
+                'supplierLot' => '29734-AP-35',
                 'operator' => 'Operador uno',
                 'weight' => 40.0,
                 'piecesT1' => 100.0,
@@ -624,7 +625,7 @@ final class FakeCrudoDashboardProviderForDetail implements CrudoDashboardProvide
 
     public int $detailCalls = 0;
 
-    /** @var list<array{telar: string, from: string, to: string, shift: string}> */
+    /** @var list<array{telar: string, from: string, to: string}> */
     public array $detailArguments = [];
 
     public float $detailKilos = 40.0;
@@ -642,7 +643,6 @@ final class FakeCrudoDashboardProviderForDetail implements CrudoDashboardProvide
 
     public function get(
         DateTimeImmutable $date,
-        string $shift,
         bool $forceRefresh = false,
         ?DateTimeImmutable $to = null,
         bool $allowRebuild = true,
@@ -650,14 +650,13 @@ final class FakeCrudoDashboardProviderForDetail implements CrudoDashboardProvide
         return [];
     }
 
-    public function detail(string $telar, DateTimeImmutable $from, DateTimeImmutable $to, string $shift): array
+    public function detail(string $telar, DateTimeImmutable $from, DateTimeImmutable $to): array
     {
         $this->detailCalls++;
         $this->detailArguments[] = [
             'telar' => $telar,
             'from' => $from->format('Y-m-d'),
             'to' => $to->format('Y-m-d'),
-            'shift' => $shift,
         ];
 
         if ($this->failDetail) {

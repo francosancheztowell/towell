@@ -20,14 +20,14 @@ final readonly class CrudoDashboardService
         private CrudoProductionTargetService $productionTargetService,
     ) {}
 
-    public function build(DateTimeImmutable $date, string $shift): CrudoDashboardData
+    public function build(DateTimeImmutable $date): CrudoDashboardData
     {
-        return $this->buildForRange($date, $date, $shift);
+        return $this->buildForRange($date, $date);
     }
 
-    public function buildRange(DateTimeImmutable $from, DateTimeImmutable $to, string $shift): CrudoDashboardData
+    public function buildRange(DateTimeImmutable $from, DateTimeImmutable $to): CrudoDashboardData
     {
-        return $this->buildForRange($from, $to, $shift);
+        return $this->buildForRange($from, $to);
     }
 
     /**
@@ -37,9 +37,8 @@ final readonly class CrudoDashboardService
      *
      * @return array<string, mixed>
      */
-    public function machineDetail(string $telar, DateTimeImmutable $from, DateTimeImmutable $to, string $shift): array
+    public function machineDetail(string $telar, DateTimeImmutable $from, DateTimeImmutable $to): array
     {
-        $shift = $this->normalizeShift($shift);
         $headers = $this->repository->headersForTelarInRange($telar, $from, $to);
         $headerIds = array_map(
             static fn (object $row): int|string => $row->RECID,
@@ -47,7 +46,7 @@ final readonly class CrudoDashboardService
         );
         $defects = $this->repository->defectsForHeaders($headerIds);
         $defectsByHeader = $this->groupDefectsByHeader($defects);
-        $metricsByTelar = $this->aggregateHeaders($headers, $defectsByHeader, $shift);
+        $metricsByTelar = $this->aggregateHeaders($headers, $defectsByHeader);
         $raw = $metricsByTelar[$telar] ?? $this->emptyMetrics();
 
         $defectsList = array_values($raw['defects']);
@@ -57,7 +56,7 @@ final readonly class CrudoDashboardService
         );
 
         $captureLimit = max(5, (int) config('crudo.detail_capture_limit', 25));
-        $visibleCaptures = array_slice($raw['captures'], -$captureLimit);
+        $visibleCaptures = $this->attachSupplierLots(array_slice($raw['captures'], -$captureLimit));
 
         return [
             'captureCount' => (int) $raw['captureCount'],
@@ -79,9 +78,35 @@ final readonly class CrudoDashboardService
         ];
     }
 
-    private function buildForRange(DateTimeImmutable $from, DateTimeImmutable $to, string $shift): CrudoDashboardData
+    /**
+     * El ORDENURDIDO de la captura es el Folio del programa de urdido, de donde
+     * sale el lote del proveedor. Se resuelve en una sola consulta para las
+     * capturas ya recortadas al límite del modal, no para todo el histórico.
+     *
+     * @param  list<array<string, mixed>>  $captures
+     * @return list<array<string, mixed>>
+     */
+    private function attachSupplierLots(array $captures): array
     {
-        $shift = $this->normalizeShift($shift);
+        $warpingOrders = array_values(array_filter(array_map(
+            static fn (array $capture): string => trim((string) ($capture['warpingOrder'] ?? '')),
+            $captures,
+        )));
+
+        $lotsByFolio = $warpingOrders === []
+            ? []
+            : $this->repository->supplierLotsByWarpingOrder($warpingOrders);
+
+        foreach ($captures as $index => $capture) {
+            $folio = trim((string) ($capture['warpingOrder'] ?? ''));
+            $captures[$index]['supplierLot'] = $lotsByFolio[$folio] ?? '';
+        }
+
+        return $captures;
+    }
+
+    private function buildForRange(DateTimeImmutable $from, DateTimeImmutable $to): CrudoDashboardData
+    {
         $catalog = $this->machineCatalog();
         $now = new DateTimeImmutable('now', $from->getTimezone());
 
@@ -93,15 +118,9 @@ final readonly class CrudoDashboardService
             && $to->format('Y-m-d') >= $now->format('Y-m-d');
 
         $parosByTelar = $includesToday ? $this->groupParosByTelar($this->repository->activeParos()) : [];
-        if ($shift === 'todos') {
-            $metricsByTelar = $this->metricsFromAggregateRows(
-                $this->repository->aggregateHeadersForRange($from, $to),
-            );
-        } else {
-            $metricsByTelar = $this->metricsFromAggregateRows(
-                $this->repository->aggregateHeadersForShiftInRange($from, $to, $shift),
-            );
-        }
+        $metricsByTelar = $this->metricsFromAggregateRows(
+            $this->repository->aggregateHeadersForRange($from, $to),
+        );
 
         $catalogTelares = array_map(static fn (array $row): string => (string) $row['telar'], $catalog);
         $telares = array_values(array_unique([...$catalogTelares, ...array_keys($metricsByTelar)]));
@@ -110,7 +129,6 @@ final readonly class CrudoDashboardService
         $productionTargetsByTelar = $this->productionTargetService->expectedByTelar(
             $from,
             $to,
-            $shift,
             $now,
             $activePrograms,
         );
@@ -127,7 +145,6 @@ final readonly class CrudoDashboardService
 
         return new CrudoDashboardData(
             date: $isSingleDay ? $from->format('Y-m-d') : $from->format('Y-m-d').'_'.$to->format('Y-m-d'),
-            shift: $shift,
             machines: $machines,
             summary: $this->buildSummary($machines),
             areas: $this->buildAreas($machines),
@@ -238,7 +255,7 @@ final readonly class CrudoDashboardService
      * @param  array<string, list<object>>  $defectsByHeader
      * @return array<string, array<string, mixed>>
      */
-    private function aggregateHeaders(array $headers, array $defectsByHeader, string $shift, bool $includeDetail = true): array
+    private function aggregateHeaders(array $headers, array $defectsByHeader, bool $includeDetail = true): array
     {
         $metrics = [];
 
@@ -249,22 +266,10 @@ final readonly class CrudoDashboardService
             }
 
             $headerDefects = $defectsByHeader[trim((string) $header->RECID)] ?? [];
-            $pieces = $this->headerPieces($header, $shift);
-            $seconds = $shift === 'todos'
-                ? $this->number($header->SEGUNDASTOTAL ?? 0)
-                : $this->defectQuantity($headerDefects, $shift);
-
-            if ($shift !== 'todos' && $pieces <= 0 && $seconds <= 0) {
-                continue;
-            }
-
-            $weight = $this->number($header->PESO ?? 0);
-            $totalPieces = $this->number($header->PIEZASTOTAL ?? 0);
-            // PESO ya es el kg total de la captura (no por pieza); si se filtra por
-            // turno, se prorratea por la fracción de piezas de ese turno.
-            $kilos = $shift === 'todos' || $totalPieces <= 0
-                ? $weight
-                : $weight * ($pieces / $totalPieces);
+            $pieces = $this->number($header->PIEZASTOTAL ?? 0);
+            $seconds = $this->number($header->SEGUNDASTOTAL ?? 0);
+            // PESO ya es el kg total de la captura, no por pieza.
+            $kilos = $this->number($header->PESO ?? 0);
 
             $metrics[$telar] ??= $this->emptyMetrics();
             $metrics[$telar]['captureCount']++;
@@ -296,10 +301,6 @@ final readonly class CrudoDashboardService
 
             $captureDefectLineCount = 0;
             foreach ($headerDefects as $defect) {
-                if (! $this->defectMatchesShift($defect, $shift)) {
-                    continue;
-                }
-
                 $captureDefectLineCount++;
                 $metrics[$telar]['defectLineCount']++;
                 $code = trim((string) ($defect->CODDEFECTOID ?? '')) ?: '—';
@@ -329,9 +330,9 @@ final readonly class CrudoDashboardService
                 'date' => $this->formatCaptureDate($header->TRANSDATE ?? null),
                 'purchBarcode' => trim((string) ($header->PURCHBARCODE ?? '')),
                 'weavingOrder' => trim((string) ($header->ORDENTEJIDO ?? '')),
-                'supplierLot' => trim((string) ($header->PURCHBARCODEORIG ?? '')),
+                'warpingOrder' => trim((string) ($header->ORDENURDIDO ?? '')),
                 'operator' => $operator ?: 'Sin operador',
-                'weight' => round($weight, 2),
+                'weight' => round($kilos, 2),
                 'piecesT1' => round($this->number($header->PIEZAST1 ?? 0)),
                 'piecesT2' => round($this->number($header->PIEZAST2 ?? 0)),
                 'piecesT3' => round($this->number($header->PIEZAST3 ?? 0)),
@@ -548,12 +549,9 @@ final readonly class CrudoDashboardService
         $standardizedKilos = 0.0;
 
         foreach ($machines as $machine) {
+            // "En operación" = solo el estado verde. Mala calidad y bajos kg ya
+            // tienen su propio contador y no deben sumar aquí también.
             $summary[$machine->state->value]++;
-
-            // "En operación" = total con captura, sin importar mala calidad o bajos kg (pero no si está en paro)
-            if (! in_array($machine->state, [CrudoMachineState::NoData, CrudoMachineState::Operating, CrudoMachineState::Paro], true)) {
-                $summary['operating']++;
-            }
 
             $summary['pieces'] += $machine->pieces;
             $summary['seconds'] += $machine->seconds;
@@ -607,53 +605,12 @@ final readonly class CrudoDashboardService
                 CrudoMachineState::Paro => $areas[$machine->salon]['paro']++,
                 CrudoMachineState::BadQuality => $areas[$machine->salon]['badQuality']++,
                 CrudoMachineState::LowKilos => $areas[$machine->salon]['lowKilos']++,
-                CrudoMachineState::Operating => null,
+                CrudoMachineState::Operating => $areas[$machine->salon]['operating']++,
                 CrudoMachineState::NoData => $areas[$machine->salon]['noData']++,
             };
-
-            // "En operación" = total con captura, sin importar mala calidad o bajos kg (pero no si está en paro)
-            if (! in_array($machine->state, [CrudoMachineState::NoData, CrudoMachineState::Paro], true)) {
-                $areas[$machine->salon]['operating']++;
-            }
         }
 
         return array_values($areas);
-    }
-
-    private function headerPieces(object $header, string $shift): float
-    {
-        if ($shift === 'todos') {
-            return $this->number($header->PIEZASTOTAL ?? 0);
-        }
-
-        $field = 'PIEZAST'.$shift;
-
-        return $this->number($header->{$field} ?? 0);
-    }
-
-    /**
-     * @param  list<object>  $defects
-     */
-    private function defectQuantity(array $defects, string $shift): float
-    {
-        $total = 0.0;
-
-        foreach ($defects as $defect) {
-            if ($this->defectMatchesShift($defect, $shift)) {
-                $total += $this->number($defect->CANTIDAD ?? 0);
-            }
-        }
-
-        return $total;
-    }
-
-    private function defectMatchesShift(object $defect, string $shift): bool
-    {
-        if ($shift === 'todos') {
-            return true;
-        }
-
-        return $this->defectTurn($defect) === $shift;
     }
 
     private function defectTurn(object $defect): ?string
@@ -689,11 +646,6 @@ final readonly class CrudoDashboardService
         $salons = config('crudo.salons', []);
 
         return $salons[$normalized] ?? (trim($salon) ?: 'Sin clasificar');
-    }
-
-    private function normalizeShift(string $shift): string
-    {
-        return in_array($shift, ['todos', '1', '2', '3', '4'], true) ? $shift : 'todos';
     }
 
     private function numericTelar(string $telar): int

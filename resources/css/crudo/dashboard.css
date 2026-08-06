@@ -51,14 +51,6 @@
     font-weight: 850;
 }
 
-.crudo-loom-sprite {
-    position: absolute;
-    width: 0;
-    height: 0;
-    overflow: hidden;
-    pointer-events: none;
-}
-
 .crudo-navbar-toolbar {
     display: flex;
     min-width: 0;
@@ -263,29 +255,46 @@
     background: var(--status-bg);
 }
 
+/*
+ * Primarios puros: es el tope de intensidad que permite sRGB.
+ * `--status-ink` existe porque el verde y el naranja puros no se leen como
+ * texto sobre blanco; los usos tipográficos toman esta variante oscurecida y
+ * el resto (bordes, iconos, punto de estado, fondos) sí usa el color pleno.
+ */
 [data-state="paro"] {
-    --status: #dc2626;
-    --status-bg: #fef2f2;
+    --status: #ff0000;
+    --status-ink: #d10000;
+    --status-bg: #ff1f12;
+    --status-bg-soft: #ffe0dd;
 }
 
 [data-state="bad_quality"] {
-    --status: #2563eb;
-    --status-bg: #eff6ff;
+    --status: #0000ff;
+    --status-ink: #0000d6;
+    --status-bg: #4d5cff;
+    --status-bg-soft: #e4eaff;
 }
 
 [data-state="low_kilos"] {
-    --status: #d97706;
-    --status-bg: #fffbeb;
+    --status: #ffe000;
+    /* El amarillo puro es ilegible como texto: la variante tipográfica es ámbar. */
+    --status-ink: #96700a;
+    --status-bg: #ffe633;
+    --status-bg-soft: #fff9d1;
 }
 
 [data-state="operating"] {
-    --status: #15803d;
-    --status-bg: #f0fdf4;
+    --status: #00ff00;
+    --status-ink: #009e2b;
+    --status-bg: #2fe06a;
+    --status-bg-soft: #ddfbe9;
 }
 
 [data-state="no_data"] {
-    --status: #64748b;
-    --status-bg: #f8fafc;
+    --status: #000000;
+    --status-ink: #000000;
+    --status-bg: #b5b5b5;
+    --status-bg-soft: #ececec;
 }
 
 .crudo-status-icon {
@@ -296,7 +305,7 @@
     place-items: center;
     border-radius: 0.55rem;
     background: #fff;
-    color: var(--status);
+    color: var(--status-ink, var(--status));
     font-size: 0.8rem;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status) 18%, white);
 }
@@ -333,13 +342,17 @@
 
 .crudo-kpi-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.5rem;
+}
+
+/* Son 5 tarjetas: la última ocuparía media fila, así que se estira. */
+.crudo-kpi-grid article:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
 }
 
 .crudo-kpi-grid article {
     display: grid;
-    grid-template-columns: 2.6rem minmax(0, 1fr);
     grid-template-rows: auto auto;
     align-items: center;
     min-height: 3.8rem;
@@ -347,18 +360,6 @@
     border-radius: 0.85rem;
     background: #f8fafc;
     padding: 0.55rem 0.75rem;
-}
-
-.crudo-kpi-grid i {
-    display: grid;
-    grid-row: 1 / 3;
-    width: 2.3rem;
-    height: 2.3rem;
-    place-items: center;
-    border-radius: 0.6rem;
-    background: #e0f2fe;
-    color: #0284c7;
-    font-size: 1.05rem;
 }
 
 .crudo-kpi-grid strong {
@@ -369,31 +370,13 @@
     line-height: 1.1;
 }
 
+/* La unidad se lee igual que la cifra: mismo tamaño y mismo peso. */
 .crudo-kpi-grid span {
     align-self: start;
     color: #64748b;
-    font-size: 0.72rem;
-    font-weight: 750;
-    line-height: 1.15;
-}
-
-.crudo-rules-note {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.35rem;
-    margin-top: 0.48rem;
-    border-radius: 0.55rem;
-    background: #f1f5f9;
-    padding: 0.38rem 0.45rem;
-    color: #64748b;
-    font-size: 0.56rem;
-    font-weight: 650;
-    line-height: 1.3;
-}
-
-.crudo-rules-note i {
-    margin-top: 0.06rem;
-    color: #0284c7;
+    font-size: 1.35rem;
+    font-weight: 950;
+    line-height: 1.1;
 }
 
 .crudo-area-table,
@@ -407,7 +390,7 @@
     border-bottom: 1px solid #e2e8f0;
     padding: 0.34rem 0.26rem;
     text-align: center;
-    font-size: 0.66rem;
+    font-size: 1.05rem;
 }
 
 .crudo-area-table th:first-child,
@@ -581,8 +564,7 @@
     width: min(100%, 7.4rem);
     height: 6.35rem;
     margin-bottom: -0.1rem;
-    overflow: visible;
-    color: var(--machine-accent);
+    background: var(--loom-image) center / contain no-repeat;
 }
 
 .crudo-machine-grid-physical .crudo-loom {
@@ -590,49 +572,21 @@
     height: 5.35rem;
 }
 
-.crudo-loom-floor {
-    fill: color-mix(in srgb, var(--machine-accent) 17%, transparent);
-}
-
-.crudo-loom-body {
-    fill: var(--machine-accent);
-    stroke: color-mix(in srgb, var(--machine-accent) 72%, #0f172a);
-    stroke-width: 1.8;
-}
-
-.crudo-loom-detail {
-    stroke: color-mix(in srgb, var(--machine-accent) 68%, #0f172a);
-    stroke-width: 2.4;
-}
-
-.crudo-loom-reed {
-    stroke: color-mix(in srgb, #ffffff 74%, var(--machine-accent));
-    stroke-width: 3;
-}
-
-.crudo-loom-accent {
-    fill: none;
-    stroke: color-mix(in srgb, #ffffff 68%, var(--machine-accent));
-    stroke-linecap: round;
-    stroke-width: 2.5;
-    opacity: 0.9;
-}
-
-.crudo-loom-number-badge {
-    fill: rgba(255, 255, 255, 0.96);
-    stroke: color-mix(in srgb, var(--machine-accent) 78%, #0f172a);
-    stroke-width: 2.5;
-}
-
-.crudo-loom-number-text {
-    fill: #0f172a;
-    font-family: inherit;
-    font-size: 34px;
+.crudo-loom-number {
+    padding: 0.05rem 0.5rem;
+    margin-bottom: 0.15rem;
+    border: 2.5px solid color-mix(in srgb, var(--machine-accent) 78%, #0f172a);
+    border-radius: 0.5rem;
+    background: rgba(255, 255, 255, 0.96);
+    color: #0f172a;
+    font-size: 1.25rem;
     font-weight: 950;
     letter-spacing: 1px;
-    paint-order: stroke fill;
-    stroke: rgba(255, 255, 255, 0.9);
-    stroke-width: 0.8px;
+    line-height: 1.2;
+}
+
+.crudo-machine-grid-physical .crudo-loom-number {
+    font-size: 1.05rem;
 }
 
 .crudo-machine-metric,
@@ -650,14 +604,14 @@
 .crudo-machine-quality {
     left: 0.3rem;
     transform: translateY(-50%) rotate(180deg);
-    color: #475569;
+    color: #0b1220;
     font-size: 1.4rem;
 }
 
 .crudo-machine-metric {
     right: 0.3rem;
     transform: translateY(-50%);
-    color: #334155;
+    color: #0b1220;
     font-size: 1.4rem;
 }
 
@@ -896,11 +850,13 @@
 
 .crudo-modal-identity-card {
     display: grid;
-    grid-template-columns: 2.65rem minmax(0, 1fr);
+    /* Icono | salón + telar + orden | claves del programa. La tercera columna
+       es `auto` para que colapse sola en los telares sin programa. */
+    grid-template-columns: 2.65rem minmax(0, 1fr) auto;
     gap: 0.65rem;
     align-items: center;
     border-color: color-mix(in srgb, var(--status) 26%, #dbe5ee);
-    background: var(--status-bg);
+    background: var(--status-bg-soft);
     padding: 0.6rem 0.65rem 0.6rem 0.7rem;
 }
 
@@ -931,18 +887,46 @@
 }
 
 .crudo-modal-order {
-    color: var(--status);
+    color: var(--status-ink, var(--status));
 }
 
 .crudo-modal-program {
-    display: flex;
-    gap: 0.35rem;
-    align-items: center;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    gap: 0.2rem;
+    min-width: 9rem;
+    max-width: 15rem;
+    border-left: 1px solid color-mix(in srgb, var(--status) 22%, #dbe5ee);
+    padding-left: 0.6rem;
     overflow: hidden;
     margin-top: 0.12rem;
     color: #334155;
     font-size: 0.7rem;
     font-weight: 700;
+}
+
+/* Sin background ni border: los campos se apilan como texto, no como tarjetas. */
+.crudo-modal-program-field {
+    display: grid;
+    min-width: 0;
+}
+
+.crudo-modal-program-field dt {
+    color: #64748b;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+/* La clave se lee igual que la orden del encabezado. */
+.crudo-modal-program-field dd {
+    overflow: hidden;
+    min-width: 0;
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.3rem;
+    font-weight: 900;
+    line-height: 1.1;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -960,7 +944,7 @@
     place-items: center;
     border-radius: 0.7rem;
     background: #fff;
-    color: var(--status);
+    color: var(--status-ink, var(--status));
     font-size: 1.1rem;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status) 18%, white);
 }
@@ -991,7 +975,7 @@
 }
 
 .crudo-modal-kpi .crudo-modal-state {
-    color: var(--status);
+    color: var(--status-ink, var(--status));
     font-size: 0.95rem;
 }
 
@@ -1006,7 +990,7 @@
 .crudo-modal-status-card.has-paro {
     align-content: start;
     border-color: color-mix(in srgb, var(--status) 30%, #dbe5ee);
-    background: var(--status-bg);
+    background: var(--status-bg-soft);
 }
 
 .crudo-modal-status-card .crudo-modal-paro-falla,
@@ -1514,23 +1498,27 @@
 }
 
 .crudo-orders-table .crudo-orders-col-date {
-    width: 14%;
+    width: 12%;
 }
 
 .crudo-orders-table .crudo-orders-col-roll {
-    width: 18%;
-}
-
-.crudo-orders-table .crudo-orders-col-order {
     width: 15%;
 }
 
+.crudo-orders-table .crudo-orders-col-order {
+    width: 13%;
+}
+
 .crudo-orders-table .crudo-orders-col-number {
-    width: 9%;
+    width: 8%;
+}
+
+.crudo-orders-table .crudo-orders-col-warping {
+    width: 14%;
 }
 
 .crudo-orders-table .crudo-orders-col-lot {
-    width: 26%;
+    width: 22%;
 }
 
 .crudo-orders-table th,
@@ -2235,10 +2223,6 @@
         padding: 0.35rem 0.3rem;
     }
 
-    .crudo-kpi-grid i {
-        display: none;
-    }
-
     .crudo-kpi-grid strong {
         overflow: hidden;
         font-size: 0.92rem;
@@ -2247,7 +2231,8 @@
 
     .crudo-kpi-grid span {
         overflow: hidden;
-        font-size: 0.55rem;
+        font-size: 0.92rem;
+        font-weight: 950;
         text-overflow: ellipsis;
     }
 
@@ -2256,15 +2241,10 @@
         font-size: 0.5rem;
     }
 
-    .crudo-rules-note {
-        padding: 0.3rem;
-        font-size: 0.5rem;
-    }
-
     .crudo-area-table th,
     .crudo-area-table td {
         padding: 0.25rem 0.1rem;
-        font-size: 0.55rem;
+        font-size: 0.9rem;
     }
 
     .crudo-area-table th {
@@ -2318,8 +2298,17 @@
         font-size: 1rem;
     }
 
+    .crudo-modal-identity-card {
+        grid-template-columns: 2.65rem minmax(0, 1fr);
+    }
+
     .crudo-modal-program {
+        grid-column: 2;
         gap: 0.2rem;
+        min-width: 0;
+        max-width: none;
+        border-left: 0;
+        padding-left: 0;
         font-size: 0.58rem;
     }
 
@@ -2351,29 +2340,37 @@
     }
 
     .crudo-orders-table .crudo-orders-col-date {
-        width: 15%;
+        width: 13%;
     }
 
     .crudo-orders-table .crudo-orders-col-roll {
-        width: 17%;
+        width: 14%;
     }
 
     .crudo-orders-table .crudo-orders-col-order {
-        width: 16%;
+        width: 13%;
     }
 
     .crudo-orders-table .crudo-orders-col-number {
-        width: 10%;
+        width: 9%;
     }
 
     .crudo-orders-table .crudo-orders-col-lot {
-        width: 22%;
+        width: 19%;
+    }
+
+    .crudo-orders-table .crudo-orders-col-warping {
+        width: 18%;
     }
 
     .crudo-orders-table th,
     .crudo-orders-table td {
         padding-right: 0.15rem;
         padding-left: 0.15rem;
+    }
+
+    .crudo-orders-table td {
+        font-size: 0.78rem;
     }
 
     .crudo-flog-panel {
@@ -2408,11 +2405,11 @@
     }
 
     .crudo-flog-simulation img {
-        height: 3.4rem;
+        height: 5rem;
     }
 
     .crudo-flog-empty-simulation {
-        min-height: 3.4rem;
+        min-height: 5rem;
         padding: 0.35rem;
         font-size: 0.62rem;
     }

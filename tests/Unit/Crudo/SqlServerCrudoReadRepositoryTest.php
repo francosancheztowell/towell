@@ -81,8 +81,9 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
         $this->assertSame(1, (int) $rows[0]->RECID);
         $this->assertSame('201', $rows[0]->TELAR);
         $this->assertSame('PB-1', $rows[0]->PURCHBARCODE);
-        $this->assertSame('LOTE-1', $rows[0]->PURCHBARCODEORIG);
         $this->assertSame('OT-1', $rows[0]->ORDENTEJIDO);
+        $this->assertSame('URD-1', $rows[0]->ORDENURDIDO);
+        $this->assertObjectNotHasProperty('PURCHBARCODEORIG', $rows[0]);
         $this->assertObjectNotHasProperty('UNUSED', $rows[0]);
     }
 
@@ -140,68 +141,6 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
         $this->assertSame(18.0, (float) $rows[0]->pieces);
         $this->assertSame(3.0, (float) $rows[0]->seconds);
         $this->assertSame(65.0, (float) $rows[0]->kilos);
-    }
-
-    public function test_it_aggregates_a_shift_in_sql_without_duplicating_header_weight(): void
-    {
-        DB::connection('crudo_test_source')->table('TWCRUDOTABLE')->insert([
-            [
-                ...$this->header('1', '2026-07-28 08:00:00', '201'),
-                'PESO' => 40,
-                'PIEZAST1' => 6,
-                'PIEZASTOTAL' => 10,
-            ],
-            [
-                ...$this->header('2', '2026-07-28 09:00:00', '201'),
-                'PESO' => 20,
-                'PIEZAST1' => 5,
-                'PIEZASTOTAL' => 10,
-            ],
-            $this->header('3', '2026-07-27 09:00:00', '201'),
-        ]);
-        DB::connection('crudo_test_source')->table('TWCRUDOLINE')->insert([
-            [
-                'RECID' => 10,
-                'REFRECID' => 1,
-                'TURNO' => '1',
-                'CODDEFECTOID' => '01',
-                'CANTIDAD' => 2,
-                'DESCRIP' => 'Error',
-                'DATAAREAID' => 'pro',
-            ],
-            [
-                'RECID' => 11,
-                'REFRECID' => 1,
-                'TURNO' => 'Turno 1',
-                'CODDEFECTOID' => '09',
-                'CANTIDAD' => 3,
-                'DESCRIP' => 'Marra',
-                'DATAAREAID' => 'pro',
-            ],
-            [
-                'RECID' => 12,
-                'REFRECID' => 2,
-                'TURNO' => '2',
-                'CODDEFECTOID' => '01',
-                'CANTIDAD' => 9,
-                'DESCRIP' => 'Otro turno',
-                'DATAAREAID' => 'pro',
-            ],
-        ]);
-
-        $rows = (new SqlServerCrudoReadRepository)
-            ->aggregateHeadersForShiftInRange(
-                new DateTimeImmutable('2026-07-28'),
-                new DateTimeImmutable('2026-07-28'),
-                '1',
-            );
-
-        $this->assertCount(1, $rows);
-        $this->assertSame('201', $rows[0]->TELAR);
-        $this->assertSame(2, (int) $rows[0]->captureCount);
-        $this->assertSame(11.0, (float) $rows[0]->pieces);
-        $this->assertSame(5.0, (float) $rows[0]->seconds);
-        $this->assertSame(34.0, (float) $rows[0]->kilos);
     }
 
     public function test_it_loads_defects_by_header_id_instead_of_scanning_by_date(): void
@@ -351,6 +290,7 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
             $table->string('PURCHBARCODE')->nullable();
             $table->string('PURCHBARCODEORIG')->nullable();
             $table->string('ORDENTEJIDO')->nullable();
+            $table->string('ORDENURDIDO')->nullable();
             $table->dateTime('TRANSDATE');
             $table->string('TELAR');
             $table->decimal('PESO', 18, 4);
@@ -448,6 +388,7 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
             'PURCHBARCODE' => 'PB-'.$recId,
             'PURCHBARCODEORIG' => 'LOTE-'.$recId,
             'ORDENTEJIDO' => 'OT-'.$recId,
+            'ORDENURDIDO' => 'URD-'.$recId,
             'TRANSDATE' => $date,
             'TELAR' => $telar,
             'PESO' => 40,

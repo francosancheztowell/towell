@@ -6,6 +6,7 @@ namespace Tests\Unit\Crudo;
 
 use App\Contracts\Crudo\CrudoDashboardProvider;
 use App\Livewire\Crudo\Dashboard;
+use Carbon\Carbon;
 use DateTimeImmutable;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -18,7 +19,7 @@ final class CrudoLivewireTest extends TestCase
     {
         parent::setUp();
 
-        config()->set('crudo.bad_quality_percent', 10);
+        config()->set('crudo.bad_quality_percent', 7);
         config()->set('crudo.poll_seconds', 15);
         $this->provider = new FakeCrudoDashboardProvider($this->dashboardData());
         $this->app->instance(CrudoDashboardProvider::class, $this->provider);
@@ -31,20 +32,18 @@ final class CrudoLivewireTest extends TestCase
             ->assertSee('Producción del periodo')
             ->assertSee('crudo-panel-overview', false)
             ->assertDontSee('Lectura del semáforo')
-            ->assertSee('Salón Jacquard')
+            ->assertSee('<h2>Jacquard</h2>', false)
             ->assertSee('crudo-navbar-toolbar', false)
             ->assertDontSee('crudo-toolbar', false)
             ->assertSee('JAC 201')
             ->assertSee('95%')
-            ->assertSee('crudo-loom-body', false)
-            ->assertSee('crudo-loom-number-text', false);
+            ->assertSee('images/crudo/jacquard.webp', false)
+            ->assertSee('crudo-loom-number', false);
     }
 
-    public function test_it_normalizes_shift_and_forces_refresh_on_manual_action(): void
+    public function test_it_forces_refresh_on_manual_action(): void
     {
         Livewire::test(TestableCrudoDashboard::class)
-            ->set('turno', '9')
-            ->assertSet('turno', 'todos')
             ->call('refreshNow')
             ->assertDispatched('crudo-refrescado');
 
@@ -84,16 +83,30 @@ final class CrudoLivewireTest extends TestCase
             ->assertSee('wire:poll.visible.15s', false);
     }
 
+    public function test_machine_detail_is_mounted_as_a_sibling_of_the_dashboard(): void
+    {
+        $dashboard = file_get_contents(resource_path('views/livewire/crudo/dashboard.blade.php'));
+        $page = file_get_contents(resource_path('views/modulos/crudo/index.blade.php'));
+
+        $this->assertIsString($dashboard);
+        $this->assertIsString($page);
+        $this->assertStringNotContainsString('<livewire:crudo.machine-detail', $dashboard);
+        $this->assertStringContainsString('data-crudo-root', $page);
+        $this->assertMatchesRegularExpression(
+            '/<livewire:crudo\.dashboard\s*\/>\s*<livewire:crudo\.machine-detail\s*\/>/',
+            $page,
+        );
+    }
+
     public function test_dashboard_exposes_one_canonical_filter_context_for_the_detail(): void
     {
-        $today = now(config('app.timezone'))->format('Y-m-d');
+        $today = $this->productionDay();
 
         Livewire::test(TestableCrudoDashboard::class)
             ->assertSee('data-crudo-fecha="'.$today.'"', false)
             ->assertSee('data-crudo-fecha-inicio="'.$today.'"', false)
             ->assertSee('data-crudo-fecha-fin="'.$today.'"', false)
-            ->assertSee('data-crudo-modo="dia"', false)
-            ->assertSee('data-crudo-turno="todos"', false);
+            ->assertSee('data-crudo-modo="dia"', false);
     }
 
     public function test_historical_and_range_views_do_not_keep_polling(): void
@@ -105,6 +118,32 @@ final class CrudoLivewireTest extends TestCase
             ->assertDontSee('wire:poll.visible', false);
     }
 
+    public function test_before_six_thirty_it_opens_on_the_running_production_day_and_keeps_polling(): void
+    {
+        // Un supervisor que entra a las 05:00 sigue dentro del día de producción
+        // anterior; abrir en la fecha de calendario le mostraba un tablero vacío.
+        Carbon::setTestNow(Carbon::parse('2026-08-05 05:00:00', config('app.timezone')));
+
+        try {
+            Livewire::test(TestableCrudoDashboard::class)
+                ->assertSet('fecha', '2026-08-04')
+                ->assertSee('wire:poll.visible', false);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_after_six_thirty_it_opens_on_the_calendar_day(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-08-05 07:00:00', config('app.timezone')));
+
+        try {
+            Livewire::test(TestableCrudoDashboard::class)->assertSet('fecha', '2026-08-05');
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
     public function test_every_filter_change_dispatches_the_detail_close_event(): void
     {
         foreach ([
@@ -112,7 +151,6 @@ final class CrudoLivewireTest extends TestCase
             ['fechaInicio', now()->subDays(2)->format('Y-m-d')],
             ['fechaFin', now()->subDay()->format('Y-m-d')],
             ['modo', 'rango'],
-            ['turno', '2'],
         ] as [$property, $value]) {
             Livewire::test(TestableCrudoDashboard::class)
                 ->set($property, $value)
@@ -122,7 +160,7 @@ final class CrudoLivewireTest extends TestCase
 
     public function test_filter_change_dispatches_the_complete_period_context_for_the_detail(): void
     {
-        $today = now(config('app.timezone'))->format('Y-m-d');
+        $today = $this->productionDay();
         $selectedDate = now(config('app.timezone'))->subDay()->format('Y-m-d');
 
         Livewire::test(TestableCrudoDashboard::class)
@@ -133,7 +171,6 @@ final class CrudoLivewireTest extends TestCase
                 fechaInicio: $today,
                 fechaFin: $today,
                 modo: 'dia',
-                turno: 'todos',
             );
     }
 
@@ -174,8 +211,6 @@ final class CrudoLivewireTest extends TestCase
         );
         $this->assertStringContainsString('.crudo-sidebar {', $tabletRules);
         $this->assertStringContainsString('grid-template-columns: minmax(0, 1fr)', $tabletRules);
-        $this->assertStringContainsString('.crudo-kpi-grid i {', $tabletRules);
-        $this->assertStringContainsString('display: none', $tabletRules);
         $this->assertStringContainsString('grid-template-columns: 1.5rem 1.65rem minmax(0, 1fr)', $tabletRules);
         $this->assertStringContainsString(
             'grid-template-columns: minmax(0, 0.42fr) minmax(0, 1fr) minmax(0, 1.15fr)',
@@ -196,10 +231,12 @@ final class CrudoLivewireTest extends TestCase
             'grid-template-columns: minmax(0, 1.6fr) minmax(8rem, 0.65fr) minmax(9rem, 0.75fr)',
             $tabletRules,
         );
-        $this->assertStringContainsString('.crudo-orders-table .crudo-orders-col-lot {', $tabletRules);
-        $this->assertStringContainsString('width: 22%', $tabletRules);
+        $this->assertStringContainsString('.crudo-orders-table .crudo-orders-col-warping {', $tabletRules);
+        $this->assertStringContainsString('width: 18%', $tabletRules);
+        $this->assertStringContainsString('.crudo-orders-table td {', $tabletRules);
+        $this->assertStringContainsString('font-size: 0.78rem', $tabletRules);
         $this->assertStringContainsString('.crudo-flog-simulation img {', $tabletRules);
-        $this->assertStringContainsString('height: 3.4rem', $tabletRules);
+        $this->assertStringContainsString('height: 5rem', $tabletRules);
     }
 
     public function test_desktop_gives_orders_more_width_than_defects_and_flog(): void
@@ -213,6 +250,13 @@ final class CrudoLivewireTest extends TestCase
         );
     }
 
+    private function productionDay(): string
+    {
+        return now(config('app.timezone'))
+            ->subMinutes((int) config('crudo.production_day_start_minutes', 390))
+            ->format('Y-m-d');
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -220,7 +264,6 @@ final class CrudoLivewireTest extends TestCase
     {
         return [
             'date' => now()->format('Y-m-d'),
-            'shift' => 'todos',
             'machines' => [[
                 'telar' => '201',
                 'name' => 'JAC 201',
@@ -257,7 +300,7 @@ final class CrudoLivewireTest extends TestCase
                     'date' => '28/07/2026',
                     'purchBarcode' => 'PB-1001',
                     'weavingOrder' => '36541',
-                    'supplierLot' => 'LOTE-PROV-1001',
+                    'warpingOrder' => '00929',
                     'operator' => 'Operador uno',
                     'weight' => 40.0,
                     'piecesT1' => 100.0,
@@ -325,7 +368,6 @@ final class FakeCrudoDashboardProvider implements CrudoDashboardProvider
 
     public function get(
         DateTimeImmutable $date,
-        string $shift,
         bool $forceRefresh = false,
         ?DateTimeImmutable $to = null,
         bool $allowRebuild = true,
@@ -337,11 +379,10 @@ final class FakeCrudoDashboardProvider implements CrudoDashboardProvider
         return [
             ...$this->data,
             'date' => $date->format('Y-m-d'),
-            'shift' => $shift,
         ];
     }
 
-    public function detail(string $telar, DateTimeImmutable $from, DateTimeImmutable $to, string $shift): array
+    public function detail(string $telar, DateTimeImmutable $from, DateTimeImmutable $to): array
     {
         $this->detailCalls++;
 

@@ -24,7 +24,6 @@ final readonly class CrudoProductionTargetService
     public function expectedByTelar(
         DateTimeImmutable $from,
         DateTimeImmutable $to,
-        string $shift,
         DateTimeImmutable $now,
         array $activePrograms = [],
     ): array {
@@ -33,7 +32,7 @@ final readonly class CrudoProductionTargetService
             return [];
         }
 
-        $eligibleSeconds = $this->eligibleSeconds($from, $to, $shift, $now);
+        $eligibleSeconds = $this->eligibleSeconds($from, $to, $now);
         $targets = [];
 
         foreach ($dailyTargets as $telar => $dailyTarget) {
@@ -76,10 +75,13 @@ final readonly class CrudoProductionTargetService
         return $targets;
     }
 
+    /**
+     * Segundos ya transcurridos del periodo. Cada día de producción dura 24 h
+     * completas (06:30 a 06:30); solo el día en curso se prorratea.
+     */
     private function eligibleSeconds(
         DateTimeImmutable $from,
         DateTimeImmutable $to,
-        string $shift,
         DateTimeImmutable $now,
     ): int {
         $day = $from->setTime(0, 0);
@@ -88,45 +90,27 @@ final readonly class CrudoProductionTargetService
             [$day, $lastDay] = [$lastDay, $day];
         }
 
+        // El día de producción corre de 06:30 a 06:30, así que lo transcurrido
+        // del día en curso se mide desde ese arranque, no desde medianoche. Con
+        // el corte anterior la meta se inflaba 6.5 h y marcaba "bajos kg" de más.
+        $startMinutes = (int) config('crudo.production_day_start_minutes', 390);
+        $currentDay = $now->modify('-'.$startMinutes.' minutes')->setTime(0, 0);
+
         $seconds = 0;
         while ($day <= $lastDay) {
-            [$windowStart, $windowEnd] = $this->windowForDay($day, $shift, $now);
-            $seconds += max(0, $windowEnd->getTimestamp() - $windowStart->getTimestamp());
+            if ($day < $currentDay) {
+                $seconds += 86400;
+            } elseif ($day == $currentDay) {
+                $elapsed = $now->getTimestamp()
+                    - $day->modify('+'.$startMinutes.' minutes')->getTimestamp();
+                $seconds += min(86400, max(0, $elapsed));
+            }
+            // Un día de producción que aún no arranca no aporta meta.
+
             $day = $day->add(new DateInterval('P1D'));
         }
 
         return $seconds;
-    }
-
-    /**
-     * @return array{DateTimeImmutable, DateTimeImmutable}
-     */
-    private function windowForDay(
-        DateTimeImmutable $dayStart,
-        string $shift,
-        DateTimeImmutable $now,
-    ): array {
-        $dayEnd = $dayStart->add(new DateInterval('P1D'));
-
-        if (in_array($shift, ['1', '2', '3', '4'], true)) {
-            $turnsPerDay = max(1, (int) config('crudo.turns_per_day', 4));
-            $secondsPerTurn = (int) floor(86400 / $turnsPerDay);
-            $offset = ((int) $shift - 1) * $secondsPerTurn;
-            $windowStart = $dayStart->modify('+'.$offset.' seconds');
-            $windowEnd = min($windowStart->modify('+'.$secondsPerTurn.' seconds'), $dayEnd);
-        } else {
-            $windowStart = $dayStart;
-            $windowEnd = $dayEnd;
-        }
-
-        $today = $now->setTime(0, 0);
-        if ($dayStart == $today) {
-            $windowEnd = min($windowEnd, $now);
-        } elseif ($dayStart > $today) {
-            $windowEnd = $windowStart;
-        }
-
-        return [$windowStart, max($windowStart, $windowEnd)];
     }
 
     private function positiveNumber(mixed $value): ?float

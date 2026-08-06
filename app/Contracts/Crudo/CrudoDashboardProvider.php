@@ -15,7 +15,6 @@ interface CrudoDashboardProvider
      */
     public function get(
         DateTimeImmutable $date,
-        string $shift,
         bool $forceRefresh = false,
         ?DateTimeImmutable $to = null,
         bool $allowRebuild = true,
@@ -27,5 +26,5 @@ interface CrudoDashboardProvider
      *
      * @return array<string, mixed>
      */
-    public function detail(string $telar, DateTimeImmutable $from, DateTimeImmutable $to, string $shift): array;
+    public function detail(string $telar, DateTimeImmutable $from, DateTimeImmutable $to): array;
 }

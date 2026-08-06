@@ -13,7 +13,6 @@ final readonly class CrudoDashboardData
      */
     public function __construct(
         public string $date,
-        public string $shift,
         public array $machines,
         public array $summary,
         public array $areas,
@@ -27,7 +26,6 @@ final readonly class CrudoDashboardData
     {
         return [
             'date' => $this->date,
-            'shift' => $this->shift,
             'machines' => array_map(
                 static fn (CrudoMachineMetrics $machine): array => $machine->toArray(),
                 $this->machines,

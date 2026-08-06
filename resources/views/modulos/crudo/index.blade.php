@@ -1,7 +1,7 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 
 @section('page-title')
-    <x-layout.page-title title="Crudo" />
+    <x-layout.page-title title="ANDON" />
 @endsection
 
 @section('navbar-right')
@@ -13,7 +13,10 @@
 @endpush
 
 @section('content')
-    <div class="crudo-page min-h-full w-full px-2 py-3 sm:px-4 lg:px-5">
+    <div
+        class="crudo-page min-h-full w-full px-2 py-3 sm:px-4 lg:px-5"
+        data-crudo-root
+    >
         <aside
             class="crudo-livewire-error"
             data-crudo-livewire-error
@@ -31,6 +34,7 @@
         </aside>
 
         <livewire:crudo.dashboard />
+        <livewire:crudo.machine-detail />
     </div>
 
     <div

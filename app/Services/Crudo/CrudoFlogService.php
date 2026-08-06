@@ -278,10 +278,29 @@ final readonly class CrudoFlogService implements CrudoFlogProvider
 
         unset($result['_simulationSalesPath'], $result['_simulationDesignPath']);
 
-        $result['simulationSalesUrl'] = $this->flogService->resolverUrlImagen($salesPath);
-        $result['simulationDesignUrl'] = $this->flogService->resolverUrlImagen($designPath);
+        $result['simulationSalesUrl'] = $this->crudoImageUrl($salesPath);
+        $result['simulationDesignUrl'] = $this->crudoImageUrl($designPath);
 
         return $result;
+    }
+
+    /**
+     * Reapunta la simulación a la ruta propia de Crudo: la de Trazabilidad exige
+     * su permiso y devuelve la página HTML de 404 cuando el archivo no está.
+     */
+    private function crudoImageUrl(string $path): ?string
+    {
+        $url = $this->flogService->resolverUrlImagen($path);
+        if ($url === null) {
+            return null;
+        }
+
+        // Una simulación guardada ya como URL absoluta no pasa por el proxy UNC
+        // y se sirve tal cual; solo se reescribe el proxy de Trazabilidad.
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+        $file = trim((string) ($query['file'] ?? ''));
+
+        return $file !== '' ? route('crudo.flog-imagen', ['file' => $file]) : $url;
     }
 
     private function source(): ConnectionInterface

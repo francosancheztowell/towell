@@ -4,7 +4,7 @@
         ['key' => 'paro', 'label' => 'Paro', 'description' => 'Máquina detenida', 'icon' => 'fa-triangle-exclamation'],
         ['key' => 'bad_quality', 'label' => 'Mala calidad', 'description' => 'Máquinas en alerta', 'icon' => 'fa-circle-xmark'],
         ['key' => 'low_kilos', 'label' => 'Bajos kg', 'description' => 'Debajo de la meta', 'icon' => 'fa-arrow-down'],
-        ['key' => 'operating', 'label' => 'En operación', 'description' => 'Con captura y sin paro', 'icon' => 'fa-circle-check'],
+        ['key' => 'operating', 'label' => 'En operación', 'description' => 'Sin alertas', 'icon' => 'fa-circle-check'],
         ['key' => 'no_data', 'label' => 'Sin datos', 'description' => 'Sin captura', 'icon' => 'fa-minus'],
     ];
 @endphp
@@ -16,7 +16,6 @@
     data-crudo-fecha-inicio="{{ $fechaInicio }}"
     data-crudo-fecha-fin="{{ $fechaFin }}"
     data-crudo-modo="{{ $this->modo }}"
-    data-crudo-turno="{{ $turno }}"
     @if ($shouldPoll) wire:poll.visible.{{ $pollSeconds }}s="refreshDashboard" @endif
 >
     @teleport('#crudo-navbar-controls')
@@ -58,17 +57,6 @@
                 </label>
             @endif
 
-            <label class="crudo-filter">
-                <span>Turno</span>
-                <select wire:model.change="turno">
-                    <option value="todos">Todos los turnos</option>
-                    <option value="1">Turno 1</option>
-                    <option value="2">Turno 2</option>
-                    <option value="3">Turno 3</option>
-                    <option value="4">Turno 4</option>
-                </select>
-            </label>
-
             <button
                 type="button"
                 class="crudo-icon-button"
@@ -107,7 +95,7 @@
             <span
                 class="crudo-navbar-loading"
                 wire:loading
-                wire:target="modo,fecha,fechaInicio,fechaFin,turno,refreshNow"
+                wire:target="modo,fecha,fechaInicio,fechaFin,refreshNow"
                 aria-label="Actualizando producción"
             >
                 <i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i>
@@ -167,48 +155,31 @@
 
                 <div class="crudo-kpi-grid">
                     <article>
-                        <i class="fa-solid fa-weight-hanging"></i>
                         <strong>{{ number_format(round((float) $summary['kilos'])) }}</strong>
-                        <span>Kilogramos</span>
+                        <span>kg</span>
                     </article>
                     <article>
-                        <i class="fa-solid fa-layer-group"></i>
                         <strong>{{ number_format((float) $summary['pieces']) }}</strong>
-                        <span>Piezas</span>
+                        <span>pzas</span>
                     </article>
                     <article>
-                        <i class="fa-solid fa-shield-heart"></i>
                         <strong>{{ number_format(round((float) $summary['qualityPercent'])) }}%</strong>
-                        <span>Calidad global</span>
+                        <span>cg</span>
                     </article>
                     <article>
-                        <i class="fa-solid fa-gauge-high"></i>
                         <strong>{{ number_format(round((float) $summary['efficiencyPercent'])) }}%</strong>
-                        <span>Eficiencia global</span>
+                        <span>ef.g</span>
                     </article>
                     <article>
-                        <i class="fa-solid fa-arrow-trend-down"></i>
                         <strong>{{ number_format((float) $summary['seconds']) }}</strong>
-                        <span>Segundas</span>
+                        <span>2das</span>
                     </article>
                 </div>
-
-                <p class="crudo-rules-note">
-                    <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
-                    <span>
-                        Alerta desde {{ number_format(round((float) $badQualityThreshold)) }}%
-                        · meta del programa en proceso con ProdKgDia prorrateada por hora
-                        @if ($modo === 'rango')
-                            · rango máximo {{ $maxRangeDays }} días
-                        @endif
-                    </span>
-                </p>
             </section>
 
             <section class="crudo-panel crudo-panel-areas">
                 <div class="crudo-panel-heading">
                     <div>
-                        <p class="crudo-eyebrow">Detalle por área</p>
                         <h2>Alertas por salón</h2>
                     </div>
                 </div>
@@ -264,5 +235,4 @@
     </main>
 </div>
 
-    <livewire:crudo.machine-detail />
 </div>

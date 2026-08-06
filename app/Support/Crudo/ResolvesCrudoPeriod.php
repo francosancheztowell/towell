@@ -55,12 +55,19 @@ trait ResolvesCrudoPeriod
             && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))
             && $parsed->format('Y-m-d') === $date;
 
-        return $valid ? $date : now($timezone)->format('Y-m-d');
+        return $valid ? $date : $this->crudoProductionDay();
     }
 
-    private function normalizeShift(string $shift): string
+    /**
+     * El día de producción corre de 06:30 a 06:30. Restar ese arranque mapea
+     * cualquier instante a su día de producción sin ramas: a las 05:00 devuelve
+     * ayer, a las 07:00 devuelve hoy.
+     */
+    private function crudoProductionDay(): string
     {
-        return in_array($shift, ['todos', '1', '2', '3', '4'], true) ? $shift : 'todos';
+        return now($this->crudoTimezone())
+            ->subMinutes((int) config('crudo.production_day_start_minutes', 390))
+            ->format('Y-m-d');
     }
 
     private function crudoTimezone(): DateTimeZone

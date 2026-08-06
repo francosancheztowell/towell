@@ -39,8 +39,8 @@ final class CachedCrudoDashboardProviderTest extends TestCase
         $provider = $this->provider($repository);
         $date = new DateTimeImmutable('2026-08-03');
 
-        $first = $provider->detail('201', $date, $date, 'todos');
-        $second = $provider->detail('201', $date, $date, 'todos');
+        $first = $provider->detail('201', $date, $date);
+        $second = $provider->detail('201', $date, $date);
 
         $this->assertSame($first, $second);
         $this->assertSame(0, $second['captureCount']);
@@ -56,8 +56,8 @@ final class CachedCrudoDashboardProviderTest extends TestCase
         $provider = $this->provider($repository);
         $date = new DateTimeImmutable('2026-08-03');
 
-        $provider->detail('201', $date, $date, 'todos');
-        $provider->detail('201', $date, $date, 'todos');
+        $provider->detail('201', $date, $date);
+        $provider->detail('201', $date, $date);
 
         $this->addToAssertionCount(1);
     }
@@ -77,7 +77,6 @@ final class CachedCrudoDashboardProviderTest extends TestCase
 
         $result = $this->provider($repository)->get(
             $date,
-            'todos',
             forceRefresh: true,
             to: $date,
             allowRebuild: false,

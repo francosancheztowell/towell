@@ -24,7 +24,7 @@ final class CrudoStatusResolver
             return CrudoMachineState::NoData;
         }
 
-        if ($secondsPercent >= (float) config('crudo.bad_quality_percent', 10)) {
+        if ($secondsPercent >= (float) config('crudo.bad_quality_percent', 7)) {
             return CrudoMachineState::BadQuality;
         }
 

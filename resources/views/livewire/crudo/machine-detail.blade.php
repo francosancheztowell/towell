@@ -78,14 +78,25 @@
                                         <span class="crudo-modal-order">- {{ $programOrder }}</span>
                                     @endif
                                 </h2>
-                                @if ($selectedMachine['programa'])
-                                    <p class="crudo-modal-program">
-                                        <span>Clave modelo <strong>{{ $modelKey !== '' ? $modelKey : 'N/D' }}</strong></span>
-                                        <span aria-hidden="true">·</span>
-                                        <span>Clave AX <strong>{{ $itemId !== '' ? $itemId : 'N/D' }}</strong></span>
-                                    </p>
-                                @endif
                             </div>
+
+                            {{-- Segunda columna de la tarjeta: las claves del programa. --}}
+                            @if ($selectedMachine['programa'])
+                                <dl class="crudo-modal-program">
+                                    <div class="crudo-modal-program-field">
+                                        <dt>Clave modelo</dt>
+                                        <dd title="{{ $modelKey !== '' ? $modelKey : 'N/D' }}">
+                                            {{ $modelKey !== '' ? $modelKey : 'N/D' }}
+                                        </dd>
+                                    </div>
+                                    <div class="crudo-modal-program-field">
+                                        <dt>Clave AX</dt>
+                                        <dd title="{{ $itemId !== '' ? $itemId : 'N/D' }}">
+                                            {{ $itemId !== '' ? $itemId : 'N/D' }}
+                                        </dd>
+                                    </div>
+                                </dl>
+                            @endif
                         </article>
 
                         <article
@@ -191,6 +202,7 @@
                                         <col class="crudo-orders-col-number">
                                         <col class="crudo-orders-col-number">
                                         <col class="crudo-orders-col-number">
+                                        <col class="crudo-orders-col-warping">
                                         <col class="crudo-orders-col-lot">
                                     </colgroup>
                                     <thead>
@@ -201,7 +213,8 @@
                                             <th>Kg</th>
                                             <th>Pzas</th>
                                             <th>2das</th>
-                                            <th>Lote</th>
+                                            <th>Urdido</th>
+                                            <th title="Lote del proveedor del programa de urdido">Lote</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -213,10 +226,11 @@
                                                 <td>{{ number_format((float) $capture['weight'], 1) }}</td>
                                                 <td>{{ number_format((int) $capture['pieces']) }}</td>
                                                 <td>{{ number_format((int) $capture['seconds']) }}</td>
+                                                <td title="{{ $capture['warpingOrder'] ?? '' }}">{{ ($capture['warpingOrder'] ?? '') ?: '—' }}</td>
                                                 <td title="{{ $capture['supplierLot'] ?? '' }}">{{ ($capture['supplierLot'] ?? '') ?: '—' }}</td>
                                             </tr>
                                         @empty
-                                            <tr><td colspan="7">Sin capturas en el periodo seleccionado.</td></tr>
+                                            <tr><td colspan="8">Sin capturas en el periodo seleccionado.</td></tr>
                                         @endforelse
                                     </tbody>
                                 </table>
@@ -276,7 +290,7 @@
                         <livewire:crudo.machine-flog-summary
                             :program="$selectedMachine['programa'] ?? null"
                             :purch-barcodes="$flogBarcodes"
-                            :key="'crudo-flog-'.($selectedMachine['telar'] ?? 'unknown').'-'.$fecha.'-'.$turno"
+                            :key="'crudo-flog-'.($selectedMachine['telar'] ?? 'unknown').'-'.$fecha"
                         />
                     </div>
                     @endif

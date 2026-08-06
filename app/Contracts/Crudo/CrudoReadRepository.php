@@ -9,24 +9,14 @@ use DateTimeImmutable;
 interface CrudoReadRepository
 {
     /**
-     * Totales por telar para el tablero general cuando se consultan todos los turnos.
-     * La agregación ocurre en SQL para no transportar cada cabecera a PHP.
+     * Totales por telar del día de producción completo. TRANSDATE ya viene
+     * asignado por TI al día de producción (06:30 a 06:30), así que el rango de
+     * fechas de calendario cubre las 24 h sin desplazamiento. La agregación
+     * ocurre en SQL para no transportar cada cabecera a PHP.
      *
      * @return list<object>
      */
     public function aggregateHeadersForRange(DateTimeImmutable $from, DateTimeImmutable $to): array;
-
-    /**
-     * Totales por telar de un turno. Piezas, segundas y kg se agregan en SQL
-     * para que el tablero no descargue cabeceras y líneas individuales.
-     *
-     * @return list<object>
-     */
-    public function aggregateHeadersForShiftInRange(
-        DateTimeImmutable $from,
-        DateTimeImmutable $to,
-        string $shift,
-    ): array;
 
     /**
      * @return list<object>
@@ -38,6 +28,15 @@ interface CrudoReadRepository
      * @return list<object>
      */
     public function defectsForHeaders(array $headerRecIds): array;
+
+    /**
+     * Lote del proveedor por folio del programa de urdido. El ORDENURDIDO que
+     * captura AX es el Folio de UrdProgramaUrdido, que es único.
+     *
+     * @param  list<string>  $warpingOrders
+     * @return array<string, string> folio => lote
+     */
+    public function supplierLotsByWarpingOrder(array $warpingOrders): array;
 
     /**
      * @return list<array<string, int|string|null>>

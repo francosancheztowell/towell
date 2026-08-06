@@ -30,14 +30,6 @@
                     {{ $summary['client'] ?: '—' }}
                 </dd>
             </div>
-            <div>
-                <dt>Artículo</dt>
-                <dd>{{ $summary['itemId'] ?: '—' }}</dd>
-            </div>
-            <div>
-                <dt>Tamaño</dt>
-                <dd>{{ $summary['inventSizeId'] ?: '—' }}</dd>
-            </div>
         </dl>
 
         <div class="crudo-flog-simulations">
@@ -55,12 +47,18 @@
                             rel="noopener noreferrer"
                             title="Abrir simulación de {{ strtolower($simulation['label']) }}"
                         >
+                            {{--
+                                Si el archivo no está en el UNC la ruta responde 204 y la
+                                imagen falla: se oculta el enlace completo en vez de dejar
+                                un icono roto que además navega a una página de error.
+                            --}}
                             <img
                                 src="{{ $simulation['url'] }}"
                                 alt="Simulación de {{ strtolower($simulation['label']) }} del Flog {{ $summary['flog'] }}"
                                 loading="lazy"
                                 decoding="async"
                                 fetchpriority="low"
+                                onerror="this.closest('.crudo-flog-simulation').hidden = true"
                             >
                             <span>{{ $simulation['label'] }}</span>
                         </a>
@@ -78,7 +76,7 @@
 
         @if (! ($summary['lineMatched'] ?? false))
             <p class="crudo-flog-line-warning">
-                El Flog existe, pero no hay una línea inequívoca para este artículo, tamaño o rollo.
+                El Flog existe, pero no hay una línea inequívoca relacionada con este rollo.
             </p>
         @endif
     @elseif (($summary['status'] ?? null) === 'error')

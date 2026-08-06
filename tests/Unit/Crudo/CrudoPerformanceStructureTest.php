@@ -9,7 +9,7 @@ use Tests\TestCase;
 
 final class CrudoPerformanceStructureTest extends TestCase
 {
-    public function test_the_loom_geometry_is_shared_instead_of_repeated_per_machine(): void
+    public function test_the_loom_image_is_shared_instead_of_repeated_per_machine(): void
     {
         $machine = [
             'telar' => '201',
@@ -20,6 +20,7 @@ final class CrudoPerformanceStructureTest extends TestCase
             'seconds' => 5.0,
             'kilos' => 40.6,
             'qualityPercent' => 94.6,
+            'salon' => 'Jacquard',
         ];
 
         $html = Blade::render(
@@ -27,9 +28,11 @@ final class CrudoPerformanceStructureTest extends TestCase
             compact('machine'),
         );
 
-        $this->assertSame(1, substr_count($html, 'id="crudo-loom-symbol"'));
-        $this->assertSame(39, substr_count($html, '<use href="#crudo-loom-symbol"'));
-        $this->assertSame(1, substr_count($html, 'class="crudo-loom-body"'));
+        // Los 39 telares apuntan a las mismas 3 fotos: nada de geometría SVG
+        // repetida por tarjeta ni una imagen distinta por máquina.
+        $this->assertSame(39, substr_count($html, 'data-crudo-loom'));
+        $this->assertSame(39, substr_count($html, 'images/crudo/jacquard.webp'));
+        $this->assertStringNotContainsString('<svg', $html);
     }
 
     public function test_dashboard_has_no_animated_gradient_or_per_card_svg_filter(): void
@@ -47,7 +50,9 @@ final class CrudoPerformanceStructureTest extends TestCase
         $this->assertStringNotContainsString('mutationObserver.observe(machineGrid', $typescript);
         $this->assertStringContainsString('mutationObserver.observe(dataElement', $typescript);
         $this->assertStringNotContainsString('auditDefectObserver.observe(document.body', $typescript);
-        $this->assertStringContainsString('auditDefectObserver.observe(dashboard', $typescript);
+        $this->assertStringNotContainsString('auditDefectObserver.observe(dashboard', $typescript);
+        $this->assertStringContainsString('auditDefectObserver.observe(crudoRoot', $typescript);
+        $this->assertStringContainsString("const CRUDO_ROOT_SELECTOR = '[data-crudo-root]'", $typescript);
     }
 
     public function test_the_machine_floor_is_a_stable_livewire_island(): void
@@ -74,6 +79,21 @@ final class CrudoPerformanceStructureTest extends TestCase
         );
         $this->assertMatchesRegularExpression(
             '/\.crudo-modal-backdrop\.is-closing\s*\{[^}]*cursor\s*:\s*wait/s',
+            $css,
+        );
+    }
+
+    public function test_modal_program_keys_are_stacked_without_inner_cards(): void
+    {
+        $css = file_get_contents(resource_path('css/crudo/dashboard.css'));
+
+        $this->assertIsString($css);
+        $this->assertMatchesRegularExpression(
+            '/\.crudo-modal-program\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s',
+            $css,
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.crudo-modal-program-field\s*\{(?:(?!background:|border:)[\s\S])*?\}/',
             $css,
         );
     }

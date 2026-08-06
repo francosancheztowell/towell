@@ -28,8 +28,6 @@ class MachineDetail extends Component
 
     public string $modo = 'dia';
 
-    public string $turno = 'todos';
-
     public ?string $selectedTelar = null;
 
     /**
@@ -67,7 +65,6 @@ class MachineDetail extends Component
         $this->fechaInicio = $this->normalizeDate($this->fechaInicio !== '' ? $this->fechaInicio : $this->fecha);
         $this->fechaFin = $this->normalizeDate($this->fechaFin !== '' ? $this->fechaFin : $this->fecha);
         $this->modo = $this->modo === 'rango' ? 'rango' : 'dia';
-        $this->turno = $this->normalizeShift($this->turno);
     }
 
     #[On('open-crudo-detail')]
@@ -78,10 +75,9 @@ class MachineDetail extends Component
         ?string $fechaInicio = null,
         ?string $fechaFin = null,
         ?string $modo = null,
-        ?string $turno = null,
     ): void {
         $wasOpen = $this->selectedTelar !== null;
-        $this->applyFilterContext($fecha, $fechaInicio, $fechaFin, $modo, $turno);
+        $this->applyFilterContext($fecha, $fechaInicio, $fechaFin, $modo);
         $this->selectedTelar = mb_substr(trim($telar), 0, 20);
         $this->machine = $machine;
         $this->detailError = null;
@@ -113,29 +109,24 @@ class MachineDetail extends Component
         ?string $fechaInicio = null,
         ?string $fechaFin = null,
         ?string $modo = null,
-        ?string $turno = null,
     ): void {
         $hasFilterContext = $fecha !== null
             || $fechaInicio !== null
             || $fechaFin !== null
-            || $modo !== null
-            || $turno !== null;
+            || $modo !== null;
         $nextFecha = $this->normalizedFilterDate($fecha, $this->fecha);
         $nextFechaInicio = $this->normalizedFilterDate($fechaInicio, $this->fechaInicio);
         $nextFechaFin = $this->normalizedFilterDate($fechaFin, $this->fechaFin);
         $nextModo = $this->normalizedFilterMode($modo, $this->modo);
-        $nextTurno = $this->normalizedFilterShift($turno, $this->turno);
         $filterContextChanged = $nextFecha !== $this->fecha
             || $nextFechaInicio !== $this->fechaInicio
             || $nextFechaFin !== $this->fechaFin
-            || $nextModo !== $this->modo
-            || $nextTurno !== $this->turno;
+            || $nextModo !== $this->modo;
 
         $this->fecha = $nextFecha;
         $this->fechaInicio = $nextFechaInicio;
         $this->fechaFin = $nextFechaFin;
         $this->modo = $nextModo;
-        $this->turno = $nextTurno;
 
         if ($hasFilterContext && ! $filterContextChanged) {
             return;
@@ -283,7 +274,6 @@ class MachineDetail extends Component
                 $this->selectedTelar,
                 $this->rangeFrom(),
                 $this->rangeTo(),
-                $this->turno,
             );
 
             Cache::put(
@@ -307,11 +297,10 @@ class MachineDetail extends Component
     private function detailFallbackKey(): string
     {
         return sprintf(
-            'crudo:detail-fallback:%s:%s:%s:%s',
+            'crudo:detail-fallback:%s:%s:%s',
             sha1(trim($this->selectedTelar ?? '')),
             $this->rangeFrom()->format('Y-m-d'),
             $this->rangeTo()->format('Y-m-d'),
-            $this->turno,
         );
     }
 
@@ -320,13 +309,11 @@ class MachineDetail extends Component
         ?string $fechaInicio,
         ?string $fechaFin,
         ?string $modo,
-        ?string $turno,
     ): void {
         $this->fecha = $this->normalizedFilterDate($fecha, $this->fecha);
         $this->fechaInicio = $this->normalizedFilterDate($fechaInicio, $this->fechaInicio);
         $this->fechaFin = $this->normalizedFilterDate($fechaFin, $this->fechaFin);
         $this->modo = $this->normalizedFilterMode($modo, $this->modo);
-        $this->turno = $this->normalizedFilterShift($turno, $this->turno);
     }
 
     private function normalizedFilterDate(?string $value, string $current): string
@@ -337,10 +324,5 @@ class MachineDetail extends Component
     private function normalizedFilterMode(?string $value, string $current): string
     {
         return $value !== null ? ($value === 'rango' ? 'rango' : 'dia') : $current;
-    }
-
-    private function normalizedFilterShift(?string $value, string $current): string
-    {
-        return $value !== null ? $this->normalizeShift($value) : $current;
     }
 }

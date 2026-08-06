@@ -25,7 +25,7 @@ final class CrudoProductionTargetServiceTest extends TestCase
         $this->assertSame(CrudoProductionTargetService::COMPLETE, $targets['201']['standardStatus']);
     }
 
-    public function test_today_prorates_current_standard_to_the_current_hour(): void
+    public function test_today_prorates_the_standard_from_the_six_thirty_shift_start(): void
     {
         $targets = $this->calculate(
             from: '2026-08-05',
@@ -34,8 +34,35 @@ final class CrudoProductionTargetServiceTest extends TestCase
             activePrograms: [$this->program('201', 400)],
         );
 
-        $this->assertSame(200.0, $targets['201']['expectedKilos']);
+        // 06:30 → 12:00 son 5.5 h de 24, no 12 h: prorratear desde medianoche
+        // inflaba la meta y marcaba "bajos kg" a telares que iban al corriente.
+        $this->assertEqualsWithDelta(400 * 19800 / 86400, $targets['201']['expectedKilos'], 0.001);
         $this->assertSame(400.0, $targets['201']['dailyKilos']);
+    }
+
+    public function test_before_six_thirty_the_running_production_day_is_the_previous_date(): void
+    {
+        $targets = $this->calculate(
+            from: '2026-08-04',
+            to: '2026-08-04',
+            now: '2026-08-05 05:00:00',
+            activePrograms: [$this->program('201', 480)],
+        );
+
+        // A las 05:00 del 5 llevamos 22.5 h del día de producción del 4.
+        $this->assertSame(450.0, $targets['201']['expectedKilos']);
+    }
+
+    public function test_before_six_thirty_the_calendar_date_has_not_started_producing(): void
+    {
+        $targets = $this->calculate(
+            from: '2026-08-05',
+            to: '2026-08-05',
+            now: '2026-08-05 05:00:00',
+            activePrograms: [$this->program('201', 480)],
+        );
+
+        $this->assertSame(0.0, $targets['201']['expectedKilos']);
     }
 
     public function test_range_uses_the_same_daily_standard_and_accumulates_eligible_days(): void
@@ -60,23 +87,7 @@ final class CrudoProductionTargetServiceTest extends TestCase
             activePrograms: [$this->program('201', 300)],
         );
 
-        $this->assertSame(450.0, $targets['201']['expectedKilos']);
-        $this->assertSame(300.0, $targets['201']['dailyKilos']);
-    }
-
-    public function test_range_shift_uses_one_six_hour_window_per_day(): void
-    {
-        config()->set('crudo.turns_per_day', 4);
-
-        $targets = $this->calculate(
-            from: '2026-08-03',
-            to: '2026-08-04',
-            now: '2026-08-05 12:00:00',
-            activePrograms: [$this->program('201', 300)],
-            shift: '3',
-        );
-
-        $this->assertSame(150.0, $targets['201']['expectedKilos']);
+        $this->assertEqualsWithDelta(300 + 300 * 19800 / 86400, $targets['201']['expectedKilos'], 0.001);
         $this->assertSame(300.0, $targets['201']['dailyKilos']);
     }
 
@@ -117,7 +128,6 @@ final class CrudoProductionTargetServiceTest extends TestCase
         string $to,
         string $now,
         array $activePrograms,
-        string $shift = 'todos',
     ): array {
         $service = new CrudoProductionTargetService;
         $timezone = new DateTimeZone('America/Mexico_City');
@@ -125,7 +135,6 @@ final class CrudoProductionTargetServiceTest extends TestCase
         return $service->expectedByTelar(
             new DateTimeImmutable($from, $timezone),
             new DateTimeImmutable($to, $timezone),
-            $shift,
             new DateTimeImmutable($now, $timezone),
             $activePrograms,
         );

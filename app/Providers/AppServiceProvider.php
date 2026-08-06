@@ -39,10 +39,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Un endpoint estable evita que una pestaña apunte a un hash generado
-        // con el APP_KEY de otra instalación después de cambiar de entorno.
-        // El endpoint hash ya registrado se conserva como alias para no romper
-        // las pestañas que estaban abiertas durante el despliegue.
+        // Livewire 4 deriva el prefijo /livewire-<hash8> del APP_KEY
+        // (EndpointResolver::prefix). Publicar /livewire/update fija un endpoint
+        // estable para todas las páginas nuevas. El hash del APP_KEY vigente se
+        // conserva como alias para las pestañas abiertas durante el despliegue.
+        //
+        // OJO: el alias NO rescata una pestaña renderizada con OTRO APP_KEY.
+        // Ese hash ya no existe y, aunque existiera, el checksum del snapshot va
+        // firmado con el APP_KEY, así que la única salida es recargar la página.
+        // Por eso el front deja de hacer poll ante un 404 en vez de reintentar.
         $legacyUpdateRoute = collect(Route::getRoutes()->getRoutes())
             ->first(static fn (RoutingRoute $route): bool => $route->getName() === 'default-livewire.update');
 

@@ -125,6 +125,7 @@ type CrudoWindow = Window & typeof globalThis & {
 }
 
 const DASHBOARD_SELECTOR = '[data-crudo-dashboard]'
+const CRUDO_ROOT_SELECTOR = '[data-crudo-root]'
 const MACHINE_DATA_SELECTOR = '[data-crudo-machines-data]'
 const MACHINE_SELECTOR = '[data-crudo-machine]'
 const RELATIVE_TIME_SELECTOR = '[data-crudo-relative-time]'
@@ -155,7 +156,24 @@ let livewireErrorHookInstalled = false
 const qualityDefectRequests = new Map<string, Promise<QualityDefectOption[]>>()
 const auditHistoryRequests = new AuditHistoryRequestCoordinator<HTMLElement>()
 
+// Livewire pausa el poll en cuanto la directiva desaparece del elemento
+// (`theDirectiveIsOffTheElement`). Sin esto, un endpoint muerto sigue
+// disparando un 404 cada `poll_seconds` hasta que alguien recarga a mano.
+const stopDashboardPolling = (): void => {
+  const dashboard = document.querySelector<HTMLElement>(DASHBOARD_SELECTOR)
+  dashboard
+    ?.getAttributeNames()
+    .filter((name) => name.startsWith('wire:poll'))
+    .forEach((name) => dashboard.removeAttribute(name))
+}
+
 const showLivewireError = (status: number, url: string): void => {
+  // Un 404 en /livewire-<hash>/update significa endpoint muerto: el snapshot
+  // de esta pestaña ya no es válido y solo se recupera recargando.
+  if (status === 404) {
+    stopDashboardPolling()
+  }
+
   const alert = document.querySelector<HTMLElement>(LIVEWIRE_ERROR_SELECTOR)
   if (!alert) {
     return
@@ -716,13 +734,13 @@ const observeQualityDefectEditors = (): void => {
   syncAuditActionStates()
   syncPendingDetail()
 
-  const dashboard = document.querySelector<HTMLElement>(DASHBOARD_SELECTOR)
-  if (!dashboard || (auditDefectObserver && observedAuditRoot === dashboard)) {
+  const crudoRoot = document.querySelector<HTMLElement>(CRUDO_ROOT_SELECTOR)
+  if (!crudoRoot || (auditDefectObserver && observedAuditRoot === crudoRoot)) {
     return
   }
 
   auditDefectObserver?.disconnect()
-  observedAuditRoot = dashboard
+  observedAuditRoot = crudoRoot
 
   auditDefectObserver = new MutationObserver((mutations) => {
     auditHistoryRequests.abortDisconnected()
@@ -733,7 +751,7 @@ const observeQualityDefectEditors = (): void => {
     }
   })
 
-  auditDefectObserver.observe(dashboard, {
+  auditDefectObserver.observe(crudoRoot, {
     attributes: true,
     attributeFilter: ['hidden'],
     childList: true,
@@ -1102,7 +1120,6 @@ document.addEventListener('click', (event) => {
             fechaInicio: dashboard?.dataset.crudoFechaInicio ?? null,
             fechaFin: dashboard?.dataset.crudoFechaFin ?? null,
             modo: dashboard?.dataset.crudoModo ?? null,
-            turno: dashboard?.dataset.crudoTurno ?? null,
           },
           bubbles: true,
         }),

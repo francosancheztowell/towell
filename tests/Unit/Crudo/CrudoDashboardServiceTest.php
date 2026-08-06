@@ -22,7 +22,7 @@ final class CrudoDashboardServiceTest extends TestCase
     {
         parent::setUp();
 
-        config()->set('crudo.bad_quality_percent', 10);
+        config()->set('crudo.bad_quality_percent', 7);
         config()->set('crudo.salons', [
             'JACQUARD' => 'Jacquard',
         ]);
@@ -36,6 +36,7 @@ final class CrudoDashboardServiceTest extends TestCase
                     'PURCHBARCODE' => 'PB-1001',
                     'PURCHBARCODEORIG' => 'LOTE-PROV-1001',
                     'ORDENTEJIDO' => '36541',
+                    'ORDENURDIDO' => '00929',
                     'TRANSDATE' => '2026-07-28 00:00:00',
                     'TELAR' => '201',
                     'PESO' => 40,
@@ -97,7 +98,7 @@ final class CrudoDashboardServiceTest extends TestCase
 
     public function test_it_builds_machine_and_global_metrics_without_losing_machines_with_no_data(): void
     {
-        $data = $this->service->build($this->date(), 'todos')->toArray();
+        $data = $this->service->build($this->date())->toArray();
 
         $this->assertCount(2, $data['machines']);
         $this->assertSame('201', $data['machines'][0]['telar']);
@@ -116,21 +117,6 @@ final class CrudoDashboardServiceTest extends TestCase
         $this->assertSame(1, $this->repository->aggregateCalls);
     }
 
-    public function test_shift_filter_uses_the_matching_piece_column_and_defect_turn(): void
-    {
-        $data = $this->service->build($this->date(), '1')->toArray();
-        $machine = $data['machines'][0];
-
-        $this->assertSame(60.0, $machine['pieces']);
-        $this->assertSame(2.0, $machine['seconds']);
-        $this->assertSame(24.0, $machine['kilos']);
-        $this->assertSame([], $this->repository->requestedHeaderIds);
-        $this->assertSame(1, $this->repository->aggregateShiftCalls);
-        // El snapshot compartido no serializa listas del modal.
-        $this->assertArrayNotHasKey('defects', $machine);
-        $this->assertArrayNotHasKey('captures', $machine);
-    }
-
     public function test_current_in_process_prod_kg_dia_drives_the_historical_low_kilos_state(): void
     {
         $this->repository->programs = [
@@ -141,7 +127,7 @@ final class CrudoDashboardServiceTest extends TestCase
             ],
         ];
 
-        $machine = $this->service->build($this->date(), 'todos')->toArray()['machines'][0];
+        $machine = $this->service->build($this->date())->toArray()['machines'][0];
 
         $this->assertSame(100.0, $machine['expectedKilos']);
         $this->assertSame(100.0, $machine['dailyTargetKilos']);
@@ -151,34 +137,38 @@ final class CrudoDashboardServiceTest extends TestCase
 
     public function test_machine_detail_builds_defects_and_captures_for_a_single_telar(): void
     {
-        $detail = $this->service->machineDetail('201', $this->date(), $this->date(), '1');
+        $detail = $this->service->machineDetail('201', $this->date(), $this->date());
 
-        $this->assertCount(1, $detail['defects']);
-        $this->assertSame('01', $detail['defects'][0]['code']);
-        $this->assertSame(2.0, $detail['defects'][0]['quantity']);
+        // El detalle cubre el día de producción completo: los defectos de todos
+        // los turnos de la captura entran, ordenados por cantidad descendente.
+        $this->assertCount(2, $detail['defects']);
+        $this->assertSame('09', $detail['defects'][0]['code']);
+        $this->assertSame(3.0, $detail['defects'][0]['quantity']);
         $this->assertSame([
-            '1' => 2.0,
+            '1' => 0.0,
             '2' => 0.0,
-            '3' => 0.0,
+            '3' => 3.0,
             '4' => 0.0,
             'other' => 0.0,
         ], $detail['defects'][0]['turns']);
         $this->assertSame(1, $detail['captureCount']);
-        $this->assertSame(24.0, $detail['kilos']);
-        $this->assertSame(1, $detail['defectLineCount']);
+        $this->assertSame(40.0, $detail['kilos']);
+        $this->assertSame(2, $detail['defectLineCount']);
         $this->assertSame('1001', $detail['captures'][0]['recId']);
         $this->assertSame('28/07/2026', $detail['captures'][0]['date']);
         $this->assertSame('PB-1001', $detail['captures'][0]['purchBarcode']);
         $this->assertSame('36541', $detail['captures'][0]['weavingOrder']);
-        $this->assertSame('LOTE-PROV-1001', $detail['captures'][0]['supplierLot']);
-        $this->assertSame(1, $detail['captures'][0]['defectLineCount']);
-        $this->assertSame(60.0, $detail['captures'][0]['pieces']);
-        $this->assertSame(2.0, $detail['captures'][0]['seconds']);
+        $this->assertSame('00929', $detail['captures'][0]['warpingOrder']);
+        // El ORDENURDIDO de la captura resuelve el lote del programa de urdido.
+        $this->assertSame('29734-AP-35', $detail['captures'][0]['supplierLot']);
+        $this->assertSame(2, $detail['captures'][0]['defectLineCount']);
+        $this->assertSame(100.0, $detail['captures'][0]['pieces']);
+        $this->assertSame(5.0, $detail['captures'][0]['seconds']);
     }
 
-    public function test_machine_detail_breaks_defects_down_by_shift(): void
+    public function test_machine_detail_breaks_defects_down_by_capture_turn(): void
     {
-        $detail = $this->service->machineDetail('201', $this->date(), $this->date(), 'todos');
+        $detail = $this->service->machineDetail('201', $this->date(), $this->date());
         $defectsByCode = array_column($detail['defects'], null, 'code');
 
         $this->assertSame(2.0, $defectsByCode['01']['turns']['1']);
@@ -203,7 +193,7 @@ final class CrudoDashboardServiceTest extends TestCase
         ];
 
         $today = new DateTimeImmutable('today', new DateTimeZone('America/Mexico_City'));
-        $data = $this->service->build($today, 'todos')->toArray();
+        $data = $this->service->build($today)->toArray();
 
         $this->assertSame([
             'orden' => 'ORD-PROG-201',
@@ -229,7 +219,7 @@ final class CrudoDashboardServiceTest extends TestCase
         ];
 
         $today = new DateTimeImmutable('today', new DateTimeZone('America/Mexico_City'));
-        $machine = $this->service->build($today, 'todos')->toArray()['machines'][0];
+        $machine = $this->service->build($today)->toArray()['machines'][0];
 
         $this->assertSame('62', $machine['paro']['faultCode']);
         $this->assertSame('REVERSA', $machine['paro']['falla']);
@@ -249,8 +239,6 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
     public array $requestedHeaderIds = [];
 
     public int $aggregateCalls = 0;
-
-    public int $aggregateShiftCalls = 0;
 
     /** @var list<object> */
     public array $programs = [];
@@ -292,50 +280,6 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
         return array_values($grouped);
     }
 
-    public function aggregateHeadersForShiftInRange(
-        DateTimeImmutable $from,
-        DateTimeImmutable $to,
-        string $shift,
-    ): array {
-        $this->aggregateShiftCalls++;
-        $pieceField = 'PIEZAST'.$shift;
-        $grouped = [];
-
-        foreach ($this->headers as $header) {
-            $pieces = (float) ($header->{$pieceField} ?? 0);
-            $seconds = 0.0;
-
-            foreach ($this->defects as $defect) {
-                $defectShift = preg_replace('/\D+/', '', (string) ($defect->TURNO ?? ''));
-                if ((string) $defect->REFRECID === (string) $header->RECID && $defectShift === $shift) {
-                    $seconds += (float) $defect->CANTIDAD;
-                }
-            }
-
-            if ($pieces <= 0 && $seconds <= 0) {
-                continue;
-            }
-
-            $telar = trim((string) $header->TELAR);
-            $grouped[$telar] ??= (object) [
-                'TELAR' => $telar,
-                'captureCount' => 0,
-                'pieces' => 0.0,
-                'seconds' => 0.0,
-                'kilos' => 0.0,
-            ];
-            $totalPieces = (float) $header->PIEZASTOTAL;
-            $grouped[$telar]->captureCount++;
-            $grouped[$telar]->pieces += $pieces;
-            $grouped[$telar]->seconds += $seconds;
-            $grouped[$telar]->kilos += $totalPieces > 0
-                ? (float) $header->PESO * ($pieces / $totalPieces)
-                : (float) $header->PESO;
-        }
-
-        return array_values($grouped);
-    }
-
     public function headersForTelarInRange(string $telar, DateTimeImmutable $from, DateTimeImmutable $to): array
     {
         return array_values(array_filter(
@@ -349,6 +293,19 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
         $this->requestedHeaderIds = $headerRecIds;
 
         return $this->defects;
+    }
+
+    /** @var array<string, string> */
+    public array $supplierLots = ['00929' => '29734-AP-35'];
+
+    /** @var list<string> */
+    public array $requestedWarpingOrders = [];
+
+    public function supplierLotsByWarpingOrder(array $warpingOrders): array
+    {
+        $this->requestedWarpingOrders = $warpingOrders;
+
+        return array_intersect_key($this->supplierLots, array_flip($warpingOrders));
     }
 
     public function machines(): array

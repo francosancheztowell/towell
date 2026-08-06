@@ -30,9 +30,6 @@ class Dashboard extends Component
     #[Url(except: 'dia')]
     public string $modo = 'dia';
 
-    #[Url(except: 'todos')]
-    public string $turno = 'todos';
-
     public ?string $dataError = null;
 
     public bool $interactionPaused = false;
@@ -62,7 +59,6 @@ class Dashboard extends Component
         $this->fechaInicio = $this->normalizeDate($this->fechaInicio !== '' ? $this->fechaInicio : $this->fecha);
         $this->fechaFin = $this->normalizeDate($this->fechaFin !== '' ? $this->fechaFin : $this->fecha);
         $this->modo = $this->modo === 'rango' ? 'rango' : 'dia';
-        $this->turno = $this->normalizeShift($this->turno);
     }
 
     public function updatedFecha(): void
@@ -86,12 +82,6 @@ class Dashboard extends Component
     public function updatedModo(): void
     {
         $this->modo = $this->modo === 'rango' ? 'rango' : 'dia';
-        $this->filtersChanged();
-    }
-
-    public function updatedTurno(): void
-    {
-        $this->turno = $this->normalizeShift($this->turno);
         $this->filtersChanged();
     }
 
@@ -141,15 +131,19 @@ class Dashboard extends Component
             'cacheState' => $cacheState,
             'sourceError' => $data['sourceError'] ?? null,
             'floorLayouts' => $this->floorLayout->arrange($machines),
+            // Entre 00:00 y 06:30 el día de producción vigente es el de ayer:
+            // se sigue refrescando esa fecha, y también la de hoy si el usuario
+            // la eligió a mano, para no dejar el tablero congelado de madrugada.
             'shouldPoll' => $this->modo === 'dia'
                 && ! $this->interactionPaused
-                && $this->rangeTo()->format('Y-m-d') === now(config('app.timezone'))->format('Y-m-d'),
+                && in_array($this->rangeTo()->format('Y-m-d'), [
+                    $this->crudoProductionDay(),
+                    now(config('app.timezone'))->format('Y-m-d'),
+                ], true),
             // Mantener una cadencia estable evita una tormenta de requests de 2 s
             // mientras SQL Server sigue renovando un snapshot vencido.
             'pollSeconds' => (int) config('crudo.poll_seconds', 15),
-            'badQualityThreshold' => (float) config('crudo.bad_quality_percent', 10),
             'modo' => $this->modo,
-            'maxRangeDays' => (int) config('crudo.max_range_days', 31),
         ]);
     }
 
@@ -167,7 +161,6 @@ class Dashboard extends Component
             fechaInicio: $this->fechaInicio,
             fechaFin: $this->fechaFin,
             modo: $this->modo,
-            turno: $this->turno,
         );
     }
 
@@ -179,7 +172,6 @@ class Dashboard extends Component
         try {
             $data = $this->provider->get(
                 $this->rangeFrom(),
-                $this->turno,
                 $forceRefresh,
                 $this->rangeTo(),
                 false,
