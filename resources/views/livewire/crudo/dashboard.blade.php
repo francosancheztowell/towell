@@ -129,9 +129,8 @@
                 <div class="crudo-panel-heading">
                     <div>
                         <p class="crudo-eyebrow">Resumen general</p>
-                        <h2>Estado de máquinas</h2>
+                        <h2>{{ $summary['total'] }} telares</h2>
                     </div>
-                    <span class="crudo-total-badge">{{ $summary['total'] }}</span>
                 </div>
 
                 <div class="crudo-status-list">
@@ -156,23 +155,23 @@
                 <div class="crudo-kpi-grid">
                     <article>
                         <strong>{{ number_format(round((float) $summary['kilos'])) }}</strong>
-                        <span>kg</span>
+                        <span><i class="fa-solid fa-weight-hanging" aria-hidden="true"></i>kg</span>
                     </article>
                     <article>
                         <strong>{{ number_format((float) $summary['pieces']) }}</strong>
-                        <span>pzas</span>
+                        <span><i class="fa-solid fa-layer-group" aria-hidden="true"></i>pzas</span>
                     </article>
                     <article>
                         <strong>{{ number_format(round((float) $summary['qualityPercent'])) }}%</strong>
-                        <span>cg</span>
+                        <span><i class="fa-solid fa-shield-heart" aria-hidden="true"></i>cg</span>
                     </article>
                     <article>
                         <strong>{{ number_format(round((float) $summary['efficiencyPercent'])) }}%</strong>
-                        <span>ef.g</span>
+                        <span><i class="fa-solid fa-gauge-high" aria-hidden="true"></i>ef.g</span>
                     </article>
                     <article>
                         <strong>{{ number_format((float) $summary['seconds']) }}</strong>
-                        <span>2das</span>
+                        <span><i class="fa-solid fa-arrow-trend-down" aria-hidden="true"></i>2das</span>
                     </article>
                 </div>
             </section>

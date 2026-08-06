@@ -28,7 +28,7 @@ final class CrudoLivewireTest extends TestCase
     public function test_it_renders_the_dashboard(): void
     {
         Livewire::test(TestableCrudoDashboard::class)
-            ->assertSee('Estado de máquinas')
+            ->assertSee('1 telares')
             ->assertSee('Producción del periodo')
             ->assertSee('crudo-panel-overview', false)
             ->assertDontSee('Lectura del semáforo')

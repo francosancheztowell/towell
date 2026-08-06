@@ -370,10 +370,19 @@
     line-height: 1.1;
 }
 
-/* La unidad se lee igual que la cifra: mismo tamaño y mismo peso. */
+/* Acompaña a la unidad en vez de ocupar su propia columna: se ve al buscarlo
+   y no compite con la cifra, que es lo que se lee de un vistazo. */
+.crudo-kpi-grid span i {
+    margin-right: 0.3em;
+    font-size: 0.72em;
+    vertical-align: baseline;
+}
+
+/* La unidad se lee igual que la cifra: mismo tamaño y mismo peso. El azul
+   separa la etiqueta del número sin necesitar otro tamaño; el icono lo hereda. */
 .crudo-kpi-grid span {
     align-self: start;
-    color: #64748b;
+    color: #0284c7;
     font-size: 1.35rem;
     font-weight: 950;
     line-height: 1.1;
