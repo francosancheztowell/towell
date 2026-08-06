@@ -345,6 +345,27 @@ class LiberarOrdenesController extends Controller
             ], 422);
         }
 
+        // El campo L.Mat es texto libre en el front (datalist), así que aquí se verifica
+        // que cada BomId exista y siga vigente antes de guardarlo.
+        $bomIds = $registrosInput->pluck('bomId')->map(fn ($v) => trim((string) $v))->filter()->unique();
+        $bomIdsVigentes = DB::connection('sqlsrv_ti')
+            ->table('BOMTABLE')
+            ->whereIn('BOMID', $bomIds->all())
+            ->where('ITEMGROUPID', 'CRUDO')
+            ->where('Vigente', 1)
+            ->whereIn('TwSalon', self::BOM_CRUDO_TW_SALONES)
+            ->pluck('BOMID')
+            ->map(fn ($v) => trim((string) $v))
+            ->all();
+
+        $bomIdsInvalidos = $bomIds->diff($bomIdsVigentes);
+        if ($bomIdsInvalidos->isNotEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'L.Mat no vigente o inexistente: '.$bomIdsInvalidos->implode(', ').'. Selecciona uno de la lista.',
+            ], 422);
+        }
+
         $dias = session('liberar_ordenes_dias', 10.999);
         $hoy = Carbon::now()->startOfDay();
         $fechaFormula = $hoy->copy()->addDays($dias);
