@@ -135,6 +135,21 @@ final class CrudoDashboardServiceTest extends TestCase
         $this->assertSame('low_kilos', $machine['state']);
     }
 
+    public function test_paros_refresh_every_build_while_production_stays_cached(): void
+    {
+        config()->set('crudo.production_cache_seconds', 180);
+        // Los paros solo aplican al periodo en curso, así que el pulso es de hoy.
+        $today = new DateTimeImmutable('today', new DateTimeZone('America/Mexico_City'));
+
+        $this->service->build($today);
+        $this->service->build($today);
+        $this->service->build($today);
+
+        // La agregación de TI se pide una sola vez; el paro, en cada pulso.
+        $this->assertSame(1, $this->repository->aggregateCalls);
+        $this->assertSame(3, $this->repository->parosCalls);
+    }
+
     public function test_machine_detail_builds_defects_and_captures_for_a_single_telar(): void
     {
         $detail = $this->service->machineDetail('201', $this->date(), $this->date());
@@ -240,6 +255,8 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
 
     public int $aggregateCalls = 0;
 
+    public int $parosCalls = 0;
+
     /** @var list<object> */
     public array $programs = [];
 
@@ -315,6 +332,8 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
 
     public function activeParos(): array
     {
+        $this->parosCalls++;
+
         return $this->paros;
     }
 

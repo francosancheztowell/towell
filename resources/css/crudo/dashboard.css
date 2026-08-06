@@ -415,9 +415,22 @@
     min-width: 0;
 }
 
+/*
+ * El tablero es un andón: los tres salones deben caber lado a lado en cualquier
+ * pantalla y con cualquier zoom del navegador. Con medidas fijas el layout de
+ * escritorio exigía ~1280 px, pero el corte a tablet estaba en 1050 px, así que
+ * entre esos dos anchos las tarjetas se desbordaban. Un monitor de 1366 px al
+ * 125 % da 1093 px CSS y caía justo ahí.
+ *
+ * En vez de sumar breakpoints, la tarjeta escala con el viewport: crece hasta su
+ * tamaño pleno en monitores grandes y se comprime sin desbordar en los chicos.
+ */
 .crudo-salons-grid {
+    --crudo-card-min: clamp(4.5rem, 5.6vw, 6.75rem);
+    --crudo-card-h: clamp(6.4rem, 7.9vw, 9.65rem);
+    --crudo-card-h-physical: clamp(5.6rem, 6.9vw, 8.4rem);
     display: grid;
-    grid-template-columns: minmax(8.25rem, 0.4fr) minmax(19rem, 1fr) minmax(23rem, 1.25fr);
+    grid-template-columns: minmax(0, 0.4fr) minmax(0, 1fr) minmax(0, 1.25fr);
     gap: 0.65rem;
     align-items: stretch;
 }
@@ -484,22 +497,22 @@
 
 .crudo-machine-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(6.75rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(var(--crudo-card-min, 6.75rem), 1fr));
     gap: 0.55rem;
     align-content: start;
     padding-top: 0.75rem;
 }
 
 .crudo-salon-karl-mayer .crudo-machine-grid-physical {
-    grid-template-columns: minmax(6.75rem, 1fr);
+    grid-template-columns: minmax(var(--crudo-card-min, 6.75rem), 1fr);
 }
 
 .crudo-salon-jacquard .crudo-machine-grid-physical {
-    grid-template-columns: repeat(3, minmax(6.75rem, 1fr));
+    grid-template-columns: repeat(3, minmax(var(--crudo-card-min, 6.75rem), 1fr));
 }
 
 .crudo-salon-smith .crudo-machine-grid-physical {
-    grid-template-columns: repeat(4, minmax(6.75rem, 1fr));
+    grid-template-columns: repeat(4, minmax(var(--crudo-card-min, 6.75rem), 1fr));
 }
 
 .crudo-machine-column {
@@ -510,7 +523,7 @@
 
 .crudo-salon-smith .crudo-machine-column:nth-child(n + 3)::before {
     display: block;
-    min-height: 8.4rem;
+    min-height: var(--crudo-card-h-physical, 8.4rem);
     content: "";
 }
 
@@ -519,7 +532,7 @@
     position: relative;
     display: grid;
     min-width: 0;
-    min-height: 9.65rem;
+    min-height: var(--crudo-card-h, 9.65rem);
     place-items: center;
     align-content: center;
     border: 1px solid color-mix(in srgb, var(--machine-accent) 32%, #cbd5e1);
@@ -533,7 +546,7 @@
 }
 
 .crudo-machine-grid-physical .crudo-machine-card {
-    min-height: 8.4rem;
+    min-height: var(--crudo-card-h-physical, 8.4rem);
     padding: 0.35rem 1.4rem;
 }
 
@@ -1498,27 +1511,23 @@
 }
 
 .crudo-orders-table .crudo-orders-col-date {
-    width: 12%;
+    width: 13%;
 }
 
 .crudo-orders-table .crudo-orders-col-roll {
-    width: 15%;
+    width: 16%;
 }
 
 .crudo-orders-table .crudo-orders-col-order {
-    width: 13%;
+    width: 14%;
 }
 
 .crudo-orders-table .crudo-orders-col-number {
     width: 8%;
 }
 
-.crudo-orders-table .crudo-orders-col-warping {
-    width: 14%;
-}
-
 .crudo-orders-table .crudo-orders-col-lot {
-    width: 22%;
+    width: 33%;
 }
 
 .crudo-orders-table th,
@@ -2044,11 +2053,30 @@
     font-size: 0.75rem;
 }
 
+/*
+ * En pantalla completa desaparecen la barra del navegador y el menú, así que
+ * sobran ~150 px de alto y el ancho completo del monitor. La tarjeta puede
+ * crecer más que en ventana: es el modo en que el tablero se mira de lejos.
+ */
 .crudo-dashboard:fullscreen,
 :fullscreen .crudo-dashboard {
     overflow: auto;
+    min-height: 100vh;
     background: #eef3f7;
     padding: 1rem;
+}
+
+.crudo-dashboard:fullscreen .crudo-salons-grid,
+:fullscreen .crudo-dashboard .crudo-salons-grid {
+    --crudo-card-min: clamp(5rem, 6.1vw, 8rem);
+    --crudo-card-h: clamp(7rem, 8.6vw, 11rem);
+    --crudo-card-h-physical: clamp(6.1rem, 7.5vw, 9.6rem);
+}
+
+/* El resumen no necesita crecer con el monitor: el espacio es para los telares. */
+.crudo-dashboard:fullscreen .crudo-content-grid,
+:fullscreen .crudo-dashboard .crudo-content-grid {
+    grid-template-columns: minmax(13rem, 14.5rem) minmax(0, 1fr);
 }
 
 @media (max-width: 1050px) {
@@ -2340,15 +2368,15 @@
     }
 
     .crudo-orders-table .crudo-orders-col-date {
-        width: 13%;
-    }
-
-    .crudo-orders-table .crudo-orders-col-roll {
         width: 14%;
     }
 
+    .crudo-orders-table .crudo-orders-col-roll {
+        width: 15%;
+    }
+
     .crudo-orders-table .crudo-orders-col-order {
-        width: 13%;
+        width: 14%;
     }
 
     .crudo-orders-table .crudo-orders-col-number {
@@ -2356,11 +2384,7 @@
     }
 
     .crudo-orders-table .crudo-orders-col-lot {
-        width: 19%;
-    }
-
-    .crudo-orders-table .crudo-orders-col-warping {
-        width: 18%;
+        width: 30%;
     }
 
     .crudo-orders-table th,

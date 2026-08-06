@@ -119,7 +119,7 @@ final readonly class CrudoDashboardService
 
         $parosByTelar = $includesToday ? $this->groupParosByTelar($this->repository->activeParos()) : [];
         $metricsByTelar = $this->metricsFromAggregateRows(
-            $this->repository->aggregateHeadersForRange($from, $to),
+            $this->cachedProductionRows($from, $to),
         );
 
         $catalogTelares = array_map(static fn (array $row): string => (string) $row['telar'], $catalog);
@@ -408,6 +408,33 @@ final readonly class CrudoDashboardService
     /**
      * @return list<array<string, int|string|null>>
      */
+    /**
+     * La agregación de producción es la única consulta cara del tablero (750k
+     * filas en TI_PRO). Vive en su propio caché de 3 minutos para que el pulso
+     * de 15 s pueda seguir refrescando paros y programa sin volver a pedirla.
+     *
+     * @return list<object>
+     */
+    private function cachedProductionRows(DateTimeImmutable $from, DateTimeImmutable $to): array
+    {
+        $seconds = max(0, (int) config('crudo.production_cache_seconds', 180));
+        if ($seconds === 0) {
+            return $this->repository->aggregateHeadersForRange($from, $to);
+        }
+
+        $key = sprintf(
+            'crudo:production:%s:%s',
+            $from->format('Y-m-d'),
+            $to->format('Y-m-d'),
+        );
+
+        return Cache::remember(
+            $key,
+            now()->addSeconds($seconds),
+            fn (): array => $this->repository->aggregateHeadersForRange($from, $to),
+        );
+    }
+
     private function machineCatalog(): array
     {
         $seconds = max(0, (int) config('crudo.catalog_cache_seconds', 300));

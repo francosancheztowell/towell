@@ -202,7 +202,6 @@
                                         <col class="crudo-orders-col-number">
                                         <col class="crudo-orders-col-number">
                                         <col class="crudo-orders-col-number">
-                                        <col class="crudo-orders-col-warping">
                                         <col class="crudo-orders-col-lot">
                                     </colgroup>
                                     <thead>
@@ -213,8 +212,7 @@
                                             <th>Kg</th>
                                             <th>Pzas</th>
                                             <th>2das</th>
-                                            <th>Urdido</th>
-                                            <th title="Lote del proveedor del programa de urdido">Lote</th>
+                                            <th title="Lote del proveedor, ligado por la orden de urdido">Lote</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -226,11 +224,10 @@
                                                 <td>{{ number_format((float) $capture['weight'], 1) }}</td>
                                                 <td>{{ number_format((int) $capture['pieces']) }}</td>
                                                 <td>{{ number_format((int) $capture['seconds']) }}</td>
-                                                <td title="{{ $capture['warpingOrder'] ?? '' }}">{{ ($capture['warpingOrder'] ?? '') ?: '—' }}</td>
-                                                <td title="{{ $capture['supplierLot'] ?? '' }}">{{ ($capture['supplierLot'] ?? '') ?: '—' }}</td>
+                                                <td title="{{ ($capture['warpingOrder'] ?? '') !== '' ? 'Urdido '.$capture['warpingOrder'] : '' }}">{{ ($capture['supplierLot'] ?? '') ?: '—' }}</td>
                                             </tr>
                                         @empty
-                                            <tr><td colspan="8">Sin capturas en el periodo seleccionado.</td></tr>
+                                            <tr><td colspan="7">Sin capturas en el periodo seleccionado.</td></tr>
                                         @endforelse
                                     </tbody>
                                 </table>

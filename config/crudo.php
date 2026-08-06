@@ -39,10 +39,15 @@ return [
     | Actualización
     |--------------------------------------------------------------------------
     */
+    // Cadencia del tablero. Manda la vigencia de los paros: es el dato que debe
+    // verse al momento, y su consulta (ManFallasParos, catálogo) es barata.
     'poll_seconds' => $pollSeconds,
-    // Dos pulsos por snapshot: evita que cada poll de 15 s lance otra consulta
-    // pesada a TI_PRO, sin dejar de actualizar el tablero aproximadamente cada 30 s.
-    'cache_fresh_seconds' => max(1, (int) env('CRUDO_CACHE_FRESH_SECONDS', $pollSeconds * 2)),
+    // El snapshot se rearma en cada pulso para que el paro y el programa entren
+    // frescos; lo caro no es esto, es la agregación de TWCRUDOTABLE de abajo.
+    'cache_fresh_seconds' => max(1, (int) env('CRUDO_CACHE_FRESH_SECONDS', $pollSeconds)),
+    // La producción sí se relee cada 3 minutos: es la agregación sobre 750k filas
+    // en TI_PRO y los kilos no cambian de un pulso de 15 s al siguiente.
+    'production_cache_seconds' => max(0, (int) env('CRUDO_PRODUCTION_CACHE_SECONDS', 180)),
     // El snapshot puede sobrevivir una hora: los polls lo renuevan en segundo
     // plano, pero una visita después de varios minutos no vuelve a arrancar en frío.
     'cache_stale_seconds' => max(60, (int) env('CRUDO_CACHE_STALE_SECONDS', 3600)),
