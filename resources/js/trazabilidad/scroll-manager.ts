@@ -3,14 +3,6 @@ import { isOpen, queryElement } from './dom';
 export class ScrollManager {
     private readonly main = queryElement<HTMLElement>('main.app-main');
 
-    public lock(): void {
-        this.sync();
-    }
-
-    public unlock(): void {
-        this.sync();
-    }
-
     public release(): void {
         if (this.main) {
             this.main.style.overflowY = 'auto';
@@ -64,7 +56,8 @@ export class ScrollManager {
         }, { passive: true, capture: true });
     }
 
-    private sync(): void {
+    /** Bloquea o libera el scroll del contenedor según haya modales abiertos. */
+    public sync(): void {
         if (this.main) {
             this.main.style.overflowY = this.hasOpenModal() ? 'hidden' : 'auto';
         }

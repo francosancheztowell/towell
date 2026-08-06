@@ -4,13 +4,15 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-3">
             <div>
                 <label for="filtro-flog" class="block text-xs font-semibold text-slate-500 mb-0.5">Flog</label>
+                {{-- Solo viaja el Flog seleccionado: el resto se busca por AJAX. --}}
                 <select id="filtro-flog"
                         data-livewire-filter="flog"
+                        data-remote-url="{{ route('trazabilidad.opciones.flog') }}"
                         class="filtro-select w-full rounded-md border border-gray-300 bg-white p-2 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     <option value="">Todos</option>
-                    @foreach ($opcionesFlog as $option)
-                        <option value="{{ $option }}" @selected($flog === (string) $option)>{{ $option }}</option>
-                    @endforeach
+                    @if ($flog !== '')
+                        <option value="{{ $flog }}" selected>{{ $flog }}</option>
+                    @endif
                 </select>
             </div>
 

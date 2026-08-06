@@ -1,9 +1,5 @@
 import { eventElement } from './dom';
-import type {
-    MatrixDetailMeta,
-    MatrixDetailRow,
-    MatrixPeriod,
-} from './types';
+import type { MatrixDetailRow, MatrixPeriod } from './types';
 
 export class MatrixDetail {
     private details: MatrixDetailRow[][] = [];
@@ -232,12 +228,12 @@ export class MatrixDetail {
         cell.dataset.mesKey = period.mesClave;
         if (period.semanaClave) cell.dataset.semanaKey = period.semanaClave;
         cell.classList.toggle('hidden', !this.isPeriodVisible(period));
-        cell.textContent = value !== null && value !== 0 ? this.formatNumber(value) : '·';
+        cell.textContent = value !== null && value !== 0 ? this.formatNumber(value) : '—';
 
         return cell;
     }
 
-    private sumPeriod(values: Array<number | null>, indices: number[]): number | null {
+    private sumPeriod(values: Record<number, number>, indices: number[]): number | null {
         let hasValue = false;
         let sum = 0;
 

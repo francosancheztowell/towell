@@ -1,4 +1,4 @@
-export type DetailType = 'flogs' | 'trazabilidad' | 'produccion' | 'ventas';
+export type DetailType = 'flogs' | 'trazabilidad' | 'produccion';
 
 export interface TrazabilidadFilters {
     flog: string;
@@ -12,7 +12,7 @@ export interface TrazabilidadFilters {
 export interface TrazabilidadConfig {
     rutas?: {
         redbooth?: string;
-        detalles?: Partial<Record<Exclude<DetailType, 'ventas'>, string>>;
+        detalles?: Partial<Record<DetailType, string>>;
     };
 }
 
@@ -32,13 +32,8 @@ export interface MatrixDetailRow {
     articulo: string;
     color: string;
     total: number;
-    valores: Array<number | null>;
-}
-
-export interface MatrixDetailMeta {
-    decimales: number;
-    detalles: MatrixDetailRow[][];
-    columnas: MatrixPeriod[];
+    /** Disperso: solo llegan los índices de día con valor. */
+    valores: Record<number, number>;
 }
 
 export interface RollosRow {

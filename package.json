@@ -8,6 +8,7 @@
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
         "axios": "^1.7.9",
+        "esbuild": "^0.28.1",
         "laravel-vite-plugin": "^1.0",
         "typescript": "^7.0.2",
         "vite": "^6.0"

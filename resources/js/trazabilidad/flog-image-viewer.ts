@@ -59,7 +59,7 @@ export class FlogImageViewer {
         this.state.src = '';
         this.state.dragging = false;
         this.stage()?.classList.remove('is-dragging');
-        this.scroll.unlock();
+        this.scroll.sync();
     }
 
     private bind(): void {
@@ -216,7 +216,7 @@ export class FlogImageViewer {
         if (heading) heading.textContent = title;
 
         this.modal.classList.remove('hidden');
-        this.scroll.lock();
+        this.scroll.sync();
     }
 
     private fit(): void {

@@ -74,7 +74,11 @@
       "Bash(python3)",
       "Bash(tasklist)",
       "Bash(php -d memory_limit=1G \"C:/Users/fsanchez/AppData/Local/Temp/claude/C--xampp-htdocs-Towell/c112218c-6447-48e5-abc8-c2e5d433ef9f/scratchpad/cutout.php\" \"C:/Users/fsanchez/Desktop/karlmayer.jpg\" \"C:/Users/fsanchez/Desktop/Jacquard.png\" \"C:/Users/fsanchez/Desktop/smit.webp\" \"C:/xampp/htdocs/Towell/public/images/crudo\")",
-      "PowerShell(php -l app\\\\Http\\\\Controllers\\\\Planeacion\\\\ProgramaTejido\\\\LiberarOrdenesController.php)"
+      "PowerShell(php -l app\\\\Http\\\\Controllers\\\\Planeacion\\\\ProgramaTejido\\\\LiberarOrdenesController.php)",
+      "Bash(./vendor/bin/pint app/Services/Trazabilidad app/Livewire/Trazabilidad app/Http/Controllers/Trazabilidad routes/modules/trazabilidad.php)",
+      "Bash(npx tsc *)",
+      "Bash(./vendor/bin/pint app/ tests/Unit/TrazabilidadFiltersTest.php tests/Unit/TrazabilidadStructureTest.php)",
+      "Bash(./vendor/bin/pint app/Services/Trazabilidad app/Livewire/Trazabilidad app/Http/Controllers/Trazabilidad app/ValueObjects/Trazabilidad)"
     ]
   }
 }

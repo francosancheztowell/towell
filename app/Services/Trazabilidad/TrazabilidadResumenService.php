@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Trazabilidad;
 
 use App\Models\Trazabilidad\TrazaProduccion;
+use App\ValueObjects\Trazabilidad\TrazabilidadFilters;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -20,27 +21,13 @@ class TrazabilidadResumenService
      * @param  array{flog?:mixed,articulo?:mixed,tamano?:mixed,color?:mixed,mes?:mixed}  $filtros
      * @return array<string, mixed>
      */
-    public function build(array $filtros, ?array $summaryValues = null): array
+    public function build(array $filtros, array $summaryValues): array
     {
         $query = $this->queryBase($filtros);
 
-        if ($summaryValues === null) {
-            $flogs = $this->valoresUnicos(clone $query, 'Flogs');
-            $tamanos = $this->valoresUnicos(clone $query, 'Tamano');
-            $articulos = (clone $query)
-                ->whereNotNull('Articulo')
-                ->where('Articulo', '<>', '')
-                ->selectRaw("Articulo as codigo, MAX(NULLIF(LTRIM(RTRIM(NombreArticulo)), '')) as nombre")
-                ->groupBy('Articulo')
-                ->orderBy('Articulo')
-                ->get()
-                ->map(fn ($fila) => trim((string) $fila->codigo)
-                    .(filled($fila->nombre) ? ' · '.trim((string) $fila->nombre) : ''));
-        } else {
-            $flogs = collect($summaryValues['flogs'] ?? []);
-            $articulos = collect($summaryValues['articulos'] ?? []);
-            $tamanos = collect($summaryValues['tamanos'] ?? []);
-        }
+        $flogs = collect($summaryValues['flogs'] ?? []);
+        $articulos = collect($summaryValues['articulos'] ?? []);
+        $tamanos = collect($summaryValues['tamanos'] ?? []);
 
         $ordenes = (clone $query)
             ->whereNotNull('Orden')
@@ -66,11 +53,15 @@ class TrazabilidadResumenService
             ? (float) $programas->sum(fn ($programa) => (float) ($programa->SaldoPedido ?? 0))
             : null;
 
+        // Los totales por área ya traen todas las fechas del filtro: se reutilizan
+        // como respaldo en vez de lanzar un MIN y un MAX extra sobre la tabla.
+        $totalesArea = $this->totalesPorArea(clone $query);
+
         if (! $fechaInicio) {
-            $fechaInicio = (clone $query)->min('Fecha');
+            $fechaInicio = $totalesArea->min('Fecha');
         }
         if (! $fechaFin) {
-            $fechaFin = (clone $query)->max('Fecha');
+            $fechaFin = $totalesArea->max('Fecha');
         }
 
         return [
@@ -87,19 +78,14 @@ class TrazabilidadResumenService
                 : null,
             'fechaInicio' => $this->formatearFecha($fechaInicio),
             'fechaFin' => $this->formatearFecha($fechaFin),
-            'trazabilidadAreas' => $this->trazabilidadPorArea(clone $query),
+            'trazabilidadAreas' => $this->trazabilidadPorArea($totalesArea),
         ];
     }
 
     /** @param array<string, mixed> $filtros */
     private function queryBase(array $filtros): Builder
     {
-        $meses = collect(explode(',', (string) ($filtros['mes'] ?? '')))
-            ->map(fn ($mes) => (int) trim($mes))
-            ->filter(fn (int $mes) => $mes >= 1 && $mes <= 12)
-            ->unique()
-            ->values()
-            ->all();
+        $meses = TrazabilidadFilters::fromArray($filtros)->months();
 
         return TrazaProduccion::query()
             ->when($filtros['flog'] ?? null, fn ($q, $valor) => $q->where('Flogs', $valor))
@@ -108,30 +94,29 @@ class TrazabilidadResumenService
             ->when(! empty($meses), fn ($q) => $q->whereRaw('MONTH(Fecha) IN ('.implode(',', $meses).')'));
     }
 
-    private function valoresUnicos(Builder $query, string $columna): Collection
+    /**
+     * Un renglón por área y día del filtro actual.
+     *
+     * @return Collection<int, object>
+     */
+    private function totalesPorArea(Builder $query): Collection
     {
         return $query
-            ->whereNotNull($columna)
-            ->where($columna, '<>', '')
-            ->distinct()
-            ->orderBy($columna)
-            ->pluck($columna)
-            ->map(fn ($valor) => trim((string) $valor))
-            ->filter()
-            ->values();
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function trazabilidadPorArea(Builder $query): array
-    {
-        $totales = $query
             ->whereNotNull('NombreAlmacen')
             ->where('NombreAlmacen', '<>', '')
             ->whereNotNull('Fecha')
-            ->selectRaw('NombreAlmacen, Fecha, SUM(Cantidad) as piezas, SUM(Peso) as kilos')
-            ->groupBy('NombreAlmacen', 'Fecha')
-            ->get()
-            ->groupBy(fn ($fila) => trim((string) $fila->NombreAlmacen));
+            ->selectRaw('NombreAlmacen, CAST(Fecha AS date) as Fecha, SUM(Cantidad) as piezas, SUM(Peso) as kilos')
+            ->groupByRaw('NombreAlmacen, CAST(Fecha AS date)')
+            ->get();
+    }
+
+    /**
+     * @param  Collection<int, object>  $filas
+     * @return array<int, array<string, mixed>>
+     */
+    private function trazabilidadPorArea(Collection $filas): array
+    {
+        $totales = $filas->groupBy(fn ($fila) => trim((string) $fila->NombreAlmacen));
 
         return collect($this->matrixService->areasFijas)
             ->map(function (array $area) use ($totales) {

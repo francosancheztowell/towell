@@ -84,11 +84,6 @@ final readonly class TrazabilidadFilters
         return $this->flog !== '';
     }
 
-    public function decimals(): int
-    {
-        return $this->metrica === 'peso' ? 1 : 0;
-    }
-
     private static function stringValue(mixed $value): string
     {
         if (! is_scalar($value)) {

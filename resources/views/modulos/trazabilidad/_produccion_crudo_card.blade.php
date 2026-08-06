@@ -8,16 +8,9 @@
     $kgDia = $o['prodKgDia'] ?? ($o['programa']['prodKgDia'] ?? null);
     $avance = (float) ($o['avance'] ?? 0);
     $avanceBarra = min(100, max(0, $avance));
-    $soloFecha = $soloFecha ?? function (?string $fecha): ?string {
-        if (blank($fecha)) {
-            return null;
-        }
-        $partes = preg_split('/\s+/', trim($fecha), 2);
-
-        return $partes[0] ?? trim($fecha);
-    };
-    $fechaInicio = $soloFecha($o['programa']['fechaInicio'] ?? null);
-    $fechaFinal = $soloFecha($o['programa']['fechaFinal'] ?? null);
+    // El servicio ya formatea d/m/y sin hora (formatearSoloFecha).
+    $fechaInicio = $o['programa']['fechaInicio'] ?? null;
+    $fechaFinal = $o['programa']['fechaFinal'] ?? null;
 @endphp
 
 <article class="prod-crudo-card {{ $esMultiTelar ? 'prod-crudo-card--multi' : '' }}"

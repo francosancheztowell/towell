@@ -30,7 +30,6 @@ class TrazabilidadFiltersTest extends TestCase
         $this->assertSame('peso', $filters->metrica);
         $this->assertTrue($filters->hasAny());
         $this->assertTrue($filters->hasFlog());
-        $this->assertSame(1, $filters->decimals());
     }
 
     public function test_it_uses_safe_defaults_for_non_scalar_values(): void
@@ -46,7 +45,6 @@ class TrazabilidadFiltersTest extends TestCase
         $this->assertSame('cantidad', $filters->metrica);
         $this->assertFalse($filters->hasAny());
         $this->assertFalse($filters->hasFlog());
-        $this->assertSame(0, $filters->decimals());
     }
 
     public function test_summary_values_reuse_the_current_filter_options(): void

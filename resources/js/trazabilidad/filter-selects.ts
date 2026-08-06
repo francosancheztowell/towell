@@ -15,6 +15,7 @@ export class FilterSelects {
                     placeholder: 'Todos',
                     allowClear: true,
                     dropdownCssClass: 'traza-select2-dd',
+                    ...this.remoteSource(select),
                 });
             }
 
@@ -30,6 +31,34 @@ export class FilterSelects {
                 });
             });
         });
+    }
+
+    /**
+     * Los selectores con data-remote-url no llevan sus opciones en el HTML:
+     * select2 las pide al servidor filtradas por los demás filtros activos.
+     */
+    private remoteSource(select: HTMLSelectElement): Record<string, unknown> {
+        const url = select.dataset.remoteUrl;
+        if (!url) return {};
+
+        const otherValue = (selector: string): string =>
+            document.querySelector<HTMLInputElement | HTMLSelectElement>(selector)?.value?.trim() || '';
+
+        return {
+            minimumInputLength: 0,
+            ajax: {
+                url,
+                dataType: 'json',
+                delay: 250,
+                cache: true,
+                data: (params: { term?: string }) => ({
+                    q: params.term || '',
+                    articulo: otherValue('#filtro-articulo'),
+                    tamano: otherValue('#filtro-tamano'),
+                    mes: otherValue('#filtro-mes'),
+                }),
+            },
+        };
     }
 
     public destroy(): void {

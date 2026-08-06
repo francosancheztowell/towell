@@ -106,7 +106,6 @@ final class TrazabilidadDetailController extends Controller
                 ],
             ])
             ->header('Cache-Control', 'private, no-store')
-            ->header('Server-Timing', "app;dur={$durationMs}")
-            ->header('X-Trazabilidad-Detail', $type);
+            ->header('Server-Timing', "app;dur={$durationMs}");
     }
 }

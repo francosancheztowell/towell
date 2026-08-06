@@ -27,7 +27,6 @@ const TITLES: Record<DetailType, string> = {
     flogs: 'Flog',
     trazabilidad: 'Trazabilidad',
     produccion: 'Producción',
-    ventas: 'Ventas',
 };
 
 export class DetailLoader {
@@ -39,7 +38,7 @@ export class DetailLoader {
     public constructor(
         private readonly page: HTMLElement,
         private readonly result: HTMLElement,
-        private readonly routes: Partial<Record<Exclude<DetailType, 'ventas'>, string>>,
+        private readonly routes: Partial<Record<DetailType, string>>,
         private readonly hooks: DetailHooks,
         private readonly scroll: ScrollManager,
     ) {
@@ -69,14 +68,6 @@ export class DetailLoader {
         const requestSequence = ++this.sequence;
         this.showShell(TITLES[type]);
 
-        if (type === 'ventas') {
-            this.cancelActive();
-            this.loading(false);
-            const content = this.content();
-            if (content) content.appendChild(this.salesPlaceholder());
-            return;
-        }
-
         try {
             const data = await this.request(type, this.currentFilters());
             if (requestSequence !== this.sequence) return;
@@ -102,7 +93,7 @@ export class DetailLoader {
     }
 
     private request(
-        type: Exclude<DetailType, 'ventas'>,
+        type: DetailType,
         filters: TrazabilidadFilters,
     ): Promise<DetailResponse> {
         const route = this.routes[type];
@@ -219,22 +210,5 @@ export class DetailLoader {
 
     private errorBox(): HTMLElement | null {
         return queryElement<HTMLElement>('[data-detalle-error]', this.result);
-    }
-
-    private salesPlaceholder(): HTMLElement {
-        const box = document.createElement('div');
-        box.className = 'rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center shadow-sm';
-
-        const icon = document.createElement('i');
-        icon.className = 'fa-solid fa-receipt text-3xl text-slate-300';
-        const title = document.createElement('p');
-        title.className = 'mt-4 font-bold text-slate-600';
-        title.textContent = 'Detalle de ventas pendiente de conexión';
-        const copy = document.createElement('p');
-        copy.className = 'mt-1 text-sm text-slate-400';
-        copy.textContent = 'Esta pantalla es únicamente frontend por el momento.';
-        box.append(icon, title, copy);
-
-        return box;
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Trazabilidad;
 
 use App\Models\Trazabilidad\TrazaProduccion;
+use App\ValueObjects\Trazabilidad\TrazabilidadFilters;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -52,26 +53,27 @@ final class TrazabilidadMatrixService
         $columnaMetrica = $metrica === 'peso' ? 'Peso' : 'Cantidad';
         $decimales = $metrica === 'peso' ? 1 : 0;
 
-        $mesesSel = collect(explode(',', (string) ($filtros['mes'] ?? '')))
-            ->map(fn ($v) => (int) trim($v))->filter()->unique()->values()->all();
+        $mesesSel = TrazabilidadFilters::fromArray($filtros)->months();
 
         $hayFlog = filled($filtros['flog'] ?? null);
 
-        // Query base sin color (color solo acota Rollos Teñido en matriz y producción).
-        $base = fn () => TrazaProduccion::query()
-            ->when($filtros['flog'] ?? null, fn ($q, $v) => $q->where('Flogs', $v))
-            ->when($filtros['articulo'] ?? null, fn ($q, $v) => $q->where('Articulo', $v))
-            ->when($filtros['tamano'] ?? null, fn ($q, $v) => $q->where('Tamano', $v))
-            ->when(! empty($mesesSel), fn ($q) => $q->whereRaw('MONTH(Fecha) IN ('.implode(',', $mesesSel).')'));
-
-        $baseRollosConColor = fn () => $base()
-            ->when($filtros['color'] ?? null, fn ($q, $v) => $q->where('Color', $v));
+        // El color solo acota Rollos Teñido; las demás áreas pasan sin filtrar.
+        // Se resuelve en la misma consulta para no escanear la tabla dos veces.
+        $agrupacion = 'CAST(Fecha AS date), NombreAlmacen, Articulo, NombreArticulo, Color, NombreColor';
 
         // Desglose por artículo+color dentro de cada área (dropdown expandible por fila).
         // Mapa [NombreAlmacen][articulo|color] => ['articulo','nombreArticulo','color','nombreColor','valores'=>[pos=>total]].
-        $detalleRaw = $base()
+        $detalleRaw = TrazaProduccion::query()
+            ->when($filtros['flog'] ?? null, fn ($q, $v) => $q->where('Flogs', $v))
+            ->when($filtros['articulo'] ?? null, fn ($q, $v) => $q->where('Articulo', $v))
+            ->when($filtros['tamano'] ?? null, fn ($q, $v) => $q->where('Tamano', $v))
+            ->when(! empty($mesesSel), fn ($q) => $q->whereRaw('MONTH(Fecha) IN ('.implode(',', $mesesSel).')'))
+            ->when($filtros['color'] ?? null, fn ($q, $v) => $q->where(fn ($sub) => $sub
+                ->where('NombreAlmacen', '<>', 'Rollos Teñido')
+                ->orWhereNull('NombreAlmacen')
+                ->orWhere('Color', $v)))
             ->selectRaw("
-                Fecha,
+                CAST(Fecha AS date) as Fecha,
                 NombreAlmacen,
                 Articulo,
                 NombreArticulo,
@@ -83,35 +85,9 @@ final class TrazabilidadMatrixService
                 SUM($columnaMetrica) as total
             ")
             ->whereNotNull('Fecha')
-            ->groupBy('Fecha', 'NombreAlmacen', 'Articulo', 'NombreArticulo', 'Color', 'NombreColor')
-            ->orderBy('Fecha')
+            ->groupByRaw($agrupacion)
+            ->orderByRaw('CAST(Fecha AS date)')
             ->get();
-
-        if (filled($filtros['color'] ?? null)) {
-            $detalleRollos = $baseRollosConColor()
-                ->where('NombreAlmacen', 'Rollos Teñido')
-                ->selectRaw("
-                    Fecha,
-                    NombreAlmacen,
-                    Articulo,
-                    NombreArticulo,
-                    Color,
-                    NombreColor,
-                    MAX(Tipo) as tipo_info,
-                    MAX(Cliente) as cliente_info,
-                    MAX(Agente) as agente_info,
-                    SUM($columnaMetrica) as total
-                ")
-                ->whereNotNull('Fecha')
-                ->groupBy('Fecha', 'NombreAlmacen', 'Articulo', 'NombreArticulo', 'Color', 'NombreColor')
-                ->orderBy('Fecha')
-                ->get();
-
-            $detalleRaw = $detalleRaw
-                ->reject(fn ($f) => ($f->NombreAlmacen ?? '') === 'Rollos Teñido')
-                ->concat($detalleRollos)
-                ->values();
-        }
 
         $infoRow = $detalleRaw->first();
         $info = $hayFlog && $infoRow
@@ -220,7 +196,9 @@ final class TrazabilidadMatrixService
                     $detalles[] = [
                         'articulo' => trim(($d['articulo'] ?? '').(filled($d['nombreArticulo']) ? ' / '.$d['nombreArticulo'] : '')),
                         'color' => trim(($d['color'] ?? '').(filled($d['nombreColor']) ? ' / '.$d['nombreColor'] : '')),
-                        'valores' => $vals,
+                        // Disperso (índice => valor): estos detalles viajan en el JSON de
+                        // la respuesta y la mayoría de los días vienen vacíos.
+                        'valores' => array_filter($vals, static fn ($v) => ! is_null($v)),
                         'total' => $totalFila,
                     ];
                 }

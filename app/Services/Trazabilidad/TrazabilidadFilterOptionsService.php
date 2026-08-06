@@ -17,12 +17,10 @@ class TrazabilidadFilterOptionsService
      * @return array{
      *     flog: Collection<int, mixed>,
      *     articulo: Collection<int, array{codigo:mixed,label:string}>,
-     *     tamano: Collection<int, mixed>,
-     *     color: Collection<int, array{codigo:mixed,label:string}>,
-     *     meses: Collection<int, array{mes:int,nombre:string,registros:int}>
+     *     tamano: Collection<int, mixed>
      * }
      */
-    public function build(TrazabilidadFilters $filters, bool $includeHidden = true): array
+    public function build(TrazabilidadFilters $filters): array
     {
         $facet = fn (string $column, string $except): Collection => $this
             ->applyFilters(TrazaProduccion::query(), $filters, $except)
@@ -35,14 +33,11 @@ class TrazabilidadFilterOptionsService
         $combo = function (
             string $codeColumn,
             string $nameColumn,
-            string $except,
-            ?string $area = null
+            string $except
         ) use ($filters): Collection {
             return $this->applyFilters(TrazaProduccion::query(), $filters, $except)
                 ->whereNotNull($codeColumn)
                 ->where($codeColumn, '<>', '')
-                ->when($area, static fn (Builder $query, string $areaName): Builder => $query
-                    ->where('NombreAlmacen', $areaName))
                 ->selectRaw(
                     "{$codeColumn} as codigo, "
                     ."MAX(NULLIF(LTRIM(RTRIM({$nameColumn})), '')) as nombre"
@@ -58,49 +53,50 @@ class TrazabilidadFilterOptionsService
         };
 
         $withoutFilters = ! $filters->hasAny();
+        // El sufijo con el último Id hace que la caché caduque sola cuando entra
+        // información nueva a TrazaProduccion, sin esperar la hora completa.
+        // ponytail: MAX(Id) es una lectura del índice agrupado; si algún día pesa,
+        // invalidar desde el proceso que carga la tabla.
+        $version = $withoutFilters ? (int) TrazaProduccion::query()->max('Id') : 0;
         $remember = static fn (string $key, callable $callback): mixed => Cache::remember(
-            $key,
+            $key.'_'.$version,
             now()->addHour(),
             $callback
         );
 
-        $flogs = $withoutFilters
-            ? $remember('traza_opt_flog', fn (): Collection => $facet('Flogs', 'flog'))
-            : $facet('Flogs', 'flog');
-        $articles = $withoutFilters
-            ? $remember(
-                'traza_opt_articulo_combo',
-                fn (): Collection => $combo('Articulo', 'NombreArticulo', 'articulo')
-            )
-            : $combo('Articulo', 'NombreArticulo', 'articulo');
-        $sizes = $withoutFilters
-            ? $remember('traza_opt_tamano', fn (): Collection => $facet('Tamano', 'tamano'))
-            : $facet('Tamano', 'tamano');
-
-        if (! $includeHidden) {
-            return [
-                'flog' => $flogs,
-                'articulo' => $articles,
-                'tamano' => $sizes,
-                'color' => collect(),
-                'meses' => collect(),
-            ];
-        }
-
-        $colors = $withoutFilters
-            ? $remember(
-                'traza_opt_color_combo_v2',
-                fn (): Collection => $combo('Color', 'NombreColor', 'color', 'Rollos Teñido')
-            )
-            : $combo('Color', 'NombreColor', 'color', 'Rollos Teñido');
-
         return [
-            'flog' => $flogs,
-            'articulo' => $articles,
-            'tamano' => $sizes,
-            'color' => $colors,
-            'meses' => $this->availableMonths($filters),
+            'flog' => $withoutFilters
+                ? $remember('traza_opt_flog', fn (): Collection => $facet('Flogs', 'flog'))
+                : $facet('Flogs', 'flog'),
+            'articulo' => $withoutFilters
+                ? $remember(
+                    'traza_opt_articulo_combo',
+                    fn (): Collection => $combo('Articulo', 'NombreArticulo', 'articulo')
+                )
+                : $combo('Articulo', 'NombreArticulo', 'articulo'),
+            'tamano' => $withoutFilters
+                ? $remember('traza_opt_tamano', fn (): Collection => $facet('Tamano', 'tamano'))
+                : $facet('Tamano', 'tamano'),
         ];
+    }
+
+    /**
+     * Opciones de Flog para la búsqueda remota del selector (select2).
+     *
+     * @return Collection<int, string>
+     */
+    public function searchFlogs(TrazabilidadFilters $filters, string $term = '', int $limit = 50): Collection
+    {
+        return $this->cleanValues(
+            $this->applyFilters(TrazaProduccion::query(), $filters, 'flog')
+                ->whereNotNull('Flogs')
+                ->where('Flogs', '<>', '')
+                ->when($term !== '', fn (Builder $query): Builder => $query->where('Flogs', 'like', '%'.$term.'%'))
+                ->distinct()
+                ->orderBy('Flogs')
+                ->limit($limit)
+                ->pluck('Flogs')
+        );
     }
 
     /**
@@ -176,40 +172,6 @@ class TrazabilidadFilterOptionsService
                 static fn (Builder $builder): Builder => $builder
                     ->whereIn(DB::raw('MONTH(Fecha)'), $filters->months())
             );
-    }
-
-    /**
-     * @return Collection<int, array{mes:int,nombre:string,registros:int}>
-     */
-    private function availableMonths(TrazabilidadFilters $filters): Collection
-    {
-        $monthNames = [
-            '',
-            'Enero',
-            'Febrero',
-            'Marzo',
-            'Abril',
-            'Mayo',
-            'Junio',
-            'Julio',
-            'Agosto',
-            'Septiembre',
-            'Octubre',
-            'Noviembre',
-            'Diciembre',
-        ];
-
-        return $this->applyFilters(TrazaProduccion::query(), $filters, 'mes')
-            ->whereNotNull('Fecha')
-            ->selectRaw('MONTH(Fecha) as mes, COUNT(*) as registros')
-            ->groupByRaw('MONTH(Fecha)')
-            ->orderByRaw('MONTH(Fecha)')
-            ->get()
-            ->map(static fn (object $row): array => [
-                'mes' => (int) $row->mes,
-                'nombre' => $monthNames[(int) $row->mes] ?? (string) $row->mes,
-                'registros' => (int) $row->registros,
-            ]);
     }
 
     /**

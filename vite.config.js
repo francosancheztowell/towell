@@ -8,9 +8,11 @@ export default defineConfig({
     minify: 'esbuild',
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['jquery', 'sweetalert2', 'select2', 'toastr', 'axios']
-        }
+        // Rolldown solo acepta manualChunks como función.
+        manualChunks: (id) =>
+          /node_modules[\\/](jquery|sweetalert2|select2|toastr|axios)[\\/]/.test(id)
+            ? 'vendor'
+            : undefined
       }
     }
   },

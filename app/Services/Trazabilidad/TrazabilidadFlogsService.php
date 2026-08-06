@@ -402,20 +402,6 @@ class TrazabilidadFlogsService
         return number_format((float) $normalizado, 3, '.', '');
     }
 
-    private function formatearDecimal2(mixed $valor): string
-    {
-        if (blank($valor) && $valor !== 0 && $valor !== '0') {
-            return '—';
-        }
-
-        $normalizado = str_replace(',', '.', trim((string) $valor));
-        if ($normalizado === '' || ! is_numeric($normalizado)) {
-            return $this->txt($valor) ?: '—';
-        }
-
-        return number_format((float) $normalizado, 2, '.', '');
-    }
-
     private function formatearFecha(mixed $fecha): string
     {
         if (blank($fecha)) {
@@ -424,7 +410,7 @@ class TrazabilidadFlogsService
 
         try {
             return Carbon::parse($fecha)->timezone('America/Mexico_City')->format('d/m/Y');
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return (string) $fecha;
         }
     }

@@ -6,6 +6,7 @@ namespace App\Services\Trazabilidad;
 
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Trazabilidad\TrazaProduccion;
+use App\ValueObjects\Trazabilidad\TrazabilidadFilters;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -16,6 +17,14 @@ use Illuminate\Support\Collection;
  */
 class TrazabilidadProduccionService
 {
+    private const MESES_CORTOS = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+    private const RESUMEN_VACIO = [
+        'ordenes' => 0, 'activos' => 0, 'terminados' => 0, 'alertas' => 0, 'noEncontradas' => 0,
+        'totalProgramado' => 0.0, 'totalProducido' => 0.0, 'totalKg' => 0.0, 'avanceGlobal' => 0.0,
+        'telaresActivos' => 0, 'telaresTotal' => 0, 'porTelar' => [],
+    ];
+
     public function __construct(private TrazabilidadProgramaLookupService $programLookup) {}
 
     /**
@@ -24,7 +33,7 @@ class TrazabilidadProduccionService
      */
     public function build(array $filtros): array
     {
-        $mesesSel = $this->mesesSeleccionados($filtros);
+        $mesesSel = TrazabilidadFilters::fromArray($filtros)->months();
         $baseCrudo = $this->queryBase($filtros, $mesesSel, applyColor: false);
         $baseRollos = $this->queryBase($filtros, $mesesSel, applyColor: true);
 
@@ -41,7 +50,7 @@ class TrazabilidadProduccionService
      */
     public function buildTablaAvance(array $filtros): array
     {
-        $mesesSel = $this->mesesSeleccionados($filtros);
+        $mesesSel = TrazabilidadFilters::fromArray($filtros)->months();
         $crudo = $this->buildCrudo(
             $this->queryBase($filtros, $mesesSel, applyColor: false),
             $mesesSel
@@ -60,9 +69,9 @@ class TrazabilidadProduccionService
                     'orden' => $orden['orden'] ?? '—',
                     'telar' => $telarNumero !== '' ? $telarNumero : ($telarDigitos !== '' ? '0' : '—'),
                     'enProceso' => (bool) ($orden['enProceso'] ?? false),
-                    'programado' => $programa
-                        ? ((float) ($programa['totalPzas'] ?? 0) ?: (float) ($programa['totalPedido'] ?? 0))
-                        : ((float) ($codificado['totalPzas'] ?? 0) ?: (float) ($codificado['pedido'] ?? 0)),
+                    // Mismo valor que la tarjeta y el resumen: la tarjeta ya resolvió
+                    // TotalPedido/TotalPzas/Pedido según la fuente.
+                    'programado' => (float) ($orden['programadas'] ?? 0),
                     'produccion' => $programa
                         ? (float) ($programa['produccion'] ?? 0)
                         : (float) ($codificado['produccion'] ?? 0),
@@ -101,10 +110,10 @@ class TrazabilidadProduccionService
             ->get();
 
         if ($rawRows->isEmpty()) {
-            return ['ordenes' => [], 'noEncontradas' => [], 'resumen' => $this->resumenVacio()];
+            return ['ordenes' => [], 'noEncontradas' => [], 'resumen' => self::RESUMEN_VACIO];
         }
 
-        $nombresMeses = $this->nombresMesesCortos();
+        $nombresMeses = self::MESES_CORTOS;
         $mesesPorOrden = $rawRows
             ->groupBy(fn ($r) => trim((string) $r->Orden))
             ->map(fn ($g) => $g->pluck('mes')->map(fn ($m) => (int) $m)
@@ -130,7 +139,7 @@ class TrazabilidadProduccionService
         $ordenes = $rows->pluck('Orden')->map(fn ($o) => trim((string) $o))
             ->filter()->unique()->values();
 
-        $programa = $this->cargarProgramaPorOrdenes($ordenes);
+        $programa = $this->programLookup->forOrders($ordenes);
         $faltantes = $ordenes->reject(fn ($o) => $programa->has($o))->values();
         $codificados = $faltantes->isNotEmpty()
             ? $this->cargarCodificadosPorOrdenes($faltantes)
@@ -141,7 +150,10 @@ class TrazabilidadProduccionService
         $ordenCards = [];
         $noEncontradas = [];
 
-        foreach ($porOrden as $orden => $filasLocalidad) {
+        foreach ($porOrden as $ordenClave => $filasLocalidad) {
+            // PHP convierte a int las claves numéricas del groupBy: sin este cast,
+            // el usort de más abajo revienta al comparar grupoKey con strcmp().
+            $orden = (string) $ordenClave;
             $telarOrden = null;
             $fuente = null;
             $programadas = 0.0;
@@ -241,7 +253,7 @@ class TrazabilidadProduccionService
             }
 
             $hayGrupo = ! empty($extras);
-            $grupoKey = $hayGrupo ? $orden : $orden.'_solo';
+            $grupoKey = $orden;
 
             $avancePrograma = null;
             if ($programaDatos !== null && $programaDatos['totalPedido'] > 0) {
@@ -480,7 +492,7 @@ class TrazabilidadProduccionService
             return ['maquinas' => [], 'resumen' => ['maquinas' => 0, 'ordenes' => 0]];
         }
 
-        $nombresMeses = $this->nombresMesesCortos();
+        $nombresMeses = self::MESES_CORTOS;
         $mesesPorClave = $rawRows
             ->groupBy(fn ($r) => trim((string) $r->Orden).'|'.trim((string) $r->Localidad))
             ->map(fn ($g) => $g->pluck('mes')->map(fn ($m) => (int) $m)
@@ -562,12 +574,6 @@ class TrazabilidadProduccionService
         ];
     }
 
-    private function mesesSeleccionados(array $filtros): array
-    {
-        return collect(explode(',', (string) ($filtros['mes'] ?? '')))
-            ->map(fn ($v) => (int) trim($v))->filter()->unique()->values()->all();
-    }
-
     private function queryBase(array $filtros, array $mesesSel, bool $applyColor = true): callable
     {
         return fn () => TrazaProduccion::query()
@@ -576,12 +582,6 @@ class TrazabilidadProduccionService
             ->when($filtros['tamano'] ?? null, fn ($q, $v) => $q->where('Tamano', $v))
             ->when($applyColor && ($filtros['color'] ?? null), fn ($q, $v) => $q->where('Color', $v))
             ->when(! empty($mesesSel), fn ($q) => $q->whereRaw('MONTH(Fecha) IN ('.implode(',', $mesesSel).')'));
-    }
-
-    /** @return array<int, string> */
-    private function nombresMesesCortos(): array
-    {
-        return ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     }
 
     private function formatearTelar(string $localidad, string $numLoc): string
@@ -602,20 +602,6 @@ class TrazabilidadProduccionService
         }
 
         return Carbon::parse($fecha)->format('d/m/y');
-    }
-
-    private function resumenVacio(): array
-    {
-        return [
-            'ordenes' => 0, 'activos' => 0, 'terminados' => 0, 'alertas' => 0, 'noEncontradas' => 0,
-            'totalProgramado' => 0.0, 'totalProducido' => 0.0, 'totalKg' => 0.0, 'avanceGlobal' => 0.0,
-            'telaresActivos' => 0, 'telaresTotal' => 0, 'porTelar' => [],
-        ];
-    }
-
-    private function cargarProgramaPorOrdenes(Collection $ordenes): Collection
-    {
-        return $this->programLookup->forOrders($ordenes);
     }
 
     private function cargarCodificadosPorOrdenes(Collection $ordenes): Collection

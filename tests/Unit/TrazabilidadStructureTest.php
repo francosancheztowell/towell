@@ -134,13 +134,18 @@ class TrazabilidadStructureTest extends TestCase
         $this->assertStringNotContainsString('data-tab="flogs"', $result);
     }
 
-    public function test_sales_quadrant_is_front_end_only(): void
+    public function test_sales_card_is_only_a_coming_soon_placeholder(): void
     {
         $sales = file_get_contents(resource_path('views/modulos/trazabilidad/resumen/_ventas.blade.php'));
 
-        $this->assertStringContainsString('data-sales-frontend-only', $sales);
-        $this->assertStringContainsString('Ventas pendiente de conexión', $sales);
+        $this->assertStringContainsString('Próximamente', $sales);
         $this->assertStringNotContainsString('$resumen', $sales);
+        $this->assertStringNotContainsString('<table', $sales);
+        $this->assertStringNotContainsString('data-resumen-detalle', $sales);
+        $this->assertStringNotContainsString(
+            'ventas',
+            file_get_contents(resource_path('js/trazabilidad/detail-loader.ts')),
+        );
     }
 
     public function test_each_summary_card_has_its_detail_destination(): void
@@ -150,7 +155,6 @@ class TrazabilidadStructureTest extends TestCase
         $this->assertStringContainsString('data-resumen-detalle="flogs"', file_get_contents($base.'/_flog.blade.php'));
         $this->assertStringContainsString('data-resumen-detalle="produccion"', file_get_contents($base.'/_avance.blade.php'));
         $this->assertStringContainsString('data-resumen-detalle="trazabilidad"', file_get_contents($base.'/_trazabilidad.blade.php'));
-        $this->assertStringContainsString('data-resumen-detalle="ventas"', file_get_contents($base.'/_ventas.blade.php'));
     }
 
     public function test_flog_primary_fields_share_the_first_three_column_row(): void

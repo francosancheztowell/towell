@@ -8,15 +8,6 @@
     $resumenCrudo = $crudo['resumen'] ?? [];
     $maquinasRollos = $rollos['maquinas'] ?? [];
     $resumenRollos = $rollos['resumen'] ?? ['maquinas' => 0, 'ordenes' => 0];
-
-    $soloFecha = function (?string $fecha): ?string {
-        if (blank($fecha)) {
-            return null;
-        }
-        $partes = preg_split('/\s+/', trim($fecha), 2);
-
-        return $partes[0] ?? trim($fecha);
-    };
 @endphp
 
 <div id="produccion-contenido">

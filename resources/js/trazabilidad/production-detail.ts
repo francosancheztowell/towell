@@ -121,7 +121,7 @@ export class ProductionDetail {
         this.setText('#modal-rollos-total-kg', this.formatNumber(totalKg, 2));
         this.rollosModal.classList.remove('hidden');
         this.rollosModal.style.display = 'flex';
-        this.scroll.lock();
+        this.scroll.sync();
     }
 
     private closeRollos(): void {
@@ -129,7 +129,7 @@ export class ProductionDetail {
 
         this.rollosModal.classList.add('hidden');
         this.rollosModal.style.display = '';
-        this.scroll.unlock();
+        this.scroll.sync();
     }
 
     private openLoomSummary(): void {
@@ -138,7 +138,7 @@ export class ProductionDetail {
 
         modal.classList.remove('hidden');
         modal.style.display = 'flex';
-        this.scroll.lock();
+        this.scroll.sync();
     }
 
     private closeLoomSummary(): void {
@@ -147,7 +147,7 @@ export class ProductionDetail {
 
         modal.classList.add('hidden');
         modal.style.display = '';
-        this.scroll.unlock();
+        this.scroll.sync();
     }
 
     private appendCell(

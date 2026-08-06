@@ -86,7 +86,15 @@ class Index extends Component
     public function render(): View
     {
         $filters = $this->filters();
-        $options = $this->filterOptions->build($filters, includeHidden: false);
+        $options = $this->filterOptions->build($filters);
+
+        // Un filtro puede quedar fuera de alcance al cambiar otro (p. ej. elegir un
+        // Flog donde el artículo seleccionado no existe): se descarta y se recalcula.
+        if ($this->discardOutOfScopeFilters($filters, $options)) {
+            $filters = $this->filters();
+            $options = $this->filterOptions->build($filters);
+        }
+
         $hasFilter = $filters->hasAny();
         $filterValues = $filters->toArray();
         $tableProgress = $hasFilter
@@ -98,7 +106,6 @@ class Index extends Component
             'filtros' => $filterValues,
             'hayFiltro' => $hasFilter,
             'hayFlog' => $filters->hasFlog(),
-            'opcionesFlog' => $options['flog'],
             'opcionesArticulo' => $options['articulo'],
             'opcionesTamano' => $options['tamano'],
             'resumenFlog' => $hasFilter ? $this->summary->build($filterValues, $summaryValues) : null,
@@ -133,6 +140,29 @@ class Index extends Component
             'mes' => $this->mes,
             'metrica' => $this->metrica,
         ];
+    }
+
+    /**
+     * @param  array<string, iterable<mixed>>  $options
+     */
+    private function discardOutOfScopeFilters(TrazabilidadFilters $filters, array $options): bool
+    {
+        $available = static fn (string $selected, iterable $values): bool => $selected === ''
+            || collect($values)
+                ->map(static fn (mixed $option): string => trim((string) (is_array($option)
+                    ? ($option['codigo'] ?? '')
+                    : $option)))
+                ->contains(static fn (string $code): bool => strcasecmp($code, $selected) === 0);
+
+        $discarded = false;
+        foreach (['flog', 'articulo', 'tamano'] as $field) {
+            if (! $available($filters->{$field}, $options[$field] ?? [])) {
+                $this->{$field} = '';
+                $discarded = true;
+            }
+        }
+
+        return $discarded;
     }
 
     private function applyNormalizedFilters(TrazabilidadFilters $filters): void
