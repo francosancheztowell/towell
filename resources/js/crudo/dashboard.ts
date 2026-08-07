@@ -111,6 +111,7 @@ type CrudoWindow = Window & typeof globalThis & {
       name: 'request',
       callback: (request: {
         url: string
+        succeed?: (callback: () => void) => void
         fail: (callback: (failure: {
           status: number
           content: unknown
@@ -167,11 +168,29 @@ const stopDashboardPolling = (): void => {
     .forEach((name) => dashboard.removeAttribute(name))
 }
 
+/*
+ * Modo kiosco: el andón corre en una pantalla que nadie toca, así que ningún
+ * fallo puede quedarse esperando un clic en "Recargar". Ante un error fatal
+ * (419 sesión/CSRF, 404 snapshot muerto) o varios fallos seguidos, la página
+ * se recarga sola y se recupera sin intervención.
+ */
+let kioskReloadTimer: number | null = null
+let consecutiveFailures = 0
+
+const scheduleKioskReload = (delayMs: number): void => {
+  if (kioskReloadTimer !== null) {
+    return
+  }
+
+  kioskReloadTimer = window.setTimeout(() => window.location.reload(), delayMs)
+}
+
 const showLivewireError = (status: number, url: string): void => {
   // Un 404 en /livewire-<hash>/update significa endpoint muerto: el snapshot
   // de esta pestaña ya no es válido y solo se recupera recargando.
   if (status === 404) {
     stopDashboardPolling()
+    scheduleKioskReload(8_000)
   }
 
   const alert = document.querySelector<HTMLElement>(LIVEWIRE_ERROR_SELECTOR)
@@ -202,19 +221,38 @@ const installLivewireErrorHandler = (): void => {
   }
 
   livewireErrorHookInstalled = true
-  livewire.hook('request', ({ url, fail }) => {
+  livewire.hook('request', ({ url, succeed, fail }) => {
     if (!document.querySelector(DASHBOARD_SELECTOR)) {
       return
     }
 
+    succeed?.(() => {
+      consecutiveFailures = 0
+    })
+
     fail(({ status, preventDefault }) => {
-      if (status < 400 || status === 419) {
+      if (status < 400) {
+        return
+      }
+
+      // Sesión o CSRF caducados: el diálogo "page expired" de Livewire
+      // bloquearía el kiosco para siempre. Recargar restablece todo.
+      if (status === 419) {
+        preventDefault()
+        window.location.reload()
         return
       }
 
       preventDefault()
       console.error(`[Crudo] Livewire request failed with status ${status}: ${url}`)
       showLivewireError(status, url)
+
+      // Errores transitorios (500, red caída del backend): tras varios polls
+      // fallidos seguidos, recargar es la única vía de recuperación sin manos.
+      consecutiveFailures += 1
+      if (consecutiveFailures >= 5) {
+        scheduleKioskReload(10_000)
+      }
     })
   })
 }

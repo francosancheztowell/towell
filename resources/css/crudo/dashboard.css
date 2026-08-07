@@ -257,10 +257,10 @@
     text-align: left;
 }
 
-/* Azul y rojo son fondos oscuros: todo su texto va en blanco. */
-.crudo-status-card:is([data-state="bad_quality"], [data-state="paro"]),
-.crudo-status-card:is([data-state="bad_quality"], [data-state="paro"]) .crudo-status-value,
-.crudo-status-card:is([data-state="bad_quality"], [data-state="paro"]) .crudo-status-copy strong {
+/* Los cuatro estados con color usan fondo saturado: todo su texto va en blanco. */
+.crudo-status-card:is([data-state="bad_quality"], [data-state="paro"], [data-state="low_kilos"], [data-state="operating"]),
+.crudo-status-card:is([data-state="bad_quality"], [data-state="paro"], [data-state="low_kilos"], [data-state="operating"]) .crudo-status-value,
+.crudo-status-card:is([data-state="bad_quality"], [data-state="paro"], [data-state="low_kilos"], [data-state="operating"]) .crudo-status-copy strong {
     color: #fff;
 }
 
@@ -302,17 +302,19 @@ button.crudo-status-card:disabled {
 }
 
 [data-state="low_kilos"] {
-    --status: #ffe000;
+    --status: #eab308;
     /* El amarillo puro es ilegible como texto: la variante tipográfica es ámbar. */
     --status-ink: #96700a;
-    --status-bg: #ffe633;
+    /* Amarillo fuerte con texto blanco: pedido explícito para verse a distancia. */
+    --status-bg: #eab308;
     --status-bg-soft: #fff9d1;
 }
 
 [data-state="operating"] {
-    --status: #00ff00;
-    --status-ink: #009e2b;
-    --status-bg: #2fe06a;
+    --status: #16a34a;
+    --status-ink: #15803d;
+    /* Verde fuerte con texto blanco: pedido explícito para verse a distancia. */
+    --status-bg: #16a34a;
     --status-bg-soft: #ddfbe9;
 }
 
@@ -690,8 +692,8 @@ button.crudo-status-card:disabled {
     font-size: 1.4rem;
 }
 
-/* Azul y rojo son fondos oscuros: sobre ellos el texto vertical va en blanco. */
-.crudo-machine-card:is([data-state="bad_quality"], [data-state="paro"]) :is(.crudo-machine-quality, .crudo-machine-metric) {
+/* Fondos saturados: sobre ellos el texto vertical va en blanco. */
+.crudo-machine-card:is([data-state="bad_quality"], [data-state="paro"], [data-state="low_kilos"], [data-state="operating"]) :is(.crudo-machine-quality, .crudo-machine-metric) {
     color: #fff;
 }
 
