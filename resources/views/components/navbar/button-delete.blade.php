@@ -110,6 +110,8 @@
     onclick="{{ $onclick }}"
     class="{{ $paddingClass }} {{ $finalText ? 'rounded-lg' : 'rounded-full' }} transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 {{ $finalBg }} {{ $finalHoverBg }} {{ !$finalText ? 'w-9 h-9' : '' }} {{ $class }}"
     @if($disabled) disabled @endif
+    {{-- Deja pasar wire:click y demás atributos (la clase la arma el componente). --}}
+    {{ $attributes->except('class') }}
     title="{{ $title }}">
     <i class="fa-solid {{ $iconNormalized }} {{ $finalIconColor }} {{ $finalText ? 'text-base' : 'text-sm' }}"></i>
     @if($finalText)

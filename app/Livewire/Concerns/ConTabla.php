@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Livewire\Concerns;
 
+use App\Support\PaginacionCompat;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Url;
 use Livewire\WithPagination;
@@ -107,6 +109,15 @@ trait ConTabla
                 in_array($this->ordenPor, $this->camposOrdenables(), true),
                 fn (Builder $q): Builder => $q->orderBy($this->ordenPor, $this->ordenDir === 'desc' ? 'desc' : 'asc')
             );
+    }
+
+    /**
+     * Página actual del listado. El servidor es SQL Server 2008 y no admite
+     * OFFSET/FETCH, así que la paginación pasa por PaginacionCompat.
+     */
+    protected function paginar(Builder $query): LengthAwarePaginator
+    {
+        return PaginacionCompat::paginar($query, $this->porPagina, $this->getPage());
     }
 
     /** @return array<int, string> */

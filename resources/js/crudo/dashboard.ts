@@ -1219,6 +1219,67 @@ document.addEventListener('keydown', (event) => {
   closeButton?.click()
 })
 
+type CrudoNotify = {
+  loading: (title?: string) => void
+  close: () => void
+  success: (message: string) => void
+  error: (message: string) => void
+}
+
+/**
+ * El reporte se descarga con fetch en vez de dejar navegar el enlace: una
+ * navegación normal no avisa cuándo empezó ni cuándo terminó el archivo, y el
+ * Excel tarda lo que tarde la agregación de producción.
+ */
+const descargarReporte = async (link: HTMLAnchorElement): Promise<void> => {
+  const notify = (window as unknown as { notify?: CrudoNotify }).notify
+  const icon = link.querySelector('i')
+  const iconClass = icon?.className ?? ''
+
+  link.dataset.crudoDescargando = 'true'
+  link.setAttribute('aria-busy', 'true')
+  icon?.setAttribute('class', 'fa-solid fa-circle-notch fa-spin')
+  notify?.loading('Generando reporte…')
+
+  try {
+    const response = await fetch(link.href, { credentials: 'same-origin' })
+    if (!response.ok) {
+      throw new Error(`No fue posible generar el reporte (${response.status}).`)
+    }
+
+    const url = URL.createObjectURL(await response.blob())
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = link.dataset.crudoNombreArchivo || 'reporte_telares.xlsx'
+    anchor.click()
+    URL.revokeObjectURL(url)
+
+    notify?.close()
+    notify?.success('Reporte descargado')
+  } catch (error) {
+    notify?.close()
+    notify?.error(
+      error instanceof Error ? error.message : 'No fue posible generar el reporte.',
+    )
+  } finally {
+    delete link.dataset.crudoDescargando
+    link.removeAttribute('aria-busy')
+    icon?.setAttribute('class', iconClass)
+  }
+}
+
+document.addEventListener('click', (event) => {
+  const link = (event.target as HTMLElement | null)?.closest?.('[data-crudo-reporte]')
+  if (!(link instanceof HTMLAnchorElement)) {
+    return
+  }
+
+  event.preventDefault()
+  if (link.dataset.crudoDescargando !== 'true') {
+    void descargarReporte(link)
+  }
+})
+
 document.addEventListener('fullscreenchange', () => {
   const button = document.querySelector<HTMLButtonElement>('[data-crudo-fullscreen]')
   const icon = document.querySelector<HTMLElement>('[data-crudo-fullscreen] i')

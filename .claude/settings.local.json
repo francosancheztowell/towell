@@ -80,7 +80,10 @@
       "Bash(./vendor/bin/pint app/ tests/Unit/TrazabilidadFiltersTest.php tests/Unit/TrazabilidadStructureTest.php)",
       "Bash(./vendor/bin/pint app/Services/Trazabilidad app/Livewire/Trazabilidad app/Http/Controllers/Trazabilidad app/ValueObjects/Trazabilidad)",
       "Bash(python -)",
-      "Bash(sed -i 's/$this->grantModulo\\(\\(int\\) $u->idusuario, '\\\\''Solicitudes'\\\\''\\);\\\\n//' tests/Unit/DbgPermTest.php)"
+      "Bash(sed -i 's/$this->grantModulo\\(\\(int\\) $u->idusuario, '\\\\''Solicitudes'\\\\''\\);\\\\n//' tests/Unit/DbgPermTest.php)",
+      "Bash(php /c/xampp/htdocs/Towell/_tmp_smoke.php)",
+      "Bash(php -r 'echo json_decode\\(file_get_contents\\(\"composer.lock\"\\),true\\) ? \"\" : \"\";')",
+      "Bash(./vendor/bin/pint app/Exports/CrudoReporteDiaExport.php app/Http/Controllers/Crudo/CrudoReporteDiaController.php)"
     ]
   }
 }

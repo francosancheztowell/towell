@@ -188,7 +188,7 @@ class CatalogoFallas extends Component
         }
 
         return view('livewire.mantenimiento.catalogo-fallas', [
-            'filas' => $filas->paginate($this->porPagina),
+            'filas' => $this->paginar($filas),
             'tiposFalla' => CatTipoFalla::query()->orderBy('TipoFallaId')->pluck('TipoFallaId'),
             'departamentos' => CatParosFallas::query()
                 ->whereNotNull('Departamento')

@@ -165,6 +165,8 @@ class Dashboard extends Component
             'pollSeconds' => (int) config('crudo.poll_seconds', 15),
             'modo' => $this->modo,
             'machinesDetalle' => $this->machinesPorEstado($machines),
+            // El reporte se rige por el mismo permiso que la auditoría.
+            'puedeDescargarReporte' => $this->access->canRegister(),
         ]);
     }
 

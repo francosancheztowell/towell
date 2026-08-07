@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Mantenimiento;
 use App\Exports\ReporteMantenimientoExport;
 use App\Http\Controllers\Controller;
 use App\Models\Mantenimiento\ManFallasParos;
+use App\Support\PaginacionCompat;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
@@ -47,7 +48,7 @@ class ReportesMantenimientoController extends Controller
         [$fechaIni, $fechaFin] = $this->rango($request);
 
         return view('modulos.mantenimiento.reportes-mantenimiento-fallas-paros', [
-            'registros' => $this->consulta($fechaIni, $fechaFin)->paginate(50)->withQueryString(),
+            'registros' => PaginacionCompat::paginar($this->consulta($fechaIni, $fechaFin), 50)->withQueryString(),
             'fechaIni' => $fechaIni,
             'fechaFin' => $fechaFin,
         ]);
