@@ -31,8 +31,8 @@ class MantenimientoParosController extends Controller
 
     /**
      * Corta la petición si el usuario no tiene el permiso pedido sobre Solicitudes.
-     * Estos endpoints los consume el front por AJAX: sin esto cualquier usuario
-     * autenticado podía crear o cerrar paros llamando la ruta directo.
+     * Solo aplica al listado (index): reportar y finalizar paros está abierto a
+     * cualquier usuario autenticado (operadores y mecánicos no tienen el rol).
      */
     private function autorizar(string $accion = 'acceso'): void
     {
@@ -44,8 +44,6 @@ class MantenimientoParosController extends Controller
      */
     public function nuevoParo()
     {
-        $this->autorizar();
-
         $usuario = Auth::user();
         $areaUsuario = null;
 
@@ -67,8 +65,6 @@ class MantenimientoParosController extends Controller
      */
     public function departamentos(): JsonResponse
     {
-        $this->autorizar();
-
         $usuario = Auth::user();
         $userId = $usuario ? ($usuario->id ?? $usuario->idusuario ?? null) : null;
 
@@ -95,8 +91,6 @@ class MantenimientoParosController extends Controller
      */
     public function departamentosCatalogoFiltros(): JsonResponse
     {
-        $this->autorizar();
-
         try {
             $departamentos = SysDepartamento::query()
                 ->orderBy('Depto')
@@ -135,8 +129,6 @@ class MantenimientoParosController extends Controller
      */
     public function maquinas(string $departamento): JsonResponse
     {
-        $this->autorizar();
-
         try {
             $depUpper = strtoupper(trim($departamento));
 
@@ -316,8 +308,6 @@ class MantenimientoParosController extends Controller
      */
     public function tiposFalla(): JsonResponse
     {
-        $this->autorizar();
-
         $tiposFalla = CatTipoFalla::orderBy('TipoFallaId')
             ->pluck('TipoFallaId');
 
@@ -339,8 +329,6 @@ class MantenimientoParosController extends Controller
      */
     public function fallas(string $departamento, ?string $tipoFallaId = null): JsonResponse
     {
-        $this->autorizar();
-
         try {
             $depUpper = strtoupper(trim($departamento));
 
@@ -394,8 +382,6 @@ class MantenimientoParosController extends Controller
      */
     public function ordenTrabajo(string $departamento, string $maquina): JsonResponse
     {
-        $this->autorizar();
-
         try {
             $depUpper = strtoupper(trim($departamento));
 
@@ -474,8 +460,6 @@ class MantenimientoParosController extends Controller
      */
     public function validarDuplicadoParo(Request $request): JsonResponse
     {
-        $this->autorizar();
-
         try {
             $request->validate([
                 'maquina' => 'required|string|max:50',
@@ -528,8 +512,6 @@ class MantenimientoParosController extends Controller
      */
     public function store(Request $request)
     {
-        $this->autorizar('crear');
-
         try {
             $usuario = Auth::user();
 
@@ -942,7 +924,7 @@ class MantenimientoParosController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $this->autorizar();
+        $this->autorizar('acceso');
 
         try {
             $query = ManFallasParos::query()
@@ -1017,8 +999,6 @@ class MantenimientoParosController extends Controller
      */
     public function show(int $id): JsonResponse
     {
-        $this->autorizar();
-
         try {
             $paro = ManFallasParos::find($id);
 
@@ -1051,8 +1031,6 @@ class MantenimientoParosController extends Controller
      */
     public function finalizar(Request $request, int $id): JsonResponse
     {
-        $this->autorizar('modificar');
-
         try {
             $paro = ManFallasParos::find($id);
 
@@ -1138,8 +1116,6 @@ class MantenimientoParosController extends Controller
      */
     public function operadores(): JsonResponse
     {
-        $this->autorizar();
-
         try {
             $operadores = ManOperadoresMantenimiento::select('Id', 'CveEmpl', 'NomEmpl', 'Turno', 'Depto')
                 ->orderBy('NomEmpl')
