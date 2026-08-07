@@ -567,13 +567,17 @@ class UsuarioController extends Controller
                     ->first();
             }
 
-            // Si aún no encuentra, derivar el padre quitando el último segmento de la ruta
-            // (p.ej. /tejido/reportes → busca /tejido directamente)
+            // Si aún no encuentra, derivar el padre subiendo segmento por segmento
+            // hasta dar con una coincidencia exacta (p.ej. /mecanicos/ordenes-trabajo/VM00011/captura
+            // → /mecanicos/ordenes-trabajo/VM00011 → /mecanicos/ordenes-trabajo).
+            // Necesario para páginas de detalle anidadas (folio, captura, etc.) que nunca
+            // tendrán su propia fila en SYSRoles: el padre real está uno o más niveles arriba.
             if (! $modulo) {
                 $partes = array_filter(array_values(explode('/', trim($rutaActual, '/'))));
-                if (count($partes) >= 2) {
-                    $parentPartes = array_slice($partes, 0, -1);
-                    $rutaPadreDerivada = '/'.implode('/', $parentPartes);
+
+                while (count($partes) >= 2) {
+                    array_pop($partes);
+                    $rutaPadreDerivada = '/'.implode('/', $partes);
                     $moduloPadreDerivado = SYSRoles::where('Ruta', $rutaPadreDerivada)
                         ->select('orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
                         ->first();

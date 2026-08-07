@@ -1,6 +1,14 @@
 /**
- * PWA bootstrap: SW, instalaciÃ³n y fullscreen sin hacks de scroll
+ * PWA bootstrap: SW, instalación y fullscreen sin hacks de scroll
+ *
+ * Idempotente: Livewire wire:navigate puede reinyectar este archivo.
+ * Un segundo boot lanzaría "Identifier 'deferredPrompt' has already been declared"
+ * y duplicaría listeners.
  */
+if (window.__towellPwaInitialized) {
+    // Ya inicializado en esta pestaña; no reejecutar.
+} else {
+window.__towellPwaInitialized = true;
 
 // ------------------------------
 // Service Worker Registration
@@ -478,3 +486,5 @@ window.enableFullscreen = enableFullscreen;
 window.exitFullscreen = exitFullscreen;
 window.promptInstall = promptInstall;
 window.isStandaloneMode = isStandaloneMode;
+
+} // fin guard __towellPwaInitialized

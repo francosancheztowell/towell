@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Mecanicos;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,30 +21,14 @@ class MecVerificaMaquinaLineModel extends Model
 
     protected $fillable = [
         'Folio',
-        'CveOperador',
-        'NomOperador',
-        'Ajusto',
-        'Reparo',
-        'Cambio',
-        'Lubrico',
-        'FaltaRefacc',
-        'HoraInicial',
-        'HoraFinal',
-        'TotalMinutos',
-        'Calificacion',
-        'CveTejedor',
-        'NomTejedor',
+        'NoTelarId',
+        'Orden',
+        'Actividad',
+        'Valor',
     ];
 
     protected $casts = [
-        'Id' => 'integer',
-        'Ajusto' => 'boolean',
-        'Reparo' => 'boolean',
-        'Cambio' => 'boolean',
-        'Lubrico' => 'boolean',
-        'FaltaRefacc' => 'boolean',
-        'TotalMinutos' => 'integer',
-        'Calificacion' => 'integer',
+        'Orden' => 'integer',
     ];
 
     public function verificacion(): BelongsTo

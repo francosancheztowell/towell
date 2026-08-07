@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Mecanicos;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -22,20 +22,17 @@ class MecVerificaMaquinaModel extends Model
     protected $fillable = [
         'Folio',
         'Fecha',
-        'TelarId',
-        'FolioParo',
-        'Falla',
-        'FechaParo',
-        'HoraParo',
+        'TurnoRecibe',
+        'CveOperador',
+        'NomOperador',
         'Estatus',
-        'Orden',
-        'Turno',
+        'HoraInicio',
+        'HoraFin',
     ];
 
     protected $casts = [
         'Fecha' => 'date',
-        'FechaParo' => 'date',
-        'Turno' => 'integer',
+        'TurnoRecibe' => 'integer',
     ];
 
     public function lineas(): HasMany
