@@ -228,19 +228,19 @@
   @endif
 
   @if(config('app.pwa_enabled', true) && !config('app.service_worker_cleanup', false))
-    <script src="{{ asset('js/app-pwa.js') }}"></script>
+    {{-- data-navigate-once: wire:navigate reinyecta scripts del layout; app-pwa.js no debe reejecutarse. --}}
+    <script src="{{ asset('js/app-pwa.js') }}" data-navigate-once></script>
   @endif
 
-  <script>
-    // La función resetColumnsSpin ya está expuesta en app-filters.js
+  <script data-navigate-once>
+    // Persistentes en window: wire:navigate re-evalúa scripts del layout y
+    // `let`/`const` top-level lanzan "Identifier has already been declared".
+    window.telaresUsuario = [];
+    window.registroActualId = null;
+    window.telarActual = null; // { no_telar, tipo }
+    window.registroCompleto = false;
 
-    // Funciones para modal de telares
-    let telaresUsuario = [];
-    let registroActualId = null;
-    let telarActual = null; // { no_telar, tipo }
-    let registroCompleto = false;
-
-    async function abrirModalTelares() {
+    window.abrirModalTelares = async function abrirModalTelares() {
       try {
         const response = await fetch('{{ route('notificar.atado.julio') }}?listado=1', {
           headers: {
@@ -248,13 +248,13 @@
           }
         });
         const data = await response.json();
-        telaresUsuario = data.telares;
+        window.telaresUsuario = data.telares;
 
         // Llenar el select con los telares
         const select = document.getElementById('selectTelar');
         select.innerHTML = '<option value="">-- Seleccione un telar --</option>';
 
-        telaresUsuario.forEach(telar => {
+        window.telaresUsuario.forEach(telar => {
           const option = document.createElement('option');
           option.value = telar;
           option.textContent = telar;
@@ -267,19 +267,19 @@
       }
     }
 
-    function cerrarModalTelares() {
+    window.cerrarModalTelares = function cerrarModalTelares() {
       document.getElementById('modalTelaresNotificar').style.display = 'none';
       document.getElementById('selectTelar').value = '';
       document.getElementById('radioRizo').checked = false;
       document.getElementById('radioPie').checked = false;
       document.getElementById('detallesTelar').classList.add('hidden');
       document.getElementById('mensajeNoData').classList.add('hidden');
-      registroActualId = null;
-      telarActual = null;
-      registroCompleto = false;
+      window.registroActualId = null;
+      window.telarActual = null;
+      window.registroCompleto = false;
     }
 
-    async function buscarDetallesTelar() {
+    window.buscarDetallesTelar = async function buscarDetallesTelar() {
       const telar = document.getElementById('selectTelar').value;
       const tipo = document.querySelector('input[name="tipoTelar"]:checked')?.value;
 
@@ -300,16 +300,16 @@
         document.getElementById('mensajeNoData').classList.add('hidden');
 
         if (data.detalles) {
-          registroActualId = data.detalles.id;
-          telarActual = { no_telar: data.detalles.no_telar, tipo: data.detalles.tipo };
-          registroCompleto = data.detalles.registroCompleto === true;
-          mostrarDetallesTelar(data.detalles);
+          window.registroActualId = data.detalles.id;
+          window.telarActual = { no_telar: data.detalles.no_telar, tipo: data.detalles.tipo };
+          window.registroCompleto = data.detalles.registroCompleto === true;
+          window.mostrarDetallesTelar(data.detalles);
         } else {
           document.getElementById('detallesTelar').classList.add('hidden');
           document.getElementById('mensajeNoData').classList.remove('hidden');
-          registroActualId = null;
-          telarActual = null;
-          registroCompleto = false;
+          window.registroActualId = null;
+          window.telarActual = null;
+          window.registroCompleto = false;
         }
       } catch (error) {
         console.error('Error al cargar detalles del telar:', error);
@@ -322,8 +322,8 @@
       }
     }
 
-    async function notificarTelares(){
-      if (!telarActual) {
+    window.notificarTelares = async function notificarTelares(){
+      if (!window.telarActual) {
         Swal.fire({
           icon: 'warning',
           title: 'Sin telar',
@@ -355,10 +355,10 @@
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}'
           },
           body: JSON.stringify({
-            id: registroActualId,
+            id: window.registroActualId,
             horaParo: horaParo,
-            no_telar: telarActual.no_telar,
-            tipo: telarActual.tipo
+            no_telar: window.telarActual.no_telar,
+            tipo: window.telarActual.tipo
           })
         });
 
@@ -372,7 +372,7 @@
             confirmButtonColor: '#3b82f6',
             timer: 2000
           }).then(() => {
-            cerrarModalTelares();
+            window.cerrarModalTelares();
           });
         } else {
           throw new Error(data.error || 'Error al notificar');
@@ -388,7 +388,7 @@
       }
     }
 
-    function mostrarDetallesTelar(detalles) {
+    window.mostrarDetallesTelar = function mostrarDetallesTelar(detalles) {
       document.getElementById('detalle_no_telar').value = detalles.no_telar || '';
       document.getElementById('detalle_cuenta').value = detalles.cuenta || '';
       document.getElementById('detalle_calibre').value = detalles.calibre || '';
@@ -405,28 +405,35 @@
       document.getElementById('detallesTelar').classList.remove('hidden');
     }
 
-    // Event listeners
-    document.addEventListener('DOMContentLoaded', function() {
+    function bindModalTelaresListeners() {
+      const modal = document.getElementById('modalTelaresNotificar');
+      if (!modal || modal.dataset.listenersBound === '1') {
+        return;
+      }
+      modal.dataset.listenersBound = '1';
+
       // Cerrar modal al hacer clic fuera
-      document.getElementById('modalTelaresNotificar')?.addEventListener('click', function(event) {
+      modal.addEventListener('click', function(event) {
         if (event.target === this) {
-          cerrarModalTelares();
+          window.cerrarModalTelares();
         }
       });
 
       // Buscar automáticamente cuando cambie el select de telar
       document.getElementById('selectTelar')?.addEventListener('change', function() {
-        buscarDetallesTelar();
+        window.buscarDetallesTelar();
       });
 
       // Buscar automáticamente cuando cambie el tipo (rizo/pie)
       document.querySelectorAll('input[name="tipoTelar"]').forEach(radio => {
         radio.addEventListener('change', function() {
-          buscarDetallesTelar();
+          window.buscarDetallesTelar();
         });
       });
+    }
 
-    });
+    document.addEventListener('DOMContentLoaded', bindModalTelaresListeners);
+    document.addEventListener('livewire:navigated', bindModalTelaresListeners);
   </script>
     </body>
     </html>

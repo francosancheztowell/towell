@@ -196,6 +196,56 @@ import "./programa-tejido/modal-cache-bootstrap.js";
     }
 
     // ==============================
+    // Botón atrás - Lógica jerárquica basada en módulos
+    // ==============================
+    // Separado de initNavigation() para poder re-vincularlo tras cada
+    // transición `wire:navigate` de Livewire: esa navegación reemplaza el
+    // <body> completo (incluido este botón) sin recargar la página, y los
+    // <script type="module"> de Vite no se re-ejecutan en ese caso (el
+    // navegador solo evalúa un módulo ES una vez por URL), así que el
+    // listener original se perdía con el botón viejo.
+    function initBackButton() {
+        const btnBack = document.getElementById("btn-back");
+        if (!btnBack || btnBack.disabled) return;
+
+        btnBack.addEventListener("click", async (e) => {
+            e.preventDefault();
+
+            // Comportamiento custom si existe
+            if (typeof window.volverAlIndice === "function") {
+                window.volverAlIndice();
+                return;
+            }
+
+            // Obtener ruta del módulo padre desde la API
+            try {
+                const currentPath = window.location.pathname;
+                const response = await fetch(`/api/modulo-padre?ruta=${encodeURIComponent(currentPath)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.rutaPadre) {
+                        window.location.replace(data.rutaPadre);
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.warn('Error al obtener módulo padre, usando fallback:', error);
+            }
+
+            // Fallback: usar stack de navegación
+            const prevUrl = NavStack.pop();
+            window.location.replace(prevUrl);
+        });
+    }
+
+    // ==============================
     // Navegación mejorada / botón atrás / debounce y stack
     // ==============================
     function initNavigation() {
@@ -225,44 +275,7 @@ import "./programa-tejido/modal-cache-bootstrap.js";
         }
 
         // Botón atrás - Lógica jerárquica basada en módulos
-        const btnBack = document.getElementById("btn-back");
-        if (btnBack && !btnBack.disabled) {
-            btnBack.addEventListener("click", async (e) => {
-                e.preventDefault();
-
-                // Comportamiento custom si existe
-                if (typeof window.volverAlIndice === "function") {
-                    window.volverAlIndice();
-                    return;
-                }
-
-                // Obtener ruta del módulo padre desde la API
-                try {
-                    const currentPath = window.location.pathname;
-                    const response = await fetch(`/api/modulo-padre?ruta=${encodeURIComponent(currentPath)}`, {
-                        method: 'GET',
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        }
-                    });
-
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data.success && data.rutaPadre) {
-                            window.location.replace(data.rutaPadre);
-                            return;
-                        }
-                    }
-                } catch (error) {
-                    console.warn('Error al obtener módulo padre, usando fallback:', error);
-                }
-
-                // Fallback: usar stack de navegación
-                const prevUrl = NavStack.pop();
-                window.location.replace(prevUrl);
-            });
-        }
+        initBackButton();
 
         // Interceptar links para prevenir doble click
         let lastClickTime = 0;
@@ -347,5 +360,11 @@ import "./programa-tejido/modal-cache-bootstrap.js";
     } else {
         initAppScripts();
     }
+
+    // Livewire dispara este evento tras cada `wire:navigate` (y también en la
+    // carga inicial). Solo re-vinculamos el botón atrás: los demás listeners
+    // de initAppScripts() están en document/window (persisten entre
+    // transiciones) y volver a registrarlos aquí los duplicaría.
+    document.addEventListener("livewire:navigated", initBackButton);
 })();
 
