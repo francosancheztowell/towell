@@ -179,20 +179,33 @@ final readonly class CrudoDashboardService
 
         foreach ($rows as $row) {
             $telar = trim((string) ($row->MaquinaId ?? ''));
-            if ($telar === '' || isset($paros[$telar])) {
+            if ($telar === '') {
                 continue;
             }
 
             $faultCode = trim((string) ($row->Falla ?? '')) ?: null;
             $faultName = trim((string) ($row->Descripcion ?? '')) ?: $faultCode;
-
-            $paros[$telar] = [
+            $detalle = [
                 'reportedBy' => trim((string) ($row->NomEmpl ?? '')) ?: null,
                 'faultCode' => $faultCode,
                 'falla' => $faultName,
-                'descripcion' => $faultName,
+                'tipo' => trim((string) ($row->TipoFallaId ?? '')) ?: null,
                 'since' => $this->formatParoSince($row->Fecha ?? null, $row->Hora ?? null),
             ];
+
+            // Un telar puede acumular varios paros activos (eléctrico y mecánico,
+            // por ejemplo). El encabezado sigue siendo el más reciente —las filas
+            // vienen ordenadas por fecha y hora descendente— y el resto se lista.
+            if (! isset($paros[$telar])) {
+                $paros[$telar] = $detalle + [
+                    'descripcion' => $faultName,
+                    'count' => 0,
+                    'todos' => [],
+                ];
+            }
+
+            $paros[$telar]['count']++;
+            $paros[$telar]['todos'][] = $detalle;
         }
 
         return $paros;

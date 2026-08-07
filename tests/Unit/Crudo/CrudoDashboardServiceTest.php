@@ -242,6 +242,42 @@ final class CrudoDashboardServiceTest extends TestCase
         $this->assertStringNotContainsString(':00', $machine['paro']['since']);
     }
 
+    public function test_varios_paros_activos_del_mismo_telar_se_cuentan_y_se_listan(): void
+    {
+        // Llegan ordenados por fecha y hora descendente: el encabezado es el más reciente.
+        $this->repository->paros = [
+            (object) [
+                'MaquinaId' => '201',
+                'Falla' => '62',
+                'Descripcion' => 'REVERSA',
+                'TipoFallaId' => 'MECANICO',
+                'NomEmpl' => 'Juan Pérez',
+                'Fecha' => '2026-07-29',
+                'Hora' => '15:21:00',
+            ],
+            (object) [
+                'MaquinaId' => '201',
+                'Falla' => '80',
+                'Descripcion' => 'CORTO',
+                'TipoFallaId' => 'ELECTRICO',
+                'NomEmpl' => 'Ana López',
+                'Fecha' => '2026-07-29',
+                'Hora' => '11:02:00',
+            ],
+        ];
+
+        $today = new DateTimeImmutable('today', new DateTimeZone('America/Mexico_City'));
+        $paro = $this->service->build($today)->toArray()['machines'][0]['paro'];
+
+        $this->assertSame(2, $paro['count']);
+        $this->assertSame('REVERSA', $paro['falla']);
+        $this->assertSame('29/07/2026 15:21', $paro['since']);
+        $this->assertCount(2, $paro['todos']);
+        $this->assertSame(['REVERSA', 'CORTO'], array_column($paro['todos'], 'falla'));
+        $this->assertSame(['MECANICO', 'ELECTRICO'], array_column($paro['todos'], 'tipo'));
+        $this->assertSame(['Juan Pérez', 'Ana López'], array_column($paro['todos'], 'reportedBy'));
+    }
+
     private function date(): DateTimeImmutable
     {
         return new DateTimeImmutable('2026-07-28', new DateTimeZone('America/Mexico_City'));

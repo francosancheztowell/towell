@@ -78,7 +78,9 @@
       "Bash(./vendor/bin/pint app/Services/Trazabilidad app/Livewire/Trazabilidad app/Http/Controllers/Trazabilidad routes/modules/trazabilidad.php)",
       "Bash(npx tsc *)",
       "Bash(./vendor/bin/pint app/ tests/Unit/TrazabilidadFiltersTest.php tests/Unit/TrazabilidadStructureTest.php)",
-      "Bash(./vendor/bin/pint app/Services/Trazabilidad app/Livewire/Trazabilidad app/Http/Controllers/Trazabilidad app/ValueObjects/Trazabilidad)"
+      "Bash(./vendor/bin/pint app/Services/Trazabilidad app/Livewire/Trazabilidad app/Http/Controllers/Trazabilidad app/ValueObjects/Trazabilidad)",
+      "Bash(python -)",
+      "Bash(sed -i 's/$this->grantModulo\\(\\(int\\) $u->idusuario, '\\\\''Solicitudes'\\\\''\\);\\\\n//' tests/Unit/DbgPermTest.php)"
     ]
   }
 }

@@ -231,7 +231,7 @@ class MachineDetail extends Component
         $machine['defects'] = is_array($machine['defects'] ?? null) ? $machine['defects'] : [];
         $machine['captures'] = is_array($machine['captures'] ?? null) ? $machine['captures'] : [];
 
-        $state = $this->statusResolver->resolve(
+        $states = $this->statusResolver->resolveAll(
             captureCount: (int) ($machine['captureCount'] ?? 0),
             pieces: (float) ($machine['pieces'] ?? 0),
             secondsPercent: (float) ($machine['secondsPercent'] ?? 0),
@@ -243,9 +243,16 @@ class MachineDetail extends Component
             hasActiveParo: ($machine['paro'] ?? null) !== null,
         );
 
+        $state = $states[0];
         $machine['state'] = $state->value;
         $machine['stateLabel'] = $state->label();
         $machine['stateIcon'] = $state->icon();
+        // El color solo muestra el estado más grave; la tarjeta los lista todos.
+        $machine['states'] = array_map(static fn ($estado): array => [
+            'value' => $estado->value,
+            'label' => $estado->label(),
+            'icon' => $estado->icon(),
+        ], $states);
         $machine['defectLineCount'] ??= 0;
 
         return $machine;

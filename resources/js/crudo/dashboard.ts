@@ -238,6 +238,31 @@ const findMachineButton = (telar: string): HTMLElement | null => {
     ?? document.querySelector<HTMLElement>(`${MACHINE_SELECTOR}[data-telar="${CSS.escape(telar)}"]`)
 }
 
+/**
+ * Alerta visual al entrar en paro (y solo al entrar: si ya estaba rojo no
+ * vuelve a sonar). Parpadea unos segundos y se calma sola, para que un paro
+ * largo no deje media pantalla destellando toda la jornada.
+ */
+const PARO_ALERT_MS = 20_000
+const paroAlertTimers = new Map<string, number>()
+
+const flashParoAlert = (button: HTMLElement): void => {
+  const telar = button.dataset.telar ?? ''
+  window.clearTimeout(paroAlertTimers.get(telar))
+
+  button.classList.remove('is-paro-alert')
+  void button.offsetWidth // reinicia la animación si ya venía corriendo
+  button.classList.add('is-paro-alert')
+
+  paroAlertTimers.set(
+    telar,
+    window.setTimeout(() => {
+      button.classList.remove('is-paro-alert')
+      paroAlertTimers.delete(telar)
+    }, PARO_ALERT_MS),
+  )
+}
+
 const updateMachineCard = (machine: Machine): void => {
   const button = findMachineButton(machine.telar)
   if (!button) {
@@ -249,7 +274,11 @@ const updateMachineCard = (machine: Machine): void => {
     return
   }
 
+  const previousState = button.dataset.state
   button.dataset.state = machine.state
+  if (previousState !== undefined && previousState !== 'paro' && machine.state === 'paro') {
+    flashParoAlert(button)
+  }
   button.dataset.signature = signature
   button.setAttribute('aria-label', `Abrir detalle del telar ${machine.telar}, estado ${machine.stateLabel}`)
 

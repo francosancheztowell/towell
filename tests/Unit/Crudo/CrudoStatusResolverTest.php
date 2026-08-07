@@ -85,4 +85,55 @@ final class CrudoStatusResolverTest extends TestCase
 
         $this->assertSame(CrudoMachineState::Operating, $state);
     }
+
+    public function test_resolve_all_lista_todas_las_condiciones_activas(): void
+    {
+        // Mala calidad y además bajo en kilos: el color solo pinta la primera.
+        $estados = $this->resolver->resolveAll(
+            captureCount: 1,
+            pieces: 100,
+            secondsPercent: 20,
+            kilos: 50,
+            expectedKilos: 100,
+        );
+
+        $this->assertSame([CrudoMachineState::BadQuality, CrudoMachineState::LowKilos], $estados);
+        $this->assertSame(CrudoMachineState::BadQuality, $this->resolver->resolve(
+            captureCount: 1,
+            pieces: 100,
+            secondsPercent: 20,
+            kilos: 50,
+            expectedKilos: 100,
+        ));
+    }
+
+    public function test_resolve_all_encabeza_con_paro_y_conserva_el_resto(): void
+    {
+        $estados = $this->resolver->resolveAll(
+            captureCount: 1,
+            pieces: 100,
+            secondsPercent: 20,
+            kilos: 50,
+            expectedKilos: 100,
+            hasActiveParo: true,
+        );
+
+        $this->assertSame(
+            [CrudoMachineState::Paro, CrudoMachineState::BadQuality, CrudoMachineState::LowKilos],
+            $estados,
+        );
+    }
+
+    public function test_resolve_all_siempre_devuelve_al_menos_un_estado(): void
+    {
+        $this->assertSame(
+            [CrudoMachineState::NoData],
+            $this->resolver->resolveAll(captureCount: 0, pieces: 0, secondsPercent: 0, kilos: 0, expectedKilos: 0),
+        );
+
+        $this->assertSame(
+            [CrudoMachineState::Operating],
+            $this->resolver->resolveAll(captureCount: 1, pieces: 100, secondsPercent: 4, kilos: 120, expectedKilos: 100),
+        );
+    }
 }

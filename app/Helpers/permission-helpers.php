@@ -29,7 +29,7 @@ if (! function_exists('userCan')) {
 
             return isset($permission->$action) && $permission->$action == 1;
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error checking permission', [
                 'action' => $action,
                 'module' => $module,
@@ -104,13 +104,17 @@ if (! function_exists('userPermissions')) {
         try {
             // Memoización por request: SYSRoles es un catálogo chico y cada query paga ~40ms de red,
             // así que se cargan completos una sola vez en lugar de un query por módulo consultado.
-            static $rolesPorModulo = null;
-            static $permisosPorRol = [];
-
-            if ($rolesPorModulo === null) {
+            // Se guarda en el contenedor y no en static: así el ciclo de vida es exactamente
+            // el del request (y cada test arranca con la memoria limpia).
+            if (! app()->bound('permisos.roles')) {
                 // Solo idrol/modulo: evita arrastrar 'imagen' y demás columnas pesadas
-                $rolesPorModulo = SYSRoles::select('idrol', 'modulo')->get()->keyBy(fn ($r) => mb_strtolower($r->modulo));
+                app()->instance(
+                    'permisos.roles',
+                    SYSRoles::select('idrol', 'modulo')->get()->keyBy(fn ($r) => mb_strtolower($r->modulo))
+                );
             }
+
+            $rolesPorModulo = app('permisos.roles');
 
             if (is_numeric($module)) {
                 $rolId = (int) $module;
@@ -124,13 +128,17 @@ if (! function_exists('userPermissions')) {
                 $rolId = $rol->idrol;
             }
 
-            if (! array_key_exists($userId, $permisosPorRol)) {
-                $permisosPorRol[$userId] = SYSUsuariosRoles::where('idusuario', $userId)->get()->keyBy('idrol');
+            $claveUsuario = 'permisos.usuario.'.$userId;
+            if (! app()->bound($claveUsuario)) {
+                app()->instance(
+                    $claveUsuario,
+                    SYSUsuariosRoles::where('idusuario', $userId)->get()->keyBy('idrol')
+                );
             }
 
-            return $permisosPorRol[$userId][$rolId] ?? null;
+            return app($claveUsuario)[$rolId] ?? null;
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Error getting user permissions', [
                 'module' => $module,
                 'error' => $e->getMessage(),

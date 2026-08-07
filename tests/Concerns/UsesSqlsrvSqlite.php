@@ -4,6 +4,7 @@ namespace Tests\Concerns;
 
 use App\Models\Sistema\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -185,6 +186,62 @@ trait UsesSqlsrvSqlite
             $table->string('turno', 50)->nullable();
             $table->timestamps();
         });
+    }
+
+    /**
+     * Da de alta un módulo en SYSRoles y sus permisos para el usuario autenticado,
+     * para que userCan() responda true en controladores/componentes protegidos.
+     *
+     * Llamar DESPUÉS de actingAs(): la clave es Auth::id(), que es lo que lee
+     * userPermissions(). Llamarlo antes de la primera consulta de permisos, que
+     * el helper memoiza por request.
+     *
+     * @param  array<int, string>  $acciones  acceso|crear|modificar|eliminar|registrar
+     */
+    protected function grantModulo(string $modulo, array $acciones = ['acceso'], ?int $idUsuario = null, int $idRol = 1): void
+    {
+        $idUsuario ??= (int) Auth::id();
+
+        $schema = Schema::connection('sqlsrv');
+
+        if (! $schema->hasTable('SYSRoles')) {
+            $schema->create('SYSRoles', function (Blueprint $table) {
+                $table->increments('idrol');
+                $table->string('orden')->nullable();
+                $table->string('modulo');
+                $table->string('Dependencia')->nullable();
+                $table->string('Ruta')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        if (! $schema->hasTable('SYSUsuariosRoles')) {
+            $schema->create('SYSUsuariosRoles', function (Blueprint $table) {
+                $table->integer('idusuario');
+                $table->integer('idrol');
+                $table->integer('acceso')->default(0);
+                $table->integer('crear')->default(0);
+                $table->integer('modificar')->default(0);
+                $table->integer('eliminar')->default(0);
+                $table->integer('registrar')->default(0);
+            });
+        }
+
+        DB::connection('sqlsrv')->table('SYSRoles')->insert([
+            'idrol' => $idRol,
+            'orden' => (string) $idRol,
+            'modulo' => $modulo,
+        ]);
+
+        DB::connection('sqlsrv')->table('SYSUsuariosRoles')->insert([
+            'idusuario' => $idUsuario,
+            'idrol' => $idRol,
+            'acceso' => (int) in_array('acceso', $acciones, true),
+            'crear' => (int) in_array('crear', $acciones, true),
+            'modificar' => (int) in_array('modificar', $acciones, true),
+            'eliminar' => (int) in_array('eliminar', $acciones, true),
+            'registrar' => (int) in_array('registrar', $acciones, true),
+        ]);
     }
 
     protected function createUsuario(array $attributes = []): User

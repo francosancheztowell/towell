@@ -135,10 +135,13 @@
 
                 <div class="crudo-status-list">
                     @foreach ($statusCards as $card)
-                        <article
+                        <button
+                            type="button"
                             class="crudo-status-card"
                             data-state="{{ $card['key'] }}"
-                            title="{{ $card['description'] }}"
+                            wire:click="abrirEstado('{{ $card['key'] }}')"
+                            @disabled(($summary[$card['key']] ?? 0) === 0)
+                            title="{{ ($summary[$card['key']] ?? 0) === 0 ? $card['description'] : $card['description'].' · Ver detalle' }}"
                             aria-label="{{ $card['label'] }}: {{ $summary[$card['key']] }}. {{ $card['description'] }}"
                         >
                             <span class="crudo-status-icon"><i class="fa-solid {{ $card['icon'] }}"></i></span>
@@ -146,7 +149,7 @@
                             <span class="crudo-status-copy">
                                 <strong>{{ $card['label'] }}</strong>
                             </span>
-                        </article>
+                        </button>
                     @endforeach
                 </div>
 
@@ -233,5 +236,86 @@
         @endif
     </main>
 </div>
+
+{{-- Desglose del contador de estado: qué telares, desde cuándo y quién reportó. --}}
+@if ($estadoDetalle !== null)
+    @php
+        $estadoCard = collect($statusCards)->firstWhere('key', $estadoDetalle) ?? [
+            'label' => 'Estado', 'icon' => 'fa-circle-info', 'description' => '',
+        ];
+    @endphp
+
+    <div class="crudo-modal-backdrop" wire:click.self="cerrarEstado" data-state="{{ $estadoDetalle }}">
+        <div class="crudo-modal crudo-modal-estado" role="dialog" aria-modal="true"
+             aria-label="Telares en estado {{ $estadoCard['label'] }}">
+            <header class="crudo-estado-header" data-state="{{ $estadoDetalle }}">
+                <span class="crudo-estado-header-icon"><i class="fa-solid {{ $estadoCard['icon'] }}"></i></span>
+                <div>
+                    <h2>{{ $estadoCard['label'] }}</h2>
+                    <p>{{ count($machinesDetalle) }} {{ count($machinesDetalle) === 1 ? 'telar' : 'telares' }} · {{ $estadoCard['description'] }}</p>
+                </div>
+                <button type="button" class="crudo-modal-close" wire:click="cerrarEstado" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            <div class="crudo-estado-list">
+                @forelse ($machinesDetalle as $item)
+                    @php $paro = $item['paro'] ?? null; @endphp
+                    <article class="crudo-estado-item" data-state="{{ $item['state'] }}">
+                        <header class="crudo-estado-item-head">
+                            <span class="crudo-estado-telar">{{ $item['telar'] }}</span>
+                            <span class="crudo-estado-salon">{{ $item['salon'] }}</span>
+                            @if (($paro['count'] ?? 1) > 1)
+                                <span class="crudo-estado-multiple">{{ $paro['count'] }} paros</span>
+                            @endif
+                        </header>
+
+                        <div class="crudo-estado-datos">
+
+                            @if ($paro)
+                                <ul class="crudo-estado-paros">
+                                    @foreach ($paro['todos'] ?? [$paro] as $registro)
+                                        <li>
+                                            <i class="fa-solid fa-clock" aria-hidden="true"></i>
+                                            <span>{{ trim((string) ($registro['since'] ?? '')) ?: 'Hora sin registrar' }}</span>
+                                            <span class="crudo-estado-falla">
+                                                {{ $registro['falla'] ?? 'Paro reportado' }}
+                                                @if (filled($registro['tipo'] ?? null))
+                                                    · {{ $registro['tipo'] }}
+                                                @endif
+                                            </span>
+                                            <span class="crudo-estado-reporto">
+                                                <i class="fa-solid fa-user" aria-hidden="true"></i>
+                                                {{ $registro['reportedBy'] ?? 'Sin registrar' }}
+                                            </span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @else
+                                <ul class="crudo-estado-metricas">
+                                    <li><span>Calidad</span><strong>{{ number_format((float) $item['qualityPercent'], 1) }}%</strong></li>
+                                    <li>
+                                        <span>Kilos</span>
+                                        <strong>
+                                            {{ number_format((float) $item['kilos'], 1) }}
+                                            @if (($item['hasProductionStandard'] ?? false) && (float) $item['expectedKilos'] > 0)
+                                                <em>/ {{ number_format((float) $item['expectedKilos'], 1) }}</em>
+                                            @endif
+                                        </strong>
+                                    </li>
+                                    <li><span>Piezas</span><strong>{{ number_format((float) $item['pieces']) }}</strong></li>
+                                    <li><span>Segundas</span><strong>{{ number_format((float) $item['seconds']) }}</strong></li>
+                                </ul>
+                            @endif
+                        </div>
+                    </article>
+                @empty
+                    <p class="crudo-estado-vacio">Ningún telar en este estado ahora mismo.</p>
+                @endforelse
+            </div>
+        </div>
+    </div>
+@endif
 
 </div>

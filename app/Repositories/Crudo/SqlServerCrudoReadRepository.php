@@ -264,6 +264,7 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
                 'MaquinaId',
                 'Falla',
                 'Descripcion',
+                'TipoFallaId',
                 'NomEmpl',
                 'Fecha',
                 'Hora',

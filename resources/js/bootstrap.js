@@ -77,3 +77,9 @@ window.http = http;
 window.notify = notify;
 // showToast global unificado (firma estándar message, type) → toastr vía notify.
 window.showToast = showToast;
+
+// Puente Livewire → toast. Cualquier componente puede avisar sin JS propio:
+//   $this->dispatch('aviso', tipo: 'success', texto: 'Guardado.');
+document.addEventListener('livewire:init', () => {
+    window.Livewire?.on('aviso', ({ tipo, texto }) => (notify[tipo] ?? notify.info)(texto));
+});

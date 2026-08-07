@@ -253,6 +253,24 @@
     border: 1px solid color-mix(in srgb, var(--status) 22%, white);
     border-radius: 0.7rem;
     background: var(--status-bg);
+    text-align: left;
+}
+
+/* El contador abre el desglose: se comporta como botón salvo cuando está en cero. */
+button.crudo-status-card {
+    cursor: pointer;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+button.crudo-status-card:hover:not(:disabled),
+button.crudo-status-card:focus-visible:not(:disabled) {
+    border-color: var(--status);
+    transform: translateY(-1px);
+}
+
+button.crudo-status-card:disabled {
+    cursor: default;
+    opacity: 0.62;
 }
 
 /*
@@ -570,6 +588,31 @@
     opacity: 0.72;
 }
 
+/*
+ * Alerta de paro nuevo: solo se aplica al pasar de otro color a rojo (lo agrega
+ * el JS por unos segundos). Destello fuerte —fondo, borde y halo— para que se
+ * vea desde el otro extremo del salón.
+ */
+@keyframes crudo-paro-alert {
+    0%, 100% {
+        background: var(--status-bg);
+        box-shadow: 0 0 0 0 rgba(255, 0, 0, 0);
+        transform: scale(1);
+    }
+
+    50% {
+        background: #ffffff;
+        border-color: #ff0000;
+        box-shadow: 0 0 0 0.55rem rgba(255, 0, 0, 0.55), 0 0 2.2rem 0.5rem rgba(255, 0, 0, 0.9);
+        transform: scale(1.06);
+    }
+}
+
+.crudo-machine-card.is-paro-alert {
+    z-index: 6;
+    animation: crudo-paro-alert 0.55s steps(1, end) infinite;
+}
+
 .crudo-machine-state-dot {
     position: absolute;
     top: 0.45rem;
@@ -830,6 +873,186 @@
     box-shadow: 0 12px 32px rgba(15, 23, 42, 0.26);
 }
 
+/*
+ * Desglose de un contador de estado: lista de telares con hora de inicio,
+ * falla, quién reportó y cuántos paros activos acumula cada uno.
+ */
+.crudo-modal-estado {
+    display: flex;
+    width: min(46rem, 96vw);
+    max-height: min(44rem, 88vh);
+    flex-direction: column;
+}
+
+.crudo-estado-header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: center;
+    border-bottom: 1px solid color-mix(in srgb, var(--status) 25%, #e2e8f0);
+    padding: 0.9rem 3.25rem 0.9rem 1rem;
+    background: var(--status-bg-soft, #f1f5f9);
+}
+
+.crudo-estado-header-icon {
+    display: grid;
+    width: 2.5rem;
+    height: 2.5rem;
+    place-items: center;
+    border-radius: 0.7rem;
+    background: #fff;
+    color: var(--status-ink, var(--status));
+    font-size: 1.1rem;
+}
+
+.crudo-estado-header h2 {
+    color: #0f172a;
+    font-size: 1.15rem;
+    font-weight: 950;
+}
+
+.crudo-estado-header p {
+    color: #475569;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.crudo-estado-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+    gap: 0.6rem;
+    overflow-y: auto;
+    padding: 0.85rem;
+}
+
+.crudo-estado-list:has(.crudo-estado-vacio) {
+    display: block;
+}
+
+.crudo-estado-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    border: 1px solid #e2e8f0;
+    border-top: 4px solid var(--status);
+    border-radius: 0.75rem;
+    padding: 0.6rem 0.7rem 0.7rem;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.crudo-estado-item-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.5rem;
+    align-items: baseline;
+}
+
+.crudo-estado-telar {
+    color: var(--status-ink, var(--status));
+    font-size: 1.6rem;
+    font-weight: 950;
+    line-height: 1;
+}
+
+.crudo-estado-salon {
+    color: #64748b;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.crudo-estado-multiple {
+    margin-left: auto;
+    border-radius: 999px;
+    padding: 0.1rem 0.45rem;
+    background: #fee2e2;
+    color: #b91c1c;
+    font-size: 0.68rem;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.crudo-estado-paros {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+/* Un paro por bloque: hora arriba, falla y quién reportó debajo. */
+.crudo-estado-paros li {
+    display: grid;
+    gap: 0.1rem;
+    border-top: 1px dashed #e2e8f0;
+    padding-top: 0.35rem;
+    color: #334155;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.crudo-estado-paros li:first-child {
+    border-top: 0;
+    padding-top: 0;
+}
+
+.crudo-estado-paros i {
+    margin-right: 0.25rem;
+    color: #94a3b8;
+    font-size: 0.7rem;
+}
+
+.crudo-estado-falla {
+    color: var(--status-ink, var(--status));
+    font-weight: 900;
+}
+
+.crudo-estado-reporto {
+    color: #64748b;
+    font-size: 0.74rem;
+}
+
+.crudo-estado-metricas {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.3rem 0.5rem;
+}
+
+.crudo-estado-metricas li {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+}
+
+.crudo-estado-metricas span {
+    color: #94a3b8;
+    font-size: 0.62rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.crudo-estado-metricas strong {
+    color: #0f172a;
+    font-size: 0.9rem;
+    font-weight: 900;
+}
+
+.crudo-estado-metricas em {
+    color: #94a3b8;
+    font-size: 0.74rem;
+    font-style: normal;
+    font-weight: 800;
+}
+
+.crudo-estado-vacio {
+    padding: 2.5rem 1rem;
+    color: #64748b;
+    font-size: 0.9rem;
+    font-weight: 800;
+    text-align: center;
+}
+
 .crudo-modal-close {
     position: absolute;
     top: 1rem;
@@ -999,6 +1222,25 @@
 .crudo-modal-kpi .crudo-modal-state {
     color: var(--status-ink, var(--status));
     font-size: 0.95rem;
+}
+
+/*
+ * Estados secundarios: el color de la tarjeta ya se lo llevó el más grave, así
+ * que estos van como píldoras con su propio color de estado.
+ */
+.crudo-modal-kpi .crudo-modal-state-extra {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    align-self: start;
+    margin-top: 0.2rem;
+    border: 1px solid color-mix(in srgb, var(--status) 45%, #ffffff);
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+    background: var(--status-bg-soft);
+    color: var(--status-ink, var(--status));
+    font-size: 0.72rem;
+    font-weight: 900;
 }
 
 .crudo-modal-kpi small {
@@ -2664,4 +2906,10 @@
         transition: none;
     }
 
+    /* Sin destello: la alerta de paro queda como halo fijo. */
+    .crudo-machine-card.is-paro-alert {
+        animation: none;
+        border-color: #ff0000;
+        box-shadow: 0 0 0 0.35rem rgba(255, 0, 0, 0.55);
+    }
 }

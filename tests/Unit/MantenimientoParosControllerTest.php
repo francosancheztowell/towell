@@ -58,6 +58,7 @@ class MantenimientoParosControllerTest extends TestCase
         ]);
 
         $this->actingAs($usuario, 'web');
+        $this->grantModulo('Solicitudes');
 
         \DB::connection('sqlsrv')->table('TelTelaresOperador')->insert([
             [
@@ -138,6 +139,7 @@ class MantenimientoParosControllerTest extends TestCase
         ]);
 
         $this->actingAs($usuario, 'web');
+        $this->grantModulo('Solicitudes');
 
         \DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
             [

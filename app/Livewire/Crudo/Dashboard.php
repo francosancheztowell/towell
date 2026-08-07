@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Crudo;
 
 use App\Contracts\Crudo\CrudoDashboardProvider;
+use App\Enums\Crudo\CrudoMachineState;
 use App\Services\Crudo\CrudoAccess;
 use App\Services\Crudo\CrudoFloorLayout;
 use App\Support\Crudo\ResolvesCrudoPeriod;
@@ -31,6 +32,9 @@ class Dashboard extends Component
     public string $modo = 'dia';
 
     public ?string $dataError = null;
+
+    /** Estado cuyo desglose está abierto (paro, bad_quality, low_kilos, …); null = cerrado. */
+    public ?string $estadoDetalle = null;
 
     public bool $interactionPaused = false;
 
@@ -83,6 +87,22 @@ class Dashboard extends Component
     {
         $this->modo = $this->modo === 'rango' ? 'rango' : 'dia';
         $this->filtersChanged();
+    }
+
+    /**
+     * Desglose del contador: qué telares están en ese estado, desde cuándo y
+     * quién reportó. Sigue refrescándose con el poll mientras está abierto.
+     */
+    public function abrirEstado(string $estado): void
+    {
+        $this->estadoDetalle = in_array($estado, CrudoMachineState::values(), true)
+            ? $estado
+            : null;
+    }
+
+    public function cerrarEstado(): void
+    {
+        $this->estadoDetalle = null;
     }
 
     public function refreshDashboard(): void
@@ -144,12 +164,40 @@ class Dashboard extends Component
             // mientras SQL Server sigue renovando un snapshot vencido.
             'pollSeconds' => (int) config('crudo.poll_seconds', 15),
             'modo' => $this->modo,
+            'machinesDetalle' => $this->machinesPorEstado($machines),
         ]);
     }
 
     protected function authorizeAccess(): void
     {
         $this->access->authorize();
+    }
+
+    /**
+     * Telares del estado abierto, en orden de número de telar (201, 202, …) y no
+     * por salón: en el desglose se busca un telar concreto, no su ubicación.
+     *
+     * @param  list<array<string, mixed>>  $machines
+     * @return list<array<string, mixed>>
+     */
+    private function machinesPorEstado(array $machines): array
+    {
+        if ($this->estadoDetalle === null) {
+            return [];
+        }
+
+        $delEstado = array_values(array_filter(
+            $machines,
+            fn (array $machine): bool => ($machine['state'] ?? null) === $this->estadoDetalle,
+        ));
+
+        usort($delEstado, static function (array $left, array $right): int {
+            $numero = static fn (array $machine): int => (int) preg_replace('/\D/', '', (string) ($machine['telar'] ?? ''));
+
+            return [$numero($left), (string) $left['telar']] <=> [$numero($right), (string) $right['telar']];
+        });
+
+        return $delEstado;
     }
 
     private function filtersChanged(): void

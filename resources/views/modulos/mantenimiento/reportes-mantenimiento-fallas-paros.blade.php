@@ -89,6 +89,17 @@
             </tbody>
         </table>
     </div>
+
+    @if ($registros->total() > 0)
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-gray-600">
+            <span>
+                Mostrando <strong>{{ $registros->firstItem() }}–{{ $registros->lastItem() }}</strong>
+                de <strong>{{ number_format($registros->total()) }}</strong> registros
+                ({{ $fechaIni }} a {{ $fechaFin }})
+            </span>
+            <div>{{ $registros->onEachSide(1)->links() }}</div>
+        </div>
+    @endif
 </div>
 
 {{-- Modal Rango de Fechas --}}

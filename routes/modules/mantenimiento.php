@@ -22,11 +22,8 @@ Route::get('/mantenimiento/nuevo-paro', [MantenimientoParosController::class, 'n
 Route::view('/mantenimiento/finalizar-paro', 'modulos.mantenimiento.finalizar-paro.index')->name('mantenimiento.finalizar-paro');
 Route::view('/mantenimiento/reporte-fallos-paros', 'modulos.mantenimiento.reporte-fallos-paros.index')->name('mantenimiento.reporte-fallos-paros');
 
-// CRUD Catálogo de Fallas
+// Catálogo de Fallas (listado + CRUD en el componente Livewire CatalogoFallas)
 Route::get('/mantenimiento/catalogodefallas', [CatalogosFallasController::class, 'index'])->name('mantenimiento.catalogos-fallas.index');
-Route::post('/mantenimiento/catalogodefallas', [CatalogosFallasController::class, 'store'])->name('mantenimiento.catalogos-fallas.store');
-Route::put('/mantenimiento/catalogodefallas/{catalogosFalla}', [CatalogosFallasController::class, 'update'])->name('mantenimiento.catalogos-fallas.update');
-Route::delete('/mantenimiento/catalogodefallas/{catalogosFalla}', [CatalogosFallasController::class, 'destroy'])->name('mantenimiento.catalogos-fallas.destroy');
 
 // CRUD Operadores de Mantenimiento
 Route::get('/mantenimiento/operadores-mantenimiento', [ManOperadoresMantenimientoController::class, 'index'])->name('mantenimiento.operadores-mantenimiento.index');

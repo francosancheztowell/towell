@@ -143,9 +143,13 @@ Operadores de Mantenimiento
         </div>
     </div>
 
-    @if($items->count() > 0)
-        <div class="mt-4 text-sm text-gray-600">
-            Mostrando <strong>{{ $items->count() }}</strong> operador(es)
+    @if($items->total() > 0)
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-gray-600">
+            <span>
+                Mostrando <strong>{{ $items->firstItem() }}–{{ $items->lastItem() }}</strong>
+                de <strong>{{ number_format($items->total()) }}</strong> operador(es)
+            </span>
+            <div>{{ $items->onEachSide(1)->links() }}</div>
         </div>
     @endif
 </div>

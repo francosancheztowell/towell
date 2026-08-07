@@ -114,6 +114,13 @@
                                 <i class="fa-solid {{ $selectedMachine['stateIcon'] }}"></i>
                                 {{ $selectedMachine['stateLabel'] }}
                             </strong>
+                            {{-- Un telar puede fallar por varios motivos; el color solo alcanza para uno. --}}
+                            @foreach (array_slice($selectedMachine['states'] ?? [], 1) as $estadoExtra)
+                                <small class="crudo-modal-state-extra" data-state="{{ $estadoExtra['value'] }}">
+                                    <i class="fa-solid {{ $estadoExtra['icon'] }}"></i>
+                                    {{ $estadoExtra['label'] }}
+                                </small>
+                            @endforeach
                             @if ($selectedMachine['paro'])
                                 <small class="crudo-modal-paro-falla">
                                     {{ $selectedMachine['paro']['falla'] ?? 'Paro reportado' }}

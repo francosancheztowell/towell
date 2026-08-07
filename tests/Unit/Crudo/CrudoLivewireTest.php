@@ -260,6 +260,93 @@ final class CrudoLivewireTest extends TestCase
     /**
      * @return array<string, mixed>
      */
+    public function test_el_contador_de_estado_abre_el_desglose_con_hora_reporte_y_paros(): void
+    {
+        $data = $this->dashboardData();
+        $data['machines'][0]['state'] = 'paro';
+        $data['machines'][0]['stateLabel'] = 'Paro';
+        $data['machines'][0]['paro'] = [
+            'reportedBy' => 'Juan Pérez',
+            'faultCode' => '62',
+            'falla' => 'REVERSA',
+            'tipo' => 'MECANICO',
+            'since' => '29/07/2026 15:21',
+            'descripcion' => 'REVERSA',
+            'count' => 2,
+            'todos' => [
+                ['reportedBy' => 'Juan Pérez', 'falla' => 'REVERSA', 'tipo' => 'MECANICO', 'since' => '29/07/2026 15:21'],
+                ['reportedBy' => 'Ana López', 'falla' => 'CORTO', 'tipo' => 'ELECTRICO', 'since' => '29/07/2026 11:02'],
+            ],
+        ];
+        $data['summary']['paro'] = 1;
+        $data['summary']['operating'] = 0;
+        $this->app->instance(CrudoDashboardProvider::class, new FakeCrudoDashboardProvider($data));
+
+        Livewire::test(TestableCrudoDashboard::class)
+            ->assertDontSee('crudo-modal-estado', false)
+            ->call('abrirEstado', 'paro')
+            ->assertSet('estadoDetalle', 'paro')
+            ->assertSee('crudo-modal-estado', false)
+            ->assertSee('2 paros')
+            ->assertSee('29/07/2026 15:21')
+            ->assertSee('29/07/2026 11:02')
+            ->assertSee('Juan Pérez')
+            ->assertSee('Ana López')
+            ->assertSee('REVERSA')
+            ->assertSee('CORTO')
+            ->call('cerrarEstado')
+            ->assertSet('estadoDetalle', null)
+            ->assertDontSee('crudo-modal-estado', false);
+    }
+
+    public function test_el_desglose_solo_lista_los_telares_de_ese_estado(): void
+    {
+        Livewire::test(TestableCrudoDashboard::class)
+            // El único telar del fixture está en operación.
+            ->call('abrirEstado', 'paro')
+            ->assertSee('Ningún telar en este estado ahora mismo.')
+            ->call('abrirEstado', 'operating')
+            ->assertSee('JAC 201')
+            ->assertSee('Calidad')
+            ->assertSee('95.0%');
+    }
+
+    public function test_el_desglose_ignora_estados_inventados(): void
+    {
+        Livewire::test(TestableCrudoDashboard::class)
+            ->call('abrirEstado', 'lo-que-sea')
+            ->assertSet('estadoDetalle', null);
+    }
+
+    public function test_el_desglose_ordena_los_telares_por_numero(): void
+    {
+        $data = $this->dashboardData();
+        $base = $data['machines'][0];
+        $data['machines'] = [];
+
+        // Llegan como los ordena el tablero (por salón), no por número.
+        foreach ([['305', 'Smith'], ['201', 'Jacquard'], ['1102', 'Karl Mayer'], ['202', 'Jacquard']] as [$telar, $salon]) {
+            $data['machines'][] = ['telar' => $telar, 'name' => 'TEL '.$telar, 'salon' => $salon] + $base;
+        }
+        $data['summary']['operating'] = 4;
+        $data['summary']['total'] = 4;
+        $this->app->instance(CrudoDashboardProvider::class, new FakeCrudoDashboardProvider($data));
+
+        $html = Livewire::test(TestableCrudoDashboard::class)
+            ->call('abrirEstado', 'operating')
+            ->html();
+
+        $lista = substr($html, strpos($html, 'crudo-estado-list'));
+        $posiciones = array_map(
+            static fn (string $telar): int => strpos($lista, '>'.$telar.'</span>'),
+            ['201', '202', '305', '1102'],
+        );
+
+        $ordenadas = $posiciones;
+        sort($ordenadas);
+        $this->assertSame($ordenadas, $posiciones);
+    }
+
     private function dashboardData(): array
     {
         return [

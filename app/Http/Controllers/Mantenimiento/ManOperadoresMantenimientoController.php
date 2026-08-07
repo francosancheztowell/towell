@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Mantenimiento\ManOperadoresMantenimiento;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class ManOperadoresMantenimientoController extends Controller
 {
@@ -14,6 +15,8 @@ class ManOperadoresMantenimientoController extends Controller
      */
     public function index(Request $request)
     {
+        abort_unless(userCan('acceso', 'Mantenimiento'), 403, 'No tienes acceso a operadores de mantenimiento.');
+
         $q = trim((string) $request->get('q', ''));
         $turnoFilter = trim((string) $request->get('turno', ''));
         $deptoFilter = trim((string) $request->get('depto', ''));
@@ -35,7 +38,7 @@ class ManOperadoresMantenimientoController extends Controller
             })
             ->orderBy('NomEmpl');
 
-        $items = $query->get();
+        $items = $query->paginate(25)->withQueryString();
 
         // Obtener turnos y departamentos únicos para los filtros
         $turnos = ManOperadoresMantenimiento::select('Turno')
@@ -65,6 +68,8 @@ class ManOperadoresMantenimientoController extends Controller
      */
     public function store(Request $request)
     {
+        abort_unless(userCan('crear', 'Mantenimiento'), 403, 'No puedes crear operadores.');
+
         try {
             $data = $request->validate([
                 'CveEmpl' => 'required|string|max:50',
@@ -81,7 +86,7 @@ class ManOperadoresMantenimientoController extends Controller
             }
 
             return back()->with('success', 'Operador creado correctamente.');
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json(['success' => false, 'message' => 'Error de validación', 'errors' => $e->errors()], 422);
             }
@@ -106,6 +111,8 @@ class ManOperadoresMantenimientoController extends Controller
      */
     public function update(Request $request, ManOperadoresMantenimiento $operador)
     {
+        abort_unless(userCan('modificar', 'Mantenimiento'), 403, 'No puedes modificar operadores.');
+
         try {
             $data = $request->validate([
                 'CveEmpl' => 'required|string|max:50',
@@ -122,7 +129,7 @@ class ManOperadoresMantenimientoController extends Controller
             }
 
             return back()->with('success', 'Operador actualizado correctamente.');
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json(['success' => false, 'message' => 'Error de validación', 'errors' => $e->errors()], 422);
             }
@@ -148,6 +155,8 @@ class ManOperadoresMantenimientoController extends Controller
      */
     public function destroy(Request $request, ManOperadoresMantenimiento $operador)
     {
+        abort_unless(userCan('eliminar', 'Mantenimiento'), 403, 'No puedes eliminar operadores.');
+
         try {
             $operador->delete();
 
