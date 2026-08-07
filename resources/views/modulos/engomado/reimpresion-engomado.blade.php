@@ -47,6 +47,17 @@
             <i class="fas fa-file-pdf"></i>
             <span>Imprimir PDF</span>
         </button>
+        <button
+            id="btnImprimirSimplificado"
+            onclick="imprimirOrdenSeleccionada(true)"
+            disabled
+            style="display: none;"
+            class="px-4 py-2 bg-slate-700 text-white rounded hover:bg-slate-800 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+            title="Imprimir formato simplificado (orden, julio, cuenta, calibre y lote proveedor)"
+        >
+            <i class="fas fa-file-lines"></i>
+            <span>Imprimir simplificado</span>
+        </button>
     </div>
 @endsection
 
@@ -226,7 +237,6 @@
             };
 
             const btnEditar = document.getElementById('btnEditarSeleccionado');
-            const btnImprimir = document.getElementById('btnImprimirSeleccionado');
             const btnCalificar = document.getElementById('btnCalificarJuliosEng');
 
             if (btnEditar) btnEditar.disabled = false;
@@ -235,14 +245,14 @@
                 btnCalificar.disabled = ordenSeleccionada.status !== 'Finalizado';
             }
 
-            if (btnImprimir) {
-                if (ordenSeleccionada.status === 'Finalizado') {
-                    btnImprimir.style.display = 'flex';
-                    btnImprimir.disabled = false;
-                } else {
-                    btnImprimir.style.display = 'none';
-                }
-            }
+            // Ambos formatos de impresión solo existen para órdenes finalizadas.
+            const finalizada = ordenSeleccionada.status === 'Finalizado';
+            ['btnImprimirSeleccionado', 'btnImprimirSimplificado'].forEach((id) => {
+                const boton = document.getElementById(id);
+                if (!boton) return;
+                boton.style.display = finalizada ? 'flex' : 'none';
+                boton.disabled = !finalizada;
+            });
         };
 
         window.calificarJuliosSeleccionado = function() {
@@ -261,7 +271,8 @@
             return false;
         };
 
-        window.imprimirOrdenSeleccionada = async function() {
+        /** @param {boolean} simplificado Formato de una hoja por julio con solo cinco datos. */
+        window.imprimirOrdenSeleccionada = async function(simplificado = false) {
             if (!ordenSeleccionada || !ordenSeleccionada.id) {
                 alert('Seleccione una orden para imprimir');
                 return;
@@ -271,7 +282,8 @@
                 return;
             }
 
-            const url = '{{ route('engomado.modulo.produccion.engomado.pdf') }}?orden_id=' + encodeURIComponent(ordenSeleccionada.id) + '&tipo=engomado&reimpresion=1';
+            const url = '{{ route('engomado.modulo.produccion.engomado.pdf') }}?orden_id=' + encodeURIComponent(ordenSeleccionada.id) + '&tipo=engomado&reimpresion=1'
+                + (simplificado ? '&simplificado=1' : '');
             const popup = window.open('', 'imprimir-engomado', 'width=720,height=560,scrollbars=yes,resizable=yes');
 
             try {

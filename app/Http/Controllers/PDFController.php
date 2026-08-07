@@ -105,10 +105,15 @@ class PDFController extends Controller
                 }
             }
 
-            // 6) Renderizar vista Blade a HTML
-            $vistaPdf = strtolower($tipo) === 'engomado'
-                ? 'pdf.engomadopdf'
-                : 'pdf.orden-urdido-engomado';
+            // 6) Renderizar vista Blade a HTML.
+            // El formato simplificado (solo engomado) imprime una hoja por julio
+            // con orden, julio, cuenta, calibre y lote de proveedor en grande.
+            $esSimplificado = strtolower($tipo) === 'engomado' && $request->boolean('simplificado');
+            $vistaPdf = match (true) {
+                $esSimplificado => 'pdf.engomado-simplificado',
+                strtolower($tipo) === 'engomado' => 'pdf.engomadopdf',
+                default => 'pdf.orden-urdido-engomado',
+            };
 
             $html = view($vistaPdf, [
                 'orden' => $orden,
@@ -137,7 +142,7 @@ class PDFController extends Controller
             }
 
             // 7) Devolver PDF: descarga (attachment) en reimpresión; inline en el resto
-            $nombreArchivo = $this->construirNombreArchivo($orden, $tipo, $esParcial);
+            $nombreArchivo = $this->construirNombreArchivo($orden, $tipo, $esParcial, $esSimplificado);
             $disposition = $esReimpresion ? 'attachment' : 'inline';
 
             return response($dompdf->output(), 200)
@@ -277,11 +282,15 @@ class PDFController extends Controller
     /**
      * Construir nombre de archivo para el PDF.
      */
-    protected function construirNombreArchivo($orden, string $tipo, bool $esParcial = false): string
+    protected function construirNombreArchivo($orden, string $tipo, bool $esParcial = false, bool $esSimplificado = false): string
     {
         $folio = $orden->Folio ?? 'ORDEN';
         $tipo = strtoupper($tipo);
-        $sufijo = $esParcial ? '_PARCIAL' : '';
+        $sufijo = match (true) {
+            $esSimplificado => '_SIMPLE',
+            $esParcial => '_PARCIAL',
+            default => '',
+        };
 
         if ($tipo === 'ENGOMADO') {
             return "ORDEN_ENGOMADO_{$folio}{$sufijo}.pdf";
