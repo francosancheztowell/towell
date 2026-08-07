@@ -104,6 +104,17 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
         return $this->rows;
     }
 
+    /**
+     * Resumen del tablero, para que el correo muestre los KPIs sin volver a
+     * consultar producción.
+     *
+     * @return array<string, int|float>
+     */
+    public function summary(): array
+    {
+        return $this->data->summary;
+    }
+
     public function drawings()
     {
         if ($this->rutaLogo === null) {

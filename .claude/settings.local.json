@@ -83,7 +83,9 @@
       "Bash(sed -i 's/$this->grantModulo\\(\\(int\\) $u->idusuario, '\\\\''Solicitudes'\\\\''\\);\\\\n//' tests/Unit/DbgPermTest.php)",
       "Bash(php /c/xampp/htdocs/Towell/_tmp_smoke.php)",
       "Bash(php -r 'echo json_decode\\(file_get_contents\\(\"composer.lock\"\\),true\\) ? \"\" : \"\";')",
-      "Bash(./vendor/bin/pint app/Exports/CrudoReporteDiaExport.php app/Http/Controllers/Crudo/CrudoReporteDiaController.php)"
+      "Bash(./vendor/bin/pint app/Exports/CrudoReporteDiaExport.php app/Http/Controllers/Crudo/CrudoReporteDiaController.php)",
+      "Bash(python -c ' *)",
+      "PowerShell(npm run *)"
     ]
   }
 }
