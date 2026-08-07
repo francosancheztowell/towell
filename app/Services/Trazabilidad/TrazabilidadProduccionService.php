@@ -327,7 +327,7 @@ class TrazabilidadProduccionService
                 return $a['telarSort'] <=> $b['telarSort'];
             }
             if ($a['grupoKey'] !== $b['grupoKey']) {
-                return strcmp($a['grupoKey'], $b['grupoKey']);
+                return strcmp((string) $a['grupoKey'], (string) $b['grupoKey']);
             }
 
             return ($a['esOtroTelar'] ?? false) <=> ($b['esOtroTelar'] ?? false);
