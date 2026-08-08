@@ -26,19 +26,6 @@ use Illuminate\Validation\ValidationException;
 
 class MantenimientoParosController extends Controller
 {
-    /** Submódulo Mantenimiento > Solicitudes (SYSRoles orden 801). */
-    private const MODULO = 'Solicitudes';
-
-    /**
-     * Corta la petición si el usuario no tiene el permiso pedido sobre Solicitudes.
-     * Solo aplica al listado (index): reportar y finalizar paros está abierto a
-     * cualquier usuario autenticado (operadores y mecánicos no tienen el rol).
-     */
-    private function autorizar(string $accion = 'acceso'): void
-    {
-        abort_unless(userCan($accion, self::MODULO), 403, 'No tienes permiso sobre Solicitudes de mantenimiento.');
-    }
-
     /**
      * Mostrar vista de nuevo paro con departamento pre-seleccionado del usuario.
      */
@@ -924,8 +911,6 @@ class MantenimientoParosController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $this->autorizar('acceso');
-
         try {
             $query = ManFallasParos::query()
                 ->orderByDesc('Fecha')
