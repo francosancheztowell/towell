@@ -958,29 +958,29 @@ function setupBomAutocomplete() {
         const inventSizeId = (row.querySelector('[data-column="InventSizeId"]')?.textContent || '').trim();
         const rowId = row.getAttribute('data-id') || bomIdInput.dataset.rowId || '';
 
+        const salonTejidoId = (row.getAttribute('data-salon-tejido-id') || '').trim();
+
         bomIdInput.dataset.itemId = itemId;
         bomIdInput.dataset.inventSizeId = inventSizeId;
+        bomIdInput.dataset.salon = salonTejidoId;
         bomNameInput.dataset.itemId = itemId;
         bomNameInput.dataset.inventSizeId = inventSizeId;
+        bomNameInput.dataset.salon = salonTejidoId;
 
-        // Función para cargar opciones disponibles
-        // Si el usuario editó el campo, usar modo libre (fallback) para mostrar más opciones
+        // Cargar las opciones del renglón. Siempre acotadas a su ItemId; el
+        // fallback del backend relaja talla y salón, nunca el producto.
         const loadAllOptions = async (sourceInput) => {
             const bomIdMessage = document.getElementById(`bom-id-message-${rowId}`);
             const bomNameMessage = document.getElementById(`bom-name-message-${rowId}`);
             if (bomIdMessage) bomIdMessage.classList.add('hidden');
             if (bomNameMessage) bomNameMessage.classList.add('hidden');
 
-            // Si el usuario editó el campo, usar modo libre para mostrar todas las opciones posibles
-            const userEdited = bomIdInput.dataset.userEdited === 'true' || bomNameInput.dataset.userEdited === 'true';
-            const freeMode = userEdited;
-
             const options = await fetchBomOptions(
                 sourceInput.dataset.itemId,
                 sourceInput.dataset.inventSizeId,
                 '',
                 true,
-                freeMode
+                sourceInput.dataset.salon
             );
             bomOptionsByRow.set(rowId, options);
             updateBomDatalists(rowId, options);
@@ -992,12 +992,7 @@ function setupBomAutocomplete() {
             const bomIdMessage = document.getElementById(`bom-id-message-${rowId}`);
             const bomNameMessage = document.getElementById(`bom-name-message-${rowId}`);
 
-            // Si el usuario editó el campo, usar modo libre
-            const userEdited = bomIdInput.dataset.userEdited === 'true' || bomNameInput.dataset.userEdited === 'true';
-            const freeMode = userEdited;
-
             if (!term) {
-                // Si el término está vacío, cargar opciones (en modo libre si editó)
                 if (bomIdMessage) bomIdMessage.classList.add('hidden');
                 if (bomNameMessage) bomNameMessage.classList.add('hidden');
                 await loadAllOptions(sourceInput);
@@ -1009,7 +1004,7 @@ function setupBomAutocomplete() {
                 sourceInput.dataset.inventSizeId,
                 term,
                 true,
-                freeMode
+                sourceInput.dataset.salon
             );
             bomOptionsByRow.set(rowId, options);
             updateBomDatalists(rowId, options);
@@ -1077,17 +1072,16 @@ function debounce(fn, wait) {
     };
 }
 
-async function fetchBomOptions(itemId, inventSizeId, term, allowFallback, freeMode = false) {
+async function fetchBomOptions(itemId, inventSizeId, term, allowFallback, salon = '') {
     const params = new URLSearchParams();
 
-    // Si freeMode está activo, NO enviar itemId ni inventSizeId - búsqueda completamente libre
-    if (!freeMode) {
-        if (itemId) params.set('itemId', itemId);
-        if (inventSizeId) params.set('inventSizeId', inventSizeId);
-    }
+    // El itemId siempre viaja: un L.Mat pertenece al producto del renglón.
+    // Sin él el backend devuelve vacío.
+    if (itemId) params.set('itemId', itemId);
+    if (inventSizeId) params.set('inventSizeId', inventSizeId);
+    if (salon) params.set('salon', salon);
     if (term) params.set('term', term);
-    if (allowFallback || freeMode) params.set('fallback', '1');
-    if (freeMode) params.set('freeMode', '1');
+    if (allowFallback) params.set('fallback', '1');
 
     const url = `${bomAutocompleteUrl}?${params.toString()}`;
 

@@ -94,7 +94,24 @@
       "Bash(php -l app/Http/Controllers/Mantenimiento/MantenimientoParosController.php)",
       "PowerShell(php -l app/Http/Controllers/AuthController.php; php artisan test --filter=\"Auth|Login\" 2>&1 | Select-Object -Last 15)",
       "PowerShell(php artisan tinker --execute=\"$s = app\\(\\\\App\\\\Services\\\\ProgramaUrdEng\\\\BomMaterialesService::class\\); $h = $s->obtenerHilos\\(\\); $t = $s->obtenerTamanos\\(\\); echo 'HILOS: '.count\\($h\\).' -> '.json_encode\\(array_slice\\($h,0,5\\)\\).PHP_EOL; echo 'TAMANOS: '.count\\($t\\).' -> '.json_encode\\(array_slice\\($t,0,5\\)\\).PHP_EOL;\")",
-      "PowerShell(php -l app/Services/ProgramaUrdEng/BomMaterialesService.php; php -l app/Http/Controllers/ProgramaUrdEng/ReservarProgramar/BomMaterialesController.php; ./vendor/bin/pint app/Services/ProgramaUrdEng/BomMaterialesService.php app/Http/Controllers/ProgramaUrdEng/ReservarProgramar/BomMaterialesController.php app/Http/Controllers/AuthController.php; php artisan test --filter=\"UrdEng|BomMateriales|Lmat|LMat\" 2>&1 | Select-Object -Last 12)"
+      "PowerShell(php -l app/Services/ProgramaUrdEng/BomMaterialesService.php; php -l app/Http/Controllers/ProgramaUrdEng/ReservarProgramar/BomMaterialesController.php; ./vendor/bin/pint app/Services/ProgramaUrdEng/BomMaterialesService.php app/Http/Controllers/ProgramaUrdEng/ReservarProgramar/BomMaterialesController.php app/Http/Controllers/AuthController.php; php artisan test --filter=\"UrdEng|BomMateriales|Lmat|LMat\" 2>&1 | Select-Object -Last 12)",
+      "Bash(powershell -NoProfile -Command \"\\(Get-WmiObject Win32_ComputerSystem\\).Domain\")",
+      "WebSearch",
+      "WebFetch(domain:www.getlocalcert.net)",
+      "WebFetch(domain:docs.getlocalcert.net)",
+      "Read(//c//**)",
+      "Read(//c/laragon/etc/**)",
+      "Bash(powershell -NoProfile -Command \"\\\\$c = Get-Item Cert:\\\\LocalMachine\\\\Root\\\\050961C3FAA0F69EE419CA66427A00A8350BD6A0; \\\\$c | Format-List Subject,Issuer,NotBefore,NotAfter; \\\\$c.Extensions | Where-Object {\\\\$_.Oid.FriendlyName -match 'Alternative|Basic|Usage'} | ForEach-Object { '{0}: {1}' -f \\\\$_.Oid.FriendlyName, \\\\$_.Format\\(\\\\$false\\) }\")",
+      "Bash(rm -f \"C:/Users/fsanchez/AppData/Local/Temp/claude/C--xampp-htdocs-Towell/a3597dbf-0a4c-4d20-ba8e-30ebafda97c6/scratchpad/vhost-towell-ssl.conf\")",
+      "Artifact",
+      "Bash(C:/xampp/php/php.exe -r \"echo 'PHP local: '.PHP_VERSION.' | TS: '.\\(PHP_ZTS?'si':'no'\\).' | '.PHP_INT_SIZE*8 .'bit'.PHP_EOL;\")",
+      "Bash(C:/xampp/php/php.exe -m)",
+      "Bash(curl -sk -I https://192.168.2.15/ --max-time 15)",
+      "Bash(timeout 20 \"C:/xampp/apache/bin/openssl.exe\" s_client -connect towelmex.com:443 -servername towelmex.com)",
+      "Bash(\"C:/xampp/apache/bin/openssl.exe\" x509 *)",
+      "Bash(php -l app/Http/Controllers/Planeacion/ProgramaTejido/LiberarOrdenesController.php)",
+      "Bash(./vendor/bin/pint app/Http/Controllers/Planeacion/ProgramaTejido/LiberarOrdenesController.php tests/Feature/LiberarOrdenesLiberarTest.php)",
+      "Bash(./vendor/bin/pint app/Http/Controllers/Planeacion/ProgramaTejido/LiberarOrdenesController.php tests/Unit/LiberarOrdenesFelTamanhoTest.php)"
     ]
   }
 }
