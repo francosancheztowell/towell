@@ -6,16 +6,19 @@ use App\Http\Controllers\mecanicos\OrdenesTrabajoMecaController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
-// Ruta configurada para el submódulo 1100 en SYSRoles.
-Route::get('/submodulos/1100/ordenes-de-trabajo', [OrdenesTrabajoMecaController::class, 'index'])
-    ->name('mecanicos.ordenes-trabajo.submodulo');
+/*
+|--------------------------------------------------------------------------
+| Mecánicos — rutas alineadas con SYSRoles
+|--------------------------------------------------------------------------
+| Nivel 1: 1100 Mecanicos              → /mecanicos
+| Nivel 2: 1101 Ordenes de Trabajo     → /mecanicos/ordenes-trabajo
+| Nivel 2: 1102 Estado Maquina         → /mecanicos/estado-maquina
+| Nivel 2: 1103 Reportes               → /mecanicos/reportes
+| Nivel 2: 1104 Catálogos              → /mecanicos/catalogos
+| Nivel 3:      Actividades            → /mecanicos/catalogos/actividades
+*/
 
-// Ruta configurada para el submódulo 1102 (Estado Maquina) en SYSRoles, dependiente de 1100.
-Route::get('/submodulos/1100/estado-maquina', [MecVerificaMaquinaController::class, 'index'])
-    ->name('mecanicos.estado-maquina.submodulo');
-
-// CRUD actividades (registrar antes del grid de catálogos para evitar ambigüedad de path).
-// Alineado con SYSRoles 1104-1 → Ruta=/mecanicos/catalogos/actividades
+// Actividades (registrar antes del grid de catálogos para evitar ambigüedad de path).
 Route::prefix('mecanicos/catalogos/actividades')
     ->as('mecanicos.catalogos.actividades.')
     ->group(function (): void {
@@ -32,9 +35,12 @@ Route::get('/mecanicos/catalogos/{moduloPadre?}', [UsuarioController::class, 'sh
     ->where('moduloPadre', '1104')
     ->name('mecanicos.catalogos');
 
-Route::get('/submodulos/1100/catalogos', [UsuarioController::class, 'showSubModulosNivel3'])
-    ->defaults('moduloPadre', '1104')
-    ->name('mecanicos.catalogos.submodulo');
+// Reportes (SYSRoles 1103 → Ruta=/mecanicos/reportes)
+Route::get('/mecanicos/reportes', function () {
+    return view('modulos.mecanicos.reportes.index', [
+        'reportes' => [],
+    ]);
+})->name('mecanicos.reportes');
 
 Route::prefix('mecanicos/ordenes-trabajo')
     ->as('mecanicos.ordenes-trabajo.')
@@ -50,6 +56,7 @@ Route::prefix('mecanicos/ordenes-trabajo')
         Route::post('/{folio}/lineas', [OrdenesTrabajoMecaController::class, 'storeLinea'])->name('lineas.store');
         Route::put('/{folio}/lineas/{linea}', [OrdenesTrabajoMecaController::class, 'updateLinea'])->name('lineas.update')->whereNumber('linea');
         Route::delete('/{folio}/lineas/{linea}', [OrdenesTrabajoMecaController::class, 'destroyLinea'])->name('lineas.destroy')->whereNumber('linea');
+        Route::post('/{folio}/autorizar', [OrdenesTrabajoMecaController::class, 'autorizar'])->name('autorizar');
     });
 
 Route::prefix('mecanicos/estado-maquina')
@@ -58,3 +65,16 @@ Route::prefix('mecanicos/estado-maquina')
         Route::get('/', [MecVerificaMaquinaController::class, 'index'])->name('index');
         Route::get('/{folio}', [MecVerificaMaquinaController::class, 'show'])->name('show');
     });
+
+// Módulo principal (SYSRoles 1100 → Ruta=/mecanicos)
+Route::get('/mecanicos/{moduloPrincipal?}', [UsuarioController::class, 'showSubModulos'])
+    ->defaults('moduloPrincipal', 'mecanicos')
+    ->where('moduloPrincipal', 'mecanicos')
+    ->name('mecanicos.index');
+
+// Compatibilidad con rutas antiguas /submodulos/1100/...
+Route::redirect('/submodulos/1100', '/mecanicos', 301);
+Route::redirect('/submodulos/1100/ordenes-de-trabajo', '/mecanicos/ordenes-trabajo', 301);
+Route::redirect('/submodulos/1100/estado-maquina', '/mecanicos/estado-maquina', 301);
+Route::redirect('/submodulos/1100/catalogos', '/mecanicos/catalogos', 301);
+Route::redirect('/submodulos/1100/reportes', '/mecanicos/reportes', 301);

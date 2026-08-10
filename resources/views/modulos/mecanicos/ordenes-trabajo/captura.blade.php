@@ -5,6 +5,20 @@
 @section('content')
 @php
     $fallaTexto = $orden->Falla ?: 'Sin descripción';
+    $estatusActual = $orden->Estatus ?: 'Activo';
+    $badgeClases = match ($estatusActual) {
+        'Autorizado' => 'bg-emerald-100 text-emerald-800',
+        'Terminado' => 'bg-amber-100 text-amber-800',
+        'Cancelado' => 'bg-red-100 text-red-800',
+        'Activo' => 'bg-blue-100 text-blue-800',
+        default => 'bg-gray-100 text-gray-700',
+    };
+    $badgeLabel = $estatusActual === 'Terminado' ? 'Finalizado' : $estatusActual;
+    $modoTejedor = $modoTejedor ?? (($esTejedor && ! $esSupervisor) || ($esSupervisor && ! ($puedeEditar ?? $puedeModificar ?? false)));
+    $puedeRegistrar = $puedeRegistrar ?? $esSupervisor;
+    $puedeCrear = $puedeCrear ?? false;
+    $puedeEditar = $puedeEditar ?? ($puedeModificar ?? false);
+    $puedeEliminar = $puedeEliminar ?? false;
 @endphp
 <div class="w-full p-3 sm:p-4 lg:p-5">
     <div class="mx-auto max-w-7xl space-y-3 lg:max-w-[100rem] lg:space-y-4">
@@ -12,9 +26,34 @@
         <section class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
             <div class="flex flex-col gap-3 sm:gap-4">
                 <div class="flex flex-wrap items-center justify-between gap-2">
-                    <span class="inline-flex rounded-md bg-gray-900 px-3 py-1.5 text-sm font-bold text-white sm:text-base">
-                        Folio {{ $orden->Folio }}
-                    </span>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex rounded-md bg-gray-900 px-3 py-1.5 text-sm font-bold text-white sm:text-base">
+                            Folio {{ $orden->Folio }}
+                        </span>
+                        <span class="inline-flex rounded-full px-3 py-1.5 text-xs font-bold {{ $badgeClases }}">{{ $badgeLabel }}</span>
+                        @if ($modoTejedor)
+                            <span class="inline-flex rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700">
+                                @if ($puedeRegistrar && ! $puedeEditar)
+                                    Modo registrar · solo calificar / autorizar
+                                @else
+                                    Modo tejedor · solo calificar
+                                @endif
+                            </span>
+                        @endif
+                    </div>
+                    <div class="flex items-center gap-2">
+                        @if ($bloqueada)
+                            <span class="inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
+                                <i class="fas fa-lock"></i> Autorizada · solo lectura
+                            </span>
+                        @elseif ($puedeRegistrar)
+                            <button id="btn-autorizar-orden" type="button"
+                                class="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 sm:text-base">
+                                <i class="fas fa-circle-check"></i>
+                                Autorizar
+                            </button>
+                        @endif
+                    </div>
                 </div>
 
                 <dl class="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-gray-100 pt-3 sm:grid-cols-3 md:grid-cols-5 md:gap-x-6">
@@ -42,7 +81,8 @@
             </div>
         </section>
 
-        {{-- Formulario de captura --}}
+        @if (! $bloqueada && ! $modoTejedor)
+        {{-- Formulario de captura (mecánico / supervisor) --}}
         <section id="seccion-captura" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4 lg:p-5">
             <div class="flex flex-col gap-2 border-b border-gray-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
                 <div class="min-w-0">
@@ -50,7 +90,10 @@
                     <p id="subtitulo-formulario" class="mt-0.5 text-sm text-gray-600 sm:text-base">Orden {{ $orden->Folio }}</p>
                 </div>
                 <button id="btn-nuevo-renglon" type="button"
-                    class="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto sm:text-base">
+                    @class([
+                        'inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto sm:text-base',
+                        'hidden' => ! ($puedeCrear ?? false),
+                    ])>
                     <i class="fas fa-plus"></i>
                     Nuevo renglón
                 </button>
@@ -104,13 +147,21 @@
                         <input id="linea-total-minutos" type="text" readonly placeholder="—"
                             class="min-h-11 w-full cursor-not-allowed rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-base text-gray-600">
                     </div>
+                    @if ($puedeCalificar ?? $esSupervisor)
                     <div>
                         <label for="linea-calificacion" class="mb-1 block text-sm font-medium text-gray-700">Calificación</label>
-                        <input id="linea-calificacion" name="Calificacion" type="number" min="0" step="1"
+                        <select id="linea-calificacion" name="Calificacion"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+                            <option value="">Sin calificar</option>
+                            @for ($i = 1; $i <= 10; $i++)
+                                <option value="{{ $i }}">{{ $i }}</option>
+                            @endfor
+                        </select>
                     </div>
+                    @endif
                 </div>
 
+                @if ($puedeCalificar ?? $esSupervisor)
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12 lg:gap-4">
                     <div class="lg:col-span-4">
                         <label for="linea-cve-tejedor" class="mb-1 block text-sm font-medium text-gray-700">Cve. tejedor</label>
@@ -123,6 +174,7 @@
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                     </div>
                 </div>
+                @endif
 
                 <div class="flex flex-col-reverse gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:justify-end">
                     <button id="btn-limpiar-linea" type="button"
@@ -136,6 +188,7 @@
                 </div>
             </form>
         </section>
+        @endif
 
         {{-- Tabla de renglones --}}
         <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -185,6 +238,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const operadores = @json($operadores);
     const operadoresPorClave = new Map(operadores.map(operador => [String(operador.CveEmpl), operador]));
     let orden = @json($orden);
+    const esSupervisor = @json($esSupervisor);
+    const modoTejedor = @json($modoTejedor);
+    const puedeCrear = @json($puedeCrear ?? false);
+    const puedeEditar = @json($puedeEditar ?? false);
+    const puedeEliminar = @json($puedeEliminar ?? false);
+    const bloqueada = @json($bloqueada);
+    const tejedorCve = @json($tejedorCve);
+    const tejedorNombre = @json($tejedorNombre);
 
     const $ = (selector) => document.querySelector(selector);
     const lineasBody = $('#lineas-body');
@@ -203,18 +264,37 @@ document.addEventListener('DOMContentLoaded', () => {
         ? '<i class="fas fa-check text-green-600" aria-label="Sí"></i>'
         : '<span class="text-gray-300">—</span>';
 
-    function notificar(icon, title) {
+    function opcionesCalificacion(seleccionada) {
+        const actual = seleccionada === null || seleccionada === undefined || seleccionada === ''
+            ? ''
+            : String(seleccionada);
+        let html = '<option value="">—</option>';
+        for (let i = 1; i <= 10; i++) {
+            html += `<option value="${i}" ${actual === String(i) ? 'selected' : ''}>${i}</option>`;
+        }
+        return html;
+    }
+
+    function notificar(icon, title, text = '', options = {}) {
         if (window.Swal) {
-            Swal.fire({ icon, title, toast: true, position: 'top-end', showConfirmButton: false, timer: 2800, timerProgressBar: true });
+            Swal.fire({
+                icon,
+                title,
+                text: text || undefined,
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                showCloseButton: true,
+                timer: options.timer ?? 2800,
+                timerProgressBar: true,
+            });
             return;
         }
-
-        window.alert(title);
+        window.alert(text ? `${title}\n${text}` : title);
     }
 
     async function confirmar(title, text) {
         if (! window.Swal) return window.confirm(`${title}\n${text}`);
-
         const result = await Swal.fire({
             icon: 'warning',
             title,
@@ -224,7 +304,6 @@ document.addEventListener('DOMContentLoaded', () => {
             cancelButtonText: 'Cerrar',
             confirmButtonColor: '#b91c1c',
         });
-
         return result.isConfirmed;
     }
 
@@ -279,7 +358,31 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        lineasBody.innerHTML = lineas.map(linea => `
+        lineasBody.innerHTML = lineas.map(linea => {
+            const califCell = (modoTejedor && ! bloqueada)
+                ? `<select data-calificacion-linea="${linea.Id}" class="min-h-9 w-16 rounded border border-gray-300 px-1 py-1 text-sm outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600">${opcionesCalificacion(linea.Calificacion)}</select>`
+                : display(linea.Calificacion);
+
+            const cveCell = (modoTejedor && ! bloqueada)
+                ? display(linea.CveTejedor || tejedorCve)
+                : display(linea.CveTejedor);
+
+            const nomCell = (modoTejedor && ! bloqueada)
+                ? display(linea.NomTejedor || tejedorNombre)
+                : display(linea.NomTejedor);
+
+            let acciones = '<span class="text-gray-400">—</span>';
+            if (! bloqueada) {
+                if (modoTejedor) {
+                    acciones = `<button type="button" data-action="guardar-calificacion" data-linea-id="${linea.Id}" class="rounded border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-800 transition hover:bg-indigo-100">Guardar</button>`;
+                } else if (puedeEditar || puedeEliminar) {
+                    acciones = `
+                    ${puedeEditar ? `<button type="button" data-action="editar" data-linea-id="${linea.Id}" class="rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-100">Editar</button>` : ''}
+                    ${puedeEliminar && lineas.length > 1 ? `<button type="button" data-action="eliminar" data-linea-id="${linea.Id}" class="ml-1 rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-700 transition hover:bg-red-50">Eliminar</button>` : ''}`;
+                }
+            }
+
+            return `
             <tr class="group transition hover:bg-gray-50">
                 <td class="whitespace-nowrap px-3 py-2.5 text-gray-700">${display(linea.CveOperador)}</td>
                 <td class="px-3 py-2.5 font-medium text-gray-800">${display(linea.NomOperador)}</td>
@@ -291,20 +394,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="whitespace-nowrap px-3 py-2.5 text-center text-gray-700">${display(timeInputValue(linea.HoraInicial))}</td>
                 <td class="whitespace-nowrap px-3 py-2.5 text-center text-gray-700">${display(timeInputValue(linea.HoraFinal))}</td>
                 <td class="whitespace-nowrap px-3 py-2.5 text-center text-gray-700">${linea.TotalMinutos == null ? '—' : `${linea.TotalMinutos} min`}</td>
-                <td class="px-2 py-2.5 text-center text-gray-700">${display(linea.Calificacion)}</td>
-                <td class="whitespace-nowrap px-3 py-2.5 text-gray-700">${display(linea.CveTejedor)}</td>
-                <td class="px-3 py-2.5 text-gray-800">${display(linea.NomTejedor)}</td>
-                <td class="sticky right-0 whitespace-nowrap bg-white px-3 py-2.5 text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)] group-hover:bg-gray-50">
-                    <button type="button" data-action="editar" data-linea-id="${linea.Id}" class="rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-100">Editar</button>
-                    ${lineas.length > 1 ? `<button type="button" data-action="eliminar" data-linea-id="${linea.Id}" class="ml-1 rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-700 transition hover:bg-red-50">Eliminar</button>` : ''}
-                </td>
-            </tr>
-        `).join('');
+                <td class="px-2 py-2.5 text-center text-gray-700">${califCell}</td>
+                <td class="whitespace-nowrap px-3 py-2.5 text-gray-700">${cveCell}</td>
+                <td class="px-3 py-2.5 text-gray-800">${nomCell}</td>
+                <td class="sticky right-0 whitespace-nowrap bg-white px-3 py-2.5 text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)] group-hover:bg-gray-50">${acciones}</td>
+            </tr>`;
+        }).join('');
     }
 
     function calcularMinutosEnPantalla() {
-        const inicio = $('#linea-hora-inicial').value;
-        const fin = $('#linea-hora-final').value;
+        const inicio = $('#linea-hora-inicial')?.value;
+        const fin = $('#linea-hora-final')?.value;
+        if (! $('#linea-total-minutos')) return;
         if (! inicio || ! fin) {
             $('#linea-total-minutos').value = '';
             return;
@@ -318,6 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function cargarLineaEnFormulario(linea) {
+        if (! $('#form-linea')) return;
         $('#form-linea').reset();
         $('#linea-id').value = linea.Id || '';
         $('#linea-operador').value = linea.CveOperador || '';
@@ -329,9 +431,9 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#linea-falta-refacc').checked = Boolean(linea.FaltaRefacc);
         $('#linea-hora-inicial').value = timeInputValue(linea.HoraInicial);
         $('#linea-hora-final').value = timeInputValue(linea.HoraFinal);
-        $('#linea-calificacion').value = linea.Calificacion ?? '';
-        $('#linea-cve-tejedor').value = linea.CveTejedor || '';
-        $('#linea-nom-tejedor').value = linea.NomTejedor || '';
+        if ($('#linea-calificacion')) $('#linea-calificacion').value = linea.Calificacion ?? '';
+        if ($('#linea-cve-tejedor')) $('#linea-cve-tejedor').value = linea.CveTejedor || '';
+        if ($('#linea-nom-tejedor')) $('#linea-nom-tejedor').value = linea.NomTejedor || '';
         $('#titulo-formulario').textContent = lineaSinCaptura(linea) ? 'Captura del primer renglón' : 'Editar intervención';
         $('#subtitulo-formulario').textContent = `Orden ${orden.Folio}`;
         $('#btn-guardar-linea').textContent = lineaSinCaptura(linea) ? 'Guardar primer renglón' : 'Guardar cambios';
@@ -339,23 +441,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function prepararNuevoRenglon() {
+        if (! $('#form-linea')) return;
         $('#form-linea').reset();
         $('#linea-id').value = '';
-        $('#linea-total-minutos').value = '';
+        if ($('#linea-total-minutos')) $('#linea-total-minutos').value = '';
         $('#titulo-formulario').textContent = 'Capturar nueva intervención';
         $('#subtitulo-formulario').textContent = `Orden ${orden.Folio}`;
         $('#btn-guardar-linea').textContent = 'Guardar intervención';
-        document.getElementById('seccion-captura').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        $('#linea-operador').focus();
+        document.getElementById('seccion-captura')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        $('#linea-operador')?.focus();
     }
 
     function prepararCapturaInicial() {
+        if (modoTejedor || bloqueada) return;
         const pendiente = (orden.lineas || []).find(lineaSinCaptura);
         if (pendiente) {
             cargarLineaEnFormulario(pendiente);
             return;
         }
-
         prepararNuevoRenglon();
     }
 
@@ -375,7 +478,74 @@ document.addEventListener('DOMContentLoaded', () => {
         return data;
     }
 
-    $('#form-linea').addEventListener('submit', async (event) => {
+    function faltanDatosCalificacion() {
+        const lineas = (orden.lineas || []).filter(linea => ! lineaSinCaptura(linea));
+        if (! lineas.length) return true;
+        return lineas.some(linea =>
+            linea.Calificacion === null || linea.Calificacion === '' ||
+            (String(linea.CveTejedor || '').trim() === '' && String(linea.NomTejedor || '').trim() === '')
+        );
+    }
+
+    async function autorizarOrden() {
+        if (faltanDatosCalificacion()) {
+            const advertencia = await Swal.fire({
+                icon: 'warning',
+                title: 'Registro sin calificar',
+                html: 'Este registro aún no se califica (falta la calificación y/o la firma del tejedor).<br>¿Seguro de autorizar?',
+                showCancelButton: true,
+                confirmButtonText: 'Continuar',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#d97706',
+            });
+            if (! advertencia.isConfirmed) return;
+        }
+
+        const confirmacion = await Swal.fire({
+            icon: 'question',
+            title: '¿Autorizar orden?',
+            html: `La orden <b>${escapeHtml(orden.Folio)}</b> quedará <b>autorizada</b> y en solo lectura. No podrás editarla después.`,
+            showCancelButton: true,
+            confirmButtonText: 'Sí, autorizar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#16a34a',
+        });
+        if (! confirmacion.isConfirmed) return;
+
+        try {
+            const result = await api(`${baseUrl}/${encodeURIComponent(orden.Folio)}/autorizar`, { method: 'POST' });
+            notificar('success', result.message || 'Orden autorizada.');
+            setTimeout(() => window.location.reload(), 900);
+        } catch (error) {
+            notificar('error', mensajeError(error));
+        }
+    }
+
+    async function guardarCalificacionTejedor(lineaId, button) {
+        const select = lineasBody.querySelector(`select[data-calificacion-linea="${lineaId}"]`);
+        const calificacion = select?.value;
+        if (! calificacion) {
+            notificar('warning', 'Selecciona una calificación del 1 al 10.');
+            return;
+        }
+
+        button.disabled = true;
+        button.textContent = 'Guardando…';
+        try {
+            const result = await api(`${baseUrl}/${encodeURIComponent(orden.Folio)}/lineas/${lineaId}`, {
+                method: 'PUT',
+                data: { Calificacion: Number(calificacion) },
+            });
+            await cargarOrden();
+            notificar('success', result.message || 'Calificación guardada.');
+        } catch (error) {
+            notificar('error', mensajeError(error));
+            button.disabled = false;
+            button.textContent = 'Guardar';
+        }
+    }
+
+    $('#form-linea')?.addEventListener('submit', async (event) => {
         event.preventDefault();
         const button = $('#btn-guardar-linea');
         const lineaId = $('#linea-id').value;
@@ -408,35 +578,58 @@ document.addEventListener('DOMContentLoaded', () => {
         const linea = (orden.lineas || []).find(item => Number(item.Id) === Number(button.dataset.lineaId));
         if (! linea) return;
 
-        if (button.dataset.action === 'editar') {
-            cargarLineaEnFormulario(linea);
-            document.getElementById('seccion-captura').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (button.dataset.action === 'guardar-calificacion') {
+            await guardarCalificacionTejedor(linea.Id, button);
             return;
         }
 
-        if (! await confirmar('¿Eliminar renglón?', 'Esta intervención se quitará de la orden.')) return;
+        if (button.dataset.action === 'editar') {
+            cargarLineaEnFormulario(linea);
+            document.getElementById('seccion-captura')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            return;
+        }
 
-        try {
-            const result = await api(`${baseUrl}/${encodeURIComponent(orden.Folio)}/lineas/${linea.Id}`, { method: 'DELETE' });
-            await cargarOrden();
-            prepararCapturaInicial();
-            notificar('success', result.message);
-        } catch (error) {
-            notificar('error', mensajeError(error));
+        if (button.dataset.action === 'eliminar') {
+            if (! await confirmar('¿Eliminar renglón?', 'Esta intervención se quitará de la orden.')) return;
+            try {
+                const result = await api(`${baseUrl}/${encodeURIComponent(orden.Folio)}/lineas/${linea.Id}`, { method: 'DELETE' });
+                await cargarOrden();
+                prepararCapturaInicial();
+                notificar('success', result.message);
+            } catch (error) {
+                notificar('error', mensajeError(error));
+            }
         }
     });
 
-    $('#btn-nuevo-renglon').addEventListener('click', prepararNuevoRenglon);
-    $('#btn-limpiar-linea').addEventListener('click', prepararCapturaInicial);
-    $('#linea-operador').addEventListener('change', () => {
+    $('#btn-nuevo-renglon')?.addEventListener('click', prepararNuevoRenglon);
+    $('#btn-limpiar-linea')?.addEventListener('click', prepararCapturaInicial);
+    $('#linea-operador')?.addEventListener('change', () => {
         const operador = operadoresPorClave.get($('#linea-operador').value);
         if (operador) $('#linea-nom-operador').value = operador.NomEmpl || '';
     });
-    $('#linea-hora-inicial').addEventListener('input', calcularMinutosEnPantalla);
-    $('#linea-hora-final').addEventListener('input', calcularMinutosEnPantalla);
+    $('#linea-hora-inicial')?.addEventListener('input', calcularMinutosEnPantalla);
+    $('#linea-hora-final')?.addEventListener('input', calcularMinutosEnPantalla);
+    document.getElementById('btn-autorizar-orden')?.addEventListener('click', autorizarOrden);
 
     renderLineas();
-    prepararCapturaInicial();
+    if (! bloqueada && ! modoTejedor && puedeEditar) prepararCapturaInicial();
+
+    if (bloqueada) {
+        notificar(
+            'success',
+            'Orden autorizada',
+            'Esta orden quedó en solo lectura. Ya no es posible capturar ni editar renglones.',
+            { timer: 5000 }
+        );
+    } else if (modoTejedor) {
+        const mensajeTejedor = @json(
+            $esSupervisor && ! ($puedeModificar ?? false)
+                ? 'Elige una calificación del 1 al 10 en cada renglón. Con el permiso Registrar también puedes autorizar la orden.'
+                : 'Elige una calificación del 1 al 10 en cada renglón. Tu clave y nombre se guardan automáticamente.'
+        );
+        notificar('info', 'Calificación de intervenciones', mensajeTejedor, { timer: 5000 });
+    }
 });
 </script>
 @endpush
