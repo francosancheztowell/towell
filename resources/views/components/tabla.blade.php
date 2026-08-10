@@ -8,12 +8,16 @@
     @prop string  $ordenPor / $ordenDir
     @prop ?string $alEditar   Método Livewire a llamar con doble clic o Enter sobre la fila
     @prop string  $vacio      Texto del estado vacío
-    @slot acciones            Botones de la barra (Nuevo / Editar / Eliminar / Filtros)
+    @slot acciones  Botones de Crear/Editar/Eliminar. Se teletransportan al navbar,
+                    así que la página debe incluir en @section('navbar-right'):
+                        <div id="tabla-navbar-acciones" class="flex items-center gap-2"></div>
+    @slot filtros   Selects propios de la pantalla; van junto al buscador.
 
     Ejemplo:
       <x-tabla :columnas="$this->columnas()" :filas="$filas" :seleccionado="$seleccionado"
                :orden-por="$ordenPor" :orden-dir="$ordenDir" al-editar="abrirEdicion">
-          <x-slot:acciones>...</x-slot:acciones>
+          <x-slot:acciones>…</x-slot:acciones>
+          <x-slot:filtros>…</x-slot:filtros>
       </x-tabla>
 --}}
 @props([
@@ -27,31 +31,41 @@
     'vacioIcono' => 'fa-inbox',
     'buscarPlaceholder' => 'Buscar…',
     'acciones' => null,
+    'filtros' => null,
 ])
 
+@php
+    // Un solo target para las acciones: mismo lugar en todas las pantallas.
+    $objetivosCarga = 'buscar,ordenar,gotoPage,previousPage,nextPage,porPagina';
+@endphp
+
+@if (filled($acciones))
+    @teleport('#tabla-navbar-acciones')
+        <div class="flex items-center gap-2">{{ $acciones }}</div>
+    @endteleport
+@endif
+
 <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-    {{-- Barra: búsqueda + acciones --}}
-    <div class="flex flex-wrap items-center gap-2 border-b border-slate-100 px-3 py-2.5">
+    {{-- Barra: buscador + filtros de la pantalla --}}
+    <div class="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-3 py-2.5">
         <label class="relative min-w-0 flex-1 sm:max-w-xs">
             <span class="sr-only">{{ $buscarPlaceholder }}</span>
             <i class="fa-solid fa-magnifying-glass pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
             <input type="search" wire:model.live.debounce.300ms="buscar"
                    placeholder="{{ $buscarPlaceholder }}"
-                   class="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+                   class="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
         </label>
 
-        <span wire:loading.delay wire:target="buscar,ordenar,gotoPage,previousPage,nextPage,porPagina"
-              class="hidden items-center gap-1.5 text-xs font-semibold text-blue-600 sm:inline-flex">
+        {{ $filtros }}
+
+        <span wire:loading.delay wire:target="{{ $objetivosCarga }}"
+              class="ms-auto hidden items-center gap-1.5 text-xs font-semibold text-blue-600 sm:inline-flex">
             <i class="fa-solid fa-circle-notch fa-spin"></i> Actualizando
         </span>
-
-        <div class="ms-auto flex flex-wrap items-center gap-2">
-            {{ $acciones }}
-        </div>
     </div>
 
     <div class="relative overflow-x-auto">
-        <div wire:loading.delay.class="opacity-50" wire:target="buscar,ordenar,gotoPage,previousPage,nextPage,porPagina">
+        <div wire:loading.delay.class="opacity-50" wire:target="{{ $objetivosCarga }}">
             <table class="min-w-full text-sm">
                 <thead class="sticky top-0 z-10 bg-blue-600 text-white">
                     <tr>
@@ -130,29 +144,29 @@
         </div>
     </div>
 
-    {{-- Pie: conteo, filas por página y paginador --}}
-    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-3 py-2.5 text-xs text-slate-500">
-        <span>
-            @if ($filas->total() > 0)
-                {{ number_format($filas->firstItem()) }}–{{ number_format($filas->lastItem()) }}
-                de <span class="font-semibold text-slate-700">{{ number_format($filas->total()) }}</span>
-            @else
-                Sin registros
-            @endif
-        </span>
+    {{-- Pie: a la izquierda qué se está viendo, a la derecha cómo moverse. --}}
+    <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-slate-100 bg-slate-50/60 px-3 py-2">
+        <div class="flex items-center gap-3 text-xs text-slate-500">
+            <span>
+                @if ($filas->total() > 0)
+                    <span class="font-bold text-slate-700">{{ number_format($filas->firstItem()) }}–{{ number_format($filas->lastItem()) }}</span>
+                    de {{ number_format($filas->total()) }}
+                @else
+                    Sin registros
+                @endif
+            </span>
 
-        <label class="flex items-center gap-2">
-            <span class="hidden sm:inline">Filas</span>
-            <select wire:model.live="porPagina"
-                    class="rounded-lg border border-slate-300 py-1 pl-2 pr-7 text-xs focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
-                @foreach ([25, 50, 100] as $opcion)
-                    <option value="{{ $opcion }}">{{ $opcion }}</option>
-                @endforeach
-            </select>
-        </label>
-
-        <div class="w-full sm:w-auto">
-            {{ $filas->onEachSide(1)->links() }}
+            <label class="flex items-center gap-1.5">
+                <span class="hidden sm:inline">Mostrar</span>
+                <select wire:model.live="porPagina"
+                        class="rounded-lg border border-slate-300 bg-white py-1 pl-2 pr-7 text-xs font-semibold text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+                    @foreach ([25, 50, 100] as $opcion)
+                        <option value="{{ $opcion }}">{{ $opcion }}</option>
+                    @endforeach
+                </select>
+            </label>
         </div>
+
+        {{ $filas->onEachSide(1)->links('components.tabla-paginacion') }}
     </div>
 </div>

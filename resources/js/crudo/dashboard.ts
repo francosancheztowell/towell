@@ -111,6 +111,7 @@ type CrudoWindow = Window & typeof globalThis & {
       name: 'request',
       callback: (request: {
         url: string
+        succeed?: (callback: () => void) => void
         fail: (callback: (failure: {
           status: number
           content: unknown
@@ -167,11 +168,40 @@ const stopDashboardPolling = (): void => {
     .forEach((name) => dashboard.removeAttribute(name))
 }
 
+/*
+ * Modo kiosco: el andón corre en una pantalla que nadie toca, así que ningún
+ * fallo puede quedarse esperando un clic en "Recargar". Ante un error fatal
+ * (419 sesión/CSRF, 404 snapshot muerto) o varios fallos seguidos, la página
+ * se recarga sola y se recupera sin intervención.
+ */
+let kioskReloadTimer: number | null = null
+let consecutiveFailures = 0
+
+// Recargar sin red dejaría la página de error del navegador, sin JS que la
+// reviva jamás. Si no hay conexión, la recarga espera al evento `online`.
+const safeReload = (): void => {
+  if (navigator.onLine) {
+    window.location.reload()
+    return
+  }
+
+  window.addEventListener('online', () => window.location.reload(), { once: true })
+}
+
+const scheduleKioskReload = (delayMs: number): void => {
+  if (kioskReloadTimer !== null) {
+    return
+  }
+
+  kioskReloadTimer = window.setTimeout(safeReload, delayMs)
+}
+
 const showLivewireError = (status: number, url: string): void => {
   // Un 404 en /livewire-<hash>/update significa endpoint muerto: el snapshot
   // de esta pestaña ya no es válido y solo se recupera recargando.
   if (status === 404) {
     stopDashboardPolling()
+    scheduleKioskReload(8_000)
   }
 
   const alert = document.querySelector<HTMLElement>(LIVEWIRE_ERROR_SELECTOR)
@@ -202,19 +232,38 @@ const installLivewireErrorHandler = (): void => {
   }
 
   livewireErrorHookInstalled = true
-  livewire.hook('request', ({ url, fail }) => {
+  livewire.hook('request', ({ url, succeed, fail }) => {
     if (!document.querySelector(DASHBOARD_SELECTOR)) {
       return
     }
 
+    succeed?.(() => {
+      consecutiveFailures = 0
+    })
+
     fail(({ status, preventDefault }) => {
-      if (status < 400 || status === 419) {
+      if (status < 400) {
+        return
+      }
+
+      // Sesión o CSRF caducados: el diálogo "page expired" de Livewire
+      // bloquearía el kiosco para siempre. Recargar restablece todo.
+      if (status === 419) {
+        preventDefault()
+        safeReload()
         return
       }
 
       preventDefault()
       console.error(`[Crudo] Livewire request failed with status ${status}: ${url}`)
       showLivewireError(status, url)
+
+      // Errores transitorios (500, red caída del backend): tras varios polls
+      // fallidos seguidos, recargar es la única vía de recuperación sin manos.
+      consecutiveFailures += 1
+      if (consecutiveFailures >= 5) {
+        scheduleKioskReload(10_000)
+      }
     })
   })
 }
@@ -1217,6 +1266,67 @@ document.addEventListener('keydown', (event) => {
 
   const closeButton = document.querySelector<HTMLButtonElement>('[data-crudo-modal-close]')
   closeButton?.click()
+})
+
+type CrudoNotify = {
+  loading: (title?: string) => void
+  close: () => void
+  success: (message: string) => void
+  error: (message: string) => void
+}
+
+/**
+ * El reporte se descarga con fetch en vez de dejar navegar el enlace: una
+ * navegación normal no avisa cuándo empezó ni cuándo terminó el archivo, y el
+ * Excel tarda lo que tarde la agregación de producción.
+ */
+const descargarReporte = async (link: HTMLAnchorElement): Promise<void> => {
+  const notify = (window as unknown as { notify?: CrudoNotify }).notify
+  const icon = link.querySelector('i')
+  const iconClass = icon?.className ?? ''
+
+  link.dataset.crudoDescargando = 'true'
+  link.setAttribute('aria-busy', 'true')
+  icon?.setAttribute('class', 'fa-solid fa-circle-notch fa-spin')
+  notify?.loading('Generando reporte…')
+
+  try {
+    const response = await fetch(link.href, { credentials: 'same-origin' })
+    if (!response.ok) {
+      throw new Error(`No fue posible generar el reporte (${response.status}).`)
+    }
+
+    const url = URL.createObjectURL(await response.blob())
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = link.dataset.crudoNombreArchivo || 'reporte_telares.xlsx'
+    anchor.click()
+    URL.revokeObjectURL(url)
+
+    notify?.close()
+    notify?.success('Reporte descargado')
+  } catch (error) {
+    notify?.close()
+    notify?.error(
+      error instanceof Error ? error.message : 'No fue posible generar el reporte.',
+    )
+  } finally {
+    delete link.dataset.crudoDescargando
+    link.removeAttribute('aria-busy')
+    icon?.setAttribute('class', iconClass)
+  }
+}
+
+document.addEventListener('click', (event) => {
+  const link = (event.target as HTMLElement | null)?.closest?.('[data-crudo-reporte]')
+  if (!(link instanceof HTMLAnchorElement)) {
+    return
+  }
+
+  event.preventDefault()
+  if (link.dataset.crudoDescargando !== 'true') {
+    void descargarReporte(link)
+  }
 })
 
 document.addEventListener('fullscreenchange', () => {

@@ -244,16 +244,24 @@
     --status: #94a3b8;
     --status-bg: #f1f5f9;
     display: grid;
-    grid-template-columns: 2rem minmax(0, 1fr);
+    /* Icono + cifra arriba, etiqueta abajo a todo el ancho: la cifra manda. */
+    grid-template-columns: 2.6rem minmax(0, 1fr);
     grid-template-rows: auto auto;
-    gap: 0.1rem 0.4rem;
+    gap: 0.15rem 0.55rem;
     align-items: center;
-    min-height: 3.4rem;
-    padding: 0.45rem 0.5rem;
+    min-height: 4.6rem;
+    padding: 0.6rem 0.7rem;
     border: 1px solid color-mix(in srgb, var(--status) 22%, white);
     border-radius: 0.7rem;
     background: var(--status-bg);
     text-align: left;
+}
+
+/* Los cuatro estados con color usan fondo saturado: todo su texto va en blanco. */
+.crudo-status-card:is([data-state="bad_quality"], [data-state="paro"], [data-state="low_kilos"], [data-state="operating"]),
+.crudo-status-card:is([data-state="bad_quality"], [data-state="paro"], [data-state="low_kilos"], [data-state="operating"]) .crudo-status-value,
+.crudo-status-card:is([data-state="bad_quality"], [data-state="paro"], [data-state="low_kilos"], [data-state="operating"]) .crudo-status-copy strong {
+    color: #fff;
 }
 
 /* El contador abre el desglose: se comporta como botón salvo cuando está en cero. */
@@ -294,17 +302,19 @@ button.crudo-status-card:disabled {
 }
 
 [data-state="low_kilos"] {
-    --status: #ffe000;
+    --status: #eab308;
     /* El amarillo puro es ilegible como texto: la variante tipográfica es ámbar. */
     --status-ink: #96700a;
-    --status-bg: #ffe633;
+    /* Amarillo fuerte con texto blanco: pedido explícito para verse a distancia. */
+    --status-bg: #eab308;
     --status-bg-soft: #fff9d1;
 }
 
 [data-state="operating"] {
-    --status: #00ff00;
-    --status-ink: #009e2b;
-    --status-bg: #2fe06a;
+    --status: #16a34a;
+    --status-ink: #15803d;
+    /* Verde fuerte con texto blanco: pedido explícito para verse a distancia. */
+    --status-bg: #16a34a;
     --status-bg-soft: #ddfbe9;
 }
 
@@ -317,34 +327,36 @@ button.crudo-status-card:disabled {
 
 .crudo-status-icon {
     display: grid;
-    grid-row: 1 / 3;
-    width: 2rem;
-    height: 2rem;
+    width: 2.6rem;
+    height: 2.6rem;
     place-items: center;
-    border-radius: 0.55rem;
+    border-radius: 0.6rem;
     background: #fff;
     color: var(--status-ink, var(--status));
-    font-size: 0.8rem;
+    font-size: 1.05rem;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status) 18%, white);
 }
 
 .crudo-status-value {
-    align-self: end;
+    align-self: center;
     color: #0f172a;
-    font-size: 1.15rem;
+    font-size: 2.2rem;
     font-weight: 950;
     line-height: 1;
 }
 
 .crudo-status-copy {
     display: grid;
+    grid-column: 1 / -1;
     min-width: 0;
     align-self: start;
 }
 
 .crudo-status-copy strong {
     color: #1e293b;
-    font-size: 0.65rem;
+    /* Etiquetas largas ("Mala calidad") deben partir, no desbordar la tarjeta. */
+    overflow-wrap: anywhere;
+    font-size: 0.72rem;
     font-weight: 850;
     line-height: 1.15;
 }
@@ -678,6 +690,11 @@ button.crudo-status-card:disabled {
     transform: translateY(-50%);
     color: #0b1220;
     font-size: 1.4rem;
+}
+
+/* Fondos saturados: sobre ellos el texto vertical va en blanco. */
+.crudo-machine-card:is([data-state="bad_quality"], [data-state="paro"], [data-state="low_kilos"], [data-state="operating"]) :is(.crudo-machine-quality, .crudo-machine-metric) {
+    color: #fff;
 }
 
 .crudo-machine-tooltip {

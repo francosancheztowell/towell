@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Mantenimiento;
 
 use App\Http\Controllers\Controller;
 use App\Models\Mantenimiento\ManOperadoresMantenimiento;
+use App\Support\PaginacionCompat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -38,7 +39,8 @@ class ManOperadoresMantenimientoController extends Controller
             })
             ->orderBy('NomEmpl');
 
-        $items = $query->paginate(25)->withQueryString();
+        // SQL Server 2008: sin OFFSET/FETCH, ver PaginacionCompat.
+        $items = PaginacionCompat::paginar($query, 25)->withQueryString();
 
         // Obtener turnos y departamentos únicos para los filtros
         $turnos = ManOperadoresMantenimiento::select('Turno')

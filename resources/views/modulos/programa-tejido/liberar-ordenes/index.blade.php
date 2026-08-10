@@ -12,6 +12,7 @@
         <i class="fas fa-filter"></i>
     </button>
     <x-navbar.button-create
+        id="btn-liberar"
         onclick="liberarOrdenes()"
         title="Liberar"
         text="Liberar"
@@ -983,6 +984,7 @@ function setupBomAutocomplete() {
             );
             bomOptionsByRow.set(rowId, options);
             updateBomDatalists(rowId, options);
+            validarBomDeFila(row);
         };
 
         const debouncedFetch = debounce(async (sourceInput) => {
@@ -1011,6 +1013,7 @@ function setupBomAutocomplete() {
             );
             bomOptionsByRow.set(rowId, options);
             updateBomDatalists(rowId, options);
+            validarBomDeFila(row);
 
             // NO autocompletar automáticamente aunque haya solo una opción
             // El usuario debe elegir manualmente del datalist o escribir el valor completo
@@ -1151,6 +1154,51 @@ function updateBomDatalists(rowId, options) {
     }
 }
 
+// Un <datalist> sólo sugiere: no impide teclear un L.Mat con Vigente = 0. El
+// servidor lo rechaza al liberar, pero hasta entonces el renglón se ve normal.
+// Esto marca la celda en cuanto se sale del campo.
+function marcarBomNoVigente(row, rowId, invalido) {
+    const bomIdInput = row.querySelector('.bom-id-input');
+    const message = document.getElementById(`bom-id-message-${rowId}`);
+
+    row.dataset.bomNoVigente = invalido ? 'true' : 'false';
+    bomIdInput?.classList.toggle('border-red-500', invalido);
+
+    if (message) {
+        message.textContent = invalido ? 'L.Mat no vigente en AX. Elige uno de la lista.' : '';
+        message.classList.toggle('hidden', !invalido);
+    }
+
+    actualizarBotonLiberar();
+}
+
+// El catálogo del renglón sólo trae L.Mat vigentes, así que un valor que no esté
+// en él es no vigente; una búsqueda sin resultados cae en el mismo caso.
+function validarBomDeFila(row) {
+    const bomIdInput = row?.querySelector('.bom-id-input');
+    if (!bomIdInput) return;
+
+    const rowId = row.getAttribute('data-id') || bomIdInput.dataset.rowId || '';
+    const options = bomOptionsByRow.get(rowId);
+    if (!options) return; // todavía no se consulta el catálogo de este renglón
+
+    const valor = (bomIdInput.value || '').trim();
+    marcarBomNoVigente(row, rowId, valor !== '' && !options.some(option => (option.bomId || '') === valor));
+}
+
+// El componente del botón ya trae disabled:opacity-50 y disabled:cursor-not-allowed,
+// así que basta con la propiedad disabled.
+function actualizarBotonLiberar() {
+    const boton = document.getElementById('btn-liberar');
+    if (!boton) return; // sin permiso de crear, el botón no se renderiza
+
+    const hayInvalidos = document.querySelector('tr[data-bom-no-vigente="true"]') !== null;
+    boton.disabled = hayInvalidos;
+    boton.title = hayInvalidos
+        ? 'Hay renglones con L.Mat no vigente'
+        : 'Liberar';
+}
+
 function syncBomFromInput(row, sourceKey) {
     const bomIdInput = row.querySelector('.bom-id-input');
     const bomNameInput = row.querySelector('.bom-name-input');
@@ -1180,6 +1228,8 @@ function syncBomFromInput(row, sourceKey) {
             bomIdInput.value = match.bomId || '';
         }
     }
+
+    validarBomDeFila(row);
 }
 
 // Función para sincronizar inmediatamente cuando se selecciona del datalist
@@ -2053,6 +2103,15 @@ function liberarOrdenes() {
             icon: 'warning',
             title: 'L.Mat obligatorio',
             text: 'Cada registro seleccionado debe tener L.Mat y Nombre L.Mat antes de liberar.',
+        });
+        return;
+    }
+
+    if (document.querySelector('tr[data-bom-no-vigente="true"]')) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'L.Mat no vigente',
+            text: 'Hay renglones con un L.Mat que ya no está vigente en AX (marcados en rojo). Corrígelos antes de liberar.',
         });
         return;
     }

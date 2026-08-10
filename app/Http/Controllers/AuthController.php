@@ -53,7 +53,11 @@ class AuthController extends Controller
                 $empleado->save();
             }
 
-            Auth::login($empleado);
+            // ponytail: "recordar" siempre activo. Las pantallas de andón corren
+            // sin nadie que las atienda; si la sesión muere, la cookie de
+            // remember las reautentica sola en vez de dejar un login en pantalla.
+            // Si algún día hace falta distinguir kiosco de PC, pasar un booleano.
+            Auth::login($empleado, true);
             $request->session()->regenerate();
             session()->flash('bienvenida', true);
 

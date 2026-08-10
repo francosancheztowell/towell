@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Crudo\CrudoAuditController;
 use App\Http\Controllers\Crudo\CrudoController;
+use App\Http\Controllers\Crudo\CrudoReporteDiaController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/Crudo', [CrudoController::class, 'index'])->name('crudo.index');
+Route::get('/Crudo/reporte-dia', [CrudoReporteDiaController::class, 'excel'])->name('crudo.reporte-dia');
 Route::get('/Crudo/flog-imagen', [CrudoController::class, 'flogImagen'])->name('crudo.flog-imagen');
 
 Route::prefix('/Crudo/auditorias')->name('crudo.auditorias.')->group(function (): void {

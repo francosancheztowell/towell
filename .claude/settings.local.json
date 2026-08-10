@@ -80,7 +80,21 @@
       "Bash(./vendor/bin/pint app/ tests/Unit/TrazabilidadFiltersTest.php tests/Unit/TrazabilidadStructureTest.php)",
       "Bash(./vendor/bin/pint app/Services/Trazabilidad app/Livewire/Trazabilidad app/Http/Controllers/Trazabilidad app/ValueObjects/Trazabilidad)",
       "Bash(python -)",
-      "Bash(sed -i 's/$this->grantModulo\\(\\(int\\) $u->idusuario, '\\\\''Solicitudes'\\\\''\\);\\\\n//' tests/Unit/DbgPermTest.php)"
+      "Bash(sed -i 's/$this->grantModulo\\(\\(int\\) $u->idusuario, '\\\\''Solicitudes'\\\\''\\);\\\\n//' tests/Unit/DbgPermTest.php)",
+      "Bash(php /c/xampp/htdocs/Towell/_tmp_smoke.php)",
+      "Bash(php -r 'echo json_decode\\(file_get_contents\\(\"composer.lock\"\\),true\\) ? \"\" : \"\";')",
+      "Bash(./vendor/bin/pint app/Exports/CrudoReporteDiaExport.php app/Http/Controllers/Crudo/CrudoReporteDiaController.php)",
+      "Bash(python -c ' *)",
+      "PowerShell(npm run *)",
+      "PowerShell(php artisan tinker --execute=\"use App\\\\Models\\\\Sistema\\\\SYSRoles; SYSRoles::where\\('modulo','like','%solicit%'\\)->orWhere\\('orden',801\\)->get\\(['idrol','modulo','orden','Dependencia']\\)->each\\(fn\\(`$r\\)=>print_r\\(`$r->toArray\\(\\)\\)\\);\")",
+      "PowerShell(php artisan tinker --execute=\"use App\\\\Models\\\\Sistema\\\\SYSRoles; SYSRoles::where\\('modulo','like','%solicit%'\\)->get\\(['idrol','modulo','orden','Dependencia']\\)->each\\(fn\\(`$r\\)=>print_r\\(`$r->toArray\\(\\)\\)\\);\")",
+      "PowerShell(php artisan tinker --execute=\"use App\\\\Models\\\\Sistema\\\\SYSUsuariosRoles; `$t=SYSUsuariosRoles::where\\('idrol',54\\)->count\\(\\); `$a=SYSUsuariosRoles::where\\('idrol',54\\)->where\\('acceso',1\\)->count\\(\\); `$c=SYSUsuariosRoles::where\\('idrol',54\\)->where\\('crear',1\\)->count\\(\\); echo \\\\\"filas idrol54: `$t | acceso=1: `$a | crear=1: `$c\\\\\";\")",
+      "PowerShell(php artisan tinker \"C:\\\\Users\\\\fsanchez\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--xampp-htdocs-Towell\\\\1e4e6830-1dea-48c4-8588-c5d55492be96\\\\scratchpad\\\\check_solicitudes.php\")",
+      "PowerShell(php -l app\\\\Http\\\\Controllers\\\\Mantenimiento\\\\MantenimientoParosController.php; Select-String -Path \"app\\\\Http\\\\Controllers\\\\Mantenimiento\\\\MantenimientoParosController.php\" -Pattern \"autorizar\\\\\\(\")",
+      "Bash(php -l app/Http/Controllers/Mantenimiento/MantenimientoParosController.php)",
+      "PowerShell(php -l app/Http/Controllers/AuthController.php; php artisan test --filter=\"Auth|Login\" 2>&1 | Select-Object -Last 15)",
+      "PowerShell(php artisan tinker --execute=\"$s = app\\(\\\\App\\\\Services\\\\ProgramaUrdEng\\\\BomMaterialesService::class\\); $h = $s->obtenerHilos\\(\\); $t = $s->obtenerTamanos\\(\\); echo 'HILOS: '.count\\($h\\).' -> '.json_encode\\(array_slice\\($h,0,5\\)\\).PHP_EOL; echo 'TAMANOS: '.count\\($t\\).' -> '.json_encode\\(array_slice\\($t,0,5\\)\\).PHP_EOL;\")",
+      "PowerShell(php -l app/Services/ProgramaUrdEng/BomMaterialesService.php; php -l app/Http/Controllers/ProgramaUrdEng/ReservarProgramar/BomMaterialesController.php; ./vendor/bin/pint app/Services/ProgramaUrdEng/BomMaterialesService.php app/Http/Controllers/ProgramaUrdEng/ReservarProgramar/BomMaterialesController.php app/Http/Controllers/AuthController.php; php artisan test --filter=\"UrdEng|BomMateriales|Lmat|LMat\" 2>&1 | Select-Object -Last 12)"
     ]
   }
 }

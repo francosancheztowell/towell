@@ -1,36 +1,4 @@
 <div>
-    {{-- Filtros --}}
-    <div class="mb-3 flex flex-wrap items-end gap-2">
-        <label class="min-w-0 flex-1 sm:max-w-[220px]">
-            <span class="mb-1 block text-xs font-semibold text-slate-500">Tipo de falla</span>
-            <select wire:model.live="tipoFallaFiltro"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
-                <option value="">Todos</option>
-                @foreach ($tiposFalla as $tipo)
-                    <option value="{{ $tipo }}">{{ $tipo }}</option>
-                @endforeach
-            </select>
-        </label>
-
-        <label class="min-w-0 flex-1 sm:max-w-[220px]">
-            <span class="mb-1 block text-xs font-semibold text-slate-500">Departamento</span>
-            <select wire:model.live="departamentoFiltro"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
-                <option value="">Todos</option>
-                @foreach ($departamentos as $departamento)
-                    <option value="{{ $departamento }}">{{ $departamento }}</option>
-                @endforeach
-            </select>
-        </label>
-
-        @if ($tipoFallaFiltro !== '' || $departamentoFiltro !== '' || $buscar !== '')
-            <button type="button" wire:click="limpiarFiltros"
-                    class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
-                <i class="fa-solid fa-eraser mr-1"></i>Limpiar
-            </button>
-        @endif
-    </div>
-
     <x-tabla :columnas="$this->columnas()"
              :filas="$filas"
              :seleccionado="$seleccionado"
@@ -40,28 +8,46 @@
              vacio="No se encontraron fallas"
              vacio-icono="fa-triangle-exclamation"
              buscar-placeholder="Buscar falla, descripción o abreviado…">
+
+        {{-- Acciones: se teletransportan al navbar. --}}
         <x-slot:acciones>
-            @if ($puedeCrear)
-                <button type="button" wire:click="abrirAlta"
-                        class="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-600">
-                    <i class="fa-solid fa-plus"></i>Crear
-                </button>
-            @endif
-            @if ($puedeModificar)
-                <button type="button" wire:click="abrirEdicion" @disabled($seleccionado === null)
-                        title="{{ $seleccionado === null ? 'Selecciona una fila' : 'Editar' }}"
-                        class="inline-flex items-center gap-2 rounded-lg bg-slate-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40">
-                    <i class="fa-solid fa-pen-to-square"></i>Editar
-                </button>
-            @endif
-            @if ($puedeEliminar)
-                <button type="button" wire:click="confirmarBorrado" @disabled($seleccionado === null)
-                        title="{{ $seleccionado === null ? 'Selecciona una fila' : 'Eliminar' }}"
-                        class="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40">
-                    <i class="fa-solid fa-trash"></i>Eliminar
-                </button>
-            @endif
+            <x-navbar.button-create wire:click="abrirAlta" module="Catalogo de Fallas" title="Nueva falla" />
+
+            <x-navbar.button-edit wire:click="abrirEdicion" module="Catalogo de Fallas"
+                                  :disabled="$seleccionado === null"
+                                  title="{{ $seleccionado === null ? 'Selecciona una fila para editar' : 'Editar falla' }}" />
+
+            <x-navbar.button-delete wire:click="confirmarBorrado" module="Catalogo de Fallas"
+                                    :disabled="$seleccionado === null"
+                                    title="{{ $seleccionado === null ? 'Selecciona una fila para eliminar' : 'Eliminar falla' }}" />
         </x-slot:acciones>
+
+        {{-- Filtros: junto al buscador, dentro de la barra de la tabla. --}}
+        <x-slot:filtros>
+            <select wire:model.live="tipoFallaFiltro" aria-label="Filtrar por tipo de falla"
+                    class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-8 text-sm text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 sm:max-w-[11rem] sm:flex-none">
+                <option value="">Tipo: todos</option>
+                @foreach ($tiposFalla as $tipo)
+                    <option value="{{ $tipo }}">{{ $tipo }}</option>
+                @endforeach
+            </select>
+
+            <select wire:model.live="departamentoFiltro" aria-label="Filtrar por departamento"
+                    class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-8 text-sm text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 sm:max-w-[11rem] sm:flex-none">
+                <option value="">Depto: todos</option>
+                @foreach ($departamentos as $departamento)
+                    <option value="{{ $departamento }}">{{ $departamento }}</option>
+                @endforeach
+            </select>
+
+            @if ($tipoFallaFiltro !== '' || $departamentoFiltro !== '' || $buscar !== '')
+                <button type="button" wire:click="limpiarFiltros" title="Limpiar filtros"
+                        class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-600 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600">
+                    <i class="fa-solid fa-eraser"></i>
+                    <span class="hidden sm:inline">Limpiar</span>
+                </button>
+            @endif
+        </x-slot:filtros>
     </x-tabla>
 
     {{-- Alta / edición --}}

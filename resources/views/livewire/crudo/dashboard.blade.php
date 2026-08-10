@@ -69,6 +69,19 @@
                 <i class="fa-solid fa-rotate" wire:loading.class="fa-spin" wire:target="refreshNow"></i>
             </button>
 
+            @if ($puedeDescargarReporte)
+                <a
+                    class="crudo-icon-button"
+                    href="{{ route('crudo.reporte-dia', ['fecha' => $fecha]) }}"
+                    data-crudo-reporte
+                    data-crudo-nombre-archivo="reporte_telares_{{ $fecha }}.xlsx"
+                    title="Descargar reporte del día en Excel"
+                    aria-label="Descargar reporte del día en Excel"
+                >
+                    <i class="fa-solid fa-file-excel"></i>
+                </a>
+            @endif
+
             <button
                 type="button"
                 class="crudo-icon-button"
@@ -166,11 +179,11 @@
                     </article>
                     <article>
                         <strong>{{ number_format(round((float) $summary['qualityPercent'])) }}%</strong>
-                        <span><i class="fa-solid fa-shield-heart" aria-hidden="true"></i>cg</span>
+                        <span><i class="fa-solid fa-shield-heart" aria-hidden="true"></i>cal.</span>
                     </article>
                     <article>
                         <strong>{{ number_format(round((float) $summary['efficiencyPercent'])) }}%</strong>
-                        <span><i class="fa-solid fa-gauge-high" aria-hidden="true"></i>ef.g</span>
+                        <span><i class="fa-solid fa-gauge-high" aria-hidden="true"></i>efi.</span>
                     </article>
                     <article>
                         <strong>{{ number_format((float) $summary['seconds']) }}</strong>

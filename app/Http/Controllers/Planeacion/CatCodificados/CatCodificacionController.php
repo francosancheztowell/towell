@@ -128,7 +128,7 @@ class CatCodificacionController extends Controller
                     'cancel_url' => url('/planeacion/codificacion/excel-cancel/'.$importId),
                 ],
             ], 202);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validación fallida',
@@ -287,7 +287,7 @@ class CatCodificacionController extends Controller
                 'd' => ['resultados' => $resultados],
                 'message' => count($exitosos).' registro(s) actualizado(s).',
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 's' => false,
                 'e' => 'Validación fallida',
@@ -408,15 +408,29 @@ class CatCodificacionController extends Controller
                 $catCod = CatCodificados::query()
                     ->where('OrdenTejido', $ordenTejido)
                     ->first(['ItemId', 'InventSizeId']);
+
+                $bomVigente = false;
                 if ($catCod && $catCod->ItemId) {
                     $invSize = $catCod->InventSizeId !== null ? trim((string) $catCod->InventSizeId) : null;
                     $listaLmat = $this->queryLmatDesdeTi((string) $catCod->ItemId, $invSize !== '' ? $invSize : null);
                     foreach ($listaLmat as $item) {
                         if (isset($item['bomId']) && (string) $item['bomId'] === $bomId) {
-                            $bomName = isset($item['bomName']) ? (string) $item['bomName'] : null;
+                            $bomName = isset($item['bomName']) ? (string) $item['bomName'] : '';
+                            $bomVigente = true;
                             break;
                         }
                     }
+                }
+
+                // queryLmatDesdeTi ya filtra Vigente = 1, así que no encontrarlo ahí
+                // significa que el L.Mat no está vigente en AX o no corresponde a esta
+                // orden. Se rechaza igual que en LiberarOrdenesController, para que no
+                // entren por aquí valores que la liberación después va a bloquear.
+                if (! $bomVigente) {
+                    return response()->json([
+                        's' => false,
+                        'e' => "El L.Mat {$bomId} no está vigente en AX o no corresponde a esta orden. Selecciona uno de la lista.",
+                    ], 422);
                 }
             }
 
@@ -431,9 +445,10 @@ class CatCodificacionController extends Controller
                 $catCod->ActualizaLmat = $actualizaLmat;
                 if ($bomId !== null) {
                     $catCod->BomId = $bomId;
-                    if ($bomName !== null) {
-                        $catCod->BomName = $bomName;
-                    }
+                    // El nombre siempre acompaña al BomId. Si no se pudo resolver en AX
+                    // (L.Mat no vigente) se limpia, en vez de dejar pegado el del L.Mat
+                    // anterior y guardar una pareja BomId/BomName que no corresponde.
+                    $catCod->BomName = $bomName;
                 } else {
                     $catCod->BomId = null;
                     $catCod->BomName = null;
@@ -451,9 +466,7 @@ class CatCodificacionController extends Controller
                 $prog->ActualizaLmat = $actualizaLmat;
                 if ($bomId !== null) {
                     $prog->BomId = $bomId;
-                    if ($bomName !== null) {
-                        $prog->BomName = $bomName;
-                    }
+                    $prog->BomName = $bomName;
                 } else {
                     $prog->BomId = null;
                     $prog->BomName = null;
@@ -484,7 +497,7 @@ class CatCodificacionController extends Controller
                 'message' => 'Datos actualizados correctamente',
                 'actualizados' => $actualizados,
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 's' => false,
                 'e' => 'Validación fallida: '.implode(', ', $e->errors()),

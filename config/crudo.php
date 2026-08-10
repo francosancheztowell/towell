@@ -129,4 +129,19 @@ return [
     |
     */
     'permission_module' => env('CRUDO_PERMISSION_MODULE'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Reporte diario por correo
+    |--------------------------------------------------------------------------
+    |
+    | Destinatarios de `crudo:enviar-reporte`, separados por coma. Vacío
+    | desactiva el envío programado (el comando termina en error sin mandar
+    | nada). Los horarios están en routes/console.php.
+    |
+    */
+    'report_recipients' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('CRUDO_REPORTE_CORREOS', '')),
+    ))),
 ];

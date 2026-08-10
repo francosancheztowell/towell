@@ -7,6 +7,7 @@ namespace App\Services\ProgramaUrdEng;
 use App\Models\Engomado\EngAnchoBalonaCuenta;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Models\Urdido\UrdConsumoHilo;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -503,7 +504,7 @@ class BomMaterialesService
     /**
      * Filtra los materiales de inventario excluyendo los que ya están en UrdConsumoHilo.
      *
-     * @param  \Illuminate\Support\Collection  $results
+     * @param  Collection  $results
      * @param  array<string, true>  $consumidosKeys
      */
     private function excluirMaterialesConsumidos($results, array $consumidosKeys): array
@@ -558,25 +559,44 @@ class BomMaterialesService
             ->toArray();
     }
 
-    public function obtenerHilos(): array
+    /**
+     * Artículo del julio engomado según el tipo de telar. El histórico
+     * 'JULIO-URDIDO' no tiene una sola fila con TwVigente = 1, así que su
+     * catálogo (445 tamaños sin depurar) no refleja lo que hoy se puede pedir.
+     * Los mismos artículos son los que usa CatLMat para las recetas.
+     */
+    private function julioItemId(?string $tipo): string
+    {
+        return strcasecmp(trim((string) $tipo), 'Pie') === 0
+            ? 'JU-ENG-PI-C'
+            : 'JU-ENG-RI-C';
+    }
+
+    public function obtenerHilos(?string $tipo = null): array
     {
         return DB::connection(self::CONN)
             ->table('ConfigTable')
             ->select('ConfigId')
-            ->where('ItemId', 'JULIO-URDIDO')
+            ->where('ItemId', $this->julioItemId($tipo))
+            ->where('DATAAREAID', self::DATAAREA)
+            ->where('TwVigente', 1)
+            // 'HILO' es un ConfigId comodín de AX, no un hilo real. Mismo
+            // criterio que CatalogosMaterialesLMatService.
+            ->whereRaw('UPPER(ConfigId) <> ?', ['HILO'])
             ->orderBy('ConfigId')
             ->distinct()
             ->get()
             ->toArray();
     }
 
-    public function obtenerTamanos(): array
+    public function obtenerTamanos(?string $tipo = null): array
     {
         return DB::connection(self::CONN)
             ->table('InventSize')
             ->select('InventSizeId')
-            ->where('ItemId', 'JULIO-URDIDO')
+            ->where('ItemId', $this->julioItemId($tipo))
             ->where('DATAAREAID', self::DATAAREA)
+            ->where('TwVigente', 1)
             ->orderBy('InventSizeId')
             ->distinct()
             ->get()

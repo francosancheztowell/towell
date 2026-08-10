@@ -160,10 +160,10 @@ class BomMaterialesController extends Controller
         }
     }
 
-    public function obtenerHilos(): JsonResponse
+    public function obtenerHilos(Request $request): JsonResponse
     {
         try {
-            $data = $this->service->obtenerHilos();
+            $data = $this->service->obtenerHilos((string) $request->query('tipo', ''));
 
             return response()->json(['success' => true, 'data' => $data]);
         } catch (\Throwable $e) {
@@ -173,10 +173,10 @@ class BomMaterialesController extends Controller
         }
     }
 
-    public function obtenerTamanos(): JsonResponse
+    public function obtenerTamanos(Request $request): JsonResponse
     {
         try {
-            $data = $this->service->obtenerTamanos();
+            $data = $this->service->obtenerTamanos((string) $request->query('tipo', ''));
 
             return response()->json(['success' => true, 'data' => $data]);
         } catch (\Throwable $e) {
