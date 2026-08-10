@@ -81,22 +81,7 @@
             </div>
         </section>
 
-        @if ($bloqueada)
-        <x-ui.alert
-            type="success"
-            title="Orden autorizada"
-            message="Esta orden fue autorizada y quedó en solo lectura. Ya no es posible capturar ni editar renglones."
-            :dismissible="true"
-        />
-        @elseif ($modoTejedor)
-        <x-ui.alert type="info" title="Calificación de intervenciones" :dismissible="true">
-            @if ($esSupervisor && ! ($puedeModificar ?? false))
-                Elige una calificación del 1 al 10 en cada renglón. Con el permiso Registrar también puedes autorizar la orden.
-            @else
-                Elige una calificación del 1 al 10 en cada renglón. Tu clave y nombre se guardan automáticamente.
-            @endif
-        </x-ui.alert>
-        @else
+        @if (! $bloqueada && ! $modoTejedor)
         {{-- Formulario de captura (mecánico / supervisor) --}}
         <section id="seccion-captura" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4 lg:p-5">
             <div class="flex flex-col gap-2 border-b border-gray-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
@@ -290,12 +275,22 @@ document.addEventListener('DOMContentLoaded', () => {
         return html;
     }
 
-    function notificar(icon, title) {
+    function notificar(icon, title, text = '', options = {}) {
         if (window.Swal) {
-            Swal.fire({ icon, title, toast: true, position: 'top-end', showConfirmButton: false, timer: 2800, timerProgressBar: true });
+            Swal.fire({
+                icon,
+                title,
+                text: text || undefined,
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                showCloseButton: true,
+                timer: options.timer ?? 2800,
+                timerProgressBar: true,
+            });
             return;
         }
-        window.alert(title);
+        window.alert(text ? `${title}\n${text}` : title);
     }
 
     async function confirmar(title, text) {
@@ -619,6 +614,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     renderLineas();
     if (! bloqueada && ! modoTejedor && puedeEditar) prepararCapturaInicial();
+
+    if (bloqueada) {
+        notificar(
+            'success',
+            'Orden autorizada',
+            'Esta orden quedó en solo lectura. Ya no es posible capturar ni editar renglones.',
+            { timer: 5000 }
+        );
+    } else if (modoTejedor) {
+        const mensajeTejedor = @json(
+            $esSupervisor && ! ($puedeModificar ?? false)
+                ? 'Elige una calificación del 1 al 10 en cada renglón. Con el permiso Registrar también puedes autorizar la orden.'
+                : 'Elige una calificación del 1 al 10 en cada renglón. Tu clave y nombre se guardan automáticamente.'
+        );
+        notificar('info', 'Calificación de intervenciones', mensajeTejedor, { timer: 5000 });
+    }
 });
 </script>
 @endpush
