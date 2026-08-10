@@ -8,9 +8,7 @@ use App\Models\Mecanicos\MecActividadesModel;
 use App\Models\Mecanicos\MecVerificaMaquinaLineModel;
 use App\Models\Mecanicos\MecVerificaMaquinaModel;
 use App\Models\Planeacion\ReqTelares;
-use App\Models\Sistema\SYSUsuario;
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Renderless;
 use Livewire\Component;
 
@@ -89,7 +87,7 @@ class Show extends Component
             return;
         }
 
-        $this->esSupervisorFlag = $this->resolverEsSupervisor();
+        $this->esSupervisorFlag = userCan('registrar', self::MODULO_PERMISO);
         $this->puedeCapturarFlag = userCan('crear', self::MODULO_PERMISO) || userCan('modificar', self::MODULO_PERMISO);
         $this->puedeFinalizarFlag = userCan('modificar', self::MODULO_PERMISO);
     }
@@ -158,7 +156,7 @@ class Show extends Component
     #[Renderless]
     public function autorizar(): array
     {
-        abort_unless($this->esSupervisorFlag, 403, 'Solo los supervisores pueden autorizar.');
+        abort_unless($this->esSupervisorFlag, 403, 'No tienes permiso para autorizar (se requiere Registrar).');
         abort_unless($this->estatus === self::ESTATUS_TERMINADO, 403, 'Solo se pueden autorizar registros Terminados.');
 
         MecVerificaMaquinaModel::whereKey($this->folio)->update([
@@ -330,38 +328,6 @@ class Show extends Component
             ->count();
 
         return $capturadas < count($telares) * count($actividades);
-    }
-
-    private function resolverEsSupervisor(): bool
-    {
-        $user = Auth::user();
-        if (! $user) {
-            return false;
-        }
-
-        $numeroEmpleado = $user->numero_empleado ?? $user->cve ?? null;
-        $sysUsuario = null;
-
-        if ($numeroEmpleado) {
-            $sysUsuario = SYSUsuario::where('numero_empleado', $numeroEmpleado)->first();
-        }
-
-        if (! $sysUsuario && isset($user->idusuario)) {
-            $sysUsuario = SYSUsuario::where('idusuario', $user->idusuario)->first();
-        }
-
-        if (! $sysUsuario) {
-            // Fallback: algunos usuarios ya traen puesto/área en Auth::user()
-            $puesto = mb_strtolower(trim((string) ($user->puesto ?? '')));
-            $area = mb_strtolower(trim((string) ($user->area ?? '')));
-
-            return str_contains($puesto, 'supervisor') || str_contains($area, 'supervisor');
-        }
-
-        $puesto = mb_strtolower(trim((string) ($sysUsuario->puesto ?? '')));
-        $area = mb_strtolower(trim((string) ($sysUsuario->area ?? '')));
-
-        return str_contains($puesto, 'supervisor') || str_contains($area, 'supervisor');
     }
 
     private function authorizeAccess(): void

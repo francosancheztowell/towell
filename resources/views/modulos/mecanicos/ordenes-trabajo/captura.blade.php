@@ -82,21 +82,20 @@
         </section>
 
         @if ($bloqueada)
-        <section class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 shadow-sm">
-            <p class="flex items-center gap-2 font-semibold"><i class="fas fa-lock"></i> Orden autorizada</p>
-            <p class="mt-1">Esta orden fue autorizada y quedó en solo lectura. Ya no es posible capturar ni editar renglones.</p>
-        </section>
+        <x-ui.alert
+            type="success"
+            title="Orden autorizada"
+            message="Esta orden fue autorizada y quedó en solo lectura. Ya no es posible capturar ni editar renglones."
+            :dismissible="true"
+        />
         @elseif ($modoTejedor)
-        <section class="rounded-lg border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-900 shadow-sm">
-            <p class="font-semibold">Calificación de intervenciones</p>
-            <p class="mt-1">
-                @if ($esSupervisor && ! ($puedeModificar ?? false))
-                    Elige una calificación del 1 al 10 en cada renglón. Con el permiso Registrar también puedes autorizar la orden.
-                @else
-                    Elige una calificación del 1 al 10 en cada renglón. Tu clave y nombre se guardan automáticamente.
-                @endif
-            </p>
-        </section>
+        <x-ui.alert type="info" title="Calificación de intervenciones" :dismissible="true">
+            @if ($esSupervisor && ! ($puedeModificar ?? false))
+                Elige una calificación del 1 al 10 en cada renglón. Con el permiso Registrar también puedes autorizar la orden.
+            @else
+                Elige una calificación del 1 al 10 en cada renglón. Tu clave y nombre se guardan automáticamente.
+            @endif
+        </x-ui.alert>
         @else
         {{-- Formulario de captura (mecánico / supervisor) --}}
         <section id="seccion-captura" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4 lg:p-5">
