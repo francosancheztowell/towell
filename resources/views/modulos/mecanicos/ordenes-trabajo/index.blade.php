@@ -13,12 +13,14 @@
             iconColor="text-white"
             :checkPermission="false"
         />
-        <x-navbar.button-create
-            module="Ordenes de Trabajo"
-            id="btn-nueva-orden"
-            title="Nueva orden de trabajo"
-            text="Nuevo"
-        />
+        @if ($puedeCrear)
+            <x-navbar.button-create
+                module="Ordenes de Trabajo"
+                id="btn-nueva-orden"
+                title="Nueva orden de trabajo"
+                text="Nuevo"
+            />
+        @endif
     </div>
 @endsection
 
@@ -297,21 +299,26 @@
                         class="w-full cursor-not-allowed rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
                 </div>
                 <div>
-                    <label for="linea-calificacion" class="mb-1 block text-xs font-medium text-gray-700">Calificación @unless ($esTejedor)<span class="ml-1 font-normal text-gray-400">(solo tejedor)</span>@endunless</label>
-                    <input id="linea-calificacion" name="Calificacion" type="number" min="0" step="1" @disabled(! $esTejedor)
+                    <label for="linea-calificacion" class="mb-1 block text-xs font-medium text-gray-700">Calificación</label>
+                    <select id="linea-calificacion" name="Calificacion" @disabled(! $puedeCalificar)
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500">
+                        <option value="">Sin calificar</option>
+                        @for ($i = 1; $i <= 10; $i++)
+                            <option value="{{ $i }}">{{ $i }}</option>
+                        @endfor
+                    </select>
                 </div>
             </div>
 
             <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                    <label for="linea-cve-tejedor" class="mb-1 block text-xs font-medium text-gray-700">Clave tejedor @unless ($esTejedor)<span class="ml-1 font-normal text-gray-400">(solo tejedor)</span>@endunless</label>
-                    <input id="linea-cve-tejedor" name="CveTejedor" maxlength="30" @disabled(! $esTejedor)
+                    <label for="linea-cve-tejedor" class="mb-1 block text-xs font-medium text-gray-700">Clave tejedor</label>
+                    <input id="linea-cve-tejedor" name="CveTejedor" maxlength="30" @disabled(! $puedeCalificar)
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500">
                 </div>
                 <div>
-                    <label for="linea-nom-tejedor" class="mb-1 block text-xs font-medium text-gray-700">Firma / nombre del tejedor @unless ($esTejedor)<span class="ml-1 font-normal text-gray-400">(solo tejedor)</span>@endunless</label>
-                    <input id="linea-nom-tejedor" name="NomTejedor" maxlength="150" @disabled(! $esTejedor)
+                    <label for="linea-nom-tejedor" class="mb-1 block text-xs font-medium text-gray-700">Firma / nombre del tejedor</label>
+                    <input id="linea-nom-tejedor" name="NomTejedor" maxlength="150" @disabled(! $puedeCalificar)
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500">
                 </div>
             </div>
@@ -333,7 +340,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || @json(csrf_token());
     const fechaActual = @json($fechaInicial);
     const operadores = @json($operadores);
+    const puedeCrear = @json($puedeCrear);
     const puedeEditar = @json($puedeEditar);
+    const puedeEliminar = @json($puedeEliminar);
+    const puedeRegistrar = @json($puedeRegistrar);
+    const modoTejedor = @json($modoTejedor);
+    const esTejedor = modoTejedor; // compatibilidad con lógica previa de UI
     const operadoresPorClave = new Map(operadores.map(operador => [String(operador.CveEmpl), operador]));
     const state = { ordenes: [], orden: null, paros: [], filtroEstatus: '' };
 
@@ -505,9 +517,15 @@ document.addEventListener('DOMContentLoaded', () => {
         ordenesBody.innerHTML = state.ordenes.map(orden => {
             const folio = escapeHtml(orden.Folio);
             const capturaUrl = `${baseUrl}/${encodeURIComponent(orden.Folio)}/captura`;
-            const editarBtn = puedeEditar
-                ? `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-black" title="Editar / capturar"><i class="fas fa-pen"></i> Editar</a>`
-                : '';
+            const autorizada = orden.Estatus === 'Autorizado';
+            let accionPrincipal = '';
+            if (modoTejedor) {
+                accionPrincipal = autorizada
+                    ? `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-100" title="Ver renglones"><i class="fas fa-eye"></i> Ver</a>`
+                    : `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700" title="Calificar renglones"><i class="fas fa-star"></i> Calificar</a>`;
+            } else if (puedeEditar) {
+                accionPrincipal = `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-black" title="Editar / capturar"><i class="fas fa-pen"></i> Editar</a>`;
+            }
 
             return `
             <tr class="transition hover:bg-gray-50">
@@ -528,12 +546,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
                 <td class="whitespace-nowrap px-5 py-4 text-right">
                     <div class="flex items-center justify-end gap-2">
-                        <button type="button" data-action="ver-orden" data-folio="${folio}"
+                        ${modoTejedor ? '' : `<button type="button" data-action="ver-orden" data-folio="${folio}"
                             class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-100"
                             title="Ver (solo lectura)">
                             <i class="fas fa-eye"></i> Ver
-                        </button>
-                        ${editarBtn}
+                        </button>`}
+                        ${accionPrincipal}
                     </div>
                 </td>
             </tr>
@@ -560,11 +578,11 @@ document.addEventListener('DOMContentLoaded', () => {
             $('#titulo-modal-detalle').textContent = `Orden ${state.orden.Folio}`;
             $('#detalle-resumen').textContent = `Telar ${state.orden.TelarId || '—'} · ${state.orden.Falla || 'Sin descripción'} · Turno ${state.orden.Turno || '—'}`;
 
-            // Una orden autorizada queda en solo lectura: se ocultan las acciones de mutación.
-            const bloqueada = state.orden.Estatus === 'Autorizado';
-            $('#btn-editar-cabecera').classList.toggle('hidden', bloqueada);
-            $('#btn-agregar-linea').classList.toggle('hidden', bloqueada);
-            $('#btn-eliminar-orden').classList.toggle('hidden', bloqueada);
+            // Autorizado = solo lectura. Además cada botón respeta SYSUsuariosRoles.
+            const autorizada = state.orden.Estatus === 'Autorizado';
+            $('#btn-editar-cabecera').classList.toggle('hidden', autorizada || ! puedeEditar);
+            $('#btn-agregar-linea').classList.toggle('hidden', autorizada || ! puedeCrear);
+            $('#btn-eliminar-orden').classList.toggle('hidden', autorizada || ! puedeEliminar);
 
             renderLineas();
             abrirModal(modalDetalle);
@@ -575,13 +593,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderLineas() {
         const lineas = state.orden?.lineas || [];
-        const bloqueada = state.orden?.Estatus === 'Autorizado';
+        const autorizada = state.orden?.Estatus === 'Autorizado';
+        const puedeEditarLinea = ! autorizada && puedeEditar;
+        const puedeEliminarLinea = ! autorizada && puedeEliminar;
         if (! lineas.length) {
             lineasBody.innerHTML = '<tr><td colspan="12" class="px-4 py-8 text-center text-sm text-gray-500">No hay renglones.</td></tr>';
             return;
         }
 
-        lineasBody.innerHTML = lineas.map(linea => `
+        lineasBody.innerHTML = lineas.map(linea => {
+            let acciones = '<span class="text-gray-400">—</span>';
+            if (puedeEditarLinea || puedeEliminarLinea) {
+                acciones = `
+                    ${puedeEditarLinea ? `<button type="button" data-action="editar-linea" data-linea-id="${linea.Id}" class="rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100">Editar</button>` : ''}
+                    ${puedeEliminarLinea && lineas.length > 1 ? `<button type="button" data-action="eliminar-linea" data-linea-id="${linea.Id}" class="ml-1 rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50">Eliminar</button>` : ''}
+                `;
+            }
+
+            return `
             <tr class="hover:bg-gray-50">
                 <td class="px-3 py-3 text-gray-800"><span class="font-medium">${display(linea.NomOperador)}</span><br><span class="text-gray-500">${display(linea.CveOperador)}</span></td>
                 <td class="px-2 py-3 text-center">${iconoBooleano(linea.Ajusto)}</td>
@@ -594,14 +623,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="px-3 py-3 text-center text-gray-700">${display(linea.TotalMinutos)}</td>
                 <td class="px-3 py-3 text-center text-gray-700">${display(linea.Calificacion)}</td>
                 <td class="px-3 py-3 text-gray-800"><span class="font-medium">${display(linea.NomTejedor)}</span><br><span class="text-gray-500">${display(linea.CveTejedor)}</span></td>
-                <td class="whitespace-nowrap px-3 py-3 text-right">
-                    ${bloqueada ? '<span class="text-gray-400">—</span>' : `
-                    <button type="button" data-action="editar-linea" data-linea-id="${linea.Id}" class="rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100">Editar</button>
-                    ${lineas.length > 1 ? `<button type="button" data-action="eliminar-linea" data-linea-id="${linea.Id}" class="ml-1 rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50">Eliminar</button>` : ''}
-                    `}
-                </td>
-            </tr>
-        `).join('');
+                <td class="whitespace-nowrap px-3 py-3 text-right">${acciones}</td>
+            </tr>`;
+        }).join('');
     }
 
     async function cargarParosActivos() {

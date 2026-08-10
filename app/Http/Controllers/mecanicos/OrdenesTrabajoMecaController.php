@@ -9,8 +9,10 @@ use App\Models\Mantenimiento\ManOperadoresMantenimiento;
 use App\Models\Mecanicos\MecOrdenTrabajoLineModel;
 use App\Models\Mecanicos\MecOrdenTrabajoModel;
 use App\Models\Sistema\SSYSFoliosSecuencia;
+use App\Models\Tejedores\TelTelaresOperador;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +23,8 @@ use Illuminate\Validation\ValidationException;
 
 class OrdenesTrabajoMecaController extends Controller
 {
+    private const MODULO_PERMISO = 'Ordenes de Trabajo';
+
     private const MODULO_FOLIOS = 'Mecanicos';
 
     private const PREFIJO_FOLIOS = 'MEC';
@@ -33,11 +37,21 @@ class OrdenesTrabajoMecaController extends Controller
 
     public function index(): View
     {
+        $modoTejedor = $this->esModoTejedorSoloCalificacion();
+        $permisos = $this->permisosVista();
+
         return view('modulos.mecanicos.ordenes-trabajo.index', [
             'fechaInicial' => now('America/Mexico_City')->toDateString(),
             'operadores' => $this->operadoresMecanicos(),
-            'puedeEditar' => userCan('modificar', 'Ordenes de Trabajo'),
             'esTejedor' => $this->esTejedor(),
+            'modoTejedor' => $modoTejedor,
+            // Alias: supervisor = permiso registrar (autorizar).
+            'esSupervisor' => $permisos['puedeRegistrar'],
+            'puedeCrear' => $permisos['puedeCrear'] && ! $modoTejedor,
+            'puedeEditar' => $permisos['puedeModificar'] && ! $modoTejedor,
+            'puedeEliminar' => $permisos['puedeEliminar'] && ! $modoTejedor,
+            'puedeRegistrar' => $permisos['puedeRegistrar'],
+            'puedeCalificar' => $this->puedeCalificar(),
         ]);
     }
 
@@ -48,13 +62,26 @@ class OrdenesTrabajoMecaController extends Controller
             ->find($folio);
 
         abort_unless($orden, 404);
+        abort_unless($this->tejedorPuedeVerOrden($orden), 403);
+
+        $usuario = Auth::user();
+        $modoTejedor = $this->esModoTejedorSoloCalificacion();
+        $permisos = $this->permisosVista();
 
         return view('modulos.mecanicos.ordenes-trabajo.captura', [
             'orden' => $orden,
             'operadores' => $this->operadoresMecanicos(),
             'esTejedor' => $this->esTejedor(),
-            'esSupervisor' => $this->esSupervisor(),
+            'modoTejedor' => $modoTejedor,
+            'esSupervisor' => $permisos['puedeRegistrar'],
+            'puedeCrear' => $permisos['puedeCrear'] && ! $modoTejedor,
+            'puedeEditar' => $permisos['puedeModificar'] && ! $modoTejedor,
+            'puedeEliminar' => $permisos['puedeEliminar'] && ! $modoTejedor,
+            'puedeRegistrar' => $permisos['puedeRegistrar'],
+            'puedeCalificar' => $this->puedeCalificar(),
             'bloqueada' => $orden->Estatus === self::ESTATUS_AUTORIZADO,
+            'tejedorCve' => trim((string) ($usuario->numero_empleado ?? '')),
+            'tejedorNombre' => trim((string) ($usuario->nombre ?? '')),
         ]);
     }
 
@@ -82,6 +109,7 @@ class OrdenesTrabajoMecaController extends Controller
                         ->orWhere('Orden', 'like', "%{$buscar}%");
                 });
             })
+            ->tap(fn (Builder $query) => $this->aplicarFiltroTelaresTejedor($query))
             ->orderByDesc('Fecha')
             ->orderByDesc('Folio')
             ->get();
@@ -132,6 +160,13 @@ class OrdenesTrabajoMecaController extends Controller
             return $this->ordenNoEncontrada();
         }
 
+        if (! $this->tejedorPuedeVerOrden($orden)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'No tienes acceso a esta orden: el telar no está asignado a tu usuario.',
+            ], 403);
+        }
+
         return response()->json([
             'success' => true,
             'data' => $orden,
@@ -140,6 +175,14 @@ class OrdenesTrabajoMecaController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        if ($respuesta = $this->respuestaSinPermiso('crear', 'No tienes permiso para crear órdenes de trabajo.')) {
+            return $respuesta;
+        }
+
+        if ($respuesta = $this->respuestaSiTejedorNoPuedeMutar('Los tejedores no pueden crear órdenes de trabajo.')) {
+            return $respuesta;
+        }
+
         try {
             $datos = $this->normalizarCabecera($request->validate($this->reglasCabecera()));
 
@@ -183,6 +226,14 @@ class OrdenesTrabajoMecaController extends Controller
 
     public function update(Request $request, string $folio): JsonResponse
     {
+        if ($respuesta = $this->respuestaSinPermiso('modificar', 'No tienes permiso para modificar órdenes de trabajo.')) {
+            return $respuesta;
+        }
+
+        if ($respuesta = $this->respuestaSiTejedorNoPuedeMutar('Los tejedores no pueden modificar la cabecera de la orden.')) {
+            return $respuesta;
+        }
+
         $orden = MecOrdenTrabajoModel::find($folio);
 
         if (! $orden) {
@@ -228,6 +279,14 @@ class OrdenesTrabajoMecaController extends Controller
 
     public function destroy(string $folio): JsonResponse
     {
+        if ($respuesta = $this->respuestaSinPermiso('eliminar', 'No tienes permiso para eliminar órdenes de trabajo.')) {
+            return $respuesta;
+        }
+
+        if ($respuesta = $this->respuestaSiTejedorNoPuedeMutar('Los tejedores no pueden eliminar órdenes de trabajo.')) {
+            return $respuesta;
+        }
+
         $orden = MecOrdenTrabajoModel::find($folio);
 
         if (! $orden) {
@@ -263,6 +322,14 @@ class OrdenesTrabajoMecaController extends Controller
 
     public function storeLinea(Request $request, string $folio): JsonResponse
     {
+        if ($respuesta = $this->respuestaSinPermiso('crear', 'No tienes permiso para agregar renglones a la orden.')) {
+            return $respuesta;
+        }
+
+        if ($respuesta = $this->respuestaSiTejedorNoPuedeMutar('Los tejedores no pueden agregar renglones; solo pueden calificar.')) {
+            return $respuesta;
+        }
+
         $orden = MecOrdenTrabajoModel::find($folio);
 
         if (! $orden) {
@@ -274,7 +341,7 @@ class OrdenesTrabajoMecaController extends Controller
 
             $linea = MecOrdenTrabajoLineModel::create([
                 'Folio' => $folio,
-                ...$this->filtrarCamposTejedor(
+                ...$this->filtrarCamposCalificacion(
                     $this->normalizarLinea($request->validate($this->reglasLinea()))
                 ),
             ]);
@@ -318,7 +385,57 @@ class OrdenesTrabajoMecaController extends Controller
                 $this->asegurarNoAutorizada($orden);
             }
 
-            $registro->update($this->filtrarCamposTejedor(
+            if ($orden && ! $this->tejedorPuedeVerOrden($orden)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'No tienes acceso a esta orden: el telar no está asignado a tu usuario.',
+                ], 403);
+            }
+
+            // Tejedor o usuario con "registrar" sin modificar: solo calificación.
+            if ($this->debeUsarRutaSoloCalificacion()) {
+                if (! $this->puedeCalificar()) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'No tienes permiso para calificar intervenciones.',
+                    ], 403);
+                }
+
+                $validated = $request->validate([
+                    'Calificacion' => ['required', 'integer', 'between:1,10'],
+                    'CveTejedor' => ['nullable', 'string', 'max:30'],
+                    'NomTejedor' => ['nullable', 'string', 'max:150'],
+                ]);
+
+                if ($this->esTejedor() && ! $this->puedeRegistrar()) {
+                    [$cve, $nombre] = $this->datosTejedorSesion();
+                } else {
+                    $cve = trim((string) ($validated['CveTejedor'] ?? ''));
+                    $nombre = trim((string) ($validated['NomTejedor'] ?? ''));
+
+                    if ($cve === '' || $nombre === '') {
+                        [$cve, $nombre] = $this->datosTejedorSesion();
+                    }
+                }
+
+                $registro->update([
+                    'Calificacion' => (int) $validated['Calificacion'],
+                    'CveTejedor' => $cve,
+                    'NomTejedor' => $nombre,
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Calificación guardada correctamente.',
+                    'data' => $registro->fresh(),
+                ]);
+            }
+
+            if ($respuesta = $this->respuestaSinPermiso('modificar', 'No tienes permiso para modificar renglones.')) {
+                return $respuesta;
+            }
+
+            $registro->update($this->filtrarCamposCalificacion(
                 $this->normalizarLinea($request->validate($this->reglasLinea()))
             ));
 
@@ -345,6 +462,14 @@ class OrdenesTrabajoMecaController extends Controller
 
     public function destroyLinea(string $folio, int $linea): JsonResponse
     {
+        if ($respuesta = $this->respuestaSinPermiso('eliminar', 'No tienes permiso para eliminar renglones.')) {
+            return $respuesta;
+        }
+
+        if ($respuesta = $this->respuestaSiTejedorNoPuedeMutar('Los tejedores no pueden eliminar renglones.')) {
+            return $respuesta;
+        }
+
         $registro = MecOrdenTrabajoLineModel::query()
             ->where('Folio', $folio)
             ->find($linea);
@@ -380,8 +505,8 @@ class OrdenesTrabajoMecaController extends Controller
     }
 
     /**
-     * Autoriza una orden (solo supervisores). Deja el registro en estatus
-     * Autorizado, con lo que toda la orden queda en solo lectura.
+     * Autoriza una orden (permiso "registrar" del módulo = acceso supervisor).
+     * Deja el registro en estatus Autorizado (solo lectura).
      */
     public function autorizar(string $folio): JsonResponse
     {
@@ -393,10 +518,10 @@ class OrdenesTrabajoMecaController extends Controller
             return $this->ordenNoEncontrada();
         }
 
-        if (! $this->esSupervisor()) {
+        if (! $this->puedeRegistrar()) {
             return response()->json([
                 'success' => false,
-                'error' => 'Solo los supervisores pueden autorizar órdenes de trabajo.',
+                'error' => 'No tienes permiso para autorizar órdenes de trabajo (se requiere Registrar).',
             ], 403);
         }
 
@@ -470,7 +595,7 @@ class OrdenesTrabajoMecaController extends Controller
             'FaltaRefacc' => ['nullable', 'boolean'],
             'HoraInicial' => ['nullable', 'date_format:H:i'],
             'HoraFinal' => ['nullable', 'date_format:H:i'],
-            'Calificacion' => ['nullable', 'integer', 'min:0'],
+            'Calificacion' => ['nullable', 'integer', 'between:1,10'],
             'CveTejedor' => ['nullable', 'string', 'max:30'],
             'NomTejedor' => ['nullable', 'string', 'max:150'],
         ];
@@ -646,13 +771,151 @@ class OrdenesTrabajoMecaController extends Controller
     }
 
     /**
-     * Determina si el usuario autenticado es supervisor por su puesto.
+     * Permiso "registrar" del módulo = rol supervisor (calificar / autorizar).
      */
-    private function esSupervisor(): bool
+    private function puedeRegistrar(): bool
     {
-        $puesto = mb_strtolower(trim((string) (Auth::user()->puesto ?? '')));
+        return userCan('registrar', self::MODULO_PERMISO);
+    }
 
-        return str_contains($puesto, 'supervisor');
+    /**
+     * Tejedor de área sin permiso registrar: solo califica, no captura intervenciones.
+     */
+    private function esModoTejedorSoloCalificacion(): bool
+    {
+        return $this->esTejedor() && ! $this->puedeRegistrar();
+    }
+
+    /**
+     * @return array{puedeCrear: bool, puedeModificar: bool, puedeEliminar: bool, puedeRegistrar: bool}
+     */
+    private function permisosVista(): array
+    {
+        return [
+            'puedeCrear' => userCan('crear', self::MODULO_PERMISO),
+            'puedeModificar' => userCan('modificar', self::MODULO_PERMISO),
+            'puedeEliminar' => userCan('eliminar', self::MODULO_PERMISO),
+            'puedeRegistrar' => $this->puedeRegistrar(),
+        ];
+    }
+
+    /**
+     * Telares (NoTelarId) asignados al usuario en TelTelaresOperador.
+     *
+     * @return list<string>
+     */
+    private function idsTelaresAsignadosOperadorActual(): array
+    {
+        $numeroEmpleado = Auth::user()?->numero_empleado;
+        if ($numeroEmpleado === null || trim((string) $numeroEmpleado) === '') {
+            return [];
+        }
+
+        return TelTelaresOperador::query()
+            ->where('numero_empleado', $numeroEmpleado)
+            ->whereNotNull('NoTelarId')
+            ->distinct()
+            ->pluck('NoTelarId')
+            ->map(fn ($id) => trim((string) $id))
+            ->filter(fn (string $id) => $id !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Tejedor (sin registrar): solo ve órdenes de sus telares en TelTelaresOperador.
+     */
+    private function aplicarFiltroTelaresTejedor(Builder $query): void
+    {
+        if (! $this->esModoTejedorSoloCalificacion()) {
+            return;
+        }
+
+        $telares = $this->idsTelaresAsignadosOperadorActual();
+        if ($telares === []) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $query->whereIn('TelarId', $telares);
+    }
+
+    private function tejedorPuedeVerOrden(MecOrdenTrabajoModel $orden): bool
+    {
+        if (! $this->esModoTejedorSoloCalificacion()) {
+            return true;
+        }
+
+        $telar = trim((string) ($orden->TelarId ?? ''));
+        if ($telar === '') {
+            return false;
+        }
+
+        return in_array($telar, $this->idsTelaresAsignadosOperadorActual(), true);
+    }
+
+    /**
+     * Tejedor (área) o usuario con "registrar" pueden capturar calificación / firma.
+     */
+    private function puedeCalificar(): bool
+    {
+        return $this->esTejedor() || $this->puedeRegistrar();
+    }
+
+    /**
+     * Ruta restringida a calificación: tejedor sin registrar, o registrar sin modificar.
+     */
+    private function debeUsarRutaSoloCalificacion(): bool
+    {
+        if ($this->esModoTejedorSoloCalificacion()) {
+            return true;
+        }
+
+        return $this->puedeRegistrar() && ! userCan('modificar', self::MODULO_PERMISO);
+    }
+
+    private function respuestaSinPermiso(string $accion, string $mensaje): ?JsonResponse
+    {
+        if (userCan($accion, self::MODULO_PERMISO)) {
+            return null;
+        }
+
+        return response()->json([
+            'success' => false,
+            'error' => $mensaje,
+        ], 403);
+    }
+
+    /**
+     * @return array{0: string, 1: string} [cve, nombre]
+     */
+    private function datosTejedorSesion(): array
+    {
+        $usuario = Auth::user();
+        $cve = trim((string) ($usuario->numero_empleado ?? ''));
+        $nombre = trim((string) ($usuario->nombre ?? ''));
+
+        if ($cve === '' || $nombre === '') {
+            throw ValidationException::withMessages([
+                'CveTejedor' => ['Tu usuario no tiene número de empleado o nombre configurados.'],
+            ]);
+        }
+
+        return [$cve, $nombre];
+    }
+
+    private function respuestaSiTejedorNoPuedeMutar(string $mensaje): ?JsonResponse
+    {
+        if (! $this->esModoTejedorSoloCalificacion()) {
+            return null;
+        }
+
+        return response()->json([
+            'success' => false,
+            'error' => $mensaje,
+        ], 403);
     }
 
     /**
@@ -668,13 +931,12 @@ class OrdenesTrabajoMecaController extends Controller
     }
 
     /**
-     * La calificación y los datos del tejedor solo puede capturarlos un tejedor.
-     * Para cualquier otro rol se descartan esos campos del payload, sin
-     * sobrescribir los valores existentes en una actualización.
+     * Calificación / CVE / nombre tejedor: tejedor o permiso registrar.
+     * Cualquier otro rol no puede sobrescribir esos campos.
      */
-    private function filtrarCamposTejedor(array $datos): array
+    private function filtrarCamposCalificacion(array $datos): array
     {
-        if ($this->esTejedor()) {
+        if ($this->puedeCalificar()) {
             return $datos;
         }
 
