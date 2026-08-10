@@ -177,12 +177,23 @@ const stopDashboardPolling = (): void => {
 let kioskReloadTimer: number | null = null
 let consecutiveFailures = 0
 
+// Recargar sin red dejaría la página de error del navegador, sin JS que la
+// reviva jamás. Si no hay conexión, la recarga espera al evento `online`.
+const safeReload = (): void => {
+  if (navigator.onLine) {
+    window.location.reload()
+    return
+  }
+
+  window.addEventListener('online', () => window.location.reload(), { once: true })
+}
+
 const scheduleKioskReload = (delayMs: number): void => {
   if (kioskReloadTimer !== null) {
     return
   }
 
-  kioskReloadTimer = window.setTimeout(() => window.location.reload(), delayMs)
+  kioskReloadTimer = window.setTimeout(safeReload, delayMs)
 }
 
 const showLivewireError = (status: number, url: string): void => {
@@ -239,7 +250,7 @@ const installLivewireErrorHandler = (): void => {
       // bloquearía el kiosco para siempre. Recargar restablece todo.
       if (status === 419) {
         preventDefault()
-        window.location.reload()
+        safeReload()
         return
       }
 
