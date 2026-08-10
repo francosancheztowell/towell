@@ -79,6 +79,7 @@
                 <button type="button" data-estatus="" class="filtro-estatus-btn min-h-14 rounded-xl border border-gray-300 bg-white px-3 py-3 text-base font-bold text-gray-700 transition active:scale-[0.98]">Todos</button>
                 <button type="button" data-estatus="Activo" class="filtro-estatus-btn min-h-14 rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 text-base font-bold text-blue-800 transition active:scale-[0.98]">Activo</button>
                 <button type="button" data-estatus="Terminado" class="filtro-estatus-btn min-h-14 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-base font-bold text-amber-800 transition active:scale-[0.98]">Finalizado</button>
+                <button type="button" data-estatus="Autorizado" class="filtro-estatus-btn min-h-14 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-base font-bold text-emerald-800 transition active:scale-[0.98]">Autorizado</button>
                 <button type="button" data-estatus="Cancelado" class="filtro-estatus-btn min-h-14 rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-base font-bold text-red-800 transition active:scale-[0.98]">Cancelado</button>
             </div>
         </div>
@@ -296,22 +297,22 @@
                         class="w-full cursor-not-allowed rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
                 </div>
                 <div>
-                    <label for="linea-calificacion" class="mb-1 block text-xs font-medium text-gray-700">Calificación</label>
-                    <input id="linea-calificacion" name="Calificacion" type="number" min="0" step="1"
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+                    <label for="linea-calificacion" class="mb-1 block text-xs font-medium text-gray-700">Calificación @unless ($esTejedor)<span class="ml-1 font-normal text-gray-400">(solo tejedor)</span>@endunless</label>
+                    <input id="linea-calificacion" name="Calificacion" type="number" min="0" step="1" @disabled(! $esTejedor)
+                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500">
                 </div>
             </div>
 
             <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                    <label for="linea-cve-tejedor" class="mb-1 block text-xs font-medium text-gray-700">Clave tejedor</label>
-                    <input id="linea-cve-tejedor" name="CveTejedor" maxlength="30"
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+                    <label for="linea-cve-tejedor" class="mb-1 block text-xs font-medium text-gray-700">Clave tejedor @unless ($esTejedor)<span class="ml-1 font-normal text-gray-400">(solo tejedor)</span>@endunless</label>
+                    <input id="linea-cve-tejedor" name="CveTejedor" maxlength="30" @disabled(! $esTejedor)
+                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500">
                 </div>
                 <div>
-                    <label for="linea-nom-tejedor" class="mb-1 block text-xs font-medium text-gray-700">Firma / nombre del tejedor</label>
-                    <input id="linea-nom-tejedor" name="NomTejedor" maxlength="150"
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+                    <label for="linea-nom-tejedor" class="mb-1 block text-xs font-medium text-gray-700">Firma / nombre del tejedor @unless ($esTejedor)<span class="ml-1 font-normal text-gray-400">(solo tejedor)</span>@endunless</label>
+                    <input id="linea-nom-tejedor" name="NomTejedor" maxlength="150" @disabled(! $esTejedor)
+                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500">
                 </div>
             </div>
 
@@ -368,13 +369,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function statusBadge(estatus) {
         const value = String(estatus || 'Activo').trim() || 'Activo';
         const label = value === 'Terminado' ? 'Finalizado' : value;
-        const classes = value === 'Terminado'
-            ? 'bg-amber-100 text-amber-800'
-            : value === 'Cancelado'
-                ? 'bg-red-100 text-red-800'
-                : value === 'Activo'
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-gray-100 text-gray-700';
+        const classes = value === 'Autorizado'
+            ? 'bg-emerald-100 text-emerald-800'
+            : value === 'Terminado'
+                ? 'bg-amber-100 text-amber-800'
+                : value === 'Cancelado'
+                    ? 'bg-red-100 text-red-800'
+                    : value === 'Activo'
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-gray-100 text-gray-700';
 
         return `<span class="inline-flex rounded-full px-3 py-1.5 text-xs font-bold ${classes}">${escapeHtml(label)}</span>`;
     }
@@ -481,6 +484,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 button.className = activo
                     ? `${base} bg-amber-500 text-white shadow`
                     : `${base} border border-amber-200 bg-amber-50 text-amber-800`;
+            } else if (estatus === 'Autorizado') {
+                button.className = activo
+                    ? `${base} bg-emerald-600 text-white shadow`
+                    : `${base} border border-emerald-200 bg-emerald-50 text-emerald-800`;
             } else if (estatus === 'Cancelado') {
                 button.className = activo
                     ? `${base} bg-red-600 text-white shadow`
@@ -552,6 +559,13 @@ document.addEventListener('DOMContentLoaded', () => {
             state.orden = result.data;
             $('#titulo-modal-detalle').textContent = `Orden ${state.orden.Folio}`;
             $('#detalle-resumen').textContent = `Telar ${state.orden.TelarId || '—'} · ${state.orden.Falla || 'Sin descripción'} · Turno ${state.orden.Turno || '—'}`;
+
+            // Una orden autorizada queda en solo lectura: se ocultan las acciones de mutación.
+            const bloqueada = state.orden.Estatus === 'Autorizado';
+            $('#btn-editar-cabecera').classList.toggle('hidden', bloqueada);
+            $('#btn-agregar-linea').classList.toggle('hidden', bloqueada);
+            $('#btn-eliminar-orden').classList.toggle('hidden', bloqueada);
+
             renderLineas();
             abrirModal(modalDetalle);
         } catch (error) {
@@ -561,6 +575,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderLineas() {
         const lineas = state.orden?.lineas || [];
+        const bloqueada = state.orden?.Estatus === 'Autorizado';
         if (! lineas.length) {
             lineasBody.innerHTML = '<tr><td colspan="12" class="px-4 py-8 text-center text-sm text-gray-500">No hay renglones.</td></tr>';
             return;
@@ -580,8 +595,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="px-3 py-3 text-center text-gray-700">${display(linea.Calificacion)}</td>
                 <td class="px-3 py-3 text-gray-800"><span class="font-medium">${display(linea.NomTejedor)}</span><br><span class="text-gray-500">${display(linea.CveTejedor)}</span></td>
                 <td class="whitespace-nowrap px-3 py-3 text-right">
+                    ${bloqueada ? '<span class="text-gray-400">—</span>' : `
                     <button type="button" data-action="editar-linea" data-linea-id="${linea.Id}" class="rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100">Editar</button>
                     ${lineas.length > 1 ? `<button type="button" data-action="eliminar-linea" data-linea-id="${linea.Id}" class="ml-1 rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50">Eliminar</button>` : ''}
+                    `}
                 </td>
             </tr>
         `).join('');

@@ -14,6 +14,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -26,12 +27,17 @@ class OrdenesTrabajoMecaController extends Controller
 
     private const LONGITUD_CONSECUTIVO_FOLIOS = 5;
 
+    private const ESTATUS_AUTORIZADO = 'Autorizado';
+
+    private const ESTATUS_CANCELADO = 'Cancelado';
+
     public function index(): View
     {
         return view('modulos.mecanicos.ordenes-trabajo.index', [
             'fechaInicial' => now('America/Mexico_City')->toDateString(),
             'operadores' => $this->operadoresMecanicos(),
             'puedeEditar' => userCan('modificar', 'Ordenes de Trabajo'),
+            'esTejedor' => $this->esTejedor(),
         ]);
     }
 
@@ -46,6 +52,9 @@ class OrdenesTrabajoMecaController extends Controller
         return view('modulos.mecanicos.ordenes-trabajo.captura', [
             'orden' => $orden,
             'operadores' => $this->operadoresMecanicos(),
+            'esTejedor' => $this->esTejedor(),
+            'esSupervisor' => $this->esSupervisor(),
+            'bloqueada' => $orden->Estatus === self::ESTATUS_AUTORIZADO,
         ]);
     }
 
@@ -181,8 +190,18 @@ class OrdenesTrabajoMecaController extends Controller
         }
 
         try {
+            $this->asegurarNoAutorizada($orden);
+
             $datos = $this->normalizarCabecera($request->validate($this->reglasCabecera()));
             $this->validarFolioParoDisponible($datos['FolioParo'] ?? null, $folio);
+
+            // La autorización solo se hace con el botón Autorizar (gating de supervisor),
+            // no cambiando el estatus desde la edición normal de la cabecera.
+            if (($datos['Estatus'] ?? null) === self::ESTATUS_AUTORIZADO) {
+                throw ValidationException::withMessages([
+                    'Estatus' => ['Usa el botón Autorizar para autorizar la orden.'],
+                ]);
+            }
 
             $orden->update($datos);
             $orden->load(['lineas' => fn ($query) => $query->orderBy('Id')]);
@@ -215,6 +234,13 @@ class OrdenesTrabajoMecaController extends Controller
             return $this->ordenNoEncontrada();
         }
 
+        if ($orden->Estatus === self::ESTATUS_AUTORIZADO) {
+            return response()->json([
+                'success' => false,
+                'error' => 'La orden está autorizada y no puede eliminarse.',
+            ], 422);
+        }
+
         try {
             $orden->delete();
 
@@ -237,14 +263,20 @@ class OrdenesTrabajoMecaController extends Controller
 
     public function storeLinea(Request $request, string $folio): JsonResponse
     {
-        if (! MecOrdenTrabajoModel::whereKey($folio)->exists()) {
+        $orden = MecOrdenTrabajoModel::find($folio);
+
+        if (! $orden) {
             return $this->ordenNoEncontrada();
         }
 
         try {
+            $this->asegurarNoAutorizada($orden);
+
             $linea = MecOrdenTrabajoLineModel::create([
                 'Folio' => $folio,
-                ...$this->normalizarLinea($request->validate($this->reglasLinea())),
+                ...$this->filtrarCamposTejedor(
+                    $this->normalizarLinea($request->validate($this->reglasLinea()))
+                ),
             ]);
 
             return response()->json([
@@ -281,7 +313,14 @@ class OrdenesTrabajoMecaController extends Controller
         }
 
         try {
-            $registro->update($this->normalizarLinea($request->validate($this->reglasLinea())));
+            $orden = MecOrdenTrabajoModel::find($folio);
+            if ($orden) {
+                $this->asegurarNoAutorizada($orden);
+            }
+
+            $registro->update($this->filtrarCamposTejedor(
+                $this->normalizarLinea($request->validate($this->reglasLinea()))
+            ));
 
             return response()->json([
                 'success' => true,
@@ -317,6 +356,14 @@ class OrdenesTrabajoMecaController extends Controller
             ], 404);
         }
 
+        $orden = MecOrdenTrabajoModel::find($folio);
+        if ($orden && $orden->Estatus === self::ESTATUS_AUTORIZADO) {
+            return response()->json([
+                'success' => false,
+                'error' => 'La orden está autorizada y quedó en solo lectura.',
+            ], 422);
+        }
+
         if (MecOrdenTrabajoLineModel::where('Folio', $folio)->count() <= 1) {
             return response()->json([
                 'success' => false,
@@ -330,6 +377,63 @@ class OrdenesTrabajoMecaController extends Controller
             'success' => true,
             'message' => 'Renglón eliminado correctamente.',
         ]);
+    }
+
+    /**
+     * Autoriza una orden (solo supervisores). Deja el registro en estatus
+     * Autorizado, con lo que toda la orden queda en solo lectura.
+     */
+    public function autorizar(string $folio): JsonResponse
+    {
+        $orden = MecOrdenTrabajoModel::query()
+            ->with(['lineas' => fn ($query) => $query->orderBy('Id')])
+            ->find($folio);
+
+        if (! $orden) {
+            return $this->ordenNoEncontrada();
+        }
+
+        if (! $this->esSupervisor()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Solo los supervisores pueden autorizar órdenes de trabajo.',
+            ], 403);
+        }
+
+        if ($orden->Estatus === self::ESTATUS_AUTORIZADO) {
+            return response()->json([
+                'success' => false,
+                'error' => 'La orden ya está autorizada.',
+            ], 422);
+        }
+
+        if ($orden->Estatus === self::ESTATUS_CANCELADO) {
+            return response()->json([
+                'success' => false,
+                'error' => 'No se puede autorizar una orden cancelada.',
+            ], 422);
+        }
+
+        try {
+            $orden->update(['Estatus' => self::ESTATUS_AUTORIZADO]);
+            $orden->load(['lineas' => fn ($query) => $query->orderBy('Id')]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Orden autorizada correctamente.',
+                'data' => $orden,
+            ]);
+        } catch (\Throwable $exception) {
+            Log::error('Error al autorizar orden de trabajo mecánica', [
+                'folio' => $folio,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'No se pudo autorizar la orden.',
+            ], 500);
+        }
     }
 
     private function reglasCabecera(): array
@@ -528,6 +632,55 @@ class OrdenesTrabajoMecaController extends Controller
                 'FolioParo' => ['Ese folio de paro ya tiene una orden de trabajo asociada.'],
             ]);
         }
+    }
+
+    /**
+     * Determina si el usuario autenticado es tejedor por su área
+     * (convención de la app: area = TEJEDORES / TEJEDOR).
+     */
+    private function esTejedor(): bool
+    {
+        $area = strtoupper(trim((string) (Auth::user()->area ?? '')));
+
+        return in_array($area, ['TEJEDORES', 'TEJEDOR'], true);
+    }
+
+    /**
+     * Determina si el usuario autenticado es supervisor por su puesto.
+     */
+    private function esSupervisor(): bool
+    {
+        $puesto = mb_strtolower(trim((string) (Auth::user()->puesto ?? '')));
+
+        return str_contains($puesto, 'supervisor');
+    }
+
+    /**
+     * Impide mutar una orden ya autorizada (queda en solo lectura).
+     */
+    private function asegurarNoAutorizada(MecOrdenTrabajoModel $orden): void
+    {
+        if ($orden->Estatus === self::ESTATUS_AUTORIZADO) {
+            throw ValidationException::withMessages([
+                'Estatus' => ['La orden está autorizada y quedó en solo lectura.'],
+            ]);
+        }
+    }
+
+    /**
+     * La calificación y los datos del tejedor solo puede capturarlos un tejedor.
+     * Para cualquier otro rol se descartan esos campos del payload, sin
+     * sobrescribir los valores existentes en una actualización.
+     */
+    private function filtrarCamposTejedor(array $datos): array
+    {
+        if ($this->esTejedor()) {
+            return $datos;
+        }
+
+        unset($datos['Calificacion'], $datos['CveTejedor'], $datos['NomTejedor']);
+
+        return $datos;
     }
 
     private function ordenNoEncontrada(): JsonResponse
