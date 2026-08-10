@@ -128,7 +128,7 @@ class CatCodificacionController extends Controller
                     'cancel_url' => url('/planeacion/codificacion/excel-cancel/'.$importId),
                 ],
             ], 202);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validación fallida',
@@ -287,7 +287,7 @@ class CatCodificacionController extends Controller
                 'd' => ['resultados' => $resultados],
                 'message' => count($exitosos).' registro(s) actualizado(s).',
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 's' => false,
                 'e' => 'Validación fallida',
@@ -431,9 +431,10 @@ class CatCodificacionController extends Controller
                 $catCod->ActualizaLmat = $actualizaLmat;
                 if ($bomId !== null) {
                     $catCod->BomId = $bomId;
-                    if ($bomName !== null) {
-                        $catCod->BomName = $bomName;
-                    }
+                    // El nombre siempre acompaña al BomId. Si no se pudo resolver en AX
+                    // (L.Mat no vigente) se limpia, en vez de dejar pegado el del L.Mat
+                    // anterior y guardar una pareja BomId/BomName que no corresponde.
+                    $catCod->BomName = $bomName;
                 } else {
                     $catCod->BomId = null;
                     $catCod->BomName = null;
@@ -451,9 +452,7 @@ class CatCodificacionController extends Controller
                 $prog->ActualizaLmat = $actualizaLmat;
                 if ($bomId !== null) {
                     $prog->BomId = $bomId;
-                    if ($bomName !== null) {
-                        $prog->BomName = $bomName;
-                    }
+                    $prog->BomName = $bomName;
                 } else {
                     $prog->BomId = null;
                     $prog->BomName = null;
@@ -484,7 +483,7 @@ class CatCodificacionController extends Controller
                 'message' => 'Datos actualizados correctamente',
                 'actualizados' => $actualizados,
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 's' => false,
                 'e' => 'Validación fallida: '.implode(', ', $e->errors()),

@@ -92,7 +92,9 @@
       "PowerShell(php artisan tinker \"C:\\\\Users\\\\fsanchez\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--xampp-htdocs-Towell\\\\1e4e6830-1dea-48c4-8588-c5d55492be96\\\\scratchpad\\\\check_solicitudes.php\")",
       "PowerShell(php -l app\\\\Http\\\\Controllers\\\\Mantenimiento\\\\MantenimientoParosController.php; Select-String -Path \"app\\\\Http\\\\Controllers\\\\Mantenimiento\\\\MantenimientoParosController.php\" -Pattern \"autorizar\\\\\\(\")",
       "Bash(php -l app/Http/Controllers/Mantenimiento/MantenimientoParosController.php)",
-      "PowerShell(php -l app/Http/Controllers/AuthController.php; php artisan test --filter=\"Auth|Login\" 2>&1 | Select-Object -Last 15)"
+      "PowerShell(php -l app/Http/Controllers/AuthController.php; php artisan test --filter=\"Auth|Login\" 2>&1 | Select-Object -Last 15)",
+      "PowerShell(php artisan tinker --execute=\"$s = app\\(\\\\App\\\\Services\\\\ProgramaUrdEng\\\\BomMaterialesService::class\\); $h = $s->obtenerHilos\\(\\); $t = $s->obtenerTamanos\\(\\); echo 'HILOS: '.count\\($h\\).' -> '.json_encode\\(array_slice\\($h,0,5\\)\\).PHP_EOL; echo 'TAMANOS: '.count\\($t\\).' -> '.json_encode\\(array_slice\\($t,0,5\\)\\).PHP_EOL;\")",
+      "PowerShell(php -l app/Services/ProgramaUrdEng/BomMaterialesService.php; php -l app/Http/Controllers/ProgramaUrdEng/ReservarProgramar/BomMaterialesController.php; ./vendor/bin/pint app/Services/ProgramaUrdEng/BomMaterialesService.php app/Http/Controllers/ProgramaUrdEng/ReservarProgramar/BomMaterialesController.php app/Http/Controllers/AuthController.php; php artisan test --filter=\"UrdEng|BomMateriales|Lmat|LMat\" 2>&1 | Select-Object -Last 12)"
     ]
   }
 }

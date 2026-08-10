@@ -95,9 +95,12 @@ document.addEventListener('DOMContentLoaded', () => {
         urdido: @json($opcionesUrdido ?? []),
         tipoAtado: ['Normal', 'Especial'],
         destino: ['Itema Nuevo', 'Itema Viejo', 'Jacquard Sulzer', 'Jacquard Smit', 'Smit'],
-        hilos: [], // Se cargará dinámicamente desde TI_PRO
-        tamanos: [] // Se cargará dinámicamente desde TI_PRO
+        // Catálogos vigentes de AX, indexados por tipo de telar (RIZO/PIE):
+        // cada tipo usa su propio artículo de julio, con hilos y tamaños distintos.
+        hilos: {},
+        tamanos: {}
     };
+    const JULIO_TIPOS = ['Rizo', 'Pie'];
     const REQUERIMIENTOS_COLUMN_META = [
         { field: 'telar', label: 'Telar' },
         { field: 'fecha_req', label: 'Fecha' },
@@ -212,6 +215,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return tipo; // Si no es RIZO ni PIE, retornar el original
     }
 
+    // Tamaños vigentes del tipo que tiene esa fila: Rizo y Pie no comparten catálogo.
+    function tamanosDeFila(fila) {
+        const tipo = fila?.querySelector('select[data-field="tipo"]')?.value || '';
+        return opciones.tamanos[String(normalizarTipo(tipo) || '').toUpperCase()] || [];
+    }
+
     function normalizeInput(arr) {
         return (arr || []).map(t => ({
             ...t,
@@ -260,52 +269,40 @@ document.addEventListener('DOMContentLoaded', () => {
         return { valido:true, tipo:tipoNormalizado, calibre:calBase, hilo:null };
     }
 
-    /* =================== Cargar hilos desde TI_PRO =================== */
-    async function cargarHilos() {
-        try {
-            const response = await fetch(RUTA_HILOS, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json'
+    /* =================== Cargar catálogos vigentes desde TI_PRO =================== */
+    // Un telar Rizo y uno Pie no comparten hilos ni tamaños, así que cada tipo
+    // se pide por separado y se guarda bajo su clave (RIZO/PIE).
+    async function cargarCatalogoPorTipo(ruta, campo, etiqueta) {
+        const entradas = await Promise.all(JULIO_TIPOS.map(async (tipo) => {
+            const clave = tipo.toUpperCase();
+            try {
+                const response = await fetch(`${ruta}?tipo=${encodeURIComponent(tipo)}`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
+                const result = await response.json();
+
+                if (result.success && Array.isArray(result.data)) {
+                    return [clave, result.data.map(item => item[campo] || '').filter(Boolean)];
                 }
-            });
 
-            const result = await response.json();
-
-            if (result.success && Array.isArray(result.data)) {
-                opciones.hilos = result.data.map(item => item.ConfigId || '').filter(Boolean);
-            } else {
-                console.warn('No se pudieron cargar los hilos:', result.message || 'Respuesta inválida');
-                opciones.hilos = [];
+                console.warn(`No se pudieron cargar los ${etiqueta} de ${tipo}:`, result.message || 'Respuesta inválida');
+            } catch (error) {
+                console.error(`Error al cargar los ${etiqueta} de ${tipo}:`, error);
             }
-        } catch (error) {
-            console.error('Error al cargar hilos:', error);
-            opciones.hilos = [];
-        }
+
+            return [clave, []];
+        }));
+
+        return Object.fromEntries(entradas);
     }
 
-    /* =================== Cargar tamaños desde TI_PRO =================== */
+    async function cargarHilos() {
+        opciones.hilos = await cargarCatalogoPorTipo(RUTA_HILOS, 'ConfigId', 'hilos');
+    }
+
     async function cargarTamanos() {
-        try {
-            const response = await fetch(RUTA_TAMANOS, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
-
-            const result = await response.json();
-
-            if (result.success && Array.isArray(result.data)) {
-                opciones.tamanos = result.data.map(item => item.InventSizeId || '').filter(Boolean);
-            } else {
-                console.warn('No se pudieron cargar los tamaños:', result.message || 'Respuesta inválida');
-                opciones.tamanos = [];
-            }
-        } catch (error) {
-            console.error('Error al cargar tamaños:', error);
-            opciones.tamanos = [];
-        }
+        opciones.tamanos = await cargarCatalogoPorTipo(RUTA_TAMANOS, 'InventSizeId', 'tamaños');
     }
 
     /* =================== Agrupar por cuenta =================== */
@@ -339,18 +336,23 @@ document.addEventListener('DOMContentLoaded', () => {
         tr.dataset.turno = (telar.turno != null && telar.turno !== '') ? String(telar.turno) : '';
         tr.dataset.telares = JSON.stringify(grupo.map(t => ({ no_telar: t.no_telar, id: t.id, fecha: t.fecha, turno: t.turno })));
 
+        // Catálogos del tipo de este renglón (un Pie no puede pedir hilos de Rizo)
+        const claveTipo = String(tipoNormalizado || '').toUpperCase();
+        const hilosDelTipo = opciones.hilos[claveTipo] || [];
+        const tamanosDelTipo = opciones.tamanos[claveTipo] || [];
+
         // Construir opciones del select de hilo (siempre iniciar vacío, el usuario elige)
-        const opcionesHilo = opciones.hilos.map(hilo => `<option value="${hilo}">${hilo}</option>`).join('');
+        const opcionesHilo = hilosDelTipo.map(hilo => `<option value="${hilo}">${hilo}</option>`).join('');
         const selectHiloHTML = `<option value="">Seleccione...</option>${opcionesHilo}`;
 
         // Construir opciones del select de tamaño
         const tamanoActual = telar.tamano || telar.tamaño || telar.inventSizeId || '';
-        const opcionesTamano = opciones.tamanos.map(tamano => {
+        const opcionesTamano = tamanosDelTipo.map(tamano => {
             const selected = tamano === tamanoActual ? 'selected' : '';
             return `<option value="${tamano}" ${selected}>${tamano}</option>`;
         }).join('');
         // Agregar opción vacía al inicio si no hay tamaño seleccionado
-        const selectTamanoHTML = tamanoActual && !opciones.tamanos.includes(tamanoActual)
+        const selectTamanoHTML = tamanoActual && !tamanosDelTipo.includes(tamanoActual)
             ? `<option value="${tamanoActual}" selected>${tamanoActual}</option>${opcionesTamano}`
             : `<option value="">Seleccione...</option>${opcionesTamano}`;
 
@@ -672,21 +674,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 await rellenarCuentaYCalibreDesdeTamano(fila);
             };
 
-            tamInput.addEventListener('input', (e) => {
-                const term = String(e.target.value ?? '').trim().toLowerCase();
+            const filtrarTamanos = (termino) => {
+                const term = String(termino ?? '').trim().toLowerCase();
+                const disponibles = tamanosDeFila(fila);
                 const filtrados = term
-                    ? opciones.tamanos.filter(t => t.toLowerCase().includes(term))
-                    : opciones.tamanos;
+                    ? disponibles.filter(t => t.toLowerCase().includes(term))
+                    : disponibles;
                 renderOps(filtrados.slice(0, 60));
-            });
+            };
 
-            tamInput.addEventListener('focus', () => {
-                const term = String(tamInput.value ?? '').trim().toLowerCase();
-                const filtrados = term
-                    ? opciones.tamanos.filter(t => t.toLowerCase().includes(term))
-                    : opciones.tamanos;
-                renderOps(filtrados.slice(0, 60));
-            });
+            tamInput.addEventListener('input', (e) => filtrarTamanos(e.target.value));
+
+            tamInput.addEventListener('focus', () => filtrarTamanos(tamInput.value));
 
             tamInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') { cerrarDrop(); return; }
@@ -715,7 +714,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => {
                     cerrarDrop();
                     const val = String(tamInput.value ?? '').trim();
-                    if (val && !opciones.tamanos.includes(val)) {
+                    if (val && !tamanosDeFila(fila).includes(val)) {
                         Swal.fire({
                             icon: 'warning',
                             title: 'Tamaño no válido',
