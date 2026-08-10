@@ -1151,6 +1151,22 @@ function updateBomDatalists(rowId, options) {
     }
 }
 
+// Un <datalist> sólo sugiere: no impide teclear un L.Mat con Vigente = 0. El
+// servidor lo rechaza al liberar, pero hasta entonces el renglón se ve normal.
+// Esto marca la celda en cuanto se sale del campo.
+function marcarBomNoVigente(row, rowId, invalido) {
+    const bomIdInput = row.querySelector('.bom-id-input');
+    const message = document.getElementById(`bom-id-message-${rowId}`);
+
+    row.dataset.bomNoVigente = invalido ? 'true' : 'false';
+    bomIdInput?.classList.toggle('border-red-500', invalido);
+
+    if (message) {
+        message.textContent = invalido ? 'L.Mat no vigente en AX. Elige uno de la lista.' : '';
+        message.classList.toggle('hidden', !invalido);
+    }
+}
+
 function syncBomFromInput(row, sourceKey) {
     const bomIdInput = row.querySelector('.bom-id-input');
     const bomNameInput = row.querySelector('.bom-name-input');
@@ -1179,6 +1195,17 @@ function syncBomFromInput(row, sourceKey) {
         if (match) {
             bomIdInput.value = match.bomId || '';
         }
+    }
+
+    // Sólo se juzga cuando ya hay catálogo cargado para ese renglón; si no, se
+    // marcaría como inválido todo lo que aún no se ha consultado.
+    if (options.length > 0) {
+        const valorFinal = (bomIdInput.value || '').trim();
+        marcarBomNoVigente(
+            row,
+            rowId,
+            valorFinal !== '' && !options.some(option => (option.bomId || '') === valorFinal)
+        );
     }
 }
 
@@ -2053,6 +2080,15 @@ function liberarOrdenes() {
             icon: 'warning',
             title: 'L.Mat obligatorio',
             text: 'Cada registro seleccionado debe tener L.Mat y Nombre L.Mat antes de liberar.',
+        });
+        return;
+    }
+
+    if (document.querySelector('tr[data-bom-no-vigente="true"]')) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'L.Mat no vigente',
+            text: 'Hay renglones con un L.Mat que ya no está vigente en AX (marcados en rojo). Corrígelos antes de liberar.',
         });
         return;
     }

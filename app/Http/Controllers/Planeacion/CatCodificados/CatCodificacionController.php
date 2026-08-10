@@ -408,15 +408,29 @@ class CatCodificacionController extends Controller
                 $catCod = CatCodificados::query()
                     ->where('OrdenTejido', $ordenTejido)
                     ->first(['ItemId', 'InventSizeId']);
+
+                $bomVigente = false;
                 if ($catCod && $catCod->ItemId) {
                     $invSize = $catCod->InventSizeId !== null ? trim((string) $catCod->InventSizeId) : null;
                     $listaLmat = $this->queryLmatDesdeTi((string) $catCod->ItemId, $invSize !== '' ? $invSize : null);
                     foreach ($listaLmat as $item) {
                         if (isset($item['bomId']) && (string) $item['bomId'] === $bomId) {
-                            $bomName = isset($item['bomName']) ? (string) $item['bomName'] : null;
+                            $bomName = isset($item['bomName']) ? (string) $item['bomName'] : '';
+                            $bomVigente = true;
                             break;
                         }
                     }
+                }
+
+                // queryLmatDesdeTi ya filtra Vigente = 1, así que no encontrarlo ahí
+                // significa que el L.Mat no está vigente en AX o no corresponde a esta
+                // orden. Se rechaza igual que en LiberarOrdenesController, para que no
+                // entren por aquí valores que la liberación después va a bloquear.
+                if (! $bomVigente) {
+                    return response()->json([
+                        's' => false,
+                        'e' => "El L.Mat {$bomId} no está vigente en AX o no corresponde a esta orden. Selecciona uno de la lista.",
+                    ], 422);
                 }
             }
 
