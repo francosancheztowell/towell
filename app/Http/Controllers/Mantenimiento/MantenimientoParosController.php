@@ -329,8 +329,14 @@ class MantenimientoParosController extends Controller
                 $departamentosConsulta = ['Calidad', 'Tejido'];
             }
 
+            // Las fallas de tipo "Calidad" sólo existen bajo el departamento Calidad,
+            // así que se agregan sin importar el departamento seleccionado.
+            if (strtoupper(trim((string) $tipoFallaId)) === 'CALIDAD') {
+                $departamentosConsulta[] = 'Calidad';
+            }
+
             $query = CatParosFallas::query()
-                ->whereIn('Departamento', $departamentosConsulta);
+                ->whereIn('Departamento', array_unique($departamentosConsulta));
 
             if (! empty($tipoFallaId)) {
                 $query->where('TipoFallaId', $tipoFallaId);
