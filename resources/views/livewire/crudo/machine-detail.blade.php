@@ -28,8 +28,20 @@
         ?? $selectedMachine['programa']['clave']
         ?? ''
     ));
-    $modelKey = trim((string) ($selectedMachine['programa']['claveModelo'] ?? ''));
+    $productName = trim((string) ($selectedMachine['programa']['nombreProducto'] ?? ''));
     $itemId = trim((string) ($selectedMachine['programa']['itemId'] ?? ''));
+
+    $detailKilos = (float) ($selectedMachine['kilos'] ?? 0);
+    $detailExpectedKilos = ($selectedMachine['productionStandardStatus'] ?? 'missing') === 'missing'
+        ? 0.0
+        : (float) ($selectedMachine['expectedKilos'] ?? 0);
+    $detailKilosPercent = $detailExpectedKilos > 0
+        ? min(100, $detailKilos / $detailExpectedKilos * 100)
+        : 0.0;
+    $detailQuality = (float) ($selectedMachine['qualityPercent'] ?? 0);
+    $detailEfficiency = (float) ($selectedMachine['efficiencyPercent'] ?? 0);
+    $detailEfficiencyObs = trim((string) ($selectedMachine['efficiencyObs'] ?? ''));
+    $detailTone = fn (float $v, float $ok, float $medio) => $v >= $ok ? 'good' : ($v >= $medio ? 'warn' : 'bad');
 @endphp
 
 <div>
@@ -84,9 +96,9 @@
                             @if ($selectedMachine['programa'])
                                 <dl class="crudo-modal-program">
                                     <div class="crudo-modal-program-field">
-                                        <dt>Clave modelo</dt>
-                                        <dd title="{{ $modelKey !== '' ? $modelKey : 'N/D' }}">
-                                            {{ $modelKey !== '' ? $modelKey : 'N/D' }}
+                                        <dt>Nombre</dt>
+                                        <dd title="{{ $productName !== '' ? $productName : 'N/D' }}">
+                                            {{ $productName !== '' ? $productName : 'N/D' }}
                                         </dd>
                                     </div>
                                     <div class="crudo-modal-program-field">
@@ -130,37 +142,59 @@
                                 </small>
                             @endif
                         </article>
-                        <article class="crudo-modal-kpi">
+                        <article class="crudo-modal-kpi crudo-modal-kpi-kilos">
                             <span>Producción</span>
-                            <strong>{{ number_format(round((float) $selectedMachine['kilos'])) }} kg</strong>
-                            <small>
-                                {{ $modo === 'rango' ? 'Meta diaria promedio' : 'Meta al día' }}
-                                @if ((float) ($selectedMachine['dailyTargetKilos'] ?? 0) > 0)
-                                    {{ number_format(round((float) $selectedMachine['dailyTargetKilos'])) }} kg
+                            <strong>{{ number_format(round($detailKilos)) }} kg</strong>
+
+                            @if ($detailExpectedKilos > 0)
+                                <div
+                                    class="crudo-progress"
+                                    data-tone="{{ $detailTone($detailKilosPercent, 90, 75) }}"
+                                    style="--crudo-progress: {{ round($detailKilosPercent, 1) }}%"
+                                    role="progressbar"
+                                    aria-valuemin="0"
+                                    aria-valuemax="100"
+                                    aria-valuenow="{{ round($detailKilosPercent) }}"
+                                    aria-label="Kilos contra meta"
+                                ><span></span></div>
+                            @endif
+
+                            <small class="crudo-modal-kilos-meta">
+                                @if ($detailExpectedKilos > 0)
+                                    {{ number_format(round($detailExpectedKilos)) }} kg
+                                    {{ $modo === 'rango' ? 'meta del rango' : 'meta a esta hora' }}
                                 @else
                                     sin estándar
                                 @endif
                             </small>
-                            <small>
-                                {{ $modo === 'rango' ? 'Meta acumulada del rango' : 'Meta a esta hora' }}
-                                @if (($selectedMachine['productionStandardStatus'] ?? 'missing') === 'complete')
-                                    {{ number_format(round((float) $selectedMachine['expectedKilos'])) }} kg
-                                @elseif (($selectedMachine['productionStandardStatus'] ?? 'missing') === 'partial')
-                                    {{ number_format(round((float) $selectedMachine['expectedKilos'])) }} kg parcial
+                            <small class="crudo-modal-kilos-meta">
+                                @if ((float) ($selectedMachine['dailyTargetKilos'] ?? 0) > 0)
+                                    {{ number_format(round((float) $selectedMachine['dailyTargetKilos'])) }} kg
+                                    {{ $modo === 'rango' ? 'meta diaria prom.' : 'meta al día' }}
                                 @else
-                                    sin estándar
+                                    sin meta diaria
                                 @endif
                             </small>
                         </article>
-                        <article class="crudo-modal-kpi">
+                        <article class="crudo-modal-kpi crudo-modal-kpi-gauge">
                             <span>Calidad</span>
-                            <strong>{{ number_format(round((float) $selectedMachine['qualityPercent'])) }}%</strong>
-                            <small>{{ number_format(round((float) $selectedMachine['secondsPercent'])) }}% segundas</small>
+                            <x-crudo.gauge
+                                :value="$detailQuality"
+                                :tone="$detailTone($detailQuality, 93, 85)"
+                                title="Calidad"
+                                label="{{ number_format(round((float) $selectedMachine['secondsPercent'])) }}% 2das"
+                            />
                         </article>
                         <article class="crudo-modal-kpi">
                             <span>Piezas</span>
                             <strong>{{ number_format((float) $selectedMachine['pieces']) }}</strong>
                             <small>{{ number_format((float) $selectedMachine['seconds']) }} segundas</small>
+                        </article>
+                        <article class="crudo-modal-kpi crudo-modal-kpi-obs">
+                            <span>Observaciones</span>
+                            <p class="crudo-modal-obs-text" title="{{ $detailEfficiencyObs }}">
+                                {{ $detailEfficiencyObs !== '' ? $detailEfficiencyObs : 'Sin observaciones del último corte.' }}
+                            </p>
                         </article>
                     </section>
 
@@ -228,7 +262,7 @@
                                                 <td title="{{ $capture['date'] ?? '' }}">{{ ($capture['date'] ?? '') ?: '—' }}</td>
                                                 <td title="{{ $capture['purchBarcode'] ?? '' }}">{{ ($capture['purchBarcode'] ?? '') ?: '—' }}</td>
                                                 <td title="{{ $capture['weavingOrder'] ?? '' }}">{{ ($capture['weavingOrder'] ?? '') ?: '—' }}</td>
-                                                <td>{{ number_format((float) $capture['weight'], 1) }}</td>
+                                                <td>{{ number_format(round((float) $capture['weight'])) }}</td>
                                                 <td>{{ number_format((int) $capture['pieces']) }}</td>
                                                 <td>{{ number_format((int) $capture['seconds']) }}</td>
                                                 <td title="{{ ($capture['warpingOrder'] ?? '') !== '' ? 'Urdido '.$capture['warpingOrder'] : '' }}">{{ ($capture['supplierLot'] ?? '') ?: '—' }}</td>

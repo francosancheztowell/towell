@@ -139,6 +139,7 @@ final readonly class CrudoDashboardService
             $parosByTelar,
             $programsByTelar,
             $productionTargetsByTelar,
+            $this->efficiencyByTelar($this->repository->efficiencyLinesForRange($from, $to)),
         );
 
         $isSingleDay = $from->format('Y-m-d') === $to->format('Y-m-d');
@@ -481,6 +482,7 @@ final readonly class CrudoDashboardService
         array $parosByTelar,
         array $programsByTelar,
         array $productionTargetsByTelar,
+        array $efficiencyByTelar = [],
     ): array {
         $catalogByTelar = [];
         foreach ($catalog as $row) {
@@ -544,6 +546,8 @@ final readonly class CrudoDashboardService
                 state: $state,
                 paro: $paro,
                 programa: $programsByTelar[$telar] ?? null,
+                efficiencyPercent: (float) ($efficiencyByTelar[$telar]['percent'] ?? 0.0),
+                efficiencyObs: (string) ($efficiencyByTelar[$telar]['obs'] ?? ''),
             );
         }
 
@@ -564,6 +568,43 @@ final readonly class CrudoDashboardService
         });
 
         return $machines;
+    }
+
+    /**
+     * TejEficienciaLine trae una fila por telar y turno con hasta tres
+     * revisiones. Se conserva la última revisión con dato del último turno
+     * capturado: las filas ya llegan ordenadas por fecha y turno, así que
+     * basta con quedarse con la última que traiga eficiencia.
+     *
+     * @param  list<object>  $rows
+     * @return array<string, array{percent: float, obs: string}>
+     */
+    private function efficiencyByTelar(array $rows): array
+    {
+        $latest = [];
+
+        foreach ($rows as $row) {
+            $telar = trim((string) ($row->NoTelarId ?? ''));
+            if ($telar === '') {
+                continue;
+            }
+
+            foreach (['3', '2', '1'] as $revision) {
+                $value = $row->{'EficienciaR'.$revision} ?? null;
+                if ($value === null || $value === '') {
+                    continue;
+                }
+
+                $latest[$telar] = [
+                    'percent' => (float) $value,
+                    'obs' => trim((string) ($row->{'ObsR'.$revision} ?? '')),
+                ];
+
+                break;
+            }
+        }
+
+        return $latest;
     }
 
     /**

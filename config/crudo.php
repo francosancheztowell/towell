@@ -28,6 +28,9 @@ return [
         'programs' => env('CRUDO_PROGRAMS_TABLE', 'dbo.ReqProgramaTejido'),
         'flogs' => env('CRUDO_FLOGS_TABLE', 'dbo.TwFlogsTable'),
         'flog_lines' => env('CRUDO_FLOG_LINES_TABLE', 'dbo.TwFlogsItemLine'),
+        // Cortes de eficiencia de tejido: una fila por telar/turno con hasta
+        // tres revisiones (R1, R2, R3).
+        'efficiency_lines' => env('CRUDO_EFFICIENCY_LINES_TABLE', 'dbo.TejEficienciaLine'),
         // Folio del programa de urdido = ORDENURDIDO de la captura de AX.
         'warping_programs' => env('CRUDO_WARPING_PROGRAMS_TABLE', 'dbo.UrdProgramaUrdido'),
     ],
@@ -75,6 +78,10 @@ return [
     | aquí solo permanecen umbrales y duración de turnos.
     |
     */
+    // Telares sin ProdKgDia en el programa (Karl Mayer no captura estándar):
+    // meta diaria fija en kg. Se usa solo cuando el programa no trae valor.
+    'fixed_daily_kilos' => ['401' => 600.0, '402' => 600.0],
+
     'bad_quality_percent' => (float) env('CRUDO_BAD_QUALITY_PERCENT', 7),
     'turns_per_day' => 4,
 

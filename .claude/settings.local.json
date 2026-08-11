@@ -111,7 +111,11 @@
       "Bash(\"C:/xampp/apache/bin/openssl.exe\" x509 *)",
       "Bash(php -l app/Http/Controllers/Planeacion/ProgramaTejido/LiberarOrdenesController.php)",
       "Bash(./vendor/bin/pint app/Http/Controllers/Planeacion/ProgramaTejido/LiberarOrdenesController.php tests/Feature/LiberarOrdenesLiberarTest.php)",
-      "Bash(./vendor/bin/pint app/Http/Controllers/Planeacion/ProgramaTejido/LiberarOrdenesController.php tests/Unit/LiberarOrdenesFelTamanhoTest.php)"
+      "Bash(./vendor/bin/pint app/Http/Controllers/Planeacion/ProgramaTejido/LiberarOrdenesController.php tests/Unit/LiberarOrdenesFelTamanhoTest.php)",
+      "PowerShell(php artisan test --filter=Crudo 2>&1 | Select-Object -Last 15)",
+      "PowerShell(php artisan test --filter=Crudo 2>&1 | Select-Object -Last 20)",
+      "PowerShell(npx vite build 2>&1 | Select-Object -Last 2)",
+      "PowerShell(php artisan test --filter=Crudo 2>&1 | Select-Object -Last 6; npx vite build 2>&1 | Select-Object -Last 2)"
     ]
   }
 }
