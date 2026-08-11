@@ -2,7 +2,7 @@
 
 namespace App\Observers;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\AuditoriaHelper;
+use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqAplicaciones;
