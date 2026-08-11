@@ -208,7 +208,7 @@
 
                     <article class="crudo-kpi-mini">
                         <strong>{{ number_format((float) $summary['pieces']) }}</strong>
-                        <span><i class="fa-solid fa-layer-group" aria-hidden="true"></i>pzas</span>
+                        <span>pzas</span>
                     </article>
                     <article class="crudo-kpi-mini">
                         <strong>{{ number_format((float) $summary['seconds']) }}</strong>

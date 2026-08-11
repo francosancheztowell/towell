@@ -115,7 +115,9 @@
       "PowerShell(php artisan test --filter=Crudo 2>&1 | Select-Object -Last 15)",
       "PowerShell(php artisan test --filter=Crudo 2>&1 | Select-Object -Last 20)",
       "PowerShell(npx vite build 2>&1 | Select-Object -Last 2)",
-      "PowerShell(php artisan test --filter=Crudo 2>&1 | Select-Object -Last 6; npx vite build 2>&1 | Select-Object -Last 2)"
+      "PowerShell(php artisan test --filter=Crudo 2>&1 | Select-Object -Last 6; npx vite build 2>&1 | Select-Object -Last 2)",
+      "Bash(./vendor/bin/pint app/Http/Controllers/Planeacion/ProgramaTejido/LiberarOrdenesController.php app/Observers/ReqProgramaTejidoObserver.php)",
+      "PowerShell(php artisan test tests/Feature/ObserverPedidoSyncTest.php 2>&1 | Select-Object -Last 30)"
     ]
   }
 }

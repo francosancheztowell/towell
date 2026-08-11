@@ -188,7 +188,7 @@ class LiberarOrdenesController extends Controller
                     $repeticiones = $this->repeticionesDesdePesoRollo($pesoRollo, $pCrudo, $tiras);
                 }
 
-                $saldoMarbeteValor = $this->saldoMarbeteDesdeFormula($registro->SaldoPedido ?? null, $tiras, $repeticiones);
+                $saldoMarbeteValor = $this->saldoMarbeteDesdeFormula($this->basePedido($registro), $tiras, $repeticiones);
                 // MtsRollo: fórmula = medida de largo * repeticiones (convertir cm a metros)
                 // MtsRollo se mantiene como decimal sin redondear
                 // MtsRollo: RECALCULAR SIEMPRE desde Repeticiones (el valor guardado puede estar
@@ -215,8 +215,8 @@ class LiberarOrdenesController extends Controller
 
                 $this->aplicarAjusteFelTamanho($registro->InventSizeId ?? null, $saldoMarbeteValor, $mtsRollo, $pzasRollo, $registro);
 
-                // TotalRollos = ceil(SaldoPedido / PzasRollo); TotalPzas = PzasRollo × TotalRollos.
-                $totalPedido = $registro->SaldoPedido ?? null;
+                // TotalRollos = ceil(TotalPedido / PzasRollo); TotalPzas = PzasRollo × TotalRollos.
+                $totalPedido = $this->basePedido($registro);
                 ['totalRollos' => $totalRollos, 'totalPzas' => $totalPzas] =
                     $this->derivarTotalRollosTotalPzas($pzasRollo, $totalPedido);
 
@@ -234,8 +234,9 @@ class LiberarOrdenesController extends Controller
 
                 $registro->Repeticiones = $repeticiones;
                 $registro->PesoRollo = $pesoRollo;
-                $registro->SaldoMarbete = $totalRollos;
-                $registro->NoMarbete = $totalRollos;
+                // Mismo criterio que al liberar: no. marbetes por fórmula del catálogo, no TotalRollos.
+                $registro->SaldoMarbete = $saldoMarbeteValor > 0 ? (float) $saldoMarbeteValor : null;
+                $registro->NoMarbete = $registro->SaldoMarbete;
                 $registro->RollosProgramados = $totalRollos;
                 $registro->MtsRollo = $mtsRollo;
                 $registro->PzasRollo = $pzasRollo;
@@ -512,7 +513,7 @@ class LiberarOrdenesController extends Controller
                     $repeticiones = $this->repeticionesDesdePesoRollo($pesoRolloFinal, $pCrudo, $tiras);
                 }
 
-                $saldoMarbeteValor = $this->saldoMarbeteDesdeFormula($registro->SaldoPedido ?? null, $tiras, $repeticiones);
+                $saldoMarbeteValor = $this->saldoMarbeteDesdeFormula($this->basePedido($registro), $tiras, $repeticiones);
 
                 // MtsRollo: si el usuario lo editó en la grilla (request) se respeta; de lo contrario
                 // se RECALCULA desde Repeticiones (no se hereda el valor guardado, que puede estar desfasado).
@@ -556,9 +557,9 @@ class LiberarOrdenesController extends Controller
                     $this->aplicarAjusteFelMtsRollo($registro->InventSizeId ?? null, $mtsRollo, $registro);
                 }
 
-                // TotalRollos: override del usuario (techo) o ceil(SaldoPedido / PzasRollo). TotalPzas = PzasRollo × TotalRollos.
+                // TotalRollos: override del usuario (techo) o ceil(TotalPedido / PzasRollo). TotalPzas = PzasRollo × TotalRollos.
                 ['totalRollos' => $totalRollos, 'totalPzas' => $totalPzas] =
-                    $this->derivarTotalRollosTotalPzas($pzasRollo, $registro->SaldoPedido ?? null, $item['totalRollos'] ?? null);
+                    $this->derivarTotalRollosTotalPzas($pzasRollo, $this->basePedido($registro), $item['totalRollos'] ?? null);
 
                 if ($totalRollos === null) {
                     // Fallbacks solo si no se pudo derivar desde PzasRollo/SaldoPedido.
@@ -573,9 +574,14 @@ class LiberarOrdenesController extends Controller
                 }
 
                 // Asignar campos calculados
+                // PesoRollo se PERSISTE: sin él, cualquier recálculo posterior (ReqProgramaTejidoObserver)
+                // vuelve al peso maestro y cambia Repeticiones/PzasRollo/MtsRollo respecto a lo liberado.
+                $registro->PesoRollo = $pesoRolloFinal;
                 $registro->Repeticiones = $repeticiones;
-                $registro->SaldoMarbete = $totalRollos;
-                $registro->NoMarbete = $totalRollos;
+                // No. marbetes = fórmula del catálogo (round((Pedido/NoTiras)/Repeticiones) ×2 si FEL),
+                // no TotalRollos: es la única que cuadra con CatCodificados.
+                $registro->SaldoMarbete = $saldoMarbeteValor > 0 ? (float) $saldoMarbeteValor : null;
+                $registro->NoMarbete = $registro->SaldoMarbete;
                 $registro->RollosProgramados = $totalRollos;
                 $registro->MtsRollo = $mtsRollo;
                 $registro->PzasRollo = $pzasRollo;
@@ -1819,8 +1825,25 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
+     * Base de las fórmulas de producción: el PEDIDO completo, no el saldo pendiente.
+     * SaldoPedido baja conforme se produce, así que usarlo hacía que rollos/marbetes/piezas
+     * cambiaran solos y dejaran de cuadrar con CatCodificados (que se recalcula sobre TotalPedido
+     * en ReqProgramaTejidoObserver). Fallback a SaldoPedido/Produccion solo en órdenes viejas sin TotalPedido.
+     */
+    private function basePedido(ReqProgramaTejido $registro): ?float
+    {
+        foreach ([$registro->TotalPedido ?? null, $registro->SaldoPedido ?? null, $registro->Produccion ?? null] as $valor) {
+            if ($valor !== null && is_numeric($valor) && (float) $valor > 0.0) {
+                return (float) $valor;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Deriva TotalRollos y TotalPzas a partir del PzasRollo ya resuelto (post-ajuste FEL).
-     * TotalRollos = ceil(SaldoPedido / PzasRollo), salvo override del usuario (techo).
+     * TotalRollos = ceil(TotalPedido / PzasRollo), salvo override del usuario (techo).
      * TotalPzas   = round(PzasRollo × TotalRollos).
      * Cualquier valor previo de TotalRollos/TotalPzas se ignora para que nunca quede desfasado.
      *
