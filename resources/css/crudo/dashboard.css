@@ -1262,10 +1262,11 @@ button.crudo-status-card:disabled {
     display: grid;
     /* Identidad + estado, producción, calidad, eficiencia, piezas y observaciones.
        Los dos velocímetros ocupan menos que una cifra, así que su columna es angosta. */
+    /* ponytail: mins ajustados para que las 7 columnas quepan en una fila en PC. */
     grid-template-columns:
-        minmax(16rem, 1.6fr) minmax(6rem, 0.55fr) minmax(7rem, 0.65fr)
-        minmax(7rem, 0.6fr) minmax(7rem, 0.6fr) minmax(5.5rem, 0.45fr)
-        minmax(9rem, 0.95fr);
+        minmax(13.5rem, 1.35fr) minmax(6rem, 0.55fr) minmax(7rem, 0.65fr)
+        minmax(7rem, 0.6fr) minmax(7rem, 0.6fr) minmax(4.5rem, 0.35fr)
+        minmax(8rem, 0.9fr);
     gap: 0.45rem;
     margin-bottom: 0.55rem;
 }
@@ -2908,7 +2909,7 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-modal-overview {
-        grid-template-columns: minmax(11rem, 1.45fr) minmax(0, 0.55fr) minmax(0, 0.7fr) minmax(0, 0.6fr) minmax(0, 0.6fr) minmax(0, 0.45fr) minmax(0, 0.95fr);
+        grid-template-columns: minmax(9.5rem, 1.25fr) minmax(0, 0.55fr) minmax(0, 0.7fr) minmax(0, 0.6fr) minmax(0, 0.6fr) minmax(0, 0.35fr) minmax(0, 0.9fr);
         gap: 0.4rem;
         margin-bottom: 0.4rem;
     }
