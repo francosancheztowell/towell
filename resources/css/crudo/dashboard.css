@@ -196,23 +196,25 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
-    margin-bottom: 0.52rem;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
 }
 
 .crudo-panel-heading h2,
 .crudo-detail-panel-heading h3 {
-    margin-top: 0.12rem;
+    margin-top: 0.08rem;
     color: #0f172a;
-    font-size: 0.88rem;
+    font-size: 0.78rem;
     font-weight: 850;
+    line-height: 1.2;
 }
 
 .crudo-eyebrow {
     color: #0284c7;
-    font-size: 0.6rem;
+    font-size: 0.52rem;
     font-weight: 900;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.12em;
+    line-height: 1.2;
     text-transform: uppercase;
 }
 
@@ -246,12 +248,12 @@
     --status-bg: #f1f5f9;
     display: grid;
     /* Icono + cifra arriba, etiqueta abajo a todo el ancho: la cifra manda. */
-    grid-template-columns: 2.6rem minmax(0, 1fr);
+    grid-template-columns: 2.1rem minmax(0, 1fr);
     grid-template-rows: auto auto;
-    gap: 0.15rem 0.55rem;
+    gap: 0.2rem 0.45rem;
     align-items: center;
-    min-height: 4.6rem;
-    padding: 0.6rem 0.7rem;
+    min-height: 3.8rem;
+    padding: 0.45rem 0.55rem;
     border: 1px solid color-mix(in srgb, var(--status) 22%, white);
     border-radius: 0.7rem;
     background: var(--status-bg);
@@ -328,20 +330,20 @@ button.crudo-status-card:disabled {
 
 .crudo-status-icon {
     display: grid;
-    width: 2.6rem;
-    height: 2.6rem;
+    width: 2.1rem;
+    height: 2.1rem;
     place-items: center;
-    border-radius: 0.6rem;
+    border-radius: 0.55rem;
     background: #fff;
     color: var(--status-ink, var(--status));
-    font-size: 1.05rem;
+    font-size: 0.88rem;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status) 18%, white);
 }
 
 .crudo-status-value {
     align-self: center;
     color: #0f172a;
-    font-size: 2.2rem;
+    font-size: 1.75rem;
     font-weight: 950;
     line-height: 1;
 }
@@ -363,11 +365,12 @@ button.crudo-status-card:disabled {
 }
 
 .crudo-compact-label {
-    margin: 0.62rem 0.05rem 0.3rem;
+    margin: 0.55rem 0.05rem 0.35rem;
     color: #64748b;
-    font-size: 0.56rem;
+    font-size: 0.52rem;
     font-weight: 900;
     letter-spacing: 0.09em;
+    line-height: 1.2;
     text-transform: uppercase;
 }
 
@@ -384,22 +387,56 @@ button.crudo-status-card:disabled {
 }
 
 .crudo-kpi-kilos {
-    row-gap: 0.4rem;
-}
-
-.crudo-kpi-kilos > header {
-    display: flex;
-    align-items: baseline;
+    display: grid;
     gap: 0.35rem;
 }
 
-.crudo-kpi-kilos > header em {
-    margin-left: auto;
+.crudo-kpi-kilos-dia {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.55rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+.crudo-kpi-kilos-dia strong {
+    color: #334155;
+    font-size: 0.72rem;
+    font-weight: 900;
+}
+
+.crudo-kpi-kilos-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    margin: 0;
+    min-width: 0;
+}
+
+.crudo-kpi-kilos-row strong {
+    color: #0f172a;
+    font-size: 1.65rem;
+    font-weight: 950;
+    line-height: 1.05;
+}
+
+.crudo-kpi-kilos-row span {
+    overflow: hidden;
     color: #64748b;
     font-size: 0.72rem;
-    font-style: normal;
     font-weight: 800;
+    letter-spacing: 0.03em;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
     white-space: nowrap;
+}
+
+.crudo-kpi-kilos {
+    gap: 0.55rem;
+    padding: 0.55rem 0.7rem 0.7rem;
 }
 
 /* Barra de meta: el ancho lo pone --crudo-progress, el color el tono. */
@@ -442,7 +479,7 @@ button.crudo-status-card:disabled {
     border: 1px solid #e2e8f0;
     border-radius: 0.85rem;
     background: #f8fafc;
-    padding: 0.6rem 0.4rem 0.55rem;
+    padding: 0.45rem 0.35rem 0.5rem;
 }
 
 .crudo-gauge[data-tone="warn"] {
@@ -454,8 +491,9 @@ button.crudo-status-card:disabled {
 }
 
 .crudo-gauge svg {
+    display: block;
     width: 100%;
-    max-width: 5.6rem;
+    max-width: 6.4rem;
     height: auto;
 }
 
@@ -463,6 +501,16 @@ button.crudo-status-card:disabled {
     fill: none;
     stroke-linecap: round;
     stroke-width: 7;
+}
+
+.crudo-gauge-num {
+    fill: #0f172a;
+    font-size: 17px;
+    font-weight: 900;
+}
+
+.crudo-gauge-pct {
+    font-size: 9px;
 }
 
 .crudo-gauge-track {
@@ -474,25 +522,13 @@ button.crudo-status-card:disabled {
     transition: stroke-dasharray 0.35s ease;
 }
 
-.crudo-gauge strong {
-    margin-top: -1.05rem;
-    color: #0f172a;
-    font-size: 1.55rem;
-    font-weight: 950;
-    line-height: 1;
-}
-
-.crudo-gauge strong em {
-    font-size: 0.6em;
-    font-style: normal;
-}
-
 .crudo-gauge > span {
-    margin-top: 0.1rem;
+    margin-top: 0.15rem;
     color: #64748b;
-    font-size: 0.68rem;
+    font-size: 0.58rem;
     font-weight: 800;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
+    line-height: 1.1;
     text-transform: uppercase;
 }
 
@@ -500,17 +536,18 @@ button.crudo-status-card:disabled {
     display: grid;
     grid-template-rows: auto auto;
     align-items: center;
-    min-height: 3.7rem;
+    gap: 0.15rem;
+    min-height: 3.1rem;
     border: 1px solid #e2e8f0;
     border-radius: 0.85rem;
     background: #f8fafc;
-    padding: 0.6rem 0.8rem;
+    padding: 0.45rem 0.6rem;
 }
 
 .crudo-kpi-grid article strong {
     align-self: end;
     color: #0f172a;
-    font-size: 1.5rem;
+    font-size: 1.35rem;
     font-weight: 950;
     line-height: 1.1;
 }
@@ -523,14 +560,16 @@ button.crudo-status-card:disabled {
     vertical-align: baseline;
 }
 
-/* La unidad se lee igual que la cifra: mismo tamaño y mismo peso. El azul
-   separa la etiqueta del número sin necesitar otro tamaño; el icono lo hereda. */
+/* La unidad acompaña a la cifra sin competir con ella: más chica y espaciada,
+   el azul la separa. El icono hereda el tamaño. */
 .crudo-kpi-grid article span {
     align-self: start;
     color: #0284c7;
-    font-size: 1.5rem;
-    font-weight: 950;
-    line-height: 1.1;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    line-height: 1.2;
+    text-transform: uppercase;
 }
 
 .crudo-area-table,
@@ -1350,10 +1389,6 @@ button.crudo-status-card:disabled {
     max-width: 4.4rem;
 }
 
-.crudo-modal-kpi-gauge .crudo-gauge strong {
-    margin-top: -0.85rem;
-    font-size: 1.25rem;
-}
 
 /* La etiqueta del velocímetro lleva el dato de apoyo (2das, último corte):
    se lee completa, sin recortes. */
@@ -2752,22 +2787,42 @@ button.crudo-status-card:disabled {
 
     .crudo-kpi-grid article span {
         overflow: hidden;
-        font-size: 0.92rem;
-        font-weight: 950;
+        font-size: 0.55rem;
+        font-weight: 900;
         text-overflow: ellipsis;
     }
 
-    .crudo-kpi-kilos > header em {
-        font-size: 0.56rem;
+    .crudo-kpi-kilos {
+        gap: 0.4rem;
+        padding: 0.4rem 0.45rem 0.5rem;
+    }
+
+    .crudo-kpi-kilos-row {
+        gap: 0.25rem;
+    }
+
+    .crudo-kpi-kilos-row strong {
+        font-size: 1.15rem;
+    }
+
+    .crudo-kpi-kilos-row span {
+        font-size: 0.62rem;
+    }
+
+    .crudo-kpi-kilos-dia {
+        font-size: 0.5rem;
+    }
+
+    .crudo-kpi-kilos-dia strong {
+        font-size: 0.62rem;
+    }
+
+    .crudo-gauge {
+        padding: 0.3rem 0.25rem 0.35rem;
     }
 
     .crudo-gauge svg {
-        max-width: 3.4rem;
-    }
-
-    .crudo-gauge strong {
-        margin-top: -0.7rem;
-        font-size: 0.9rem;
+        max-width: 4rem;
     }
 
     .crudo-gauge > span {
@@ -2828,11 +2883,6 @@ button.crudo-status-card:disabled {
 
     .crudo-modal-kpi-gauge .crudo-gauge svg {
         max-width: 3.5rem;
-    }
-
-    .crudo-modal-kpi-gauge .crudo-gauge strong {
-        margin-top: -0.7rem;
-        font-size: 1rem;
     }
 
     .crudo-modal-identity-card {

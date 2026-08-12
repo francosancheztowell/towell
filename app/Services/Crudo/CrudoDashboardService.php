@@ -624,6 +624,7 @@ final readonly class CrudoDashboardService
             'seconds' => 0.0,
             'kilos' => 0.0,
             'expectedKilos' => 0.0,
+            'dailyTargetKilos' => 0.0,
             'qualityPercent' => 0.0,
             'efficiencyPercent' => 0.0,
         ];
@@ -639,6 +640,7 @@ final readonly class CrudoDashboardService
             $summary['kilos'] += $machine->kilos;
             if ($machine->productionStandardStatus === CrudoProductionTargetService::COMPLETE) {
                 $summary['expectedKilos'] += $machine->expectedKilos;
+                $summary['dailyTargetKilos'] += $machine->dailyTargetKilos;
                 $standardizedKilos += $machine->kilos;
             }
         }
@@ -655,6 +657,7 @@ final readonly class CrudoDashboardService
         $summary['seconds'] = round($summary['seconds']);
         $summary['kilos'] = round($summary['kilos'], 1);
         $summary['expectedKilos'] = round($summary['expectedKilos'], 1);
+        $summary['dailyTargetKilos'] = round($summary['dailyTargetKilos'], 1);
         $summary['qualityPercent'] = round($summary['qualityPercent'], 1);
         $summary['efficiencyPercent'] = round($summary['efficiencyPercent'], 1);
 

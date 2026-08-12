@@ -171,6 +171,7 @@
                 @php
                     $kilos = (float) $summary['kilos'];
                     $metaKilos = (float) $summary['expectedKilos'];
+                    $stdDia = (float) $summary['dailyTargetKilos'];
                     $kilosPercent = $metaKilos > 0 ? min(100, $kilos / $metaKilos * 100) : 0.0;
                     $calidad = (float) $summary['qualityPercent'];
                     $eficiencia = (float) $summary['efficiencyPercent'];
@@ -179,13 +180,13 @@
 
                 <div class="crudo-kpi-grid">
                     <article class="crudo-kpi-kilos">
-                        <header>
-                            <span><i class="fa-solid fa-weight-hanging" aria-hidden="true"></i>kg</span>
+                        {{-- Std del día arriba como contexto; prod manda y esperado lo acompaña. --}}
+                        <p class="crudo-kpi-kilos-dia">día <strong>{{ number_format(round($stdDia)) }}</strong></p>
+
+                        <p class="crudo-kpi-kilos-row">
                             <strong>{{ number_format(round($kilos)) }}</strong>
-                            @if ($metaKilos > 0)
-                                <em>meta {{ number_format(round($metaKilos)) }}</em>
-                            @endif
-                        </header>
+                            <span>/ {{ number_format(round($metaKilos)) }} esperado</span>
+                        </p>
 
                         @if ($metaKilos > 0)
                             <div

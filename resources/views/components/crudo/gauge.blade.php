@@ -7,14 +7,15 @@
 @endphp
 
 <div class="crudo-gauge" data-tone="{{ $tone }}" role="img" aria-label="{{ $title ?? $label }}: {{ round($pct) }}%">
-    <svg viewBox="0 0 64 40" aria-hidden="true">
+    {{-- La cifra va dentro del SVG: escala con el arco y nunca lo encima. --}}
+    <svg viewBox="0 0 64 38" aria-hidden="true">
         <path class="crudo-gauge-track" d="M6 34a26 26 0 0 1 52 0" />
         <path
             class="crudo-gauge-value"
             d="M6 34a26 26 0 0 1 52 0"
             stroke-dasharray="{{ round($arc * $pct / 100, 2) }} {{ $arc }}"
         />
+        <text class="crudo-gauge-num" x="32" y="33" text-anchor="middle">{{ round($pct) }}<tspan class="crudo-gauge-pct">%</tspan></text>
     </svg>
-    <strong>{{ round($pct) }}<em>%</em></strong>
     <span>{{ $label }}</span>
 </div>
