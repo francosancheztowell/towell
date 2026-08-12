@@ -17,7 +17,7 @@ final class CrudoAccess
         abort_unless(
             function_exists('userCan') && userCan('acceso', $module),
             403,
-            'No tienes acceso al módulo de Crudo.',
+            'No tienes acceso al módulo de Andon.',
         );
     }
 
@@ -32,7 +32,7 @@ final class CrudoAccess
         abort_unless(
             $this->canRegister(),
             403,
-            'No tienes permiso para registrar auditorías de Crudo.',
+            'No tienes permiso para registrar auditorías de Andon.',
         );
     }
 
@@ -40,6 +40,7 @@ final class CrudoAccess
     {
         $module = trim((string) config('crudo.permission_module', ''));
 
-        return $module !== '' ? $module : 'Crudo';
+        // ponytail: el módulo se llama "Andon" en SYSRoles (antes "Crudo").
+        return $module !== '' ? $module : 'Andon';
     }
 }
