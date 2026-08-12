@@ -117,7 +117,15 @@
       "PowerShell(npx vite build 2>&1 | Select-Object -Last 2)",
       "PowerShell(php artisan test --filter=Crudo 2>&1 | Select-Object -Last 6; npx vite build 2>&1 | Select-Object -Last 2)",
       "Bash(./vendor/bin/pint app/Http/Controllers/Planeacion/ProgramaTejido/LiberarOrdenesController.php app/Observers/ReqProgramaTejidoObserver.php)",
-      "PowerShell(php artisan test tests/Feature/ObserverPedidoSyncTest.php 2>&1 | Select-Object -Last 30)"
+      "PowerShell(php artisan test tests/Feature/ObserverPedidoSyncTest.php 2>&1 | Select-Object -Last 30)",
+      "Bash(curl -s -o /dev/null -w \"manifest: %{http_code}\\\\n\" http://127.0.0.1:8123/manifest.json)",
+      "Bash(curl -s -o /dev/null -w \"sw.js: %{http_code}\\\\n\" http://127.0.0.1:8123/sw.js)",
+      "Bash(curl -s -o /dev/null -w \"offline: %{http_code}\\\\n\" http://127.0.0.1:8123/offline)",
+      "Bash(curl -s -o /dev/null -w \"login: %{http_code}\\\\n\" http://127.0.0.1:8123/login)",
+      "Bash(curl -s -o /dev/null -w \"icon192: %{http_code}\\\\n\" http://127.0.0.1:8123/icons/icon-192x192.png)",
+      "Bash(curl -s http://127.0.0.1:8123/manifest.json)",
+      "Bash(curl -s http://127.0.0.1:8123/login)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:8123/login)"
     ]
   }
 }

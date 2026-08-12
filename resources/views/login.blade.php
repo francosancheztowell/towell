@@ -7,6 +7,16 @@
   <meta name="description" content="Accede al sistema de gestion de produccion y planeacion empresarial Towell.">
   <title>Login - Towell</title>
 
+  {{-- PWA: el login es la pantalla de entrada, sin esto Chrome nunca ofrece instalar. --}}
+  @if(config('app.pwa_enabled', true) && !config('app.service_worker_cleanup', false))
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+  @endif
+  <meta name="theme-color" content="#0f4c81">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('icons/icon-180x180.png') }}">
+
   <!-- Tailwind CSS compilado a través de Vite -->
   @vite(['resources/css/app.css'])
 
@@ -97,6 +107,10 @@
       });
     })();
   </script>
+
+  @if(config('app.pwa_enabled', true) && !config('app.service_worker_cleanup', false))
+    <script src="{{ asset('js/app-pwa.js') }}" data-navigate-once></script>
+  @endif
 
 </body>
 </html>
