@@ -191,7 +191,6 @@
                                 :value="$detailEfficiency"
                                 :tone="$detailTone($detailEfficiency, 90, 75)"
                                 title="Eficiencia"
-                                label="kg vs meta"
                             />
                         </article>
                         <article class="crudo-modal-kpi">

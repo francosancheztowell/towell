@@ -181,7 +181,7 @@
                 <div class="crudo-kpi-grid">
                     <article class="crudo-kpi-kilos">
                         {{-- Std del día arriba como contexto; prod manda y esperado lo acompaña. --}}
-                        <p class="crudo-kpi-kilos-dia">día <strong>{{ number_format(round($stdDia)) }}</strong></p>
+                        <p class="crudo-kpi-kilos-dia">meta <strong>{{ number_format(round($stdDia)) }}</strong></p>
 
                         <p class="crudo-kpi-kilos-row">
                             <strong>{{ number_format(round($kilos)) }}</strong>

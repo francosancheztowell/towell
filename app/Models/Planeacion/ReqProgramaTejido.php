@@ -58,7 +58,7 @@ class ReqProgramaTejido extends Model
         'CalibreRizo2', 'CalibrePie2', 'CalibreTrama2', 'CalibreComb1', 'CalibreComb2', 'CalibreComb3', 'CalibreComb4', 'CalibreComb5',
         'Prioridad', 'LargoCrudo', 'OrdCompartida', 'CategoriaCalidad', 'PorcentajeSegundos', 'PedidoTempo', 'OrdCompartidaLider', 'Reprogramar', 'Posicion',
         'MtsRollo', 'PzasRollo', 'TotalRollos', 'TotalPzas', 'Repeticiones', 'CombinaTram', 'BomId', 'BomName', 'CreaProd', 'ProdId',
-        'Densidad', 'HiloAX', 'ActualizaLmat', 'PesoMuestra', 'NoMarbete', 'RollosProgramados',
+        'Densidad', 'HiloAX', 'ActualizaLmat', 'PesoMuestra', 'PesoRollo', 'NoMarbete', 'RollosProgramados',
         'FechaCreacion', 'HoraCreacion', 'UsuarioCrea', 'FechaModificacion', 'HoraModificacion', 'UsuarioModifica',
         'OrdPrincipal',
         'FechaArranque', 'FechaFinaliza',

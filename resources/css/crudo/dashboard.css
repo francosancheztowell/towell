@@ -438,7 +438,7 @@ button.crudo-status-card:disabled {
 .crudo-kpi-kilos-row span {
     overflow: hidden;
     color: #64748b;
-    font-size: 0.72rem;
+    font-size: 0.95rem;
     font-weight: 800;
     letter-spacing: 0.03em;
     line-height: 1.2;
@@ -2839,7 +2839,7 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-kpi-kilos-row span {
-        font-size: 0.62rem;
+        font-size: 0.8rem;
     }
 
     .crudo-kpi-kilos-dia {
