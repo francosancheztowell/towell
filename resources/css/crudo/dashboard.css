@@ -2623,14 +2623,44 @@ button.crudo-status-card:disabled {
 
 @media (min-width: 641px) and (max-width: 1050px),
        (hover: none) and (pointer: coarse) and (min-width: 641px) and (max-width: 1366px) {
+    /*
+     * En tablet lo escaso es el alto, no el ancho. Como columna lateral el
+     * resumen apilaba 5 estados + 4 KPIs + la tabla de salones en una tira de
+     * ~10rem de ancho: se hacía más largo que el propio piso de telares. Aquí
+     * pasa a ser una franja horizontal arriba, y los telares se quedan con todo
+     * el ancho y todo el alto restante.
+     */
     .crudo-content-grid {
-        grid-template-columns: clamp(9.5rem, 14vw, 10.25rem) minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr);
         gap: 0.45rem;
     }
 
     .crudo-sidebar {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 0.4rem;
+        grid-template-columns: minmax(0, 1fr) minmax(8.5rem, 13rem);
+        gap: 0.45rem;
+        align-items: start;
+    }
+
+    /* Los 5 estados en una sola fila: la franja mide una línea, no cinco. */
+    .crudo-status-list {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.3rem;
+    }
+
+    /* Kilos, velocímetros, piezas y segundas también en fila. */
+    .crudo-kpi-grid {
+        grid-template-columns: minmax(6rem, 1.4fr) minmax(7.5rem, 1.5fr) minmax(0, 0.55fr) minmax(0, 0.55fr);
+        align-items: stretch;
+    }
+
+    .crudo-kpi-kilos,
+    .crudo-gauge-pair {
+        grid-column: auto;
+    }
+
+    /* ponytail: el rótulo sobra cuando los KPIs ya están a la vista en la franja. */
+    .crudo-compact-label {
+        display: none;
     }
 
     .crudo-salons-grid {
@@ -2734,33 +2764,23 @@ button.crudo-status-card:disabled {
         font-size: 0.72rem;
     }
 
-    .crudo-status-list {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 0.25rem;
-    }
-
+    /* Misma tarjeta que en escritorio (icono + cifra arriba, etiqueta abajo),
+       sólo más compacta: en la franja hay ancho de sobra y alto no. */
     .crudo-status-card {
-        grid-template-columns: 1.5rem 1.65rem minmax(0, 1fr);
-        grid-template-rows: minmax(1.5rem, auto);
-        gap: 0.25rem;
-        min-height: 2.1rem;
-        padding: 0.28rem 0.35rem;
+        grid-template-columns: 1.6rem minmax(0, 1fr);
+        gap: 0.15rem 0.35rem;
+        min-height: 2.9rem;
+        padding: 0.3rem 0.4rem;
     }
 
     .crudo-status-icon {
-        grid-row: auto;
-        width: 1.5rem;
-        height: 1.5rem;
-        font-size: 0.68rem;
+        width: 1.6rem;
+        height: 1.6rem;
+        font-size: 0.7rem;
     }
 
     .crudo-status-value {
-        align-self: center;
-        font-size: 0.95rem;
-    }
-
-    .crudo-status-copy {
-        align-self: center;
+        font-size: 1.15rem;
     }
 
     .crudo-status-copy strong {
@@ -2768,7 +2788,6 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-kpi-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 0.35rem;
     }
 

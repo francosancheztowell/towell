@@ -125,7 +125,10 @@
       "Bash(curl -s -o /dev/null -w \"icon192: %{http_code}\\\\n\" http://127.0.0.1:8123/icons/icon-192x192.png)",
       "Bash(curl -s http://127.0.0.1:8123/manifest.json)",
       "Bash(curl -s http://127.0.0.1:8123/login)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:8123/login)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:8123/login)",
+      "Bash(curl -s -o /dev/null -w \"8000:%{http_code}\\\\n\" http://127.0.0.1:8000/ --max-time 3)",
+      "Bash(curl -s -o /dev/null -w \"80:%{http_code}\\\\n\" http://127.0.0.1/Towell/public/ --max-time 3)",
+      "Bash(curl -s -o /dev/null -w \"towell.test:%{http_code}\\\\n\" http://towell.test/ --max-time 3)"
     ]
   }
 }
