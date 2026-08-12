@@ -185,6 +185,15 @@
                                 label="{{ number_format(round((float) $selectedMachine['secondsPercent'])) }}% 2das"
                             />
                         </article>
+                        <article class="crudo-modal-kpi crudo-modal-kpi-gauge">
+                            <span>Eficiencia</span>
+                            <x-crudo.gauge
+                                :value="$detailEfficiency"
+                                :tone="$detailTone($detailEfficiency, 90, 75)"
+                                title="Eficiencia"
+                                label="kg vs meta"
+                            />
+                        </article>
                         <article class="crudo-modal-kpi">
                             <span>Piezas</span>
                             <strong>{{ number_format((float) $selectedMachine['pieces']) }}</strong>

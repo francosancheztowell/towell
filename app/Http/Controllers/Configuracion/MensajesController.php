@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Configuracion;
 use App\Http\Controllers\Controller;
 use App\Models\Sistema\SysDepartamento;
 use App\Models\Sistema\SYSMensaje;
+use App\Models\Sistema\Usuario;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -61,15 +62,23 @@ class MensajesController extends Controller
 
     public function index(): View
     {
-        $mensajes = SYSMensaje::with('departamento')
+        $mensajes = SYSMensaje::with(['departamento', 'usuario'])
             ->orderBy('Id')
             ->get();
 
         $departamentos = SysDepartamento::orderBy('id')->get(['id', 'Depto', 'Descripcion']);
 
+        // Solo usuarios con correo: los demas no sirven como destinatarios.
+        $usuarios = Usuario::query()
+            ->whereNotNull('correo')
+            ->where('correo', '<>', '')
+            ->orderBy('nombre')
+            ->get(['idusuario', 'nombre', 'correo']);
+
         return view('modulos.configuracion.mensajes', [
             'mensajes' => $mensajes,
             'departamentos' => $departamentos,
+            'usuarios' => $usuarios,
         ]);
     }
 
@@ -85,6 +94,7 @@ class MensajesController extends Controller
                     }
                 },
             ],
+            'UsuarioId' => ['nullable', 'integer', 'exists:sqlsrv.dbo.SYSUsuario,idusuario'],
             'Telefono' => ['required', 'string', 'max:20'],
             'Token' => ['required', 'string', 'max:255'],
             'Activo' => ['nullable', 'boolean'],
@@ -101,6 +111,7 @@ class MensajesController extends Controller
             'InvTrama' => ['nullable', 'boolean'],
             'UrdidoCalidad' => ['nullable', 'boolean'],
             'Calidad' => ['nullable', 'boolean'],
+            'Andon' => ['nullable', 'boolean'],
         ]);
 
         $validated['Activo'] = (bool) ($request->boolean('Activo') ?? true);
@@ -117,11 +128,13 @@ class MensajesController extends Controller
         $validated['InvTrama'] = (bool) ($request->boolean('InvTrama') ?? false);
         $validated['UrdidoCalidad'] = (bool) ($request->boolean('UrdidoCalidad') ?? false);
         $validated['Calidad'] = (bool) ($request->boolean('Calidad') ?? false);
+        $validated['Andon'] = (bool) ($request->boolean('Andon') ?? false);
+        $validated['UsuarioId'] = $request->filled('UsuarioId') ? (int) $request->input('UsuarioId') : null;
 
         $mensaje = SYSMensaje::create($validated);
 
         if ($request->expectsJson()) {
-            $mensaje->load('departamento');
+            $mensaje->load(['departamento', 'usuario']);
 
             return response()->json([
                 'ok' => true,
@@ -149,6 +162,7 @@ class MensajesController extends Controller
                     }
                 },
             ],
+            'UsuarioId' => ['nullable', 'integer', 'exists:sqlsrv.dbo.SYSUsuario,idusuario'],
             'Telefono' => ['required', 'string', 'max:20'],
             'Token' => ['required', 'string', 'max:255'],
             'Activo' => ['nullable', 'boolean'],
@@ -165,6 +179,7 @@ class MensajesController extends Controller
             'InvTrama' => ['nullable', 'boolean'],
             'UrdidoCalidad' => ['nullable', 'boolean'],
             'Calidad' => ['nullable', 'boolean'],
+            'Andon' => ['nullable', 'boolean'],
         ]);
 
         $validated['Activo'] = (bool) ($request->boolean('Activo') ?? true);
@@ -181,11 +196,13 @@ class MensajesController extends Controller
         $validated['InvTrama'] = (bool) ($request->boolean('InvTrama') ?? false);
         $validated['UrdidoCalidad'] = (bool) ($request->boolean('UrdidoCalidad') ?? false);
         $validated['Calidad'] = (bool) ($request->boolean('Calidad') ?? false);
+        $validated['Andon'] = (bool) ($request->boolean('Andon') ?? false);
+        $validated['UsuarioId'] = $request->filled('UsuarioId') ? (int) $request->input('UsuarioId') : null;
 
         $mensaje->update($validated);
 
         if ($request->expectsJson()) {
-            $mensaje->load('departamento');
+            $mensaje->load(['departamento', 'usuario']);
 
             return response()->json([
                 'ok' => true,
@@ -244,7 +261,7 @@ class MensajesController extends Controller
         $mensaje->Token = $validated['ChatId'];
         $mensaje->save();
 
-        $mensaje->load('departamento');
+        $mensaje->load(['departamento', 'usuario']);
 
         return response()->json([
             'ok' => true,
@@ -260,6 +277,9 @@ class MensajesController extends Controller
         return [
             'Id' => $mensaje->Id,
             'DepartamentoId' => $mensaje->DepartamentoId,
+            'UsuarioId' => $mensaje->UsuarioId,
+            'UsuarioNombre' => $mensaje->usuario?->nombre ?? '',
+            'Correo' => $mensaje->usuario?->correo ?? '',
             'DepartamentoNombre' => $depto ? ($depto->Depto ?? $depto->Descripcion ?? (string) $mensaje->DepartamentoId) : (string) $mensaje->DepartamentoId,
             'Telefono' => $mensaje->Telefono,
             'Token' => $mensaje->Token,
@@ -276,6 +296,9 @@ class MensajesController extends Controller
             'ReporteTiempoMuerto' => (bool) $mensaje->ReporteTiempoMuerto,
             'Atadores' => (bool) $mensaje->Atadores,
             'InvTrama' => (bool) $mensaje->InvTrama,
+            'UrdidoCalidad' => (bool) $mensaje->UrdidoCalidad,
+            'Calidad' => (bool) $mensaje->Calidad,
+            'Andon' => (bool) $mensaje->Andon,
         ];
     }
 }

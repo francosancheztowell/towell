@@ -171,7 +171,7 @@
                 @php
                     $kilos = (float) $summary['kilos'];
                     $metaKilos = (float) $summary['expectedKilos'];
-                    $stdDia = (float) $summary['dailyTargetKilos'];
+                    $stdDia = (float) ($summary['dailyTargetKilos'] ?? 0);
                     $kilosPercent = $metaKilos > 0 ? min(100, $kilos / $metaKilos * 100) : 0.0;
                     $calidad = (float) $summary['qualityPercent'];
                     $eficiencia = (float) $summary['efficiencyPercent'];
@@ -334,6 +334,7 @@
                             @else
                                 <ul class="crudo-estado-metricas">
                                     <li><span>Calidad</span><strong>{{ number_format((float) $item['qualityPercent'], 1) }}%</strong></li>
+                                    <li><span>Eficiencia</span><strong>{{ number_format((float) ($item['efficiencyPercent'] ?? 0), 1) }}%</strong></li>
                                     <li>
                                         <span>Kilos</span>
                                         <strong>
