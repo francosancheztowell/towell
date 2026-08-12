@@ -798,8 +798,14 @@ button.crudo-status-card:disabled {
 }
 
 /* Fondos saturados: sobre ellos el texto vertical va en blanco. */
-.crudo-machine-card:is([data-state="bad_quality"], [data-state="paro"], [data-state="low_kilos"], [data-state="operating"]) :is(.crudo-machine-quality, .crudo-machine-metric) {
+.crudo-machine-card:is([data-state="bad_quality"], [data-state="paro"], [data-state="low_kilos"], [data-state="operating"], [data-state="no_data"]) :is(.crudo-machine-quality, .crudo-machine-metric) {
     color: #fff;
+}
+
+/* El gris claro por defecto no lee bien el texto oscuro a distancia: se oscurece
+   la card del telar y se fuerza texto blanco sin afectar el resto de UI. */
+.crudo-machine-card[data-state="no_data"] {
+    background: #4b5563;
 }
 
 .crudo-machine-tooltip {
