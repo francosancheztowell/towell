@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController;
+use App\Models\Planeacion\ReqProgramaTejido;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -39,6 +40,33 @@ class LiberarOrdenesLiberarTest extends TestCase
         $this->useSqlsrvSqlite();
         config()->set('database.default', 'sqlsrv');
         config()->set('planeacion.programa_tejido_table', 'ReqProgramaTejido');
+
+        // liberar() revalida el L.Mat contra AX (BOMTABLE + BOMVERSION). Sin este
+        // doble en sqlite la prueba pegaba al TI_PRO real y siempre daba 422.
+        config()->set('database.connections.sqlsrv_ti', [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+            'foreign_key_constraints' => false,
+        ]);
+        DB::purge('sqlsrv_ti');
+
+        Schema::connection('sqlsrv_ti')->create('BOMTABLE', function (Blueprint $table) {
+            $table->string('BOMID');
+            $table->string('NAME')->nullable();
+            $table->string('ITEMGROUPID')->nullable();
+            $table->string('TWINVENTSIZEID')->nullable();
+            $table->string('TWSALON')->nullable();
+            $table->integer('Vigente')->default(1);
+        });
+
+        Schema::connection('sqlsrv_ti')->create('BOMVERSION', function (Blueprint $table) {
+            $table->string('BOMID');
+            $table->string('ITEMID');
+        });
+
+        // L.Mat válido para el registro base (IT100 / STD / JACQUARD).
+        $this->sembrarBomCrudo('BOM-CRUDO-01', 'IT100', 'STD');
 
         $schema = Schema::connection('sqlsrv');
 
@@ -192,7 +220,40 @@ class LiberarOrdenesLiberarTest extends TestCase
         foreach (['ReqProgramaTejidoLine', 'ReqModelosCodificados', 'CatCodificados', 'ReqPesosRolloTejido', 'ReqProgramaTejido'] as $tabla) {
             $schema->dropIfExists($tabla);
         }
+        foreach (['BOMTABLE', 'BOMVERSION'] as $tabla) {
+            Schema::connection('sqlsrv_ti')->dropIfExists($tabla);
+        }
         parent::tearDown();
+    }
+
+    /**
+     * Alta de un L.Mat CRUDO en el doble de AX.
+     *
+     * @param  int  $versiones  Filas en BOMVERSION. AX guarda varias por item, y ese
+     *                          era el origen de la duplicación que rompía el autollenado.
+     */
+    private function sembrarBomCrudo(
+        string $bomId,
+        string $itemId,
+        string $inventSizeId,
+        string $salon = 'JACQUARD',
+        int $versiones = 1
+    ): void {
+        DB::connection('sqlsrv_ti')->table('BOMTABLE')->insert([
+            'BOMID' => $bomId,
+            'NAME' => 'LISTA MATERIALES '.$bomId,
+            'ITEMGROUPID' => 'CRUDO',
+            'TWINVENTSIZEID' => $inventSizeId,
+            'TWSALON' => $salon,
+            'Vigente' => 1,
+        ]);
+
+        for ($i = 0; $i < $versiones; $i++) {
+            DB::connection('sqlsrv_ti')->table('BOMVERSION')->insert([
+                'BOMID' => $bomId,
+                'ITEMID' => $itemId.'-1',
+            ]);
+        }
     }
 
     /**
@@ -327,6 +388,10 @@ class LiberarOrdenesLiberarTest extends TestCase
         $idA = $this->sembrarRegistro(['NoTelarId' => '201']);
         $idB = $this->sembrarRegistro(['NoTelarId' => '202']);
 
+        // Ambos L.Mat válidos: lo que debe reventar es el folio repetido, no la validación previa.
+        $this->sembrarBomCrudo('BOM-A', 'IT100', 'STD');
+        $this->sembrarBomCrudo('BOM-B', 'IT100', 'STD');
+
         DB::connection('sqlsrv')->table('ReqPesosRolloTejido')->insert([
             'InventSizeId' => 'STD',
             'PesoRollo' => 41,
@@ -386,5 +451,53 @@ class LiberarOrdenesLiberarTest extends TestCase
         $this->assertNull($registro->NoProduccion);
         $this->assertNull($registro->Repeticiones);
         $this->assertNull($registro->BomId);
+    }
+
+    /**
+     * El campo L.Mat es texto libre: un BOMID vigente pero de OTRO producto no
+     * debe poder liberarse. Antes solo se comprobaba que el BOMID existiera.
+     */
+    public function test_liberar_rechaza_lmat_vigente_que_pertenece_a_otro_item(): void
+    {
+        $id = $this->sembrarRegistro();
+
+        // Vigente y CRUDO, pero amarrado a IT999 — no al IT100 del renglón.
+        $this->sembrarBomCrudo('BOM-AJENO-99', 'IT999', 'STD');
+
+        $response = $this->liberar([
+            [
+                'id' => $id,
+                'bomId' => 'BOM-AJENO-99',
+                'bomName' => 'LISTA MATERIALES BOM-AJENO-99',
+                'noProduccion' => '78001',
+            ],
+        ]);
+
+        $this->assertSame(422, $response->getStatusCode());
+        $data = $response->getData(true);
+        $this->assertFalse($data['success']);
+        $this->assertStringContainsString('BOM-AJENO-99', $data['message']);
+
+        $registro = DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $id)->first();
+        $this->assertNull($registro->NoProduccion);
+    }
+
+    /**
+     * Un L.Mat con varias versiones en BOMVERSION sigue siendo uno solo: el JOIN
+     * lo devolvía duplicado y eso rompía el conteo de opciones.
+     */
+    public function test_lmat_con_varias_versiones_en_ax_cuenta_como_una_sola_opcion(): void
+    {
+        $this->sembrarBomCrudo('BOM-MULTI-03', 'IT700', 'STD', 'JACQUARD', versiones: 3);
+
+        $registro = $this->sembrarRegistro(['ItemId' => 'IT700']);
+        $modelo = ReqProgramaTejido::find($registro);
+
+        $metodo = new \ReflectionMethod(LiberarOrdenesController::class, 'resolverBomCrudoOpciones');
+        $metodo->setAccessible(true);
+        $opciones = $metodo->invoke(new LiberarOrdenesController, $modelo);
+
+        $this->assertCount(1, $opciones, 'Las 3 versiones de AX deben colapsar en una sola opción.');
+        $this->assertSame('BOM-MULTI-03', $opciones[0]['bomId']);
     }
 }

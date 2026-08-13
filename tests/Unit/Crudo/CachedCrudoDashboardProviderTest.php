@@ -68,6 +68,7 @@ final class CachedCrudoDashboardProviderTest extends TestCase
         $repository = Mockery::mock(CrudoReadRepository::class);
         $repository->shouldReceive('machines')->once()->andReturn([]);
         $repository->shouldReceive('aggregateHeadersForRange')->once()->andReturn([]);
+        $repository->shouldReceive('efficiencyLinesForRange')->once()->andReturn([]);
 
         $date = new DateTimeImmutable('2026-07-01');
         Cache::put('crudo:dashboard:2026-07-01:2026-07-01:todos', [

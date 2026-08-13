@@ -168,26 +168,52 @@
 
                 <p class="crudo-compact-label">Producción del periodo</p>
 
+                @php
+                    $kilos = (float) $summary['kilos'];
+                    $metaKilos = (float) $summary['expectedKilos'];
+                    $stdDia = (float) ($summary['dailyTargetKilos'] ?? 0);
+                    $kilosPercent = $metaKilos > 0 ? min(100, $kilos / $metaKilos * 100) : 0.0;
+                    $calidad = (float) $summary['qualityPercent'];
+                    $eficiencia = (float) $summary['efficiencyPercent'];
+                    $tono = fn (float $v, float $ok, float $medio) => $v >= $ok ? 'good' : ($v >= $medio ? 'warn' : 'bad');
+                @endphp
+
                 <div class="crudo-kpi-grid">
-                    <article>
-                        <strong>{{ number_format(round((float) $summary['kilos'])) }}</strong>
-                        <span><i class="fa-solid fa-weight-hanging" aria-hidden="true"></i>kg</span>
+                    <article class="crudo-kpi-kilos">
+                        {{-- Std del día arriba como contexto; prod manda y esperado lo acompaña. --}}
+                        <p class="crudo-kpi-kilos-dia">meta <strong>{{ number_format(round($stdDia)) }}</strong></p>
+
+                        <p class="crudo-kpi-kilos-row">
+                            <strong>{{ number_format(round($kilos)) }}</strong>
+                            <span>/ {{ number_format(round($metaKilos)) }} esperado</span>
+                        </p>
+
+                        @if ($metaKilos > 0)
+                            <div
+                                class="crudo-progress"
+                                data-tone="{{ $tono($kilosPercent, 90, 75) }}"
+                                style="--crudo-progress: {{ round($kilosPercent, 1) }}%"
+                                role="progressbar"
+                                aria-valuemin="0"
+                                aria-valuemax="100"
+                                aria-valuenow="{{ round($kilosPercent) }}"
+                                aria-label="Kilos contra meta del periodo"
+                            ><span></span></div>
+                        @endif
                     </article>
-                    <article>
+
+                    <div class="crudo-gauge-pair">
+                        <x-crudo.gauge :value="$calidad" label="Calidad" :tone="$tono($calidad, 93, 85)" />
+                        <x-crudo.gauge :value="$eficiencia" label="Eficiencia" :tone="$tono($eficiencia, 90, 75)" />
+                    </div>
+
+                    <article class="crudo-kpi-mini">
                         <strong>{{ number_format((float) $summary['pieces']) }}</strong>
-                        <span><i class="fa-solid fa-layer-group" aria-hidden="true"></i>pzas</span>
+                        <span>pzas</span>
                     </article>
-                    <article>
-                        <strong>{{ number_format(round((float) $summary['qualityPercent'])) }}%</strong>
-                        <span><i class="fa-solid fa-shield-heart" aria-hidden="true"></i>cal.</span>
-                    </article>
-                    <article>
-                        <strong>{{ number_format(round((float) $summary['efficiencyPercent'])) }}%</strong>
-                        <span><i class="fa-solid fa-gauge-high" aria-hidden="true"></i>efi.</span>
-                    </article>
-                    <article>
+                    <article class="crudo-kpi-mini">
                         <strong>{{ number_format((float) $summary['seconds']) }}</strong>
-                        <span><i class="fa-solid fa-arrow-trend-down" aria-hidden="true"></i>2das</span>
+                        <span>2das</span>
                     </article>
                 </div>
             </section>
@@ -308,6 +334,7 @@
                             @else
                                 <ul class="crudo-estado-metricas">
                                     <li><span>Calidad</span><strong>{{ number_format((float) $item['qualityPercent'], 1) }}%</strong></li>
+                                    <li><span>Eficiencia</span><strong>{{ number_format((float) ($item['efficiencyPercent'] ?? 0), 1) }}%</strong></li>
                                     <li>
                                         <span>Kilos</span>
                                         <strong>

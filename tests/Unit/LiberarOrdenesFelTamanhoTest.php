@@ -70,15 +70,30 @@ class LiberarOrdenesFelTamanhoTest extends TestCase
         $this->assertSame(400.0, $pzas);
     }
 
-    public function test_request_tiene_mts_pzas_rollo_desde_cliente(): void
+    /**
+     * Caso real de la orden 36734 (FELPA6808 / FEL): la grilla manda MtsRollo ya
+     * dividido, pero PzasRollo lo recalcula el servidor. Los dos ajustes tienen que
+     * ser independientes — si comparten guard, PzasRollo se guarda sin dividir
+     * (146 en vez de 73) y TotalPzas sale al doble.
+     */
+    public function test_ajuste_fel_de_pzas_es_independiente_del_de_mts(): void
     {
-        $m = $this->method('requestTieneMtsPzasRolloDesdeCliente');
+        $mPzas = $this->method('aplicarAjusteFelPzasRollo');
+        $mMts = $this->method('aplicarAjusteFelMtsRollo');
 
-        $this->assertFalse($m->invoke($this->controller, []));
-        $this->assertFalse($m->invoke($this->controller, ['mtsRollo' => null, 'pzasRollo' => '']));
-        $this->assertTrue($m->invoke($this->controller, ['mtsRollo' => '12.5']));
-        $this->assertTrue($m->invoke($this->controller, ['pzasRollo' => '100']));
-        $this->assertTrue($m->invoke($this->controller, ['mtsRollo' => 0]));
+        // Repeticiones 73 × NoTiras 2, recalculado siempre en servidor.
+        $pzas = 146.0;
+        $mPzas->invokeArgs($this->controller, ['FEL', &$pzas]);
+        $this->assertSame(73.0, $pzas);
+
+        // MtsRollo que llegó del request ya dividido: no debe volver a dividirse,
+        // por eso liberar() ni siquiera llama al ajuste en ese caso.
+        $mts = 37.23;
+        $mMts->invokeArgs($this->controller, ['NORMAL', &$mts]);
+        $this->assertSame(37.23, $mts);
+
+        // TotalPzas = TotalRollos × PzasRollo ya ajustado.
+        $this->assertSame(12045.0, 165 * $pzas);
     }
 
     public function test_aplicar_ajuste_fel_saldo_y_mts_pzas_en_dos_llamadas(): void

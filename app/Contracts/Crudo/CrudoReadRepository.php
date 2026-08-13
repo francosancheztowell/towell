@@ -57,4 +57,12 @@ interface CrudoReadRepository
      * @return list<object>
      */
     public function activePrograms(array $telares): array;
+
+    /**
+     * Cortes de eficiencia de tejido del rango, en orden ascendente por
+     * fecha y turno. Una fila por telar/turno con hasta tres revisiones.
+     *
+     * @return list<object>
+     */
+    public function efficiencyLinesForRange(DateTimeImmutable $from, DateTimeImmutable $to): array;
 }

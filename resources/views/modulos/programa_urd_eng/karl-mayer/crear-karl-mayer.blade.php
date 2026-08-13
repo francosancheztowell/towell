@@ -254,8 +254,9 @@
     const ROUTES = {
         buscarBomUrdido: '{{ route("programa.urd.eng.buscar.bom.urdido") }}',
         materialesCompleto: '{{ route("programa.urd.eng.materiales.urdido.completo") }}',
-        hilos: '{{ route("programa.urd.eng.hilos") }}',
-        tamanos: '{{ route("programa.urd.eng.tamanos") }}',
+        {{-- Karl Mayer usa el catálogo de JULIO-URDIDO --}}
+        hilos: '{{ route("programa.urd.eng.hilos", ["tipo" => "Urdido"]) }}',
+        tamanos: '{{ route("programa.urd.eng.tamanos", ["tipo" => "Urdido"]) }}',
         crearOrdenKarlMayer: '{{ route("programa.urd.eng.crear.orden.karl.mayer") }}',
         indexProgramaUrdEng: '{{ route("programa.urd.eng.index") }}',
     };

@@ -117,6 +117,39 @@ final class CrudoDashboardServiceTest extends TestCase
         $this->assertSame(1, $this->repository->aggregateCalls);
     }
 
+    public function test_machine_efficiency_uses_the_last_non_null_revision_of_the_last_captured_turn(): void
+    {
+        $this->repository->efficiencyLines = [
+            (object) [
+                'NoTelarId' => '201',
+                'Turno' => '1',
+                'EficienciaR1' => 80.0,
+                'EficienciaR2' => 82.0,
+                'EficienciaR3' => 84.0,
+                'ObsR1' => 'obs uno',
+                'ObsR2' => 'obs dos',
+                'ObsR3' => 'obs tres',
+            ],
+            (object) [
+                'NoTelarId' => '201',
+                'Turno' => '2',
+                'EficienciaR1' => 90.0,
+                'EficienciaR2' => 91.0,
+                'EficienciaR3' => null,
+                'ObsR1' => 'obs uno T2',
+                'ObsR2' => 'paro de urdido',
+                'ObsR3' => null,
+            ],
+        ];
+
+        $machines = $this->service->build($this->date())->toArray()['machines'];
+
+        $this->assertSame(91.0, $machines[0]['efficiencyPercent']);
+        $this->assertSame('paro de urdido', $machines[0]['efficiencyObs']);
+        // El telar sin corte capturado se queda en cero, no hereda calidad.
+        $this->assertSame(0.0, $machines[1]['efficiencyPercent']);
+    }
+
     public function test_current_in_process_prod_kg_dia_drives_the_historical_low_kilos_state(): void
     {
         $this->repository->programs = [
@@ -376,5 +409,13 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
     public function activePrograms(array $telares): array
     {
         return $this->programs;
+    }
+
+    /** @var list<object> */
+    public array $efficiencyLines = [];
+
+    public function efficiencyLinesForRange(DateTimeImmutable $from, DateTimeImmutable $to): array
+    {
+        return $this->efficiencyLines;
     }
 }

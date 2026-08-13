@@ -54,8 +54,7 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSee('data-crudo-detail-modal', false)
             ->assertDontSee('data-crudo-audit-modal', false)
             ->assertSee('Órdenes y turnos')
-            ->assertSee('Meta al día')
-            ->assertSee('Meta a esta hora')
+            ->assertSee('meta a esta hora')
             ->assertSee('Fecha')
             ->assertSee('No. Rollo')
             ->assertSee('Orden')
@@ -299,7 +298,7 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertDontSee('data-crudo-modal', false);
     }
 
-    public function test_program_order_is_in_the_title_and_model_key_is_next_to_ax_key(): void
+    public function test_program_order_is_in_the_title_and_product_name_is_next_to_ax_key(): void
     {
         $machine = $this->machineData();
         $machine['programa'] = [
@@ -315,17 +314,18 @@ final class CrudoMachineDetailTest extends TestCase
             ->dispatch('open-crudo-detail', telar: '201', machine: $machine)
             ->assertSee('crudo-modal-order', false)
             ->assertSee('ORD-PROG-201')
-            ->assertSee('Clave modelo')
-            ->assertSee('MOD-201-GDE')
+            ->assertSee('Nombre')
+            ->assertSee('Producto de prueba')
             ->assertSee('Clave AX')
             ->assertSee('AX-201')
             ->assertSee('crudo-modal-program-field', false)
-            ->assertSee('title="MOD-201-GDE"', false)
+            ->assertSee('title="Producto de prueba"', false)
             ->assertSee('title="AX-201"', false)
+            ->assertDontSee('Clave modelo')
             ->assertDontSee('Clave ORD-PROG-201');
 
         $html = $component->html();
-        $this->assertLessThan(strpos($html, 'Clave AX'), strpos($html, 'Clave modelo'));
+        $this->assertLessThan(strpos($html, 'Clave AX'), strpos($html, '<dt>Nombre</dt>'));
     }
 
     public function test_it_renders_an_active_stop_inside_the_compact_status_card(): void
@@ -364,12 +364,10 @@ final class CrudoMachineDetailTest extends TestCase
             ->dispatch('open-crudo-detail', telar: '201', machine: $machine)
             ->call('loadDetail')
             ->assertSee('41 kg')
-            ->assertSee('Meta al día')
-            ->assertSee('3 kg')
-            ->assertSee('Meta a esta hora')
             ->assertSee('51 kg')
+            ->assertSee('meta a esta hora')
             ->assertSee('95%')
-            ->assertSee('5% segundas')
+            ->assertSee('5% 2das')
             ->assertDontSee('40.6 kg')
             ->assertDontSee('94.6%');
     }
@@ -494,8 +492,7 @@ final class CrudoMachineDetailTest extends TestCase
             )
             ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
             ->call('loadDetail')
-            ->assertSee('Meta diaria promedio')
-            ->assertSee('Meta acumulada del rango');
+            ->assertSee('meta del rango');
 
         $this->assertSame([
             'telar' => '201',

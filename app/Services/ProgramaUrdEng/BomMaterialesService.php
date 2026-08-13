@@ -567,19 +567,29 @@ class BomMaterialesService
      */
     private function julioItemId(?string $tipo): string
     {
-        return strcasecmp(trim((string) $tipo), 'Pie') === 0
+        $t = trim((string) $tipo);
+
+        // Karl Mayer usa el catálogo histórico completo.
+        if (strcasecmp($t, 'Urdido') === 0) {
+            return 'JULIO-URDIDO';
+        }
+
+        return strcasecmp($t, 'Pie') === 0
             ? 'JU-ENG-PI-C'
             : 'JU-ENG-RI-C';
     }
 
     public function obtenerHilos(?string $tipo = null): array
     {
+        $itemId = $this->julioItemId($tipo);
+
         return DB::connection(self::CONN)
             ->table('ConfigTable')
             ->select('ConfigId')
-            ->where('ItemId', $this->julioItemId($tipo))
+            ->where('ItemId', $itemId)
             ->where('DATAAREAID', self::DATAAREA)
-            ->where('TwVigente', 1)
+            // JULIO-URDIDO no tiene filas con TwVigente = 1.
+            ->when($itemId !== 'JULIO-URDIDO', fn ($q) => $q->where('TwVigente', 1))
             // 'HILO' es un ConfigId comodín de AX, no un hilo real. Mismo
             // criterio que CatalogosMaterialesLMatService.
             ->whereRaw('UPPER(ConfigId) <> ?', ['HILO'])
@@ -591,12 +601,14 @@ class BomMaterialesService
 
     public function obtenerTamanos(?string $tipo = null): array
     {
+        $itemId = $this->julioItemId($tipo);
+
         return DB::connection(self::CONN)
             ->table('InventSize')
             ->select('InventSizeId')
-            ->where('ItemId', $this->julioItemId($tipo))
+            ->where('ItemId', $itemId)
             ->where('DATAAREAID', self::DATAAREA)
-            ->where('TwVigente', 1)
+            ->when($itemId !== 'JULIO-URDIDO', fn ($q) => $q->where('TwVigente', 1))
             ->orderBy('InventSizeId')
             ->distinct()
             ->get()

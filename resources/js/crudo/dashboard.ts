@@ -19,6 +19,8 @@ type Machine = {
   kilos: number
   qualityPercent: number
   secondsPercent: number
+  efficiencyPercent: number
+  efficiencyObs: string
   expectedKilos: number
   state: string
   stateLabel: string
@@ -318,7 +320,7 @@ const updateMachineCard = (machine: Machine): void => {
     return
   }
 
-  const signature = `${machine.state}:${machine.pieces}:${machine.seconds}:${machine.kilos}`
+  const signature = `${machine.state}:${machine.pieces}:${machine.seconds}:${machine.kilos}:${machine.efficiencyPercent}`
   if (button.dataset.signature === signature) {
     return
   }
@@ -331,9 +333,9 @@ const updateMachineCard = (machine: Machine): void => {
   button.dataset.signature = signature
   button.setAttribute('aria-label', `Abrir detalle del telar ${machine.telar}, estado ${machine.stateLabel}`)
 
-  const quality = button.querySelector<HTMLElement>('[data-crudo-quality]')
-  if (quality) {
-    quality.textContent = `${formatInteger(machine.qualityPercent)}%`
+  const efficiency = button.querySelector<HTMLElement>('[data-crudo-efficiency]')
+  if (efficiency) {
+    efficiency.textContent = `${formatInteger(machine.efficiencyPercent ?? 0)}%`
   }
 
   const kilos = button.querySelector<HTMLElement>('[data-crudo-kilos]')

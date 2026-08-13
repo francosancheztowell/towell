@@ -139,6 +139,7 @@ final readonly class CrudoDashboardService
             $parosByTelar,
             $programsByTelar,
             $productionTargetsByTelar,
+            $this->efficiencyByTelar($this->repository->efficiencyLinesForRange($from, $to)),
         );
 
         $isSingleDay = $from->format('Y-m-d') === $to->format('Y-m-d');
@@ -481,6 +482,7 @@ final readonly class CrudoDashboardService
         array $parosByTelar,
         array $programsByTelar,
         array $productionTargetsByTelar,
+        array $efficiencyByTelar = [],
     ): array {
         $catalogByTelar = [];
         foreach ($catalog as $row) {
@@ -544,6 +546,8 @@ final readonly class CrudoDashboardService
                 state: $state,
                 paro: $paro,
                 programa: $programsByTelar[$telar] ?? null,
+                efficiencyPercent: (float) ($efficiencyByTelar[$telar]['percent'] ?? 0.0),
+                efficiencyObs: (string) ($efficiencyByTelar[$telar]['obs'] ?? ''),
             );
         }
 
@@ -567,6 +571,43 @@ final readonly class CrudoDashboardService
     }
 
     /**
+     * TejEficienciaLine trae una fila por telar y turno con hasta tres
+     * revisiones. Se conserva la última revisión con dato del último turno
+     * capturado: las filas ya llegan ordenadas por fecha y turno, así que
+     * basta con quedarse con la última que traiga eficiencia.
+     *
+     * @param  list<object>  $rows
+     * @return array<string, array{percent: float, obs: string}>
+     */
+    private function efficiencyByTelar(array $rows): array
+    {
+        $latest = [];
+
+        foreach ($rows as $row) {
+            $telar = trim((string) ($row->NoTelarId ?? ''));
+            if ($telar === '') {
+                continue;
+            }
+
+            foreach (['3', '2', '1'] as $revision) {
+                $value = $row->{'EficienciaR'.$revision} ?? null;
+                if ($value === null || $value === '') {
+                    continue;
+                }
+
+                $latest[$telar] = [
+                    'percent' => (float) $value,
+                    'obs' => trim((string) ($row->{'ObsR'.$revision} ?? '')),
+                ];
+
+                break;
+            }
+        }
+
+        return $latest;
+    }
+
+    /**
      * @param  list<CrudoMachineMetrics>  $machines
      * @return array<string, int|float>
      */
@@ -583,6 +624,7 @@ final readonly class CrudoDashboardService
             'seconds' => 0.0,
             'kilos' => 0.0,
             'expectedKilos' => 0.0,
+            'dailyTargetKilos' => 0.0,
             'qualityPercent' => 0.0,
             'efficiencyPercent' => 0.0,
         ];
@@ -598,6 +640,7 @@ final readonly class CrudoDashboardService
             $summary['kilos'] += $machine->kilos;
             if ($machine->productionStandardStatus === CrudoProductionTargetService::COMPLETE) {
                 $summary['expectedKilos'] += $machine->expectedKilos;
+                $summary['dailyTargetKilos'] += $machine->dailyTargetKilos;
                 $standardizedKilos += $machine->kilos;
             }
         }
@@ -614,6 +657,7 @@ final readonly class CrudoDashboardService
         $summary['seconds'] = round($summary['seconds']);
         $summary['kilos'] = round($summary['kilos'], 1);
         $summary['expectedKilos'] = round($summary['expectedKilos'], 1);
+        $summary['dailyTargetKilos'] = round($summary['dailyTargetKilos'], 1);
         $summary['qualityPercent'] = round($summary['qualityPercent'], 1);
         $summary['efficiencyPercent'] = round($summary['efficiencyPercent'], 1);
 

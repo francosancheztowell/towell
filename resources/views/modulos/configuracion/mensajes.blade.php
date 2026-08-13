@@ -35,6 +35,8 @@
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Inv. trama</th>
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Urdido calidad</th>
                         <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Calidad</th>
+                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Andon</th>
+                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Correo</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-mensajes">
@@ -62,7 +64,9 @@
                             data-atadores="{{ ($m->Atadores ?? false) ? '1' : '0' }}"
                             data-inv-trama="{{ ($m->InvTrama ?? false) ? '1' : '0' }}"
                             data-urdido-calidad="{{ ($m->UrdidoCalidad ?? false) ? '1' : '0' }}"
-                            data-calidad="{{ ($m->Calidad ?? false) ? '1' : '0' }}">
+                            data-calidad="{{ ($m->Calidad ?? false) ? '1' : '0' }}"
+                            data-andon="{{ ($m->Andon ?? false) ? '1' : '0' }}"
+                            data-usuario-id="{{ $m->UsuarioId ?? '' }}">
                             <td class="px-4 py-3 text-gray-700 text-base">{{ $m->Id }}</td>
                             <td class="px-4 py-3 font-medium text-gray-900 text-base">{{ $deptoNombre }}</td>
                             <td class="px-4 py-3 text-gray-700 text-base">{{ $m->Telefono }}</td>
@@ -80,10 +84,12 @@
                             <td class="px-4 py-3 text-center text-base">{{ ($m->InvTrama ?? false) ? 'Sí' : 'No' }}</td>
                             <td class="px-4 py-3 text-center text-base">{{ ($m->UrdidoCalidad ?? false) ? 'Sí' : 'No' }}</td>
                             <td class="px-4 py-3 text-center text-base">{{ ($m->Calidad ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-4 py-3 text-center text-base">{{ ($m->Andon ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-4 py-3 text-gray-700 text-base">{{ $m->usuario?->correo ?? '' }}</td>
                         </tr>
                     @empty
                         <tr id="tr-empty">
-                            <td colspan="15" class="px-4 py-8 text-center text-gray-500 text-base">No hay mensajes registrados.</td>
+                            <td colspan="19" class="px-4 py-8 text-center text-gray-500 text-base">No hay mensajes registrados.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -124,6 +130,16 @@
                     <label for="Nombre" class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
                     <input type="text" name="Nombre" id="Nombre" maxlength="150" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Nombre opcional">
                 </div>
+                <div>
+                    <label for="UsuarioId" class="block text-sm font-medium text-gray-700 mb-1">Usuario (correo)</label>
+                    <select name="UsuarioId" id="UsuarioId" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Sin correo (solo Telegram)</option>
+                        @foreach($usuarios as $u)
+                            <option value="{{ $u->idusuario }}">{{ $u->nombre }} — {{ $u->correo }}</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500">El correo se toma de la ficha del usuario. Sin usuario, este registro no recibe reportes por correo.</p>
+                </div>
                 <div class="flex items-center gap-2">
                     <input type="hidden" name="Activo" value="0">
                     <input type="checkbox" name="Activo" id="Activo" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
@@ -142,6 +158,7 @@
                     <label class="flex items-center gap-2"><input type="hidden" name="InvTrama" value="0"><input type="checkbox" name="InvTrama" id="InvTrama" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Inv. trama</label>
                     <label class="flex items-center gap-2"><input type="hidden" name="UrdidoCalidad" value="0"><input type="checkbox" name="UrdidoCalidad" id="UrdidoCalidad" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Urdido calidad</label>
                     <label class="flex items-center gap-2"><input type="hidden" name="Calidad" value="0"><input type="checkbox" name="Calidad" id="Calidad" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Calidad</label>
+                    <label class="flex items-center gap-2"><input type="hidden" name="Andon" value="0"><input type="checkbox" name="Andon" id="Andon" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Andon (reporte diario)</label>
                 </div>
             </div>
             <div class="mt-6 flex gap-2 justify-end">
@@ -268,6 +285,8 @@
         document.getElementById('InvTrama').checked = selectedRow.dataset.invTrama === '1';
         document.getElementById('UrdidoCalidad').checked = selectedRow.dataset.urdidoCalidad === '1';
         document.getElementById('Calidad').checked = selectedRow.dataset.calidad === '1';
+        document.getElementById('Andon').checked = selectedRow.dataset.andon === '1';
+        document.getElementById('UsuarioId').value = selectedRow.dataset.usuarioId || '';
         document.querySelector('input[name="Activo"][type="hidden"]').value = activo ? '0' : '0';
         openModal();
     });
@@ -396,7 +415,7 @@
         const body = new FormData(form);
         if (isPut) body.append('_method', 'PUT');
         if (!document.getElementById('Activo').checked) body.set('Activo', '0'); else body.set('Activo', '1');
-        ['DesarrolladoresPrue','Desarrolladores','NotificarAtadoJulio','CorteSEF','MarcasFinales','ReporteElectrico','ReporteMecanico','ReporteTiempoMuerto','Atadores','InvTrama'].forEach(function(name){
+        ['DesarrolladoresPrue','Desarrolladores','NotificarAtadoJulio','CorteSEF','MarcasFinales','ReporteElectrico','ReporteMecanico','ReporteTiempoMuerto','Atadores','InvTrama','UrdidoCalidad','Calidad','Andon'].forEach(function(name){
             var el = document.getElementById(name);
             body.set(name, el && el.checked ? '1' : '0');
         });
@@ -429,6 +448,8 @@
                     selectedRow.dataset.reporteTiempoMuerto = item.ReporteTiempoMuerto ? '1' : '0';
                     selectedRow.dataset.atadores = item.Atadores ? '1' : '0';
                     selectedRow.dataset.invTrama = item.InvTrama ? '1' : '0';
+                    selectedRow.dataset.andon = item.Andon ? '1' : '0';
+                    selectedRow.dataset.usuarioId = item.UsuarioId || '';
                     selectedRow.cells[0].textContent = item.Id;
                     selectedRow.cells[1].textContent = item.DepartamentoNombre || '';
                     selectedRow.cells[2].textContent = item.Telefono || '';
@@ -445,6 +466,10 @@
                     selectedRow.cells[12].textContent = siNo(item.ReporteTiempoMuerto);
                     selectedRow.cells[13].textContent = siNo(item.Atadores);
                     selectedRow.cells[14].textContent = siNo(item.InvTrama);
+                    selectedRow.cells[15].textContent = siNo(item.UrdidoCalidad);
+                    selectedRow.cells[16].textContent = siNo(item.Calidad);
+                    selectedRow.cells[17].textContent = siNo(item.Andon);
+                    selectedRow.cells[18].textContent = item.Correo || '';
                 } else {
                     if (trEmpty) trEmpty.remove();
                     const even = tbody.querySelectorAll('tr.msg-row').length % 2 === 0;
@@ -466,6 +491,8 @@
                     tr.dataset.reporteTiempoMuerto = item.ReporteTiempoMuerto ? '1' : '0';
                     tr.dataset.atadores = item.Atadores ? '1' : '0';
                     tr.dataset.invTrama = item.InvTrama ? '1' : '0';
+                    tr.dataset.andon = item.Andon ? '1' : '0';
+                    tr.dataset.usuarioId = item.UsuarioId || '';
                     tr.innerHTML = '<td class="px-4 py-3 text-gray-700 text-base">' + (item.Id || '') + '</td><td class="px-4 py-3 font-medium text-gray-900 text-base">' + (item.DepartamentoNombre || '') + '</td><td class="px-4 py-3 text-gray-700 text-base">' + (item.Telefono || '') + '</td><td class="px-4 py-3 text-gray-600 text-base max-w-[140px] truncate font-mono" title="' + (item.Token || '') + '">' + (item.Token || '') + '</td><td class="px-4 py-3 text-gray-700 text-base">' + (item.Nombre || '') + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.DesarrolladoresPrue) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.Desarrolladores) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.NotificarAtadoJulio) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.CorteSEF) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.MarcasFinales) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.ReporteElectrico) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.ReporteMecanico) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.ReporteTiempoMuerto) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.Atadores) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.InvTrama) + '</td>';
                     tbody.appendChild(tr);
                 }

@@ -12,11 +12,15 @@ use App\Models\Planeacion\Catalogos\ReqPesosRollosTejido;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LiberarOrdenesController extends Controller
@@ -47,7 +51,7 @@ class LiberarOrdenesController extends Controller
     /**
      * Muestra los registros de ReqProgramaTejido que no tienen orden de producción
      *
-     * @return \Illuminate\View\View
+     * @return View
      */
     public function index(Request $request)
     {
@@ -184,7 +188,7 @@ class LiberarOrdenesController extends Controller
                     $repeticiones = $this->repeticionesDesdePesoRollo($pesoRollo, $pCrudo, $tiras);
                 }
 
-                $saldoMarbeteValor = $this->saldoMarbeteDesdeFormula($registro->SaldoPedido ?? null, $tiras, $repeticiones);
+                $saldoMarbeteValor = $this->saldoMarbeteDesdeFormula($this->basePedido($registro), $tiras, $repeticiones);
                 // MtsRollo: fórmula = medida de largo * repeticiones (convertir cm a metros)
                 // MtsRollo se mantiene como decimal sin redondear
                 // MtsRollo: RECALCULAR SIEMPRE desde Repeticiones (el valor guardado puede estar
@@ -211,8 +215,8 @@ class LiberarOrdenesController extends Controller
 
                 $this->aplicarAjusteFelTamanho($registro->InventSizeId ?? null, $saldoMarbeteValor, $mtsRollo, $pzasRollo, $registro);
 
-                // TotalRollos = ceil(SaldoPedido / PzasRollo); TotalPzas = PzasRollo × TotalRollos.
-                $totalPedido = $registro->SaldoPedido ?? null;
+                // TotalRollos = ceil(TotalPedido / PzasRollo); TotalPzas = PzasRollo × TotalRollos.
+                $totalPedido = $this->basePedido($registro);
                 ['totalRollos' => $totalRollos, 'totalPzas' => $totalPzas] =
                     $this->derivarTotalRollosTotalPzas($pzasRollo, $totalPedido);
 
@@ -230,8 +234,9 @@ class LiberarOrdenesController extends Controller
 
                 $registro->Repeticiones = $repeticiones;
                 $registro->PesoRollo = $pesoRollo;
-                $registro->SaldoMarbete = $totalRollos;
-                $registro->NoMarbete = $totalRollos;
+                // Mismo criterio que al liberar: no. marbetes por fórmula del catálogo, no TotalRollos.
+                $registro->SaldoMarbete = $saldoMarbeteValor > 0 ? (float) $saldoMarbeteValor : null;
+                $registro->NoMarbete = $registro->SaldoMarbete;
                 $registro->RollosProgramados = $totalRollos;
                 $registro->MtsRollo = $mtsRollo;
                 $registro->PzasRollo = $pzasRollo;
@@ -345,24 +350,72 @@ class LiberarOrdenesController extends Controller
             ], 422);
         }
 
-        // El campo L.Mat es texto libre en el front (datalist), así que aquí se verifica
-        // que cada BomId exista y siga vigente antes de guardarlo.
+        // El campo L.Mat es texto libre en el front (datalist), así que aquí se
+        // revalida la combinación completa: el L.Mat debe estar vigente Y pertenecer
+        // al ItemId, talla y salón de SU renglón. Antes solo se comprobaba que el
+        // BOMID existiera, así que un L.Mat de otro producto pasaba sin problema.
         $bomIds = $registrosInput->pluck('bomId')->map(fn ($v) => trim((string) $v))->filter()->unique();
-        $bomIdsVigentes = DB::connection('sqlsrv_ti')
-            ->table('BOMTABLE')
-            ->whereIn('BOMID', $bomIds->all())
-            ->where('ITEMGROUPID', 'CRUDO')
-            ->where('Vigente', 1)
-            ->whereIn('TwSalon', self::BOM_CRUDO_TW_SALONES)
-            ->pluck('BOMID')
-            ->map(fn ($v) => trim((string) $v))
-            ->all();
 
-        $bomIdsInvalidos = $bomIds->diff($bomIdsVigentes);
-        if ($bomIdsInvalidos->isNotEmpty()) {
+        $registrosBd = ReqProgramaTejido::whereIn('Id', $registrosInput->pluck('id')->map(fn ($v) => (int) $v)->all())
+            ->get(['Id', 'ItemId', 'InventSizeId', 'SalonTejidoId'])
+            ->keyBy('Id');
+
+        // Clave item|talla|bom => salones en los que ese L.Mat es válido.
+        $salonesValidos = [];
+        if ($bomIds->isNotEmpty()) {
+            $filas = DB::connection('sqlsrv_ti')
+                ->table('BOMTABLE as BT')
+                ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
+                ->distinct()
+                ->select('BT.BOMID', 'BT.TWINVENTSIZEID', 'BT.TWSALON', 'BV.ITEMID')
+                ->whereIn('BT.BOMID', $bomIds->all())
+                ->where('BT.ITEMGROUPID', 'CRUDO')
+                ->where('BT.Vigente', 1)
+                ->get();
+
+            foreach ($filas as $fila) {
+                $clave = implode('|', [
+                    self::itemIdSinSufijo((string) $fila->ITEMID),
+                    trim((string) $fila->TWINVENTSIZEID),
+                    trim((string) $fila->BOMID),
+                ]);
+                $salonesValidos[$clave][] = $this->normalizarSalon((string) $fila->TWSALON);
+            }
+        }
+
+        $bomsInvalidos = [];
+        foreach ($registrosInput as $item) {
+            $registroBd = $registrosBd->get((int) ($item['id'] ?? 0));
+            $bomId = trim((string) ($item['bomId'] ?? ''));
+
+            if (! $registroBd || $bomId === '') {
+                continue;
+            }
+
+            $clave = implode('|', [
+                trim((string) $registroBd->ItemId),
+                trim((string) $registroBd->InventSizeId),
+                $bomId,
+            ]);
+
+            $salones = $salonesValidos[$clave] ?? [];
+            $salonRegistro = $this->normalizarSalonBomCrudo($registroBd);
+
+            // Si el renglón no trae salón, basta con que el L.Mat sea de uno de los válidos.
+            $ok = $salonRegistro !== ''
+                ? in_array($salonRegistro, $salones, true)
+                : array_intersect($salones, self::BOM_CRUDO_TW_SALONES) !== [];
+
+            if (! $ok) {
+                $bomsInvalidos[] = $bomId.' (orden '.$registroBd->Id.')';
+            }
+        }
+
+        if ($bomsInvalidos !== []) {
             return response()->json([
                 'success' => false,
-                'message' => 'L.Mat no vigente o inexistente: '.$bomIdsInvalidos->implode(', ').'. Selecciona uno de la lista.',
+                'message' => 'L.Mat no vigente o que no corresponde al producto, talla o salón del renglón: '
+                    .implode(', ', array_unique($bomsInvalidos)).'. Selecciona uno de la lista.',
             ], 422);
         }
 
@@ -460,7 +513,7 @@ class LiberarOrdenesController extends Controller
                     $repeticiones = $this->repeticionesDesdePesoRollo($pesoRolloFinal, $pCrudo, $tiras);
                 }
 
-                $saldoMarbeteValor = $this->saldoMarbeteDesdeFormula($registro->SaldoPedido ?? null, $tiras, $repeticiones);
+                $saldoMarbeteValor = $this->saldoMarbeteDesdeFormula($this->basePedido($registro), $tiras, $repeticiones);
 
                 // MtsRollo: si el usuario lo editó en la grilla (request) se respeta; de lo contrario
                 // se RECALCULA desde Repeticiones (no se hereda el valor guardado, que puede estar desfasado).
@@ -490,13 +543,23 @@ class LiberarOrdenesController extends Controller
                 $pzasRollo = $this->pzasRolloDesdeRepeticiones($repeticiones, $tiras);
 
                 $this->aplicarAjusteFelSaldoMarbete($registro->InventSizeId ?? null, $saldoMarbeteValor, $registro);
-                if (! $this->requestTieneMtsPzasRolloDesdeCliente($item)) {
-                    $this->aplicarAjusteFelMtsYpzas($registro->InventSizeId ?? null, $mtsRollo, $pzasRollo, $registro);
+
+                // PzasRollo lo recalcula SIEMPRE el servidor (arriba se ignora a propósito
+                // el valor del request), así que su mitad de felpa también va siempre.
+                // Antes compartía guard con MtsRollo: como la grilla manda MtsRollo ya
+                // dividido, el guard se activaba y PzasRollo se guardaba sin dividir
+                // (146 en vez de 73), lo que duplicaba TotalPzas.
+                $this->aplicarAjusteFelPzasRollo($registro->InventSizeId ?? null, $pzasRollo, $registro);
+
+                // MtsRollo sí se respeta del request, y la grilla lo manda ya dividido:
+                // aquí solo se ajusta cuando el servidor tuvo que calcularlo.
+                if (! $this->valorRequestNumericoPresente($item['mtsRollo'] ?? null)) {
+                    $this->aplicarAjusteFelMtsRollo($registro->InventSizeId ?? null, $mtsRollo, $registro);
                 }
 
-                // TotalRollos: override del usuario (techo) o ceil(SaldoPedido / PzasRollo). TotalPzas = PzasRollo × TotalRollos.
+                // TotalRollos: override del usuario (techo) o ceil(TotalPedido / PzasRollo). TotalPzas = PzasRollo × TotalRollos.
                 ['totalRollos' => $totalRollos, 'totalPzas' => $totalPzas] =
-                    $this->derivarTotalRollosTotalPzas($pzasRollo, $registro->SaldoPedido ?? null, $item['totalRollos'] ?? null);
+                    $this->derivarTotalRollosTotalPzas($pzasRollo, $this->basePedido($registro), $item['totalRollos'] ?? null);
 
                 if ($totalRollos === null) {
                     // Fallbacks solo si no se pudo derivar desde PzasRollo/SaldoPedido.
@@ -511,9 +574,14 @@ class LiberarOrdenesController extends Controller
                 }
 
                 // Asignar campos calculados
+                // PesoRollo se PERSISTE: sin él, cualquier recálculo posterior (ReqProgramaTejidoObserver)
+                // vuelve al peso maestro y cambia Repeticiones/PzasRollo/MtsRollo respecto a lo liberado.
+                $registro->PesoRollo = $pesoRolloFinal;
                 $registro->Repeticiones = $repeticiones;
-                $registro->SaldoMarbete = $totalRollos;
-                $registro->NoMarbete = $totalRollos;
+                // No. marbetes = fórmula del catálogo (round((Pedido/NoTiras)/Repeticiones) ×2 si FEL),
+                // no TotalRollos: es la única que cuadra con CatCodificados.
+                $registro->SaldoMarbete = $saldoMarbeteValor > 0 ? (float) $saldoMarbeteValor : null;
+                $registro->NoMarbete = $registro->SaldoMarbete;
                 $registro->RollosProgramados = $totalRollos;
                 $registro->MtsRollo = $mtsRollo;
                 $registro->PzasRollo = $pzasRollo;
@@ -691,26 +759,18 @@ class LiberarOrdenesController extends Controller
     /**
      * Obtiene L.Mat (BOM) y Nombre Mat (BomName) para una o múltiples combinaciones
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function obtenerBomYNombre(Request $request)
     {
         $combinationsParam = trim((string) $request->query('combinations', ''));
         $itemId = trim((string) $request->query('itemId', ''));
         $inventSizeId = trim((string) $request->query('inventSizeId', ''));
+        $salon = trim((string) $request->query('salon', ''));
         $term = trim((string) $request->query('term', ''));
         $allowFallback = filter_var($request->query('fallback', false), FILTER_VALIDATE_BOOLEAN);
-        $freeMode = filter_var($request->query('freeMode', false), FILTER_VALIDATE_BOOLEAN);
 
         try {
-            // Si freeMode está activo, búsqueda completamente libre (sin filtrar por ItemId ni InventSizeId)
-            if ($freeMode) {
-                return response()->json([
-                    'success' => true,
-                    'data' => $this->queryBomFallback($term, null),
-                ]);
-            }
-
             // Si viene 'combinations', buscar múltiples combinaciones
             if ($combinationsParam !== '') {
                 $combinations = array_filter(array_map('trim', explode(',', $combinationsParam)));
@@ -756,10 +816,14 @@ class LiberarOrdenesController extends Controller
                     ]);
                 }
 
-                // Consulta única optimizada para múltiples combinaciones
+                // DISTINCT: BOMVERSION tiene varias versiones por item, y sin él la
+                // misma dupla item/L.Mat volvía 2-3 veces. El front autollena solo
+                // cuando la clave trae exactamente una opción, así que las filas
+                // repetidas hacían que pareciera ambiguo lo que no lo era.
                 $results = DB::connection('sqlsrv_ti')
                     ->table('BOMTABLE as BT')
                     ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
+                    ->distinct()
                     ->select('BV.ITEMID', 'BT.TWINVENTSIZEID', 'BT.BOMID as bomId', 'BT.NAME as bomName')
                     ->where('BT.ITEMGROUPID', 'CRUDO')
                     ->where('BT.Vigente', 1)
@@ -776,11 +840,10 @@ class LiberarOrdenesController extends Controller
                     ->get();
 
                 // Clave: item|talla (mismo criterio que el autofill en Blade).
-                $map = [];
+                // Se devuelven TODAS las opciones distintas: si hay más de una, el
+                // front deja el campo vacío en vez de elegir una al azar.
+                $porClave = [];
                 foreach ($results as $result) {
-                    $itemIdOriginal = str_replace('-1', '', (string) $result->ITEMID);
-                    $size = (string) $result->TWINVENTSIZEID;
-
                     $matchingPairs = array_values(array_filter(
                         $pairs,
                         static function (array $p) use ($result): bool {
@@ -792,17 +855,20 @@ class LiberarOrdenesController extends Controller
                         continue;
                     }
 
-                    $key = $itemIdOriginal.'|'.$size;
+                    $key = self::itemIdSinSufijo((string) $result->ITEMID).'|'.$result->TWINVENTSIZEID;
+                    $bomId = trim((string) $result->bomId);
 
-                    if (! isset($map[$key])) {
-                        $map[$key] = [
-                            [
-                                'bomId' => $result->bomId,
-                                'bomName' => $result->bomName,
-                            ],
-                        ];
+                    if ($bomId === '') {
+                        continue;
                     }
+
+                    $porClave[$key][$bomId] = [
+                        'bomId' => $bomId,
+                        'bomName' => trim((string) $result->bomName),
+                    ];
                 }
+
+                $map = array_map('array_values', $porClave);
 
                 return response()->json([
                     'success' => true,
@@ -810,31 +876,16 @@ class LiberarOrdenesController extends Controller
                 ]);
             }
 
-            // Búsqueda individual (autocompletado)
-            if ($itemId === '' || $inventSizeId === '') {
-                if ($allowFallback && $term !== '') {
-                    return response()->json([
-                        'success' => true,
-                        'data' => $this->queryBomFallback($term, $inventSizeId),
-                    ]);
-                }
-
+            // Búsqueda individual (autocompletado). Sin ItemId no se busca nada:
+            // un L.Mat siempre pertenece al producto del renglón.
+            if ($itemId === '') {
                 return response()->json([
                     'success' => true,
                     'data' => [],
                 ]);
             }
 
-            $itemIdWithSuffix = $itemId.'-1';
-            $query = DB::connection('sqlsrv_ti')
-                ->table('BOMTABLE as BT')
-                ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
-                ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
-                ->where('BV.ITEMID', $itemIdWithSuffix)
-                ->where('BT.ITEMGROUPID', 'CRUDO')
-                ->where('BT.TWINVENTSIZEID', $inventSizeId)
-                ->where('BT.Vigente', 1)
-                ->whereIn('BT.TwSalon', self::BOM_CRUDO_TW_SALONES);
+            $query = $this->bomCrudoQuery($itemId, $inventSizeId, $salon);
 
             if ($term !== '') {
                 $query->where(function ($q) use ($term) {
@@ -843,9 +894,12 @@ class LiberarOrdenesController extends Controller
                 });
             }
 
-            $results = $query->orderBy('BT.BOMID')->limit(20)->get();
-            if ($results->isEmpty() && $allowFallback && $term !== '') {
-                $results = $this->queryBomFallback($term, $inventSizeId);
+            $results = $query->limit(20)->get();
+
+            // Fallback: mismo item, pero sin filtrar talla ni salón. Antes soltaba
+            // también el item y ofrecía L.Mat de otros productos.
+            if ($results->isEmpty() && $allowFallback) {
+                $results = $this->queryBomFallback($itemId, $term);
             }
 
             return response()->json([
@@ -867,19 +921,19 @@ class LiberarOrdenesController extends Controller
         }
     }
 
-    private function queryBomFallback(string $term, ?string $inventSizeId = null, int $limit = 50)
+    /**
+     * Búsqueda amplia cuando la exacta no devuelve nada: relaja talla y salón,
+     * pero NUNCA el ItemId. Sin item no hay resultados.
+     */
+    private function queryBomFallback(string $itemId, string $term = '', int $limit = 50)
     {
-        $query = DB::connection('sqlsrv_ti')
-            ->table('BOMTABLE as BT')
-            ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
-            ->where('BT.ITEMGROUPID', 'CRUDO')
-            ->where('BT.Vigente', 1)
-            ->whereIn('BT.TwSalon', self::BOM_CRUDO_TW_SALONES);
+        $itemId = trim($itemId);
 
-        // Filtrar por tamaño si está disponible
-        if ($inventSizeId !== null && $inventSizeId !== '') {
-            $query->where('BT.TWINVENTSIZEID', $inventSizeId);
+        if ($itemId === '') {
+            return collect();
         }
+
+        $query = $this->bomCrudoQuery($itemId);
 
         if ($term !== '') {
             $query->where(function ($q) use ($term) {
@@ -888,13 +942,13 @@ class LiberarOrdenesController extends Controller
             });
         }
 
-        return $query->orderBy('BT.BOMID')->limit($limit)->get();
+        return $query->limit($limit)->get();
     }
 
     /**
      * Obtiene el tipo de hilo (TipoHilo) desde INVENTTABLE para uno o múltiples items
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function obtenerTipoHilo(Request $request)
     {
@@ -919,7 +973,7 @@ class LiberarOrdenesController extends Controller
 
             $map = [];
             foreach ($results as $result) {
-                $itemIdOriginal = str_replace('-1', '', $result->ITEMID);
+                $itemIdOriginal = self::itemIdSinSufijo((string) $result->ITEMID);
                 $map[$itemIdOriginal] = $result->TwTipoHiloId ?? null;
             }
 
@@ -1014,7 +1068,7 @@ class LiberarOrdenesController extends Controller
                     'message' => 'Error al guardar el campo: '.$e->getMessage(),
                 ], 500);
             }
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Datos inválidos.',
@@ -1658,17 +1712,6 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
-     * En liberar, la grilla ya envía MtsRollo/PzasRollo con ajuste FEL; no volver a dividir en servidor.
-     *
-     * @param  array<string, mixed>  $item
-     */
-    private function requestTieneMtsPzasRolloDesdeCliente(array $item): bool
-    {
-        return $this->valorRequestNumericoPresente($item['mtsRollo'] ?? null)
-            || $this->valorRequestNumericoPresente($item['pzasRollo'] ?? null);
-    }
-
-    /**
      * @param  int  $saldoMarbeteValor  por referencia: resultado de saldoMarbeteDesdeFormula
      */
     private function aplicarAjusteFelSaldoMarbete(?string $inventSizeId, int &$saldoMarbeteValor, ?ReqProgramaTejido $registro = null): void
@@ -1685,11 +1728,30 @@ class LiberarOrdenesController extends Controller
      */
     private function aplicarAjusteFelMtsYpzas(?string $inventSizeId, ?float &$mtsRollo, ?float &$pzasRollo, ?ReqProgramaTejido $registro = null): void
     {
+        $this->aplicarAjusteFelMtsRollo($inventSizeId, $mtsRollo, $registro);
+        $this->aplicarAjusteFelPzasRollo($inventSizeId, $pzasRollo, $registro);
+    }
+
+    /**
+     * @param  float|null  $mtsRollo  por referencia
+     */
+    private function aplicarAjusteFelMtsRollo(?string $inventSizeId, ?float &$mtsRollo, ?ReqProgramaTejido $registro = null): void
+    {
         if (! $this->debeAplicarAjusteFormatoFelRollo($inventSizeId, $registro)) {
             return;
         }
         if ($mtsRollo !== null && is_numeric($mtsRollo)) {
             $mtsRollo = (float) $mtsRollo / 2.0;
+        }
+    }
+
+    /**
+     * @param  float|null  $pzasRollo  por referencia
+     */
+    private function aplicarAjusteFelPzasRollo(?string $inventSizeId, ?float &$pzasRollo, ?ReqProgramaTejido $registro = null): void
+    {
+        if (! $this->debeAplicarAjusteFormatoFelRollo($inventSizeId, $registro)) {
+            return;
         }
         if ($pzasRollo !== null && is_numeric($pzasRollo)) {
             $pzasRollo = (float) round((float) $pzasRollo / 2.0, 0);
@@ -1763,8 +1825,25 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
+     * Base de las fórmulas de producción: el PEDIDO completo, no el saldo pendiente.
+     * SaldoPedido baja conforme se produce, así que usarlo hacía que rollos/marbetes/piezas
+     * cambiaran solos y dejaran de cuadrar con CatCodificados (que se recalcula sobre TotalPedido
+     * en ReqProgramaTejidoObserver). Fallback a SaldoPedido/Produccion solo en órdenes viejas sin TotalPedido.
+     */
+    private function basePedido(ReqProgramaTejido $registro): ?float
+    {
+        foreach ([$registro->TotalPedido ?? null, $registro->SaldoPedido ?? null, $registro->Produccion ?? null] as $valor) {
+            if ($valor !== null && is_numeric($valor) && (float) $valor > 0.0) {
+                return (float) $valor;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Deriva TotalRollos y TotalPzas a partir del PzasRollo ya resuelto (post-ajuste FEL).
-     * TotalRollos = ceil(SaldoPedido / PzasRollo), salvo override del usuario (techo).
+     * TotalRollos = ceil(TotalPedido / PzasRollo), salvo override del usuario (techo).
      * TotalPzas   = round(PzasRollo × TotalRollos).
      * Cualquier valor previo de TotalRollos/TotalPzas se ignora para que nunca quede desfasado.
      *
@@ -1861,6 +1940,51 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
+     * Quita únicamente el sufijo '-1' de AX. Un str_replace('-1', '') global
+     * destrozaba items que llevan '-1' en medio (ej. '3-100-1' → '300').
+     */
+    private static function itemIdSinSufijo(string $itemId): string
+    {
+        return preg_replace('/-1$/', '', trim($itemId)) ?? trim($itemId);
+    }
+
+    /**
+     * Query base de L.Mat CRUDO: única fuente de verdad para todas las búsquedas
+     * de BOM del módulo. Amarra el L.Mat al ItemId con EXISTS en lugar de JOIN
+     * porque un item puede tener varias versiones del mismo BOMID en BOMVERSION,
+     * y el JOIN devolvía la misma fila 2-3 veces.
+     *
+     * @param  string|null  $inventSizeId  null u '' = no filtrar por talla
+     * @param  string|null  $salon  null u '' = aceptar cualquiera de BOM_CRUDO_TW_SALONES
+     */
+    private function bomCrudoQuery(string $itemId, ?string $inventSizeId = null, ?string $salon = null): Builder
+    {
+        $query = DB::connection('sqlsrv_ti')
+            ->table('BOMTABLE as BT')
+            ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
+            ->where('BT.ITEMGROUPID', 'CRUDO')
+            ->where('BT.Vigente', 1)
+            ->whereExists(function ($sub) use ($itemId) {
+                $sub->select(DB::raw('1'))
+                    ->from('BOMVERSION as BV')
+                    ->whereColumn('BV.BOMID', 'BT.BOMID')
+                    ->where('BV.ITEMID', $itemId.'-1');
+            });
+
+        if ($inventSizeId !== null && trim($inventSizeId) !== '') {
+            $query->where('BT.TWINVENTSIZEID', trim($inventSizeId));
+        }
+
+        if ($salon !== null && trim($salon) !== '') {
+            $query->where('BT.TWSALON', $this->normalizarSalon($salon));
+        } else {
+            $query->whereIn('BT.TwSalon', self::BOM_CRUDO_TW_SALONES);
+        }
+
+        return $query->orderBy('BT.BOMID');
+    }
+
+    /**
      * @return array<int, array{bomId: string, bomName: string}>
      */
     private function resolverBomCrudoOpciones(ReqProgramaTejido $registro): array
@@ -1873,35 +1997,29 @@ class LiberarOrdenesController extends Controller
             return [];
         }
 
-        return DB::connection('sqlsrv_ti')
-            ->table('BOMTABLE as BT')
-            ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
-            ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
-            ->where('BV.ITEMID', $itemId.'-1')
-            ->where('BT.TWINVENTSIZEID', $inventSizeId)
-            ->where('BT.ITEMGROUPID', 'CRUDO')
-            ->where('BT.TWSALON', $salon)
-            ->where('BT.Vigente', 1)
-            ->orderBy('BT.BOMID')
+        return $this->bomCrudoQuery($itemId, $inventSizeId, $salon)
             ->get()
             ->map(fn ($row) => [
                 'bomId' => trim((string) ($row->bomId ?? '')),
                 'bomName' => trim((string) ($row->bomName ?? '')),
             ])
             ->filter(fn (array $row) => $row['bomId'] !== '')
+            ->unique('bomId')
             ->values()
             ->all();
     }
 
     private function normalizarSalonBomCrudo(ReqProgramaTejido $registro): string
     {
-        $salon = strtoupper(trim((string) ($registro->SalonTejidoId ?? '')));
+        return $this->normalizarSalon((string) ($registro->SalonTejidoId ?? ''));
+    }
 
-        return match ($salon) {
-            'JACUARD' => 'JACQUARD',
-            'JACQUARD', 'SMIT' => $salon,
-            default => $salon,
-        };
+    /** AX guarda 'JACUARD' en algunos registros; BOMTABLE usa 'JACQUARD'. */
+    private function normalizarSalon(string $salon): string
+    {
+        $salon = strtoupper(trim($salon));
+
+        return $salon === 'JACUARD' ? 'JACQUARD' : $salon;
     }
 
     /**
@@ -1929,7 +2047,7 @@ class LiberarOrdenesController extends Controller
      *   2) ItemId + InventSizeId + Departamento
      *   3) ItemId + InventSizeId (sin salón)
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function obtenerCodigoDibujo(Request $request)
     {
@@ -2059,7 +2177,7 @@ class LiberarOrdenesController extends Controller
     /**
      * Obtiene las opciones de hilos para el select desde INVENTTABLE (TwTipoHiloId)
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function obtenerOpcionesHilos()
     {

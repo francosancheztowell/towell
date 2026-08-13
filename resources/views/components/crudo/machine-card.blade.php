@@ -16,7 +16,7 @@
     data-crudo-machine
     data-telar="{{ $machine['telar'] }}"
     data-state="{{ $machine['state'] }}"
-    data-signature="{{ $machine['state'] }}:{{ $machine['pieces'] }}:{{ $machine['seconds'] }}:{{ $machine['kilos'] }}"
+    data-signature="{{ $machine['state'] }}:{{ $machine['pieces'] }}:{{ $machine['seconds'] }}:{{ $machine['kilos'] }}:{{ $machine['efficiencyPercent'] ?? 0 }}"
     aria-label="Abrir detalle del telar {{ $machine['telar'] }}, estado {{ $machine['stateLabel'] }}"
 >
     <span class="crudo-loom-number">{{ $machine['telar'] }}</span>
@@ -33,7 +33,7 @@
         data-crudo-loom
     ></span>
 
-    <span class="crudo-machine-quality" data-crudo-quality>{{ number_format(round((float) $machine['qualityPercent'])) }}%</span>
+    <span class="crudo-machine-quality" data-crudo-efficiency>{{ number_format(round((float) ($machine['efficiencyPercent'] ?? 0))) }}%</span>
     <span class="crudo-machine-metric" data-crudo-kilos>{{ number_format(round((float) $machine['kilos'])) }} kg</span>
 
     <span class="crudo-machine-tooltip" role="tooltip">

@@ -11,7 +11,6 @@
         <section class="crudo-salon crudo-salon-{{ str($salon)->slug() }}">
             <header>
                 <h2>{{ $salonLabels[$salon] ?? $salon }}</h2>
-                <span data-crudo-salon-count="{{ $salon }}">{{ $salonLayout['count'] }} máquinas</span>
             </header>
 
             @if ($salonLayout['physical'])

@@ -116,7 +116,36 @@ final class CrudoProductionTargetServiceTest extends TestCase
             activePrograms: [$this->program('201', null)],
         );
 
-        $this->assertSame([], $targets);
+        $this->assertArrayNotHasKey('201', $targets);
+    }
+
+    public function test_it_uses_the_fixed_daily_kilos_when_the_program_has_no_standard(): void
+    {
+        config()->set('crudo.fixed_daily_kilos', ['401' => 600.0]);
+
+        $targets = $this->calculate(
+            from: '2026-08-03',
+            to: '2026-08-03',
+            now: '2026-08-05 12:00:00',
+            activePrograms: [$this->program('401', null)],
+        );
+
+        $this->assertSame(600.0, $targets['401']['dailyKilos']);
+        $this->assertSame(600.0, $targets['401']['expectedKilos']);
+    }
+
+    public function test_the_program_standard_wins_over_the_fixed_daily_kilos(): void
+    {
+        config()->set('crudo.fixed_daily_kilos', ['401' => 600.0]);
+
+        $targets = $this->calculate(
+            from: '2026-08-03',
+            to: '2026-08-03',
+            now: '2026-08-05 12:00:00',
+            activePrograms: [$this->program('401', 450)],
+        );
+
+        $this->assertSame(450.0, $targets['401']['dailyKilos']);
     }
 
     /**

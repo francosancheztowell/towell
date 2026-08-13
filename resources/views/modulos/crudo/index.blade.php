@@ -14,7 +14,7 @@
 
 @section('content')
     <div
-        class="crudo-page min-h-full w-full px-2 py-3 sm:px-4 lg:px-5"
+        class="crudo-page min-h-full w-full px-2 py-1 sm:px-4 lg:px-5"
         data-crudo-root
     >
         <aside

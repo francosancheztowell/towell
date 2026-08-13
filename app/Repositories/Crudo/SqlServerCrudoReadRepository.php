@@ -298,6 +298,27 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
             ->all();
     }
 
+    public function efficiencyLinesForRange(DateTimeImmutable $from, DateTimeImmutable $to): array
+    {
+        return $this->catalog()
+            ->table($this->table('efficiency_lines'))
+            ->whereBetween('Date', [$from->format('Y-m-d'), $to->format('Y-m-d')])
+            ->orderBy('Date')
+            ->orderBy('Turno')
+            ->get([
+                'NoTelarId',
+                'Date',
+                'Turno',
+                'EficienciaR1',
+                'EficienciaR2',
+                'EficienciaR3',
+                'ObsR1',
+                'ObsR2',
+                'ObsR3',
+            ])
+            ->all();
+    }
+
     private function source(): ConnectionInterface
     {
         return DB::connection((string) config('crudo.connections.source', 'sqlsrv_ti'));

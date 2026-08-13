@@ -178,7 +178,7 @@ final class CrudoLivewireTest extends TestCase
     {
         $data = $this->dashboardData();
         $data['machines'][0]['kilos'] = 40.6;
-        $data['machines'][0]['qualityPercent'] = 94.6;
+        $data['machines'][0]['efficiencyPercent'] = 94.6;
         $data['summary']['kilos'] = 40.6;
         $data['summary']['qualityPercent'] = 94.6;
         $data['summary']['efficiencyPercent'] = 80.5;
@@ -188,8 +188,9 @@ final class CrudoLivewireTest extends TestCase
             ->assertSee('>41 kg</span>', false)
             ->assertSee('>95%</span>', false)
             ->assertSee('<strong>41</strong>', false)
-            ->assertSee('<strong>95%</strong>', false)
-            ->assertSee('<strong>81%</strong>', false);
+            // Calidad y eficiencia globales viven en los velocímetros.
+            ->assertSee('<strong>95<em>%</em></strong>', false)
+            ->assertSee('<strong>81<em>%</em></strong>', false);
     }
 
     public function test_tablet_keeps_the_summary_in_a_compact_sidebar(): void
@@ -224,7 +225,7 @@ final class CrudoLivewireTest extends TestCase
         $this->assertStringContainsString('width: min(66rem, calc(100vw - 5rem))', $tabletRules);
         $this->assertStringContainsString('max-height: 76vh', $tabletRules);
         $this->assertStringContainsString(
-            'grid-template-columns: minmax(11rem, 1.35fr) repeat(4, minmax(0, 0.75fr))',
+            'grid-template-columns: minmax(11rem, 1.45fr) minmax(0, 0.55fr) minmax(0, 0.7fr) minmax(0, 0.6fr) minmax(0, 0.45fr) minmax(0, 0.95fr)',
             $tabletRules,
         );
         $this->assertStringContainsString(

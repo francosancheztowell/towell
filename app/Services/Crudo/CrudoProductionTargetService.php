@@ -72,6 +72,10 @@ final readonly class CrudoProductionTargetService
             }
         }
 
+        foreach ((array) config('crudo.fixed_daily_kilos', []) as $telar => $kilos) {
+            $targets[(string) $telar] ??= (float) $kilos;
+        }
+
         return $targets;
     }
 

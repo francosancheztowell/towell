@@ -31,6 +31,9 @@ final readonly class CrudoMachineMetrics
         public CrudoMachineState $state,
         public ?array $paro = null,
         public ?array $programa = null,
+        // Último corte de tejido con dato: % y observación de esa revisión.
+        public float $efficiencyPercent = 0.0,
+        public string $efficiencyObs = '',
     ) {}
 
     /**
@@ -50,6 +53,8 @@ final readonly class CrudoMachineMetrics
             'kilos' => round($this->kilos, 1),
             'qualityPercent' => round($this->qualityPercent, 1),
             'secondsPercent' => round($this->secondsPercent, 1),
+            'efficiencyPercent' => round($this->efficiencyPercent, 1),
+            'efficiencyObs' => $this->efficiencyObs,
             'expectedKilos' => round($this->expectedKilos, 1),
             'dailyTargetKilos' => round($this->dailyTargetKilos, 1),
             'productionStandardStatus' => $this->productionStandardStatus,

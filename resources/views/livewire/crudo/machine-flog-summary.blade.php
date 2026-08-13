@@ -40,17 +40,22 @@
                     ['label' => 'Diseño', 'url' => $summary['simulationDesignUrl'] ?? null],
                 ] as $simulation)
                     @if ($simulation['url'])
-                        <a
-                            href="{{ $simulation['url'] }}"
+                        @php($simulationId = 'crudo-sim-'.$summary['flog'].'-'.str($simulation['label'])->slug())
+
+                        {{--
+                            El popover nativo amplía la imagen sin salir del modal: se
+                            cierra con Esc o clic fuera, sin JS ni librería.
+                        --}}
+                        <button
+                            type="button"
                             class="crudo-flog-simulation"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Abrir simulación de {{ strtolower($simulation['label']) }}"
+                            popovertarget="{{ $simulationId }}"
+                            title="Ampliar simulación de {{ strtolower($simulation['label']) }}"
                         >
                             {{--
                                 Si el archivo no está en el UNC la ruta responde 204 y la
-                                imagen falla: se oculta el enlace completo en vez de dejar
-                                un icono roto que además navega a una página de error.
+                                imagen falla: se oculta el botón completo en vez de dejar
+                                un icono roto.
                             --}}
                             <img
                                 src="{{ $simulation['url'] }}"
@@ -61,7 +66,16 @@
                                 onerror="this.closest('.crudo-flog-simulation').hidden = true"
                             >
                             <span>{{ $simulation['label'] }}</span>
-                        </a>
+                        </button>
+
+                        <div id="{{ $simulationId }}" popover class="crudo-flog-lightbox">
+                            <img
+                                src="{{ $simulation['url'] }}"
+                                alt="Simulación de {{ strtolower($simulation['label']) }} ampliada"
+                                loading="lazy"
+                                decoding="async"
+                            >
+                        </div>
                     @endif
                 @endforeach
 

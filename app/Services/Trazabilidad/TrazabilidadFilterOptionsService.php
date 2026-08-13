@@ -53,14 +53,13 @@ class TrazabilidadFilterOptionsService
         };
 
         $withoutFilters = ! $filters->hasAny();
-        // El sufijo con el último Id hace que la caché caduque sola cuando entra
-        // información nueva a TrazaProduccion, sin esperar la hora completa.
-        // ponytail: MAX(Id) es una lectura del índice agrupado; si algún día pesa,
-        // invalidar desde el proceso que carga la tabla.
-        $version = $withoutFilters ? (int) TrazaProduccion::query()->max('Id') : 0;
+        // ponytail: TTL fijo en vez de versionar con MAX(Id): cada fila nueva del ETL
+        // invalidaba las 3 facetas y el siguiente usuario pagaba ~570ms de scan.
+        // 15 min de catálogo ligeramente viejo a cambio de que la página abra en ~120ms.
+        // Si se necesita al instante: Cache::forget desde el proceso que carga la tabla.
         $remember = static fn (string $key, callable $callback): mixed => Cache::remember(
-            $key.'_'.$version,
-            now()->addHour(),
+            $key,
+            now()->addMinutes(15),
             $callback
         );
 
