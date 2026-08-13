@@ -3,7 +3,7 @@
 @section('page-title', 'Mensajes')
 
 @section('navbar-right')
-<div class="flex items-center gap-2">
+<div class="flex items-center gap-2 flex-wrap justify-end">
     <x-navbar.button-create id="btn-nuevo" title="Nuevo mensaje" text="Nuevo" />
     <x-navbar.button-edit id="btn-editar" title="Editar mensaje" text="Editar" :disabled="true" />
     <button type="button" id="btn-obtener-chat-id" title="Obtener Chat ID de Telegram" disabled class="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">Obtener Chat ID</button>
@@ -12,31 +12,31 @@
 @endsection
 
 @section('content')
-<div class="w-full px-4 py-4">
+<div class="w-full px-2 sm:px-4 py-3 sm:py-4">
     <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-        <div class="overflow-auto max-h-[calc(100vh-12rem)]">
-            <table class="min-w-full text-base" id="tabla-mensajes">
+        <div class="overflow-auto max-h-[calc(100dvh-8rem)] sm:max-h-[calc(100vh-12rem)]">
+            <table class="min-w-full text-sm lg:text-base" id="tabla-mensajes">
                 <thead class="sticky top-0 z-10 bg-blue-500 text-white shadow-sm">
                     <tr>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Id</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Departamento</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Teléfono</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Token</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Nombre</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Desarrolladores prue</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Desarrolladores</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Notif. atado julio</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Corte SEF</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Marcas finales</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Rep. eléctrico</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Rep. mecánico</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Rep. tiempo muerto</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Atadores</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Inv. trama</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Urdido calidad</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Calidad</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Andon</th>
-                        <th class="px-4 py-3 text-left font-semibold bg-blue-500 text-base">Correo</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Id</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Departamento</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Teléfono</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Token</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Nombre</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Desarrolladores prue</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Desarrolladores</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Notif. atado julio</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Corte SEF</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Marcas finales</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Rep. eléctrico</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Rep. mecánico</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Rep. tiempo muerto</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Atadores</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Inv. trama</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Urdido calidad</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Calidad</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Andon</th>
+                        <th class="px-3 py-2 text-left font-semibold bg-blue-500 whitespace-nowrap">Correo</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-mensajes">
@@ -67,29 +67,29 @@
                             data-calidad="{{ ($m->Calidad ?? false) ? '1' : '0' }}"
                             data-andon="{{ ($m->Andon ?? false) ? '1' : '0' }}"
                             data-usuario-id="{{ $m->UsuarioId ?? '' }}">
-                            <td class="px-4 py-3 text-gray-700 text-base">{{ $m->Id }}</td>
-                            <td class="px-4 py-3 font-medium text-gray-900 text-base">{{ $deptoNombre }}</td>
-                            <td class="px-4 py-3 text-gray-700 text-base">{{ $m->Telefono }}</td>
-                            <td class="px-4 py-3 text-gray-600 text-base max-w-[140px] truncate font-mono" title="{{ $m->Token }}">{{ $m->Token }}</td>
-                            <td class="px-4 py-3 text-gray-700 text-base">{{ $m->Nombre ?? '' }}</td>
-                            <td class="px-4 py-3 text-center text-base">{{ ($m->DesarrolladoresPrue ?? false) ? 'Si' : 'No' }}</td>
-                            <td class="px-4 py-3 text-center text-base">{{ ($m->Desarrolladores ?? false) ? 'Sí' : 'No' }}</td>
-                            <td class="px-4 py-3 text-center text-base">{{ ($m->NotificarAtadoJulio ?? false) ? 'Sí' : 'No' }}</td>
-                            <td class="px-4 py-3 text-center text-base">{{ ($m->CorteSEF ?? false) ? 'Sí' : 'No' }}</td>
-                            <td class="px-4 py-3 text-center text-base">{{ ($m->MarcasFinales ?? false) ? 'Sí' : 'No' }}</td>
-                            <td class="px-4 py-3 text-center text-base">{{ ($m->ReporteElectrico ?? false) ? 'Sí' : 'No' }}</td>
-                            <td class="px-4 py-3 text-center text-base">{{ ($m->ReporteMecanico ?? false) ? 'Sí' : 'No' }}</td>
-                            <td class="px-4 py-3 text-center text-base">{{ ($m->ReporteTiempoMuerto ?? false) ? 'Sí' : 'No' }}</td>
-                            <td class="px-4 py-3 text-center text-base">{{ ($m->Atadores ?? false) ? 'Sí' : 'No' }}</td>
-                            <td class="px-4 py-3 text-center text-base">{{ ($m->InvTrama ?? false) ? 'Sí' : 'No' }}</td>
-                            <td class="px-4 py-3 text-center text-base">{{ ($m->UrdidoCalidad ?? false) ? 'Sí' : 'No' }}</td>
-                            <td class="px-4 py-3 text-center text-base">{{ ($m->Calidad ?? false) ? 'Sí' : 'No' }}</td>
-                            <td class="px-4 py-3 text-center text-base">{{ ($m->Andon ?? false) ? 'Sí' : 'No' }}</td>
-                            <td class="px-4 py-3 text-gray-700 text-base">{{ $m->usuario?->correo ?? '' }}</td>
+                            <td class="px-3 py-2 text-gray-700 whitespace-nowrap">{{ $m->Id }}</td>
+                            <td class="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">{{ $deptoNombre }}</td>
+                            <td class="px-3 py-2 text-gray-700 whitespace-nowrap">{{ $m->Telefono }}</td>
+                            <td class="px-3 py-2 text-gray-600 max-w-[140px] truncate font-mono" title="{{ $m->Token }}">{{ $m->Token }}</td>
+                            <td class="px-3 py-2 text-gray-700 whitespace-nowrap">{{ $m->Nombre ?? '' }}</td>
+                            <td class="px-3 py-2 text-center whitespace-nowrap">{{ ($m->DesarrolladoresPrue ?? false) ? 'Si' : 'No' }}</td>
+                            <td class="px-3 py-2 text-center whitespace-nowrap">{{ ($m->Desarrolladores ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-3 py-2 text-center whitespace-nowrap">{{ ($m->NotificarAtadoJulio ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-3 py-2 text-center whitespace-nowrap">{{ ($m->CorteSEF ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-3 py-2 text-center whitespace-nowrap">{{ ($m->MarcasFinales ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-3 py-2 text-center whitespace-nowrap">{{ ($m->ReporteElectrico ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-3 py-2 text-center whitespace-nowrap">{{ ($m->ReporteMecanico ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-3 py-2 text-center whitespace-nowrap">{{ ($m->ReporteTiempoMuerto ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-3 py-2 text-center whitespace-nowrap">{{ ($m->Atadores ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-3 py-2 text-center whitespace-nowrap">{{ ($m->InvTrama ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-3 py-2 text-center whitespace-nowrap">{{ ($m->UrdidoCalidad ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-3 py-2 text-center whitespace-nowrap">{{ ($m->Calidad ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-3 py-2 text-center whitespace-nowrap">{{ ($m->Andon ?? false) ? 'Sí' : 'No' }}</td>
+                            <td class="px-3 py-2 text-gray-700 whitespace-nowrap">{{ $m->usuario?->correo ?? '' }}</td>
                         </tr>
                     @empty
                         <tr id="tr-empty">
-                            <td colspan="19" class="px-4 py-8 text-center text-gray-500 text-base">No hay mensajes registrados.</td>
+                            <td colspan="19" class="px-3 py-8 text-center text-gray-500">No hay mensajes registrados.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -99,90 +99,94 @@
 </div>
 
 {{-- Modal Nuevo / Editar --}}
-<div id="modal-form" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-800" id="modal-title">Nuevo mensaje</h3>
-            <button type="button" id="modal-cerrar" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+<div id="modal-form" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/50 p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg lg:max-w-2xl max-h-[min(90dvh,90vh)] my-auto flex flex-col overflow-hidden">
+        <div class="flex items-center justify-between gap-3 shrink-0 px-4 sm:px-6 py-3 border-b border-gray-200">
+            <h3 class="text-base sm:text-lg font-semibold text-gray-800" id="modal-title">Nuevo mensaje</h3>
+            <button type="button" id="modal-cerrar" class="text-gray-400 hover:text-gray-600 text-2xl leading-none shrink-0 p-1" aria-label="Cerrar">&times;</button>
         </div>
-        <form id="form-mensaje" method="POST">
+        <form id="form-mensaje" method="POST" class="flex flex-col flex-1 min-h-0 overflow-hidden">
             @csrf
             <input type="hidden" name="_method" id="form-method" value="POST">
-            <div class="space-y-4">
-                <div>
-                    <label for="DepartamentoId" class="block text-sm font-medium text-gray-700 mb-1">Departamento <span class="text-red-500">*</span></label>
-                    <select name="DepartamentoId" id="DepartamentoId" required class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        <option value="">Seleccione departamento</option>
-                        @foreach($departamentos as $d)
-                            <option value="{{ $d->id }}">{{ $d->Depto }}{{ $d->Descripcion ? ' — ' . $d->Descripcion : '' }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label for="Telefono" class="block text-sm font-medium text-gray-700 mb-1">Teléfono <span class="text-red-500">*</span></label>
-                    <input type="text" name="Telefono" id="Telefono" required maxlength="20" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Ej. 521234567890">
-                </div>
-                <div>
-                    <label for="Token" class="block text-sm font-medium text-gray-700 mb-1">Token <span class="text-red-500">*</span></label>
-                    <input type="text" name="Token" id="Token" required maxlength="255" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Token de notificación">
-                </div>
-                <div>
-                    <label for="Nombre" class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                    <input type="text" name="Nombre" id="Nombre" maxlength="150" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Nombre opcional">
-                </div>
-                <div>
-                    <label for="UsuarioId" class="block text-sm font-medium text-gray-700 mb-1">Usuario (correo)</label>
-                    <select name="UsuarioId" id="UsuarioId" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        <option value="">Sin correo (solo Telegram)</option>
-                        @foreach($usuarios as $u)
-                            <option value="{{ $u->idusuario }}">{{ $u->nombre }} — {{ $u->correo }}</option>
-                        @endforeach
-                    </select>
-                    <p class="mt-1 text-xs text-gray-500">El correo se toma de la ficha del usuario. Sin usuario, este registro no recibe reportes por correo.</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <input type="hidden" name="Activo" value="0">
-                    <input type="checkbox" name="Activo" id="Activo" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                    <label for="Activo" class="text-sm font-medium text-gray-700">Activo</label>
-                </div>
-                <div class="grid grid-cols-2 gap-2 text-sm">
-                    <label class="flex items-center gap-2"><input type="hidden" name="DesarrolladoresPrue" value="0"><input type="checkbox" name="DesarrolladoresPrue" id="DesarrolladoresPrue" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Desarrolladores prue</label>
-                    <label class="flex items-center gap-2"><input type="hidden" name="Desarrolladores" value="0"><input type="checkbox" name="Desarrolladores" id="Desarrolladores" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Desarrolladores</label>
-                    <label class="flex items-center gap-2"><input type="hidden" name="NotificarAtadoJulio" value="0"><input type="checkbox" name="NotificarAtadoJulio" id="NotificarAtadoJulio" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Notif. atado julio</label>
-                    <label class="flex items-center gap-2"><input type="hidden" name="CorteSEF" value="0"><input type="checkbox" name="CorteSEF" id="CorteSEF" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Corte SEF</label>
-                    <label class="flex items-center gap-2"><input type="hidden" name="MarcasFinales" value="0"><input type="checkbox" name="MarcasFinales" id="MarcasFinales" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Marcas finales</label>
-                    <label class="flex items-center gap-2"><input type="hidden" name="ReporteElectrico" value="0"><input type="checkbox" name="ReporteElectrico" id="ReporteElectrico" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Rep. eléctrico</label>
-                    <label class="flex items-center gap-2"><input type="hidden" name="ReporteMecanico" value="0"><input type="checkbox" name="ReporteMecanico" id="ReporteMecanico" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Rep. mecánico</label>
-                    <label class="flex items-center gap-2"><input type="hidden" name="ReporteTiempoMuerto" value="0"><input type="checkbox" name="ReporteTiempoMuerto" id="ReporteTiempoMuerto" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Rep. tiempo muerto</label>
-                    <label class="flex items-center gap-2"><input type="hidden" name="Atadores" value="0"><input type="checkbox" name="Atadores" id="Atadores" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Atadores</label>
-                    <label class="flex items-center gap-2"><input type="hidden" name="InvTrama" value="0"><input type="checkbox" name="InvTrama" id="InvTrama" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Inv. trama</label>
-                    <label class="flex items-center gap-2"><input type="hidden" name="UrdidoCalidad" value="0"><input type="checkbox" name="UrdidoCalidad" id="UrdidoCalidad" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Urdido calidad</label>
-                    <label class="flex items-center gap-2"><input type="hidden" name="Calidad" value="0"><input type="checkbox" name="Calidad" id="Calidad" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Calidad</label>
-                    <label class="flex items-center gap-2"><input type="hidden" name="Andon" value="0"><input type="checkbox" name="Andon" id="Andon" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"> Andon (reporte diario)</label>
+            <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                    <div>
+                        <label for="DepartamentoId" class="block text-sm font-medium text-gray-700 mb-1">Departamento <span class="text-red-500">*</span></label>
+                        <select name="DepartamentoId" id="DepartamentoId" required class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Seleccione departamento</option>
+                            @foreach($departamentos as $d)
+                                <option value="{{ $d->id }}">{{ $d->Depto }}{{ $d->Descripcion ? ' — ' . $d->Descripcion : '' }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label for="Telefono" class="block text-sm font-medium text-gray-700 mb-1">Teléfono <span class="text-red-500">*</span></label>
+                        <input type="text" name="Telefono" id="Telefono" required maxlength="20" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Ej. 521234567890">
+                    </div>
+                    <div>
+                        <label for="Token" class="block text-sm font-medium text-gray-700 mb-1">Token <span class="text-red-500">*</span></label>
+                        <input type="text" name="Token" id="Token" required maxlength="255" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Token de notificación">
+                    </div>
+                    <div>
+                        <label for="Nombre" class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                        <input type="text" name="Nombre" id="Nombre" maxlength="150" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Nombre opcional">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="UsuarioId" class="block text-sm font-medium text-gray-700 mb-1">Usuario (correo)</label>
+                        <select name="UsuarioId" id="UsuarioId" class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Sin correo (solo Telegram)</option>
+                            @foreach($usuarios as $u)
+                                <option value="{{ $u->idusuario }}">{{ $u->nombre }} — {{ $u->correo }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-xs text-gray-500">El correo se toma de la ficha del usuario. Sin usuario, este registro no recibe reportes por correo.</p>
+                    </div>
+                    <div class="md:col-span-2 flex items-center gap-2">
+                        <input type="hidden" name="Activo" value="0">
+                        <input type="checkbox" name="Activo" id="Activo" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <label for="Activo" class="text-sm font-medium text-gray-700">Activo</label>
+                    </div>
+                    <div class="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
+                        <label class="flex items-center gap-2 min-h-10 py-1"><input type="hidden" name="DesarrolladoresPrue" value="0"><input type="checkbox" name="DesarrolladoresPrue" id="DesarrolladoresPrue" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"> Desarrolladores prue</label>
+                        <label class="flex items-center gap-2 min-h-10 py-1"><input type="hidden" name="Desarrolladores" value="0"><input type="checkbox" name="Desarrolladores" id="Desarrolladores" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"> Desarrolladores</label>
+                        <label class="flex items-center gap-2 min-h-10 py-1"><input type="hidden" name="NotificarAtadoJulio" value="0"><input type="checkbox" name="NotificarAtadoJulio" id="NotificarAtadoJulio" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"> Notif. atado julio</label>
+                        <label class="flex items-center gap-2 min-h-10 py-1"><input type="hidden" name="CorteSEF" value="0"><input type="checkbox" name="CorteSEF" id="CorteSEF" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"> Corte SEF</label>
+                        <label class="flex items-center gap-2 min-h-10 py-1"><input type="hidden" name="MarcasFinales" value="0"><input type="checkbox" name="MarcasFinales" id="MarcasFinales" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"> Marcas finales</label>
+                        <label class="flex items-center gap-2 min-h-10 py-1"><input type="hidden" name="ReporteElectrico" value="0"><input type="checkbox" name="ReporteElectrico" id="ReporteElectrico" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"> Rep. eléctrico</label>
+                        <label class="flex items-center gap-2 min-h-10 py-1"><input type="hidden" name="ReporteMecanico" value="0"><input type="checkbox" name="ReporteMecanico" id="ReporteMecanico" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"> Rep. mecánico</label>
+                        <label class="flex items-center gap-2 min-h-10 py-1"><input type="hidden" name="ReporteTiempoMuerto" value="0"><input type="checkbox" name="ReporteTiempoMuerto" id="ReporteTiempoMuerto" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"> Rep. tiempo muerto</label>
+                        <label class="flex items-center gap-2 min-h-10 py-1"><input type="hidden" name="Atadores" value="0"><input type="checkbox" name="Atadores" id="Atadores" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"> Atadores</label>
+                        <label class="flex items-center gap-2 min-h-10 py-1"><input type="hidden" name="InvTrama" value="0"><input type="checkbox" name="InvTrama" id="InvTrama" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"> Inv. trama</label>
+                        <label class="flex items-center gap-2 min-h-10 py-1"><input type="hidden" name="UrdidoCalidad" value="0"><input type="checkbox" name="UrdidoCalidad" id="UrdidoCalidad" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"> Urdido calidad</label>
+                        <label class="flex items-center gap-2 min-h-10 py-1"><input type="hidden" name="Calidad" value="0"><input type="checkbox" name="Calidad" id="Calidad" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"> Calidad</label>
+                        <label class="flex items-center gap-2 min-h-10 py-1 sm:col-span-2 lg:col-span-1"><input type="hidden" name="Andon" value="0"><input type="checkbox" name="Andon" id="Andon" value="1" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"> Andon (reporte diario)</label>
+                    </div>
                 </div>
             </div>
-            <div class="mt-6 flex gap-2 justify-end">
-                <button type="button" id="form-cancelar" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancelar</button>
-                <button type="submit" id="form-submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Guardar</button>
+            <div class="shrink-0 flex flex-col-reverse sm:flex-row gap-2 justify-end px-4 sm:px-6 py-3 border-t border-gray-200 bg-white">
+                <button type="button" id="form-cancelar" class="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cancelar</button>
+                <button type="submit" id="form-submit" class="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Guardar</button>
             </div>
         </form>
     </div>
 </div>
 
 {{-- Modal Obtener Chat ID --}}
-<div id="modal-chat-id" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-semibold text-gray-800">Obtener Chat ID de Telegram</h3>
-            <button type="button" id="modal-chat-id-cerrar" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+<div id="modal-chat-id" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/50 p-3 sm:p-4 overflow-y-auto">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[min(90dvh,90vh)] my-auto flex flex-col overflow-hidden">
+        <div class="flex items-center justify-between gap-3 shrink-0 px-4 sm:px-6 py-3 border-b border-gray-200">
+            <h3 class="text-base sm:text-lg font-semibold text-gray-800">Obtener Chat ID de Telegram</h3>
+            <button type="button" id="modal-chat-id-cerrar" class="text-gray-400 hover:text-gray-600 text-2xl leading-none shrink-0 p-1" aria-label="Cerrar">&times;</button>
         </div>
-        <p class="text-sm text-gray-600 mb-3">Pide al usuario que envíe un mensaje al bot y haz clic en "Actualizar lista". Luego elige un chat_id para asignar a este registro.</p>
-        <div class="mb-4">
-            <button type="button" id="btn-refrescar-chat-ids" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">Actualizar lista</button>
+        <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4">
+            <p class="text-sm text-gray-600 mb-3">Pide al usuario que envíe un mensaje al bot y haz clic en "Actualizar lista". Luego elige un chat_id para asignar a este registro.</p>
+            <div class="mb-4">
+                <button type="button" id="btn-refrescar-chat-ids" class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">Actualizar lista</button>
+            </div>
+            <div id="chat-ids-list" class="space-y-2"></div>
         </div>
-        <div id="chat-ids-list" class="max-h-64 overflow-auto space-y-2 mb-4"></div>
-        <div class="flex gap-2 justify-end">
-            <button type="button" id="modal-chat-id-cancelar" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cerrar</button>
+        <div class="shrink-0 flex justify-end px-4 sm:px-6 py-3 border-t border-gray-200 bg-white">
+            <button type="button" id="modal-chat-id-cancelar" class="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">Cerrar</button>
         </div>
     </div>
 </div>
@@ -208,6 +212,8 @@
     function openModal() {
         modal.classList.remove('hidden');
         modal.classList.add('flex');
+        const scrollBody = form.querySelector('.overflow-y-auto');
+        if (scrollBody) scrollBody.scrollTop = 0;
     }
     function closeModal() {
         modal.classList.add('hidden');
@@ -493,7 +499,7 @@
                     tr.dataset.invTrama = item.InvTrama ? '1' : '0';
                     tr.dataset.andon = item.Andon ? '1' : '0';
                     tr.dataset.usuarioId = item.UsuarioId || '';
-                    tr.innerHTML = '<td class="px-4 py-3 text-gray-700 text-base">' + (item.Id || '') + '</td><td class="px-4 py-3 font-medium text-gray-900 text-base">' + (item.DepartamentoNombre || '') + '</td><td class="px-4 py-3 text-gray-700 text-base">' + (item.Telefono || '') + '</td><td class="px-4 py-3 text-gray-600 text-base max-w-[140px] truncate font-mono" title="' + (item.Token || '') + '">' + (item.Token || '') + '</td><td class="px-4 py-3 text-gray-700 text-base">' + (item.Nombre || '') + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.DesarrolladoresPrue) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.Desarrolladores) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.NotificarAtadoJulio) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.CorteSEF) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.MarcasFinales) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.ReporteElectrico) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.ReporteMecanico) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.ReporteTiempoMuerto) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.Atadores) + '</td><td class="px-4 py-3 text-center text-base">' + siNo(item.InvTrama) + '</td>';
+                    tr.innerHTML = '<td class="px-4 py-3 text-gray-700 text-base">' + (item.Id || '') + '</td><td class="px-4 py-3 font-medium text-gray-900 text-base">' + (item.DepartamentoNombre || '') + '</td><td class="px-4 py-3 text-gray-700 text-base">' + (item.Telefono || '') + '</td><td class="px-4 py-3 text-gray-600 text-base max-w-[140px] truncate font-mono" title="' + (item.Token || '') + '">' + (item.Token || '') + '</td><td class="px-4 py-3 text-gray-700 text-base">' + (item.Nombre || '') + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.DesarrolladoresPrue) + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.Desarrolladores) + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.NotificarAtadoJulio) + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.CorteSEF) + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.MarcasFinales) + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.ReporteElectrico) + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.ReporteMecanico) + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.ReporteTiempoMuerto) + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.Atadores) + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.InvTrama) + '</td>';
                     tbody.appendChild(tr);
                 }
                 Swal.fire({ icon: 'success', title: data.message || 'Guardado', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
