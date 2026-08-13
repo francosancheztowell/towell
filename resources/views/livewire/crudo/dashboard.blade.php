@@ -211,10 +211,16 @@
                         <strong>{{ number_format((float) $summary['pieces']) }}</strong>
                         <span>pzas</span>
                     </article>
-                    <article class="crudo-kpi-mini">
+                    <button
+                        type="button"
+                        class="crudo-kpi-mini crudo-kpi-mini-button"
+                        wire:click="abrirDefectos"
+                        @disabled((float) $summary['seconds'] === 0.0)
+                        title="Ver defectos por telar"
+                    >
                         <strong>{{ number_format((float) $summary['seconds']) }}</strong>
                         <span>2das</span>
-                    </article>
+                    </button>
                 </div>
             </section>
 
@@ -327,6 +333,9 @@
                                             <span class="crudo-estado-reporto">
                                                 <i class="fa-solid fa-user" aria-hidden="true"></i>
                                                 {{ $registro['reportedBy'] ?? 'Sin registrar' }}
+                                                @if (filled($registro['depto'] ?? null))
+                                                    · {{ $registro['depto'] }}
+                                                @endif
                                             </span>
                                         </li>
                                     @endforeach
@@ -353,6 +362,133 @@
                 @empty
                     <p class="crudo-estado-vacio">Ningún telar en este estado ahora mismo.</p>
                 @endforelse
+            </div>
+        </div>
+    </div>
+@endif
+
+{{-- Desglose del KPI de segundas: defectos por telar, en tabla o en gráfica. --}}
+@if ($defectosAbierto && $defectos !== null)
+    <div class="crudo-modal-backdrop" wire:click.self="cerrarDefectos">
+        <div class="crudo-modal crudo-modal-defectos" role="dialog" aria-modal="true"
+             aria-label="Segundas por telar">
+            <header class="crudo-estado-header" data-state="bad_quality">
+                <span class="crudo-estado-header-icon"><i class="fa-solid fa-circle-xmark"></i></span>
+                <div>
+                    <h2>Segundas por telar</h2>
+                    <p>
+                        {{ number_format($defectos['total']) }} piezas de segunda ·
+                        {{ count($defectos['telares']) }} {{ count($defectos['telares']) === 1 ? 'telar' : 'telares' }}
+                    </p>
+                </div>
+                <button type="button" class="crudo-modal-close" wire:click="cerrarDefectos" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            {{--
+                Filtro por salón: radios nativos + CSS. Cambiar de salón es
+                instantáneo y no manda ninguna petición a Livewire.
+            --}}
+            @php($salonesDefectos = collect($defectos['telares'])->countBy('salon'))
+            @php($filtrosDefectos = [
+                'todos' => ['etiqueta' => 'Todos', 'conteo' => count($defectos['telares'])],
+                'Jacquard' => ['etiqueta' => 'JAC', 'conteo' => $salonesDefectos['Jacquard'] ?? 0],
+                'Smith' => ['etiqueta' => 'SMI', 'conteo' => $salonesDefectos['Smith'] ?? 0],
+                'Karl Mayer' => ['etiqueta' => 'KM', 'conteo' => $salonesDefectos['Karl Mayer'] ?? 0],
+            ])
+
+            @foreach ($filtrosDefectos as $clave => $filtro)
+                <input
+                    type="radio"
+                    class="crudo-defectos-vista-input"
+                    name="crudo-defectos-salon"
+                    id="crudo-defectos-salon-{{ Str::slug($clave) }}"
+                    value="{{ $clave }}"
+                    @checked($clave === 'todos')
+                >
+            @endforeach
+
+            <div class="crudo-defectos-vistas" role="radiogroup" aria-label="Filtrar por salón">
+                @foreach ($filtrosDefectos as $clave => $filtro)
+                    <label for="crudo-defectos-salon-{{ Str::slug($clave) }}" data-vista="{{ $clave }}">
+                        {{ $filtro['etiqueta'] }}
+                        <span class="crudo-paros-conteo">{{ $filtro['conteo'] }}</span>
+                    </label>
+                @endforeach
+
+                {{-- Orden: sí pasa por el servidor, porque el pulso repinta la tabla. --}}
+                <span class="crudo-defectos-orden">
+                    @foreach (['telar' => 'Telar', 'desc' => '2das ↓', 'asc' => '2das ↑'] as $orden => $etiqueta)
+                        <button
+                            type="button"
+                            class="{{ $defectosOrden === $orden ? 'is-active' : '' }}"
+                            aria-pressed="{{ $defectosOrden === $orden ? 'true' : 'false' }}"
+                            wire:click="$set('defectosOrden', '{{ $orden }}')"
+                            title="{{ $orden === 'telar' ? 'Ordenar por número de telar' : ($orden === 'desc' ? 'De más a menos segundas' : 'De menos a más segundas') }}"
+                        >{{ $etiqueta }}</button>
+                    @endforeach
+                </span>
+            </div>
+
+            <div class="crudo-defectos-cuerpo">
+                @if (count($defectos['telares']) === 0)
+                    <p class="crudo-estado-vacio">Sin defectos capturados en este periodo.</p>
+                @else
+                    {{-- Mismo orden de colores que la gráfica apilada (COLORES_DEFECTO en defect-chart.ts). --}}
+                    @php($coloresDefecto = ['#4d5cff', '#f97316', '#16a34a', '#dc2626', '#a855f7', '#0891b2', '#94a3b8'])
+                    @php($mayorTotal = max(1.0, (float) $defectos['maximo']))
+
+                    <div class="crudo-defectos-panel">
+                        <div class="crudo-detail-table-scroll">
+                            <table class="crudo-detail-table crudo-defectos-table">
+                                <thead>
+                                    <tr>
+                                        <th>Telar</th>
+                                        @foreach ($defectos['columnas'] as $indice => $columna)
+                                            <th style="--color-defecto: {{ $coloresDefecto[$indice % count($coloresDefecto)] }}">
+                                                <span class="crudo-defectos-chip" aria-hidden="true"></span>
+                                                {{ $columna }}
+                                            </th>
+                                        @endforeach
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($defectos['telares'] as $fila)
+                                        <tr data-salon="{{ $fila['salon'] ?? 'Sin clasificar' }}">
+                                            <td class="crudo-defectos-telar">{{ $fila['telar'] }}</td>
+                                            @foreach ($defectos['columnas'] as $indice => $columna)
+                                                @php($valor = (float) ($fila['defectos'][$columna] ?? 0))
+                                                <td
+                                                    @class(['crudo-defectos-cero' => $valor === 0.0])
+                                                    style="--color-defecto: {{ $coloresDefecto[$indice % count($coloresDefecto)] }}"
+                                                >
+                                                    {{ $valor === 0.0 ? '·' : number_format($valor) }}
+                                                </td>
+                                            @endforeach
+                                            <td class="crudo-defectos-total">
+                                                {{-- Barra de proporción: el peor telar se ve sin leer los números. --}}
+                                                <span
+                                                    class="crudo-defectos-barra"
+                                                    style="--parte: {{ round($fila['total'] / $mayorTotal * 100) }}%"
+                                                    aria-hidden="true"
+                                                ></span>
+                                                <strong>{{ number_format((float) $fila['total']) }}</strong>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+
+                        @if ($defectos['recortados'] > 0)
+                            <p class="crudo-defectos-nota">
+                                Los {{ $defectos['recortados'] }} tipos de defecto menos frecuentes están sumados en "Otros".
+                            </p>
+                        @endif
+                    </div>
+                @endif
             </div>
         </div>
     </div>

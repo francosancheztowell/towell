@@ -117,6 +117,20 @@ final class CrudoDashboardServiceTest extends TestCase
         $this->assertSame(1, $this->repository->aggregateCalls);
     }
 
+    public function test_los_telares_fuera_de_operacion_se_dibujan_pero_no_cuentan_en_metricas(): void
+    {
+        config()->set('crudo.telares_fuera', ['202']);
+
+        $data = $this->service->build($this->date())->toArray();
+
+        // Sigue apareciendo en el plano...
+        $this->assertSame(['201', '202'], array_column($data['machines'], 'telar'));
+        // ...pero no suma en el resumen ni en las alertas del salón.
+        $this->assertSame(1, $data['summary']['total']);
+        $this->assertSame(0, $data['summary']['no_data']);
+        $this->assertSame(1, $data['areas'][0]['total']);
+    }
+
     public function test_machine_efficiency_uses_the_last_non_null_revision_of_the_last_captured_turn(): void
     {
         $this->repository->efficiencyLines = [
@@ -379,6 +393,14 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
         $this->requestedHeaderIds = $headerRecIds;
 
         return $this->defects;
+    }
+
+    /** @var list<object> */
+    public array $defectTotals = [];
+
+    public function defectTotalsForRange(DateTimeImmutable $from, DateTimeImmutable $to): array
+    {
+        return $this->defectTotals;
     }
 
     /** @var array<string, string> */

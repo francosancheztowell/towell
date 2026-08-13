@@ -222,6 +222,30 @@
     font-weight: 950;
 }
 
+/* En pantallas chicas el contenido scrollea dentro del panel/modal: el título
+   se queda pegado arriba. El top negativo + padding compensa el padding del
+   panel para que nada asome por encima del título. */
+.crudo-panel-heading,
+.crudo-detail-panel-heading {
+    position: sticky;
+    z-index: 2;
+    background: #fff;
+}
+
+/* ponytail: el scrollport ya arranca debajo del navbar; el top negativo solo
+   compensa el padding del panel para que nada asome sobre el título. */
+.crudo-panel-heading {
+    top: -0.68rem;
+    margin-top: -0.68rem;
+    padding-top: 0.68rem;
+}
+
+.crudo-detail-panel-heading {
+    top: -0.65rem;
+    margin-top: -0.65rem;
+    padding-top: 0.65rem;
+}
+
 .crudo-eyebrow {
     color: #0284c7;
     font-size: 0.52rem;
@@ -545,7 +569,7 @@ button.crudo-status-card:disabled {
     text-transform: uppercase;
 }
 
-.crudo-kpi-grid article {
+.crudo-kpi-grid :is(article, button) {
     display: grid;
     grid-template-rows: auto auto;
     align-items: center;
@@ -557,7 +581,7 @@ button.crudo-status-card:disabled {
     padding: 0.45rem 0.6rem;
 }
 
-.crudo-kpi-grid article strong {
+.crudo-kpi-grid :is(article, button) strong {
     align-self: end;
     color: #0f172a;
     font-size: 1.35rem;
@@ -567,7 +591,7 @@ button.crudo-status-card:disabled {
 
 /* Acompaña a la unidad en vez de ocupar su propia columna: se ve al buscarlo
    y no compite con la cifra, que es lo que se lee de un vistazo. */
-.crudo-kpi-grid article span i {
+.crudo-kpi-grid :is(article, button) span i {
     margin-right: 0.3em;
     font-size: 0.72em;
     vertical-align: baseline;
@@ -575,7 +599,7 @@ button.crudo-status-card:disabled {
 
 /* La unidad acompaña a la cifra sin competir con ella: más chica y espaciada,
    el azul la separa. El icono hereda el tamaño. */
-.crudo-kpi-grid article span {
+.crudo-kpi-grid :is(article, button) span {
     align-self: start;
     color: #0284c7;
     font-size: 0.68rem;
@@ -673,12 +697,19 @@ button.crudo-status-card:disabled {
 }
 
 .crudo-salon > header {
+    position: sticky;
+    /* el badge de eficiencia se ancla aquí */
+    /* ponytail: el scroller ya arranca bajo el navbar, así que top: 0 = al filo */
+    top: 0;
+    z-index: 3;
+    margin-top: -0.75rem;
+    background: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
     min-height: 1.9rem;
-    padding: 0 0.55rem 0.25rem;
+    padding: 0.25rem 0.55rem 0.35rem;
     border-bottom: 1px solid #e2e8f0;
 }
 
@@ -691,13 +722,40 @@ button.crudo-status-card:disabled {
     white-space: nowrap;
 }
 
+.crudo-salon-efficiency {
+    /* ponytail: absoluto para no crecer el header sticky ni mover el título */
+    position: absolute;
+    right: 1.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    line-height: 1;
+    padding: 0.2rem 0.7rem;
+    border-radius: 999px;
+    background: #e0f2fe;
+    color: #0c4a6e;
+    font-size: 1.15rem;
+    font-weight: 950;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+}
+
 .crudo-machine-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(var(--crudo-card-min, 6.75rem), 1fr));
     gap: 0.55rem;
     align-content: start;
-    /* Pegado al título: el borde ya separa, no hace falta un colchón extra. */
-    padding-top: 0.2rem;
+    /* ponytail: colchón mínimo para que el título sticky no encime la 1ª fila */
+    padding-top: 0.5rem;
+}
+
+/* ponytail: KM es la columna angosta; el título va a la izquierda para no
+   quedar debajo del badge de eficiencia. */
+.crudo-salon-karl-mayer > header {
+    justify-content: flex-start;
+}
+
+.crudo-salon-karl-mayer > header h2 {
+    padding-left: 0.35rem;
 }
 
 .crudo-salon-karl-mayer .crudo-machine-grid-physical {
@@ -740,6 +798,15 @@ button.crudo-status-card:disabled {
     contain: layout paint style;
     outline: none;
     transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+/* Telar fuera de operación: solo el hueco en blanco para conservar la posición
+   física en el salón. Sin número, foto, métricas ni estado. */
+/* El [data-state] gana en especificidad, por eso va con clase + atributo. */
+.crudo-machine-card.crudo-machine-card-fuera[data-state] {
+    border-color: #e2e8f0;
+    background: #fff;
+    cursor: default;
 }
 
 .crudo-machine-grid-physical .crudo-machine-card {
@@ -1065,6 +1132,262 @@ button.crudo-status-card:disabled {
     flex-direction: column;
 }
 
+/* Desglose de segundas: mismo marco que el de estado, un poco más ancho porque
+   la tabla lleva una columna por tipo de defecto. */
+/* Se ajusta al contenido en vez de estirar la tabla: con ancho fijo las
+   columnas quedaban nadando en aire. */
+.crudo-modal-defectos {
+    display: flex;
+    width: fit-content;
+    min-width: min(38rem, 94vw);
+    max-width: min(66rem, 94vw);
+    max-height: min(44rem, 88vh);
+    flex-direction: column;
+}
+
+.crudo-kpi-mini-button {
+    cursor: pointer;
+    transition: border-color 120ms ease, background-color 120ms ease;
+}
+
+.crudo-kpi-mini-button:hover:not(:disabled),
+.crudo-kpi-mini-button:focus-visible {
+    border-color: #0284c7;
+    background: #e0f2fe;
+}
+
+.crudo-kpi-mini-button:disabled {
+    cursor: default;
+}
+
+/* Interruptor tabla/gráficas: radios ocultos + labels, sin JS ni round-trip. */
+.crudo-defectos-vista-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.crudo-defectos-vistas {
+    display: flex;
+    gap: 0.3rem;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.5rem 1rem;
+}
+
+.crudo-defectos-vistas label {
+    border: 1px solid #dbe5ee;
+    border-radius: 999px;
+    background: #fff;
+    padding: 0.2rem 0.7rem;
+    color: #475569;
+    font-size: 0.7rem;
+    font-weight: 850;
+    cursor: pointer;
+}
+
+.crudo-defectos-vistas label:hover {
+    border-color: #94a3b8;
+}
+
+.crudo-defectos-vistas label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+/* El orden se separa de los filtros de salón: son dos cosas distintas. */
+.crudo-defectos-orden {
+    display: inline-flex;
+    gap: 0.3rem;
+    margin-left: auto;
+    padding-left: 0.6rem;
+    border-left: 1px solid #e2e8f0;
+}
+
+.crudo-defectos-orden button {
+    border: 1px solid #dbe5ee;
+    border-radius: 999px;
+    background: #fff;
+    padding: 0.2rem 0.6rem;
+    color: #475569;
+    font-size: 0.7rem;
+    font-weight: 850;
+    white-space: nowrap;
+}
+
+.crudo-defectos-orden button:hover {
+    border-color: #94a3b8;
+}
+
+.crudo-defectos-orden button.is-active {
+    border-color: #0284c7;
+    background: #e0f2fe;
+    color: #0c4a6e;
+}
+
+.crudo-defectos-vista-input[value="todos"]:checked ~ .crudo-defectos-vistas label[data-vista="todos"],
+.crudo-defectos-vista-input[value="Jacquard"]:checked ~ .crudo-defectos-vistas label[data-vista="Jacquard"],
+.crudo-defectos-vista-input[value="Smith"]:checked ~ .crudo-defectos-vistas label[data-vista="Smith"],
+.crudo-defectos-vista-input[value="Karl Mayer"]:checked ~ .crudo-defectos-vistas label[data-vista="Karl Mayer"] {
+    border-color: #0284c7;
+    background: #e0f2fe;
+    color: #0c4a6e;
+}
+
+/* Filtro por salón: se esconden las filas que no son del salón elegido. */
+.crudo-defectos-vista-input[value="Jacquard"]:checked ~ .crudo-defectos-cuerpo tr[data-salon]:not([data-salon="Jacquard"]),
+.crudo-defectos-vista-input[value="Smith"]:checked ~ .crudo-defectos-cuerpo tr[data-salon]:not([data-salon="Smith"]),
+.crudo-defectos-vista-input[value="Karl Mayer"]:checked ~ .crudo-defectos-cuerpo tr[data-salon]:not([data-salon="Karl Mayer"]) {
+    display: none;
+}
+
+.crudo-defectos-cuerpo {
+    overflow: hidden;
+    padding: 0.75rem 1rem 1rem;
+}
+
+/* El scroll vive en la tabla, no en el modal: así la rueda del mouse la mueve
+   estando encima y el thead sticky se pega al borde de este contenedor. */
+.crudo-defectos-panel .crudo-detail-table-scroll {
+    max-height: min(30rem, 62vh);
+    overflow: auto;
+}
+
+/* Columnas al ancho de su contenido: repartir el 100% las separaba tanto que
+   costaba seguir la fila. La primera se queda con el sobrante. */
+.crudo-defectos-table {
+    width: auto;
+    min-width: 100%;
+}
+
+.crudo-defectos-table th,
+.crudo-defectos-table td {
+    width: 1%;
+    padding-right: 0.7rem;
+    padding-left: 0.7rem;
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* Ninguna columna se estira: la tabla mide lo que mide su contenido. El telar
+   son tres dígitos, no necesita más. */
+.crudo-defectos-table th:first-child,
+.crudo-defectos-table td:first-child {
+    width: 1%;
+    min-width: 3.4rem;
+    padding-right: 0.6rem;
+}
+
+/* Ancho suficiente para que un nombre largo caiga en dos líneas, no en cuatro. */
+.crudo-defectos-table thead th:not(:first-child) {
+    min-width: 5.4rem;
+}
+
+/* Encabezado fijo: al scrollear 37 telares se pierde de vista qué columna es qué.
+   Los nombres completos se parten en dos líneas en vez de recortarse. */
+.crudo-defectos-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    max-width: 7.5rem;
+    border-bottom: 2px solid var(--color-defecto, #cbd5e1);
+    background: #f1f5f9;
+    color: var(--color-defecto, #475569);
+    vertical-align: bottom;
+    white-space: normal;
+    line-height: 1.15;
+    text-wrap: balance;
+}
+
+.crudo-defectos-table tbody tr:nth-child(even) td {
+    background: #f1f5f9;
+}
+
+.crudo-defectos-table tbody tr:hover td {
+    background: #e0f2fe;
+}
+
+/* La columna de telar es sticky: necesita fondo propio y opaco, si no las filas
+   se ven a través de ella al scrollear. */
+.crudo-defectos-table th:first-child,
+.crudo-defectos-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #fff;
+    text-align: left;
+}
+
+.crudo-defectos-table tbody tr:nth-child(even) td:first-child {
+    background: #f1f5f9;
+}
+
+.crudo-defectos-table tbody tr:hover td:first-child {
+    background: #e0f2fe;
+}
+
+.crudo-defectos-table thead th:first-child {
+    z-index: 4;
+}
+
+.crudo-defectos-telar {
+    color: #0f172a;
+    font-weight: 900;
+}
+
+/* Punto de color que identifica cada tipo de defecto. */
+.crudo-defectos-chip {
+    display: inline-block;
+    width: 0.45rem;
+    height: 0.45rem;
+    margin-right: 0.25rem;
+    border-radius: 999px;
+    background: var(--color-defecto, #94a3b8);
+    vertical-align: middle;
+}
+
+/* Cada cifra toma el color de su defecto: la columna se sigue de un vistazo. */
+.crudo-defectos-table tbody td {
+    color: var(--color-defecto, #334155);
+    font-weight: 800;
+}
+
+/* Los ceros son ruido: se apagan para que resalte lo que sí tiene piezas. */
+.crudo-defectos-cero {
+    color: #cbd5e1 !important;
+    font-weight: 700;
+}
+
+.crudo-defectos-total {
+    position: relative;
+    min-width: 4.5rem;
+    color: #0f172a;
+    font-weight: 900;
+}
+
+.crudo-defectos-barra {
+    position: absolute;
+    right: 0.45rem;
+    bottom: 0.15rem;
+    left: auto;
+    width: var(--parte);
+    max-width: calc(100% - 0.9rem);
+    height: 0.18rem;
+    border-radius: 999px;
+    background: #4d5cff;
+    opacity: 0.35;
+}
+
+.crudo-defectos-nota {
+    margin-top: 0.4rem;
+    color: #94a3b8;
+    font-size: 0.62rem;
+    font-weight: 750;
+}
+
 .crudo-estado-header {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
@@ -1282,9 +1605,9 @@ button.crudo-status-card:disabled {
 
 .crudo-modal-identity-card {
     display: grid;
-    /* Icono | salón + telar + orden | claves del programa. La tercera columna
-       es `auto` para que colapse sola en los telares sin programa. */
-    grid-template-columns: 2.65rem minmax(0, 1fr) auto;
+    /* Salón + telar + orden | claves del programa. La segunda columna es `auto`
+       para que colapse sola en los telares sin programa. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
     gap: 0.65rem;
     align-items: center;
     border-color: color-mix(in srgb, var(--status) 26%, #dbe5ee);
@@ -1327,8 +1650,10 @@ button.crudo-status-card:disabled {
     grid-template-columns: minmax(0, 1fr);
     align-content: center;
     gap: 0.2rem;
-    min-width: 14rem;
-    max-width: 20rem;
+    /* ponytail: sin tope duro de ancho; la columna se ajusta al contenido y el
+       texto largo baja de línea en vez de recortarse. */
+    min-width: 0;
+    max-width: 22rem;
     border-left: 1px solid color-mix(in srgb, var(--status) 22%, #dbe5ee);
     padding-left: 0.5rem;
     overflow: hidden;
@@ -1352,33 +1677,19 @@ button.crudo-status-card:disabled {
 
 /* Nombre y clave AX: legibles, pero sin competir con el título del telar. */
 .crudo-modal-program-field dd {
-    overflow: hidden;
     min-width: 0;
     margin: 0;
     color: #0f172a;
     font-size: 1rem;
     font-weight: 900;
     line-height: 1.1;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    /* Nombre de producto largo: parte de línea, no se corta con ellipsis. */
+    overflow-wrap: anywhere;
 }
 
 .crudo-modal-program strong {
     color: #0f172a;
     font-weight: 900;
-}
-
-.crudo-modal-machine-icon {
-    display: grid;
-    width: 2.65rem;
-    height: 2.65rem;
-    flex: 0 0 auto;
-    place-items: center;
-    border-radius: 0.7rem;
-    background: #fff;
-    color: var(--status-ink, var(--status));
-    font-size: 1.1rem;
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status) 18%, white);
 }
 
 .crudo-modal-kpi {
@@ -1392,6 +1703,17 @@ button.crudo-status-card:disabled {
 .crudo-modal-kpi-gauge {
     justify-items: center;
     padding: 0.35rem 0.3rem;
+}
+
+/* Aviso de que la eficiencia mostrada viene de un corte anterior al día consultado. */
+.crudo-efficiency-stale {
+    display: block;
+    margin-top: 0.15rem;
+    color: #b45309;
+    font-size: 0.6rem;
+    font-weight: 800;
+    text-align: center;
+    white-space: nowrap;
 }
 
 .crudo-modal-kpi-gauge .crudo-gauge {
@@ -1504,7 +1826,8 @@ button.crudo-status-card:disabled {
 }
 
 .crudo-modal-status-card .crudo-modal-paro-falla,
-.crudo-modal-status-card .crudo-modal-paro-tiempo {
+.crudo-modal-status-card .crudo-modal-paro-tiempo,
+.crudo-modal-status-card .crudo-modal-paro-quien {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1522,6 +1845,14 @@ button.crudo-status-card:disabled {
     color: #9f1239;
     font-size: 0.65rem;
     font-weight: 750;
+}
+
+/* Quién reportó · departamento: dato secundario del paro. */
+.crudo-modal-status-card .crudo-modal-paro-quien {
+    color: #9f1239;
+    font-size: 0.62rem;
+    font-weight: 700;
+    opacity: 0.9;
 }
 
 .crudo-modal-body {
@@ -2378,10 +2709,200 @@ button.crudo-status-card:disabled {
     color: #b91c1c;
 }
 
+/* Auditorías (más angosta) + historial de paros, lado a lado. */
+.crudo-history-row {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    gap: 0.55rem;
+    align-items: start;
+}
+
 .crudo-audit-history-panel {
-    grid-column: 1 / -1;
     min-width: 0;
     margin-bottom: 0.55rem;
+}
+
+.crudo-paros-history-panel {
+    min-width: 0;
+    margin-bottom: 0.55rem;
+}
+
+/* Filtro de periodo sin JS: radios ocultos + labels. El estado vive en el DOM,
+   así que cambiarlo es instantáneo y no depende de una petición a Livewire. */
+.crudo-paros-rango-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.crudo-paros-rango {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.crudo-paros-rango label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border: 1px solid #dbe5ee;
+    border-radius: 999px;
+    background: #fff;
+    padding: 0.1rem 0.45rem;
+    color: #475569;
+    font-size: 0.62rem;
+    font-weight: 850;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.crudo-paros-conteo {
+    color: #94a3b8;
+    font-weight: 900;
+}
+
+.crudo-paros-rango label:hover {
+    border-color: #94a3b8;
+}
+
+/* Un selector por periodo: marca el label activo y esconde lo que sobra. */
+.crudo-paros-rango-input[value="2d"]:checked ~ .crudo-detail-panel-heading label[data-ventana="2d"],
+.crudo-paros-rango-input[value="semana"]:checked ~ .crudo-detail-panel-heading label[data-ventana="semana"],
+.crudo-paros-rango-input[value="mes"]:checked ~ .crudo-detail-panel-heading label[data-ventana="mes"] {
+    border-color: #0284c7;
+    background: #e0f2fe;
+    color: #0c4a6e;
+}
+
+.crudo-paros-rango-input[value="2d"]:checked ~ .crudo-detail-panel-heading label[data-ventana="2d"] .crudo-paros-conteo,
+.crudo-paros-rango-input[value="semana"]:checked ~ .crudo-detail-panel-heading label[data-ventana="semana"] .crudo-paros-conteo,
+.crudo-paros-rango-input[value="mes"]:checked ~ .crudo-detail-panel-heading label[data-ventana="mes"] .crudo-paros-conteo {
+    color: #0284c7;
+}
+
+.crudo-paros-rango-input[value="2d"]:checked ~ .crudo-paros-history-list .crudo-paro-row:not([data-ventana="2d"]),
+.crudo-paros-rango-input[value="semana"]:checked ~ .crudo-paros-history-list .crudo-paro-row[data-ventana="mes"] {
+    display: none;
+}
+
+.crudo-paros-tope {
+    padding: 0.2rem 0.1rem 0;
+    color: #94a3b8;
+    font-size: 0.6rem;
+    font-weight: 750;
+    text-align: center;
+}
+
+/* El aviso de vacío solo aparece si el filtro no dejó ninguna fila visible. */
+.crudo-paros-vacio {
+    display: none;
+}
+
+.crudo-paros-rango-input[value="2d"]:checked ~ .crudo-paros-history-list:not(:has(.crudo-paro-row[data-ventana="2d"])) .crudo-paros-vacio,
+.crudo-paros-rango-input[value="semana"]:checked ~ .crudo-paros-history-list:not(:has(.crudo-paro-row[data-ventana="2d"], .crudo-paro-row[data-ventana="semana"])) .crudo-paros-vacio,
+.crudo-paros-rango-input[value="mes"]:checked ~ .crudo-paros-history-list:not(:has(.crudo-paro-row)) .crudo-paros-vacio {
+    display: block;
+}
+
+.crudo-paros-history-list {
+    display: grid;
+    gap: 0.28rem;
+    max-height: 16rem;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overscroll-behavior-block: contain;
+    scrollbar-width: thin;
+}
+
+/* ponytail: el cambio de rango es una petición corta; basta con atenuar la lista
+   en vez de montar un skeleton con placeholders. */
+.crudo-paros-history-list.is-loading {
+    opacity: 0.45;
+}
+
+.crudo-paro-row {
+    min-width: 0;
+    border: 1px solid #dbe5ee;
+    border-left: 0.25rem solid #16a34a;
+    border-radius: 0.62rem;
+    background: #fff;
+    padding: 0.3rem 0.45rem;
+}
+
+.crudo-paro-row.is-activo {
+    border-left-color: #dc2626;
+    background: #fff7f7;
+}
+
+.crudo-paro-row-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.crudo-paro-badge {
+    border-radius: 999px;
+    background: #dcfce7;
+    padding: 0.05rem 0.4rem;
+    color: #166534;
+    font-size: 0.6rem;
+    font-weight: 900;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.crudo-paro-row.is-activo .crudo-paro-badge {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.crudo-paro-horas {
+    color: #334155;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+/* La falla es lo que se lee a distancia; lo demás es contexto. */
+.crudo-paro-falla {
+    margin: 0.1rem 0 0;
+    color: #0f172a;
+    font-size: 0.85rem;
+    font-weight: 900;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+}
+
+.crudo-paro-tags {
+    color: #64748b;
+    font-size: 0.62rem;
+    font-weight: 750;
+}
+
+.crudo-paro-personas,
+.crudo-paro-obs {
+    margin: 0.05rem 0 0;
+    color: #475569;
+    font-size: 0.66rem;
+    font-weight: 700;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+
+.crudo-paro-personas i {
+    margin-right: 0.15rem;
+    color: #94a3b8;
+}
+
+.crudo-paro-obs {
+    color: #64748b;
+    font-size: 0.62rem;
+    font-style: italic;
 }
 
 .crudo-audit-history-list {
@@ -2676,8 +3197,10 @@ button.crudo-status-card:disabled {
         align-items: center;
         justify-content: center;
         gap: 0.1rem;
+        top: 0;
         min-height: auto;
-        padding: 0 0.3rem 0.25rem;
+        margin-top: -0.4rem;
+        padding: 0.2rem 0.3rem 0.25rem;
         text-align: center;
     }
 
@@ -2740,8 +3263,11 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-panel-heading {
+        top: -0.45rem;
         gap: 0.35rem;
+        margin-top: -0.45rem;
         margin-bottom: 0.3rem;
+        padding-top: 0.45rem;
     }
 
     .crudo-panel-heading h2 {
@@ -2805,20 +3331,20 @@ button.crudo-status-card:disabled {
         gap: 0.35rem;
     }
 
-    .crudo-kpi-grid article {
+    .crudo-kpi-grid :is(article, button) {
         grid-template-columns: minmax(0, 1fr);
         grid-template-rows: auto auto;
         min-height: 2.4rem;
         padding: 0.35rem 0.3rem;
     }
 
-    .crudo-kpi-grid article strong {
+    .crudo-kpi-grid :is(article, button) strong {
         overflow: hidden;
         font-size: 0.92rem;
         text-overflow: ellipsis;
     }
 
-    .crudo-kpi-grid article span {
+    .crudo-kpi-grid :is(article, button) span {
         overflow: hidden;
         font-size: 0.55rem;
         font-weight: 900;
@@ -2929,11 +3455,11 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-modal-identity-card {
-        grid-template-columns: 2.65rem minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .crudo-modal-program {
-        grid-column: 2;
+        grid-column: 1;
         gap: 0.2rem;
         min-width: 0;
         max-width: none;
@@ -2966,6 +3492,11 @@ button.crudo-status-card:disabled {
 
     .crudo-production-detail-grid {
         grid-template-columns: minmax(0, 1.6fr) minmax(8rem, 0.65fr) minmax(9rem, 0.75fr);
+        gap: 0.4rem;
+    }
+
+    .crudo-history-row {
+        grid-template-columns: 1fr;
         gap: 0.4rem;
     }
 
@@ -3059,8 +3590,11 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-detail-panel-heading {
+        top: -0.5rem;
         gap: 0.45rem;
+        margin-top: -0.5rem;
         margin-bottom: 0.45rem;
+        padding-top: 0.5rem;
     }
 
     .crudo-detail-panel-heading h3 {
@@ -3205,7 +3739,8 @@ button.crudo-status-card:disabled {
     .crudo-sidebar,
     .crudo-modal-columns,
     .crudo-production-detail-grid,
-    .crudo-audit-modal-grid {
+    .crudo-audit-modal-grid,
+    .crudo-history-row {
         grid-template-columns: 1fr;
     }
 

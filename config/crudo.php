@@ -37,6 +37,23 @@ return [
 
     'data_area_id' => env('CRUDO_DATA_AREA_ID', 'pro'),
 
+    // Días hacia atrás que se buscan cuando un telar no tiene corte de eficiencia
+    // del día consultado. 0 = sin arrastre.
+    'efficiency_lookback_days' => max(0, (int) env('CRUDO_EFFICIENCY_LOOKBACK_DAYS', 30)),
+
+    // Tipos de defecto con columna propia en el desglose de 2das; el resto se
+    // suma en "Otros".
+    'defect_columns' => max(1, (int) env('CRUDO_DEFECT_COLUMNS', 6)),
+
+    // Topes de las listas del modal. Ambas tienen scroll propio; el límite evita
+    // que un telar con cientos de registros infle el snapshot de Livewire.
+    'paros_history_limit' => max(1, (int) env('CRUDO_PAROS_HISTORY_LIMIT', 50)),
+    'audit_history_limit' => max(1, (int) env('CRUDO_AUDIT_HISTORY_LIMIT', 25)),
+
+    // Telares fuera de operación: se dibuja solo el recuadro con el número (sin
+    // foto, sin % ni kg) y no cuentan en el promedio de eficiencia del salón.
+    'telares_fuera' => array_filter(array_map('trim', explode(',', (string) env('CRUDO_TELARES_FUERA', '212')))),
+
     /*
     |--------------------------------------------------------------------------
     | Actualización

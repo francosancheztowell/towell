@@ -32,7 +32,7 @@ final class CrudoLivewireTest extends TestCase
             ->assertSee('Producción del periodo')
             ->assertSee('crudo-panel-overview', false)
             ->assertDontSee('Lectura del semáforo')
-            ->assertSee('<h2>Jacquard</h2>', false)
+            ->assertSee('<h2>JAC</h2>', false)
             ->assertSee('crudo-navbar-toolbar', false)
             ->assertDontSee('crudo-toolbar', false)
             ->assertSee('JAC 201')

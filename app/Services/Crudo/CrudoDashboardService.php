@@ -139,7 +139,7 @@ final readonly class CrudoDashboardService
             $parosByTelar,
             $programsByTelar,
             $productionTargetsByTelar,
-            $this->efficiencyByTelar($this->repository->efficiencyLinesForRange($from, $to)),
+            $this->efficiencyByTelar($this->cachedEfficiencyLines($from, $to), $from, $to),
         );
 
         $isSingleDay = $from->format('Y-m-d') === $to->format('Y-m-d');
@@ -188,6 +188,7 @@ final readonly class CrudoDashboardService
             $faultName = trim((string) ($row->Descripcion ?? '')) ?: $faultCode;
             $detalle = [
                 'reportedBy' => trim((string) ($row->NomEmpl ?? '')) ?: null,
+                'depto' => trim((string) ($row->Depto ?? '')) ?: null,
                 'faultCode' => $faultCode,
                 'falla' => $faultName,
                 'tipo' => trim((string) ($row->TipoFallaId ?? '')) ?: null,
@@ -449,6 +450,27 @@ final readonly class CrudoDashboardService
         );
     }
 
+    /**
+     * El corte de eficiencia arrastra hasta 30 días hacia atrás para los telares
+     * sin captura del día; se cachea con la misma vida que la producción porque
+     * cambia 3 veces al día, no cada pulso de 15 s.
+     *
+     * @return list<object>
+     */
+    private function cachedEfficiencyLines(DateTimeImmutable $from, DateTimeImmutable $to): array
+    {
+        $seconds = max(0, (int) config('crudo.production_cache_seconds', 180));
+        if ($seconds === 0) {
+            return $this->repository->efficiencyLinesForRange($from, $to);
+        }
+
+        return Cache::remember(
+            sprintf('crudo:efficiency:%s:%s', $from->format('Y-m-d'), $to->format('Y-m-d')),
+            now()->addSeconds($seconds),
+            fn (): array => $this->repository->efficiencyLinesForRange($from, $to),
+        );
+    }
+
     private function machineCatalog(): array
     {
         $seconds = max(0, (int) config('crudo.catalog_cache_seconds', 300));
@@ -548,6 +570,8 @@ final readonly class CrudoDashboardService
                 programa: $programsByTelar[$telar] ?? null,
                 efficiencyPercent: (float) ($efficiencyByTelar[$telar]['percent'] ?? 0.0),
                 efficiencyObs: (string) ($efficiencyByTelar[$telar]['obs'] ?? ''),
+                efficiencyDate: (string) ($efficiencyByTelar[$telar]['date'] ?? ''),
+                efficiencyStale: (bool) ($efficiencyByTelar[$telar]['stale'] ?? false),
             );
         }
 
@@ -576,10 +600,14 @@ final readonly class CrudoDashboardService
      * capturado: las filas ya llegan ordenadas por fecha y turno, así que
      * basta con quedarse con la última que traiga eficiencia.
      *
+     * La consulta arrastra días previos (efficiency_lookback_days): si el telar
+     * no tuvo corte en el periodo se muestra el último que sí tuvo, marcado con
+     * su fecha para avisarlo en el modal.
+     *
      * @param  list<object>  $rows
-     * @return array<string, array{percent: float, obs: string}>
+     * @return array<string, array{percent: float, obs: string, date: string, stale: bool}>
      */
-    private function efficiencyByTelar(array $rows): array
+    private function efficiencyByTelar(array $rows, DateTimeImmutable $from, DateTimeImmutable $to): array
     {
         $latest = [];
 
@@ -595,9 +623,15 @@ final readonly class CrudoDashboardService
                     continue;
                 }
 
+                $date = $this->efficiencyDate($row->Date ?? null);
+
                 $latest[$telar] = [
                     'percent' => (float) $value,
                     'obs' => trim((string) ($row->{'ObsR'.$revision} ?? '')),
+                    'date' => $date,
+                    'stale' => $date !== '' && (
+                        $date < $from->format('Y-m-d') || $date > $to->format('Y-m-d')
+                    ),
                 ];
 
                 break;
@@ -607,12 +641,26 @@ final readonly class CrudoDashboardService
         return $latest;
     }
 
+    private function efficiencyDate(mixed $date): string
+    {
+        if ($date === null || $date === '') {
+            return '';
+        }
+
+        try {
+            return CarbonImmutable::parse($date)->format('Y-m-d');
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
     /**
      * @param  list<CrudoMachineMetrics>  $machines
      * @return array<string, int|float>
      */
     private function buildSummary(array $machines): array
     {
+        $machines = $this->enOperacion($machines);
         $summary = [
             'paro' => 0,
             'bad_quality' => 0,
@@ -672,7 +720,7 @@ final readonly class CrudoDashboardService
     {
         $areas = [];
 
-        foreach ($machines as $machine) {
+        foreach ($this->enOperacion($machines) as $machine) {
             $areas[$machine->salon] ??= [
                 'name' => $machine->salon,
                 'paro' => 0,
@@ -695,6 +743,24 @@ final readonly class CrudoDashboardService
         }
 
         return array_values($areas);
+    }
+
+    /**
+     * Los telares fuera de operación (config crudo.telares_fuera) solo ocupan su
+     * lugar en el plano: no suman en el resumen ni en las alertas por salón.
+     *
+     * @param  list<CrudoMachineMetrics>  $machines
+     * @return list<CrudoMachineMetrics>
+     */
+    private function enOperacion(array $machines): array
+    {
+        /** @var list<string> $fuera */
+        $fuera = (array) config('crudo.telares_fuera', []);
+
+        return array_values(array_filter(
+            $machines,
+            static fn (CrudoMachineMetrics $machine): bool => ! in_array($machine->telar, $fuera, true),
+        ));
     }
 
     private function defectTurn(object $defect): ?string

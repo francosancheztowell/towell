@@ -184,6 +184,34 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
         return $rows;
     }
 
+    /**
+     * Una sola consulta agregada para todo el tablero: las líneas de defecto se
+     * unen a los encabezados del rango por REFRECID y se suman en SQL Server, de
+     * modo que viajen unas centenas de filas y no el detalle completo.
+     */
+    public function defectTotalsForRange(DateTimeImmutable $from, DateTimeImmutable $to): array
+    {
+        $start = $from->setTime(0, 0);
+        $end = $to->setTime(0, 0)->add(new DateInterval('P1D'));
+
+        return $this->source()
+            ->table($this->table('lines').' as l')
+            ->join($this->table('headers').' as h', 'h.RECID', '=', 'l.REFRECID')
+            ->where('l.DATAAREAID', $this->dataAreaId())
+            ->where('h.DATAAREAID', $this->dataAreaId())
+            ->where('h.TRANSDATE', '>=', $start->format('Y-m-d H:i:s'))
+            ->where('h.TRANSDATE', '<', $end->format('Y-m-d H:i:s'))
+            ->groupBy('h.TELAR', 'l.CODDEFECTOID', 'l.DESCRIP')
+            ->selectRaw('
+                h.TELAR AS TELAR,
+                l.CODDEFECTOID AS code,
+                l.DESCRIP AS description,
+                SUM(COALESCE(l.CANTIDAD, 0)) AS quantity
+            ')
+            ->get()
+            ->all();
+    }
+
     public function supplierLotsByWarpingOrder(array $warpingOrders): array
     {
         $folios = array_values(array_unique(array_filter(
@@ -302,7 +330,13 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
     {
         return $this->catalog()
             ->table($this->table('efficiency_lines'))
-            ->whereBetween('Date', [$from->format('Y-m-d'), $to->format('Y-m-d')])
+            // ponytail: se arrastra una ventana hacia atrás para que un telar sin
+            // captura del día conserve su último dato; el servicio se queda con
+            // la fila más reciente por telar y marca si no es del periodo.
+            ->whereBetween('Date', [
+                $from->modify('-'.max(0, (int) config('crudo.efficiency_lookback_days', 30)).' days')->format('Y-m-d'),
+                $to->format('Y-m-d'),
+            ])
             ->orderBy('Date')
             ->orderBy('Turno')
             ->get([

@@ -7,6 +7,7 @@ namespace App\Livewire\Crudo;
 use App\Contracts\Crudo\CrudoDashboardProvider;
 use App\Enums\Crudo\CrudoMachineState;
 use App\Services\Crudo\CrudoAccess;
+use App\Services\Crudo\CrudoDefectosService;
 use App\Services\Crudo\CrudoFloorLayout;
 use App\Support\Crudo\ResolvesCrudoPeriod;
 use Illuminate\Contracts\View\View;
@@ -36,6 +37,12 @@ class Dashboard extends Component
     /** Estado cuyo desglose está abierto (paro, bad_quality, low_kilos, …); null = cerrado. */
     public ?string $estadoDetalle = null;
 
+    /** Desglose de segundas por telar (KPI 2das) abierto. */
+    public bool $defectosAbierto = false;
+
+    /** Orden del desglose: telar | asc | desc (por segundas). */
+    public string $defectosOrden = 'telar';
+
     public bool $interactionPaused = false;
 
     private bool $forceRefreshOnNextRender = false;
@@ -46,14 +53,18 @@ class Dashboard extends Component
 
     private CrudoFloorLayout $floorLayout;
 
+    private CrudoDefectosService $defectos;
+
     public function boot(
         CrudoDashboardProvider $provider,
         CrudoAccess $access,
         CrudoFloorLayout $floorLayout,
+        CrudoDefectosService $defectos,
     ): void {
         $this->provider = $provider;
         $this->access = $access;
         $this->floorLayout = $floorLayout;
+        $this->defectos = $defectos;
         $this->authorizeAccess();
     }
 
@@ -103,6 +114,20 @@ class Dashboard extends Component
     public function cerrarEstado(): void
     {
         $this->estadoDetalle = null;
+    }
+
+    /**
+     * Desglose del KPI de segundas: qué telares las sacaron y por qué defecto.
+     * La consulta solo corre con el modal abierto.
+     */
+    public function abrirDefectos(): void
+    {
+        $this->defectosAbierto = true;
+    }
+
+    public function cerrarDefectos(): void
+    {
+        $this->defectosAbierto = false;
     }
 
     public function refreshDashboard(): void
@@ -165,6 +190,7 @@ class Dashboard extends Component
             'pollSeconds' => (int) config('crudo.poll_seconds', 15),
             'modo' => $this->modo,
             'machinesDetalle' => $this->machinesPorEstado($machines),
+            'defectos' => $this->defectosPorTelar($machines),
             // El reporte se rige por el mismo permiso que la auditoría.
             'puedeDescargarReporte' => $this->access->canRegister(),
         ]);
@@ -173,6 +199,50 @@ class Dashboard extends Component
     protected function authorizeAccess(): void
     {
         $this->access->authorize();
+    }
+
+    /**
+     * Si Crudo/TI falla, el desglose se queda vacío pero el tablero sigue vivo.
+     * El salón sale del catálogo ya cargado, no de otra consulta: es lo que
+     * permite filtrar la tabla por Jacquard / Smith / KM sin ir al servidor.
+     *
+     * @param  list<array<string, mixed>>  $machines
+     * @return array<string, mixed>|null
+     */
+    private function defectosPorTelar(array $machines): ?array
+    {
+        if (! $this->defectosAbierto) {
+            return null;
+        }
+
+        try {
+            $desglose = $this->defectos->porTelar($this->rangeFrom(), $this->rangeTo());
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return ['columnas' => [], 'telares' => [], 'porDefecto' => [], 'total' => 0.0, 'recortados' => 0, 'maximo' => 0.0];
+        }
+
+        $salones = [];
+        foreach ($machines as $machine) {
+            $salones[(string) ($machine['telar'] ?? '')] = (string) ($machine['salon'] ?? '');
+        }
+
+        foreach ($desglose['telares'] as $indice => $fila) {
+            $desglose['telares'][$indice]['salon'] = $salones[$fila['telar']] ?? 'Sin clasificar';
+        }
+
+        // El orden se resuelve en servidor: ordenar en el navegador se perdería
+        // en el siguiente pulso, que vuelve a pintar la tabla.
+        if ($this->defectosOrden === 'asc' || $this->defectosOrden === 'desc') {
+            $signo = $this->defectosOrden === 'desc' ? -1 : 1;
+            usort(
+                $desglose['telares'],
+                static fn (array $a, array $b): int => $signo * ($a['total'] <=> $b['total']),
+            );
+        }
+
+        return $desglose;
     }
 
     /**

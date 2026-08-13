@@ -232,6 +232,21 @@ final class CrudoMachineDetailTest extends TestCase
         $this->assertStringNotContainsString('data-crudo-audit-content', $html);
     }
 
+    public function test_el_filtro_de_periodo_de_paros_no_depende_de_livewire(): void
+    {
+        $html = Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
+            ->call('loadDetail')
+            ->html();
+
+        // Radios nativos: el periodo se cambia en el DOM, sin round-trip.
+        $this->assertStringContainsString('class="crudo-paros-rango-input"', $html);
+        $this->assertStringContainsString('value="2d"', $html);
+        $this->assertStringContainsString('value="semana"', $html);
+        $this->assertStringContainsString('value="mes"', $html);
+        $this->assertStringNotContainsString('parosRango', $html);
+    }
+
     public function test_register_permission_hides_the_button_and_blocks_the_livewire_action(): void
     {
         Livewire::test(DeniedCrudoMachineDetail::class)

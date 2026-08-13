@@ -30,6 +30,14 @@ interface CrudoReadRepository
     public function defectsForHeaders(array $headerRecIds): array;
 
     /**
+     * Defectos de TODOS los telares del rango, ya agregados por telar y tipo de
+     * defecto (sin turnos). Alimenta el desglose del KPI de segundas.
+     *
+     * @return list<object> filas con TELAR, code, description, quantity
+     */
+    public function defectTotalsForRange(DateTimeImmutable $from, DateTimeImmutable $to): array;
+
+    /**
      * Lote del proveedor por folio del programa de urdido. El ORDENURDIDO que
      * captura AX es el Folio de UrdProgramaUrdido, que es único.
      *

@@ -4,6 +4,7 @@ import {
   shouldSkipAuditHistoryLoad,
 } from './audit-history-state'
 import { AuditHistoryRequestCoordinator } from './audit-history-request'
+import { withBusyRetry } from './busy-retry'
 import { auditActionAvailability } from './audit-form-state'
 import { hidePendingDetail, isIntentionalMachineActivation } from './pending-detail'
 
@@ -106,21 +107,20 @@ type AuditHistoryResponse = {
   message?: string
 }
 
+type LivewireRequestHook = (request: {
+  url: string
+  succeed?: (callback: () => void) => void
+  fail: (callback: (failure: {
+    status: number
+    content: unknown
+    preventDefault: () => void
+  }) => void) => void
+}) => void
+
 type CrudoWindow = Window & typeof globalThis & {
   Livewire?: {
     dispatch: (event: string) => void
-    hook?: (
-      name: 'request',
-      callback: (request: {
-        url: string
-        succeed?: (callback: () => void) => void
-        fail: (callback: (failure: {
-          status: number
-          content: unknown
-          preventDefault: () => void
-        }) => void) => void
-      }) => void,
-    ) => void
+    hook?: (name: 'request', callback: LivewireRequestHook) => void
   }
   Swal?: {
     fire: (options: Record<string, unknown>) => Promise<unknown>
@@ -168,6 +168,22 @@ const stopDashboardPolling = (): void => {
     ?.getAttributeNames()
     .filter((name) => name.startsWith('wire:poll'))
     .forEach((name) => dashboard.removeAttribute(name))
+}
+
+const LIVEWIRE_ENDPOINT = '/livewire/update'
+
+let fetchRetryInstalled = false
+
+const installBusyServerRetry = (): void => {
+  if (fetchRetryInstalled || typeof window.fetch !== 'function') {
+    return
+  }
+
+  fetchRetryInstalled = true
+  window.fetch = withBusyRetry(
+    window.fetch.bind(window),
+    (url) => url.includes(LIVEWIRE_ENDPOINT),
+  )
 }
 
 /*
@@ -257,6 +273,15 @@ const installLivewireErrorHandler = (): void => {
       }
 
       preventDefault()
+
+      // 503 = el servidor estaba ocupado y no ejecutó nada (withBusyRetry ya
+      // reintentó). No se registra en consola: el logger de Boost reenvía cada
+      // console.* como POST, que vuelve a competir por el worker y realimenta
+      // el propio 503. Tampoco cuenta como fallo para el recargado del kiosco.
+      if (status === 503) {
+        return
+      }
+
       console.error(`[Crudo] Livewire request failed with status ${status}: ${url}`)
       showLivewireError(status, url)
 
@@ -1351,6 +1376,7 @@ document.addEventListener('fullscreenchange', () => {
 document.addEventListener('livewire:init', observeDashboard)
 document.addEventListener('livewire:navigated', observeDashboard)
 document.addEventListener('DOMContentLoaded', observeDashboard)
+installBusyServerRetry()
 document.addEventListener('livewire:init', installLivewireErrorHandler)
 document.addEventListener('livewire:navigated', installLivewireErrorHandler)
 document.addEventListener('DOMContentLoaded', installLivewireErrorHandler)

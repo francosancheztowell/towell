@@ -34,6 +34,9 @@ final readonly class CrudoMachineMetrics
         // Último corte de tejido con dato: % y observación de esa revisión.
         public float $efficiencyPercent = 0.0,
         public string $efficiencyObs = '',
+        // Fecha del corte usado y si viene de un día anterior al consultado.
+        public string $efficiencyDate = '',
+        public bool $efficiencyStale = false,
     ) {}
 
     /**
@@ -55,6 +58,8 @@ final readonly class CrudoMachineMetrics
             'secondsPercent' => round($this->secondsPercent, 1),
             'efficiencyPercent' => round($this->efficiencyPercent, 1),
             'efficiencyObs' => $this->efficiencyObs,
+            'efficiencyDate' => $this->efficiencyDate,
+            'efficiencyStale' => $this->efficiencyStale,
             'expectedKilos' => round($this->expectedKilos, 1),
             'dailyTargetKilos' => round($this->dailyTargetKilos, 1),
             'productionStandardStatus' => $this->productionStandardStatus,

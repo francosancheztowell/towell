@@ -8,36 +8,43 @@
         'Smith' => 'smith',
     ];
     $loomImage = $loomImages[$machine['salon'] ?? ''] ?? 'jacquard';
+    $fueraDeOperacion = in_array((string) $machine['telar'], config('crudo.telares_fuera', []), true);
 @endphp
 
 <button
     type="button"
-    class="crudo-machine-card group"
+    class="crudo-machine-card group{{ $fueraDeOperacion ? ' crudo-machine-card-fuera' : '' }}"
     data-crudo-machine
     data-telar="{{ $machine['telar'] }}"
     data-state="{{ $machine['state'] }}"
     data-signature="{{ $machine['state'] }}:{{ $machine['pieces'] }}:{{ $machine['seconds'] }}:{{ $machine['kilos'] }}:{{ $machine['efficiencyPercent'] ?? 0 }}"
     aria-label="Abrir detalle del telar {{ $machine['telar'] }}, estado {{ $machine['stateLabel'] }}"
 >
-    <span class="crudo-loom-number">{{ $machine['telar'] }}</span>
+    @unless ($fueraDeOperacion)
+        <span class="crudo-loom-number">{{ $machine['telar'] }}</span>
+    @endunless
 
     {{--
         Una sola foto WebP recortada por salón. El tinte de estado va en el
         ::after, enmascarado con la misma imagen, para que coloree la máquina y
         no el rectángulo. Las tres imágenes se comparten entre los 39 telares.
     --}}
-    <span
-        class="crudo-loom"
-        style="--loom-image: url('{{ asset("images/crudo/{$loomImage}.webp") }}')"
-        aria-hidden="true"
-        data-crudo-loom
-    ></span>
+    @unless ($fueraDeOperacion)
+        <span
+            class="crudo-loom"
+            style="--loom-image: url('{{ asset("images/crudo/{$loomImage}.webp") }}')"
+            aria-hidden="true"
+            data-crudo-loom
+        ></span>
 
-    <span class="crudo-machine-quality" data-crudo-efficiency>{{ number_format(round((float) ($machine['efficiencyPercent'] ?? 0))) }}%</span>
-    <span class="crudo-machine-metric" data-crudo-kilos>{{ number_format(round((float) $machine['kilos'])) }} kg</span>
+        <span class="crudo-machine-quality" data-crudo-efficiency>{{ number_format(round((float) ($machine['efficiencyPercent'] ?? 0))) }}%</span>
+        <span class="crudo-machine-metric" data-crudo-kilos>{{ number_format(round((float) $machine['kilos'])) }} kg</span>
+    @endunless
 
-    <span class="crudo-machine-tooltip" role="tooltip">
-        <strong data-crudo-name>{{ $machine['name'] }}</strong>
-        <span data-crudo-tooltip-metrics>{{ number_format((float) $machine['pieces']) }} piezas · {{ number_format((float) $machine['seconds']) }} segundas</span>
-    </span>
+    @unless ($fueraDeOperacion)
+        <span class="crudo-machine-tooltip" role="tooltip">
+            <strong data-crudo-name>{{ $machine['name'] }}</strong>
+            <span data-crudo-tooltip-metrics>{{ number_format((float) $machine['pieces']) }} piezas · {{ number_format((float) $machine['seconds']) }} segundas</span>
+        </span>
+    @endunless
 </button>

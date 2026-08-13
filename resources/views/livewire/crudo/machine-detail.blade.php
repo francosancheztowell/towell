@@ -41,6 +41,10 @@
     $detailQuality = (float) ($selectedMachine['qualityPercent'] ?? 0);
     $detailEfficiency = (float) ($selectedMachine['efficiencyPercent'] ?? 0);
     $detailEfficiencyObs = trim((string) ($selectedMachine['efficiencyObs'] ?? ''));
+    $detailEfficiencyStale = (bool) ($selectedMachine['efficiencyStale'] ?? false);
+    $detailEfficiencyDate = ($d = trim((string) ($selectedMachine['efficiencyDate'] ?? '')))
+        ? \Carbon\CarbonImmutable::parse($d)->format('d/m/Y')
+        : '';
     $detailTone = fn (float $v, float $ok, float $medio) => $v >= $ok ? 'good' : ($v >= $medio ? 'warn' : 'bad');
 @endphp
 
@@ -77,9 +81,6 @@
                 >
                     <section class="crudo-modal-overview" data-state="{{ $selectedMachine['state'] }}">
                         <article class="crudo-modal-identity-card">
-                            <span class="crudo-modal-machine-icon">
-                                <i class="fa-solid fa-industry"></i>
-                            </span>
                             <div class="min-w-0">
                                 <p class="crudo-modal-location">
                                     {{ $selectedMachine['salon'] }} · {{ $selectedMachine['group'] ?: 'Sin grupo' }}
@@ -117,6 +118,7 @@
                                 title="{{ implode(' · ', array_filter([
                                     $selectedMachine['paro']['falla'] ?? 'Paro reportado',
                                     'Reportó: '.($selectedMachine['paro']['reportedBy'] ?? 'Sin registrar'),
+                                    'Depto: '.($selectedMachine['paro']['depto'] ?? 'Sin registrar'),
                                     'Desde: '.(trim($selectedMachine['paro']['since'] ?? '') ?: 'Sin registrar'),
                                 ])) }}"
                             @endif
@@ -139,6 +141,13 @@
                                 </small>
                                 <small class="crudo-modal-paro-tiempo">
                                     Desde {{ trim($selectedMachine['paro']['since'] ?? '') ?: 'Sin registrar' }}
+                                </small>
+                                {{-- Quién lo reportó y de qué departamento: una sola línea para no crecer la tarjeta. --}}
+                                <small class="crudo-modal-paro-quien">
+                                    {{ implode(' · ', array_filter([
+                                        $selectedMachine['paro']['reportedBy'] ?? null,
+                                        $selectedMachine['paro']['depto'] ?? null,
+                                    ])) ?: 'Sin registrar' }}
                                 </small>
                             @endif
                         </article>
@@ -192,6 +201,12 @@
                                 :tone="$detailTone($detailEfficiency, 90, 75)"
                                 title="Eficiencia"
                             />
+                            @if ($detailEfficiencyStale)
+                                <small class="crudo-efficiency-stale">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                    Datos del {{ $detailEfficiencyDate }}
+                                </small>
+                            @endif
                         </article>
                         <article class="crudo-modal-kpi">
                             <span>Piezas</span>
@@ -345,28 +360,128 @@
                         class="crudo-audit-disclosure"
                         wire:key="crudo-audit-history-{{ $selectedMachine['telar'] }}"
                     >
-                        <section
-                            class="crudo-detail-panel crudo-audit-history-panel"
-                            wire:ignore
-                            data-crudo-audit-history
-                            data-crudo-audit-history-url="{{ route('crudo.auditorias.today', ['telar' => $selectedMachine['telar']]) }}"
-                            data-crudo-audit-telar="{{ $selectedMachine['telar'] }}"
-                        >
-                            <div class="crudo-detail-panel-heading">
-                                <div>
-                                    <h3>Auditorías de hoy</h3>
-                                </div>
-                                <span class="crudo-detail-count" data-crudo-audit-history-count>…</span>
-                            </div>
-
-                            <div
-                                class="crudo-audit-history-list"
-                                data-crudo-audit-history-list
-                                aria-live="polite"
+                        <div class="crudo-history-row">
+                            {{-- Las dos secciones llevan wire:key: al ser hermanas de un bloque
+                                 wire:ignore, sin clave el morph de Livewire no reconoce cuál es
+                                 cuál y deja de repintar el panel de paros. --}}
+                            <section
+                                class="crudo-detail-panel crudo-audit-history-panel"
+                                wire:key="crudo-auditorias-{{ $selectedMachine['telar'] }}"
+                                wire:ignore
+                                data-crudo-audit-history
+                                data-crudo-audit-history-url="{{ route('crudo.auditorias.today', ['telar' => $selectedMachine['telar']]) }}"
+                                data-crudo-audit-telar="{{ $selectedMachine['telar'] }}"
                             >
-                                <p class="crudo-audit-history-state">Cargando auditorías…</p>
-                            </div>
-                        </section>
+                                <div class="crudo-detail-panel-heading">
+                                    <div>
+                                        <h3>Auditorías de hoy</h3>
+                                    </div>
+                                    <span class="crudo-detail-count" data-crudo-audit-history-count>…</span>
+                                </div>
+
+                                <div
+                                    class="crudo-audit-history-list"
+                                    data-crudo-audit-history-list
+                                    aria-live="polite"
+                                >
+                                    <p class="crudo-audit-history-state">Cargando auditorías…</p>
+                                </div>
+                            </section>
+
+                            @php($parosTelar = $this->paros)
+                            @php($parosActivos = collect($parosTelar)->where('activo', true)->count())
+                            @php($parosPorVentana = collect($parosTelar)->countBy('ventana'))
+                            @php($parosTotales = [
+                                '2d' => $parosPorVentana['2d'] ?? 0,
+                                'semana' => ($parosPorVentana['2d'] ?? 0) + ($parosPorVentana['semana'] ?? 0),
+                                'mes' => count($parosTelar),
+                            ])
+                            {{--
+                                El mes entero se trae en la misma consulta y el periodo se filtra
+                                con radios + CSS: cambiarlo es instantáneo y no depende de una
+                                petición a Livewire.
+                            --}}
+                            <section
+                                class="crudo-detail-panel crudo-paros-history-panel"
+                                wire:key="crudo-paros-{{ $selectedMachine['telar'] }}"
+                            >
+                                @foreach (['2d', 'semana', 'mes'] as $ventana)
+                                    <input
+                                        type="radio"
+                                        class="crudo-paros-rango-input"
+                                        name="crudo-paros-rango-{{ $selectedMachine['telar'] }}"
+                                        id="crudo-paros-{{ $ventana }}-{{ $selectedMachine['telar'] }}"
+                                        value="{{ $ventana }}"
+                                        @checked($ventana === '2d')
+                                    >
+                                @endforeach
+
+                                <div class="crudo-detail-panel-heading">
+                                    <div>
+                                        <h3>Paros del telar</h3>
+                                    </div>
+                                    <div class="crudo-paros-rango" role="radiogroup" aria-label="Periodo del historial de paros">
+                                        @foreach (['2d' => '2 días', 'semana' => 'Semana', 'mes' => 'Mes'] as $ventana => $etiqueta)
+                                            <label for="crudo-paros-{{ $ventana }}-{{ $selectedMachine['telar'] }}" data-ventana="{{ $ventana }}">
+                                                {{ $etiqueta }}
+                                                <span class="crudo-paros-conteo">{{ $parosTotales[$ventana] }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                </div>
+
+                                <ul class="crudo-paros-history-list">
+                                    @foreach ($parosTelar as $paro)
+                                        <li
+                                            class="crudo-paro-row {{ $paro['activo'] ? 'is-activo' : '' }}"
+                                            data-ventana="{{ $paro['ventana'] }}"
+                                        >
+                                            <div class="crudo-paro-row-head">
+                                                <span class="crudo-paro-badge">{{ $paro['estatus'] }}</span>
+                                                <span class="crudo-paro-horas">
+                                                    {{ $paro['inicio'] }} →
+                                                    {{ $paro['activo'] ? 'en curso' : ($paro['fin'] ?: 'sin hora fin') }}
+                                                    @if ($paro['duracion'] !== '')
+                                                        · {{ $paro['duracion'] }}
+                                                    @endif
+                                                </span>
+                                            </div>
+                                            <p class="crudo-paro-falla">
+                                                {{ $paro['falla'] ?: 'Sin falla registrada' }}
+                                                @if ($paro['tipo'] !== '' || $paro['depto'] !== '')
+                                                    <span class="crudo-paro-tags">
+                                                        {{ implode(' · ', array_filter([$paro['tipo'], $paro['depto']])) }}
+                                                    </span>
+                                                @endif
+                                            </p>
+                                            <p class="crudo-paro-personas">
+                                                <i class="fa-solid fa-user" aria-hidden="true"></i>
+                                                {{ $paro['reporto'] ?: 'Sin registrar' }}
+                                                @if ($paro['atendio'] !== '')
+                                                    <i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i>
+                                                    {{ $paro['atendio'] }}
+                                                @endif
+                                            </p>
+                                            @if ($paro['obs'] !== '' || $paro['obsCierre'] !== '')
+                                                <p class="crudo-paro-obs">
+                                                    {{ implode(' · ', array_filter([$paro['obs'], $paro['obsCierre']])) }}
+                                                </p>
+                                            @endif
+                                        </li>
+                                    @endforeach
+                                    {{-- Se muestra solo cuando el filtro deja la lista vacía. --}}
+                                    <li class="crudo-paros-vacio">
+                                        <p class="crudo-audit-history-state">Sin paros registrados en este periodo.</p>
+                                    </li>
+
+                                    @if (count($parosTelar) >= (int) config('crudo.paros_history_limit', 50))
+                                        <li class="crudo-paros-tope">
+                                            Se muestran los {{ count($parosTelar) }} paros más recientes. Para el histórico completo, usa el reporte de mantenimiento.
+                                        </li>
+                                    @endif
+                                </ul>
+                            </section>
+                        </div>
 
                         @if ($canRegisterAudit)
                             <div class="crudo-audit-toolbar">

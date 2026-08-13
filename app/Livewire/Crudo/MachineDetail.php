@@ -6,6 +6,7 @@ namespace App\Livewire\Crudo;
 
 use App\Contracts\Crudo\CrudoDashboardProvider;
 use App\Services\Crudo\CrudoAccess;
+use App\Services\Crudo\CrudoParosHistoryService;
 use App\Services\Crudo\CrudoProductionTargetService;
 use App\Services\Crudo\CrudoStatusResolver;
 use App\Support\Crudo\ResolvesCrudoPeriod;
@@ -43,20 +44,30 @@ class MachineDetail extends Component
 
     public bool $auditModalOpen = false;
 
+    /**
+     * Se consulta siempre el mes; la vista filtra a 2 días o semana con CSS, sin
+     * volver al servidor (cada paro trae la ventana a la que pertenece).
+     */
+    private const PAROS_DIAS = 30;
+
     private CrudoDashboardProvider $provider;
 
     private CrudoAccess $access;
 
     private CrudoStatusResolver $statusResolver;
 
+    private CrudoParosHistoryService $parosHistory;
+
     public function boot(
         CrudoDashboardProvider $provider,
         CrudoAccess $access,
         CrudoStatusResolver $statusResolver,
+        CrudoParosHistoryService $parosHistory,
     ): void {
         $this->provider = $provider;
         $this->access = $access;
         $this->statusResolver = $statusResolver;
+        $this->parosHistory = $parosHistory;
     }
 
     public function mount(): void
@@ -298,6 +309,34 @@ class MachineDetail extends Component
             $cached = Cache::get($fallbackKey);
 
             return is_array($cached) ? $cached : null;
+        }
+    }
+
+    /**
+     * Paros del telar (activos y terminados) del último mes que termina en la
+     * fecha del tablero. Va aparte del detalle: si Mantenimiento falla, el resto
+     * del modal debe seguir funcionando.
+     *
+     * @return list<array<string, mixed>>
+     */
+    #[Computed]
+    public function paros(): array
+    {
+        if ($this->selectedTelar === null || $this->auditModalOpen || ! $this->detailLoaded) {
+            return [];
+        }
+
+        try {
+            return $this->parosHistory->forMachine(
+                $this->selectedTelar,
+                $this->rangeFrom(),
+                $this->rangeTo(),
+                self::PAROS_DIAS,
+            );
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return [];
         }
     }
 

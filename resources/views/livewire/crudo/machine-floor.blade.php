@@ -1,6 +1,6 @@
 @php
     $salonOrder = ['Karl Mayer', 'Jacquard', 'Smith', 'Sin clasificar'];
-    $salonLabels = ['Karl Mayer' => 'KM'];
+    $salonLabels = ['Karl Mayer' => 'KM', 'Jacquard' => 'JAC', 'Smith' => 'SMI'];
 @endphp
 
 <div class="crudo-salons-grid" wire:ignore data-crudo-machine-grid>
@@ -8,9 +8,13 @@
         @php($salonLayout = $floorLayouts[$salon] ?? null)
         @continue($salonLayout === null || $salonLayout['count'] === 0)
 
+        {{-- ponytail: promedio de la eficiencia capturada (TejEficienciaLine) del salón, sin los telares fuera de operación --}}
+        @php($salonEficiencias = collect($salonLayout['columns'])->flatten(1)->reject(fn ($m) => in_array((string) ($m['telar'] ?? ''), config('crudo.telares_fuera', []), true))->map(fn ($m) => (float) ($m['efficiencyPercent'] ?? 0)))
+
         <section class="crudo-salon crudo-salon-{{ str($salon)->slug() }}">
             <header>
                 <h2>{{ $salonLabels[$salon] ?? $salon }}</h2>
+                <span class="crudo-salon-efficiency">{{ number_format((float) $salonEficiencias->avg(), 1) }}%</span>
             </header>
 
             @if ($salonLayout['physical'])

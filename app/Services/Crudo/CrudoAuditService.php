@@ -65,6 +65,9 @@ final class CrudoAuditService
             ->where('Fecha', '<', $to)
             ->orderByDesc('Fecha')
             ->orderByDesc('Id')
+            // ponytail: tope duro; el carril tiene scroll y nadie revisa más de
+            // unas cuantas auditorías de un mismo telar en un día.
+            ->limit(max(1, (int) config('crudo.audit_history_limit', 25)))
             ->get();
     }
 
