@@ -81,6 +81,7 @@
                 <button type="button" data-estatus="" class="filtro-estatus-btn min-h-14 rounded-xl border border-gray-300 bg-white px-3 py-3 text-base font-bold text-gray-700 transition active:scale-[0.98]">Todos</button>
                 <button type="button" data-estatus="Activo" class="filtro-estatus-btn min-h-14 rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 text-base font-bold text-blue-800 transition active:scale-[0.98]">Activo</button>
                 <button type="button" data-estatus="Terminado" class="filtro-estatus-btn min-h-14 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-base font-bold text-amber-800 transition active:scale-[0.98]">Finalizado</button>
+                <button type="button" data-estatus="Calificado" class="filtro-estatus-btn min-h-14 rounded-xl border border-violet-200 bg-violet-50 px-3 py-3 text-base font-bold text-violet-800 transition active:scale-[0.98]">Calificado</button>
                 <button type="button" data-estatus="Autorizado" class="filtro-estatus-btn min-h-14 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-base font-bold text-emerald-800 transition active:scale-[0.98]">Autorizado</button>
                 <button type="button" data-estatus="Cancelado" class="filtro-estatus-btn min-h-14 rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-base font-bold text-red-800 transition active:scale-[0.98]">Cancelado</button>
             </div>
@@ -143,6 +144,8 @@
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                         <option value="Activo">Activo</option>
                         <option value="Terminado">Terminado</option>
+                        <option value="Calificado">Calificado</option>
+                        <option value="Autorizado">Autorizado</option>
                         <option value="Cancelado">Cancelado</option>
                     </select>
                 </div>
@@ -300,7 +303,8 @@
                 </div>
                 <div>
                     <label for="linea-calificacion" class="mb-1 block text-xs font-medium text-gray-700">Calificación</label>
-                    <select id="linea-calificacion" name="Calificacion" @disabled(! $puedeCalificar)
+                    {{-- Calificar solo en captura, después de Finalizar --}}
+                    <select id="linea-calificacion" name="Calificacion" disabled
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500">
                         <option value="">Sin calificar</option>
                         @for ($i = 1; $i <= 10; $i++)
@@ -313,12 +317,12 @@
             <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                     <label for="linea-cve-tejedor" class="mb-1 block text-xs font-medium text-gray-700">Clave tejedor</label>
-                    <input id="linea-cve-tejedor" name="CveTejedor" maxlength="30" @disabled(! $puedeCalificar)
+                    <input id="linea-cve-tejedor" name="CveTejedor" maxlength="30" disabled
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500">
                 </div>
                 <div>
                     <label for="linea-nom-tejedor" class="mb-1 block text-xs font-medium text-gray-700">Firma / nombre del tejedor</label>
-                    <input id="linea-nom-tejedor" name="NomTejedor" maxlength="150" @disabled(! $puedeCalificar)
+                    <input id="linea-nom-tejedor" name="NomTejedor" maxlength="150" disabled
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500">
                 </div>
             </div>
@@ -383,6 +387,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const label = value === 'Terminado' ? 'Finalizado' : value;
         const classes = value === 'Autorizado'
             ? 'bg-emerald-100 text-emerald-800'
+            : value === 'Calificado'
+                ? 'bg-violet-100 text-violet-800'
             : value === 'Terminado'
                 ? 'bg-amber-100 text-amber-800'
                 : value === 'Cancelado'
@@ -496,6 +502,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 button.className = activo
                     ? `${base} bg-amber-500 text-white shadow`
                     : `${base} border border-amber-200 bg-amber-50 text-amber-800`;
+            } else if (estatus === 'Calificado') {
+                button.className = activo
+                    ? `${base} bg-violet-600 text-white shadow`
+                    : `${base} border border-violet-200 bg-violet-50 text-violet-800`;
             } else if (estatus === 'Autorizado') {
                 button.className = activo
                     ? `${base} bg-emerald-600 text-white shadow`
@@ -517,14 +527,17 @@ document.addEventListener('DOMContentLoaded', () => {
         ordenesBody.innerHTML = state.ordenes.map(orden => {
             const folio = escapeHtml(orden.Folio);
             const capturaUrl = `${baseUrl}/${encodeURIComponent(orden.Folio)}/captura`;
-            const autorizada = orden.Estatus === 'Autorizado';
+            const estatus = orden.Estatus || 'Activo';
+            const bloqueadaEdicion = ['Terminado', 'Calificado', 'Autorizado'].includes(estatus);
             let accionPrincipal = '';
             if (modoTejedor) {
-                accionPrincipal = autorizada
-                    ? `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-100" title="Ver renglones"><i class="fas fa-eye"></i> Ver</a>`
-                    : `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700" title="Calificar renglones"><i class="fas fa-star"></i> Calificar</a>`;
-            } else if (puedeEditar) {
+                accionPrincipal = estatus === 'Terminado'
+                    ? `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700" title="Calificar renglones"><i class="fas fa-star"></i> Calificar</a>`
+                    : `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-100" title="Ver renglones"><i class="fas fa-eye"></i> Ver</a>`;
+            } else if (puedeEditar && ! bloqueadaEdicion) {
                 accionPrincipal = `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-black" title="Editar / capturar"><i class="fas fa-pen"></i> Editar</a>`;
+            } else {
+                accionPrincipal = `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-100" title="Ver"><i class="fas fa-eye"></i> Ver</a>`;
             }
 
             return `
@@ -578,11 +591,11 @@ document.addEventListener('DOMContentLoaded', () => {
             $('#titulo-modal-detalle').textContent = `Orden ${state.orden.Folio}`;
             $('#detalle-resumen').textContent = `Telar ${state.orden.TelarId || '—'} · ${state.orden.Falla || 'Sin descripción'} · Turno ${state.orden.Turno || '—'}`;
 
-            // Autorizado = solo lectura. Además cada botón respeta SYSUsuariosRoles.
-            const autorizada = state.orden.Estatus === 'Autorizado';
-            $('#btn-editar-cabecera').classList.toggle('hidden', autorizada || ! puedeEditar);
-            $('#btn-agregar-linea').classList.toggle('hidden', autorizada || ! puedeCrear);
-            $('#btn-eliminar-orden').classList.toggle('hidden', autorizada || ! puedeEliminar);
+            // Tras Finalizar/Calificar/Autorizar no se edita desde el modal.
+            const bloqueadaEdicion = ['Terminado', 'Calificado', 'Autorizado'].includes(state.orden.Estatus);
+            $('#btn-editar-cabecera').classList.toggle('hidden', bloqueadaEdicion || ! puedeEditar);
+            $('#btn-agregar-linea').classList.toggle('hidden', bloqueadaEdicion || ! puedeCrear);
+            $('#btn-eliminar-orden').classList.toggle('hidden', bloqueadaEdicion || ! puedeEliminar);
 
             renderLineas();
             abrirModal(modalDetalle);
@@ -593,9 +606,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderLineas() {
         const lineas = state.orden?.lineas || [];
-        const autorizada = state.orden?.Estatus === 'Autorizado';
-        const puedeEditarLinea = ! autorizada && puedeEditar;
-        const puedeEliminarLinea = ! autorizada && puedeEliminar;
+        const bloqueadaEdicion = ['Terminado', 'Calificado', 'Autorizado'].includes(state.orden?.Estatus);
+        const puedeEditarLinea = ! bloqueadaEdicion && puedeEditar;
+        const puedeEliminarLinea = ! bloqueadaEdicion && puedeEliminar;
         if (! lineas.length) {
             lineasBody.innerHTML = '<tr><td colspan="12" class="px-4 py-8 text-center text-sm text-gray-500">No hay renglones.</td></tr>';
             return;

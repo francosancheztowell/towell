@@ -31,6 +31,12 @@ class OrdenesTrabajoMecaController extends Controller
 
     private const LONGITUD_CONSECUTIVO_FOLIOS = 5;
 
+    private const ESTATUS_ACTIVO = 'Activo';
+
+    private const ESTATUS_TERMINADO = 'Terminado';
+
+    private const ESTATUS_CALIFICADO = 'Calificado';
+
     private const ESTATUS_AUTORIZADO = 'Autorizado';
 
     private const ESTATUS_CANCELADO = 'Cancelado';
@@ -45,13 +51,13 @@ class OrdenesTrabajoMecaController extends Controller
             'operadores' => $this->operadoresMecanicos(),
             'esTejedor' => $this->esTejedor(),
             'modoTejedor' => $modoTejedor,
-            // Alias: supervisor = permiso registrar (autorizar).
             'esSupervisor' => $permisos['puedeRegistrar'],
             'puedeCrear' => $permisos['puedeCrear'] && ! $modoTejedor,
             'puedeEditar' => $permisos['puedeModificar'] && ! $modoTejedor,
             'puedeEliminar' => $permisos['puedeEliminar'] && ! $modoTejedor,
             'puedeRegistrar' => $permisos['puedeRegistrar'],
-            'puedeCalificar' => $this->puedeCalificar(),
+            'puedeFinalizar' => $this->puedeFinalizarComoMecanico(),
+            'puedeCalificar' => $this->puedeCalificarComoTejedor(),
         ]);
     }
 
@@ -67,6 +73,9 @@ class OrdenesTrabajoMecaController extends Controller
         $usuario = Auth::user();
         $modoTejedor = $this->esModoTejedorSoloCalificacion();
         $permisos = $this->permisosVista();
+        $estatus = (string) ($orden->Estatus ?: self::ESTATUS_ACTIVO);
+        $bloqueadaEdicion = $this->estatusBloqueaEdicionMecanico($estatus);
+        $bloqueadaTotal = $estatus === self::ESTATUS_AUTORIZADO;
 
         return view('modulos.mecanicos.ordenes-trabajo.captura', [
             'orden' => $orden,
@@ -74,12 +83,15 @@ class OrdenesTrabajoMecaController extends Controller
             'esTejedor' => $this->esTejedor(),
             'modoTejedor' => $modoTejedor,
             'esSupervisor' => $permisos['puedeRegistrar'],
-            'puedeCrear' => $permisos['puedeCrear'] && ! $modoTejedor,
-            'puedeEditar' => $permisos['puedeModificar'] && ! $modoTejedor,
-            'puedeEliminar' => $permisos['puedeEliminar'] && ! $modoTejedor,
+            'puedeCrear' => $permisos['puedeCrear'] && ! $modoTejedor && ! $bloqueadaEdicion,
+            'puedeEditar' => $permisos['puedeModificar'] && ! $modoTejedor && ! $bloqueadaEdicion,
+            'puedeEliminar' => $permisos['puedeEliminar'] && ! $modoTejedor && ! $bloqueadaEdicion,
             'puedeRegistrar' => $permisos['puedeRegistrar'],
-            'puedeCalificar' => $this->puedeCalificar(),
-            'bloqueada' => $orden->Estatus === self::ESTATUS_AUTORIZADO,
+            'puedeFinalizar' => $this->puedeFinalizarComoMecanico() && $estatus === self::ESTATUS_ACTIVO,
+            'puedeCalificar' => $this->puedeCalificarComoTejedor() && $estatus === self::ESTATUS_TERMINADO,
+            'puedeAutorizar' => $permisos['puedeRegistrar'] && $estatus === self::ESTATUS_CALIFICADO,
+            'bloqueada' => $bloqueadaTotal,
+            'bloqueadaEdicion' => $bloqueadaEdicion,
             'tejedorCve' => trim((string) ($usuario->numero_empleado ?? '')),
             'tejedorNombre' => trim((string) ($usuario->nombre ?? '')),
         ]);
@@ -241,17 +253,14 @@ class OrdenesTrabajoMecaController extends Controller
         }
 
         try {
-            $this->asegurarNoAutorizada($orden);
+            $this->asegurarEditablePorMecanico($orden);
 
             $datos = $this->normalizarCabecera($request->validate($this->reglasCabecera()));
             $this->validarFolioParoDisponible($datos['FolioParo'] ?? null, $folio);
 
-            // La autorización solo se hace con el botón Autorizar (gating de supervisor),
-            // no cambiando el estatus desde la edición normal de la cabecera.
-            if (($datos['Estatus'] ?? null) === self::ESTATUS_AUTORIZADO) {
-                throw ValidationException::withMessages([
-                    'Estatus' => ['Usa el botón Autorizar para autorizar la orden.'],
-                ]);
+            // Estatus de flujo solo por botones Finalizar / calificar / Autorizar.
+            if (isset($datos['Estatus'])) {
+                unset($datos['Estatus']);
             }
 
             $orden->update($datos);
@@ -293,10 +302,10 @@ class OrdenesTrabajoMecaController extends Controller
             return $this->ordenNoEncontrada();
         }
 
-        if ($orden->Estatus === self::ESTATUS_AUTORIZADO) {
+        if ($this->estatusBloqueaEdicionMecanico((string) ($orden->Estatus ?: self::ESTATUS_ACTIVO))) {
             return response()->json([
                 'success' => false,
-                'error' => 'La orden está autorizada y no puede eliminarse.',
+                'error' => 'La orden ya no se puede eliminar (finalizada, calificada o autorizada).',
             ], 422);
         }
 
@@ -337,7 +346,7 @@ class OrdenesTrabajoMecaController extends Controller
         }
 
         try {
-            $this->asegurarNoAutorizada($orden);
+            $this->asegurarEditablePorMecanico($orden);
 
             $linea = MecOrdenTrabajoLineModel::create([
                 'Folio' => $folio,
@@ -381,10 +390,6 @@ class OrdenesTrabajoMecaController extends Controller
 
         try {
             $orden = MecOrdenTrabajoModel::find($folio);
-            if ($orden) {
-                $this->asegurarNoAutorizada($orden);
-            }
-
             if ($orden && ! $this->tejedorPuedeVerOrden($orden)) {
                 return response()->json([
                     'success' => false,
@@ -392,31 +397,31 @@ class OrdenesTrabajoMecaController extends Controller
                 ], 403);
             }
 
-            // Tejedor o usuario con "registrar" sin modificar: solo calificación.
-            if ($this->debeUsarRutaSoloCalificacion()) {
-                if (! $this->puedeCalificar()) {
+            // Tejedor: solo calificación, y solo cuando la orden ya está Finalizada (Terminado).
+            if ($this->esTejedor()) {
+                if (! $this->puedeCalificarComoTejedor()) {
                     return response()->json([
                         'success' => false,
                         'error' => 'No tienes permiso para calificar intervenciones.',
                     ], 403);
                 }
 
+                if (! $orden) {
+                    return $this->ordenNoEncontrada();
+                }
+
+                if ($orden->Estatus !== self::ESTATUS_TERMINADO) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'Solo puedes calificar órdenes finalizadas (estatus Terminado).',
+                    ], 422);
+                }
+
                 $validated = $request->validate([
                     'Calificacion' => ['required', 'integer', 'between:1,10'],
-                    'CveTejedor' => ['nullable', 'string', 'max:30'],
-                    'NomTejedor' => ['nullable', 'string', 'max:150'],
                 ]);
 
-                if ($this->esTejedor() && ! $this->puedeRegistrar()) {
-                    [$cve, $nombre] = $this->datosTejedorSesion();
-                } else {
-                    $cve = trim((string) ($validated['CveTejedor'] ?? ''));
-                    $nombre = trim((string) ($validated['NomTejedor'] ?? ''));
-
-                    if ($cve === '' || $nombre === '') {
-                        [$cve, $nombre] = $this->datosTejedorSesion();
-                    }
-                }
+                [$cve, $nombre] = $this->datosTejedorSesion();
 
                 $registro->update([
                     'Calificacion' => (int) $validated['Calificacion'],
@@ -424,11 +429,29 @@ class OrdenesTrabajoMecaController extends Controller
                     'NomTejedor' => $nombre,
                 ]);
 
+                $orden->load(['lineas' => fn ($query) => $query->orderBy('Id')]);
+                $pasoACalificado = false;
+
+                if ($this->todasLasLineasCalificadas($orden)) {
+                    $orden->update(['Estatus' => self::ESTATUS_CALIFICADO]);
+                    $orden->refresh();
+                    $pasoACalificado = true;
+                }
+
+                $orden->load(['lineas' => fn ($query) => $query->orderBy('Id')]);
+
                 return response()->json([
                     'success' => true,
-                    'message' => 'Calificación guardada correctamente.',
+                    'message' => $pasoACalificado
+                        ? 'Calificación guardada. La orden pasó a Calificado.'
+                        : 'Calificación guardada correctamente.',
                     'data' => $registro->fresh(),
+                    'orden' => $orden,
                 ]);
+            }
+
+            if ($orden) {
+                $this->asegurarEditablePorMecanico($orden);
             }
 
             if ($respuesta = $this->respuestaSinPermiso('modificar', 'No tienes permiso para modificar renglones.')) {
@@ -482,10 +505,10 @@ class OrdenesTrabajoMecaController extends Controller
         }
 
         $orden = MecOrdenTrabajoModel::find($folio);
-        if ($orden && $orden->Estatus === self::ESTATUS_AUTORIZADO) {
+        if ($orden && $this->estatusBloqueaEdicionMecanico((string) $orden->Estatus)) {
             return response()->json([
                 'success' => false,
-                'error' => 'La orden está autorizada y quedó en solo lectura.',
+                'error' => 'La orden ya no admite cambios en renglones (finalizada, calificada o autorizada).',
             ], 422);
         }
 
@@ -505,8 +528,72 @@ class OrdenesTrabajoMecaController extends Controller
     }
 
     /**
-     * Autoriza una orden (permiso "registrar" del módulo = acceso supervisor).
-     * Deja el registro en estatus Autorizado (solo lectura).
+     * Mecánico finaliza la captura: pasa a Terminado y bloquea edición.
+     * Después solo el tejedor puede calificar.
+     */
+    public function finalizar(string $folio): JsonResponse
+    {
+        if (! $this->puedeFinalizarComoMecanico()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Solo los mecánicos con permiso de modificar pueden finalizar la orden.',
+            ], 403);
+        }
+
+        $orden = MecOrdenTrabajoModel::query()
+            ->with(['lineas' => fn ($query) => $query->orderBy('Id')])
+            ->find($folio);
+
+        if (! $orden) {
+            return $this->ordenNoEncontrada();
+        }
+
+        if ((string) ($orden->Estatus ?: self::ESTATUS_ACTIVO) !== self::ESTATUS_ACTIVO) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Solo se pueden finalizar órdenes en estatus Activo.',
+            ], 422);
+        }
+
+        if ($orden->lineas->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'La orden no tiene renglones para finalizar.',
+            ], 422);
+        }
+
+        $lineasSinCaptura = $orden->lineas->filter(fn ($linea) => $this->lineaSinCaptura($linea));
+        if ($lineasSinCaptura->isNotEmpty()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Hay renglones sin captura. Completa o elimina los vacíos antes de finalizar.',
+            ], 422);
+        }
+
+        try {
+            $orden->update(['Estatus' => self::ESTATUS_TERMINADO]);
+            $orden->load(['lineas' => fn ($query) => $query->orderBy('Id')]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Orden finalizada. Ya no se puede editar; el tejedor puede calificarla.',
+                'data' => $orden,
+            ]);
+        } catch (\Throwable $exception) {
+            Log::error('Error al finalizar orden de trabajo mecánica', [
+                'folio' => $folio,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'No se pudo finalizar la orden.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Autoriza una orden (permiso "registrar"). Solo si ya está Calificada.
      */
     public function autorizar(string $folio): JsonResponse
     {
@@ -536,6 +623,13 @@ class OrdenesTrabajoMecaController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'No se puede autorizar una orden cancelada.',
+            ], 422);
+        }
+
+        if ($orden->Estatus !== self::ESTATUS_CALIFICADO) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Solo se pueden autorizar órdenes en estatus Calificado (el tejedor debe calificar todos los renglones).',
             ], 422);
         }
 
@@ -828,7 +922,7 @@ class OrdenesTrabajoMecaController extends Controller
      */
     private function aplicarFiltroTelaresTejedor(Builder $query): void
     {
-        if (! $this->esModoTejedorSoloCalificacion()) {
+        if (! $this->esTejedor()) {
             return;
         }
 
@@ -844,7 +938,7 @@ class OrdenesTrabajoMecaController extends Controller
 
     private function tejedorPuedeVerOrden(MecOrdenTrabajoModel $orden): bool
     {
-        if (! $this->esModoTejedorSoloCalificacion()) {
+        if (! $this->esTejedor()) {
             return true;
         }
 
@@ -857,23 +951,77 @@ class OrdenesTrabajoMecaController extends Controller
     }
 
     /**
-     * Tejedor (área) o usuario con "registrar" pueden capturar calificación / firma.
+     * Tejedor (área) puede calificar después de Finalizar.
      */
-    private function puedeCalificar(): bool
+    private function puedeCalificarComoTejedor(): bool
     {
-        return $this->esTejedor() || $this->puedeRegistrar();
+        return $this->esTejedor();
     }
 
     /**
-     * Ruta restringida a calificación: tejedor sin registrar, o registrar sin modificar.
+     * Mecánico (no tejedor) con permiso modificar: puede pulsar Finalizar.
+     */
+    private function puedeFinalizarComoMecanico(): bool
+    {
+        return ! $this->esTejedor() && userCan('modificar', self::MODULO_PERMISO);
+    }
+
+    private function estatusBloqueaEdicionMecanico(string $estatus): bool
+    {
+        $estatus = $estatus !== '' ? $estatus : self::ESTATUS_ACTIVO;
+
+        return in_array($estatus, [
+            self::ESTATUS_TERMINADO,
+            self::ESTATUS_CALIFICADO,
+            self::ESTATUS_AUTORIZADO,
+        ], true);
+    }
+
+    private function asegurarEditablePorMecanico(MecOrdenTrabajoModel $orden): void
+    {
+        if ($this->estatusBloqueaEdicionMecanico((string) ($orden->Estatus ?: self::ESTATUS_ACTIVO))) {
+            throw ValidationException::withMessages([
+                'Estatus' => ['La orden ya no admite edición (finalizada, calificada o autorizada).'],
+            ]);
+        }
+    }
+
+    private function todasLasLineasCalificadas(MecOrdenTrabajoModel $orden): bool
+    {
+        $lineas = $orden->lineas;
+        if ($lineas->isEmpty()) {
+            return false;
+        }
+
+        return $lineas->every(function ($linea): bool {
+            $calificacion = $linea->Calificacion;
+
+            return $calificacion !== null && (int) $calificacion >= 1 && (int) $calificacion <= 10;
+        });
+    }
+
+    /**
+     * Renglón vacío (el placeholder al crear la orden).
+     */
+    private function lineaSinCaptura(MecOrdenTrabajoLineModel $linea): bool
+    {
+        return trim((string) ($linea->CveOperador ?? '')) === ''
+            && trim((string) ($linea->NomOperador ?? '')) === ''
+            && ! (bool) $linea->Ajusto
+            && ! (bool) $linea->Reparo
+            && ! (bool) $linea->Cambio
+            && ! (bool) $linea->Lubrico
+            && ! (bool) $linea->FaltaRefacc
+            && empty($linea->HoraInicial)
+            && empty($linea->HoraFinal);
+    }
+
+    /**
+     * Ruta restringida a calificación: tejedor (con o sin registrar).
      */
     private function debeUsarRutaSoloCalificacion(): bool
     {
-        if ($this->esModoTejedorSoloCalificacion()) {
-            return true;
-        }
-
-        return $this->puedeRegistrar() && ! userCan('modificar', self::MODULO_PERMISO);
+        return $this->esTejedor();
     }
 
     private function respuestaSinPermiso(string $accion, string $mensaje): ?JsonResponse
@@ -908,7 +1056,7 @@ class OrdenesTrabajoMecaController extends Controller
 
     private function respuestaSiTejedorNoPuedeMutar(string $mensaje): ?JsonResponse
     {
-        if (! $this->esModoTejedorSoloCalificacion()) {
+        if (! $this->esTejedor()) {
             return null;
         }
 
@@ -919,27 +1067,10 @@ class OrdenesTrabajoMecaController extends Controller
     }
 
     /**
-     * Impide mutar una orden ya autorizada (queda en solo lectura).
-     */
-    private function asegurarNoAutorizada(MecOrdenTrabajoModel $orden): void
-    {
-        if ($orden->Estatus === self::ESTATUS_AUTORIZADO) {
-            throw ValidationException::withMessages([
-                'Estatus' => ['La orden está autorizada y quedó en solo lectura.'],
-            ]);
-        }
-    }
-
-    /**
-     * Calificación / CVE / nombre tejedor: tejedor o permiso registrar.
-     * Cualquier otro rol no puede sobrescribir esos campos.
+     * Calificación solo la captura el tejedor; se descarta del payload de mecánicos.
      */
     private function filtrarCamposCalificacion(array $datos): array
     {
-        if ($this->puedeCalificar()) {
-            return $datos;
-        }
-
         unset($datos['Calificacion'], $datos['CveTejedor'], $datos['NomTejedor']);
 
         return $datos;

@@ -8,17 +8,25 @@
     $estatusActual = $orden->Estatus ?: 'Activo';
     $badgeClases = match ($estatusActual) {
         'Autorizado' => 'bg-emerald-100 text-emerald-800',
+        'Calificado' => 'bg-violet-100 text-violet-800',
         'Terminado' => 'bg-amber-100 text-amber-800',
         'Cancelado' => 'bg-red-100 text-red-800',
         'Activo' => 'bg-blue-100 text-blue-800',
         default => 'bg-gray-100 text-gray-700',
     };
-    $badgeLabel = $estatusActual === 'Terminado' ? 'Finalizado' : $estatusActual;
-    $modoTejedor = $modoTejedor ?? (($esTejedor && ! $esSupervisor) || ($esSupervisor && ! ($puedeEditar ?? $puedeModificar ?? false)));
+    $badgeLabel = match ($estatusActual) {
+        'Terminado' => 'Finalizado',
+        default => $estatusActual,
+    };
+    $modoTejedor = $modoTejedor ?? ($esTejedor && ! ($puedeEditar ?? false));
     $puedeRegistrar = $puedeRegistrar ?? $esSupervisor;
     $puedeCrear = $puedeCrear ?? false;
-    $puedeEditar = $puedeEditar ?? ($puedeModificar ?? false);
+    $puedeEditar = $puedeEditar ?? false;
     $puedeEliminar = $puedeEliminar ?? false;
+    $puedeFinalizar = $puedeFinalizar ?? false;
+    $puedeCalificar = $puedeCalificar ?? false;
+    $puedeAutorizar = $puedeAutorizar ?? false;
+    $bloqueadaEdicion = $bloqueadaEdicion ?? in_array($estatusActual, ['Terminado', 'Calificado', 'Autorizado'], true);
 @endphp
 <div class="w-full p-3 sm:p-4 lg:p-5">
     <div class="mx-auto max-w-7xl space-y-3 lg:max-w-[100rem] lg:space-y-4">
@@ -31,13 +39,9 @@
                             Folio {{ $orden->Folio }}
                         </span>
                         <span class="inline-flex rounded-full px-3 py-1.5 text-xs font-bold {{ $badgeClases }}">{{ $badgeLabel }}</span>
-                        @if ($modoTejedor)
+                        @if ($puedeCalificar)
                             <span class="inline-flex rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700">
-                                @if ($puedeRegistrar && ! $puedeEditar)
-                                    Modo registrar · solo calificar / autorizar
-                                @else
-                                    Modo tejedor · solo calificar
-                                @endif
+                                Modo tejedor · calificar
                             </span>
                         @endif
                     </div>
@@ -46,11 +50,17 @@
                             <span class="inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
                                 <i class="fas fa-lock"></i> Autorizada · solo lectura
                             </span>
-                        @elseif ($puedeRegistrar)
+                        @elseif ($puedeAutorizar)
                             <button id="btn-autorizar-orden" type="button"
                                 class="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 sm:text-base">
                                 <i class="fas fa-circle-check"></i>
                                 Autorizar
+                            </button>
+                        @elseif ($puedeFinalizar)
+                            <button id="btn-finalizar-orden" type="button"
+                                class="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600 sm:text-base">
+                                <i class="fas fa-flag-checkered"></i>
+                                Finalizar
                             </button>
                         @endif
                     </div>
@@ -81,8 +91,8 @@
             </div>
         </section>
 
-        @if (! $bloqueada && ! $modoTejedor)
-        {{-- Formulario de captura (mecánico / supervisor) --}}
+        @if (! $bloqueadaEdicion && ! ($esTejedor ?? false) && ($puedeEditar || $puedeCrear))
+        {{-- Formulario de captura (mecánico) --}}
         <section id="seccion-captura" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4 lg:p-5">
             <div class="flex flex-col gap-2 border-b border-gray-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
                 <div class="min-w-0">
@@ -147,34 +157,7 @@
                         <input id="linea-total-minutos" type="text" readonly placeholder="—"
                             class="min-h-11 w-full cursor-not-allowed rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-base text-gray-600">
                     </div>
-                    @if ($puedeCalificar ?? $esSupervisor)
-                    <div>
-                        <label for="linea-calificacion" class="mb-1 block text-sm font-medium text-gray-700">Calificación</label>
-                        <select id="linea-calificacion" name="Calificacion"
-                            class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                            <option value="">Sin calificar</option>
-                            @for ($i = 1; $i <= 10; $i++)
-                                <option value="{{ $i }}">{{ $i }}</option>
-                            @endfor
-                        </select>
-                    </div>
-                    @endif
                 </div>
-
-                @if ($puedeCalificar ?? $esSupervisor)
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12 lg:gap-4">
-                    <div class="lg:col-span-4">
-                        <label for="linea-cve-tejedor" class="mb-1 block text-sm font-medium text-gray-700">Cve. tejedor</label>
-                        <input id="linea-cve-tejedor" name="CveTejedor" maxlength="30"
-                            class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                    </div>
-                    <div class="lg:col-span-8">
-                        <label for="linea-nom-tejedor" class="mb-1 block text-sm font-medium text-gray-700">Nombre / firma tejedor</label>
-                        <input id="linea-nom-tejedor" name="NomTejedor" maxlength="150"
-                            class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                    </div>
-                </div>
-                @endif
 
                 <div class="flex flex-col-reverse gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:justify-end">
                     <button id="btn-limpiar-linea" type="button"
@@ -238,12 +221,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const operadores = @json($operadores);
     const operadoresPorClave = new Map(operadores.map(operador => [String(operador.CveEmpl), operador]));
     let orden = @json($orden);
-    const esSupervisor = @json($esSupervisor);
-    const modoTejedor = @json($modoTejedor);
     const puedeCrear = @json($puedeCrear ?? false);
     const puedeEditar = @json($puedeEditar ?? false);
     const puedeEliminar = @json($puedeEliminar ?? false);
+    const puedeCalificar = @json($puedeCalificar ?? false);
+    const puedeFinalizar = @json($puedeFinalizar ?? false);
+    const puedeAutorizar = @json($puedeAutorizar ?? false);
     const bloqueada = @json($bloqueada);
+    const bloqueadaEdicion = @json($bloqueadaEdicion ?? false);
     const tejedorCve = @json($tejedorCve);
     const tejedorNombre = @json($tejedorNombre);
 
@@ -359,27 +344,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         lineasBody.innerHTML = lineas.map(linea => {
-            const califCell = (modoTejedor && ! bloqueada)
+            const califCell = puedeCalificar
                 ? `<select data-calificacion-linea="${linea.Id}" class="min-h-9 w-16 rounded border border-gray-300 px-1 py-1 text-sm outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600">${opcionesCalificacion(linea.Calificacion)}</select>`
                 : display(linea.Calificacion);
 
-            const cveCell = (modoTejedor && ! bloqueada)
+            const cveCell = puedeCalificar
                 ? display(linea.CveTejedor || tejedorCve)
                 : display(linea.CveTejedor);
 
-            const nomCell = (modoTejedor && ! bloqueada)
+            const nomCell = puedeCalificar
                 ? display(linea.NomTejedor || tejedorNombre)
                 : display(linea.NomTejedor);
 
             let acciones = '<span class="text-gray-400">—</span>';
-            if (! bloqueada) {
-                if (modoTejedor) {
-                    acciones = `<button type="button" data-action="guardar-calificacion" data-linea-id="${linea.Id}" class="rounded border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-800 transition hover:bg-indigo-100">Guardar</button>`;
-                } else if (puedeEditar || puedeEliminar) {
-                    acciones = `
+            if (puedeCalificar) {
+                acciones = `<button type="button" data-action="guardar-calificacion" data-linea-id="${linea.Id}" class="rounded border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-800 transition hover:bg-indigo-100">Guardar</button>`;
+            } else if (! bloqueadaEdicion && (puedeEditar || puedeEliminar)) {
+                acciones = `
                     ${puedeEditar ? `<button type="button" data-action="editar" data-linea-id="${linea.Id}" class="rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-100">Editar</button>` : ''}
                     ${puedeEliminar && lineas.length > 1 ? `<button type="button" data-action="eliminar" data-linea-id="${linea.Id}" class="ml-1 rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-700 transition hover:bg-red-50">Eliminar</button>` : ''}`;
-                }
             }
 
             return `
@@ -453,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function prepararCapturaInicial() {
-        if (modoTejedor || bloqueada) return;
+        if (bloqueadaEdicion || puedeCalificar) return;
         const pendiente = (orden.lineas || []).find(lineaSinCaptura);
         if (pendiente) {
             cargarLineaEnFormulario(pendiente);
@@ -478,33 +461,32 @@ document.addEventListener('DOMContentLoaded', () => {
         return data;
     }
 
-    function faltanDatosCalificacion() {
-        const lineas = (orden.lineas || []).filter(linea => ! lineaSinCaptura(linea));
-        if (! lineas.length) return true;
-        return lineas.some(linea =>
-            linea.Calificacion === null || linea.Calificacion === '' ||
-            (String(linea.CveTejedor || '').trim() === '' && String(linea.NomTejedor || '').trim() === '')
-        );
+    async function finalizarOrden() {
+        const confirmacion = await Swal.fire({
+            icon: 'question',
+            title: '¿Finalizar orden?',
+            html: `La orden <b>${escapeHtml(orden.Folio)}</b> pasará a <b>Finalizado</b> y ya no se podrá editar.<br>Después el tejedor podrá calificarla.`,
+            showCancelButton: true,
+            confirmButtonText: 'Sí, finalizar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#d97706',
+        });
+        if (! confirmacion.isConfirmed) return;
+
+        try {
+            const result = await api(`${baseUrl}/${encodeURIComponent(orden.Folio)}/finalizar`, { method: 'POST' });
+            notificar('success', result.message || 'Orden finalizada.');
+            setTimeout(() => window.location.reload(), 900);
+        } catch (error) {
+            notificar('error', mensajeError(error));
+        }
     }
 
     async function autorizarOrden() {
-        if (faltanDatosCalificacion()) {
-            const advertencia = await Swal.fire({
-                icon: 'warning',
-                title: 'Registro sin calificar',
-                html: 'Este registro aún no se califica (falta la calificación y/o la firma del tejedor).<br>¿Seguro de autorizar?',
-                showCancelButton: true,
-                confirmButtonText: 'Continuar',
-                cancelButtonText: 'Cancelar',
-                confirmButtonColor: '#d97706',
-            });
-            if (! advertencia.isConfirmed) return;
-        }
-
         const confirmacion = await Swal.fire({
             icon: 'question',
             title: '¿Autorizar orden?',
-            html: `La orden <b>${escapeHtml(orden.Folio)}</b> quedará <b>autorizada</b> y en solo lectura. No podrás editarla después.`,
+            html: `La orden <b>${escapeHtml(orden.Folio)}</b> quedará <b>autorizada</b> y en solo lectura.`,
             showCancelButton: true,
             confirmButtonText: 'Sí, autorizar',
             cancelButtonText: 'Cancelar',
@@ -536,8 +518,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'PUT',
                 data: { Calificacion: Number(calificacion) },
             });
-            await cargarOrden();
             notificar('success', result.message || 'Calificación guardada.');
+            if (result.orden?.Estatus === 'Calificado') {
+                setTimeout(() => window.location.reload(), 900);
+                return;
+            }
+            await cargarOrden();
         } catch (error) {
             notificar('error', mensajeError(error));
             button.disabled = false;
@@ -610,25 +596,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     $('#linea-hora-inicial')?.addEventListener('input', calcularMinutosEnPantalla);
     $('#linea-hora-final')?.addEventListener('input', calcularMinutosEnPantalla);
+    document.getElementById('btn-finalizar-orden')?.addEventListener('click', finalizarOrden);
     document.getElementById('btn-autorizar-orden')?.addEventListener('click', autorizarOrden);
 
     renderLineas();
-    if (! bloqueada && ! modoTejedor && puedeEditar) prepararCapturaInicial();
+    if (! bloqueadaEdicion && ! puedeCalificar && puedeEditar) prepararCapturaInicial();
 
     if (bloqueada) {
-        notificar(
-            'success',
-            'Orden autorizada',
-            'Esta orden quedó en solo lectura. Ya no es posible capturar ni editar renglones.',
-            { timer: 5000 }
-        );
-    } else if (modoTejedor) {
-        const mensajeTejedor = @json(
-            $esSupervisor && ! ($puedeModificar ?? false)
-                ? 'Elige una calificación del 1 al 10 en cada renglón. Con el permiso Registrar también puedes autorizar la orden.'
-                : 'Elige una calificación del 1 al 10 en cada renglón. Tu clave y nombre se guardan automáticamente.'
-        );
-        notificar('info', 'Calificación de intervenciones', mensajeTejedor, { timer: 5000 });
+        notificar('success', 'Orden autorizada', 'Esta orden quedó en solo lectura.', { timer: 4000 });
+    } else if (puedeCalificar) {
+        notificar('info', 'Calificar intervenciones', 'Elige 1–10 en cada renglón y guarda. Cuando todos estén calificados, la orden pasará a Calificado.', { timer: 5000 });
+    } else if (orden.Estatus === 'Terminado') {
+        notificar('info', 'Orden finalizada', 'Pendiente de calificación del tejedor.', { timer: 4000 });
+    } else if (orden.Estatus === 'Calificado') {
+        notificar('info', 'Orden calificada', 'El supervisor puede autorizarla.', { timer: 4000 });
     }
 });
 </script>

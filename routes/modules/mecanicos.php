@@ -56,6 +56,7 @@ Route::prefix('mecanicos/ordenes-trabajo')
         Route::post('/{folio}/lineas', [OrdenesTrabajoMecaController::class, 'storeLinea'])->name('lineas.store');
         Route::put('/{folio}/lineas/{linea}', [OrdenesTrabajoMecaController::class, 'updateLinea'])->name('lineas.update')->whereNumber('linea');
         Route::delete('/{folio}/lineas/{linea}', [OrdenesTrabajoMecaController::class, 'destroyLinea'])->name('lineas.destroy')->whereNumber('linea');
+        Route::post('/{folio}/finalizar', [OrdenesTrabajoMecaController::class, 'finalizar'])->name('finalizar');
         Route::post('/{folio}/autorizar', [OrdenesTrabajoMecaController::class, 'autorizar'])->name('autorizar');
     });
 
