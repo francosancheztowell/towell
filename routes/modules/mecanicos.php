@@ -44,6 +44,10 @@ Route::prefix('mecanicos/reportes')
     ->group(function (): void {
         Route::get('/ot-diarias', [MecReportesController::class, 'otDiarias'])->name('ot-diarias');
         Route::get('/estado-maquina', [MecReportesController::class, 'estadoMaquina'])->name('estado-maquina');
+        Route::get('/estado-maquina/semanas', [MecReportesController::class, 'semanasEstadoMaquina'])->name('estado-maquina.semanas');
+        Route::post('/estado-maquina/excel', [MecReportesController::class, 'exportarExcelEstadoMaquina'])->name('estado-maquina.excel');
+        Route::post('/estado-maquina/pdf', [MecReportesController::class, 'exportarPdfEstadoMaquina'])->name('estado-maquina.pdf');
+        Route::post('/estado-maquina/telegram-imagen', [MecReportesController::class, 'telegramImagenEstadoMaquina'])->name('estado-maquina.telegram-imagen');
     });
 
 // Reportes nivel 2 (SYSRoles 1103 → Ruta=/mecanicos/reportes)
