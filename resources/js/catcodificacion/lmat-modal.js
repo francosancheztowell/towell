@@ -990,11 +990,6 @@ async function openLMatModal(context = {}) {
     const esActualizacionLMat = Array.isArray(guardadoLMat) && guardadoLMat.length > 0;
     const bomIdActualCat = String(registroSeleccionado?.BomId ?? '').trim();
     const esBomIdEstand = bomIdActualCat.toUpperCase().startsWith('ESTAND');
-    const actLmatInicial = registroSeleccionado?.ActualizaLmat === true
-        || registroSeleccionado?.ActualizaLmat === 1
-        || registroSeleccionado?.ActualizaLmat === '1'
-        || registroSeleccionado?.ActualizaLmat === null
-        || registroSeleccionado?.ActualizaLmat === undefined;
     const nombreInputAttrsLMat = esActualizacionLMat
         ? 'readonly disabled title="El nombre no se puede cambiar al actualizar"'
         : '';
@@ -1014,7 +1009,7 @@ async function openLMatModal(context = {}) {
                                     type="checkbox"
                                     id="lmat-act-lmat"
                                     class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                    ${actLmatInicial ? 'checked' : ''}
+                                    checked
                                 >
                                 <span class="text-sm font-medium text-gray-700">Actualizar L.Mat</span>
                             </label>

@@ -133,7 +133,13 @@
       "Bash(BENCH_URLS=\"/programa-urd-eng/inventario-telares,/programa-urd-eng/inventario-telares,/programa-urd-eng/inventario-disponible,/programa-urd-eng/nucleos,/programa-urd-eng/hilos,/programa-urd-eng/tamanos,/programa-urd-eng/maquinas-engomado,/programa-urd-eng/anchos-balona,/programa-urd-eng/materiales-urdido,/programa-urd-eng/materiales-engomado\" php artisan tinker --execute=\"require 'C:/Users/fsanchez/AppData/Local/Temp/claude/C--xampp-htdocs-Towell/43a1a820-1fb1-423e-a4a7-99d9b72bf294/scratchpad/bench.php';\")",
       "Bash(php -l app/Http/Controllers/Configuracion/MensajesController.php)",
       "Bash(php -l app/Models/Sistema/SYSMensaje.php)",
-      "Bash(php -l app/Console/Commands/EnviarReporteCrudoCommand.php)"
+      "Bash(php -l app/Console/Commands/EnviarReporteCrudoCommand.php)",
+      "PowerShell(git *)",
+      "PowerShell(& node ./node_modules/vite/bin/vite.js build)",
+      "PowerShell(php artisan test --filter=Crudo 2>&1 | Select-Object -Last 30)",
+      "PowerShell(php artisan test --filter=\"CrudoLivewireTest\" 2>&1 | Select-Object -Skip 10 -First 60)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} %{url_effective}\\\\n\" -L http://localhost/Towell/public/Crudo)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:8000/Crudo)"
     ]
   }
 }

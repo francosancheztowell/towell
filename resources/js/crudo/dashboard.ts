@@ -55,6 +55,7 @@ type AuditPayload = {
   salon: string
   orden_trabajo: string | null
   checklist: Record<AuditChecklistKey, boolean | null>
+  marbetes: number | null
   observaciones: string | null
   defectos: Array<{
     defecto_id: number
@@ -962,11 +963,19 @@ const collectAuditPayload = (form: HTMLElement): AuditPayload => {
     ?.value.trim() ?? ''
   const order = form.dataset.crudoAuditOrder?.trim() ?? ''
 
+  const rawTags = form.querySelector<HTMLInputElement>('[data-crudo-audit-marbetes]')?.value.trim() ?? ''
+  const tags = Number.parseInt(rawTags, 10)
+
+  if (rawTags !== '' && (!Number.isInteger(tags) || tags < 0)) {
+    throw new Error('Los marbetes deben ser un número entero mayor o igual a cero.')
+  }
+
   return {
     no_telar_id: telar,
     salon,
     orden_trabajo: order === '' ? null : order,
     checklist,
+    marbetes: rawTags === '' ? null : tags,
     observaciones: observations === '' ? null : observations,
     defectos: defects,
   }
@@ -1088,6 +1097,11 @@ const resetAuditForm = (form: HTMLElement): void => {
   const observations = form.querySelector<HTMLTextAreaElement>('textarea[name="crudo-audit-observations"]')
   if (observations) {
     observations.value = ''
+  }
+
+  const tags = form.querySelector<HTMLInputElement>('[data-crudo-audit-marbetes]')
+  if (tags) {
+    tags.value = ''
   }
 
   syncAuditActionState(form)

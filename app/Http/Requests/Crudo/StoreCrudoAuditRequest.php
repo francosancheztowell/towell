@@ -32,6 +32,7 @@ class StoreCrudoAuditRequest extends CrudoRequest
             'checklist.alineacion_orden' => ['present', 'nullable', 'boolean'],
             'checklist.dibujo_jacquard' => ['present', 'nullable', 'boolean'],
             'checklist.identificacion_julio' => ['present', 'nullable', 'boolean'],
+            'marbetes' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
             'observaciones' => ['nullable', 'string', 'max:500'],
             'defectos' => ['present', 'array', 'max:5'],
             'defectos.*.defecto_id' => [
@@ -53,6 +54,8 @@ class StoreCrudoAuditRequest extends CrudoRequest
         return [
             'no_telar_id.required' => 'No se recibió el telar de la auditoría.',
             'salon.required' => 'No se recibió el salón del telar.',
+            'marbetes.integer' => 'Los marbetes deben ser un número entero.',
+            'marbetes.min' => 'Los marbetes no pueden ser negativos.',
             'defectos.max' => 'Solo se permiten cinco defectos por auditoría.',
             'defectos.*.defecto_id.distinct' => 'No repitas el mismo defecto en la auditoría.',
             'defectos.*.defecto_id.exists' => 'Uno de los defectos ya no pertenece al catálogo de Calidad.',

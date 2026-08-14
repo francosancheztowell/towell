@@ -39,6 +39,7 @@ final class CrudoAuditService
                 'AlineacionOrden',
                 'DibujoJacquard',
                 'IdentificacionJulio',
+                'Marbetes',
                 'Observaciones',
                 'Defecto1Id',
                 'Defecto1Pzas',
@@ -230,6 +231,7 @@ final class CrudoAuditService
             'AlineacionOrden' => $checklist['alineacion_orden'] ?? null,
             'DibujoJacquard' => $isJacquard ? ($checklist['dibujo_jacquard'] ?? null) : null,
             'IdentificacionJulio' => $checklist['identificacion_julio'] ?? null,
+            'Marbetes' => isset($data['marbetes']) ? (int) $data['marbetes'] : null,
             'Observaciones' => $this->nullableText($data['observaciones'] ?? null),
             'ParoId' => null,
         ];

@@ -43,6 +43,7 @@
             <i class="fas fa-print"></i>
             <span>Reimprimir Orden</span>
         </button>
+        @if (userCan('registrar', 'Codificación'))
         <button id="btn-revivir-programa"
             type="button"
             onclick="revivirOrdenAlPrograma()"
@@ -53,6 +54,7 @@
             <i class="fas fa-undo"></i>
             <span>Revivir a programa</span>
         </button>
+        @endif
     </div>
 @endsection
 

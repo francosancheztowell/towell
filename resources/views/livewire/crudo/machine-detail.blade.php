@@ -604,6 +604,19 @@
                                     @endforeach
                                 </fieldset>
 
+                                <label class="crudo-audit-count-field">
+                                    <span>¿Cuántos marbetes tengo?</span>
+                                    <input
+                                        type="number"
+                                        name="crudo-audit-marbetes"
+                                        min="0"
+                                        step="1"
+                                        inputmode="numeric"
+                                        placeholder="0"
+                                        data-crudo-audit-marbetes
+                                    >
+                                </label>
+
                                 <label class="crudo-audit-observations">
                                     <span>Observaciones</span>
                                     <textarea
