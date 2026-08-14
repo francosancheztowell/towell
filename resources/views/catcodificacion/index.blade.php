@@ -35,6 +35,7 @@
         >
             <i class="fas fa-balance-scale"></i>
         </button>
+        @if (userCan('registrar', 'Codificación'))
         <button id="btn-reimprimir-seleccionado"
             onclick="reimprimirOrdenSeleccionada()"
             class="inline-flex items-center gap-1 px-3 py-1 rounded border border-gray-300 bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
@@ -43,7 +44,6 @@
             <i class="fas fa-print"></i>
             <span>Reimprimir Orden</span>
         </button>
-        @if (userCan('registrar', 'Codificación'))
         <button id="btn-revivir-programa"
             type="button"
             onclick="revivirOrdenAlPrograma()"
