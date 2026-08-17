@@ -38,21 +38,22 @@ class ProgramarEngomadoController extends Controller
     }
 
     /**
-     * Mostrar la vista de programar engomado (board Livewire).
-     * La versión anterior sigue disponible en la ruta .legacy como respaldo.
+     * Mostrar la vista de programar engomado (versión clásica).
+     * El board Livewire queda disponible en la ruta .legacy.
      */
     public function index(): View
-    {
-        return view('modulos.engomado.programar-engomado-livewire');
-    }
-
-    public function legacy(): View
     {
         return view('modulos.engomado.programar-engomado', [
             'canEdit' => $this->usuarioPuedeEditar(),
             'programaRoutes' => ProgramaRouteHelper::engomado(),
             'observacionesMaxLength' => ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
         ]);
+    }
+
+    // ponytail: la ruta .legacy ahora sirve el board Livewire; borrarla si nadie la usa
+    public function legacy(): View
+    {
+        return view('modulos.engomado.programar-engomado-livewire');
     }
 
     /**
