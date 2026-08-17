@@ -94,6 +94,7 @@ class LiberarOrdenesLiberarTest extends TestCase
             $table->string('NoExisteBase')->nullable();
             $table->float('Ancho')->nullable();
             $table->float('Repeticiones')->nullable();
+            $table->float('PesoRollo')->nullable();
             $table->integer('SaldoMarbete')->nullable();
             $table->float('NoMarbete')->nullable();
             $table->float('RollosProgramados')->nullable();
@@ -383,6 +384,90 @@ class LiberarOrdenesLiberarTest extends TestCase
         $this->assertSame('CLIENTE X', $cat->CustName);
     }
 
+    /**
+     * Modal "Editar marbetes" de Programa Tejido: el preview recalcula con el peso enviado
+     * manteniendo la regla FEL (marbetes ×2, mts/pzas ÷2) porque depende del tamaño del
+     * registro, no del peso; y el guardado manual persiste en ReqProgramaTejido + CatCodificados.
+     */
+    public function test_marbetes_preview_respeta_regla_fel_y_guardado_sincroniza_cat_codificados(): void
+    {
+        $id = $this->sembrarRegistro(['InventSizeId' => 'FEL', 'NoProduccion' => '77001']);
+        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+            'OrdenTejido' => '77001',
+            'TelarId' => '201',
+        ]);
+
+        $controller = new LiberarOrdenesController;
+
+        // PesoRollo 41 → Rep = TRUNC((41/455)/3×1000) = 30
+        $preview = $controller->marbetes(
+            Request::create('/planeacion/programa-tejido/marbetes', 'GET', ['id' => $id, 'pesoRollo' => 41])
+        )->getData(true);
+
+        $this->assertTrue($preview['esFel']);
+        $this->assertSame(30, $preview['valores']['repeticiones']);
+        $this->assertEqualsWithDelta(21.3, $preview['valores']['mtsRollo'], 0.001);  // 142×30/100 ÷2
+        $this->assertEqualsWithDelta(45, $preview['valores']['pzasRollo'], 0.001);   // 30×3 ÷2
+        $this->assertSame(286, $preview['valores']['noMarbete']);                    // round((12891/3)/30) ×2
+        $this->assertEqualsWithDelta(287, $preview['valores']['totalRollos'], 0.001); // ceil(12891/45)
+        $this->assertEqualsWithDelta(12915, $preview['valores']['totalPzas'], 0.001);
+
+        // Repeticiones capturadas a mano sustituyen a la fórmula y arrastran la cadena,
+        // con la regla FEL aplicada igual: 20×3 = 60 ÷2 = 30 pzas; 142×20/100 = 28.4 ÷2 = 14.2
+        $conReps = $controller->marbetes(
+            Request::create('/planeacion/programa-tejido/marbetes', 'GET', [
+                'id' => $id, 'pesoRollo' => 41, 'repeticiones' => 20,
+            ])
+        )->getData(true)['valores'];
+
+        $this->assertSame(20, $conReps['repeticiones']);
+        $this->assertEqualsWithDelta(30, $conReps['pzasRollo'], 0.001);
+        $this->assertEqualsWithDelta(14.2, $conReps['mtsRollo'], 0.001);
+        $this->assertSame(430, $conReps['noMarbete']);                        // round((12891/3)/20) ×2
+        $this->assertEqualsWithDelta(430, $conReps['totalRollos'], 0.001);     // ceil(12891/30)
+
+        // TotalRollos capturado a mano solo re-deriva TotalPzas (= PzasRollo × TotalRollos)
+        $conRollos = $controller->marbetes(
+            Request::create('/planeacion/programa-tejido/marbetes', 'GET', [
+                'id' => $id, 'pesoRollo' => 41, 'repeticiones' => 20, 'pzasRollo' => 30, 'totalRollos' => 100,
+            ])
+        )->getData(true)['valores'];
+
+        $this->assertEqualsWithDelta(100, $conRollos['totalRollos'], 0.001);
+        $this->assertEqualsWithDelta(3000, $conRollos['totalPzas'], 0.001);
+
+        // Guardado con overrides manuales del usuario
+        $guardar = $controller->guardarMarbetes(
+            Request::create('/planeacion/programa-tejido/marbetes', 'POST', [
+                'id' => $id,
+                'pesoRollo' => 41,
+                'repeticiones' => 30,
+                'mtsRollo' => 21.3,
+                'pzasRollo' => 45,
+                'noMarbete' => 300,
+                'totalRollos' => 287.2,
+                'totalPzas' => 12915,
+            ])
+        );
+
+        $this->assertSame(200, $guardar->getStatusCode());
+
+        $registro = DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $id)->first();
+        $this->assertEqualsWithDelta(41, $registro->PesoRollo, 0.001);
+        $this->assertEqualsWithDelta(30, $registro->Repeticiones, 0.001);
+        $this->assertEqualsWithDelta(300, $registro->NoMarbete, 0.001);
+        $this->assertSame(300, (int) $registro->SaldoMarbete);
+        $this->assertEqualsWithDelta(288, $registro->TotalRollos, 0.001); // ceil(287.2)
+
+        $cat = DB::connection('sqlsrv')->table('CatCodificados')->where('OrdenTejido', '77001')->first();
+        $this->assertSame(30, (int) $cat->Repeticiones);
+        $this->assertEqualsWithDelta(21.3, $cat->MtsRollo, 0.001);
+        $this->assertEqualsWithDelta(45, $cat->PzasRollo, 0.001);
+        $this->assertEqualsWithDelta(300, $cat->NoMarbete, 0.001);
+        $this->assertEqualsWithDelta(288, $cat->TotalRollos, 0.001);
+        $this->assertEqualsWithDelta(12915, $cat->TotalPzas, 0.001);
+    }
+
     public function test_folio_manual_duplicado_en_el_lote_devuelve_422_y_no_persiste_nada(): void
     {
         $idA = $this->sembrarRegistro(['NoTelarId' => '201']);
@@ -499,5 +584,26 @@ class LiberarOrdenesLiberarTest extends TestCase
 
         $this->assertCount(1, $opciones, 'Las 3 versiones de AX deben colapsar en una sola opción.');
         $this->assertSame('BOM-MULTI-03', $opciones[0]['bomId']);
+    }
+
+    /**
+     * Las L.Mat 'ESTAND ...' cuelgan de cientos de items en AX, así que nunca se
+     * autoasignan: el renglón se queda vacío para que alguien las elija a mano.
+     */
+    public function test_lmat_estandar_no_se_autoasigna(): void
+    {
+        $metodo = new \ReflectionMethod(LiberarOrdenesController::class, 'bomAutoAsignable');
+        $metodo->setAccessible(true);
+        $decidir = fn (array $opciones) => $metodo->invoke(null, $opciones);
+
+        $estand = ['bomId' => 'ESTAND JS 3060-3524', 'bomName' => 'ESTANDAR JACQUARD SMIT'];
+        $propia = ['bomId' => 'TEJ MB SD NAT', 'bomName' => 'TEJIDO MB'];
+
+        $this->assertNull($decidir([$estand]), 'Una ESTAND sola no debe autoasignarse.');
+        $this->assertNull($decidir([$estand, ['bomId' => 'estand l 2524-2876', 'bomName' => 'x']]));
+        $this->assertSame($propia, $decidir([$propia]), 'La L.Mat propia sí se autoasigna.');
+        $this->assertSame($propia, $decidir([$estand, $propia]), 'Con una ESTAND al lado, gana la propia.');
+        $this->assertNull($decidir([$propia, ['bomId' => 'TEJ OTRA', 'bomName' => 'y']]), 'Dos propias siguen siendo ambiguas.');
+        $this->assertNull($decidir([]));
     }
 }

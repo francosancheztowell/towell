@@ -236,6 +236,9 @@ document.addEventListener('DOMContentLoaded', function () {
 {{-- Modal Crear Repaso --}}
 @include('modulos.programa-tejido.modal.repaso')
 
+{{-- Modal Editar Marbetes --}}
+@include('modulos.programa-tejido.modal.marbetes')
+
 @unless($isMuestras ?? false)
   {{-- Modal Redbooth: primer corte exclusivamente visual --}}
   @include('modulos.programa-tejido.modal.redbooth')
@@ -265,6 +268,10 @@ document.addEventListener('DOMContentLoaded', function () {
   <button id="contextMenuEditar" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
     <i class="fas fa-pen text-yellow-500"></i>
     <span>Editar fila</span>
+  </button>
+  <button id="contextMenuMarbetes" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
+    <i class="fas fa-tags text-orange-500"></i>
+    <span>Editar marbetes</span>
   </button>
   @endif
   @if($canEliminar)

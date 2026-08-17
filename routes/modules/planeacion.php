@@ -208,6 +208,10 @@ Route::get('/planeacion/programa-tejido/liberar-ordenes/codigo-dibujo', [Liberar
 Route::get('/planeacion/programa-tejido/liberar-ordenes/opciones-hilos', [LiberarOrdenesController::class, 'obtenerOpcionesHilos'])->name('programa-tejido.liberar-ordenes.opciones-hilos');
 Route::post('/planeacion/programa-tejido/liberar-ordenes/guardar-campos', [LiberarOrdenesController::class, 'guardarCamposEditables'])->name('programa-tejido.liberar-ordenes.guardar-campos');
 
+// Editar marbetes desde el menú contextual de Programa Tejido
+Route::get('/planeacion/programa-tejido/marbetes', [LiberarOrdenesController::class, 'marbetes'])->name('programa-tejido.marbetes');
+Route::post('/planeacion/programa-tejido/marbetes', [LiberarOrdenesController::class, 'guardarMarbetes'])->name('programa-tejido.marbetes.guardar');
+
 Route::get('/planeacion/programa-tejido/reimprimir-ordenes/{id}', [ReimprimirOrdenesController::class, 'reimprimir'])->name('planeacion.programa-tejido.reimprimir-ordenes');
 
 Route::post('/planeacion/programa-tejido/descargar-programa', [DescargarProgramaController::class, 'descargar'])->name('programa-tejido.descargar-programa');

@@ -690,6 +690,15 @@
           else toast('Edición inline no disponible', 'info');
         });
 
+        // Editar marbetes de la fila seleccionada
+        qs('#contextMenuMarbetes')?.addEventListener('click', () => {
+          const row = menuRow || (window.selectedRowIndex != null
+            ? (window.allRows || qsa('.selectable-row', tbodyEl()))[window.selectedRowIndex]
+            : null);
+          hide();
+          if (typeof window.abrirModalMarbetes === 'function') window.abrirModalMarbetes(row);
+        });
+
         // Abrir catÃ¡logo de CodificaciÃ³n en nueva ventana
         qs('#contextMenuCodificacion')?.addEventListener('click', () => {
           hide();

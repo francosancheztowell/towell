@@ -116,26 +116,6 @@
                 $rowId = $registro->Id ?? uniqid('row_');
                 $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
                 $value = htmlspecialchars((string) ($registro->BomId ?? ''), ENT_QUOTES, 'UTF-8');
-                $bomOpciones = is_array($registro->BomOpciones ?? null) ? $registro->BomOpciones : [];
-
-                if ($value === '' && !empty($bomOpciones)) {
-                    $optionsHtml = '<option value="">Seleccionar...</option>';
-                    foreach ($bomOpciones as $opcion) {
-                        $bomId = htmlspecialchars((string) ($opcion['bomId'] ?? ''), ENT_QUOTES, 'UTF-8');
-                        $bomName = htmlspecialchars((string) ($opcion['bomName'] ?? ''), ENT_QUOTES, 'UTF-8');
-                        if ($bomId === '') {
-                            continue;
-                        }
-                        $label = $bomName !== '' ? $bomId . ' - ' . $bomName : $bomId;
-                        $optionsHtml .= '<option value="' . $bomId . '" data-bom-name="' . $bomName . '">' . $label . '</option>';
-                    }
-
-                    return '<select id="bom-id-input-' . $rowId . '"
-                                  class="bom-id-input bom-select w-full min-w-[100px] px-3 py-2 text-sm border border-gray-300 rounded bg-white"
-                                  data-row-id="' . $rowId . '"
-                                  data-bom-select="1"
-                                  placeholder="L.Mat">' . $optionsHtml . '</select>';
-                }
 
                 return '<div class="relative">
                             <input type="text"
@@ -154,27 +134,6 @@
                 $rowId = $registro->Id ?? uniqid('row_');
                 $rowId = htmlspecialchars((string) $rowId, ENT_QUOTES, 'UTF-8');
                 $value = htmlspecialchars((string) ($registro->BomName ?? ''), ENT_QUOTES, 'UTF-8');
-                $bomOpciones = is_array($registro->BomOpciones ?? null) ? $registro->BomOpciones : [];
-
-                if ($value === '' && !empty($bomOpciones)) {
-                    $optionsHtml = '<option value="">Seleccionar...</option>';
-                    foreach ($bomOpciones as $opcion) {
-                        $bomId = htmlspecialchars((string) ($opcion['bomId'] ?? ''), ENT_QUOTES, 'UTF-8');
-                        $bomName = htmlspecialchars((string) ($opcion['bomName'] ?? ''), ENT_QUOTES, 'UTF-8');
-                        if ($bomId === '') {
-                            continue;
-                        }
-                        $valueName = $bomName !== '' ? $bomName : $bomId;
-                        $label = $bomName !== '' ? $bomName . ' - ' . $bomId : $bomId;
-                        $optionsHtml .= '<option value="' . $valueName . '" data-bom-id="' . $bomId . '">' . $label . '</option>';
-                    }
-
-                    return '<select id="bom-name-input-' . $rowId . '"
-                                class="bom-name-input bom-select w-full min-w-[150px] px-3 py-2 text-sm border border-gray-300 rounded bg-white"
-                                data-row-id="' . $rowId . '"
-                                data-bom-select="1"
-                                placeholder="Nombre L.Mat">' . $optionsHtml . '</select>';
-                }
 
                 return '<div class="relative">
                             <input type="text"
@@ -656,7 +615,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Habilitar autocompletado para L.Mat y Nombre L.Mat
     setupBomAutocomplete();
-    setupBomSelects();
 
     // Alinear Total Pzas con Pzas x Rollo × Total Rollos al cargar (la BD puede traer totales viejos).
     document.querySelectorAll('tr.row-data input[data-field="TotalRollos"]').forEach((inp) => {
@@ -923,27 +881,6 @@ function convertirHiloAXaSelect(row, valorHiloAX = null) {
 
 const bomOptionsByRow = new Map();
 
-function setupBomSelects() {
-    document.querySelectorAll('.row-data').forEach(row => {
-        const bomIdSelect = row.querySelector('select.bom-id-input[data-bom-select="1"]');
-        const bomNameSelect = row.querySelector('select.bom-name-input[data-bom-select="1"]');
-
-        if (!bomIdSelect || !bomNameSelect) return;
-
-        bomIdSelect.addEventListener('change', () => {
-            const selected = bomIdSelect.selectedOptions[0];
-            const bomName = selected ? (selected.dataset.bomName || '') : '';
-            bomNameSelect.value = bomName;
-        });
-
-        bomNameSelect.addEventListener('change', () => {
-            const selected = bomNameSelect.selectedOptions[0];
-            const bomId = selected ? (selected.dataset.bomId || '') : '';
-            bomIdSelect.value = bomId;
-        });
-    });
-}
-
 function setupBomAutocomplete() {
     const rows = document.querySelectorAll('.row-data');
 
@@ -952,7 +889,6 @@ function setupBomAutocomplete() {
         const bomNameInput = row.querySelector('.bom-name-input');
 
         if (!bomIdInput || !bomNameInput) return;
-        if (bomIdInput.tagName === 'SELECT' || bomNameInput.tagName === 'SELECT') return;
 
         const itemId = (row.querySelector('[data-column="ItemId"]')?.textContent || '').trim();
         const inventSizeId = (row.querySelector('[data-column="InventSizeId"]')?.textContent || '').trim();

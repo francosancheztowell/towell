@@ -180,68 +180,18 @@ class LiberarOrdenesController extends Controller
 
             // Calcular campos en la carga para mostrarlos en la vista
             $registros->each(function ($registro) {
-                $pCrudo = $registro->PesoCrudo ?? null;
-                $tiras = $registro->NoTiras ?? null;
-                $pesoRollo = $this->obtenerPesoRollo($registro) ?? 41.5;
-                $repeticiones = null;
-                if ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
-                    $repeticiones = $this->repeticionesDesdePesoRollo($pesoRollo, $pCrudo, $tiras);
-                }
+                $calc = $this->calcularMarbetes($registro);
 
-                $saldoMarbeteValor = $this->saldoMarbeteDesdeFormula($this->basePedido($registro), $tiras, $repeticiones);
-                // MtsRollo: fórmula = medida de largo * repeticiones (convertir cm a metros)
-                // MtsRollo se mantiene como decimal sin redondear
-                // MtsRollo: RECALCULAR SIEMPRE desde Repeticiones (el valor guardado puede estar
-                // desfasado si se creó/importó con otro peso de rollo). Solo se conserva el valor
-                // almacenado como último recurso cuando no es posible calcular (sin largo o reps).
-                // Se mantiene como decimal sin redondear.
-                $mtsRollo = null;
-                $largo = $registro->LargoCrudo ?? null;
-                if ($largo !== null && $repeticiones !== null && is_numeric($repeticiones)) {
-                    $largoNum = is_numeric($largo) ? (float) $largo : (float) str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string) $largo);
-                    if ($largoNum > 0 && $repeticiones > 0) {
-                        // Fórmula: metros = (medida de largo * repeticiones) / 100 (convertir cm a metros)
-                        // Sin redondear para mantener todos los decimales
-                        $mtsRollo = (float) (($largoNum * $repeticiones) / 100);
-                    }
-                }
-                if ($mtsRollo === null && isset($registro->MtsRollo) && is_numeric($registro->MtsRollo)) {
-                    $mtsRollo = (float) $registro->MtsRollo;
-                }
-
-                // PzasRollo = Repeticiones × NoTiras SIEMPRE (piezas por rollo por definición).
-                // NO se hereda el valor almacenado: queda desfasado si cambió el peso crudo y corrompe TotalRollos/TotalPzas.
-                $pzasRollo = $this->pzasRolloDesdeRepeticiones($repeticiones, $tiras);
-
-                $this->aplicarAjusteFelTamanho($registro->InventSizeId ?? null, $saldoMarbeteValor, $mtsRollo, $pzasRollo, $registro);
-
-                // TotalRollos = ceil(TotalPedido / PzasRollo); TotalPzas = PzasRollo × TotalRollos.
-                $totalPedido = $this->basePedido($registro);
-                ['totalRollos' => $totalRollos, 'totalPzas' => $totalPzas] =
-                    $this->derivarTotalRollosTotalPzas($pzasRollo, $totalPedido);
-
-                if ($totalRollos === null) {
-                    // Fallbacks solo si no se pudo derivar desde PzasRollo/SaldoPedido.
-                    if (isset($registro->TotalRollos) && is_numeric($registro->TotalRollos) && $registro->TotalRollos > 0) {
-                        $totalRollos = (float) ceil((float) $registro->TotalRollos);
-                    } elseif ($saldoMarbeteValor > 0) {
-                        $totalRollos = (float) ceil($saldoMarbeteValor);
-                    }
-                    if ($totalRollos !== null && $pzasRollo !== null && is_numeric($pzasRollo)) {
-                        $totalPzas = round((float) $totalRollos * (float) $pzasRollo, 0);
-                    }
-                }
-
-                $registro->Repeticiones = $repeticiones;
-                $registro->PesoRollo = $pesoRollo;
+                $registro->Repeticiones = $calc['repeticiones'];
+                $registro->PesoRollo = $calc['pesoRollo'];
                 // Mismo criterio que al liberar: no. marbetes por fórmula del catálogo, no TotalRollos.
-                $registro->SaldoMarbete = $saldoMarbeteValor > 0 ? (float) $saldoMarbeteValor : null;
+                $registro->SaldoMarbete = $calc['saldoMarbete'] > 0 ? (float) $calc['saldoMarbete'] : null;
                 $registro->NoMarbete = $registro->SaldoMarbete;
-                $registro->RollosProgramados = $totalRollos;
-                $registro->MtsRollo = $mtsRollo;
-                $registro->PzasRollo = $pzasRollo;
-                $registro->TotalRollos = $totalRollos;
-                $registro->TotalPzas = $totalPzas;
+                $registro->RollosProgramados = $calc['totalRollos'];
+                $registro->MtsRollo = $calc['mtsRollo'];
+                $registro->PzasRollo = $calc['pzasRollo'];
+                $registro->TotalRollos = $calc['totalRollos'];
+                $registro->TotalPzas = $calc['totalPzas'];
 
                 // Densidad: fórmula = peso_crudo / ((ancho * largo) / 10)
                 $densidad = null;
@@ -265,16 +215,9 @@ class LiberarOrdenesController extends Controller
                 }
                 $registro->Densidad = $densidad;
 
-                $bomOpciones = $this->resolverBomCrudoOpciones($registro);
-                $registro->BomOpciones = $bomOpciones;
-
-                if (count($bomOpciones) === 1) {
-                    $registro->BomId = trim((string) $bomOpciones[0]['bomId']);
-                    $registro->BomName = trim((string) $bomOpciones[0]['bomName']);
-                } else {
-                    $registro->BomId = null;
-                    $registro->BomName = null;
-                }
+                $auto = self::bomAutoAsignable($this->resolverBomCrudoOpciones($registro));
+                $registro->BomId = $auto !== null ? trim((string) $auto['bomId']) : null;
+                $registro->BomName = $auto !== null ? trim((string) $auto['bomName']) : null;
             });
 
             // Obtener opciones de hilos para el select desde INVENTTABLE (TwTipoHiloId)
@@ -858,7 +801,10 @@ class LiberarOrdenesController extends Controller
                     $key = self::itemIdSinSufijo((string) $result->ITEMID).'|'.$result->TWINVENTSIZEID;
                     $bomId = trim((string) $result->bomId);
 
-                    if ($bomId === '') {
+                    // Este endpoint sólo alimenta el autollenado masivo del front, así que
+                    // las ESTAND se omiten: nunca deben quedar puestas sin que alguien las
+                    // elija. Para buscarlas a mano está la rama individual (por itemId).
+                    if ($bomId === '' || self::esBomEstandar($bomId)) {
                         continue;
                     }
 
@@ -1772,6 +1718,209 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
+     * Cadena completa de marbetes de un registro: repeticiones → mts/pzas x rollo →
+     * no. marbetes → total rollos/pzas, con el ajuste FEL aplicado al final.
+     *
+     * El ajuste FEL depende del tamaño/producto del registro (InventSizeId con FEL o
+     * FELPA en TamanoClave\NombreProducto), NO del peso: si el registro es FEL sigue
+     * siendo FEL aunque se baje el peso de rollo o el tamaño resultante.
+     *
+     * @param  float|null  $pesoRolloOverride  peso a usar en lugar del de catálogo (para simular)
+     * @param  float|null  $repeticionesOverride  repeticiones capturadas a mano; sustituyen a la fórmula y arrastran el resto de la cadena
+     * @return array{pesoRollo: float, repeticiones: int|null, saldoMarbete: int, mtsRollo: float|null, pzasRollo: float|null, totalRollos: float|null, totalPzas: float|null, esFel: bool}
+     */
+    private function calcularMarbetes(ReqProgramaTejido $registro, ?float $pesoRolloOverride = null, ?float $repeticionesOverride = null): array
+    {
+        $pCrudo = $registro->PesoCrudo ?? null;
+        $tiras = $registro->NoTiras ?? null;
+        $pesoRollo = ($pesoRolloOverride !== null && $pesoRolloOverride > 0)
+            ? $pesoRolloOverride
+            : ($this->obtenerPesoRollo($registro) ?? 41.5);
+
+        $repeticiones = null;
+        if ($repeticionesOverride !== null && $repeticionesOverride > 0) {
+            // Mismo criterio que al liberar: lo que el usuario ve/edita manda sobre la fórmula.
+            $repeticiones = (int) $repeticionesOverride;
+        } elseif ($pCrudo && $tiras && is_numeric($pCrudo) && is_numeric($tiras) && $pCrudo > 0 && $tiras > 0) {
+            $repeticiones = $this->repeticionesDesdePesoRollo($pesoRollo, $pCrudo, $tiras);
+        }
+
+        $saldoMarbeteValor = $this->saldoMarbeteDesdeFormula($this->basePedido($registro), $tiras, $repeticiones);
+
+        // MtsRollo: RECALCULAR SIEMPRE desde Repeticiones (el valor guardado puede estar
+        // desfasado si se creó/importó con otro peso de rollo). Solo se conserva el valor
+        // almacenado como último recurso cuando no es posible calcular (sin largo o reps).
+        // Se mantiene como decimal sin redondear.
+        $mtsRollo = null;
+        $largo = $registro->LargoCrudo ?? null;
+        if ($largo !== null && $repeticiones !== null && is_numeric($repeticiones)) {
+            $largoNum = is_numeric($largo) ? (float) $largo : (float) str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string) $largo);
+            if ($largoNum > 0 && $repeticiones > 0) {
+                // Fórmula: metros = (medida de largo * repeticiones) / 100 (convertir cm a metros)
+                $mtsRollo = (float) (($largoNum * $repeticiones) / 100);
+            }
+        }
+        if ($mtsRollo === null && isset($registro->MtsRollo) && is_numeric($registro->MtsRollo)) {
+            $mtsRollo = (float) $registro->MtsRollo;
+        }
+
+        // PzasRollo = Repeticiones × NoTiras SIEMPRE (piezas por rollo por definición).
+        // NO se hereda el valor almacenado: queda desfasado si cambió el peso crudo y corrompe TotalRollos/TotalPzas.
+        $pzasRollo = $this->pzasRolloDesdeRepeticiones($repeticiones, $tiras);
+
+        $this->aplicarAjusteFelTamanho($registro->InventSizeId ?? null, $saldoMarbeteValor, $mtsRollo, $pzasRollo, $registro);
+
+        // TotalRollos = ceil(TotalPedido / PzasRollo); TotalPzas = PzasRollo × TotalRollos.
+        ['totalRollos' => $totalRollos, 'totalPzas' => $totalPzas] =
+            $this->derivarTotalRollosTotalPzas($pzasRollo, $this->basePedido($registro));
+
+        if ($totalRollos === null) {
+            // Fallbacks solo si no se pudo derivar desde PzasRollo/SaldoPedido.
+            if (isset($registro->TotalRollos) && is_numeric($registro->TotalRollos) && $registro->TotalRollos > 0) {
+                $totalRollos = (float) ceil((float) $registro->TotalRollos);
+            } elseif ($saldoMarbeteValor > 0) {
+                $totalRollos = (float) ceil($saldoMarbeteValor);
+            }
+            if ($totalRollos !== null && $pzasRollo !== null && is_numeric($pzasRollo)) {
+                $totalPzas = round((float) $totalRollos * (float) $pzasRollo, 0);
+            }
+        }
+
+        return [
+            'pesoRollo' => (float) $pesoRollo,
+            'repeticiones' => $repeticiones,
+            'saldoMarbete' => $saldoMarbeteValor,
+            'mtsRollo' => $mtsRollo,
+            'pzasRollo' => $pzasRollo,
+            'totalRollos' => $totalRollos,
+            'totalPzas' => $totalPzas,
+            'esFel' => $this->debeAplicarAjusteFormatoFelRollo($registro->InventSizeId ?? null, $registro),
+        ];
+    }
+
+    /**
+     * Valores de marbetes de un registro para el modal "Editar marbetes" de Programa Tejido.
+     * Preview sin guardar: cada parámetro opcional es un valor capturado a mano que sustituye
+     * al calculado y arrastra el resto de la cadena hacia abajo
+     * (pesoRollo → repeticiones → mts/pzas x rollo + marbetes → totalRollos → totalPzas).
+     */
+    public function marbetes(Request $request)
+    {
+        $data = $request->validate([
+            'id' => ['required', 'integer'],
+            'pesoRollo' => ['nullable', 'numeric', 'min:0'],
+            'repeticiones' => ['nullable', 'numeric', 'min:0'],
+            'pzasRollo' => ['nullable', 'numeric', 'min:0'],
+            'totalRollos' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $registro = ReqProgramaTejido::find((int) $data['id']);
+        if (! $registro) {
+            return response()->json(['success' => false, 'message' => 'Registro no encontrado.'], 404);
+        }
+
+        $override = fn (string $k) => isset($data[$k]) && $data[$k] !== '' && $data[$k] !== null && (float) $data[$k] > 0
+            ? (float) $data[$k]
+            : null;
+
+        $calc = $this->calcularMarbetes($registro, $override('pesoRollo'), $override('repeticiones'));
+
+        // PzasRollo y TotalRollos capturados a mano se aplican DESPUÉS del ajuste FEL:
+        // el usuario escribe el valor final, no la base a dividir.
+        if ($override('pzasRollo') !== null) {
+            $calc['pzasRollo'] = $override('pzasRollo');
+        }
+        if ($override('pzasRollo') !== null || $override('totalRollos') !== null) {
+            ['totalRollos' => $calc['totalRollos'], 'totalPzas' => $calc['totalPzas']] =
+                $this->derivarTotalRollosTotalPzas($calc['pzasRollo'], $this->basePedido($registro), $override('totalRollos'));
+        }
+
+        return response()->json([
+            'success' => true,
+            'registro' => [
+                'telar' => trim((string) ($registro->NoTelarId ?? '')),
+                'producto' => trim((string) ($registro->NombreProducto ?? '')),
+                'tamano' => trim((string) ($registro->InventSizeId ?? '')),
+                'noTiras' => $registro->NoTiras !== null && is_numeric($registro->NoTiras) ? (int) $registro->NoTiras : null,
+            ],
+            'valores' => [
+                'pesoRollo' => $calc['pesoRollo'],
+                'repeticiones' => $calc['repeticiones'],
+                'mtsRollo' => $calc['mtsRollo'],
+                'pzasRollo' => $calc['pzasRollo'],
+                'noMarbete' => $calc['saldoMarbete'] > 0 ? $calc['saldoMarbete'] : null,
+                'totalRollos' => $calc['totalRollos'],
+                'totalPzas' => $calc['totalPzas'],
+            ],
+            'esFel' => $calc['esFel'],
+        ]);
+    }
+
+    /**
+     * Guarda los marbetes editados a mano en ReqProgramaTejido y replica en CatCodificados.
+     */
+    public function guardarMarbetes(Request $request)
+    {
+        $data = $request->validate([
+            'id' => ['required', 'integer'],
+            'pesoRollo' => ['nullable', 'numeric', 'min:0'],
+            'repeticiones' => ['nullable', 'numeric', 'min:0'],
+            'mtsRollo' => ['nullable', 'numeric', 'min:0'],
+            'pzasRollo' => ['nullable', 'numeric', 'min:0'],
+            'noMarbete' => ['nullable', 'numeric', 'min:0'],
+            'totalRollos' => ['nullable', 'numeric', 'min:0'],
+            'totalPzas' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        DB::beginTransaction();
+        try {
+            /** @var ReqProgramaTejido|null $registro */
+            $registro = ReqProgramaTejido::lockForUpdate()->find((int) $data['id']);
+            if (! $registro) {
+                DB::rollBack();
+
+                return response()->json(['success' => false, 'message' => 'Registro no encontrado.'], 404);
+            }
+
+            $num = fn (string $k) => isset($data[$k]) && $data[$k] !== '' && $data[$k] !== null ? (float) $data[$k] : null;
+
+            $registro->PesoRollo = $num('pesoRollo');
+            $registro->Repeticiones = $num('repeticiones') !== null ? (int) $num('repeticiones') : null;
+            $registro->MtsRollo = $num('mtsRollo');
+            $registro->PzasRollo = $num('pzasRollo');
+            $registro->SaldoMarbete = $num('noMarbete') !== null ? (int) round($num('noMarbete')) : null;
+            $registro->NoMarbete = $num('noMarbete');
+            $registro->TotalRollos = $num('totalRollos') !== null ? (float) ceil($num('totalRollos')) : null;
+            $registro->TotalPzas = $num('totalPzas');
+            $registro->RollosProgramados = $registro->TotalRollos;
+
+            StringTruncator::truncateModelAttributes($registro);
+            $registro->save();
+
+            // Replicar en CatCodificados con el mismo mapeo de campos que la edición inline de liberar órdenes.
+            foreach ([
+                'Repeticiones' => $registro->Repeticiones,
+                'MtsRollo' => $registro->MtsRollo,
+                'PzasRollo' => $registro->PzasRollo,
+                'SaldoMarbete' => $registro->NoMarbete,
+                'TotalRollos' => $registro->TotalRollos,
+                'TotalPzas' => $registro->TotalPzas,
+            ] as $field => $value) {
+                $this->actualizarCatCodificadosCampo($registro, $field, $value);
+            }
+
+            DB::commit();
+
+            return response()->json(['success' => true, 'message' => 'Marbetes actualizados correctamente.']);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Error al guardar marbetes', ['id' => $data['id'] ?? null, 'error' => $e->getMessage()]);
+
+            return response()->json(['success' => false, 'message' => 'Error al guardar marbetes: '.$e->getMessage()], 500);
+        }
+    }
+
+    /**
      * =TRUNCAR((peso_rollo / peso_crudo) / tiras * 1000) en Excel.
      */
     private function repeticionesDesdePesoRollo(float $pesoRollo, $pCrudo, $tiras): ?int
@@ -1932,11 +2081,36 @@ class LiberarOrdenesController extends Controller
 
     private function resolverBomCrudoExacto(ReqProgramaTejido $registro): ?object
     {
-        $opciones = $this->resolverBomCrudoOpciones($registro);
+        $auto = self::bomAutoAsignable($this->resolverBomCrudoOpciones($registro));
 
-        return $opciones !== []
-            ? (object) $opciones[0]
-            : null;
+        return $auto !== null ? (object) $auto : null;
+    }
+
+    /**
+     * Las L.Mat 'ESTAND ...' son genéricas: AX las liga a cientos de items a la vez
+     * (ESTAND JS 3060-3524 cuelga de 1025 items en BOMVERSION), así que "pertenece
+     * al item" no las distingue de la L.Mat propia del producto.
+     */
+    private static function esBomEstandar(string $bomId): bool
+    {
+        return str_starts_with(mb_strtoupper(trim($bomId)), 'ESTAND');
+    }
+
+    /**
+     * L.Mat que se puede poner sola en el renglón: sólo cuando queda exactamente una
+     * candidata NO estándar. Las ESTAND siguen en la lista para elegirlas a mano.
+     *
+     * @param  array<int, array{bomId: string, bomName: string}>  $opciones
+     * @return array{bomId: string, bomName: string}|null
+     */
+    private static function bomAutoAsignable(array $opciones): ?array
+    {
+        $candidatas = array_values(array_filter(
+            $opciones,
+            static fn (array $o): bool => ! self::esBomEstandar((string) ($o['bomId'] ?? ''))
+        ));
+
+        return count($candidatas) === 1 ? $candidatas[0] : null;
     }
 
     /**
