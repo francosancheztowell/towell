@@ -259,6 +259,10 @@ final readonly class CrudoDashboardService
                 'inventSizeId' => trim((string) ($row->InventSizeId ?? '')) ?: null,
                 'flogId' => trim((string) ($row->FlogsId ?? '')) ?: null,
                 'nombreProducto' => trim((string) ($row->NombreProducto ?? '')) ?: null,
+                // PesoCrudo es texto en ReqProgramaTejido y viene en gramos por pieza.
+                'pesoCrudo' => is_numeric(trim((string) ($row->PesoCrudo ?? '')))
+                    ? (float) trim((string) $row->PesoCrudo)
+                    : null,
             ];
         }
 

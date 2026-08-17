@@ -418,9 +418,12 @@
                     const isSelected = state.ordenSeleccionada?.id === orden.id;
                     const prioridad = orden.prioridad ?? (index + 1);
 
+                    // Incorrecto = 1 -> fila en rojo (la selección azul sigue teniendo prioridad)
                     const rowClasses = isSelected
                         ? 'bg-blue-500 text-white h-9 transition-all duration-200'
-                        : 'hover:bg-gray-50 h-9 transition-all duration-200 select-none';
+                        : Number(orden.incorrecto) === 1
+                            ? 'bg-red-100 text-red-700 font-semibold hover:bg-red-200 h-9 transition-all duration-200 select-none'
+                            : 'hover:bg-gray-50 h-9 transition-all duration-200 select-none';
 
                     const rowCursorClass = canChangePrioridad ? 'cursor-move' : 'cursor-default';
 
@@ -993,6 +996,48 @@
                 } catch (error) {
                     console.error('Error al verificar permisos (continuando con redirección):', error);
                     // Continuar con la redirección si hay error en la verificación
+                }
+
+                // Karl Mayer (MC Coy 4): confirmar cuenta/calibre antes de cargar
+                if (Number(state.ordenSeleccionada.mccoy) === 4) {
+                    const orden = (state.ordenes[4] || []).find(o => o.id === state.ordenSeleccionada.id);
+
+                    // Se pregunta en cada carga, aunque ya esté marcada como incorrecta
+                    if (typeof Swal !== 'undefined') {
+                        const yaIncorrecta = Number(orden?.incorrecto) === 1;
+
+                        const respuesta = await Swal.fire({
+                            icon: yaIncorrecta ? 'warning' : 'question',
+                            title: '¿La cuenta/calibre es correcta?',
+                            html: `<p class="text-sm text-gray-600">Cuenta/Calibre: <strong>${orden?.cuenta_calibre || '—'}</strong></p>`
+                                + (yaIncorrecta ? '<p class="mt-2 text-sm text-red-600">Esta orden está marcada como incorrecta. Solo un supervisor puede liberarla.</p>' : ''),
+                            showDenyButton: true,
+                            confirmButtonText: 'Sí, es correcta',
+                            denyButtonText: yaIncorrecta ? 'Sigue incorrecta' : 'No',
+                            confirmButtonColor: '#2563eb',
+                            denyButtonColor: '#dc2626',
+                            allowOutsideClick: false,
+                        });
+
+                        if (respuesta.isDismissed) return;
+
+                        // "Sí" solo cambia algo si estaba marcada: intenta liberarla (el servidor exige supervisor)
+                        const nuevoValor = respuesta.isDenied;
+
+                        if (nuevoValor !== yaIncorrecta) {
+                            try {
+                                await fetchJson(routes.marcarIncorrecto, {
+                                    method: 'POST',
+                                    body: JSON.stringify({ id: state.ordenSeleccionada.id, incorrecto: nuevoValor }),
+                                });
+                                if (orden) orden.incorrecto = nuevoValor ? 1 : 0;
+                                renderTable(4);
+                            } catch (error) {
+                                showError(error.message);
+                                return;
+                            }
+                        }
+                    }
                 }
 
                 // Si puede crear o hay registros existentes, redirigir

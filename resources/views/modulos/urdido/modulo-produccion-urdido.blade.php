@@ -11,15 +11,21 @@
 @section('navbar-right')
     @if($canEdit ?? false)
     <div class="flex items-center gap-2">
-        <x-navbar.button-create
-            onclick="finalizar()"
-            title="Finalizar"
-            icon="fa-check-circle"
-            iconColor="text-white"
-            hoverBg="hover:bg-blue-600"
-            text="Finalizar"
-            bg="bg-blue-500"
-        />
+        @if($ordenIncorrecta ?? false)
+            <span class="px-3 py-2 rounded bg-red-100 text-red-700 text-sm font-semibold">
+                <i class="fas fa-ban mr-1"></i>Cuenta/Calibre incorrecta — un supervisor debe liberarla
+            </span>
+        @else
+            <x-navbar.button-create
+                onclick="finalizar()"
+                title="Finalizar"
+                icon="fa-check-circle"
+                iconColor="text-white"
+                hoverBg="hover:bg-blue-600"
+                text="Finalizar"
+                bg="bg-blue-500"
+            />
+        @endif
     </div>
     @endif
 @endsection

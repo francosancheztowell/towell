@@ -362,7 +362,8 @@ class ProgramBoard extends Component
         $this->canReprint = function_exists('userCan')
             && userCan('registrar', $module->permissionModule());
         $this->canEvaluateQuality = $module === ProgramaModulo::Urdido
-            && $this->canReprint;
+            && function_exists('userEsArea')
+            && userEsArea('Calidad');
     }
 
     /**

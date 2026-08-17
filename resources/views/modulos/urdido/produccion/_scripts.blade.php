@@ -1013,7 +1013,8 @@
                             body: JSON.stringify({
                                 registro_id: registroId,
                                 campo,
-                                valor: valor !== null && valor !== '' ? parseInt(valor) : null
+                                // parseFloat, no parseInt: Vueltas y Diametro son decimales (step 0.01)
+                                valor: valor !== null && valor !== '' ? parseFloat(valor) : null
                             })
                         });
 

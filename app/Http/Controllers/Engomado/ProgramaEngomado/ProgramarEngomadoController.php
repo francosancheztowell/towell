@@ -14,7 +14,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ProgramarEngomadoController extends Controller
 {
@@ -36,11 +38,12 @@ class ProgramarEngomadoController extends Controller
     }
 
     /**
-     * Mostrar la vista de programar engomado
+     * Mostrar la vista de programar engomado (board Livewire).
+     * La versión anterior sigue disponible en la ruta .legacy como respaldo.
      */
     public function index(): View
     {
-        return $this->legacy();
+        return view('modulos.engomado.programar-engomado-livewire');
     }
 
     public function legacy(): View
@@ -389,7 +392,7 @@ class ProgramarEngomadoController extends Controller
                 'success' => true,
                 'message' => 'Prioridad actualizada correctamente',
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'error' => 'Error de validación: '.$e->getMessage(),
@@ -430,7 +433,7 @@ class ProgramarEngomadoController extends Controller
                 'success' => true,
                 'message' => 'Observaciones guardadas correctamente',
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'error' => 'Error de validación: '.$e->getMessage(),
@@ -454,7 +457,7 @@ class ProgramarEngomadoController extends Controller
                 fn ($orden) => $this->fechaProgFallback($orden)
             );
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Error al recalcular prioridades engomado: '.$e->getMessage());
+            Log::error('Error al recalcular prioridades engomado: '.$e->getMessage());
         }
     }
 
@@ -516,7 +519,7 @@ class ProgramarEngomadoController extends Controller
                 'success' => true,
                 'message' => 'Status actualizado correctamente',
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             DB::rollBack();
 
             return response()->json([
@@ -616,7 +619,7 @@ class ProgramarEngomadoController extends Controller
                 'success' => true,
                 'message' => 'Prioridades actualizadas correctamente',
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'error' => 'Error de validación: '.$e->getMessage(),

@@ -41,6 +41,27 @@ class ProgramBoardActionServiceTest extends TestCase
         ]);
         $user->exists = true;
         Auth::setUser($user);
+
+        $this->grantModulePermissions(['modificar' => 1]);
+    }
+
+    /**
+     * userPermissions() memoiza los catálogos de permisos en el contenedor, así que
+     * basta con sembrar esas dos instancias para que userCan() responda sin tocar BD.
+     *
+     * @param  array<string, int>  $permissions
+     */
+    private function grantModulePermissions(array $permissions): void
+    {
+        app()->instance('permisos.roles', collect([
+            'programa urdido' => (object) ['idrol' => 1, 'modulo' => 'Programa Urdido'],
+            'programa engomado' => (object) ['idrol' => 2, 'modulo' => 'Programa Engomado'],
+        ]));
+
+        app()->instance('permisos.usuario.10', collect([
+            1 => (object) $permissions,
+            2 => (object) $permissions,
+        ]));
     }
 
     public function test_priority_can_only_be_swapped_inside_the_same_machine(): void
@@ -57,6 +78,34 @@ class ProgramBoardActionServiceTest extends TestCase
 
         $this->expectException(DomainException::class);
         $service->swapPriorities(ProgramaModulo::Urdido, 1, 3);
+    }
+
+    public function test_priority_swap_requires_module_modify_permission(): void
+    {
+        $this->insertUrdido(1, 'URD-1', 'Mc Coy 1', 'Programado', 1);
+        $this->insertUrdido(2, 'URD-2', 'Mc Coy 1', 'Programado', 2);
+
+        $this->grantModulePermissions(['modificar' => 0]);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('No tienes permiso para cambiar la prioridad.');
+
+        app(ProgramBoardActionService::class)->swapPriorities(ProgramaModulo::Urdido, 1, 2);
+    }
+
+    public function test_quality_can_only_be_saved_by_the_quality_area(): void
+    {
+        $this->insertUrdido(1, 'URD-1', 'Mc Coy 1', 'Programado', 1);
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Solo el área de Calidad puede evaluar una orden.');
+
+        app(ProgramBoardActionService::class)->saveQuality(
+            ProgramaModulo::Urdido,
+            1,
+            'A',
+            'Sin observaciones'
+        );
     }
 
     public function test_cancelling_urdido_removes_related_production_and_cancels_engomado(): void

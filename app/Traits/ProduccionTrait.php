@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Trait compartido entre ModuloProduccionUrdidoController y ModuloProduccionEngomadoController.
@@ -432,7 +433,7 @@ trait ProduccionTrait
                     'turno' => $registro->{"Turno{$numeroOficial}"} ?? null,
                 ],
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al guardar oficial', ['error' => $e->getMessage()]);
@@ -515,7 +516,7 @@ trait ProduccionTrait
                     'turno' => $registro->{"Turno{$n}"},
                 ],
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al actualizar turno de oficial', ['error' => $e->getMessage()]);
@@ -530,7 +531,14 @@ trait ProduccionTrait
         try {
             $request->validate([
                 'registro_id' => 'required|integer',
-                'fecha' => 'required|date',
+                // Acotada: la captura es del turno en curso, no de fechas arbitrarias.
+                // El piso deja margen para capturar producción atrasada de días previos.
+                'fecha' => [
+                    'required',
+                    'date',
+                    'after_or_equal:'.now()->subDays(30)->toDateString(),
+                    'before_or_equal:'.now()->toDateString(),
+                ],
             ]);
 
             $model = $this->getProduccionModelClass();
@@ -552,7 +560,7 @@ trait ProduccionTrait
                 'message' => 'Fecha actualizada correctamente',
                 'data' => ['fecha' => $registro->Fecha],
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al actualizar fecha', ['error' => $e->getMessage()]);
@@ -617,7 +625,7 @@ trait ProduccionTrait
                     'kg_neto' => $registro->KgNeto,
                 ],
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al actualizar NoJulio y Tara', ['error' => $e->getMessage()]);
@@ -699,7 +707,7 @@ trait ProduccionTrait
                 'message' => 'Kg. Bruto actualizado correctamente',
                 'data' => $responseData,
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al actualizar KgBruto', ['error' => $e->getMessage()]);
@@ -712,6 +720,8 @@ trait ProduccionTrait
     {
         $this->ensureUserCanEdit();
         try {
+            // No se valida HoraFinal > HoraInicial a propósito: el turno 3 cruza
+            // medianoche (22:30–6:30), así que Hora Fin menor que Hora Inicio es válido.
             $request->validate([
                 'registro_id' => 'required|integer',
                 'campo' => 'required|string|in:HoraInicial,HoraFinal',
@@ -741,7 +751,7 @@ trait ProduccionTrait
                 'message' => ($campo === 'HoraInicial' ? 'Hora Inicial' : 'Hora Final').' actualizada correctamente',
                 'data' => ['campo' => $campo, 'valor' => $registro->$campo],
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al actualizar horas', ['error' => $e->getMessage()]);
@@ -777,6 +787,15 @@ trait ProduccionTrait
 
             // Validar campos requeridos antes de marcar como listo
             if ($request->listo) {
+                // Urdido: orden con cuenta/calibre marcada como incorrecta no se puede finalizar (ni parcial)
+                $programa = $programaModel::where('Folio', $registro->Folio)->first();
+                if ($programa && (int) ($programa->Incorrecto ?? 0) === 1) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'La orden está marcada con cuenta/calibre incorrecta. Un supervisor debe liberarla antes de finalizar.',
+                    ], 422);
+                }
+
                 $camposFaltantes = [];
 
                 if (empty($registro->HoraInicial)) {
@@ -843,7 +862,7 @@ trait ProduccionTrait
                     'status_orden' => $statusOrden,
                 ],
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al marcar registro como listo', [
@@ -861,15 +880,5 @@ trait ProduccionTrait
     protected function onRegistroDesmarcado($registro): void
     {
         // por defecto no hace nada
-    }
-
-    /**
-     * Validar que todos los registros de un folio tengan HoraInicial < HoraFinal.
-     * Retorna null si todo está bien, o un mensaje de error.
-     * Deshabilitado: se permite Hora Fin <= Hora Inicio (ej. turnos que cruzan medianoche).
-     */
-    protected function validarHorasRegistros(string $folio): ?string
-    {
-        return null;
     }
 }

@@ -173,14 +173,16 @@
                                     {{-- Finalizar (checkbox con permiso registrar) --}}
                                     @if($hasFinalizarPermission)
                                     <td class="px-0 py-1 text-center whitespace-nowrap" style="width: 28px; min-width: 28px; max-width: 28px;">
+                                        @php $bloqueadoFin = $ax || ($ordenIncorrecta ?? false); @endphp
                                         <input
                                             type="checkbox"
-                                            class="checkbox-finalizar w-4 h-4 {{ $ax ? 'text-gray-400 border-gray-400' : 'text-blue-600 border-gray-300' }} bg-gray-100 rounded focus:ring-blue-500 focus:ring-1 {{ $ax ? 'cursor-not-allowed' : 'cursor-pointer' }}"
+                                            class="checkbox-finalizar w-4 h-4 {{ $bloqueadoFin ? 'text-gray-400 border-gray-400' : 'text-blue-600 border-gray-300' }} bg-gray-100 rounded focus:ring-blue-500 focus:ring-1 {{ $bloqueadoFin ? 'cursor-not-allowed' : 'cursor-pointer' }}"
                                             data-registro-id="{{ $registroId }}"
                                             data-row-index="{{ $rowIndex }}"
                                             data-ax="{{ $ax }}"
-                                            title="{{ $ax ? 'Enviado a AX - No modificable' : 'Marcar como finalizado' }}"
+                                            title="{{ $ax ? 'Enviado a AX - No modificable' : (($ordenIncorrecta ?? false) ? 'Orden con cuenta/calibre incorrecta - un supervisor debe liberarla' : 'Marcar como finalizado') }}"
                                             {{ $listo ? 'checked' : '' }}
+                                            @disabled($ordenIncorrecta ?? false)
                                         >
                                     </td>
                                     @endif

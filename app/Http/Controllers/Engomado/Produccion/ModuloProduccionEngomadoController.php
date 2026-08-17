@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Engomado\Produccion;
 
+use App\Helpers\TurnoHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Engomado\CatUbicaciones;
 use App\Models\Engomado\EngProduccionEngomado;
@@ -11,11 +12,13 @@ use App\Models\Sistema\SYSUsuario;
 use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProgramaUrdido;
 use App\Traits\ProduccionTrait;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class ModuloProduccionEngomadoController extends Controller
 {
@@ -195,7 +198,7 @@ class ModuloProduccionEngomadoController extends Controller
                     $nombreUsuario = $user ? ($user->nombre ?? null) : null;
                     $turnoUsuario = $user ? ($user->turno ?? null) : null;
                     if (! $turnoUsuario) {
-                        $turnoUsuario = \App\Helpers\TurnoHelper::getTurnoActual();
+                        $turnoUsuario = TurnoHelper::getTurnoActual();
                     }
                     $metrosOrden = $orden->MetrajeTelas ?? $orden->Metros ?? 0;
 
@@ -423,7 +426,7 @@ class ModuloProduccionEngomadoController extends Controller
                 'message' => ucfirst($campo).' actualizado correctamente',
                 'data' => ['campo' => $campo, 'valor' => $registro->$campo],
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             return response()->json([
@@ -481,9 +484,9 @@ class ModuloProduccionEngomadoController extends Controller
                 'message' => ucfirst(str_replace('_', ' ', $request->campo)).' actualizado correctamente',
                 'data' => ['campo' => $request->campo, 'valor' => $orden->$campoBD],
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
-        } catch (\Illuminate\Database\QueryException $e) {
+        } catch (QueryException $e) {
             if (str_contains($e->getMessage(), 'Invalid column name')) {
                 return response()->json([
                     'success' => false,
@@ -557,12 +560,6 @@ class ModuloProduccionEngomadoController extends Controller
                 ], 422);
             }
 
-            // Validar horas
-            $errorHoras = $this->validarHorasRegistros($orden->Folio);
-            if ($errorHoras) {
-                return response()->json(['success' => false, 'error' => $errorHoras], 422);
-            }
-
             $formulacionesExistentes = EngProduccionFormulacionModel::where('Folio', $orden->Folio)->count();
             if ($formulacionesExistentes === 0) {
                 return response()->json([
@@ -598,7 +595,7 @@ class ModuloProduccionEngomadoController extends Controller
                     'status' => $orden->Status,
                 ],
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al finalizar orden de engomado', ['error' => $e->getMessage()]);

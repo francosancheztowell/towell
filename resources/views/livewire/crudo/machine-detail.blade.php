@@ -253,6 +253,12 @@
                             <div class="crudo-detail-panel-heading">
                                 <div>
                                     <h3>Órdenes y turnos</h3>
+                                    @php $pesoCrudoPrograma = $selectedMachine['programa']['pesoCrudo'] ?? null; @endphp
+                                    @if ($pesoCrudoPrograma)
+                                        <small title="PesoCrudo del programa de tejido en proceso (ReqProgramaTejido)">
+                                            P. crudo programa: {{ number_format((float) $pesoCrudoPrograma) }} g/pz
+                                        </small>
+                                    @endif
                                 </div>
                                 <span>{{ $selectedMachine['captureCount'] }}</span>
                             </div>
@@ -266,6 +272,7 @@
                                         <col class="crudo-orders-col-number">
                                         <col class="crudo-orders-col-number">
                                         <col class="crudo-orders-col-number">
+                                        <col class="crudo-orders-col-number">
                                         <col class="crudo-orders-col-lot">
                                     </colgroup>
                                     <thead>
@@ -273,25 +280,31 @@
                                             <th>Fecha</th>
                                             <th>No. Rollo</th>
                                             <th>Orden</th>
-                                            <th>Kg</th>
                                             <th>Pzas</th>
+                                            <th>Kg</th>
+                                            <th title="Peso crudo real en g/pz: kg de la captura entre sus piezas">Crudo</th>
                                             <th>2das</th>
                                             <th title="Lote del proveedor, ligado por la orden de urdido">Lote</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @forelse ($selectedMachine['captures'] as $capture)
+                                        @forelse (array_reverse($selectedMachine['captures']) as $capture)
+                                            @php
+                                                $capturePieces = (int) $capture['pieces'];
+                                                $captureWeight = (float) $capture['weight'];
+                                            @endphp
                                             <tr>
                                                 <td title="{{ $capture['date'] ?? '' }}">{{ ($capture['date'] ?? '') ?: '—' }}</td>
                                                 <td title="{{ $capture['purchBarcode'] ?? '' }}">{{ ($capture['purchBarcode'] ?? '') ?: '—' }}</td>
                                                 <td title="{{ $capture['weavingOrder'] ?? '' }}">{{ ($capture['weavingOrder'] ?? '') ?: '—' }}</td>
-                                                <td>{{ number_format(round((float) $capture['weight'])) }}</td>
-                                                <td>{{ number_format((int) $capture['pieces']) }}</td>
+                                                <td>{{ number_format($capturePieces) }}</td>
+                                                <td>{{ number_format($captureWeight, 2) }}</td>
+                                                <td>{{ $capturePieces > 0 ? number_format(($captureWeight * 1000) / $capturePieces) : '—' }}</td>
                                                 <td>{{ number_format((int) $capture['seconds']) }}</td>
                                                 <td title="{{ ($capture['warpingOrder'] ?? '') !== '' ? 'Urdido '.$capture['warpingOrder'] : '' }}">{{ ($capture['supplierLot'] ?? '') ?: '—' }}</td>
                                             </tr>
                                         @empty
-                                            <tr><td colspan="7">Sin capturas en el periodo seleccionado.</td></tr>
+                                            <tr><td colspan="8">Sin capturas en el periodo seleccionado.</td></tr>
                                         @endforelse
                                     </tbody>
                                 </table>

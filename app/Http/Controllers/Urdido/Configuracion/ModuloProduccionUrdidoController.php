@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Urdido\Configuracion;
 
+use App\Helpers\TurnoHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Sistema\SYSUsuario;
@@ -16,6 +17,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class ModuloProduccionUrdidoController extends Controller
 {
@@ -87,10 +89,6 @@ class ModuloProduccionUrdidoController extends Controller
     {
         $ordenId = $request->query('orden_id');
 
-        if ($request->query('check_only') === 'true' && $ordenId) {
-            return $this->handleCheckOnlyRequest($ordenId);
-        }
-
         if (! $ordenId) {
             return view('modulos.urdido.modulo-produccion-urdido', $this->getEmptyViewData());
         }
@@ -118,23 +116,6 @@ class ModuloProduccionUrdidoController extends Controller
             $this->prepareViewData($orden, $julios, $registrosProduccion, $totalRegistros));
     }
 
-    private function handleCheckOnlyRequest(int $ordenId): JsonResponse
-    {
-        $orden = UrdProgramaUrdido::find($ordenId);
-        if (! $orden) {
-            return response()->json(['puedeCrear' => false, 'tieneRegistros' => false, 'error' => 'Orden no encontrada'], 404);
-        }
-
-        $registrosCount = UrdProduccionUrdido::where('Folio', $orden->Folio)->count();
-        $usuarioActual = Auth::user();
-
-        return response()->json([
-            'puedeCrear' => true,
-            'tieneRegistros' => $registrosCount > 0,
-            'usuarioArea' => $usuarioActual ? ($usuarioActual->area ?? null) : null,
-        ]);
-    }
-
     private function getEmptyViewData(): array
     {
         return [
@@ -152,6 +133,7 @@ class ModuloProduccionUrdidoController extends Controller
             'registrosProduccion' => collect([]),
             'canEdit' => $this->usuarioPuedeEditar(),
             'maxKgNeto' => $this->maxKgNetoAllowed(),
+            'ordenIncorrecta' => false,
         ];
     }
 
@@ -230,7 +212,7 @@ class ModuloProduccionUrdidoController extends Controller
             $nombreUsuario = $user ? ($user->nombre ?? null) : null;
             $turnoUsuario = $user ? ($user->turno ?? null) : null;
             if (! $turnoUsuario) {
-                $turnoUsuario = \App\Helpers\TurnoHelper::getTurnoActual();
+                $turnoUsuario = TurnoHelper::getTurnoActual();
             }
             $metrosOrden = $orden->Metros ?? 0;
 
@@ -380,6 +362,7 @@ class ModuloProduccionUrdidoController extends Controller
             'usuarioArea' => $user ? ($user->area ?? null) : null,
             'canEdit' => $this->usuarioPuedeEditar(),
             'maxKgNeto' => $this->maxKgNetoAllowed(),
+            'ordenIncorrecta' => (int) ($orden->Incorrecto ?? 0) === 1,
         ];
     }
 
@@ -387,10 +370,13 @@ class ModuloProduccionUrdidoController extends Controller
 
     public function actualizarCamposProduccion(Request $request): JsonResponse
     {
+        $this->ensureUserCanEdit();
         try {
             $request->validate([
                 'registro_id' => 'required|integer',
-                'campo' => 'required|string|in:Hilos,Hilatura,Maquina,Operac,Transf,Vueltas,Diametro',
+                // Hilos no se edita aquí: es la llave que usa ensureProductionRecordsExist()
+                // para decidir cuántas filas crear/eliminar por folio.
+                'campo' => 'required|string|in:Hilatura,Maquina,Operac,Transf,Vueltas,Diametro',
                 'valor' => 'nullable|numeric|min:0|max:99999',
             ]);
 
@@ -417,7 +403,7 @@ class ModuloProduccionUrdidoController extends Controller
                 'message' => ucfirst($campo).' actualizado correctamente',
                 'data' => ['campo' => $campo, 'valor' => $registro->$campo],
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al actualizar campos de producción', ['error' => $e->getMessage()]);
@@ -428,6 +414,12 @@ class ModuloProduccionUrdidoController extends Controller
 
     public function getUsuariosUrdido(): JsonResponse
     {
+        abort_unless(
+            function_exists('userCan') && userCan('acceso', $this->getModuleNameForPermissions()),
+            403,
+            'No tiene acceso a este módulo.'
+        );
+
         try {
             // Incluye usuarios con área Urdido y el idusuario indicado (p. ej. oficial que en prod no tiene área Urdido).
             $idUsuarioExtraOficiales = 22;
@@ -469,6 +461,13 @@ class ModuloProduccionUrdidoController extends Controller
                 return response()->json(['success' => false, 'error' => 'Orden no encontrada'], 404);
             }
 
+            if ((int) ($orden->Incorrecto ?? 0) === 1) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'La orden está marcada con cuenta/calibre incorrecta. Un supervisor debe liberarla en Programa Urdido antes de finalizar.',
+                ], 422);
+            }
+
             if (! in_array($orden->Status, ['En Proceso', 'Parcial'])) {
                 return response()->json([
                     'success' => false,
@@ -499,12 +498,6 @@ class ModuloProduccionUrdidoController extends Controller
                     'success' => false,
                     'error' => "No se puede finalizar: hay {$registrosInvalidos} registro(s) con No. Julio vacío o Kg Bruto en cero. Revisa los registros antes de finalizar.",
                 ], 422);
-            }
-
-            // Validar horas
-            $errorHoras = $this->validarHorasRegistros($orden->Folio);
-            if ($errorHoras) {
-                return response()->json(['success' => false, 'error' => $errorHoras], 422);
             }
 
             // Validar Vueltas y Diámetro requeridos para Karl Mayer
@@ -565,7 +558,7 @@ class ModuloProduccionUrdidoController extends Controller
                     'status' => $orden->Status,
                 ],
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             Log::error('Error al finalizar orden de urdido', ['error' => $e->getMessage()]);

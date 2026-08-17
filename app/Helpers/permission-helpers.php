@@ -41,6 +41,22 @@ if (! function_exists('userCan')) {
     }
 }
 
+if (! function_exists('userEsArea')) {
+    /**
+     * Verificar si el usuario actual pertenece a un área (campo `area` de SYSUsuario).
+     *
+     * Complementa a userCan(): hay reglas de negocio que dependen del área a la que
+     * pertenece la persona y no de un permiso configurable por módulo (ej. solo el
+     * área de Calidad puede aprobar o rechazar una orden de urdido).
+     */
+    function userEsArea(string $area): bool
+    {
+        $areaUsuario = mb_strtolower(trim((string) (Auth::user()->area ?? '')));
+
+        return $areaUsuario !== '' && $areaUsuario === mb_strtolower(trim($area));
+    }
+}
+
 if (! function_exists('moduleNameForRoute')) {
     /**
      * Obtener el nombre del módulo en SYSRoles para una ruta.

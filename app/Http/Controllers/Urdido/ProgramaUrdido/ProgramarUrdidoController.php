@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Urdido\ProgramaUrdido;
 use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProgramaEngomado;
+use App\Models\Sistema\SYSMensaje;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
 use App\Services\Programas\ProgramaPrioridadService;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ProgramarUrdidoController extends Controller
 {
@@ -39,7 +41,49 @@ class ProgramarUrdidoController extends Controller
     }
 
     /**
-     * Mostrar la vista de programar urdido
+     * Respuesta 403 si el usuario no puede modificar el programa; null si sí puede.
+     */
+    private function jsonSiNoPuedeModificarPrograma(): ?JsonResponse
+    {
+        if (function_exists('userCan') && userCan('modificar', 'Programa Urdido')) {
+            return null;
+        }
+
+        return response()->json([
+            'success' => false,
+            'error' => 'No autorizado',
+        ], 403);
+    }
+
+    /**
+     * Marca (1) o quita (0) la bandera de cuenta/calibre incorrecta.
+     * Marcarla la puede hacer quien carga la orden; quitarla solo un supervisor.
+     */
+    public function marcarIncorrecto(Request $request): JsonResponse
+    {
+        $request->validate([
+            'id' => 'required|integer|exists:UrdProgramaUrdido,Id',
+            'incorrecto' => 'required|boolean',
+        ]);
+
+        $incorrecto = $request->boolean('incorrecto');
+
+        if (! $incorrecto && ! $this->usuarioPuedeEditar()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Solo un supervisor puede quitar la marca de cuenta/calibre incorrecta.',
+            ], 403);
+        }
+
+        UrdProgramaUrdido::where('Id', $request->integer('id'))
+            ->update(['Incorrecto' => $incorrecto ? 1 : 0]);
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Mostrar la vista de programar urdido (diseño clásico).
+     * El board Livewire queda disponible en la ruta .livewire.
      */
     public function index(): View
     {
@@ -212,6 +256,7 @@ class ProgramarUrdidoController extends Controller
                     'CalidadComentario',
                     'AutorizaCalidad',
                     'FechaCalidad',
+                    'Incorrecto',
                 ],
                 fn ($query) => $query
                     ->whereIn('Status', ProgramaConfig::ACTIVE_STATUSES)
@@ -250,6 +295,7 @@ class ProgramarUrdidoController extends Controller
                         'mccoy' => $mcCoy,
                         'maquina_id' => $orden->MaquinaId ?? null,
                         'status' => $orden->Status ?? null,
+                        'incorrecto' => (int) ($orden->Incorrecto ?? 0),
                         'observaciones' => $orden->Observaciones ?? '',
                         'prioridad' => $this->prioridadService->displayPriority($orden, $indexEnGrupo - 1),
                         'created_at' => $orden->CreatedAt ? $orden->CreatedAt->format('Y-m-d H:i:s') : null,
@@ -355,7 +401,11 @@ class ProgramarUrdidoController extends Controller
     public function intercambiarPrioridad(Request $request): JsonResponse
     {
         try {
-            // Habilitado para todos los usuarios con acceso al módulo
+            // Habilitado para cualquier usuario con permiso de modificar el módulo (no solo supervisores)
+            if ($noAutorizado = $this->jsonSiNoPuedeModificarPrograma()) {
+                return $noAutorizado;
+            }
+
             $request->validate([
                 'source_id' => 'required|integer|exists:UrdProgramaUrdido,Id',
                 'target_id' => 'required|integer|exists:UrdProgramaUrdido,Id',
@@ -370,14 +420,14 @@ class ProgramarUrdidoController extends Controller
                 'success' => true,
                 'message' => 'Prioridad actualizada correctamente',
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'error' => 'Error de validación: '.$e->getMessage(),
             ], 422);
         } catch (\Throwable $e) {
-            DB::rollBack();
-
+            // La transacción vive dentro de ProgramaPrioridadService::swapPriorities(),
+            // que ya hace rollback por su cuenta: aquí no hay nada que revertir.
             return response()->json([
                 'success' => false,
                 'error' => 'Error al intercambiar prioridad: '.$e->getMessage(),
@@ -411,7 +461,7 @@ class ProgramarUrdidoController extends Controller
                 'success' => true,
                 'message' => 'Observaciones guardadas correctamente',
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'error' => 'Error de validación: '.$e->getMessage(),
@@ -427,6 +477,13 @@ class ProgramarUrdidoController extends Controller
     public function actualizarCalidad(Request $request): JsonResponse
     {
         try {
+            if (! function_exists('userEsArea') || ! userEsArea('Calidad')) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Solo el área de Calidad puede evaluar una orden.',
+                ], 403);
+            }
+
             $request->validate([
                 'id' => 'required|integer|exists:UrdProgramaUrdido,Id',
                 'calidad' => ['required', 'string', Rule::in(['A', 'R', 'O'])],
@@ -460,7 +517,7 @@ class ProgramarUrdidoController extends Controller
             }
 
             $botToken = config('services.telegram.bot_token');
-            $chatIds = \App\Models\Sistema\SYSMensaje::getChatIdsPorModulo('UrdidoCalidad');
+            $chatIds = SYSMensaje::getChatIdsPorModulo('UrdidoCalidad');
 
             if (! empty($botToken) && ! empty($chatIds)) {
                 $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
@@ -485,7 +542,7 @@ class ProgramarUrdidoController extends Controller
                 'autoriza_calidad' => $orden->AutorizaCalidad,
                 'fecha_calidad' => $orden->FechaCalidad,
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'error' => 'Error de validación: '.$e->getMessage(),
@@ -624,7 +681,7 @@ class ProgramarUrdidoController extends Controller
                 'success' => true,
                 'message' => 'Status actualizado correctamente',
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             DB::rollBack();
 
             return response()->json([
@@ -663,6 +720,7 @@ class ProgramarUrdidoController extends Controller
                     'Status',
                     'CreatedAt',
                     'InventSizeId',
+                    'Incorrecto',
                 ],
                 fn ($query) => $query->whereIn('Status', ProgramaConfig::ACTIVE_STATUSES)
             );
@@ -683,6 +741,7 @@ class ProgramarUrdidoController extends Controller
                     'metros' => $orden->Metros,
                     'maquina' => $orden->MaquinaId ?? '',
                     'status' => $orden->Status ?? null,
+                    'incorrecto' => (int) ($orden->Incorrecto ?? 0),
                     'prioridad' => $this->prioridadService->displayPriority($orden, $index),
                     'created_at' => $orden->CreatedAt ? $orden->CreatedAt->format('Y-m-d H:i:s') : null,
                 ];
@@ -706,7 +765,11 @@ class ProgramarUrdidoController extends Controller
     public function actualizarPrioridades(Request $request): JsonResponse
     {
         try {
-            // Habilitado para todos los usuarios con acceso al módulo
+            // Habilitado para cualquier usuario con permiso de modificar el módulo (no solo supervisores)
+            if ($noAutorizado = $this->jsonSiNoPuedeModificarPrograma()) {
+                return $noAutorizado;
+            }
+
             $request->validate([
                 'prioridades' => 'required|array',
                 'prioridades.*.id' => 'required|integer|exists:UrdProgramaUrdido,Id',
@@ -721,7 +784,7 @@ class ProgramarUrdidoController extends Controller
                 'success' => true,
                 'message' => 'Prioridades actualizadas correctamente',
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'error' => 'Error de validación: '.$e->getMessage(),

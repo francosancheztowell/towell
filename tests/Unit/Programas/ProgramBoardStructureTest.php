@@ -46,10 +46,22 @@ class ProgramBoardStructureTest extends TestCase
         $this->assertFileDoesNotExist(resource_path('js/urd-eng/index.js'));
     }
 
-    public function test_current_program_routes_keep_rendering_the_legacy_views(): void
+    public function test_current_program_routes_render_the_livewire_board(): void
     {
-        $urdidoView = $this->app->make(ProgramarUrdidoController::class)->index();
-        $engomadoView = $this->app->make(ProgramarEngomadoController::class)->index();
+        $this->assertSame(
+            'modulos.urdido.programar-urdido-livewire',
+            $this->app->make(ProgramarUrdidoController::class)->index()->name()
+        );
+        $this->assertSame(
+            'modulos.engomado.programar-engomado-livewire',
+            $this->app->make(ProgramarEngomadoController::class)->index()->name()
+        );
+    }
+
+    public function test_legacy_views_stay_reachable_as_a_fallback(): void
+    {
+        $urdidoView = $this->app->make(ProgramarUrdidoController::class)->legacy();
+        $engomadoView = $this->app->make(ProgramarEngomadoController::class)->legacy();
 
         $this->assertSame('modulos.urdido.programar-urdido', $urdidoView->name());
         $this->assertSame('modulos.engomado.programar-engomado', $engomadoView->name());

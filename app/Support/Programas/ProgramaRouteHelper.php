@@ -16,6 +16,7 @@ final class ProgramaRouteHelper
             'actualizarPrioridades' => route('urdido.programar.urdido.actualizar.prioridades'),
             'actualizarStatus' => route('urdido.programar.urdido.actualizar.status'),
             'actualizarCalidad' => route('urdido.programar.urdido.actualizar.calidad'),
+            'marcarIncorrecto' => route('urdido.programar.urdido.marcar.incorrecto'),
             'reimpresion' => route('urdido.reimpresion.finalizadas'),
         ];
     }

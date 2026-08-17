@@ -54,12 +54,14 @@ Route::prefix('urdido')->name('urdido.')->group(function () {
 
     Route::get('/programar-urdido', [ProgramarUrdidoController::class, 'index'])->name('programar.urdido');
     Route::get('/programar-urdido/legacy', [ProgramarUrdidoController::class, 'legacy'])->name('programar.urdido.legacy');
+    Route::view('/programar-urdido/livewire', 'modulos.urdido.programar-urdido-livewire')->name('programar.urdido.livewire');
     Route::get('/programar-urdido/ordenes', [ProgramarUrdidoController::class, 'getOrdenes'])->name('programar.urdido.ordenes');
     Route::get('/programar-urdido/todas-ordenes', [ProgramarUrdidoController::class, 'getTodasOrdenes'])->name('programar.urdido.todas.ordenes');
     Route::get('/programar-urdido/verificar-en-proceso', [ProgramarUrdidoController::class, 'verificarOrdenEnProceso'])->name('programar.urdido.verificar.en.proceso');
     Route::post('/programar-urdido/intercambiar-prioridad', [ProgramarUrdidoController::class, 'intercambiarPrioridad'])->name('programar.urdido.intercambiar.prioridad');
     Route::post('/programar-urdido/actualizar-prioridades', [ProgramarUrdidoController::class, 'actualizarPrioridades'])->name('programar.urdido.actualizar.prioridades');
     Route::post('/programar-urdido/guardar-observaciones', [ProgramarUrdidoController::class, 'guardarObservaciones'])->name('programar.urdido.guardar.observaciones');
+    Route::post('/programar-urdido/marcar-incorrecto', [ProgramarUrdidoController::class, 'marcarIncorrecto'])->name('programar.urdido.marcar.incorrecto');
     Route::post('/programar-urdido/actualizar-calidad', [ProgramarUrdidoController::class, 'actualizarCalidad'])->name('programar.urdido.actualizar.calidad');
     Route::post('/programar-urdido/actualizar-status', [ProgramarUrdidoController::class, 'actualizarStatus'])->name('programar.urdido.actualizar.status');
     Route::get('/reimpresion-urdido', [ProgramarUrdidoController::class, 'reimpresionFinalizadas'])->name('reimpresion.finalizadas');

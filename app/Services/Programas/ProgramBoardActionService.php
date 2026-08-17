@@ -7,6 +7,7 @@ namespace App\Services\Programas;
 use App\Jobs\Programas\SendUrdidoQualityNotification;
 use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProgramaEngomado;
+use App\Models\Urdido\UrdProgramaUrdido;
 use App\Support\Programas\ProgramaConfig;
 use App\Support\Programas\ProgramaModulo;
 use DomainException;
@@ -24,6 +25,10 @@ class ProgramBoardActionService
     {
         if ($sourceId === $targetId) {
             return;
+        }
+
+        if (! function_exists('userCan') || ! userCan('modificar', $module->permissionModule())) {
+            throw new DomainException('No tienes permiso para cambiar la prioridad.');
         }
 
         $modelClass = $module->programModel();
@@ -125,8 +130,8 @@ class ProgramBoardActionService
             throw new DomainException('La evaluación de calidad solo aplica a Urdido.');
         }
 
-        if (! function_exists('userCan') || ! userCan('registrar', $module->permissionModule())) {
-            throw new DomainException('No tienes permiso para registrar la evaluación de calidad.');
+        if (! function_exists('userEsArea') || ! userEsArea('Calidad')) {
+            throw new DomainException('Solo el área de Calidad puede evaluar una orden.');
         }
 
         if (! in_array($quality, ['A', 'R', 'O'], true)) {
@@ -190,7 +195,7 @@ class ProgramBoardActionService
         bool $lockRows = false,
     ): ?string {
         if ($module === ProgramaModulo::Engomado) {
-            $query = \App\Models\Urdido\UrdProgramaUrdido::query()
+            $query = UrdProgramaUrdido::query()
                 ->where('Folio', $order->Folio);
 
             if ($lockRows) {

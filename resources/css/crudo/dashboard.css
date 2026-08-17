@@ -222,6 +222,13 @@
     font-weight: 950;
 }
 
+.crudo-orders-panel .crudo-detail-panel-heading small {
+    display: block;
+    color: #475569;
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
 /* En pantallas chicas el contenido scrollea dentro del panel/modal: el título
    se queda pegado arriba. El top negativo + padding compensa el padding del
    panel para que nada asome por encima del título. */
@@ -2407,25 +2414,25 @@ button.crudo-status-card:disabled {
 }
 
 .crudo-orders-table .crudo-orders-col-date {
-    width: 15%;
+    width: 13%;
 }
 
 .crudo-orders-table .crudo-orders-col-roll {
-    width: 17%;
-}
-
-.crudo-orders-table .crudo-orders-col-order {
     width: 14%;
 }
 
-/* Kg, pzas y 2das: columnas iguales y centradas, para que los números no se
-   apelotonen contra el lote. */
+.crudo-orders-table .crudo-orders-col-order {
+    width: 12%;
+}
+
+/* Pzas, kg, p. crudo y 2das: columnas iguales y centradas, para que los números
+   no se apelotonen contra el lote. */
 .crudo-orders-table .crudo-orders-col-number {
-    width: 10%;
+    width: 11%;
 }
 
 .crudo-orders-table .crudo-orders-col-lot {
-    width: 24%;
+    width: 17%;
 }
 
 .crudo-orders-table th,
@@ -2441,8 +2448,8 @@ button.crudo-status-card:disabled {
     font-size: 0.76rem;
 }
 
-.crudo-orders-table th:nth-child(n + 4):nth-child(-n + 6),
-.crudo-orders-table td:nth-child(n + 4):nth-child(-n + 6) {
+.crudo-orders-table th:nth-child(n + 4):nth-child(-n + 7),
+.crudo-orders-table td:nth-child(n + 4):nth-child(-n + 7) {
     text-align: center;
 }
 
@@ -3546,11 +3553,11 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-orders-table .crudo-orders-col-number {
-        width: 9%;
+        width: 10.5%;
     }
 
     .crudo-orders-table .crudo-orders-col-lot {
-        width: 30%;
+        width: 15%;
     }
 
     .crudo-orders-table th,
