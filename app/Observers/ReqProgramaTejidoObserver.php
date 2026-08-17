@@ -113,6 +113,12 @@ class ReqProgramaTejidoObserver
      */
     private function debeRecalcularFormulas(ReqProgramaTejido $programa): bool
     {
+        // ponytail: en KM (Karl Mayer) tiras/repeticiones/pzas/metros/total se capturan a mano en
+        // Liberar Órdenes; recalcular aquí pisaría justo lo que el usuario acaba de escribir.
+        if (in_array(strtoupper(trim((string) ($programa->SalonTejidoId ?? ''))), ['KM', 'KARL MAYER', 'KARLMAYER'], true)) {
+            return false;
+        }
+
         foreach (self::CAMPOS_RECALC_FORMULA as $campo) {
             if ($programa->wasChanged($campo) || $programa->isDirty($campo)) {
                 return true;

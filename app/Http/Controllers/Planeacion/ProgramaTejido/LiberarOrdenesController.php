@@ -25,8 +25,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LiberarOrdenesController extends Controller
 {
-    /** TwSalon en AX para BOM CRUDO de tejido (solo SMIT / Jacquard). */
-    private const BOM_CRUDO_TW_SALONES = ['SMIT', 'JACQUARD'];
+    /** TwSalon en AX para BOM CRUDO de tejido. Valores tal cual los guarda BOMTABLE. */
+    private const BOM_CRUDO_TW_SALONES = ['SMIT', 'JACQUARD', 'KM'];
 
     /** Peso estándar rodillo cuando TamanoClave / producto son Felpa (FELPA…). Metros/Pzas÷2 y marbetes×2 con mismo formato que tamaño FEL. */
     private const PESO_ROLLO_KG_FELPA = 90.0;
@@ -434,6 +434,13 @@ class LiberarOrdenesController extends Controller
                 $pCrudo = $registro->PesoCrudo ?? null;
                 $tiras = $registro->NoTiras ?? null;
 
+                // KM: tiras es capturable en la grilla; se persiste y manda sobre el maestro.
+                $esKM = $this->esSalonKM($registro);
+                if ($esKM && $this->valorRequestNumericoPresente($item['noTiras'] ?? null) && (float) $item['noTiras'] > 0) {
+                    $tiras = (int) (float) $item['noTiras'];
+                    $registro->NoTiras = $tiras;
+                }
+
                 // PesoRollo: se respeta lo que el usuario haya capturado en la grilla para CUALQUIER tamaño (incluida felpa).
                 // Si no viene en el request, se usa el valor maestro de ReqPesosRollosTejido (90 para felpa, lookup por
                 // InventSizeId/DEF para el resto) o 41.5 como último fallback.
@@ -483,7 +490,11 @@ class LiberarOrdenesController extends Controller
                 // PzasRollo = Repeticiones × NoTiras SIEMPRE (campo de solo lectura: piezas por rollo por definición).
                 // NO se respeta el valor del request ni el almacenado: quedan desfasados si cambió el peso crudo
                 // y arrastran el error a TotalRollos y TotalPzas.
-                $pzasRollo = $this->pzasRolloDesdeRepeticiones($repeticiones, $tiras);
+                // KM es la excepción: ahí Pzas x rollo se captura a mano y manda sobre la fórmula.
+                $pzasRolloManual = $esKM && $this->valorRequestNumericoPresente($item['pzasRollo'] ?? null);
+                $pzasRollo = $pzasRolloManual
+                    ? (float) $item['pzasRollo']
+                    : $this->pzasRolloDesdeRepeticiones($repeticiones, $tiras);
 
                 $this->aplicarAjusteFelSaldoMarbete($registro->InventSizeId ?? null, $saldoMarbeteValor, $registro);
 
@@ -492,7 +503,9 @@ class LiberarOrdenesController extends Controller
                 // Antes compartía guard con MtsRollo: como la grilla manda MtsRollo ya
                 // dividido, el guard se activaba y PzasRollo se guardaba sin dividir
                 // (146 en vez de 73), lo que duplicaba TotalPzas.
-                $this->aplicarAjusteFelPzasRollo($registro->InventSizeId ?? null, $pzasRollo, $registro);
+                if (! $pzasRolloManual) {
+                    $this->aplicarAjusteFelPzasRollo($registro->InventSizeId ?? null, $pzasRollo, $registro);
+                }
 
                 // MtsRollo sí se respeta del request, y la grilla lo manda ya dividido:
                 // aquí solo se ajusta cuando el servidor tuvo que calcularlo.
@@ -565,6 +578,11 @@ class LiberarOrdenesController extends Controller
                     if ($registro->PzasRollo !== null && is_numeric($registro->PzasRollo)) {
                         $registro->TotalPzas = round((float) $registro->TotalRollos * (float) $registro->PzasRollo, 0);
                     }
+                }
+
+                // KM: el total de toallas también se captura, así que va al final para que no lo pise el derivado.
+                if ($esKM && $this->valorRequestNumericoPresente($item['totalPzas'] ?? null)) {
+                    $registro->TotalPzas = round((float) $item['totalPzas'], 0);
                 }
 
                 // Asegurar que BomName se guarde correctamente si hay BomId pero no BomName
@@ -2183,17 +2201,32 @@ class LiberarOrdenesController extends Controller
             ->all();
     }
 
+    /**
+     * ponytail: KM captura a mano tiras/repeticiones/pzas/metros/total; el resto de salones
+     * sigue con las fórmulas del servidor. Solo cambia el origen del dato, no el guardado.
+     */
+    private function esSalonKM(?ReqProgramaTejido $registro): bool
+    {
+        return $registro !== null && $this->normalizarSalon((string) ($registro->SalonTejidoId ?? '')) === 'KM';
+    }
+
     private function normalizarSalonBomCrudo(ReqProgramaTejido $registro): string
     {
         return $this->normalizarSalon((string) ($registro->SalonTejidoId ?? ''));
     }
 
-    /** AX guarda 'JACUARD' en algunos registros; BOMTABLE usa 'JACQUARD'. */
+    /**
+     * Traduce el salón del programa al valor que usa BOMTABLE.TWSALON en AX:
+     * 'JACUARD' (dato sucio) → JACQUARD, 'KARL MAYER' → KM, 'ITEMA' → SMIT.
+     */
     private function normalizarSalon(string $salon): string
     {
-        $salon = strtoupper(trim($salon));
-
-        return $salon === 'JACUARD' ? 'JACQUARD' : $salon;
+        return match (strtoupper(trim($salon))) {
+            'JACUARD' => 'JACQUARD',
+            'KARL MAYER', 'KARLMAYER' => 'KM',
+            'ITEMA' => 'SMIT',
+            default => strtoupper(trim($salon)),
+        };
     }
 
     /**

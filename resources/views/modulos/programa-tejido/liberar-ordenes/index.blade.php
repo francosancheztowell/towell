@@ -203,6 +203,24 @@
                               data-row-id="' . htmlspecialchars($rowId, ENT_QUOTES, 'UTF-8') . '">';
             }
 
+            // KM (Karl Mayer): estos campos no salen de la fórmula, se capturan a mano.
+            $esKM = in_array(strtoupper(trim((string) ($registro->SalonTejidoId ?? ''))), ['KM', 'KARL MAYER', 'KARLMAYER'], true);
+            if ($esKM && in_array($field, ['NoTiras', 'Repeticiones', 'PzasRollo', 'TotalPzas', 'MtsRollo'], true)) {
+                $rowId = htmlspecialchars((string) ($registro->Id ?? uniqid('row_')), ENT_QUOTES, 'UTF-8');
+                $value = $registro->{$field} ?? null;
+                $decimales = $field === 'MtsRollo' ? 2 : 0;
+                $valueFormatted = is_numeric($value) ? number_format((float) $value, $decimales, '.', '') : '';
+
+                return '<input type="number"
+                              step="' . ($decimales > 0 ? '0.01' : '1') . '"
+                              min="0"
+                              class="editable-field w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              value="' . htmlspecialchars($valueFormatted, ENT_QUOTES, 'UTF-8') . '"
+                              data-field="' . $field . '"
+                              data-row-id="' . $rowId . '"
+                              data-original-value="' . htmlspecialchars($valueFormatted, ENT_QUOTES, 'UTF-8') . '">';
+            }
+
             $camposNumericosSoloLectura = ['MtsRollo', 'PzasRollo', 'TotalPzas', 'Repeticiones', 'SaldoMarbete', 'NoTiras', 'Densidad'];
             if (in_array($field, $camposNumericosSoloLectura, true)) {
                 $value = $registro->{$field} ?? null;
@@ -442,6 +460,7 @@
                                 data-saldo-pedido="{{ $registro->SaldoPedido ?? '' }}"
                                 data-invent-size-id="{{ $registro->InventSizeId ?? '' }}"
                                 data-es-felpa="{{ $__esFelpa ? '1' : '0' }}"
+                                data-es-km="{{ in_array(strtoupper(trim((string) ($registro->SalonTejidoId ?? ''))), ['KM', 'KARL MAYER', 'KARLMAYER'], true) ? '1' : '0' }}"
                                 title="Clic en la fila para marcar como referencia visual (azul)">
                                 @foreach($columns as $colIndex => $col)
                                 <td class="px-3 py-2 text-sm text-gray-700 whitespace-nowrap column-{{ $colIndex }} {{ $col['field'] === 'select' ? 'text-center' : '' }} {{ $col['field'] === 'prioridad' ? 'px-4 py-3' : '' }}"
@@ -1928,9 +1947,12 @@ function obtenerRegistrosSeleccionados() {
             saldoPedido: row && row.dataset.saldoPedido != null && String(row.dataset.saldoPedido).trim() !== ''
                 ? String(row.dataset.saldoPedido).replace(/,/g, '').trim()
                 : null,
-            noTiras: row && row.dataset.noTiras != null && String(row.dataset.noTiras).trim() !== ''
-                ? String(row.dataset.noTiras).replace(/,/g, '').trim()
-                : getNumericValue('NoTiras'),
+            // KM edita tiras en la grilla: el input manda sobre el dataset del maestro.
+            noTiras: (row && row.dataset.esKm === '1')
+                ? getNumericValue('NoTiras')
+                : (row && row.dataset.noTiras != null && String(row.dataset.noTiras).trim() !== ''
+                    ? String(row.dataset.noTiras).replace(/,/g, '').trim()
+                    : getNumericValue('NoTiras')),
             codigoDibujo: getCellValue('CodigoDibujo'),
             bomId: getCellValue('BomId'),
             bomName: getCellValue('BomName'),
@@ -2175,6 +2197,8 @@ function esFilaAjusteFelRollo(row) {
 function recalcularPorPesoRollo(pesoInput) {
     const row = pesoInput.closest('.row-data');
     if (!row) return;
+    // KM: tiras/repeticiones/pzas/metros/total son captura manual, la cascada los pisaría.
+    if (row.dataset.esKm === '1') return;
 
     const esFelpa = row.dataset.esFelpa === '1';
     // Felpa: sugerir 90 kg SOLO si el input viene vacío (carga inicial sin valor capturado).
