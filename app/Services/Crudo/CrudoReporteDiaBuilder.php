@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Crudo;
 
 use App\Exports\CrudoReporteDiaExport;
+use App\Models\Crudo\CrudoAuditoria;
 use DateTimeImmutable;
 use DateTimeZone;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * Arma el reporte diario de telares. Vive aparte del controlador porque el
@@ -42,7 +44,32 @@ final readonly class CrudoReporteDiaBuilder
             $this->dashboard->build($day),
             $day,
             $this->rutaLogo(),
+            $this->auditorias($day),
         );
+    }
+
+    /**
+     * Auditorías de Calidad capturadas dentro de la misma ventana 06:30 → 06:30.
+     *
+     * @return Collection<int, CrudoAuditoria>
+     */
+    private function auditorias(DateTimeImmutable $day): Collection
+    {
+        $inicio = $day->setTime(0, 0)
+            ->modify('+'.(int) config('crudo.production_day_start_minutes', 390).' minutes');
+
+        return CrudoAuditoria::query()
+            ->with([
+                'defecto1:Id,Falla',
+                'defecto2:Id,Falla',
+                'defecto3:Id,Falla',
+                'defecto4:Id,Falla',
+                'defecto5:Id,Falla',
+            ])
+            ->where('Fecha', '>=', $inicio)
+            ->where('Fecha', '<', $inicio->modify('+1 day'))
+            ->orderBy('Fecha')
+            ->get();
     }
 
     public function fileName(DateTimeImmutable $day): string

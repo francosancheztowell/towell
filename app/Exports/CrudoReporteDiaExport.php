@@ -7,6 +7,7 @@ namespace App\Exports;
 use App\DTOs\Crudo\CrudoDashboardData;
 use App\DTOs\Crudo\CrudoMachineMetrics;
 use App\Enums\Crudo\CrudoMachineState;
+use App\Models\Crudo\CrudoAuditoria;
 use App\Services\Crudo\CrudoProductionTargetService;
 use DateTimeImmutable;
 use Maatwebsite\Excel\Concerns\FromArray;
@@ -40,6 +41,11 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
     private const SALON_HEADERS = [
         'Salón', 'Telares', 'Paro', 'Mala calidad', 'Bajos kg', 'En operación', 'Sin datos',
         'Kg', 'Kg Meta', '% Cumpl.',
+    ];
+
+    private const AUDIT_HEADERS = [
+        'Hora', 'Turno', 'Salón', 'Telar', 'Orden', 'Auditor', 'Alineación',
+        'Dibujo JAC', 'Ident. julio', 'Marbetes', 'Defectos', 'Observaciones',
     ];
 
     /**
@@ -86,10 +92,20 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
 
     private int $salonTotalRow = 0;
 
+    private int $auditTitleRow = 0;
+
+    private int $auditHeaderRow = 0;
+
+    private int $auditLastRow = 0;
+
+    /**
+     * @param  iterable<int, CrudoAuditoria>  $auditorias
+     */
     public function __construct(
         private readonly CrudoDashboardData $data,
         private readonly DateTimeImmutable $day,
         private readonly ?string $rutaLogo = null,
+        private readonly iterable $auditorias = [],
     ) {
         $this->build();
     }
@@ -187,6 +203,65 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
         }
 
         $this->buildSalonBlock();
+        $this->buildAuditBlock();
+    }
+
+    /** Auditorías que Calidad capturó dentro del mismo día de producción. */
+    private function buildAuditBlock(): void
+    {
+        $this->rows[] = [''];
+        $this->auditTitleRow = count($this->rows) + 1;
+        $this->rows[] = ['AUDITORÍAS DE CALIDAD'];
+        $this->auditHeaderRow = count($this->rows) + 1;
+        $this->rows[] = self::AUDIT_HEADERS;
+
+        foreach ($this->auditorias as $auditoria) {
+            $this->rows[] = [
+                $auditoria->Fecha?->format('H:i'),
+                $auditoria->Turno,
+                $auditoria->Salon,
+                $auditoria->NoTelarId,
+                $auditoria->OrdenTrabajo,
+                $auditoria->NomEmpl,
+                $this->respuesta($auditoria->AlineacionOrden),
+                $this->respuesta($auditoria->DibujoJacquard),
+                $this->respuesta($auditoria->IdentificacionJulio),
+                $auditoria->Marbetes,
+                $this->defectos($auditoria),
+                $auditoria->Observaciones,
+            ];
+        }
+
+        if (count($this->rows) === $this->auditHeaderRow) {
+            $this->rows[] = ['Sin auditorías capturadas para el día.'];
+        }
+
+        $this->auditLastRow = count($this->rows);
+    }
+
+    private function respuesta(?bool $valor): string
+    {
+        return match ($valor) {
+            true => 'Bien',
+            false => 'Mal',
+            null => '—',
+        };
+    }
+
+    private function defectos(CrudoAuditoria $auditoria): string
+    {
+        $partes = [];
+
+        for ($slot = 1; $slot <= 5; $slot++) {
+            $defecto = $auditoria->{'defecto'.$slot};
+            $piezas = (int) ($auditoria->{"Defecto{$slot}Pzas"} ?? 0);
+
+            if ($defecto !== null) {
+                $partes[] = trim((string) $defecto->Falla).' ('.$piezas.')';
+            }
+        }
+
+        return implode(' · ', $partes);
     }
 
     /**
@@ -318,6 +393,7 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
                 $this->styleTiles($sheet);
                 $this->styleTable($sheet);
                 $this->styleSalonBlock($sheet);
+                $this->styleAuditBlock($sheet);
 
                 foreach (range('A', $last) as $column) {
                     $sheet->getColumnDimension($column)->setAutoSize(true);
@@ -432,6 +508,30 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
             ->addCondition("AND(\$L{$first}<>\"\",\$K{$first}<\$L{$first})");
         $bajoMeta->getStyle()->getFont()->setBold(true)->getColor()->setARGB('FF96700A');
         $sheet->getStyle("K{$first}:K{$lastRow}")->setConditionalStyles([$bajoMeta]);
+    }
+
+    private function styleAuditBlock(Worksheet $sheet): void
+    {
+        $last = self::LAST_COLUMN;
+        $header = $this->auditHeaderRow;
+
+        $sheet->mergeCells("A{$this->auditTitleRow}:{$last}{$this->auditTitleRow}");
+        $sheet->getStyle("A{$this->auditTitleRow}")->getFont()
+            ->setBold(true)->setSize(12)->getColor()->setARGB('FF1E293B');
+
+        $sheet->getStyle("A{$header}:{$last}{$header}")->getFont()
+            ->setBold(true)->setSize(10)->getColor()->setARGB('FFFFFFFF');
+        $sheet->getStyle("A{$header}:{$last}{$header}")->getFill()
+            ->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF334155');
+        $sheet->getStyle("A{$header}:{$last}{$header}")->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)->setWrapText(true);
+
+        $sheet->getStyle("A{$header}:{$last}{$this->auditLastRow}")->getBorders()->getAllBorders()
+            ->setBorderStyle(Border::BORDER_THIN)->getColor()->setARGB('FFCBD5E1');
+        $sheet->getStyle('A'.($header + 1).":J{$this->auditLastRow}")->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('K'.($header + 1).":{$last}{$this->auditLastRow}")->getAlignment()
+            ->setWrapText(true);
     }
 
     private function styleSalonBlock(Worksheet $sheet): void

@@ -77,8 +77,11 @@ final class EnviarReporteCrudoCommand extends Command
             return SYSMensaje::soloCorreosValidos($opcion);
         }
 
-        // Los suscriptores viven en SYSMensajes (columna Andon); el .env queda de respaldo.
-        return SYSMensaje::getCorreosPorModulo('Andon')
-            ?: SYSMensaje::soloCorreosValidos((array) config('crudo.report_recipients', []));
+        // Fijos del .env + los suscritos en SYSMensajes (columna Andon). El rescue
+        // es porque hay bases sin esa columna: los fijos deben salir de todos modos.
+        return SYSMensaje::soloCorreosValidos(array_merge(
+            (array) config('crudo.report_recipients', []),
+            rescue(static fn (): array => SYSMensaje::getCorreosPorModulo('Andon'), []),
+        ));
     }
 }

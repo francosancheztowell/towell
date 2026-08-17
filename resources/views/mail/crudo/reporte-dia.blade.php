@@ -138,7 +138,8 @@
                                            font-family:Arial,Helvetica,sans-serif">
                                     Se adjunta el <strong>reporte en Excel</strong> con el detalle de cada telar
                                     agrupado por estado (paro, mala calidad, bajos kg, sin datos y en operación),
-                                    sus kilos contra meta, calidad y el resumen por salón.
+                                    sus kilos contra meta, calidad, el resumen por salón y las
+                                    <strong>auditorías capturadas por Calidad</strong> en el día.
                                 </td>
                             </tr>
                         </table>
