@@ -3529,7 +3529,7 @@ button.crudo-status-card:disabled {
     }
 
     [data-crudo-detail-modal] .crudo-modal {
-        width: min(66rem, calc(100vw - 5rem));
+        width: min(98vw, calc(100vw - 1.25rem));
         max-height: 76vh;
     }
 
@@ -3545,34 +3545,36 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-modal-overview {
-        grid-template-columns: repeat(6, minmax(0, 1fr));
-        gap: 0.35rem;
+        grid-template-columns:
+            minmax(0, 1.35fr) minmax(0, 0.72fr) minmax(0, 0.78fr)
+            minmax(0, 0.55fr) minmax(0, 0.55fr) minmax(0, 0.45fr)
+            minmax(0, 0.7fr);
+        gap: 0.3rem;
         margin-bottom: 0.4rem;
     }
 
-    .crudo-modal-identity-card {
-        grid-column: span 4;
+    .crudo-modal-identity-card,
+    .crudo-modal-status-card,
+    .crudo-modal-kpi-obs {
+        grid-column: auto;
         min-height: 0;
-        padding: 0.24rem 0.4rem 0.26rem;
+    }
+
+    .crudo-modal-identity-card {
+        padding: 0.24rem 0.35rem 0.26rem;
     }
 
     .crudo-modal-status-card {
-        grid-column: span 2;
-        min-height: 0;
-        padding: 0.38rem 0.42rem;
-    }
-
-    .crudo-modal-kpi-obs {
-        grid-column: 1 / -1;
+        padding: 0.32rem 0.35rem;
     }
 
     .crudo-modal-overview > .crudo-modal-kpi:not(.crudo-modal-status-card) {
         min-height: 0;
-        padding: 0.38rem 0.42rem;
+        padding: 0.32rem 0.32rem;
     }
 
     .crudo-modal-kpi-gauge .crudo-gauge svg {
-        max-width: 4.2rem;
+        max-width: 3.2rem;
     }
 
     .crudo-modal-identity-card h2 {

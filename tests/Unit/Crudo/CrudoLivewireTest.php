@@ -219,13 +219,15 @@ final class CrudoLivewireTest extends TestCase
             $tabletRules,
         );
         $this->assertStringContainsString('[data-crudo-detail-modal] .crudo-modal {', $tabletRules);
-        $this->assertStringContainsString('width: min(66rem, calc(100vw - 5rem))', $tabletRules);
+        $this->assertStringContainsString('width: min(98vw, calc(100vw - 1.25rem))', $tabletRules);
         $this->assertStringContainsString('max-height: 76vh', $tabletRules);
         $this->assertStringContainsString('.crudo-modal-identity-card {', $tabletRules);
-        $this->assertStringContainsString('grid-column: span 4', $tabletRules);
         $this->assertStringContainsString('.crudo-modal-status-card {', $tabletRules);
-        $this->assertStringContainsString('grid-column: span 2', $tabletRules);
-        $this->assertStringContainsString('grid-template-columns: repeat(6, minmax(0, 1fr))', $tabletRules);
+        $this->assertStringContainsString('grid-column: auto', $tabletRules);
+        $this->assertStringContainsString(
+            'minmax(0, 1.35fr) minmax(0, 0.72fr) minmax(0, 0.78fr)',
+            $tabletRules,
+        );
         $this->assertStringContainsString('white-space: normal', $tabletRules);
         $this->assertStringContainsString(
             'grid-template-columns: minmax(0, 1.6fr) minmax(8rem, 0.65fr) minmax(9rem, 0.75fr)',
