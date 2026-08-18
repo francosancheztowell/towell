@@ -255,9 +255,9 @@ class AtaMontadoTelasSheet implements FromCollection, WithColumnWidths, WithEven
                 'Tipo' => $this->transformarTipo($item->Tipo),
                 'No. Telar' => $item->NoTelarId ?? '-',
                 'Merma Kg' => $item->MergaKg !== null ? number_format($item->MergaKg, 2) : '-',
-                'Hora Paro' => $item->HoraParo ?? '-',
-                'Hora Arranque' => $item->HoraArranque ?? '-',
-                'Hr. Inicio' => $item->HrInicio ?? '-',
+                'Hora Paro' => $this->formatearHora($item->HoraParo),
+                'Hora Arranque' => $this->formatearHora($item->HoraArranque),
+                'Hr. Inicio' => $this->formatearHora($item->HrInicio),
                 'Calidad' => $item->Calidad ?? '-',
                 'Limpieza' => $item->Limpieza ?? '-',
                 'Estatus' => $item->Estatus ?? '-',
@@ -404,5 +404,31 @@ class AtaMontadoTelasSheet implements FromCollection, WithColumnWidths, WithEven
         }
 
         return $tipo ?? '-';
+    }
+
+    protected function formatearHora(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '-';
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('H:i');
+        }
+
+        $raw = trim((string) $value);
+        if ($raw === '' || $raw === '-') {
+            return '-';
+        }
+
+        if (preg_match('/(\d{1,2}):(\d{2})/', $raw, $matches) === 1) {
+            return sprintf('%02d:%02d', (int) $matches[1], (int) $matches[2]);
+        }
+
+        try {
+            return Carbon::parse($raw)->format('H:i');
+        } catch (\Throwable $e) {
+            return '-';
+        }
     }
 }
