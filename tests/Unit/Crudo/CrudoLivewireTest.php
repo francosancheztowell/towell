@@ -188,9 +188,11 @@ final class CrudoLivewireTest extends TestCase
             ->assertSee('>41 kg</span>', false)
             ->assertSee('>95%</span>', false)
             ->assertSee('<strong>41</strong>', false)
-            // Calidad y eficiencia globales viven en los velocímetros.
-            ->assertSee('<strong>95<em>%</em></strong>', false)
-            ->assertSee('<strong>81<em>%</em></strong>', false);
+            // Calidad y eficiencia globales viven en los velocímetros. Se comprueba
+            // el aria-label y no el marcado: la cifra ya pasó de <strong> a <text>
+            // dentro del SVG, y lo que importa es que se redondee a entero.
+            ->assertSee('aria-label="Calidad: 95%"', false)
+            ->assertSee('aria-label="Eficiencia: 81%"', false);
     }
 
     public function test_tablet_keeps_the_summary_in_a_compact_sidebar(): void
