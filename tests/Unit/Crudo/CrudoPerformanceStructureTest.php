@@ -89,7 +89,7 @@ final class CrudoPerformanceStructureTest extends TestCase
 
         $this->assertIsString($css);
         $this->assertMatchesRegularExpression(
-            '/\.crudo-modal-program\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s',
+            '/\.crudo-modal-program\s*\{[^}]*display:\s*grid/s',
             $css,
         );
         $this->assertMatchesRegularExpression(

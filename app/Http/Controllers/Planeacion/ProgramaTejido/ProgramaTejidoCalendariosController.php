@@ -9,6 +9,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB as DBFacade;
@@ -48,6 +49,8 @@ class ProgramaTejidoCalendariosController extends Controller
 
     public function actualizarCalendariosMasivo(Request $request)
     {
+        AuditoriaHelper::contexto('CALENDARIOS');
+
         set_time_limit(300);
 
         try {
@@ -177,18 +180,6 @@ class ProgramaTejidoCalendariosController extends Controller
 
                         $cambio = (! $esEnProceso && $oldInicioStr !== $inicioStr) || ($oldFinStr !== $finStr);
 
-                        if (! $esEnProceso && $oldInicioStr !== $inicioStr) {
-                            AuditoriaHelper::logCambioFechaInicio(
-                                'ReqProgramaTejido',
-                                $p->Id,
-                                $oldInicioStr,
-                                $inicioStr,
-                                'Actualizar Calendarios',
-                                $request,
-                                false
-                            );
-                        }
-
                         if (! $esEnProceso) {
                             $p->FechaInicio = $inicioStr;
                         }
@@ -266,6 +257,8 @@ class ProgramaTejidoCalendariosController extends Controller
 
     public function actualizarReprogramar(Request $request, int $id)
     {
+        AuditoriaHelper::contexto('REPROGRAMAR');
+
         try {
             $request->validate([
                 'reprogramar' => 'nullable|string|in:1,2',
@@ -312,8 +305,10 @@ class ProgramaTejidoCalendariosController extends Controller
         }
     }
 
-    public function recalcularFechas(Request $request): \Illuminate\Http\JsonResponse
+    public function recalcularFechas(Request $request): JsonResponse
     {
+        AuditoriaHelper::contexto('RECALCULO');
+
         try {
             Artisan::call('programa-tejido:recalcular-fechas-produccion', ['--all' => true]);
             $output = Artisan::output();

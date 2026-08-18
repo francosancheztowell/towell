@@ -26,6 +26,7 @@
 
 namespace App\Http\Controllers\Planeacion\Utilerias;
 
+use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\QueryHelpers;
@@ -33,6 +34,8 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\MovimientoDesarrolladorService;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Planeacion\ReqTelares;
+use App\Observers\ReqProgramaTejidoObserver;
 use App\Support\Http\Concerns\HandlesApiErrors;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
@@ -51,7 +54,7 @@ class MoverOrdenesController extends Controller
     public function getTelares(): JsonResponse
     {
         try {
-            $telares = \App\Models\Planeacion\ReqTelares::query()
+            $telares = ReqTelares::query()
                 ->select('SalonTejidoId', 'NoTelarId')
                 ->whereNotNull('NoTelarId')
                 ->where('NoTelarId', '!=', '')
@@ -162,6 +165,8 @@ class MoverOrdenesController extends Controller
      */
     public function moverOrdenes(Request $request): JsonResponse
     {
+        AuditoriaHelper::contexto('MOVER_UTILERIAS');
+
         $validator = Validator::make($request->all(), [
             'ordenes_origen' => 'nullable|array',
             'ordenes_origen.*' => 'integer',
@@ -395,7 +400,7 @@ class MoverOrdenesController extends Controller
             // saveQuietly() no dispara observers: sincronizar telar/salón (y demás campos
             // mapeados) hacia CatCodificados explícitamente cuando la orden cambió de ubicación.
             if ($cambiaUbicacion) {
-                (new \App\Observers\ReqProgramaTejidoObserver)->sincronizarCatCodificados($registro);
+                (new ReqProgramaTejidoObserver)->sincronizarCatCodificados($registro);
             }
             $idsAfectados[$telarKey][] = (int) $id;
         }

@@ -201,7 +201,7 @@ final class CrudoLivewireTest extends TestCase
 
         $this->assertIsString($css);
         $matched = preg_match(
-            '/@media \(min-width: 641px\) and \(max-width: 1050px\),\s*\(hover: none\) and \(pointer: coarse\) and \(min-width: 641px\) and \(max-width: 1366px\) \{(?<rules>.*?)\n\}\n\n@media \(max-width: 860px\)/s',
+            '/@media \(min-width: 641px\) and \(max-width: 1050px\),[\r\n\s]*\(hover: none\) and \(pointer: coarse\) and \(min-width: 641px\) and \(max-width: 1366px\) \{(?<rules>.*)[\r\n]\}[\r\n]+@media \(max-width: 860px\)/s',
             $css,
             $matches,
         );
@@ -209,33 +209,30 @@ final class CrudoLivewireTest extends TestCase
         $this->assertSame(1, $matched);
         $tabletRules = $matches['rules'];
         $this->assertStringContainsString(
-            'grid-template-columns: clamp(9.5rem, 14vw, 10.25rem) minmax(0, 1fr)',
+            'grid-template-columns: clamp(11.5rem, 18vw, 14rem) minmax(0, 1fr)',
             $tabletRules,
         );
         $this->assertStringContainsString('.crudo-sidebar {', $tabletRules);
         $this->assertStringContainsString('grid-template-columns: minmax(0, 1fr)', $tabletRules);
-        $this->assertStringContainsString('grid-template-columns: 1.5rem 1.65rem minmax(0, 1fr)', $tabletRules);
         $this->assertStringContainsString(
             'grid-template-columns: minmax(0, 0.42fr) minmax(0, 1fr) minmax(0, 1.15fr)',
-            $tabletRules,
-        );
-        $this->assertStringContainsString(
-            'grid-template-columns: repeat(4, minmax(0, 1fr))',
             $tabletRules,
         );
         $this->assertStringContainsString('[data-crudo-detail-modal] .crudo-modal {', $tabletRules);
         $this->assertStringContainsString('width: min(66rem, calc(100vw - 5rem))', $tabletRules);
         $this->assertStringContainsString('max-height: 76vh', $tabletRules);
-        $this->assertStringContainsString(
-            'grid-template-columns: minmax(11rem, 1.45fr) minmax(0, 0.55fr) minmax(0, 0.7fr) minmax(0, 0.6fr) minmax(0, 0.45fr) minmax(0, 0.95fr)',
-            $tabletRules,
-        );
+        $this->assertStringContainsString('.crudo-modal-identity-card {', $tabletRules);
+        $this->assertStringContainsString('grid-column: span 4', $tabletRules);
+        $this->assertStringContainsString('.crudo-modal-status-card {', $tabletRules);
+        $this->assertStringContainsString('grid-column: span 2', $tabletRules);
+        $this->assertStringContainsString('grid-template-columns: repeat(6, minmax(0, 1fr))', $tabletRules);
+        $this->assertStringContainsString('white-space: normal', $tabletRules);
         $this->assertStringContainsString(
             'grid-template-columns: minmax(0, 1.6fr) minmax(8rem, 0.65fr) minmax(9rem, 0.75fr)',
             $tabletRules,
         );
         $this->assertStringContainsString('.crudo-orders-table .crudo-orders-col-lot {', $tabletRules);
-        $this->assertStringContainsString('width: 30%', $tabletRules);
+        $this->assertStringContainsString('width: 15%', $tabletRules);
         $this->assertStringContainsString('.crudo-orders-table td {', $tabletRules);
         $this->assertStringContainsString('font-size: 0.78rem', $tabletRules);
         $this->assertStringContainsString('.crudo-flog-simulation img {', $tabletRules);

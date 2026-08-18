@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
+use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -228,6 +230,8 @@ class BalancearTejido
     // =========================================================
     public static function actualizarPedidos(Request $request)
     {
+        AuditoriaHelper::contexto('BALANCEO');
+
         $dispatcher = ReqProgramaTejido::getEventDispatcher();
 
         try {
@@ -417,7 +421,7 @@ class BalancearTejido
                     // (TotalRollos/SaldoMarbete/NoMarbete) SOLO donde el pedido cambió
                     // (la cascada únicamente mueve fechas). Se usa la instancia refetcheada
                     // (valores ya persistidos en BD); el método trae try/catch y logging propios.
-                    $observer = new \App\Observers\ReqProgramaTejidoObserver;
+                    $observer = new ReqProgramaTejidoObserver;
                     foreach ($regsObs as $regObs) {
                         if (isset($idsPedidoCambiado[(int) $regObs->Id])) {
                             $observer->recalcularFormulasProduccion($regObs);
@@ -744,7 +748,7 @@ class BalancearTejido
         // finales en BD). recalcularFormulasProduccion trae try/catch y logging propios.
         $registroRefreshed = ReqProgramaTejido::find($registro->Id);
         if ($registroRefreshed) {
-            (new \App\Observers\ReqProgramaTejidoObserver)->recalcularFormulasProduccion($registroRefreshed);
+            (new ReqProgramaTejidoObserver)->recalcularFormulasProduccion($registroRefreshed);
         }
 
         $ultimo = (int) ($registro->Ultimo ?? 0);
@@ -965,6 +969,8 @@ class BalancearTejido
 
     public static function balancearAutomatico(Request $request): JsonResponse
     {
+        AuditoriaHelper::contexto('BALANCEO_AUTO');
+
         $request->validate([
             'ord_compartida' => 'required|integer',
             'fecha_fin_objetivo' => 'required|date',

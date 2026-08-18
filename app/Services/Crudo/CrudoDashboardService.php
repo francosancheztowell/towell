@@ -263,10 +263,21 @@ final readonly class CrudoDashboardService
                 'pesoCrudo' => is_numeric(trim((string) ($row->PesoCrudo ?? '')))
                     ? (float) trim((string) $row->PesoCrudo)
                     : null,
+                'marbetes' => $this->numberOrNull($row->NoMarbete ?? null),
+                'totalRollos' => $this->numberOrNull($row->TotalRollos ?? null),
+                'totalPedido' => $this->numberOrNull($row->TotalPedido ?? null),
+                'saldoPedido' => $this->numberOrNull($row->SaldoPedido ?? null),
             ];
         }
 
         return $programs;
+    }
+
+    private function numberOrNull(mixed $value): ?float
+    {
+        $text = trim((string) ($value ?? ''));
+
+        return is_numeric($text) ? (float) $text : null;
     }
 
     /**

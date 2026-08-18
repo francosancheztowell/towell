@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
+use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
@@ -14,6 +15,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Http\Requests\Planeacion\DividirSaldoRequest;
 use App\Http\Requests\Planeacion\DividirTelarRequest;
 use App\Http\Requests\Planeacion\DuplicarTejidoRequest;
+use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
@@ -143,11 +145,7 @@ class ProgramaTejidoOperacionesController extends Controller
         ]);
 
         $registro = ReqProgramaTejido::findOrFail($id);
-        $antes = [
-            'salon' => $registro->SalonTejidoId,
-            'telar' => $registro->NoTelarId,
-            'posicion' => $registro->Posicion ?? 0,
-        ];
+        AuditoriaHelper::contexto('CAMBIO_TELAR');
 
         if ($registro->EnProceso == 1) {
             return response()->json([
@@ -401,19 +399,6 @@ class ProgramaTejidoOperacionesController extends Controller
                 );
             }
 
-            $despues = [
-                'salon' => $registro->SalonTejidoId,
-                'telar' => $registro->NoTelarId,
-                'posicion' => $registro->Posicion ?? $targetPosition,
-            ];
-            \App\Helpers\AuditoriaHelper::logDragDrop(
-                'ReqProgramaTejido',
-                $registro->Id,
-                $antes,
-                $despues,
-                $request
-            );
-
             return response()->json([
                 'success' => true,
                 'message' => 'Telar actualizado correctamente',
@@ -640,7 +625,7 @@ class ProgramaTejidoOperacionesController extends Controller
         }
 
         try {
-            DBFacade::table((new \App\Models\Planeacion\Catalogos\CatCodificados)->getTable())
+            DBFacade::table((new CatCodificados)->getTable())
                 ->where('OrdenTejido', $noProduccion)
                 ->update([
                     'TelarId' => $nuevoTelar,

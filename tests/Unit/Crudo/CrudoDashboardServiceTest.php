@@ -252,6 +252,10 @@ final class CrudoDashboardServiceTest extends TestCase
                 'FlogsId' => 'CE-FLOG-201',
                 'NombreProducto' => 'Producto de prueba',
                 'PesoCrudo' => 482.5,
+                'NoMarbete' => 120,
+                'TotalRollos' => 45.0,
+                'TotalPedido' => 3000.0,
+                'SaldoPedido' => 1250.0,
             ],
         ];
 
@@ -266,6 +270,10 @@ final class CrudoDashboardServiceTest extends TestCase
             'flogId' => 'CE-FLOG-201',
             'nombreProducto' => 'Producto de prueba',
             'pesoCrudo' => 482.5,
+            'marbetes' => 120.0,
+            'totalRollos' => 45.0,
+            'totalPedido' => 3000.0,
+            'saldoPedido' => 1250.0,
         ], $data['machines'][0]['programa']);
     }
 

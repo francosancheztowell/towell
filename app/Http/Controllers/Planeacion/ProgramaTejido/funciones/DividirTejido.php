@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
+use App\Helpers\AuditoriaHelper;
 use App\Helpers\StringTruncator;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\OrdCompartidaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
@@ -21,10 +24,12 @@ class DividirTejido
      * Se crean nuevos registros con el saldo dividido
      * Todos comparten el mismo OrdCompartida para identificarlos
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public static function dividir(Request $request)
     {
+        AuditoriaHelper::contexto('DIVIDIR');
+
         $salonOrigen = $request->input('salon_tejido_id');
         $telarOrigen = $request->input('no_telar_id');
         $salonDestino = $request->input('salon_destino', $salonOrigen);
@@ -677,18 +682,6 @@ class DividirTejido
                 $nuevo->UpdatedAt = now();
                 $nuevo->save();
 
-                // El trigger de SYSAuditoria hace que pdo_sqlsrv devuelva el Id de auditoría;
-                // obtener el Id real de ReqProgramaTejido (mismo fix que DuplicarTejido).
-                $idReal = ReqProgramaTejido::on($nuevo->getConnectionName())
-                    ->from(ReqProgramaTejido::tableName())
-                    ->where('SalonTejidoId', $salonDestinoItem)
-                    ->where('NoTelarId', $telarDestino)
-                    ->orderByDesc('Id')
-                    ->value('Id');
-                if ($idReal !== null) {
-                    $nuevo->Id = $idReal;
-                }
-
                 $idsParaObserver[] = $nuevo->Id;
                 $registrosDatosParaRespuesta[(string) $nuevo->Id] = $nuevo->toArray();
                 $registrosParaObserver[] = $nuevo;
@@ -724,7 +717,7 @@ class DividirTejido
                     ]);
 
                 // Actualizar OrdPrincipal con el ItemId del líder en todos los registros compartidos
-                \App\Http\Controllers\Planeacion\ProgramaTejido\funciones\VincularTejido::actualizarOrdPrincipalPorOrdCompartida($nuevoOrdCompartida);
+                VincularTejido::actualizarOrdPrincipalPorOrdCompartida($nuevoOrdCompartida);
             }
 
             // Asegurar que los registros divididos mantengan EnProceso=0 (dentro de la misma transacción)
@@ -754,7 +747,7 @@ class DividirTejido
             // recalcular marbetes (Repeticiones→…→SaldoMarbete/NoMarbete) para el original Y los nuevos.
             // Las instancias en memoria tienen los valores finales (incluido el Id real);
             // recalcularFormulasProduccion trae try/catch y logging propios.
-            $observerFormulas = new \App\Observers\ReqProgramaTejidoObserver;
+            $observerFormulas = new ReqProgramaTejidoObserver;
             foreach ($registrosParaObserver as $regFormulas) {
                 $observerFormulas->recalcularFormulasProduccion($regFormulas);
             }
@@ -1268,18 +1261,6 @@ class DividirTejido
                 $nuevo->UpdatedAt = now();
                 $nuevo->save();
 
-                // El trigger de SYSAuditoria hace que pdo_sqlsrv devuelva el Id de auditoría;
-                // obtener el Id real de ReqProgramaTejido (mismo fix que DuplicarTejido).
-                $idReal = ReqProgramaTejido::on($nuevo->getConnectionName())
-                    ->from(ReqProgramaTejido::tableName())
-                    ->where('SalonTejidoId', $salonDestinoItem)
-                    ->where('NoTelarId', $telarDestino)
-                    ->orderByDesc('Id')
-                    ->value('Id');
-                if ($idReal !== null) {
-                    $nuevo->Id = $idReal;
-                }
-
                 $idsParaObserver[] = $nuevo->Id;
                 $registrosParaObserver[] = $nuevo;
                 $totalCreados++;
@@ -1317,7 +1298,7 @@ class DividirTejido
             // para los registros actualizados y los nuevos (instancias con valores finales).
             // Se hace ANTES del refetch del grupo para que la respuesta lleve los valores nuevos.
             // recalcularFormulasProduccion trae try/catch y logging propios.
-            $observerFormulas = new \App\Observers\ReqProgramaTejidoObserver;
+            $observerFormulas = new ReqProgramaTejidoObserver;
             foreach ($registrosParaObserver as $regFormulas) {
                 $observerFormulas->recalcularFormulasProduccion($regFormulas);
             }

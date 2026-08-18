@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
+use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DuplicarTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
@@ -17,6 +18,8 @@ class RepasoController extends Controller
 {
     public function createrepaso(Request $request)
     {
+        AuditoriaHelper::contexto('REPASO');
+
         $request->validate([
             'telar' => 'required|string',
             'ancho' => 'required|numeric|min:0',

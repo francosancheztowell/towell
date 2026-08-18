@@ -183,9 +183,16 @@
                         {{-- Std del día arriba como contexto; prod manda y esperado lo acompaña. --}}
                         <p class="crudo-kpi-kilos-dia">meta <strong>{{ number_format(round($stdDia)) }}</strong></p>
 
-                        <p class="crudo-kpi-kilos-row">
-                            <strong>{{ number_format(round($kilos)) }}</strong>
-                            <span>/ {{ number_format(round($metaKilos)) }} esperado</span>
+                        <p class="crudo-kpi-kilos-row" aria-label="{{ number_format(round($kilos)) }} kg reales de {{ number_format(round($metaKilos)) }} kg esperados">
+                            <span class="crudo-kpi-kilos-col">
+                                <strong>{{ number_format(round($kilos)) }}</strong>
+                                <span>real</span>
+                            </span>
+                            <span class="crudo-kpi-kilos-sep" aria-hidden="true">/</span>
+                            <span class="crudo-kpi-kilos-col crudo-kpi-kilos-meta">
+                                <strong>{{ number_format(round($metaKilos)) }}</strong>
+                                <span>esperado</span>
+                            </span>
                         </p>
 
                         @if ($metaKilos > 0)

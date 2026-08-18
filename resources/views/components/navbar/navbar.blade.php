@@ -54,8 +54,6 @@
 
             <!-- Sección Derecha: Botones y controles -->
             <div class="flex items-center gap-4 flex-shrink-0">
-                @section('navbar-right')
-
                 <!-- Botón Configuración -->
                 @if($tieneConfiguracion)
                     <a href="{{ route('configuracion.index') }}"

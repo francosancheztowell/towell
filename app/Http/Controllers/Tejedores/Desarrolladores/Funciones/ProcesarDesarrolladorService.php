@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Tejedores\Desarrolladores\Funciones;
 
+use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\QueryHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\Catalogos\CatCodificados;
-use App\Models\Planeacion\OrdenFinalizadaAuditoria;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Tejedores\TelTelaresOperador;
@@ -45,6 +45,12 @@ class ProcesarDesarrolladorService
             $minutosCambio = $this->calcularMinutosCambio($validated['HoraInicio'] ?? null, $validated['HoraFinal'] ?? null);
             $fechaInicioProgramada = $this->construirFechaInicioProgramada($validated['HoraFinal'] ?? null);
             $longitudLuchaTot = $this->normalizarLongitudLucha($validated['LongitudLuchaTot'] ?? null);
+
+            AuditoriaHelper::contexto(
+                ($validated['accion'] ?? 'finalizar') === 'finalizar'
+                    ? 'FINALIZA_DESARROLLADORES'
+                    : 'MOVER_DESARROLLADORES'
+            );
 
             $resultado = DB::transaction(function () use (
                 $validated,
@@ -168,34 +174,6 @@ class ProcesarDesarrolladorService
                     'codigoDibujoAnterior' => $codigoDibujoAnterior,
                 ];
             });
-
-            $accion = $validated['accion'] ?? 'finalizar';
-            if ($accion === 'finalizar' && ! empty($resultado['programa'])) {
-                /** @var ReqProgramaTejido $prog */
-                $prog = $resultado['programa'];
-                $ctx = $resultado['contexto'];
-                $orig = $resultado['contextoOrigenInicial'] ?? ['salonOrigen' => null, 'telarOrigen' => null];
-                try {
-                    OrdenFinalizadaAuditoria::registrarDesarrolladorFinalizar(
-                        (int) $prog->Id,
-                        (string) $validated['NoProduccion'],
-                        $orig['salonOrigen'] ?? null,
-                        $orig['telarOrigen'] ?? null,
-                        $ctx['salonDestino'] ?? null,
-                        $ctx['telarDestino'] ?? null,
-                        isset($validated['Desarrollador']) ? trim((string) $validated['Desarrollador']) : null,
-                        [
-                            'es_cambio_telar' => (bool) ($ctx['esCambioTelar'] ?? false),
-                            'cambio_telar_activo' => (bool) ($validated['CambioTelarActivo'] ?? false),
-                        ]
-                    );
-                } catch (\Throwable $e) {
-                    Log::warning('Auditoria desarrollador finalizar: no se pudo registrar', [
-                        'no_produccion' => $validated['NoProduccion'] ?? null,
-                        'message' => $e->getMessage(),
-                    ]);
-                }
-            }
 
             if (! empty($resultado['programa'])) {
                 $this->enviarNotificacion(

@@ -7,11 +7,11 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\ProgramaTejidoSecuenciaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\MovimientoDesarrolladorService;
-use App\Models\Planeacion\OrdenFinalizadaAuditoria;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -24,7 +24,7 @@ class EliminarTejido
      * Solo elimina si Reprogramar es null o vacío
      *
      * @param  int  $id  ID del registro a eliminar
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public static function eliminar(int $id)
     {
@@ -99,7 +99,7 @@ class EliminarTejido
             }
 
             // Eliminar registro (las líneas se eliminan por ON DELETE CASCADE en BD)
-            self::registrarAuditoriaDeletePrograma($registro, 'eliminar');
+            AuditoriaHelper::contexto('ELIMINAR');
             $registro->delete();
 
             // Optimizado: usar Posicion primero para aprovechar índices
@@ -161,7 +161,7 @@ class EliminarTejido
      * Se recalcula toda la secuencia del telar.
      *
      * @param  int  $id  ID del registro en proceso a eliminar
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public static function eliminarEnProceso(int $id)
     {
@@ -212,25 +212,8 @@ class EliminarTejido
                 ]);
             }
 
-            $salonAuditoria = TelarSalonResolver::normalizeSalon($salon, $telar);
-            $telarAuditoria = TelarSalonResolver::normalizeTelar($telar);
-            try {
-                OrdenFinalizadaAuditoria::registrarUtileriaFinalizar(
-                    (int) $registro->Id,
-                    trim((string) ($registro->NoProduccion ?? '')),
-                    $salonAuditoria,
-                    $telarAuditoria,
-                    ['en_proceso' => true, 'origen' => 'programa_destroy_en_proceso']
-                );
-            } catch (\Throwable $e) {
-                Log::warning('eliminarEnProceso: no se pudo registrar auditoría', [
-                    'id' => $registro->Id ?? null,
-                    'msg' => $e->getMessage(),
-                ]);
-            }
-
             // Eliminar el registro en proceso (líneas se eliminan por ON DELETE CASCADE)
-            self::registrarAuditoriaDeletePrograma($registro, 'eliminar_en_proceso');
+            AuditoriaHelper::contexto('ELIMINAR_EN_PROCESO');
             $registro->delete();
 
             // Obtener los registros restantes
@@ -304,14 +287,15 @@ class EliminarTejido
      * Mover registro en lugar de eliminarlo según el valor de Reprogramar
      *
      * @param  ReqProgramaTejido  $registro
-     * @param  \Illuminate\Support\Collection  $registros
+     * @param  Collection  $registros
      * @param  int  $idx
      * @param  string  $reprogramar
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     private static function moverEnLugarDeEliminar($registro, $registros, $idx, $reprogramar)
     {
         $dispatcher = null;
+        AuditoriaHelper::contexto('MOVER_EN_LUGAR_DE_ELIMINAR');
         try {
             // Validar que hay al menos 2 registros
             if ($registros->count() < 2) {
@@ -395,9 +379,9 @@ class EliminarTejido
      * Transfiere TotalPedido al líder o al receptor según corresponda
      *
      * @param  ReqProgramaTejido  $registro
-     * @param  \Illuminate\Support\Collection  $registros
+     * @param  Collection  $registros
      * @param  int  $idx
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     private static function eliminarConOrdCompartida($registro, $registros, $idx)
     {
@@ -431,7 +415,7 @@ class EliminarTejido
                 self::sellarFechaFinaliza($registro);
 
                 // Eliminar registro
-                self::registrarAuditoriaDeletePrograma($registro, 'eliminar_ord_compartida_unico');
+                AuditoriaHelper::contexto('ELIMINAR_ORD_COMPARTIDA_UNICO');
                 $registro->delete();
 
                 $restantes = ReqProgramaTejido::query()->salon($salon)->telar($telar)->orderBy('FechaInicio', 'asc')->get();
@@ -564,7 +548,7 @@ class EliminarTejido
             self::sellarFechaFinaliza($registro);
 
             // Eliminar registro
-            self::registrarAuditoriaDeletePrograma($registro, 'eliminar_ord_compartida');
+            AuditoriaHelper::contexto('ELIMINAR_ORD_COMPARTIDA');
             $registro->delete();
 
             // Recalcular posiciones del telar eliminado solo si NO tenía Ultimo = 1
@@ -687,24 +671,5 @@ class EliminarTejido
                 'msg' => $e->getMessage(),
             ]);
         }
-    }
-
-    private static function registrarAuditoriaDeletePrograma(ReqProgramaTejido $registro, string $contexto): void
-    {
-        $salon = trim((string) ($registro->SalonTejidoId ?? ''));
-        $telar = trim((string) ($registro->NoTelarId ?? ''));
-        $noOrden = trim((string) ($registro->NoProduccion ?? ''));
-
-        $detalle = sprintf(
-            'Id=%d | NoOrden=%s | NoTelar=%s | Salon=%s | EnProceso=%s | Contexto=%s',
-            (int) ($registro->Id ?? 0),
-            $noOrden !== '' ? $noOrden : 'N/A',
-            $telar !== '' ? $telar : 'N/A',
-            $salon !== '' ? $salon : 'N/A',
-            (string) ((int) ($registro->EnProceso ? 1 : 0)),
-            $contexto
-        );
-
-        AuditoriaHelper::logEvento('ReqProgramaTejido', 'DELETE', $detalle);
     }
 }

@@ -38,6 +38,7 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSee('wire:init="loadDetail"', false)
             ->assertSee('Consultando capturas y defectos')
             ->assertSee('crudo-modal-overview', false)
+            ->assertSee('Sin alertas en este periodo')
             ->assertSee('Agregar auditoría')
             ->assertDontSee('Órdenes y turnos');
 
@@ -313,7 +314,7 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertDontSee('data-crudo-modal', false);
     }
 
-    public function test_program_order_is_in_the_title_and_product_name_is_next_to_ax_key(): void
+    public function test_product_name_is_in_the_title_and_order_is_next_to_ax_key(): void
     {
         $machine = $this->machineData();
         $machine['programa'] = [
@@ -323,24 +324,37 @@ final class CrudoMachineDetailTest extends TestCase
             'inventSizeId' => '100X200',
             'flogId' => 'CE-NOV25-LGONZ-F001399',
             'nombreProducto' => 'Producto de prueba',
+            'marbetes' => 12,
+            'totalRollos' => 99,
+            'totalPedido' => 7488,
+            'saldoPedido' => 2456,
         ];
 
         $component = Livewire::test(TestableCrudoMachineDetail::class)
             ->dispatch('open-crudo-detail', telar: '201', machine: $machine)
-            ->assertSee('crudo-modal-order', false)
-            ->assertSee('ORD-PROG-201')
-            ->assertSee('Nombre')
+            ->assertSee('crudo-modal-product', false)
             ->assertSee('Producto de prueba')
+            ->assertSee('Orden')
+            ->assertSee('ORD-PROG-201')
             ->assertSee('Clave AX')
             ->assertSee('AX-201')
             ->assertSee('crudo-modal-program-field', false)
-            ->assertSee('title="Producto de prueba"', false)
+            ->assertSee('title="ORD-PROG-201"', false)
             ->assertSee('title="AX-201"', false)
+            ->assertDontSee('<dt>Nombre</dt>', false)
             ->assertDontSee('Clave modelo')
-            ->assertDontSee('Clave ORD-PROG-201');
+            ->assertDontSee('Clave ORD-PROG-201')
+            ->assertSee('Marbetes')
+            ->assertSee('>12</dd>', false)
+            ->assertSee('Saldo')
+            ->assertSee('>2,456</dd>', false)
+            ->assertDontSee('>Rollos</dt>', false)
+            ->assertDontSee('>Pedido</dt>', false)
+            ->assertDontSee('>99</dd>', false)
+            ->assertDontSee('>7,488</dd>', false);
 
         $html = $component->html();
-        $this->assertLessThan(strpos($html, 'Clave AX'), strpos($html, '<dt>Nombre</dt>'));
+        $this->assertLessThan(strpos($html, 'Clave AX'), strpos($html, '<dt>Orden</dt>'));
     }
 
     public function test_it_renders_an_active_stop_inside_the_compact_status_card(): void
@@ -353,7 +367,10 @@ final class CrudoMachineDetailTest extends TestCase
             'faultCode' => '62',
             'falla' => 'REVERSA',
             'descripcion' => 'REVERSA',
+            'tipo' => 'Mecánico',
+            'count' => 2,
             'reportedBy' => 'Calidad',
+            'depto' => 'Mantenimiento',
             'since' => '29/07/2026 15:21',
         ];
 
@@ -361,6 +378,10 @@ final class CrudoMachineDetailTest extends TestCase
             ->dispatch('open-crudo-detail', telar: '201', machine: $machine)
             ->assertSee('crudo-modal-status-card has-paro', false)
             ->assertSee('REVERSA')
+            ->assertSee('Mecánico')
+            ->assertSee('2 paros activos')
+            ->assertSee('Calidad')
+            ->assertSee('Mantenimiento')
             ->assertDontSee('>62<', false)
             ->assertSee('Desde 29/07/2026 15:21')
             ->assertDontSee('15:21:00')
