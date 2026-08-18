@@ -25,8 +25,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LiberarOrdenesController extends Controller
 {
-    /** TwSalon en AX para BOM CRUDO de tejido (solo SMIT / Jacquard). */
-    private const BOM_CRUDO_TW_SALONES = ['SMIT', 'JACQUARD'];
+    /** TwSalon en AX para BOM CRUDO de tejido. Valores tal cual los guarda BOMTABLE. */
+    private const BOM_CRUDO_TW_SALONES = ['SMIT', 'JACQUARD', 'KM'];
 
     /** Peso estándar rodillo cuando TamanoClave / producto son Felpa (FELPA…). Metros/Pzas÷2 y marbetes×2 con mismo formato que tamaño FEL. */
     private const PESO_ROLLO_KG_FELPA = 90.0;
@@ -255,6 +255,7 @@ class LiberarOrdenesController extends Controller
     public function liberar(Request $request)
     {
         set_time_limit(0);
+        AuditoriaHelper::contexto('LIBERAR');
 
         $data = $request->validate([
             'registros' => 'required|array|min:1',
@@ -946,6 +947,8 @@ class LiberarOrdenesController extends Controller
      */
     public function guardarCamposEditables(Request $request)
     {
+        AuditoriaHelper::contexto('EDITAR_LIBERAR');
+
         try {
             $data = $request->validate([
                 'id' => ['required', 'integer', Rule::exists(ReqProgramaTejido::tableName(), 'Id')],
@@ -2188,12 +2191,18 @@ class LiberarOrdenesController extends Controller
         return $this->normalizarSalon((string) ($registro->SalonTejidoId ?? ''));
     }
 
-    /** AX guarda 'JACUARD' en algunos registros; BOMTABLE usa 'JACQUARD'. */
+    /**
+     * Traduce el salón del programa al valor que usa BOMTABLE.TWSALON en AX:
+     * 'JACUARD' (dato sucio) → JACQUARD, 'KARL MAYER' → KM, 'ITEMA' → SMIT.
+     */
     private function normalizarSalon(string $salon): string
     {
-        $salon = strtoupper(trim($salon));
-
-        return $salon === 'JACUARD' ? 'JACQUARD' : $salon;
+        return match (strtoupper(trim($salon))) {
+            'JACUARD' => 'JACQUARD',
+            'KARL MAYER', 'KARLMAYER' => 'KM',
+            'ITEMA' => 'SMIT',
+            default => strtoupper(trim($salon)),
+        };
     }
 
     /**

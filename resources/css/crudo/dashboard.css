@@ -437,7 +437,7 @@ button.crudo-status-card:disabled {
 
 .crudo-kpi-kilos-dia {
     margin: 0;
-    color: #64748b;
+    color: #0284c7;
     font-size: 0.55rem;
     font-weight: 800;
     letter-spacing: 0.06em;
@@ -446,36 +446,56 @@ button.crudo-status-card:disabled {
 }
 
 .crudo-kpi-kilos-dia strong {
-    color: #334155;
+    color: #0284c7;
     font-size: 0.72rem;
     font-weight: 900;
 }
 
 .crudo-kpi-kilos-row {
     display: flex;
-    align-items: baseline;
-    gap: 0.3rem;
+    align-items: center;
+    gap: 0.4rem;
     margin: 0;
     min-width: 0;
 }
 
-.crudo-kpi-kilos-row strong {
+.crudo-kpi-kilos-col {
+    display: grid;
+    min-width: 0;
+    justify-items: start;
+}
+
+.crudo-kpi-kilos-col strong {
     color: #0f172a;
     font-size: 1.65rem;
     font-weight: 950;
     line-height: 1.05;
 }
 
-.crudo-kpi-kilos-row span {
-    overflow: hidden;
+.crudo-kpi-kilos-col > span {
     color: #64748b;
-    font-size: 0.95rem;
+    font-size: 0.58rem;
     font-weight: 800;
-    letter-spacing: 0.03em;
-    line-height: 1.2;
-    text-overflow: ellipsis;
+    letter-spacing: 0.06em;
+    line-height: 1.15;
     text-transform: uppercase;
-    white-space: nowrap;
+}
+
+.crudo-kpi-kilos-meta strong {
+    color: #0284c7;
+}
+
+.crudo-kpi-kilos-meta > span {
+    color: #0284c7;
+}
+
+.crudo-kpi-kilos-sep {
+    align-self: start;
+    margin-top: 0.15rem;
+    color: #7dd3fc;
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1;
 }
 
 .crudo-kpi-kilos {
@@ -1590,21 +1610,20 @@ button.crudo-status-card:disabled {
 
 .crudo-modal-overview {
     display: grid;
-    /* Identidad + estado, producción, calidad, eficiencia, piezas y observaciones.
-       Los dos velocímetros ocupan menos que una cifra, así que su columna es angosta. */
-    /* ponytail: mins ajustados para que las 7 columnas quepan en una fila en PC. */
+    /* Identidad manda; el estado queda más estrecho pero con descripción visible. */
     grid-template-columns:
-        minmax(13.5rem, 1.35fr) minmax(6rem, 0.55fr) minmax(7rem, 0.65fr)
-        minmax(7rem, 0.6fr) minmax(7rem, 0.6fr) minmax(4.5rem, 0.35fr)
-        minmax(8rem, 0.9fr);
-    gap: 0.45rem;
-    margin-bottom: 0.55rem;
+        minmax(15rem, 1.25fr) minmax(8.75rem, 0.68fr) minmax(7rem, 0.7fr)
+        minmax(6.2rem, 0.5fr) minmax(6.2rem, 0.5fr) minmax(5rem, 0.4fr)
+        minmax(7.5rem, 0.75fr);
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+    align-items: stretch;
 }
 
 .crudo-modal-identity-card,
 .crudo-modal-kpi {
     min-width: 0;
-    min-height: 4.75rem;
+    min-height: 0;
     border: 1px solid #dbe5ee;
     border-radius: 0.8rem;
     background: #fff;
@@ -1612,65 +1631,67 @@ button.crudo-status-card:disabled {
 
 .crudo-modal-identity-card {
     display: grid;
-    /* Salón + telar + orden | claves del programa. La segunda columna es `auto`
-       para que colapse sola en los telares sin programa. */
-    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
-    gap: 0.65rem;
-    align-items: center;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    gap: 0.08rem;
     border-color: color-mix(in srgb, var(--status) 26%, #dbe5ee);
     background: var(--status-bg-soft);
-    padding: 0.6rem 0.65rem 0.6rem 0.7rem;
+    padding: 0.28rem 0.5rem 0.3rem;
 }
 
 .crudo-modal-overview > .crudo-modal-kpi:last-child {
     padding-right: 3rem;
 }
 
-.crudo-modal-location {
-    overflow: hidden;
-    color: #475569;
-    font-size: 0.68rem;
-    font-weight: 850;
-    letter-spacing: 0.04em;
-    text-overflow: ellipsis;
-    text-transform: uppercase;
-    white-space: nowrap;
-}
-
 .crudo-modal-identity-card h2 {
-    overflow: hidden;
-    margin-top: 0.05rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.1rem 0.35rem;
+    min-width: 0;
     color: #0f172a;
-    font-size: 1.3rem;
+    font-size: 1.12rem;
     line-height: 1.05;
     font-weight: 950;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
-.crudo-modal-order {
+/* El telar cede ancho antes que la orden: si algo se recorta, que sea el prefijo. */
+.crudo-modal-telar {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.crudo-modal-product {
+    flex: 1 1 8rem;
+    min-width: 0;
+    color: var(--status-ink, var(--status));
+    font-size: 0.92em;
+    overflow-wrap: anywhere;
+}
+
+.crudo-modal-product::before {
+    content: '· ';
+    color: #94a3b8;
+}
+
+.crudo-modal-program-order dd {
     color: var(--status-ink, var(--status));
 }
 
 .crudo-modal-program {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    align-content: center;
-    gap: 0.2rem;
-    /* ponytail: sin tope duro de ancho; la columna se ajusta al contenido y el
-       texto largo baja de línea en vez de recortarse. */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: end;
+    gap: 0.08rem 0.55rem;
     min-width: 0;
-    max-width: 22rem;
-    border-left: 1px solid color-mix(in srgb, var(--status) 22%, #dbe5ee);
-    padding-left: 0.5rem;
-    overflow: hidden;
-    margin-top: 0.12rem;
+    border-top: 1px solid color-mix(in srgb, var(--status) 22%, #dbe5ee);
+    padding-top: 0.1rem;
     color: #334155;
     font-size: 0.7rem;
     font-weight: 700;
 }
 
-/* Sin background ni border: los campos se apilan como texto, no como tarjetas. */
 .crudo-modal-program-field {
     display: grid;
     min-width: 0;
@@ -1678,20 +1699,31 @@ button.crudo-status-card:disabled {
 
 .crudo-modal-program-field dt {
     color: #64748b;
-    font-size: 0.7rem;
-    font-weight: 700;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    line-height: 1.15;
+    text-transform: uppercase;
 }
 
-/* Nombre y clave AX: legibles, pero sin competir con el título del telar. */
 .crudo-modal-program-field dd {
     min-width: 0;
     margin: 0;
     color: #0f172a;
-    font-size: 1rem;
-    font-weight: 900;
-    line-height: 1.1;
-    /* Nombre de producto largo: parte de línea, no se corta con ellipsis. */
+    font-size: 1.22rem;
+    font-weight: 950;
+    line-height: 1.05;
     overflow-wrap: anywhere;
+    font-variant-numeric: tabular-nums;
+}
+
+.crudo-modal-program-ax {
+    justify-items: start;
+    text-align: left;
+}
+
+.crudo-modal-program-ax dd {
+    overflow-wrap: normal;
 }
 
 .crudo-modal-program strong {
@@ -1699,17 +1731,46 @@ button.crudo-status-card:disabled {
     font-weight: 900;
 }
 
+/* El saldo es lo que falta por producir: se lee con el color del estado. */
+.crudo-modal-orden-stat.is-saldo dd {
+    color: var(--status-ink, var(--status));
+}
+
 .crudo-modal-kpi {
     display: grid;
     align-content: center;
-    padding: 0.5rem 0.55rem;
+    justify-items: center;
+    text-align: center;
+    padding: 0.42rem 0.5rem;
 }
 
-/* El velocímetro ya trae su propio marco en el tablero; dentro de la tarjeta
-   del modal solo aporta el arco. */
+.crudo-modal-status-card,
+.crudo-modal-kpi-kilos {
+    align-content: start;
+    justify-items: stretch;
+    text-align: left;
+}
+
 .crudo-modal-kpi-gauge {
     justify-items: center;
-    padding: 0.35rem 0.3rem;
+    padding: 0.28rem 0.25rem 0.32rem;
+}
+
+.crudo-modal-kpi-gauge .crudo-gauge svg {
+    max-width: 5.1rem;
+}
+
+.crudo-modal-kpi-pieces strong {
+    font-size: 1.55rem;
+}
+
+.crudo-modal-kpi-obs {
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+}
+
+.crudo-modal-kpi-obs .crudo-modal-obs-text {
+    text-align: center;
 }
 
 /* Aviso de que la eficiencia mostrada viene de un corte anterior al día consultado. */
@@ -1729,11 +1790,6 @@ button.crudo-status-card:disabled {
     padding: 0;
     width: 100%;
 }
-
-.crudo-modal-kpi-gauge .crudo-gauge svg {
-    max-width: 4.4rem;
-}
-
 
 /* La etiqueta del velocímetro lleva el dato de apoyo (2das, último corte):
    se lee completa, sin recortes. */
@@ -1784,19 +1840,18 @@ button.crudo-status-card:disabled {
 }
 
 .crudo-modal-kpi strong {
-    overflow: hidden;
     margin-top: 0.08rem;
     color: #0f172a;
-    font-size: 1.25rem;
+    font-size: 1.2rem;
     line-height: 1.15;
     font-weight: 950;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
 }
 
 .crudo-modal-kpi .crudo-modal-state {
     color: var(--status-ink, var(--status));
-    font-size: 0.95rem;
+    font-size: 1rem;
+    white-space: normal;
 }
 
 /*
@@ -1834,32 +1889,47 @@ button.crudo-status-card:disabled {
 
 .crudo-modal-status-card .crudo-modal-paro-falla,
 .crudo-modal-status-card .crudo-modal-paro-tiempo,
-.crudo-modal-status-card .crudo-modal-paro-quien {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+.crudo-modal-status-card .crudo-modal-paro-quien,
+.crudo-modal-status-card .crudo-modal-paro-count,
+.crudo-modal-status-card .crudo-modal-status-hint {
+    overflow-wrap: anywhere;
+}
+
+.crudo-modal-status-card .crudo-modal-paro-count {
+    margin-top: 0.12rem;
+    color: #9f1239;
+    font-size: 0.68rem;
+    font-weight: 900;
 }
 
 .crudo-modal-status-card .crudo-modal-paro-falla {
-    margin-top: 0.18rem;
+    margin-top: 0.12rem;
     color: #7f1d1d;
-    font-size: 0.74rem;
+    font-size: 0.78rem;
     font-weight: 950;
+    line-height: 1.2;
 }
 
 .crudo-modal-status-card .crudo-modal-paro-tiempo {
     margin-top: 0.04rem;
     color: #9f1239;
-    font-size: 0.65rem;
+    font-size: 0.68rem;
     font-weight: 750;
 }
 
-/* Quién reportó · departamento: dato secundario del paro. */
 .crudo-modal-status-card .crudo-modal-paro-quien {
     color: #9f1239;
-    font-size: 0.62rem;
+    font-size: 0.66rem;
     font-weight: 700;
     opacity: 0.9;
+}
+
+.crudo-modal-status-card .crudo-modal-status-hint {
+    margin-top: 0.18rem;
+    color: #475569;
+    font-size: 0.72rem;
+    font-weight: 750;
+    line-height: 1.25;
 }
 
 .crudo-modal-body {
@@ -2749,10 +2819,10 @@ button.crudo-status-card:disabled {
     color: #b91c1c;
 }
 
-/* Auditorías (más angosta) + historial de paros, lado a lado. */
+/* Auditorías a lo ancho; paros del telar más estrechos, lado a lado. */
 .crudo-history-row {
     display: grid;
-    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    grid-template-columns: minmax(0, 1.7fr) minmax(16rem, 0.62fr);
     gap: 0.55rem;
     align-items: start;
 }
@@ -2910,10 +2980,10 @@ button.crudo-status-card:disabled {
 
 /* La falla es lo que se lee a distancia; lo demás es contexto. */
 .crudo-paro-falla {
-    margin: 0.1rem 0 0;
+    margin: 0.12rem 0 0;
     color: #0f172a;
-    font-size: 0.85rem;
-    font-weight: 900;
+    font-size: 1.2rem;
+    font-weight: 950;
     line-height: 1.15;
     overflow-wrap: anywhere;
 }
@@ -3397,15 +3467,15 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-kpi-kilos-row {
-        gap: 0.25rem;
+        gap: 0.3rem;
     }
 
-    .crudo-kpi-kilos-row strong {
-        font-size: 1.15rem;
+    .crudo-kpi-kilos-col strong {
+        font-size: 1.2rem;
     }
 
-    .crudo-kpi-kilos-row span {
-        font-size: 0.8rem;
+    .crudo-kpi-kilos-sep {
+        font-size: 1.05rem;
     }
 
     .crudo-kpi-kilos-dia {
@@ -3459,7 +3529,7 @@ button.crudo-status-card:disabled {
     }
 
     [data-crudo-detail-modal] .crudo-modal {
-        width: min(66rem, calc(100vw - 5rem));
+        width: min(98vw, calc(100vw - 1.25rem));
         max-height: 76vh;
     }
 
@@ -3475,50 +3545,85 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-modal-overview {
-        grid-template-columns: minmax(9.5rem, 1.25fr) minmax(0, 0.55fr) minmax(0, 0.7fr) minmax(0, 0.6fr) minmax(0, 0.6fr) minmax(0, 0.35fr) minmax(0, 0.9fr);
-        gap: 0.4rem;
+        grid-template-columns:
+            minmax(0, 1.35fr) minmax(0, 0.72fr) minmax(0, 0.78fr)
+            minmax(0, 0.55fr) minmax(0, 0.55fr) minmax(0, 0.45fr)
+            minmax(0, 0.7fr);
+        gap: 0.3rem;
         margin-bottom: 0.4rem;
     }
 
-    .crudo-modal-kpi-gauge .crudo-gauge svg {
-        max-width: 3.5rem;
+    .crudo-modal-identity-card,
+    .crudo-modal-status-card,
+    .crudo-modal-kpi-obs {
+        grid-column: auto;
+        min-height: 0;
     }
 
     .crudo-modal-identity-card {
-        grid-column: auto;
-        min-height: 4.1rem;
-        padding: 0.4rem 0.45rem;
+        padding: 0.24rem 0.35rem 0.26rem;
+    }
+
+    .crudo-modal-status-card {
+        padding: 0.32rem 0.35rem;
+    }
+
+    .crudo-modal-overview > .crudo-modal-kpi:not(.crudo-modal-status-card) {
+        min-height: 0;
+        padding: 0.32rem 0.32rem;
+    }
+
+    .crudo-modal-kpi-gauge .crudo-gauge svg {
+        max-width: 3.2rem;
     }
 
     .crudo-modal-identity-card h2 {
-        font-size: 1rem;
-    }
-
-    .crudo-modal-identity-card {
-        grid-template-columns: minmax(0, 1fr);
+        font-size: 1.02rem;
+        white-space: normal;
     }
 
     .crudo-modal-program {
-        grid-column: 1;
-        gap: 0.2rem;
-        min-width: 0;
-        max-width: none;
-        border-left: 0;
-        padding-left: 0;
-        font-size: 0.58rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.12rem 0.7rem;
+        font-size: 0.62rem;
     }
 
-    .crudo-modal-kpi {
-        min-height: 4.1rem;
-        padding: 0.42rem 0.5rem;
+    .crudo-modal-program-field dt {
+        font-size: 0.62rem;
+    }
+
+    .crudo-modal-program-field dd {
+        font-size: 1.08rem;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
     }
 
     .crudo-modal-kpi strong {
-        font-size: 1.05rem;
+        font-size: 1rem;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
+    }
+
+    .crudo-modal-kpi .crudo-modal-state {
+        font-size: 0.88rem;
+        line-height: 1.15;
     }
 
     .crudo-modal-kpi small {
-        font-size: 0.7rem;
+        font-size: 0.64rem;
+        line-height: 1.2;
+        white-space: normal;
+    }
+
+    .crudo-modal-status-card .crudo-modal-paro-falla,
+    .crudo-modal-status-card .crudo-modal-paro-tiempo,
+    .crudo-modal-status-card .crudo-modal-paro-quien,
+    .crudo-modal-status-card .crudo-modal-status-hint {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
     }
 
     .crudo-modal-overview > .crudo-modal-kpi:last-child {
@@ -3536,7 +3641,7 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-history-row {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1.55fr) minmax(14rem, 0.68fr);
         gap: 0.4rem;
     }
 
@@ -3800,9 +3905,20 @@ button.crudo-status-card:disabled {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .crudo-modal-identity-card {
+    .crudo-modal-program {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .crudo-modal-identity-card,
+    .crudo-modal-status-card,
+    .crudo-modal-kpi-obs {
         grid-column: 1 / -1;
         padding-right: 3.5rem;
+    }
+
+    .crudo-modal-status-card,
+    .crudo-modal-kpi-obs {
+        padding-right: 0.65rem;
     }
 
     .crudo-modal-overview > .crudo-modal-kpi:last-child {

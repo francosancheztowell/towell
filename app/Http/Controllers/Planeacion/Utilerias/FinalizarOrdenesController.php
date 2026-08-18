@@ -27,12 +27,12 @@
 
 namespace App\Http\Controllers\Planeacion\Utilerias;
 
+use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\VincularTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\MovimientoDesarrolladorService;
 use App\Models\Planeacion\Catalogos\CatCodificados;
-use App\Models\Planeacion\OrdenFinalizadaAuditoria;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Support\Http\Concerns\HandlesApiErrors;
 use App\Support\Planeacion\TelarSalonResolver;
@@ -40,7 +40,6 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class FinalizarOrdenesController extends Controller
 {
@@ -272,22 +271,8 @@ class FinalizarOrdenesController extends Controller
                 // 1d) Sincronizar Pedido/Produccion/Saldos a CatCodificados
                 $movimientoService->actualizarReqModelosDesdePrograma($registro);
 
-                try {
-                    OrdenFinalizadaAuditoria::registrarUtileriaFinalizar(
-                        (int) $registro->Id,
-                        trim((string) ($registro->NoProduccion ?? '')),
-                        $salonTejido,
-                        $noTelarId,
-                        ['en_proceso' => (bool) $registro->EnProceso]
-                    );
-                } catch (\Throwable $e) {
-                    Log::warning('Auditoria utileria finalizar: no se pudo registrar', [
-                        'registro_id' => $registro->Id ?? null,
-                        'message' => $e->getMessage(),
-                    ]);
-                }
-
                 // 1e) Eliminar el registro físicamente
+                AuditoriaHelper::contexto('FINALIZA_UTILERIAS');
                 $registro->delete();
 
                 // Registrar telar afectado

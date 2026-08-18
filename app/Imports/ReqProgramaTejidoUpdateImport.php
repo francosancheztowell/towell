@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Imports;
 
+use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
@@ -46,6 +47,11 @@ class ReqProgramaTejidoUpdateImport implements ToCollection, WithHeadingRow, Wit
      * Id => ['registro' => instancia guardada (conserva wasChanged), 'cambioFormula' => bool]
      */
     private array $registrosAfectadosChunk = [];
+
+    public function __construct()
+    {
+        AuditoriaHelper::contexto('IMPORT_UPDATE');
+    }
 
     public function collection(Collection $rows)
     {

@@ -78,3 +78,29 @@ BEGIN
     FROM inserted i
     FULL JOIN deleted d ON i.Id = d.Id;
 END
+
+
+/*
+  OJO: sp_SetAppContext vuelve a 3 parametros, pero AuditoriaHelper::contexto() lo llama
+  con 4. La llamada fallara y quedara en el log de Laravel sin tumbar la operacion, pero
+  para revertir de verdad hay que revertir tambien el codigo PHP.
+*/
+/* sp_SetAppContext: definicion previa (sin @Accion). */
+ALTER PROCEDURE dbo.sp_SetAppContext
+    @UsuarioId INT = NULL,
+    @Usuario   VARCHAR(120) = NULL,
+    @IP        VARCHAR(64) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @s VARCHAR(128);
+    SET @s = 'uid=' + ISNULL(CAST(@UsuarioId AS VARCHAR(20)), '')
+           + ';user=' + ISNULL(@Usuario, '')
+           + ';ip=' + ISNULL(@IP, '');
+
+    DECLARE @b VARBINARY(128);
+    SET @b = CONVERT(VARBINARY(128), LEFT(@s, 128));
+
+    SET CONTEXT_INFO @b;
+END

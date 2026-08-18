@@ -73,7 +73,9 @@ return [
     'cache_stale_seconds' => max(60, (int) env('CRUDO_CACHE_STALE_SECONDS', 3600)),
     'cache_lock_seconds' => max(15, (int) env('CRUDO_CACHE_LOCK_SECONDS', 60)),
     'catalog_cache_seconds' => max(0, (int) env('CRUDO_CATALOG_CACHE_SECONDS', 300)),
-    'detail_cache_seconds' => max(0, (int) env('CRUDO_DETAIL_CACHE_SECONDS', $pollSeconds - 1)),
+    // ponytail: por encima del pulso, si no el caché caduca justo antes de cada
+    // poll y reabrir el mismo telar siempre repite la consulta de ~210 ms a TI.
+    'detail_cache_seconds' => max(0, (int) env('CRUDO_DETAIL_CACHE_SECONDS', $pollSeconds + 5)),
     // Último detalle exitoso por telar/rango/turno: se sirve si la consulta a TI
     // falla al refrescar, y vive fuera del snapshot de Livewire.
     'detail_fallback_seconds' => max(60, (int) env('CRUDO_DETAIL_FALLBACK_SECONDS', 900)),

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Planeacion\Alineacion\AlineacionController;
+use App\Http\Controllers\Planeacion\Auditoria\AuditoriaProgramaTejidoController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatAplicaciones\AplicacionesController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatCalendarios\CalendarioController;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatEficiencias\CatalagoEficienciaController;
@@ -200,6 +201,7 @@ Route::delete('/planeacion/programa-tejido/redbooth/{programa}', [RedboothProgra
     ->name('programa-tejido.redbooth.destroy');
 
 // Rutas específicas de programa-tejido (sin parámetros dinámicos)
+Route::get('/planeacion/programa-tejido/auditoria', [AuditoriaProgramaTejidoController::class, 'index'])->name('programa-tejido.auditoria');
 Route::get('/planeacion/programa-tejido/liberar-ordenes', [LiberarOrdenesController::class, 'index'])->name('programa-tejido.liberar-ordenes');
 Route::post('/planeacion/programa-tejido/liberar-ordenes/procesar', [LiberarOrdenesController::class, 'liberar'])->name('programa-tejido.liberar-ordenes.procesar');
 Route::get('/planeacion/programa-tejido/liberar-ordenes/bom-sugerencias', [LiberarOrdenesController::class, 'obtenerBomYNombre'])->name('programa-tejido.liberar-ordenes.bom');

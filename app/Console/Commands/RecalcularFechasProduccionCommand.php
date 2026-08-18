@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
@@ -19,6 +20,8 @@ class RecalcularFechasProduccionCommand extends Command
 
     public function handle(): int
     {
+        AuditoriaHelper::contexto('RECALCULO_CLI');
+
         set_time_limit(300);
         $all = $this->option('all');
         $hours = max(1, (int) $this->option('hours'));

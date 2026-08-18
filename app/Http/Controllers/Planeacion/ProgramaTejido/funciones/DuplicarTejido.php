@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
+use App\Helpers\AuditoriaHelper;
 use App\Helpers\StringTruncator;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\OrdCompartidaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
@@ -17,6 +18,8 @@ class DuplicarTejido
 {
     public static function duplicar(Request $request)
     {
+        AuditoriaHelper::contexto('DUPLICAR');
+
         $data = $request->validated();
 
         $salonOrigen = $data['salon_tejido_id'];
@@ -554,17 +557,6 @@ class DuplicarTejido
                 $nuevo->HoraModificacion = $fechaActual->format('H:i:s');
                 $nuevo->UsuarioModifica = $usuarioActual;
                 $nuevo->save();
-
-                // El trigger que inserta en SYSAuditoria hace que el driver devuelva ese Id; obtener el Id real de ReqProgramaTejido.
-                $idReal = ReqProgramaTejido::on($nuevo->getConnectionName())
-                    ->from(ReqProgramaTejido::tableName())
-                    ->where('SalonTejidoId', $nuevo->SalonTejidoId)
-                    ->where('NoTelarId', $nuevo->NoTelarId)
-                    ->orderByDesc('Id')
-                    ->value('Id');
-                if ($idReal !== null) {
-                    $nuevo->Id = $idReal;
-                }
 
                 $idsParaObserver[] = $nuevo->Id;
                 $registrosDatosParaRespuesta[(string) $nuevo->Id] = $nuevo->toArray();

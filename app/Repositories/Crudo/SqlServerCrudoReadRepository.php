@@ -323,6 +323,10 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
                 'NombreProducto',
                 'ProdKgDia',
                 'PesoCrudo',
+                'NoMarbete',
+                'TotalRollos',
+                'TotalPedido',
+                'SaldoPedido',
             ])
             ->all();
     }

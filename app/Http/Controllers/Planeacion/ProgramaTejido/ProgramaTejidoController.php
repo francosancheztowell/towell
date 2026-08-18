@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
+use App\Helpers\AuditoriaHelper;
 use App\Helpers\StringTruncator;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\EditTejido;
@@ -177,6 +178,8 @@ class ProgramaTejidoController extends Controller
 
     public function store(Request $request)
     {
+        AuditoriaHelper::contexto('CREAR');
+
         $request->validate([
             'salon_tejido_id' => 'required|string',
             'tamano_clave' => 'nullable|string',

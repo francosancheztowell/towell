@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Contracts\Crudo\CrudoDashboardProvider;
 use App\Contracts\Crudo\CrudoFlogProvider;
 use App\Contracts\Crudo\CrudoReadRepository;
+use App\Database\SqlServerScopeIdentityProcessor;
 use App\Models\Atadores\AtaMontadoTelasModel;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\AtaMontadoTelasObserver;
@@ -13,7 +14,9 @@ use App\Repositories\Crudo\SqlServerCrudoReadRepository;
 use App\Services\Crudo\CachedCrudoDashboardProvider;
 use App\Services\Crudo\CrudoFlogService;
 use App\Services\Trazabilidad\TrazabilidadProgramaLookupService;
+use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Routing\Route as RoutingRoute;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
@@ -39,6 +42,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // pdo_sqlsrv resuelve lastInsertId() con @@IDENTITY, que devuelve el Id que
+        // genera el trigger de auditoría en SYSAuditoria en vez del de la tabla real.
+        Event::listen(ConnectionEstablished::class, function (ConnectionEstablished $event) {
+            if ($event->connection->getDriverName() === 'sqlsrv') {
+                $event->connection->setPostProcessor(new SqlServerScopeIdentityProcessor);
+            }
+        });
+
         // Livewire 4 deriva el prefijo /livewire-<hash8> del APP_KEY
         // (EndpointResolver::prefix). Publicar /livewire/update fija un endpoint
         // estable para todas las páginas nuevas. El hash del APP_KEY vigente se

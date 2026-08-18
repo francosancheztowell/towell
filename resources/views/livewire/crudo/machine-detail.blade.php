@@ -31,6 +31,13 @@
     $productName = trim((string) ($selectedMachine['programa']['nombreProducto'] ?? ''));
     $itemId = trim((string) ($selectedMachine['programa']['itemId'] ?? ''));
 
+    // Solo NoMarbete y SaldoPedido de ReqProgramaTejido: dos cifras grandes, sin rollos ni pedido.
+    $num = fn (mixed $v) => is_numeric($v) ? number_format(round((float) $v)) : '—';
+    $ordenStats = [
+        ['label' => 'Marbetes', 'value' => $num($selectedMachine['programa']['marbetes'] ?? null)],
+        ['label' => 'Saldo', 'value' => $num($selectedMachine['programa']['saldoPedido'] ?? null), 'tone' => 'saldo'],
+    ];
+
     $detailKilos = (float) ($selectedMachine['kilos'] ?? 0);
     $detailExpectedKilos = ($selectedMachine['productionStandardStatus'] ?? 'missing') === 'missing'
         ? 0.0
@@ -81,45 +88,69 @@
                 >
                     <section class="crudo-modal-overview" data-state="{{ $selectedMachine['state'] }}">
                         <article class="crudo-modal-identity-card">
-                            <div class="min-w-0">
-                                <p class="crudo-modal-location">
-                                    {{ $selectedMachine['salon'] }} · {{ $selectedMachine['group'] ?: 'Sin grupo' }}
-                                </p>
-                                <h2 id="crudo-machine-modal-title">
-                                    {{ $selectedMachine['name'] }}
-                                    @if ($programOrder !== '')
-                                        <span class="crudo-modal-order">- {{ $programOrder }}</span>
-                                    @endif
-                                </h2>
-                            </div>
+                            <h2 id="crudo-machine-modal-title">
+                                <span class="crudo-modal-telar">{{ $selectedMachine['name'] }}</span>
+                                @if ($productName !== '')
+                                    <span class="crudo-modal-product">{{ $productName }}</span>
+                                @endif
+                            </h2>
 
-                            {{-- Segunda columna de la tarjeta: las claves del programa. --}}
                             @if ($selectedMachine['programa'])
                                 <dl class="crudo-modal-program">
-                                    <div class="crudo-modal-program-field">
-                                        <dt>Nombre</dt>
-                                        <dd title="{{ $productName !== '' ? $productName : 'N/D' }}">
-                                            {{ $productName !== '' ? $productName : 'N/D' }}
+                                    <div class="crudo-modal-program-field crudo-modal-program-order">
+                                        <dt>Orden</dt>
+                                        <dd title="{{ $programOrder !== '' ? $programOrder : 'N/D' }}">
+                                            {{ $programOrder !== '' ? $programOrder : 'N/D' }}
                                         </dd>
                                     </div>
-                                    <div class="crudo-modal-program-field">
+                                    <div class="crudo-modal-program-field crudo-modal-program-ax">
                                         <dt>Clave AX</dt>
                                         <dd title="{{ $itemId !== '' ? $itemId : 'N/D' }}">
                                             {{ $itemId !== '' ? $itemId : 'N/D' }}
                                         </dd>
                                     </div>
+                                    @foreach ($ordenStats as $stat)
+                                        <div @class(['crudo-modal-program-field', 'crudo-modal-orden-stat', 'is-saldo' => ($stat['tone'] ?? null) === 'saldo'])>
+                                            <dt>{{ $stat['label'] }}</dt>
+                                            <dd>{{ $stat['value'] }}</dd>
+                                        </div>
+                                    @endforeach
                                 </dl>
                             @endif
                         </article>
 
+                        @php
+                            $paroActivo = $selectedMachine['paro'] ?? null;
+                            $paroCount = (int) ($paroActivo['count'] ?? 1);
+                            $statusHint = match ((string) ($selectedMachine['state'] ?? '')) {
+                                'operating' => 'Sin alertas en este periodo',
+                                'bad_quality' => sprintf(
+                                    'Calidad %s%% · %s%% de segundas',
+                                    number_format($detailQuality, 1),
+                                    number_format(round((float) ($selectedMachine['secondsPercent'] ?? 0)), 1),
+                                ),
+                                'low_kilos' => $detailExpectedKilos > 0
+                                    ? sprintf(
+                                        '%s kg de %s kg esperados (%s%%)',
+                                        number_format(round($detailKilos)),
+                                        number_format(round($detailExpectedKilos)),
+                                        number_format(round($detailKilosPercent)),
+                                    )
+                                    : sprintf('%s kg · sin estándar', number_format(round($detailKilos))),
+                                'no_data' => 'Sin captura en el periodo',
+                                default => null,
+                            };
+                        @endphp
                         <article
-                            class="crudo-modal-kpi crudo-modal-status-card {{ $selectedMachine['paro'] ? 'has-paro' : '' }}"
-                            @if ($selectedMachine['paro'])
+                            class="crudo-modal-kpi crudo-modal-status-card {{ $paroActivo ? 'has-paro' : '' }}"
+                            @if ($paroActivo)
                                 title="{{ implode(' · ', array_filter([
-                                    $selectedMachine['paro']['falla'] ?? 'Paro reportado',
-                                    'Reportó: '.($selectedMachine['paro']['reportedBy'] ?? 'Sin registrar'),
-                                    'Depto: '.($selectedMachine['paro']['depto'] ?? 'Sin registrar'),
-                                    'Desde: '.(trim($selectedMachine['paro']['since'] ?? '') ?: 'Sin registrar'),
+                                    $paroActivo['falla'] ?? 'Paro reportado',
+                                    filled($paroActivo['tipo'] ?? null) ? 'Tipo: '.$paroActivo['tipo'] : null,
+                                    $paroCount > 1 ? $paroCount.' paros activos' : null,
+                                    'Reportó: '.($paroActivo['reportedBy'] ?? 'Sin registrar'),
+                                    'Depto: '.($paroActivo['depto'] ?? 'Sin registrar'),
+                                    'Desde: '.(trim($paroActivo['since'] ?? '') ?: 'Sin registrar'),
                                 ])) }}"
                             @endif
                         >
@@ -135,20 +166,27 @@
                                     {{ $estadoExtra['label'] }}
                                 </small>
                             @endforeach
-                            @if ($selectedMachine['paro'])
+                            @if ($paroActivo)
+                                @if ($paroCount > 1)
+                                    <small class="crudo-modal-paro-count">{{ $paroCount }} paros activos</small>
+                                @endif
                                 <small class="crudo-modal-paro-falla">
-                                    {{ $selectedMachine['paro']['falla'] ?? 'Paro reportado' }}
+                                    {{ $paroActivo['falla'] ?? 'Paro reportado' }}
+                                    @if (filled($paroActivo['tipo'] ?? null))
+                                        · {{ $paroActivo['tipo'] }}
+                                    @endif
                                 </small>
                                 <small class="crudo-modal-paro-tiempo">
-                                    Desde {{ trim($selectedMachine['paro']['since'] ?? '') ?: 'Sin registrar' }}
+                                    Desde {{ trim($paroActivo['since'] ?? '') ?: 'Sin registrar' }}
                                 </small>
-                                {{-- Quién lo reportó y de qué departamento: una sola línea para no crecer la tarjeta. --}}
                                 <small class="crudo-modal-paro-quien">
                                     {{ implode(' · ', array_filter([
-                                        $selectedMachine['paro']['reportedBy'] ?? null,
-                                        $selectedMachine['paro']['depto'] ?? null,
+                                        $paroActivo['reportedBy'] ?? null,
+                                        $paroActivo['depto'] ?? null,
                                     ])) ?: 'Sin registrar' }}
                                 </small>
+                            @elseif ($statusHint)
+                                <small class="crudo-modal-status-hint">{{ $statusHint }}</small>
                             @endif
                         </article>
                         <article class="crudo-modal-kpi crudo-modal-kpi-kilos">
@@ -208,7 +246,7 @@
                                 </small>
                             @endif
                         </article>
-                        <article class="crudo-modal-kpi">
+                        <article class="crudo-modal-kpi crudo-modal-kpi-pieces">
                             <span>Piezas</span>
                             <strong>{{ number_format((float) $selectedMachine['pieces']) }}</strong>
                             <small>{{ number_format((float) $selectedMachine['seconds']) }} segundas</small>

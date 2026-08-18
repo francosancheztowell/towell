@@ -188,9 +188,11 @@ final class CrudoLivewireTest extends TestCase
             ->assertSee('>41 kg</span>', false)
             ->assertSee('>95%</span>', false)
             ->assertSee('<strong>41</strong>', false)
-            // Calidad y eficiencia globales viven en los velocímetros.
-            ->assertSee('<strong>95<em>%</em></strong>', false)
-            ->assertSee('<strong>81<em>%</em></strong>', false);
+            // Calidad y eficiencia globales viven en los velocímetros. Se comprueba
+            // el aria-label y no el marcado: la cifra ya pasó de <strong> a <text>
+            // dentro del SVG, y lo que importa es que se redondee a entero.
+            ->assertSee('aria-label="Calidad: 95%"', false)
+            ->assertSee('aria-label="Eficiencia: 81%"', false);
     }
 
     public function test_tablet_keeps_the_summary_in_a_compact_sidebar(): void
@@ -199,7 +201,7 @@ final class CrudoLivewireTest extends TestCase
 
         $this->assertIsString($css);
         $matched = preg_match(
-            '/@media \(min-width: 641px\) and \(max-width: 1050px\),\s*\(hover: none\) and \(pointer: coarse\) and \(min-width: 641px\) and \(max-width: 1366px\) \{(?<rules>.*?)\n\}\n\n@media \(max-width: 860px\)/s',
+            '/@media \(min-width: 641px\) and \(max-width: 1050px\),[\r\n\s]*\(hover: none\) and \(pointer: coarse\) and \(min-width: 641px\) and \(max-width: 1366px\) \{(?<rules>.*)[\r\n]\}[\r\n]+@media \(max-width: 860px\)/s',
             $css,
             $matches,
         );
@@ -207,33 +209,32 @@ final class CrudoLivewireTest extends TestCase
         $this->assertSame(1, $matched);
         $tabletRules = $matches['rules'];
         $this->assertStringContainsString(
-            'grid-template-columns: clamp(9.5rem, 14vw, 10.25rem) minmax(0, 1fr)',
+            'grid-template-columns: clamp(11.5rem, 18vw, 14rem) minmax(0, 1fr)',
             $tabletRules,
         );
         $this->assertStringContainsString('.crudo-sidebar {', $tabletRules);
         $this->assertStringContainsString('grid-template-columns: minmax(0, 1fr)', $tabletRules);
-        $this->assertStringContainsString('grid-template-columns: 1.5rem 1.65rem minmax(0, 1fr)', $tabletRules);
         $this->assertStringContainsString(
             'grid-template-columns: minmax(0, 0.42fr) minmax(0, 1fr) minmax(0, 1.15fr)',
             $tabletRules,
         );
-        $this->assertStringContainsString(
-            'grid-template-columns: repeat(4, minmax(0, 1fr))',
-            $tabletRules,
-        );
         $this->assertStringContainsString('[data-crudo-detail-modal] .crudo-modal {', $tabletRules);
-        $this->assertStringContainsString('width: min(66rem, calc(100vw - 5rem))', $tabletRules);
+        $this->assertStringContainsString('width: min(98vw, calc(100vw - 1.25rem))', $tabletRules);
         $this->assertStringContainsString('max-height: 76vh', $tabletRules);
+        $this->assertStringContainsString('.crudo-modal-identity-card {', $tabletRules);
+        $this->assertStringContainsString('.crudo-modal-status-card {', $tabletRules);
+        $this->assertStringContainsString('grid-column: auto', $tabletRules);
         $this->assertStringContainsString(
-            'grid-template-columns: minmax(11rem, 1.45fr) minmax(0, 0.55fr) minmax(0, 0.7fr) minmax(0, 0.6fr) minmax(0, 0.45fr) minmax(0, 0.95fr)',
+            'minmax(0, 1.35fr) minmax(0, 0.72fr) minmax(0, 0.78fr)',
             $tabletRules,
         );
+        $this->assertStringContainsString('white-space: normal', $tabletRules);
         $this->assertStringContainsString(
             'grid-template-columns: minmax(0, 1.6fr) minmax(8rem, 0.65fr) minmax(9rem, 0.75fr)',
             $tabletRules,
         );
         $this->assertStringContainsString('.crudo-orders-table .crudo-orders-col-lot {', $tabletRules);
-        $this->assertStringContainsString('width: 30%', $tabletRules);
+        $this->assertStringContainsString('width: 15%', $tabletRules);
         $this->assertStringContainsString('.crudo-orders-table td {', $tabletRules);
         $this->assertStringContainsString('font-size: 0.78rem', $tabletRules);
         $this->assertStringContainsString('.crudo-flog-simulation img {', $tabletRules);

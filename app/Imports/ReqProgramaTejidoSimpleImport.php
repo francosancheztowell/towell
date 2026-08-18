@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Imports;
 
+use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
@@ -15,6 +16,7 @@ use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithBatchInserts;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class ReqProgramaTejidoSimpleImport implements ToModel, WithBatchInserts, WithChunkReading, WithHeadingRow
 {
@@ -39,6 +41,11 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithBatchInserts, WithCh
 
     /** Cache para rastrear el primer registro de cada telar en el batch actual */
     private static array $primerRegistroPorTelar = [];
+
+    public function __construct()
+    {
+        AuditoriaHelper::contexto('IMPORT');
+    }
 
     public function model(array $rawRow)
     {
@@ -516,7 +523,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithBatchInserts, WithCh
             if (is_numeric($value)) {
                 $n = (float) $value;
                 if ($n > 0 && $n < 100000) {
-                    $dt = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($n);
+                    $dt = Date::excelToDateTimeObject($n);
 
                     return Carbon::instance($dt)->format('Y-m-d H:i:s');
                 }
@@ -692,7 +699,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithBatchInserts, WithCh
             if (is_numeric($value)) {
                 $n = (float) $value;
                 if ($n > 0 && $n < 100000) {
-                    $dt = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($n);
+                    $dt = Date::excelToDateTimeObject($n);
 
                     return Carbon::instance($dt)->format('Y-m-d');
                 }

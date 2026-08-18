@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Tejido\InventarioTrama;
 
-use App\Helpers\AuditoriaHelper;
 use App\Helpers\FolioHelper;
 use App\Helpers\TurnoHelper;
 use App\Http\Controllers\Controller;
@@ -10,6 +9,7 @@ use App\Models\Tejido\TejTrama;
 use App\Models\Tejido\TejTramaConsumos;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -191,11 +191,6 @@ class NuevoRequerimientoController extends Controller
 
             DB::commit();
 
-            // Registrar evento de auditoría
-            $accion = $providedFolio ? 'UPDATE' : 'INSERT';
-            $detalle = "Folio={$folio} | Consumos=".count($consumos);
-            AuditoriaHelper::logEvento('TejTrama', $accion, $detalle, $request);
-
             return response()->json([
                 'success' => true,
                 'message' => 'Requerimientos guardados exitosamente',
@@ -249,14 +244,6 @@ class NuevoRequerimientoController extends Controller
 
             if ($updated > 0) {
                 $consumo = DB::table('TejTramaConsumos')->where('Id', $data['id'])->first();
-
-                // Registrar evento de auditoría
-                AuditoriaHelper::logEvento(
-                    'TejTramaConsumos',
-                    'UPDATE',
-                    "Id={$data['id']} | Cantidad={$data['cantidad']}",
-                    $request
-                );
 
                 return response()->json([
                     'success' => true,
@@ -422,7 +409,7 @@ class NuevoRequerimientoController extends Controller
     // =========================================================
 
     /**
-     * @return array{0: object|null, 1: \Illuminate\Support\Collection, 2: array}
+     * @return array{0: object|null, 1: Collection, 2: array}
      */
     private function cargarEdicionPorFolio(string $folio): array
     {

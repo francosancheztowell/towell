@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Configuracion;
 
+use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Controller;
 use App\Imports\ReqProgramaTejidoSimpleImport;
 use App\Imports\ReqProgramaTejidoUpdateImport;
@@ -57,20 +58,14 @@ class ConfiguracionController extends Controller
             DB::beginTransaction();
             try {
                 $registrosAntes = ReqProgramaTejido::count();
-                try {
-                    DB::statement('TRUNCATE TABLE ReqProgramaTejidoLine');
-                    DB::statement('TRUNCATE TABLE ReqProgramaTejido');
-                } catch (\Throwable $truncEx) {
-                    try {
-                        DB::table('ReqProgramaTejidoLine')->delete();
-                        DB::table('ReqProgramaTejido')->delete();
-                        DB::statement('DBCC CHECKIDENT (ReqProgramaTejido, RESEED, 0)');
-                        DB::statement('DBCC CHECKIDENT (ReqProgramaTejidoLine, RESEED, 0)');
-                    } catch (\Throwable $delEx) {
-                        Log::error('No se pudo limpiar las tablas: '.$delEx->getMessage());
-                        throw $delEx;
-                    }
-                }
+                // DELETE y no TRUNCATE: TRUNCATE no dispara triggers, así que el borrado
+                // masivo del programa no dejaba rastro en SYSAuditoria. Con ~80 órdenes el
+                // costo es irrelevante y cada orden borrada queda auditada con su NoProduccion.
+                AuditoriaHelper::contexto('BORRADO_MASIVO');
+                DB::table('ReqProgramaTejidoLine')->delete();
+                DB::table('ReqProgramaTejido')->delete();
+                DB::statement('DBCC CHECKIDENT (ReqProgramaTejido, RESEED, 0)');
+                DB::statement('DBCC CHECKIDENT (ReqProgramaTejidoLine, RESEED, 0)');
 
                 ReqProgramaTejido::unsetEventDispatcher();
 

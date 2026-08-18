@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
+use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
@@ -23,12 +24,7 @@ class DragAndDropTejido
         /** @var ReqProgramaTejido $registro */
         $registro = ReqProgramaTejido::findOrFail($id);
 
-        // Guardar valores antes del cambio para auditoría
-        $antes = [
-            'salon' => $registro->SalonTejidoId,
-            'telar' => $registro->NoTelarId,
-            'posicion' => $registro->Posicion ?? 0,
-        ];
+        AuditoriaHelper::contexto('DRAGDROP');
 
         // Validación: Registro no debe estar en proceso
         if ((int) $registro->EnProceso === 1) {
@@ -40,21 +36,6 @@ class DragAndDropTejido
 
         try {
             $resultado = self::moverAposicion($registro, (int) $data['new_position']);
-
-            // Registrar evento de auditoría después del movimiento
-            $registro->refresh(); // Asegurar valores actualizados
-            $despues = [
-                'salon' => $registro->SalonTejidoId,
-                'telar' => $registro->NoTelarId,
-                'posicion' => $registro->Posicion ?? (int) $data['new_position'],
-            ];
-            \App\Helpers\AuditoriaHelper::logDragDrop(
-                'ReqProgramaTejido',
-                $registro->Id,
-                $antes,
-                $despues,
-                $request
-            );
 
             return response()->json([
                 'success' => true,

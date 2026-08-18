@@ -12,6 +12,7 @@ use App\Models\Planeacion\ReqAplicaciones;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqProgramaTejidoLine;
+use App\Observers\ReqProgramaTejidoObserver;
 use App\Services\Planeacion\NoProduccionCierreAxService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -22,6 +23,8 @@ class UpdateTejido
 {
     public static function actualizar(Request $request, int $id)
     {
+        AuditoriaHelper::contexto('EDITAR');
+
         $registro = ReqProgramaTejido::findOrFail($id);
 
         foreach ([
@@ -517,20 +520,8 @@ class UpdateTejido
             if (! $enProceso && $afectaCalendario && ! empty($registro->CalendarioId)) {
                 $snap = TejidoHelpers::snapInicioAlCalendario($registro->CalendarioId, $inicio);
                 if ($snap && ! $snap->equalTo($inicio)) {
-                    $fechaInicioAnterior = $registro->FechaInicio;
                     $registro->FechaInicio = $snap->format('Y-m-d H:i:s');
                     $inicio = $snap;
-
-                    // Auditoría: cambio de FechaInicio por snap al calendario
-                    AuditoriaHelper::logCambioFechaInicio(
-                        'ReqProgramaTejido',
-                        $registro->Id,
-                        $fechaInicioAnterior,
-                        $registro->FechaInicio,
-                        'Snap Calendario',
-                        $request,
-                        false
-                    );
                 }
             }
 
@@ -630,13 +621,13 @@ class UpdateTejido
             // SaldoPedido→Saldos, FlogsId, NombreProyecto, PesoCrudo→P_crudo). saveQuietly() NO dispara observers,
             // por eso lo llamamos explícitamente. wasChanged() detecta qué campos efectivamente cambiaron.
             try {
-                $observer = new \App\Observers\ReqProgramaTejidoObserver;
+                $observer = new ReqProgramaTejidoObserver;
                 $observer->sincronizarCatCodificados($registro);
 
                 // Si cambió un input que afecta la cadena de fórmulas, recalcular Repeticiones/PzasRollo/
                 // MtsRollo/TotalRollos/TotalPzas/SaldoMarbete tanto en ReqProgramaTejido como en CatCodificados.
                 $cambioInputFormula = false;
-                foreach (\App\Observers\ReqProgramaTejidoObserver::CAMPOS_RECALC_FORMULA as $campo) {
+                foreach (ReqProgramaTejidoObserver::CAMPOS_RECALC_FORMULA as $campo) {
                     if ($registro->wasChanged($campo)) {
                         $cambioInputFormula = true;
                         break;
