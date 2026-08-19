@@ -142,6 +142,11 @@
                     if (col === 'NoTelarId' && tieneParoActivo) {
                         cellContent = '<i class="fas fa-exclamation-triangle text-yellow-500 mr-1" title="Paro activo en mantenimiento"></i>' + cellContent;
                     }
+                    // "Raz. S/N" en SI va en rojo. En fila seleccionada (fondo azul) se aclara
+                    // el tono para que siga siendo legible.
+                    if (col === 'RazSN' && raw.trim().toUpperCase() === 'SI') {
+                        cellContent = '<span class="font-bold ' + (selected && !tieneParoActivo ? 'text-red-200' : 'text-red-600') + '">' + cellContent + '</span>';
+                    }
                     return '<td class="' + cellClass + colIdx + '" data-column="' + escapeHtml(col) + '" data-index="' + colIdx + '" data-value="' + escapeHtml(raw) + '">' +
                         cellContent + '</td>';
                 }).join('');

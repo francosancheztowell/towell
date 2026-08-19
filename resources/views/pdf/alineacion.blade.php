@@ -13,6 +13,7 @@
         th, td { border: 1px solid #d1d5db; padding: 1px 2px; text-align: center; overflow: hidden; word-wrap: break-word; }
         thead th { background-color: #d9ead3; color: #000; }
         td.col-destacada { background-color: #ccffff; font-weight: bold; }
+        td.celda-razurada { color: #dc2626; font-weight: bold; }
         td.col-blanca { background-color: #ffffff; }
     </style>
 </head>
@@ -113,7 +114,12 @@
             @forelse ($items as $item)
                 <tr>
                     @foreach ($columnas as $idx => $col)
-                        <td class="{{ $indiceUltimaDestacada !== false && $idx <= $indiceUltimaDestacada ? 'col-destacada' : 'col-blanca' }}">{{ $item[$col] ?? '' }}</td>
+                        @php
+                            // "Raz. S/N" en SI se marca en rojo, igual que en pantalla y en el Excel.
+                            $valorCelda = $item[$col] ?? '';
+                            $razuradaSi = $col === 'RazSN' && strtoupper(trim((string) $valorCelda)) === 'SI';
+                        @endphp
+                        <td class="{{ $indiceUltimaDestacada !== false && $idx <= $indiceUltimaDestacada ? 'col-destacada' : 'col-blanca' }}{{ $razuradaSi ? ' celda-razurada' : '' }}">{{ $valorCelda }}</td>
                     @endforeach
                 </tr>
             @empty
