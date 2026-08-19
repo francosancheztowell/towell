@@ -315,7 +315,7 @@ class AlineacionController extends Controller
         // Sin CAST sobre la columna: se deja que SQL Server convierta el parámetro
         // al tipo de OrdenTejido, permitiendo index seek en vez de scan.
         $cats = CatCodificados::query()
-            ->select(['Id', 'ItemId', 'OrdenTejido', 'FechaTejido', 'Tolerancia', 'Razurada', 'TipoRizo', 'DobladilloId', 'Obs5'])
+            ->select(['Id', 'ItemId', 'OrdenTejido', 'FechaTejido', 'Tolerancia', 'Razurada', 'TipoRizo', 'DobladilloId', 'Obs5', 'PesoMuestra'])
             ->whereIn('OrdenTejido', $ids)
             ->orderByDesc('Id')
             ->get();
@@ -333,7 +333,8 @@ class AlineacionController extends Controller
 
     /**
      * Mapea un registro ReqProgramaTejido al array asociativo esperado por la vista.
-     * Tolerancia, RazSN, TipoRizo, TipoPlano y Observaciones vienen de CatCodificados por OrdenTejido.
+     * Tolerancia, RazSN, TipoRizo, TipoPlano, Observaciones y PesoGRM2 (Peso Muestra) vienen de
+     * CatCodificados por OrdenTejido.
      *
      * @param  array<string, CatCodificados>  $catCodPorOrden
      * @return array<string, mixed>
@@ -372,6 +373,9 @@ class AlineacionController extends Controller
             'TipoRizo' => fn () => $cat?->TipoRizo,
             'TipoPlano' => fn () => $cat?->DobladilloId,
             'Observaciones' => fn () => $cat?->Obs5,
+            // PesoMuestra es nvarchar en SQL Server y arrastra ruido de float ("4.8200002"):
+            // se redondea aquí para que web, Excel y PDF muestren lo mismo.
+            'PesoGRM2' => fn () => $cat?->PesoMuestra !== null ? round((float) $cat->PesoMuestra, 3) : null,
             'PesoMin' => fn () => $pesoMinAlineacion,
             'PesoMax' => fn () => $pesoMaxAlineacion,
             'MuestraMin' => fn () => $pesoMinAlineacion,
