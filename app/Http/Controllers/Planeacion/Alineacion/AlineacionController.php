@@ -439,11 +439,40 @@ class AlineacionController extends Controller
         // FechaTejido en Y-m-d para cálculo de Días de prod. en el front (catcodificados)
         $item['FechaTejido'] = $cat?->FechaTejido ? Carbon::parse($cat->FechaTejido)->format('Y-m-d') : '';
 
+        // Un cero no es un dato: en este reporte significa "no capturado". Se vacían al final,
+        // ya con DiasPorEjecutar calculado, y solo sobre las columnas visibles (FechaTejido y
+        // _tieneParoActivo quedan intactos porque los consume el front, no el usuario).
+        foreach ($this->columnas as $key) {
+            if ($this->esCeroSinDato($item[$key] ?? '')) {
+                $item[$key] = '';
+            }
+        }
+
         // Indica si el telar tiene un paro activo en ManFallasParos
         $noTelar = trim((string) ($r->NoTelarId ?? ''));
         $item['_tieneParoActivo'] = $noTelar !== '' && in_array($noTelar, $telaresConParoActivo, true);
 
         return $item;
+    }
+
+    /**
+     * ¿El valor es un cero disfrazado? Cubre "0", "0.0", "0/0" y "0/0/0/0" (las cenefas
+     * concatenan con diagonal). Un valor mixto como "0/ALG" no cuenta: ahí sí hay dato.
+     */
+    private function esCeroSinDato(mixed $valor): bool
+    {
+        $texto = trim((string) $valor);
+        if ($texto === '') {
+            return false;
+        }
+
+        foreach (preg_split('#\s*/\s*#', $texto) as $parte) {
+            if (! is_numeric($parte) || (float) $parte !== 0.0) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
