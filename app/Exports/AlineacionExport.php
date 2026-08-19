@@ -288,7 +288,9 @@ class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
         foreach ($this->itemsPorFila as $fila => $item) {
             // "Raz. S/N" en SI se marca en rojo, igual que en pantalla y en el PDF.
             if ($letraRazSN !== null && strtoupper(trim((string) ($item['RazSN'] ?? ''))) === 'SI') {
-                $sheet->getStyle("{$letraRazSN}{$fila}")->getFont()->setBold(true)->getColor()->setARGB('FFDC2626');
+                $estiloRaz = $sheet->getStyle("{$letraRazSN}{$fila}");
+                $estiloRaz->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
+                $estiloRaz->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFDC2626');
             }
 
             $sheet->getRowDimension($fila)->setRowHeight(

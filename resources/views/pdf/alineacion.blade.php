@@ -13,7 +13,7 @@
         th, td { border: 1px solid #d1d5db; padding: 1px 2px; text-align: center; overflow: hidden; word-wrap: break-word; }
         thead th { background-color: #d9ead3; color: #000; }
         td.col-destacada { background-color: #ccffff; font-weight: bold; }
-        td.celda-razurada { color: #dc2626; font-weight: bold; }
+        td.celda-razurada { background-color: #dc2626; color: #ffffff; font-weight: bold; }
         td.col-blanca { background-color: #ffffff; }
     </style>
 </head>

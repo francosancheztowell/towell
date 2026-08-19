@@ -142,12 +142,13 @@
                     if (col === 'NoTelarId' && tieneParoActivo) {
                         cellContent = '<i class="fas fa-exclamation-triangle text-yellow-500 mr-1" title="Paro activo en mantenimiento"></i>' + cellContent;
                     }
-                    // "Raz. S/N" en SI va en rojo. En fila seleccionada (fondo azul) se aclara
-                    // el tono para que siga siendo legible.
-                    if (col === 'RazSN' && raw.trim().toUpperCase() === 'SI') {
-                        cellContent = '<span class="font-bold ' + (selected && !tieneParoActivo ? 'text-red-200' : 'text-red-600') + '">' + cellContent + '</span>';
-                    }
-                    return '<td class="' + cellClass + colIdx + '" data-column="' + escapeHtml(col) + '" data-index="' + colIdx + '" data-value="' + escapeHtml(raw) + '">' +
+                    // "Raz. S/N" en SI: celda con fondo rojo y texto blanco. Se reemplaza la
+                    // clase base en vez de encimarla, porque text-white y text-gray-700 chocan.
+                    const razuradaSi = col === 'RazSN' && raw.trim().toUpperCase() === 'SI';
+                    const claseCelda = razuradaSi
+                        ? 'px-3 py-1.5 border-b border-r border-red-700 whitespace-nowrap text-sm font-bold bg-red-600 text-white column-'
+                        : cellClass;
+                    return '<td class="' + claseCelda + colIdx + '" data-column="' + escapeHtml(col) + '" data-index="' + colIdx + '" data-value="' + escapeHtml(raw) + '">' +
                         cellContent + '</td>';
                 }).join('');
                 return '<tr class="' + rowClass + '" data-row-index="' + index + '">' + cells + '</tr>';
