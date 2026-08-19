@@ -315,7 +315,7 @@ class AlineacionController extends Controller
         // Sin CAST sobre la columna: se deja que SQL Server convierta el parámetro
         // al tipo de OrdenTejido, permitiendo index seek en vez de scan.
         $cats = CatCodificados::query()
-            ->select(['Id', 'ItemId', 'OrdenTejido', 'FechaTejido', 'Tolerancia', 'Razurada', 'TipoRizo', 'DobladilloId', 'Obs5', 'PesoMuestra', 'MedidaCenefa', 'MedidaPlano'])
+            ->select(['Id', 'ItemId', 'OrdenTejido', 'FechaTejido', 'Tolerancia', 'Razurada', 'TipoRizo', 'DobladilloId', 'Obs5', 'PesoMuestra', 'MedidaCenefa', 'MedidaPlano', 'AlturaRizo'])
             ->whereIn('OrdenTejido', $ids)
             ->orderByDesc('Id')
             ->get();
@@ -380,6 +380,9 @@ class AlineacionController extends Controller
             // no un ancho numérico: se pasa tal cual, sin formateo.
             'AnchoToalla' => fn () => $cat?->MedidaCenefa,
             'MedidaPlano' => fn () => $cat?->MedidaPlano,
+            // La columna se llama CalibreRizo por historia, pero muestra "Alt Rizo":
+            // el dato real es CatCodificados.AlturaRizo, no el calibre del programa.
+            'CalibreRizo' => fn () => $cat?->AlturaRizo,
             'PesoMin' => fn () => $pesoMinAlineacion,
             'PesoMax' => fn () => $pesoMaxAlineacion,
             'MuestraMin' => fn () => $pesoMinAlineacion,
