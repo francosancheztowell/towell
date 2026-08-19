@@ -128,7 +128,9 @@
                 const cells = CONFIG.columnas.map((col, colIdx) => {
                     let value = row[col] ?? '';
                     let raw = value !== null && value !== '' ? String(value) : '';
-                    if ((col === 'AnchoToalla' || col === 'PesoGRM2') && value !== '' && value != null && !isNaN(parseFloat(value))) {
+                    // AnchoToalla (Med. Cen.) ya no se formatea: viene de CatCodificados.MedidaCenefa,
+                    // texto con diagonales ("6/2") que parseFloat truncaria a "6.000".
+                    if (col === 'PesoGRM2' && value !== '' && value != null && !isNaN(parseFloat(value))) {
                         raw = parseFloat(value).toFixed(3);
                     }
                     if (col === 'DiasPorEjecutar' && value !== '' && value != null && !isNaN(parseFloat(value))) {

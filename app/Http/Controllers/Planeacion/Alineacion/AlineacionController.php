@@ -315,7 +315,7 @@ class AlineacionController extends Controller
         // Sin CAST sobre la columna: se deja que SQL Server convierta el parámetro
         // al tipo de OrdenTejido, permitiendo index seek en vez de scan.
         $cats = CatCodificados::query()
-            ->select(['Id', 'ItemId', 'OrdenTejido', 'FechaTejido', 'Tolerancia', 'Razurada', 'TipoRizo', 'DobladilloId', 'Obs5', 'PesoMuestra'])
+            ->select(['Id', 'ItemId', 'OrdenTejido', 'FechaTejido', 'Tolerancia', 'Razurada', 'TipoRizo', 'DobladilloId', 'Obs5', 'PesoMuestra', 'MedidaCenefa', 'MedidaPlano'])
             ->whereIn('OrdenTejido', $ids)
             ->orderByDesc('Id')
             ->get();
@@ -376,6 +376,10 @@ class AlineacionController extends Controller
             // PesoMuestra es nvarchar en SQL Server y arrastra ruido de float ("4.8200002"):
             // se redondea aquí para que web, Excel y PDF muestren lo mismo.
             'PesoGRM2' => fn () => $cat?->PesoMuestra !== null ? round((float) $cat->PesoMuestra, 3) : null,
+            // "Med. Cen." es texto con diagonales en el catálogo ("7/2.5", "1/1/1/1/1"),
+            // no un ancho numérico: se pasa tal cual, sin formateo.
+            'AnchoToalla' => fn () => $cat?->MedidaCenefa,
+            'MedidaPlano' => fn () => $cat?->MedidaPlano,
             'PesoMin' => fn () => $pesoMinAlineacion,
             'PesoMax' => fn () => $pesoMaxAlineacion,
             'MuestraMin' => fn () => $pesoMinAlineacion,
