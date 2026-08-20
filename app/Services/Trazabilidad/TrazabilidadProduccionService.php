@@ -72,12 +72,11 @@ class TrazabilidadProduccionService
                     // Mismo valor que la tarjeta y el resumen: la tarjeta ya resolvió
                     // TotalPedido/TotalPzas/Pedido según la fuente.
                     'programado' => (float) ($orden['programadas'] ?? 0),
-                    'produccion' => $programa
+                    'produccion' => $produccion = $programa
                         ? (float) ($programa['produccion'] ?? 0)
                         : (float) ($codificado['produccion'] ?? 0),
-                    'pedido' => $programa
-                        ? (float) ($programa['totalPedido'] ?? 0)
-                        : (float) ($codificado['pedido'] ?? 0),
+                    // Lo que falta por producir del programa, no el pedido comercial.
+                    'restante' => max(0, (float) ($orden['programadas'] ?? 0) - $produccion),
                     'inicio' => $programa['fechaInicio'] ?? $codificado['fechaInicio'] ?? '—',
                     'fin' => $programa['fechaFinal'] ?? $codificado['fechaFinal'] ?? '—',
                     'fuente' => $orden['fuente'] ?? null,

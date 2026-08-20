@@ -18,7 +18,7 @@
                     <th class="sticky top-0 z-10 border-r border-blue-500 bg-blue-600 px-1.5 py-2.5 text-left">Telar</th>
                     <th class="sticky top-0 z-10 border-r border-blue-500 bg-blue-600 px-1.5 py-2.5 text-right">Progr.</th>
                     <th class="sticky top-0 z-10 border-r border-blue-500 bg-blue-600 px-1.5 py-2.5 text-right">Prod.</th>
-                    <th class="sticky top-0 z-10 border-r border-blue-500 bg-blue-600 px-1.5 py-2.5 text-right">Pedido</th>
+                    <th class="sticky top-0 z-10 border-r border-blue-500 bg-blue-600 px-1.5 py-2.5 text-right">Rest.</th>
                     <th class="sticky top-0 z-10 border-r border-blue-500 bg-blue-600 px-1 py-2.5 text-center">Ini.</th>
                     <th class="sticky top-0 z-10 bg-blue-600 px-1 py-2.5 text-center">Fin</th>
                 </tr>
@@ -41,7 +41,7 @@
                         <td class="border-b border-r border-blue-100 px-1.5 py-2 font-semibold text-slate-600">{{ $fila['telar'] ?: '—' }}</td>
                         <td class="border-b border-r border-blue-100 px-1.5 py-2 text-right tabular-nums text-slate-600">{{ number_format($fila['programado'], 0) }}</td>
                         <td class="border-b border-r border-blue-100 px-1.5 py-2 text-right tabular-nums text-slate-600">{{ number_format($fila['produccion'], 0) }}</td>
-                        <td class="border-b border-r border-blue-100 px-1.5 py-2 text-right tabular-nums text-slate-600">{{ number_format($fila['pedido'], 0) }}</td>
+                        <td class="border-b border-r border-blue-100 px-1.5 py-2 text-right tabular-nums text-slate-600">{{ number_format($fila['restante'], 0) }}</td>
                         <td class="border-b border-r border-blue-100 px-1 py-2 text-center text-[11px] font-medium text-slate-600">{{ $fila['inicio'] ?: '—' }}</td>
                         <td class="border-b border-blue-100 px-1 py-2 text-center text-[11px] font-medium text-slate-600">{{ $fila['fin'] ?: '—' }}</td>
                     </tr>

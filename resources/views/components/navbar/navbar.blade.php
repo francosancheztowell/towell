@@ -23,6 +23,7 @@
 
     // Ocultar Paro solo en las secciones que no deben mostrar esta acción.
     $showParoButton = !request()->routeIs('catalogos.req-programa-tejido')
+        && !request()->routeIs('programa-tejido.liberar-ordenes')
         && !$isMuestras
         && !request()->routeIs('programa.urd.eng.*')
         && !request()->routeIs('codificacion-modelos')

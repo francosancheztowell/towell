@@ -128,7 +128,9 @@
                 const cells = CONFIG.columnas.map((col, colIdx) => {
                     let value = row[col] ?? '';
                     let raw = value !== null && value !== '' ? String(value) : '';
-                    if ((col === 'AnchoToalla' || col === 'PesoGRM2') && value !== '' && value != null && !isNaN(parseFloat(value))) {
+                    // AnchoToalla (Med. Cen.) ya no se formatea: viene de CatCodificados.MedidaCenefa,
+                    // texto con diagonales ("6/2") que parseFloat truncaria a "6.000".
+                    if (col === 'PesoGRM2' && value !== '' && value != null && !isNaN(parseFloat(value))) {
                         raw = parseFloat(value).toFixed(3);
                     }
                     if (col === 'DiasPorEjecutar' && value !== '' && value != null && !isNaN(parseFloat(value))) {
@@ -140,7 +142,13 @@
                     if (col === 'NoTelarId' && tieneParoActivo) {
                         cellContent = '<i class="fas fa-exclamation-triangle text-yellow-500 mr-1" title="Paro activo en mantenimiento"></i>' + cellContent;
                     }
-                    return '<td class="' + cellClass + colIdx + '" data-column="' + escapeHtml(col) + '" data-index="' + colIdx + '" data-value="' + escapeHtml(raw) + '">' +
+                    // "Raz. S/N" en SI: celda con fondo rojo y texto blanco. Se reemplaza la
+                    // clase base en vez de encimarla, porque text-white y text-gray-700 chocan.
+                    const razuradaSi = col === 'RazSN' && raw.trim().toUpperCase() === 'SI';
+                    const claseCelda = razuradaSi
+                        ? 'px-3 py-1.5 border-b border-r border-red-700 whitespace-nowrap text-sm font-bold bg-red-600 text-white column-'
+                        : cellClass;
+                    return '<td class="' + claseCelda + colIdx + '" data-column="' + escapeHtml(col) + '" data-index="' + colIdx + '" data-value="' + escapeHtml(raw) + '">' +
                         cellContent + '</td>';
                 }).join('');
                 return '<tr class="' + rowClass + '" data-row-index="' + index + '">' + cells + '</tr>';

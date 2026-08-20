@@ -61,6 +61,8 @@ class CatCodificadosDesarrolladorServiceTest extends TestCase
             $table->integer('EfiInicial')->nullable();
             $table->integer('EfiFinal')->nullable();
             $table->float('DesperdicioTrama')->nullable();
+            $table->float('CalibreComb1')->nullable();
+            $table->float('CalibreComb12')->nullable();
             $table->dateTime('FechaCumplimiento')->nullable();
             $table->dateTime('FechaArranque')->nullable();
             $table->dateTime('FechaFinaliza')->nullable();
@@ -73,6 +75,27 @@ class CatCodificadosDesarrolladorServiceTest extends TestCase
     {
         Carbon::setTestNow();
         parent::tearDown();
+    }
+
+    public function test_apply_payload_omite_calibre_texto_en_columna_float(): void
+    {
+        $registro = CatCodificados::query()->create([
+            'OrdenTejido' => 'ORD-CAL',
+            'CalibreComb1' => 10.1,
+            'CalibreComb12' => 8.9,
+        ]);
+
+        $this->catCodificadosService->applyPayload($registro, [
+            'CalibreComb1' => '600/1T',
+            'CalibreComb12' => '8.9',
+            'CodigoDibujo' => 'MBOR31CH21I',
+        ]);
+        $registro->save();
+
+        $guardado = CatCodificados::query()->where('OrdenTejido', 'ORD-CAL')->firstOrFail();
+        $this->assertEqualsWithDelta(10.1, (float) $guardado->CalibreComb1, 0.001);
+        $this->assertEqualsWithDelta(8.9, (float) $guardado->CalibreComb12, 0.001);
+        $this->assertSame('MBOR31CH21I', $guardado->CodigoDibujo);
     }
 
     public function test_resolve_canonical_devuelve_el_id_mas_alto_sin_eliminar_duplicados(): void

@@ -6,6 +6,7 @@ use App\Helpers\AuditoriaHelper;
 use App\Helpers\FolioHelper;
 use App\Helpers\StringTruncator;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UpdateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa\OrdenDeCambioFelpaController;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\Catalogos\ReqPesosRollosTejido;
@@ -15,6 +16,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -182,6 +184,11 @@ class LiberarOrdenesController extends Controller
             $registros->each(function ($registro) {
                 $calc = $this->calcularMarbetes($registro);
 
+                // Base de las fórmulas (TotalPedido, no SaldoPedido). Se expone a la vista para que el
+                // recálculo client-side use exactamente la misma base que el servidor al liberar; si no,
+                // TotalRollos/No. marbetes que ve el usuario no coinciden con lo que se guarda.
+                $registro->BasePedido = $this->basePedido($registro);
+
                 $registro->Repeticiones = $calc['repeticiones'];
                 $registro->PesoRollo = $calc['pesoRollo'];
                 // Mismo criterio que al liberar: no. marbetes por fórmula del catálogo, no TotalRollos.
@@ -218,6 +225,12 @@ class LiberarOrdenesController extends Controller
                 $auto = self::bomAutoAsignable($this->resolverBomCrudoOpciones($registro));
                 $registro->BomId = $auto !== null ? trim((string) $auto['bomId']) : null;
                 $registro->BomName = $auto !== null ? trim((string) $auto['bomName']) : null;
+            });
+
+            // Artículos de felpa: el renglón muestra el check "Asignar flogs" en la columna Flog.
+            $articulosFelpa = $this->clavesArticulosFelpa($registros);
+            $registros->each(function ($registro) use ($articulosFelpa) {
+                $registro->EsArticuloFelpa = isset($articulosFelpa[self::claveItemTalla($registro->ItemId ?? '', $registro->InventSizeId ?? '')]);
             });
 
             // Obtener opciones de hilos para el select desde INVENTTABLE (TwTipoHiloId)
@@ -278,6 +291,8 @@ class LiberarOrdenesController extends Controller
             'registros.*.combinaTram' => 'nullable|string|max:80',
             'registros.*.noProduccion' => 'nullable|string|max:15',
             'registros.*.codigoDibujo' => 'nullable|string|max:500',
+            'registros.*.asignarFlogs' => 'nullable|boolean',
+            'registros.*.flogsId' => 'nullable|string|max:60',
         ], [
             'registros.required' => 'Debes seleccionar al menos un registro.',
             'registros.*.id.exists' => 'Uno de los registros seleccionados no existe.',
@@ -369,8 +384,9 @@ class LiberarOrdenesController extends Controller
 
         DB::beginTransaction();
 
+        $actualizados = collect();
+
         try {
-            $actualizados = collect();
             $foliosUsadosEnLote = [];
 
             foreach ($registrosInput as $item) {
@@ -619,6 +635,22 @@ class LiberarOrdenesController extends Controller
                 }
                 $registro->ActualizaLmat = $registro->ActualizaLmat ?? 0;
 
+                // Flog: cualquier renglón puede cambiarlo desde la grilla. El flag "asignar flogs"
+                // (sólo lo ofrecen los renglones de felpa) no vive aquí, viaja a CatCodificados.
+                $flogsId = trim((string) ($item['flogsId'] ?? ''));
+                if ($flogsId !== '' && $flogsId !== trim((string) ($registro->FlogsId ?? ''))) {
+                    $errorFlog = $this->aplicarDatosFlog($registro, $flogsId);
+                    if ($errorFlog !== null) {
+                        DB::rollBack();
+
+                        return response()->json([
+                            'success' => false,
+                            'message' => $errorFlog.$this->referenciaCortaRegistro($registro),
+                        ], 422);
+                    }
+                }
+                $asignarFlogs = filter_var($item['asignarFlogs'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
                 $errorMetricas = $this->validarMetricasProduccionParaLiberacion($registro);
                 if ($errorMetricas !== null) {
                     DB::rollBack();
@@ -640,7 +672,8 @@ class LiberarOrdenesController extends Controller
                 // Actualizar CatCodificados con los mismos campos (código de dibujo: grilla o último catálogo Item+salón)
                 $this->actualizarCatCodificados(
                     $registro,
-                    $codigoDibujoParaCat !== '' ? $codigoDibujoParaCat : null
+                    $codigoDibujoParaCat !== '' ? $codigoDibujoParaCat : null,
+                    $asignarFlogs
                 );
 
                 // Actualizar ReqModelosCodificados con OrdPrincipal y PesoMuestra
@@ -664,10 +697,27 @@ class LiberarOrdenesController extends Controller
             }
 
             DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Error al liberar órdenes', [
+                'msg' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
 
-            // Generar Excel usando el sistema de orden de cambio
-            $ordenCambioController = new OrdenDeCambioFelpaController;
-            $response = $ordenCambioController->generarExcelDesdeBD($actualizados);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al liberar las órdenes: '.$e->getMessage(),
+            ], 500);
+        }
+
+        // El Excel se genera FUERA de la transacción y con su propio try: las órdenes ya están
+        // liberadas y commiteadas. Antes un fallo aquí caía en el catch de arriba y respondía
+        // 500 "Error al liberar", con el rollBack ya sin efecto: el usuario reintentaba y recibía
+        // "el número de orden ya está asignado", sin comprobante y sin saber que sí se liberó.
+        $obLevel = ob_get_level();
+
+        try {
+            $response = (new OrdenDeCambioFelpaController)->generarExcelDesdeBD($actualizados);
 
             // Si la respuesta es un StreamedResponse, convertirla a base64
             if ($response instanceof StreamedResponse) {
@@ -683,21 +733,23 @@ class LiberarOrdenesController extends Controller
                     'redirectUrl' => route('catalogos.req-programa-tejido'),
                 ]);
             }
-
-            // Si hay error, retornar la respuesta JSON directamente
-            return $response;
         } catch (\Throwable $e) {
-            DB::rollBack();
-            Log::error('Error al liberar órdenes', [
+            while (ob_get_level() > $obLevel) {
+                ob_end_clean();
+            }
+
+            Log::error('Órdenes liberadas, pero falló la generación del Excel de orden de cambio', [
+                'ordenes' => $actualizados->pluck('NoProduccion')->all(),
                 'msg' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al liberar las órdenes: '.$e->getMessage(),
-            ], 500);
         }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Órdenes liberadas correctamente, pero no se pudo generar el Excel de orden de cambio. Reimprímelo desde Programa Tejido.',
+            'redirectUrl' => route('catalogos.req-programa-tejido'),
+        ]);
     }
 
     /**
@@ -1215,7 +1267,7 @@ class LiberarOrdenesController extends Controller
      *
      * @param  string|null  $codigoDibujoDesdePantalla  Valor de la columna Codigo Dibujo al liberar (mismo que en la vista); si es null/vacío se intenta resolver con CatCodificados.
      */
-    private function actualizarCatCodificados(ReqProgramaTejido $registro, ?string $codigoDibujoDesdePantalla = null): void
+    private function actualizarCatCodificados(ReqProgramaTejido $registro, ?string $codigoDibujoDesdePantalla = null, bool $asignarFlogs = false): void
     {
         try {
             $noProduccion = trim((string) ($registro->NoProduccion ?? ''));
@@ -1290,6 +1342,10 @@ class LiberarOrdenesController extends Controller
                 'Obs5' => $registro->Observaciones,
                 'CreaProd' => 1,
                 'ActualizaLmat' => $registro->ActualizaLmat ?? 0,
+                'FlogsId' => $registro->FlogsId,
+                'NombreProyecto' => $registro->NombreProyecto,
+                // 0 = ignorar flogs, 1 = asignar / considerar flogs (check de la grilla).
+                'AsignarFlogs' => $asignarFlogs ? 1 : 0,
                 'CategoriaCalidad' => $registro->CategoriaCalidad,
                 'CustName' => $registro->CustName,
                 'PesoMuestra' => $registro->PesoMuestra,
@@ -2355,6 +2411,155 @@ class LiberarOrdenesController extends Controller
         }
 
         return null;
+    }
+
+    /** Clave normalizada item+talla usada para cruzar contra TwArticulosFelpas. */
+    private static function claveItemTalla(?string $itemId, ?string $inventSizeId): string
+    {
+        return mb_strtoupper(trim((string) $itemId)).'|'.mb_strtoupper(trim((string) $inventSizeId));
+    }
+
+    /**
+     * Artículos de felpa del lote, en UNA consulta a AX (no una por renglón).
+     * TwArticulosFelpas sólo tiene ITEMID/INVENTSIZEID/ITEMNAME: no aporta flog,
+     * únicamente marca qué renglones son felpa y por tanto ofrecen el check "Asignar flogs".
+     *
+     * @param  Collection<int, ReqProgramaTejido>  $registros
+     * @return array<string, true> claves item|talla presentes en la tabla
+     */
+    private function clavesArticulosFelpa($registros): array
+    {
+        $itemIds = $registros
+            ->map(fn ($r) => trim((string) ($r->ItemId ?? '')))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($itemIds === []) {
+            return [];
+        }
+
+        try {
+            $filas = DB::connection('sqlsrv_ti')
+                ->table('TwArticulosFelpas')
+                ->select('ITEMID', 'INVENTSIZEID')
+                ->whereIn('ITEMID', $itemIds)
+                ->get();
+        } catch (\Throwable $e) {
+            // Sin AX no se puede saber qué es felpa. Se prefiere no bloquear renglones
+            // (el flujo actual sigue funcionando) a tumbar la pantalla completa.
+            Log::warning('LiberarOrdenes: no se pudo consultar TwArticulosFelpas', ['error' => $e->getMessage()]);
+
+            return [];
+        }
+
+        $claves = [];
+        foreach ($filas as $fila) {
+            $claves[self::claveItemTalla($fila->ITEMID ?? '', $fila->INVENTSIZEID ?? '')] = true;
+        }
+
+        return $claves;
+    }
+
+    /**
+     * Cambio de flog desde la grilla. El flog debe existir y estar vigente en AX: capturado
+     * a mano se puede escribir cualquier cosa y quedaría una orden con un flog inexistente.
+     * Si existe, arrastra lo que el flog define en AX (descripción, cliente, categoría) y el
+     * TipoPedido derivado del prefijo, igual que Duplicar.
+     *
+     * @return string|null mensaje de error, o null si el flog es válido
+     */
+    private function aplicarDatosFlog(ReqProgramaTejido $registro, string $flogsId): ?string
+    {
+        try {
+            $cabecera = DB::connection('sqlsrv_ti')
+                ->table('dbo.TwFlogsTable')
+                ->select('NAMEPROYECT', 'CUSTNAME')
+                ->where('IDFLOG', $flogsId)
+                ->whereIn('ESTADOFLOG', [3, 4, 5, 21])
+                ->first();
+
+            if (! $cabecera) {
+                return 'El flog "'.$flogsId.'" no existe o no está vigente en AX.';
+            }
+
+            UpdateHelpers::applyFlogYTipoPedido($registro, $flogsId);
+
+            $registro->NombreProyecto = trim((string) ($cabecera->NAMEPROYECT ?? '')) ?: $registro->NombreProyecto;
+            $registro->CustName = trim((string) ($cabecera->CUSTNAME ?? '')) ?: $registro->CustName;
+
+            $cliente = DB::connection('sqlsrv_ti')
+                ->table('dbo.TwFlogsCustomer')
+                ->select('CustName', 'CategoriaCalidad')
+                ->where('IdFlog', $flogsId)
+                ->first();
+
+            if ($cliente) {
+                $registro->CustName = trim((string) ($cliente->CustName ?? '')) ?: $registro->CustName;
+                $registro->CategoriaCalidad = trim((string) ($cliente->CategoriaCalidad ?? '')) ?: $registro->CategoriaCalidad;
+            }
+        } catch (\Throwable $e) {
+            // ponytail: si AX no responde se acepta el flog capturado en vez de tumbar la
+            // liberación completa; la validación real es la de arriba, con AX en línea.
+            Log::warning('LiberarOrdenes: no se pudieron leer los datos del flog en AX', [
+                'flogsId' => $flogsId,
+                'error' => $e->getMessage(),
+            ]);
+            UpdateHelpers::applyFlogYTipoPedido($registro, $flogsId);
+        }
+
+        return null;
+    }
+
+    /**
+     * Flog vigente para un item + talla, para precargar la celda cuando el usuario
+     * marca "Asignar flogs" en un renglón de felpa. Mismo criterio que Codificación:
+     * TwFlogsItemLine + TwFlogsTable, estados vigentes, el más reciente.
+     *
+     * @return JsonResponse
+     */
+    public function obtenerFlogSugerido(Request $request)
+    {
+        $itemId = trim((string) $request->query('itemId', ''));
+        $inventSizeId = trim((string) $request->query('inventSizeId', ''));
+
+        if ($itemId === '' || $inventSizeId === '') {
+            return response()->json(['success' => false, 'message' => 'Clave AX y tamaño son obligatorios.'], 422);
+        }
+
+        try {
+            // Mismo criterio que Duplicar (getFlogByItem): el flog más reciente es el de mayor
+            // número final, no el mayor alfabéticamente (CE-100 > CE-99).
+            $flog = DB::connection('sqlsrv_ti')
+                ->table('dbo.TwFlogsItemLine as fil')
+                ->join('dbo.TwFlogsTable as ft', 'ft.IDFLOG', '=', 'fil.IDFLOG')
+                ->select('ft.IDFLOG', 'ft.NAMEPROYECT')
+                ->whereRaw('LTRIM(RTRIM(fil.ITEMID)) = ?', [$itemId])
+                ->whereRaw('LTRIM(RTRIM(fil.INVENTSIZEID)) = ?', [$inventSizeId])
+                ->whereIn('ft.ESTADOFLOG', [3, 4, 5, 21])
+                ->get()
+                ->sortByDesc(function ($fila) {
+                    return preg_match('/(\d+)$/', trim((string) ($fila->IDFLOG ?? '')), $m) ? (int) $m[1] : 0;
+                })
+                ->first();
+
+            return response()->json([
+                'success' => true,
+                'data' => $flog ? [
+                    'flogsId' => trim((string) ($flog->IDFLOG ?? '')),
+                    'nombreProyecto' => trim((string) ($flog->NAMEPROYECT ?? '')),
+                ] : null,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('LiberarOrdenes::obtenerFlogSugerido', [
+                'itemId' => $itemId,
+                'inventSizeId' => $inventSizeId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json(['success' => false, 'message' => 'Error al buscar el flog en AX.'], 500);
+        }
     }
 
     /**

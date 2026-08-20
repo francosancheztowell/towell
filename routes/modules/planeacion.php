@@ -208,6 +208,7 @@ Route::get('/planeacion/programa-tejido/liberar-ordenes/bom-sugerencias', [Liber
 Route::get('/planeacion/programa-tejido/liberar-ordenes/tipo-hilo', [LiberarOrdenesController::class, 'obtenerTipoHilo'])->name('programa-tejido.liberar-ordenes.tipo-hilo');
 Route::get('/planeacion/programa-tejido/liberar-ordenes/codigo-dibujo', [LiberarOrdenesController::class, 'obtenerCodigoDibujo'])->name('programa-tejido.liberar-ordenes.codigo-dibujo');
 Route::get('/planeacion/programa-tejido/liberar-ordenes/opciones-hilos', [LiberarOrdenesController::class, 'obtenerOpcionesHilos'])->name('programa-tejido.liberar-ordenes.opciones-hilos');
+Route::get('/planeacion/programa-tejido/liberar-ordenes/flog-sugerido', [LiberarOrdenesController::class, 'obtenerFlogSugerido'])->name('programa-tejido.liberar-ordenes.flog');
 Route::post('/planeacion/programa-tejido/liberar-ordenes/guardar-campos', [LiberarOrdenesController::class, 'guardarCamposEditables'])->name('programa-tejido.liberar-ordenes.guardar-campos');
 
 // Editar marbetes desde el menú contextual de Programa Tejido
@@ -277,6 +278,7 @@ Route::get('/planeacion/muestras/liberar-ordenes/bom-sugerencias', [LiberarOrden
 Route::get('/planeacion/muestras/liberar-ordenes/tipo-hilo', [LiberarOrdenesController::class, 'obtenerTipoHilo'])->name('muestras.liberar-ordenes.tipo-hilo');
 Route::get('/planeacion/muestras/liberar-ordenes/codigo-dibujo', [LiberarOrdenesController::class, 'obtenerCodigoDibujo'])->name('muestras.liberar-ordenes.codigo-dibujo');
 Route::get('/planeacion/muestras/liberar-ordenes/opciones-hilos', [LiberarOrdenesController::class, 'obtenerOpcionesHilos'])->name('muestras.liberar-ordenes.opciones-hilos');
+Route::get('/planeacion/muestras/liberar-ordenes/flog-sugerido', [LiberarOrdenesController::class, 'obtenerFlogSugerido'])->name('muestras.liberar-ordenes.flog');
 Route::post('/planeacion/muestras/liberar-ordenes/guardar-campos', [LiberarOrdenesController::class, 'guardarCamposEditables'])->name('muestras.liberar-ordenes.guardar-campos');
 
 Route::get('/planeacion/muestras/reimprimir-ordenes/{id}', [ReimprimirOrdenesController::class, 'reimprimir'])->name('planeacion.muestras.reimprimir-ordenes');

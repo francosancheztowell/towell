@@ -2484,25 +2484,36 @@ button.crudo-status-card:disabled {
 }
 
 .crudo-orders-table .crudo-orders-col-date {
-    width: 13%;
+    width: 12%;
 }
 
 .crudo-orders-table .crudo-orders-col-roll {
-    width: 14%;
+    width: 13%;
 }
 
 .crudo-orders-table .crudo-orders-col-order {
-    width: 12%;
+    width: 11%;
 }
 
 /* Pzas, kg, p. crudo y 2das: columnas iguales y centradas, para que los números
    no se apelotonen contra el lote. */
 .crudo-orders-table .crudo-orders-col-number {
-    width: 11%;
+    width: 10%;
 }
 
+/* El lote del proveedor es texto libre y suele ser el dato más largo: se lleva
+   el ancho sobrante y, si aun así no cabe, parte en dos líneas en vez de
+   cortarse con puntos suspensivos. */
 .crudo-orders-table .crudo-orders-col-lot {
-    width: 17%;
+    width: 24%;
+}
+
+.crudo-orders-table th:last-child,
+.crudo-orders-table td:last-child {
+    overflow: visible;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    text-overflow: clip;
 }
 
 .crudo-orders-table th,
@@ -3646,23 +3657,23 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-orders-table .crudo-orders-col-date {
-        width: 14%;
+        width: 13%;
     }
 
     .crudo-orders-table .crudo-orders-col-roll {
-        width: 15%;
+        width: 13%;
     }
 
     .crudo-orders-table .crudo-orders-col-order {
-        width: 14%;
+        width: 12%;
     }
 
     .crudo-orders-table .crudo-orders-col-number {
-        width: 10.5%;
+        width: 9.5%;
     }
 
     .crudo-orders-table .crudo-orders-col-lot {
-        width: 15%;
+        width: 24%;
     }
 
     .crudo-orders-table th,

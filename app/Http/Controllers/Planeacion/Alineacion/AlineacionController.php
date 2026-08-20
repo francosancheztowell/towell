@@ -315,7 +315,7 @@ class AlineacionController extends Controller
         // Sin CAST sobre la columna: se deja que SQL Server convierta el parámetro
         // al tipo de OrdenTejido, permitiendo index seek en vez de scan.
         $cats = CatCodificados::query()
-            ->select(['Id', 'ItemId', 'OrdenTejido', 'FechaTejido', 'Tolerancia', 'Razurada', 'TipoRizo', 'DobladilloId', 'Obs5'])
+            ->select(['Id', 'ItemId', 'OrdenTejido', 'FechaTejido', 'Tolerancia', 'Razurada', 'TipoRizo', 'DobladilloId', 'Obs5', 'PesoMuestra', 'MedidaCenefa', 'MedidaPlano', 'AlturaRizo'])
             ->whereIn('OrdenTejido', $ids)
             ->orderByDesc('Id')
             ->get();
@@ -333,7 +333,8 @@ class AlineacionController extends Controller
 
     /**
      * Mapea un registro ReqProgramaTejido al array asociativo esperado por la vista.
-     * Tolerancia, RazSN, TipoRizo, TipoPlano y Observaciones vienen de CatCodificados por OrdenTejido.
+     * Tolerancia, RazSN, TipoRizo, TipoPlano, Observaciones y PesoGRM2 (Peso Muestra) vienen de
+     * CatCodificados por OrdenTejido.
      *
      * @param  array<string, CatCodificados>  $catCodPorOrden
      * @return array<string, mixed>
@@ -372,6 +373,16 @@ class AlineacionController extends Controller
             'TipoRizo' => fn () => $cat?->TipoRizo,
             'TipoPlano' => fn () => $cat?->DobladilloId,
             'Observaciones' => fn () => $cat?->Obs5,
+            // PesoMuestra es nvarchar en SQL Server y arrastra ruido de float ("4.8200002"):
+            // se redondea aquí para que web, Excel y PDF muestren lo mismo.
+            'PesoGRM2' => fn () => $cat?->PesoMuestra !== null ? round((float) $cat->PesoMuestra, 3) : null,
+            // "Med. Cen." es texto con diagonales en el catálogo ("7/2.5", "1/1/1/1/1"),
+            // no un ancho numérico: se pasa tal cual, sin formateo.
+            'AnchoToalla' => fn () => $cat?->MedidaCenefa,
+            'MedidaPlano' => fn () => $cat?->MedidaPlano,
+            // La columna se llama CalibreRizo por historia, pero muestra "Alt Rizo":
+            // el dato real es CatCodificados.AlturaRizo, no el calibre del programa.
+            'CalibreRizo' => fn () => $cat?->AlturaRizo,
             'PesoMin' => fn () => $pesoMinAlineacion,
             'PesoMax' => fn () => $pesoMaxAlineacion,
             'MuestraMin' => fn () => $pesoMinAlineacion,
@@ -428,11 +439,40 @@ class AlineacionController extends Controller
         // FechaTejido en Y-m-d para cálculo de Días de prod. en el front (catcodificados)
         $item['FechaTejido'] = $cat?->FechaTejido ? Carbon::parse($cat->FechaTejido)->format('Y-m-d') : '';
 
+        // Un cero no es un dato: en este reporte significa "no capturado". Se vacían al final,
+        // ya con DiasPorEjecutar calculado, y solo sobre las columnas visibles (FechaTejido y
+        // _tieneParoActivo quedan intactos porque los consume el front, no el usuario).
+        foreach ($this->columnas as $key) {
+            if ($this->esCeroSinDato($item[$key] ?? '')) {
+                $item[$key] = '';
+            }
+        }
+
         // Indica si el telar tiene un paro activo en ManFallasParos
         $noTelar = trim((string) ($r->NoTelarId ?? ''));
         $item['_tieneParoActivo'] = $noTelar !== '' && in_array($noTelar, $telaresConParoActivo, true);
 
         return $item;
+    }
+
+    /**
+     * ¿El valor es un cero disfrazado? Cubre "0", "0.0", "0/0" y "0/0/0/0" (las cenefas
+     * concatenan con diagonal). Un valor mixto como "0/ALG" no cuenta: ahí sí hay dato.
+     */
+    private function esCeroSinDato(mixed $valor): bool
+    {
+        $texto = trim((string) $valor);
+        if ($texto === '') {
+            return false;
+        }
+
+        foreach (preg_split('#\s*/\s*#', $texto) as $parte) {
+            if (! is_numeric($parte) || (float) $parte !== 0.0) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

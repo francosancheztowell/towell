@@ -307,7 +307,7 @@ class CatCodificacionController extends Controller
 
     /**
      * API: obtener registro de CatCodificados por OrdenTejido para el modal Peso Muestra.
-     * Devuelve ActualizaLmat, PesoMuestra, BomId (Lista Mat) para cargar/actualizar el formulario.
+     * Devuelve ActualizaLmat, PesoMuestra, AlturaRizo y BomId (Lista Mat) para cargar/actualizar el formulario.
      */
     public function getCatCodificadosPorOrden(string $ordenTejido): JsonResponse
     {
@@ -319,7 +319,7 @@ class CatCodificacionController extends Controller
 
             $registro = CatCodificados::query()
                 ->where('OrdenTejido', $ordenTejido)
-                ->first(['OrdenTejido', 'TelarId', 'ItemId', 'InventSizeId', 'Nombre', 'ClaveModelo', 'ActualizaLmat', 'PesoMuestra', 'BomId', 'BomName']);
+                ->first(['OrdenTejido', 'TelarId', 'ItemId', 'InventSizeId', 'Nombre', 'ClaveModelo', 'ActualizaLmat', 'PesoMuestra', 'AlturaRizo', 'BomId', 'BomName']);
 
             if (! $registro) {
                 return response()->json([
@@ -331,6 +331,7 @@ class CatCodificacionController extends Controller
 
             $actualizaLmat = $registro->ActualizaLmat === true || $registro->ActualizaLmat === 1 || $registro->ActualizaLmat === '1';
             $pesoMuestra = $registro->PesoMuestra !== null && $registro->PesoMuestra !== '' ? (float) $registro->PesoMuestra : null;
+            $alturaRizo = $registro->AlturaRizo !== null && trim((string) $registro->AlturaRizo) !== '' ? trim((string) $registro->AlturaRizo) : null;
             $bomId = $registro->BomId !== null ? (string) $registro->BomId : '';
             $bomName = $registro->BomName !== null ? (string) $registro->BomName : '';
 
@@ -362,6 +363,7 @@ class CatCodificacionController extends Controller
                     'nombre' => $registro->Nombre ?? $registro->ClaveModelo ?? '',
                     'actualizaLmat' => $actualizaLmat,
                     'pesoMuestra' => $pesoMuestra,
+                    'alturaRizo' => $alturaRizo,
                     'bomId' => $bomId,
                     'bomName' => $bomName,
                     'listaLmat' => $listaLmat,
@@ -381,7 +383,8 @@ class CatCodificacionController extends Controller
     }
 
     /**
-     * API: Actualizar PesoMuestra, ActualizaLmat y BomId en CatCodificados, ReqProgramaTejido y ReqModelosCodificados.
+     * API: Actualizar PesoMuestra, AlturaRizo, ActualizaLmat y BomId en CatCodificados,
+     * ReqProgramaTejido y ReqModelosCodificados (ReqProgramaTejido no tiene AlturaRizo).
      */
     public function actualizarPesoMuestraLmat(Request $request): JsonResponse
     {
@@ -389,12 +392,18 @@ class CatCodificacionController extends Controller
             $validated = $request->validate([
                 'ordenTejido' => 'required|string',
                 'pesoMuestra' => 'nullable|numeric|min:0',
+                // Un solo decimal y sin negativos: 0 a 10, como 1.1 u 8.6.
+                'alturaRizo' => 'nullable|numeric|min:0|max:10|decimal:0,1',
                 'actualizaLmat' => 'required|boolean',
                 'bomId' => 'nullable|string|max:20',
             ]);
 
             $ordenTejido = trim((string) $validated['ordenTejido']);
             $pesoMuestra = isset($validated['pesoMuestra']) && $validated['pesoMuestra'] !== null ? (float) $validated['pesoMuestra'] : null;
+            // La columna es de texto en SQL Server: se guarda el valor tal cual lo capturaron.
+            $alturaRizo = isset($validated['alturaRizo']) && $validated['alturaRizo'] !== null && $validated['alturaRizo'] !== ''
+                ? trim((string) $validated['alturaRizo'])
+                : null;
             $actualizaLmat = (bool) $validated['actualizaLmat'];
             // Si Act Lmat está desactivado, forzar BomId y BomName a null
             $bomId = $actualizaLmat
@@ -442,6 +451,7 @@ class CatCodificacionController extends Controller
                 ->first();
             if ($catCod) {
                 $catCod->PesoMuestra = $pesoMuestra;
+                $catCod->AlturaRizo = $alturaRizo;
                 $catCod->ActualizaLmat = $actualizaLmat;
                 if ($bomId !== null) {
                     $catCod->BomId = $bomId;
@@ -483,6 +493,7 @@ class CatCodificacionController extends Controller
                 ->get();
             foreach ($reqModelos as $modelo) {
                 $modelo->PesoMuestra = $pesoMuestra;
+                $modelo->AlturaRizo = $alturaRizo;
                 $modelo->save();
             }
             if ($reqModelos->count() > 0) {

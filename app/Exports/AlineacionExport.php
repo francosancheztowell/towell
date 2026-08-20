@@ -280,7 +280,19 @@ class AlineacionExport implements FromArray, WithDrawings, WithEvents, WithTitle
             ? Coordinate::stringFromColumnIndex($indiceObservaciones + 1)
             : null;
 
+        $indiceRazSN = array_search('RazSN', $this->columnas, true);
+        $letraRazSN = $indiceRazSN !== false
+            ? Coordinate::stringFromColumnIndex($indiceRazSN + 1)
+            : null;
+
         foreach ($this->itemsPorFila as $fila => $item) {
+            // "Raz. S/N" en SI se marca en rojo, igual que en pantalla y en el PDF.
+            if ($letraRazSN !== null && strtoupper(trim((string) ($item['RazSN'] ?? ''))) === 'SI') {
+                $estiloRaz = $sheet->getStyle("{$letraRazSN}{$fila}");
+                $estiloRaz->getFont()->setBold(true)->getColor()->setARGB('FFFFFFFF');
+                $estiloRaz->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFDC2626');
+            }
+
             $sheet->getRowDimension($fila)->setRowHeight(
                 $this->alturaFilaDatos((string) ($item['Observaciones'] ?? ''))
             );

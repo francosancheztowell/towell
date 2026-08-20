@@ -8,11 +8,82 @@ use Illuminate\Support\Facades\Schema;
 
 class CatCodificadosDesarrolladorService
 {
+    /** @var array<string, true>|null */
+    private ?array $numericColumnNames = null;
+
     public function getColumns(): array
     {
         $modelo = new CatCodificados;
 
         return Schema::getColumnListing($modelo->getTable());
+    }
+
+    /**
+     * Asigna el payload al registro ignorando valores de texto en columnas numéricas
+     * (p. ej. calibre "600/1T" contra float), para no romper el UPDATE en SQL Server.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function applyPayload(CatCodificados $registro, array $payload): void
+    {
+        $columns = array_flip($this->getColumns());
+        $numericColumns = $this->numericColumnNames($registro->getTable());
+
+        foreach ($payload as $column => $value) {
+            if (! isset($columns[$column])) {
+                continue;
+            }
+
+            if (isset($numericColumns[$column])) {
+                if ($value === '') {
+                    $value = null;
+                } elseif (! $this->isNumericCompatible($value)) {
+                    continue;
+                }
+            }
+
+            $registro->setAttribute($column, $value);
+        }
+    }
+
+    /**
+     * @return array<string, true>
+     */
+    private function numericColumnNames(string $table): array
+    {
+        if ($this->numericColumnNames !== null) {
+            return $this->numericColumnNames;
+        }
+
+        $numeric = [];
+        foreach (Schema::getColumns($table) as $column) {
+            $type = strtolower((string) ($column['type_name'] ?? $column['type'] ?? ''));
+            if (preg_match('/int|float|real|double|decimal|numeric|money|bit/', $type) !== 1) {
+                continue;
+            }
+            $numeric[$column['name']] = true;
+        }
+
+        return $this->numericColumnNames = $numeric;
+    }
+
+    private function isNumericCompatible(mixed $value): bool
+    {
+        if ($value === null) {
+            return true;
+        }
+
+        if (is_bool($value) || is_int($value) || is_float($value)) {
+            return true;
+        }
+
+        if (! is_string($value)) {
+            return false;
+        }
+
+        $normalized = str_replace(',', '.', trim($value));
+
+        return $normalized !== '' && is_numeric($normalized);
     }
 
     public function buildOrderQuery(string $noProduccion, ?array $columns = null): Builder
