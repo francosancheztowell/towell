@@ -2,15 +2,21 @@
 
 namespace App\Http\Controllers\Tejedores\Desarrolladores;
 
+use App\Exports\DesarrolladoresExport;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ConsultasDesarrolladorService;
 use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ProcesarDesarrolladorService;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
 
 class TelDesarrolladoresController extends Controller
 {
+    /** Nombre del modulo en SYSRoles (idrol 48). */
+    private const MODULO = 'Desarrolladores';
+
     protected ConsultasDesarrolladorService $consultasService;
 
     protected ProcesarDesarrolladorService $procesarService;
@@ -19,6 +25,11 @@ class TelDesarrolladoresController extends Controller
         ConsultasDesarrolladorService $consultasService,
         ProcesarDesarrolladorService $procesarService
     ) {
+        // ponytail: solo se exige 'acceso'. No se pide crear/registrar en store porque
+        // 9 usuarios tienen acceso sin ninguno de los dos y hoy capturan; el desglose
+        // fino se decide con negocio al migrar a Livewire.
+        abort_if(Auth::check() && ! userCan('acceso', self::MODULO), 403, 'Sin permiso para el modulo Desarrolladores.');
+
         $this->consultasService = $consultasService;
         $this->procesarService = $procesarService;
     }
@@ -47,8 +58,8 @@ class TelDesarrolladoresController extends Controller
         $fechaFormateada = Carbon::parse($fecha)->format('Y-m-d');
         $nombreArchivo = 'desarrolladores_'.Carbon::parse($fecha)->format('d-m-Y').'.xlsx';
 
-        return \Maatwebsite\Excel\Facades\Excel::download(
-            new \App\Exports\DesarrolladoresExport($fechaFormateada),
+        return Excel::download(
+            new DesarrolladoresExport($fechaFormateada),
             $nombreArchivo
         );
     }

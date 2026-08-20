@@ -58,6 +58,15 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     // ── Utilidades ────────────────────────────────────────────────────────
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     function spinnerHtml(colspan, mensaje) {
         return `<tr><td colspan="${colspan}" class="px-3 py-3 text-center text-gray-500">
             <svg class="animate-spin h-5 w-5 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -464,7 +473,7 @@ document.addEventListener('DOMContentLoaded', function () {
         row.className = 'hover:bg-gray-50 transition-colors fila-detalle';
         row.dataset.index = index;
 
-        const inputField = (name, val, ph) => `<input type="text" name="${name}" value="${val}" class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="${ph}">`;
+        const inputField = (name, val, ph) => `<input type="text" name="${name}" value="${escapeHtml(val)}" class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="${ph}">`;
         const selectField = (name, cls, ph, disabled = false) => `<select name="${name}" class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm ${cls}" ${disabled ? 'disabled' : ''}><option value="">${ph}</option></select>`;
 
         row.innerHTML = `
@@ -473,12 +482,12 @@ document.addEventListener('DOMContentLoaded', function () {
             <td class="px-4 py-2">${usarSelects ? selectField('detalle_fibra[]', 'detalle-fibra', 'Selecciona calibre', true) : inputField('detalle_fibra[]', fibra, 'Fibra')}</td>
             <td class="px-4 py-2">${usarSelects ? selectField('detalle_codcolor[]', 'detalle-codcolor', 'Selecciona calibre', true) : inputField('detalle_codcolor[]', codColor, 'Cod Color')}</td>
             <td class="px-4 py-2">
-                <input type="text" name="detalle_nombrecolor[]" value="${nombreColor}"
+                <input type="text" name="detalle_nombrecolor[]" value="${escapeHtml(nombreColor)}"
                        class="w-full px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm ${usarSelects ? 'bg-gray-50 detalle-color' : ''}"
                        placeholder="Nombre Color" ${usarSelects ? 'readonly' : ''}>
             </td>
             <td class="px-4 py-2">
-                <input type="number" name="pasadas[${key}]" value="${pasadas}" min="1" step="1" required
+                <input type="number" name="pasadas[${escapeHtml(key)}]" value="${escapeHtml(pasadas)}" min="1" step="1" required
                        class="w-20 px-2 py-1.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" placeholder="0">
             </td>
             <td class="px-4 py-2 text-center">
@@ -568,15 +577,15 @@ document.addEventListener('DOMContentLoaded', function () {
                         const row = document.createElement('tr');
                         row.className = 'hover:bg-gray-100 transition-colors';
                         row.innerHTML = `
-                            <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 bg-blue-50">${p.SalonTejidoId ?? 'N/A'}</td>
-                            <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 bg-white">${p.NoProduccion}</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 bg-blue-50">${escapeHtml(p.SalonTejidoId ?? 'N/A')}</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm font-medium text-gray-900 bg-white">${escapeHtml(p.NoProduccion)}</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-600 bg-blue-50">${p.FechaInicio ? new Date(p.FechaInicio).toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'}) : 'N/A'}</td>
-                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-600 bg-white">${p.TamanoClave ?? 'N/A'}</td>
-                            <td class="px-3 py-3 text-sm text-gray-600 break-words bg-blue-50">${p.NombreProducto || 'N/A'}</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-600 bg-white">${escapeHtml(p.TamanoClave ?? 'N/A')}</td>
+                            <td class="px-3 py-3 text-sm text-gray-600 break-words bg-blue-50">${escapeHtml(p.NombreProducto || 'N/A')}</td>
                             <td class="px-3 py-3 whitespace-nowrap text-center bg-white">
                                 <input type="checkbox" class="checkbox-produccion w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
-                                       data-telar="${telarId}" data-salon="${p.SalonTejidoId ?? ''}" data-tamano="${p.TamanoClave ?? ''}"
-                                       data-produccion="${p.NoProduccion}" data-modelo="${p.NombreProducto || ''}" onchange="seleccionarProduccion(this)">
+                                       data-telar="${escapeHtml(telarId)}" data-salon="${escapeHtml(p.SalonTejidoId ?? '')}" data-tamano="${escapeHtml(p.TamanoClave ?? '')}"
+                                       data-produccion="${escapeHtml(p.NoProduccion)}" data-modelo="${escapeHtml(p.NombreProducto || '')}" onchange="seleccionarProduccion(this)">
                             </td>`;
                         els.bodyProducciones.appendChild(row);
                     });

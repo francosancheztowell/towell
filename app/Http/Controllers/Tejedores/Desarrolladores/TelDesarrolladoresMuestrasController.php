@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ConsultasMuestrasDesarrolladorService;
 use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ProcesarMuestrasDesarrolladorService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class TelDesarrolladoresMuestrasController extends Controller
 {
@@ -13,10 +14,15 @@ class TelDesarrolladoresMuestrasController extends Controller
 
     protected ProcesarMuestrasDesarrolladorService $procesarService;
 
+    /** Nombre del modulo en SYSRoles (idrol 189). */
+    private const MODULO = 'Desarrolladores Muestras';
+
     public function __construct(
         ConsultasMuestrasDesarrolladorService $consultasService,
         ProcesarMuestrasDesarrolladorService $procesarService
     ) {
+        abort_if(Auth::check() && ! userCan('acceso', self::MODULO), 403, 'Sin permiso para el modulo Desarrolladores Muestras.');
+
         $this->consultasService = $consultasService;
         $this->procesarService = $procesarService;
     }

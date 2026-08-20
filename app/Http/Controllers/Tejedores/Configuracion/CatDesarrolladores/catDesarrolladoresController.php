@@ -6,9 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Models\Sistema\Usuario;
 use App\Models\Tejedores\catDesarrolladoresModel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class catDesarrolladoresController extends Controller
 {
+    /** Nombre del modulo en SYSRoles (idrol 170). */
+    private const MODULO = 'Catalogo Desarrolladores';
+
+    public function __construct()
+    {
+        // El invitado pasa de largo para que 'auth' lo mande al login. Los permisos finos
+        // de store/update/destroy coinciden con los <x-navbar.button-*> que la vista ya
+        // oculta, asi que exigirlos no deja fuera a nadie que hoy pueda pulsar el boton.
+        abort_if(Auth::check() && ! userCan('acceso', self::MODULO), 403, 'Sin permiso para el catalogo de desarrolladores.');
+    }
+
     public function index(Request $request)
     {
         $items = catDesarrolladoresModel::all();
@@ -24,6 +36,8 @@ class catDesarrolladoresController extends Controller
 
     public function store(Request $request)
     {
+        abort_if(Auth::check() && ! userCan('crear', self::MODULO), 403, 'Sin permiso para crear.');
+
         $validated = $request->validate([
             'clave_empleado' => 'required|string|max:50',
         ]);
@@ -42,6 +56,8 @@ class catDesarrolladoresController extends Controller
 
     public function update(Request $request, $id)
     {
+        abort_if(Auth::check() && ! userCan('modificar', self::MODULO), 403, 'Sin permiso para modificar.');
+
         $validated = $request->validate([
             'clave_empleado' => 'required|string|max:50',
             'nombre' => 'required|string|max:255',
@@ -57,6 +73,8 @@ class catDesarrolladoresController extends Controller
 
     public function destroy($id)
     {
+        abort_if(Auth::check() && ! userCan('eliminar', self::MODULO), 403, 'Sin permiso para eliminar.');
+
         $desarrollador = catDesarrolladoresModel::findOrFail($id);
         $desarrollador->delete();
 

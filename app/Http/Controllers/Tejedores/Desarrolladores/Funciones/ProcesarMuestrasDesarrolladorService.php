@@ -703,10 +703,14 @@ class ProcesarMuestrasDesarrolladorService
 
     private function buildPasadasPayload(array $pasadasFromRequest, $ordenData): array
     {
+        // Las claves vienen del request y terminan en setAttribute(), que se salta $fillable:
+        // sin esta lista blanca un POST puede escribir cualquier columna numerica de CatCodificados.
+        $permitidas = ['PasadasTrama', 'PasadasTramaFondoC1', 'PasadasComb1', 'PasadasComb2', 'PasadasComb3', 'PasadasComb4', 'PasadasComb5'];
+
         $pasadasPayload = [];
         if (count($pasadasFromRequest) > 0) {
             foreach ($pasadasFromRequest as $key => $value) {
-                if ($value === null || $value === '') {
+                if ($value === null || $value === '' || ! in_array($key, $permitidas, true)) {
                     continue;
                 }
                 if ($key === 'PasadasTrama') {

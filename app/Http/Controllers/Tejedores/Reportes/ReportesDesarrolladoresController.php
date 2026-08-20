@@ -6,10 +6,21 @@ use App\Exports\DesarrolladoresReporteExport;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportesDesarrolladoresController extends Controller
 {
+    /** Nombre del modulo en SYSRoles (idrol 186). */
+    private const MODULO = 'Reportes Desarrolladores';
+
+    public function __construct()
+    {
+        // El invitado pasa de largo para que 'auth' lo mande al login; aqui solo se
+        // frena al usuario ya autenticado que no tiene el modulo asignado.
+        abort_if(Auth::check() && ! userCan('acceso', self::MODULO), 403, 'Sin permiso para los reportes de desarrolladores.');
+    }
+
     /**
      * Selector de reportes: muestra los reportes disponibles
      */
