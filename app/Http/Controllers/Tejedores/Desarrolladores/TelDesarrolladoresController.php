@@ -2,15 +2,12 @@
 
 namespace App\Http\Controllers\Tejedores\Desarrolladores;
 
-use App\Exports\DesarrolladoresExport;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ConsultasDesarrolladorService;
 use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ProcesarDesarrolladorService;
 use App\Models\Planeacion\ReqProgramaTejido;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Maatwebsite\Excel\Facades\Excel;
 
 class TelDesarrolladoresController extends Controller
 {
@@ -45,38 +42,6 @@ class TelDesarrolladoresController extends Controller
     }
 
     /**
-     * Exporta a Excel los registros de desarrolladores para una fecha específica.
-     */
-    public function exportarExcel(Request $request)
-    {
-        $fecha = $request->input('fecha');
-
-        if (! $fecha) {
-            return redirect()->back()->with('error', 'Debe seleccionar una fecha para exportar.');
-        }
-
-        $fechaFormateada = Carbon::parse($fecha)->format('Y-m-d');
-        $nombreArchivo = 'desarrolladores_'.Carbon::parse($fecha)->format('d-m-Y').'.xlsx';
-
-        return Excel::download(
-            new DesarrolladoresExport($fechaFormateada),
-            $nombreArchivo
-        );
-    }
-
-    /**
-     * Devuelve la vista del formulario para un desarrollador.
-     */
-    public function formularioDesarrollador(Request $request, $telarId, $noProduccion)
-    {
-        $datosProduccion = ReqProgramaTejido::where('NoTelarId', $telarId)
-            ->where('NoProduccion', $noProduccion)
-            ->first();
-
-        return view('modulos.desarrolladores.formulario', compact('datosProduccion', 'telarId', 'noProduccion'));
-    }
-
-    /**
      * Obtiene las producciones de un telar como HTML renderizado.
      */
     public function obtenerProduccionesHtml(Request $request, $telarId)
@@ -98,31 +63,6 @@ class TelDesarrolladoresController extends Controller
             'telaresDestino' => $telaresDestino,
             'hasData' => $hasData,
         ])->render();
-    }
-
-    /**
-     * Obtiene vía JSON las producciones pendientes de un telar.
-     */
-    public function obtenerProducciones(Request $request, $telarId)
-    {
-        $resultado = $this->consultasService->obtenerProducciones($telarId);
-        $status = $resultado['success'] ? 200 : 500;
-
-        return response()->json($resultado, $status);
-    }
-
-    /**
-     * Verifica si una orden ya existe en ReqProgramaTejido.
-     */
-    public function verificarOrden(Request $request)
-    {
-        $noProduccion = $request->input('noProduccion', '');
-        if (empty($noProduccion)) {
-            return response()->json(['exists' => false]);
-        }
-        $exists = ReqProgramaTejido::where('NoProduccion', $noProduccion)->exists();
-
-        return response()->json(['exists' => $exists]);
     }
 
     /**

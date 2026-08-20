@@ -38,15 +38,7 @@ document.addEventListener('DOMContentLoaded', function () {
         btnAgregarFila:     document.getElementById('btnAgregarFilaDetalle'),
         codificacionInputs: document.querySelectorAll('.codificacion-char'),
         codificacionHidden: document.getElementById('CodificacionModelo'),
-        codificacionNoData: document.getElementById('codificacionNoData'),
         codificacionSuffix: document.getElementById('codificacionSuffix'),
-        resumen: {
-            JulioRizo:       document.getElementById('resumenJulioRizo'),
-            JulioPie:        document.getElementById('resumenJulioPie'),
-            EfiInicial:      document.getElementById('resumenEfiInicial'),
-            EfiFinal:        document.getElementById('resumenEfiFinal'),
-            DesperdicioTrama:document.getElementById('resumenDesperdicioTrama'),
-        },
         formJulioRizoInfo: document.getElementById('formJulioRizoInfo'),
         formJulioPieInfo:  document.getElementById('formJulioPieInfo'),
         ordenEnProcesoBanner: document.getElementById('ordenEnProcesoBanner'),
@@ -325,11 +317,6 @@ document.addEventListener('DOMContentLoaded', function () {
             errores.push('Selecciona un telar destino valido.');
         }
 
-        // Temporalmente desactivada: la producción de desarrolladores no restringe
-        // el total de pasadas ni el porcentaje acumulado de combinaciones.
-        // const erroresPasadas = Pasadas.obtenerErroresDeRango();
-        // errores.push(...erroresPasadas);
-
         if (errores.length > 0) {
             showValidationAlert('Faltan datos requeridos', errores);
             return false;
@@ -572,14 +559,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const suffix = updateSuffix();
             hidden.value = fullCode ? (suffix ? `${fullCode}.${suffix}` : fullCode) : '';
             refreshBlankStates();
-            updateNoDataMessage();
             checkFormValidity();
         }
 
-        function updateNoDataMessage() {
-            if (!els.codificacionNoData) return;
-            els.codificacionNoData.classList.toggle('hidden', !(state.codificacionFetchAttempted && !hidden.value));
-        }
 
         function setFromCodigoDibujo(codigoDibujo) {
             const normalized = String(codigoDibujo ?? '')
@@ -599,7 +581,6 @@ document.addEventListener('DOMContentLoaded', function () {
             hidden.value = '';
             state.codificacionFetchAttempted = false;
             refreshBlankStates();
-            updateNoDataMessage();
             checkFormValidity();
         }
 
@@ -770,31 +751,6 @@ document.addEventListener('DOMContentLoaded', function () {
             state.totalPasadasBase = sumaInicial > 0 ? sumaInicial : null;
         }
 
-        function obtenerErroresDeRango() {
-            const base = state.totalPasadasBase;
-            if (!Number.isInteger(base) || base < 1) {
-                return ['No fue posible identificar las pasadas iniciales de la orden. Vuelve a seleccionar la orden.'];
-            }
-
-            const totalActual = calcularSuma();
-            const totalMinimo = Math.floor(base * 0.70);
-            const totalMaximo = Math.floor(base * 1.30);
-            const minimoCombinaciones = Math.ceil(base * 0.30);
-            const totalCombinaciones = calcularSumaCombinaciones();
-            const errores = [];
-
-            if (totalActual < totalMinimo) {
-                errores.push(`El total de pasadas no puede ser menor a ${totalMinimo} (30% menos que ${base}).`);
-            }
-            if (totalActual > totalMaximo) {
-                errores.push(`El total de pasadas no puede superar ${totalMaximo} (30% adicional sobre ${base}).`);
-            }
-            if (totalCombinaciones < minimoCombinaciones) {
-                errores.push(`Las combinaciones deben acumular al menos ${minimoCombinaciones} pasadas (30% de ${base}).`);
-            }
-
-            return errores;
-        }
 
         function sincronizar() {
             if (!els.totalPasadasDibujo) return;
@@ -817,7 +773,6 @@ document.addEventListener('DOMContentLoaded', function () {
             calcularSuma,
             calcularSumaCombinaciones,
             fijarTotalBase,
-            obtenerErroresDeRango,
             sincronizar,
             adjuntarListeners,
             reset,
@@ -907,23 +862,6 @@ document.addEventListener('DOMContentLoaded', function () {
         return '';
     }
 
-    // ── Resumen CatCodificados ────────────────────────────────────────────
-    function actualizarResumen(data) {
-        Object.entries(els.resumen).forEach(([key, el]) => {
-            if (!el) return;
-            if (!data || data[key] == null || data[key] === '') {
-                el.textContent = '-';
-                return;
-            }
-
-            if (key === 'EfiInicial' || key === 'EfiFinal') {
-                el.textContent = normalizeIntegerValue(data[key]);
-                return;
-            }
-
-            el.textContent = String(data[key]);
-        });
-    }
 
     function prefillDesde(data) {
         setSelectValue(els.selectJulioRizo, data ? data.JulioRizo : '');
@@ -964,7 +902,6 @@ document.addEventListener('DOMContentLoaded', function () {
         els.modalPasadas?.classList.add('hidden');
         if (els.formJulioRizoInfo) els.formJulioRizoInfo.textContent = '—';
         if (els.formJulioPieInfo) els.formJulioPieInfo.textContent = '—';
-        actualizarResumen(null);
         prefillDesde(null);
         if (els.inputAccion) els.inputAccion.value = 'finalizar';
         if (els.selectAccion) els.selectAccion.value = 'finalizar';
@@ -1099,7 +1036,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function cargarResumenCatCodificados(telarId, noProduccion) {
-        actualizarResumen(null);
         prefillDesde(null);
         if (!telarId || !noProduccion) return;
 
@@ -1107,7 +1043,6 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(r => r.json())
             .then(data => {
                 if (data.success && data.registro) {
-                    actualizarResumen(data.registro);
                     prefillDesde(data.registro);
                 }
                 checkFormValidity();
@@ -1213,7 +1148,6 @@ document.addEventListener('DOMContentLoaded', function () {
         buscarYActualizarCodigoDibujo(salon, telar, tamano);
 
         NumberSelectorManager.resetAll();
-        actualizarResumen(null);
         prefillDesde(null);
         Pasadas.reset();
         cargarDetallesOrden(produccion);
@@ -1304,7 +1238,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     els.selectTelar.addEventListener('change', function () {
         if (!this.value) return;
-        window.__TELAR_ACTUAL__ = this.value;
         Codificacion.updateSuffix(this.value);
         Codificacion.updateHiddenValue();
         cargarJuliosPorTelar(this.value);

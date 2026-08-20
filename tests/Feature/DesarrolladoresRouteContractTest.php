@@ -13,12 +13,12 @@ class DesarrolladoresRouteContractTest extends TestCase
      */
     public function test_index_sin_auth_redirige(): void
     {
-        $response = $this->get('/desarrolladores');
+        $response = $this->get('/tejedores/desarrolladores');
 
         $this->assertContains(
             $response->status(),
             [302, 401],
-            "GET /desarrolladores should redirect or return 401 when unauthenticated, got {$response->status()}"
+            "GET /tejedores/desarrolladores should redirect or return 401 when unauthenticated, got {$response->status()}"
         );
     }
 
@@ -65,20 +65,6 @@ class DesarrolladoresRouteContractTest extends TestCase
     }
 
     /**
-     * GET /desarrolladores/verificar-orden without authentication must redirect or return 401.
-     */
-    public function test_verificar_orden_sin_auth_redirige(): void
-    {
-        $response = $this->get('/desarrolladores/verificar-orden');
-
-        $this->assertContains(
-            $response->status(),
-            [302, 401],
-            "GET verificar-orden should redirect or return 401 when unauthenticated, got {$response->status()}"
-        );
-    }
-
-    /**
      * Simula un usuario autenticado sembrando la memoizacion de permisos en el
      * contenedor, tal como la construye userPermissions(). Asi el test no escribe
      * en SYSUsuariosRoles ni depende de los datos reales del servidor.
@@ -114,7 +100,7 @@ class DesarrolladoresRouteContractTest extends TestCase
     {
         $usuario = $this->actuandoComo('Desarrolladores', 48);
 
-        $this->actingAs($usuario)->get('/desarrolladores')->assertForbidden();
+        $this->actingAs($usuario)->get('/tejedores/desarrolladores')->assertForbidden();
     }
 
     /**
@@ -138,6 +124,21 @@ class DesarrolladoresRouteContractTest extends TestCase
     }
 
     /**
+     * /desarrolladores quedo como enlace historico: debe redirigir permanentemente
+     * a la URL que el menu tiene guardada en SYSRoles.Ruta. La ruta vive dentro del
+     * grupo 'auth', asi que el invitado va antes al login: hay que autenticarse.
+     */
+    public function test_url_legacy_redirige_a_la_del_menu(): void
+    {
+        $usuario = $this->actuandoComo('Desarrolladores', 48);
+
+        $this->actingAs($usuario)
+            ->get('/desarrolladores')
+            ->assertRedirect('/tejedores/desarrolladores')
+            ->assertStatus(301);
+    }
+
+    /**
      * All expected desarrolladores named routes must be registered.
      */
     public function test_rutas_desarrolladores_existen(): void
@@ -145,8 +146,8 @@ class DesarrolladoresRouteContractTest extends TestCase
         $routes = Route::getRoutes();
 
         $this->assertNotNull(
-            $routes->getByName('desarrolladores'),
-            "Named route 'desarrolladores' must exist"
+            $routes->getByName('tejedores.desarrolladores'),
+            "Named route 'tejedores.desarrolladores' must exist"
         );
 
         $this->assertNotNull(
@@ -162,11 +163,6 @@ class DesarrolladoresRouteContractTest extends TestCase
         $this->assertNotNull(
             $routes->getByName('desarrolladores.orden-en-proceso'),
             "Named route 'desarrolladores.orden-en-proceso' must exist"
-        );
-
-        $this->assertNotNull(
-            $routes->getByName('desarrolladores.verificar-orden'),
-            "Named route 'desarrolladores.verificar-orden' must exist"
         );
     }
 }

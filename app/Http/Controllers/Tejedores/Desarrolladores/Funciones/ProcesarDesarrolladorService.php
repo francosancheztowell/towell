@@ -77,13 +77,6 @@ class ProcesarDesarrolladorService
                     ->where('NoProduccion', $validated['NoProduccion'])
                     ->first();
 
-                // Temporalmente desactivada: permitir producción sin restricciones de
-                // total de pasadas ni porcentaje acumulado de combinaciones.
-                // $this->validarPasadasContraConfiguracionInicial(
-                //     $validated['pasadas'] ?? [],
-                //     $contextoOrigen['programa']
-                // );
-
                 $detallePayload = $this->buildDetallePayloadFromOrden($ordenData);
                 $detallePayload = $this->aplicarDetalleDesdeRequest($detallePayload, $validated);
                 $pasadasPayload = $this->buildPasadasPayload($validated['pasadas'] ?? [], $ordenData);
@@ -192,7 +185,7 @@ class ProcesarDesarrolladorService
                 ]);
             }
 
-            return redirect()->route('desarrolladores')->with('success', 'Datos guardados correctamente');
+            return redirect()->route('tejedores.desarrolladores')->with('success', 'Datos guardados correctamente');
         } catch (ValidationException $e) {
             if ($request->ajax()) {
                 $errors = $e->errors();
@@ -942,87 +935,6 @@ class ProcesarDesarrolladorService
         }
 
         return $pasadasPayload;
-    }
-
-    /**
-     * La configuración inicial de la orden define el rango válido de pasadas:
-     * el total puede variar hasta 30% y las combinaciones deben conservar al menos 30%.
-     * Se calcula desde la orden bloqueada, nunca desde un valor enviado por el navegador.
-     *
-     * @param  array<string, mixed>  $pasadas
-     */
-    private function validarPasadasContraConfiguracionInicial(array $pasadas, ?ReqProgramaTejido $ordenData): void
-    {
-        if (! $ordenData) {
-            throw ValidationException::withMessages([
-                'pasadas' => 'No se encontró la configuración inicial de pasadas para la orden seleccionada.',
-            ]);
-        }
-
-        $pasadasIniciales = [
-            data_get($ordenData, 'PasadasTrama') ?? data_get($ordenData, 'PasadasTramaFondoC1'),
-        ];
-        for ($i = 1; $i <= 5; $i++) {
-            $pasadasIniciales[] = data_get($ordenData, "PasadasComb{$i}");
-        }
-
-        $totalBase = array_sum(array_map(static function ($valor): int {
-            return is_numeric($valor) ? (int) $valor : 0;
-        }, $pasadasIniciales));
-
-        if ($totalBase < 1) {
-            throw ValidationException::withMessages([
-                'pasadas' => 'La orden no tiene una configuración inicial de pasadas válida.',
-            ]);
-        }
-
-        $totalActual = 0;
-        $totalCombinaciones = 0;
-        $tieneTrama = false;
-
-        foreach ($pasadas as $campo => $valor) {
-            if (! is_numeric($valor)) {
-                continue;
-            }
-
-            $pasadasFila = (int) $valor;
-            $totalActual += $pasadasFila;
-
-            if ($campo === 'PasadasTrama' || $campo === 'PasadasTramaFondoC1') {
-                $tieneTrama = true;
-
-                continue;
-            }
-
-            if (preg_match('/^PasadasComb[1-5]$/', (string) $campo)) {
-                $totalCombinaciones += $pasadasFila;
-            }
-        }
-
-        if (! $tieneTrama) {
-            throw ValidationException::withMessages([
-                'pasadas' => 'La trama de la orden es obligatoria.',
-            ]);
-        }
-
-        $totalMinimo = (int) floor($totalBase * 0.70);
-        $totalMaximo = (int) floor($totalBase * 1.30);
-        $minimoCombinaciones = (int) ceil($totalBase * 0.30);
-        $errores = [];
-
-        if ($totalActual < $totalMinimo) {
-            $errores[] = "El total de pasadas no puede ser menor a {$totalMinimo} (30% menos que {$totalBase}).";
-        }
-        if ($totalActual > $totalMaximo) {
-            $errores[] = "El total de pasadas no puede superar {$totalMaximo} (30% adicional sobre {$totalBase}).";
-        }
-        if ($totalCombinaciones < $minimoCombinaciones) {
-            $errores[] = "Las combinaciones deben acumular al menos {$minimoCombinaciones} pasadas (30% de {$totalBase}).";
-        }
-
-        if ($errores !== []) {
-            throw ValidationException::withMessages(['pasadas' => $errores]);
-        }
     }
 
     private function normalizeCodigoDibujo(?string $value, ?string $telarId = null): string
