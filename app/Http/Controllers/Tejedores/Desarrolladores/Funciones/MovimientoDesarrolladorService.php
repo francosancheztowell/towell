@@ -7,6 +7,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
+use DomainException;
 use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -161,7 +162,7 @@ class MovimientoDesarrolladorService
                         ->whereIn('Id', $idsActualizar)
                         ->where('SalonTejidoId', $salonTejido)
                         ->where('NoTelarId', $noTelarId)
-                        ->update(['Posicion' => DB::raw('Posicion + 10000')]);
+                        ->update(['Posicion' => DB::raw('COALESCE(Posicion, 0) + 10000')]);
                 }
 
                 foreach ($updates as $idU => $dataU) {
@@ -245,7 +246,7 @@ class MovimientoDesarrolladorService
         $telarDestino = trim($telarDestino);
 
         if ($salonOrigen === '' || $telarOrigen === '' || $salonDestino === '' || $telarDestino === '') {
-            throw new Exception('No se pudo resolver el telar origen/destino para mover el registro.');
+            throw new DomainException('No se pudo resolver el telar origen/destino para mover el registro.');
         }
 
         if ($salonOrigen === $salonDestino && $telarOrigen === $telarDestino) {
@@ -273,7 +274,7 @@ class MovimientoDesarrolladorService
                 ->first();
 
             if (! $registroBloqueado) {
-                throw new Exception('El registro a mover ya no está disponible en el telar origen.');
+                throw new DomainException('El registro a mover ya no está disponible en el telar origen.');
             }
 
             // Reserva una posición temporal alta para evitar colisiones al reordenar.
@@ -298,7 +299,7 @@ class MovimientoDesarrolladorService
                 ->first();
 
             if (! $registroMovido) {
-                throw new Exception('No fue posible ubicar el registro en el telar destino.');
+                throw new DomainException('No fue posible ubicar el registro en el telar destino.');
             }
 
             if ($reprogramarValor !== null) {
@@ -390,72 +391,67 @@ class MovimientoDesarrolladorService
     private function moverRegistroConReprogramar(ReqProgramaTejido $registro, $todosLosRegistros, string $reprogramar): array
     {
         $idsAfectados = [];
-        try {
-            $salonTejido = $registro->SalonTejidoId;
-            $noTelarId = $registro->NoTelarId;
+        $salonTejido = $registro->SalonTejidoId;
+        $noTelarId = $registro->NoTelarId;
 
-            if ($todosLosRegistros->count() < 2) {
-                return $idsAfectados;
-            }
+        if ($todosLosRegistros->count() < 2) {
+            return $idsAfectados;
+        }
 
-            $primero = $todosLosRegistros->first();
-            $inicioOriginal = $primero->FechaInicio ? Carbon::parse($primero->FechaInicio) : null;
-            if (! $inicioOriginal) {
-                return $idsAfectados;
-            }
+        $primero = $todosLosRegistros->first();
+        $inicioOriginal = $primero->FechaInicio ? Carbon::parse($primero->FechaInicio) : null;
+        if (! $inicioOriginal) {
+            return $idsAfectados;
+        }
 
-            $idx = $todosLosRegistros->search(function ($r) use ($registro) {
-                return $r->Id === $registro->Id;
-            });
-            if ($idx === false) {
-                return $idsAfectados;
-            }
+        $idx = $todosLosRegistros->search(function ($r) use ($registro) {
+            return $r->Id === $registro->Id;
+        });
+        if ($idx === false) {
+            return $idsAfectados;
+        }
 
-            $this->actualizarReqModelosDesdePrograma($registro);
-            $registroMovido = $todosLosRegistros->splice($idx, 1)->first();
+        $this->actualizarReqModelosDesdePrograma($registro);
+        $registroMovido = $todosLosRegistros->splice($idx, 1)->first();
 
-            if ($reprogramar == '1') {
-                $posicionAjustada = $idx;
-                if ($posicionAjustada > $todosLosRegistros->count()) {
-                    $posicionAjustada = $todosLosRegistros->count();
-                }
-            } else {
+        if ($reprogramar == '1') {
+            $posicionAjustada = $idx;
+            if ($posicionAjustada > $todosLosRegistros->count()) {
                 $posicionAjustada = $todosLosRegistros->count();
             }
-
-            $todosLosRegistros->splice($posicionAjustada, 0, [$registroMovido]);
-            $registrosReordenados = $todosLosRegistros->values();
-
-            [$updates] = DateHelpers::recalcularFechasSecuencia($registrosReordenados, $inicioOriginal, true);
-
-            if (! empty($updates)) {
-                $idsActualizar = array_keys($updates);
-                DB::table('ReqProgramaTejido')
-                    ->whereIn('Id', $idsActualizar)
-                    ->where('SalonTejidoId', $salonTejido)
-                    ->where('NoTelarId', $noTelarId)
-                    ->update(['Posicion' => DB::raw('Posicion + 10000')]);
-            }
-
-            foreach ($updates as $idU => $data) {
-                if (isset($data['Posicion'])) {
-                    $data['Posicion'] = (int) $data['Posicion'];
-                }
-                DB::table('ReqProgramaTejido')
-                    ->where('Id', $idU)
-                    ->where('SalonTejidoId', $salonTejido)
-                    ->where('NoTelarId', $noTelarId)
-                    ->update($data);
-                $idsAfectados[] = (int) $idU;
-            }
-
-            $registro->EnProceso = 0;
-            $registro->Reprogramar = null;
-            $registro->save();
-
-        } catch (Exception $e) {
-            Log::error('moverRegistroConReprogramar - Error', ['message' => $e->getMessage()]);
+        } else {
+            $posicionAjustada = $todosLosRegistros->count();
         }
+
+        $todosLosRegistros->splice($posicionAjustada, 0, [$registroMovido]);
+        $registrosReordenados = $todosLosRegistros->values();
+
+        [$updates] = DateHelpers::recalcularFechasSecuencia($registrosReordenados, $inicioOriginal, true);
+
+        if (! empty($updates)) {
+            $idsActualizar = array_keys($updates);
+            DB::table('ReqProgramaTejido')
+                ->whereIn('Id', $idsActualizar)
+                ->where('SalonTejidoId', $salonTejido)
+                ->where('NoTelarId', $noTelarId)
+                ->update(['Posicion' => DB::raw('COALESCE(Posicion, 0) + 10000')]);
+        }
+
+        foreach ($updates as $idU => $data) {
+            if (isset($data['Posicion'])) {
+                $data['Posicion'] = (int) $data['Posicion'];
+            }
+            DB::table('ReqProgramaTejido')
+                ->where('Id', $idU)
+                ->where('SalonTejidoId', $salonTejido)
+                ->where('NoTelarId', $noTelarId)
+                ->update($data);
+            $idsAfectados[] = (int) $idU;
+        }
+
+        $registro->EnProceso = 0;
+        $registro->Reprogramar = null;
+        $registro->save();
 
         return $idsAfectados;
     }

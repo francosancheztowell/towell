@@ -6,6 +6,7 @@ use App\Helpers\TelDesarrolladoresHelper;
 use App\Models\Planeacion\Muestras;
 use Exception;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class ConsultasMuestrasDesarrolladorService extends ConsultasDesarrolladorService
 {
@@ -70,9 +71,11 @@ class ConsultasMuestrasDesarrolladorService extends ConsultasDesarrolladorServic
                 'producciones' => $producciones,
             ];
         } catch (Exception $e) {
+            Log::error('Error al obtener las producciones', ['error' => $e->getMessage()]);
+
             return [
                 'success' => false,
-                'message' => 'Error al obtener las producciones: '.$e->getMessage(),
+                'message' => 'Error al obtener las producciones.',
             ];
         }
     }
@@ -139,9 +142,11 @@ class ConsultasMuestrasDesarrolladorService extends ConsultasDesarrolladorServic
                 'detalles' => $detalles,
             ];
         } catch (Exception $e) {
+            Log::error('Error al obtener los detalles', ['error' => $e->getMessage()]);
+
             return [
                 'success' => false,
-                'message' => 'Error al obtener los detalles: '.$e->getMessage(),
+                'message' => 'Error al obtener los detalles.',
             ];
         }
     }

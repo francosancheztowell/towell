@@ -43,6 +43,12 @@ class ReportesDesarrolladoresController extends Controller
      */
     public function reportePrograma(Request $request)
     {
+        // Sin esto, cualquier cadena que no sea fecha revienta en Carbon::parse con un 500.
+        $request->validate([
+            'fecha_ini' => 'nullable|date',
+            'fecha_fin' => 'nullable|date',
+        ]);
+
         $fechaIni = $request->query('fecha_ini');
         $fechaFin = $request->query('fecha_fin');
 
@@ -68,6 +74,12 @@ class ReportesDesarrolladoresController extends Controller
      */
     public function exportarExcel(Request $request)
     {
+        $request->validate([
+            'fecha_inicio' => 'nullable|date',
+            'fecha_ini' => 'nullable|date',
+            'fecha_fin' => 'nullable|date',
+        ]);
+
         $fechaInicio = $request->input('fecha_inicio') ?? $request->query('fecha_ini');
         $fechaFin = $request->input('fecha_fin') ?? $request->query('fecha_fin');
 

@@ -10,6 +10,7 @@ use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Tejedores\TelTelaresOperador;
 use Carbon\Carbon;
+use DomainException;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -199,15 +200,34 @@ class ProcesarDesarrolladorService
             }
 
             return back()->withErrors($e->errors())->withInput();
-        } catch (Exception $e) {
+        } catch (DomainException $e) {
+            // Errores de negocio: el texto lo escribimos nosotros y le sirve al operador.
             if ($request->ajax()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Ocurrio un error: '.$e->getMessage(),
+                    'message' => $e->getMessage(),
+                ], 422);
+            }
+
+            return back()->with('error', $e->getMessage())->withInput();
+        } catch (Exception $e) {
+            // Fallo inesperado: el detalle va al log, no al navegador.
+            Log::error('Error al procesar el desarrollador', [
+                'telar' => $request->input('NoTelarId'),
+                'produccion' => $request->input('NoProduccion'),
+                'error' => $e->getMessage(),
+            ]);
+
+            $generico = 'Ocurrio un error al guardar. Avisa a sistemas si se repite.';
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $generico,
                 ], 500);
             }
 
-            return back()->with('error', 'Ocurrio un error: '.$e->getMessage())->withInput();
+            return back()->with('error', $generico)->withInput();
         }
     }
 

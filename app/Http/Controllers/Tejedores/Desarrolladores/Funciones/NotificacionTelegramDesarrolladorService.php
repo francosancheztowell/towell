@@ -30,7 +30,7 @@ class NotificacionTelegramDesarrolladorService
             $mensaje = $this->construirMensajeProcesoCompletado($validated, $programa, $codigoDibujo);
 
             foreach ($chatIds as $chatId) {
-                Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
+                Http::timeout(5)->post("https://api.telegram.org/bot{$botToken}/sendMessage", [
                     'chat_id' => $chatId,
                     'text' => $mensaje,
                     'parse_mode' => 'Markdown',
@@ -42,6 +42,15 @@ class NotificacionTelegramDesarrolladorService
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Telegram interpreta _ * ` [ con parse_mode Markdown: un nombre de desarrollador
+     * con guion bajo devuelve HTTP 400 y la notificacion entera se pierde en el catch.
+     */
+    private function escaparMarkdown($valor): string
+    {
+        return str_replace(['_', '*', '`', '['], ['\_', '\*', '\`', '\['], (string) $valor);
     }
 
     private function construirMensajeProcesoCompletado(
@@ -58,7 +67,7 @@ class NotificacionTelegramDesarrolladorService
 
         $mensaje = " *PROCESO DE DESARROLLADOR COMPLETADO* \n\n";
         $mensaje .= " *Telar:* {$telarActual}\n";
-        $mensaje .= " *Produccion:* {$validated['NoProduccion']}\n";
+        $mensaje .= " *Produccion:* {$this->escaparMarkdown($validated['NoProduccion'])}\n";
         // si hay cambio de telar, se muestra el origen y el destino
         if ($hayCambioTelar && $telarOrigen !== '' && $telarDestino !== '') {
             $origen = $telarOrigen.($salonOrigen !== '' ? " ({$salonOrigen})" : '');
@@ -67,24 +76,24 @@ class NotificacionTelegramDesarrolladorService
         }
 
         if (! empty($validated['Desarrollador'])) {
-            $mensaje .= " *Desarrollador:* {$validated['Desarrollador']}\n";
+            $mensaje .= " *Desarrollador:* {$this->escaparMarkdown($validated['Desarrollador'])}\n";
         }
 
         $codigoAnterior = $validated['CodigoDibujoAnterior'] ?? null;
         if ($hayCambioTelar && $codigoAnterior && $codigoAnterior !== $codigoDibujo) {
-            $mensaje .= " *Cambio de Codigo Dibujo:* {$codigoAnterior} -> {$codigoDibujo}\n";
+            $mensaje .= " *Cambio de Codigo Dibujo:* {$this->escaparMarkdown($codigoAnterior)} -> {$this->escaparMarkdown($codigoDibujo)}\n";
         } else {
-            $mensaje .= " *Codigo Dibujo:* {$codigoDibujo}\n";
+            $mensaje .= " *Codigo Dibujo:* {$this->escaparMarkdown($codigoDibujo)}\n";
         }
 
         $mensaje .= " *Total Pasadas:* {$validated['TotalPasadasDibujo']}\n";
 
         if (! empty($validated['NumeroJulioRizo'])) {
-            $mensaje .= " *Julio Rizo:* {$validated['NumeroJulioRizo']}\n";
+            $mensaje .= " *Julio Rizo:* {$this->escaparMarkdown($validated['NumeroJulioRizo'])}\n";
         }
 
         if (! empty($validated['NumeroJulioPie'])) {
-            $mensaje .= " *Julio Pie:* {$validated['NumeroJulioPie']}\n";
+            $mensaje .= " *Julio Pie:* {$this->escaparMarkdown($validated['NumeroJulioPie'])}\n";
         }
 
         if (! empty($validated['HoraInicio'])) {

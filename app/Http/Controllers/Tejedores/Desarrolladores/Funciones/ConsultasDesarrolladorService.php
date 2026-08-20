@@ -12,6 +12,7 @@ use Exception;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class ConsultasDesarrolladorService
 {
@@ -109,9 +110,11 @@ class ConsultasDesarrolladorService
                 'juliosPie' => $this->obtenerJuliosPorTipo('Pie', $telarId),
             ];
         } catch (Exception $e) {
+            Log::error('Error al obtener los julios', ['error' => $e->getMessage()]);
+
             return [
                 'success' => false,
-                'message' => 'Error al obtener los julios: '.$e->getMessage(),
+                'message' => 'Error al obtener los julios.',
             ];
         }
     }
@@ -158,9 +161,11 @@ class ConsultasDesarrolladorService
                 'producciones' => $producciones,
             ];
         } catch (Exception $e) {
+            Log::error('Error al obtener las producciones', ['error' => $e->getMessage()]);
+
             return [
                 'success' => false,
-                'message' => 'Error al obtener las producciones: '.$e->getMessage(),
+                'message' => 'Error al obtener las producciones.',
             ];
         }
     }
@@ -175,9 +180,11 @@ class ConsultasDesarrolladorService
 
             return $this->buildDetallesFromOrdenData($ordenData);
         } catch (Exception $e) {
+            Log::error('Error al obtener los detalles', ['error' => $e->getMessage()]);
+
             return [
                 'success' => false,
-                'message' => 'Error al obtener los detalles: '.$e->getMessage(),
+                'message' => 'Error al obtener los detalles.',
             ];
         }
     }
@@ -194,9 +201,11 @@ class ConsultasDesarrolladorService
 
             return $this->buildDetallesFromOrdenData($ordenData);
         } catch (Exception $e) {
+            Log::error('Error al obtener los detalles', ['error' => $e->getMessage()]);
+
             return [
                 'success' => false,
-                'message' => 'Error al obtener los detalles: '.$e->getMessage(),
+                'message' => 'Error al obtener los detalles.',
             ];
         }
     }
