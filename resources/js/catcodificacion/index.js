@@ -595,7 +595,7 @@ import { openLMatModal } from './lmat-modal';
     }
 
     // El módulo L.Mat recibe únicamente el contexto necesario de esta pantalla.
-    function actualizarFilaTrasGuardarLMat({ bomId, bomName, updatedBom, actualizaLmat, pasadas = {}, formula = {} }) {
+    function actualizarFilaTrasGuardarLMat({ bomId, bomName, updatedBom, actualizaLmat, pasadas = {}, formula = {}, fibras = {} }) {
         if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) return;
         const registro = state.filtered[state.selectedRowIndex];
         if (!registro) return;
@@ -625,6 +625,11 @@ import { openLMatModal } from './lmat-modal';
                 registro[campo] = valor;
             }
         });
+        const camposFibraActualizados = Object.entries(fibras)
+            .filter(([campo]) => /^FibraComb[1-5]$/.test(campo));
+        camposFibraActualizados.forEach(([campo, valor]) => {
+            registro[campo] = valor;
+        });
 
         const tbody = $('#catcodificacion-body');
         const fila = tbody?.querySelector(`tr[data-index="${state.selectedRowIndex}"]`);
@@ -636,6 +641,11 @@ import { openLMatModal } from './lmat-modal';
             if (celdaBomId) celdaBomId.textContent = bomId;
             if (celdaBomName) celdaBomName.textContent = bomName;
         }
+
+        camposFibraActualizados.forEach(([campo, valor]) => {
+            const celda = fila.querySelector(`td[data-column="${campo}"]`);
+            if (celda) celda.textContent = valor;
+        });
 
         const celdaOrden = fila.querySelector('td[data-column="OrdenTejido"]');
         if (celdaOrden && !celdaOrden.querySelector('.lmat-badge')) {

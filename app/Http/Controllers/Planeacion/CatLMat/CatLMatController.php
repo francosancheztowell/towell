@@ -126,6 +126,12 @@ class CatLMatController extends Controller
             'formula.CalibreComb32' => 'sometimes|numeric|gt:0',
             'formula.CalibreComb42' => 'sometimes|numeric|gt:0',
             'formula.CalibreComb52' => 'sometimes|numeric|gt:0',
+            'fibras' => 'sometimes|array',
+            'fibras.FibraComb1' => 'sometimes|nullable|string|max:50',
+            'fibras.FibraComb2' => 'sometimes|nullable|string|max:50',
+            'fibras.FibraComb3' => 'sometimes|nullable|string|max:50',
+            'fibras.FibraComb4' => 'sometimes|nullable|string|max:50',
+            'fibras.FibraComb5' => 'sometimes|nullable|string|max:50',
             'filas' => 'required|array|min:1',
             'filas.*.itemId' => 'required|string|max:60',
             'filas.*.configId' => 'required|string|max:60',
@@ -288,6 +294,22 @@ class CatLMatController extends Controller
                 }
                 if ($formulaPayload !== []) {
                     $q->update($formulaPayload);
+                }
+
+                // Fibra editable de las combinaciones C1..C5. Igual que pasadas/fórmula,
+                // solo se tocan las claves presentes para no borrar combinaciones ausentes.
+                $fibrasPayload = [];
+                foreach (['FibraComb1', 'FibraComb2', 'FibraComb3', 'FibraComb4', 'FibraComb5'] as $campoFibra) {
+                    if (! array_key_exists($campoFibra, $data['fibras'] ?? [])) {
+                        continue;
+                    }
+                    $valorFibra = trim((string) ($data['fibras'][$campoFibra] ?? ''));
+                    $fibrasPayload[$campoFibra] = $valorFibra === ''
+                        ? null
+                        : StringTruncator::truncateToLength($valorFibra, 50);
+                }
+                if ($fibrasPayload !== []) {
+                    $q->update($fibrasPayload);
                 }
 
                 // Luchaje / CodigoDibujo: del request o, si no vienen, de CatCodificados (aunque no se muestren en el modal).
