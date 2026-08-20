@@ -132,6 +132,8 @@ class CatLMatController extends Controller
             'fibras.FibraComb3' => 'sometimes|nullable|string|max:50',
             'fibras.FibraComb4' => 'sometimes|nullable|string|max:50',
             'fibras.FibraComb5' => 'sometimes|nullable|string|max:50',
+            'combinacionesVacias' => 'sometimes|array|max:5',
+            'combinacionesVacias.*' => 'integer|between:1,5',
             'filas' => 'required|array|min:1',
             'filas.*.itemId' => 'required|string|max:60',
             'filas.*.configId' => 'required|string|max:60',
@@ -310,6 +312,23 @@ class CatLMatController extends Controller
                 }
                 if ($fibrasPayload !== []) {
                     $q->update($fibrasPayload);
+                }
+
+                // Combinaciones que el usuario dejo completamente vacias en el modal.
+                // Se limpia la combinacion entera; si no, CatCodificados conservaria
+                // calibre/pasadas viejos y la combinacion reaparecia al reabrir.
+                $combinacionesVacias = array_unique(array_map(
+                    static fn ($n): int => (int) $n,
+                    $data['combinacionesVacias'] ?? [],
+                ));
+                $limpiezaPayload = [];
+                foreach ($combinacionesVacias as $n) {
+                    foreach (["FibraComb{$n}", "PasadasComb{$n}", "CalibreComb{$n}", "CalibreComb{$n}2", "CodColorC{$n}", "NomColorC{$n}"] as $columna) {
+                        $limpiezaPayload[$columna] = null;
+                    }
+                }
+                if ($limpiezaPayload !== []) {
+                    $q->update($limpiezaPayload);
                 }
 
                 // Luchaje / CodigoDibujo: del request o, si no vienen, de CatCodificados (aunque no se muestren en el modal).

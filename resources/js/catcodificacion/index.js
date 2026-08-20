@@ -595,7 +595,7 @@ import { openLMatModal } from './lmat-modal';
     }
 
     // El módulo L.Mat recibe únicamente el contexto necesario de esta pantalla.
-    function actualizarFilaTrasGuardarLMat({ bomId, bomName, updatedBom, actualizaLmat, pasadas = {}, formula = {}, fibras = {} }) {
+    function actualizarFilaTrasGuardarLMat({ bomId, bomName, updatedBom, actualizaLmat, pasadas = {}, formula = {}, fibras = {}, combinacionesVacias = [] }) {
         if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) return;
         const registro = state.filtered[state.selectedRowIndex];
         if (!registro) return;
@@ -627,6 +627,11 @@ import { openLMatModal } from './lmat-modal';
         });
         const camposFibraActualizados = Object.entries(fibras)
             .filter(([campo]) => /^FibraComb[1-5]$/.test(campo));
+        // Una combinacion vaciada limpia todas sus columnas, no solo la fibra.
+        combinacionesVacias.forEach((n) => {
+            [`FibraComb${n}`, `PasadasComb${n}`, `CalibreComb${n}`, `CalibreComb${n}2`, `CodColorC${n}`, `NomColorC${n}`]
+                .forEach((campo) => camposFibraActualizados.push([campo, '']));
+        });
         camposFibraActualizados.forEach(([campo, valor]) => {
             registro[campo] = valor;
         });

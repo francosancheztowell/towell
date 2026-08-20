@@ -644,6 +644,23 @@ async function openLMatModal(context = {}) {
         c4: 'FibraComb4',
         c5: 'FibraComb5',
     };
+
+    // CalibreComb{n} (nvarchar, p. ej. '10.1') es el calibre de catálogo y
+    // CalibreComb{n}2 (float, p. ej. 10.0 u 8.86) el divisor de la fórmula: NO son
+    // el mismo número, por eso una combinación puede tener uno y no el otro.
+    const combinacionTieneDatosLMat = (n) => (
+        formatoCalibreCatLMat(registroSeleccionado?.[`CalibreComb${n}`]) !== ''
+        || normalizarTextoCatLMat(registroSeleccionado?.[`FibraComb${n}`]) !== ''
+        || numLMat(registroSeleccionado?.[`PasadasComb${n}`]) > 0
+        || numLMat(registroSeleccionado?.[`CalibreComb${n}2`]) > 0
+    );
+    // Una combinación existe si CUALQUIER campo suyo trae dato. Mirar solo el calibre
+    // de catálogo perdía las combinaciones capturadas desde este modal (que escribe
+    // fibra/pasadas/CalibreComb{n}2 pero no CalibreComb{n}) y descuadraba el empate
+    // contra CatLMat al reabrir.
+    const defTieneDatosLMat = (def) => Boolean(
+        def.items || def.combinacion || def.pasadas || Number(def.calibreFormula) > 0
+    );
     const sumaPasadasInicialLMat = inputsCalculoLMat.pasadasTrama
         + inputsCalculoLMat.pasadasComb.reduce((total, valor) => total + valor, 0);
     const totalPasadasReferenciaLMat = Math.floor(
@@ -870,7 +887,7 @@ async function openLMatModal(context = {}) {
         };
         // Solo defaults con datos de CatCodificados cuentan para detectar huecos;
         // los C1..C5 vacíos no participan del empate con lo guardado.
-        const defaultsTramaComb = defaults.filter((def) => def.rol !== 'rizo' && def.rol !== 'pie' && def.items);
+        const defaultsTramaComb = defaults.filter((def) => def.rol !== 'rizo' && def.rol !== 'pie' && defTieneDatosLMat(def));
         const guardadosTramaComb = guardadoLMat.filter(noEsRizoNiPie);
         const hayHuecosTramaComb = guardadosTramaComb.length < defaultsTramaComb.length;
 
@@ -895,7 +912,7 @@ async function openLMatModal(context = {}) {
                     return id === 'JU-ENG-PI-C' || id.startsWith('JU-ENG-PI');
                 });
                 if (!saved) saved = tomarGuardado(() => true);
-            } else if (def.items) {
+            } else if (defTieneDatosLMat(def)) {
                 // Listas antiguas podían omitir combinaciones pequeñas. Cuando hay huecos,
                 // empatar por el artículo esperado evita cargar C2 dentro de C1.
                 const articuloEsperado = resolverArticuloDesdeCalibres(def.items, calibresParaMapeo);
@@ -1554,6 +1571,19 @@ async function openLMatModal(context = {}) {
                 capturarReferenciaPasadasLMat();
             };
 
+            // Rizo = residuo real (PesoCrudo − todas las demás filas), no delta de fórmula:
+            // absorbe el redondeo a 4 decimales de los Qty guardados y el total da 100% exacto.
+            const ajustarRizoResidualLMat = () => {
+                const inputRizo = document.querySelector('.swal2-html-container tr[data-rol="rizo"] .lmat-cantidad-input');
+                if (!inputRizo) return;
+                const pesoCrudoActual = Number(String(pesoCrudoInput?.value ?? '').replace(',', '.')) || 0;
+                let sumaOtras = 0;
+                document.querySelectorAll('.lmat-cantidad-input').forEach((otro) => {
+                    if (otro !== inputRizo) sumaOtras += obtenerCantidadRawLMat(otro);
+                });
+                asignarCantidadLMat(inputRizo, Math.max(0, (pesoCrudoActual / 1000) - sumaOtras));
+            };
+
             const aplicarDiferenciaPasadasLMat = () => {
                 const pesoCrudoActual = Number(String(pesoCrudoInput?.value ?? '').replace(',', '.')) || 0;
                 const pesosActuales = calcularPesosComponentesLMat(pesoCrudoActual);
@@ -1574,16 +1604,7 @@ async function openLMatModal(context = {}) {
                 pesosActuales.combG.forEach((pesoG, index) => {
                     aplicarDiferencia(`c${index + 1}`, pesoG, pesosReferencia.combG[index]);
                 });
-                // Rizo = residuo real (PesoCrudo − todas las demás filas), no delta de fórmula:
-                // absorbe el redondeo a 4 decimales de los Qty guardados y el total da 100% exacto.
-                const inputRizo = document.querySelector('.swal2-html-container tr[data-rol="rizo"] .lmat-cantidad-input');
-                if (inputRizo) {
-                    let sumaOtras = 0;
-                    document.querySelectorAll('.lmat-cantidad-input').forEach((otro) => {
-                        if (otro !== inputRizo) sumaOtras += obtenerCantidadRawLMat(otro);
-                    });
-                    asignarCantidadLMat(inputRizo, Math.max(0, (pesoCrudoActual / 1000) - sumaOtras));
-                }
+                ajustarRizoResidualLMat();
                 recalcularPorcentajesLMat();
             };
 
@@ -1666,6 +1687,9 @@ async function openLMatModal(context = {}) {
                             : (Number.isFinite(cantidadEditada) && cantidadEditada > 0
                                 ? String(cantidadEditada)
                                 : '0');
+                        // Sin esto, vaciar o editar una cantidad dejaba el total en 99.xx%
+                        // y el boton Guardar bloqueado por la regla de 100% exacto.
+                        if (input.closest('tr')?.dataset?.rol !== 'rizo') ajustarRizoResidualLMat();
                         recalcularPorcentajesLMat();
                     });
                     input.addEventListener('change', () => {
@@ -2300,6 +2324,26 @@ async function openLMatModal(context = {}) {
                         break;
                     }
                 }
+                // Combinaciones que tenian datos al abrir y quedaron completamente vacias:
+                // se limpian en CatCodificados para que no reaparezcan al reabrir el modal.
+                const combinacionesVacias = [];
+                document.querySelectorAll('.swal2-html-container tbody tr[data-rol]').forEach((fila) => {
+                    const indice = String(fila.dataset.rol).match(/^c([1-5])$/);
+                    if (!indice) return;
+                    const n = Number(indice[1]);
+                    const vacia = String(fila.querySelector('.lmat-fibra-input')?.value ?? '').trim() === ''
+                        && String(fila.querySelector('.lmat-pasadas-input')?.value ?? '').trim() === ''
+                        && numLMat(fila.querySelector('.lmat-calibre-formula-input')?.value) <= 0
+                        && String(fila.querySelector('select[name="articulo[]"]')?.value ?? '').trim() === ''
+                        && obtenerCantidadRawLMat(fila.querySelector('.lmat-cantidad-input')) <= 0;
+                    if (vacia && combinacionTieneDatosLMat(n)) combinacionesVacias.push(n);
+                });
+                if (combinacionesVacias.length) {
+                    advertencias.push(
+                        `Se vaciará ${combinacionesVacias.map((n) => 'C' + n).join(', ')} en Codificación: `
+                        + 'se borrarán fibra, calibre, pasadas y color de esa(s) combinación(es).',
+                    );
+                }
                 if (datosSinCantidad.length) {
                     advertencias.push(`${datosSinCantidad.join(', ')} tiene(n) datos capturados pero cantidad 0: esa(s) fila(s) no se guardará(n).`);
                 }
@@ -2352,6 +2396,7 @@ async function openLMatModal(context = {}) {
                             pasadas: pasadasData,
                             formula: formulaData,
                             fibras: fibrasData,
+                            combinacionesVacias,
                             filas: filasData,
                         }),
                     });
@@ -2383,6 +2428,7 @@ async function openLMatModal(context = {}) {
                                 pasadas: pasadasData,
                                 formula: formulaData,
                                 fibras: fibrasData,
+                                combinacionesVacias,
                             });
                         } catch (error) {
                             console.error('No se pudo actualizar localmente la fila de Codificación', error);
