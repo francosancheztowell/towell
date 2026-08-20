@@ -416,8 +416,6 @@ class ProcesarDesarrolladorService
         ?ReqModelosCodificados $modeloDestino,
         ?ReqProgramaTejido $ordenData = null
     ): ?CatCodificados {
-        $modeloCat = new CatCodificados;
-        $columns = Schema::getColumnListing($modeloCat->getTable());
         $registro = $this->catCodificadosService->resolveCanonical((string) $validated['NoProduccion']);
         $fechasArranqueFinaliza = $this->buildFechasArranqueFinalizaPayload(
             $validated['HoraInicio'] ?? null,
@@ -530,13 +528,7 @@ class ProcesarDesarrolladorService
             $payload['Razurada'] = $ordenData->Rasurado;
         }
 
-        foreach ($payload as $column => $value) {
-            if (! in_array($column, $columns, true)) {
-                continue;
-            }
-            $registro->setAttribute($column, $value);
-        }
-
+        $this->catCodificadosService->applyPayload($registro, $payload);
         $registro->save();
 
         return $registro;

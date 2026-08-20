@@ -188,6 +188,7 @@ import { openLMatModal } from './lmat-modal';
         const telar = registroSeleccionado?.TelarId || '';
         const articulo = registroSeleccionado?.ItemId || registroSeleccionado?.ClaveModelo || '';
         const pesoMuestra = registroSeleccionado?.PesoMuestra || '';
+        const alturaRizo = registroSeleccionado?.AlturaRizo ?? '';
         const actLmat = registroSeleccionado?.ActualizaLmat === true || registroSeleccionado?.ActualizaLmat === 1 || registroSeleccionado?.ActualizaLmat === '1';
         const bomId = registroSeleccionado?.BomId || '';
 
@@ -257,6 +258,19 @@ import { openLMatModal } from './lmat-modal';
                                 value="${pesoMuestra !== '' && pesoMuestra !== null && pesoMuestra !== undefined ? Number(pesoMuestra) : ''}"
                             >
                         </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Altura Rizo</label>
+                            <input
+                                type="number"
+                                id="swal-altura-rizo"
+                                step="0.1"
+                                min="0"
+                                max="10"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="0 a 10 (ej. 8.6)"
+                                value="${alturaRizo !== '' && alturaRizo !== null && alturaRizo !== undefined ? alturaRizo : ''}"
+                            >
+                        </div>
                         <div class="flex items-end pb-1">
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input
@@ -296,6 +310,7 @@ import { openLMatModal } from './lmat-modal';
                 const telarInput = document.getElementById('swal-telar');
                 const articuloInput = document.getElementById('swal-articulo');
                 const pesoMuestraInput = document.getElementById('swal-peso-muestra');
+                const alturaRizoInput = document.getElementById('swal-altura-rizo');
                 const listaMatMessage = document.getElementById('swal-lista-mat-message');
 
                 function actualizarEstadoListaMat() {
@@ -367,6 +382,7 @@ import { openLMatModal } from './lmat-modal';
                     const ord = (orden || '').toString().trim();
                     if (!ord) {
                         if (pesoMuestraInput) pesoMuestraInput.value = '';
+                        if (alturaRizoInput) alturaRizoInput.value = '';
                         if (actLmatCheckbox) actLmatCheckbox.checked = false;
                         if (typeof actualizarEstadoListaMat === 'function') actualizarEstadoListaMat();
                         poblarSelectLmat([]);
@@ -379,12 +395,14 @@ import { openLMatModal } from './lmat-modal';
                             const d = json.d;
                             if (!d) {
                                 if (pesoMuestraInput) pesoMuestraInput.value = '';
+                                if (alturaRizoInput) alturaRizoInput.value = '';
                                 if (actLmatCheckbox) actLmatCheckbox.checked = false;
                                 if (typeof actualizarEstadoListaMat === 'function') actualizarEstadoListaMat();
                                 poblarSelectLmat([]);
                                 return;
                             }
                             if (pesoMuestraInput) pesoMuestraInput.value = (d.pesoMuestra != null && d.pesoMuestra !== '') ? Number(d.pesoMuestra) : '';
+                            if (alturaRizoInput) alturaRizoInput.value = (d.alturaRizo != null && d.alturaRizo !== '') ? d.alturaRizo : '';
                             if (actLmatCheckbox) actLmatCheckbox.checked = d.actualizaLmat === true || d.actualizaLmat === 1;
                             poblarSelectLmat(d.listaLmat || [], d.bomId);
                             if (typeof actualizarEstadoListaMat === 'function') actualizarEstadoListaMat();
@@ -481,6 +499,7 @@ import { openLMatModal } from './lmat-modal';
                 const pesoMuestra = pesoMuestraRaw === '' || pesoMuestraRaw === undefined
                     ? null
                     : parseFloat(pesoMuestraRaw);
+                const alturaRizoRaw = document.getElementById('swal-altura-rizo')?.value?.trim() || '';
                 const actLmat = document.getElementById('swal-act-lmat')?.checked || false;
                 const bomIdRaw = document.getElementById('swal-lista-mat')?.value.trim() || '';
                 const bomId = actLmat ? bomIdRaw : null;
@@ -499,6 +518,16 @@ import { openLMatModal } from './lmat-modal';
                     Swal.showValidationMessage('Peso Muestra debe ser un número mayor o igual a 0');
                     return false;
                 }
+                // Se valida sobre el texto, no sobre el float: 8.6 * 10 no da 86 exacto
+                // y un redondeo aquí rechazaría valores buenos.
+                if (alturaRizoRaw !== '' && !/^\d+(\.\d)?$/.test(alturaRizoRaw)) {
+                    Swal.showValidationMessage('Altura Rizo admite solo un decimal y no acepta negativos (ej. 1.1, 8.6)');
+                    return false;
+                }
+                if (alturaRizoRaw !== '' && parseFloat(alturaRizoRaw) > 10) {
+                    Swal.showValidationMessage('Altura Rizo debe estar entre 0 y 10');
+                    return false;
+                }
                 if (actLmat && (!bomId || bomId.trim() === '')) {
                     Swal.showValidationMessage('Lista L Mat (BomId) es obligatoria cuando Act Lmat está activo');
                     return false;
@@ -507,6 +536,7 @@ import { openLMatModal } from './lmat-modal';
                 return {
                     ordenTejido,
                     pesoMuestra,
+                    alturaRizo: alturaRizoRaw === '' ? null : alturaRizoRaw,
                     actLmat,
                     bomId
                 };
@@ -534,6 +564,7 @@ import { openLMatModal } from './lmat-modal';
                         body: JSON.stringify({
                             ordenTejido: datos.ordenTejido,
                             pesoMuestra: datos.pesoMuestra,
+                            alturaRizo: datos.alturaRizo,
                             actualizaLmat: datos.actLmat,
                             bomId: datos.bomId || null,
                         }),

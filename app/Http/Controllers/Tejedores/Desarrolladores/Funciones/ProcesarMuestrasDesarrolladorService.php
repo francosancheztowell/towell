@@ -362,8 +362,6 @@ class ProcesarMuestrasDesarrolladorService
         ?int $longitudLuchaTot,
         ?ReqModelosCodificados $modeloDestino
     ): ?CatCodificados {
-        $modeloCat = new CatCodificados;
-        $columns = Schema::getColumnListing($modeloCat->getTable());
         $registro = $this->catCodificadosService->resolveCanonical((string) $validated['NoProduccion']);
 
         if (! $registro) {
@@ -404,13 +402,7 @@ class ProcesarMuestrasDesarrolladorService
             $payload['CuentaPie'] = $modeloDestino->CuentaPie ?? null;
         }
 
-        foreach ($payload as $column => $value) {
-            if (! in_array($column, $columns, true)) {
-                continue;
-            }
-            $registro->setAttribute($column, $value);
-        }
-
+        $this->catCodificadosService->applyPayload($registro, $payload);
         $registro->save();
 
         return $registro;

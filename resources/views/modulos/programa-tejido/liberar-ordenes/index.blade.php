@@ -148,6 +148,35 @@
                         </div>';
             }
 
+            // Columna Flog. Editable en cualquier renglón. Si el artículo + tamaño está en
+            // TwArticulosFelpas se ofrece además el check "Asignar flogs": desmarcado se ignoran
+            // los flogs (AsignarFlogs = 0 en CatCodificados), marcado se asignan (= 1) y se
+            // precarga el flog vigente de AX.
+            if ($field === 'FlogsId') {
+                $rowId = htmlspecialchars((string) ($registro->Id ?? ''), ENT_QUOTES, 'UTF-8');
+                $valorEsc = htmlspecialchars(trim((string) ($registro->FlogsId ?? '')), ENT_QUOTES, 'UTF-8');
+
+                $check = empty($registro->EsArticuloFelpa) ? '' :
+                    '<label class="flog-toggle flex items-center gap-1 mb-1 text-xs text-gray-600 cursor-pointer whitespace-nowrap"
+                            title="Artículo de felpa: marca para asignar el flog a esta orden">
+                        <input type="checkbox" class="flog-check" data-row-id="' . $rowId . '">
+                        <span>Asignar flogs</span>
+                    </label>';
+
+                return '<div class="flog-felpa">
+                            ' . $check . '
+                            <input type="text"
+                                   class="flog-input w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   style="min-width: 220px;"
+                                   list="flog-options"
+                                   autocomplete="off"
+                                   data-row-id="' . $rowId . '"
+                                   value="' . $valorEsc . '"
+                                   maxlength="60"
+                                   placeholder="Flog">
+                        </div>';
+            }
+
             // Columna INN (Programado) - Usar el valor calculado del controlador
             if ($field === 'Programado') {
                 $programadoCalculado = $registro->ProgramadoCalculado ?? null;
@@ -435,11 +464,14 @@
                             @endphp
                             <tr class="transition-colors row-data cursor-pointer {{ $loop->even ? 'bg-gray-100 row-even' : 'bg-white row-odd' }}"
                                 data-id="{{ $registro->Id ?? '' }}"
+                                data-articulo-felpa="{{ !empty($registro->EsArticuloFelpa) ? '1' : '0' }}"
+                                data-item-id="{{ $registro->ItemId ?? '' }}"
                                 data-salon-tejido-id="{{ $registro->SalonTejidoId ?? '' }}"
                                 data-peso-crudo="{{ $registro->PesoCrudo ?? '' }}"
                                 data-no-tiras="{{ $registro->NoTiras ?? '' }}"
                                 data-largo-crudo="{{ $registro->LargoCrudo ?? '' }}"
                                 data-saldo-pedido="{{ $registro->SaldoPedido ?? '' }}"
+                                data-base-pedido="{{ $registro->BasePedido ?? '' }}"
                                 data-invent-size-id="{{ $registro->InventSizeId ?? '' }}"
                                 data-es-felpa="{{ $__esFelpa ? '1' : '0' }}"
                                 title="Clic en la fila para marcar como referencia visual (azul)">
@@ -467,6 +499,9 @@
     </div>
 </div>
 
+{{-- Flogs vigentes de AX para el autocompletado de la columna Flog (una sola lista para toda la grilla) --}}
+<datalist id="flog-options"></datalist>
+
 {{-- Menú contextual en encabezados (clic derecho): Filtrar, Fijar, Ocultar --}}
 <div id="liberar-context-menu-header" class="hidden fixed bg-white border border-gray-300 rounded-lg shadow-lg py-1 min-w-[180px]" style="z-index: 99999;">
     <button type="button" id="liberar-context-filtrar" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2">
@@ -489,6 +524,7 @@ const redirectAfterLiberar = '{{ route('catalogos.req-programa-tejido') }}';
 const tipoHiloUrl = '{{ route('programa-tejido.liberar-ordenes.tipo-hilo') }}';
 const bomAutocompleteUrl = '{{ route('programa-tejido.liberar-ordenes.bom') }}';
 const codigoDibujoUrl = '{{ route('programa-tejido.liberar-ordenes.codigo-dibujo') }}';
+const flogSugeridoUrl = '{{ route('programa-tejido.liberar-ordenes.flog') }}';
 
 // Variables globales para columnas
 const liberarOrdenesColumnsList = @json($columns ?? []);
@@ -533,6 +569,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+
+    // Flog: autocompletado + marcado de flogs inexistentes
+    cargarOpcionesFlog();
+    setupFlogValidacion();
+
+    // Artículos de felpa: check "Asignar flogs" que precarga el flog vigente de AX
+    setupFlogFelpa();
 
     // Marcar fila como referencia al hacer clic en la fila (no en casilla ni inputs)
     setupRowReferenceClick();
@@ -621,6 +664,90 @@ document.addEventListener('DOMContentLoaded', function() {
         calcularTotalPzas(inp);
     });
 });
+
+/* ── Artículos de felpa ─────────────────────────────────────────────────────
+   El renglón cuyo Clave AX + Tamaño está en TwArticulosFelpas muestra el check
+   "Asignar flogs". Sin marcar los flogs se ignoran; al marcarlo se trae el flog
+   vigente de AX como sugerencia y se guarda AsignarFlogs = 1 en CatCodificados.
+   El flog se puede editar a mano en cualquier renglón, marcado o no.         */
+
+async function traerFlogSugerido(row) {
+    const itemId = (row.dataset.itemId || '').trim();
+    const inventSizeId = (row.dataset.inventSizeId || '').trim();
+    const flogInput = row.querySelector('.flog-input');
+    if (!flogInput || !itemId || !inventSizeId) return;
+
+    // No pisar un flog ya capturado o traído previamente.
+    if ((flogInput.value || '').trim() !== '') return;
+
+    flogInput.placeholder = 'Buscando en AX…';
+    try {
+        const url = `${flogSugeridoUrl}?itemId=${encodeURIComponent(itemId)}&inventSizeId=${encodeURIComponent(inventSizeId)}`;
+        const payload = await http.get(url);
+        if (payload && payload.success && payload.data && payload.data.flogsId) {
+            flogInput.value = payload.data.flogsId;
+            flogInput.placeholder = 'Flog';
+            return;
+        }
+        flogInput.placeholder = 'Sin flog en AX: captúralo';
+    } catch (e) {
+        // Que falle AX no debe dejar la fila bloqueada: el flog se puede escribir a mano.
+        flogInput.placeholder = 'AX no respondió: captúralo';
+        notify.warning('No se pudo consultar el flog en AX. Puedes capturarlo a mano.');
+    }
+}
+
+/** Flogs vigentes en AX; null mientras no cargue la lista (entonces no se valida en cliente). */
+let flogsVigentes = null;
+
+/** Autocompletado libre del flog: todos los flogs vigentes de AX, misma lista que usa Duplicar. */
+async function cargarOpcionesFlog() {
+    const datalist = document.getElementById('flog-options');
+    if (!datalist) return;
+
+    try {
+        const flogs = await http.get('/programa-tejido/flogs-id-from-twflogs');
+        if (!Array.isArray(flogs)) return;
+        datalist.innerHTML = flogs
+            .map(f => `<option value="${String(f).replace(/"/g, '&quot;')}"></option>`)
+            .join('');
+        flogsVigentes = new Set(flogs.map(f => String(f).trim().toUpperCase()));
+        document.querySelectorAll('.flog-input').forEach(marcarFlogInvalido);
+    } catch (e) {
+        // Sin lista se sigue pudiendo capturar el flog a mano; el servidor lo valida al liberar.
+    }
+}
+
+/** Un flog escrito a mano que no existe en AX no se puede liberar: se marca y bloquea. */
+function marcarFlogInvalido(input) {
+    const valor = (input.value || '').trim().toUpperCase();
+    const invalido = !flogsVigentes ? false : (valor !== '' && !flogsVigentes.has(valor));
+
+    input.dataset.flogInvalido = invalido ? 'true' : 'false';
+    input.classList.toggle('border-red-500', invalido);
+    input.classList.toggle('bg-red-50', invalido);
+    input.title = invalido ? 'Este flog no existe o no está vigente en AX' : '';
+}
+
+function setupFlogValidacion() {
+    document.querySelectorAll('.flog-input').forEach(input => {
+        input.addEventListener('input', () => marcarFlogInvalido(input));
+        input.addEventListener('change', () => marcarFlogInvalido(input));
+    });
+}
+
+function setupFlogFelpa() {
+    document.querySelectorAll('tr.row-data[data-articulo-felpa="1"]').forEach(row => {
+        const check = row.querySelector('.flog-check');
+        if (!check) return;
+
+        check.addEventListener('change', async () => {
+            if (!check.checked) return;
+            await traerFlogSugerido(row);
+            row.querySelector('.flog-input')?.focus();
+        });
+    });
+}
 
 function autoFillAllHiloAX() {
     const rows = document.querySelectorAll('.row-data');
@@ -1207,14 +1334,19 @@ function applyBomOption(row, option) {
     bomNameInput.value = option.bomName || '';
 }
 
+/** Casillas de selección disponibles (se excluyen las deshabilitadas). */
+function checkboxesSeleccionables() {
+    return Array.from(document.querySelectorAll('.row-checkbox')).filter(cb => !cb.disabled);
+}
+
 function toggleSeleccionarTodo() {
-    const checkboxes = document.querySelectorAll('.row-checkbox');
+    const checkboxes = checkboxesSeleccionables();
     const selectAllCheckbox = document.getElementById('selectAllCheckbox');
     if (!checkboxes.length) {
         return;
     }
 
-    const todosSeleccionados = Array.from(checkboxes).every(cb => cb.checked);
+    const todosSeleccionados = checkboxes.every(cb => cb.checked);
     const nuevoEstado = !todosSeleccionados;
 
     checkboxes.forEach(cb => {
@@ -1228,15 +1360,14 @@ function toggleSeleccionarTodo() {
 }
 
 function updateSelectAllCheckbox() {
-    const checkboxes = document.querySelectorAll('.row-checkbox');
+    const checkboxes = checkboxesSeleccionables();
     const selectAllCheckbox = document.getElementById('selectAllCheckbox');
 
-    if (!checkboxes.length || !selectAllCheckbox) {
+    if (!selectAllCheckbox) {
         return;
     }
 
-    const todosSeleccionados = Array.from(checkboxes).every(cb => cb.checked);
-    selectAllCheckbox.checked = todosSeleccionados;
+    selectAllCheckbox.checked = checkboxes.length > 0 && checkboxes.every(cb => cb.checked);
 }
 
 /** Clic en la fila (sin tocar casilla/inputs) marca la fila como referencia visual (azul). No afecta qué se libera. */
@@ -1877,8 +2008,16 @@ function applyFilters() {
 }
 
 // Funciones para liberar órdenes
+/** Una fila oculta por un filtro no se libera: las casillas vienen marcadas por defecto y
+ *  filtrar sólo aplica display:none, así que sin esto "Liberar" procesaba también lo filtrado. */
+function filaVisibleParaLiberar(row) {
+    return !!row && row.style.display !== 'none';
+}
+
 function obtenerRegistrosSeleccionados() {
-    return Array.from(document.querySelectorAll('.row-checkbox:checked')).map(cb => {
+    return Array.from(document.querySelectorAll('.row-checkbox:checked'))
+        .filter(cb => filaVisibleParaLiberar(cb.closest('tr.row-data')))
+        .map(cb => {
         const row = cb.closest('tr');
         const prioridadInput = row ? row.querySelector('.prioridad-input') : null;
 
@@ -1946,7 +2085,9 @@ function obtenerRegistrosSeleccionados() {
             observaciones: getCellValue('Observaciones'),
             cambioRepaso: getCellValue('CambioRepaso'),
             combinaTram: getCellValue('CombinaTrama'),
-            noProduccion: getCellValue('no_produccion')
+            noProduccion: getCellValue('no_produccion'),
+            asignarFlogs: row ? row.querySelector('.flog-check')?.checked === true : false,
+            flogsId: row ? (row.querySelector('.flog-input')?.value || '').trim() || null : null
         };
     });
 }
@@ -2034,6 +2175,19 @@ function liberarOrdenes() {
             title: 'L.Mat obligatorio',
             text: 'Cada registro seleccionado debe tener L.Mat y Nombre L.Mat antes de liberar.',
         });
+        return;
+    }
+
+    const flogMalo = Array.from(document.querySelectorAll('.row-checkbox:checked'))
+        .map(cb => cb.closest('tr.row-data')?.querySelector('.flog-input'))
+        .find(inp => inp && inp.dataset.flogInvalido === 'true');
+    if (flogMalo) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Flog inexistente',
+            text: `El flog "${(flogMalo.value || '').trim()}" no existe o no está vigente en AX. Corrígelo antes de liberar.`,
+        });
+        flogMalo.focus();
         return;
     }
 
@@ -2172,6 +2326,18 @@ function esFilaAjusteFelRollo(row) {
     return esFilaInventSizeFel(row);
 }
 
+/**
+ * Base de las fórmulas de producción: la MISMA que usa el servidor al liberar
+ * (basePedido() = TotalPedido, con fallback a SaldoPedido/Producción).
+ * Usar SaldoPedido aquí hacía que No. marbetes y Total rollos mostrados en la grilla
+ * no coincidieran con los que se guardan.
+ */
+function leerBasePedido(row) {
+    if (!row) return 0;
+    const base = parseNumeroGrid(row.dataset.basePedido);
+    return base > 0 ? base : parseNumeroGrid(row.dataset.saldoPedido);
+}
+
 function recalcularPorPesoRollo(pesoInput) {
     const row = pesoInput.closest('.row-data');
     if (!row) return;
@@ -2187,7 +2353,7 @@ function recalcularPorPesoRollo(pesoInput) {
     const pesoCrudo = parseNumeroGrid(row.dataset.pesoCrudo);
     const noTiras = parseNumeroGrid(row.dataset.noTiras);
     const largoCrudo = parseNumeroGrid(row.dataset.largoCrudo);
-    const saldoPedido = parseNumeroGrid(row.dataset.saldoPedido);
+    const basePedido = leerBasePedido(row);
 
     if ((!esFelpa && pesoRollo <= 0) || pesoCrudo <= 0 || noTiras <= 0) {
         actualizarSpanNumerico(row, 'Repeticiones', null);
@@ -2201,7 +2367,7 @@ function recalcularPorPesoRollo(pesoInput) {
     const repeticiones = Math.trunc(((pesoRollo / pesoCrudo) / noTiras) * 1000);
     let saldoMarbete =
         noTiras > 0 && repeticiones > 0
-            ? Math.round((saldoPedido / noTiras) / repeticiones)
+            ? Math.round((basePedido / noTiras) / repeticiones)
             : 0;
     let mtsRollo = largoCrudo > 0 && repeticiones > 0
         ? (largoCrudo * repeticiones) / 100
@@ -2225,9 +2391,9 @@ function actualizarTotalRollosYTotalPzas(row, pzasRollo) {
     const totalRollosInput = row.querySelector('input[data-field="TotalRollos"]');
     if (!totalRollosInput) return;
 
-    const saldoPedido = parseNumeroGrid(row.dataset.saldoPedido);
-    const totalRollos = pzasRollo && pzasRollo > 0 && saldoPedido > 0
-        ? Math.ceil(saldoPedido / pzasRollo)
+    const basePedido = leerBasePedido(row);
+    const totalRollos = pzasRollo && pzasRollo > 0 && basePedido > 0
+        ? Math.ceil(basePedido / pzasRollo)
         : null;
 
     totalRollosInput.value = totalRollos !== null ? String(totalRollos) : '';
