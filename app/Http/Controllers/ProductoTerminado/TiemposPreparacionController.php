@@ -7,9 +7,9 @@ namespace App\Http\Controllers\ProductoTerminado;
 use App\Http\Controllers\Controller;
 use Illuminate\View\View;
 
-class TiemposPtController extends Controller
+class TiemposPreparacionController extends Controller
 {
-    private const MODULO = 'Tiempos PT';
+    private const MODULO = 'Tiempos Preparacion';
 
     public function index(): View
     {
