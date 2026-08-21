@@ -128,17 +128,24 @@ class Captura extends Component
     #[Computed]
     public function juliosRizo()
     {
-        return $this->juliosDelTelar()['juliosRizo'] ?? collect();
+        return $this->julios['juliosRizo'] ?? collect();
     }
 
     #[Computed]
     public function juliosPie()
     {
-        return $this->juliosDelTelar()['juliosPie'] ?? collect();
+        return $this->julios['juliosPie'] ?? collect();
     }
 
-    /** @return array<string, mixed> */
-    private function juliosDelTelar(): array
+    /**
+     * Rizo y pie salen de la MISMA consulta, asi que se memoiza aqui y no en cada uno.
+     * Sin esto, obtenerJuliosPorTelar() corria dos veces --una por cada propiedad-- y
+     * como internamente pide los dos tipos, eran cuatro consultas para traer dos listas.
+     *
+     * @return array<string, mixed>
+     */
+    #[Computed]
+    public function julios(): array
     {
         if ($this->telarId === '') {
             return ['juliosRizo' => collect(), 'juliosPie' => collect()];
@@ -211,7 +218,7 @@ class Captura extends Component
             return null;
         }
 
-        $fila = $this->producciones()->firstWhere('Id', $this->produccionSeleccionada);
+        $fila = $this->producciones->firstWhere('Id', $this->produccionSeleccionada);
 
         if (! $fila) {
             return null;
@@ -245,7 +252,7 @@ class Captura extends Component
     #[Computed]
     public function hayCambioTelar(): bool
     {
-        $fila = $this->filaSeleccionada();
+        $fila = $this->filaSeleccionada;
 
         if (! $fila || $this->telarDestino === '') {
             return false;
@@ -256,12 +263,30 @@ class Captura extends Component
 
     // ── Acciones ──────────────────────────────────────────────────────────
 
+    /**
+     * Livewire cachea las propiedades calculadas durante toda la peticion. Cuando cambia
+     * el telar o la fila elegida hay que soltar ese cache, o la pantalla seguiria
+     * pintando los datos de la seleccion anterior.
+     */
+    private function olvidarDerivados(): void
+    {
+        unset(
+            $this->producciones,
+            $this->ordenEnProceso,
+            $this->julios,
+            $this->juliosRizo,
+            $this->juliosPie,
+            $this->filaSeleccionada,
+            $this->hayCambioTelar,
+        );
+    }
+
     public function updatedTelarId(): void
     {
         $this->reset(['produccionSeleccionada', 'telarDestino', 'accion']);
         $this->accion = 'finalizar';
         $this->limpiarCaptura();
-        unset($this->producciones, $this->ordenEnProceso, $this->juliosRizo, $this->juliosPie);
+        $this->olvidarDerivados();
     }
 
     public function seleccionar(int $id): void
@@ -275,8 +300,9 @@ class Captura extends Component
         $this->produccionSeleccionada = $id;
         $this->accion = 'finalizar';
         $this->limpiarCaptura();
+        $this->olvidarDerivados();
 
-        $fila = $this->filaSeleccionada();
+        $fila = $this->filaSeleccionada;
 
         if (! $fila) {
             return;
@@ -284,6 +310,7 @@ class Captura extends Component
 
         // Por defecto el destino es el propio telar: seleccionar no es cambiar de telar.
         $this->telarDestino = ($fila['SalonTejidoId'] ?? '').'|'.$this->telarId;
+        unset($this->ordenEnProceso, $this->hayCambioTelar);
 
         $this->cargarDetalles((string) ($fila['NoProduccion'] ?? ''), $id);
         $this->precargarDesdeCatCodificados((string) ($fila['NoProduccion'] ?? ''));
@@ -296,6 +323,7 @@ class Captura extends Component
         $this->telarDestino = '';
         $this->accion = 'finalizar';
         $this->limpiarCaptura();
+        $this->olvidarDerivados();
         $this->resetValidation();
     }
 
@@ -415,7 +443,7 @@ class Captura extends Component
     {
         abort_unless(userCan('acceso', $this->moduloSysRoles()), 403);
 
-        $fila = $this->filaSeleccionada();
+        $fila = $this->filaSeleccionada;
 
         if (! $fila) {
             $this->dispatch('aviso', tipo: 'error', texto: 'Selecciona una produccion.');
@@ -444,7 +472,7 @@ class Captura extends Component
 
         if (($datos['success'] ?? false) === true) {
             $this->cancelar();
-            unset($this->producciones, $this->ordenEnProceso);
+            $this->olvidarDerivados();
             $this->dispatch('aviso', tipo: 'success', texto: $datos['message'] ?? 'Datos guardados correctamente');
 
             return;
@@ -476,18 +504,18 @@ class Captura extends Component
             'NoProduccion' => (string) ($fila['NoProduccion'] ?? ''),
             'registroId' => $this->produccionSeleccionada,
             'accion' => $this->accion,
-            'CambioTelarActivo' => $this->hayCambioTelar() ? '1' : '0',
-            'TelarDestino' => $this->hayCambioTelar() ? $this->telarDestino : '',
+            'CambioTelarActivo' => $this->hayCambioTelar ? '1' : '0',
+            'TelarDestino' => $this->hayCambioTelar ? $this->telarDestino : '',
             'NumeroJulioRizo' => $this->form['NumeroJulioRizo'],
             'NumeroJulioPie' => $this->form['NumeroJulioPie'],
-            'TotalPasadasDibujo' => $this->totalPasadas(),
+            'TotalPasadasDibujo' => $this->totalPasadas,
             'HoraInicio' => $this->form['HoraInicio'] ?: null,
             'HoraFinal' => $this->form['HoraFinal'] ?: null,
             'EficienciaInicio' => $this->form['EficienciaInicio'],
             'EficienciaFinal' => $this->form['EficienciaFinal'],
             'Desarrollador' => $this->form['Desarrollador'],
             'DesperdicioTrama' => $this->form['DesperdicioTrama'],
-            'CodificacionModelo' => $this->codificacionModelo(),
+            'CodificacionModelo' => $this->codificacionModelo,
             'pasadas' => $pasadas,
             'detalle_calibre' => array_column($this->detalles, 'Calibre'),
             'detalle_hilo' => array_column($this->detalles, 'Hilo'),
