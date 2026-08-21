@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\Tejedores\BPMTejedores\TelBpmController;
 use App\Http\Controllers\Tejedores\BPMTejedores\TelBpmLineController;
-use App\Http\Controllers\Tejedores\Configuracion\CatDesarrolladores\catDesarrolladoresController;
 use App\Http\Controllers\Tejedores\Configuracion\TelaresOperador\TelTelaresOperadorController;
 use App\Http\Controllers\Tejedores\Desarrolladores\TelDesarrolladoresController;
 use App\Http\Controllers\Tejedores\Desarrolladores\TelDesarrolladoresMuestrasController;
@@ -24,7 +23,6 @@ Route::prefix('tejedores')->name('tejedores.')->group(function () {
     Route::get('/configurar', [UsuarioController::class, 'showTejedoresConfiguracion'])->name('configurar');
 
     Route::get('/configurar/telaresxoperador', [TelTelaresOperadorController::class, 'index'])->name('configurar.telares-operador');
-    Route::get('/configurar/catalogodesarrolladores', [catDesarrolladoresController::class, 'index'])->name('configurar.catalogo-desarrolladores');
     Route::get('/configurar/actividadestejedores', [TelActividadesBPMController::class, 'index'])->name('configurar.actividades');
 
     Route::get('/bpmtejedores', [TelBpmController::class, 'index'])->name('bpm');
@@ -129,10 +127,6 @@ Route::post('/desarrolladores', [TelDesarrolladoresController::class, 'store'])-
 // Desarrolladores Muestras
 Route::post('/desarrolladores-muestras', [TelDesarrolladoresMuestrasController::class, 'store'])->name('desarrolladores-muestras.store');
 
-Route::get('catalogo-desarrolladores', [catDesarrolladoresController::class, 'index'])->name('desarrolladores.catalogo-desarrolladores');
-Route::post('catalogo-desarrolladores', [catDesarrolladoresController::class, 'store'])->name('cat-desarrolladores.store');
-Route::put('catalogo-desarrolladores/{cat_desarrolladore}', [catDesarrolladoresController::class, 'update'])->name('cat-desarrolladores.update');
-Route::delete('catalogo-desarrolladores/{cat_desarrolladore}', [catDesarrolladoresController::class, 'destroy'])->name('cat-desarrolladores.destroy');
 
 // Reportes Desarrolladores
 Route::prefix('tejedores/reportes-desarrolladores')->name('tejedores.reportes-desarrolladores.')->group(function () {
