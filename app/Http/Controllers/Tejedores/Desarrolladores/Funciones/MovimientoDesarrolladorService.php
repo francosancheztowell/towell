@@ -234,6 +234,31 @@ class MovimientoDesarrolladorService
      *
      * @throws Exception
      */
+    /**
+     * Toma los bloqueos de los dos telares en un orden fijo (el mismo para todos los
+     * llamadores) antes de tocar nada.
+     *
+     * Sin esto, un movimiento A->B bloquea A y luego B, mientras uno B->A simultaneo
+     * bloquea B y luego A: se abrazan y SQL Server mata una de las dos transacciones.
+     * Ordenar por salon+telar rompe el ciclo.
+     *
+     * @param  array{0: string, 1: string}  $origen
+     * @param  array{0: string, 1: string}  $destino
+     */
+    private function bloquearTelaresEnOrdenCanonico(array $origen, array $destino): void
+    {
+        $telares = [$origen, $destino];
+        usort($telares, fn (array $a, array $b): int => [$a[0], $a[1]] <=> [$b[0], $b[1]]);
+
+        foreach ($telares as [$salon, $telar]) {
+            ReqProgramaTejido::query()
+                ->where('SalonTejidoId', $salon)
+                ->where('NoTelarId', $telar)
+                ->lockForUpdate()
+                ->get();
+        }
+    }
+
     public function moverRegistroConCambioTelarEnProceso(
         ReqProgramaTejido $registroActualizado,
         string $salonDestino,
@@ -266,6 +291,11 @@ class MovimientoDesarrolladorService
             $reprogramarValor,
             &$idsOrigenAfectados
         ) {
+            $this->bloquearTelaresEnOrdenCanonico(
+                [$salonOrigen, $telarOrigen],
+                [$salonDestino, $telarDestino]
+            );
+
             $registroBloqueado = ReqProgramaTejido::query()
                 ->where('Id', $registroActualizado->Id)
                 ->where('SalonTejidoId', $salonOrigen)

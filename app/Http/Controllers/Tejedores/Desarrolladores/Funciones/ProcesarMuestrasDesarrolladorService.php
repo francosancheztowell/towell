@@ -143,10 +143,7 @@ class ProcesarMuestrasDesarrolladorService
                 $programaParaNotificacion->Id = $programaObjetivo->Id;
 
                 // Post-procesamiento MUESTRAS: eliminar registro en lugar de poner EnProceso
-                $this->eliminarRegistroMuestra(
-                    $contextoDestino['salonDestino'],
-                    $contextoDestino['telarDestino']
-                );
+                $this->eliminarRegistroMuestra($programaObjetivo);
 
                 return [
                     'programa' => $programaParaNotificacion,
@@ -216,34 +213,22 @@ class ProcesarMuestrasDesarrolladorService
     }
 
     /**
-     * Post-procesamiento de muestras:
-     * 1. Buscar registro con EnProceso=1 en mismo salon+telar → eliminarlo
-     * 2. Si NO existe → eliminar el registro con FechaInicio más antigua
-     * 3. NO poner ningún otro registro en EnProceso=1
+     * La muestra procesada se consume: se elimina por identidad.
+     *
+     * Antes se buscaba "el que tenga EnProceso=1 en ese salon+telar y si no, el de
+     * FechaInicio mas antigua", sin recibir el registro que se acababa de procesar.
+     * Si el operador procesaba la orden B mientras A estaba en proceso, se borraba A
+     * y B sobrevivia intacta. Sin identidad no hay forma de acertar, asi que ahora se
+     * borra exactamente la fila procesada o ninguna.
      */
-    private function eliminarRegistroMuestra(string $salonDestino, string $telarDestino): void
+    private function eliminarRegistroMuestra(Muestras $procesada): void
     {
-        $registroEnProceso = Muestras::query()
-            ->where('SalonTejidoId', $salonDestino)
-            ->where('NoTelarId', $telarDestino)
-            ->where('EnProceso', 1)
+        $registro = Muestras::query()
+            ->whereKey($procesada->getKey())
+            ->lockForUpdate()
             ->first();
 
-        if ($registroEnProceso) {
-            $registroEnProceso->delete();
-
-            return;
-        }
-
-        $registroMasAntiguo = Muestras::query()
-            ->where('SalonTejidoId', $salonDestino)
-            ->where('NoTelarId', $telarDestino)
-            ->orderBy('FechaInicio', 'asc')
-            ->first();
-
-        if ($registroMasAntiguo) {
-            $registroMasAntiguo->delete();
-        }
+        $registro?->delete();
     }
 
     private function validarYNormalizarEntrada(Request $request): array
