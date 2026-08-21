@@ -513,7 +513,8 @@ class MovimientoDesarrolladorService
             $fechaArranque = $fechaArranque->format('Y-m-d H:i:s');
         } elseif (is_string($fechaArranque)) {
             try {
-                Carbon::parse($fechaArranque);
+                // El resultado se descartaba: la cadena se guardaba sin normalizar.
+                $fechaArranque = Carbon::parse($fechaArranque)->format('Y-m-d H:i:s');
             } catch (Exception $e) {
                 $fechaArranque = null;
             }
@@ -585,6 +586,14 @@ class MovimientoDesarrolladorService
         return $programaActualizado;
     }
 
+    /**
+     * OJO: pese al nombre, esto NO escribe ReqModelosCodificados. Sincroniza
+     * Pedido/Produccion/Saldos/OrdCompartida* del programa hacia CatCodificados.
+     *
+     * ponytail: no se renombra aqui porque tambien lo llaman FinalizarOrdenesController
+     * y MoverOrdenesController, que no tienen cobertura; el rename va cuando se toquen
+     * esos modulos.
+     */
     public function actualizarReqModelosDesdePrograma(ReqProgramaTejido $programa): void
     {
         $noProduccion = trim((string) ($programa->NoProduccion ?? ''));

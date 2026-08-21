@@ -550,8 +550,8 @@ class ProcesarDesarrolladorService
     private function buildFechasArranqueFinalizaPayload(?string $horaInicio, ?string $horaFinal): array
     {
         $fechaBase = Carbon::today();
-        $fechaArranque = $this->combinarFechaYHora($horaInicio, $fechaBase);
-        $fechaFinalizaBase = $fechaBase;
+        $fechaArranque = $this->anclarAlDiaMasCercano($this->combinarFechaYHora($horaInicio, $fechaBase));
+        $fechaFinalizaBase = $fechaArranque ? $fechaArranque->copy() : $fechaBase;
 
         if ($fechaArranque && $horaFinal) {
             try {
@@ -572,6 +572,33 @@ class ProcesarDesarrolladorService
             'FechaArranque' => $fechaArranque?->format('Y-m-d H:i:s'),
             'FechaFinaliza' => $fechaFinaliza?->format('Y-m-d H:i:s'),
         ];
+    }
+
+    /**
+     * Ancla una hora capturada al dia al que realmente pertenece.
+     *
+     * Con Carbon::today() la hora se pegaba siempre al dia del servidor: el turno 3
+     * captura 23:50 y si envia pasada la medianoche el registro quedaba sellado al dia
+     * siguiente. Se elige la ocurrencia de esa hora mas cercana a ahora, que para una
+     * jornada de 8 horas es siempre la correcta.
+     */
+    private function anclarAlDiaMasCercano(?Carbon $momento): ?Carbon
+    {
+        if (! $momento) {
+            return null;
+        }
+
+        $ahora = Carbon::now();
+
+        if ($momento->greaterThan($ahora->copy()->addHours(12))) {
+            return $momento->copy()->subDay();
+        }
+
+        if ($momento->lessThan($ahora->copy()->subHours(12))) {
+            return $momento->copy()->addDay();
+        }
+
+        return $momento;
     }
 
     private function combinarFechaYHora(?string $hora, Carbon $fechaBase): ?Carbon
