@@ -17,11 +17,12 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ProcesarDesarrolladorService
 {
+    use ArmaDatosDesarrollador;
+
     protected MovimientoDesarrolladorService $movimientoService;
 
     protected NotificacionTelegramDesarrolladorService $telegramService;
@@ -582,25 +583,6 @@ class ProcesarDesarrolladorService
      * siguiente. Se elige la ocurrencia de esa hora mas cercana a ahora, que para una
      * jornada de 8 horas es siempre la correcta.
      */
-    private function anclarAlDiaMasCercano(?Carbon $momento): ?Carbon
-    {
-        if (! $momento) {
-            return null;
-        }
-
-        $ahora = Carbon::now();
-
-        if ($momento->greaterThan($ahora->copy()->addHours(12))) {
-            return $momento->copy()->subDay();
-        }
-
-        if ($momento->lessThan($ahora->copy()->subHours(12))) {
-            return $momento->copy()->addDay();
-        }
-
-        return $momento;
-    }
-
     private function combinarFechaYHora(?string $hora, Carbon $fechaBase): ?Carbon
     {
         if (empty($hora)) {
@@ -926,30 +908,6 @@ class ProcesarDesarrolladorService
         $this->telegramService->enviarProcesoCompletado($payload, $programa, $codigoDibujo);
     }
 
-    private function construirFechaInicioProgramada(?string $horaFinal): ?string
-    {
-        if (empty($horaFinal)) {
-            return null;
-        }
-
-        try {
-            $horaFinalCarbon = Carbon::createFromFormat('H:i', $horaFinal);
-
-            return Carbon::today()
-                ->setTimeFromTimeString($horaFinalCarbon->format('H:i'))
-                ->format('Y-m-d H:i:s');
-        } catch (Exception $e) {
-            return null;
-        }
-    }
-
-    private function normalizarLongitudLucha($longitudLuchaRaw): ?int
-    {
-        return $longitudLuchaRaw !== null && $longitudLuchaRaw !== ''
-            ? (int) round((float) $longitudLuchaRaw)
-            : null;
-    }
-
     private function buildPasadasPayload(array $pasadasFromRequest, $ordenData): array
     {
         $pasadasPayload = [];
@@ -982,34 +940,6 @@ class ProcesarDesarrolladorService
         }
 
         return $pasadasPayload;
-    }
-
-    private function normalizeCodigoDibujo(?string $value, ?string $telarId = null): string
-    {
-        $normalized = Str::of((string) ($value ?? ''))
-            ->trim()
-            ->upper()
-            ->replaceMatches('/\s+/', '')
-            ->replaceMatches('/\.(?:JC5|JCS)$/i', '')
-            ->toString();
-
-        if ($normalized === '') {
-            return '';
-        }
-
-        $suffix = $this->resolverSufijoCodigoPorTelar($telarId);
-
-        return $suffix === '' ? $normalized : ($normalized.'.'.$suffix);
-    }
-
-    private function resolverSufijoCodigoPorTelar(?string $telarId): string
-    {
-        $n = (int) trim((string) ($telarId ?? ''));
-        if ($n >= 300) {
-            return '';
-        }
-
-        return 'JC5';
     }
 
     private function buildDetallePayloadFromOrden($ordenData): array
@@ -1151,23 +1081,5 @@ class ProcesarDesarrolladorService
         }
 
         return $detallePayload;
-    }
-
-    private function calcularMinutosCambio(?string $horaInicio, ?string $horaFinal): ?int
-    {
-        if (! $horaInicio || ! $horaFinal) {
-            return null;
-        }
-        try {
-            $inicio = Carbon::createFromFormat('H:i', $horaInicio);
-            $final = Carbon::createFromFormat('H:i', $horaFinal);
-            if ($final->lt($inicio)) {
-                $final->addDay();
-            }
-
-            return max(0, $inicio->diffInMinutes($final));
-        } catch (Exception $e) {
-            return null;
-        }
     }
 }

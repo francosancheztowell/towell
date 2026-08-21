@@ -26,7 +26,7 @@ class ConsultasDesarrolladorService
     /**
      * Obtiene los datos necesarios para cargar la vista principal de desarrolladores.
      *
-     * @return array{telares: \Illuminate\Support\Collection, telaresDestino: \Illuminate\Support\Collection, juliosRizo: \Illuminate\Support\Collection, juliosPie: \Illuminate\Support\Collection, desarrolladores: \Illuminate\Support\Collection, desarrolladorActual: string|null}
+     * @return array{telares: Collection, telaresDestino: Collection, juliosRizo: Collection, juliosPie: Collection, desarrolladores: Collection, desarrolladorActual: string|null}
      */
     public function obtenerDatosIndex(): array
     {
@@ -120,7 +120,7 @@ class ConsultasDesarrolladorService
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, Usuario>
+     * @return Collection<int, Usuario>
      */
     private function obtenerDesarrolladores(): Collection
     {

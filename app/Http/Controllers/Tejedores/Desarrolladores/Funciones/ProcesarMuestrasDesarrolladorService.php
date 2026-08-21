@@ -8,7 +8,6 @@ use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\Muestras;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Tejedores\TelTelaresOperador;
-use Carbon\Carbon;
 use DomainException;
 use Exception;
 use Illuminate\Http\Request;
@@ -16,11 +15,12 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ProcesarMuestrasDesarrolladorService
 {
+    use ArmaDatosDesarrollador;
+
     protected NotificacionTelegramMuestrasService $telegramService;
 
     protected CatCodificadosDesarrolladorService $catCodificadosService;
@@ -683,30 +683,6 @@ class ProcesarMuestrasDesarrolladorService
         $this->telegramService->enviarProcesoCompletado($payload, $programa, $codigoDibujo);
     }
 
-    private function construirFechaInicioProgramada(?string $horaFinal): ?string
-    {
-        if (empty($horaFinal)) {
-            return null;
-        }
-
-        try {
-            $horaFinalCarbon = Carbon::createFromFormat('H:i', $horaFinal);
-
-            return Carbon::today()
-                ->setTimeFromTimeString($horaFinalCarbon->format('H:i'))
-                ->format('Y-m-d H:i:s');
-        } catch (Exception $e) {
-            return null;
-        }
-    }
-
-    private function normalizarLongitudLucha($longitudLuchaRaw): ?int
-    {
-        return $longitudLuchaRaw !== null && $longitudLuchaRaw !== ''
-            ? (int) round((float) $longitudLuchaRaw)
-            : null;
-    }
-
     private function buildPasadasPayload(array $pasadasFromRequest, $ordenData): array
     {
         // Las claves vienen del request y terminan en setAttribute(), que se salta $fillable:
@@ -743,34 +719,6 @@ class ProcesarMuestrasDesarrolladorService
         return $pasadasPayload;
     }
 
-    private function normalizeCodigoDibujo(?string $value, ?string $telarId = null): string
-    {
-        $normalized = Str::of((string) ($value ?? ''))
-            ->trim()
-            ->upper()
-            ->replaceMatches('/\s+/', '')
-            ->replaceMatches('/\.(?:JC5|JCS)$/i', '')
-            ->toString();
-
-        if ($normalized === '') {
-            return '';
-        }
-
-        $suffix = $this->resolverSufijoCodigoPorTelar($telarId);
-
-        return $suffix === '' ? $normalized : ($normalized.'.'.$suffix);
-    }
-
-    private function resolverSufijoCodigoPorTelar(?string $telarId): string
-    {
-        $n = (int) trim((string) ($telarId ?? ''));
-        if ($n >= 300) {
-            return '';
-        }
-
-        return 'JC5';
-    }
-
     private function buildDetallePayloadFromOrden($ordenData): array
     {
         if (! $ordenData) {
@@ -801,23 +749,5 @@ class ProcesarMuestrasDesarrolladorService
         }
 
         return $payload;
-    }
-
-    private function calcularMinutosCambio(?string $horaInicio, ?string $horaFinal): ?int
-    {
-        if (! $horaInicio || ! $horaFinal) {
-            return null;
-        }
-        try {
-            $inicio = Carbon::createFromFormat('H:i', $horaInicio);
-            $final = Carbon::createFromFormat('H:i', $horaFinal);
-            if ($final->lt($inicio)) {
-                $final->addDay();
-            }
-
-            return max(0, $inicio->diffInMinutes($final));
-        } catch (Exception $e) {
-            return null;
-        }
     }
 }
