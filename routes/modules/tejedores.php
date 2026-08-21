@@ -124,20 +124,9 @@ Route::controller(InventarioTelaresController::class)
 
 // Enlace historico: el menu (SYSRoles.Ruta) apunta a /tejedores/desarrolladores.
 Route::redirect('/desarrolladores', '/tejedores/desarrolladores', 301);
-Route::get('/desarrolladores/telar/{telarId}/producciones-html', [TelDesarrolladoresController::class, 'obtenerProduccionesHtml'])->name('desarrolladores.obtener-producciones-html');
-Route::get('/desarrolladores/telar/{telarId}/orden-en-proceso', [TelDesarrolladoresController::class, 'obtenerOrdenEnProceso'])->name('desarrolladores.orden-en-proceso');
-Route::get('/desarrolladores/telar/{telarId}/julios', [TelDesarrolladoresController::class, 'obtenerJuliosPorTelar'])->name('desarrolladores.obtener-julios');
-Route::get('/desarrolladores/orden/{noProduccion}/detalles', [TelDesarrolladoresController::class, 'obtenerDetallesOrden'])->name('desarrolladores.obtener-detalles-orden');
-Route::get('/desarrolladores/registro/{id}/detalles', [TelDesarrolladoresController::class, 'obtenerDetallesOrdenPorId'])->name('desarrolladores.obtener-detalles-orden-por-id');
-Route::get('/desarrolladores/modelo-codificado/{salonTejidoId}/{tamanoClave}', [TelDesarrolladoresController::class, 'obtenerCodigoDibujo'])->name('desarrolladores.obtener-codigo-dibujo');
-Route::get('/desarrolladores/catcodificados/{telarId}/{noProduccion}', [TelDesarrolladoresController::class, 'obtenerRegistroCatCodificado'])->name('desarrolladores.obtener-registro-catcodificado');
 Route::post('/desarrolladores', [TelDesarrolladoresController::class, 'store'])->name('desarrolladores.store');
 
 // Desarrolladores Muestras
-Route::get('/desarrolladores-muestras/telar/{telarId}/producciones', [TelDesarrolladoresMuestrasController::class, 'obtenerProducciones']);
-Route::get('/desarrolladores-muestras/orden/{noProduccion}/detalles', [TelDesarrolladoresMuestrasController::class, 'obtenerDetallesOrden']);
-Route::get('/desarrolladores-muestras/modelo-codificado/{salonTejidoId}/{tamanoClave}', [TelDesarrolladoresMuestrasController::class, 'obtenerCodigoDibujo']);
-Route::get('/desarrolladores-muestras/catcodificados/{telarId}/{noProduccion}', [TelDesarrolladoresMuestrasController::class, 'obtenerRegistroCatCodificado']);
 Route::post('/desarrolladores-muestras', [TelDesarrolladoresMuestrasController::class, 'store'])->name('desarrolladores-muestras.store');
 
 Route::get('catalogo-desarrolladores', [catDesarrolladoresController::class, 'index'])->name('desarrolladores.catalogo-desarrolladores');

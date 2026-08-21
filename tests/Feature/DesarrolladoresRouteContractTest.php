@@ -37,34 +37,6 @@ class DesarrolladoresRouteContractTest extends TestCase
     }
 
     /**
-     * GET /desarrolladores/telar/101/producciones-html without authentication must redirect or return 401.
-     */
-    public function test_producciones_html_sin_auth_redirige(): void
-    {
-        $response = $this->get('/desarrolladores/telar/101/producciones-html');
-
-        $this->assertContains(
-            $response->status(),
-            [302, 401],
-            "GET producciones-html should redirect or return 401 when unauthenticated, got {$response->status()}"
-        );
-    }
-
-    /**
-     * GET /desarrolladores/telar/101/orden-en-proceso without authentication must redirect or return 401.
-     */
-    public function test_orden_en_proceso_sin_auth_redirige(): void
-    {
-        $response = $this->get('/desarrolladores/telar/101/orden-en-proceso');
-
-        $this->assertContains(
-            $response->status(),
-            [302, 401],
-            "GET orden-en-proceso should redirect or return 401 when unauthenticated, got {$response->status()}"
-        );
-    }
-
-    /**
      * Simula un usuario autenticado sembrando la memoizacion de permisos en el
      * contenedor, tal como la construye userPermissions(). Asi el test no escribe
      * en SYSUsuariosRoles ni depende de los datos reales del servidor.
@@ -153,16 +125,6 @@ class DesarrolladoresRouteContractTest extends TestCase
         $this->assertNotNull(
             $routes->getByName('desarrolladores.store'),
             "Named route 'desarrolladores.store' must exist"
-        );
-
-        $this->assertNotNull(
-            $routes->getByName('desarrolladores.obtener-producciones-html'),
-            "Named route 'desarrolladores.obtener-producciones-html' must exist"
-        );
-
-        $this->assertNotNull(
-            $routes->getByName('desarrolladores.orden-en-proceso'),
-            "Named route 'desarrolladores.orden-en-proceso' must exist"
         );
     }
 }
