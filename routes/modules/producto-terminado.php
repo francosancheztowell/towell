@@ -11,12 +11,12 @@ use Illuminate\Support\Facades\Route;
 | Producto Terminado — rutas alineadas con SYSRoles
 |--------------------------------------------------------------------------
 | Nivel 1: 1300 Producto Terminado → /producto-terminado
-| Nivel 2: 1301 Tiempos PT         → /producto-terminado/tiempos-pt
+| Nivel 2: 1301 Tiempos PT         → /producto-terminado/tiempos
 */
 
 // Tiempos PT (SYSRoles 1301) — registrar antes del grid del módulo principal.
-Route::prefix('producto-terminado/tiempos-pt')
-    ->as('producto-terminado.tiempos-pt.')
+Route::prefix('producto-terminado/tiempos')
+    ->as('producto-terminado.tiempos.')
     ->group(function (): void {
         Route::get('/', [TiemposPtController::class, 'index'])->name('index');
     });
@@ -27,5 +27,3 @@ Route::get('/producto-terminado/{moduloPrincipal?}', [UsuarioController::class, 
     ->where('moduloPrincipal', 'producto-terminado')
     ->name('producto-terminado.index');
 
-// Compatibilidad con rutas antiguas /submodulos/1300
-Route::redirect('/submodulos/1300', '/producto-terminado', 301);

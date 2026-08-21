@@ -15,7 +15,7 @@ class TiemposPtController extends Controller
     {
         abort_unless(userCan('acceso', self::MODULO), 403, 'No tienes acceso a este módulo.');
 
-        return view('modulos.producto-terminado.tiempos-pt.index', [
+        return view('modulos.producto-terminado.tiempos.index', [
             'permisos' => userPermissions(self::MODULO),
         ]);
     }
