@@ -110,6 +110,23 @@ class DesarrolladoresCapturaLivewireTest extends TestCase
         ]);
     }
 
+    // ── Pagina completa ───────────────────────────────────────────────────
+
+    /**
+     * Los tests de Livewire::test renderizan el componente pero no el layout.
+     * Esto recorre la ruta real: middleware, controlador, layout y el componente
+     * montado dentro, que es donde saldria un fallo de integracion.
+     */
+    public function test_la_pagina_completa_responde_y_monta_el_componente(): void
+    {
+        $this->autenticar();
+        $this->sembrarTelarConOrden();
+
+        $this->get('/tejedores/desarrolladores')
+            ->assertOk()
+            ->assertSee('Seleccionar Telar');
+    }
+
     // ── Permisos ──────────────────────────────────────────────────────────
 
     public function test_sin_permiso_de_acceso_devuelve_403(): void

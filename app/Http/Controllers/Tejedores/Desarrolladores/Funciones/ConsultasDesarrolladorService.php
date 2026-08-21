@@ -83,6 +83,11 @@ class ConsultasDesarrolladorService
      */
     private function obtenerJuliosPorTipo(string $tipo, ?string $telarId = null): Collection
     {
+        // ponytail: el unique() va en PHP a proposito. Medido en produccion,
+        // AtaMontadoTelas tiene 1780 filas en total, asi que no compensa montar un
+        // ROW_NUMBER() OVER (PARTITION BY NoJulio) para deduplicar. Si algun dia la
+        // tabla crece un orden de magnitud, esa es la salida.
+
         $query = AtaMontadoTelasModel::query()
             ->whereNotNull('NoJulio')
             ->where('NoJulio', '!=', '')

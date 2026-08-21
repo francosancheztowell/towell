@@ -11,11 +11,19 @@ class CatCodificadosDesarrolladorService
     /** @var array<string, true>|null */
     private ?array $numericColumnNames = null;
 
+    /** @var array<int, string>|null */
+    private ?array $columns = null;
+
+    /**
+     * Un solo guardado llamaba aqui entre 8 y 12 veces, y cada llamada era una
+     * consulta a INFORMATION_SCHEMA contra un SQL Server remoto (~40 ms de ida y
+     * vuelta). El esquema no cambia dentro de una peticion, asi que se memoiza.
+     *
+     * @return array<int, string>
+     */
     public function getColumns(): array
     {
-        $modelo = new CatCodificados;
-
-        return Schema::getColumnListing($modelo->getTable());
+        return $this->columns ??= Schema::getColumnListing((new CatCodificados)->getTable());
     }
 
     /**
