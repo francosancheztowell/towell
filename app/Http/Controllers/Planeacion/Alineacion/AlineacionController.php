@@ -6,6 +6,7 @@ use App\Exports\AlineacionExport;
 use App\Http\Controllers\Controller;
 use App\Models\Mantenimiento\ManFallasParos;
 use App\Models\Planeacion\Catalogos\CatCodificados;
+use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
@@ -267,9 +268,10 @@ class AlineacionController extends Controller
                 ->get();
 
             $catCodPorOrden = $this->obtenerCatCodificadosPorOrden($registros);
+            $modelosPorClave = $this->obtenerModelosCodificadosPorClave($registros);
             $telaresConParoActivo = $this->obtenerTelaresConParoActivo();
 
-            return $registros->map(fn (ReqProgramaTejido $r) => $this->mapearProgramaTejidoAItem($r, $catCodPorOrden, $telaresConParoActivo))->all();
+            return $registros->map(fn (ReqProgramaTejido $r) => $this->mapearProgramaTejidoAItem($r, $catCodPorOrden, $telaresConParoActivo, $modelosPorClave))->all();
         });
     }
 
@@ -289,6 +291,41 @@ class AlineacionController extends Controller
             ->unique()
             ->values()
             ->all();
+    }
+
+    /**
+     * Mapa de ReqModelosCodificados por ItemId|InventSizeId|ClaveModelo, usado como respaldo
+     * cuando CatCodificados no trae Tipo Rizo / Altura Rizo para la fila.
+     *
+     * @return array<string, ReqModelosCodificados>
+     */
+    private function obtenerModelosCodificadosPorClave(Collection $registros): array
+    {
+        $items = $registros->pluck('ItemId')->map(fn ($v) => trim((string) ($v ?? '')))->filter()->unique()->values()->all();
+        if (empty($items)) {
+            return [];
+        }
+
+        $map = [];
+        // ponytail: se filtra por ItemId en SQL y la clave compuesta se arma en PHP; el resto
+        // del filtro no vale otro indice mientras el set por ItemId sea pequeno.
+        foreach (ReqModelosCodificados::query()
+            ->select(['Id', 'ItemId', 'InventSizeId', 'ClaveModelo', 'TipoRizo', 'AlturaRizo'])
+            ->whereIn('ItemId', $items)
+            ->orderByDesc('Id')
+            ->get() as $m) {
+            $key = $this->claveModelo($m->ItemId, $m->InventSizeId, $m->ClaveModelo);
+            if (! isset($map[$key])) {
+                $map[$key] = $m;
+            }
+        }
+
+        return $map;
+    }
+
+    private function claveModelo($itemId, $inventSizeId, $claveModelo): string
+    {
+        return trim((string) ($itemId ?? '')).'|'.trim((string) ($inventSizeId ?? '')).'|'.trim((string) ($claveModelo ?? ''));
     }
 
     /**
@@ -339,10 +376,12 @@ class AlineacionController extends Controller
      * @param  array<string, CatCodificados>  $catCodPorOrden
      * @return array<string, mixed>
      */
-    private function mapearProgramaTejidoAItem(ReqProgramaTejido $r, array $catCodPorOrden = [], array $telaresConParoActivo = []): array
+    private function mapearProgramaTejidoAItem(ReqProgramaTejido $r, array $catCodPorOrden = [], array $telaresConParoActivo = [], array $modelosPorClave = []): array
     {
         $noOrden = trim((string) ($r->NoProduccion ?? ''));
         $cat = $catCodPorOrden[$noOrden] ?? null;
+        // Respaldo para Tipo Rizo / Alt Rizo cuando el catalogo no los trae.
+        $modelo = $modelosPorClave[$this->claveModelo($r->ItemId, $r->InventSizeId, $r->TamanoClave)] ?? null;
 
         $item = [];
         $mapeoEspecial = [
@@ -358,6 +397,10 @@ class AlineacionController extends Controller
         ];
 
         $concatCalibreFibra = [
+            // Hilo Rizo = CalibreRizo + FibraRizo (el CalibreRizo del programa, no el AlturaRizo del catalogo).
+            'FibraRizo' => fn () => $this->concatCalibreFibra($r->CalibreRizo, $r->FibraRizo),
+            // Hilo Pie = CalibrePie + NombreCPie (mismo formato "calibre/fibra" que las cenefas).
+            'FibraPie' => fn () => $this->concatCalibreFibra($r->CalibrePie, $r->NombreCPie),
             'PasadasComb1' => fn () => $this->concatCalibreFibra($r->CalibreComb1, $r->FibraComb1),
             'PasadasComb2' => fn () => $this->concatCalibreFibra($r->CalibreComb2, $r->FibraComb2),
             'PasadasComb3' => fn () => $this->concatCalibreFibra($r->CalibreComb3, $r->FibraComb3),
@@ -365,12 +408,14 @@ class AlineacionController extends Controller
         ];
 
         [$pesoMinAlineacion, $pesoMaxAlineacion] = $this->minMaxAlineacionToleranciaN($cat, $r->PesoCrudo);
+        // Muestra Min/Max salen del Peso Muestra del catalogo, no del peso crudo.
+        [$muestraMinAlineacion, $muestraMaxAlineacion] = $this->minMaxAlineacionToleranciaN($cat, $cat?->PesoMuestra, 2);
 
         $deCat = [
             'FechaCambio' => fn () => $cat?->FechaTejido ? $this->formatDateAlineacion($cat->FechaTejido, 'd M Y') : '',
             'Tolerancia' => fn () => $cat?->Tolerancia,
             'RazSN' => fn () => $cat?->Razurada,
-            'TipoRizo' => fn () => $cat?->TipoRizo,
+            'TipoRizo' => fn () => $this->primeroConDato($cat?->TipoRizo, $modelo?->TipoRizo),
             'TipoPlano' => fn () => $cat?->DobladilloId,
             'Observaciones' => fn () => $cat?->Obs5,
             // PesoMuestra es nvarchar en SQL Server y arrastra ruido de float ("4.8200002"):
@@ -382,11 +427,11 @@ class AlineacionController extends Controller
             'MedidaPlano' => fn () => $cat?->MedidaPlano,
             // La columna se llama CalibreRizo por historia, pero muestra "Alt Rizo":
             // el dato real es CatCodificados.AlturaRizo, no el calibre del programa.
-            'CalibreRizo' => fn () => $cat?->AlturaRizo,
+            'CalibreRizo' => fn () => $this->primeroConDato($cat?->AlturaRizo, $modelo?->AlturaRizo),
             'PesoMin' => fn () => $pesoMinAlineacion,
             'PesoMax' => fn () => $pesoMaxAlineacion,
-            'MuestraMin' => fn () => $pesoMinAlineacion,
-            'MuestraMax' => fn () => $pesoMaxAlineacion,
+            'MuestraMin' => fn () => $muestraMinAlineacion,
+            'MuestraMax' => fn () => $muestraMaxAlineacion,
             // "Días de prod." = días transcurridos desde FechaTejido (CatCodificados), no el
             // DiasEficiencia crudo de ReqProgramaTejido (formula distinta de ProgramaTejido).
             // Única fuente de verdad: se calcula aquí en servidor, no se recalcula en el cliente.
@@ -481,7 +526,7 @@ class AlineacionController extends Controller
      * @param  mixed  $base  Peso crudo, peso muestra, etc.
      * @return array{0: ''|int, 1: ''|int}
      */
-    private function minMaxAlineacionToleranciaN(?CatCodificados $cat, mixed $base): array
+    private function minMaxAlineacionToleranciaN(?CatCodificados $cat, mixed $base, int $decimales = 0): array
     {
         if (trim((string) ($cat?->Tolerancia ?? '')) !== 'N' || (float) ($base ?? 0) <= 0) {
             return ['', ''];
@@ -489,7 +534,23 @@ class AlineacionController extends Controller
         $b = (float) $base;
         $candidatos = [$b / 1.03, $b / 1.00, $b / 1.05];
 
-        return [(int) round(min($candidatos)), (int) round(max($candidatos))];
+        return $decimales > 0
+            ? [round(min($candidatos), $decimales), round(max($candidatos), $decimales)]
+            : [(int) round(min($candidatos)), (int) round(max($candidatos))];
+    }
+
+    /**
+     * Primer valor con dato real (no null, no cadena vacia).
+     */
+    private function primeroConDato(mixed ...$valores): mixed
+    {
+        foreach ($valores as $v) {
+            if ($v !== null && trim((string) $v) !== '') {
+                return $v;
+            }
+        }
+
+        return null;
     }
 
     /**
