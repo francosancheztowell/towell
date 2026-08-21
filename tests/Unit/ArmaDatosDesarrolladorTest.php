@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ArmaDatosDesarrollador;
+use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -21,6 +22,11 @@ class ArmaDatosDesarrolladorTest extends TestCase
         $this->sujeto = new class
         {
             use ArmaDatosDesarrollador;
+
+            protected function modeloPrograma(): string
+            {
+                return ReqProgramaTejido::class;
+            }
         };
     }
 

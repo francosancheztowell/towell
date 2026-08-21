@@ -2,16 +2,13 @@
 
 namespace App\Http\Controllers\Tejedores\Desarrolladores\Funciones;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\QueryHelpers;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\Muestras;
 use App\Models\Planeacion\ReqModelosCodificados;
-use App\Models\Tejedores\TelTelaresOperador;
+use App\Models\Planeacion\ReqProgramaTejido;
 use DomainException;
 use Exception;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -20,6 +17,12 @@ use Illuminate\Validation\ValidationException;
 class ProcesarMuestrasDesarrolladorService
 {
     use ArmaDatosDesarrollador;
+
+    /** @return class-string<ReqProgramaTejido> */
+    protected function modeloPrograma(): string
+    {
+        return Muestras::class;
+    }
 
     protected NotificacionTelegramMuestrasService $telegramService;
 
@@ -293,71 +296,6 @@ class ProcesarMuestrasDesarrolladorService
         ];
     }
 
-    private function resolverContextoDestino(array $validated, Muestras $programaOrigen): array
-    {
-        $salonOrigen = trim((string) ($programaOrigen->SalonTejidoId ?? ''));
-        $telarOrigen = trim((string) ($programaOrigen->NoTelarId ?? ''));
-        $esCambioTelar = (bool) ($validated['CambioTelarActivo'] ?? false);
-
-        $salonDestino = $salonOrigen;
-        $telarDestino = $telarOrigen;
-
-        if ($esCambioTelar) {
-            $rawDestino = trim((string) ($validated['TelarDestino'] ?? ''));
-            $partes = explode('|', $rawDestino, 2);
-
-            if (count($partes) !== 2) {
-                throw ValidationException::withMessages([
-                    'TelarDestino' => 'El formato de telar destino es invalido.',
-                ]);
-            }
-
-            $salonDestino = trim((string) ($partes[0] ?? ''));
-            $telarDestino = trim((string) ($partes[1] ?? ''));
-
-            if ($salonDestino === '' || $telarDestino === '') {
-                throw ValidationException::withMessages([
-                    'TelarDestino' => 'Debes seleccionar un telar destino valido.',
-                ]);
-            }
-
-            if ($salonDestino === $salonOrigen && $telarDestino === $telarOrigen) {
-                throw ValidationException::withMessages([
-                    'TelarDestino' => 'El telar destino debe ser diferente al telar origen.',
-                ]);
-            }
-
-            $existeDestino = Muestras::query()
-                ->where('SalonTejidoId', $salonDestino)
-                ->where('NoTelarId', $telarDestino)
-                ->exists();
-
-            if (! $existeDestino) {
-                $existeDestino = TelTelaresOperador::query()
-                    ->where('NoTelarId', $telarDestino)
-                    ->where(function ($query) use ($salonDestino) {
-                        $query->whereNull('SalonTejidoId')
-                            ->orWhere('SalonTejidoId', $salonDestino);
-                    })
-                    ->exists();
-            }
-
-            if (! $existeDestino) {
-                throw ValidationException::withMessages([
-                    'TelarDestino' => 'El telar destino seleccionado no existe o no esta disponible.',
-                ]);
-            }
-        }
-
-        return [
-            'esCambioTelar' => $esCambioTelar,
-            'salonOrigen' => $salonOrigen,
-            'telarOrigen' => $telarOrigen,
-            'salonDestino' => $salonDestino,
-            'telarDestino' => $telarDestino,
-        ];
-    }
-
     private function actualizarCatCodificados(
         array $validated,
         array $contextoDestino,
@@ -414,112 +352,6 @@ class ProcesarMuestrasDesarrolladorService
         return $registro;
     }
 
-    private function resolverModeloDestinoYCopiaSiAplica(
-        Muestras $programaOrigen,
-        array $contextoDestino
-    ): ?ReqModelosCodificados {
-        $tamanoClave = trim((string) ($programaOrigen->TamanoClave ?? ''));
-        if ($tamanoClave === '') {
-            return null;
-        }
-
-        $salonDestino = $contextoDestino['salonDestino'];
-        $telarDestino = $contextoDestino['telarDestino'];
-
-        $modeloDestino = ReqModelosCodificados::query()
-            ->where('TamanoClave', $tamanoClave)
-            ->where('SalonTejidoId', $salonDestino)
-            ->first();
-
-        if ($modeloDestino) {
-            return $modeloDestino;
-        }
-
-        if (! $contextoDestino['esCambioTelar']) {
-            return null;
-        }
-
-        $salonOrigen = $contextoDestino['salonOrigen'];
-        $modeloOrigen = ReqModelosCodificados::query()
-            ->where('TamanoClave', $tamanoClave)
-            ->where('SalonTejidoId', $salonOrigen)
-            ->first();
-
-        if (! $modeloOrigen) {
-            $modeloOrigen = ReqModelosCodificados::query()
-                ->where('TamanoClave', $tamanoClave)
-                ->first();
-        }
-
-        if (! $modeloOrigen) {
-            return null;
-        }
-
-        $nuevoModelo = $modeloOrigen->replicate();
-        $columnasModelo = Schema::getColumnListing($nuevoModelo->getTable());
-
-        if (in_array('SalonTejidoId', $columnasModelo, true)) {
-            $nuevoModelo->SalonTejidoId = $salonDestino;
-        }
-        if (in_array('NoTelarId', $columnasModelo, true)) {
-            $nuevoModelo->NoTelarId = $telarDestino;
-        }
-        if (in_array('OrdenTejido', $columnasModelo, true)) {
-            $nuevoModelo->OrdenTejido = $programaOrigen->NoProduccion;
-        }
-        if (in_array('CodigoDibujo', $columnasModelo, true)) {
-            $nuevoModelo->CodigoDibujo = null;
-        }
-        if (in_array('CodificacionModelo', $columnasModelo, true)) {
-            $nuevoModelo->CodificacionModelo = null;
-        }
-
-        $nuevoModelo->save();
-
-        return $nuevoModelo;
-    }
-
-    private function actualizarProgramaAntesDeMovimiento(
-        Muestras $programaOrigen,
-        ?ReqModelosCodificados $modeloDestino,
-        array $contextoDestino
-    ): void {
-        if (! $contextoDestino['esCambioTelar']) {
-            return;
-        }
-
-        [$nuevaEficiencia, $nuevaVelocidad] = QueryHelpers::resolverStdSegunTelar(
-            $programaOrigen,
-            $modeloDestino,
-            $contextoDestino['telarDestino'],
-            $contextoDestino['salonDestino']
-        );
-
-        if (! is_null($nuevaEficiencia)) {
-            $programaOrigen->EficienciaSTD = round((float) $nuevaEficiencia, 2);
-        }
-        if (! is_null($nuevaVelocidad)) {
-            $programaOrigen->VelocidadSTD = (float) $nuevaVelocidad;
-        }
-
-        $programaOrigen->Maquina = TejidoHelpers::construirMaquinaConSalon(
-            $programaOrigen->Maquina ?? null,
-            $contextoDestino['salonDestino'],
-            $contextoDestino['telarDestino']
-        );
-
-        if ($modeloDestino) {
-            if (! is_null($modeloDestino->CuentaRizo)) {
-                $programaOrigen->CuentaRizo = (string) $modeloDestino->CuentaRizo;
-            }
-            if (! is_null($modeloDestino->CuentaPie)) {
-                $programaOrigen->CuentaPie = (string) $modeloDestino->CuentaPie;
-            }
-        }
-
-        $programaOrigen->saveQuietly();
-    }
-
     private function actualizarModeloDestinoSiCorresponde(
         ?string $claveModelo,
         ?string $salonDestino,
@@ -570,117 +402,6 @@ class ProcesarMuestrasDesarrolladorService
             $registroModelo->setAttribute($column, $value);
         }
         $registroModelo->save();
-    }
-
-    private function actualizarProgramasRelacionados(
-        Muestras $programaInicial,
-        $fuenteDatos,
-        ?string $fechaInicioProgramada
-    ): Collection {
-        $programas = collect();
-
-        if (! empty($programaInicial->OrdCompartida)) {
-            $programas = Muestras::query()
-                ->where('OrdCompartida', (int) $programaInicial->OrdCompartida)
-                ->lockForUpdate()
-                ->get();
-        } else {
-            $programas = Muestras::query()
-                ->where('NoProduccion', $programaInicial->NoProduccion)
-                ->where('SalonTejidoId', $programaInicial->SalonTejidoId)
-                ->lockForUpdate()
-                ->get();
-        }
-
-        if ($programas->isEmpty()) {
-            return collect([$programaInicial]);
-        }
-
-        if (! $fuenteDatos) {
-            return $programas;
-        }
-
-        $columnasPrograma = Schema::getColumnListing($programas->first()->getTable());
-        $payloadPrograma = [
-            'CalibreTrama' => $fuenteDatos->Tra ?? $fuenteDatos->CalibreTrama ?? null,
-            'CalibreTrama2' => $fuenteDatos->CalibreTrama2 ?? null,
-            'FibraTrama' => $fuenteDatos->FibraId ?? $fuenteDatos->FibraTrama ?? null,
-            'PasadasTrama' => $fuenteDatos->PasadasTramaFondoC1 ?? $fuenteDatos->PasadasTrama ?? null,
-            'PasadasComb1' => $fuenteDatos->PasadasComb1 ?? null,
-            'PasadasComb2' => $fuenteDatos->PasadasComb2 ?? null,
-            'PasadasComb3' => $fuenteDatos->PasadasComb3 ?? null,
-            'PasadasComb4' => $fuenteDatos->PasadasComb4 ?? null,
-            'PasadasComb5' => $fuenteDatos->PasadasComb5 ?? null,
-            'CodColorTrama' => $fuenteDatos->CodColorTrama ?? null,
-            'ColorTrama' => $fuenteDatos->ColorTrama ?? null,
-            'CalibreComb1' => $fuenteDatos->CalibreComb1 ?? null,
-            'CalibreComb12' => $fuenteDatos->CalibreComb12 ?? null,
-            'FibraComb1' => $fuenteDatos->FibraComb1 ?? null,
-            'CodColorComb1' => $fuenteDatos->CodColorC1 ?? $fuenteDatos->CodColorComb1 ?? null,
-            'NombreCC1' => $fuenteDatos->NomColorC1 ?? $fuenteDatos->NombreCC1 ?? null,
-            'CalibreComb2' => $fuenteDatos->CalibreComb2 ?? null,
-            'CalibreComb22' => $fuenteDatos->CalibreComb22 ?? null,
-            'FibraComb2' => $fuenteDatos->FibraComb2 ?? null,
-            'CodColorComb2' => $fuenteDatos->CodColorC2 ?? $fuenteDatos->CodColorComb2 ?? null,
-            'NombreCC2' => $fuenteDatos->NomColorC2 ?? $fuenteDatos->NombreCC2 ?? null,
-            'CalibreComb3' => $fuenteDatos->CalibreComb3 ?? null,
-            'CalibreComb32' => $fuenteDatos->CalibreComb32 ?? null,
-            'FibraComb3' => $fuenteDatos->FibraComb3 ?? null,
-            'CodColorComb3' => $fuenteDatos->CodColorC3 ?? $fuenteDatos->CodColorComb3 ?? null,
-            'NombreCC3' => $fuenteDatos->NomColorC3 ?? $fuenteDatos->NombreCC3 ?? null,
-            'CalibreComb4' => $fuenteDatos->CalibreComb4 ?? null,
-            'CalibreComb42' => $fuenteDatos->CalibreComb42 ?? null,
-            'FibraComb4' => $fuenteDatos->FibraComb4 ?? null,
-            'CodColorComb4' => $fuenteDatos->CodColorC4 ?? $fuenteDatos->CodColorComb4 ?? null,
-            'NombreCC4' => $fuenteDatos->NomColorC4 ?? $fuenteDatos->NombreCC4 ?? null,
-            'CalibreComb5' => $fuenteDatos->CalibreComb5 ?? null,
-            'CalibreComb52' => $fuenteDatos->CalibreComb52 ?? null,
-            'FibraComb5' => $fuenteDatos->FibraComb5 ?? null,
-            'CodColorComb5' => $fuenteDatos->CodColorC5 ?? $fuenteDatos->CodColorComb5 ?? null,
-            'NombreCC5' => $fuenteDatos->NomColorC5 ?? $fuenteDatos->NombreCC5 ?? null,
-        ];
-
-        if ($fechaInicioProgramada) {
-            $payloadPrograma['FechaInicio'] = $fechaInicioProgramada;
-        }
-
-        foreach ($programas as $programa) {
-            foreach ($payloadPrograma as $column => $value) {
-                if (! in_array($column, $columnasPrograma, true)) {
-                    continue;
-                }
-                $programa->setAttribute($column, $value);
-            }
-            $programa->saveQuietly();
-        }
-
-        return Muestras::query()
-            ->whereIn('Id', $programas->pluck('Id')->all())
-            ->get();
-    }
-
-    private function enviarNotificacion(
-        array $validated,
-        $programa,
-        string $codigoDibujo,
-        array $contextoDestino,
-        ?string $codigoDibujoAnterior = null
-    ): void {
-        $payload = $validated;
-        $payload['NoTelarId'] = $contextoDestino['telarDestino'];
-
-        if (! empty($contextoDestino['esCambioTelar'])) {
-            $payload['CambioTelarActivo'] = true;
-            $payload['NoTelarOrigen'] = $contextoDestino['telarOrigen'];
-            $payload['SalonOrigen'] = $contextoDestino['salonOrigen'];
-            $payload['NoTelarDestino'] = $contextoDestino['telarDestino'];
-            $payload['SalonDestino'] = $contextoDestino['salonDestino'];
-            if ($codigoDibujoAnterior) {
-                $payload['CodigoDibujoAnterior'] = $codigoDibujoAnterior;
-            }
-        }
-
-        $this->telegramService->enviarProcesoCompletado($payload, $programa, $codigoDibujo);
     }
 
     private function buildPasadasPayload(array $pasadasFromRequest, $ordenData): array
