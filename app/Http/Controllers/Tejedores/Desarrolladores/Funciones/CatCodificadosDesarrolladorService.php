@@ -94,40 +94,41 @@ class CatCodificadosDesarrolladorService
         return $normalized !== '' && is_numeric($normalized);
     }
 
+    /**
+     * Las ramas NumOrden/NoProduccion se quitaron: ninguna de las dos columnas existe
+     * en CatCodificados (ver CatCodificados::COLUMNS), asi que eran inalcanzables.
+     */
     public function buildOrderQuery(string $noProduccion, ?array $columns = null): Builder
     {
-        $columns ??= $this->getColumns();
-
-        $query = CatCodificados::query();
-
-        if (in_array('OrdenTejido', $columns, true)) {
-            return $query->where('OrdenTejido', $noProduccion);
-        }
-
-        if (in_array('NumOrden', $columns, true)) {
-            return $query->where('NumOrden', $noProduccion);
-        }
-
-        return $query->where('NoProduccion', $noProduccion);
+        return CatCodificados::query()->where('OrdenTejido', $noProduccion);
     }
 
+    /**
+     * Localiza el renglon de una orden, prefiriendo el del telar indicado.
+     *
+     * El desempate por telar importa porque un mismo numero de orden puede describir
+     * productos distintos en telares distintos (hay 15 casos en produccion, desde 2021).
+     * Sin el, se leia el renglon del telar del operador pero se escribia en el del
+     * Id mas alto, que podia ser el del otro producto.
+     *
+     * El respaldo al Id mas alto NO es opcional: tras un cambio de telar el renglon
+     * conserva el telar viejo mientras el programa ya esta en el nuevo, y sin respaldo
+     * se crearian duplicados espurios en cada movimiento.
+     *
+     * ponytail: si es la PRIMERA captura de un numero reutilizado y solo existe el
+     * renglon del otro telar, el respaldo lo elige igual. No hay forma de distinguirlo:
+     * CatCodificados no guarda ninguna referencia al registro del programa.
+     */
     public function resolveForRead(string $noProduccion, ?string $telarId = null): ?CatCodificados
     {
-        $columns = $this->getColumns();
-        $queryBase = $this->buildOrderQuery($noProduccion, $columns);
+        $queryBase = $this->buildOrderQuery($noProduccion);
         $telarId = trim((string) ($telarId ?? ''));
 
         if ($telarId !== '') {
-            if (in_array('TelarId', $columns, true)) {
-                $registro = (clone $queryBase)->where('TelarId', $telarId)->orderByDesc('Id')->first();
-                if ($registro) {
-                    return $registro;
-                }
-            } elseif (in_array('NoTelarId', $columns, true)) {
-                $registro = (clone $queryBase)->where('NoTelarId', $telarId)->orderByDesc('Id')->first();
-                if ($registro) {
-                    return $registro;
-                }
+            $registro = (clone $queryBase)->where('TelarId', $telarId)->orderByDesc('Id')->first();
+
+            if ($registro) {
+                return $registro;
             }
         }
 
@@ -146,12 +147,12 @@ class CatCodificadosDesarrolladorService
         return $codigo !== '' ? $codigo : null;
     }
 
-    public function resolveCanonical(string $noProduccion): ?CatCodificados
+    /**
+     * Renglon sobre el que se escribe. Es el mismo criterio que la lectura: leer de uno
+     * y escribir en otro era justamente el fallo.
+     */
+    public function resolveCanonical(string $noProduccion, ?string $telarId = null): ?CatCodificados
     {
-        $columns = $this->getColumns();
-
-        return $this->buildOrderQuery($noProduccion, $columns)
-            ->orderByDesc('Id')
-            ->first();
+        return $this->resolveForRead($noProduccion, $telarId);
     }
 }

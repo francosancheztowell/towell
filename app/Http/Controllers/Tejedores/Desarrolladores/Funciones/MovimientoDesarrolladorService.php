@@ -561,7 +561,10 @@ class MovimientoDesarrolladorService
             return $programaActualizado;
         }
 
-        $registroCodificado = $this->catCodificadosService->resolveCanonical($noProduccion);
+        $registroCodificado = $this->catCodificadosService->resolveCanonical(
+            $noProduccion,
+            (string) ($programa->NoTelarId ?? '')
+        );
         if (! $registroCodificado) {
             return $programaActualizado;
         }
@@ -605,7 +608,7 @@ class MovimientoDesarrolladorService
 
         $modelo = new CatCodificados;
         $columns = Schema::getColumnListing($modelo->getTable());
-        $registroCodificado = $this->catCodificadosService->resolveCanonical($noProduccion);
+        $registroCodificado = $this->catCodificadosService->resolveCanonical($noProduccion, $noTelarId);
 
         if (! $registroCodificado) {
             return;

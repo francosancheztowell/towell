@@ -367,7 +367,12 @@ class ProcesarDesarrolladorService
         ?ReqModelosCodificados $modeloDestino,
         ?ReqProgramaTejido $ordenData = null
     ): ?CatCodificados {
-        $registro = $this->catCodificadosService->resolveCanonical((string) $validated['NoProduccion']);
+        // Por telarOrigen, no por destino: el renglon esta donde estaba antes del movimiento
+        // y es el payload de abajo el que lo mueve al telar destino.
+        $registro = $this->catCodificadosService->resolveCanonical(
+            (string) $validated['NoProduccion'],
+            (string) ($contextoDestino['telarOrigen'] ?? '')
+        );
         $fechasArranqueFinaliza = $this->buildFechasArranqueFinalizaPayload(
             $validated['HoraInicio'] ?? null,
             $validated['HoraFinal'] ?? null

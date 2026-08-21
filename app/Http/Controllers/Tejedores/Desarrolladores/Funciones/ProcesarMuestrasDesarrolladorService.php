@@ -306,7 +306,10 @@ class ProcesarMuestrasDesarrolladorService
         ?int $longitudLuchaTot,
         ?ReqModelosCodificados $modeloDestino
     ): ?CatCodificados {
-        $registro = $this->catCodificadosService->resolveCanonical((string) $validated['NoProduccion']);
+        $registro = $this->catCodificadosService->resolveCanonical(
+            (string) $validated['NoProduccion'],
+            (string) ($contextoDestino['telarOrigen'] ?? '')
+        );
 
         if (! $registro) {
             return null;
