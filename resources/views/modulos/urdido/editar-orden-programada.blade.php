@@ -827,6 +827,7 @@
                                 <option value="1" ${String(turno) === '1' ? 'selected' : ''}>1</option>
                                 <option value="2" ${String(turno) === '2' ? 'selected' : ''}>2</option>
                                 <option value="3" ${String(turno) === '3' ? 'selected' : ''}>3</option>
+                                <option value="4" ${String(turno) === '4' ? 'selected' : ''}>4</option>
                             </select>
                         </div>
                     `;
@@ -915,7 +916,7 @@
                             claves.add(cve);
 
                             const turno = parseInt(turnoTxt, 10);
-                            if (!Number.isInteger(turno) || ![1, 2, 3].includes(turno)) {
+                            if (!Number.isInteger(turno) || ![1, 2, 3, 4].includes(turno)) {
                                 Swal.showValidationMessage(`Selecciona un turno valido (1-3) para Empleado ${i}.`);
                                 return false;
                             }
