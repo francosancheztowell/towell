@@ -289,7 +289,7 @@ trait ProduccionTrait
                 'cve_empl' => 'nullable|string|max:30',
                 'nom_empl' => 'nullable|string|max:150',
                 'metros' => 'nullable|numeric|min:0',
-                'turno' => 'nullable|integer|in:1,2,3',
+                'turno' => 'nullable|integer|in:1,2,3,4',
             ]);
 
             $cveEmpl = trim((string) ($request->input('cve_empl') ?? ''));
@@ -484,7 +484,7 @@ trait ProduccionTrait
             $request->validate([
                 'registro_id' => 'required|integer',
                 'numero_oficial' => 'required|integer|in:1,2,3',
-                'turno' => 'required|integer|in:1,2,3',
+                'turno' => 'required|integer|in:1,2,3,4',
             ]);
 
             $model = $this->getProduccionModelClass();

@@ -221,6 +221,7 @@
                             <option value="1">Turno 1</option>
                             <option value="2">Turno 2</option>
                             <option value="3">Turno 3</option>
+                            <option value="4">Turno 4 (Cubre descansos)</option>
                         </select>
                     </div>
 
@@ -532,6 +533,7 @@
                                     <option value="1" ${filtrosActivos.turno === '1' ? 'selected' : ''}>Turno 1</option>
                                     <option value="2" ${filtrosActivos.turno === '2' ? 'selected' : ''}>Turno 2</option>
                                     <option value="3" ${filtrosActivos.turno === '3' ? 'selected' : ''}>Turno 3</option>
+                                    <option value="4" ${filtrosActivos.turno === '4' ? 'selected' : ''}>Turno 4</option>
                                 </select>
                             </div>
                         </div>
