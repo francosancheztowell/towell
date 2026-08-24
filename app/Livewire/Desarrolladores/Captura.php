@@ -593,41 +593,11 @@ class Captura extends Component
     }
 
     /**
-     * Los calibres del catalogo, uno por valor guardado.
-     *
-     * El desplegable ofrecia un renglon por presentacion, asi que HILO 10/1, HILO 10/1
-     * TENIDO y HILO LYCRA 10/1 salian como tres opciones distintas que escriben
-     * exactamente el mismo calibre 10.1: el operador elegia entre tres iguales sin
-     * forma de saber cual le tocaba. La presentacion se elige ahora en la columna Hilo,
-     * que es donde de verdad se distinguen.
-     *
-     * @return list<array{Calibre: string, etiqueta: string}>
-     */
-    #[Computed]
-    public function calibresUnificados(): array
-    {
-        return $this->calibres
-            ->groupBy(fn ($h): string => (string) TejCatMatrizDesarrolladores::normalizar($h->CodigoInterno))
-            ->map(fn ($grupo): array => [
-                'Calibre' => (string) $grupo->first()->CodigoInterno,
-                // Con una sola presentacion el nombre no es ambiguo y ayuda a reconocer
-                // el hilo; con varias seria mentira, porque el nombre cambia entre ellas.
-                'etiqueta' => $grupo->count() === 1
-                    ? trim((string) $grupo->first()->CodigoInterno).' — '.trim((string) $grupo->first()->Nombre)
-                    : trim((string) $grupo->first()->CodigoInterno),
-            ])
-            ->sortBy('Calibre', SORT_NATURAL)
-            ->values()
-            ->all();
-    }
-
-    /**
-     * Las presentaciones que el catalogo registra para un calibre.
-     *
-     * NO se agrupan por divisor: cada una es un articulo distinto de AX --10/1 ofrece
-     * un color y 10/1T ofrece nueve, entre ellos TERMOFIJADO-- asi que elegir entre
-     * ellas es justo lo que fija el ItemId con el que se piden fibra y color, aunque
-     * las tres dividan entre 10.
+     * Los hilos que el catalogo registra para un mismo calibre. Casi siempre es uno --el
+     * calibre 10.1 lo comparten 10/1, 10/1T y LYCRA 10/1, y los tres dividen entre 10--
+     * y entonces la columna Hilo sigue siendo un dato derivado, de solo lectura. Cuando
+     * Planeacion da de alta un segundo divisor para ese calibre, deja de haber una
+     * respuesta unica y el operador tiene que poder elegir: ahi sale el select.
      *
      * @return list<array{Id: int, Divisor: string, etiqueta: string}>
      */
@@ -641,46 +611,39 @@ class Captura extends Component
 
         return $this->calibres
             ->filter(fn ($h): bool => TejCatMatrizDesarrolladores::normalizar($h->CodigoInterno) === $codigo)
-            ->sortBy([['Divisor', 'asc'], ['Nombre', 'asc']])
+            // Un divisor por renglon de la lista: si dos presentaciones del mismo calibre
+            // dividen igual, elegir entre ellas no cambiaria el dato guardado.
+            ->unique(fn ($h): ?string => TejCatMatrizDesarrolladores::normalizar($h->Divisor))
+            ->sortBy(fn ($h): float => (float) $h->Divisor)
             ->map(fn ($h): array => [
                 'Id' => (int) $h->Id,
                 'Divisor' => (string) $h->Divisor,
-                'etiqueta' => $h->Divisor.' — '.trim((string) $h->Nombre).' ('.trim((string) $h->Codigo).')',
+                'etiqueta' => $h->Divisor.' — '.trim((string) $h->Nombre),
             ])
             ->values()
             ->all();
     }
 
     /**
-     * Elegir el calibre. Con una sola presentacion se resuelve sola y el hilo queda
-     * puesto; con varias el hilo se deja en blanco a proposito, porque hasta que el
-     * operador elija no se sabe que articulo de AX es este renglon --y sin el no hay
-     * fibra ni color-. La lista de pendientes lo reclama: "falta elegir el hilo".
+     * Elegir el hilo es elegir el renglon del catalogo que tiene ese divisor: se delega
+     * en elegirCalibre para no tener dos caminos que escriban las mismas dos columnas.
      */
-    public function elegirCalibreUnificado(int $indice, string $calibre): void
+    public function elegirHilo(int $indice, $divisor): void
     {
         if (! isset($this->detalles[$indice])) {
             return;
         }
 
-        $presentaciones = $this->hilosDelCalibre($calibre);
+        $buscado = TejCatMatrizDesarrolladores::normalizar($divisor);
+        $opciones = $this->hilosDelCalibre((string) ($this->detalles[$indice]['Calibre'] ?? ''));
 
-        if (count($presentaciones) === 1) {
-            $this->elegirCalibre($indice, $presentaciones[0]['Id']);
+        foreach ($opciones as $opcion) {
+            if (TejCatMatrizDesarrolladores::normalizar($opcion['Divisor']) === $buscado) {
+                $this->elegirCalibre($indice, $opcion['Id']);
 
-            return;
+                return;
+            }
         }
-
-        $this->detalles[$indice]['Calibre'] = $calibre;
-        $this->detalles[$indice]['CalibreId'] = null;
-        $this->detalles[$indice]['Hilo'] = '';
-        $this->detalles[$indice]['noVigente'] = false;
-        $this->detalles[$indice]['Fibra'] = '';
-        $this->detalles[$indice]['CodColor'] = '';
-        $this->detalles[$indice]['NombreColor'] = '';
-
-        unset($this->catalogosAx, $this->problemas);
-        $this->resetValidation('detalles.'.$indice.'.CalibreId');
     }
 
     /** El ItemId de AX del hilo elegido en un renglon. Vacio si aun no hay hilo. */
