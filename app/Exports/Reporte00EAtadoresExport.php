@@ -798,13 +798,16 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
         }
 
         $sheet->setCellValue($coordinate, $this->toExcelTime($time));
+        // La plantilla trae celdas con hh:mm:ss; se fuerza hh:mm para que no se vea el :00.
+        $sheet->getStyle($coordinate)->getNumberFormat()->setFormatCode('hh:mm');
     }
 
     private function toExcelTime(string $time): float
     {
-        [$hours, $minutes, $seconds] = array_map('intval', explode(':', $time));
+        // Solo hora y minuto: los segundos ensucian las restas de duracion del OEE.
+        [$hours, $minutes] = array_map('intval', explode(':', $time));
 
-        return (($hours * 3600) + ($minutes * 60) + $seconds) / 86400;
+        return (($hours * 3600) + ($minutes * 60)) / 86400;
     }
 
     private function normalizeTurn(mixed $value): ?int
