@@ -24,17 +24,10 @@ class ProcesarMuestrasDesarrolladorService
         return Muestras::class;
     }
 
-    protected NotificacionTelegramMuestrasService $telegramService;
-
-    protected CatCodificadosDesarrolladorService $catCodificadosService;
-
     public function __construct(
-        NotificacionTelegramMuestrasService $telegramService,
-        ?CatCodificadosDesarrolladorService $catCodificadosService = null
-    ) {
-        $this->telegramService = $telegramService;
-        $this->catCodificadosService = $catCodificadosService ?? app(CatCodificadosDesarrolladorService::class);
-    }
+        protected NotificacionTelegramDesarrolladorService $telegramService,
+        protected CatCodificadosDesarrolladorService $catCodificadosService,
+    ) {}
 
     public function store(Request $request)
     {
@@ -71,6 +64,7 @@ class ProcesarMuestrasDesarrolladorService
                     ->first();
 
                 $detallePayload = $this->buildDetallePayloadFromOrden($ordenData);
+                $detallePayload = $this->aplicarDetalleDesdeRequest($detallePayload, $validated);
                 $pasadasPayload = $this->buildPasadasPayload($validated['pasadas'] ?? [], $ordenData);
 
                 $modeloDestino = $this->resolverModeloDestinoYCopiaSiAplica(
@@ -141,15 +135,13 @@ class ProcesarMuestrasDesarrolladorService
                     $codigoDibujoAnterior = $this->normalizeCodigoDibujo($codigoDibujoAnterior, $contextoOrigen['telarOrigen']);
                 }
 
-                // Capturar datos del programa antes de eliminar (para notificación)
-                $programaParaNotificacion = $programaObjetivo->replicate();
-                $programaParaNotificacion->Id = $programaObjetivo->Id;
-
-                // Post-procesamiento MUESTRAS: eliminar registro en lugar de poner EnProceso
+                // Post-procesamiento MUESTRAS: eliminar registro en lugar de poner EnProceso.
+                // delete() no vacia los atributos en memoria, asi que el propio modelo
+                // sirve para la notificacion, que solo lee dos fechas.
                 $this->eliminarRegistroMuestra($programaObjetivo);
 
                 return [
-                    'programa' => $programaParaNotificacion,
+                    'programa' => $programaObjetivo,
                     'contexto' => $contextoDestino,
                     'codigoDibujo' => $codigoDibujo,
                     'codigoDibujoAnterior' => $codigoDibujoAnterior,
@@ -234,47 +226,6 @@ class ProcesarMuestrasDesarrolladorService
         $registro?->delete();
     }
 
-    private function validarYNormalizarEntrada(Request $request): array
-    {
-        $request->merge([
-            'CambioTelarActivo' => filter_var(
-                $request->input('CambioTelarActivo', false),
-                FILTER_VALIDATE_BOOLEAN
-            ),
-        ]);
-
-        $validated = $request->validate([
-            'NoTelarId' => 'required|string',
-            'NoProduccion' => 'required|string|max:80',
-            'NumeroJulioRizo' => 'required|string|max:50',
-            'NumeroJulioPie' => 'nullable|string|max:50',
-            'TotalPasadasDibujo' => 'required|integer|min:1',
-            'HoraInicio' => 'nullable|date_format:H:i',
-            'EficienciaInicio' => 'nullable|integer|min:0|max:100',
-            'HoraFinal' => 'nullable|date_format:H:i',
-            'EficienciaFinal' => 'nullable|integer|min:0|max:100',
-            'Desarrollador' => 'nullable|string|max:100',
-            'TramaAnchoPeine' => 'nullable|numeric|min:0',
-            'DesperdicioTrama' => 'nullable|numeric|min:0',
-            'LongitudLuchaTot' => 'nullable|numeric|min:0',
-            'CodificacionModelo' => 'required|string|max:100',
-            'pasadas' => 'nullable|array',
-            'pasadas.*' => 'nullable|integer|min:1',
-            'CambioTelarActivo' => 'nullable|boolean',
-            'TelarDestino' => 'nullable|string|max:120',
-        ]);
-
-        $validated['CambioTelarActivo'] = (bool) ($validated['CambioTelarActivo'] ?? false);
-
-        if ($validated['CambioTelarActivo'] && empty(trim((string) ($validated['TelarDestino'] ?? '')))) {
-            throw ValidationException::withMessages([
-                'TelarDestino' => 'Debes seleccionar un telar destino para realizar el cambio.',
-            ]);
-        }
-
-        return $validated;
-    }
-
     private function resolverContextoOrigen(array $validated): array
     {
         $programa = Muestras::query()
@@ -341,6 +292,8 @@ class ProcesarMuestrasDesarrolladorService
             'EfiInicial' => $validated['EficienciaInicio'] ?? null,
             'EfiFinal' => $validated['EficienciaFinal'] ?? null,
             'DesperdicioTrama' => $validated['DesperdicioTrama'] ?? null,
+            // Columna de texto en SQL Server: se guarda tal cual se capturo.
+            'AlturaRizo' => $this->normalizarAlturaRizo($validated['AlturaRizo'] ?? null),
             'FechaCumplimiento' => now()->format('Y-m-d H:i:s'),
         ], $detallePayload, $pasadasPayload);
 
@@ -395,6 +348,9 @@ class ProcesarMuestrasDesarrolladorService
             'LogLuchaTotal' => $longitudLuchaTot,
             'Total' => $validated['TotalPasadasDibujo'],
             'FechaCumplimiento' => now()->format('Y-m-d H:i:s'),
+            // Saldos lee rmc.AlturaRizo directo y Alineacion usa Cat con respaldo en rmc:
+            // escribir solo CatCodificados dejaria las dos tablas en desacuerdo.
+            'AlturaRizo' => $this->normalizarAlturaRizo($validated['AlturaRizo'] ?? null),
         ], $detallePayload, $pasadasPayload);
 
         $columnasModelo = Schema::getColumnListing($registroModelo->getTable());
@@ -441,37 +397,5 @@ class ProcesarMuestrasDesarrolladorService
         }
 
         return $pasadasPayload;
-    }
-
-    private function buildDetallePayloadFromOrden($ordenData): array
-    {
-        if (! $ordenData) {
-            return [];
-        }
-        $colorTrama = data_get($ordenData, 'ColorTrama') ?: data_get($ordenData, 'FibraTrama');
-
-        $payload = [
-            'Tra' => data_get($ordenData, 'CalibreTrama'),
-            'CalibreTrama2' => data_get($ordenData, 'CalibreTrama2'),
-            'CodColorTrama' => data_get($ordenData, 'CodColorTrama'),
-            'ColorTrama' => $colorTrama,
-            'FibraId' => data_get($ordenData, 'FibraTrama'),
-            'CalTramaFondoC1' => data_get($ordenData, 'CalibreTrama'),
-            'CalTramaFondoC12' => data_get($ordenData, 'CalibreTrama2'),
-            'FibraTramaFondoC1' => data_get($ordenData, 'FibraTrama'),
-        ];
-
-        for ($i = 1; $i <= 5; $i++) {
-            $nombreKey = $ordenData->{"NombreCC{$i}"} !== null ? "NombreCC{$i}" : "NomColorC{$i}";
-            $nombreColor = data_get($ordenData, $nombreKey) ?: data_get($ordenData, "FibraComb{$i}");
-
-            $payload["CalibreComb{$i}"] = data_get($ordenData, "CalibreComb{$i}");
-            $payload["CalibreComb{$i}2"] = data_get($ordenData, "CalibreComb{$i}2");
-            $payload["FibraComb{$i}"] = data_get($ordenData, "FibraComb{$i}");
-            $payload["CodColorC{$i}"] = data_get($ordenData, "CodColorComb{$i}");
-            $payload["NomColorC{$i}"] = $nombreColor;
-        }
-
-        return $payload;
     }
 }

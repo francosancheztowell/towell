@@ -17,7 +17,7 @@ class NotificacionTelegramDesarrolladorMensajeTest extends TestCase
     private function construirMensaje(array $validated, string $codigoDibujo = 'ABC123'): string
     {
         $clase = new ReflectionClass(NotificacionTelegramDesarrolladorService::class);
-        $servicio = $clase->newInstanceWithoutConstructor();
+        $servicio = new NotificacionTelegramDesarrolladorService;
         $metodo = $clase->getMethod('construirMensajeProcesoCompletado');
         $metodo->setAccessible(true);
 

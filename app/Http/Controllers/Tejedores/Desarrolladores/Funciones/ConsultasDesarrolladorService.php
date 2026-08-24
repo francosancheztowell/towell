@@ -9,24 +9,54 @@ use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Sistema\Usuario;
 use App\Models\Tejedores\TelTelaresOperador;
 use Exception;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class ConsultasDesarrolladorService
 {
-    protected CatCodificadosDesarrolladorService $catCodificadosService;
+    public function __construct(
+        protected CatCodificadosDesarrolladorService $catCodificadosService,
+    ) {}
 
-    public function __construct(?CatCodificadosDesarrolladorService $catCodificadosService = null)
+    /**
+     * Modelo del programa sobre el que consulta cada pantalla. Es el unico eje en que
+     * difieren las dos capturas: la variante de muestras heredaba solo para reescribir
+     * las mismas consultas contra otra tabla.
+     *
+     * @return class-string<ReqProgramaTejido>
+     */
+    protected function modeloPrograma(): string
     {
-        $this->catCodificadosService = $catCodificadosService ?? app(CatCodificadosDesarrolladorService::class);
+        return ReqProgramaTejido::class;
+    }
+
+    /** Como se rotula un telar destino en el desplegable. */
+    protected function etiquetaTelarDestino(string $salon, string $telar): string
+    {
+        return $telar;
+    }
+
+    /**
+     * Que renglones puede capturar el operador. El programa excluye el que ya esta
+     * en proceso; las muestras no llevan ese estado, se consumen al guardarlas.
+     *
+     * @param  Builder  $query
+     * @return Builder
+     */
+    protected function filtrarProduccionesDisponibles($query)
+    {
+        return $query->where('EnProceso', 0);
     }
 
     /**
      * Obtiene los datos necesarios para cargar la vista principal de desarrolladores.
      *
-     * @return array{telares: Collection, telaresDestino: Collection, juliosRizo: Collection, juliosPie: Collection, desarrolladores: Collection, desarrolladorActual: string|null}
+     * Solo catalogos: nada aqui puede depender del usuario en sesion, porque el
+     * llamador memoiza este arreglo en una clave compartida por todos.
+     *
+     * @return array{telares: Collection, telaresDestino: Collection, juliosRizo: Collection, juliosPie: Collection, desarrolladores: Collection}
      */
     public function obtenerDatosIndex(): array
     {
@@ -36,7 +66,6 @@ class ConsultasDesarrolladorService
             'juliosRizo' => $this->obtenerJuliosPorTipo('Rizo'),
             'juliosPie' => $this->obtenerJuliosPorTipo('Pie'),
             'desarrolladores' => $this->obtenerDesarrolladores(),
-            'desarrolladorActual' => Auth::user()?->nombre,
         ];
     }
 
@@ -57,7 +86,7 @@ class ConsultasDesarrolladorService
      */
     public function obtenerTelaresDestino(): Collection
     {
-        return ReqProgramaTejido::query()
+        return ($this->modeloPrograma())::query()
             ->select('SalonTejidoId', 'NoTelarId')
             ->whereNotNull('SalonTejidoId')
             ->whereNotNull('NoTelarId')
@@ -66,13 +95,13 @@ class ConsultasDesarrolladorService
             ->orderBy('SalonTejidoId')
             ->orderBy('NoTelarId')
             ->get()
-            ->map(static function ($row) {
+            ->map(function ($row): array {
                 $salon = trim((string) ($row->SalonTejidoId ?? ''));
                 $telar = trim((string) ($row->NoTelarId ?? ''));
 
                 return [
                     'value' => $salon.'|'.$telar,
-                    'label' => $telar,
+                    'label' => $this->etiquetaTelarDestino($salon, $telar),
                 ];
             })
             ->values();
@@ -129,20 +158,12 @@ class ConsultasDesarrolladorService
      */
     private function obtenerDesarrolladores(): Collection
     {
-        $usuarioActual = Auth::user();
-
-        $desarrolladores = Usuario::porArea('Desarrolladores')
+        // Sin el usuario en sesion a proposito: el llamador cachea esta lista bajo una
+        // clave compartida, asi que anteponer al usuario actual se la servia al siguiente.
+        // De eso se encarga ahora el componente, despues de leer el cache.
+        return Usuario::porArea('Desarrolladores')
             ->activos()
             ->get();
-
-        if ($usuarioActual && ! $desarrolladores->contains('idusuario', $usuarioActual->idusuario)) {
-            $usuarioParaLista = $usuarioActual instanceof Usuario ? $usuarioActual : Usuario::find($usuarioActual->idusuario);
-            if ($usuarioParaLista) {
-                $desarrolladores = collect([$usuarioParaLista])->merge($desarrolladores)->sortBy('nombre')->values();
-            }
-        }
-
-        return $desarrolladores;
     }
 
     /**
@@ -151,10 +172,10 @@ class ConsultasDesarrolladorService
     public function obtenerProducciones(string $telarId): array
     {
         try {
-            $query = ReqProgramaTejido::where('NoTelarId', $telarId)
-                ->where('EnProceso', 0)
+            $query = ($this->modeloPrograma())::where('NoTelarId', $telarId)
                 ->whereNotNull('NoProduccion')
                 ->where('NoProduccion', '!=', '');
+            $query = $this->filtrarProduccionesDisponibles($query);
 
             $producciones = $query->select('Id', 'SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
                 ->distinct()
@@ -181,7 +202,7 @@ class ConsultasDesarrolladorService
     public function obtenerDetallesOrdenPorId(int $id): array
     {
         try {
-            $ordenData = ReqProgramaTejido::find($id);
+            $ordenData = ($this->modeloPrograma())::find($id);
 
             return $this->buildDetallesFromOrdenData($ordenData);
         } catch (Exception $e) {
@@ -202,7 +223,7 @@ class ConsultasDesarrolladorService
     public function obtenerDetallesOrden($noProduccion): array
     {
         try {
-            $ordenData = ReqProgramaTejido::where('NoProduccion', $noProduccion)->first();
+            $ordenData = ($this->modeloPrograma())::where('NoProduccion', $noProduccion)->first();
 
             return $this->buildDetallesFromOrdenData($ordenData);
         } catch (Exception $e) {
@@ -264,7 +285,7 @@ class ConsultasDesarrolladorService
 
             if ($registro) {
                 $registro = $registro->only([
-                    'JulioRizo', 'JulioPie', 'EfiInicial', 'EfiFinal', 'DesperdicioTrama',
+                    'JulioRizo', 'JulioPie', 'EfiInicial', 'EfiFinal', 'DesperdicioTrama', 'AlturaRizo',
                 ]);
             }
 

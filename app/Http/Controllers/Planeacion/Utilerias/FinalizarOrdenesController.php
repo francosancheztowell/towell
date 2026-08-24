@@ -212,7 +212,7 @@ class FinalizarOrdenesController extends Controller
             $telaresAfectados = [];
             $telaresNecesitanEnProceso = [];  // telares cuyo EnProceso=1 fue eliminado
             $ahora = Carbon::now();
-            $movimientoService = new MovimientoDesarrolladorService;
+            $movimientoService = app(MovimientoDesarrolladorService::class);
             $ordCompartidasVistas = [];
 
             // ─── PASO 1: Finalizar cada registro y sincronizar CatCodificados ────────

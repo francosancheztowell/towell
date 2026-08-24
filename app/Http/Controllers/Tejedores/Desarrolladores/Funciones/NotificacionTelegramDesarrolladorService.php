@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Tejedores\Desarrolladores\Funciones;
 
-use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Sistema\SYSMensaje;
 use Carbon\Carbon;
 use Exception;
@@ -10,18 +9,29 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Servicio para enviar notificaciones de desarrollador a Telegram.
+ * Notificacion a Telegram de una captura de desarrollador.
+ *
+ * Habia dos copias de este servicio, una por pantalla, con el mismo mensaje y tres
+ * cadenas distintas. La de muestras nunca recibio el escapado de Markdown ni el
+ * timeout: corregir un lado y no el otro es exactamente lo que producia el fallo.
+ * Lo que cambia entre pantallas se inyecta por constructor (ver AppServiceProvider).
  */
 class NotificacionTelegramDesarrolladorService
 {
+    public function __construct(
+        private readonly string $modulo = 'Desarrolladores',
+        private readonly string $titulo = 'PROCESO DE DESARROLLADOR COMPLETADO',
+        private readonly string $estado = 'Registro actualizado y puesto en proceso',
+    ) {}
+
     public function enviarProcesoCompletado(
         array $validated,
-        ReqProgramaTejido $programa,
+        $programa,
         string $codigoDibujo
     ): void {
         try {
             $botToken = config('services.telegram.bot_token');
-            $chatIds = SYSMensaje::getChatIdsPorModulo('Desarrolladores');
+            $chatIds = SYSMensaje::getChatIdsPorModulo($this->modulo);
 
             if (empty($botToken) || empty($chatIds)) {
                 return;
@@ -38,6 +48,7 @@ class NotificacionTelegramDesarrolladorService
             }
         } catch (Exception $e) {
             Log::error('Error al enviar notificacion de desarrollador a Telegram', [
+                'modulo' => $this->modulo,
                 'telar' => $validated['NoTelarId'] ?? null,
                 'error' => $e->getMessage(),
             ]);
@@ -55,7 +66,7 @@ class NotificacionTelegramDesarrolladorService
 
     private function construirMensajeProcesoCompletado(
         array $validated,
-        ReqProgramaTejido $programa,
+        $programa,
         string $codigoDibujo
     ): string {
         $telarActual = (string) ($validated['NoTelarId'] ?? '');
@@ -65,7 +76,7 @@ class NotificacionTelegramDesarrolladorService
         $salonOrigen = (string) ($validated['SalonOrigen'] ?? '');
         $salonDestino = (string) ($validated['SalonDestino'] ?? '');
 
-        $mensaje = " *PROCESO DE DESARROLLADOR COMPLETADO* \n\n";
+        $mensaje = " *{$this->titulo}* \n\n";
         $mensaje .= " *Telar:* {$telarActual}\n";
         $mensaje .= " *Produccion:* {$this->escaparMarkdown($validated['NoProduccion'])}\n";
         // si hay cambio de telar, se muestra el origen y el destino
@@ -122,7 +133,7 @@ class NotificacionTelegramDesarrolladorService
             $mensaje .= " *Fecha Final Programada:* {$fechaFinal}\n";
         }
 
-        $mensaje .= "\n *Estado:* Registro actualizado y puesto en proceso";
+        $mensaje .= "\n *Estado:* {$this->estado}";
         $mensaje .= "\n *Fechas:* Actualizadas para el telar {$telarActual}";
 
         return $mensaje;

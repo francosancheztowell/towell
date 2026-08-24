@@ -15,12 +15,9 @@ use Illuminate\Support\Facades\Schema;
 
 class MovimientoDesarrolladorService
 {
-    protected CatCodificadosDesarrolladorService $catCodificadosService;
-
-    public function __construct(?CatCodificadosDesarrolladorService $catCodificadosService = null)
-    {
-        $this->catCodificadosService = $catCodificadosService ?? app(CatCodificadosDesarrolladorService::class);
-    }
+    public function __construct(
+        protected CatCodificadosDesarrolladorService $catCodificadosService,
+    ) {}
 
     /**
      * Mueve un registro a estado EnProceso=1 y procesa los registros anteriores.
@@ -487,6 +484,59 @@ class MovimientoDesarrolladorService
     }
 
     /**
+     * Acepta lo que le llega desde cuatro modulos distintos y devuelve siempre una
+     * cadena de SQL Server, o null. Estaba escrito dos veces, una por fecha.
+     *
+     * @param  null|true|string|\DateTime|Carbon  $valor
+     */
+    private function normalizarFecha($valor): ?string
+    {
+        if ($valor === null) {
+            return null;
+        }
+
+        if ($valor === 'now' || $valor === true) {
+            return now()->format('Y-m-d H:i:s');
+        }
+
+        if ($valor instanceof \DateTimeInterface) {
+            return $valor->format('Y-m-d H:i:s');
+        }
+
+        try {
+            // Antes se descartaba el resultado y la cadena se guardaba sin normalizar.
+            return Carbon::parse($valor)->format('Y-m-d H:i:s');
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Sella solo FechaArranque, dejando FechaFinaliza como este.
+     *
+     * @param  null|true|string|\DateTime|Carbon  $cuando  null toma FechaInicio del programa; 'now' o true, la hora actual.
+     */
+    public function sellarArranque(ReqProgramaTejido $programa, $cuando = null): bool
+    {
+        return $this->actualizarFechasArranqueFinaliza($programa, $cuando, null, actualizarFechaFinaliza: false);
+    }
+
+    /**
+     * Sella solo FechaFinaliza, sin pisar la hora de arranque que el desarrollador
+     * registro en CatCodificados.
+     *
+     * @param  null|true|string|\DateTime|Carbon  $cuando  'now' o true para la hora actual.
+     */
+    public function sellarFinaliza(ReqProgramaTejido $programa, $cuando = 'now'): bool
+    {
+        return $this->actualizarFechasArranqueFinaliza($programa, null, $cuando, preservarFechaArranqueCat: true);
+    }
+
+    /**
+     * Forma cruda, con los dos ejes a la vez. Preferir sellarArranque/sellarFinaliza:
+     * quedan nueve llamadas repartidas en Planeacion que aun usan esta firma, y
+     * migrarlas es un cambio aparte porque escriben fechas de produccion.
+     *
      * @param  bool  $actualizarFechaFinaliza  Si es false, no modifica FechaFinaliza en programa ni CatCodificados.
      * @param  bool  $preservarFechaArranqueCat  Si es true, no sobreescribe FechaArranque en CatCodificados.
      *                                           Usar cuando el intento es solo sellar FechaFinaliza (finalizar/eliminar EnProceso)
@@ -505,37 +555,14 @@ class MovimientoDesarrolladorService
             return false;
         }
 
-        if ($fechaArranque === null) {
-            $fechaArranque = ! empty($programa->FechaInicio) ? Carbon::parse($programa->FechaInicio)->format('Y-m-d H:i:s') : null;
-        } elseif ($fechaArranque === 'now' || $fechaArranque === true) {
-            $fechaArranque = now()->format('Y-m-d H:i:s');
-        } elseif ($fechaArranque instanceof \DateTime || $fechaArranque instanceof Carbon) {
-            $fechaArranque = $fechaArranque->format('Y-m-d H:i:s');
-        } elseif (is_string($fechaArranque)) {
-            try {
-                // El resultado se descartaba: la cadena se guardaba sin normalizar.
-                $fechaArranque = Carbon::parse($fechaArranque)->format('Y-m-d H:i:s');
-            } catch (Exception $e) {
-                $fechaArranque = null;
-            }
-        }
+        // null en arranque significa "la que ya trae el programa"; en finaliza, "ninguna".
+        $fechaArranque = $fechaArranque === null
+            ? $this->normalizarFecha($programa->FechaInicio ?: null)
+            : $this->normalizarFecha($fechaArranque);
 
-        $fechaFinalizaEfectiva = null;
-        if ($actualizarFechaFinaliza) {
-            if ($fechaFinaliza === null) {
-                $fechaFinalizaEfectiva = null;
-            } elseif ($fechaFinaliza === 'now' || $fechaFinaliza === true) {
-                $fechaFinalizaEfectiva = now()->format('Y-m-d H:i:s');
-            } elseif ($fechaFinaliza instanceof \DateTime || $fechaFinaliza instanceof Carbon) {
-                $fechaFinalizaEfectiva = $fechaFinaliza->format('Y-m-d H:i:s');
-            } elseif (is_string($fechaFinaliza)) {
-                try {
-                    $fechaFinalizaEfectiva = Carbon::parse($fechaFinaliza)->format('Y-m-d H:i:s');
-                } catch (Exception $e) {
-                    $fechaFinalizaEfectiva = null;
-                }
-            }
-        }
+        $fechaFinalizaEfectiva = $actualizarFechaFinaliza
+            ? $this->normalizarFecha($fechaFinaliza)
+            : null;
 
         $programaActualizado = false;
         if ($programa->exists) {

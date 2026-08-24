@@ -81,7 +81,7 @@ class EliminarTejido
                 $ahora = Carbon::now();
                 $registro->FechaFinaliza = $ahora;
                 try {
-                    $actualizoFechas = (new MovimientoDesarrolladorService)
+                    $actualizoFechas = app(MovimientoDesarrolladorService::class)
                         ->actualizarFechasArranqueFinaliza($registro, null, $ahora, preservarFechaArranqueCat: true);
 
                     if (! $actualizoFechas && $registro->exists && $registro->isDirty('FechaFinaliza')) {
@@ -195,7 +195,7 @@ class EliminarTejido
 
             // Mantener consistencia con utilería: persistir FechaFinaliza y sincronizar a CatCodificados cuando aplique.
             try {
-                $actualizoFechas = (new MovimientoDesarrolladorService)
+                $actualizoFechas = app(MovimientoDesarrolladorService::class)
                     ->actualizarFechasArranqueFinaliza($registro, null, $ahora, preservarFechaArranqueCat: true);
 
                 if (! $actualizoFechas && $registro->exists && $registro->isDirty('FechaFinaliza')) {
@@ -656,7 +656,7 @@ class EliminarTejido
         $registro->FechaFinaliza = $ahora;
 
         try {
-            $actualizo = (new MovimientoDesarrolladorService)
+            $actualizo = app(MovimientoDesarrolladorService::class)
                 ->actualizarFechasArranqueFinaliza($registro, null, $ahora, preservarFechaArranqueCat: true);
 
             if (! $actualizo && $registro->exists && $registro->isDirty('FechaFinaliza')) {

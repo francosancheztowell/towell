@@ -295,7 +295,7 @@ class AlineacionController extends Controller
 
     /**
      * Mapa de ReqModelosCodificados por ItemId|InventSizeId|ClaveModelo, usado como respaldo
-     * cuando CatCodificados no trae Tipo Rizo / Altura Rizo para la fila.
+     * cuando CatCodificados no trae Tipo Rizo / Altura Rizo / Med. Cen. para la fila.
      *
      * @return array<string, ReqModelosCodificados>
      */
@@ -310,7 +310,7 @@ class AlineacionController extends Controller
         // ponytail: se filtra por ItemId en SQL y la clave compuesta se arma en PHP; el resto
         // del filtro no vale otro indice mientras el set por ItemId sea pequeno.
         foreach (ReqModelosCodificados::query()
-            ->select(['Id', 'ItemId', 'InventSizeId', 'ClaveModelo', 'TipoRizo', 'AlturaRizo'])
+            ->select(['Id', 'ItemId', 'InventSizeId', 'ClaveModelo', 'TipoRizo', 'AlturaRizo', 'MedidaCenefa'])
             ->whereIn('ItemId', $items)
             ->orderByDesc('Id')
             ->get() as $m) {
@@ -421,9 +421,9 @@ class AlineacionController extends Controller
             // PesoMuestra es nvarchar en SQL Server y arrastra ruido de float ("4.8200002"):
             // se redondea aquí para que web, Excel y PDF muestren lo mismo.
             'PesoGRM2' => fn () => $cat?->PesoMuestra !== null ? round((float) $cat->PesoMuestra, 3) : null,
-            // "Med. Cen." es texto con diagonales en el catálogo ("7/2.5", "1/1/1/1/1"),
-            // no un ancho numérico: se pasa tal cual, sin formateo.
-            'AnchoToalla' => fn () => $cat?->MedidaCenefa,
+            // "Med. Cen." es texto con diagonales ("7/2.5", "1/1/1/1/1"), no un ancho numérico.
+            // Primero CatCodificados por orden; si no hay dato, ReqModelosCodificados por clave.
+            'AnchoToalla' => fn () => $this->primeroConDato($cat?->MedidaCenefa, $modelo?->MedidaCenefa),
             'MedidaPlano' => fn () => $cat?->MedidaPlano,
             // La columna se llama CalibreRizo por historia, pero muestra "Alt Rizo":
             // el dato real es CatCodificados.AlturaRizo, no el calibre del programa.

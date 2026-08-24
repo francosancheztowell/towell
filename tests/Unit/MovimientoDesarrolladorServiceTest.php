@@ -98,7 +98,7 @@ class MovimientoDesarrolladorServiceTest extends TestCase
             $table->boolean('OrdCompartidaLider')->nullable();
         });
 
-        $this->service = new MovimientoDesarrolladorService(new CatCodificadosDesarrolladorService());
+        $this->service = new MovimientoDesarrolladorService(app(CatCodificadosDesarrolladorService::class));
     }
 
     protected function tearDown(): void

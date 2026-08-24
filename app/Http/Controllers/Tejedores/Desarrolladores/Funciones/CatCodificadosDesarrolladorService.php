@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Tejedores\Desarrolladores\Funciones;
 
 use App\Models\Planeacion\Catalogos\CatCodificados;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Schema;
 
 class CatCodificadosDesarrolladorService
@@ -95,15 +94,6 @@ class CatCodificadosDesarrolladorService
     }
 
     /**
-     * Las ramas NumOrden/NoProduccion se quitaron: ninguna de las dos columnas existe
-     * en CatCodificados (ver CatCodificados::COLUMNS), asi que eran inalcanzables.
-     */
-    public function buildOrderQuery(string $noProduccion, ?array $columns = null): Builder
-    {
-        return CatCodificados::query()->where('OrdenTejido', $noProduccion);
-    }
-
-    /**
      * Localiza el renglon de una orden, prefiriendo el del telar indicado.
      *
      * El desempate por telar importa porque un mismo numero de orden puede describir
@@ -121,7 +111,7 @@ class CatCodificadosDesarrolladorService
      */
     public function resolveForRead(string $noProduccion, ?string $telarId = null): ?CatCodificados
     {
-        $queryBase = $this->buildOrderQuery($noProduccion);
+        $queryBase = CatCodificados::query()->where('OrdenTejido', $noProduccion);
         $telarId = trim((string) ($telarId ?? ''));
 
         if ($telarId !== '') {

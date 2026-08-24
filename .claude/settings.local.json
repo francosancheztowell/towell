@@ -141,5 +141,8 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code} %{url_effective}\\\\n\" -L http://localhost/Towell/public/Crudo)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://127.0.0.1:8000/Crudo)"
     ]
+  },
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": false
   }
 }

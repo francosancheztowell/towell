@@ -9,7 +9,9 @@ use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Tejedores\TelTelaresOperador;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -238,21 +240,19 @@ trait ArmaDatosDesarrollador
         }
 
         $nuevoModelo = $modeloOrigen->replicate();
-        $columnasModelo = Schema::getColumnListing($nuevoModelo->getTable());
 
-        if (in_array('SalonTejidoId', $columnasModelo, true)) {
-            $nuevoModelo->SalonTejidoId = $salonDestino;
-        }
-        if (in_array('NoTelarId', $columnasModelo, true)) {
-            $nuevoModelo->NoTelarId = $telarDestino;
-        }
-        if (in_array('OrdenTejido', $columnasModelo, true)) {
-            $nuevoModelo->OrdenTejido = $programaOrigen->NoProduccion;
-        }
-        if (in_array('CodigoDibujo', $columnasModelo, true)) {
-            $nuevoModelo->CodigoDibujo = null;
-        }
-        if (in_array('CodificacionModelo', $columnasModelo, true)) {
+        // Las cuatro estan en ReqModelosCodificados::$fillable: comprobarlas contra
+        // INFORMATION_SCHEMA era una consulta remota para preguntar algo que el modelo
+        // ya declara.
+        $nuevoModelo->SalonTejidoId = $salonDestino;
+        $nuevoModelo->NoTelarId = $telarDestino;
+        $nuevoModelo->OrdenTejido = $programaOrigen->NoProduccion;
+        $nuevoModelo->CodigoDibujo = null;
+
+        // Esta no: CodificacionModelo no aparece en el modelo, y asignarla sin que
+        // exista la columna revienta el INSERT. La guarda se queda hasta confirmarlo
+        // contra el esquema real.
+        if (in_array('CodificacionModelo', Schema::getColumnListing($nuevoModelo->getTable()), true)) {
             $nuevoModelo->CodificacionModelo = null;
         }
 
@@ -412,5 +412,260 @@ trait ArmaDatosDesarrollador
         }
 
         $this->telegramService->enviarProcesoCompletado($payload, $programa, $codigoDibujo);
+    }
+
+    /**
+     * Reglas de entrada de la captura. Vive aqui porque las dos pantallas tenian su
+     * propia copia y llevaban tiempo divergiendo: a muestras le faltaban las diez
+     * reglas de detalle_*, con lo que el detalle capturado se descartaba en silencio,
+     * y tambien la regla de longitud del codigo de dibujo.
+     */
+    private function validarYNormalizarEntrada(Request $request): array
+    {
+        $request->merge([
+            'CambioTelarActivo' => filter_var(
+                $request->input('CambioTelarActivo', false),
+                FILTER_VALIDATE_BOOLEAN
+            ),
+            'EficienciaInicio' => $this->normalizarEntero($request->input('EficienciaInicio')),
+            'EficienciaFinal' => $this->normalizarEntero($request->input('EficienciaFinal')),
+        ]);
+
+        $validated = $request->validate([
+            'NoTelarId' => 'required|string',
+            'NoProduccion' => 'required|string|max:80',
+            'registroId' => 'nullable|integer',
+            'accion' => 'nullable|string|in:finalizar,reprogramar_siguiente,reprogramar_final',
+            'NumeroJulioRizo' => 'required|string|max:50',
+            'NumeroJulioPie' => 'nullable|string|max:50',
+            'TotalPasadasDibujo' => 'required|integer|min:1',
+            'HoraInicio' => 'nullable|date_format:H:i',
+            'EficienciaInicio' => 'required|integer|min:0|max:100',
+            'HoraFinal' => 'nullable|date_format:H:i',
+            'EficienciaFinal' => 'required|integer|min:0|max:100',
+            'Desarrollador' => 'nullable|string|max:100',
+            'TramaAnchoPeine' => 'nullable|numeric|min:0',
+            'DesperdicioTrama' => 'nullable|numeric|min:0',
+            // Misma regla que CatCodificacionController: un solo decimal, de 0 a 10.
+            'AlturaRizo' => 'required|numeric|min:0|max:10|decimal:0,1',
+            'LongitudLuchaTot' => 'nullable|numeric|min:0',
+            'CodificacionModelo' => ['required', 'string', 'max:100', $this->reglaLongitudCodigoDibujo()],
+            'pasadas' => 'nullable|array',
+            'pasadas.*' => 'nullable|integer|min:1',
+            'detalle_calibre' => 'nullable|array',
+            'detalle_calibre.*' => 'nullable|string|max:50',
+            'detalle_hilo' => 'nullable|array',
+            'detalle_hilo.*' => 'nullable|numeric|min:0',
+            'detalle_fibra' => 'nullable|array',
+            'detalle_fibra.*' => 'nullable|string|max:100',
+            'detalle_codcolor' => 'nullable|array',
+            'detalle_codcolor.*' => 'nullable|string|max:50',
+            'detalle_nombrecolor' => 'nullable|array',
+            'detalle_nombrecolor.*' => 'nullable|string|max:100',
+            'CambioTelarActivo' => 'nullable|boolean',
+            'TelarDestino' => 'nullable|string|max:120',
+        ]);
+
+        $validated['CambioTelarActivo'] = (bool) ($validated['CambioTelarActivo'] ?? false);
+
+        if ($validated['CambioTelarActivo'] && empty(trim((string) ($validated['TelarDestino'] ?? '')))) {
+            throw ValidationException::withMessages([
+                'TelarDestino' => 'Debes seleccionar un telar destino para realizar el cambio.',
+            ]);
+        }
+
+        return $validated;
+    }
+
+    private function reglaLongitudCodigoDibujo(): \Closure
+    {
+        return function (string $attribute, $value, \Closure $fail) {
+            $codigo = preg_replace('/\.(?:JC5|JCS)\s*$/i', '', trim((string) $value));
+            $longitud = mb_strlen($codigo);
+
+            if ($longitud < 10 || $longitud > 20) {
+                $fail('El código de dibujo debe tener entre 10 y 20 caracteres.');
+            }
+        };
+    }
+
+    /**
+     * AlturaRizo se valida como numero (0 a 10, un decimal) pero la columna es de texto
+     * tanto en CatCodificados como en ReqModelosCodificados, asi que se guarda la cadena
+     * recortada y no un float. Mismo criterio que CatCodificacionController.
+     */
+    private function normalizarAlturaRizo($valor): ?string
+    {
+        if ($valor === null || trim((string) $valor) === '') {
+            return null;
+        }
+
+        return trim((string) $valor);
+    }
+
+    private function normalizarEntero($value)
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_string($value)) {
+            $value = str_replace(',', '', trim($value));
+        }
+
+        if (! is_numeric($value)) {
+            return $value;
+        }
+
+        return (int) round((float) $value);
+    }
+
+    /**
+     * Detalle de hilos tal como viene en la orden, antes de aplicar lo que el
+     * operador haya editado en pantalla.
+     */
+    private function buildDetallePayloadFromOrden($ordenData): array
+    {
+        if (! $ordenData) {
+            return [];
+        }
+        $colorTrama = data_get($ordenData, 'ColorTrama') ?: data_get($ordenData, 'FibraTrama');
+
+        $payload = [
+            'Tra' => data_get($ordenData, 'CalibreTrama'),
+            'CalibreTrama2' => data_get($ordenData, 'CalibreTrama2'),
+            'CodColorTrama' => data_get($ordenData, 'CodColorTrama'),
+            'ColorTrama' => $colorTrama,
+            'FibraId' => data_get($ordenData, 'FibraTrama'),
+            'CalTramaFondoC1' => data_get($ordenData, 'CalibreTrama'),
+            'CalTramaFondoC12' => data_get($ordenData, 'CalibreTrama2'),
+            'FibraTramaFondoC1' => data_get($ordenData, 'FibraTrama'),
+        ];
+
+        for ($i = 1; $i <= 5; $i++) {
+            $nombreKey = $ordenData->{"NombreCC{$i}"} !== null ? "NombreCC{$i}" : "NomColorC{$i}";
+            $nombreColor = data_get($ordenData, $nombreKey) ?: data_get($ordenData, "FibraComb{$i}");
+
+            $payload["CalibreComb{$i}"] = data_get($ordenData, "CalibreComb{$i}");
+            $payload["CalibreComb{$i}2"] = data_get($ordenData, "CalibreComb{$i}2");
+            $payload["FibraComb{$i}"] = data_get($ordenData, "FibraComb{$i}");
+            $payload["CodColorC{$i}"] = data_get($ordenData, "CodColorComb{$i}");
+            $payload["NomColorC{$i}"] = $nombreColor;
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Sobrescribe $detallePayload con lo que el usuario editó en la tabla "Detalles de la Orden"
+     * (detalle_calibre[]/detalle_hilo[]/detalle_fibra[]/detalle_codcolor[]/detalle_nombrecolor[]).
+     * Cada fila se relaciona con su slot (Trama / Comb1..5) por la posición de su llave en
+     * pasadas[], que ya viene nombrada igual que la columna (PasadasTramaFondoC1, PasadasCombN).
+     * Si no hay forma de emparejar filas 1 a 1 con llaves de pasadas, no se sobrescribe nada
+     * (se conservan los valores de la orden) para no mezclar datos de slots equivocados.
+     *
+     * Vive en el trait porque la captura de muestras no lo llamaba: el operador editaba
+     * calibre/hilo/fibra/color, veia "Datos guardados correctamente" y se escribia el
+     * detalle original de la orden.
+     */
+    private function aplicarDetalleDesdeRequest(array $detallePayload, array $validated): array
+    {
+        $calibres = $validated['detalle_calibre'] ?? [];
+        $hilos = $validated['detalle_hilo'] ?? [];
+        $fibras = $validated['detalle_fibra'] ?? [];
+        $codColores = $validated['detalle_codcolor'] ?? [];
+        $nombreColores = $validated['detalle_nombrecolor'] ?? [];
+
+        if (empty($calibres) && empty($hilos) && empty($fibras) && empty($codColores) && empty($nombreColores)) {
+            return $detallePayload;
+        }
+
+        $pasadasKeys = array_keys($validated['pasadas'] ?? []);
+        $total = count($calibres);
+        if ($total === 0 || $total !== count($pasadasKeys)) {
+            Log::warning('Detalle de orden ignorado: no se pudo emparejar con pasadas[]', [
+                'total_detalle' => $total,
+                'total_pasadas_keys' => count($pasadasKeys),
+            ]);
+
+            return $detallePayload;
+        }
+
+        $slotsCombinacionEnviados = array_flip(array_filter(
+            $pasadasKeys,
+            static fn ($key): bool => preg_match('/^PasadasComb[1-5]$/', (string) $key) === 1
+        ));
+        for ($i = 1; $i <= 5; $i++) {
+            if (isset($slotsCombinacionEnviados["PasadasComb{$i}"])) {
+                continue;
+            }
+
+            $detallePayload["CalibreComb{$i}"] = null;
+            $detallePayload["CalibreComb{$i}2"] = null;
+            $detallePayload["FibraComb{$i}"] = null;
+            $detallePayload["CodColorC{$i}"] = null;
+            $detallePayload["NomColorC{$i}"] = null;
+        }
+
+        $valor = static function (array $arr, int $i) {
+            $v = $arr[$i] ?? null;
+            $v = is_string($v) ? trim($v) : $v;
+
+            return ($v === null || $v === '') ? null : $v;
+        };
+
+        for ($i = 0; $i < $total; $i++) {
+            $key = $pasadasKeys[$i];
+            $calibre = $valor($calibres, $i);
+            $hilo = $valor($hilos, $i);
+            $fibra = $valor($fibras, $i);
+            $codColor = $valor($codColores, $i);
+            $nombreColor = $valor($nombreColores, $i);
+
+            if ($key === 'PasadasTramaFondoC1' || $key === 'PasadasTrama') {
+                if ($calibre !== null) {
+                    $detallePayload['Tra'] = $calibre;
+                    $detallePayload['CalTramaFondoC1'] = $calibre;
+                }
+                if ($fibra !== null) {
+                    $detallePayload['FibraId'] = $fibra;
+                    $detallePayload['FibraTramaFondoC1'] = $fibra;
+                }
+                if ($codColor !== null) {
+                    $detallePayload['CodColorTrama'] = $codColor;
+                }
+                if ($nombreColor !== null) {
+                    $detallePayload['ColorTrama'] = $nombreColor;
+                }
+                if ($hilo !== null) {
+                    $detallePayload['HiloAX'] = $hilo;
+                    $detallePayload['CalibreTrama2'] = $hilo;
+                    $detallePayload['CalTramaFondoC12'] = $hilo;
+                }
+
+                continue;
+            }
+
+            if (preg_match('/^PasadasComb([1-5])$/', $key, $m)) {
+                $n = $m[1];
+                if ($calibre !== null) {
+                    $detallePayload["CalibreComb{$n}"] = $calibre;
+                }
+                if ($fibra !== null) {
+                    $detallePayload["FibraComb{$n}"] = $fibra;
+                }
+                if ($codColor !== null) {
+                    $detallePayload["CodColorC{$n}"] = $codColor;
+                }
+                if ($nombreColor !== null) {
+                    $detallePayload["NomColorC{$n}"] = $nombreColor;
+                }
+                if ($hilo !== null) {
+                    $detallePayload["CalibreComb{$n}2"] = $hilo;
+                }
+            }
+        }
+
+        return $detallePayload;
     }
 }

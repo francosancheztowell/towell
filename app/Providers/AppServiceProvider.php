@@ -6,6 +6,8 @@ use App\Contracts\Crudo\CrudoDashboardProvider;
 use App\Contracts\Crudo\CrudoFlogProvider;
 use App\Contracts\Crudo\CrudoReadRepository;
 use App\Database\SqlServerScopeIdentityProcessor;
+use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\NotificacionTelegramDesarrolladorService;
+use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ProcesarMuestrasDesarrolladorService;
 use App\Models\Atadores\AtaMontadoTelasModel;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\AtaMontadoTelasObserver;
@@ -35,6 +37,18 @@ class AppServiceProvider extends ServiceProvider
         // El resumen y la tabla de avance comparten este catálogo durante la
         // petición Livewire, sin conservar datos entre peticiones.
         $this->app->scoped(TrazabilidadProgramaLookupService::class);
+
+        // Las dos capturas de desarrollador mandan el mismo mensaje a Telegram con tres
+        // cadenas distintas. Un solo servicio, configurado aquí, en vez de dos clases
+        // que se corrigen por separado (así fue como muestras se quedó sin escapar el
+        // Markdown y sin timeout).
+        $this->app->when(ProcesarMuestrasDesarrolladorService::class)
+            ->needs(NotificacionTelegramDesarrolladorService::class)
+            ->give(fn (): NotificacionTelegramDesarrolladorService => new NotificacionTelegramDesarrolladorService(
+                modulo: 'DesarrolladoresPrue',
+                titulo: 'PROCESO MUESTRA - DESARROLLADOR COMPLETADO',
+                estado: 'Muestra procesada y eliminada del programa',
+            ));
     }
 
     /**
