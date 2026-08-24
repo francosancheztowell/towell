@@ -103,6 +103,75 @@ class AlineacionControllerTest extends TestCase
         $this->assertSame('6/2', $item['AnchoToalla']);
     }
 
+    /**
+     * El caso real: el programa trae TamanoClave = 'PULLMAN7630' pero el modelo tiene
+     * ClaveModelo = '(MODELO NUEVO)', el marcador que arrastra la mitad del catalogo
+     * (3013 de 6172 renglones). La clave de tres partes no empataba nunca y Med. Cen.,
+     * Tipo Rizo y Alt Rizo salian vacias en los 36 renglones en proceso. Con el par
+     * ItemId|InventSizeId el respaldo si encuentra el modelo.
+     */
+    public function test_med_cen_respaldo_por_par_cuando_la_clave_del_modelo_es_marcador(): void
+    {
+        $program = $this->programaConClave();
+        $modelo = new ReqModelosCodificados;
+        $modelo->setRawAttributes([
+            'ItemId' => 'TOW',
+            'InventSizeId' => '30x50',
+            'ClaveModelo' => '(MODELO NUEVO)',
+            'MedidaCenefa' => '4',
+            'TipoRizo' => 'NORMAL',
+            'AlturaRizo' => '5',
+        ]);
+
+        // Indexado solo por el par, que es como queda cuando ClaveModelo no sirve.
+        $item = $this->mapear($program, [], ['TOW|30x50' => $modelo]);
+
+        $this->assertSame('4', $item['AnchoToalla']);
+        $this->assertSame('NORMAL', $item['TipoRizo']);
+        $this->assertSame('5', $item['CalibreRizo']);
+    }
+
+    /** La clave exacta sigue mandando sobre el par cuando el modelo si la tiene. */
+    public function test_la_clave_exacta_gana_al_par(): void
+    {
+        $program = $this->programaConClave();
+
+        $exacto = new ReqModelosCodificados;
+        $exacto->setRawAttributes(['ItemId' => 'TOW', 'InventSizeId' => '30x50', 'ClaveModelo' => 'ABC', 'MedidaCenefa' => '7/2.5']);
+
+        $otro = new ReqModelosCodificados;
+        $otro->setRawAttributes(['ItemId' => 'TOW', 'InventSizeId' => '30x50', 'ClaveModelo' => '(MODELO NUEVO)', 'MedidaCenefa' => '9']);
+
+        $item = $this->mapear($program, [], [
+            $this->claveDe($program) => $exacto,
+            'TOW|30x50' => $otro,
+        ]);
+
+        $this->assertSame('7/2.5', $item['AnchoToalla']);
+    }
+
+    /**
+     * Un modelo que empata exacto pero trae el campo vacio no debe tapar al del par:
+     * el respaldo se resuelve campo por campo, no eligiendo un solo modelo.
+     */
+    public function test_un_exacto_sin_dato_cae_al_par(): void
+    {
+        $program = $this->programaConClave();
+
+        $exacto = new ReqModelosCodificados;
+        $exacto->setRawAttributes(['ItemId' => 'TOW', 'InventSizeId' => '30x50', 'ClaveModelo' => 'ABC', 'MedidaCenefa' => '']);
+
+        $otro = new ReqModelosCodificados;
+        $otro->setRawAttributes(['ItemId' => 'TOW', 'InventSizeId' => '30x50', 'ClaveModelo' => '(MODELO NUEVO)', 'MedidaCenefa' => '9']);
+
+        $item = $this->mapear($program, [], [
+            $this->claveDe($program) => $exacto,
+            'TOW|30x50' => $otro,
+        ]);
+
+        $this->assertSame('9', $item['AnchoToalla']);
+    }
+
     private function programaConClave(): ReqProgramaTejido
     {
         $program = new ReqProgramaTejido;
