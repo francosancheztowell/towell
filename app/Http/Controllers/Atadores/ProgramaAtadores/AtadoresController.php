@@ -24,6 +24,17 @@ use Illuminate\Support\Facades\Schema;
 
 class AtadoresController extends Controller
 {
+    /**
+     * Estatus que representan un atado ya existente para un NoJulio + NoProduccion.
+     * Si alguno de estos existe, NO debe crearse otro registro en AtaMontadoTelas.
+     */
+    private const ESTATUS_ATADO_EXISTENTE = ['En Proceso', 'Terminado', 'Calificado', 'Autorizado'];
+
+    /**
+     * Estatus sobre los que aún se puede editar/avanzar un atado desde la pantalla de calificar.
+     */
+    private const ESTATUS_ATADO_ACTIVO = ['En Proceso', 'Terminado', 'Calificado'];
+
     //
     public function index(Request $request)
     {
@@ -254,7 +265,8 @@ class AtadoresController extends Controller
         if ($noJulioRequest && $noOrdenRequest) {
             $existente = AtaMontadoTelasModel::where('NoJulio', $noJulioRequest)
                 ->where('NoProduccion', $noOrdenRequest)
-                ->whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado', 'Autorizado'])
+                ->whereIn('Estatus', self::ESTATUS_ATADO_EXISTENTE)
+                ->orderByDesc('Id')
                 ->first();
 
             if ($existente) {
@@ -291,59 +303,110 @@ class AtadoresController extends Controller
             return redirect()->route('atadores.programa')->with('error', 'El registro seleccionado no tiene los datos necesarios (No. Julio o No. Orden)');
         }
 
-        // Verificar si ya existe un atado para este mismo NoJulio y NoOrden (en cualquier estado activo o Autorizado)
-        $existente = AtaMontadoTelasModel::where('NoJulio', $item->no_julio)
-            ->where('NoProduccion', $item->no_orden)
-            ->whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado', 'Autorizado'])
-            ->first();
-
-        if ($existente) {
-            return redirect()->route('atadores.calificar', [
-                'no_julio' => $item->no_julio,
-                'no_orden' => $item->no_orden,
-            ])->with('info', $existente->Estatus === 'Autorizado' ? 'Visualizando registro autorizado (solo lectura)' : 'Continuando con atado en proceso');
-        }
-
         // NO eliminar otros procesos en estado 'En Proceso'
         // Permitir múltiples procesos simultáneos, cada uno con su propia información
 
         // Usuario actual como operador por defecto
         $user = Auth::user();
 
-        // Insertar solo el registro seleccionado en AtaMontadoTelas
-        AtaMontadoTelasModel::create([
-            'Estatus' => 'En Proceso',
-            'Fecha' => $item->fecha,
-            'Turno' => $item->turno,
-            'NoJulio' => $item->no_julio,
-            'NoProduccion' => $item->no_orden,
-            'Tipo' => $item->tipo,
-            'Metros' => $item->metros,
-            'NoTelarId' => $item->no_telar,
-            'LoteProveedor' => $item->LoteProveedor,
-            'NoProveedor' => $item->NoProveedor,
-            'HoraParo' => $item->horaParo,
-            'HrInicio' => Carbon::now()->format('H:i'),
-            'ConfigId' => $item->ConfigId,
-            'InventSizeId' => $item->InventSizeId,
-            'InventColorId' => $item->InventColorId,
-            // Operador = usuario en sesión al iniciar
-            'CveTejedor' => $user?->numero_empleado,
-            'NomTejedor' => $user?->nombre,
-            'Calidad' => null,
-            'Limpieza' => null,
-        ]);
+        // La verificación "ya existe" y el INSERT deben ser atómicos: esta acción se dispara por
+        // navegación del cliente y puede llegar duplicada (doble clic, F5, reintento por red lenta).
+        // Sin el lock, dos peticiones simultáneas veían "no existe" y ambas insertaban, dejando dos
+        // filas gemelas del mismo NoJulio + NoProduccion que luego avanzaban a estatus distintos.
+        try {
+            $estatusExistente = DB::connection('sqlsrv')->transaction(function () use ($item, $user) {
+                $existente = DB::connection('sqlsrv')
+                    ->table('AtaMontadoTelas')
+                    ->select('Id', 'Estatus')
+                    ->where('NoJulio', $item->no_julio)
+                    ->where('NoProduccion', $item->no_orden)
+                    ->whereIn('Estatus', self::ESTATUS_ATADO_EXISTENTE)
+                    ->lockForUpdate()
+                    ->orderByDesc('Id')
+                    ->first();
+
+                if ($existente) {
+                    return (string) $existente->Estatus;
+                }
+
+                // Insertar solo el registro seleccionado en AtaMontadoTelas
+                AtaMontadoTelasModel::create([
+                    'Estatus' => 'En Proceso',
+                    'Fecha' => $item->fecha,
+                    'Turno' => $item->turno,
+                    'NoJulio' => $item->no_julio,
+                    'NoProduccion' => $item->no_orden,
+                    'Tipo' => $item->tipo,
+                    'Metros' => $item->metros,
+                    'NoTelarId' => $item->no_telar,
+                    'LoteProveedor' => $item->LoteProveedor,
+                    'NoProveedor' => $item->NoProveedor,
+                    'HoraParo' => $item->horaParo,
+                    'HrInicio' => Carbon::now()->format('H:i'),
+                    'ConfigId' => $item->ConfigId,
+                    'InventSizeId' => $item->InventSizeId,
+                    'InventColorId' => $item->InventColorId,
+                    // Operador = usuario en sesión al iniciar
+                    'CveTejedor' => $user?->numero_empleado,
+                    'NomTejedor' => $user?->nombre,
+                    'Calidad' => null,
+                    'Limpieza' => null,
+                ]);
+
+                return null;
+            });
+        } catch (\Throwable $e) {
+            Log::error('Atadores: no se pudo iniciar el atado', [
+                'no_julio' => $item->no_julio,
+                'no_orden' => $item->no_orden,
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()->route('atadores.programa')
+                ->with('error', 'No se pudo iniciar el atado. Intente nuevamente.');
+        }
+
+        // Otra petición (o un intento anterior) ya creó el atado: continuar sobre él, no duplicar.
+        if ($estatusExistente !== null) {
+            return redirect()->route('atadores.calificar', [
+                'no_julio' => $item->no_julio,
+                'no_orden' => $item->no_orden,
+            ])->with('info', $estatusExistente === 'Autorizado' ? 'Visualizando registro autorizado (solo lectura)' : 'Continuando con atado en proceso');
+        }
 
         // Actualizar el estado en tej_inventario_telares a "En Proceso"
         $item->status = 'En Proceso';
         $item->save();
 
-        // Crear registros base para máquinas del catálogo
-        $maquinas = AtaMaquinasModel::all();
-        foreach ($maquinas as $maquina) {
+        // Crear las filas base de máquinas y actividades del catálogo (sin duplicar si ya existían)
+        $this->sembrarMaquinasYActividades($item->no_julio, $item->no_orden, $item->turno);
+
+        // Redirigir a la página de calificar atadores con los parámetros del registro seleccionado
+        return redirect()->route('atadores.calificar', [
+            'no_julio' => $item->no_julio,
+            'no_orden' => $item->no_orden,
+        ])->with('success', 'Atado iniciado correctamente');
+    }
+
+    /**
+     * Crea las filas base de máquinas y actividades del catálogo para un folio.
+     * Es idempotente: si la fila ya existe no se inserta otra.
+     */
+    private function sembrarMaquinasYActividades($noJulio, $noProduccion, $turno): void
+    {
+        foreach (AtaMaquinasModel::all() as $maquina) {
+            $existe = AtaMontadoMaquinasModel::where('NoJulio', $noJulio)
+                ->where('NoProduccion', $noProduccion)
+                ->where('MaquinaId', $maquina->MaquinaId)
+                ->exists();
+
+            if ($existe) {
+                continue;
+            }
+
             AtaMontadoMaquinasModel::create([
-                'NoJulio' => $item->no_julio,
-                'NoProduccion' => $item->no_orden,
+                'NoJulio' => $noJulio,
+                'NoProduccion' => $noProduccion,
                 'MaquinaId' => $maquina->MaquinaId,
                 'Estado' => 0, // Por defecto inactivo
                 'NomEmpleado' => null,
@@ -351,26 +414,27 @@ class AtadoresController extends Controller
             ]);
         }
 
-        // Crear registros base para actividades del catálogo
-        $actividades = AtaActividadesModel::all();
-        foreach ($actividades as $actividad) {
+        foreach (AtaActividadesModel::all() as $actividad) {
+            $existe = AtaMontadoActividadesModel::where('NoJulio', $noJulio)
+                ->where('NoProduccion', $noProduccion)
+                ->where('ActividadId', $actividad->ActividadId)
+                ->exists();
+
+            if ($existe) {
+                continue;
+            }
+
             AtaMontadoActividadesModel::create([
-                'NoJulio' => $item->no_julio,
-                'NoProduccion' => $item->no_orden,
+                'NoJulio' => $noJulio,
+                'NoProduccion' => $noProduccion,
                 'ActividadId' => $actividad->ActividadId,
                 'Porcentaje' => $actividad->Porcentaje,
                 'Estado' => 0, // Por defecto inactivo
                 'CveEmpl' => null,
                 'NomEmpl' => null,
-                'Turno' => $item->turno,
+                'Turno' => $turno,
             ]);
         }
-
-        // Redirigir a la página de calificar atadores con los parámetros del registro seleccionado
-        return redirect()->route('atadores.calificar', [
-            'no_julio' => $item->no_julio,
-            'no_orden' => $item->no_orden,
-        ])->with('success', 'Atado iniciado correctamente');
     }
 
     public function calificarAtadores(Request $request)
@@ -382,17 +446,19 @@ class AtadoresController extends Controller
         // Si se proporcionan parámetros, filtrar por ellos para obtener el registro específico
         if ($noJulio && $noOrden) {
             // Buscar el registro específico en cualquier estado activo o Autorizado
-            $montadoTelas = AtaMontadoTelasModel::whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado', 'Autorizado'])
+            $montadoTelas = AtaMontadoTelasModel::whereIn('Estatus', self::ESTATUS_ATADO_EXISTENTE)
                 ->where('NoJulio', $noJulio)
                 ->where('NoProduccion', $noOrden)
                 ->orderBy('Fecha', 'desc')
                 ->orderBy('Turno', 'desc')
+                ->orderByDesc('Id')
                 ->get();
         } else {
             // Si no se proporcionan parámetros, obtener todos los procesos activos (incluyendo Autorizado)
-            $montadoTelas = AtaMontadoTelasModel::whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado', 'Autorizado'])
+            $montadoTelas = AtaMontadoTelasModel::whereIn('Estatus', self::ESTATUS_ATADO_EXISTENTE)
                 ->orderBy('Fecha', 'desc')
                 ->orderBy('Turno', 'desc')
+                ->orderByDesc('Id')
                 ->get();
         }
 
@@ -504,11 +570,15 @@ class AtadoresController extends Controller
 
         // Construir la consulta para obtener el registro correcto filtrando por NoJulio y NoProduccion
         // Buscar en estados activos (no Autorizado)
-        $montado = AtaMontadoTelasModel::whereIn('Estatus', ['En Proceso', 'Terminado', 'Calificado'])
+        // El desempate por Id es obligatorio: Fecha + Turno no son únicos y, si existieran dos filas
+        // para el mismo folio, SQL Server podría devolver una distinta en cada petición y las acciones
+        // (terminar / calificar / autorizar) acabarían aplicándose a registros diferentes.
+        $montado = AtaMontadoTelasModel::whereIn('Estatus', self::ESTATUS_ATADO_ACTIVO)
             ->where('NoJulio', $noJulio)
             ->where('NoProduccion', $noOrden)
             ->orderBy('Fecha', 'desc')
             ->orderBy('Turno', 'desc')
+            ->orderByDesc('Id')
             ->first();
 
         if (! $montado) {
@@ -760,8 +830,7 @@ class AtadoresController extends Controller
 
             DB::connection('sqlsrv')
                 ->table('AtaMontadoTelas')
-                ->where('NoJulio', $montado->NoJulio)
-                ->where('NoProduccion', $montado->NoProduccion)
+                ->where('Id', $montado->Id)
                 ->update(['Obs' => $observaciones]);
 
             return response()->json(['ok' => true, 'message' => 'Observaciones guardadas']);
@@ -786,8 +855,7 @@ class AtadoresController extends Controller
             // Realizar el update
             $affected = DB::connection('sqlsrv')
                 ->table('AtaMontadoTelas')
-                ->where('NoJulio', $montado->NoJulio)
-                ->where('NoProduccion', $montado->NoProduccion)
+                ->where('Id', $montado->Id)
                 ->update(['MergaKg' => $mergaKg]);
 
             // Verificar si se actualizó el registro
@@ -841,8 +909,7 @@ class AtadoresController extends Controller
 
                 DB::connection('sqlsrv')
                     ->table('AtaMontadoTelas')
-                    ->where('NoJulio', $montado->NoJulio)
-                    ->where('NoProduccion', $montado->NoProduccion)
+                    ->where('Id', $montado->Id)
                     ->update(['FolioParo' => $folioParo !== '' ? $folioParo : null]);
             } catch (\Throwable $e) {
                 Log::error('Error al guardar FolioParo', [
