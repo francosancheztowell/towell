@@ -106,11 +106,11 @@ class DesarrolladoresCapturaLivewireTest extends TestCase
         });
 
         DB::connection('sqlsrv')->table('TejCatMatrizDesarrolladores')->insert([
+            // Las tres presentaciones del calibre 10.1, tal como estan en produccion:
+            // mismo calibre y mismo divisor, pero tres articulos de AX distintos.
             ['Codigo' => '10/1', 'CodigoInterno' => '10.1', 'Divisor' => 10, 'Nombre' => 'HILO 10/1', 'Vigente' => 1],
-            // Mismo calibre, mismo divisor: no hay nada que elegir en la columna Hilo.
             ['Codigo' => '10/1T', 'CodigoInterno' => '10.1', 'Divisor' => 10, 'Nombre' => 'HILO 10/1 TENIDO', 'Vigente' => 1],
-            // Mismo calibre que 12/1 pero DISTINTO divisor: ahi si hay que elegir.
-            ['Codigo' => '12/1X', 'CodigoInterno' => '12.1', 'Divisor' => 6, 'Nombre' => 'HILO 12/1 DOBLE', 'Vigente' => 1],
+            ['Codigo' => 'L10/1', 'CodigoInterno' => '10.1', 'Divisor' => 10, 'Nombre' => 'HILO LYCRA 10/1', 'Vigente' => 1],
             ['Codigo' => '12/1', 'CodigoInterno' => '12.1', 'Divisor' => 12, 'Nombre' => 'HILO 12/1', 'Vigente' => 1],
             ['Codigo' => '600/1', 'CodigoInterno' => '600.1', 'Divisor' => 8.86, 'Nombre' => 'HILO 600', 'Vigente' => 1],
             ['Codigo' => '8/1', 'CodigoInterno' => '8.1', 'Divisor' => 8, 'Nombre' => 'HILO 8/1', 'Vigente' => 0],
@@ -779,45 +779,94 @@ class DesarrolladoresCapturaLivewireTest extends TestCase
         $this->assertContains('Falta la altura de rizo.', $problemas);
     }
 
-    // ── Hilo cuando el calibre tiene mas de uno ───────────────────────────
+    // ── Calibre unificado y eleccion del hilo ─────────────────────────────
 
-    /** Un calibre con un solo divisor no ofrece nada que elegir: Hilo sigue derivado. */
-    public function test_un_calibre_con_un_solo_hilo_no_ofrece_seleccion(): void
+    /**
+     * El desplegable de Calibre daba un renglon por presentacion, asi que el calibre
+     * 10.1 salia tres veces --HILO 10/1, HILO 10/1 TENIDO y HILO LYCRA 10/1-- con tres
+     * nombres distintos pero escribiendo los tres exactamente lo mismo. Sale una vez.
+     */
+    public function test_el_calibre_no_se_repite_en_el_desplegable(): void
+    {
+        $this->autenticar();
+
+        $calibres = Livewire::test(Captura::class)->instance()->calibresUnificados();
+        $valores = array_column($calibres, 'Calibre');
+
+        $this->assertSame($valores, array_values(array_unique($valores)), 'Ningun calibre puede salir dos veces.');
+        $this->assertSame(1, count(array_keys($valores, '10.1')), 'El calibre 10.1 sale una sola vez.');
+
+        // Con una sola presentacion el nombre no es ambiguo y se muestra; con tres si.
+        $porCalibre = array_column($calibres, 'etiqueta', 'Calibre');
+        $this->assertSame('10.1', $porCalibre['10.1']);
+        $this->assertSame('600.1 — HILO 600', $porCalibre['600.1']);
+    }
+
+    /** Las tres presentaciones bajan a la columna Hilo, que es donde se distinguen. */
+    public function test_las_presentaciones_del_calibre_se_eligen_en_hilo(): void
+    {
+        $this->autenticar();
+
+        $hilos = Livewire::test(Captura::class)->instance()->hilosDelCalibre('10.1');
+
+        // No se agrupan por divisor aunque las tres dividan entre 10: son articulos
+        // distintos de AX y de eso dependen la fibra y el color que se ofrecen.
+        $this->assertCount(3, $hilos);
+        $this->assertSame(
+            ['10 — HILO 10/1 (10/1)', '10 — HILO 10/1 TENIDO (10/1T)', '10 — HILO LYCRA 10/1 (L10/1)'],
+            array_column($hilos, 'etiqueta')
+        );
+    }
+
+    /** Un calibre con una sola presentacion no obliga a elegir: se resuelve solo. */
+    public function test_un_calibre_con_una_sola_presentacion_se_resuelve_solo(): void
     {
         $this->autenticar();
         $id = $this->sembrarTelarConOrdenConDetalle('10.1', 10);
 
-        $componente = Livewire::test(Captura::class)
+        $detalles = Livewire::test(Captura::class)
             ->set('telarId', '101')
-            ->call('seleccionar', $id);
+            ->call('seleccionar', $id)
+            ->call('elegirCalibreUnificado', 0, '600.1')
+            ->get('detalles');
 
-        // 10/1 y 10/1T comparten calibre Y divisor: una sola opcion, no un select.
-        $this->assertCount(1, $componente->instance()->hilosDelCalibre('10.1'));
+        $this->assertSame('600.1', $detalles[0]['Calibre']);
+        $this->assertSame('8.86', $detalles[0]['Hilo']);
+        $this->assertNotNull($detalles[0]['CalibreId']);
     }
 
-    /** Con dos divisores para el mismo calibre, el operador elige y las dos columnas se mueven juntas. */
-    public function test_un_calibre_con_dos_hilos_se_puede_elegir(): void
+    /**
+     * Con varias presentaciones el hilo queda en blanco a proposito: hasta que se elija
+     * no se sabe que articulo de AX es el renglon, y sin el no hay fibra ni color.
+     */
+    public function test_un_calibre_con_varias_presentaciones_exige_elegir_el_hilo(): void
     {
         $this->autenticar();
-        $id = $this->sembrarTelarConOrdenConDetalle('12.1', 12);
+        $id = $this->sembrarTelarConOrdenConDetalle('600.1', 8.86);
 
         $componente = Livewire::test(Captura::class)
             ->set('telarId', '101')
-            ->call('seleccionar', $id);
+            ->call('seleccionar', $id)
+            ->call('elegirCalibreUnificado', 0, '10.1');
 
-        $opciones = $componente->instance()->hilosDelCalibre('12.1');
+        $detalles = $componente->get('detalles');
 
-        $this->assertSame(['6', '12'], array_column($opciones, 'Divisor'));
-        $this->assertSame('12', $componente->get('detalles')[0]['Hilo']);
-
-        $detalles = $componente->call('elegirHilo', 0, '6')->get('detalles');
-
-        // Cambia el divisor y con el el renglon del catalogo, no solo la columna Hilo.
-        $this->assertSame('6', $detalles[0]['Hilo']);
-        $this->assertSame('12.1', $detalles[0]['Calibre']);
-        $this->assertSame(
-            (int) DB::connection('sqlsrv')->table('TejCatMatrizDesarrolladores')->where('Codigo', '12/1X')->value('Id'),
-            (int) $detalles[0]['CalibreId']
+        $this->assertSame('10.1', $detalles[0]['Calibre']);
+        $this->assertSame('', $detalles[0]['Hilo']);
+        $this->assertNull($detalles[0]['CalibreId']);
+        $this->assertStringContainsString(
+            'falta elegir el hilo',
+            implode(' ', $componente->instance()->problemas())
         );
+
+        // Y al elegir la presentacion se llenan las dos columnas del mismo renglon.
+        $lycra = (int) DB::connection('sqlsrv')->table('TejCatMatrizDesarrolladores')
+            ->where('Codigo', 'L10/1')->value('Id');
+
+        $detalles = $componente->call('elegirCalibre', 0, $lycra)->get('detalles');
+
+        $this->assertSame('10.1', $detalles[0]['Calibre']);
+        $this->assertSame('10', $detalles[0]['Hilo']);
+        $this->assertSame($lycra, (int) $detalles[0]['CalibreId']);
     }
 }

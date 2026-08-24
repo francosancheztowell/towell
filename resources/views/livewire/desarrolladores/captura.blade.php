@@ -397,18 +397,18 @@
                                                  diez divisores distintos y la formula de L.Mat calculaba mal. --}}
                                             <td class="px-4 py-2 min-w-64">
                                                 <select wire:key="det-{{ $i }}-CalibreId"
-                                                        wire:change="elegirCalibre({{ $i }}, $event.target.value)"
-                                                        wire:loading.attr="disabled" wire:target="elegirCalibre"
+                                                        wire:change="elegirCalibreUnificado({{ $i }}, $event.target.value)"
+                                                        wire:loading.attr="disabled" wire:target="elegirCalibreUnificado"
                                                         aria-label="Calibre, fila {{ $i + 1 }}"
                                                         class="w-full px-2 py-2 border rounded-md text-base focus:ring-2 disabled:opacity-60
                                                                {{ $fueraDeCatalogo ? 'border-red-500 bg-red-50 text-red-900 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500' }}">
                                                     @if ($fueraDeCatalogo)
                                                         <option value="" selected disabled>{{ $detalle['Calibre'] }} — fuera de catálogo</option>
-                                                    @elseif (empty($detalle['CalibreId']))
-                                                        <option value="" selected disabled>Selecciona un hilo</option>
+                                                    @elseif (($detalle['Calibre'] ?? '') === '')
+                                                        <option value="" selected disabled>Selecciona un calibre</option>
                                                     @endif
-                                                    @foreach ($this->calibres as $hilo)
-                                                        <option value="{{ $hilo->Id }}" @selected((int) ($detalle['CalibreId'] ?? 0) === (int) $hilo->Id)>{{ $hilo->etiqueta }}</option>
+                                                    @foreach ($this->calibresUnificados as $opcion)
+                                                        <option value="{{ $opcion['Calibre'] }}" @selected(! $fueraDeCatalogo && (string) ($detalle['Calibre'] ?? '') === $opcion['Calibre'])>{{ $opcion['etiqueta'] }}</option>
                                                     @endforeach
                                                 </select>
                                                 @if ($fueraDeCatalogo)
@@ -418,20 +418,24 @@
                                                 @endif
                                                 @error('detalles.'.$i.'.CalibreId') <p class="mt-1 text-xs text-red-700">{{ $message }}</p> @enderror
                                             </td>
-                                            {{-- Hilo es el divisor del calibre elegido: mientras el catalogo tenga
-                                                 uno solo no hay nada que decidir y se muestra, no se captura. Con dos
-                                                 o mas registrados para ese calibre deja de haber respuesta unica y
-                                                 se vuelve select. --}}
+                                            {{-- Aqui se elige la presentacion: un calibre con una sola no tiene
+                                                 nada que decidir y el divisor se muestra, no se captura. Con varias
+                                                 --10.1 son 10/1, 10/1T y LYCRA 10/1-- este select es lo que fija el
+                                                 articulo de AX del que cuelgan fibra y color. --}}
                                             @php($hilos = $this->hilosDelCalibre((string) ($detalle['Calibre'] ?? '')))
                                             <td class="px-4 py-2">
                                                 @if (count($hilos) > 1)
                                                     <select wire:key="det-{{ $i }}-Hilo"
-                                                            wire:change="elegirHilo({{ $i }}, $event.target.value)"
-                                                            wire:loading.attr="disabled" wire:target="elegirHilo"
+                                                            wire:change="elegirCalibre({{ $i }}, $event.target.value)"
+                                                            wire:loading.attr="disabled" wire:target="elegirCalibre"
                                                             aria-label="Hilo, fila {{ $i + 1 }}"
-                                                            class="w-40 px-2 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base disabled:opacity-60">
+                                                            class="w-full min-w-56 px-2 py-2 border rounded-md text-base focus:ring-2 disabled:opacity-60
+                                                                   {{ empty($detalle['CalibreId']) ? 'border-amber-500 bg-amber-50 focus:ring-amber-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500' }}">
+                                                        @if (empty($detalle['CalibreId']))
+                                                            <option value="" selected disabled>Elige el hilo</option>
+                                                        @endif
                                                         @foreach ($hilos as $opcion)
-                                                            <option value="{{ $opcion['Divisor'] }}" @selected((string) $detalle['Hilo'] === $opcion['Divisor'])>{{ $opcion['etiqueta'] }}</option>
+                                                            <option value="{{ $opcion['Id'] }}" @selected((int) ($detalle['CalibreId'] ?? 0) === $opcion['Id'])>{{ $opcion['etiqueta'] }}</option>
                                                         @endforeach
                                                     </select>
                                                 @else

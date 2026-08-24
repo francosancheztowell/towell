@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Tejedores\BPMTejedores\TelBpmController;
 use App\Http\Controllers\Tejedores\BPMTejedores\TelBpmLineController;
+use App\Http\Controllers\Tejedores\Configuracion\CatalogoCalibres\CatalogoCalibresController;
 use App\Http\Controllers\Tejedores\Configuracion\TelaresOperador\TelTelaresOperadorController;
 use App\Http\Controllers\Tejedores\Desarrolladores\TelDesarrolladoresController;
 use App\Http\Controllers\Tejedores\Desarrolladores\TelDesarrolladoresMuestrasController;
@@ -24,6 +25,9 @@ Route::prefix('tejedores')->name('tejedores.')->group(function () {
 
     Route::get('/configurar/telaresxoperador', [TelTelaresOperadorController::class, 'index'])->name('configurar.telares-operador');
     Route::get('/configurar/actividadestejedores', [TelActividadesBPMController::class, 'index'])->name('configurar.actividades');
+
+    // Catalogo de calibres de desarrolladores (listado + CRUD en el componente Livewire CatalogoCalibres)
+    Route::get('/configurar/catalogo-calibres', [CatalogoCalibresController::class, 'index'])->name('configurar.catalogo-calibres');
 
     Route::get('/bpmtejedores', [TelBpmController::class, 'index'])->name('bpm');
     Route::redirect('/bpm', '/tejedores/bpmtejedores', 301);
