@@ -418,12 +418,28 @@
                                                 @endif
                                                 @error('detalles.'.$i.'.CalibreId') <p class="mt-1 text-xs text-red-700">{{ $message }}</p> @enderror
                                             </td>
-                                            {{-- Hilo es el divisor del hilo elegido: se muestra, no se captura. --}}
+                                            {{-- Hilo es el divisor del calibre elegido: mientras el catalogo tenga
+                                                 uno solo no hay nada que decidir y se muestra, no se captura. Con dos
+                                                 o mas registrados para ese calibre deja de haber respuesta unica y
+                                                 se vuelve select. --}}
+                                            @php($hilos = $this->hilosDelCalibre((string) ($detalle['Calibre'] ?? '')))
                                             <td class="px-4 py-2">
-                                                <input type="text" readonly tabindex="-1"
-                                                       value="{{ $detalle['Hilo'] }}"
-                                                       aria-label="Hilo, fila {{ $i + 1 }}"
-                                                       class="w-24 px-2 py-2 border border-gray-300 rounded-md bg-gray-100 text-base text-gray-800">
+                                                @if (count($hilos) > 1)
+                                                    <select wire:key="det-{{ $i }}-Hilo"
+                                                            wire:change="elegirHilo({{ $i }}, $event.target.value)"
+                                                            wire:loading.attr="disabled" wire:target="elegirHilo"
+                                                            aria-label="Hilo, fila {{ $i + 1 }}"
+                                                            class="w-40 px-2 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base disabled:opacity-60">
+                                                        @foreach ($hilos as $opcion)
+                                                            <option value="{{ $opcion['Divisor'] }}" @selected((string) $detalle['Hilo'] === $opcion['Divisor'])>{{ $opcion['etiqueta'] }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                @else
+                                                    <input type="text" readonly tabindex="-1"
+                                                           value="{{ $detalle['Hilo'] }}"
+                                                           aria-label="Hilo, fila {{ $i + 1 }}"
+                                                           class="w-24 px-2 py-2 border border-gray-300 rounded-md bg-gray-100 text-base text-gray-800">
+                                                @endif
                                                 @error('detalles.'.$i.'.Hilo') <p class="mt-1 text-xs text-red-700">{{ $message }}</p> @enderror
                                             </td>
                                             {{-- Fibra y color salen de AX colgando del articulo del hilo, igual

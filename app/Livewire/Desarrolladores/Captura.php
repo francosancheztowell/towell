@@ -573,18 +573,77 @@ class Captura extends Component
             return;
         }
 
+        $articuloAnterior = $this->codigoAx($this->detalles[$indice]);
+
         $this->detalles[$indice]['CalibreId'] = (int) $hilo->Id;
         $this->detalles[$indice]['Calibre'] = (string) $hilo->CodigoInterno;
         $this->detalles[$indice]['Hilo'] = (string) $hilo->Divisor;
         $this->detalles[$indice]['noVigente'] = false;
 
         // Fibra y color cuelgan del articulo en AX: los del hilo anterior ya no aplican.
-        $this->detalles[$indice]['Fibra'] = '';
-        $this->detalles[$indice]['CodColor'] = '';
-        $this->detalles[$indice]['NombreColor'] = '';
+        // Si el articulo no cambio -otro divisor del mismo hilo- no hay por que borrarlos.
+        if (trim((string) $hilo->Codigo) !== $articuloAnterior) {
+            $this->detalles[$indice]['Fibra'] = '';
+            $this->detalles[$indice]['CodColor'] = '';
+            $this->detalles[$indice]['NombreColor'] = '';
+        }
 
         unset($this->catalogosAx, $this->problemas);
         $this->resetValidation('detalles.'.$indice.'.CalibreId');
+    }
+
+    /**
+     * Los hilos que el catalogo registra para un mismo calibre. Casi siempre es uno --el
+     * calibre 10.1 lo comparten 10/1, 10/1T y LYCRA 10/1, y los tres dividen entre 10--
+     * y entonces la columna Hilo sigue siendo un dato derivado, de solo lectura. Cuando
+     * Planeacion da de alta un segundo divisor para ese calibre, deja de haber una
+     * respuesta unica y el operador tiene que poder elegir: ahi sale el select.
+     *
+     * @return list<array{Id: int, Divisor: string, etiqueta: string}>
+     */
+    public function hilosDelCalibre(string $calibre): array
+    {
+        $codigo = TejCatMatrizDesarrolladores::normalizar($calibre);
+
+        if ($codigo === null) {
+            return [];
+        }
+
+        return $this->calibres
+            ->filter(fn ($h): bool => TejCatMatrizDesarrolladores::normalizar($h->CodigoInterno) === $codigo)
+            // Un divisor por renglon de la lista: si dos presentaciones del mismo calibre
+            // dividen igual, elegir entre ellas no cambiaria el dato guardado.
+            ->unique(fn ($h): ?string => TejCatMatrizDesarrolladores::normalizar($h->Divisor))
+            ->sortBy(fn ($h): float => (float) $h->Divisor)
+            ->map(fn ($h): array => [
+                'Id' => (int) $h->Id,
+                'Divisor' => (string) $h->Divisor,
+                'etiqueta' => $h->Divisor.' — '.trim((string) $h->Nombre),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Elegir el hilo es elegir el renglon del catalogo que tiene ese divisor: se delega
+     * en elegirCalibre para no tener dos caminos que escriban las mismas dos columnas.
+     */
+    public function elegirHilo(int $indice, $divisor): void
+    {
+        if (! isset($this->detalles[$indice])) {
+            return;
+        }
+
+        $buscado = TejCatMatrizDesarrolladores::normalizar($divisor);
+        $opciones = $this->hilosDelCalibre((string) ($this->detalles[$indice]['Calibre'] ?? ''));
+
+        foreach ($opciones as $opcion) {
+            if (TejCatMatrizDesarrolladores::normalizar($opcion['Divisor']) === $buscado) {
+                $this->elegirCalibre($indice, $opcion['Id']);
+
+                return;
+            }
+        }
     }
 
     /** El ItemId de AX del hilo elegido en un renglon. Vacio si aun no hay hilo. */

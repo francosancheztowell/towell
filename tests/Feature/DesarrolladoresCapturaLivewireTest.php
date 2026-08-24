@@ -107,6 +107,10 @@ class DesarrolladoresCapturaLivewireTest extends TestCase
 
         DB::connection('sqlsrv')->table('TejCatMatrizDesarrolladores')->insert([
             ['Codigo' => '10/1', 'CodigoInterno' => '10.1', 'Divisor' => 10, 'Nombre' => 'HILO 10/1', 'Vigente' => 1],
+            // Mismo calibre, mismo divisor: no hay nada que elegir en la columna Hilo.
+            ['Codigo' => '10/1T', 'CodigoInterno' => '10.1', 'Divisor' => 10, 'Nombre' => 'HILO 10/1 TENIDO', 'Vigente' => 1],
+            // Mismo calibre que 12/1 pero DISTINTO divisor: ahi si hay que elegir.
+            ['Codigo' => '12/1X', 'CodigoInterno' => '12.1', 'Divisor' => 6, 'Nombre' => 'HILO 12/1 DOBLE', 'Vigente' => 1],
             ['Codigo' => '12/1', 'CodigoInterno' => '12.1', 'Divisor' => 12, 'Nombre' => 'HILO 12/1', 'Vigente' => 1],
             ['Codigo' => '600/1', 'CodigoInterno' => '600.1', 'Divisor' => 8.86, 'Nombre' => 'HILO 600', 'Vigente' => 1],
             ['Codigo' => '8/1', 'CodigoInterno' => '8.1', 'Divisor' => 8, 'Nombre' => 'HILO 8/1', 'Vigente' => 0],
@@ -773,5 +777,47 @@ class DesarrolladoresCapturaLivewireTest extends TestCase
         $problemas = $this->capturaCompleta($id)->set('form.AlturaRizo', '')->instance()->problemas();
 
         $this->assertContains('Falta la altura de rizo.', $problemas);
+    }
+
+    // ── Hilo cuando el calibre tiene mas de uno ───────────────────────────
+
+    /** Un calibre con un solo divisor no ofrece nada que elegir: Hilo sigue derivado. */
+    public function test_un_calibre_con_un_solo_hilo_no_ofrece_seleccion(): void
+    {
+        $this->autenticar();
+        $id = $this->sembrarTelarConOrdenConDetalle('10.1', 10);
+
+        $componente = Livewire::test(Captura::class)
+            ->set('telarId', '101')
+            ->call('seleccionar', $id);
+
+        // 10/1 y 10/1T comparten calibre Y divisor: una sola opcion, no un select.
+        $this->assertCount(1, $componente->instance()->hilosDelCalibre('10.1'));
+    }
+
+    /** Con dos divisores para el mismo calibre, el operador elige y las dos columnas se mueven juntas. */
+    public function test_un_calibre_con_dos_hilos_se_puede_elegir(): void
+    {
+        $this->autenticar();
+        $id = $this->sembrarTelarConOrdenConDetalle('12.1', 12);
+
+        $componente = Livewire::test(Captura::class)
+            ->set('telarId', '101')
+            ->call('seleccionar', $id);
+
+        $opciones = $componente->instance()->hilosDelCalibre('12.1');
+
+        $this->assertSame(['6', '12'], array_column($opciones, 'Divisor'));
+        $this->assertSame('12', $componente->get('detalles')[0]['Hilo']);
+
+        $detalles = $componente->call('elegirHilo', 0, '6')->get('detalles');
+
+        // Cambia el divisor y con el el renglon del catalogo, no solo la columna Hilo.
+        $this->assertSame('6', $detalles[0]['Hilo']);
+        $this->assertSame('12.1', $detalles[0]['Calibre']);
+        $this->assertSame(
+            (int) DB::connection('sqlsrv')->table('TejCatMatrizDesarrolladores')->where('Codigo', '12/1X')->value('Id'),
+            (int) $detalles[0]['CalibreId']
+        );
     }
 }
