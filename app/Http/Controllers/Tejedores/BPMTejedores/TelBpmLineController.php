@@ -22,7 +22,8 @@ class TelBpmLineController extends Controller
     /** Vista de edición del checklist por Folio */
     public function index(string $folio)
     {
-        $header = TelBpmModel::with('lines')->findOrFail($folio);
+        // ponytail: sin with('lines'): $lineas ya trae las lineas mas abajo (era una consulta duplicada).
+        $header = TelBpmModel::findOrFail($folio);
 
         // Catálogo de actividades para mostrar filas (si quieres listar todas)
         $actividades = TelActividadesBPM::orderBy('Orden')->get(['Orden', 'Actividad'])

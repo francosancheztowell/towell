@@ -838,7 +838,7 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
             return '';
         }
 
-        return in_array($clave, $this->clavesComodin(), true) ? $clave.' ✦' : $clave;
+        return in_array($clave, $this->clavesComodin(), true) ? $clave.' (turno 4)' : $clave;
     }
 
     /** Que claves de esta semana pertenecen a empleados de turno 4. Una sola consulta. */
