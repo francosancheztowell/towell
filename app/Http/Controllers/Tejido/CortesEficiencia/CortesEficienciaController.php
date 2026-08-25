@@ -1222,7 +1222,7 @@ class CortesEficienciaController extends Controller
 
             // El turno 4 no se guarda: se marca que este turno lo cubrió el comodín.
             $coberturaT4PorTurno[(string) $turno] = [
-                'cubierto' => esCoberturaT4($corteTurno->numero_empleado ?? null),
+                'cubierto' => TurnoHelper::esCoberturaT4($corteTurno->numero_empleado ?? null),
                 'empleado' => $corteTurno->nombreEmpl ?? null,
             ];
         }

@@ -2,6 +2,7 @@
 
 namespace App\Helpers;
 
+use App\Models\Sistema\SYSUsuario;
 use Carbon\Carbon;
 
 class TurnoHelper
@@ -56,6 +57,42 @@ class TurnoHelper
     public static function esComodin(mixed $turnoEmpleado): bool
     {
         return (int) $turnoEmpleado === 4;
+    }
+
+    /**
+     * ¿El empleado que capturó este registro es comodín de turno 4?
+     *
+     * El 4 no se guarda en las columnas de ventana de reloj: el registro vive en el
+     * turno que cubrió. Esta marca se deriva del empleado para poder distinguir
+     * plantilla de cobertura al leer el reporte.
+     *
+     * Vive aquí y no en un helper global a proposito: los archivos de
+     * composer autoload.files exigen dump-autoload en cada despliegue.
+     */
+    public static function esCoberturaT4(?string $claveEmpleado): bool
+    {
+        static $cache = [];
+
+        $clave = trim((string) $claveEmpleado);
+        if ($clave === '') {
+            return false;
+        }
+
+        if (array_key_exists($clave, $cache)) {
+            return $cache[$clave];
+        }
+
+        try {
+            // ponytail: consulta puntual memoizada por request. Si un reporte pinta
+            // cientos de empleados distintos, precargar con un whereIn en el controlador.
+            $turno = SYSUsuario::query()->where('numero_empleado', $clave)->value('turno');
+        } catch (\Throwable $e) {
+            // La marca es informativa: sin catalogo de usuarios el reporte sale
+            // completo y correcto, solo sin el distintivo.
+            return $cache[$clave] = false;
+        }
+
+        return $cache[$clave] = self::esComodin($turno);
     }
 
     /**

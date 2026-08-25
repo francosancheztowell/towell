@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Tejido\MarcasFinales;
 
+use App\Helpers\TurnoHelper;
 use App\Exports\MarcasFinalesExport;
 use App\Http\Controllers\Controller;
 use App\Models\Planeacion\ReqProgramaTejido;
@@ -916,7 +917,7 @@ class MarcasController extends Controller
                 'lineas' => $lineas,
                 'telares' => $telaresSecuencia,
                 // El turno 4 no se guarda: se marca que este turno lo cubrió el comodín.
-                'coberturaT4' => esCoberturaT4($folioTurno->numero_empleado ?? null),
+                'coberturaT4' => TurnoHelper::esCoberturaT4($folioTurno->numero_empleado ?? null),
                 'empleado' => $folioTurno->nombreEmpl ?? null,
             ];
         }
