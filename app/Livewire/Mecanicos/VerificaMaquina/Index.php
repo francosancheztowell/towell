@@ -57,7 +57,7 @@ class Index extends Component
         abort_unless(userCan('crear', self::MODULO_PERMISO), 403, 'No tienes permiso para crear verificaciones.');
 
         $validated = $this->validate([
-            'turno' => ['required', 'integer', 'between:1,3'],
+            'turno' => ['required', 'integer', 'between:1,4'],
         ], [], ['turno' => 'Turno']);
 
         $usuario = Auth::user();

@@ -113,6 +113,9 @@
             <span class="px-3 py-1 rounded-full border {{ $badgeColors[$turno] }}">
                 <span class="font-semibold">Turno {{ $turno }}:</span>
                 <span>{{ $folio ?? 'Sin folio registrado' }}</span>
+                @if((($coberturaT4PorTurno ?? [])[(string) $turno]['cubierto'] ?? false))
+                    <span title="Cubierto por personal de turno 4: {{ ($coberturaT4PorTurno ?? [])[(string) $turno]['empleado'] ?? '' }}">✦</span>
+                @endif
             </span>
         @endforeach
     </div>

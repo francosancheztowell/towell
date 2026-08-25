@@ -898,6 +898,8 @@ class MarcasController extends Controller
                     'folio' => null,
                     'lineas' => collect(),
                     'telares' => $telaresSecuencia,
+                    'coberturaT4' => false,
+                    'empleado' => null,
                 ];
 
                 continue;
@@ -913,6 +915,9 @@ class MarcasController extends Controller
                 'folio' => $folioTurno->Folio,
                 'lineas' => $lineas,
                 'telares' => $telaresSecuencia,
+                // El turno 4 no se guarda: se marca que este turno lo cubrió el comodín.
+                'coberturaT4' => esCoberturaT4($folioTurno->numero_empleado ?? null),
+                'empleado' => $folioTurno->nombreEmpl ?? null,
             ];
         }
 

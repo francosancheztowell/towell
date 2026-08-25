@@ -21,6 +21,13 @@
     $get = function($turno, $telar) use ($porTurno){
         return optional(optional($porTurno->get($turno))['lineas'])->get($telar);
     };
+    // Marca de cobertura: el turno 4 (comodín) no se guarda; el registro vive en el
+    // turno que cubrió y aquí se distingue con ✦ + el nombre de quien lo cubrió.
+    $marcaT4 = function($turno) use ($porTurno) {
+        $t = $porTurno->get($turno);
+        if (! ($t['coberturaT4'] ?? false)) { return ''; }
+        return ' <span title="Cubierto por personal de turno 4: '.e($t['empleado'] ?? '').'">✦</span>';
+    };
 @endphp
 
 <div class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8">
@@ -53,9 +60,9 @@
                 <thead class="bg-blue-600 text-white sticky top-0 z-10">
                     <tr>
                         <th class="px-3 py-2 border-r border-blue-500 text-center align-middle" rowspan="2">Telar</th>
-                        <th class="px-3 py-2 border-r border-blue-500 text-center align-middle" colspan="7">Turno 1</th>
-                        <th class="px-3 py-2 border-r border-blue-500 text-center align-middle" colspan="7">Turno 2</th>
-                        <th class="px-3 py-2 text-center align-middle" colspan="7">Turno 3</th>
+                        <th class="px-3 py-2 border-r border-blue-500 text-center align-middle" colspan="7">Turno 1{!! $marcaT4(1) !!}</th>
+                        <th class="px-3 py-2 border-r border-blue-500 text-center align-middle" colspan="7">Turno 2{!! $marcaT4(2) !!}</th>
+                        <th class="px-3 py-2 text-center align-middle" colspan="7">Turno 3{!! $marcaT4(3) !!}</th>
                     </tr>
                     <tr class="bg-blue-700/90">
                         @for ($i=0;$i<3;$i++)

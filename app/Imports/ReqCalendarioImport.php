@@ -208,6 +208,14 @@ class ReqCalendarioImport implements ToModel, WithBatchInserts, WithChunkReading
             $horas = ! empty($horas) ? (float) $horas : 0;
             $turno = ! empty($turno) ? (int) $turno : 0;
 
+            // El calendario es capacidad de máquina: 3 ventanas de 8 h = 24 h/día.
+            // El turno 4 (comodín que cubre descansos) es del empleado y aquí sería doble conteo.
+            if (! in_array($turno, [1, 2, 3], true)) {
+                $this->errores[] = "Fila {$this->rowCounter}: Turno inválido ({$turno}); debe ser 1, 2 o 3";
+
+                return null;
+            }
+
             ReqCalendarioLine::create([
                 'CalendarioId' => $calendarioId,
                 'FechaInicio' => $fechaInicioFormato,

@@ -333,9 +333,9 @@
 
     {{-- ── Badges de folio por turno ── --}}
     {{-- <div class="folios">
-        <span class="folio-badge folio-t1">Turno 1: {{ $foliosPorTurno['1'] ?? '—' }}</span>
-        <span class="folio-badge folio-t2">Turno 2: {{ $foliosPorTurno['2'] ?? '—' }}</span>
-        <span class="folio-badge folio-t3">Turno 3: {{ $foliosPorTurno['3'] ?? '—' }}</span>
+        <span class="folio-badge folio-t1">Turno 1: {{ $foliosPorTurno['1'] ?? '—' }}{{ (($coberturaT4PorTurno ?? [])['1']['cubierto'] ?? false) ? ' ✦' : '' }}</span>
+        <span class="folio-badge folio-t2">Turno 2: {{ $foliosPorTurno['2'] ?? '—' }}{{ (($coberturaT4PorTurno ?? [])['2']['cubierto'] ?? false) ? ' ✦' : '' }}</span>
+        <span class="folio-badge folio-t3">Turno 3: {{ $foliosPorTurno['3'] ?? '—' }}{{ (($coberturaT4PorTurno ?? [])['3']['cubierto'] ?? false) ? ' ✦' : '' }}</span>
     </div> --}}
 
     @php
@@ -397,7 +397,7 @@
             {{-- ── Fila 1: Turno N ── --}}
             <tr>
                 @for ($t = 1; $t <= ($maxTurno ?? 3); $t++)
-                    <th colspan="5" class="{{ $turnoHdr[$t - 1] }}">Turno {{ $t }}</th>
+                    <th colspan="5" class="{{ $turnoHdr[$t - 1] }}">Turno {{ $t }}{{ (($coberturaT4PorTurno ?? [])[(string) $t]['cubierto'] ?? false) ? ' ✦' : '' }}</th>
                 @endfor
             </tr>
 
