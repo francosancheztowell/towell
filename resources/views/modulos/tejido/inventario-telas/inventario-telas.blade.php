@@ -1,6 +1,22 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 
-@section('page-title', $tipoInventario === 'jacquard' ? 'Inventario Jacquard' : 'Inventario Itema')
+@php
+    $titulosInventario = [
+        'jacquard' => 'Inventario Jacquard',
+        'itema' => 'Inventario Itema',
+        'karl-mayer' => 'Inventario Karl Mayer',
+    ];
+    $nombresSalon = [
+        'jacquard' => 'Jacquard',
+        'itema' => 'Itema',
+        'karl-mayer' => 'Karl Mayer',
+    ];
+@endphp
+@section('page-title', $titulosInventario[$tipoInventario] ?? 'Inventario de Telas')
+
+@push('styles')
+    @vite('resources/css/tejido/inventario-telas.css')
+@endpush
 
 @section('navbar-right')
     @if(count($telares ?? []) > 0)
@@ -45,107 +61,9 @@
 @endsection
 
 @section('content')
-<div class="container mx-auto">
-    <style>
-      /* Franja vertical izquierda (requiere ::before) */
-      .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700::before,
-      .telar-section > .bg-gray-100::before {
-        content: "";
-        position: absolute; left: 0; top: 0; bottom: 0; width: 8px; display: block;
-      }
-      .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700::before {
-        background: linear-gradient(to bottom, #2563eb, #1d4ed8);
-      }
-      .telar-section > .bg-gray-100::before {
-        background: linear-gradient(to bottom, #9ca3af, #6b7280);
-      }
-
-      /* Columna izquierda fija (transforma el header del componente) */
-      .telar-section { position: relative; }
-      .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700,
-      .telar-section > .bg-gray-100 {
-        display:flex !important; justify-content:center;
-        position:absolute; left:0; top:0; bottom:0; width:110px; padding:0 !important;
-        border-right:1px solid #e5e7eb; background: transparent;
-        align-items:flex-start !important; padding-top: 8px !important;
-      }
-      .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 { background: linear-gradient(to bottom, #2563eb, #1d4ed8) !important; }
-      .telar-section > .bg-gray-100 { background: linear-gradient(to bottom, #9ca3af, #6b7280) !important; }
-
-      /* Ocultar partes del header original y subtítulos */
-      .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .flex.items-center > .flex.items-center,
-      .telar-section > .bg-gray-100 .flex.items-center > .flex.items-center,
-      .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 > .absolute,
-      .telar-section > .bg-gray-100 > .absolute,
-      .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .flex.items-center:first-child,
-      .telar-section > .bg-gray-100 .flex.items-center:first-child,
-      .telar-section > div > .bg-gray-200 h2,
-      .telar-section .col-label.bottom { display: none !important; }
-
-      /* Número del telar: grande, blanco y sin tarjeta */
-      .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .bg-red-500,
-      .telar-section > .bg-gray-100 .bg-gray-400 {
-        background: transparent !important; padding: 0 !important; box-shadow: none !important;
-      }
-      .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .bg-red-500 .text-xs,
-      .telar-section > .bg-gray-100 .bg-gray-400 .text-xs { display: none; }
-      .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700 .bg-red-500 .text-3xl,
-      .telar-section > .bg-gray-100 .bg-gray-400 .text-3xl {
-        font-weight: 800 !important; color: #ffffff !important; font-size: 2.5rem !important;
-        padding: 12px !important; line-height: 1 !important;
-      }
-
-      /* Línea separadora en “Siguiente Orden” y “Requerimiento” */
-      .telar-section > div > .bg-gray-200 {
-        padding: 0 !important; height: 1px; background: #e5e7eb !important;
-      }
-
-      /* Calendario ligeramente más grande */
-      .telar-section .flex.gap-1.overflow-x-auto.pb-2 {
-        transform: scale(1.08); transform-origin: top left;
-      }
-
-      /* Etiqueta central “SIG. ORDEN” */
-      .telar-section .col-label {
-        position: absolute; left: 0; right: 0; color: #fff; font-size: 14px;
-        letter-spacing: .08em; text-align: center; pointer-events: none; opacity: .95; font-weight: 700;
-      }
-      .telar-section .col-label.center { top: 50%; transform: translateY(-50%); }
-
-      /* Fechas anteriores a hoy: otro color (naranja/ámbar) en el encabezado del calendario */
-      .telar-section th.calendario-fecha-anterior {
-        background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
-        border-left: 3px solid #b45309;
-      }
-
-      /* Checkboxes más grandes y labels alineados */
-      .telar-section input[type="checkbox"] { width: 22px; height: 22px; accent-color: #2563eb; }
-      .telar-section label { display:inline-flex; align-items:center; gap: 6px; }
-
-      /* Alinear “Cuentas” con el calendario */
-      .telar-section .grid.grid-cols-1.md\:grid-cols-2.gap-4 { align-items: stretch !important; }
-      .telar-section .grid.grid-cols-1.md\:grid-cols-2.gap-4 > div { height: 100% !important; }
-      .telar-section .space-y-2 { display:flex !important; flex-direction:column !important; height:100% !important; justify-content:space-evenly !important; gap:0 !important; }
-      .telar-section .space-y-2 > div { display:flex !important; align-items:center !important; gap:8px !important; min-height:32px !important; padding:4px 0 !important; }
-      .telar-section .rounded-lg.p-3.border.border-gray-200 { margin-top: 32px !important; }
-
-      /* Dejar espacio para la columna izquierda */
-      .telar-section > .p-3,
-      .telar-section > div:not([class*='bg-gradient-to-r']):not([class*='bg-gray-100']) { margin-left: 112px; }
-
-      /* Responsive: columna izquierda más angosta en móvil */
-      @media (max-width: 640px){
-        .telar-section > .bg-gradient-to-r.from-blue-600.to-blue-700,
-        .telar-section > .bg-gray-100 { width:92px; }
-        .telar-section > .p-3,
-        .telar-section > div:not([class*='bg-gradient-to-r']):not([class*='bg-gray-100']) { margin-left: 96px; }
-      }
-    </style>
-
-
-
+<div class="inventario-telas-page">
     @if(count($telares) > 0)
-        <div class="space-y-6">
+        <div class="inventario-telas-list">
             @foreach ($telares as $telar)
                 @php
                     $telarData = $datosTelaresCompletos[$telar]['telarData'] ?? (object) [
@@ -174,10 +92,10 @@
                     <i class="fas fa-industry text-4xl text-gray-400"></i>
                 </div>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">
-                    No hay telares {{ $tipoInventario === 'jacquard' ? 'Jacquard' : 'Itema' }} en proceso
+                    No hay telares {{ $nombresSalon[$tipoInventario] ?? '' }} en proceso
                 </h3>
                 <p class="text-gray-500 mb-4">
-                    Actualmente no hay telares {{ $tipoInventario === 'jacquard' ? 'Jacquard' : 'Itema' }} con producción activa.
+                    Actualmente no hay telares {{ $nombresSalon[$tipoInventario] ?? '' }} con producción activa.
                 </p>
                 <p class="text-sm text-gray-400">
                     Los telares aparecerán aquí cuando tengan órdenes con <span class="font-semibold">EnProceso = 1</span>
@@ -283,7 +201,7 @@
 (function(){
   function placeLabels(){
     document.querySelectorAll('.telar-section').forEach(section => {
-      const col = section.querySelector('.bg-gradient-to-r.from-blue-600.to-blue-700, .bg-gray-100');
+      const col = section.querySelector(':scope > .inv-telas-rail');
       if(!col) return;
 
       // Buscar o crear la etiqueta "SIG. ORDEN"
@@ -300,7 +218,7 @@
       if(!telarNumber){
         // Buscar el número del telar en el header (elemento con text-4xl font-bold)
         let numeroTelar = null;
-        const header = section.querySelector('.bg-gradient-to-r.from-blue-600.to-blue-700, .bg-gray-100');
+        const header = section.querySelector(':scope > .inv-telas-rail');
         if(header){
           const numeroElement = header.querySelector('.text-4xl.font-bold');
           if(numeroElement && numeroElement.textContent.trim()){
@@ -321,8 +239,7 @@
 
         if(numeroTelar){
           telarNumber = document.createElement('div');
-          telarNumber.className = 'telar-number-label text-4xl font-bold';
-          telarNumber.style.cssText = 'position: absolute; left: 0; right: 0; color: #ffffff; text-align: center; pointer-events: none; opacity: .95; top: calc(50% + 220px); transform: translateY(-50%); line-height: 1;';
+          telarNumber.className = 'telar-number-label';
           telarNumber.textContent = numeroTelar;
           col.appendChild(telarNumber);
         }

@@ -1,0 +1,304 @@
+/**
+ * Inventario de telas (Jacquard / Itema / Karl Mayer).
+ *
+ * Densidad de las tabletas actuales (~1180–1280 px): tipografía, riel y días
+ * del calendario se topean a ese tamaño. En anchos menores se comprime para
+ * que la tarjeta quepa sin scroll horizontal (antes el calendario iba a 108 %
+ * y el grid de 4 columnas solo existía a partir de 1280 px).
+ */
+.inventario-telas-page {
+    --inv-rail: clamp(4.5rem, 8.6vw, 6.875rem);
+    --inv-gap: clamp(0.35rem, 0.7vw, 0.75rem);
+    --inv-pad: clamp(0.4rem, 0.7vw, 0.75rem);
+    --inv-text: clamp(0.75rem, 0.68rem + 0.22vw, 0.875rem);
+    --inv-text-xs: clamp(0.65rem, 0.58rem + 0.18vw, 0.75rem);
+    --inv-check: clamp(1rem, 1.55vw, 1.375rem);
+    --inv-dia: 6.5rem;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding-inline: clamp(0.35rem, 1vw, 0.75rem);
+    padding-bottom: 1rem;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+}
+
+.inventario-telas-page .inventario-telas-list {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.75rem, 1.2vw, 1.5rem);
+    min-width: 0;
+    overflow-x: hidden;
+}
+
+.inventario-telas-page .telar-section {
+    position: relative;
+    min-width: 0;
+}
+
+.inventario-telas-page .telar-section > .inv-telas-rail {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1;
+    display: flex !important;
+    width: var(--inv-rail);
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0.5rem 0 0 !important;
+    border-right: 1px solid #e5e7eb;
+    background: linear-gradient(to bottom, #2563eb, #1d4ed8) !important;
+}
+
+.inventario-telas-page .telar-section > .inv-telas-rail::before {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    display: block;
+    width: 8px;
+    content: "";
+    background: linear-gradient(to bottom, #2563eb, #1d4ed8);
+}
+
+.inventario-telas-page .telar-section > .inv-telas-rail > .flex,
+.inventario-telas-page .telar-section > .inv-telas-rail > .absolute,
+.inventario-telas-page .telar-section > .inv-telas-rail .text-4xl,
+.inventario-telas-page .telar-section .col-label.bottom {
+    display: none !important;
+}
+
+.inventario-telas-page .telar-section:has(> .inv-telas-rail) > :not(.inv-telas-rail):not(.fixed):not([id^="modal"]) {
+    margin-left: var(--inv-rail);
+    min-width: 0;
+}
+
+.inventario-telas-page .telar-section > .p-3 {
+    padding: var(--inv-pad) !important;
+}
+
+.inventario-telas-page .telar-section .col-label {
+    position: absolute;
+    right: 0;
+    left: 0;
+    color: #fff;
+    font-size: var(--inv-text-xs);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0.95;
+}
+
+.inventario-telas-page .telar-section .col-label.center {
+    top: 32%;
+    transform: translateY(-50%);
+}
+
+.inventario-telas-page .telar-number-label {
+    position: absolute;
+    right: 0;
+    bottom: 0.85rem;
+    left: 0;
+    color: #fff;
+    font-size: clamp(1.35rem, 2.8vw, 2.5rem);
+    font-weight: 800;
+    line-height: 1;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0.95;
+    transform: none;
+}
+
+.inventario-telas-page .telar-section > div > .bg-gray-200 {
+    height: 1px;
+    padding: 0 !important;
+    background: #e5e7eb !important;
+}
+
+.inventario-telas-page .inv-telas-proceso-grid,
+.inventario-telas-page .inv-telas-sig-grid {
+    display: grid !important;
+    min-width: 0;
+    gap: 0.2rem var(--inv-gap) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 900px) {
+    .inventario-telas-page .inv-telas-proceso-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .inventario-telas-page .inv-telas-sig-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+.inventario-telas-page .inv-telas-proceso-grid .space-y-2,
+.inventario-telas-page .inv-telas-sig-grid .space-y-2 {
+    display: flex !important;
+    height: auto !important;
+    flex-direction: column !important;
+    gap: 0.15rem !important;
+    justify-content: flex-start !important;
+}
+
+.inventario-telas-page .inv-telas-proceso-grid .space-y-2 > div,
+.inventario-telas-page .inv-telas-sig-grid .space-y-2 > div {
+    display: flex !important;
+    min-width: 0;
+    min-height: 0 !important;
+    align-items: center !important;
+    padding: 0.1rem 0 !important;
+    gap: 0.35rem !important;
+}
+
+.inventario-telas-page .inv-telas-proceso-grid,
+.inventario-telas-page .inv-telas-sig-grid,
+.inventario-telas-page .inv-telas-req {
+    font-size: var(--inv-text);
+    line-height: 1.25;
+}
+
+.inventario-telas-page .inv-telas-proceso-grid .text-sm,
+.inventario-telas-page .inv-telas-sig-grid .text-sm,
+.inventario-telas-page .inv-telas-req .text-sm {
+    font-size: var(--inv-text) !important;
+    line-height: 1.25;
+}
+
+.inventario-telas-page .inv-telas-proceso-grid .text-xs,
+.inventario-telas-page .inv-telas-sig-grid .text-xs,
+.inventario-telas-page .inv-telas-calendario .text-xs {
+    font-size: var(--inv-text-xs) !important;
+    line-height: 1.2;
+}
+
+.inventario-telas-page .inv-telas-proceso-grid .w-20,
+.inventario-telas-page .inv-telas-sig-grid .w-20 {
+    width: clamp(3.25rem, 5.5vw, 5rem);
+    flex-shrink: 0;
+}
+
+.inventario-telas-page .inv-telas-req {
+    padding: var(--inv-pad) !important;
+}
+
+.inventario-telas-page .inv-telas-req-row {
+    display: flex !important;
+    min-width: 0;
+    flex-direction: row !important;
+    flex-wrap: nowrap;
+    align-items: stretch !important;
+    gap: var(--inv-gap);
+}
+
+.inventario-telas-page .inv-telas-cuentas {
+    display: flex;
+    width: min(11rem, 22%);
+    min-width: 7.25rem;
+    flex: 0 0 auto;
+    flex-direction: column;
+    justify-content: center;
+    margin-top: 0 !important;
+    margin-right: 0 !important;
+    margin-bottom: 0 !important;
+    padding: clamp(0.4rem, 0.7vw, 0.75rem) !important;
+}
+
+.inventario-telas-page .inv-telas-cuentas-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.35rem !important;
+    font-size: var(--inv-text) !important;
+}
+
+.inventario-telas-page .inv-telas-cal-wrap {
+    display: flex;
+    min-width: 0;
+    flex: 1 1 auto;
+    align-items: flex-start;
+}
+
+.inventario-telas-page .inv-telas-fecha {
+    display: none;
+}
+
+.inventario-telas-page .inv-telas-calendario {
+    display: grid !important;
+    width: 100%;
+    min-width: 0;
+    padding-bottom: 0 !important;
+    overflow: hidden !important;
+    transform: none !important;
+    justify-content: start;
+    gap: 0.2rem !important;
+    grid-template-columns: repeat(7, minmax(0, var(--inv-dia)));
+}
+
+.inventario-telas-page .inv-telas-dia {
+    width: 100% !important;
+    max-width: var(--inv-dia);
+    min-width: 0 !important;
+    flex-shrink: 1 !important;
+    table-layout: fixed;
+}
+
+.inventario-telas-page .inv-telas-dia th,
+.inventario-telas-page .inv-telas-dia td {
+    min-width: 0 !important;
+    padding: 0.2rem 0.1rem !important;
+}
+
+.inventario-telas-page .inv-telas-calendario input[type="checkbox"] {
+    width: var(--inv-check);
+    height: var(--inv-check);
+    margin: 0;
+    accent-color: #2563eb;
+    flex-shrink: 0;
+}
+
+.inventario-telas-page .inv-telas-calendario label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+}
+
+.inventario-telas-page .inv-telas-calendario th.calendario-fecha-anterior {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
+    border-left: 3px solid #b45309;
+}
+
+@media (max-width: 699px) {
+    .inventario-telas-page .inv-telas-req-row {
+        flex-direction: column !important;
+    }
+
+    .inventario-telas-page .inv-telas-cuentas {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .inventario-telas-page .inv-telas-cuentas-list {
+        flex-direction: row !important;
+        flex-wrap: wrap;
+        gap: 0.75rem !important;
+    }
+
+    .inventario-telas-page .inv-telas-calendario {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+    }
+
+    .inventario-telas-page .inv-telas-dia {
+        max-width: none;
+    }
+}
+
+@media (max-width: 639px) {
+    .inventario-telas-page {
+        --inv-rail: 4.25rem;
+    }
+}
