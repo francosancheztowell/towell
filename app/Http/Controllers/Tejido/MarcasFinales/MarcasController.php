@@ -57,6 +57,17 @@ class MarcasController extends Controller
                 ->orderByDesc('Date')
                 ->get();
 
+            // Turno del capturista: el Turno del folio es la ventana de reloj a la que
+            // pertenecen las marcas; quien las captura puede ser de otro turno (el 4
+            // cubre descansos). Se muestra aparte para no mover la produccion de columna.
+            $turnosCapturista = \App\Models\Sistema\SYSUsuario::query()
+                ->whereIn('numero_empleado', $marcas->pluck('numero_empleado')->filter()->unique()->all())
+                ->pluck('turno', 'numero_empleado');
+
+            $marcas->each(function ($marca) use ($turnosCapturista) {
+                $marca->turno_capturista = $turnosCapturista[$marca->numero_empleado] ?? null;
+            });
+
             $ultimoFolio = $marcas->first();
 
             return view('modulos.marcas-finales.marcasFinales', compact('marcas', 'ultimoFolio', 'esSupervisor'));
@@ -391,6 +402,10 @@ class MarcasController extends Controller
             $lineas = TejMarcasLine::where('Folio', $folio)
                 ->orderBy('NoTelarId')
                 ->get();
+
+            $marca->turno_capturista = \App\Models\Sistema\SYSUsuario::query()
+                ->where('numero_empleado', $marca->numero_empleado)
+                ->value('turno');
 
             return response()->json([
                 'success' => true,

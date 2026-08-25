@@ -112,7 +112,9 @@
                                         -
                                     @endif
                                 </td>
-                                <td class="px-2 md:px-4 py-2 md:py-3 text-gray-900 text-sm md:text-base truncate hover:text-white">{{ $marca->Turno }}</td>
+                                <td class="px-2 md:px-4 py-2 md:py-3 text-gray-900 text-sm md:text-base truncate hover:text-white">
+                                    {{ $marca->Turno }}@if((int) ($marca->turno_capturista ?? 0) === 4)<span class="text-amber-600 font-medium" title="Las marcas son del turno {{ $marca->Turno }}; las capturo personal de turno 4 (cubre descansos)"> (turno 4)</span>@endif
+                                </td>
                 <td class="px-2 md:px-4 py-2 md:py-3 text-gray-900 text-sm md:text-base truncate hover:text-white">{{ $marca->numero_empleado ?? 'N/A' }}</td>
                 <td class="px-2 md:px-4 py-2 md:py-3">
                   @if($marca->Status === 'Finalizado')
@@ -205,6 +207,7 @@
                         <option value="2">Turno 2</option>
                         <option value="3">Turno 3</option>
                     </select>
+                    <p id="edit-turno-capturista" class="mt-1 text-xs text-amber-600 hidden">Capturado por personal de turno 4 (cubre descansos)</p>
                 </div>
                 <div>
                     <label for="edit-empleado" class="block text-sm font-medium text-gray-700 mb-1">No. Empleado</label>
@@ -289,6 +292,7 @@
                     folioTitle: document.getElementById('edit-folio-title'),
                     fecha: document.getElementById('edit-fecha'),
                     turno: document.getElementById('edit-turno'),
+                    turnoCapturista: document.getElementById('edit-turno-capturista'),
                     empleado: document.getElementById('edit-empleado'),
                     nombre: document.getElementById('edit-nombre'),
                     status: document.getElementById('edit-status')
@@ -560,6 +564,10 @@
                 this.dom.modalEditar.fecha.value = fecha;
             }
             if (this.dom.modalEditar.turno) this.dom.modalEditar.turno.value = marca.Turno || '1';
+            if (this.dom.modalEditar.turnoCapturista) {
+                // El Turno del folio es la ventana de reloj; el capturista puede ser turno 4.
+                this.dom.modalEditar.turnoCapturista.classList.toggle('hidden', Number(marca.turno_capturista) !== 4);
+            }
             if (this.dom.modalEditar.empleado) this.dom.modalEditar.empleado.value = marca.numero_empleado || '';
             if (this.dom.modalEditar.nombre) this.dom.modalEditar.nombre.value = marca.nombreEmpl || '';
             if (this.dom.modalEditar.status) this.dom.modalEditar.status.value = marca.Status || 'En Proceso';
