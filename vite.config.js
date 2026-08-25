@@ -29,6 +29,7 @@ export default defineConfig({
         'resources/js/crudo/dashboard.ts',
         'resources/css/urd-eng/program-board.css',
         'resources/js/urd-eng/program-board.ts',
+        'resources/css/tejido/inventario-telas.css',
         'resources/js/catcodificacion/index.js',
         'resources/js/lmat-lista/index.js',
       ],

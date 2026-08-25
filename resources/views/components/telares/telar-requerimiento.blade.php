@@ -54,12 +54,12 @@
     }
 </style>
 
-<div class="{{ $containerClass }}">
-    <div class="md:flex md:flex-col lg:flex-row">
+<div class="inv-telas-req {{ $containerClass }}">
+    <div class="inv-telas-req-row md:flex md:flex-col lg:flex-row">
         <!-- Información de cuentas -->
-        <div class="{{ $accountBoxClass }}">
+        <div class="inv-telas-cuentas {{ $accountBoxClass }}">
             <div class="{{ $accountTitleClass }}">Cuentas:</div>
-            <div class="{{ $accountListClass }}">
+            <div class="inv-telas-cuentas-list {{ $accountListClass }}">
                 <div class="{{ $accountRowClass }}">
                 <div class="flex items-center">
                     <span class="font-medium text-gray-600">RIZO</span>
@@ -95,13 +95,13 @@
             </div>
         </div>
 
-        <div class="lg:flex lg:items-start">
-            <div class="mr-4 md:mr-1.5 lg:mr-4 hidden lg:block">
+        <div class="inv-telas-cal-wrap lg:flex lg:items-start">
+            <div class="inv-telas-fecha mr-4 md:mr-1.5 lg:mr-4 hidden lg:block">
                 <b id="fecha-{{ $telar->Telar }}"></b>
             </div>
 
             <!-- Calendario: por defecto hoy es la primera columna; JS puede ajustar si hay registros con fecha anterior -->
-            <div class="flex gap-1 overflow-x-auto pb-2">
+            <div class="inv-telas-calendario flex gap-1 overflow-x-auto pb-2">
         @for($dia = 0; $dia < $dias; $dia++)
             @php
                 // Por defecto: día 0 = hoy, 1 = hoy+1, ... 6 = hoy+6 (JS actualizará si hay fechas anteriores)
@@ -113,7 +113,7 @@
                 $diaSemana = $diasSemana[$fechaCarbon->dayOfWeek];
             @endphp
 
-            <table class="{{ $calendarTableClass }}">
+            <table class="inv-telas-dia {{ $calendarTableClass }}">
                 <thead>
                     <tr>
                         <th colspan="{{ $turnos }}" class="{{ $calendarHeaderClass }}">

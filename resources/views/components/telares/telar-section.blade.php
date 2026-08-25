@@ -97,7 +97,7 @@
 <div id="telar-{{ $telar->Telar }}" class="telar-section bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden" data-salon="{{ ucfirst($tipo) }}">
     <!-- Header dinámico -->
     @if($isActive)
-        <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 relative">
+        <div class="inv-telas-rail bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 relative">
             <!-- Separador superior -->
             <div class="absolute top-0 left-0 right-0 "></div>
 
@@ -116,7 +116,7 @@
     @if($isActive)
         <!-- Sección EN PROCESO -->
         <div class="p-3">
-            <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
+            <div class="inv-telas-proceso-grid grid grid-cols-2 min-[900px]:grid-cols-4 gap-4">
                 <!-- Información Principal -->
                 <div class="space-y-2">
                     <div class="{{ $rowClass }}">
@@ -220,7 +220,7 @@
             @if($tieneOrdenSig)
                 <!-- Sección SIGUIENTE ORDEN con datos -->
                 <div class="p-3 border-t-2">
-                    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                    <div class="inv-telas-sig-grid grid grid-cols-2 min-[900px]:grid-cols-3 gap-4">
                         <!-- Columna 1: Orden -->
                         <div class="space-y-2">
                             <div class="{{ $rowClass }}">
