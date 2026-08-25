@@ -294,8 +294,20 @@ class AlineacionController extends Controller
     }
 
     /**
-     * Mapa de ReqModelosCodificados por ItemId|InventSizeId|ClaveModelo, usado como respaldo
-     * cuando CatCodificados no trae Tipo Rizo / Altura Rizo para la fila.
+     * Mapa de ReqModelosCodificados, respaldo de Tipo Rizo / Altura Rizo / Med. Cen.
+     * cuando CatCodificados no los trae.
+     *
+     * Cada modelo se indexa DOS veces: por ItemId|InventSizeId|ClaveModelo, que es la
+     * clave exacta, y por ItemId|InventSizeId. Buscar solo por la exacta no encontraba
+     * nada: la mitad del catalogo (3013 de 6172 renglones) tiene ClaveModelo con el
+     * marcador '(MODELO NUEVO)', mientras el programa trae ahi el tamano real
+     * -PULLMAN7630-, asi que el tercer segmento no empataba nunca y las tres columnas
+     * salian vacias en los 36 renglones en proceso.
+     *
+     * Las dos claves no chocan porque tienen distinto numero de segmentos, y el par se
+     * usa solo si la exacta fallo. Colapsar por par es seguro para estos campos: de los
+     * pares con mas de un renglon, ninguno discrepa en Med. Cen. ni en Tipo Rizo, y el
+     * unico que discrepa en Altura Rizo lo resuelve el Id mas reciente, igual que antes.
      *
      * @return array<string, ReqModelosCodificados>
      */
@@ -310,22 +322,24 @@ class AlineacionController extends Controller
         // ponytail: se filtra por ItemId en SQL y la clave compuesta se arma en PHP; el resto
         // del filtro no vale otro indice mientras el set por ItemId sea pequeno.
         foreach (ReqModelosCodificados::query()
-            ->select(['Id', 'ItemId', 'InventSizeId', 'ClaveModelo', 'TipoRizo', 'AlturaRizo'])
+            ->select(['Id', 'ItemId', 'InventSizeId', 'ClaveModelo', 'TipoRizo', 'AlturaRizo', 'MedidaCenefa'])
             ->whereIn('ItemId', $items)
             ->orderByDesc('Id')
             ->get() as $m) {
-            $key = $this->claveModelo($m->ItemId, $m->InventSizeId, $m->ClaveModelo);
-            if (! isset($map[$key])) {
-                $map[$key] = $m;
-            }
+            // orderByDesc('Id') + ??= : ante varios candidatos gana el mas reciente.
+            $map[$this->claveModelo($m->ItemId, $m->InventSizeId, $m->ClaveModelo)] ??= $m;
+            $map[$this->claveModelo($m->ItemId, $m->InventSizeId)] ??= $m;
         }
 
         return $map;
     }
 
-    private function claveModelo($itemId, $inventSizeId, $claveModelo): string
+    /** Con $claveModelo en null devuelve la clave corta, la de solo ItemId|InventSizeId. */
+    private function claveModelo($itemId, $inventSizeId, $claveModelo = null): string
     {
-        return trim((string) ($itemId ?? '')).'|'.trim((string) ($inventSizeId ?? '')).'|'.trim((string) ($claveModelo ?? ''));
+        $clave = trim((string) ($itemId ?? '')).'|'.trim((string) ($inventSizeId ?? ''));
+
+        return $claveModelo === null ? $clave : $clave.'|'.trim((string) $claveModelo);
     }
 
     /**
@@ -380,8 +394,13 @@ class AlineacionController extends Controller
     {
         $noOrden = trim((string) ($r->NoProduccion ?? ''));
         $cat = $catCodPorOrden[$noOrden] ?? null;
-        // Respaldo para Tipo Rizo / Alt Rizo cuando el catalogo no los trae.
+        // Respaldo para Tipo Rizo / Alt Rizo / Med. Cen. cuando el catalogo no los trae.
+        // La clave exacta manda, pero el respaldo se resuelve campo por campo y no de
+        // golpe: hay modelos que empatan exacto y traen el campo vacio mientras otro
+        // renglon del mismo ItemId|InventSizeId si lo tiene. Elegir un solo modelo y
+        // quedarse con sus huecos dejaba Alt Rizo en 15 de 36 pudiendo llenar 29.
         $modelo = $modelosPorClave[$this->claveModelo($r->ItemId, $r->InventSizeId, $r->TamanoClave)] ?? null;
+        $modeloPar = $modelosPorClave[$this->claveModelo($r->ItemId, $r->InventSizeId)] ?? null;
 
         $item = [];
         $mapeoEspecial = [
@@ -415,19 +434,19 @@ class AlineacionController extends Controller
             'FechaCambio' => fn () => $cat?->FechaTejido ? $this->formatDateAlineacion($cat->FechaTejido, 'd M Y') : '',
             'Tolerancia' => fn () => $cat?->Tolerancia,
             'RazSN' => fn () => $cat?->Razurada,
-            'TipoRizo' => fn () => $this->primeroConDato($cat?->TipoRizo, $modelo?->TipoRizo),
+            'TipoRizo' => fn () => $this->primeroConDato($cat?->TipoRizo, $modelo?->TipoRizo, $modeloPar?->TipoRizo),
             'TipoPlano' => fn () => $cat?->DobladilloId,
             'Observaciones' => fn () => $cat?->Obs5,
             // PesoMuestra es nvarchar en SQL Server y arrastra ruido de float ("4.8200002"):
             // se redondea aquí para que web, Excel y PDF muestren lo mismo.
             'PesoGRM2' => fn () => $cat?->PesoMuestra !== null ? round((float) $cat->PesoMuestra, 3) : null,
-            // "Med. Cen." es texto con diagonales en el catálogo ("7/2.5", "1/1/1/1/1"),
-            // no un ancho numérico: se pasa tal cual, sin formateo.
-            'AnchoToalla' => fn () => $cat?->MedidaCenefa,
+            // "Med. Cen." es texto con diagonales ("7/2.5", "1/1/1/1/1"), no un ancho numérico.
+            // Primero CatCodificados por orden; si no hay dato, ReqModelosCodificados por clave.
+            'AnchoToalla' => fn () => $this->primeroConDato($cat?->MedidaCenefa, $modelo?->MedidaCenefa, $modeloPar?->MedidaCenefa),
             'MedidaPlano' => fn () => $cat?->MedidaPlano,
             // La columna se llama CalibreRizo por historia, pero muestra "Alt Rizo":
             // el dato real es CatCodificados.AlturaRizo, no el calibre del programa.
-            'CalibreRizo' => fn () => $this->primeroConDato($cat?->AlturaRizo, $modelo?->AlturaRizo),
+            'CalibreRizo' => fn () => $this->primeroConDato($cat?->AlturaRizo, $modelo?->AlturaRizo, $modeloPar?->AlturaRizo),
             'PesoMin' => fn () => $pesoMinAlineacion,
             'PesoMax' => fn () => $pesoMaxAlineacion,
             'MuestraMin' => fn () => $muestraMinAlineacion,

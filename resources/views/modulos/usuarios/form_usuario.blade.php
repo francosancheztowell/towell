@@ -112,6 +112,7 @@
                                     <option value="1" {{ old('turno', $usuario->turno ?? '') == '1' ? 'selected' : '' }}>Turno 1</option>
                                     <option value="2" {{ old('turno', $usuario->turno ?? '') == '2' ? 'selected' : '' }}>Turno 2</option>
                                     <option value="3" {{ old('turno', $usuario->turno ?? '') == '3' ? 'selected' : '' }}>Turno 3</option>
+                                    <option value="4" {{ old('turno', $usuario->turno ?? '') == '4' ? 'selected' : '' }}>Turno 4 (Cubre descansos)</option>
                                 </select>
                             </div>
 

@@ -170,4 +170,20 @@ return [
         'trim',
         explode(',', (string) env('CRUDO_REPORTE_CORREOS', '')),
     ))),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Aviso de alineación incorrecta
+    |--------------------------------------------------------------------------
+    |
+    | Destinatarios del correo que se manda al instante cuando una auditoría
+    | marca en tache "¿La alineación coincide con la orden?". Es otra lista:
+    | esto le toca a Planeación, no a quien recibe el reporte diario. Vacío
+    | desactiva el aviso.
+    |
+    */
+    'alineacion_recipients' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('CRUDO_ALINEACION_CORREOS', '')),
+    ))),
 ];

@@ -9,7 +9,9 @@ use App\Http\Requests\Crudo\ListCrudoAuditsRequest;
 use App\Http\Requests\Crudo\StoreCrudoAuditRequest;
 use App\Http\Requests\Crudo\StoreCrudoAuditWithStopRequest;
 use App\Http\Resources\Crudo\CrudoAuditHistoryResource;
+use App\Models\Crudo\CrudoAuditoria;
 use App\Services\Crudo\CrudoAccess;
+use App\Services\Crudo\CrudoAlineacionNotifier;
 use App\Services\Crudo\CrudoAuditService;
 use App\Services\Mantenimiento\ParoTelegramNotifier;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -22,6 +24,7 @@ final class CrudoAuditController extends Controller
         private readonly CrudoAccess $access,
         private readonly CrudoAuditService $audits,
         private readonly ParoTelegramNotifier $notifier,
+        private readonly CrudoAlineacionNotifier $alineacion,
     ) {}
 
     public function today(ListCrudoAuditsRequest $request): AnonymousResourceCollection
@@ -41,6 +44,7 @@ final class CrudoAuditController extends Controller
     {
         $this->access->authorizeRegister();
         $audit = $this->audits->storeAudit($request->validated(), $this->user($request));
+        $this->avisarAlineacion($audit);
 
         return response()->json([
             'success' => true,
@@ -58,6 +62,7 @@ final class CrudoAuditController extends Controller
         $result = $this->audits->storeAuditWithStop($request->validated(), $this->user($request));
         $stop = $result['stop'];
         $notifier = $this->notifier;
+        $this->avisarAlineacion($result['audit']);
 
         defer(
             static fn () => $notifier->notifyCreated($stop),
@@ -80,6 +85,20 @@ final class CrudoAuditController extends Controller
                 ],
             ],
         ], 201);
+    }
+
+    /** Aviso de alineación incorrecta: fuera del ciclo de respuesta, como el Telegram del paro. */
+    private function avisarAlineacion(CrudoAuditoria $audit): void
+    {
+        if ($audit->AlineacionOrden !== false) {
+            return;
+        }
+
+        $notifier = $this->alineacion;
+        defer(
+            static fn () => $notifier->notify($audit),
+            name: 'crudo-alineacion-mail-'.$audit->getKey(),
+        );
     }
 
     private function user(StoreCrudoAuditRequest $request): Authenticatable

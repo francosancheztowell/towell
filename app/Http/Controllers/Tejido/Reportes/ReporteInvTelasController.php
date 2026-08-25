@@ -291,11 +291,15 @@ class ReporteInvTelasController extends Controller
 
             $fechaStr = $registro->fecha ? Carbon::parse($registro->fecha)->format('Y-m-d') : null;
             if ($fechaStr && isset($agrupadoPorTelar[$noTelar]['por_dia'][$fechaStr])) {
-                $detalleDia = &$agrupadoPorTelar[$noTelar]['por_dia'][$fechaStr];
                 $turno = (int) ($registro->turno ?? 1);
-                if ($turno < 1 || $turno > 3) {
-                    $turno = 1;
+
+                // Histórico con turno 4 (comodín): se omite. Antes se re-etiquetaba como
+                // turno 1, lo que SUMABA producción ajena al turno 1 y falseaba el reporte.
+                if (! in_array($turno, [1, 2, 3], true)) {
+                    continue;
                 }
+
+                $detalleDia = &$agrupadoPorTelar[$noTelar]['por_dia'][$fechaStr];
 
                 $colorRegistro = $this->resolverColorCeldaInventario($registro);
                 $detalleDia['turnos'][$turno]['color'] = $this->priorizarColor(

@@ -6,10 +6,21 @@ use App\Exports\DesarrolladoresReporteExport;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportesDesarrolladoresController extends Controller
 {
+    /** Nombre del modulo en SYSRoles (idrol 186). */
+    private const MODULO = 'Reportes Desarrolladores';
+
+    public function __construct()
+    {
+        // El invitado pasa de largo para que 'auth' lo mande al login; aqui solo se
+        // frena al usuario ya autenticado que no tiene el modulo asignado.
+        abort_if(Auth::check() && ! userCan('acceso', self::MODULO), 403, 'Sin permiso para los reportes de desarrolladores.');
+    }
+
     /**
      * Selector de reportes: muestra los reportes disponibles
      */
@@ -32,6 +43,12 @@ class ReportesDesarrolladoresController extends Controller
      */
     public function reportePrograma(Request $request)
     {
+        // Sin esto, cualquier cadena que no sea fecha revienta en Carbon::parse con un 500.
+        $request->validate([
+            'fecha_ini' => 'nullable|date',
+            'fecha_fin' => 'nullable|date',
+        ]);
+
         $fechaIni = $request->query('fecha_ini');
         $fechaFin = $request->query('fecha_fin');
 
@@ -57,6 +74,12 @@ class ReportesDesarrolladoresController extends Controller
      */
     public function exportarExcel(Request $request)
     {
+        $request->validate([
+            'fecha_inicio' => 'nullable|date',
+            'fecha_ini' => 'nullable|date',
+            'fecha_fin' => 'nullable|date',
+        ]);
+
         $fechaInicio = $request->input('fecha_inicio') ?? $request->query('fecha_ini');
         $fechaFin = $request->input('fecha_fin') ?? $request->query('fecha_fin');
 

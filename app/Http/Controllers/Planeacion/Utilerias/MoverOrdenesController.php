@@ -597,7 +597,7 @@ class MoverOrdenesController extends Controller
         if (empty($idsCambioSalon)) {
             return;
         }
-        $movimientoService = new MovimientoDesarrolladorService;
+        $movimientoService = app(MovimientoDesarrolladorService::class);
         $registrosMovidos = ReqProgramaTejido::query()->whereIn('Id', array_unique($idsCambioSalon))->get();
         /** @var ReqProgramaTejido $regMovido */
         foreach ($registrosMovidos as $regMovido) {

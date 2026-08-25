@@ -98,6 +98,49 @@ class CatCodificadosDesarrolladorServiceTest extends TestCase
         $this->assertSame('MBOR31CH21I', $guardado->CodigoDibujo);
     }
 
+    /**
+     * En produccion hay 15 numeros de orden que describen productos DISTINTOS en telares
+     * distintos. Antes se leia el renglon del telar del operador (resolveForRead, con telar)
+     * pero se escribia en el del Id mas alto (resolveCanonical, sin telar), asi que la
+     * captura de un telar pisaba el producto del otro.
+     */
+    public function test_resolve_canonical_prefiere_el_renglon_del_telar_indicado(): void
+    {
+        $delTelar = CatCodificados::query()->create(['OrdenTejido' => 'M2776', 'TelarId' => '202']);
+        $otroProducto = CatCodificados::query()->create(['OrdenTejido' => 'M2776', 'TelarId' => '306']);
+
+        $registro = $this->catCodificadosService->resolveCanonical('M2776', '202');
+
+        $this->assertSame($delTelar->Id, $registro->Id, 'Debe escribir en el renglon del telar capturado.');
+        $this->assertNotSame($otroProducto->Id, $registro->Id, 'El otro producto no debe tocarse.');
+    }
+
+    public function test_lectura_y_escritura_apuntan_al_mismo_renglon(): void
+    {
+        CatCodificados::query()->create(['OrdenTejido' => 'M2776', 'TelarId' => '202']);
+        CatCodificados::query()->create(['OrdenTejido' => 'M2776', 'TelarId' => '306']);
+
+        $leido = $this->catCodificadosService->resolveForRead('M2776', '202');
+        $escrito = $this->catCodificadosService->resolveCanonical('M2776', '202');
+
+        $this->assertSame($leido->Id, $escrito->Id, 'Leer de uno y escribir en otro era el fallo.');
+    }
+
+    /**
+     * El respaldo no es opcional: tras un cambio de telar el renglon conserva el telar
+     * viejo mientras el programa ya esta en el nuevo. Sin respaldo se crearian duplicados
+     * espurios en cada movimiento.
+     */
+    public function test_sin_renglon_para_ese_telar_cae_al_id_mas_alto(): void
+    {
+        CatCodificados::query()->create(['OrdenTejido' => 'ORD-700', 'TelarId' => '101']);
+        $masAlto = CatCodificados::query()->create(['OrdenTejido' => 'ORD-700', 'TelarId' => '202']);
+
+        $registro = $this->catCodificadosService->resolveCanonical('ORD-700', '999');
+
+        $this->assertSame($masAlto->Id, $registro->Id);
+    }
+
     public function test_resolve_canonical_devuelve_el_id_mas_alto_sin_eliminar_duplicados(): void
     {
         CatCodificados::query()->create(['OrdenTejido' => 'ORD-500', 'CodigoDibujo' => 'OLD-A']);

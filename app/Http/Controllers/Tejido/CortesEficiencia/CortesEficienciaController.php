@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 
 class CortesEficienciaController extends Controller
@@ -213,7 +214,7 @@ class CortesEficienciaController extends Controller
 
             // Usar fecha y turno del request si se proporcionaron, de lo contrario usar valores del sistema
             $fecha = $request->query('fecha', now()->toDateString());
-            $turno = $request->query('turno', TurnoHelper::getTurnoActual());
+            $turno = (string) TurnoHelper::resolverTurnoOperativo($request->query('turno', TurnoHelper::getTurnoActual()));
 
             // 1. Verificar si ya existe un folio para esta misma fecha y turno (independientemente del status)
             // Esta es la restricción principal para evitar duplicados por turno
@@ -309,7 +310,7 @@ class CortesEficienciaController extends Controller
             $validated = $request->validate([
                 'folio' => 'required|string|max:20',
                 'fecha' => 'required|date',
-                'turno' => 'required|string|max:10',
+                'turno' => 'required|in:1,2,3',
                 'status' => 'required|string|max:20',
                 'usuario' => 'required|string|max:100',
                 'noEmpleado' => 'required|string|max:20',
@@ -466,7 +467,7 @@ class CortesEficienciaController extends Controller
             $request->validate([
                 'folio' => 'required|string|max:20',
                 'fecha' => 'required|date',
-                'turno' => 'required|string|max:10',
+                'turno' => 'required|in:1,2,3',
                 'status' => 'required|string|max:20',
                 'usuario' => 'required|string|max:100',
                 'noEmpleado' => 'required|string|max:20',
@@ -897,7 +898,7 @@ class CortesEficienciaController extends Controller
         try {
             $validated = $request->validate([
                 'folio' => 'required|string',
-                'turno' => 'required|integer',
+                'turno' => 'required|integer|in:1,2,3',
                 'horario' => 'required|integer|min:1|max:3',
                 'hora' => 'required|string',
                 'fecha' => 'required|date',
@@ -970,6 +971,7 @@ class CortesEficienciaController extends Controller
                 'datos' => $info['datos'],
                 'foliosPorTurno' => $info['foliosPorTurno'],
                 'horariosPorTurno' => $info['horariosPorTurno'],
+                'coberturaT4PorTurno' => $info['coberturaT4PorTurno'] ?? [],
                 'maxTurno' => $corteBase->Turno,
             ]);
         } catch (\Exception $e) {
@@ -1101,6 +1103,7 @@ class CortesEficienciaController extends Controller
                 'datos' => $info['datos'],
                 'foliosPorTurno' => $info['foliosPorTurno'],
                 'horariosPorTurno' => $info['horariosPorTurno'],
+                'coberturaT4PorTurno' => $info['coberturaT4PorTurno'] ?? [],
                 'maxTurno' => $info['maxTurno'] ?? 3,
             ])->render();
 
@@ -1203,6 +1206,7 @@ class CortesEficienciaController extends Controller
             });
 
         $horariosPorTurno = [];
+        $coberturaT4PorTurno = [];
         foreach ([1, 2, 3] as $turno) {
             $folioTurno = $foliosPorTurno[(string) $turno] ?? null;
             $key = (string) $turno.'|'.(string) $folioTurno;
@@ -1214,6 +1218,12 @@ class CortesEficienciaController extends Controller
                 1 => $this->formatearHora($corteTurno->Horario1 ?? null),
                 2 => $this->formatearHora($corteTurno->Horario2 ?? null),
                 3 => $this->formatearHora($corteTurno->Horario3 ?? null),
+            ];
+
+            // El turno 4 no se guarda: se marca que este turno lo cubrió el comodín.
+            $coberturaT4PorTurno[(string) $turno] = [
+                'cubierto' => TurnoHelper::esCoberturaT4($corteTurno->numero_empleado ?? null),
+                'empleado' => $corteTurno->nombreEmpl ?? null,
             ];
         }
 
@@ -1235,6 +1245,7 @@ class CortesEficienciaController extends Controller
             'datos' => $datos,
             'foliosPorTurno' => $foliosPorTurno,
             'horariosPorTurno' => $horariosPorTurno,
+            'coberturaT4PorTurno' => $coberturaT4PorTurno,
         ];
     }
 
@@ -1564,6 +1575,7 @@ class CortesEficienciaController extends Controller
             'datos' => $info['datos'],
             'foliosPorTurno' => $info['foliosPorTurno'],
             'horariosPorTurno' => $info['horariosPorTurno'],
+            'coberturaT4PorTurno' => $info['coberturaT4PorTurno'] ?? [],
             'maxTurno' => $maxTurno,
         ])->render();
 
@@ -1599,7 +1611,7 @@ class CortesEficienciaController extends Controller
 
     private function normalizarFecha($fecha)
     {
-        if ($fecha instanceof \Carbon\Carbon) {
+        if ($fecha instanceof Carbon) {
             return $fecha->toDateString();
         }
 
@@ -1615,7 +1627,7 @@ class CortesEficienciaController extends Controller
             $validated = $request->validate([
                 'folio' => 'required|string|max:20',
                 'fecha' => 'required|date',
-                'turno' => 'required|string|max:10',
+                'turno' => 'required|in:1,2,3',
                 'datos_telares' => 'required|array',
                 'datos_telares.*.NoTelar' => 'required|integer',
                 'datos_telares.*.RpmStd' => 'nullable|numeric',
@@ -1704,7 +1716,7 @@ class CortesEficienciaController extends Controller
                 throw $e;
             }
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación',

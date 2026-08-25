@@ -87,7 +87,7 @@ class ConsultasDesarrolladorServiceTest extends TestCase
             ],
         ]);
 
-        $service = new ConsultasDesarrolladorService();
+        $service = app(ConsultasDesarrolladorService::class);
 
         $resultado = $service->obtenerJuliosPorTelar('101');
 
@@ -110,7 +110,7 @@ class ConsultasDesarrolladorServiceTest extends TestCase
             ['SalonTejidoId' => 'S2', 'NoTelarId' => '202', 'NoProduccion' => null, 'FechaInicio' => null, 'TamanoClave' => null, 'NombreProducto' => null, 'EnProceso' => 0],
         ]);
 
-        $service = new ConsultasDesarrolladorService();
+        $service = app(ConsultasDesarrolladorService::class);
         $result = $service->obtenerTelaresDestino();
 
         $labels = $result->pluck('label')->all();
@@ -131,7 +131,7 @@ class ConsultasDesarrolladorServiceTest extends TestCase
             ['SalonTejidoId' => 'S2', 'NoTelarId' => '202', 'NoProduccion' => null, 'FechaInicio' => null, 'TamanoClave' => null, 'NombreProducto' => null, 'EnProceso' => 0],
         ]);
 
-        $service = new ConsultasDesarrolladorService();
+        $service = app(ConsultasDesarrolladorService::class);
         $result = $service->obtenerTelaresDestino();
 
         $values = $result->pluck('value')->all();
@@ -153,7 +153,7 @@ class ConsultasDesarrolladorServiceTest extends TestCase
             ['SalonTejidoId' => null, 'NoTelarId' => null, 'NoProduccion' => null, 'FechaInicio' => null, 'TamanoClave' => null, 'NombreProducto' => null, 'EnProceso' => 0],
         ]);
 
-        $service = new ConsultasDesarrolladorService();
+        $service = app(ConsultasDesarrolladorService::class);
         $result = $service->obtenerTelaresDestino();
 
         $this->assertCount(1, $result, 'Only rows with both SalonTejidoId and NoTelarId non-null should be returned');
@@ -174,7 +174,7 @@ class ConsultasDesarrolladorServiceTest extends TestCase
             ],
         ]);
 
-        $service = new ConsultasDesarrolladorService();
+        $service = app(ConsultasDesarrolladorService::class);
         $result = $service->obtenerProducciones('101');
 
         $this->assertTrue($result['success']);
@@ -216,7 +216,7 @@ class ConsultasDesarrolladorServiceTest extends TestCase
             ],
         ]);
 
-        $service = new ConsultasDesarrolladorService();
+        $service = app(ConsultasDesarrolladorService::class);
         $result = $service->obtenerProducciones('101');
 
         $this->assertTrue($result['success']);

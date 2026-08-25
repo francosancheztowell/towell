@@ -2,16 +2,18 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\NotificacionTelegramMuestrasService;
+use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\NotificacionTelegramDesarrolladorService;
+use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ProcesarMuestrasDesarrolladorService;
 use App\Models\Sistema\SYSMensaje;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use ReflectionProperty;
 use Tests\TestCase;
 
-class NotificacionTelegramMuestrasServiceTest extends TestCase
+class NotificacionTelegramDestinatariosTest extends TestCase
 {
     protected function setUp(): void
     {
@@ -73,7 +75,9 @@ class NotificacionTelegramMuestrasServiceTest extends TestCase
 
         Http::fake();
 
-        $service = new NotificacionTelegramMuestrasService();
+        // Por el contenedor, no con new: el modulo y el titulo de muestras viven en el
+        // binding contextual de AppServiceProvider desde que los dos servicios son uno.
+        $service = $this->notificadorDeMuestras();
         $programa = (object) [
             'FechaInicio' => null,
             'FechaFinal' => null,
@@ -91,5 +95,18 @@ class NotificacionTelegramMuestrasServiceTest extends TestCase
                 && $request['chat_id'] === 'chat-pruebas'
                 && str_contains((string) $request['text'], 'PROCESO MUESTRA - DESARROLLADOR COMPLETADO');
         });
+    }
+
+    /**
+     * El notificador tal como lo recibe la captura de muestras: resuelto por el
+     * contenedor, para que el test falle si alguien toca el binding contextual.
+     */
+    private function notificadorDeMuestras(): NotificacionTelegramDesarrolladorService
+    {
+        $procesar = $this->app->make(ProcesarMuestrasDesarrolladorService::class);
+        $propiedad = new ReflectionProperty($procesar, 'telegramService');
+        $propiedad->setAccessible(true);
+
+        return $propiedad->getValue($procesar);
     }
 }

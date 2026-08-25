@@ -2,15 +2,15 @@
 
 use App\Http\Controllers\Tejedores\BPMTejedores\TelBpmController;
 use App\Http\Controllers\Tejedores\BPMTejedores\TelBpmLineController;
-use App\Http\Controllers\Tejedores\Configuracion\CatDesarrolladores\catDesarrolladoresController;
+use App\Http\Controllers\Tejedores\Configuracion\CatalogoCalibres\CatalogoCalibresController;
 use App\Http\Controllers\Tejedores\Configuracion\TelaresOperador\TelTelaresOperadorController;
 use App\Http\Controllers\Tejedores\Desarrolladores\TelDesarrolladoresController;
 use App\Http\Controllers\Tejedores\Desarrolladores\TelDesarrolladoresMuestrasController;
 use App\Http\Controllers\Tejedores\InventarioTelaresController;
-use App\Http\Controllers\Tejedores\Reportes\ReportesDesarrolladoresController;
-use App\Http\Controllers\Tejedores\Reportes\ReportesTejedoresController;
 use App\Http\Controllers\Tejedores\NotificarMontadoJulios\NotificarMontadoJulioController;
 use App\Http\Controllers\Tejedores\NotificarMontadoRollo\NotificarMontRollosController;
+use App\Http\Controllers\Tejedores\Reportes\ReportesDesarrolladoresController;
+use App\Http\Controllers\Tejedores\Reportes\ReportesTejedoresController;
 use App\Http\Controllers\Tejedores\TelActividadesBPMController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
@@ -24,8 +24,10 @@ Route::prefix('tejedores')->name('tejedores.')->group(function () {
     Route::get('/configurar', [UsuarioController::class, 'showTejedoresConfiguracion'])->name('configurar');
 
     Route::get('/configurar/telaresxoperador', [TelTelaresOperadorController::class, 'index'])->name('configurar.telares-operador');
-    Route::get('/configurar/catalogodesarrolladores', [catDesarrolladoresController::class, 'index'])->name('configurar.catalogo-desarrolladores');
     Route::get('/configurar/actividadestejedores', [TelActividadesBPMController::class, 'index'])->name('configurar.actividades');
+
+    // Catalogo de calibres de desarrolladores (listado + CRUD en el componente Livewire CatalogoCalibres)
+    Route::get('/configurar/catalogo-calibres', [CatalogoCalibresController::class, 'index'])->name('configurar.catalogo-calibres');
 
     Route::get('/bpmtejedores', [TelBpmController::class, 'index'])->name('bpm');
     Route::redirect('/bpm', '/tejedores/bpmtejedores', 301);
@@ -78,7 +80,7 @@ Route::prefix('tejedores')->group(function () {
 // Legacy URL: mantener rutas tel-bpm.* pero no mostrar el listado por /tel-bpm
 // (La ruta real de navegación es /tejedores/bpmtejedores)
 // IMPORTANTE: Solo redirect para GET, no para POST/PUT/DELETE (para que funcione el resource)
-Route::get('/tel-bpm', function() {
+Route::get('/tel-bpm', function () {
     return redirect('/tejedores/bpmtejedores', 301);
 });
 
@@ -122,31 +124,13 @@ Route::controller(InventarioTelaresController::class)
         Route::get('/verificar-turnos-ocupados', 'verificarTurnosOcupados')->name('verificar.turnos.ocupados');
     });
 
-Route::get('/desarrolladores', [TelDesarrolladoresController::class, 'index'])->name('desarrolladores');
-Route::get('/desarrolladores/telar/{telarId}/producciones', [TelDesarrolladoresController::class, 'obtenerProducciones'])->name('desarrolladores.obtener-producciones');
-Route::get('/desarrolladores/telar/{telarId}/producciones-html', [TelDesarrolladoresController::class, 'obtenerProduccionesHtml'])->name('desarrolladores.obtener-producciones-html');
-Route::get('/desarrolladores/verificar-orden', [TelDesarrolladoresController::class, 'verificarOrden'])->name('desarrolladores.verificar-orden');
-Route::get('/desarrolladores/telar/{telarId}/orden-en-proceso', [TelDesarrolladoresController::class, 'obtenerOrdenEnProceso'])->name('desarrolladores.orden-en-proceso');
-Route::get('/desarrolladores/telar/{telarId}/julios', [TelDesarrolladoresController::class, 'obtenerJuliosPorTelar'])->name('desarrolladores.obtener-julios');
-Route::get('/desarrolladores/telar/{telarId}/produccion/{noProduccion}', [TelDesarrolladoresController::class, 'formularioDesarrollador'])->name('desarrolladores.formulario');
-Route::get('/desarrolladores/orden/{noProduccion}/detalles', [TelDesarrolladoresController::class, 'obtenerDetallesOrden'])->name('desarrolladores.obtener-detalles-orden');
-Route::get('/desarrolladores/registro/{id}/detalles', [TelDesarrolladoresController::class, 'obtenerDetallesOrdenPorId'])->name('desarrolladores.obtener-detalles-orden-por-id');
-Route::get('/desarrolladores/modelo-codificado/{salonTejidoId}/{tamanoClave}', [TelDesarrolladoresController::class, 'obtenerCodigoDibujo'])->name('desarrolladores.obtener-codigo-dibujo');
-Route::get('/desarrolladores/catcodificados/{telarId}/{noProduccion}', [TelDesarrolladoresController::class, 'obtenerRegistroCatCodificado'])->name('desarrolladores.obtener-registro-catcodificado');
+// Enlace historico: el menu (SYSRoles.Ruta) apunta a /tejedores/desarrolladores.
+Route::redirect('/desarrolladores', '/tejedores/desarrolladores', 301);
 Route::post('/desarrolladores', [TelDesarrolladoresController::class, 'store'])->name('desarrolladores.store');
-Route::post('/desarrolladores/exportar-excel', [TelDesarrolladoresController::class, 'exportarExcel'])->name('desarrolladores.exportar.excel');
 
 // Desarrolladores Muestras
-Route::get('/desarrolladores-muestras/telar/{telarId}/producciones', [TelDesarrolladoresMuestrasController::class, 'obtenerProducciones']);
-Route::get('/desarrolladores-muestras/orden/{noProduccion}/detalles', [TelDesarrolladoresMuestrasController::class, 'obtenerDetallesOrden']);
-Route::get('/desarrolladores-muestras/modelo-codificado/{salonTejidoId}/{tamanoClave}', [TelDesarrolladoresMuestrasController::class, 'obtenerCodigoDibujo']);
-Route::get('/desarrolladores-muestras/catcodificados/{telarId}/{noProduccion}', [TelDesarrolladoresMuestrasController::class, 'obtenerRegistroCatCodificado']);
 Route::post('/desarrolladores-muestras', [TelDesarrolladoresMuestrasController::class, 'store'])->name('desarrolladores-muestras.store');
 
-Route::get('catalogo-desarrolladores', [catDesarrolladoresController::class, 'index'])->name('desarrolladores.catalogo-desarrolladores');
-Route::post('catalogo-desarrolladores', [catDesarrolladoresController::class, 'store'])->name('cat-desarrolladores.store');
-Route::put('catalogo-desarrolladores/{cat_desarrolladore}', [catDesarrolladoresController::class, 'update'])->name('cat-desarrolladores.update');
-Route::delete('catalogo-desarrolladores/{cat_desarrolladore}', [catDesarrolladoresController::class, 'destroy'])->name('cat-desarrolladores.destroy');
 
 // Reportes Desarrolladores
 Route::prefix('tejedores/reportes-desarrolladores')->name('tejedores.reportes-desarrolladores.')->group(function () {

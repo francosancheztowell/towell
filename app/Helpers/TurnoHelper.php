@@ -2,6 +2,7 @@
 
 namespace App\Helpers;
 
+use App\Models\Sistema\SYSUsuario;
 use Carbon\Carbon;
 
 class TurnoHelper
@@ -34,6 +35,67 @@ class TurnoHelper
     }
 
     /**
+     * Turno operativo (ventana de reloj) de un registro capturado por este empleado.
+     *
+     * El turno 4 es comodín: cubre a los turnos 1, 2 o 3 cuando falta gente y no
+     * tiene horario propio. Por eso el registro se guarda con el turno que el reloj
+     * está cubriendo en ese momento; el "4" vive sólo en SYSUsuario.turno.
+     */
+    public static function resolverTurnoOperativo(mixed $turnoEmpleado): int
+    {
+        $t = (int) $turnoEmpleado;
+
+        // ponytail: sin parámetro de hora; asume captura en tiempo real.
+        // Si aparecen capturas a destiempo, aceptar $hora y derivarla igual que getTurnoActual().
+        return in_array($t, [1, 2, 3], true) ? $t : (int) self::getTurnoActual();
+    }
+
+    /**
+     * ¿Este turno de empleado es el comodín que cubre descansos? Para marcar la celda
+     * en reportes sin sacar el registro de la columna del turno que cubrió.
+     */
+    public static function esComodin(mixed $turnoEmpleado): bool
+    {
+        return (int) $turnoEmpleado === 4;
+    }
+
+    /**
+     * ¿El empleado que capturó este registro es comodín de turno 4?
+     *
+     * El 4 no se guarda en las columnas de ventana de reloj: el registro vive en el
+     * turno que cubrió. Esta marca se deriva del empleado para poder distinguir
+     * plantilla de cobertura al leer el reporte.
+     *
+     * Vive aquí y no en un helper global a proposito: los archivos de
+     * composer autoload.files exigen dump-autoload en cada despliegue.
+     */
+    public static function esCoberturaT4(?string $claveEmpleado): bool
+    {
+        static $cache = [];
+
+        $clave = trim((string) $claveEmpleado);
+        if ($clave === '') {
+            return false;
+        }
+
+        if (array_key_exists($clave, $cache)) {
+            return $cache[$clave];
+        }
+
+        try {
+            // ponytail: consulta puntual memoizada por request. Si un reporte pinta
+            // cientos de empleados distintos, precargar con un whereIn en el controlador.
+            $turno = SYSUsuario::query()->where('numero_empleado', $clave)->value('turno');
+        } catch (\Throwable $e) {
+            // La marca es informativa: sin catalogo de usuarios el reporte sale
+            // completo y correcto, solo sin el distintivo.
+            return $cache[$clave] = false;
+        }
+
+        return $cache[$clave] = self::esComodin($turno);
+    }
+
+    /**
      * Obtiene la descripción del turno
      */
     public static function getDescripcionTurno(string $turno): string
@@ -45,6 +107,8 @@ class TurnoHelper
                 return '2:30 PM - 10:30 PM';
             case '3':
                 return '10:30 PM - 6:30 AM';
+            case '4':
+                return 'Cubre descansos (sin horario fijo)';
             default:
                 return 'Turno no válido';
         }
@@ -62,6 +126,8 @@ class TurnoHelper
                 return 'Turno 2';
             case '3':
                 return 'Turno 3';
+            case '4':
+                return 'Turno 4';
             default:
                 return 'Turno no válido';
         }

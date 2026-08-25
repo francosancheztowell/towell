@@ -319,6 +319,7 @@ class CatCodificacionController extends Controller
 
             $registro = CatCodificados::query()
                 ->where('OrdenTejido', $ordenTejido)
+                ->orderByDesc('Id')
                 ->first(['OrdenTejido', 'TelarId', 'ItemId', 'InventSizeId', 'Nombre', 'ClaveModelo', 'ActualizaLmat', 'PesoMuestra', 'AlturaRizo', 'BomId', 'BomName']);
 
             if (! $registro) {
@@ -416,6 +417,7 @@ class CatCodificacionController extends Controller
                 // Necesitamos ItemId e InventSizeId para buscar BomName
                 $catCod = CatCodificados::query()
                     ->where('OrdenTejido', $ordenTejido)
+                    ->orderByDesc('Id')
                     ->first(['ItemId', 'InventSizeId']);
 
                 $bomVigente = false;
@@ -446,8 +448,11 @@ class CatCodificacionController extends Controller
             $actualizados = [];
 
             // 1. Actualizar CatCodificados
+            // Sin desempate, un numero de orden reutilizado entre telares elegia renglon
+            // al azar --y aqui ademas se escribe. Mismo criterio que CodificacionController.
             $catCod = CatCodificados::query()
                 ->where('OrdenTejido', $ordenTejido)
+                ->orderByDesc('Id')
                 ->first();
             if ($catCod) {
                 $catCod->PesoMuestra = $pesoMuestra;

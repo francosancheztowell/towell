@@ -5,3 +5,17 @@
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
+
+/* Alpine oculta con x-cloak hasta que arranca, pero solo si el CSS lo define.
+   Se usa en 13 sitios del repo y no existia la regla: los paneles se pintaban
+   visibles durante el primer render. */
+[x-cloak] {
+    display: none !important;
+}
+
+/* Barra de progreso de la captura de desarrolladores: recorre el ancho mientras
+   Livewire tiene una peticion en vuelo. */
+@keyframes barra {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(400%); }
+}

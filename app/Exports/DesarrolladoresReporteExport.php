@@ -34,8 +34,17 @@ class DesarrolladoresReporteExport implements FromCollection, WithColumnWidths, 
 
     protected function obtenerDatos(): Collection
     {
-        return CatCodificados::whereDate('FechaArranque', '>=', $this->fechaInicio)
-            ->whereDate('FechaArranque', '<=', $this->fechaFin)
+        // whereDate envuelve la columna en CAST(... AS DATE) y obliga a recorrer toda
+        // CatCodificados. Un rango sobre el datetime crudo si puede usar indice; el fin
+        // es exclusivo al dia siguiente para seguir incluyendo el dia completo.
+        return CatCodificados::query()
+            ->select([
+                'Departamento', 'OrdenTejido', 'FechaArranque', 'Clave', 'ClaveModelo',
+                'JulioRizo', 'JulioPie', 'Total', 'EfiInicial', 'HoraCreacion',
+                'HrInicio', 'HrTermino', 'EfiFinal', 'RespInicio', 'Supervisor', 'CodigoDibujo',
+            ])
+            ->where('FechaArranque', '>=', Carbon::parse($this->fechaInicio)->startOfDay())
+            ->where('FechaArranque', '<', Carbon::parse($this->fechaFin)->addDay()->startOfDay())
             ->orderBy('Departamento')
             ->orderBy('OrdenTejido')
             ->get();
@@ -58,7 +67,9 @@ class DesarrolladoresReporteExport implements FromCollection, WithColumnWidths, 
                 'HrInicio' => $item->HrInicio ?? '',
                 'HrTermino' => $item->HrTermino ?? '',
                 'EfiFinal' => $item->EfiFinal ?? '',
-                'Supervisor' => $item->Supervisor ?? '',
+                // El modulo guarda al desarrollador en RespInicio; Supervisor quedo del
+                // esquema viejo y solo trae dato en filas historicas.
+                'Desarrollador' => $item->RespInicio ?: ($item->Supervisor ?? ''),
                 'CodificacionModelo' => $item->CodigoDibujo ?? '',
             ];
         });
@@ -80,7 +91,7 @@ class DesarrolladoresReporteExport implements FromCollection, WithColumnWidths, 
             'Hr Inicio',
             'Hr Término',
             'Efi. Final',
-            'Supervisor',
+            'Desarrollador',
             'Codificación Modelo',
         ];
     }

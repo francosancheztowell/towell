@@ -7,6 +7,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
+use DomainException;
 use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -14,12 +15,9 @@ use Illuminate\Support\Facades\Schema;
 
 class MovimientoDesarrolladorService
 {
-    protected CatCodificadosDesarrolladorService $catCodificadosService;
-
-    public function __construct(?CatCodificadosDesarrolladorService $catCodificadosService = null)
-    {
-        $this->catCodificadosService = $catCodificadosService ?? app(CatCodificadosDesarrolladorService::class);
-    }
+    public function __construct(
+        protected CatCodificadosDesarrolladorService $catCodificadosService,
+    ) {}
 
     /**
      * Mueve un registro a estado EnProceso=1 y procesa los registros anteriores.
@@ -161,7 +159,7 @@ class MovimientoDesarrolladorService
                         ->whereIn('Id', $idsActualizar)
                         ->where('SalonTejidoId', $salonTejido)
                         ->where('NoTelarId', $noTelarId)
-                        ->update(['Posicion' => DB::raw('Posicion + 10000')]);
+                        ->update(['Posicion' => DB::raw('COALESCE(Posicion, 0) + 10000')]);
                 }
 
                 foreach ($updates as $idU => $dataU) {
@@ -233,6 +231,31 @@ class MovimientoDesarrolladorService
      *
      * @throws Exception
      */
+    /**
+     * Toma los bloqueos de los dos telares en un orden fijo (el mismo para todos los
+     * llamadores) antes de tocar nada.
+     *
+     * Sin esto, un movimiento A->B bloquea A y luego B, mientras uno B->A simultaneo
+     * bloquea B y luego A: se abrazan y SQL Server mata una de las dos transacciones.
+     * Ordenar por salon+telar rompe el ciclo.
+     *
+     * @param  array{0: string, 1: string}  $origen
+     * @param  array{0: string, 1: string}  $destino
+     */
+    private function bloquearTelaresEnOrdenCanonico(array $origen, array $destino): void
+    {
+        $telares = [$origen, $destino];
+        usort($telares, fn (array $a, array $b): int => [$a[0], $a[1]] <=> [$b[0], $b[1]]);
+
+        foreach ($telares as [$salon, $telar]) {
+            ReqProgramaTejido::query()
+                ->where('SalonTejidoId', $salon)
+                ->where('NoTelarId', $telar)
+                ->lockForUpdate()
+                ->get();
+        }
+    }
+
     public function moverRegistroConCambioTelarEnProceso(
         ReqProgramaTejido $registroActualizado,
         string $salonDestino,
@@ -245,7 +268,7 @@ class MovimientoDesarrolladorService
         $telarDestino = trim($telarDestino);
 
         if ($salonOrigen === '' || $telarOrigen === '' || $salonDestino === '' || $telarDestino === '') {
-            throw new Exception('No se pudo resolver el telar origen/destino para mover el registro.');
+            throw new DomainException('No se pudo resolver el telar origen/destino para mover el registro.');
         }
 
         if ($salonOrigen === $salonDestino && $telarOrigen === $telarDestino) {
@@ -265,6 +288,11 @@ class MovimientoDesarrolladorService
             $reprogramarValor,
             &$idsOrigenAfectados
         ) {
+            $this->bloquearTelaresEnOrdenCanonico(
+                [$salonOrigen, $telarOrigen],
+                [$salonDestino, $telarDestino]
+            );
+
             $registroBloqueado = ReqProgramaTejido::query()
                 ->where('Id', $registroActualizado->Id)
                 ->where('SalonTejidoId', $salonOrigen)
@@ -273,7 +301,7 @@ class MovimientoDesarrolladorService
                 ->first();
 
             if (! $registroBloqueado) {
-                throw new Exception('El registro a mover ya no está disponible en el telar origen.');
+                throw new DomainException('El registro a mover ya no está disponible en el telar origen.');
             }
 
             // Reserva una posición temporal alta para evitar colisiones al reordenar.
@@ -298,7 +326,7 @@ class MovimientoDesarrolladorService
                 ->first();
 
             if (! $registroMovido) {
-                throw new Exception('No fue posible ubicar el registro en el telar destino.');
+                throw new DomainException('No fue posible ubicar el registro en el telar destino.');
             }
 
             if ($reprogramarValor !== null) {
@@ -323,80 +351,6 @@ class MovimientoDesarrolladorService
         }
 
         return ReqProgramaTejido::query()->where('Id', $registroActualizado->Id)->first();
-    }
-
-    /**
-     * Inserta el registro en la cola del telar destino sin ponerlo como EnProceso=1.
-     * reprogramarValor '1' = siguiente (tras el activo), '2' = final (al último).
-     */
-    private function encolarEnDestino(
-        ReqProgramaTejido $registro,
-        string $salonDestino,
-        string $telarDestino,
-        string $reprogramarValor,
-        array &$idsAfectados = []
-    ): void {
-        $destinoRegistros = ReqProgramaTejido::query()
-            ->where('SalonTejidoId', $salonDestino)
-            ->where('NoTelarId', $telarDestino)
-            ->orderBy('Posicion', 'asc')
-            ->orderBy('FechaInicio', 'asc')
-            ->lockForUpdate()
-            ->get();
-
-        // Excluir el propio registro movido (ya aparece en destino con Posición alta)
-        $listaBase = $destinoRegistros->filter(fn ($r) => $r->Id !== $registro->Id)->values();
-
-        if ($listaBase->isEmpty()) {
-            return;
-        }
-
-        $enProcesoDestino = $listaBase->firstWhere('EnProceso', 1);
-
-        if ($reprogramarValor === '1') {
-            // Insertar justo después del registro EnProceso=1 del destino
-            if ($enProcesoDestino) {
-                $idxActivo = $listaBase->search(fn ($r) => $r->Id === $enProcesoDestino->Id);
-                $insertPos = $idxActivo !== false ? $idxActivo + 1 : 1;
-            } else {
-                $insertPos = 0;
-            }
-        } else {
-            // Insertar al final
-            $insertPos = $listaBase->count();
-        }
-
-        $listaBase->splice($insertPos, 0, [$registro]);
-        $listaOrdenada = $listaBase->values();
-
-        $primeroConFecha = $listaOrdenada->first(fn ($r) => ! empty($r->FechaInicio));
-        if (! $primeroConFecha) {
-            return;
-        }
-        $inicioOriginal = Carbon::parse($primeroConFecha->FechaInicio);
-
-        [$updates] = DateHelpers::recalcularFechasSecuencia($listaOrdenada, $inicioOriginal, true);
-
-        if (empty($updates)) {
-            return;
-        }
-
-        $idsActualizar = array_keys($updates);
-        DB::table('ReqProgramaTejido')
-            ->whereIn('Id', $idsActualizar)
-            ->where('SalonTejidoId', $salonDestino)
-            ->where('NoTelarId', $telarDestino)
-            ->update(['Posicion' => DB::raw('COALESCE(Posicion, 0) + 10000')]);
-
-        foreach ($updates as $idU => $dataU) {
-            if (isset($dataU['Posicion'])) {
-                $dataU['Posicion'] = (int) $dataU['Posicion'];
-            }
-            DB::table('ReqProgramaTejido')
-                ->where('Id', $idU)
-                ->update($dataU);
-            $idsAfectados[] = (int) $idU;
-        }
     }
 
     /**
@@ -464,77 +418,125 @@ class MovimientoDesarrolladorService
     private function moverRegistroConReprogramar(ReqProgramaTejido $registro, $todosLosRegistros, string $reprogramar): array
     {
         $idsAfectados = [];
-        try {
-            $salonTejido = $registro->SalonTejidoId;
-            $noTelarId = $registro->NoTelarId;
+        $salonTejido = $registro->SalonTejidoId;
+        $noTelarId = $registro->NoTelarId;
 
-            if ($todosLosRegistros->count() < 2) {
-                return $idsAfectados;
-            }
+        if ($todosLosRegistros->count() < 2) {
+            return $idsAfectados;
+        }
 
-            $primero = $todosLosRegistros->first();
-            $inicioOriginal = $primero->FechaInicio ? Carbon::parse($primero->FechaInicio) : null;
-            if (! $inicioOriginal) {
-                return $idsAfectados;
-            }
+        $primero = $todosLosRegistros->first();
+        $inicioOriginal = $primero->FechaInicio ? Carbon::parse($primero->FechaInicio) : null;
+        if (! $inicioOriginal) {
+            return $idsAfectados;
+        }
 
-            $idx = $todosLosRegistros->search(function ($r) use ($registro) {
-                return $r->Id === $registro->Id;
-            });
-            if ($idx === false) {
-                return $idsAfectados;
-            }
+        $idx = $todosLosRegistros->search(function ($r) use ($registro) {
+            return $r->Id === $registro->Id;
+        });
+        if ($idx === false) {
+            return $idsAfectados;
+        }
 
-            $this->actualizarReqModelosDesdePrograma($registro);
-            $registroMovido = $todosLosRegistros->splice($idx, 1)->first();
+        $this->actualizarReqModelosDesdePrograma($registro);
+        $registroMovido = $todosLosRegistros->splice($idx, 1)->first();
 
-            if ($reprogramar == '1') {
-                $posicionAjustada = $idx;
-                if ($posicionAjustada > $todosLosRegistros->count()) {
-                    $posicionAjustada = $todosLosRegistros->count();
-                }
-            } else {
+        if ($reprogramar == '1') {
+            $posicionAjustada = $idx;
+            if ($posicionAjustada > $todosLosRegistros->count()) {
                 $posicionAjustada = $todosLosRegistros->count();
             }
-
-            $todosLosRegistros->splice($posicionAjustada, 0, [$registroMovido]);
-            $registrosReordenados = $todosLosRegistros->values();
-
-            [$updates] = DateHelpers::recalcularFechasSecuencia($registrosReordenados, $inicioOriginal, true);
-
-            if (! empty($updates)) {
-                $idsActualizar = array_keys($updates);
-                DB::table('ReqProgramaTejido')
-                    ->whereIn('Id', $idsActualizar)
-                    ->where('SalonTejidoId', $salonTejido)
-                    ->where('NoTelarId', $noTelarId)
-                    ->update(['Posicion' => DB::raw('Posicion + 10000')]);
-            }
-
-            foreach ($updates as $idU => $data) {
-                if (isset($data['Posicion'])) {
-                    $data['Posicion'] = (int) $data['Posicion'];
-                }
-                DB::table('ReqProgramaTejido')
-                    ->where('Id', $idU)
-                    ->where('SalonTejidoId', $salonTejido)
-                    ->where('NoTelarId', $noTelarId)
-                    ->update($data);
-                $idsAfectados[] = (int) $idU;
-            }
-
-            $registro->EnProceso = 0;
-            $registro->Reprogramar = null;
-            $registro->save();
-
-        } catch (Exception $e) {
-            Log::error('moverRegistroConReprogramar - Error', ['message' => $e->getMessage()]);
+        } else {
+            $posicionAjustada = $todosLosRegistros->count();
         }
+
+        $todosLosRegistros->splice($posicionAjustada, 0, [$registroMovido]);
+        $registrosReordenados = $todosLosRegistros->values();
+
+        [$updates] = DateHelpers::recalcularFechasSecuencia($registrosReordenados, $inicioOriginal, true);
+
+        if (! empty($updates)) {
+            $idsActualizar = array_keys($updates);
+            DB::table('ReqProgramaTejido')
+                ->whereIn('Id', $idsActualizar)
+                ->where('SalonTejidoId', $salonTejido)
+                ->where('NoTelarId', $noTelarId)
+                ->update(['Posicion' => DB::raw('COALESCE(Posicion, 0) + 10000')]);
+        }
+
+        foreach ($updates as $idU => $data) {
+            if (isset($data['Posicion'])) {
+                $data['Posicion'] = (int) $data['Posicion'];
+            }
+            DB::table('ReqProgramaTejido')
+                ->where('Id', $idU)
+                ->where('SalonTejidoId', $salonTejido)
+                ->where('NoTelarId', $noTelarId)
+                ->update($data);
+            $idsAfectados[] = (int) $idU;
+        }
+
+        $registro->EnProceso = 0;
+        $registro->Reprogramar = null;
+        $registro->save();
 
         return $idsAfectados;
     }
 
     /**
+     * Acepta lo que le llega desde cuatro modulos distintos y devuelve siempre una
+     * cadena de SQL Server, o null. Estaba escrito dos veces, una por fecha.
+     *
+     * @param  null|true|string|\DateTime|Carbon  $valor
+     */
+    private function normalizarFecha($valor): ?string
+    {
+        if ($valor === null) {
+            return null;
+        }
+
+        if ($valor === 'now' || $valor === true) {
+            return now()->format('Y-m-d H:i:s');
+        }
+
+        if ($valor instanceof \DateTimeInterface) {
+            return $valor->format('Y-m-d H:i:s');
+        }
+
+        try {
+            // Antes se descartaba el resultado y la cadena se guardaba sin normalizar.
+            return Carbon::parse($valor)->format('Y-m-d H:i:s');
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Sella solo FechaArranque, dejando FechaFinaliza como este.
+     *
+     * @param  null|true|string|\DateTime|Carbon  $cuando  null toma FechaInicio del programa; 'now' o true, la hora actual.
+     */
+    public function sellarArranque(ReqProgramaTejido $programa, $cuando = null): bool
+    {
+        return $this->actualizarFechasArranqueFinaliza($programa, $cuando, null, actualizarFechaFinaliza: false);
+    }
+
+    /**
+     * Sella solo FechaFinaliza, sin pisar la hora de arranque que el desarrollador
+     * registro en CatCodificados.
+     *
+     * @param  null|true|string|\DateTime|Carbon  $cuando  'now' o true para la hora actual.
+     */
+    public function sellarFinaliza(ReqProgramaTejido $programa, $cuando = 'now'): bool
+    {
+        return $this->actualizarFechasArranqueFinaliza($programa, null, $cuando, preservarFechaArranqueCat: true);
+    }
+
+    /**
+     * Forma cruda, con los dos ejes a la vez. Preferir sellarArranque/sellarFinaliza:
+     * quedan nueve llamadas repartidas en Planeacion que aun usan esta firma, y
+     * migrarlas es un cambio aparte porque escriben fechas de produccion.
+     *
      * @param  bool  $actualizarFechaFinaliza  Si es false, no modifica FechaFinaliza en programa ni CatCodificados.
      * @param  bool  $preservarFechaArranqueCat  Si es true, no sobreescribe FechaArranque en CatCodificados.
      *                                           Usar cuando el intento es solo sellar FechaFinaliza (finalizar/eliminar EnProceso)
@@ -553,36 +555,14 @@ class MovimientoDesarrolladorService
             return false;
         }
 
-        if ($fechaArranque === null) {
-            $fechaArranque = ! empty($programa->FechaInicio) ? Carbon::parse($programa->FechaInicio)->format('Y-m-d H:i:s') : null;
-        } elseif ($fechaArranque === 'now' || $fechaArranque === true) {
-            $fechaArranque = now()->format('Y-m-d H:i:s');
-        } elseif ($fechaArranque instanceof \DateTime || $fechaArranque instanceof Carbon) {
-            $fechaArranque = $fechaArranque->format('Y-m-d H:i:s');
-        } elseif (is_string($fechaArranque)) {
-            try {
-                Carbon::parse($fechaArranque);
-            } catch (Exception $e) {
-                $fechaArranque = null;
-            }
-        }
+        // null en arranque significa "la que ya trae el programa"; en finaliza, "ninguna".
+        $fechaArranque = $fechaArranque === null
+            ? $this->normalizarFecha($programa->FechaInicio ?: null)
+            : $this->normalizarFecha($fechaArranque);
 
-        $fechaFinalizaEfectiva = null;
-        if ($actualizarFechaFinaliza) {
-            if ($fechaFinaliza === null) {
-                $fechaFinalizaEfectiva = null;
-            } elseif ($fechaFinaliza === 'now' || $fechaFinaliza === true) {
-                $fechaFinalizaEfectiva = now()->format('Y-m-d H:i:s');
-            } elseif ($fechaFinaliza instanceof \DateTime || $fechaFinaliza instanceof Carbon) {
-                $fechaFinalizaEfectiva = $fechaFinaliza->format('Y-m-d H:i:s');
-            } elseif (is_string($fechaFinaliza)) {
-                try {
-                    $fechaFinalizaEfectiva = Carbon::parse($fechaFinaliza)->format('Y-m-d H:i:s');
-                } catch (Exception $e) {
-                    $fechaFinalizaEfectiva = null;
-                }
-            }
-        }
+        $fechaFinalizaEfectiva = $actualizarFechaFinaliza
+            ? $this->normalizarFecha($fechaFinaliza)
+            : null;
 
         $programaActualizado = false;
         if ($programa->exists) {
@@ -608,7 +588,10 @@ class MovimientoDesarrolladorService
             return $programaActualizado;
         }
 
-        $registroCodificado = $this->catCodificadosService->resolveCanonical($noProduccion);
+        $registroCodificado = $this->catCodificadosService->resolveCanonical(
+            $noProduccion,
+            (string) ($programa->NoTelarId ?? '')
+        );
         if (! $registroCodificado) {
             return $programaActualizado;
         }
@@ -633,6 +616,14 @@ class MovimientoDesarrolladorService
         return $programaActualizado;
     }
 
+    /**
+     * OJO: pese al nombre, esto NO escribe ReqModelosCodificados. Sincroniza
+     * Pedido/Produccion/Saldos/OrdCompartida* del programa hacia CatCodificados.
+     *
+     * ponytail: no se renombra aqui porque tambien lo llaman FinalizarOrdenesController
+     * y MoverOrdenesController, que no tienen cobertura; el rename va cuando se toquen
+     * esos modulos.
+     */
     public function actualizarReqModelosDesdePrograma(ReqProgramaTejido $programa): void
     {
         $noProduccion = trim((string) ($programa->NoProduccion ?? ''));
@@ -644,7 +635,7 @@ class MovimientoDesarrolladorService
 
         $modelo = new CatCodificados;
         $columns = Schema::getColumnListing($modelo->getTable());
-        $registroCodificado = $this->catCodificadosService->resolveCanonical($noProduccion);
+        $registroCodificado = $this->catCodificadosService->resolveCanonical($noProduccion, $noTelarId);
 
         if (! $registroCodificado) {
             return;

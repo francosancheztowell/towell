@@ -102,7 +102,7 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSee('Bien / Mal')
             ->assertSee('data-crudo-audit-result', false)
             ->assertSee('¿La alineación coincide con la orden?')
-            ->assertSee('¿El dibujo de Jacquard está bien definido?')
+            ->assertSee('¿El dibujo, picado o cenefa de Jacquard está bien definido?')
             ->assertSee('¿Es correcta la identificación en el julio del lote de hilo y proveedor?')
             ->assertSee('crudo-audit-table', false)
             ->assertSee('crudo-audit-observations', false)
@@ -420,7 +420,7 @@ final class CrudoMachineDetailTest extends TestCase
             ->call('openAudit')
             ->assertSee('2 puntos')
             ->assertSee('¿La alineación coincide con la orden?')
-            ->assertDontSee('¿El dibujo de Jacquard está bien definido?')
+            ->assertDontSee('¿El dibujo, picado o cenefa de Jacquard está bien definido?')
             ->assertSee('¿Es correcta la identificación en el julio del lote de hilo y proveedor?');
     }
 

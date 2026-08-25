@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Sistema\Usuario;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -12,12 +13,12 @@ class DesarrolladoresRouteContractTest extends TestCase
      */
     public function test_index_sin_auth_redirige(): void
     {
-        $response = $this->get('/desarrolladores');
+        $response = $this->get('/tejedores/desarrolladores');
 
         $this->assertContains(
             $response->status(),
             [302, 401],
-            "GET /desarrolladores should redirect or return 401 when unauthenticated, got {$response->status()}"
+            "GET /tejedores/desarrolladores should redirect or return 401 when unauthenticated, got {$response->status()}"
         );
     }
 
@@ -36,45 +37,77 @@ class DesarrolladoresRouteContractTest extends TestCase
     }
 
     /**
-     * GET /desarrolladores/telar/101/producciones-html without authentication must redirect or return 401.
+     * Simula un usuario autenticado sembrando la memoizacion de permisos en el
+     * contenedor, tal como la construye userPermissions(). Asi el test no escribe
+     * en SYSUsuariosRoles ni depende de los datos reales del servidor.
+     *
+     * @param  array<string, int>  $permisos  Ej. ['acceso' => 1]. Vacio = sin el modulo asignado.
      */
-    public function test_producciones_html_sin_auth_redirige(): void
+    private function actuandoComo(string $modulo, int $idrol, array $permisos = []): Usuario
     {
-        $response = $this->get('/desarrolladores/telar/101/producciones-html');
+        $usuario = new Usuario(['nombre' => 'Test']);
+        $usuario->idusuario = 999999;
 
-        $this->assertContains(
-            $response->status(),
-            [302, 401],
-            "GET producciones-html should redirect or return 401 when unauthenticated, got {$response->status()}"
-        );
+        app()->instance('permisos.roles', collect([
+            mb_strtolower($modulo) => (object) ['idrol' => $idrol, 'modulo' => $modulo],
+        ]));
+
+        $filas = $permisos === []
+            ? collect()
+            : collect([$idrol => (object) array_merge(
+                ['acceso' => 0, 'crear' => 0, 'modificar' => 0, 'eliminar' => 0, 'registrar' => 0],
+                $permisos
+            )]);
+
+        app()->instance('permisos.usuario.'.$usuario->idusuario, $filas);
+
+        return $usuario;
     }
 
     /**
-     * GET /desarrolladores/telar/101/orden-en-proceso without authentication must redirect or return 401.
+     * Un usuario autenticado SIN el modulo asignado no puede entrar al listado.
+     * Este es el test que falla si se quita el abort_unless del controlador.
      */
-    public function test_orden_en_proceso_sin_auth_redirige(): void
+    public function test_index_autenticado_sin_permiso_da_403(): void
     {
-        $response = $this->get('/desarrolladores/telar/101/orden-en-proceso');
+        $usuario = $this->actuandoComo('Desarrolladores', 48);
 
-        $this->assertContains(
-            $response->status(),
-            [302, 401],
-            "GET orden-en-proceso should redirect or return 401 when unauthenticated, got {$response->status()}"
-        );
+        $this->actingAs($usuario)->get('/tejedores/desarrolladores')->assertForbidden();
     }
 
     /**
-     * GET /desarrolladores/verificar-orden without authentication must redirect or return 401.
+     * Y tampoco puede capturar: POST /desarrolladores mueve ordenes de produccion.
      */
-    public function test_verificar_orden_sin_auth_redirige(): void
+    public function test_store_autenticado_sin_permiso_da_403(): void
     {
-        $response = $this->get('/desarrolladores/verificar-orden');
+        $usuario = $this->actuandoComo('Desarrolladores', 48);
 
-        $this->assertContains(
-            $response->status(),
-            [302, 401],
-            "GET verificar-orden should redirect or return 401 when unauthenticated, got {$response->status()}"
-        );
+        $this->actingAs($usuario)->post('/desarrolladores')->assertForbidden();
+    }
+
+    /**
+     * El modulo de muestras se gobierna con su propio rol (189), no con el de Desarrolladores.
+     */
+    public function test_muestras_autenticado_sin_permiso_da_403(): void
+    {
+        $usuario = $this->actuandoComo('Desarrolladores Muestras', 189);
+
+        $this->actingAs($usuario)->post('/desarrolladores-muestras')->assertForbidden();
+    }
+
+    /**
+     * /desarrolladores quedo como enlace historico: debe redirigir permanentemente
+     * a la URL que el menu tiene guardada en SYSRoles.Ruta. La ruta vive dentro del
+     * grupo 'auth', asi que el invitado va antes al login: hay que autenticarse.
+     */
+    public function test_url_legacy_redirige_a_la_del_menu(): void
+    {
+        $usuario = $this->actuandoComo('Desarrolladores', 48);
+
+        $this->actingAs($usuario)
+            ->get('/desarrolladores')
+            ->assertRedirect('/tejedores/desarrolladores')
+            ->assertStatus(301);
     }
 
     /**
@@ -85,28 +118,13 @@ class DesarrolladoresRouteContractTest extends TestCase
         $routes = Route::getRoutes();
 
         $this->assertNotNull(
-            $routes->getByName('desarrolladores'),
-            "Named route 'desarrolladores' must exist"
+            $routes->getByName('tejedores.desarrolladores'),
+            "Named route 'tejedores.desarrolladores' must exist"
         );
 
         $this->assertNotNull(
             $routes->getByName('desarrolladores.store'),
             "Named route 'desarrolladores.store' must exist"
-        );
-
-        $this->assertNotNull(
-            $routes->getByName('desarrolladores.obtener-producciones-html'),
-            "Named route 'desarrolladores.obtener-producciones-html' must exist"
-        );
-
-        $this->assertNotNull(
-            $routes->getByName('desarrolladores.orden-en-proceso'),
-            "Named route 'desarrolladores.orden-en-proceso' must exist"
-        );
-
-        $this->assertNotNull(
-            $routes->getByName('desarrolladores.verificar-orden'),
-            "Named route 'desarrolladores.verificar-orden' must exist"
         );
     }
 }

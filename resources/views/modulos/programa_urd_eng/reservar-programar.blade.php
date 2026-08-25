@@ -389,7 +389,7 @@
     }
 </style>
 
-{{-- =================== Scripts =================== --}}
+{{-- =================== Scripts ================ --}}
 <script>
 /* ---------- Constantes ---------- */
 const API = {
@@ -450,7 +450,7 @@ const http = {
         const json = await res.json().catch(() => ({ success: false, message: res.statusText }));
 
         if (res.status === 419) {
-            throw new Error('La sesiÃ³n expirÃ³ o el token de seguridad no es vÃ¡lido. Por favor recarga la pÃ¡gina (F5) e intenta de nuevo.');
+            throw new Error('La sesión expiró o el token de seguridad no es válido. Por favor recarga la página (F5) e intenta de nuevo.');
         }
 
         if (!res.ok || json.success === false) {
@@ -468,7 +468,7 @@ const fmt = {
         const map = {
             'Jacquard':'bg-pink-100 text-pink-700','JACQUARD':'bg-pink-100 text-pink-700',
             'Itema':'bg-purple-100 text-purple-700','ITEMA':'bg-purple-100 text-purple-700',
-            'Smith':'bg-cyan-100 text-cyan-700','SMITH':'bg-cyan-100 text-cyan-700',
+            'Smith':'bg-cyan-100 text-cyan-700','SMIT':'bg-cyan-100 text-cyan-700',
             'Karl Mayer':'bg-amber-100 text-amber-700','KARL MAYER':'bg-amber-100 text-amber-700',
             'Sulzer':'bg-lime-100 text-lime-700','SULZER':'bg-lime-100 text-lime-700',
         };

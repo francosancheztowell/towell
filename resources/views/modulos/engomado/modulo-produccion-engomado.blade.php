@@ -397,6 +397,7 @@
                                                 <option value="1" {{ $turnoInicial == '1' ? 'selected' : '' }}>1</option>
                                                 <option value="2" {{ $turnoInicial == '2' ? 'selected' : '' }}>2</option>
                                                 <option value="3" {{ $turnoInicial == '3' ? 'selected' : '' }}>3</option>
+                                                <option value="4" {{ $turnoInicial == '4' ? 'selected' : '' }}>4</option>
                                             </select>
                                         </div>
                                     </td>
@@ -1691,6 +1692,7 @@
                                 <option value="1" ${oficial.turno === '1' ? 'selected' : ''}>1</option>
                                 <option value="2" ${oficial.turno === '2' ? 'selected' : ''}>2</option>
                                 <option value="3" ${oficial.turno === '3' ? 'selected' : ''}>3</option>
+                                <option value="4" ${oficial.turno === '4' ? 'selected' : ''}>4</option>
                             </select>
                         </td>
                         <td class="px-2 py-1 border border-gray-300">

@@ -128,8 +128,8 @@
                 const cells = CONFIG.columnas.map((col, colIdx) => {
                     let value = row[col] ?? '';
                     let raw = value !== null && value !== '' ? String(value) : '';
-                    // AnchoToalla (Med. Cen.) ya no se formatea: viene de CatCodificados.MedidaCenefa,
-                    // texto con diagonales ("6/2") que parseFloat truncaria a "6.000".
+                    // AnchoToalla (Med. Cen.) no se formatea: texto con diagonales ("6/2")
+                    // que parseFloat truncaría a "6.000". CatCodificados, o ReqModelosCodificados.
                     if (col === 'PesoGRM2' && value !== '' && value != null && !isNaN(parseFloat(value))) {
                         raw = parseFloat(value).toFixed(3);
                     }
