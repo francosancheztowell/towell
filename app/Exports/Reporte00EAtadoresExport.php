@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\Atadores\AtaMontadoTelasModel;
+use App\Models\Sistema\SYSUsuario;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromArray;
@@ -32,6 +33,9 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
     private const MAX_COLUMN_INDEX = 88;
 
     private const CAPACITACION_HEIGHT = 6;
+
+    /** Claves de atador que son turno 4 (comodin). Memoizado por instancia. */
+    private ?array $clavesComodin = null;
 
     private static ?array $defaultTemplateContext = null;
 
@@ -566,7 +570,7 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
 
     private function finalizeAtadorBlock(Worksheet $sheet, array $block): void
     {
-        $sheet->setCellValue("C{$block['row_start']}", $block['atador_key']);
+        $sheet->setCellValue("C{$block['row_start']}", $this->etiquetaAtador($block['atador_key']));
         $this->writeBlockFormulas($sheet, $block['row_start'], $block['row_end']);
         $sheet->mergeCells("C{$block['row_start']}:C{$block['row_end']}");
         $this->mergeSummaryColumns($sheet, $block['row_start'], $block['row_end']);
@@ -819,6 +823,52 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
         $turno = (int) trim((string) $value);
 
         return in_array($turno, [1, 2, 3], true) ? $turno : null;
+    }
+
+    /**
+     * Clave del atador tal como va en la hoja, con marca si es turno 4.
+     *
+     * El turno 4 cubre descansos: su trabajo cae en la banda del turno que cubrio
+     * (que es una ventana de reloj, no una persona), asi que la produccion no se
+     * mueve de sitio; la marca solo permite distinguir plantilla de cobertura.
+     */
+    private function etiquetaAtador(string $clave): string
+    {
+        if ($clave === '') {
+            return '';
+        }
+
+        return in_array($clave, $this->clavesComodin(), true) ? $clave.' ✦' : $clave;
+    }
+
+    /** Que claves de esta semana pertenecen a empleados de turno 4. Una sola consulta. */
+    private function clavesComodin(): array
+    {
+        if ($this->clavesComodin !== null) {
+            return $this->clavesComodin;
+        }
+
+        $claves = collect($this->records)->pluck('atador_key')->filter()->unique()->values();
+
+        if ($claves->isEmpty()) {
+            return $this->clavesComodin = [];
+        }
+
+        // ponytail: CveTejedor casa exacto con SYSUsuario.numero_empleado (verificado
+        // sobre las 27 claves existentes). Si aparecen formatos con ceros distintos,
+        // normalizar aqui antes del whereIn.
+        try {
+            return $this->clavesComodin = SYSUsuario::query()
+                ->whereIn('numero_empleado', $claves->all())
+                ->where('turno', 4)
+                ->pluck('numero_empleado')
+                ->map(fn ($n) => trim((string) $n))
+                ->all();
+        } catch (\Throwable $e) {
+            // La marca es informativa: si el catalogo de usuarios no esta disponible
+            // el reporte sale completo y correcto, solo sin el distintivo.
+            return $this->clavesComodin = [];
+        }
     }
 
     private function resolveAtadorKey(mixed $item): string

@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class InventarioTelaresController extends Controller
 {
@@ -130,7 +131,7 @@ class InventarioTelaresController extends Controller
                 'message' => 'Guardado con éxito',
                 'data' => $registro,
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación',
@@ -191,7 +192,7 @@ class InventarioTelaresController extends Controller
                 $fechaFormato = $fecha;
                 if (is_string($fecha)) {
                     try {
-                        $fechaCarbon = \Carbon\Carbon::parse($fecha);
+                        $fechaCarbon = Carbon::parse($fecha);
                         $fechaFormato = $fechaCarbon->format('Y-m-d');
                     } catch (\Exception $e) {
                         // Si no se puede parsear, usar la fecha tal cual
@@ -215,7 +216,7 @@ class InventarioTelaresController extends Controller
                 if (! $registro) {
                     // Intentar parsear la fecha de diferentes maneras
                     try {
-                        $fechaAlternativa = \Carbon\Carbon::parse($fechaFormato)->format('Y-m-d');
+                        $fechaAlternativa = Carbon::parse($fechaFormato)->format('Y-m-d');
                         $registro = TejInventarioTelares::where('no_telar', $noTelar)
                             ->where('tipo', $tipoNormalizado)
                             ->whereRaw('CONVERT(DATE, fecha) = ?', [$fechaAlternativa])
@@ -276,7 +277,7 @@ class InventarioTelaresController extends Controller
                 } else {
                     // PRIORIDAD 2: Buscar por Fecha y Turno (campos específicos del registro)
                     try {
-                        $fechaFormatoDB = \Carbon\Carbon::parse($fechaFormato)->format('Y-m-d');
+                        $fechaFormatoDB = Carbon::parse($fechaFormato)->format('Y-m-d');
                         $turnoIntDB = is_numeric($turnoInt) ? (int) $turnoInt : null;
 
                         if ($fechaFormatoDB && $turnoIntDB) {
@@ -301,7 +302,7 @@ class InventarioTelaresController extends Controller
                     // PRIORIDAD 3: Buscar por ProdDate (comportamiento legacy - menos preciso)
                     if (! $tieneReservasActivas) {
                         try {
-                            $fechaProdDate = \Carbon\Carbon::parse($fechaFormato)->format('Y-m-d');
+                            $fechaProdDate = Carbon::parse($fechaFormato)->format('Y-m-d');
                             $reservasPorProdDate = InvTelasReservadas::where('NoTelarId', $noTelar)
                                 ->where('Status', 'Reservado')
                                 ->whereRaw('CONVERT(DATE, ProdDate) = ?', [$fechaProdDate]);
@@ -536,7 +537,7 @@ class InventarioTelaresController extends Controller
                 // PRIORIDAD 3: Si aún no se encontraron, buscar por ProdDate (comportamiento legacy)
                 if ($reservasEliminadas === 0) {
                     try {
-                        $fechaProdDate = \Carbon\Carbon::parse($fecha)->format('Y-m-d');
+                        $fechaProdDate = Carbon::parse($fecha)->format('Y-m-d');
                         $reservasPorProdDate = InvTelasReservadas::where('NoTelarId', $noTelar)
                             ->where('Status', 'Reservado')
                             ->whereRaw('CONVERT(DATE, ProdDate) = ?', [$fechaProdDate]);
@@ -717,6 +718,17 @@ class InventarioTelaresController extends Controller
                 ], 422);
             }
 
+            // El turno del telar es ventana de reloj: sólo 1, 2 o 3. El turno 4 (comodín
+            // que cubre descansos) es atributo del empleado y no debe entrar aquí.
+            foreach (['turno' => $turnoOriginal, 'turno_nuevo' => $turnoNuevo] as $campo => $valor) {
+                if ($valor !== null && $valor !== '' && ! in_array((int) $valor, [1, 2, 3], true)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Turno inválido en {$campo} (debe ser 1, 2 o 3)",
+                    ], 422);
+                }
+            }
+
             // Buscar registro por telar+tipo+fecha+turno
             $registro = TejInventarioTelares::where('no_telar', $noTelar)
                 ->where('tipo', $tipo)
@@ -749,7 +761,7 @@ class InventarioTelaresController extends Controller
             // (antes se bloqueaba si el Status era diferente a "Programado", pero ya no hay restricción)
 
             $calibreRegistro = $registro->calibre ?? null;
-            $fechaOriginalFormato = \Carbon\Carbon::parse($fechaOriginal)->format('Y-m-d');
+            $fechaOriginalFormato = Carbon::parse($fechaOriginal)->format('Y-m-d');
             $noTelarNormalizado = (string) trim($noTelar);
 
             // Si se proporciona turno_nuevo, validar que no esté ocupado

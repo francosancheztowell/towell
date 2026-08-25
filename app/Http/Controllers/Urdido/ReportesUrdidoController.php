@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Urdido;
 
+use Illuminate\Support\Facades\DB;
 use App\Exports\BpmUrdidoExport;
 use App\Exports\KaizenExport;
 use App\Exports\ReporteResumenSemanalUrdidoExport;
@@ -750,46 +751,7 @@ class ReportesUrdidoController extends Controller
             ]);
         }
 
-        $query = UrdBpmModel::query()
-            ->from('UrdBPM as h')
-            ->leftJoin('UrdBPMLine as l', 'h.Folio', '=', 'l.Folio')
-            ->whereBetween('h.Fecha', [$fechaIni, $fechaFin]);
-
-        if ($soloFinalizados) {
-            $query->whereIn('h.Status', ['Terminado', 'Autorizado']);
-        }
-
-        $filas = $query
-            ->select([
-                'h.Folio',
-                'h.Status',
-                'h.Fecha',
-                'h.CveEmplEnt',
-                'h.NombreEmplEnt',
-                'h.TurnoEntrega',
-                'h.CveEmplRec',
-                'h.NombreEmplRec',
-                'h.TurnoRecibe',
-                'h.CveEmplAutoriza',
-                'h.NombreEmplAutoriza',
-                'l.Orden',
-                'l.Actividad',
-                'l.Valor',
-            ])
-            ->orderBy('h.Folio')
-            ->orderBy('l.Orden')
-            ->get()
-            ->map(function ($row) {
-                $valor = (int) ($row->Valor ?? 0);
-                $row->ValorTexto = $this->mapearValorBpm($valor);
-                $row->CveEmplEnt = $this->normalizarClaveNumero($row->CveEmplEnt ?? null);
-                $row->CveEmplRec = $this->normalizarClaveNumero($row->CveEmplRec ?? null);
-                $row->CveEmplAutoriza = $this->normalizarClaveNumero($row->CveEmplAutoriza ?? null);
-
-                return $row;
-            });
-
-        $filas = $this->marcarInicioPorFolio($filas);
+        $filas = $this->filasBpm($fechaIni, $fechaFin, $soloFinalizados);
 
         return view('modulos.urdido.reportes-bpm-urdido', [
             'filas' => $filas,
@@ -813,45 +775,7 @@ class ReportesUrdidoController extends Controller
                 ->with('error', 'Seleccione un rango de fechas para exportar.');
         }
 
-        $query = UrdBpmModel::query()
-            ->from('UrdBPM as h')
-            ->leftJoin('UrdBPMLine as l', 'h.Folio', '=', 'l.Folio')
-            ->whereBetween('h.Fecha', [$fechaIni, $fechaFin]);
-
-        if ($soloFinalizados) {
-            $query->whereIn('h.Status', ['Terminado', 'Autorizado']);
-        }
-
-        $filas = $query
-            ->select([
-                'h.Folio',
-                'h.Status',
-                'h.Fecha',
-                'h.CveEmplEnt',
-                'h.NombreEmplEnt',
-                'h.TurnoEntrega',
-                'h.CveEmplRec',
-                'h.NombreEmplRec',
-                'h.TurnoRecibe',
-                'h.CveEmplAutoriza',
-                'h.NombreEmplAutoriza',
-                'l.Orden',
-                'l.Actividad',
-                'l.Valor',
-            ])
-            ->orderBy('h.Folio')
-            ->orderBy('l.Orden')
-            ->get()
-            ->map(function ($row) {
-                $row->ValorTexto = $this->mapearValorBpm((int) ($row->Valor ?? 0));
-                $row->CveEmplEnt = $this->normalizarClaveNumero($row->CveEmplEnt ?? null);
-                $row->CveEmplRec = $this->normalizarClaveNumero($row->CveEmplRec ?? null);
-                $row->CveEmplAutoriza = $this->normalizarClaveNumero($row->CveEmplAutoriza ?? null);
-
-                return $row;
-            });
-
-        $filas = $this->marcarInicioPorFolio($filas);
+        $filas = $this->filasBpm($fechaIni, $fechaFin, $soloFinalizados);
 
         $fechaIniCarbon = $this->parseReportDate($fechaIni);
         $fechaFinCarbon = $this->parseReportDate($fechaFin);
@@ -861,6 +785,74 @@ class ReportesUrdidoController extends Controller
         $export = new BpmUrdidoExport($filas);
 
         return $this->guardarReporteEnRed($export, $filenameRed, $filenameDownload, 'BPM Urdido');
+    }
+
+
+    /**
+     * Filas del reporte BPM: una por linea de checklist, con la cabecera repetida
+     * (es el formato que consumen la vista y el Excel).
+     *
+     * Cabeceras y lineas se consultan por separado en vez de con un leftJoin: asi los
+     * 11 campos de cabecera viajan una vez por folio y no una vez por linea.
+     */
+    private function filasBpm(string $fechaIni, string $fechaFin, bool $soloFinalizados): Collection
+    {
+        $cabeceras = UrdBpmModel::query()
+            ->from('UrdBPM')
+            // Fecha es datetime: intervalo semiabierto [ini, fin+1dia) para no perder
+            // los registros del ultimo dia capturados despues de medianoche.
+            ->where('Fecha', '>=', $fechaIni)
+            ->where('Fecha', '<', Carbon::parse($fechaFin)->addDay()->toDateString())
+            ->when($soloFinalizados, fn ($q) => $q->whereIn('Status', ['Terminado', 'Autorizado']))
+            ->orderBy('Folio')
+            ->get([
+                'Folio', 'Status', 'Fecha',
+                'CveEmplEnt', 'NombreEmplEnt', 'TurnoEntrega',
+                'CveEmplRec', 'NombreEmplRec', 'TurnoRecibe',
+                'CveEmplAutoriza', 'NombreEmplAutoriza',
+            ]);
+
+        if ($cabeceras->isEmpty()) {
+            return collect();
+        }
+
+        $lineasPorFolio = DB::table('UrdBPMLine')
+            ->whereIn('Folio', $cabeceras->pluck('Folio')->all())
+            ->orderBy('Orden')
+            ->get(['Folio', 'Orden', 'Actividad', 'Valor'])
+            ->groupBy('Folio');
+
+        $filas = collect();
+
+        foreach ($cabeceras as $cabecera) {
+            $base = [
+                'Folio' => $cabecera->Folio,
+                'Status' => $cabecera->Status,
+                'Fecha' => $cabecera->Fecha,
+                'CveEmplEnt' => $this->normalizarClaveNumero($cabecera->CveEmplEnt ?? null),
+                'NombreEmplEnt' => $cabecera->NombreEmplEnt,
+                'TurnoEntrega' => $cabecera->TurnoEntrega,
+                'CveEmplRec' => $this->normalizarClaveNumero($cabecera->CveEmplRec ?? null),
+                'NombreEmplRec' => $cabecera->NombreEmplRec,
+                'TurnoRecibe' => $cabecera->TurnoRecibe,
+                'CveEmplAutoriza' => $this->normalizarClaveNumero($cabecera->CveEmplAutoriza ?? null),
+                'NombreEmplAutoriza' => $cabecera->NombreEmplAutoriza,
+            ];
+
+            // Un folio sin lineas sigue apareciendo una vez, igual que con el leftJoin.
+            $lineas = $lineasPorFolio->get($cabecera->Folio) ?? collect([null]);
+
+            foreach ($lineas as $linea) {
+                $filas->push((object) ($base + [
+                    'Orden' => $linea->Orden ?? null,
+                    'Actividad' => $linea->Actividad ?? null,
+                    'Valor' => $linea->Valor ?? null,
+                    'ValorTexto' => $this->mapearValorBpm((int) ($linea->Valor ?? 0)),
+                ]));
+            }
+        }
+
+        return $this->marcarInicioPorFolio($filas);
     }
 
     private function mapearValorBpm(int $valor): string

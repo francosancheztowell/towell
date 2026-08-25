@@ -7,7 +7,7 @@
         ],
         [
             'key' => 'dibujo_jacquard',
-            'question' => '¿El dibujo de Jacquard está bien definido?',
+            'question' => '¿El dibujo, picado o cenefa de Jacquard está bien definido?',
             'salon' => 'Jacquard',
         ],
         [

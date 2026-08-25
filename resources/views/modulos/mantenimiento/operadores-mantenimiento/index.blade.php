@@ -207,7 +207,7 @@ Operadores de Mantenimiento
     // Abrir modal de creación con SweetAlert
     function openCreateModal() {
         let turnoOptions = '<option value="">Seleccione un turno</option>';
-        for (let i = 1; i <= 3; i++) {
+        for (let i = 1; i <= 4; i++) { // turno 4 = comodin que cubre descansos
             turnoOptions += `<option value="${i}">Turno ${i}</option>`;
         }
 
@@ -375,7 +375,7 @@ Operadores de Mantenimiento
     // Abrir modal de edición con SweetAlert
     function openEditModal(key, cveEmpl, nomEmpl, turno, depto, telefono) {
         let turnoOptions = '<option value="">Seleccione un turno</option>';
-        for (let i = 1; i <= 3; i++) {
+        for (let i = 1; i <= 4; i++) { // turno 4 = comodin que cubre descansos
             const selected = turno == i ? 'selected' : '';
             turnoOptions += `<option value="${i}" ${selected}>Turno ${i}</option>`;
         }
@@ -615,7 +615,7 @@ Operadores de Mantenimiento
         const deptoActual = '{{ $deptoFilter ?? '' }}';
 
         let turnoOptions = '<option value="">Todos</option>';
-        for (let i = 1; i <= 3; i++) {
+        for (let i = 1; i <= 4; i++) { // turno 4 = comodin que cubre descansos
             const selected = turnoActual == i ? 'selected' : '';
             turnoOptions += `<option value="${i}" ${selected}>Turno ${i}</option>`;
         }

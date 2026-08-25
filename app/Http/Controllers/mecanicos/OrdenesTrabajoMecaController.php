@@ -666,7 +666,7 @@ class OrdenesTrabajoMecaController extends Controller
             'HoraParo' => ['nullable', 'date_format:H:i'],
             'Estatus' => ['nullable', 'string', 'max:15'],
             'Orden' => ['nullable', 'string', 'max:20'],
-            'Turno' => ['nullable', 'integer', 'between:1,3'],
+            'Turno' => ['nullable', 'integer', 'between:1,4'],
         ];
     }
 

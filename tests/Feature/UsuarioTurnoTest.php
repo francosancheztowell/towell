@@ -15,8 +15,12 @@ use Tests\TestCase;
 
 /**
  * El turno 4 cubre descansos: no tiene horario fijo, puede caer en cualquier
- * momento del dia. Por eso NO se deriva del reloj (TurnoHelper sigue devolviendo
- * solo 1/2/3) y vive unicamente como atributo del usuario.
+ * momento del dia. Como ATRIBUTO DEL EMPLEADO vive unicamente en SYSUsuario.turno
+ * y no se deriva del reloj (TurnoHelper::getTurnoActual sigue devolviendo solo 1/2/3).
+ *
+ * El TURNO OPERATIVO DEL REGISTRO si se deriva del reloj: al guardar, el 4 se
+ * convierte en la ventana (1/2/3) que ese empleado esta cubriendo, via
+ * TurnoHelper::resolverTurnoOperativo(). Ver tests/Unit/TurnoComodinTest.php.
  */
 class UsuarioTurnoTest extends TestCase
 {

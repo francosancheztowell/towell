@@ -76,7 +76,7 @@ class ManOperadoresMantenimientoController extends Controller
             $data = $request->validate([
                 'CveEmpl' => 'required|string|max:50',
                 'NomEmpl' => 'required|string|max:255',
-                'Turno' => 'required|integer|min:1|max:3',
+                'Turno' => 'required|integer|min:1|max:4',
                 'Depto' => 'required|string|max:100',
                 'Telefono' => 'nullable|string|max:50',
             ]);
@@ -119,7 +119,7 @@ class ManOperadoresMantenimientoController extends Controller
             $data = $request->validate([
                 'CveEmpl' => 'required|string|max:50',
                 'NomEmpl' => 'required|string|max:255',
-                'Turno' => 'required|integer|min:1|max:3',
+                'Turno' => 'required|integer|min:1|max:4',
                 'Depto' => 'required|string|max:100',
                 'Telefono' => 'nullable|string|max:50',
             ]);

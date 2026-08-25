@@ -460,7 +460,7 @@ class CalendarioController extends Controller
                 'FechaInicio' => 'required|date',
                 'FechaFin' => 'required|date',
                 'HorasTurno' => 'required|numeric|min:0',
-                'Turno' => 'required|integer|min:1',
+                'Turno' => 'required|integer|in:1,2,3',
             ]);
 
             if ($validator->fails()) {
@@ -529,7 +529,7 @@ class CalendarioController extends Controller
                 'FechaInicio' => 'required|date',
                 'FechaFin' => 'required|date',
                 'HorasTurno' => 'required|numeric|min:0',
-                'Turno' => 'required|integer|min:1',
+                'Turno' => 'required|integer|in:1,2,3',
             ]);
 
             if ($validator->fails()) {

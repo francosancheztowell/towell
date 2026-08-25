@@ -213,6 +213,7 @@
                     <option value="1">1</option>
                     <option value="2">2</option>
                     <option value="3">3</option>
+                    <option value="4">4</option>
                 </select>
                 @error('turno')
                     <p class="mt-1 text-xs text-red-600" x-init="open = true">{{ $message }}</p>

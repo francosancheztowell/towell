@@ -34,6 +34,31 @@ class TurnoHelper
     }
 
     /**
+     * Turno operativo (ventana de reloj) de un registro capturado por este empleado.
+     *
+     * El turno 4 es comodín: cubre a los turnos 1, 2 o 3 cuando falta gente y no
+     * tiene horario propio. Por eso el registro se guarda con el turno que el reloj
+     * está cubriendo en ese momento; el "4" vive sólo en SYSUsuario.turno.
+     */
+    public static function resolverTurnoOperativo(mixed $turnoEmpleado): int
+    {
+        $t = (int) $turnoEmpleado;
+
+        // ponytail: sin parámetro de hora; asume captura en tiempo real.
+        // Si aparecen capturas a destiempo, aceptar $hora y derivarla igual que getTurnoActual().
+        return in_array($t, [1, 2, 3], true) ? $t : (int) self::getTurnoActual();
+    }
+
+    /**
+     * ¿Este turno de empleado es el comodín que cubre descansos? Para marcar la celda
+     * en reportes sin sacar el registro de la columna del turno que cubrió.
+     */
+    public static function esComodin(mixed $turnoEmpleado): bool
+    {
+        return (int) $turnoEmpleado === 4;
+    }
+
+    /**
      * Obtiene la descripción del turno
      */
     public static function getDescripcionTurno(string $turno): string
@@ -45,6 +70,8 @@ class TurnoHelper
                 return '2:30 PM - 10:30 PM';
             case '3':
                 return '10:30 PM - 6:30 AM';
+            case '4':
+                return 'Cubre descansos (sin horario fijo)';
             default:
                 return 'Turno no válido';
         }
@@ -62,6 +89,8 @@ class TurnoHelper
                 return 'Turno 2';
             case '3':
                 return 'Turno 3';
+            case '4':
+                return 'Turno 4';
             default:
                 return 'Turno no válido';
         }

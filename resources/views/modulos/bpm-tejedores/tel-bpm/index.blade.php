@@ -291,6 +291,7 @@
                 <option value="1" {{ request('turno') == '1' ? 'selected' : '' }}>Turno 1</option>
                 <option value="2" {{ request('turno') == '2' ? 'selected' : '' }}>Turno 2</option>
                 <option value="3" {{ request('turno') == '3' ? 'selected' : '' }}>Turno 3</option>
+                <option value="4" {{ request('turno') == '4' ? 'selected' : '' }}>Turno 4</option>
             </select>
         </div>
     </div>

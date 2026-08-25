@@ -332,6 +332,13 @@ class ReporteMarcasFinalesController extends Controller
         $fechaFinFormateada = Carbon::parse($fechaFin)->format('Y-m-d');
 
         $datosPorDia = $this->obtenerDatosPorDia($fechaIniFormateada, $fechaFinFormateada);
+
+        // Sin datos no hay hojas que generar y PhpSpreadsheet revienta con
+        // "set a sheet active by the out of bounds index: 0". Mejor avisar.
+        if ($datosPorDia->isEmpty()) {
+            abort(404, 'No hay marcas finales en el rango '.$fechaIniFormateada.' a '.$fechaFinFormateada.'.');
+        }
+
         $velocidadesPorTelar = $this->obtenerVelocidadesPorTelar();
 
         $export = new \App\Exports\ReporteMarcasFinalesExport($datosPorDia, $velocidadesPorTelar);
