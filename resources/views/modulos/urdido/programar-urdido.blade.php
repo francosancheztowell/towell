@@ -882,6 +882,8 @@
             // ==========================
             // Ir a Producción
             // ==========================
+            let cargandoProduccion = false;
+
             const irProduccion = async (event) => {
                 // Prevenir comportamiento por defecto si hay un evento
                 if (event) {
@@ -889,10 +891,21 @@
                     event.stopPropagation();
                 }
 
+                if (cargandoProduccion) return;
+
                 if (!state.ordenSeleccionada) {
                     showToast('warning', 'Seleccione una orden');
                     return;
                 }
+
+                // ponytail: el boton se libera solo si abortamos; si redirige, la navegacion lo descarta
+                const btnProduccion = event?.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+                cargandoProduccion = true;
+                if (btnProduccion) btnProduccion.classList.add('opacity-60', 'pointer-events-none');
+                const liberarBoton = () => {
+                    cargandoProduccion = false;
+                    if (btnProduccion) btnProduccion.classList.remove('opacity-60', 'pointer-events-none');
+                };
 
 
                 // Verificar si ya hay 2 órdenes con status "En Proceso" en la misma máquina
@@ -948,57 +961,19 @@
                         } else {
                             alert(verificarResponse.mensaje || 'Ya existen 2 órdenes con status "En Proceso" en esta máquina. No se puede cargar otra orden.');
                         }
+                        liberarBoton();
                         return;
                     }
                 } catch (error) {
                     console.error('Error al verificar órdenes en proceso:', error);
                     showError('Error al verificar órdenes en proceso. Por favor, intente nuevamente.');
+                    liberarBoton();
                     return;
                 }
 
-                // Verificar si el usuario puede crear registros (con timeout)
-                try {
-                    const checkUrl = `${routes.produccion}?orden_id=${state.ordenSeleccionada.id}&check_only=true`;
-
-                    // Crear un timeout para la petición
-                    const timeoutPromise = new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('Timeout')), 3000)
-                    );
-
-                    const fetchPromise = fetch(checkUrl, {
-                        headers: {
-                            'X-CSRF-TOKEN': csrfToken,
-                        }
-                    });
-
-                    const response = await Promise.race([fetchPromise, timeoutPromise]);
-
-                    if (response && response.ok) {
-                        const data = await response.json();
-
-                        // Si no puede crear y no hay registros existentes, mostrar error
-                        if (!data.puedeCrear && !data.tieneRegistros) {
-                            if (typeof Swal !== 'undefined') {
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Acceso Denegado',
-                                    html: `
-                                        <p class="mb-2">No tienes permisos para crear registros en este módulo.</p>
-                                        <p class="text-sm text-gray-600">Solo usuarios del área <strong>Urdido</strong> pueden crear registros.</p>
-                                        <p class="text-sm text-gray-600 mt-2">Tu área actual: <strong>${data.usuarioArea || 'No definida'}</strong></p>
-                                    `,
-                                    confirmButtonColor: '#2563eb',
-                                });
-                            } else {
-                                alert('No tienes permisos para crear registros. Solo usuarios del área Urdido pueden crear registros.');
-                            }
-                            return;
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error al verificar permisos (continuando con redirección):', error);
-                    // Continuar con la redirección si hay error en la verificación
-                }
+                // ponytail: eliminada la precomprobación check_only. Devolvía puedeCrear=true
+                // siempre y en Urdido ni existía: renderizaba la página completa de producción
+                // solo para descartarla (timeouts de 3s). Los permisos se validan en el servidor.
 
                 // Karl Mayer (MC Coy 4): confirmar cuenta/calibre antes de cargar
                 if (Number(state.ordenSeleccionada.mccoy) === 4) {
@@ -1021,7 +996,7 @@
                             allowOutsideClick: false,
                         });
 
-                        if (respuesta.isDismissed) return;
+                        if (respuesta.isDismissed) { liberarBoton(); return; }
 
                         // "Sí" solo cambia algo si estaba marcada: intenta liberarla (el servidor exige supervisor)
                         const nuevoValor = respuesta.isDenied;
@@ -1036,6 +1011,7 @@
                                 renderTable(4);
                             } catch (error) {
                                 showError(error.message);
+                                liberarBoton();
                                 return;
                             }
                         }
@@ -1049,6 +1025,7 @@
                 if (!url || url.includes('undefined') || url.includes('null')) {
                     console.error('URL inválida para redirección:', url);
                     showError('Error: No se pudo construir la URL de redirección. Por favor, intente nuevamente.');
+                    liberarBoton();
                     return false;
                 }
 

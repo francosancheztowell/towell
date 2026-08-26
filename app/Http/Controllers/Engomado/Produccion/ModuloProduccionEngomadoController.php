@@ -108,22 +108,6 @@ class ModuloProduccionEngomadoController extends Controller
         $hasFinalizarPermission = true;
         $ordenId = $request->query('orden_id');
 
-        if ($request->query('check_only') === 'true' && $ordenId) {
-            $orden = EngProgramaEngomado::find($ordenId);
-            if (! $orden) {
-                return response()->json(['puedeCrear' => false, 'tieneRegistros' => false, 'error' => 'Orden no encontrada'], 404);
-            }
-
-            $registrosCount = EngProduccionEngomado::where('Folio', $orden->Folio)->count();
-            $user = Auth::user();
-
-            return response()->json([
-                'puedeCrear' => true,
-                'tieneRegistros' => $registrosCount > 0,
-                'usuarioArea' => $user ? ($user->area ?? null) : null,
-            ]);
-        }
-
         if (! $ordenId) {
             $foliosPrograma = EngProgramaEngomado::where('Status', '!=', 'Finalizado')
                 ->orderBy('Folio', 'desc')

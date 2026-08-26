@@ -749,49 +749,9 @@
 
                 // Verificación de órdenes en proceso eliminada - se permite cualquier cantidad
 
-                // Verificar si el usuario puede crear registros (con timeout)
-                try {
-                    const checkUrl = `${routes.produccion}?orden_id=${state.ordenSeleccionada.id}&check_only=true`;
-
-                    // Crear un timeout para la petición
-                    const timeoutPromise = new Promise((_, reject) =>
-                        setTimeout(() => reject(new Error('Timeout')), 3000)
-                    );
-
-                    const fetchPromise = fetch(checkUrl, {
-                        headers: {
-                            'X-CSRF-TOKEN': csrfToken,
-                        }
-                    });
-
-                    const response = await Promise.race([fetchPromise, timeoutPromise]);
-
-                    if (response && response.ok) {
-                        const data = await response.json();
-
-                        // Si no puede crear y no hay registros existentes, mostrar error
-                        if (!data.puedeCrear && !data.tieneRegistros) {
-                            if (typeof Swal !== 'undefined') {
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Acceso Denegado',
-                                    html: `
-                                        <p class="mb-2">No tienes permisos para crear registros en este módulo.</p>
-                                        <p class="text-sm text-gray-600">Solo usuarios del área <strong>Engomado</strong> pueden crear registros.</p>
-                                        <p class="text-sm text-gray-600 mt-2">Tu área actual: <strong>${data.usuarioArea || 'No definida'}</strong></p>
-                                    `,
-                                    confirmButtonColor: '#2563eb',
-                                });
-                            } else {
-                                alert('No tienes permisos para crear registros. Solo usuarios del área Engomado pueden crear registros.');
-                            }
-                            return;
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error al verificar permisos (continuando con redirección):', error);
-                    // Continuar con la redirección si hay error en la verificación
-                }
+                // ponytail: eliminada la precomprobación check_only. Devolvía puedeCrear=true
+                // siempre y en Urdido ni existía: renderizaba la página completa de producción
+                // solo para descartarla (timeouts de 3s). Los permisos se validan en el servidor.
 
                 // Si puede crear o hay registros existentes, redirigir
                 const url = `${routes.produccion}?orden_id=${state.ordenSeleccionada.id}`;

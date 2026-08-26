@@ -357,7 +357,7 @@ class ProgramarUrdidoController extends Controller
             // Obtener todas las órdenes en proceso y filtrar por MC Coy
             $ordenesEnProceso = UrdProgramaUrdido::where('Status', 'En Proceso')
                 ->whereNotNull('MaquinaId')
-                ->get()
+                ->get(['Id', 'MaquinaId'])
                 ->filter(function ($orden) use ($mcCoy, $ordenIdExcluir) {
                     $ordenMcCoy = $this->extractMcCoyNumber($orden->MaquinaId);
                     if ($ordenIdExcluir && $orden->Id == $ordenIdExcluir) {
