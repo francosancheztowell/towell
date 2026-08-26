@@ -201,30 +201,18 @@
         // Ciclo: 0 → 1 → 2 → 0
         const valorNuevo = (valorActual + 1) % 3;
         
-        console.log('toggleActividad llamado:', { actividad, valorActual, valorNuevo });
-        
-        fetch("{{ route('eng-bpm-line.toggle', $header->Folio) }}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({
-                actividad: actividad,
-                valor: valorNuevo
-            })
-        })
-        .then(response => {
-            console.log('Response status:', response.status);
-            return response.json();
-        })
-        .then(data => {
-            console.log('Response data:', data);
-            if (data.success) {
-                // Actualizar UI
+        // ponytail: http (axios) manda el XSRF de la cookie, no el token impreso en el HTML:
+        // si la sesion rota, el POST ya no truena con 419. Ademas pide JSON, asi que los
+        // errores del servidor llegan con mensaje en vez de la pagina HTML de Laravel.
+        http.post("{{ route('eng-bpm-line.toggle', $header->Folio) }}", { actividad, valor: valorNuevo })
+            .then(data => {
+                if (!data.success) {
+                    notify.error(data.message || 'Error al actualizar la actividad');
+                    return;
+                }
                 btn.dataset.valor = valorNuevo;
                 btn.classList.remove('bg-green-100','border-green-400','text-green-700','bg-red-100','border-red-400','text-red-700','bg-gray-50','border-gray-300','text-gray-400');
-                
+
                 if (valorNuevo === 1) {
                     btn.classList.add('bg-green-100','border-green-400','text-green-700');
                     btn.querySelector('.cell-icon').innerHTML = '✓';
@@ -235,24 +223,14 @@
                     btn.classList.add('bg-gray-50','border-gray-300','text-gray-400');
                     btn.querySelector('.cell-icon').innerHTML = '○';
                 }
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: data.message || 'Error al actualizar la actividad',
-                    confirmButtonColor: '#3b82f6'
-                });
-            }
-        })
-        .catch(error => {
-            console.error('Error completo:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'Error al comunicarse con el servidor: ' + error.message,
-                confirmButtonColor: '#3b82f6'
+            })
+            .catch(err => {
+                if (err.status === 419) {
+                    notify.error('Tu sesion expiro. Recarga la pagina para seguir capturando.');
+                    return;
+                }
+                notify.error(err.message);
             });
-        });
     }
     </script>
 @endsection

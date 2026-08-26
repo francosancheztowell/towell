@@ -608,7 +608,8 @@ class ProgramarEngomadoController extends Controller
             // Habilitado para todos los usuarios
             $request->validate([
                 'prioridades' => 'required|array',
-                'prioridades.*.id' => 'required|integer|exists:EngProgramaEngomado,Id',
+                // ponytail: sin exists: por fila (eran N SELECT); el UPDATE ignora ids inexistentes
+                'prioridades.*.id' => 'required|integer',
                 'prioridades.*.prioridad' => 'required|integer|min:1',
             ]);
             $this->prioridadService->bulkUpdatePriorities(

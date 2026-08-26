@@ -29,11 +29,10 @@
             $headerSize = '12.1px';
         }
         // Marca de cobertura: el turno 4 (comodín) no se guarda; el registro vive en el
-    // turno que cubrió y aquí se distingue con ✦ + el nombre de quien lo cubrió.
-    $marcaT4 = function($turno) use ($porTurno) {
+    // turno que cubrió, pero el encabezado se muestra como "Turno 4".
+    $tituloTurno = function($turno) use ($porTurno) {
         $t = $porTurno->get($turno);
-        if (! ($t['coberturaT4'] ?? false)) { return ''; }
-        return ' <span title="Cubierto por personal de turno 4: '.e($t['empleado'] ?? '').'">✦</span>';
+        return ($t['coberturaT4'] ?? false) ? 'Turno 4' : 'Turno '.$turno;
     };
 @endphp
     <style>
@@ -111,9 +110,9 @@
         <thead>
             <tr>
                 <th rowspan="2">Telar</th>
-                <th colspan="7" class="turno-separator">Turno 1{!! $marcaT4(1) !!}</th>
-                <th colspan="7" class="turno-separator">Turno 2{!! $marcaT4(2) !!}</th>
-                <th colspan="7">Turno 3{!! $marcaT4(3) !!}</th>
+                <th colspan="7" class="turno-separator">{!! $tituloTurno(1) !!}</th>
+                <th colspan="7" class="turno-separator">{!! $tituloTurno(2) !!}</th>
+                <th colspan="7">{!! $tituloTurno(3) !!}</th>
             </tr>
             <tr>
                 @for ($i=0;$i<3;$i++)

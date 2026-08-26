@@ -357,7 +357,7 @@ class ProgramarUrdidoController extends Controller
             // Obtener todas las órdenes en proceso y filtrar por MC Coy
             $ordenesEnProceso = UrdProgramaUrdido::where('Status', 'En Proceso')
                 ->whereNotNull('MaquinaId')
-                ->get()
+                ->get(['Id', 'MaquinaId'])
                 ->filter(function ($orden) use ($mcCoy, $ordenIdExcluir) {
                     $ordenMcCoy = $this->extractMcCoyNumber($orden->MaquinaId);
                     if ($ordenIdExcluir && $orden->Id == $ordenIdExcluir) {
@@ -772,7 +772,8 @@ class ProgramarUrdidoController extends Controller
 
             $request->validate([
                 'prioridades' => 'required|array',
-                'prioridades.*.id' => 'required|integer|exists:UrdProgramaUrdido,Id',
+                // ponytail: sin exists: por fila (eran N SELECT); el UPDATE ignora ids inexistentes
+                'prioridades.*.id' => 'required|integer',
                 'prioridades.*.prioridad' => 'required|integer|min:1',
             ]);
             $this->prioridadService->bulkUpdatePriorities(

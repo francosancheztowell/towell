@@ -769,7 +769,7 @@
 </script>
 @if(session('error'))
 <script>
-  (function(){
+  document.addEventListener('DOMContentLoaded', function(){
     const errorMsg = @json(session('error'));
     console.error('[BPM Tejedores] Error desde servidor:', errorMsg);
     Swal.fire({
@@ -778,26 +778,26 @@
       text: errorMsg,
       confirmButtonText: 'Entendido'
     });
-  })();
+  });
 </script>
 @endif
 
 @if($errors->any())
 <script>
-  (function(){
+  document.addEventListener('DOMContentLoaded', function(){
     Swal.fire({
       icon: 'error',
       title: 'No se pudo crear el folio',
       html: @json(implode('<br>', $errors->all())),
       confirmButtonText: 'Entendido'
     }).then(function(){ document.getElementById('btn-open-create') && document.getElementById('btn-open-create').click(); });
-  })();
+  });
 </script>
 @endif
 
 @if(session('success'))
 <script>
-  (function(){
+  document.addEventListener('DOMContentLoaded', function(){
     const message = @json(session('success'));
     Swal.fire({
       icon: 'success',
@@ -812,7 +812,7 @@
     if (typeof message === 'string' && (message.includes('creado') || message.includes('Terminado') || message.includes('Autorizado') || message.includes('Creado'))) {
       setTimeout(function() { window.location.reload(); }, 1800);
     }
-  })();
+  });
 </script>
 @endif
 @endsection
