@@ -111,7 +111,7 @@
     <div class="flex flex-wrap gap-3 text-sm text-gray-700 mb-4">
         @foreach($folioTurnos as $turno => $folio)
             <span class="px-3 py-1 rounded-full border {{ $badgeColors[$turno] }}">
-                @php($cubiertoT4 = ($coberturaT4PorTurno ?? [])[(string) $turno]['cubierto'] ?? false)
+                @php $cubiertoT4 = ($coberturaT4PorTurno ?? [])[(string) $turno]['cubierto'] ?? false; @endphp
                 <span class="font-semibold" @if($cubiertoT4) title="Turno {{ $turno }} cubierto por personal de turno 4: {{ ($coberturaT4PorTurno ?? [])[(string) $turno]['empleado'] ?? '' }}" @endif>Turno {{ $cubiertoT4 ? 4 : $turno }}:</span>
                 <span>{{ $folio ?? 'Sin folio registrado' }}</span>
             </span>
