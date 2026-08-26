@@ -271,6 +271,14 @@
                         });
                     });
 
+                    // Cualquier cambio en hora/julio/peso mueve el turno de captura.
+                    tablaBody.addEventListener('change', function (e) {
+                        const f = e.target.dataset.field;
+                        if (f === 'h_inicio' || f === 'no_julio' || f === 'kg_bruto') {
+                            aplicarCapturaSecuencial();
+                        }
+                    });
+
                     // ─── Calcular Neto inicial y guardar valores anteriores de horas ───
                     tablaBody.querySelectorAll('tr').forEach(row => {
                         calcularNeto(row);
@@ -440,6 +448,64 @@
                     });
                 }
 
+                // ═══════════════════════════════════════════════════════
+                // Captura secuencial: solo se puede empezar la siguiente fila
+                // libre. Con muchos julios el operador no ve las de arriba,
+                // arranca en la 7 y deja huecos; y si las saltadas son de otro
+                // grupo de Hilos, la produccion queda en la cuenta equivocada.
+                // ═══════════════════════════════════════════════════════
+                function filaIniciada(row) {
+                    const v = sel => (row.querySelector(sel)?.value ?? '').trim();
+                    if (v('input[data-field="h_inicio"]')) return true;
+                    if (v('select[data-field="no_julio"]')) return true;
+                    const kg = parseFloat(v('input[data-field="kg_bruto"]'));
+                    return !Number.isNaN(kg) && kg !== 0;
+                }
+
+                function aplicarCapturaSecuencial() {
+                    if (!tablaBody || !canEdit) return;
+                    const filas = [...tablaBody.querySelectorAll('tr[data-registro-id]')];
+                    let yaHayLibre = false;
+
+                    filas.forEach((row, i) => {
+                        row.classList.remove('fila-en-turno', 'fila-en-espera');
+                        row.querySelector('.aviso-turno')?.remove();
+
+                        // Las ya finalizadas las gobierna bloquearFila().
+                        if (row.querySelector('.checkbox-finalizar')?.checked) return;
+
+                        if (filaIniciada(row)) {
+                            desbloquearFila(row);   // iniciada: editable para correcciones
+                            return;
+                        }
+
+                        if (!yaHayLibre) {
+                            yaHayLibre = true;
+                            desbloquearFila(row);
+                            row.classList.add('fila-en-turno');
+                            const celda = row.querySelector('td');
+                            if (celda) {
+                                const tag = document.createElement('span');
+                                tag.className = 'aviso-turno block text-[10px] font-semibold text-blue-600 leading-none mt-0.5';
+                                tag.textContent = 'SIGUE';
+                                celda.appendChild(tag);
+                            }
+                            return;
+                        }
+
+                        // Libre pero no le toca: bloquear.
+                        bloquearFila(row);
+                        row.classList.remove('bg-green-50');
+                        row.classList.add('fila-en-espera');
+                    });
+                }
+
+                function avisarFueraDeOrden(renglon) {
+                    mostrarAlerta('warning', 'Captura en orden',
+                        'Hay renglones sin empezar antes de este. Continúa en el renglón ' + renglon + '.');
+                    aplicarCapturaSecuencial();
+                }
+
                 function desbloquearFila(row) {
                     row.classList.remove('bg-green-50', 'opacity-75');
                     row.querySelectorAll('input:not(.checkbox-finalizar), select, button:not(.checkbox-finalizar)').forEach(el => {
@@ -471,6 +537,9 @@
                         if (row) bloquearFila(row);
                     });
                 }
+
+                // Estado inicial de la captura secuencial.
+                aplicarCapturaSecuencial();
 
                 // Interceptar clicks en filas bloqueadas (mostrar alerta)
                 if (tablaBody) {
@@ -569,6 +638,7 @@
                                 } else {
                                     desbloquearFila(row);
                                 }
+                                aplicarCapturaSecuencial();
                             }
 
                             mostrarToast('success', listo ? 'Registro parcialmente finalizado' : 'Registro desbloqueado para edición', 1500);
@@ -733,6 +803,8 @@
                                     marcarCampoError(netoInput, false);
                                 }
                             }
+                        } else if (result.fuera_de_orden) {
+                            avisarFueraDeOrden(result.renglon_siguiente);
                         } else {
                             if (typeof Swal !== 'undefined') {
                                 Swal.fire({
@@ -804,6 +876,8 @@
                                     marcarCampoError(netoInput, false);
                                 }
                             }
+                        } else if (result.fuera_de_orden) {
+                            avisarFueraDeOrden(result.renglon_siguiente);
                         } else {
                             if (typeof Swal !== 'undefined') {
                                 Swal.fire({
@@ -841,6 +915,8 @@
 
                         if (result.success) {
                             mostrarToast('success', result.message || 'La hora ha sido actualizada correctamente', 2000);
+                        } else if (result.fuera_de_orden) {
+                            avisarFueraDeOrden(result.renglon_siguiente);
                         } else {
                             mostrarAlerta('error', 'Error', result.error || 'Error al actualizar la hora');
                         }
@@ -995,6 +1071,11 @@
                                 select.setAttribute('data-valor-anterior', '');
                             }
                         });
+
+                        // Los <select> se llenan aqui, despues del arranque: re-evaluar
+                        // el turno de captura o el primer renglon con julio se marcaria
+                        // como libre.
+                        aplicarCapturaSecuencial();
                     } catch (error) {
                         console.error('Error al cargar catálogo de julios:', error);
                     }
@@ -2170,8 +2251,11 @@
                     return;
                 }
 
-                @if(isset($orden) && $orden)
-                const ordenId = {{ $orden->Id }};
+                @php
+                    $ordenId = is_object($orden ?? null) ? (int) ($orden->Id ?? 0) : 0;
+                @endphp
+                @if($ordenId > 0)
+                const ordenId = {{ $ordenId }};
 
                 const confirmado = await Swal.fire({
                     title: '¿Finalizar registro?',
