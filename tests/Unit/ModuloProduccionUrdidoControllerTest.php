@@ -31,6 +31,7 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
             $table->string('Status')->nullable();
             $table->date('FechaFinaliza')->nullable();
             $table->string('SalonTejidoId')->nullable();
+            $table->integer('Incorrecto')->nullable();
         });
 
         $schema->create('UrdProduccionUrdido', function (Blueprint $table) {
@@ -43,6 +44,9 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
             $table->integer('Finalizar')->nullable();
             $table->float('Vueltas')->nullable();
             $table->float('Diametro')->nullable();
+            $table->string('NoJulio')->nullable();
+            $table->float('KgBruto')->nullable();
+            $table->integer('AX')->nullable();
         });
     }
 
@@ -72,6 +76,8 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
                 'Fecha' => '2026-05-01',
                 'HoraInicial' => '06:00',
                 'HoraFinal' => '07:00',
+                'NoJulio' => 'J1',
+                'KgBruto' => 120,
                 'KgNeto' => 100,
                 'Finalizar' => 0,
             ],
@@ -81,6 +87,8 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
                 'Fecha' => '2026-05-02',
                 'HoraInicial' => '07:00',
                 'HoraFinal' => '08:00',
+                'NoJulio' => 'J2',
+                'KgBruto' => 115,
                 'KgNeto' => 95,
                 'Finalizar' => 0,
             ],
@@ -123,5 +131,75 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
                 ->all()
         );
         $this->assertSame(2, DB::connection('sqlsrv')->table('UrdProduccionUrdido')->where('Folio', '00031')->where('Finalizar', 1)->count());
+    }
+
+    /** Un registro sin horas no se borra sin confirmacion explicita. */
+    public function test_finalizar_pide_confirmacion_antes_de_descartar_registros_incompletos(): void
+    {
+        [$controller] = $this->escenarioConRegistroIncompleto();
+
+        $response = $controller->finalizar(Request::create('/f', 'POST', ['orden_id' => 1]));
+        $payload = $response->getData(true);
+
+        $this->assertFalse($payload['success']);
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertTrue($payload['requiere_confirmacion']);
+        $this->assertSame(1, $payload['registros_a_descartar']);
+        // nada se borro y la orden sigue abierta
+        $this->assertSame(2, DB::connection('sqlsrv')->table('UrdProduccionUrdido')->count());
+        $this->assertSame('En Proceso', DB::connection('sqlsrv')->table('UrdProgramaUrdido')->where('Id', 1)->value('Status'));
+    }
+
+    /** Con confirmacion si descarta, pero nunca toca filas ya enviadas a AX. */
+    public function test_finalizar_confirmado_descarta_incompletos_y_respeta_ax(): void
+    {
+        [$controller] = $this->escenarioConRegistroIncompleto(axEnIncompleto: true);
+
+        $response = $controller->finalizar(Request::create('/f', 'POST', [
+            'orden_id' => 1,
+            'confirmar_descarte' => true,
+        ]));
+
+        $this->assertTrue($response->getData(true)['success']);
+        // la fila incompleta tiene AX=1: sobrevive y NO se marca Finalizar
+        $incompleto = DB::connection('sqlsrv')->table('UrdProduccionUrdido')->where('Id', 21)->first();
+        $this->assertNotNull($incompleto);
+        $this->assertNotSame(1, (int) $incompleto->Finalizar);
+        // la completa si se cierra
+        $this->assertSame(1, (int) DB::connection('sqlsrv')->table('UrdProduccionUrdido')->where('Id', 20)->value('Finalizar'));
+    }
+
+    private function escenarioConRegistroIncompleto(bool $axEnIncompleto = false): array
+    {
+        DB::connection('sqlsrv')->table('UrdProgramaUrdido')->insert([
+            'Id' => 1, 'Folio' => '00099', 'Status' => 'En Proceso',
+            'FechaFinaliza' => null, 'SalonTejidoId' => 'Mc Coy 1', 'Incorrecto' => 0,
+        ]);
+
+        DB::connection('sqlsrv')->table('UrdProduccionUrdido')->insert([
+            [
+                'Id' => 20, 'Folio' => '00099', 'Fecha' => '2026-05-10',
+                'HoraInicial' => '06:00', 'HoraFinal' => '07:00',
+                'NoJulio' => 'J1', 'KgBruto' => 120, 'KgNeto' => 100, 'Finalizar' => 0, 'AX' => 0,
+            ],
+            [
+                'Id' => 21, 'Folio' => '00099', 'Fecha' => '2026-05-10',
+                'HoraInicial' => null, 'HoraFinal' => null,
+                'NoJulio' => 'J2', 'KgBruto' => 118, 'KgNeto' => 98, 'Finalizar' => 0,
+                'AX' => $axEnIncompleto ? 1 : 0,
+            ],
+        ]);
+
+        $controller = new class extends ModuloProduccionUrdidoController
+        {
+            protected function ensureUserCanEdit(): void {}
+
+            protected function traitHasNegativeKgNetoByFolio(string $folio): bool
+            {
+                return false;
+            }
+        };
+
+        return [$controller];
     }
 }

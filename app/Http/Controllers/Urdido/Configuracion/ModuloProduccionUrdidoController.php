@@ -87,6 +87,12 @@ class ModuloProduccionUrdidoController extends Controller
 
     public function index(Request $request)
     {
+        abort_unless(
+            function_exists('userCan') && userCan('acceso', $this->getModuleNameForPermissions()),
+            403,
+            'No tiene acceso a este módulo.'
+        );
+
         $ordenId = $request->query('orden_id');
 
         if (! $ordenId) {
@@ -98,17 +104,22 @@ class ModuloProduccionUrdidoController extends Controller
             return redirect()->route('urdido.programar.urdido')->with('error', 'Orden no encontrada');
         }
 
-        $redirect = $this->transitionToEnProceso($orden);
-        if ($redirect) {
-            return $redirect;
-        }
-
         $julios = $this->getJuliosForOrder($orden);
         $totalRegistros = $this->calculateTotalRegistros($julios);
 
-        $this->ensureProductionRecordsExist($orden, $julios, $totalRegistros);
-        $this->traitRefrescarFechaEnRegistrosVacios($orden);
-        $this->traitAutollenarOficial1EnRegistrosSinHoraInicial($orden);
+        // ponytail: el GET solo muta si el usuario puede capturar. Un lector (o un
+        // prefetch del navegador) ya no cambia Status ni crea/borra filas.
+        // Si se quiere mutación 100% explícita, mover esto a un POST /abrir-orden.
+        if ($this->usuarioPuedeEditar()) {
+            $redirect = $this->transitionToEnProceso($orden);
+            if ($redirect) {
+                return $redirect;
+            }
+
+            $this->ensureProductionRecordsExist($orden, $julios, $totalRegistros);
+            $this->traitRefrescarFechaEnRegistrosVacios($orden);
+            $this->traitAutollenarOficial1EnRegistrosSinHoraInicial($orden);
+        }
 
         $registrosProduccion = UrdProduccionUrdido::where('Folio', $orden->Folio)->orderBy('Id')->get();
 
@@ -147,11 +158,12 @@ class ModuloProduccionUrdidoController extends Controller
         $limitePorMaquina = 2;
 
         if ($mcCoyActual !== null) {
+            // ponytail: filtrar en SQL en vez de hidratar toda la tabla y contar en PHP.
+            // Sin % final: ancla al número (evita que "Coy 1" cuente a "Coy 12").
+            $patron = $mcCoyActual === 4 ? '%karl%mayer%' : "%coy%{$mcCoyActual}";
             $ordenesEnProceso = UrdProgramaUrdido::where('Status', 'En Proceso')
-                ->whereNotNull('MaquinaId')
                 ->where('Id', '!=', $orden->Id)
-                ->get()
-                ->filter(fn ($item) => $this->extractMcCoyNumber($item->MaquinaId) === $mcCoyActual)
+                ->where('MaquinaId', 'like', $patron)
                 ->count();
 
             if ($ordenesEnProceso >= $limitePorMaquina) {
@@ -205,7 +217,6 @@ class ModuloProduccionUrdidoController extends Controller
 
         try {
             $existentes = UrdProduccionUrdido::where('Folio', $orden->Folio)->orderBy('Id')->get();
-            $faltantes = max(0, $totalRegistros - $existentes->count());
 
             $user = Auth::user();
             $claveUsuario = $user ? ($user->numero_empleado ?? null) : null;
@@ -242,45 +253,35 @@ class ModuloProduccionUrdidoController extends Controller
                 $diff = $actual - $expected;
 
                 if ($diff > 0) {
-                    // Hay mas de los esperados - marcar para eliminar los sobrantes
-                    // Prioridad: 1) NoJulio=NULL, 2) KgNeto=NULL, 3) Id mas antiguo
+                    // Solo se eliminan filas VACIAS: sin captura iniciada, sin julio,
+                    // sin peso y no enviadas a AX. Si no alcanzan, se deja el sobrante
+                    // y se registra: nunca se borra trabajo real para cuadrar el conteo.
                     $sobrantes = UrdProduccionUrdido::where('Folio', $orden->Folio)
                         ->where('Hilos', $hilos === 'null' ? null : $hilos)
                         ->where(function ($q) {
+                            $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
+                        })
+                        ->where(function ($q) {
                             $q->whereNull('NoJulio')->orWhere('NoJulio', '');
                         })
-                        ->orderBy('Id', 'asc')  // mas antiguo primero
+                        ->where(function ($q) {
+                            $q->whereNull('KgBruto')->orWhere('KgBruto', 0);
+                        })
+                        ->where(function ($q) {
+                            $q->whereNull('AX')->orWhere('AX', '!=', 1);
+                        })
+                        ->orderBy('Id', 'desc')  // los mas nuevos primero
                         ->limit($diff)
                         ->pluck('Id')
                         ->toArray();
 
                     if (count($sobrantes) < $diff) {
-                        // No hay suficientes sin NoJulio, buscar los que tienen KgNeto=NULL
-                        $faltan = $diff - count($sobrantes);
-                        $restantes = UrdProduccionUrdido::where('Folio', $orden->Folio)
-                            ->where('Hilos', $hilos === 'null' ? null : $hilos)
-                            ->whereNotIn('Id', $sobrantes)
-                            ->where(function ($q) {
-                                $q->whereNull('KgNeto')->orWhere('KgNeto', 0);
-                            })
-                            ->orderBy('Id', 'asc')
-                            ->limit($faltan)
-                            ->pluck('Id')
-                            ->toArray();
-                        $sobrantes = array_merge($sobrantes, $restantes);
-                    }
-
-                    if (count($sobrantes) < $diff) {
-                        // Aun no hay suficientes, tomar los mas antiguos restantes
-                        $faltan = $diff - count($sobrantes);
-                        $restantes = UrdProduccionUrdido::where('Folio', $orden->Folio)
-                            ->where('Hilos', $hilos === 'null' ? null : $hilos)
-                            ->whereNotIn('Id', $sobrantes)
-                            ->orderBy('Id', 'asc')
-                            ->limit($faltan)
-                            ->pluck('Id')
-                            ->toArray();
-                        $sobrantes = array_merge($sobrantes, $restantes);
+                        Log::warning('Sobran registros de produccion con captura; no se eliminan', [
+                            'folio' => $orden->Folio,
+                            'hilos' => $hilos,
+                            'sobrantes' => $diff,
+                            'eliminables' => count($sobrantes),
+                        ]);
                     }
 
                     $idsAEliminar = array_merge($idsAEliminar, $sobrantes);
@@ -322,9 +323,9 @@ class ModuloProduccionUrdidoController extends Controller
                 ]);
             }
 
-            // Crear faltantes
-            foreach ($registrosACrear as $data) {
-                UrdProduccionUrdido::create($data);
+            // Crear faltantes (un solo INSERT en vez de N round-trips)
+            if (! empty($registrosACrear)) {
+                UrdProduccionUrdido::insert($registrosACrear);
             }
         } catch (\Throwable $e) {
             Log::error('Error al sincronizar registros en UrdProduccionUrdido', [
@@ -453,6 +454,7 @@ class ModuloProduccionUrdidoController extends Controller
         try {
             $request->validate([
                 'orden_id' => 'required|integer|exists:UrdProgramaUrdido,Id',
+                'confirmar_descarte' => 'nullable|boolean',
             ]);
 
             $orden = UrdProgramaUrdido::find($request->orden_id);
@@ -528,6 +530,23 @@ class ModuloProduccionUrdidoController extends Controller
                 }
             }
 
+            // Las filas sin horas se descartan al cerrar. Avisar cuántas y exigir
+            // confirmación explícita antes de borrarlas.
+            $incompletos = UrdProduccionUrdido::where('Folio', $orden->Folio)
+                ->where(function ($query) {
+                    $query->whereNull('HoraInicial')->orWhereNull('HoraFinal');
+                })
+                ->count();
+
+            if ($incompletos > 0 && ! $request->boolean('confirmar_descarte')) {
+                return response()->json([
+                    'success' => false,
+                    'requiere_confirmacion' => true,
+                    'registros_a_descartar' => $incompletos,
+                    'error' => "Al finalizar se descartarán {$incompletos} registro(s) sin Hora Inicial u Hora Final. Confirma para continuar.",
+                ], 422);
+            }
+
             $fechaCierre = $this->resolveMonthlyClosureDateContext();
 
             DB::connection('sqlsrv')->transaction(function () use ($orden, $fechaCierre) {
@@ -536,9 +555,17 @@ class ModuloProduccionUrdidoController extends Controller
                     ->where(function ($query) {
                         $query->whereNull('HoraInicial')->orWhereNull('HoraFinal');
                     })
+                    ->where(function ($query) {
+                        $query->whereNull('AX')->orWhere('AX', '!=', 1);
+                    })
                     ->delete();
 
-                UrdProduccionUrdido::where('Folio', $orden->Folio)->update(['Finalizar' => 1]);
+                // No tocar filas ya procesadas en AX.
+                UrdProduccionUrdido::where('Folio', $orden->Folio)
+                    ->where(function ($query) {
+                        $query->whereNull('AX')->orWhere('AX', '!=', 1);
+                    })
+                    ->update(['Finalizar' => 1]);
 
                 if ($fechaCierre['applies']) {
                     $this->updateProduccionFechaByFolio($orden->Folio, $fechaCierre['fecha_efectiva']);

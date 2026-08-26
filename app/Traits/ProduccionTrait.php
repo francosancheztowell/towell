@@ -252,6 +252,12 @@ trait ProduccionTrait
 
     public function getCatalogosJulios(): JsonResponse
     {
+        abort_unless(
+            function_exists('userCan') && userCan('acceso', $this->getModuleNameForPermissions()),
+            403,
+            'No tiene acceso a este módulo.'
+        );
+
         try {
             $julios = UrdCatJulios::select('NoJulio', 'Tara', 'Departamento')
                 ->whereNotNull('NoJulio')
@@ -288,8 +294,13 @@ trait ProduccionTrait
                 'numero_oficial' => 'required|integer|in:1,2,3',
                 'cve_empl' => 'nullable|string|max:30',
                 'nom_empl' => 'nullable|string|max:150',
-                'metros' => 'nullable|numeric|min:0',
+                // Metros es obligatorio y mayor a cero: un oficial sin metros no
+                // aporta produccion y descuadra el total de la fila.
+                'metros' => 'required|numeric|gt:0',
                 'turno' => 'nullable|integer|in:1,2,3,4',
+            ], [
+                'metros.required' => 'Los Metros son obligatorios para guardar un oficial.',
+                'metros.gt' => 'Los Metros deben ser mayores a cero.',
             ]);
 
             $cveEmpl = trim((string) ($request->input('cve_empl') ?? ''));
@@ -323,13 +334,6 @@ trait ProduccionTrait
                     ->where("NomEmpl{$numeroOficial}", '!=', '')
                     ->exists();
                 $propagarOficial = ! $existeOficialEnFolio;
-            }
-
-            if ($numeroOficial < 1 || $numeroOficial > 3) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Número de oficial inválido. Solo se permiten 3 oficiales (1, 2 o 3).',
-                ], 422);
             }
 
             // No permitir repetir No. Operador dentro del mismo registro
@@ -396,9 +400,7 @@ trait ProduccionTrait
             $registro->{"CveEmpl{$numeroOficial}"} = $cveEmpl !== '' ? $cveEmpl : null;
             $registro->{"NomEmpl{$numeroOficial}"} = $nomEmpl !== '' ? $nomEmpl : null;
 
-            if ($request->exists('metros')) {
-                $registro->{"Metros{$numeroOficial}"} = $request->metros;
-            }
+            $registro->{"Metros{$numeroOficial}"} = $request->metros;
             if ($request->has('turno')) {
                 $registro->{"Turno{$numeroOficial}"} = $request->turno;
             }
@@ -571,6 +573,7 @@ trait ProduccionTrait
 
     public function actualizarJulioTara(Request $request): JsonResponse
     {
+        $this->ensureUserCanEdit();
         try {
             $request->validate([
                 'registro_id' => 'required|integer',
@@ -589,14 +592,21 @@ trait ProduccionTrait
                 return $bloqueado;
             }
 
-            $this->ensureUserCanEdit();
-
             $registro->NoJulio = $request->no_julio;
 
-            $taraValue = null;
-            if ($request->has('tara') && $request->tara !== null && $request->tara !== '') {
-                $taraValue = (float) $request->tara;
+            // La Tara define KgNeto: se toma del catálogo, no de lo que mande el cliente.
+            $catalogo = UrdCatJulios::where('NoJulio', $request->no_julio)
+                ->where('Departamento', $this->getDepartamento())
+                ->first();
+
+            if (! $catalogo) {
+                return response()->json([
+                    'success' => false,
+                    'error' => "El julio {$request->no_julio} no existe en el catálogo de {$this->getDepartamento()}.",
+                ], 422);
             }
+
+            $taraValue = $catalogo->Tara !== null ? (float) $catalogo->Tara : null;
             $registro->Tara = $taraValue;
 
             if ($taraValue !== null) {
@@ -809,6 +819,14 @@ trait ProduccionTrait
                 }
                 if (is_null($registro->KgBruto) || $registro->KgBruto <= 0) {
                     $camposFaltantes[] = 'Kg Bruto debe ser un valor mayor a 0';
+                }
+                // Metros de la fila = suma de los metros de sus oficiales.
+                $metrosFila = 0.0;
+                for ($i = 1; $i <= 3; $i++) {
+                    $metrosFila += (float) ($registro->{"Metros{$i}"} ?? 0);
+                }
+                if ($metrosFila <= 0) {
+                    $camposFaltantes[] = 'Metros debe ser un valor mayor a 0';
                 }
                 $maxBruto = $this->maxKgBrutoAllowed();
                 if ($maxBruto !== null && $registro->KgBruto !== null && (float) $registro->KgBruto > $maxBruto) {
