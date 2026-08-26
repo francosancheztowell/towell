@@ -292,9 +292,13 @@ class ModuloProduccionUrdidoController extends Controller
 
     private function getJuliosForOrder(UrdProgramaUrdido $orden): Collection
     {
+        // Los renglones van de MAYOR a menor numero de hilos: el grupo de mas
+        // hilos arriba. Antes se ordenaba por Julios (la cantidad del grupo), que
+        // solo coincidia por casualidad cuando el grupo mayor tenia menos julios.
         return UrdJuliosOrden::where('Folio', $orden->Folio)
             ->whereNotNull('Julios')
-            ->orderBy('Julios')
+            ->orderByRaw('CASE WHEN Hilos IS NULL THEN 1 ELSE 0 END, Hilos DESC')
+            ->orderBy('Id')
             ->get();
     }
 
