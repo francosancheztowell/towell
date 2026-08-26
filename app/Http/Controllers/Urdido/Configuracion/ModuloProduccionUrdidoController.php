@@ -48,11 +48,6 @@ class ModuloProduccionUrdidoController extends Controller
         return 'Producción Urdido';
     }
 
-    protected function enforzarCapturaSecuencial(): bool
-    {
-        return true;
-    }
-
     /**
      * Verifica si el usuario puede editar según permisos del módulo (no área).
      * Usa el módulo asociado a la ruta de producción urdido en SYSRoles.

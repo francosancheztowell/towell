@@ -137,71 +137,6 @@ trait ProduccionTrait
     }
 
     /**
-     * Las filas se capturan en orden: solo se puede empezar la siguiente libre.
-     * Sin esto, con muchos julios el operador no ve las de arriba, arranca en la
-     * 7 y deja huecos; y si las filas saltadas son de otro grupo de Hilos, la
-     * produccion queda registrada contra la cuenta equivocada.
-     *
-     * Apagado por defecto para no cambiar Engomado sin pedirlo.
-     */
-    protected function enforzarCapturaSecuencial(): bool
-    {
-        return false;
-    }
-
-    /**
-     * Una fila esta INICIADA si ya tiene hora, julio o peso.
-     * (Fecha, oficial y metros no cuentan: el trait los autollena.)
-     */
-    protected function filaIniciada($registro): bool
-    {
-        return trim((string) ($registro->HoraInicial ?? '')) !== ''
-            || trim((string) ($registro->NoJulio ?? '')) !== ''
-            || ($registro->KgBruto !== null && (float) $registro->KgBruto != 0.0);
-    }
-
-    /**
-     * @return JsonResponse|null Respuesta 422 si hay filas anteriores sin empezar; null si OK.
-     */
-    protected function jsonIfFilaFueraDeOrden($registro): ?JsonResponse
-    {
-        // Una fila ya iniciada siempre se puede seguir editando (correcciones).
-        if (! $this->enforzarCapturaSecuencial() || $this->filaIniciada($registro)) {
-            return null;
-        }
-
-        $model = $this->getProduccionModelClass();
-
-        $pendientes = $model::where('Folio', $registro->Folio)
-            ->where('Id', '<', $registro->Id)
-            ->where(function ($q) {
-                $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
-            })
-            ->where(function ($q) {
-                $q->whereNull('NoJulio')->orWhere('NoJulio', '');
-            })
-            ->where(function ($q) {
-                $q->whereNull('KgBruto')->orWhere('KgBruto', 0);
-            })
-            ->count();
-
-        if ($pendientes === 0) {
-            return null;
-        }
-
-        // Numero de renglon tal como se ve en pantalla.
-        $renglon = $model::where('Folio', $registro->Folio)->where('Id', '<=', $registro->Id)->count();
-        $siguiente = $renglon - $pendientes;
-
-        return response()->json([
-            'success' => false,
-            'fuera_de_orden' => true,
-            'renglon_siguiente' => $siguiente,
-            'error' => "Los registros se capturan en orden. Empieza por el renglón {$siguiente}; te faltan {$pendientes} antes de este.",
-        ], 422);
-    }
-
-    /**
      * Verifica que el usuario tenga permiso de modificar. Usa permisos del módulo, no el área.
      */
     protected function ensureUserCanEdit(): void
@@ -665,10 +600,6 @@ trait ProduccionTrait
                 return $bloqueado;
             }
 
-            if ($fueraDeOrden = $this->jsonIfFilaFueraDeOrden($registro)) {
-                return $fueraDeOrden;
-            }
-
             $registro->NoJulio = $request->no_julio;
 
             // La Tara define KgNeto: se toma del catálogo, no de lo que mande el cliente.
@@ -739,10 +670,6 @@ trait ProduccionTrait
 
             if ($bloqueado = $this->jsonIfRegistroBloqueadoPorAx($registro)) {
                 return $bloqueado;
-            }
-
-            if ($fueraDeOrden = $this->jsonIfFilaFueraDeOrden($registro)) {
-                return $fueraDeOrden;
             }
 
             $kgBrutoValue = null;
@@ -820,10 +747,6 @@ trait ProduccionTrait
 
             if ($bloqueado = $this->jsonIfRegistroBloqueadoPorAx($registro)) {
                 return $bloqueado;
-            }
-
-            if ($fueraDeOrden = $this->jsonIfFilaFueraDeOrden($registro)) {
-                return $fueraDeOrden;
             }
 
             $campo = $request->campo;
