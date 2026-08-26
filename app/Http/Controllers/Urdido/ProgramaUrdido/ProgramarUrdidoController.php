@@ -772,7 +772,8 @@ class ProgramarUrdidoController extends Controller
 
             $request->validate([
                 'prioridades' => 'required|array',
-                'prioridades.*.id' => 'required|integer|exists:UrdProgramaUrdido,Id',
+                // ponytail: sin exists: por fila (eran N SELECT); el UPDATE ignora ids inexistentes
+                'prioridades.*.id' => 'required|integer',
                 'prioridades.*.prioridad' => 'required|integer|min:1',
             ]);
             $this->prioridadService->bulkUpdatePriorities(

@@ -141,8 +141,10 @@
                 <button type="button" onclick="cerrarModalEditarPrioridad()" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
                     Cancelar
                 </button>
-                <button type="button" onclick="guardarPrioridades()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-                    Guardar Cambios
+                <button type="button" id="btnGuardarPrioridades" onclick="guardarPrioridades()"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2">
+                    <span id="btnGuardarPrioridadesSpinner" class="hidden animate-spin rounded-full h-4 w-4 border-2 border-white/40 border-t-white"></span>
+                    <span id="btnGuardarPrioridadesText">Guardar Cambios</span>
                 </button>
             </div>
         </div>
@@ -1264,7 +1266,20 @@
                 });
             };
 
+            let guardandoPrioridades = false;
+
             const guardarPrioridades = async () => {
+                if (guardandoPrioridades) return;
+
+                const btn = document.getElementById('btnGuardarPrioridades');
+                const btnText = document.getElementById('btnGuardarPrioridadesText');
+                const btnSpinner = document.getElementById('btnGuardarPrioridadesSpinner');
+
+                guardandoPrioridades = true;
+                if (btn) btn.disabled = true;
+                if (btnSpinner) btnSpinner.classList.remove('hidden');
+                if (btnText) btnText.textContent = 'Guardando...';
+
                 try {
                     const ordenes = state.todasOrdenes || [];
 
@@ -1293,6 +1308,11 @@
                 } catch (error) {
                     console.error('Error al guardar prioridades:', error);
                     showError(`Error al guardar prioridades: ${error.message}`);
+                } finally {
+                    guardandoPrioridades = false;
+                    if (btn) btn.disabled = false;
+                    if (btnSpinner) btnSpinner.classList.add('hidden');
+                    if (btnText) btnText.textContent = 'Guardar Cambios';
                 }
             };
 

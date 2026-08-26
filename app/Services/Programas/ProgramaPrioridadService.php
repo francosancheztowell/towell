@@ -101,24 +101,40 @@ class ProgramaPrioridadService
      */
     public function bulkUpdatePriorities(string $modelClass, array $priorities): void
     {
-        $connection = (new $modelClass)->getConnectionName();
+        $model = new $modelClass;
+        $connection = $model->getConnectionName();
+        $table = $model->getTable();
 
-        DB::connection($connection)->transaction(function () use ($modelClass, $priorities) {
-            $ids = collect($priorities)->pluck('id')->map(fn ($id): int => (int) $id)->all();
-            $models = $modelClass::query()
-                ->whereIn('Id', $ids)
-                ->lockForUpdate()
-                ->get()
-                ->keyBy('Id');
+        // ponytail: un solo UPDATE ... CASE por lote en lugar de N save().
+        // Lotes de 500 porque SQL Server topa en 2100 parametros (3 por fila).
+        $pairs = collect($priorities)
+            ->map(fn ($item): array => [(int) $item['id'], (int) $item['prioridad']])
+            ->unique(fn (array $par): int => $par[0])
+            ->values();
 
-            foreach ($priorities as $item) {
-                $model = $models->get((int) $item['id']);
-                if (! $model) {
-                    throw new \Illuminate\Database\Eloquent\ModelNotFoundException;
+        if ($pairs->isEmpty()) {
+            return;
+        }
+
+        DB::connection($connection)->transaction(function () use ($connection, $table, $pairs) {
+            foreach ($pairs->chunk(500) as $chunk) {
+                $cases = '';
+                $bindings = [];
+                $ids = [];
+
+                foreach ($chunk as [$id, $prioridad]) {
+                    $cases .= ' WHEN ? THEN ?';
+                    $bindings[] = $id;
+                    $bindings[] = $prioridad;
+                    $ids[] = $id;
                 }
 
-                $model->Prioridad = $item['prioridad'];
-                $model->save();
+                $placeholders = implode(',', array_fill(0, count($ids), '?'));
+
+                DB::connection($connection)->update(
+                    "UPDATE [{$table}] SET [Prioridad] = CASE [Id]{$cases} END WHERE [Id] IN ({$placeholders})",
+                    array_merge($bindings, $ids)
+                );
             }
         });
     }
