@@ -83,6 +83,29 @@ class ModuloProduccionUrdidoController extends Controller
         return null;
     }
 
+    /**
+     * Una fila tiene captura real del operador si trae julio, peso o roturas.
+     *
+     * Fecha, Oficial 1, Turno y Metros NO cuentan: el trait los autollena en
+     * cada carga de página, así que un esqueleto nunca corrido también los trae.
+     */
+    private function scopeTieneCaptura($query)
+    {
+        return $query
+            ->where(function ($q) {
+                $q->whereNotNull('NoJulio')->where('NoJulio', '!=', '');
+            })
+            ->orWhere(function ($q) {
+                $q->whereNotNull('KgBruto')->where('KgBruto', '!=', 0);
+            })
+            ->orWhere('Hilatura', '>', 0)
+            ->orWhere('Maquina', '>', 0)
+            ->orWhere('Operac', '>', 0)
+            ->orWhere('Transf', '>', 0)
+            ->orWhere('Vueltas', '>', 0)
+            ->orWhere('Diametro', '>', 0);
+    }
+
     // ─── index() refactorizado ───────────────────────────────────────
 
     public function index(Request $request)
@@ -530,20 +553,24 @@ class ModuloProduccionUrdidoController extends Controller
                 }
             }
 
-            // Las filas sin horas se descartan al cerrar. Avisar cuántas y exigir
-            // confirmación explícita antes de borrarlas.
-            $incompletos = UrdProduccionUrdido::where('Folio', $orden->Folio)
+            // Las filas se pre-crean como esqueleto desde el plan de julios
+            // (ver ensureProductionRecordsExist). Las que quedan sin horas son
+            // julios planeados que no se corrieron: se descartan sin preguntar.
+            // Solo se pide confirmación si alguna trae captura real, porque ahí
+            // sí se estaría tirando trabajo del operador.
+            $conCaptura = UrdProduccionUrdido::where('Folio', $orden->Folio)
                 ->where(function ($query) {
                     $query->whereNull('HoraInicial')->orWhereNull('HoraFinal');
                 })
+                ->where(fn ($q) => $this->scopeTieneCaptura($q))
                 ->count();
 
-            if ($incompletos > 0 && ! $request->boolean('confirmar_descarte')) {
+            if ($conCaptura > 0 && ! $request->boolean('confirmar_descarte')) {
                 return response()->json([
                     'success' => false,
                     'requiere_confirmacion' => true,
-                    'registros_a_descartar' => $incompletos,
-                    'error' => "Al finalizar se descartarán {$incompletos} registro(s) sin Hora Inicial u Hora Final. Confirma para continuar.",
+                    'registros_a_descartar' => $conCaptura,
+                    'error' => "Hay {$conCaptura} registro(s) con captura (julio, peso o roturas) a los que les falta Hora Inicial u Hora Final. Al finalizar se descartarán.",
                 ], 422);
             }
 

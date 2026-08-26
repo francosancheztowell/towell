@@ -44,6 +44,10 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
             $table->integer('Finalizar')->nullable();
             $table->float('Vueltas')->nullable();
             $table->float('Diametro')->nullable();
+            $table->integer('Hilatura')->nullable();
+            $table->integer('Maquina')->nullable();
+            $table->integer('Operac')->nullable();
+            $table->integer('Transf')->nullable();
             $table->string('NoJulio')->nullable();
             $table->float('KgBruto')->nullable();
             $table->integer('AX')->nullable();
@@ -133,7 +137,23 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
         $this->assertSame(2, DB::connection('sqlsrv')->table('UrdProduccionUrdido')->where('Folio', '00031')->where('Finalizar', 1)->count());
     }
 
-    /** Un registro sin horas no se borra sin confirmacion explicita. */
+    /**
+     * Las filas se pre-crean como esqueleto desde el plan de julios. Un julio
+     * planeado que no se corrio se descarta sin preguntar: es el caso normal.
+     */
+    public function test_finalizar_descarta_esqueletos_sin_preguntar(): void
+    {
+        [$controller] = $this->escenarioConRegistroIncompleto(conCaptura: false);
+
+        $response = $controller->finalizar(Request::create('/f', 'POST', ['orden_id' => 1]));
+
+        $this->assertTrue($response->getData(true)['success']);
+        // el esqueleto se fue, la fila corrida quedo cerrada
+        $this->assertNull(DB::connection('sqlsrv')->table('UrdProduccionUrdido')->where('Id', 21)->first());
+        $this->assertSame(1, (int) DB::connection('sqlsrv')->table('UrdProduccionUrdido')->where('Id', 20)->value('Finalizar'));
+    }
+
+    /** Pero una fila CON captura y sin horas no se tira sin confirmacion. */
     public function test_finalizar_pide_confirmacion_antes_de_descartar_registros_incompletos(): void
     {
         [$controller] = $this->escenarioConRegistroIncompleto();
@@ -169,7 +189,7 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
         $this->assertSame(1, (int) DB::connection('sqlsrv')->table('UrdProduccionUrdido')->where('Id', 20)->value('Finalizar'));
     }
 
-    private function escenarioConRegistroIncompleto(bool $axEnIncompleto = false): array
+    private function escenarioConRegistroIncompleto(bool $axEnIncompleto = false, bool $conCaptura = true): array
     {
         DB::connection('sqlsrv')->table('UrdProgramaUrdido')->insert([
             'Id' => 1, 'Folio' => '00099', 'Status' => 'En Proceso',
@@ -183,9 +203,14 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
                 'NoJulio' => 'J1', 'KgBruto' => 120, 'KgNeto' => 100, 'Finalizar' => 0, 'AX' => 0,
             ],
             [
+                // esqueleto = sin julio/peso/roturas, aunque el trait ya le puso
+                // Fecha y Oficial 1 en la carga de pagina
                 'Id' => 21, 'Folio' => '00099', 'Fecha' => '2026-05-10',
                 'HoraInicial' => null, 'HoraFinal' => null,
-                'NoJulio' => 'J2', 'KgBruto' => 118, 'KgNeto' => 98, 'Finalizar' => 0,
+                'NoJulio' => $conCaptura ? 'J2' : null,
+                'KgBruto' => $conCaptura ? 118 : null,
+                'KgNeto' => $conCaptura ? 98 : null,
+                'Finalizar' => 0,
                 'AX' => $axEnIncompleto ? 1 : 0,
             ],
         ]);
