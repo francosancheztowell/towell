@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Urdido;
 
-use Illuminate\Support\Facades\DB;
 use App\Exports\BpmUrdidoExport;
 use App\Exports\KaizenExport;
+use App\Exports\PanelControlKmExport;
 use App\Exports\ReporteResumenSemanalUrdidoExport;
 use App\Exports\ReportesUrdidoExport;
 use App\Exports\RoturasMillonExport;
@@ -12,13 +12,17 @@ use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Urdido\UrdBpmModel;
 use App\Models\Urdido\UrdProduccionUrdido;
+use App\Services\Urdido\PanelControlKmService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Maatwebsite\Excel\Facades\Excel; // New import
+use Maatwebsite\Excel\Facades\Excel;
+
+ // New import
 
 class ReportesUrdidoController extends Controller
 {
@@ -113,6 +117,12 @@ class ReportesUrdidoController extends Controller
                 'nombre' => 'Resumen Urdido',
                 'accion' => 'Pedir Rango de Fechas',
                 'url' => route('urdido.reportes.urdido.resumen'),
+                'disponible' => true,
+            ],
+            [
+                'nombre' => 'Panel de Control KM',
+                'accion' => 'Seleccionar Telar y Año',
+                'url' => route('urdido.reportes.urdido.panel-control'),
                 'disponible' => true,
             ],
         ];
@@ -787,7 +797,6 @@ class ReportesUrdidoController extends Controller
         return $this->guardarReporteEnRed($export, $filenameRed, $filenameDownload, 'BPM Urdido');
     }
 
-
     /**
      * Filas del reporte BPM: una por linea de checklist, con la cabecera repetida
      * (es el formato que consumen la vista y el Excel).
@@ -1430,6 +1439,68 @@ class ReportesUrdidoController extends Controller
         $fileName = 'resumen-semanal-urdido-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
         return Excel::download(new ReporteResumenSemanalUrdidoExport($datosSemanales), $fileName);
+    }
+
+    /**
+     * Normaliza los filtros del Panel de Control KM (telar, anio, desde, hasta, umbrales).
+     */
+    private function filtrosPanelControl(Request $request): array
+    {
+        $telar = (string) $request->query('telar', 'ambos');
+        if (! in_array($telar, ['401', '402', 'ambos'], true)) {
+            $telar = 'ambos';
+        }
+
+        $anio = (int) $request->query('anio', Carbon::now('America/Mexico_City')->year);
+        if ($anio < 2000 || $anio > 2100) {
+            $anio = (int) Carbon::now('America/Mexico_City')->year;
+        }
+
+        $desde = trim((string) $request->query('desde', ''));
+        $hasta = trim((string) $request->query('hasta', ''));
+
+        $umbralVerde = (float) $request->query('umbral_verde', 0.90);
+        if ($umbralVerde <= 0 || $umbralVerde > 2) {
+            $umbralVerde = 0.90;
+        }
+
+        $umbralAmarillo = (float) $request->query('umbral_amarillo', 0.75);
+        if ($umbralAmarillo <= 0 || $umbralAmarillo > 2) {
+            $umbralAmarillo = 0.75;
+        }
+
+        return [
+            'telar' => $telar,
+            'anio' => $anio,
+            'desde' => $desde !== '' ? $desde : null,
+            'hasta' => $hasta !== '' ? $hasta : null,
+            'umbral_verde' => $umbralVerde,
+            'umbral_amarillo' => $umbralAmarillo,
+        ];
+    }
+
+    /**
+     * Panel de Control — Telares KM (401 / 402).
+     */
+    public function reportePanelControl(Request $request, PanelControlKmService $panel)
+    {
+        $filtros = $this->filtrosPanelControl($request);
+        $data = $panel->build($filtros);
+
+        return view('modulos.urdido.reportes-panel-control', $data + ['filtros' => $filtros]);
+    }
+
+    /**
+     * Exportar Excel del Panel de Control KM.
+     */
+    public function exportarPanelControlExcel(Request $request, PanelControlKmService $panel)
+    {
+        $filtros = $this->filtrosPanelControl($request);
+        $data = $panel->build($filtros);
+
+        $fileName = 'panel-control-km_'.$filtros['telar'].'_'.$filtros['anio'].'.xlsx';
+
+        return Excel::download(new PanelControlKmExport($data), $fileName);
     }
 
     private function buildReporteSemanalDataUrdido(string $fechaIni, string $fechaFin): array
