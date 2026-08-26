@@ -98,10 +98,17 @@
                                     }
                                 }
                             }
+
+                            // Pintar SIEMPRE todas las filas que existen en la tabla.
+                            // Iterar solo hasta $totalRegistros (el total del plan de
+                            // julios) dejaba invisibles las filas sobrantes, que seguian
+                            // vivas en UrdProduccionUrdido y en los reportes.
+                            $filasEnTabla = isset($registrosProduccion) ? $registrosProduccion->count() : 0;
+                            $totalFilas = max($totalRegistros, $filasEnTabla);
                         @endphp
 
-                        @if($totalRegistros > 0)
-                            @for($rowIndex = 1; $rowIndex <= (int)$totalRegistros; $rowIndex++)
+                        @if($totalFilas > 0)
+                            @for($rowIndex = 1; $rowIndex <= (int)$totalFilas; $rowIndex++)
                                 @php
                                     $registro = isset($registrosProduccion) && $registrosProduccion->count() > 0
                                         ? $registrosProduccion->get($rowIndex - 1)

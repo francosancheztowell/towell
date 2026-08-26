@@ -346,6 +346,26 @@ class ModuloProduccionUrdidoController extends Controller
                 ]);
             }
 
+            // La reconciliación agrupa por Hilos, pero Hilos no es estable: si el
+            // plan de julios se edita despues de crear las filas, el grupo viejo
+            // queda huerfano (nunca se cuenta ni se borra) y el grupo nuevo se crea
+            // desde cero, duplicando la orden. Se acota por el TOTAL del folio.
+            $filasTrasBorrado = $existentes->count() - count($idsAEliminar);
+            $cupo = max(0, $totalRegistros - $filasTrasBorrado);
+
+            if (count($registrosACrear) > $cupo) {
+                Log::warning('Alta de produccion recortada al total del plan de julios', [
+                    'folio' => $orden->Folio,
+                    'plan_total' => $totalRegistros,
+                    'filas_actuales' => $filasTrasBorrado,
+                    'solicitadas' => count($registrosACrear),
+                    'creadas' => $cupo,
+                    'hilos_existentes' => array_keys($existentesPorHilos),
+                    'hilos_plan' => array_keys($expectedPorHilos),
+                ]);
+                $registrosACrear = array_slice($registrosACrear, 0, $cupo);
+            }
+
             // Crear faltantes (un solo INSERT en vez de N round-trips)
             if (! empty($registrosACrear)) {
                 UrdProduccionUrdido::insert($registrosACrear);

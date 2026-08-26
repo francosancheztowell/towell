@@ -3,6 +3,8 @@
 namespace Tests\Unit;
 
 use App\Http\Controllers\Urdido\Configuracion\ModuloProduccionUrdidoController;
+use App\Models\Urdido\UrdJuliosOrden;
+use App\Models\Urdido\UrdProgramaUrdido;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
@@ -34,6 +36,13 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
             $table->integer('Incorrecto')->nullable();
         });
 
+        $schema->create('UrdJuliosOrden', function (Blueprint $table) {
+            $table->increments('Id');
+            $table->string('Folio')->nullable();
+            $table->integer('Julios')->nullable();
+            $table->integer('Hilos')->nullable();
+        });
+
         $schema->create('UrdProduccionUrdido', function (Blueprint $table) {
             $table->increments('Id');
             $table->string('Folio')->nullable();
@@ -48,6 +57,13 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
             $table->integer('Maquina')->nullable();
             $table->integer('Operac')->nullable();
             $table->integer('Transf')->nullable();
+            $table->integer('Hilos')->nullable();
+            $table->string('TipoAtado')->nullable();
+            $table->string('CveEmpl1')->nullable();
+            $table->string('NomEmpl1')->nullable();
+            $table->float('Metros1')->nullable();
+            $table->integer('Turno1')->nullable();
+            $table->float('Tara')->nullable();
             $table->string('NoJulio')->nullable();
             $table->float('KgBruto')->nullable();
             $table->integer('AX')->nullable();
@@ -226,5 +242,42 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
         };
 
         return [$controller];
+    }
+
+    /**
+     * Regresion: el plan de julios cambio de Hilos despues de crear las filas.
+     * El grupo viejo queda huerfano y el sincronizador creaba el grupo nuevo
+     * desde cero, duplicando la orden con filas que la vista ni siquiera pintaba.
+     */
+    public function test_no_duplica_filas_cuando_el_plan_cambia_de_hilos(): void
+    {
+        DB::connection('sqlsrv')->table('UrdProgramaUrdido')->insert([
+            'Id' => 5, 'Folio' => '00077', 'Status' => 'En Proceso', 'Incorrecto' => 0,
+        ]);
+        // plan: 6 julios de Hilos 395 + 1 de Hilos 396 = 7
+        DB::connection('sqlsrv')->table('UrdJuliosOrden')->insert([
+            ['Folio' => '00077', 'Julios' => 6, 'Hilos' => 395],
+            ['Folio' => '00077', 'Julios' => 1, 'Hilos' => 396],
+        ]);
+        // tabla: 1 fila de 396 + 6 CAPTURADAS con Hilos 461 (grupo huerfano)
+        $filas = [['Folio' => '00077', 'Hilos' => 396, 'NoJulio' => 'J0', 'HoraInicial' => '06:00']];
+        for ($i = 1; $i <= 6; $i++) {
+            $filas[] = ['Folio' => '00077', 'Hilos' => 461, 'NoJulio' => "J{$i}", 'HoraInicial' => '07:00'];
+        }
+        DB::connection('sqlsrv')->table('UrdProduccionUrdido')->insert($filas);
+
+        $controller = new ModuloProduccionUrdidoController;
+        $metodo = new \ReflectionMethod($controller, 'ensureProductionRecordsExist');
+        $metodo->setAccessible(true);
+        $orden = UrdProgramaUrdido::find(5);
+        $julios = UrdJuliosOrden::where('Folio', '00077')->get();
+
+        $metodo->invoke($controller, $orden, $julios, 7);
+
+        $total = DB::connection('sqlsrv')->table('UrdProduccionUrdido')->where('Folio', '00077')->count();
+        $this->assertSame(7, $total, "El folio debe quedar en el total del plan (7), no duplicado. Quedo en {$total}.");
+        // y las 6 filas capturadas siguen ahi
+        $this->assertSame(6, DB::connection('sqlsrv')->table('UrdProduccionUrdido')
+            ->where('Folio', '00077')->where('Hilos', 461)->count());
     }
 }
