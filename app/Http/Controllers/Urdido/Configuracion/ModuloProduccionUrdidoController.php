@@ -423,6 +423,42 @@ class ModuloProduccionUrdidoController extends Controller
                 }
             }
 
+            // El barrido por grupo solo mira los Hilos que estan en el plan, asi
+            // que los renglones vacios de un grupo huerfano se quedaban para
+            // siempre (p. ej. al editar el plan con la orden en "Programado", que
+            // omite el remapeo). Aqui se recorta el excedente contra el TOTAL,
+            // tocando unicamente filas sin captura y fuera de AX.
+            $sobraTotal = ($existentes->count() - count($idsAEliminar)) - $totalRegistros;
+            if ($sobraTotal > 0) {
+                $huerfanas = UrdProduccionUrdido::where('Folio', $orden->Folio)
+                    ->whereNotIn('Id', $idsAEliminar ?: [0])
+                    ->where(function ($q) {
+                        $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
+                    })
+                    ->where(function ($q) {
+                        $q->whereNull('NoJulio')->orWhere('NoJulio', '');
+                    })
+                    ->where(function ($q) {
+                        $q->whereNull('KgBruto')->orWhere('KgBruto', 0);
+                    })
+                    ->where(function ($q) {
+                        $q->whereNull('AX')->orWhere('AX', '!=', 1);
+                    })
+                    ->orderBy('Id', 'desc')
+                    ->limit($sobraTotal)
+                    ->pluck('Id')
+                    ->toArray();
+
+                if (! empty($huerfanas)) {
+                    Log::info('Recorte de renglones sobrantes fuera del plan de julios', [
+                        'folio' => $orden->Folio,
+                        'sobrante' => $sobraTotal,
+                        'eliminables' => count($huerfanas),
+                    ]);
+                    $idsAEliminar = array_merge($idsAEliminar, $huerfanas);
+                }
+            }
+
             // Eliminar sobrantes
             if (! empty($idsAEliminar)) {
                 UrdProduccionUrdido::whereIn('Id', $idsAEliminar)->delete();

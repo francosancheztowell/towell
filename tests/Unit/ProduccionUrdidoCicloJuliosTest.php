@@ -158,6 +158,51 @@ class ProduccionUrdidoCicloJuliosTest extends TestCase
         };
     }
 
+    /** Deja el folio en blanco para el siguiente caso de la matriz. */
+    private function reiniciar(): void
+    {
+        DB::connection('sqlsrv')->table('UrdProduccionUrdido')->where('Folio', 'C001')->delete();
+        DB::connection('sqlsrv')->table('UrdJuliosOrden')->where('Folio', 'C001')->delete();
+        DB::connection('sqlsrv')->table('UrdProgramaUrdido')->where('Id', 1)->update(['Status' => 'En Proceso']);
+    }
+
+    private function totalPlan(): int
+    {
+        return (int) DB::connection('sqlsrv')->table('UrdJuliosOrden')
+            ->where('Folio', 'C001')->whereNotNull('Julios')->sum('Julios');
+    }
+
+    private function capturadas(): int
+    {
+        return DB::connection('sqlsrv')->table('UrdProduccionUrdido')
+            ->where('Folio', 'C001')
+            ->where(function ($q) {
+                $q->where(function ($w) {
+                    $w->whereNotNull('NoJulio')->where('NoJulio', '!=', '');
+                })->orWhere(function ($w) {
+                    $w->whereNotNull('KgBruto')->where('KgBruto', '!=', 0);
+                });
+            })
+            ->count();
+    }
+
+    /**
+     * El invariante de todo el modulo: nunca puede haber mas renglones que el
+     * plan, salvo por los que ya traen captura y por eso no se pueden borrar.
+     */
+    private function verificarInvariante(string $caso): void
+    {
+        $plan = $this->totalPlan();
+        $cap = $this->capturadas();
+        $filas = $this->filas();
+
+        $this->assertSame(
+            max($plan, $cap),
+            $filas,
+            "{$caso}: plan={$plan} capturadas={$cap} pero hay {$filas} renglones."
+        );
+    }
+
     private function idsFilas(): array
     {
         return DB::connection('sqlsrv')->table('UrdProduccionUrdido')
@@ -388,5 +433,340 @@ class ProduccionUrdidoCicloJuliosTest extends TestCase
         $this->assertSame(3, $this->filas(), 'Quedan las 3 corridas, sin extras.');
         $this->assertSame(3, DB::connection('sqlsrv')->table('UrdProduccionUrdido')
             ->where('Folio', 'C001')->where('Finalizar', 1)->count());
+    }
+
+    // ---------------------------------------------------------------
+    // Matriz exhaustiva de sumar / restar julios
+    // ---------------------------------------------------------------
+
+    /**
+     * Para cada combinacion de plan inicial, cuantos renglones se capturan y
+     * a cuanto se mueve el plan, se comprueba el invariante despues de editar
+     * y despues de entrar tres veces seguidas.
+     */
+    public function test_matriz_sumar_y_restar_un_grupo(): void
+    {
+        $iniciales = [1, 2, 3, 5, 8];
+        $destinos = [0, 1, 2, 3, 5, 8, 12];
+        $capturas = [0, 1, 2, 'todas'];
+        $casos = 0;
+
+        foreach ($iniciales as $ini) {
+            foreach ($destinos as $dest) {
+                foreach ($capturas as $cap) {
+                    $this->reiniciar();
+                    $idPlan = $this->plan($ini, 484);
+                    $this->entrar();
+                    $this->verificarInvariante("alta ini={$ini}");
+
+                    $ids = $this->idsFilas();
+                    $nCap = $cap === 'todas' ? count($ids) : min((int) $cap, count($ids));
+                    for ($i = 0; $i < $nCap; $i++) {
+                        $this->capturar($ids[$i], 'J'.$i);
+                    }
+
+                    $etiqueta = "ini={$ini} dest={$dest} cap={$cap}";
+                    $this->editarPlan($idPlan, $dest, 484);
+                    $this->verificarInvariante("tras editar {$etiqueta}");
+
+                    $this->entrar();
+                    $this->verificarInvariante("tras entrar 1 {$etiqueta}");
+                    $this->entrar();
+                    $this->entrar();
+                    $this->verificarInvariante("tras entrar 3 {$etiqueta}");
+
+                    $casos++;
+                }
+            }
+        }
+
+        $this->assertSame(140, $casos, 'La matriz debe cubrir 140 combinaciones.');
+    }
+
+    /** Lo mismo con dos grupos: se mueve uno y el otro no debe contaminarse. */
+    public function test_matriz_sumar_y_restar_dos_grupos(): void
+    {
+        $destinos = [0, 1, 3, 6];
+        $capturas = [0, 2, 'todas'];
+        $cuales = ['primero', 'segundo'];
+        $casos = 0;
+
+        foreach ($destinos as $dest) {
+            foreach ($capturas as $cap) {
+                foreach ($cuales as $cual) {
+                    $this->reiniciar();
+                    $g1 = $this->plan(2, 486);
+                    $g2 = $this->plan(4, 484);
+                    $this->entrar();
+                    $this->verificarInvariante('alta dos grupos');
+
+                    $ids = $this->idsFilas();
+                    $nCap = $cap === 'todas' ? count($ids) : min((int) $cap, count($ids));
+                    for ($i = 0; $i < $nCap; $i++) {
+                        $this->capturar($ids[$i], 'J'.$i);
+                    }
+
+                    $etiqueta = "dest={$dest} cap={$cap} grupo={$cual}";
+                    if ($cual === 'primero') {
+                        $this->editarPlan($g1, $dest, 486);
+                    } else {
+                        $this->editarPlan($g2, $dest, 484);
+                    }
+                    $this->verificarInvariante("tras editar {$etiqueta}");
+
+                    $this->entrar();
+                    $this->entrar();
+                    $this->verificarInvariante("tras entrar {$etiqueta}");
+
+                    $casos++;
+                }
+            }
+        }
+
+        $this->assertSame(24, $casos);
+    }
+
+    /** Cambiar el valor de Hilos, con y sin captura, en toda combinacion. */
+    public function test_matriz_cambiar_valor_de_hilos(): void
+    {
+        $valores = [484, 486, 500, 0];
+        $capturas = [0, 1, 'todas'];
+
+        foreach ($valores as $nuevo) {
+            foreach ($capturas as $cap) {
+                $this->reiniciar();
+                $idPlan = $this->plan(4, 484);
+                $this->entrar();
+
+                $ids = $this->idsFilas();
+                $nCap = $cap === 'todas' ? count($ids) : min((int) $cap, count($ids));
+                for ($i = 0; $i < $nCap; $i++) {
+                    $this->capturar($ids[$i], 'J'.$i);
+                }
+
+                $etiqueta = "hilos={$nuevo} cap={$cap}";
+                $this->editarPlan($idPlan, 4, $nuevo);
+                $this->entrar();
+                $this->entrar();
+                $this->verificarInvariante("cambio de hilos {$etiqueta}");
+            }
+        }
+    }
+
+    /** Secuencias largas: sube, baja, sube, con entradas intercaladas. */
+    public function test_secuencias_largas_de_ediciones(): void
+    {
+        $secuencias = [
+            [4, 6, 3, 7, 2],
+            [1, 10, 1, 10, 1],
+            [5, 5, 5, 5, 5],
+            [3, 0, 4, 0, 6],
+            [2, 3, 2, 3, 2],
+        ];
+
+        foreach ($secuencias as $s => $secuencia) {
+            $this->reiniciar();
+            $idPlan = $this->plan(array_shift($secuencia), 484);
+            $this->entrar();
+
+            // capturar 1 al principio para que haya algo que no se pueda borrar
+            $ids = $this->idsFilas();
+            if (count($ids) > 0) {
+                $this->capturar($ids[0], 'J0');
+            }
+
+            foreach ($secuencia as $paso => $destino) {
+                $this->editarPlan($idPlan, $destino, 484);
+                $this->entrar();
+                $this->verificarInvariante("secuencia {$s} paso {$paso} -> {$destino}");
+            }
+
+            $this->entrar();
+            $this->entrar();
+            $this->verificarInvariante("secuencia {$s} final");
+        }
+    }
+
+    /** Entrar N veces seguidas sin tocar nada nunca debe mover el conteo. */
+    public function test_entrar_muchas_veces_no_mueve_nada(): void
+    {
+        $this->plan(3, 486);
+        $this->plan(5, 484);
+        $this->entrar();
+        $antes = $this->filas();
+
+        for ($i = 0; $i < 15; $i++) {
+            $this->entrar();
+        }
+
+        $this->assertSame($antes, $this->filas(), 'Entrar 15 veces no debe crear ni borrar.');
+        $this->assertSame(8, $this->filas());
+    }
+
+    // ---------------------------------------------------------------
+    // Las otras puertas: agregar un grupo nuevo, borrar un grupo,
+    // editar en Programado, y el endpoint actualizarHilosProduccion
+    // ---------------------------------------------------------------
+
+    /** Agregar un grupo NUEVO al plan (id = null), no crecer uno existente. */
+    private function agregarGrupo(int $julios, int $hilos): array
+    {
+        return $this->editarPlan(null, $julios, $hilos);
+    }
+
+    /** Borrar un grupo del plan: se manda no_julio e hilos vacios. */
+    private function borrarGrupo(int $idPlan): array
+    {
+        $controller = app(EditarOrdenesProgramadasController::class);
+
+        return $controller->actualizarJulios(Request::create('/aj', 'POST', [
+            'orden_id' => 1, 'id' => $idPlan, 'no_julio' => '', 'hilos' => '',
+        ]))->getData(true);
+    }
+
+    /** El OTRO endpoint que toca Hilos, por cantidad de julios en vez de por Id. */
+    private function actualizarHilosPorCantidad(int $cantidadJulios, int $hilos): array
+    {
+        $controller = app(EditarOrdenesProgramadasController::class);
+
+        return $controller->actualizarHilosProduccion(Request::create('/ahp', 'POST', [
+            'orden_id' => 1, 'no_julio' => $cantidadJulios, 'hilos' => $hilos,
+        ]))->getData(true);
+    }
+
+    private function ponerStatus(string $status): void
+    {
+        DB::connection('sqlsrv')->table('UrdProgramaUrdido')->where('Id', 1)->update(['Status' => $status]);
+    }
+
+    public function test_matriz_agregar_grupos_nuevos(): void
+    {
+        $capturas = [0, 2, 'todas'];
+        $nuevos = [[1, 500], [3, 500], [4, 486], [2, 484]];
+
+        foreach ($capturas as $cap) {
+            foreach ($nuevos as $n) {
+                $this->reiniciar();
+                $this->plan(4, 484);
+                $this->entrar();
+
+                $ids = $this->idsFilas();
+                $nCap = $cap === 'todas' ? count($ids) : min((int) $cap, count($ids));
+                for ($i = 0; $i < $nCap; $i++) {
+                    $this->capturar($ids[$i], 'J'.$i);
+                }
+
+                $etiqueta = "cap={$cap} nuevo={$n[0]}x{$n[1]}";
+                $this->agregarGrupo($n[0], $n[1]);
+                $this->verificarInvariante("tras agregar grupo {$etiqueta}");
+
+                $this->entrar();
+                $this->entrar();
+                $this->verificarInvariante("tras entrar {$etiqueta}");
+            }
+        }
+    }
+
+    public function test_matriz_borrar_grupos(): void
+    {
+        $capturas = [0, 1, 3, 'todas'];
+        $cuales = ['primero', 'segundo'];
+
+        foreach ($capturas as $cap) {
+            foreach ($cuales as $cual) {
+                $this->reiniciar();
+                $g1 = $this->plan(2, 486);
+                $g2 = $this->plan(4, 484);
+                $this->entrar();
+
+                $ids = $this->idsFilas();
+                $nCap = $cap === 'todas' ? count($ids) : min((int) $cap, count($ids));
+                for ($i = 0; $i < $nCap; $i++) {
+                    $this->capturar($ids[$i], 'J'.$i);
+                }
+
+                $etiqueta = "cap={$cap} borra={$cual}";
+                $this->borrarGrupo($cual === 'primero' ? $g1 : $g2);
+                $this->verificarInvariante("tras borrar grupo {$etiqueta}");
+
+                $this->entrar();
+                $this->entrar();
+                $this->verificarInvariante("tras entrar {$etiqueta}");
+            }
+        }
+    }
+
+    /** Editar el plan mientras la orden esta Programado: el remapeo se omite. */
+    public function test_editar_en_programado_y_luego_entrar(): void
+    {
+        $destinos = [2, 4, 6];
+        $hilosNuevos = [484, 500];
+
+        foreach ($destinos as $dest) {
+            foreach ($hilosNuevos as $hn) {
+                $this->reiniciar();
+                $idPlan = $this->plan(4, 484);
+                $this->entrar();          // crea 4 filas con Hilos 484
+
+                $ids = $this->idsFilas();
+                $this->capturar($ids[0], 'J0');
+
+                // la orden regresa a Programado y ahi se edita el plan
+                $this->ponerStatus('Programado');
+                $this->editarPlan($idPlan, $dest, $hn);
+                $this->ponerStatus('En Proceso');
+
+                $this->entrar();
+                $this->entrar();
+                $this->verificarInvariante("editado en Programado dest={$dest} hilos={$hn}");
+            }
+        }
+    }
+
+    /** El endpoint actualizarHilosProduccion, que empareja por cantidad de julios. */
+    public function test_actualizar_hilos_por_el_otro_endpoint(): void
+    {
+        $capturas = [0, 1, 'todas'];
+        $nuevos = [486, 500, 484];
+
+        foreach ($capturas as $cap) {
+            foreach ($nuevos as $hn) {
+                $this->reiniciar();
+                $this->plan(4, 484);
+                $this->entrar();
+
+                $ids = $this->idsFilas();
+                $nCap = $cap === 'todas' ? count($ids) : min((int) $cap, count($ids));
+                for ($i = 0; $i < $nCap; $i++) {
+                    $this->capturar($ids[$i], 'J'.$i);
+                }
+
+                $this->actualizarHilosPorCantidad(4, $hn);
+                $this->entrar();
+                $this->entrar();
+                $this->verificarInvariante("otro endpoint cap={$cap} hilos={$hn}");
+            }
+        }
+    }
+
+    /** Agregar un grupo, borrarlo, volver a agregarlo, varias vueltas. */
+    public function test_agregar_y_borrar_grupos_en_ciclo(): void
+    {
+        $this->plan(3, 484);
+        $this->entrar();
+        $this->capturar($this->idsFilas()[0], 'J0');
+
+        for ($vuelta = 0; $vuelta < 4; $vuelta++) {
+            $r = $this->agregarGrupo(2, 500);
+            $this->entrar();
+            $this->verificarInvariante("vuelta {$vuelta} tras agregar");
+
+            $nuevoId = (int) DB::connection('sqlsrv')->table('UrdJuliosOrden')
+                ->where('Folio', 'C001')->where('Hilos', 500)->orderBy('Id', 'desc')->value('Id');
+
+            $this->borrarGrupo($nuevoId);
+            $this->entrar();
+            $this->verificarInvariante("vuelta {$vuelta} tras borrar");
+        }
     }
 }
