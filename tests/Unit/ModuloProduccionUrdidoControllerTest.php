@@ -280,4 +280,67 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
         $this->assertSame(6, DB::connection('sqlsrv')->table('UrdProduccionUrdido')
             ->where('Folio', '00077')->where('Hilos', 461)->count());
     }
+
+    /**
+     * Un esqueleto con Hilos viejo se realinea al plan en vez de quedar huerfano
+     * (y provocar que se cree el grupo nuevo duplicando la orden).
+     */
+    public function test_reproyecta_hilos_de_esqueletos_al_plan(): void
+    {
+        DB::connection('sqlsrv')->table('UrdProgramaUrdido')->insert([
+            'Id' => 7, 'Folio' => '00500', 'Status' => 'En Proceso', 'Incorrecto' => 0,
+        ]);
+        DB::connection('sqlsrv')->table('UrdJuliosOrden')->insert([
+            ['Folio' => '00500', 'Julios' => 3, 'Hilos' => 400],
+        ]);
+        // 3 esqueletos con el Hilos anterior (350): nadie los remapeo al editar el plan
+        DB::connection('sqlsrv')->table('UrdProduccionUrdido')->insert([
+            ['Folio' => '00500', 'Hilos' => 350],
+            ['Folio' => '00500', 'Hilos' => 350],
+            ['Folio' => '00500', 'Hilos' => 350],
+        ]);
+
+        $this->sincronizar(7, '00500', 3);
+
+        $this->assertSame(3, DB::connection('sqlsrv')->table('UrdProduccionUrdido')->where('Folio', '00500')->count(),
+            'No debe duplicar: los 3 esqueletos se realinean, no se recrean.');
+        $this->assertSame(3, DB::connection('sqlsrv')->table('UrdProduccionUrdido')
+            ->where('Folio', '00500')->where('Hilos', 400)->count());
+    }
+
+    /** Una fila capturada con Hilos fuera del plan es historia: no se reescribe. */
+    public function test_no_reescribe_hilos_de_filas_con_captura(): void
+    {
+        DB::connection('sqlsrv')->table('UrdProgramaUrdido')->insert([
+            'Id' => 8, 'Folio' => '00600', 'Status' => 'En Proceso', 'Incorrecto' => 0,
+        ]);
+        DB::connection('sqlsrv')->table('UrdJuliosOrden')->insert([
+            ['Folio' => '00600', 'Julios' => 2, 'Hilos' => 400],
+        ]);
+        DB::connection('sqlsrv')->table('UrdProduccionUrdido')->insert([
+            ['Folio' => '00600', 'Hilos' => 461, 'NoJulio' => 'J1', 'KgBruto' => 300],  // capturada
+            ['Folio' => '00600', 'Hilos' => 350, 'NoJulio' => null, 'KgBruto' => null], // esqueleto
+        ]);
+
+        $this->sincronizar(8, '00600', 2);
+
+        $filas = DB::connection('sqlsrv')->table('UrdProduccionUrdido')
+            ->where('Folio', '00600')->orderBy('Id')->get();
+        $this->assertSame(2, $filas->count());
+        $this->assertSame(461, (int) $filas[0]->Hilos, 'La capturada conserva su Hilos.');
+        $this->assertSame(400, (int) $filas[1]->Hilos, 'El esqueleto si se realinea.');
+    }
+
+    private function sincronizar(int $ordenId, string $folio, int $total): void
+    {
+        $controller = new ModuloProduccionUrdidoController;
+        $metodo = new \ReflectionMethod($controller, 'ensureProductionRecordsExist');
+        $metodo->setAccessible(true);
+        $metodo->invoke(
+            $controller,
+            UrdProgramaUrdido::find($ordenId),
+            UrdJuliosOrden::where('Folio', $folio)->get(),
+            $total
+        );
+    }
 }

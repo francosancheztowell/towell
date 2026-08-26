@@ -84,6 +84,90 @@ class ModuloProduccionUrdidoController extends Controller
     }
 
     /**
+     * Hilos en la fila de produccion es una PROYECCION del plan de julios: es
+     * readonly en la captura, el operador nunca lo teclea. Mantenerlo sincronizado
+     * a mano desde cada ruta de edicion del programa es lo que dejaba grupos
+     * huerfanos (plan dice 395, filas dicen 461) y duplicaba la orden. Aqui se
+     * vuelve a derivar por posicion, sin importar que ruta causo el desajuste.
+     *
+     * Una fila CON captura o en AX no se toca: su Hilos es historia de produccion,
+     * no un hueco por llenar. Se registra para que un humano decida.
+     */
+    private function reproyectarHilosDesdePlan(UrdProgramaUrdido $orden, Collection $julios, Collection $existentes): void
+    {
+        // El plan expandido: una entrada de Hilos por cada julio, en el mismo
+        // orden en que getJuliosForOrder() creo las filas originalmente.
+        $plan = [];
+        foreach ($julios as $julio) {
+            $n = (int) ($julio->Julios ?? 0);
+            $hilos = $julio->Hilos !== null ? (int) $julio->Hilos : null;
+            for ($i = 0; $i < $n; $i++) {
+                $plan[] = $hilos;
+            }
+        }
+
+        if (empty($plan)) {
+            return;
+        }
+
+        $realineadas = 0;
+        $intocables = [];
+
+        foreach ($existentes->values() as $pos => $registro) {
+            if (! array_key_exists($pos, $plan)) {
+                break; // sobrantes: los resuelve el conteo, no esta funcion
+            }
+
+            $esperado = $plan[$pos];
+            $actual = $registro->Hilos !== null ? (int) $registro->Hilos : null;
+
+            if ($actual === $esperado) {
+                continue;
+            }
+
+            if ($this->registroBloqueadoPorAx($registro) || $this->registroTieneCaptura($registro)) {
+                $intocables[] = ['id' => $registro->Id, 'hilos_fila' => $actual, 'hilos_plan' => $esperado];
+
+                continue;
+            }
+
+            $registro->Hilos = $esperado;
+            $registro->save();
+            $realineadas++;
+        }
+
+        if ($realineadas > 0 || ! empty($intocables)) {
+            Log::warning('Hilos de produccion desalineado del plan de julios', [
+                'folio' => $orden->Folio,
+                'realineadas' => $realineadas,
+                'con_captura_sin_tocar' => $intocables,
+            ]);
+        }
+    }
+
+    /**
+     * Version por registro de scopeTieneCaptura(): julio, peso o roturas.
+     */
+    private function registroTieneCaptura($registro): bool
+    {
+        if (trim((string) ($registro->NoJulio ?? '')) !== '') {
+            return true;
+        }
+
+        if ($registro->KgBruto !== null && (float) $registro->KgBruto != 0.0) {
+            return true;
+        }
+
+        foreach (['Hilatura', 'Maquina', 'Operac', 'Transf', 'Vueltas', 'Diametro'] as $campo) {
+            if ((float) ($registro->{$campo} ?? 0) > 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Una fila tiene captura real del operador si trae julio, peso o roturas.
      *
      * Fecha, Oficial 1, Turno y Metros NO cuentan: el trait los autollena en
@@ -249,6 +333,10 @@ class ModuloProduccionUrdidoController extends Controller
                 $turnoUsuario = TurnoHelper::getTurnoActual();
             }
             $metrosOrden = $orden->Metros ?? 0;
+
+            // Realinear Hilos con el plan ANTES de contar, si no el conteo por
+            // grupo ve huerfanos que no existen y crea una orden duplicada.
+            $this->reproyectarHilosDesdePlan($orden, $julios, $existentes);
 
             // Calcular expected por Hilos
             $expectedPorHilos = [];
