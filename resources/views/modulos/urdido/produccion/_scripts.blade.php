@@ -14,6 +14,18 @@
 
     const MAX_KG_NETO = @json($maxKgNeto ?? null);
 
+    // Kg. Bruto, Tara y Kg. Neto son pesos: siempre 2 decimales. Las columnas
+    // son `real` en SQL Server, asi que 287.4 vuelve como 287.39999; sin esto
+    // el artefacto se ve en pantalla y se arrastra a la resta del neto.
+    const peso = (v) => {
+        const n = parseFloat(v);
+        return Number.isNaN(n) ? '' : n.toFixed(2);
+    };
+    const pesoNum = (v) => {
+        const n = parseFloat(v);
+        return Number.isNaN(n) ? 0 : Math.round(n * 100) / 100;
+    };
+
     const escapeHtml = (value) => String(value ?? '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -55,7 +67,7 @@
 
         if (!brutoInput || !taraInput || !netoInput) return;
 
-        const tara = parseFloat(taraInput.value) || 0;
+        const tara = pesoNum(taraInput.value);
 
         if (MAX_KG_NETO !== null) {
             const maxBruto = MAX_KG_NETO + tara;
@@ -70,8 +82,8 @@
             brutoInput.removeAttribute('title');
         }
 
-        const bruto = parseFloat(brutoInput.value) || 0;
-        const neto = bruto - tara;
+        const bruto = pesoNum(brutoInput.value);
+        const neto = Math.round((bruto - tara) * 100) / 100;
 
         netoInput.value = neto.toFixed(2);
         const fueraDeRango = neto < 0 || (MAX_KG_NETO !== null && neto > MAX_KG_NETO);
@@ -341,16 +353,16 @@
                                 const updatedOption = target.options[target.selectedIndex];
                                 if (updatedOption) {
                                     const taraStr = updatedOption.getAttribute('data-tara');
-                                    const tara = taraStr !== null && taraStr !== '' ? parseFloat(taraStr) : null;
-                                    taraInput.value = tara !== null ? tara : '';
+                                    const tara = taraStr !== null && taraStr !== '' ? pesoNum(taraStr) : null;
+                                    taraInput.value = tara !== null ? peso(tara) : '';
 
                                     const brutoInput = row.querySelector('input[data-field="kg_bruto"]');
                                     const netoInput = row.querySelector('input[data-field="kg_neto"]');
                                     let kgNeto = null;
                                     if (brutoInput && netoInput) {
-                                        const bruto = parseFloat(brutoInput.value) || 0;
+                                        const bruto = pesoNum(brutoInput.value);
                                         const taraVal = tara !== null ? tara : 0;
-                                        kgNeto = bruto - taraVal;
+                                        kgNeto = Math.round((bruto - taraVal) * 100) / 100;
                                         netoInput.value = kgNeto.toFixed(2);
                                         marcarCampoError(netoInput, netoFueraDeRango(kgNeto));
                                     }
@@ -361,8 +373,8 @@
                                         const optPrev = target.options[target.selectedIndex];
                                         if (optPrev && taraInput) {
                                             const ts = optPrev.getAttribute('data-tara');
-                                            const tv = ts !== null && ts !== '' ? parseFloat(ts) : null;
-                                            taraInput.value = tv !== null ? tv : '';
+                                            const tv = ts !== null && ts !== '' ? pesoNum(ts) : null;
+                                            taraInput.value = tv !== null ? peso(tv) : '';
                                         }
                                         if (row) calcularNeto(row);
                                         actualizarTodosLosSelectsJulios();
@@ -1055,7 +1067,7 @@
 
                                 if (taraInput && selectedOption) {
                                     const tara = selectedOption.getAttribute('data-tara') || '0';
-                                    taraInput.value = tara;
+                                    taraInput.value = peso(tara);
 
                                     const brutoInput = row.querySelector('input[data-field="kg_bruto"]');
                                     const netoInput = row.querySelector('input[data-field="kg_neto"]');

@@ -43,6 +43,13 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
             $table->integer('Hilos')->nullable();
         });
 
+        $schema->create('UrdCatJulios', function (Blueprint $table) {
+            $table->increments('Id');
+            $table->string('NoJulio')->nullable();
+            $table->float('Tara')->nullable();
+            $table->string('Departamento')->nullable();
+        });
+
         $schema->create('UrdProduccionUrdido', function (Blueprint $table) {
             $table->increments('Id');
             $table->string('Folio')->nullable();
@@ -419,5 +426,62 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
         {
             protected function ensureUserCanEdit(): void {}
         };
+    }
+
+    /**
+     * Las columnas de peso son `real` (float de 4 bytes): 287.4 vuelve como
+     * 287.39999. Kg. Bruto, Tara y Kg. Neto deben quedar a 2 decimales tanto
+     * en la BD como en la respuesta.
+     */
+    public function test_los_pesos_se_guardan_y_responden_a_dos_decimales(): void
+    {
+        DB::connection('sqlsrv')->table('UrdProgramaUrdido')->insert([
+            'Id' => 11, 'Folio' => '00800', 'Status' => 'En Proceso', 'Incorrecto' => 0,
+        ]);
+        DB::connection('sqlsrv')->table('UrdProduccionUrdido')->insert([
+            'Id' => 300, 'Folio' => '00800', 'Hilos' => 400,
+            'HoraInicial' => '06:00', 'NoJulio' => 'J1',
+            'Tara' => 45.599998, 'KgBruto' => null, 'KgNeto' => null,
+        ]);
+
+        $controller = $this->controladorUrdido();
+
+        $response = $controller->actualizarKgBruto(Request::create('/kg', 'POST', [
+            'registro_id' => 300, 'kg_bruto' => 287.39999,
+        ]));
+        $payload = $response->getData(true);
+
+        $this->assertTrue($payload['success']);
+        $this->assertSame(287.4, $payload['data']['kg_bruto'], 'Kg. Bruto redondeado en la respuesta.');
+        // 287.4 - 45.6 = 241.8 exacto, no 241.80000305...
+        $this->assertSame(241.8, $payload['data']['kg_neto'], 'Kg. Neto redondeado en la respuesta.');
+
+        $fila = DB::connection('sqlsrv')->table('UrdProduccionUrdido')->where('Id', 300)->first();
+        $this->assertSame(287.4, round((float) $fila->KgBruto, 2));
+        $this->assertSame(241.8, round((float) $fila->KgNeto, 2));
+    }
+
+    /** El neto derivado de la Tara del catalogo tambien queda a 2 decimales. */
+    public function test_la_tara_del_catalogo_se_redondea_al_calcular_el_neto(): void
+    {
+        DB::connection('sqlsrv')->table('UrdProgramaUrdido')->insert([
+            'Id' => 12, 'Folio' => '00810', 'Status' => 'En Proceso', 'Incorrecto' => 0,
+        ]);
+        DB::connection('sqlsrv')->table('UrdCatJulios')->insert([
+            'NoJulio' => '77', 'Tara' => 45.599998, 'Departamento' => 'Urdido',
+        ]);
+        DB::connection('sqlsrv')->table('UrdProduccionUrdido')->insert([
+            'Id' => 310, 'Folio' => '00810', 'Hilos' => 400,
+            'HoraInicial' => '06:00', 'NoJulio' => null, 'KgBruto' => 500.0, 'KgNeto' => null,
+        ]);
+
+        $response = $this->controladorUrdido()->actualizarJulioTara(Request::create('/jt', 'POST', [
+            'registro_id' => 310, 'no_julio' => '77',
+        ]));
+        $payload = $response->getData(true);
+
+        $this->assertTrue($payload['success']);
+        $this->assertSame(45.6, $payload['data']['tara']);
+        $this->assertSame(454.4, $payload['data']['kg_neto']);
     }
 }

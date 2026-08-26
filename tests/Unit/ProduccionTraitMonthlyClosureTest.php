@@ -68,11 +68,6 @@ class ProduccionTraitMonthlyClosureTest extends TestCase
                 return 'Pruebas';
             }
 
-            protected function shouldRoundKgBruto(): bool
-            {
-                return false;
-            }
-
             protected function getModuleNameForPermissions(): string
             {
                 return 'Producción Pruebas';

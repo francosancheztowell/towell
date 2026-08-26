@@ -39,11 +39,6 @@ class ModuloProduccionEngomadoController extends Controller
         return 'Engomado';
     }
 
-    protected function shouldRoundKgBruto(): bool
-    {
-        return true;
-    }
-
     /**
      * Engomado no aplica tope de Kg. Neto (el límite de 700 kg es solo en producción Urdido).
      */

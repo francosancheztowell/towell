@@ -327,23 +327,23 @@
                                     {{-- Tara --}}
                         <td class="px-1 md:px-0.5 py-1 md:py-1.5 text-center whitespace-nowrap w-10 md:w-9 lg:w-10">
                                         <input
-                                            type="number"
-                                            step="0.01"
+                                            type="text"
+                                            inputmode="decimal"
                                             disabled
                                             data-field="tara"
                                             class="w-full border border-gray-300 rounded px-0.5 md:px-1 py-0.5 md:py-1 text-md text-center focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                            value="{{ $tara }}"
+                                            value="{{ $tara !== '' && $tara !== null ? number_format((float) $tara, 2, '.', '') : '' }}"
                                         >
                         </td>
 
                                     {{-- Kg Neto --}}
                         <td class="px-1 md:px-0.5 py-1 md:py-1.5 text-center whitespace-nowrap w-12 md:w-10 lg:w-12">
                                         <input
-                                            type="number"
-                                            step="0.01"
+                                            type="text"
+                                            inputmode="decimal"
                                             data-field="kg_neto"
                                             class="w-full border border-gray-300 rounded px-0.5 md:px-1 py-0.5 md:py-1 text-md text-center bg-gray-50 text-gray-600 cursor-not-allowed"
-                                            value="{{ $kgNeto }}"
+                                            value="{{ $kgNeto !== '' && $kgNeto !== null ? number_format((float) $kgNeto, 2, '.', '') : '' }}"
                                             readonly
                                         >
                         </td>

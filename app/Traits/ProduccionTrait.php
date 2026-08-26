@@ -18,7 +18,6 @@ use Illuminate\Validation\ValidationException;
  *   - getProduccionModelClass(): string   → clase Eloquent de producción
  *   - getProgramaModelClass(): string     → clase Eloquent de programa
  *   - getDepartamento(): string           → 'Urdido' | 'Engomado'
- *   - shouldRoundKgBruto(): bool          → true solo en Engomado
  */
 trait ProduccionTrait
 {
@@ -27,8 +26,6 @@ trait ProduccionTrait
     abstract protected function getProgramaModelClass(): string;
 
     abstract protected function getDepartamento(): string;
-
-    abstract protected function shouldRoundKgBruto(): bool;
 
     abstract protected function getModuleNameForPermissions(): string;
 
@@ -59,6 +56,17 @@ trait ProduccionTrait
         }
 
         return null;
+    }
+
+    /**
+     * Kg. Bruto, Tara y Kg. Neto son pesos: siempre 2 decimales.
+     * Las columnas son `real` (float de 4 bytes), asi que sin este redondeo
+     * 287.4 se lee de vuelta como 287.39999 y el artefacto se propaga a la
+     * resta del neto y a la pantalla.
+     */
+    protected function pesoRedondeado(?float $valor): ?float
+    {
+        return $valor === null ? null : round($valor, 2);
     }
 
     /**
@@ -675,14 +683,14 @@ trait ProduccionTrait
                 ], 422);
             }
 
-            $taraValue = $catalogo->Tara !== null ? (float) $catalogo->Tara : null;
+            $taraValue = $this->pesoRedondeado($catalogo->Tara !== null ? (float) $catalogo->Tara : null);
             $registro->Tara = $taraValue;
 
             if ($taraValue !== null) {
-                $kgBruto = $registro->KgBruto !== null ? (float) $registro->KgBruto : 0;
-                $registro->KgNeto = $kgBruto - $taraValue;
+                $kgBruto = $this->pesoRedondeado($registro->KgBruto !== null ? (float) $registro->KgBruto : 0.0);
+                $registro->KgNeto = $this->pesoRedondeado($kgBruto - $taraValue);
             } else {
-                $registro->KgNeto = $registro->KgBruto !== null ? (float) $registro->KgBruto : null;
+                $registro->KgNeto = $this->pesoRedondeado($registro->KgBruto !== null ? (float) $registro->KgBruto : null);
             }
 
             $reject = $this->jsonIfKgNetoExceedsLimit(
@@ -700,8 +708,8 @@ trait ProduccionTrait
                 'message' => 'No. Julio y Tara actualizados correctamente',
                 'data' => [
                     'no_julio' => $registro->NoJulio,
-                    'tara' => $registro->Tara,
-                    'kg_neto' => $registro->KgNeto,
+                    'tara' => $this->pesoRedondeado($registro->Tara !== null ? (float) $registro->Tara : null),
+                    'kg_neto' => $this->pesoRedondeado($registro->KgNeto !== null ? (float) $registro->KgNeto : null),
                 ],
             ]);
         } catch (ValidationException $e) {
@@ -739,10 +747,7 @@ trait ProduccionTrait
 
             $kgBrutoValue = null;
             if ($request->has('kg_bruto') && $request->kg_bruto !== null && $request->kg_bruto !== '') {
-                $kgBrutoValue = (float) $request->kg_bruto;
-                if ($this->shouldRoundKgBruto()) {
-                    $kgBrutoValue = round($kgBrutoValue, 2);
-                }
+                $kgBrutoValue = $this->pesoRedondeado((float) $request->kg_bruto);
             }
 
             $rejectBruto = $this->jsonIfKgBrutoExceedsLimit($kgBrutoValue);
@@ -758,9 +763,9 @@ trait ProduccionTrait
             $registro->KgBruto = $kgBrutoValue;
 
             if ($registro->Tara !== null) {
-                $kgBruto = $kgBrutoValue ?? 0;
-                $tara = (float) $registro->Tara;
-                $registro->KgNeto = $kgBruto - $tara;
+                $kgBruto = $kgBrutoValue ?? 0.0;
+                $tara = $this->pesoRedondeado((float) $registro->Tara);
+                $registro->KgNeto = $this->pesoRedondeado($kgBruto - $tara);
             } else {
                 $registro->KgNeto = $kgBrutoValue;
             }
@@ -776,14 +781,9 @@ trait ProduccionTrait
             $registro->refresh();
 
             $responseData = [
-                'kg_bruto' => $registro->KgBruto,
-                'kg_neto' => $registro->KgNeto,
+                'kg_bruto' => $this->pesoRedondeado($registro->KgBruto !== null ? (float) $registro->KgBruto : null),
+                'kg_neto' => $this->pesoRedondeado($registro->KgNeto !== null ? (float) $registro->KgNeto : null),
             ];
-
-            if ($this->shouldRoundKgBruto()) {
-                $responseData['kg_bruto'] = $registro->KgBruto !== null ? round((float) $registro->KgBruto, 2) : null;
-                $responseData['kg_neto'] = $registro->KgNeto !== null ? round((float) $registro->KgNeto, 2) : null;
-            }
 
             return response()->json([
                 'success' => true,

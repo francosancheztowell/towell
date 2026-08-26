@@ -446,7 +446,7 @@
                     </td>
 
                     <td>
-                        {{ $registro->Tara !== null ? number_format($registro->Tara, 1, '.', '') : '-' }}
+                        {{ $registro->Tara !== null ? number_format($registro->Tara, 2, '.', '') : '-' }}
                     </td>
 
                     <td>

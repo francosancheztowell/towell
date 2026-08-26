@@ -38,11 +38,6 @@ class ModuloProduccionUrdidoController extends Controller
         return 'Urdido';
     }
 
-    protected function shouldRoundKgBruto(): bool
-    {
-        return false;
-    }
-
     protected function maxKgNetoAllowed(): ?float
     {
         return 700.0;
