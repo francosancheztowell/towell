@@ -94,6 +94,8 @@ class OrdenesTrabajoMecaController extends Controller
             'bloqueadaEdicion' => $bloqueadaEdicion,
             'tejedorCve' => trim((string) ($usuario->numero_empleado ?? '')),
             'tejedorNombre' => trim((string) ($usuario->nombre ?? '')),
+            'usuarioCapturaCve' => trim((string) ($usuario->numero_empleado ?? '')),
+            'usuarioCapturaNombre' => trim((string) ($usuario->nombre ?? '')),
         ]);
     }
 
@@ -151,10 +153,16 @@ class OrdenesTrabajoMecaController extends Controller
                 'Hora',
                 'MaquinaId',
                 'Falla',
+                'Descripcion',
                 'OrdenTrabajo',
                 'Turno',
                 'Depto',
-            ]);
+            ])
+            ->map(function ($paro) {
+                $paro->FallaTexto = $this->textoFalla($paro->Falla, $paro->Descripcion);
+
+                return $paro;
+            });
 
         return response()->json([
             'success' => true,
@@ -198,6 +206,7 @@ class OrdenesTrabajoMecaController extends Controller
         try {
             $datos = $this->normalizarCabecera($request->validate($this->reglasCabecera()));
 
+            $this->validarOrdenNoVacia($datos);
             $this->validarFolioParoDisponible($datos['FolioParo'] ?? null);
 
             $orden = DB::transaction(function () use ($datos): MecOrdenTrabajoModel {
@@ -348,11 +357,14 @@ class OrdenesTrabajoMecaController extends Controller
         try {
             $this->asegurarEditablePorMecanico($orden);
 
+            $datosLinea = $this->filtrarCamposCalificacion(
+                $this->normalizarLinea($request->validate($this->reglasLinea()))
+            );
+            $this->validarLineaCompleta($datosLinea);
+
             $linea = MecOrdenTrabajoLineModel::create([
                 'Folio' => $folio,
-                ...$this->filtrarCamposCalificacion(
-                    $this->normalizarLinea($request->validate($this->reglasLinea()))
-                ),
+                ...$datosLinea,
             ]);
 
             return response()->json([
@@ -397,26 +409,12 @@ class OrdenesTrabajoMecaController extends Controller
                 ], 403);
             }
 
-            // Tejedor: solo calificación, y solo cuando la orden ya está Finalizada (Terminado).
-            if ($this->esTejedor()) {
-                if (! $this->puedeCalificarComoTejedor()) {
-                    return response()->json([
-                        'success' => false,
-                        'error' => 'No tienes permiso para calificar intervenciones.',
-                    ], 403);
-                }
-
-                if (! $orden) {
-                    return $this->ordenNoEncontrada();
-                }
-
-                if ($orden->Estatus !== self::ESTATUS_TERMINADO) {
-                    return response()->json([
-                        'success' => false,
-                        'error' => 'Solo puedes calificar órdenes finalizadas (estatus Terminado).',
-                    ], 422);
-                }
-
+            // Tejedor o supervisor: calificación cuando la orden ya está Finalizada (Terminado).
+            if (
+                $orden
+                && (string) ($orden->Estatus ?: self::ESTATUS_ACTIVO) === self::ESTATUS_TERMINADO
+                && $this->puedeCalificarComoTejedor()
+            ) {
                 $validated = $request->validate([
                     'Calificacion' => ['required', 'integer', 'between:1,10'],
                 ]);
@@ -458,9 +456,12 @@ class OrdenesTrabajoMecaController extends Controller
                 return $respuesta;
             }
 
-            $registro->update($this->filtrarCamposCalificacion(
+            $datosLinea = $this->filtrarCamposCalificacion(
                 $this->normalizarLinea($request->validate($this->reglasLinea()))
-            ));
+            );
+            $this->validarLineaCompleta($datosLinea);
+
+            $registro->update($datosLinea);
 
             return response()->json([
                 'success' => true,
@@ -536,7 +537,7 @@ class OrdenesTrabajoMecaController extends Controller
         if (! $this->puedeFinalizarComoMecanico()) {
             return response()->json([
                 'success' => false,
-                'error' => 'Solo los mecánicos con permiso de modificar pueden finalizar la orden.',
+                'error' => 'No tienes permiso para finalizar la orden. Se requiere modificar (mecánico) o registrar (supervisor).',
             ], 403);
         }
 
@@ -661,7 +662,7 @@ class OrdenesTrabajoMecaController extends Controller
             'Fecha' => ['required', 'date'],
             'TelarId' => ['required', 'string', 'max:10'],
             'FolioParo' => ['nullable', 'string', 'max:30'],
-            'Falla' => ['nullable', 'string', 'max:150'],
+            'Falla' => ['required', 'string', 'max:150'],
             'FechaParo' => ['nullable', 'date'],
             'HoraParo' => ['nullable', 'date_format:H:i'],
             'Estatus' => ['nullable', 'string', 'max:15'],
@@ -757,12 +758,6 @@ class OrdenesTrabajoMecaController extends Controller
     private function siguienteFolio(): string
     {
         try {
-            $this->asegurarSecuenciaFolios();
-
-            $folio = trim(FolioHelper::obtenerSiguienteFolio(
-                self::MODULO_FOLIOS,
-                self::LONGITUD_CONSECUTIVO_FOLIOS,
-            ));
             $this->asegurarSecuenciaFolios();
 
             $folio = trim(FolioHelper::obtenerSiguienteFolio(
@@ -951,19 +946,60 @@ class OrdenesTrabajoMecaController extends Controller
     }
 
     /**
-     * Tejedor (área) puede calificar después de Finalizar.
+     * Tejedor (área) o supervisor (registrar) pueden calificar después de Finalizar.
      */
     private function puedeCalificarComoTejedor(): bool
     {
-        return $this->esTejedor();
+        return $this->esTejedor() || $this->puedeRegistrar();
     }
 
     /**
-     * Mecánico (no tejedor) con permiso modificar: puede pulsar Finalizar.
+     * Mecánico con modificar, o supervisor con registrar, pueden finalizar.
+     * El tejedor en modo solo-calificación no finaliza.
      */
     private function puedeFinalizarComoMecanico(): bool
     {
-        return ! $this->esTejedor() && userCan('modificar', self::MODULO_PERMISO);
+        if ($this->esModoTejedorSoloCalificacion()) {
+            return false;
+        }
+
+        return userCan('modificar', self::MODULO_PERMISO) || $this->puedeRegistrar();
+    }
+
+    /**
+     * Texto de falla para UI: código + descripción (no solo el número/clave).
+     */
+    private function textoFalla(?string $falla, ?string $descripcion): string
+    {
+        $falla = trim((string) $falla);
+        $descripcion = trim((string) $descripcion);
+
+        if ($falla !== '' && $descripcion !== '') {
+            if (strcasecmp($falla, $descripcion) === 0) {
+                return mb_substr($descripcion, 0, 150);
+            }
+
+            return mb_substr("{$falla} — {$descripcion}", 0, 150);
+        }
+
+        return mb_substr($descripcion !== '' ? $descripcion : $falla, 0, 150);
+    }
+
+    /**
+     * Evita crear órdenes de trabajo “vacías” (sin telar ni descripción de falla).
+     *
+     * @param  array<string, mixed>  $datos
+     */
+    private function validarOrdenNoVacia(array $datos): void
+    {
+        $telar = trim((string) ($datos['TelarId'] ?? ''));
+        $falla = trim((string) ($datos['Falla'] ?? ''));
+
+        if ($telar === '' || $falla === '') {
+            throw ValidationException::withMessages([
+                'Falla' => ['La orden de trabajo no puede quedar vacía: captura el telar y la descripción de la falla.'],
+            ]);
+        }
     }
 
     private function estatusBloqueaEdicionMecanico(string $estatus): bool
@@ -1003,6 +1039,44 @@ class OrdenesTrabajoMecaController extends Controller
     /**
      * Renglón vacío (el placeholder al crear la orden).
      */
+
+    /**
+     * Un renglón solo se guarda si tiene mecánico, al menos un trabajo y ambas horas.
+     * Clave/mecánico solos no bastan.
+     *
+     * @param  array<string, mixed>  $datos
+     */
+    private function validarLineaCompleta(array $datos): void
+    {
+        $cve = trim((string) ($datos['CveOperador'] ?? ''));
+        $nom = trim((string) ($datos['NomOperador'] ?? ''));
+        $horaInicial = trim((string) ($datos['HoraInicial'] ?? ''));
+        $horaFinal = trim((string) ($datos['HoraFinal'] ?? ''));
+        $tieneTrabajo = (bool) ($datos['Ajusto'] ?? false)
+            || (bool) ($datos['Reparo'] ?? false)
+            || (bool) ($datos['Cambio'] ?? false)
+            || (bool) ($datos['Lubrico'] ?? false)
+            || (bool) ($datos['FaltaRefacc'] ?? false);
+
+        $errors = [];
+
+        if ($cve === '' || $nom === '') {
+            $errors['CveOperador'] = ['Selecciona la clave y el mecánico que está capturando.'];
+        }
+
+        if (! $tieneTrabajo) {
+            $errors['Ajusto'] = ['Marca al menos un trabajo realizado antes de guardar el renglón.'];
+        }
+
+        if ($horaInicial === '' || $horaFinal === '') {
+            $errors['HoraInicial'] = ['Captura hora inicial y hora final para guardar el renglón.'];
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
     private function lineaSinCaptura(MecOrdenTrabajoLineModel $linea): bool
     {
         return trim((string) ($linea->CveOperador ?? '')) === ''

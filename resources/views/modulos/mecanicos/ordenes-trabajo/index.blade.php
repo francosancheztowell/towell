@@ -150,8 +150,9 @@
                     </select>
                 </div>
                 <div class="md:col-span-2">
-                    <label for="cabecera-falla" class="mb-1 block text-xs font-medium text-gray-700">Descripción de falla</label>
-                    <input id="cabecera-falla" name="Falla" maxlength="150"
+                    <label for="cabecera-falla" class="mb-1 block text-xs font-medium text-gray-700">Descripción de falla <span class="text-red-600">*</span></label>
+                    <input id="cabecera-falla" name="Falla" maxlength="150" required
+                        placeholder="Código y descripción de la falla"
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                 </div>
                 <div>
@@ -712,7 +713,7 @@ document.addEventListener('DOMContentLoaded', () => {
         parosTelar.forEach(paro => {
             const option = document.createElement('option');
             option.value = paro.Id;
-            const falla = String(paro.Falla ?? '').trim();
+            const falla = String(paro.FallaTexto || paro.Falla || '').trim();
             option.textContent = falla !== '' ? `${paro.Folio} · ${falla}` : String(paro.Folio);
             select.appendChild(option);
         });
@@ -802,7 +803,7 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#cabecera-fecha').value = fechaActual;
         $('#cabecera-telar').value = paro.MaquinaId || '';
         $('#cabecera-folio-paro').value = paro.Folio || '';
-        $('#cabecera-falla').value = paro.Falla || '';
+        $('#cabecera-falla').value = paro.FallaTexto || paro.Falla || '';
         $('#cabecera-fecha-paro').value = dateInputValue(paro.Fecha);
         $('#cabecera-hora-paro').value = timeInputValue(paro.Hora);
         $('#cabecera-orden').value = paro.OrdenTrabajo || '';

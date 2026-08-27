@@ -41,7 +41,7 @@
                         <span class="inline-flex rounded-full px-3 py-1.5 text-xs font-bold {{ $badgeClases }}">{{ $badgeLabel }}</span>
                         @if ($puedeCalificar)
                             <span class="inline-flex rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700">
-                                Modo tejedor · calificar
+                                {{ ($esSupervisor ?? false) && ! ($modoTejedor ?? false) ? 'Calificar intervenciones' : 'Modo tejedor · calificar' }}
                             </span>
                         @endif
                     </div>
@@ -91,8 +91,8 @@
             </div>
         </section>
 
-        @if (! $bloqueadaEdicion && ! ($esTejedor ?? false) && ($puedeEditar || $puedeCrear))
-        {{-- Formulario de captura (mecánico) --}}
+        @if (! $bloqueadaEdicion && ! ($modoTejedor ?? false) && ($puedeEditar || $puedeCrear))
+        {{-- Formulario de captura (mecánico / supervisor) --}}
         <section id="seccion-captura" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4 lg:p-5">
             <div class="flex flex-col gap-2 border-b border-gray-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
                 <div class="min-w-0">
@@ -114,7 +114,7 @@
 
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12 lg:gap-4">
                     <div class="lg:col-span-4">
-                        <label for="linea-operador" class="mb-1 block text-sm font-medium text-gray-700">Clave</label>
+                        <label for="linea-operador" class="mb-1 block text-sm font-medium text-gray-700">Clave <span class="font-normal text-gray-500">(capturando)</span></label>
                         <select id="linea-operador" name="CveOperador"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                             <option value="">Seleccione</option>
@@ -124,9 +124,10 @@
                         </select>
                     </div>
                     <div class="lg:col-span-8">
-                        <label for="linea-nom-operador" class="mb-1 block text-sm font-medium text-gray-700">Mecánico</label>
+                        <label for="linea-nom-operador" class="mb-1 block text-sm font-medium text-gray-700">Mecánico <span class="font-normal text-gray-500">(capturando)</span></label>
                         <input id="linea-nom-operador" name="NomOperador" maxlength="150"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+                        <p class="mt-1 text-xs text-gray-500">Se precarga con el usuario en sesión. Para guardar completa trabajo realizado y horas.</p>
                     </div>
                 </div>
 
@@ -231,6 +232,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const bloqueadaEdicion = @json($bloqueadaEdicion ?? false);
     const tejedorCve = @json($tejedorCve);
     const tejedorNombre = @json($tejedorNombre);
+    const capturaCve = @json($usuarioCapturaCve ?? '');
+    const capturaNombre = @json($usuarioCapturaNombre ?? '');
 
     const $ = (selector) => document.querySelector(selector);
     const lineasBody = $('#lineas-body');
@@ -420,6 +423,9 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#titulo-formulario').textContent = lineaSinCaptura(linea) ? 'Captura del primer renglón' : 'Editar intervención';
         $('#subtitulo-formulario').textContent = `Orden ${orden.Folio}`;
         $('#btn-guardar-linea').textContent = lineaSinCaptura(linea) ? 'Guardar primer renglón' : 'Guardar cambios';
+        if (lineaSinCaptura(linea)) {
+            aplicarUsuarioCaptura();
+        }
         calcularMinutosEnPantalla();
     }
 
@@ -431,6 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#titulo-formulario').textContent = 'Capturar nueva intervención';
         $('#subtitulo-formulario').textContent = `Orden ${orden.Folio}`;
         $('#btn-guardar-linea').textContent = 'Guardar intervención';
+        aplicarUsuarioCaptura();
         document.getElementById('seccion-captura')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         $('#linea-operador')?.focus();
     }
@@ -449,6 +456,56 @@ document.addEventListener('DOMContentLoaded', () => {
         const result = await api(`${baseUrl}/${encodeURIComponent(orden.Folio)}`);
         orden = result.data;
         renderLineas();
+    }
+
+
+    function aplicarUsuarioCaptura() {
+        if (! $('#linea-operador') || ! $('#linea-nom-operador')) return;
+
+        const cve = String(capturaCve || '').trim();
+        const nombre = String(capturaNombre || '').trim();
+        if (! cve && ! nombre) return;
+
+        if (cve && operadoresPorClave.has(cve)) {
+            $('#linea-operador').value = cve;
+            const op = operadoresPorClave.get(cve);
+            $('#linea-nom-operador').value = op?.NomEmpl || nombre;
+            return;
+        }
+
+        if (cve) {
+            let option = Array.from($('#linea-operador').options).find(opt => opt.value === cve);
+            if (! option) {
+                option = document.createElement('option');
+                option.value = cve;
+                option.textContent = nombre ? `${cve} · ${nombre}` : cve;
+                $('#linea-operador').appendChild(option);
+            }
+            $('#linea-operador').value = cve;
+        }
+
+        if (nombre) {
+            $('#linea-nom-operador').value = nombre;
+        }
+    }
+
+    function validarLineaCompleta(data) {
+        const cve = String(data.CveOperador || '').trim();
+        const nom = String(data.NomOperador || '').trim();
+        const horaIni = String(data.HoraInicial || '').trim();
+        const horaFin = String(data.HoraFinal || '').trim();
+        const tieneTrabajo = Boolean(data.Ajusto || data.Reparo || data.Cambio || data.Lubrico || data.FaltaRefacc);
+
+        if (! cve || ! nom) {
+            return 'Selecciona la clave y el nombre del mecánico que está capturando.';
+        }
+        if (! tieneTrabajo) {
+            return 'Marca al menos un trabajo realizado (Ajustó, Reparó, Cambió, Lubricó o Falta refacc.).';
+        }
+        if (! horaIni || ! horaFin) {
+            return 'Captura hora inicial y hora final para guardar el renglón.';
+        }
+        return null;
     }
 
     function datosLinea() {
@@ -535,6 +592,13 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault();
         const button = $('#btn-guardar-linea');
         const lineaId = $('#linea-id').value;
+        const payload = datosLinea();
+        const errorValidacion = validarLineaCompleta(payload);
+        if (errorValidacion) {
+            notificar('warning', errorValidacion);
+            return;
+        }
+
         button.disabled = true;
         button.textContent = 'Guardando…';
 
@@ -543,7 +607,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? `${baseUrl}/${encodeURIComponent(orden.Folio)}/lineas/${lineaId}`
                 : `${baseUrl}/${encodeURIComponent(orden.Folio)}/lineas`, {
                 method: lineaId ? 'PUT' : 'POST',
-                data: datosLinea(),
+                data: payload,
             });
 
             await cargarOrden();
