@@ -244,8 +244,14 @@
                             }
                         @endphp
 
-                        @if($totalRegistros > 0)
-                            @for($rowIndex = 1; $rowIndex <= (int)$totalRegistros; $rowIndex++)
+                            {{-- Pintar SIEMPRE todas las filas que existen: iterar solo
+                                 hasta NoTelas dejaba invisibles las sobrantes, que seguian
+                                 vivas en la tabla y en los reportes. --}}
+                        @php
+                            $totalFilas = max((int) $totalRegistros, isset($registrosProduccion) ? $registrosProduccion->count() : 0);
+                        @endphp
+                        @if($totalFilas > 0)
+                            @for($rowIndex = 1; $rowIndex <= $totalFilas; $rowIndex++)
                                 @php
                                     $registro = isset($registrosProduccion) && $registrosProduccion->count() > 0
                                         ? $registrosProduccion->get($rowIndex - 1)

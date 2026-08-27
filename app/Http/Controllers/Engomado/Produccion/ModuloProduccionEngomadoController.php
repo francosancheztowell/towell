@@ -100,6 +100,12 @@ class ModuloProduccionEngomadoController extends Controller
 
     public function index(Request $request)
     {
+        abort_unless(
+            function_exists('userCan') && userCan('acceso', $this->getModuleNameForPermissions()),
+            403,
+            'No tiene acceso a este módulo.'
+        );
+
         $hasFinalizarPermission = true;
         $ordenId = $request->query('orden_id');
 
@@ -164,115 +170,9 @@ class ModuloProduccionEngomadoController extends Controller
             $solidosFormulacion = $formulacion->Solidos;
         }
 
-        // Sincronizar registros de producción con NoTelas (lógica idempotente)
-        if ($orden->Folio && $totalRegistros > 0) {
-            try {
-                $registrosExistentes = EngProduccionEngomado::where('Folio', $orden->Folio)->count();
-                $diferencia = $totalRegistros - $registrosExistentes;
-
-                // Solo proceder si hay diferencia
-                if ($diferencia !== 0) {
-                    $user = Auth::user();
-                    $claveUsuario = $user ? ($user->numero_empleado ?? null) : null;
-                    $nombreUsuario = $user ? ($user->nombre ?? null) : null;
-                    $turnoUsuario = $user ? ($user->turno ?? null) : null;
-                    if (! $turnoUsuario) {
-                        $turnoUsuario = TurnoHelper::getTurnoActual();
-                    }
-                    $metrosOrden = $orden->MetrajeTelas ?? $orden->Metros ?? 0;
-
-                    if ($diferencia > 0) {
-                        // Crear registros faltantes
-                        for ($i = 0; $i < $diferencia; $i++) {
-                            $data = [
-                                'Folio' => $orden->Folio,
-                                'NoJulio' => null,
-                                'Fecha' => now()->format('Y-m-d'),
-                            ];
-                            if ($solidosFormulacion !== null) {
-                                $data['Solidos'] = $solidosFormulacion;
-                            }
-                            if (! empty($claveUsuario)) {
-                                $data['CveEmpl1'] = $claveUsuario;
-                            }
-                            if (! empty($nombreUsuario)) {
-                                $data['NomEmpl1'] = $nombreUsuario;
-                            }
-                            if ($metrosOrden > 0) {
-                                $data['Metros1'] = round($metrosOrden, 2);
-                            }
-                            if (! empty($turnoUsuario)) {
-                                $data['Turno1'] = (int) $turnoUsuario;
-                            }
-
-                            try {
-                                EngProduccionEngomado::create($data);
-                            } catch (\Throwable $e) {
-                                Log::error('Error al crear registro de producción Engomado', [
-                                    'folio' => $orden->Folio,
-                                    'error' => $e->getMessage(),
-                                ]);
-
-                                continue;
-                            }
-                        }
-                    } elseif ($diferencia < 0) {
-                        // Eliminar registros sobrantes
-                        // Prioridad: 1) NoJulio=NULL, 2) KgNeto=NULL, 3) Id mas antiguo
-                        $registrosAEliminar = abs($diferencia);
-                        $idsAEliminar = EngProduccionEngomado::where('Folio', $orden->Folio)
-                            ->where(function ($q) {
-                                $q->whereNull('NoJulio')->orWhere('NoJulio', '');
-                            })
-                            ->orderBy('Id', 'asc')  // mas antiguo primero
-                            ->limit($registrosAEliminar)
-                            ->pluck('Id')
-                            ->toArray();
-
-                        if (count($idsAEliminar) < $registrosAEliminar) {
-                            // No hay suficientes sin NoJulio, buscar los que tienen KgNeto=NULL
-                            $faltan = $registrosAEliminar - count($idsAEliminar);
-                            $idsRestantes = EngProduccionEngomado::where('Folio', $orden->Folio)
-                                ->whereNotIn('Id', $idsAEliminar)
-                                ->where(function ($q) {
-                                    $q->whereNull('KgNeto')->orWhere('KgNeto', 0);
-                                })
-                                ->orderBy('Id', 'asc')
-                                ->limit($faltan)
-                                ->pluck('Id')
-                                ->toArray();
-                            $idsAEliminar = array_merge($idsAEliminar, $idsRestantes);
-                        }
-
-                        if (count($idsAEliminar) < $registrosAEliminar) {
-                            // Aun no hay suficientes, tomar los mas antiguos restantes
-                            $faltan = $registrosAEliminar - count($idsAEliminar);
-                            $idsRestantes = EngProduccionEngomado::where('Folio', $orden->Folio)
-                                ->whereNotIn('Id', $idsAEliminar)
-                                ->orderBy('Id', 'asc')
-                                ->limit($faltan)
-                                ->pluck('Id')
-                                ->toArray();
-                            $idsAEliminar = array_merge($idsAEliminar, $idsRestantes);
-                        }
-
-                        if (! empty($idsAEliminar)) {
-                            EngProduccionEngomado::whereIn('Id', $idsAEliminar)->delete();
-                            Log::info('Eliminados registros de producción sobrantes', [
-                                'folio' => $orden->Folio,
-                                'ids_eliminados' => $idsAEliminar,
-                                'cantidad' => count($idsAEliminar),
-                            ]);
-                        }
-                    }
-                }
-            } catch (\Throwable $e) {
-                Log::error('Error general al sincronizar registros en EngProduccionEngomado', [
-                    'folio' => $orden->Folio,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
+        // Se extrae a su propio metodo para poder ejercitarlo sin pasar por
+        // la pantalla (ver scripts/ensayo-engomado-20-ordenes.php).
+        $this->sincronizarRenglonesConNoTelas($orden, $totalRegistros, $solidosFormulacion);
 
         $this->traitRefrescarFechaEnRegistrosVacios($orden);
         $this->traitAutollenarOficial1EnRegistrosSinHoraInicial($orden);
@@ -550,7 +450,29 @@ class ModuloProduccionEngomadoController extends Controller
             $fechaCierre = $this->resolveMonthlyClosureDateContext();
 
             DB::connection('sqlsrv')->transaction(function () use ($orden, $fechaCierre) {
-                EngProduccionEngomado::where('Folio', $orden->Folio)->update(['Finalizar' => 1]);
+                // Las filas se pre-crean como esqueleto desde NoTelas. Las que
+                // quedan sin capturar son telas planeadas que no se corrieron:
+                // se descartan al cerrar, si no la orden deja filas fantasma
+                // marcadas como produccion terminada con 0 kg.
+                EngProduccionEngomado::where('Folio', $orden->Folio)
+                    ->whereNull('HoraInicial')
+                    ->where(function ($q) {
+                        $q->whereNull('NoJulio')->orWhere('NoJulio', '');
+                    })
+                    ->where(function ($q) {
+                        $q->whereNull('KgBruto')->orWhere('KgBruto', 0);
+                    })
+                    ->where(function ($q) {
+                        $q->whereNull('AX')->orWhere('AX', '!=', 1);
+                    })
+                    ->delete();
+
+                // No tocar filas ya procesadas en AX.
+                EngProduccionEngomado::where('Folio', $orden->Folio)
+                    ->where(function ($q) {
+                        $q->whereNull('AX')->orWhere('AX', '!=', 1);
+                    })
+                    ->update(['Finalizar' => 1]);
 
                 if ($fechaCierre['applies']) {
                     $this->updateProduccionFechaByFolio($orden->Folio, $fechaCierre['fecha_efectiva']);
@@ -580,6 +502,145 @@ class ModuloProduccionEngomadoController extends Controller
             Log::error('Error al finalizar orden de engomado', ['error' => $e->getMessage()]);
 
             return response()->json(['success' => false, 'error' => 'Error al finalizar la orden: '.$e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Alta y baja de renglones para cuadrar con NoTelas.
+     */
+    protected function sincronizarRenglonesConNoTelas(EngProgramaEngomado $orden, int $totalRegistros, $solidosFormulacion): void
+    {
+        // Sincronizar registros de producción con NoTelas (lógica idempotente)
+        if ($orden->Folio && $totalRegistros > 0) {
+            try {
+                // Serializa por orden: sin esto, dos peticiones simultaneas leen
+                // ambas el mismo conteo y ambas dan de alta el plan completo,
+                // dejando la orden al doble exacto. Y esto corre en un GET, que
+                // el Service Worker de la PWA puede reintentar.
+                DB::connection('sqlsrv')->transaction(function () use ($orden, $totalRegistros, $solidosFormulacion) {
+                    EngProgramaEngomado::where('Id', $orden->Id)->lockForUpdate()->first();
+
+                    $registrosExistentes = EngProduccionEngomado::where('Folio', $orden->Folio)->count();
+                    $diferencia = $totalRegistros - $registrosExistentes;
+
+                    // Solo proceder si hay diferencia
+                    if ($diferencia !== 0) {
+                        $user = Auth::user();
+                        $claveUsuario = $user ? ($user->numero_empleado ?? null) : null;
+                        $nombreUsuario = $user ? ($user->nombre ?? null) : null;
+                        $turnoUsuario = $user ? ($user->turno ?? null) : null;
+                        if (! $turnoUsuario) {
+                            $turnoUsuario = TurnoHelper::getTurnoActual();
+                        }
+                        $metrosOrden = $orden->MetrajeTelas ?? $orden->Metros ?? 0;
+
+                        if ($diferencia > 0) {
+                            // Crear registros faltantes
+                            for ($i = 0; $i < $diferencia; $i++) {
+                                $data = [
+                                    'Folio' => $orden->Folio,
+                                    'NoJulio' => null,
+                                    'Fecha' => now()->format('Y-m-d'),
+                                ];
+                                if ($solidosFormulacion !== null) {
+                                    $data['Solidos'] = $solidosFormulacion;
+                                }
+                                if (! empty($claveUsuario)) {
+                                    $data['CveEmpl1'] = $claveUsuario;
+                                }
+                                if (! empty($nombreUsuario)) {
+                                    $data['NomEmpl1'] = $nombreUsuario;
+                                }
+                                if ($metrosOrden > 0) {
+                                    $data['Metros1'] = round($metrosOrden, 2);
+                                }
+                                if (! empty($turnoUsuario)) {
+                                    $data['Turno1'] = (int) $turnoUsuario;
+                                }
+
+                                try {
+                                    EngProduccionEngomado::create($data);
+                                } catch (\Throwable $e) {
+                                    Log::error('Error al crear registro de producción Engomado', [
+                                        'folio' => $orden->Folio,
+                                        'error' => $e->getMessage(),
+                                    ]);
+
+                                    continue;
+                                }
+                            }
+                        } elseif ($diferencia < 0) {
+                            // Eliminar registros sobrantes
+                            // Solo se eliminan filas VACIAS: sin captura iniciada, sin
+                            // julio, sin peso y no enviadas a AX. Si no alcanzan, se
+                            // deja el sobrante y se registra, en vez de borrar trabajo
+                            // real para cuadrar el conteo.
+                            $registrosAEliminar = abs($diferencia);
+                            $idsAEliminar = EngProduccionEngomado::where('Folio', $orden->Folio)
+                                ->whereNull('HoraInicial')
+                                ->where(function ($q) {
+                                    $q->whereNull('NoJulio')->orWhere('NoJulio', '');
+                                })
+                                ->where(function ($q) {
+                                    $q->whereNull('KgBruto')->orWhere('KgBruto', 0);
+                                })
+                                ->where(function ($q) {
+                                    $q->whereNull('AX')->orWhere('AX', '!=', 1);
+                                })
+                                ->orderBy('Id', 'desc')  // los mas nuevos primero
+                                ->limit($registrosAEliminar)
+                                ->pluck('Id')
+                                ->toArray();
+
+                            if (count($idsAEliminar) < $registrosAEliminar) {
+                                Log::warning('Sobran registros de produccion con captura; no se eliminan', [
+                                    'folio' => $orden->Folio,
+                                    'sobrantes' => $registrosAEliminar,
+                                    'eliminables' => count($idsAEliminar),
+                                ]);
+                            }
+
+                            if (count($idsAEliminar) < $registrosAEliminar) {
+                                // Aun no hay suficientes, tomar los mas antiguos restantes
+                                $faltan = $registrosAEliminar - count($idsAEliminar);
+                                // Solo filas VACIAS y fuera de AX: si no alcanzan, se
+                                // deja el sobrante en vez de borrar trabajo real.
+                                $idsRestantes = EngProduccionEngomado::where('Folio', $orden->Folio)
+                                    ->whereNotIn('Id', $idsAEliminar)
+                                    ->whereNull('HoraInicial')
+                                    ->where(function ($q) {
+                                        $q->whereNull('NoJulio')->orWhere('NoJulio', '');
+                                    })
+                                    ->where(function ($q) {
+                                        $q->whereNull('KgBruto')->orWhere('KgBruto', 0);
+                                    })
+                                    ->where(function ($q) {
+                                        $q->whereNull('AX')->orWhere('AX', '!=', 1);
+                                    })
+                                    ->orderBy('Id', 'desc')
+                                    ->limit($faltan)
+                                    ->pluck('Id')
+                                    ->toArray();
+                                $idsAEliminar = array_merge($idsAEliminar, $idsRestantes);
+                            }
+
+                            if (! empty($idsAEliminar)) {
+                                EngProduccionEngomado::whereIn('Id', $idsAEliminar)->delete();
+                                Log::info('Eliminados registros de producción sobrantes', [
+                                    'folio' => $orden->Folio,
+                                    'ids_eliminados' => $idsAEliminar,
+                                    'cantidad' => count($idsAEliminar),
+                                ]);
+                            }
+                        }
+                    }
+                });
+            } catch (\Throwable $e) {
+                Log::error('Error general al sincronizar registros en EngProduccionEngomado', [
+                    'folio' => $orden->Folio,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
     }
 }
