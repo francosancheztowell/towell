@@ -36,12 +36,15 @@ class ProgramBoardReadService
             ? UrdProgramaUrdido::query()->where('Folio', $order->Folio)->value('Status')
             : null;
 
+        $bloqueadoPorAx = $module->productionModel()::folioTieneAx((string) $order->Folio);
+
         return $this->card(
             $module,
             $order,
             $laneKey,
             (int) ($order->Prioridad ?: 1),
-            $urdidoStatus
+            $urdidoStatus,
+            $bloqueadoPorAx
         );
     }
 
@@ -90,6 +93,11 @@ class ProgramBoardReadService
                 ->pluck('Status', 'Folio')
             : collect();
 
+        $foliosConAx = array_fill_keys(
+            $module->productionModel()::foliosConAx($orders->pluck('Folio')->all()),
+            true
+        );
+
         $laneDefinitions = collect($module->lanes())->keyBy('key');
         $grouped = $laneDefinitions->map(fn (array $lane): array => [
             ...$lane,
@@ -115,7 +123,8 @@ class ProgramBoardReadService
                 $order,
                 $laneKey,
                 $index + 1,
-                $urdidoStatuses->get((string) $order->Folio)
+                $urdidoStatuses->get((string) $order->Folio),
+                isset($foliosConAx[(string) $order->Folio])
             );
             $grouped[$laneKey]['orders'][] = $card;
 
@@ -181,6 +190,7 @@ class ProgramBoardReadService
         string $laneKey,
         int $fallbackPriority,
         ?string $urdidoStatus,
+        bool $bloqueadoPorAx = false,
     ): array {
         $size = trim((string) ($order->InventSizeId ?? ''));
         if ($size === '') {
@@ -222,6 +232,7 @@ class ProgramBoardReadService
             'urdido_finished' => $module === ProgramaModulo::Engomado
                 ? $urdidoStatus === 'Finalizado'
                 : true,
+            'bloqueado_por_ax' => $bloqueadoPorAx,
         ];
     }
 }

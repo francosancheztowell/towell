@@ -94,6 +94,16 @@ class ProgramBoardActionService
                 return;
             }
 
+            if (
+                ProgramaConfig::estatusBloqueadoPorAxProduccion($newStatus)
+                && $module->productionModel()::folioTieneAx((string) $order->Folio)
+            ) {
+                $tabla = $module === ProgramaModulo::Engomado
+                    ? 'EngProduccionEngomado'
+                    : 'UrdProduccionUrdido';
+                throw new DomainException(ProgramaConfig::mensajeAxBloqueaEstatus($tabla));
+            }
+
             if ($newStatus === 'En Proceso') {
                 $blockReason = $this->productionBlockReasonForOrder($module, $order, true);
                 if ($blockReason !== null) {

@@ -88,8 +88,9 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertDontSee('Checklist de telares reincidentes de defectos')
             ->call('openAudit')
             ->assertSet('auditModalOpen', true)
-            ->assertSee('data-crudo-audit-modal', false)
-            ->assertDontSee('data-crudo-detail-modal', false)
+            ->assertSee('crudo-audit-inline', false)
+            ->assertSee('data-crudo-detail-modal', false)
+            ->assertDontSee('crudo-audit-history-panel', false)
             ->assertSee('Nueva auditoría · JAC 201')
             ->assertSee('data-crudo-audit-content', false)
             ->assertSee('crudo-audit-defects-panel', false)
@@ -113,7 +114,8 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSet('auditModalOpen', false)
             ->assertDontSee('crudo-modal-overview', false);
 
-        $this->assertSame(1, $this->provider->detailCalls);
+        // El detalle sigue visible con el formulario abierto: se reconsulta al abrirlo.
+        $this->assertSame(2, $this->provider->detailCalls);
         $this->assertSame(0, $this->flogProvider->calls);
     }
 
@@ -196,7 +198,7 @@ final class CrudoMachineDetailTest extends TestCase
         $this->assertStringNotContainsString('data-crudo-remove-audit-defect', $html);
     }
 
-    public function test_detail_and_audit_modals_are_mutually_exclusive(): void
+    public function test_audit_form_replaces_history_panels_inside_the_detail_modal(): void
     {
         $component = Livewire::test(TestableCrudoMachineDetail::class)
             ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData());
@@ -204,18 +206,27 @@ final class CrudoMachineDetailTest extends TestCase
         $html = $component->html();
 
         $this->assertSame(1, preg_match_all('/data-crudo-modal(?:\s|>)/', $html));
-        $this->assertStringContainsString('data-crudo-detail-modal', $html);
-        $this->assertStringNotContainsString('data-crudo-audit-modal', $html);
+        $this->assertStringContainsString('crudo-audit-history-panel', $html);
+        $this->assertStringContainsString('crudo-paros-history-panel', $html);
         $this->assertStringNotContainsString('data-crudo-save-audit', $html);
 
         $component->call('openAudit')->assertSet('auditModalOpen', true);
         $html = $component->html();
 
+        // Un solo modal: el formulario ocupa el lugar de auditorías de hoy y paros.
         $this->assertSame(1, preg_match_all('/data-crudo-modal(?:\s|>)/', $html));
-        $this->assertStringNotContainsString('data-crudo-detail-modal', $html);
-        $this->assertStringContainsString('data-crudo-audit-modal', $html);
+        $this->assertStringContainsString('data-crudo-detail-modal', $html);
+        $this->assertStringContainsString('crudo-modal-overview', $html);
+        $this->assertStringNotContainsString('crudo-audit-history-panel', $html);
+        $this->assertStringNotContainsString('crudo-paros-history-panel', $html);
         $this->assertStringContainsString('data-crudo-save-audit', $html);
         $this->assertStringContainsString('data-crudo-save-stop', $html);
+
+        $component->call('closeAudit')->assertSet('auditModalOpen', false);
+        $html = $component->html();
+
+        $this->assertStringContainsString('crudo-audit-history-panel', $html);
+        $this->assertStringNotContainsString('data-crudo-save-audit', $html);
     }
 
     public function test_today_audits_are_visible_before_the_new_audit_disclosure(): void
@@ -280,7 +291,7 @@ final class CrudoMachineDetailTest extends TestCase
         );
     }
 
-    public function test_refresh_does_not_requery_or_rebuild_an_open_audit_modal(): void
+    public function test_refresh_keeps_the_audit_form_open(): void
     {
         $component = Livewire::test(TestableCrudoMachineDetail::class)
             ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
@@ -295,12 +306,9 @@ final class CrudoMachineDetailTest extends TestCase
             ->call('close')
             ->assertSet('auditModalOpen', false)
             ->assertSet('selectedTelar', null);
-
-        $this->assertSame(0, $this->provider->detailCalls);
-        $this->assertSame(0, $this->flogProvider->calls);
     }
 
-    public function test_successful_audit_event_closes_the_modal(): void
+    public function test_successful_audit_event_returns_to_the_history_panels(): void
     {
         Livewire::test(TestableCrudoMachineDetail::class)
             ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
@@ -308,10 +316,11 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSet('selectedTelar', '201')
             ->assertSet('auditModalOpen', true)
             ->dispatch('crudo-auditoria-guardada')
-            ->assertSet('selectedTelar', null)
-            ->assertSet('machine', null)
+            ->assertSet('selectedTelar', '201')
             ->assertSet('auditModalOpen', false)
-            ->assertDontSee('data-crudo-modal', false);
+            ->assertSee('data-crudo-detail-modal', false)
+            ->assertSee('crudo-audit-history-panel', false)
+            ->assertDontSee('data-crudo-save-audit', false);
     }
 
     public function test_product_name_is_in_the_title_and_order_is_next_to_ax_key(): void

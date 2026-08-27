@@ -2133,6 +2133,42 @@ button.crudo-status-card:disabled {
     margin-top: 0.55rem;
 }
 
+.crudo-audit-inline-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem;
+    margin-bottom: 0.5rem;
+}
+
+.crudo-audit-inline-header h3 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 950;
+}
+
+.crudo-audit-inline-back {
+    display: inline-flex;
+    min-height: 2.2rem;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.7rem;
+    background: #f8fafc;
+    padding: 0.45rem 0.8rem;
+    color: #334155;
+    font-size: 0.78rem;
+    line-height: 1;
+    font-weight: 850;
+}
+
+.crudo-audit-inline-back:hover,
+.crudo-audit-inline-back:focus-visible {
+    background: #e2e8f0;
+    outline: none;
+}
+
 .crudo-audit-toolbar {
     display: flex;
     width: 100%;

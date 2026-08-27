@@ -6,6 +6,7 @@ namespace Tests\Unit\Programas;
 
 use App\Models\Sistema\Usuario;
 use App\Services\Programas\ProgramBoardActionService;
+use App\Support\Programas\ProgramaConfig;
 use App\Support\Programas\ProgramaModulo;
 use DomainException;
 use Illuminate\Database\Schema\Blueprint;
@@ -136,6 +137,65 @@ class ProgramBoardActionServiceTest extends TestCase
         $this->assertSame(1, (int) DB::connection('sqlsrv')->table('UrdProgramaUrdido')->where('Id', 2)->value('Prioridad'));
     }
 
+    public function test_urdido_cannot_set_blocked_statuses_when_production_is_in_ax(): void
+    {
+        $this->insertUrdido(1, 'ORD-AX', 'Mc Coy 1', 'Parcial', 1);
+        DB::connection('sqlsrv')->table('UrdProduccionUrdido')->insert([
+            'Folio' => 'ORD-AX',
+            'AX' => 1,
+        ]);
+
+        $service = app(ProgramBoardActionService::class);
+
+        foreach (['Cancelado', 'Programado', 'En Proceso'] as $status) {
+            try {
+                $service->changeStatus(ProgramaModulo::Urdido, 1, $status);
+                $this->fail("Se permitió cambiar a {$status} con AX = 1");
+            } catch (DomainException $exception) {
+                $this->assertSame(
+                    'No se puede poner Cancelado, Programado ni En Proceso: este folio ya tiene producción en AX (AX = 1) en UrdProduccionUrdido.',
+                    $exception->getMessage()
+                );
+            }
+        }
+
+        $this->assertSame('Parcial', DB::connection('sqlsrv')->table('UrdProgramaUrdido')->where('Id', 1)->value('Status'));
+        $this->assertSame(1, DB::connection('sqlsrv')->table('UrdProduccionUrdido')->count());
+    }
+
+    public function test_engomado_cannot_set_blocked_statuses_when_production_is_in_ax(): void
+    {
+        DB::connection('sqlsrv')->table('EngProgramaEngomado')->insert([
+            'Id' => 1,
+            'Folio' => 'ORD-AX-E',
+            'MaquinaEng' => 'West Point 2',
+            'Status' => 'Parcial',
+            'Prioridad' => 1,
+            'FechaProg' => '2026-07-29',
+        ]);
+        DB::connection('sqlsrv')->table('EngProduccionEngomado')->insert([
+            'Folio' => 'ORD-AX-E',
+            'AX' => 1,
+        ]);
+
+        $service = app(ProgramBoardActionService::class);
+
+        foreach (['Cancelado', 'Programado', 'En Proceso'] as $status) {
+            try {
+                $service->changeStatus(ProgramaModulo::Engomado, 1, $status);
+                $this->fail("Se permitió cambiar a {$status} con AX = 1");
+            } catch (DomainException $exception) {
+                $this->assertSame(
+                    ProgramaConfig::mensajeAxBloqueaEstatus('EngProduccionEngomado'),
+                    $exception->getMessage()
+                );
+            }
+        }
+
+        $this->assertSame('Parcial', DB::connection('sqlsrv')->table('EngProgramaEngomado')->where('Id', 1)->value('Status'));
+        $this->assertSame(1, DB::connection('sqlsrv')->table('EngProduccionEngomado')->count());
+    }
+
     public function test_engomado_cannot_start_until_urdido_is_finalized(): void
     {
         $this->insertUrdido(1, 'ORD-300', 'Mc Coy 1', 'En Proceso', 1);
@@ -193,6 +253,7 @@ class ProgramBoardActionServiceTest extends TestCase
         Schema::connection('sqlsrv')->create($tableName, function (Blueprint $table): void {
             $table->increments('Id');
             $table->string('Folio')->nullable();
+            $table->integer('AX')->nullable();
         });
     }
 

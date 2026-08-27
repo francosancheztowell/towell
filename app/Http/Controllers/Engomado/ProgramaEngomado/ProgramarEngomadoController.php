@@ -238,6 +238,10 @@ class ProgramarEngomadoController extends Controller
                 $ordenes,
                 fn ($orden) => $this->fechaProgFallback($orden)
             );
+            $foliosConAx = array_fill_keys(
+                EngProduccionEngomado::foliosConAx($ordenesOrdenadas->pluck('Folio')->all()),
+                true
+            );
 
             // Agrupar por tabla (extraído de MaquinaEng)
             $ordenesPorTabla = [
@@ -264,6 +268,7 @@ class ProgramarEngomadoController extends Controller
                         'maquina_eng' => $orden->MaquinaEng ?? null,
                         'tabla' => $tabla,
                         'status' => $orden->Status ?? null,
+                        'bloqueado_por_ax' => isset($foliosConAx[(string) $orden->Folio]),
                         'formula' => $orden->BomFormula ?? null,
                         'observaciones' => $orden->Observaciones ?? '',
                         'prioridad' => $this->prioridadService->displayPriority($orden, count($ordenesPorTabla[$tabla])),
@@ -447,6 +452,22 @@ class ProgramarEngomadoController extends Controller
         }
     }
 
+    private function jsonSiAxBloqueaEstatus(EngProgramaEngomado $orden, string $nuevoStatus): ?JsonResponse
+    {
+        if (! ProgramaConfig::estatusBloqueadoPorAxProduccion($nuevoStatus)) {
+            return null;
+        }
+
+        if (! EngProduccionEngomado::folioTieneAx((string) $orden->Folio)) {
+            return null;
+        }
+
+        return response()->json([
+            'success' => false,
+            'error' => ProgramaConfig::mensajeAxBloqueaEstatus('EngProduccionEngomado'),
+        ], 422);
+    }
+
     /**
      * Recalcular prioridades consecutivas para todas las órdenes activas de engomado
      */
@@ -490,6 +511,10 @@ class ProgramarEngomadoController extends Controller
                     'success' => true,
                     'message' => 'Status sin cambios',
                 ]);
+            }
+
+            if ($bloqueoAx = $this->jsonSiAxBloqueaEstatus($orden, $nuevoStatus)) {
+                return $bloqueoAx;
             }
 
             DB::beginTransaction();

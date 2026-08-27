@@ -268,6 +268,10 @@ class ProgramarUrdidoController extends Controller
                 $ordenes,
                 fn ($orden) => $this->createdAtFallback($orden)
             );
+            $foliosConAx = array_fill_keys(
+                UrdProduccionUrdido::foliosConAx($ordenesOrdenadas->pluck('Folio')->all()),
+                true
+            );
 
             // Agrupar por MC Coy (extraído de MaquinaId)
             $ordenesPorMcCoy = [
@@ -295,6 +299,7 @@ class ProgramarUrdidoController extends Controller
                         'mccoy' => $mcCoy,
                         'maquina_id' => $orden->MaquinaId ?? null,
                         'status' => $orden->Status ?? null,
+                        'bloqueado_por_ax' => isset($foliosConAx[(string) $orden->Folio]),
                         'incorrecto' => (int) ($orden->Incorrecto ?? 0),
                         'observaciones' => $orden->Observaciones ?? '',
                         'prioridad' => $this->prioridadService->displayPriority($orden, $indexEnGrupo - 1),
@@ -555,6 +560,22 @@ class ProgramarUrdidoController extends Controller
         }
     }
 
+    private function jsonSiAxBloqueaEstatus(UrdProgramaUrdido $orden, string $nuevoStatus): ?JsonResponse
+    {
+        if (! ProgramaConfig::estatusBloqueadoPorAxProduccion($nuevoStatus)) {
+            return null;
+        }
+
+        if (! UrdProduccionUrdido::folioTieneAx((string) $orden->Folio)) {
+            return null;
+        }
+
+        return response()->json([
+            'success' => false,
+            'error' => ProgramaConfig::MENSAJE_AX_BLOQUEA_ESTATUS,
+        ], 422);
+    }
+
     /**
      * Recalcular prioridades consecutivas para todas las órdenes activas
      * Excluye órdenes canceladas
@@ -599,6 +620,10 @@ class ProgramarUrdidoController extends Controller
                     'success' => true,
                     'message' => 'Status sin cambios',
                 ]);
+            }
+
+            if ($bloqueoAx = $this->jsonSiAxBloqueaEstatus($orden, $nuevoStatus)) {
+                return $bloqueoAx;
             }
 
             if ($nuevoStatus === 'En Proceso') {

@@ -57,12 +57,9 @@
 
 <div>
     @if ($selectedMachine)
-        @if (! $auditModalOpen)
         <div
             class="crudo-modal-backdrop"
             wire:click.self="close"
-            wire:loading.class="is-closing"
-            wire:target="openAudit"
             wire:key="crudo-machine-detail-modal-{{ $selectedMachine['telar'] }}"
             data-crudo-modal
             data-crudo-detail-modal
@@ -411,6 +408,7 @@
                         class="crudo-audit-disclosure"
                         wire:key="crudo-audit-history-{{ $selectedMachine['telar'] }}"
                     >
+                        @if (! $auditModalOpen)
                         <div class="crudo-history-row">
                             {{-- Las dos secciones llevan wire:key: al ser hermanas de un bloque
                                  wire:ignore, sin clave el morph de Livewire no reconoce cuál es
@@ -550,46 +548,24 @@
                                 </button>
                             </div>
                         @endif
-                    </div>
-                </div>
-            </article>
-        </div>
-        @else
-        <div
-            class="crudo-modal-backdrop"
-            wire:click.self="close"
-            wire:key="crudo-machine-audit-modal-{{ $selectedMachine['telar'] }}"
-            data-crudo-modal
-            data-crudo-audit-modal
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="crudo-audit-modal-title"
-        >
-            <article class="crudo-modal crudo-audit-modal">
-                <button
-                    type="button"
-                    class="crudo-modal-close"
-                    wire:click="close"
-                    data-crudo-modal-close
-                    aria-label="Cerrar auditoría"
-                >
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-
-                <div class="crudo-modal-body crudo-audit-modal-body">
-                    <header class="crudo-audit-modal-header">
-                        <span class="crudo-audit-modal-icon" aria-hidden="true">
-                            <i class="fa-solid fa-clipboard-check"></i>
-                        </span>
-                        <div>
-                            <p>{{ $selectedMachine['salon'] }} · Telar {{ $selectedMachine['telar'] }}</p>
-                            <h2 id="crudo-audit-modal-title">Nueva auditoría · {{ $selectedMachine['name'] }}</h2>
-                            @if ($programOrder !== '')
-                                <span>Orden {{ $programOrder }}</span>
-                            @endif
-                        </div>
-                    </header>
-
+                        @else
+                        <section
+                            class="crudo-audit-inline"
+                            wire:key="crudo-audit-inline-{{ $selectedMachine['telar'] }}"
+                        >
+                            <div class="crudo-audit-inline-header">
+                                <h3>Nueva auditoría · {{ $selectedMachine['name'] }}</h3>
+                                <button
+                                    type="button"
+                                    class="crudo-audit-inline-back"
+                                    wire:click="closeAudit"
+                                    wire:loading.attr="disabled"
+                                    wire:target="closeAudit"
+                                >
+                                    <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+                                    <span>Volver</span>
+                                </button>
+                            </div>
                     <div
                         class="crudo-audit-modal-form"
                         wire:key="crudo-audit-form-{{ $selectedMachine['telar'] }}"
@@ -760,9 +736,11 @@
                             </button>
                         </div>
                     </div>
+                        </section>
+                        @endif
+                    </div>
                 </div>
             </article>
         </div>
-        @endif
     @endif
 </div>

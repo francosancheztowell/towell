@@ -58,6 +58,43 @@ class UrdProduccionUrdido extends Model
         return $this->belongsTo(UrdProgramaUrdido::class, 'Folio', 'Folio');
     }
 
+    public static function folioTieneAx(string $folio): bool
+    {
+        $folio = trim($folio);
+        if ($folio === '') {
+            return false;
+        }
+
+        return static::query()
+            ->where('Folio', $folio)
+            ->where('AX', 1)
+            ->exists();
+    }
+
+    /**
+     * @param  array<int, string|int|null>  $folios
+     * @return array<int, string>
+     */
+    public static function foliosConAx(array $folios): array
+    {
+        $folios = array_values(array_unique(array_filter(array_map(
+            static fn ($folio): string => trim((string) $folio),
+            $folios
+        ), static fn (string $folio): bool => $folio !== '')));
+
+        if ($folios === []) {
+            return [];
+        }
+
+        return static::query()
+            ->whereIn('Folio', $folios)
+            ->where('AX', 1)
+            ->distinct()
+            ->pluck('Folio')
+            ->map(static fn ($folio): string => (string) $folio)
+            ->all();
+    }
+
     protected $casts = [
         'Id' => 'integer',
         'Fecha' => 'date',

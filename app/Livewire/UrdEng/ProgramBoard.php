@@ -341,6 +341,7 @@ class ProgramBoard extends Component
                 'legacyUrl' => route($module->legacyRouteName()),
             ],
             'statusOptions' => ProgramaConfig::STATUS_OPTIONS,
+            'statusBloqueadosPorAx' => ProgramaConfig::STATUS_BLOQUEADOS_CON_AX_PRODUCCION,
             'pollSeconds' => (int) config('program-board.poll_seconds', 15),
             'observationsMaxLength' => ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
             'qualityCommentMaxLength' => ProgramaConfig::CALIDAD_COMENTARIO_MAX_LENGTH,

@@ -149,7 +149,9 @@ class MachineDetail extends Component
     #[On('crudo-auditoria-guardada')]
     public function closeAfterAuditSave(): void
     {
-        $this->close();
+        // El formulario vive dentro del modal de detalle: al guardar se vuelve a
+        // "Auditorías de hoy" y "Paros del telar" en vez de cerrar todo.
+        $this->closeAudit();
     }
 
     public function openAudit(): void
@@ -165,9 +167,14 @@ class MachineDetail extends Component
         $this->auditModalOpen = true;
     }
 
+    public function closeAudit(): void
+    {
+        $this->auditModalOpen = false;
+    }
+
     public function loadDetail(): void
     {
-        if ($this->selectedTelar === null || $this->auditModalOpen || $this->detailLoaded) {
+        if ($this->selectedTelar === null || $this->detailLoaded) {
             return;
         }
 
@@ -177,9 +184,7 @@ class MachineDetail extends Component
     #[On('crudo-refrescado')]
     public function refreshDetail(): void
     {
-        // El detalle se resuelve en la computed property `detail` al renderizar;
-        // este guard solo evita volver a consultarlo con el modal de auditoría abierto.
-        if ($this->selectedTelar === null || $this->auditModalOpen) {
+        if ($this->selectedTelar === null) {
             return;
         }
 
@@ -281,7 +286,7 @@ class MachineDetail extends Component
     #[Computed]
     public function detail(): ?array
     {
-        if ($this->selectedTelar === null || $this->auditModalOpen || ! $this->detailLoaded) {
+        if ($this->selectedTelar === null || ! $this->detailLoaded) {
             return null;
         }
 
@@ -322,7 +327,7 @@ class MachineDetail extends Component
     #[Computed]
     public function paros(): array
     {
-        if ($this->selectedTelar === null || $this->auditModalOpen || ! $this->detailLoaded) {
+        if ($this->selectedTelar === null || ! $this->detailLoaded) {
             return [];
         }
 

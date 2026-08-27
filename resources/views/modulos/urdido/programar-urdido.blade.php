@@ -358,6 +358,8 @@
 
             const renderStatusSelect = (orden, isSelected = false) => {
                 const statusActual = String(orden.status || '').trim();
+                const bloqueadoPorAx = Boolean(orden.bloqueado_por_ax);
+                const bloqueadosPorAx = ['Cancelado', 'Programado', 'En Proceso'];
                 let opciones;
                 if (statusActual === 'En Proceso') {
                     opciones = ['Programado', 'En Proceso', 'Cancelado'];
@@ -371,10 +373,16 @@
                     ? 'w-full h-9 px-2 border-0 bg-blue-500 text-white'
                     : 'w-full h-9 px-2 border-0 bg-transparent text-gray-900';
                 const disabledClasses = canEdit ? '' : 'opacity-70 cursor-not-allowed';
+                const tituloAx = 'Este folio ya tiene producción en AX (AX = 1). No se puede poner Cancelado, Programado ni En Proceso.';
 
                 const optionsHtml = opciones.map((status) => {
                     const selected = statusActual === status ? 'selected' : '';
-                    return `<option value="${status}" ${selected}>${status}</option>`;
+                    const opcionBloqueada = bloqueadoPorAx
+                        && bloqueadosPorAx.includes(status)
+                        && status !== statusActual;
+                    const disabledOpt = opcionBloqueada ? 'disabled' : '';
+                    const titleOpt = opcionBloqueada ? ` title="${tituloAx}"` : '';
+                    return `<option value="${status}" ${selected} ${disabledOpt}${titleOpt}>${status}</option>`;
                 }).join('');
 
                 return `
@@ -382,6 +390,8 @@
                         class="${baseClasses} ${disabledClasses}"
                         data-orden-id="${orden.id}"
                         data-current="${statusActual}"
+                        data-bloqueado-por-ax="${bloqueadoPorAx ? '1' : '0'}"
+                        title="${bloqueadoPorAx ? tituloAx : ''}"
                         onchange="actualizarStatus(event, ${orden.id})"
                         onmousedown="event.stopPropagation()"
                         onclick="event.stopPropagation()"
@@ -836,8 +846,15 @@
                 const select = event.target;
                 const nuevoStatus = select.value;
                 const statusAnterior = select.dataset.current || '';
+                const bloqueadosPorAx = ['Cancelado', 'Programado', 'En Proceso'];
 
                 if (!nuevoStatus || nuevoStatus === statusAnterior) {
+                    return;
+                }
+
+                if (select.dataset.bloqueadoPorAx === '1' && bloqueadosPorAx.includes(nuevoStatus)) {
+                    select.value = statusAnterior;
+                    showError('No se puede poner Cancelado, Programado ni En Proceso: este folio ya tiene producción en AX (AX = 1).');
                     return;
                 }
 

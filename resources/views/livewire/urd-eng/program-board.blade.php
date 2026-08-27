@@ -301,7 +301,16 @@
                     <label for="program-board-pending-status">Cambiar estado</label>
                     <select id="program-board-pending-status" wire:model="pendingStatus">
                         @foreach ($statusOptions as $statusOption)
-                            <option value="{{ $statusOption }}">{{ $statusOption }}</option>
+                            @php
+                                $opcionBloqueadaPorAx = ($selectedOrder['bloqueado_por_ax'] ?? false)
+                                    && in_array($statusOption, $statusBloqueadosPorAx, true)
+                                    && $statusOption !== ($selectedOrder['status'] ?? '');
+                            @endphp
+                            <option
+                                value="{{ $statusOption }}"
+                                @disabled($opcionBloqueadaPorAx)
+                                title="{{ $opcionBloqueadaPorAx ? 'Este folio ya tiene producción en AX (AX = 1).' : '' }}"
+                            >{{ $statusOption }}</option>
                         @endforeach
                     </select>
                     <button
