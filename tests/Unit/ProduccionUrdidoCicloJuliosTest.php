@@ -769,4 +769,80 @@ class ProduccionUrdidoCicloJuliosTest extends TestCase
             $this->verificarInvariante("vuelta {$vuelta} tras borrar");
         }
     }
+
+    // ---------------------------------------------------------------
+    // Serializacion: el alta corre en una transaccion con candado
+    // ---------------------------------------------------------------
+
+    /**
+     * El alta es leer-y-luego-escribir sobre un GET que el Service Worker de la
+     * PWA puede reintentar. Va dentro de una transaccion con candado de fila
+     * para que dos peticiones simultaneas no lean ambas "0 filas" y den de alta
+     * el plan dos veces (el patron de doble exacto).
+     *
+     * La carrera de verdad no se puede montar en un test de un solo proceso;
+     * lo que si se comprueba es la propiedad observable: si algo revienta a la
+     * mitad, no queda NADA escrito.
+     */
+    public function test_el_alta_es_atomica(): void
+    {
+        // Plan de 6 con Hilos 500, pero las 2 filas que existen traen 484: la
+        // sincronizacion primero REESCRIBE esos Hilos y despues inserta las 4
+        // que faltan. Se bloquea el INSERT para que reviente justo en medio.
+        $this->plan(6, 500);
+        DB::connection('sqlsrv')->table('UrdProduccionUrdido')->insert([
+            ['Folio' => 'C001', 'Hilos' => 484],
+            ['Folio' => 'C001', 'Hilos' => 484],
+        ]);
+
+        DB::connection('sqlsrv')->statement(
+            'CREATE TRIGGER bloquea_insert BEFORE INSERT ON UrdProduccionUrdido '.
+            "BEGIN SELECT RAISE(ABORT, 'insert bloqueado'); END"
+        );
+
+        $this->entrar();
+
+        DB::connection('sqlsrv')->statement('DROP TRIGGER bloquea_insert');
+
+        // Sin transaccion, la reproyeccion de Hilos ya habria quedado grabada.
+        $hilos = DB::connection('sqlsrv')->table('UrdProduccionUrdido')
+            ->where('Folio', 'C001')->orderBy('Id')->pluck('Hilos')->all();
+
+        $this->assertSame([484, 484], array_map('intval', $hilos),
+            'Una corrida fallida no debe dejar a medias la reproyeccion de Hilos.');
+        $this->assertSame(2, $this->filas(), 'Tampoco debe dejar filas nuevas.');
+
+        // ya sin el trigger, la siguiente corrida completa el plan
+        $this->entrar();
+        $this->assertSame(6, $this->filas());
+        $this->assertSame([500 => 6], $this->porHilos());
+    }
+
+    /** Repetir el alta sobre una orden ya poblada nunca la hace crecer. */
+    public function test_alta_repetida_es_idempotente_en_toda_forma_de_plan(): void
+    {
+        $planes = [
+            [[6, 484]],
+            [[2, 486], [4, 484]],
+            [[1, 500], [1, 499], [1, 498]],
+            [[3, 484], [3, 484]],
+        ];
+
+        foreach ($planes as $i => $grupos) {
+            $this->reiniciar();
+            foreach ($grupos as $g) {
+                $this->plan($g[0], $g[1]);
+            }
+
+            $this->entrar();
+            $primera = $this->filas();
+
+            for ($n = 0; $n < 10; $n++) {
+                $this->entrar();
+                $this->assertSame($primera, $this->filas(), "plan {$i}: la corrida {$n} movio el conteo.");
+            }
+
+            $this->assertSame(array_sum(array_column($grupos, 0)), $primera, "plan {$i}");
+        }
+    }
 }

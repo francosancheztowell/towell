@@ -322,116 +322,77 @@ class ModuloProduccionUrdidoController extends Controller
         }
 
         try {
-            $existentes = UrdProduccionUrdido::where('Folio', $orden->Folio)->orderBy('Id')->get();
+            // El alta es leer-y-luego-escribir. Sin serializar, dos peticiones
+            // simultaneas sobre la misma orden leen ambas "0 filas" y ambas dan
+            // de alta el plan completo: la orden queda al doble exacto. Y esto
+            // corre en un GET, que el Service Worker de la PWA puede reintentar.
+            // El candado sobre el renglon de la orden serializa por folio.
+            DB::connection('sqlsrv')->transaction(function () use ($orden, $julios, $totalRegistros) {
+                UrdProgramaUrdido::where('Id', $orden->Id)->lockForUpdate()->first();
 
-            $user = Auth::user();
-            $claveUsuario = $user ? ($user->numero_empleado ?? null) : null;
-            $nombreUsuario = $user ? ($user->nombre ?? null) : null;
-            $turnoUsuario = $user ? ($user->turno ?? null) : null;
-            if (! $turnoUsuario) {
-                $turnoUsuario = TurnoHelper::getTurnoActual();
+                $this->sincronizarRenglonesDelPlan($orden, $julios, $totalRegistros);
+            });
+        } catch (\Throwable $e) {
+            Log::error('Error al sincronizar registros en UrdProduccionUrdido', [
+                'folio' => $orden->Folio,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Cuerpo del alta/baja de renglones. Se ejecuta siempre dentro de la
+     * transaccion con candado de ensureProductionRecordsExist().
+     */
+    private function sincronizarRenglonesDelPlan(UrdProgramaUrdido $orden, Collection $julios, int $totalRegistros): void
+    {
+
+        $existentes = UrdProduccionUrdido::where('Folio', $orden->Folio)->orderBy('Id')->get();
+
+        $user = Auth::user();
+        $claveUsuario = $user ? ($user->numero_empleado ?? null) : null;
+        $nombreUsuario = $user ? ($user->nombre ?? null) : null;
+        $turnoUsuario = $user ? ($user->turno ?? null) : null;
+        if (! $turnoUsuario) {
+            $turnoUsuario = TurnoHelper::getTurnoActual();
+        }
+        $metrosOrden = $orden->Metros ?? 0;
+
+        // Realinear Hilos con el plan ANTES de contar, si no el conteo por
+        // grupo ve huerfanos que no existen y crea una orden duplicada.
+        $this->reproyectarHilosDesdePlan($orden, $julios, $existentes);
+
+        // Calcular expected por Hilos
+        $expectedPorHilos = [];
+        foreach ($julios as $julio) {
+            $numJulio = (int) ($julio->Julios ?? 0);
+            $hilos = $julio->Hilos !== null ? (string) $julio->Hilos : 'null';
+            if ($numJulio > 0) {
+                $expectedPorHilos[$hilos] = ($expectedPorHilos[$hilos] ?? 0) + $numJulio;
             }
-            $metrosOrden = $orden->Metros ?? 0;
+        }
 
-            // Realinear Hilos con el plan ANTES de contar, si no el conteo por
-            // grupo ve huerfanos que no existen y crea una orden duplicada.
-            $this->reproyectarHilosDesdePlan($orden, $julios, $existentes);
+        // Calcular existentes por Hilos
+        $existentesPorHilos = [];
+        foreach ($existentes as $reg) {
+            $key = (string) ($reg->Hilos ?? 'null');
+            $existentesPorHilos[$key] = ($existentesPorHilos[$key] ?? 0) + 1;
+        }
 
-            // Calcular expected por Hilos
-            $expectedPorHilos = [];
-            foreach ($julios as $julio) {
-                $numJulio = (int) ($julio->Julios ?? 0);
-                $hilos = $julio->Hilos !== null ? (string) $julio->Hilos : 'null';
-                if ($numJulio > 0) {
-                    $expectedPorHilos[$hilos] = ($expectedPorHilos[$hilos] ?? 0) + $numJulio;
-                }
-            }
+        // Determinar que crear y que eliminar
+        $registrosACrear = [];
+        $idsAEliminar = [];
 
-            // Calcular existentes por Hilos
-            $existentesPorHilos = [];
-            foreach ($existentes as $reg) {
-                $key = (string) ($reg->Hilos ?? 'null');
-                $existentesPorHilos[$key] = ($existentesPorHilos[$key] ?? 0) + 1;
-            }
+        foreach ($expectedPorHilos as $hilos => $expected) {
+            $actual = $existentesPorHilos[$hilos] ?? 0;
+            $diff = $actual - $expected;
 
-            // Determinar que crear y que eliminar
-            $registrosACrear = [];
-            $idsAEliminar = [];
-
-            foreach ($expectedPorHilos as $hilos => $expected) {
-                $actual = $existentesPorHilos[$hilos] ?? 0;
-                $diff = $actual - $expected;
-
-                if ($diff > 0) {
-                    // Solo se eliminan filas VACIAS: sin captura iniciada, sin julio,
-                    // sin peso y no enviadas a AX. Si no alcanzan, se deja el sobrante
-                    // y se registra: nunca se borra trabajo real para cuadrar el conteo.
-                    $sobrantes = UrdProduccionUrdido::where('Folio', $orden->Folio)
-                        ->where('Hilos', $hilos === 'null' ? null : $hilos)
-                        ->where(function ($q) {
-                            $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
-                        })
-                        ->where(function ($q) {
-                            $q->whereNull('NoJulio')->orWhere('NoJulio', '');
-                        })
-                        ->where(function ($q) {
-                            $q->whereNull('KgBruto')->orWhere('KgBruto', 0);
-                        })
-                        ->where(function ($q) {
-                            $q->whereNull('AX')->orWhere('AX', '!=', 1);
-                        })
-                        ->orderBy('Id', 'desc')  // los mas nuevos primero
-                        ->limit($diff)
-                        ->pluck('Id')
-                        ->toArray();
-
-                    if (count($sobrantes) < $diff) {
-                        Log::warning('Sobran registros de produccion con captura; no se eliminan', [
-                            'folio' => $orden->Folio,
-                            'hilos' => $hilos,
-                            'sobrantes' => $diff,
-                            'eliminables' => count($sobrantes),
-                        ]);
-                    }
-
-                    $idsAEliminar = array_merge($idsAEliminar, $sobrantes);
-                } elseif ($diff < 0) {
-                    // Faltan - crear $diff registros
-                    for ($i = 0; $i < abs($diff); $i++) {
-                        $data = [
-                            'Folio' => $orden->Folio,
-                            'TipoAtado' => $orden->TipoAtado ?? null,
-                            'NoJulio' => null,
-                            'Hilos' => $hilos === 'null' ? null : $hilos,
-                            'Fecha' => now()->format('Y-m-d'),
-                        ];
-                        if (! empty($claveUsuario)) {
-                            $data['CveEmpl1'] = $claveUsuario;
-                        }
-                        if (! empty($nombreUsuario)) {
-                            $data['NomEmpl1'] = $nombreUsuario;
-                        }
-                        if ($metrosOrden > 0) {
-                            $data['Metros1'] = round($metrosOrden, 2);
-                        }
-                        if (! empty($turnoUsuario)) {
-                            $data['Turno1'] = (int) $turnoUsuario;
-                        }
-
-                        $registrosACrear[] = $data;
-                    }
-                }
-            }
-
-            // El barrido por grupo solo mira los Hilos que estan en el plan, asi
-            // que los renglones vacios de un grupo huerfano se quedaban para
-            // siempre (p. ej. al editar el plan con la orden en "Programado", que
-            // omite el remapeo). Aqui se recorta el excedente contra el TOTAL,
-            // tocando unicamente filas sin captura y fuera de AX.
-            $sobraTotal = ($existentes->count() - count($idsAEliminar)) - $totalRegistros;
-            if ($sobraTotal > 0) {
-                $huerfanas = UrdProduccionUrdido::where('Folio', $orden->Folio)
-                    ->whereNotIn('Id', $idsAEliminar ?: [0])
+            if ($diff > 0) {
+                // Solo se eliminan filas VACIAS: sin captura iniciada, sin julio,
+                // sin peso y no enviadas a AX. Si no alcanzan, se deja el sobrante
+                // y se registra: nunca se borra trabajo real para cuadrar el conteo.
+                $sobrantes = UrdProduccionUrdido::where('Folio', $orden->Folio)
+                    ->where('Hilos', $hilos === 'null' ? null : $hilos)
                     ->where(function ($q) {
                         $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
                     })
@@ -444,61 +405,120 @@ class ModuloProduccionUrdidoController extends Controller
                     ->where(function ($q) {
                         $q->whereNull('AX')->orWhere('AX', '!=', 1);
                     })
-                    ->orderBy('Id', 'desc')
-                    ->limit($sobraTotal)
+                    ->orderBy('Id', 'desc')  // los mas nuevos primero
+                    ->limit($diff)
                     ->pluck('Id')
                     ->toArray();
 
-                if (! empty($huerfanas)) {
-                    Log::info('Recorte de renglones sobrantes fuera del plan de julios', [
+                if (count($sobrantes) < $diff) {
+                    Log::warning('Sobran registros de produccion con captura; no se eliminan', [
                         'folio' => $orden->Folio,
-                        'sobrante' => $sobraTotal,
-                        'eliminables' => count($huerfanas),
+                        'hilos' => $hilos,
+                        'sobrantes' => $diff,
+                        'eliminables' => count($sobrantes),
                     ]);
-                    $idsAEliminar = array_merge($idsAEliminar, $huerfanas);
+                }
+
+                $idsAEliminar = array_merge($idsAEliminar, $sobrantes);
+            } elseif ($diff < 0) {
+                // Faltan - crear $diff registros
+                for ($i = 0; $i < abs($diff); $i++) {
+                    $data = [
+                        'Folio' => $orden->Folio,
+                        'TipoAtado' => $orden->TipoAtado ?? null,
+                        'NoJulio' => null,
+                        'Hilos' => $hilos === 'null' ? null : $hilos,
+                        'Fecha' => now()->format('Y-m-d'),
+                    ];
+                    if (! empty($claveUsuario)) {
+                        $data['CveEmpl1'] = $claveUsuario;
+                    }
+                    if (! empty($nombreUsuario)) {
+                        $data['NomEmpl1'] = $nombreUsuario;
+                    }
+                    if ($metrosOrden > 0) {
+                        $data['Metros1'] = round($metrosOrden, 2);
+                    }
+                    if (! empty($turnoUsuario)) {
+                        $data['Turno1'] = (int) $turnoUsuario;
+                    }
+
+                    $registrosACrear[] = $data;
                 }
             }
+        }
 
-            // Eliminar sobrantes
-            if (! empty($idsAEliminar)) {
-                UrdProduccionUrdido::whereIn('Id', $idsAEliminar)->delete();
-                Log::info('Eliminados registros sobrantes de UrdProduccionUrdido', [
+        // El barrido por grupo solo mira los Hilos que estan en el plan, asi
+        // que los renglones vacios de un grupo huerfano se quedaban para
+        // siempre (p. ej. al editar el plan con la orden en "Programado", que
+        // omite el remapeo). Aqui se recorta el excedente contra el TOTAL,
+        // tocando unicamente filas sin captura y fuera de AX.
+        $sobraTotal = ($existentes->count() - count($idsAEliminar)) - $totalRegistros;
+        if ($sobraTotal > 0) {
+            $huerfanas = UrdProduccionUrdido::where('Folio', $orden->Folio)
+                ->whereNotIn('Id', $idsAEliminar ?: [0])
+                ->where(function ($q) {
+                    $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
+                })
+                ->where(function ($q) {
+                    $q->whereNull('NoJulio')->orWhere('NoJulio', '');
+                })
+                ->where(function ($q) {
+                    $q->whereNull('KgBruto')->orWhere('KgBruto', 0);
+                })
+                ->where(function ($q) {
+                    $q->whereNull('AX')->orWhere('AX', '!=', 1);
+                })
+                ->orderBy('Id', 'desc')
+                ->limit($sobraTotal)
+                ->pluck('Id')
+                ->toArray();
+
+            if (! empty($huerfanas)) {
+                Log::info('Recorte de renglones sobrantes fuera del plan de julios', [
                     'folio' => $orden->Folio,
-                    'ids_eliminados' => $idsAEliminar,
-                    'cantidad' => count($idsAEliminar),
+                    'sobrante' => $sobraTotal,
+                    'eliminables' => count($huerfanas),
                 ]);
+                $idsAEliminar = array_merge($idsAEliminar, $huerfanas);
             }
+        }
 
-            // La reconciliación agrupa por Hilos, pero Hilos no es estable: si el
-            // plan de julios se edita despues de crear las filas, el grupo viejo
-            // queda huerfano (nunca se cuenta ni se borra) y el grupo nuevo se crea
-            // desde cero, duplicando la orden. Se acota por el TOTAL del folio.
-            $filasTrasBorrado = $existentes->count() - count($idsAEliminar);
-            $cupo = max(0, $totalRegistros - $filasTrasBorrado);
-
-            if (count($registrosACrear) > $cupo) {
-                Log::warning('Alta de produccion recortada al total del plan de julios', [
-                    'folio' => $orden->Folio,
-                    'plan_total' => $totalRegistros,
-                    'filas_actuales' => $filasTrasBorrado,
-                    'solicitadas' => count($registrosACrear),
-                    'creadas' => $cupo,
-                    'hilos_existentes' => array_keys($existentesPorHilos),
-                    'hilos_plan' => array_keys($expectedPorHilos),
-                ]);
-                $registrosACrear = array_slice($registrosACrear, 0, $cupo);
-            }
-
-            // Crear faltantes (un solo INSERT en vez de N round-trips)
-            if (! empty($registrosACrear)) {
-                UrdProduccionUrdido::insert($registrosACrear);
-            }
-        } catch (\Throwable $e) {
-            Log::error('Error al sincronizar registros en UrdProduccionUrdido', [
+        // Eliminar sobrantes
+        if (! empty($idsAEliminar)) {
+            UrdProduccionUrdido::whereIn('Id', $idsAEliminar)->delete();
+            Log::info('Eliminados registros sobrantes de UrdProduccionUrdido', [
                 'folio' => $orden->Folio,
-                'error' => $e->getMessage(),
+                'ids_eliminados' => $idsAEliminar,
+                'cantidad' => count($idsAEliminar),
             ]);
         }
+
+        // La reconciliación agrupa por Hilos, pero Hilos no es estable: si el
+        // plan de julios se edita despues de crear las filas, el grupo viejo
+        // queda huerfano (nunca se cuenta ni se borra) y el grupo nuevo se crea
+        // desde cero, duplicando la orden. Se acota por el TOTAL del folio.
+        $filasTrasBorrado = $existentes->count() - count($idsAEliminar);
+        $cupo = max(0, $totalRegistros - $filasTrasBorrado);
+
+        if (count($registrosACrear) > $cupo) {
+            Log::warning('Alta de produccion recortada al total del plan de julios', [
+                'folio' => $orden->Folio,
+                'plan_total' => $totalRegistros,
+                'filas_actuales' => $filasTrasBorrado,
+                'solicitadas' => count($registrosACrear),
+                'creadas' => $cupo,
+                'hilos_existentes' => array_keys($existentesPorHilos),
+                'hilos_plan' => array_keys($expectedPorHilos),
+            ]);
+            $registrosACrear = array_slice($registrosACrear, 0, $cupo);
+        }
+
+        // Crear faltantes (un solo INSERT en vez de N round-trips)
+        if (! empty($registrosACrear)) {
+            UrdProduccionUrdido::insert($registrosACrear);
+        }
+
     }
 
     private function prepareViewData(UrdProgramaUrdido $orden, Collection $julios, Collection $registrosProduccion, int $totalRegistros): array
