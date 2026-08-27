@@ -343,4 +343,112 @@ class ProduccionUrdidoOrdenesRealesTest extends TestCase
 
         $this->assertSame([], $fallos, implode(' | ', $fallos));
     }
+
+    /** Cambiar el Hilos de cada grupo, uno por uno, en las 20 ordenes. */
+    public function test_cambiar_hilos_de_cada_grupo_en_las_20(): void
+    {
+        $reporte = [];
+        $fallos = [];
+
+        foreach ($this->ordenes as $orden) {
+            $folio = $orden['folio'];
+            $this->cargar($orden);
+            $this->entrar($folio);
+
+            $grupos = UrdJuliosOrden::where('Folio', $folio)->orderBy('Id')->get();
+            $base = 900;
+            foreach ($grupos as $g) {
+                $this->editarPlan((int) $g->Id, (int) $g->Julios, $base++);
+                $this->entrar($folio);
+            }
+            $this->entrar($folio);
+            $this->entrar($folio);
+
+            $esperado = max($this->totalPlan($folio), $this->capturadas($folio));
+            $real = $this->filas($folio);
+
+            $reporte[] = sprintf('%-7s grupos=%d plan=%-2d capturadas=%-2d filas=%-2d esperado=%-2d %s',
+                $folio, $grupos->count(), $this->totalPlan($folio), $this->capturadas($folio),
+                $real, $esperado, $real === $esperado ? 'OK' : '<<< FALLA');
+
+            if ($real !== $esperado) {
+                $fallos[] = "{$folio}: cambiar Hilos dejo {$real} en vez de {$esperado}.";
+            }
+        }
+
+        fwrite(STDERR, "\n--- cambiar Hilos de cada grupo ---\n".implode("\n", $reporte)."\n");
+        fwrite(STDERR, 'FALLOS: '.(count($fallos) ? "\n  ".implode("\n  ", $fallos) : 'ninguno')."\n");
+
+        $this->assertSame([], $fallos, implode(' | ', $fallos));
+    }
+
+    /** Borrar grupos del plan uno por uno hasta dejarlo vacio. */
+    public function test_vaciar_el_plan_grupo_por_grupo_en_las_20(): void
+    {
+        $reporte = [];
+        $fallos = [];
+
+        foreach ($this->ordenes as $orden) {
+            $folio = $orden['folio'];
+            $this->cargar($orden);
+            $this->entrar($folio);
+            $capInicial = $this->capturadas($folio);
+
+            foreach (UrdJuliosOrden::where('Folio', $folio)->orderBy('Id')->get() as $g) {
+                app(EditarOrdenesProgramadasController::class)->actualizarJulios(
+                    Request::create('/aj', 'POST', ['orden_id' => 1, 'id' => (int) $g->Id, 'no_julio' => '', 'hilos' => ''])
+                );
+                $this->entrar($folio);
+            }
+            $this->entrar($folio);
+            $this->entrar($folio);
+
+            // sin plan, solo pueden sobrevivir las capturadas
+            $esperado = max(0, $this->capturadas($folio));
+            $real = $this->filas($folio);
+
+            $reporte[] = sprintf('%-7s cap inicial=%-2d plan final=%-2d filas=%-2d esperado=%-2d %s',
+                $folio, $capInicial, $this->totalPlan($folio), $real, $esperado,
+                $real === $esperado ? 'OK' : '<<< FALLA');
+
+            if ($real !== $esperado) {
+                $fallos[] = "{$folio}: al vaciar el plan quedaron {$real} en vez de {$esperado}.";
+            }
+        }
+
+        fwrite(STDERR, "\n--- vaciar el plan grupo por grupo ---\n".implode("\n", $reporte)."\n");
+        fwrite(STDERR, 'FALLOS: '.(count($fallos) ? "\n  ".implode("\n  ", $fallos) : 'ninguno')."\n");
+
+        $this->assertSame([], $fallos, implode(' | ', $fallos));
+    }
+
+    /** Abrir la orden 25 veces seguidas: ni una fila de mas. */
+    public function test_abrir_25_veces_cada_una_de_las_20(): void
+    {
+        $reporte = [];
+        $fallos = [];
+
+        foreach ($this->ordenes as $orden) {
+            $folio = $orden['folio'];
+            $this->cargar($orden);
+
+            $antes = $this->filas($folio);
+            for ($i = 0; $i < 25; $i++) {
+                $this->entrar($folio);
+            }
+            $real = $this->filas($folio);
+
+            $reporte[] = sprintf('%-7s antes=%-2d tras 25 aperturas=%-2d %s',
+                $folio, $antes, $real, $antes === $real ? 'OK' : '<<< CAMBIO');
+
+            if ($real !== max($this->totalPlan($folio), $this->capturadas($folio))) {
+                $fallos[] = "{$folio}: 25 aperturas dejaron {$real} renglones.";
+            }
+        }
+
+        fwrite(STDERR, "\n--- abrir 25 veces ---\n".implode("\n", $reporte)."\n");
+        fwrite(STDERR, 'FALLOS: '.(count($fallos) ? "\n  ".implode("\n  ", $fallos) : 'ninguno')."\n");
+
+        $this->assertSame([], $fallos, implode(' | ', $fallos));
+    }
 }
