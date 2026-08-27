@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support\ProductoTerminado;
 
+use Illuminate\Support\Carbon;
+
 /**
  * Datos de demostración para el panel de Tiempos de Preparación.
  *
@@ -11,6 +13,9 @@ namespace App\Support\ProductoTerminado;
  * base de datos. Al conectar el origen real (repositorio/servicio sobre las
  * tablas de distribución y compras), eliminar esta clase y sus llamadas en
  * TiemposPreparacionController.
+ *
+ * Las marcas de tiempo se calculan relativas a "ahora" para que el contador de
+ * preparación muestre valores realistas en cualquier momento de la demo.
  */
 final class TiemposPreparacionMock
 {
@@ -24,12 +29,14 @@ final class TiemposPreparacionMock
         return [
             [
                 'folio' => 'OD-2026-0184',
+                'orden' => 'ORD-41207',
                 'cliente' => 'Walmart México',
                 'destino' => 'CEDIS Cuautitlán',
-                'fecha' => '2026-08-24',
+                'tipo' => 'Nacional',
                 'piezas' => 4820,
+                'kg' => 1928.40,
                 'estatus' => 'En preparación',
-                'inicio' => '2026-08-25 07:15',
+                'inicio' => self::hace(195),
                 'compras' => [
                     [
                         'folio' => 'OC-88412',
@@ -62,12 +69,14 @@ final class TiemposPreparacionMock
             ],
             [
                 'folio' => 'OD-2026-0185',
+                'orden' => 'ORD-41213',
                 'cliente' => 'Liverpool',
                 'destino' => 'CEDIS Tultitlán',
-                'fecha' => '2026-08-25',
+                'tipo' => 'Nacional',
                 'piezas' => 2650,
+                'kg' => 1007.00,
                 'estatus' => 'En preparación',
-                'inicio' => '2026-08-25 13:40',
+                'inicio' => self::hace(72),
                 'compras' => [
                     [
                         'folio' => 'OC-88437',
@@ -91,10 +100,12 @@ final class TiemposPreparacionMock
             ],
             [
                 'folio' => 'OD-2026-0186',
+                'orden' => 'ORD-41220',
                 'cliente' => 'Costco Wholesale',
                 'destino' => 'CEDIS Guadalajara',
-                'fecha' => '2026-08-25',
+                'tipo' => 'Exportación',
                 'piezas' => 7300,
+                'kg' => 3212.00,
                 'estatus' => 'Programada',
                 'inicio' => null,
                 'compras' => [
@@ -129,12 +140,14 @@ final class TiemposPreparacionMock
             ],
             [
                 'folio' => 'OD-2026-0187',
+                'orden' => 'ORD-41224',
                 'cliente' => 'Soriana',
                 'destino' => 'CEDIS Monterrey',
-                'fecha' => '2026-08-26',
+                'tipo' => 'Traspaso',
                 'piezas' => 3120,
+                'kg' => 1310.40,
                 'estatus' => 'Detenida',
-                'inicio' => '2026-08-26 06:50',
+                'inicio' => self::hace(640),
                 'compras' => [
                     [
                         'folio' => 'OC-88463',
@@ -158,10 +171,12 @@ final class TiemposPreparacionMock
             ],
             [
                 'folio' => 'OD-2026-0188',
+                'orden' => 'ORD-41231',
                 'cliente' => 'Amazon México',
                 'destino' => 'CEDIS Tepotzotlán',
-                'fecha' => '2026-08-26',
+                'tipo' => 'Exportación',
                 'piezas' => 1980,
+                'kg' => 851.40,
                 'estatus' => 'Programada',
                 'inicio' => null,
                 'compras' => [
@@ -173,6 +188,37 @@ final class TiemposPreparacionMock
                         'surtido' => 0,
                         'compromiso' => '2026-09-04',
                         'estatus' => 'Pendiente',
+                    ],
+                ],
+            ],
+            [
+                'folio' => 'OD-2026-0189',
+                'orden' => 'ORD-41238',
+                'cliente' => 'Chedraui',
+                'destino' => 'CEDIS Puebla',
+                'tipo' => 'Nacional',
+                'piezas' => 3440,
+                'kg' => 1341.60,
+                'estatus' => 'En preparación',
+                'inicio' => self::hace(455),
+                'compras' => [
+                    [
+                        'folio' => 'OC-88482',
+                        'articulo' => 'Toalla baño 70x140 verde',
+                        'modelo' => 'TB-70140-VE',
+                        'cantidad' => 2040,
+                        'surtido' => 1580,
+                        'compromiso' => '2026-08-29',
+                        'estatus' => 'Parcial',
+                    ],
+                    [
+                        'folio' => 'OC-88483',
+                        'articulo' => 'Toallita facial 30x30 rosa',
+                        'modelo' => 'TF-3030-RO',
+                        'cantidad' => 1400,
+                        'surtido' => 1400,
+                        'compromiso' => '2026-08-28',
+                        'estatus' => 'Completa',
                     ],
                 ],
             ],
@@ -189,44 +235,67 @@ final class TiemposPreparacionMock
         return [
             [
                 'folio' => 'OD-2026-0179',
+                'orden' => 'ORD-41180',
                 'cliente' => 'Walmart México',
-                'cierre' => '2026-08-23 18:20',
+                'tipo' => 'Nacional',
+                'cierre' => self::hace(1_620),
                 'piezas' => 5400,
+                'kg' => 2160.00,
                 'compras' => 4,
                 'minutos' => 760,
             ],
             [
                 'folio' => 'OD-2026-0180',
+                'orden' => 'ORD-41186',
                 'cliente' => 'Chedraui',
-                'cierre' => '2026-08-23 15:05',
+                'tipo' => 'Nacional',
+                'cierre' => self::hace(1_395),
                 'piezas' => 2240,
+                'kg' => 873.60,
                 'compras' => 2,
                 'minutos' => 305,
             ],
             [
                 'folio' => 'OD-2026-0181',
+                'orden' => 'ORD-41192',
                 'cliente' => 'Liverpool',
-                'cierre' => '2026-08-24 11:45',
+                'tipo' => 'Exportación',
+                'cierre' => self::hace(1_050),
                 'piezas' => 3860,
+                'kg' => 1544.00,
                 'compras' => 3,
                 'minutos' => 495,
             ],
             [
                 'folio' => 'OD-2026-0182',
+                'orden' => 'ORD-41198',
                 'cliente' => 'Costco Wholesale',
-                'cierre' => '2026-08-24 20:10',
+                'tipo' => 'Exportación',
+                'cierre' => self::hace(730),
                 'piezas' => 6120,
+                'kg' => 2692.80,
                 'compras' => 5,
                 'minutos' => 1080,
             ],
             [
                 'folio' => 'OD-2026-0183',
+                'orden' => 'ORD-41203',
                 'cliente' => 'Soriana',
-                'cierre' => '2026-08-25 09:30',
+                'tipo' => 'Traspaso',
+                'cierre' => self::hace(410),
                 'piezas' => 1750,
+                'kg' => 735.00,
                 'compras' => 2,
                 'minutos' => 240,
             ],
         ];
+    }
+
+    /**
+     * Marca de tiempo ubicada N minutos antes del momento actual.
+     */
+    private static function hace(int $minutos): string
+    {
+        return Carbon::now()->subMinutes($minutos)->format('Y-m-d\TH:i:s');
     }
 }
