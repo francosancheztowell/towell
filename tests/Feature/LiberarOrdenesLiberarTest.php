@@ -65,6 +65,14 @@ class LiberarOrdenesLiberarTest extends TestCase
             $table->string('ITEMID');
         });
 
+        // Catálogo de flogs: item+talla (de cualquier artículo, pese al nombre de la tabla
+        // en AX) cuyos renglones deciden si la orden lleva flog. Se siembra por prueba.
+        Schema::connection('sqlsrv_ti')->create('TwArticulosFelpas', function (Blueprint $table) {
+            $table->string('ITEMID');
+            $table->string('INVENTSIZEID')->nullable();
+            $table->string('ITEMNAME')->nullable();
+        });
+
         // L.Mat válido para el registro base (IT100 / STD / JACQUARD).
         $this->sembrarBomCrudo('BOM-CRUDO-01', 'IT100', 'STD');
 
@@ -114,6 +122,8 @@ class LiberarOrdenesLiberarTest extends TestCase
             $table->float('EficienciaSTD')->nullable();
             $table->string('CategoriaCalidad')->nullable();
             $table->string('CustName')->nullable();
+            $table->string('FlogsId')->nullable();
+            $table->string('NombreProyecto')->nullable();
             $table->float('PesoMuestra')->nullable();
             $table->integer('OrdPrincipal')->nullable();
             $table->integer('OrdCompartida')->nullable();
@@ -170,6 +180,11 @@ class LiberarOrdenesLiberarTest extends TestCase
             $table->boolean('ActualizaLmat')->nullable();
             $table->string('CategoriaCalidad')->nullable();
             $table->string('CustName')->nullable();
+            $table->string('FlogsId')->nullable();
+            $table->string('NombreProyecto')->nullable();
+            // Espeja el DEFAULT ((1)) de dbo.CatCodificados: toda orden lleva flog salvo
+            // que el usuario lo baje a 0 en un renglón del catálogo.
+            $table->boolean('AsignarFlogs')->default(true);
             $table->float('PesoMuestra')->nullable();
             $table->integer('OrdPrincipal')->nullable();
             $table->integer('OrdCompartida')->nullable();
@@ -221,7 +236,7 @@ class LiberarOrdenesLiberarTest extends TestCase
         foreach (['ReqProgramaTejidoLine', 'ReqModelosCodificados', 'CatCodificados', 'ReqPesosRolloTejido', 'ReqProgramaTejido'] as $tabla) {
             $schema->dropIfExists($tabla);
         }
-        foreach (['BOMTABLE', 'BOMVERSION'] as $tabla) {
+        foreach (['BOMTABLE', 'BOMVERSION', 'TwArticulosFelpas'] as $tabla) {
             Schema::connection('sqlsrv_ti')->dropIfExists($tabla);
         }
         parent::tearDown();
@@ -382,6 +397,125 @@ class LiberarOrdenesLiberarTest extends TestCase
         $this->assertSame('LISTA MATERIALES CRUDO 01', $cat->BomName);
         $this->assertSame('NO', $cat->CambioRepaso);
         $this->assertSame('CLIENTE X', $cat->CustName);
+    }
+
+    /**
+     * Renglón FUERA del catálogo TwArticulosFelpas: la pantalla no dibuja el check, el front
+     * manda asignarFlogs = null y el servidor NO debe tocar CatCodificados.AsignarFlogs.
+     *
+     * Es la regresión que motivó el cambio: antes se escribía `$asignarFlogs ? 1 : 0` sin
+     * condición, así que un renglón sin check (o cualquier renglón con AX caído) bajaba el
+     * flag a 0 en cada liberación.
+     */
+    public function test_renglon_fuera_del_catalogo_no_modifica_asignar_flogs(): void
+    {
+        $conFlog = $this->sembrarRegistro(['NoTelarId' => '201']);
+        $sinFlog = $this->sembrarRegistro(['NoTelarId' => '202']);
+
+        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+            ['OrdenTejido' => '78001', 'TelarId' => '201', 'AsignarFlogs' => 1],
+            ['OrdenTejido' => '78002', 'TelarId' => '202', 'AsignarFlogs' => 0],
+        ]);
+
+        // Sin la clave asignarFlogs: exactamente lo que manda el front cuando la fila no
+        // tiene check (`row.querySelector('.flog-check')` es null → se envía null).
+        $this->liberar([
+            [
+                'id' => $conFlog,
+                'bomId' => 'BOM-CRUDO-01',
+                'bomName' => 'LISTA MATERIALES CRUDO 01',
+                'noProduccion' => '78001',
+                'asignarFlogs' => null,
+            ],
+            [
+                'id' => $sinFlog,
+                'bomId' => 'BOM-CRUDO-01',
+                'bomName' => 'LISTA MATERIALES CRUDO 01',
+                'noProduccion' => '78002',
+                'asignarFlogs' => null,
+            ],
+        ]);
+
+        // La liberación sí ocurrió (el commit va antes del paso de Excel).
+        $this->assertSame('78001', DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $conFlog)->value('NoProduccion'));
+
+        // Cada fila conserva el valor que ya tenía: ni se fuerza a 0 ni se fuerza a 1.
+        $this->assertSame(1, (int) DB::connection('sqlsrv')->table('CatCodificados')->where('OrdenTejido', '78001')->value('AsignarFlogs'));
+        $this->assertSame(0, (int) DB::connection('sqlsrv')->table('CatCodificados')->where('OrdenTejido', '78002')->value('AsignarFlogs'));
+    }
+
+    /**
+     * Renglón DENTRO del catálogo: el check nace marcado y el usuario decide. Marcado → 1,
+     * desmarcado → 0, cada renglón del lote por su cuenta.
+     */
+    public function test_renglon_del_catalogo_guarda_la_decision_del_usuario(): void
+    {
+        $marcado = $this->sembrarRegistro(['NoTelarId' => '201']);
+        $desmarcado = $this->sembrarRegistro(['NoTelarId' => '202']);
+
+        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+            ['OrdenTejido' => '78101', 'TelarId' => '201', 'AsignarFlogs' => 0],
+            ['OrdenTejido' => '78102', 'TelarId' => '202', 'AsignarFlogs' => 1],
+        ]);
+
+        $this->liberar([
+            [
+                'id' => $marcado,
+                'bomId' => 'BOM-CRUDO-01',
+                'bomName' => 'LISTA MATERIALES CRUDO 01',
+                'noProduccion' => '78101',
+                'asignarFlogs' => true,
+            ],
+            [
+                'id' => $desmarcado,
+                'bomId' => 'BOM-CRUDO-01',
+                'bomName' => 'LISTA MATERIALES CRUDO 01',
+                'noProduccion' => '78102',
+                'asignarFlogs' => false,
+            ],
+        ]);
+
+        // Se parte de valores invertidos justo para que un "no escribió nada" no pase la prueba.
+        $this->assertSame(1, (int) DB::connection('sqlsrv')->table('CatCodificados')->where('OrdenTejido', '78101')->value('AsignarFlogs'));
+        $this->assertSame(0, (int) DB::connection('sqlsrv')->table('CatCodificados')->where('OrdenTejido', '78102')->value('AsignarFlogs'));
+    }
+
+    /**
+     * Quién entra al catálogo: el cruce es por item + talla exactos. Mismo item con otra
+     * talla NO decide, y un item ausente tampoco — esos renglones no muestran el check.
+     */
+    public function test_catalogo_de_flogs_empata_por_item_y_talla_exactos(): void
+    {
+        DB::connection('sqlsrv_ti')->table('TwArticulosFelpas')->insert([
+            ['ITEMID' => 'IT100', 'INVENTSIZEID' => 'STD', 'ITEMNAME' => 'ARTICULO EN CATALOGO'],
+        ]);
+
+        $registros = collect([
+            ['ItemId' => 'IT100', 'InventSizeId' => 'STD'],   // empata
+            ['ItemId' => 'it100', 'InventSizeId' => 'std'],   // empata (la clave normaliza a mayúsculas)
+            ['ItemId' => 'IT100', 'InventSizeId' => 'FEL'],   // mismo item, otra talla
+            ['ItemId' => 'IT999', 'InventSizeId' => 'STD'],   // item fuera del catálogo
+        ])->map(function (array $attrs) {
+            $registro = new ReqProgramaTejido;
+            $registro->setAttribute('ItemId', $attrs['ItemId']);
+            $registro->setAttribute('InventSizeId', $attrs['InventSizeId']);
+
+            return $registro;
+        });
+
+        $controller = new LiberarOrdenesController;
+        $metodo = new \ReflectionMethod($controller, 'clavesArticulosConFlog');
+        $metodo->setAccessible(true);
+        $claves = $metodo->invoke($controller, $registros);
+
+        $decide = fn (ReqProgramaTejido $r) => isset($claves[
+            mb_strtoupper(trim((string) $r->ItemId)).'|'.mb_strtoupper(trim((string) $r->InventSizeId))
+        ]);
+
+        $this->assertTrue($decide($registros[0]));
+        $this->assertTrue($decide($registros[1]));
+        $this->assertFalse($decide($registros[2]));
+        $this->assertFalse($decide($registros[3]));
     }
 
     /**

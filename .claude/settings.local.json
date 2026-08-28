@@ -143,6 +143,7 @@
     ]
   },
   "enabledPlugins": {
-    "frontend-design@claude-plugins-official": false
+    "frontend-design@claude-plugins-official": false,
+    "github@claude-plugins-official": false
   }
 }

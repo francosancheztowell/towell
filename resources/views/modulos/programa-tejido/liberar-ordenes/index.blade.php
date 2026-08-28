@@ -148,22 +148,26 @@
                         </div>';
             }
 
-            // Columna Flog. Editable en cualquier renglón. Si el artículo + tamaño está en
-            // TwArticulosFelpas se ofrece además el check "Asignar flogs": desmarcado se ignoran
-            // los flogs (AsignarFlogs = 0 en CatCodificados), marcado se asignan (= 1) y se
-            // precarga el flog vigente de AX.
+            // Columna Flog. Editable en cualquier renglón. Toda orden lleva flog (AsignarFlogs = 1
+            // por default en CatCodificados); si el artículo + tamaño está en el catálogo
+            // TwArticulosFelpas el renglón decide: el check sale marcado y desmarcarlo guarda 0.
             if ($field === 'FlogsId') {
                 $rowId = htmlspecialchars((string) ($registro->Id ?? ''), ENT_QUOTES, 'UTF-8');
                 $valorEsc = htmlspecialchars(trim((string) ($registro->FlogsId ?? '')), ENT_QUOTES, 'UTF-8');
+                $decide = !empty($registro->RequiereDecisionFlog);
 
-                $check = empty($registro->EsArticuloFelpa) ? '' :
-                    '<label class="flog-toggle flex items-center gap-1 mb-1 text-xs text-gray-600 cursor-pointer whitespace-nowrap"
-                            title="Artículo de felpa: marca para asignar el flog a esta orden">
-                        <input type="checkbox" class="flog-check" data-row-id="' . $rowId . '">
-                        <span>Asignar flogs</span>
-                    </label>';
+                $check = !$decide ? '' :
+                    '<div class="flex items-center gap-1 mb-1 whitespace-nowrap">
+                        <label class="flog-toggle flex items-center gap-1 text-xs text-gray-600 cursor-pointer"
+                               title="Este artículo está en el catálogo de flogs: desmarca si esta orden NO debe llevar flog.">
+                            <input type="checkbox" class="flog-check" data-row-id="' . $rowId . '" checked>
+                            <span>Asignar flogs</span>
+                        </label>
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800"
+                              title="Este artículo está en el catálogo de flogs: desmarca si esta orden NO debe llevar flog.">Decide flog</span>
+                    </div>';
 
-                return '<div class="flog-felpa">
+                return '<div class="flog-decision' . ($decide ? ' bg-amber-50 rounded p-1' : '') . '">
                             ' . $check . '
                             <input type="text"
                                    class="flog-input w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -464,7 +468,7 @@
                             @endphp
                             <tr class="transition-colors row-data cursor-pointer {{ $loop->even ? 'bg-gray-100 row-even' : 'bg-white row-odd' }}"
                                 data-id="{{ $registro->Id ?? '' }}"
-                                data-articulo-felpa="{{ !empty($registro->EsArticuloFelpa) ? '1' : '0' }}"
+                                data-decision-flog="{{ !empty($registro->RequiereDecisionFlog) ? '1' : '0' }}"
                                 data-item-id="{{ $registro->ItemId ?? '' }}"
                                 data-salon-tejido-id="{{ $registro->SalonTejidoId ?? '' }}"
                                 data-peso-crudo="{{ $registro->PesoCrudo ?? '' }}"
@@ -574,8 +578,8 @@ document.addEventListener('DOMContentLoaded', function() {
     cargarOpcionesFlog();
     setupFlogValidacion();
 
-    // Artículos de felpa: check "Asignar flogs" que precarga el flog vigente de AX
-    setupFlogFelpa();
+    // Catálogo de flogs: check "Asignar flogs" marcado que precarga el flog vigente de AX
+    setupFlogDecision();
 
     // Marcar fila como referencia al hacer clic en la fila (no en casilla ni inputs)
     setupRowReferenceClick();
@@ -665,11 +669,12 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-/* ── Artículos de felpa ─────────────────────────────────────────────────────
-   El renglón cuyo Clave AX + Tamaño está en TwArticulosFelpas muestra el check
-   "Asignar flogs". Sin marcar los flogs se ignoran; al marcarlo se trae el flog
-   vigente de AX como sugerencia y se guarda AsignarFlogs = 1 en CatCodificados.
-   El flog se puede editar a mano en cualquier renglón, marcado o no.         */
+/* ── Decisión de flog ───────────────────────────────────────────────────────
+   Toda orden lleva flog (AsignarFlogs = 1 por default en CatCodificados). El renglón
+   cuyo Clave AX + Tamaño está en el catálogo TwArticulosFelpas —que ya no es sólo
+   felpa: aplica a cualquier artículo— muestra el check "Asignar flogs" marcado y el
+   badge "Decide flog": desmarcarlo guarda 0. Los demás renglones no mandan el dato y
+   su AsignarFlogs no se toca. El flog se puede editar a mano en cualquier renglón.  */
 
 async function traerFlogSugerido(row) {
     const itemId = (row.dataset.itemId || '').trim();
@@ -736,8 +741,10 @@ function setupFlogValidacion() {
     });
 }
 
-function setupFlogFelpa() {
-    document.querySelectorAll('tr.row-data[data-articulo-felpa="1"]').forEach(row => {
+async function setupFlogDecision() {
+    const filas = document.querySelectorAll('tr.row-data[data-decision-flog="1"]');
+
+    filas.forEach(row => {
         const check = row.querySelector('.flog-check');
         if (!check) return;
 
@@ -747,6 +754,13 @@ function setupFlogFelpa() {
             row.querySelector('.flog-input')?.focus();
         });
     });
+
+    // El check nace marcado, así que el evento 'change' no dispara solo: se precarga aquí.
+    // En serie, no en paralelo, para no lanzar una ráfaga de consultas a AX.
+    for (const row of filas) {
+        if ((row.querySelector('.flog-input')?.value || '').trim() !== '') continue;
+        await traerFlogSugerido(row);
+    }
 }
 
 function autoFillAllHiloAX() {
@@ -2086,7 +2100,10 @@ function obtenerRegistrosSeleccionados() {
             cambioRepaso: getCellValue('CambioRepaso'),
             combinaTram: getCellValue('CombinaTrama'),
             noProduccion: getCellValue('no_produccion'),
-            asignarFlogs: row ? row.querySelector('.flog-check')?.checked === true : false,
+            // null = el renglón no decide (no está en el catálogo): el servidor no toca AsignarFlogs.
+            asignarFlogs: row?.querySelector('.flog-check')
+                ? row.querySelector('.flog-check').checked
+                : null,
             flogsId: row ? (row.querySelector('.flog-input')?.value || '').trim() || null : null
         };
     });
