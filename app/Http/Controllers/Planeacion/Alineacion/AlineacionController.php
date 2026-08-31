@@ -426,9 +426,9 @@ class AlineacionController extends Controller
             'PasadasComb4' => fn () => $this->concatCalibreFibra($r->CalibreComb4, $r->FibraComb4),
         ];
 
-        [$pesoMinAlineacion, $pesoMaxAlineacion] = $this->minMaxAlineacionToleranciaN($cat, $r->PesoCrudo);
+        [$pesoMinAlineacion, $pesoMaxAlineacion] = $this->rangoPesoAlineacion($cat, $r->PesoCrudo);
         // Muestra Min/Max salen del Peso Muestra del catalogo, no del peso crudo.
-        [$muestraMinAlineacion, $muestraMaxAlineacion] = $this->minMaxAlineacionToleranciaN($cat, $cat?->PesoMuestra, 2);
+        [$muestraMinAlineacion, $muestraMaxAlineacion] = $this->rangoMuestraAlineacion($cat, $r->PesoCrudo, $r->Ancho, $r->LargoCrudo);
 
         $deCat = [
             'FechaCambio' => fn () => $cat?->FechaTejido ? $this->formatDateAlineacion($cat->FechaTejido, 'd M Y') : '',
@@ -540,22 +540,74 @@ class AlineacionController extends Controller
     }
 
     /**
-     * Mínimo y máximo de alineación cuando Tolerancia del catálogo es N: base/(1+3%), base/(1+0%), base/(1+5%).
+     * Peso Min/Max: formulas AH/AI de la hoja ALINEACION.
+     *   AH = IF(G="N", M/(1+3%), M/(1+0%))
+     *   AI = IF(G="N", M*(1+3%), M*(1+5%))
      *
-     * @param  mixed  $base  Peso crudo, peso muestra, etc.
+     * El minimo divide y el maximo multiplica: asi esta capturado en la hoja, no es simetrico.
+     *
      * @return array{0: ''|int, 1: ''|int}
      */
-    private function minMaxAlineacionToleranciaN(?CatCodificados $cat, mixed $base, int $decimales = 0): array
+    private function rangoPesoAlineacion(?CatCodificados $cat, mixed $pesoCrudo): array
     {
-        if (trim((string) ($cat?->Tolerancia ?? '')) !== 'N' || (float) ($base ?? 0) <= 0) {
+        $m = (float) ($pesoCrudo ?? 0);
+        if ($m <= 0) {
             return ['', ''];
         }
-        $b = (float) $base;
-        $candidatos = [$b / 1.03, $b / 1.00, $b / 1.05];
+        $esN = $this->toleranciaEsN($cat);
 
-        return $decimales > 0
-            ? [round(min($candidatos), $decimales), round(max($candidatos), $decimales)]
-            : [(int) round(min($candidatos)), (int) round(max($candidatos))];
+        return [
+            (int) round($esN ? $m / 1.03 : $m / 1.00),
+            (int) round($esN ? $m * 1.03 : $m * 1.05),
+        ];
+    }
+
+    /**
+     * Muestra Min/Max: formulas AJ/AK de la hoja ALINEACION. Solo aplican cuando el
+     * articulo se pesa por muestra ("Mu"); si se pesa la pieza completa ("To") van vacias.
+     *   AJ = IF(AF="Mu", IF(G="N", AB*(1-2%), AB*(1+0%)), "")
+     *   AK = IF(AG="Mu", IF(G="N", AB*(1+2%), AB*(1+4%)), "")
+     *
+     * @return array{0: ''|float, 1: ''|float}
+     */
+    private function rangoMuestraAlineacion(?CatCodificados $cat, mixed $pesoCrudo, mixed $ancho, mixed $largo): array
+    {
+        $ab = (float) ($cat?->PesoMuestra ?? 0);
+        if ($ab <= 0 || ! $this->sePesaPorMuestra($pesoCrudo, $ancho, $largo)) {
+            return ['', ''];
+        }
+        $esN = $this->toleranciaEsN($cat);
+
+        return [
+            round($esN ? $ab * 0.98 : $ab * 1.00, 3),
+            round($esN ? $ab * 1.02 : $ab * 1.04, 3),
+        ];
+    }
+
+    /**
+     * Columna AF de la hoja: "To" (se pesa la pieza completa) vs "Mu" (se pesa una muestra).
+     *   AF = IF(M<=220,"To", IF(AC<=0.3,"To", IF(AE>=AC*1.2,"To","Mu")))   con AC = (Anc*Lar)/10000
+     *
+     * ponytail: la tercera condicion (AE, area de tiras) necesita el largo de tira que en la
+     * hoja se captura a mano fila por fila (col. AD) y no existe en la base; se omite.
+     */
+    private function sePesaPorMuestra(mixed $pesoCrudo, mixed $ancho, mixed $largo): bool
+    {
+        $m = (float) ($pesoCrudo ?? 0);
+        if ($m <= 0 || $m <= 220) {
+            return false;
+        }
+        $areaCrudo = ((float) ($ancho ?? 0) * (float) ($largo ?? 0)) / 10000;
+
+        return $areaCrudo > 0.3;
+    }
+
+    /**
+     * Columna G de la hoja: la tolerancia del catalogo es "N".
+     */
+    private function toleranciaEsN(?CatCodificados $cat): bool
+    {
+        return trim((string) ($cat?->Tolerancia ?? '')) === 'N';
     }
 
     /**
