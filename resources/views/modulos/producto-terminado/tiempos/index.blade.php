@@ -55,28 +55,6 @@
 @section('content')
 <div class="flex h-[calc(100vh-64px)] flex-col gap-2 overflow-hidden p-2 xl:gap-3 xl:p-3">
 
-    {{-- Resumen superior: se mantiene compacto para no robarle altura a los paneles. --}}
-    {{-- <div class="grid shrink-0 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Distribuciones abiertas</p>
-            <p class="mt-0.5 text-xl font-bold text-slate-900 lg:text-2xl">{{ count($ordenesDistribucion) }}</p>
-        </div>
-        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Órdenes de compra</p>
-            <p class="mt-0.5 text-xl font-bold text-slate-900 lg:text-2xl">{{ collect($ordenesDistribucion)->sum(fn ($orden) => count($orden['compras'])) }}</p>
-        </div>
-        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Piezas por surtir</p>
-            <p class="mt-0.5 text-xl font-bold text-slate-900 lg:text-2xl">{{ number_format(collect($ordenesDistribucion)->sum('piezas')) }}</p>
-        </div>
-        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-            <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Prom. preparación</p>
-            <p class="mt-0.5 text-xl font-bold text-emerald-700 lg:text-2xl">
-                {{ $formatoDuracion((int) round(collect($ordenesCerradas)->avg('minutos'))) }}
-            </p>
-        </div>
-    </div> --}}
-
     {{--
         Distribución en L, idéntica en todas las pantallas:
 

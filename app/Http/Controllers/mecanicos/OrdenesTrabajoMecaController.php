@@ -8,8 +8,10 @@ use App\Models\Mantenimiento\ManFallasParos;
 use App\Models\Mantenimiento\ManOperadoresMantenimiento;
 use App\Models\Mecanicos\MecOrdenTrabajoLineModel;
 use App\Models\Mecanicos\MecOrdenTrabajoModel;
+use App\Models\Planeacion\ReqTelares;
 use App\Models\Sistema\SSYSFoliosSecuencia;
 use App\Models\Tejedores\TelTelaresOperador;
+use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -48,6 +50,7 @@ class OrdenesTrabajoMecaController extends Controller
 
         return view('modulos.mecanicos.ordenes-trabajo.index', [
             'fechaInicial' => now('America/Mexico_City')->toDateString(),
+            'telares' => $this->catalogoTelares(),
             'operadores' => $this->operadoresMecanicos(),
             'esTejedor' => $this->esTejedor(),
             'modoTejedor' => $modoTejedor,
@@ -676,6 +679,39 @@ class OrdenesTrabajoMecaController extends Controller
         return ManOperadoresMantenimiento::query()
             ->orderBy('NomEmpl')
             ->get(['CveEmpl', 'NomEmpl', 'Turno', 'Depto']);
+    }
+
+    /**
+     * Catálogo completo de telares (dbo.ReqTelares), sin filtrar por asignación del usuario.
+     *
+     * @return list<array{id: string, label: string}>
+     */
+    private function catalogoTelares(): array
+    {
+        return ReqTelares::query()
+            ->select('SalonTejidoId', 'NoTelarId')
+            ->whereNotNull('NoTelarId')
+            ->where('NoTelarId', '!=', '')
+            ->get()
+            ->map(function ($row): array {
+                $telar = TelarSalonResolver::normalizeTelar($row->NoTelarId);
+                $salon = TelarSalonResolver::normalizeSalon($row->SalonTejidoId, $telar);
+
+                return [
+                    'id' => $telar,
+                    'label' => $salon !== '' ? "{$salon} - {$telar}" : "Telar {$telar}",
+                    'sort' => TelarSalonResolver::telarSortKey($telar),
+                ];
+            })
+            ->filter(fn (array $item): bool => $item['id'] !== '')
+            ->unique(fn (array $item): string => $item['id'])
+            ->sortBy(fn (array $item): string => $item['sort'])
+            ->values()
+            ->map(fn (array $item): array => [
+                'id' => $item['id'],
+                'label' => $item['label'],
+            ])
+            ->all();
     }
 
     private function reglasLinea(): array

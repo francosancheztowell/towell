@@ -345,6 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const baseUrl = @json(url('/mecanicos/ordenes-trabajo'));
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || @json(csrf_token());
     const fechaActual = @json($fechaInicial);
+    const telaresCatalogo = @json($telares);
     const operadores = @json($operadores);
     const puedeCrear = @json($puedeCrear);
     const puedeEditar = @json($puedeEditar);
@@ -664,24 +665,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function telaresConParosActivos() {
-        const telares = [...new Set(
-            state.paros
-                .map(paro => String(paro.MaquinaId ?? '').trim())
-                .filter(Boolean),
-        )];
-
-        return telares.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-    }
-
     function poblarSelectTelares() {
         const select = $('#select-telar-paro');
         select.innerHTML = '<option value="">Seleccione telar</option>';
 
-        telaresConParosActivos().forEach(telar => {
+        telaresCatalogo.forEach(({ id, label }) => {
             const option = document.createElement('option');
-            option.value = telar;
-            option.textContent = `Telar ${telar}`;
+            option.value = id;
+            option.textContent = label;
             select.appendChild(option);
         });
 
