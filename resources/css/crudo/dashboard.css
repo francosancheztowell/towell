@@ -2983,12 +2983,13 @@ button.crudo-status-card:disabled {
 }
 
 .crudo-paro-row {
+    position: relative;
     min-width: 0;
     border: 1px solid #dbe5ee;
     border-left: 0.25rem solid #16a34a;
     border-radius: 0.62rem;
     background: #fff;
-    padding: 0.3rem 0.45rem;
+    padding: 0.3rem 1rem 0.3rem 0.45rem;
 }
 
 .crudo-paro-row.is-activo {
@@ -3060,6 +3061,120 @@ button.crudo-status-card:disabled {
     color: #64748b;
     font-size: 0.62rem;
     font-style: italic;
+}
+
+/* Botón invisible que cubre la fila: hace clicable el paro sin tocar su maquetación. */
+.crudo-paro-abrir {
+    position: absolute;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    inset: 0;
+}
+
+.crudo-paro-row {
+    cursor: pointer;
+}
+
+/* Afordancia: chevron discreto que indica que la fila abre el detalle. */
+.crudo-paro-row::after {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.45rem;
+    color: #94a3b8;
+    content: '›';
+    font-size: 1rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.crudo-paro-row:hover {
+    border-color: #94a3b8;
+    background: #f8fafc;
+}
+
+.crudo-paro-row.is-activo:hover {
+    background: #fff1f1;
+}
+
+.crudo-paro-row:hover::after {
+    color: #2563eb;
+}
+
+.crudo-paro-abrir:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 2px;
+}
+
+.crudo-paro-dialog {
+    /* El preflight de Tailwind pone margin: 0 y mata el centrado nativo del <dialog>. */
+    position: fixed;
+    margin: auto;
+    inset: 0;
+    width: min(48rem, 95vw);
+    max-height: 88vh;
+    border: 0;
+    border-radius: 0.9rem;
+    box-shadow: 0 1.5rem 3rem rgb(15 23 42 / 35%);
+    padding: 1.2rem 1.4rem 1.4rem;
+    overflow: auto;
+}
+
+.crudo-paro-dialog::backdrop {
+    background: rgb(15 23 42 / 55%);
+}
+
+.crudo-paro-dialog-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 0.5rem;
+}
+
+.crudo-paro-dialog-head h4 {
+    flex: 1;
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.5rem;
+    font-weight: 900;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.crudo-paro-dialog-close {
+    border: 0;
+    border-radius: 999px;
+    background: #f1f5f9;
+    padding: 0.25rem 0.5rem;
+    color: #475569;
+    cursor: pointer;
+}
+
+.crudo-paro-dialog-datos {
+    display: grid;
+    margin: 0;
+    gap: 0.9rem 1.2rem;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+    padding-top: 0.9rem;
+}
+
+.crudo-paro-dialog-datos dt {
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.crudo-paro-dialog-datos dd {
+    margin: 0.15rem 0 0;
+    color: #0f172a;
+    font-size: 1.15rem;
+    font-weight: 800;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
 }
 
 .crudo-audit-history-list {
