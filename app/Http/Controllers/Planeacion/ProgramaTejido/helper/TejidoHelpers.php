@@ -19,6 +19,7 @@ use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqVelocidadStd;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
+use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Support\Facades\Log;
 
 class TejidoHelpers
@@ -152,6 +153,11 @@ class TejidoHelpers
                 $prefijo = 'SMI';
             } elseif (preg_match('/JAC/i', $salonNorm)) {
                 $prefijo = 'JAC';
+            } elseif (preg_match('/KARL\s*MAYER|^KM$/i', $salonNorm)) {
+                // Sin esto, al mover una orden a Karl Mayer se conservaba el prefijo del salon
+                // anterior ('SMI 401') y resolverTipoTelarStd, que lee la maquina antes que el
+                // salon, le buscaba los STD de SMITH.
+                $prefijo = 'KM';
             }
         }
 
@@ -400,7 +406,7 @@ class TejidoHelpers
 
                         $entregaPT = $fechaFinal->copy()->day(15);
                         $formulas['EntregaPT'] = $entregaPT->format('Y-m-d');
-                    } catch (\Carbon\Exceptions\InvalidFormatException $e) {
+                    } catch (InvalidFormatException $e) {
                         // FechaFinal inválida o no se puede calcular entrega PT
                     } catch (\Throwable $e) {
                         Log::warning('TejidoHelpers: Error al calcular fecha PT', [
@@ -413,7 +419,7 @@ class TejidoHelpers
                 if (! $entregaPT && ! empty($programa->EntregaPT)) {
                     try {
                         $entregaPT = Carbon::parse($programa->EntregaPT);
-                    } catch (\Carbon\Exceptions\InvalidFormatException $e) {
+                    } catch (InvalidFormatException $e) {
                         $entregaPT = null;
                     } catch (\Throwable $e) {
                         Log::warning('TejidoHelpers: Error al parsear EntregaPT', [
@@ -553,7 +559,7 @@ class TejidoHelpers
             if (str_contains($m, 'JAC')) {
                 return 'JACQUARD';
             }
-            if (str_contains($m, 'KARL MAYER')) {
+            if (str_contains($m, 'KARL') || $m === 'KM' || str_starts_with($m, 'KM ')) {
                 return 'KM';
             }
         }
@@ -588,8 +594,11 @@ class TejidoHelpers
 
     public static function buscarStdVelocidad(string $tipoTelar, string $telar, string $fibraId, string $densidad): ?ReqVelocidadStd
     {
+        // Los catalogos STD se capturan con el salon escrito a mano (velocidadCreate.blade.php
+        // es un input libre), asi que se buscan por todos los alias: 'KM' y 'KARL MAYER'
+        // apuntan a la misma fila, igual que 'SMIT'/'SMITH'/'ITEMA'.
         $q = ReqVelocidadStd::query()
-            ->where('SalonTejidoId', $tipoTelar)
+            ->whereIn('SalonTejidoId', TelarSalonResolver::salonAliases($tipoTelar) ?: [$tipoTelar])
             ->where('NoTelarId', $telar)
             ->where('FibraId', $fibraId);
 
@@ -609,7 +618,7 @@ class TejidoHelpers
     public static function buscarStdEficiencia(string $tipoTelar, string $telar, string $fibraId, string $densidad): ?ReqEficienciaStd
     {
         $q = ReqEficienciaStd::query()
-            ->where('SalonTejidoId', $tipoTelar)
+            ->whereIn('SalonTejidoId', TelarSalonResolver::salonAliases($tipoTelar) ?: [$tipoTelar])
             ->where('NoTelarId', $telar)
             ->where('FibraId', $fibraId);
 
@@ -742,7 +751,7 @@ class TejidoHelpers
     /**
      * Fórmulas de eficiencia con flags unificados según contexto de negocio.
      *
-     * @param  callable(string, ?string): (\App\Models\Planeacion\ReqModelosCodificados|null)|null  $obtenerModeloCallback
+     * @param  callable(string, ?string): (ReqModelosCodificados|null)|null  $obtenerModeloCallback
      */
     public static function calcularFormulasEficienciaPorContexto(
         ReqProgramaTejido $programa,

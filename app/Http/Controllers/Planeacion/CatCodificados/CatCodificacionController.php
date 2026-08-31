@@ -12,6 +12,7 @@ use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\CatCodificados\Excel\CatCodificadosExcelHeaderMapper;
 use App\Services\Planeacion\RevivirOrdenProgramaDesdeCatService;
 use App\Services\Planeacion\SaldoMarbeteCodificacionService;
+use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -554,7 +555,9 @@ class CatCodificacionController extends Controller
                 ->where('BV.ITEMID', $itemIdWithSuffix)
                 ->where('BT.ITEMGROUPID', 'CRUDO')
                 ->where('BT.Vigente', 1)
-                ->whereIn('BT.TwSalon', ['SMIT', 'JACQUARD']);
+                // Todas las formas en que AX escribe los salones ('ITEMA', 'JACUARD', 'KM'...):
+                // con la lista corta, las L.Mat de Karl Mayer y las de ITEMA no se encontraban.
+                ->whereIn('BT.TwSalon', TelarSalonResolver::todosLosAliasesAx());
 
             // Solo filtrar por tamaño si viene informado (igual que LiberarOrdenesController)
             if ($inventSizeId !== null && trim((string) $inventSizeId) !== '') {

@@ -623,6 +623,10 @@ class NuevoRequerimientoController extends Controller
             return 'ITEMA';
         }
 
+        if ($telar === 401 || $telar === 402) {
+            return 'KARL MAYER';
+        }
+
         return 'JACQUARD';
     }
 
