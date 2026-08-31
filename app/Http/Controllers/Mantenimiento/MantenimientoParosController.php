@@ -3,29 +3,31 @@
 namespace App\Http\Controllers\Mantenimiento;
 
 use App\Helpers\FolioHelper;
+use App\Helpers\TurnoHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Atadores\AtaMaquinasModel;
 use App\Models\Mantenimiento\CatParosFallas;
-use App\Models\Mantenimiento\CatTipoFalla;
 use App\Models\Mantenimiento\ManFallasParos;
 use App\Models\Mantenimiento\ManOperadoresMantenimiento;
 use App\Models\Sistema\SysDepartamento;
-use App\Models\Sistema\SYSMensaje;
 use App\Models\Sistema\SYSUsuario;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Urdido\URDCatalogoMaquina;
-use Carbon\Carbon;
+use App\Services\Mantenimiento\ParoTelegramNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class MantenimientoParosController extends Controller
 {
+    /** Días de histórico que devuelve el listado cuando se piden paros finalizados. */
+    private const DIAS_HISTORICO_DEFAULT = 30;
+
     /**
      * Mostrar vista de nuevo paro con departamento pre-seleccionado del usuario.
      */
@@ -111,8 +113,6 @@ class MantenimientoParosController extends Controller
      * - Para Atadores: catálogo AtaMaquinasModel.
      * - Para Calidad: todos los telares disponibles, más máquinas de Urdido y Engomado.
      * - Para Tejedores / Trama / Desarrolladores / Supervisores: todos los telares asignados al usuario.
-     * - Para Jacquard / Smith / Itema / Karl Mayer: máquinas asignadas al usuario
-     *   autenticado en TelTelaresOperador, filtradas por salón.
      */
     public function maquinas(string $departamento): JsonResponse
     {
@@ -168,42 +168,18 @@ class MantenimientoParosController extends Controller
                 ], 401);
             }
 
-            // Para Tejedores, Trama, Desarrolladores y Supervisores:
-            // obtener todos los telares del usuario sin filtrar por salón.
-            if (in_array($depUpper, ['TEJEDORES', 'TRAMA', 'DESARROLLADORES', 'SUPERVISORES'], true)) {
-                $maquinas = TelTelaresOperador::query()
-                    ->where('numero_empleado', $numeroEmpleado)
-                    ->select('NoTelarId as MaquinaId')
-                    ->whereNotNull('NoTelarId')
-                    ->distinct()
-                    ->orderBy('NoTelarId')
-                    ->get()
-                    ->map(function ($item) use ($departamento) {
-                        return [
-                            'MaquinaId' => $item->MaquinaId,
-                            'Nombre' => $item->MaquinaId,
-                            'Departamento' => $departamento,
-                        ];
-                    });
+            $query = TelTelaresOperador::query()
+                ->where('numero_empleado', $numeroEmpleado);
 
-                return response()->json([
-                    'success' => true,
-                    'data' => $maquinas,
-                ]);
+            // Los departamentos de tejido ven todos sus telares sin filtrar por salón.
+            // El resto (Sistemas, Contabilidad, Directivos, Mantenimiento…) no tiene
+            // telares asignados y recibe una lista vacía, que es la respuesta correcta:
+            // no operan máquinas.
+            if (! in_array($depUpper, ['TEJEDORES', 'TRAMA', 'DESARROLLADORES', 'SUPERVISORES'], true)) {
+                $query->whereIn('SalonTejidoId', [$departamento]);
             }
 
-            // Mapear departamento a SalonTejidoId (en TelTelaresOperador está como 'Jacquard' y 'Smith').
-            $salones = match ($depUpper) {
-                'ITEMA' => ['Smith'],
-                'JACQUARD' => ['Jacquard'],
-                'SMITH' => ['Smith'],
-                'KARLMAYER', 'KARL MAYER' => ['KARL MAYER', 'KarlMayer'],
-                default => [$departamento],
-            };
-
-            $maquinas = TelTelaresOperador::query()
-                ->where('numero_empleado', $numeroEmpleado)
-                ->whereIn('SalonTejidoId', $salones)
+            $maquinas = $query
                 ->select('NoTelarId as MaquinaId')
                 ->whereNotNull('NoTelarId')
                 ->distinct()
@@ -291,43 +267,77 @@ class MantenimientoParosController extends Controller
     }
 
     /**
-     * Catálogo de tipos de falla (CatTipoFalla).
+     * Departamentos de CatParosFallas que aplican al departamento elegido.
+     *
+     * - Los departamentos de tejido reutilizan el catálogo "Tejido".
+     * - Calidad consulta "Calidad" y también "Tejido" por compatibilidad con catálogos anteriores.
+     *
+     * @return list<string>
      */
-    public function tiposFalla(): JsonResponse
+    private function catalogoDepartamentos(string $departamento): array
     {
-        $tiposFalla = CatTipoFalla::orderBy('TipoFallaId')
-            ->pluck('TipoFallaId');
+        $depUpper = strtoupper(trim($departamento));
 
-        return response()->json([
-            'success' => true,
-            'data' => $tiposFalla,
-        ]);
+        if (in_array($depUpper, ['JACQUARD', 'ITEMA', 'KARL MAYER', 'KARLMAYER', 'SMITH', 'TEJEDORES', 'TRMA', 'TRAMA', 'DESARROLLADORES', 'SUPERVISORES'], true)) {
+            return ['Tejido'];
+        }
+
+        if ($depUpper === 'CALIDAD') {
+            return ['Calidad', 'Tejido'];
+        }
+
+        return [$departamento];
+    }
+
+    /**
+     * Tipos de falla disponibles para un departamento.
+     *
+     * Se derivan de CatParosFallas para no ofrecer tipos que dejarían el combo de
+     * fallas vacío. "Calidad" se añade siempre: sus fallas se pueden reportar desde
+     * cualquier departamento.
+     */
+    public function tiposFalla(string $departamento): JsonResponse
+    {
+        try {
+            $departamentosConsulta = array_unique([
+                ...$this->catalogoDepartamentos($departamento),
+                'Calidad',
+            ]);
+
+            $tiposFalla = CatParosFallas::query()
+                ->whereIn('Departamento', $departamentosConsulta)
+                ->whereNotNull('TipoFallaId')
+                ->distinct()
+                ->orderBy('TipoFallaId')
+                ->pluck('TipoFallaId');
+
+            return response()->json([
+                'success' => true,
+                'data' => $tiposFalla,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Error al obtener tipos de falla', [
+                'departamento' => $departamento,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'data' => [],
+            ], 500);
+        }
     }
 
     /**
      * Fallas por departamento desde CatParosFallas.
-     *
-     * Nota:
-     * - Los departamentos de tejido reutilizan el catálogo "Tejido".
-     * - Para Calidad se consulta primero "Calidad" y también "Tejido"
-     *   para conservar compatibilidad con catálogos anteriores.
      *
      * Si se proporciona tipoFallaId, se filtran las fallas por ese tipo.
      */
     public function fallas(string $departamento, ?string $tipoFallaId = null): JsonResponse
     {
         try {
-            $depUpper = strtoupper(trim($departamento));
-
-            $departamentosConsulta = [$departamento];
-
-            // Los departamentos de tejido consumen el catálogo base de Tejido.
-            if (in_array($depUpper, ['JACQUARD', 'ITEMA', 'KARL MAYER', 'KARLMAYER', 'SMITH', 'TEJEDORES', 'TRMA', 'TRAMA', 'DESARROLLADORES', 'SUPERVISORES'], true)) {
-                $departamentosConsulta = ['Tejido'];
-            } elseif ($depUpper === 'CALIDAD') {
-                // Calidad puede tener catálogo propio; si no, sigue viendo el catálogo heredado de Tejido.
-                $departamentosConsulta = ['Calidad', 'Tejido'];
-            }
+            $departamentosConsulta = $this->catalogoDepartamentos($departamento);
 
             // Las fallas de tipo "Calidad" sólo existen bajo el departamento Calidad,
             // así que se agregan sin importar el departamento seleccionado.
@@ -368,10 +378,11 @@ class MantenimientoParosController extends Controller
     /**
      * Orden de trabajo sugerida por departamento y máquina.
      *
-     * - Jacquard / Smith / Itema / Karl Mayer -> ReqProgramaTejido (EnProceso = 1)
-     * - Calidad -> ReqProgramaTejido (EnProceso = 1) sin filtrar por salón
      * - Urdido -> UrdProgramaUrdido (Status = 'En Proceso', por MaquinaId)
      * - Engomado -> EngProgramaEngomado (Status = 'En Proceso', por MaquinaEng)
+     * - Resto -> ReqProgramaTejido (EnProceso = 1, por telar)
+     *
+     * El telar ya identifica su salón, así que no se filtra por SalonTejidoId.
      */
     public function ordenTrabajo(string $departamento, string $maquina): JsonResponse
     {
@@ -415,23 +426,9 @@ class MantenimientoParosController extends Controller
                 ]);
             }
 
-            $salones = match ($depUpper) {
-                'ITEMA' => ['SMIT'],
-                'SMITH' => ['SMIT'],
-                'JACQUARD' => ['JACQUARD'],
-                'KARLMAYER', 'KARL MAYER' => ['KARL MAYER', 'KARLMAYER'],
-                default => [$depUpper],
-            };
-
-            $query = DB::table('ReqProgramaTejido')
+            $rows = DB::table('ReqProgramaTejido')
                 ->where('NoTelarId', $maquina)
-                ->where('EnProceso', 1);
-
-            if ($depUpper !== 'CALIDAD') {
-                $query->whereIn('SalonTejidoId', $salones);
-            }
-
-            $rows = $query
+                ->where('EnProceso', 1)
                 ->orderByDesc('FechaInicio')
                 ->limit(5)
                 ->get(['NoProduccion as Orden_Prod', 'NombreProducto', 'FechaInicio', 'SalonTejidoId', 'NoTelarId']);
@@ -449,61 +446,14 @@ class MantenimientoParosController extends Controller
     }
 
     /**
-     * Valida si ya existe un paro activo en el mismo telar con el mismo tipo de falla (ManFallasParos).
-     */
-    public function validarDuplicadoParo(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'maquina' => 'required|string|max:50',
-                'tipo_falla' => 'required|string|max:20',
-            ]);
-
-            $duplicado = $this->existeParoActivoDuplicado($request->maquina, $request->tipo_falla);
-            $mensaje = 'No se puede reportar: ya existe un paro activo con el mismo tipo de falla en este telar. Finalice el paro actual antes de reportar otro igual.';
-
-            return response()->json([
-                'success' => true,
-                'duplicado' => $duplicado,
-                'message' => $duplicado ? $mensaje : null,
-            ]);
-        } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (\Throwable $e) {
-            Log::error('Error al validar duplicado de paro', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Indica si en ManFallasParos ya hay un registro Activo para la misma máquina y TipoFallaId.
-     */
-    private function existeParoActivoDuplicado(string $maquinaId, string $tipoFallaId): bool
-    {
-        $maquinaId = trim($maquinaId);
-        $tipoFallaId = trim($tipoFallaId);
-
-        return ManFallasParos::query()
-            ->where('Estatus', 'Activo')
-            ->whereRaw('LTRIM(RTRIM(CAST(MaquinaId AS NVARCHAR(100)))) = ?', [$maquinaId])
-            ->whereRaw('LTRIM(RTRIM(CAST(TipoFallaId AS NVARCHAR(100)))) = ?', [$tipoFallaId])
-            ->exists();
-    }
-
-    /**
      * Guardar un nuevo paro/falla en ManFallasParos.
+     *
+     * La falla llega como Id de CatParosFallas: Falla, Descripcion y TipoFallaId se
+     * leen del catálogo para que el par guardado siempre exista en él.
+     * Fecha y hora las pone el servidor, no el formulario: la pantalla puede llevar
+     * horas abierta.
      */
-    public function store(Request $request)
+    public function store(Request $request, ParoTelegramNotifier $notifier): JsonResponse
     {
         try {
             $usuario = Auth::user();
@@ -515,68 +465,92 @@ class MantenimientoParosController extends Controller
                 ], 401);
             }
 
-            $request->validate([
-                'fecha' => 'required|date',
-                'hora' => 'required',
-                'depto' => 'required|string|max:30',
-                'maquina' => 'required|string|max:50',
-                'tipo_falla' => 'required|string|max:20',
-                'falla' => 'required|string|max:20',
-                'descrip' => 'nullable|string|max:100',
+            // Largos alineados con las columnas de ManFallasParos.
+            // Mensajes en español: la app corre con APP_LOCALE=en y el front muestra
+            // este texto tal cual al operador.
+            $datos = $request->validate([
+                'depto' => 'required|string|max:15',
+                'maquina' => 'required|string|max:15',
+                'falla_id' => 'required|integer',
                 'orden_trabajo' => 'nullable|string|max:50',
-                'obs' => 'nullable|string',
+                'obs' => 'nullable|string|max:255',
+            ], [
+                'depto.required' => 'Selecciona un departamento.',
+                'maquina.required' => 'Selecciona una máquina.',
+                'falla_id.required' => 'Selecciona una falla.',
+                'falla_id.integer' => 'La falla seleccionada no es válida.',
+                'orden_trabajo.max' => 'La orden de trabajo no puede pasar de 50 caracteres.',
+                'obs.max' => 'Las observaciones no pueden pasar de 255 caracteres.',
             ]);
 
-            if ($this->existeParoActivoDuplicado($request->maquina, $request->tipo_falla)) {
+            $falla = CatParosFallas::find($datos['falla_id']);
+
+            if (! $falla) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'No se puede reportar: ya existe un paro activo con el mismo tipo de falla en este telar. Finalice el paro actual antes de reportar otro igual.',
+                    'error' => 'La falla seleccionada ya no existe en el catálogo. Recarga la página.',
                 ], 422);
             }
 
-            $folio = FolioHelper::obtenerSiguienteFolio('ParosFallas', 5);
+            $ahora = now();
 
-            if (empty($folio)) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Error al generar folio',
-                ], 500);
-            }
+            // Reportar un paro SIEMPRE notifica al supervisor. La vista tenía un
+            // checkbox que se volvía a marcar solo si lo desmarcabas, o sea que la
+            // opción nunca existió de verdad; la regla vive aquí y no en el formulario.
+            $notificarSupervisor = true;
 
-            $data = [
-                'Folio' => $folio,
-                'Estatus' => 'Activo',
-                'Fecha' => $request->fecha,
-                'Hora' => $request->hora,
-                'Depto' => $request->depto,
-                'MaquinaId' => $request->maquina,
-                'TipoFallaId' => $request->tipo_falla,
-                'Falla' => $request->falla,
-                'Descripcion' => $request->descrip ?? null,
-                'OrdenTrabajo' => $request->orden_trabajo ?? null,
-                'Obs' => $request->obs ?? null,
-                'CveEmpl' => $usuario->numero_empleado ?? null,
-                'NomEmpl' => $usuario->nombre ?? null,
-                'Turno' => (int) ($usuario->turno ?? 1),
-                'Enviado' => $request->boolean('notificar_supervisor', false),
-                'HoraFin' => null,
-                'CveAtendio' => null,
-                'NomAtendio' => null,
-                'TurnoAtendio' => null,
-            ];
+            $paro = DB::connection('sqlsrv')->transaction(function () use ($datos, $falla, $usuario, $ahora, $notificarSupervisor): ManFallasParos {
+                // ponytail: el chequeo vive dentro de la transacción para acotar la
+                // ventana, no para cerrarla. El candado real es un índice único
+                // filtrado sobre (MaquinaId, TipoFallaId) WHERE Estatus='Activo'.
+                if (ManFallasParos::hayActivoEnMaquina($datos['maquina'], (string) $falla->TipoFallaId)) {
+                    throw ValidationException::withMessages([
+                        'falla_id' => 'No se puede reportar: ya existe un paro activo con el mismo tipo de falla en este telar. Finalice el paro actual antes de reportar otro igual.',
+                    ]);
+                }
 
-            $paro = ManFallasParos::create($data);
+                $folio = FolioHelper::obtenerSiguienteFolio('ParosFallas', 5);
 
-            $notificarSupervisor = $request->boolean('notificar_supervisor', false);
+                if (trim($folio) === '') {
+                    throw new RuntimeException('Error al generar folio');
+                }
+
+                return ManFallasParos::create([
+                    'Folio' => $folio,
+                    'Estatus' => 'Activo',
+                    'Fecha' => $ahora->toDateString(),
+                    'Hora' => $ahora->format('H:i:s'),
+                    'Depto' => $datos['depto'],
+                    'MaquinaId' => $datos['maquina'],
+                    'TipoFallaId' => $falla->TipoFallaId,
+                    'Falla' => $falla->Falla,
+                    'Descripcion' => $falla->Descripcion,
+                    'OrdenTrabajo' => $datos['orden_trabajo'] ?? null,
+                    'Obs' => $datos['obs'] ?? null,
+                    'CveEmpl' => $usuario->numero_empleado ?? null,
+                    'NomEmpl' => $usuario->nombre ?? null,
+                    'Turno' => TurnoHelper::resolverTurnoOperativo($usuario->turno ?? null),
+                    'Enviado' => $notificarSupervisor,
+                    'HoraFin' => null,
+                    'CveAtendio' => null,
+                    'NomAtendio' => null,
+                    'TurnoAtendio' => null,
+                ]);
+            });
+
             if ($notificarSupervisor) {
-                $this->enviarNotificacionTelegram($paro, $usuario);
+                // Fuera del ciclo de respuesta: Telegram no debe hacer esperar al operador.
+                defer(
+                    static fn () => $notifier->notifyCreated($paro),
+                    name: 'paro-telegram-alta-'.$paro->Id,
+                );
             }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Paro reportado correctamente'.($notificarSupervisor ? ' y notificación enviada a Telegram' : ''),
                 'data' => [
-                    'folio' => $folio,
+                    'folio' => $paro->Folio,
                     'id' => $paro->Id,
                     'notificacion_enviada' => $notificarSupervisor,
                 ],
@@ -584,7 +558,7 @@ class MantenimientoParosController extends Controller
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Error de validación',
+                'error' => collect($e->errors())->flatten()->first() ?? 'Error de validación',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
@@ -597,204 +571,6 @@ class MantenimientoParosController extends Controller
                 'success' => false,
                 'error' => 'Error al guardar el paro: '.$e->getMessage(),
             ], 500);
-        }
-    }
-
-    /**
-     * Mapea TipoFallaId del paro a la columna de SYSMensajes para Telegram.
-     * ReporteElectrico, ReporteMecanico, ReporteTiempoMuerto.
-     *
-     * @return string|null Nombre de la columna del módulo o null si no hay coincidencia
-     */
-    private function moduloTelegramPorTipoFalla(?string $tipoFallaId): ?string
-    {
-        if ($tipoFallaId === null || $tipoFallaId === '') {
-            return null;
-        }
-
-        $n = mb_strtoupper(trim($tipoFallaId));
-        $n = str_replace(['Á', 'É', 'Í', 'Ó', 'Ú'], ['A', 'E', 'I', 'O', 'U'], $n);
-
-        if (str_contains($n, 'ELECTRIC') || $n === 'ELECTRICO') {
-            return 'ReporteElectrico';
-        }
-
-        if (str_contains($n, 'MECANIC') || $n === 'MECANICO') {
-            return 'ReporteMecanico';
-        }
-
-        if ((str_contains($n, 'TIEMPO') && str_contains($n, 'MUERTO')) || $n === 'TIEMPO MUERTO') {
-            return 'ReporteTiempoMuerto';
-        }
-
-        if (str_contains($n, 'CALIDAD')) {
-            return 'Calidad';
-        }
-
-        return null;
-    }
-
-    /**
-     * Enviar notificación a Telegram con los detalles del paro reportado.
-     * Destinatarios: SYSMensajes con la columna según tipo de falla
-     * (ReporteElectrico, ReporteMecanico, ReporteTiempoMuerto, Calidad) y Activo=1.
-     */
-    private function enviarNotificacionTelegram($paro, $usuario): void
-    {
-        try {
-            $botToken = config('services.telegram.bot_token');
-            if (empty($botToken)) {
-                Log::warning('No se pudo enviar notificación a Telegram: credenciales no configuradas');
-
-                return;
-            }
-
-            $modulo = $this->moduloTelegramPorTipoFalla($paro->TipoFallaId ?? '');
-            if ($modulo === null) {
-                Log::info('Paro sin módulo Telegram para tipo de falla', ['TipoFallaId' => $paro->TipoFallaId ?? '']);
-
-                return;
-            }
-
-            $chatIds = SYSMensaje::getChatIdsPorModulo($modulo);
-            if (empty($chatIds)) {
-                Log::warning("No hay destinatarios con {$modulo} activo en SYSMensajes para notificación de paro");
-
-                return;
-            }
-
-            $fecha = Carbon::parse($paro->Fecha)->format('d/m/Y');
-            $hora = $paro->Hora;
-
-            $mensaje = "🚨 *NOTIFICACIÓN DE FALLA/PARO* 🚨\n\n";
-            $mensaje .= "📋 *Folio:* {$paro->Folio}\n";
-            $mensaje .= "👤 *Reportado por:* {$paro->NomEmpl}\n";
-            $mensaje .= "📅 *Fecha:* {$fecha}\n";
-            $mensaje .= "🕐 *Hora:* {$hora}\n";
-            $mensaje .= "🏢 *Departamento:* {$paro->Depto}\n";
-            $mensaje .= "🔧 *Máquina:* {$paro->MaquinaId}\n";
-            $mensaje .= "⚠️ *Tipo de Falla:* {$paro->TipoFallaId}\n";
-            $mensaje .= "❌ *Falla:* {$paro->Falla}\n";
-
-            if (! empty($paro->Descripcion)) {
-                $mensaje .= "📝 *Descripción:* {$paro->Descripcion}\n";
-            }
-
-            if (! empty($paro->OrdenTrabajo)) {
-                $mensaje .= "📋 *Orden de Trabajo:* {$paro->OrdenTrabajo}\n";
-            }
-
-            if (! empty($paro->Obs)) {
-                $mensaje .= "💬 *Observaciones:* {$paro->Obs}\n";
-            }
-
-            $mensaje .= "\n✅ *Estatus:* {$paro->Estatus}\n";
-            $mensaje .= "🔄 *Turno:* {$paro->Turno}";
-
-            $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
-            foreach ($chatIds as $chatId) {
-                $response = Http::post($url, [
-                    'chat_id' => $chatId,
-                    'text' => $mensaje,
-                    'parse_mode' => 'Markdown',
-                ]);
-
-                if (! $response->successful() || ! ($response->json()['ok'] ?? false)) {
-                    Log::warning('Error al enviar notificación de paro a Telegram', [
-                        'chat_id' => $chatId,
-                        'folio' => $paro->Folio,
-                        'response' => $response->json(),
-                    ]);
-                }
-            }
-        } catch (\Throwable $e) {
-            Log::error('Excepción al enviar notificación de paro a Telegram', [
-                'error' => $e->getMessage(),
-                'folio' => $paro->Folio ?? null,
-            ]);
-        }
-    }
-
-    /**
-     * Enviar notificación a Telegram al finalizar un paro/falla.
-     * Destinatarios: según tipo de falla
-     * (ReporteElectrico, ReporteMecanico, ReporteTiempoMuerto) en SYSMensajes.
-     */
-    private function enviarNotificacionTelegramCierre($paro, $usuario): void
-    {
-        try {
-            $botToken = config('services.telegram.bot_token');
-            if (empty($botToken)) {
-                Log::warning('No se pudo enviar notificación de cierre a Telegram: credenciales no configuradas');
-
-                return;
-            }
-
-            $modulo = $this->moduloTelegramPorTipoFalla($paro->TipoFallaId ?? '');
-            if ($modulo === null) {
-                Log::info('Paro finalizado sin módulo Telegram para tipo de falla', ['TipoFallaId' => $paro->TipoFallaId ?? '']);
-
-                return;
-            }
-
-            $chatIds = SYSMensaje::getChatIdsPorModulo($modulo);
-            if (empty($chatIds)) {
-                Log::warning("No hay destinatarios con {$modulo} activo en SYSMensajes para cierre de paro");
-
-                return;
-            }
-
-            $fecha = $paro->FechaFin ?? $paro->Fecha;
-            $hora = $paro->HoraFin ?? now()->format('H:i:s');
-
-            $mensaje = "✅ *PARO FINALIZADO* \n\n";
-            $mensaje .= "📋 *Folio:* {$paro->Folio}\n";
-            $mensaje .= "🏢 *Departamento:* {$paro->Depto}\n";
-            $mensaje .= "🔧 *Máquina:* {$paro->MaquinaId}\n";
-            $mensaje .= "⚠️ *Tipo de Falla:* {$paro->TipoFallaId}\n";
-            $mensaje .= "❌ *Falla:* {$paro->Falla}\n";
-            $mensaje .= '📅 *Fecha cierre:* '.Carbon::parse($fecha)->format('d/m/Y')."\n";
-            $mensaje .= "🕐 *Hora cierre:* {$hora}\n";
-
-            if (! empty($paro->NomAtendio)) {
-                $mensaje .= "👤 *Atendió:* {$paro->NomAtendio}\n";
-            }
-
-            if (! empty($paro->TurnoAtendio)) {
-                $mensaje .= "🔄 *Turno atención:* {$paro->TurnoAtendio}\n";
-            }
-
-            if (! empty($paro->Calidad)) {
-                $mensaje .= "⭐ *Calidad:* {$paro->Calidad}/5\n";
-            }
-
-            if (! empty($paro->ObsCierre)) {
-                $mensaje .= "💬 *Observaciones cierre:* {$paro->ObsCierre}\n";
-            }
-
-            $mensaje .= "\n👤 *Cerrado por:* ".($usuario->nombre ?? 'N/A');
-
-            $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
-            foreach ($chatIds as $chatId) {
-                $response = Http::post($url, [
-                    'chat_id' => $chatId,
-                    'text' => $mensaje,
-                    'parse_mode' => 'Markdown',
-                ]);
-
-                if (! $response->successful() || ! ($response->json()['ok'] ?? false)) {
-                    Log::warning('Error al enviar notificación de cierre de paro a Telegram', [
-                        'chat_id' => $chatId,
-                        'folio' => $paro->Folio,
-                        'response' => $response->json(),
-                    ]);
-                }
-            }
-        } catch (\Throwable $e) {
-            Log::error('Excepción al enviar notificación de cierre de paro a Telegram', [
-                'error' => $e->getMessage(),
-                'folio' => $paro->Folio ?? 'N/A',
-            ]);
         }
     }
 
@@ -911,7 +687,8 @@ class MantenimientoParosController extends Controller
      * Sin query: solo paros del departamento del usuario (`area`).
      * `alcance=todos`: todos los departamentos.
      * `depto={nombre}`: solo ese departamento (debe existir en SysDepartamentos).
-     * `incluir_finalizados=1`: incluye paros ya cerrados (`Terminado`). Por defecto solo `Activo`.
+     * `incluir_finalizados=1`: incluye paros cerrados de los últimos `dias` (7 por
+     * defecto, máx. 365). Sin él solo se devuelven los `Activo`, que son pocos.
      * Usuarios con área Tejedores: además solo ven paros cuyo `MaquinaId` está en `TelTelaresOperador` para su `numero_empleado`
      * (salvo que filtren explícitamente otro departamento; con `alcance=todos` solo se acotan filas `Depto` Tejedores).
      */
@@ -924,8 +701,23 @@ class MantenimientoParosController extends Controller
 
             $alcance = trim((string) $request->query('alcance', ''));
             $deptoReq = trim((string) $request->query('depto', ''));
+            $incluirFinalizados = $request->boolean('incluir_finalizados');
+            $dias = null;
 
-            if (! $request->boolean('incluir_finalizados')) {
+            if ($incluirFinalizados) {
+                // La tabla lleva miles de paros cerrados y la vista los pinta todos en
+                // el DOM, así que el histórico se acota por fecha en vez de truncarse en
+                // silencio; la ventana viaja en `meta` para que la UI pueda decirla.
+                // Los Activo se muestran siempre: cerrarlos es el motivo de la pantalla
+                // y un paro abierto desde hace meses no debe desaparecer del listado.
+                $dias = max(1, min(365, (int) $request->query('dias', self::DIAS_HISTORICO_DEFAULT)));
+                $desde = now()->subDays($dias)->toDateString();
+
+                $query->where(function ($q) use ($desde) {
+                    $q->where('Estatus', 'Activo')
+                        ->orWhere('Fecha', '>=', $desde);
+                });
+            } else {
                 $query->where('Estatus', 'Activo');
             }
 
@@ -971,6 +763,11 @@ class MantenimientoParosController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $paros,
+                'meta' => [
+                    'incluye_finalizados' => $incluirFinalizados,
+                    'dias' => $dias,
+                    'total' => $paros->count(),
+                ],
             ]);
         } catch (\Throwable $e) {
             Log::error('Error al obtener paros/fallas', [
@@ -1020,7 +817,7 @@ class MantenimientoParosController extends Controller
     /**
      * Finalizar un paro/falla (actualizar con datos de cierre).
      */
-    public function finalizar(Request $request, int $id): JsonResponse
+    public function finalizar(Request $request, int $id, ParoTelegramNotifier $notifier): JsonResponse
     {
         try {
             $paro = ManFallasParos::find($id);
@@ -1032,60 +829,74 @@ class MantenimientoParosController extends Controller
                 ], 404);
             }
 
-            $request->validate([
-                'atendio' => 'required|string|max:100',
+            // Solo se cierran paros activos: recerrar uno ya terminado pisaría
+            // HoraFin, FechaFin, NomAtendio y Calidad, y se perdería el registro
+            // real de cuándo y quién lo atendió. La columna es NVARCHAR, así que
+            // se compara sin distinguir mayúsculas ni espacios sobrantes.
+            if (strcasecmp(trim((string) $paro->Estatus), 'Activo') !== 0) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Este paro ya fue finalizado.',
+                ], 422);
+            }
+
+            $datos = $request->validate([
+                'atendio' => 'required|string|max:150',
                 'turno' => 'nullable|integer|in:1,2,3,4',
-                'calidad' => 'required|integer|min:1|max:10',
+                'calidad' => 'required|integer|min:1|max:5',
                 'obs_cierre' => 'nullable|string|max:255',
-                'enviar_telegram' => 'nullable|boolean',
+            ], [
+                'atendio.required' => 'Indica quién atendió el paro.',
+                'calidad.required' => 'Califica la atención del paro.',
+                'calidad.min' => 'La calificación debe ser de al menos 1.',
+                'calidad.max' => 'La calificación no puede pasar de 5.',
+                'obs_cierre.max' => 'Las observaciones de cierre no pueden pasar de 255 caracteres.',
             ]);
 
             $usuario = Auth::user();
+            $ahora = now();
 
             $updateData = [
                 'Estatus' => 'Terminado',
-                'HoraFin' => now()->format('H:i:s'),
-                'FechaFin' => now()->format('Y-m-d'),
+                'HoraFin' => $ahora->format('H:i:s'),
+                'FechaFin' => $ahora->toDateString(),
+                'NomAtendio' => $datos['atendio'],
+                'CveAtendio' => $usuario->numero_empleado ?? null,
+                'Calidad' => (int) $datos['calidad'],
             ];
 
-            if ($request->filled('atendio')) {
-                $updateData['NomAtendio'] = $request->atendio;
-                $updateData['CveAtendio'] = $usuario->numero_empleado ?? null;
-            }
-
             if ($request->filled('turno')) {
-                $updateData['TurnoAtendio'] = (int) $request->turno;
-            }
-
-            if ($request->filled('calidad')) {
-                $updateData['Calidad'] = (int) $request->calidad;
+                $updateData['TurnoAtendio'] = (int) $datos['turno'];
             }
 
             if ($request->filled('obs_cierre')) {
-                $updateData['ObsCierre'] = $request->obs_cierre;
+                $updateData['ObsCierre'] = $datos['obs_cierre'];
             }
 
             $paro->update($updateData);
             $paro->refresh();
 
-            $enviarTelegram = $request->boolean('enviar_telegram', false);
-            if ($enviarTelegram) {
-                $this->enviarNotificacionTelegramCierre($paro, $usuario);
-            }
+            // Cerrar un paro también notifica siempre, igual que reportarlo: el
+            // checkbox de la vista tampoco se podía desmarcar.
+            $cerradoPor = $usuario->nombre ?? null;
+            defer(
+                static fn () => $notifier->notifyClosed($paro, $cerradoPor),
+                name: 'paro-telegram-cierre-'.$paro->Id,
+            );
 
             return response()->json([
                 'success' => true,
-                'message' => 'Paro finalizado correctamente'.($enviarTelegram ? ' y notificación enviada a Telegram' : ''),
+                'message' => 'Paro finalizado correctamente y notificación enviada a Telegram',
                 'data' => [
                     'id' => $paro->Id,
                     'folio' => $paro->Folio,
-                    'notificacion_enviada' => $enviarTelegram,
+                    'notificacion_enviada' => true,
                 ],
             ]);
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Error de validación',
+                'error' => collect($e->errors())->flatten()->first() ?? 'Error de validación',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {

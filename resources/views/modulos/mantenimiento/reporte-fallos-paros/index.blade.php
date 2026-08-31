@@ -35,22 +35,28 @@
                 <table class="w-full border-collapse text-sm min-w-full">
                     <thead>
                         <tr class="text-white text-center">
-                            <th class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Folio</th>
-                            <th class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Status</th>
-                            <th class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Fecha</th>
-                            <th class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Hora</th>
-                            <th class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Area</th>
-                            <th class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Maquina</th>
-                            <th class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Tipo Falla</th>
-                            <th class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Falla</th>
-                            <th class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Usuario</th>
+                            {{-- Columna de selección: el radio da foco, teclado y estado accesible a la fila --}}
+                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap w-12">
+                                <span class="sr-only">Seleccionar paro</span>
+                            </th>
+                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Folio</th>
+                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Status</th>
+                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Fecha</th>
+                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Hora</th>
+                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Area</th>
+                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Maquina</th>
+                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Tipo Falla</th>
+                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Falla</th>
+                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Usuario</th>
                         </tr>
                     </thead>
-                    <tbody id="tbody-paros">
+                    <tbody id="tbody-paros" aria-busy="true">
                         <!-- Los datos se cargarán dinámicamente aquí -->
                         <tr>
-                            <td colspan="9" class="border border-gray-300 px-2 py-2 text-center text-gray-500">
-                                Cargando datos...
+                            <td colspan="10" class="border border-gray-300 px-2 py-2 text-center text-gray-700">
+                                <span role="status">
+                                    <i class="fa-solid fa-spinner fa-spin mr-2" aria-hidden="true"></i>Cargando datos...
+                                </span>
                             </td>
                         </tr>
                     </tbody>
@@ -62,14 +68,29 @@
     </div>
 </div>
 
-{{-- Modal Filtros (estilo BPM) --}}
-<div id="modal-filters" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+{{-- Modal Filtros (estilo BPM). <dialog> nativo: aporta role="dialog", aria-modal,
+     foco atrapado, cierre con Escape y devolución del foco al botón que lo abrió. --}}
+<style>
+    /* El velo y el centrado van en CSS propio, no en utilidades de Tailwind:
+       `backdrop:bg-black/50` no es una variante válida en Tailwind v4 (no se genera
+       en el bundle), y el preflight aplica `*{margin:0}`, que le gana al
+       `dialog{margin:auto}` del navegador y pegaría el diálogo a la esquina.
+       Así la pantalla no depende de que alguien haya corrido `npm run build`. */
+    #modal-filters {
+        margin: auto;
+    }
+
+    #modal-filters::backdrop {
+        background-color: rgb(0 0 0 / 0.5);
+    }
+</style>
+<dialog id="modal-filters" aria-labelledby="modal-filters-title" class="w-full max-w-2xl bg-transparent p-0">
     <div class="bg-white max-w-2xl w-full rounded-xl shadow-xl p-4 m-4" onclick="event.stopPropagation()">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-800">
+            <h2 id="modal-filters-title" class="text-lg font-semibold text-gray-800">
                 <i class="fa-solid fa-filter text-purple-600 mr-2"></i>Filtros
             </h2>
-            <button type="button" id="btn-close-modal-filters" class="text-slate-500 hover:text-slate-700 text-3xl leading-none">&times;</button>
+            <button type="button" id="btn-close-modal-filters" aria-label="Cerrar filtros" class="text-slate-500 hover:text-slate-700 text-3xl leading-none">&times;</button>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
             <div class="p-4 rounded-lg border-2 border-gray-300 bg-gray-50">
@@ -101,7 +122,7 @@
             <label class="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-300 bg-gray-50 cursor-pointer hover:bg-gray-100 transition" title="En sistema los paros cerrados tienen estatus Terminado">
                 <input type="checkbox" id="filter-incluir-terminados" class="w-4 h-4 text-purple-600 rounded focus:ring-2 focus:ring-purple-500">
                 <span class="text-sm font-medium text-gray-700">
-                    <i class="fa-solid fa-flag-checkered mr-1"></i>Incluir paros terminados (finalizados)
+                    <i class="fa-solid fa-flag-checkered mr-1"></i>Incluir paros terminados (últimos 30 días)
                 </span>
             </label>
             <label class="flex items-center gap-2 p-4 rounded-lg border-2 border-gray-300 bg-gray-50 cursor-pointer hover:bg-gray-100 transition">
@@ -117,7 +138,7 @@
             </button>
         </div>
     </div>
-</div>
+</dialog>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -146,8 +167,83 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let allParos = [];
     let catalogDeptosCache = [];
+    /** Identifica cada carga para descartar respuestas que llegan tarde y pisarían datos más nuevos. */
+    let cargaEnCursoId = 0;
 
     const escHtml = (s) => (s ?? '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    const filasParos = () => document.querySelectorAll('#tbody-paros tr.row-paro');
+
+    /** Quita la selección: estilos de fila, radio marcado y el id global. */
+    function limpiarSeleccion() {
+        filasParos().forEach(fila => {
+            fila.classList.remove('bg-blue-700');
+            fila.classList.add('hover:bg-gray-100');
+            fila.querySelectorAll('td').forEach(td => {
+                td.classList.remove('text-white');
+                td.classList.add('text-gray-900');
+            });
+        });
+        document.querySelectorAll('#tbody-paros input[name="paro-seleccionado"]').forEach(radio => {
+            radio.checked = false;
+        });
+        window.paroSeleccionadoId = null;
+    }
+
+    /**
+     * Selecciona una fila. El radio marcado es la señal accesible (foco, teclado y estado
+     * nativo); el color de fondo es solo el refuerzo visual.
+     */
+    function seleccionarFila(fila) {
+        limpiarSeleccion();
+        if (!fila) return;
+
+        fila.classList.remove('hover:bg-gray-100');
+        fila.classList.add('bg-blue-700');
+        fila.querySelectorAll('td').forEach(td => {
+            td.classList.remove('text-gray-900');
+            td.classList.add('text-white');
+        });
+        const radio = fila.querySelector('input[name="paro-seleccionado"]');
+        if (radio) radio.checked = true;
+        window.paroSeleccionadoId = fila.dataset.paroId || '';
+    }
+
+    /** Fila del paro seleccionado solo si sigue pintada y visible tras los filtros. */
+    function obtenerFilaSeleccionadaVisible() {
+        const radio = tbodyParos.querySelector('input[name="paro-seleccionado"]:checked');
+        const fila = radio ? radio.closest('tr.row-paro') : null;
+        if (!fila || fila.style.display === 'none') return null;
+        return fila;
+    }
+
+    /** Estado de carga en el tbody mientras la petición está en vuelo. */
+    function mostrarCargandoTabla() {
+        tbodyParos.setAttribute('aria-busy', 'true');
+        tbodyParos.innerHTML = `
+            <tr>
+                <td colspan="10" class="border border-gray-300 px-2 py-6 text-center text-gray-700 text-lg">
+                    <span role="status">
+                        <i class="fa-solid fa-spinner fa-spin mr-2" aria-hidden="true"></i>Cargando paros...
+                    </span>
+                </td>
+            </tr>
+        `;
+    }
+
+    // Teclado: al moverse con flechas dentro del grupo de radios se dispara 'change'.
+    tbodyParos.addEventListener('change', function(e) {
+        const radio = e.target.closest('input[name="paro-seleccionado"]');
+        if (!radio) return;
+        seleccionarFila(radio.closest('tr.row-paro'));
+    });
+
+    // Ratón/tablet: el clic en cualquier punto de la fila sigue siendo un atajo.
+    tbodyParos.addEventListener('click', function(e) {
+        const fila = e.target.closest('tr.row-paro');
+        if (!fila) return;
+        seleccionarFila(fila);
+    });
 
     async function obtenerDepartamentosCatalogo() {
         try {
@@ -206,6 +302,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (show) visible++;
         });
 
+        // Si el filtro ocultó la fila seleccionada, la selección deja de ser válida.
+        const radioMarcado = tbodyParos.querySelector('input[name="paro-seleccionado"]:checked');
+        const filaMarcada = radioMarcado ? radioMarcado.closest('tr.row-paro') : null;
+        if (filaMarcada && filaMarcada.style.display === 'none') {
+            limpiarSeleccion();
+        }
+
         const anyFilter = depto || status || maquina || mostrarSoloMisSolicitudes;
         if (noResults) {
             noResults.style.display = anyFilter && visible === 0 ? '' : 'none';
@@ -242,6 +345,10 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {object} opts Opciones; si opts.forzarStatusActivo es true y hay terminados cargados, preselecciona Status Activo.
      */
     async function cargarParos(apiModo = 'default', valorDeptoCombo, opts = {}) {
+        // El tbody se reconstruye por completo: cualquier selección anterior queda obsoleta.
+        limpiarSeleccion();
+        const cargaId = ++cargaEnCursoId;
+        mostrarCargandoTabla();
         try {
             const prevStatus = (document.getElementById('filter-status')?.value || '').trim();
             let catalogDeptos = catalogDeptosCache.length ? catalogDeptosCache : await obtenerDepartamentosCatalogo();
@@ -264,6 +371,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch(url);
             const result = await response.json();
 
+            // Respuesta rezagada: ya se lanzó una carga más nueva, no pisamos su tabla.
+            if (cargaId !== cargaEnCursoId) return;
+
             if (result.success && Array.isArray(result.data)) {
                 allParos = result.data || [];
                 tbodyParos.innerHTML = '';
@@ -271,7 +381,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (allParos.length === 0) {
                     tbodyParos.innerHTML = `
                         <tr>
-                            <td colspan="9" class="border border-gray-300 px-2 py-2 text-center text-gray-500">
+                            <td colspan="10" class="border border-gray-300 px-2 py-2 text-center text-gray-700">
                                 No hay paros/fallas
                             </td>
                         </tr>
@@ -324,8 +434,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         ? `<span class="${badgeActivo} bg-blue-100 text-blue-800">${escHtml(est || '—')}</span>`
                         : `<span class="${badgeActivo} bg-gray-100 text-gray-800">${escHtml(est || '—')}</span>`;
 
+                    const folioTxt = escHtml(paro.Folio);
+                    const idTxt = escHtml(paro.Id);
+                    const etiquetaRadio = folioTxt ? `Seleccionar paro folio ${folioTxt}` : 'Seleccionar paro';
+
                     row.innerHTML = `
-                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(paro.Folio)}</td>
+                        <td class="px-2 py-2 text-center">
+                            <input type="radio" name="paro-seleccionado" value="${idTxt}"
+                                   aria-label="${etiquetaRadio}"
+                                   class="h-5 w-5 align-middle cursor-pointer accent-blue-700">
+                        </td>
+                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${folioTxt}</td>
                         <td class="px-2 py-2 text-lg text-center">${badgeEstatus}</td>
                         <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(fecha)}</td>
                         <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(paro.Hora)}</td>
@@ -336,31 +455,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(paro.NomEmpl)}</td>
                     `;
 
-                    row.addEventListener('click', function() {
-                        document.querySelectorAll('#tbody-paros tr.row-paro').forEach(r => {
-                            r.classList.remove('bg-blue-500');
-                            r.classList.add('hover:bg-gray-100');
-                            r.querySelectorAll('td').forEach(td => {
-                                td.classList.remove('text-white');
-                                td.classList.add('text-gray-900');
-                            });
-                        });
-                        this.classList.remove('hover:bg-gray-100');
-                        this.classList.add('bg-blue-500');
-                        this.querySelectorAll('td').forEach(td => {
-                            td.classList.remove('text-gray-900');
-                            td.classList.add('text-white');
-                        });
-                        window.paroSeleccionadoId = this.dataset.paroId || '';
-                    });
-
                     tbodyParos.appendChild(row);
                 });
 
                 const noRow = document.createElement('tr');
                 noRow.id = 'filter-no-results';
                 noRow.style.display = 'none';
-                noRow.innerHTML = '<td colspan="9" class="border border-gray-300 px-2 py-2 text-center text-gray-500">No hay paros con el filtro aplicado</td>';
+                noRow.innerHTML = '<td colspan="10" class="border border-gray-300 px-2 py-2 text-center text-gray-700">No hay paros con el filtro aplicado</td>';
                 tbodyParos.appendChild(noRow);
 
                 ultimoModoCarga = apiModo;
@@ -369,21 +470,26 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 tbodyParos.innerHTML = `
                     <tr>
-                        <td colspan="9" class="border border-gray-300 px-2 py-2 text-center text-red-500">
-                            Error al cargar los datos: ${result.error || 'Error desconocido'}
+                        <td colspan="10" class="border border-gray-300 px-2 py-2 text-center text-red-700">
+                            Error al cargar los datos: ${escHtml(result.error) || 'Error desconocido'}
                         </td>
                     </tr>
                 `;
             }
         } catch (error) {
             console.error('Error al cargar paros:', error);
+            if (cargaId !== cargaEnCursoId) return;
             tbodyParos.innerHTML = `
                 <tr>
-                    <td colspan="9" class="border border-gray-300 px-2 py-2 text-center text-red-500">
+                    <td colspan="10" class="border border-gray-300 px-2 py-2 text-center text-red-700">
                         Error de conexión. Por favor, recarga la página.
                     </td>
                 </tr>
             `;
+        } finally {
+            if (cargaId === cargaEnCursoId) {
+                tbodyParos.setAttribute('aria-busy', 'false');
+            }
         }
     }
 
@@ -393,15 +499,23 @@ document.addEventListener('DOMContentLoaded', function() {
     cargarParos();
 
     const modalFilters = document.getElementById('modal-filters');
+    /** <dialog> nativo: el navegador mueve el foco al diálogo, lo atrapa, cierra con Escape
+     *  y lo devuelve al botón que abrió. El respaldo es para navegadores sin showModal(). */
     function openFiltersModal() {
-        if (!modalFilters) return;
-        modalFilters.classList.remove('hidden');
-        modalFilters.classList.add('flex');
+        if (!modalFilters || modalFilters.open) return;
+        if (typeof modalFilters.showModal === 'function') {
+            modalFilters.showModal();
+        } else {
+            modalFilters.setAttribute('open', '');
+        }
     }
     function closeFiltersModal() {
         if (!modalFilters) return;
-        modalFilters.classList.add('hidden');
-        modalFilters.classList.remove('flex');
+        if (typeof modalFilters.close === 'function') {
+            modalFilters.close();
+        } else {
+            modalFilters.removeAttribute('open');
+        }
     }
 
     document.getElementById('btn-open-filters')?.addEventListener('click', openFiltersModal);
@@ -471,21 +585,31 @@ document.addEventListener('DOMContentLoaded', function() {
     if (btnTerminar) {
         btnTerminar.addEventListener('click', function(e) {
             e.preventDefault();
-            if (window.paroSeleccionadoId) {
-                // Guardar ID en localStorage para que la vista de finalizar lo recupere
-                localStorage.setItem('selectedParoId', window.paroSeleccionadoId);
-                window.location.href = '{{ route('mantenimiento.finalizar-paro') }}';
-            } else {
+            // Solo vale la selección que sigue visible en la tabla actual (tras recargar o refiltrar).
+            const fila = obtenerFilaSeleccionadaVisible();
+
+            const avisar = (titulo, texto) => {
                 if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Seleccione un paro',
-                        text: 'Por favor, seleccione un paro de la tabla para finalizar.'
-                    });
+                    Swal.fire({ icon: 'warning', title: titulo, text: texto });
                 } else {
-                    alert('Por favor, seleccione un paro de la tabla para finalizar.');
+                    alert(titulo + '. ' + texto);
                 }
+            };
+
+            if (!fila) {
+                avisar('Seleccione un paro', 'Por favor, seleccione un paro de la tabla para finalizar.');
+                return;
             }
+
+            // Un paro ya cerrado no se puede volver a cerrar: el servidor lo rechaza con 422.
+            // Se avisa aquí para no hacer que el operador llene todo el formulario en balde.
+            if ((fila.dataset.status || '').trim().toLowerCase() !== 'activo') {
+                avisar('Este paro ya fue finalizado', 'Solo se pueden cerrar los paros con estatus Activo.');
+                return;
+            }
+
+            // El id va en la URL: sobrevive a recargas de la pantalla de cierre.
+            window.location.href = '{{ route('mantenimiento.finalizar-paro') }}?id=' + encodeURIComponent(fila.dataset.paroId || '');
         });
     }
 });

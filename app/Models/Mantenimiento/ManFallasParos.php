@@ -7,10 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 class ManFallasParos extends Model
 {
     protected $connection = 'sqlsrv';
+
     protected $table = 'dbo.ManFallasParos';
 
     protected $primaryKey = 'Id';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
 
     public $timestamps = false;
@@ -54,5 +57,22 @@ class ManFallasParos extends Model
     {
         return $this->belongsTo(CatTipoFalla::class, 'TipoFallaId', 'TipoFallaId');
     }
-}
 
+    /**
+     * ¿Ya hay un paro Activo en esta máquina con este tipo de falla?
+     *
+     * Única definición de la regla: la usan tanto el alta manual de Mantenimiento
+     * como el paro automático de Crudo.
+     *
+     * Comparación directa (SARGable) para que SQL Server pueda usar índices: la
+     * colación es case-insensitive y en NVARCHAR ignora espacios finales.
+     */
+    public static function hayActivoEnMaquina(?string $maquinaId, ?string $tipoFallaId): bool
+    {
+        return static::query()
+            ->where('Estatus', 'Activo')
+            ->where('MaquinaId', trim((string) $maquinaId))
+            ->where('TipoFallaId', trim((string) $tipoFallaId))
+            ->exists();
+    }
+}

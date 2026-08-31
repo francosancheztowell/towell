@@ -37,7 +37,7 @@ Route::get('/api/mantenimiento/departamentos/catalogo-filtros', [MantenimientoPa
     ->name('api.mantenimiento.departamentos.catalogo-filtros');
 Route::get('/api/mantenimiento/maquinas/{departamento}', [MantenimientoParosController::class, 'maquinas'])
     ->name('api.mantenimiento.maquinas');
-Route::get('/api/mantenimiento/tipos-falla', [MantenimientoParosController::class, 'tiposFalla'])
+Route::get('/api/mantenimiento/tipos-falla/{departamento}', [MantenimientoParosController::class, 'tiposFalla'])
     ->name('api.mantenimiento.tipos-falla');
 Route::get('/api/mantenimiento/fallas/{departamento}/{tipoFallaId?}', [MantenimientoParosController::class, 'fallas'])
     ->name('api.mantenimiento.fallas');
@@ -49,8 +49,6 @@ Route::post('/api/mantenimiento/paros', [MantenimientoParosController::class, 's
     ->name('api.mantenimiento.paros.store');
 Route::get('/api/mantenimiento/paros', [MantenimientoParosController::class, 'index'])
     ->name('api.mantenimiento.paros.index');
-Route::get('/api/mantenimiento/paros/validar-duplicado', [MantenimientoParosController::class, 'validarDuplicadoParo'])
-    ->name('api.mantenimiento.paros.validar-duplicado');
 Route::get('/api/mantenimiento/paros/{id}', [MantenimientoParosController::class, 'show'])
     ->name('api.mantenimiento.paros.show');
 Route::put('/api/mantenimiento/paros/{id}/finalizar', [MantenimientoParosController::class, 'finalizar'])
