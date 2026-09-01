@@ -70,6 +70,7 @@ class ObserverRecalculoFelpaTest extends TestCase
             $table->float('NoMarbete')->nullable();
             $table->date('FechaModificacion')->nullable();
             $table->time('HoraModificacion')->nullable();
+            $table->string('UsuarioModifica')->nullable();
         });
     }
 
@@ -78,7 +79,7 @@ class ObserverRecalculoFelpaTest extends TestCase
         $id = DB::connection('sqlsrv')->table('ReqProgramaTejido')->insertGetId($atributos);
         /** @var ReqProgramaTejido $programa */
         $programa = ReqProgramaTejido::on('sqlsrv')->findOrFail($id);
-        (new ReqProgramaTejidoObserver())->recalcularFormulasProduccion($programa);
+        (new ReqProgramaTejidoObserver)->recalcularFormulasProduccion($programa);
 
         return $programa->fresh();
     }

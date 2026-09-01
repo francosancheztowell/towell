@@ -1426,10 +1426,15 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 		// Verificar en qué salones existe la clave modelo
 		const checks = await Promise.all(candidatos.map(salon => existeClaveEnSalon(salon, claveNorm)));
 
-		const salonesMatch = candidatos.filter((salon, idx) => checks[idx]);
+		let salonesMatch = candidatos.filter((salon, idx) => checks[idx]);
 
 		if (salonesMatch.length === 0) {
-			return;
+			// ponytail: red de seguridad para catalogos de codificados incompletos (hoy Karl Mayer,
+			// que solo tiene FELPA6808 mientras el programa usa MB7217/MB7304). Sin esto se salia
+			// con return y el select de telar destino quedaba vacio: duplicar no ofrecia destino y
+			// no explicaba por que. Ofrecer los telares del salon es peor que filtrar bien, pero
+			// mucho mejor que una lista vacia. Se puede quitar cuando los codificados esten completos.
+			salonesMatch = candidatos;
 		}
 
 		// Si solo hay un salón, preseleccionarlo

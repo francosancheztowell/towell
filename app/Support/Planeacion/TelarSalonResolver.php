@@ -91,6 +91,15 @@ final class TelarSalonResolver
         };
     }
 
+    /**
+     * Karl Mayer por salon capturado o, si viene vacio, por numero de telar (401-402).
+     * Es el salon con reglas propias de marbetaje: no aplica felpa y las tiras se capturan.
+     */
+    public static function esKarlMayer(?string $salon, ?string $telar = null): bool
+    {
+        return self::normalizeSalon($salon, $telar) === 'KARL MAYER';
+    }
+
     /** Salones canonicos conocidos; dar de alta uno nuevo empieza aqui y en normalizeSalon(). */
     public static function salonesCanonicos(): array
     {

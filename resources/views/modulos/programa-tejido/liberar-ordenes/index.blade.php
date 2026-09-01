@@ -153,8 +153,14 @@
             // TwArticulosFelpas el renglón decide: el check sale marcado y desmarcarlo guarda 0.
             if ($field === 'FlogsId') {
                 $rowId = htmlspecialchars((string) ($registro->Id ?? ''), ENT_QUOTES, 'UTF-8');
-                $valorEsc = htmlspecialchars(trim((string) ($registro->FlogsId ?? '')), ENT_QUOTES, 'UTF-8');
                 $decide = !empty($registro->RequiereDecisionFlog);
+                // El flog sugerido de AX ya viene resuelto del controlador (una sola consulta
+                // para todo el lote): el front ya no lo pide por renglón al cargar.
+                $valorFlog = trim((string) ($registro->FlogsId ?? ''));
+                if ($valorFlog === '' && $decide) {
+                    $valorFlog = trim((string) ($registro->FlogSugerido ?? ''));
+                }
+                $valorEsc = htmlspecialchars($valorFlog, ENT_QUOTES, 'UTF-8');
 
                 $check = !$decide ? '' :
                     '<div class="flex items-center gap-1 mb-1 whitespace-nowrap">
@@ -234,6 +240,23 @@
                               value="' . htmlspecialchars($valueFormatted, ENT_QUOTES, 'UTF-8') . '"
                               data-field="' . htmlspecialchars($field, ENT_QUOTES, 'UTF-8') . '"
                               data-row-id="' . htmlspecialchars($rowId, ENT_QUOTES, 'UTF-8') . '">';
+            }
+
+            // Tiras: solo en Karl Mayer se capturan a mano; en el resto vienen del artículo.
+            if ($field === 'NoTiras' && \App\Support\Planeacion\TelarSalonResolver::esKarlMayer($registro->SalonTejidoId ?? null, $registro->NoTelarId ?? null)) {
+                $rowId = htmlspecialchars((string) ($registro->Id ?? uniqid('row_')), ENT_QUOTES, 'UTF-8');
+                $value = $registro->NoTiras ?? null;
+                $valueFormatted = is_numeric($value) ? (string) (int) $value : '';
+
+                return '<input type="number"
+                              step="1"
+                              min="1"
+                              class="editable-field no-tiras-input w-full px-2 py-1 text-sm border border-purple-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              value="' . htmlspecialchars($valueFormatted, ENT_QUOTES, 'UTF-8') . '"
+                              data-field="NoTiras"
+                              data-row-id="' . $rowId . '"
+                              data-original-value="' . htmlspecialchars($valueFormatted, ENT_QUOTES, 'UTF-8') . '"
+                              title="Karl Mayer: las tiras se capturan a mano y recalculan repeticiones, marbetes y rollos.">';
             }
 
             $camposNumericosSoloLectura = ['MtsRollo', 'PzasRollo', 'TotalPzas', 'Repeticiones', 'SaldoMarbete', 'NoTiras', 'Densidad'];
@@ -463,10 +486,18 @@
                             @php
                                 $__tcFel = (string) ($registro->TamanoClave ?? '');
                                 $__nomFel = (string) ($registro->NombreProducto ?? '');
-                                $__esFelpa = ($__tcFel !== '' && stripos($__tcFel, 'FELPA') !== false)
-                                    || ($__nomFel !== '' && stripos($__nomFel, 'FELPA') !== false);
+                                // Karl Mayer tiene reglas propias: no aplica felpa y el renglón se pinta morado.
+                                $__esKm = \App\Support\Planeacion\TelarSalonResolver::esKarlMayer(
+                                    $registro->SalonTejidoId ?? null,
+                                    $registro->NoTelarId ?? null
+                                );
+                                $__esFelpa = ! $__esKm && (
+                                    ($__tcFel !== '' && stripos($__tcFel, 'FELPA') !== false)
+                                    || ($__nomFel !== '' && stripos($__nomFel, 'FELPA') !== false)
+                                );
                             @endphp
-                            <tr class="transition-colors row-data cursor-pointer {{ $loop->even ? 'bg-gray-100 row-even' : 'bg-white row-odd' }}"
+                            <tr class="transition-colors row-data cursor-pointer {{ $__esKm ? 'row-km' : '' }} {{ $loop->even ? 'bg-gray-100 row-even' : 'bg-white row-odd' }}"
+                                data-es-km="{{ $__esKm ? '1' : '0' }}"
                                 data-id="{{ $registro->Id ?? '' }}"
                                 data-decision-flog="{{ !empty($registro->RequiereDecisionFlog) ? '1' : '0' }}"
                                 data-item-id="{{ $registro->ItemId ?? '' }}"
@@ -578,7 +609,7 @@ document.addEventListener('DOMContentLoaded', function() {
     cargarOpcionesFlog();
     setupFlogValidacion();
 
-    // Catálogo de flogs: check "Asignar flogs" marcado que precarga el flog vigente de AX
+    // Catálogo de flogs: check "Asignar flogs" marcado; el flog ya viene renderizado
     setupFlogDecision();
 
     // Marcar fila como referencia al hacer clic en la fila (no en casilla ni inputs)
@@ -643,19 +674,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 // No guardar automáticamente
             });
         }
+        // Karl Mayer: las tiras se capturan y arrastran repeticiones, marbetes y rollos.
+        // Se escriben de vuelta al dataset porque de ahí las leen el recálculo y el POST de liberar.
+        if (fieldName === 'NoTiras') {
+            const recalcularPorTiras = function (input) {
+                normalizarNumeroNoNegativo(input);
+                const row = input.closest('.row-data');
+                if (!row) return;
+                row.dataset.noTiras = String(input.value || '').trim();
+                const peso = row.querySelector('.peso-rollo-input');
+                if (peso) recalcularPorPesoRollo(peso);
+            };
+            field.addEventListener('keydown', bloquearNegativoEnNumero);
+            field.addEventListener('input', function () { recalcularPorTiras(this); });
+            field.addEventListener('blur', function () { recalcularPorTiras(this); });
+        }
+
         // Los demás campos no tienen cálculos automáticos ni guardado automático
     });
 
     // Felpa: peso rodillo forzado a 90 kg como sugerencia y recálculo derivado al cargar.
     // Para el resto, NO recalcular al cargar (preservar lo que el usuario haya guardado previamente,
     // ya que el PesoRollo del usuario no se persiste — sería sobreescribir con el maestro).
-    document.querySelectorAll('tr.row-data[data-es-felpa="1"] .peso-rollo-input').forEach(inp => recalcularPorPesoRollo(inp));
+    // Karl Mayer entra por el mismo camino: peso estándar 27.5 como sugerencia inicial.
+    document.querySelectorAll('tr.row-data[data-es-felpa="1"] .peso-rollo-input, tr.row-data[data-es-km="1"] .peso-rollo-input')
+        .forEach(inp => recalcularPorPesoRollo(inp));
 
     // Rellenar automáticamente el campo Hilo AX al cargar
     autoFillAllHiloAX();
 
-    // Rellenar automáticamente los campos L.Mat y Nombre L.Mat al cargar
-    autoFillAllBomFields();
+    // L.Mat y Nombre L.Mat ya vienen resueltos del controlador (con el salón del renglón).
 
     // Rellenar automáticamente el campo Codigo Dibujo al cargar
     autoFillAllCodigoDibujo();
@@ -741,10 +789,10 @@ function setupFlogValidacion() {
     });
 }
 
-async function setupFlogDecision() {
-    const filas = document.querySelectorAll('tr.row-data[data-decision-flog="1"]');
-
-    filas.forEach(row => {
+function setupFlogDecision() {
+    // El flog sugerido llega ya renderizado desde el controlador. Este endpoint sólo se usa
+    // si el usuario desmarca y vuelve a marcar el check dejando la celda vacía.
+    document.querySelectorAll('tr.row-data[data-decision-flog="1"]').forEach(row => {
         const check = row.querySelector('.flog-check');
         if (!check) return;
 
@@ -754,13 +802,6 @@ async function setupFlogDecision() {
             row.querySelector('.flog-input')?.focus();
         });
     });
-
-    // El check nace marcado, así que el evento 'change' no dispara solo: se precarga aquí.
-    // En serie, no en paralelo, para no lanzar una ráfaga de consultas a AX.
-    for (const row of filas) {
-        if ((row.querySelector('.flog-input')?.value || '').trim() !== '') continue;
-        await traerFlogSugerido(row);
-    }
 }
 
 function autoFillAllHiloAX() {
@@ -841,70 +882,11 @@ function actualizarHiloAXSelect(row, valorHiloAX) {
     }
 }
 
-function autoFillAllBomFields() {
-    const rows = document.querySelectorAll('.row-data');
-
-    const combinations = [];
-    const cellsByKey = new Map();
-
-    rows.forEach((row) => {
-        const itemIdCell = row.querySelector('[data-column="ItemId"]');
-        const inventSizeIdCell = row.querySelector('[data-column="InventSizeId"]');
-        const bomIdInput = row.querySelector('.bom-id-input');
-        const bomNameInput = row.querySelector('.bom-name-input');
-
-        if (!itemIdCell || !inventSizeIdCell || !bomIdInput || !bomNameInput) return;
-
-        const itemId = (itemIdCell.textContent || '').trim();
-        const inventSizeId = (inventSizeIdCell.textContent || '').trim();
-        const currentBomId = (bomIdInput.value || '').trim();
-
-        // No autocompletar si el usuario ya editó el campo manualmente
-        const userEdited = bomIdInput.dataset.userEdited === 'true' || bomNameInput.dataset.userEdited === 'true';
-
-        if (!currentBomId && itemId && inventSizeId && !userEdited) {
-            const cacheKey = `${itemId}|${inventSizeId}`;
-
-            if (!cellsByKey.has(cacheKey)) {
-                cellsByKey.set(cacheKey, []);
-                combinations.push([itemId, inventSizeId].join('::'));
-            }
-            cellsByKey.get(cacheKey).push({ bomIdInput, bomNameInput });
-        }
-    });
-
-    if (combinations.length === 0) {
-        return;
-    }
-
-    // UNA SOLA petición con todas las combinaciones
-    const url = `${bomAutocompleteUrl}?combinations=${encodeURIComponent(combinations.join(','))}`;
-
-    fetch(url, { headers: { 'Accept': 'application/json' } })
-        .then(res => res.json())
-        .then(payload => {
-            if (!payload || !payload.success || !payload.data) {
-                return;
-            }
-
-            const data = payload.data || {};
-
-            Object.keys(data).forEach(cacheKey => {
-                const options = data[cacheKey] || [];
-
-                if (options.length === 1) {
-                    const option = options[0];
-                    const cells = cellsByKey.get(cacheKey) || [];
-
-                    cells.forEach(({ bomIdInput, bomNameInput }) => {
-                        bomIdInput.value = option.bomId || '';
-                        bomNameInput.value = option.bomName || '';
-                    });
-                }
-            });
-        })
-        .catch(() => {});
-}
+// La L.Mat autoasignable ya viene resuelta del controlador (índice del lote, filtrando por
+// item + talla + SALÓN y descartando las estándar). El autofill que había aquí volvía a
+// preguntar por item + talla SIN el salón, así que a un renglón de Karl Mayer le metía la
+// única L.Mat vigente del artículo aunque fuera de SMIT — y liberar() la rechazaba después.
+// Si el controlador la dejó vacía es porque no hay una sola candidata para ESE salón.
 
 function autoFillAllCodigoDibujo() {
     const rows = document.querySelectorAll('.row-data');
@@ -2339,6 +2321,8 @@ function esFilaInventSizeFel(row) {
 /** FEL en AX o Felpa (tamano/nombre FELPA): marbetes ×2, mts y pzas por rollo ÷2. */
 function esFilaAjusteFelRollo(row) {
     if (!row) return false;
+    // Karl Mayer no se rige por felpa (mismo criterio que el servidor).
+    if (row.dataset.esKm === '1') return false;
     if (row.dataset.esFelpa === '1') return true;
     return esFilaInventSizeFel(row);
 }
@@ -2360,10 +2344,12 @@ function recalcularPorPesoRollo(pesoInput) {
     if (!row) return;
 
     const esFelpa = row.dataset.esFelpa === '1';
-    // Felpa: sugerir 90 kg SOLO si el input viene vacío (carga inicial sin valor capturado).
-    // Si el usuario tipea otro valor, se respeta para CUALQUIER tamaño.
-    if (esFelpa && (pesoInput.value === '' || pesoInput.value === null || parseNumeroGrid(pesoInput.value) <= 0)) {
-        pesoInput.value = '90';
+    const esKm = row.dataset.esKm === '1';
+    // Peso estándar del salón/tamaño: se sugiere SOLO si el input viene vacío (carga inicial sin
+    // valor capturado). Si el usuario tipea otro valor, se respeta siempre, KM incluido.
+    const pesoSugerido = esKm ? '{{ \App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController::PESO_ROLLO_KG_KARL_MAYER }}' : (esFelpa ? '90' : null);
+    if (pesoSugerido !== null && (pesoInput.value === '' || pesoInput.value === null || parseNumeroGrid(pesoInput.value) <= 0)) {
+        pesoInput.value = pesoSugerido;
     }
 
     const pesoRollo = parseNumeroGrid(pesoInput.value);
@@ -2372,7 +2358,7 @@ function recalcularPorPesoRollo(pesoInput) {
     const largoCrudo = parseNumeroGrid(row.dataset.largoCrudo);
     const basePedido = leerBasePedido(row);
 
-    if ((!esFelpa && pesoRollo <= 0) || pesoCrudo <= 0 || noTiras <= 0) {
+    if ((!esFelpa && !esKm && pesoRollo <= 0) || pesoCrudo <= 0 || noTiras <= 0) {
         actualizarSpanNumerico(row, 'Repeticiones', null);
         actualizarSpanNumerico(row, 'SaldoMarbete', null);
         actualizarSpanNumerico(row, 'MtsRollo', null, 2);
@@ -2382,25 +2368,20 @@ function recalcularPorPesoRollo(pesoInput) {
     }
 
     const repeticiones = Math.trunc(((pesoRollo / pesoCrudo) / noTiras) * 1000);
-    let saldoMarbete =
-        noTiras > 0 && repeticiones > 0
-            ? Math.round((basePedido / noTiras) / repeticiones)
-            : 0;
     let mtsRollo = largoCrudo > 0 && repeticiones > 0
         ? (largoCrudo * repeticiones) / 100
         : null;
     let pzasRollo = repeticiones > 0 ? Math.round(repeticiones * noTiras) : null;
 
     if (esFilaAjusteFelRollo(row)) {
-        saldoMarbete = Math.round(saldoMarbete * 2);
         if (mtsRollo !== null && Number.isFinite(mtsRollo)) mtsRollo = mtsRollo / 2;
         if (pzasRollo !== null && Number.isFinite(pzasRollo)) pzasRollo = Math.round(pzasRollo / 2);
     }
 
     actualizarSpanNumerico(row, 'Repeticiones', repeticiones, 0, true);
-    actualizarSpanNumerico(row, 'SaldoMarbete', saldoMarbete, 0, true);
     actualizarSpanNumerico(row, 'MtsRollo', mtsRollo, 2);
     actualizarSpanNumerico(row, 'PzasRollo', pzasRollo);
+    // No. marbetes = TotalRollos (pendientes; al liberar no hay producidos): lo fija calcularTotalPzas.
     actualizarTotalRollosYTotalPzas(row, pzasRollo);
 }
 
@@ -2458,6 +2439,9 @@ function calcularTotalPzas(changedInput) {
 
     const totalRollos = parseFloat(totalRollosInput.value) || 0;
 
+    // No. marbetes = TotalRollos − producidos; antes de liberar producidos = 0 (mismo que el servidor).
+    actualizarSpanNumerico(row, 'SaldoMarbete', totalRollos > 0 ? Math.ceil(totalRollos) : null, 0, true);
+
     // Calcular TotalPzas = TotalRollos * PzasRollo
     const totalPzas = totalRollos * pzasRollo;
 
@@ -2488,6 +2472,39 @@ function calcularTotalPzas(changedInput) {
     background: none;
     width: 100%;
     cursor: pointer;
+}
+
+/* Karl Mayer: se pinta morado para que se vea de golpe que no sigue las mismas reglas
+   (no aplica felpa y las tiras se capturan). Va antes de .row-selected para que la
+   selección azul siga ganando. */
+tr.row-data.row-km,
+tr.row-data.row-km.row-odd,
+tr.row-data.row-km.row-even {
+    background-color: #f3e8ff !important;  /* purple-100 */
+}
+tr.row-data.row-km td {
+    border-color: #e9d5ff;
+}
+tr.row-data.row-km td[data-column="Maquina"],
+tr.row-data.row-km td[data-column="NoTiras"] {
+    font-weight: 600;
+    color: #6b21a8;                        /* purple-800 */
+}
+/* Más específico que el hover genérico de abajo, que va después en la hoja. */
+tbody tr.row-data.row-km:not(.row-selected):hover,
+tbody tr.row-data.row-km.row-odd:not(.row-selected):hover,
+tbody tr.row-data.row-km.row-even:not(.row-selected):hover {
+    background-color: #d8b4fe !important;  /* purple-300 */
+}
+
+/* Seleccionada en KM: morado oscuro en vez del azul, para no perder de vista que es Karl Mayer.
+   El `tbody` está solo para ganarle en especificidad al bloque .row-selected de abajo. */
+tbody tr.row-data.row-km.row-selected {
+    background-color: #7e22ce !important;  /* purple-700 */
+}
+tbody tr.row-data.row-km.row-selected .hilo-ax-select option,
+tbody tr.row-data.row-km.row-selected .cambio-repaso-select option {
+    background: #581c87 !important;        /* purple-900 */
 }
 
 /* Filas alternas: gris / blanco; seleccionada: blue-500 y texto blanco (solo visual) */

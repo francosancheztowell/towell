@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\UpdateTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
+use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -138,6 +139,7 @@ class ProgramaTejidoUpdateTest extends TestCase
 
         DB::connection('sqlsrv')->table('CatCodificados')->insert([
             'OrdenTejido' => '99010',
+            'TelarId' => '201', // el observer acota por OrdenTejido + TelarId
         ]);
 
         $responseAumento = UpdateTejido::actualizar(
@@ -171,8 +173,8 @@ class ProgramaTejidoUpdateTest extends TestCase
             'TotalPedido' => 1000,
         ]);
 
-        $inicio = \Carbon\Carbon::parse($registro->FechaInicio);
-        $fin = \Carbon\Carbon::parse($registro->FechaFinal);
+        $inicio = Carbon::parse($registro->FechaInicio);
+        $fin = Carbon::parse($registro->FechaFinal);
         $horas = $inicio->diffInHours($fin);
 
         $this->assertEquals(96, $horas);
