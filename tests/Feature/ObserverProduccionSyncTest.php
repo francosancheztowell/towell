@@ -227,11 +227,10 @@ class ObserverProduccionSyncTest extends TestCase
     }
 
     /**
-     * NoMarbete = marbetes pendientes = TotalRollos − CatCodificados.ProduccionMarbetes.
-     * Se usa el ProduccionMarbetes del CATÁLOGO (marbetes), no el de ReqProgramaTejido (piezas).
-     * SaldoMarbete/NoMarbete en ReqProgramaTejido copian el mismo valor.
+     * SaldoMarbete / NoMarbete los mantiene el proceso externo (TotalRollos − ProduccionMarbetes).
+     * El observer (y el cron que pasa por él cada 30 min) NO debe tocarlos: los pisaba con el total.
      */
-    public function test_no_marbete_resta_produccion_marbetes_del_catalogo(): void
+    public function test_observer_no_toca_saldo_marbete_ni_no_marbete(): void
     {
         DB::connection('sqlsrv')->table('ReqPesosRollosTejido')->insert([
             'InventSizeId' => 'STD', 'PesoRollo' => 50.0, 'FechaModificacion' => '2026-01-01',
@@ -244,11 +243,13 @@ class ObserverProduccionSyncTest extends TestCase
             'PesoCrudo' => 614,
             'NoTiras' => 2,
             'LargoCrudo' => 102,
-            'ProduccionMarbetes' => 7450,   // piezas: NO debe usarse
+            'SaldoMarbete' => 1,           // pendiente que dejó el proceso externo
+            'NoMarbete' => 1,
         ]);
         DB::connection('sqlsrv')->table('CatCodificados')->insert([
             'OrdenTejido' => '99004',
-            'ProduccionMarbetes' => 60,     // marbetes ya impresos
+            'ProduccionMarbetes' => 60,
+            'NoMarbete' => 1,
         ]);
 
         /** @var ReqProgramaTejido $programa */
@@ -257,15 +258,14 @@ class ObserverProduccionSyncTest extends TestCase
         $programa->save();
 
         $programa->refresh();
-        // TotalRollos = ceil(8000/80) = 100 ; NoMarbete = 100 − 60 = 40.
-        $this->assertSame(100.0, (float) $programa->TotalRollos);
-        $this->assertSame(40.0, (float) $programa->NoMarbete);
-        $this->assertSame(40.0, (float) $programa->SaldoMarbete);
+        $this->assertSame(100.0, (float) $programa->TotalRollos); // ceil(8000/80): esto sí se recalcula
+        $this->assertSame(1.0, (float) $programa->NoMarbete);
+        $this->assertSame(1.0, (float) $programa->SaldoMarbete);
 
         $cat = DB::connection('sqlsrv')->table('CatCodificados')->where('OrdenTejido', '99004')->first();
         $this->assertSame(100.0, (float) $cat->TotalRollos);
-        $this->assertSame(40.0, (float) $cat->NoMarbete);
-        $this->assertSame(60.0, (float) $cat->ProduccionMarbetes, 'El observer no debe pisar ProduccionMarbetes del catálogo');
+        $this->assertSame(1.0, (float) $cat->NoMarbete);
+        $this->assertSame(60.0, (float) $cat->ProduccionMarbetes);
     }
 
     /**
@@ -303,17 +303,17 @@ class ObserverProduccionSyncTest extends TestCase
 
         $jac = ReqProgramaTejido::on('sqlsrv')->findOrFail($idJac);
         // Peso 90 (felpa) → TRUNC((90/614)/2×1000) = 73 ; PzasRollo 73×2 = 146, ÷2 = 73
-        // NoMarbete = ceil((6106/2)/73) = 42, ×2 = 84
+        // TotalRollos = ceil(6106/73) = 84
         $this->assertSame(73, (int) $jac->Repeticiones);
         $this->assertSame(73.0, (float) $jac->PzasRollo);
-        $this->assertSame(84.0, (float) $jac->NoMarbete);
+        $this->assertSame(84.0, (float) $jac->TotalRollos);
 
         $km = ReqProgramaTejido::on('sqlsrv')->findOrFail($idKm);
         // Peso estándar KM 27.5 → TRUNC((27.5/614)/2×1000) = 22 ; PzasRollo 22×2 = 44, sin ÷2
-        // NoMarbete = ceil((6106/2)/22) = 139, sin ×2
+        // TotalRollos = ceil(6106/44) = 139
         $this->assertSame(22, (int) $km->Repeticiones);
         $this->assertSame(44.0, (float) $km->PzasRollo);
-        $this->assertSame(139.0, (float) $km->NoMarbete);
+        $this->assertSame(139.0, (float) $km->TotalRollos);
     }
 
     /**

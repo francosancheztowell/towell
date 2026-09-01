@@ -9,6 +9,7 @@ use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
@@ -150,7 +151,7 @@ class BalancearTejidoTest extends TestCase
 
     private function callBalanceoAuto(int $ordCompartida, string $fechaFinObjetivo): array
     {
-        $request = \Illuminate\Http\Request::create('/test', 'POST', [
+        $request = Request::create('/test', 'POST', [
             'ord_compartida' => $ordCompartida,
             'fecha_fin_objetivo' => $fechaFinObjetivo,
         ]);
@@ -161,7 +162,7 @@ class BalancearTejidoTest extends TestCase
 
     private function callActualizarPedidos(int $ordCompartida, array $cambios): array
     {
-        $request = \Illuminate\Http\Request::create('/test', 'POST', [
+        $request = Request::create('/test', 'POST', [
             'ord_compartida' => $ordCompartida,
             'cambios' => $cambios,
         ]);
@@ -405,7 +406,7 @@ class BalancearTejidoTest extends TestCase
 
         // Sentinela vía query builder (sin eventos): si el balanceo recalculara marbetes
         // del líder (cuyo pedido no cambia), este valor sería sobrescrito.
-        \Illuminate\Support\Facades\DB::connection('sqlsrv')->table('ReqProgramaTejido')
+        DB::connection('sqlsrv')->table('ReqProgramaTejido')
             ->where('Id', $liderOriginal->Id)
             ->update(['SaldoMarbete' => 999]);
 
@@ -429,12 +430,12 @@ class BalancearTejidoTest extends TestCase
 
         // Marbetes recalculados tras balanceo (saves con observers apagados):
         // pesoRollo fallback 41.5 (sin tabla ReqPesosRollosTejido) → Repeticiones = TRUNC((41.5/500)/4*1000) = 20,
-        // PzasRollo = 80, TotalRollos = ceil(4200/80) = 53 = SaldoMarbete = NoMarbete.
+        // PzasRollo = 80, TotalRollos = ceil(4200/80) = 53. SaldoMarbete/NoMarbete no se tocan.
         $noLiderFresh = $noLider->fresh();
         $this->assertSame(20, (int) $noLiderFresh->Repeticiones);
         $this->assertSame(53.0, (float) $noLiderFresh->TotalRollos);
-        $this->assertSame(53.0, (float) $noLiderFresh->SaldoMarbete);
-        $this->assertSame(53.0, (float) $noLiderFresh->NoMarbete);
+        $this->assertNull($noLiderFresh->SaldoMarbete);
+        $this->assertNull($noLiderFresh->NoMarbete);
 
         // El líder recibió un cambio con el mismo pedido: no debe dispararse el recálculo
         // y el sentinela permanece intacto.
