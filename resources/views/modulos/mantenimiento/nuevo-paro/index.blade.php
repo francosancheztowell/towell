@@ -12,7 +12,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3">
                 <!-- Columna Izquierda -->
                 <div class="space-y-2 md:space-y-2">
-                    <!-- Fecha -->
+                    <!-- Fecha (informativa: el servidor la estampa al guardar) -->
                     <div>
                         <label for="fecha" class="block text-xs md:text-sm font-medium text-gray-700">Fecha</label>
                         <input
@@ -21,9 +21,12 @@
                             name="fecha"
                             class="w-full px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
                             value="{{ date('Y-m-d') }}"
-                            disabled
-                            required
+                            readonly
+                            aria-describedby="ayuda-fecha-hora"
                         >
+                        <p id="ayuda-fecha-hora" class="text-xs md:text-sm text-gray-700">
+                            La fecha y la hora las registra el sistema al guardar.
+                        </p>
                     </div>
 
                     <!-- Depto -->
@@ -33,42 +36,51 @@
                             id="depto"
                             name="depto"
                             class="w-full px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            aria-describedby="error-depto"
                             required
                         >
                             <option value="">Cargando...</option>
                         </select>
-                        <input type="hidden" id="depto-hidden" name="depto" value="">
+                        <p id="error-depto" aria-live="polite" class="text-xs md:text-sm text-red-700"></p>
                     </div>
 
                     <!-- Tipo Falla -->
                     <div>
                         <label for="tipo_falla" class="block text-xs md:text-sm font-medium text-gray-700">Tipo Falla</label>
+                        <p id="ayuda-tipo-falla" class="text-xs md:text-sm text-gray-700">
+                            Seleccione primero una máquina para habilitar este campo.
+                        </p>
                         <select
                             id="tipo_falla"
                             name="tipo_falla"
                             class="w-full px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            aria-describedby="ayuda-tipo-falla error-tipo-falla"
                             disabled
                         >
                             <option value="">Seleccione primero una máquina</option>
                         </select>
+                        <p id="error-tipo-falla" aria-live="polite" class="text-xs md:text-sm text-red-700"></p>
                     </div>
 
                     <!-- Orden de Trabajo -->
                     <div>
                         <label for="orden_trabajo" class="block text-xs md:text-sm font-medium text-gray-700">Orden de Trabajo</label>
+                        <p id="ayuda-orden-trabajo" class="text-xs md:text-sm text-gray-700">
+                            Se sugiere sola al elegir la máquina. Puede escribirla o corregirla a mano.
+                        </p>
                         <input
                             type="text"
                             id="orden_trabajo"
                             name="orden_trabajo"
                             class="w-full px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                            disabled
+                            aria-describedby="ayuda-orden-trabajo"
                         >
                     </div>
                 </div>
 
                 <!-- Columna Derecha -->
                 <div class="space-y-2 md:space-y-2">
-                    <!-- Hora -->
+                    <!-- Hora (informativa: el servidor la estampa al guardar) -->
                     <div>
                         <label for="hora" class="block text-xs md:text-sm font-medium text-gray-700">Hora</label>
                         <input
@@ -77,47 +89,63 @@
                             name="hora"
                             class="w-full px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
                             value="{{ date('H:i') }}"
-                            disabled
+                            readonly
+                            aria-describedby="ayuda-fecha-hora"
                         >
                     </div>
 
                     <!-- Maquina -->
                     <div>
                         <label for="maquina" class="block text-xs md:text-sm font-medium text-gray-700">Maquina</label>
+                        <p id="ayuda-maquina" class="text-xs md:text-sm text-gray-700">
+                            Seleccione primero un departamento para habilitar este campo.
+                        </p>
                         <select
                             id="maquina"
                             name="maquina"
                             class="w-full px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            aria-describedby="ayuda-maquina error-maquina"
                             disabled
                         >
                             <option value="">Seleccione primero un departamento</option>
                         </select>
+                        <p id="error-maquina" aria-live="polite" class="text-xs md:text-sm text-red-700"></p>
                     </div>
 
                     <!-- Descripción -->
                     <div>
                         <label for="descripcion" class="block text-xs md:text-sm font-medium text-gray-700">Descripción</label>
+                        <p id="ayuda-descripcion" class="text-xs md:text-sm text-gray-700">
+                            Seleccione primero un tipo de falla para habilitar este campo.
+                        </p>
                         <select
                             id="descripcion"
                             name="descrip"
                             class="w-full px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            aria-describedby="ayuda-descripcion error-descripcion"
                             disabled
                         >
                             <option value="">Seleccione primero un tipo de falla</option>
                         </select>
+                        <p id="error-descripcion" aria-live="polite" class="text-xs md:text-sm text-red-700"></p>
                     </div>
 
                     <!-- Falla -->
                     <div>
                         <label for="falla" class="block text-xs md:text-sm font-medium text-gray-700">Falla</label>
+                        <p id="ayuda-falla" class="text-xs md:text-sm text-gray-700">
+                            Seleccione primero un tipo de falla para habilitar este campo.
+                        </p>
                         <select
                             id="falla"
                             name="falla"
                             class="w-full px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                            aria-describedby="ayuda-falla error-falla"
                             disabled
                         >
-                            <option value="">Seleccione primero un departamento</option>
+                            <option value="">Seleccione primero un tipo de falla</option>
                         </select>
+                        <p id="error-falla" aria-live="polite" class="text-xs md:text-sm text-red-700"></p>
                     </div>
                 </div>
             </div>
@@ -133,35 +161,12 @@
                 ></textarea>
             </div>
 
-            <!-- Notificar a Supervisor -->
-            <div class="flex items-center gap-2 mt-2 md:mt-3">
-                <input
-                    type="checkbox"
-                    id="notificar_supervisor"
-                    name="notificar_supervisor"
-                    class="w-4 h-4 md:w-5 md:h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    checked
-                >
-                <label for="notificar_supervisor" class="text-xs md:text-sm font-medium text-gray-700">
-                    Notificar a Supervisor
-                </label>
-                <span class="text-xs md:text-sm text-gray-500">(Mensaje Telegram)</span>
-            </div>
-
             <!-- Botones -->
-            <div class="grid grid-cols-3 gap-3 md:gap-4 mt-2 md:mt-3 pt-2 md:pt-3 border-t border-gray-200">
-                <button
-                    type="button"
-                    id="btn-ir-solicitudes"
-                    class="px-4 py-2.5 md:px-6 md:py-3 bg-white hover:bg-gray-50 text-gray-700 text-base md:text-lg font-medium rounded-md transition-colors border-2 border-gray-300"
-                    onclick="window.location.href='{{ route('mantenimiento.solicitudes') }}'"
-                >
-                    Ir a Solicitudes
-                </button>
+            <div class="grid grid-cols-2 gap-3 md:gap-4 mt-2 md:mt-3 pt-2 md:pt-3 border-t border-gray-200">
                 <button
                     type="button"
                     id="btn-cancelar"
-                    class="px-4 py-2.5 md:px-6 md:py-3 bg-white hover:bg-gray-50 text-gray-700 text-base md:text-lg font-medium rounded-md transition-colors border-2 border-gray-300"
+                    class="px-4 py-2.5 md:px-6 md:py-3 bg-white hover:bg-gray-50 text-gray-700 text-sm md:text-base font-medium rounded-md transition-colors border-2 border-gray-300"
                     onclick="window.location.href='{{ route('mantenimiento.solicitudes') }}'"
                 >
                     Cancelar
@@ -169,7 +174,7 @@
                 <button
                     type="submit"
                     id="btn-aceptar"
-                    class="px-4 py-2.5 md:px-6 md:py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm md:text-base font-medium rounded-md transition-colors"
+                    class="px-4 py-2.5 md:px-6 md:py-3 bg-blue-600 hover:bg-blue-700 text-white text-base md:text-lg font-semibold rounded-md transition-colors"
                 >
                     Reportar
                 </button>
@@ -187,7 +192,101 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectFalla = document.getElementById('falla');
     const selectDescripcion = document.getElementById('descripcion');
     const inputOrdenTrabajo = document.getElementById('orden_trabajo');
-    const checkboxNotificarSupervisor = document.getElementById('notificar_supervisor');
+    const inputFecha = document.getElementById('fecha');
+    const inputHora = document.getElementById('hora');
+
+    // Regiones aria-live: los errores de carga se anuncian y se ven bajo el campo,
+    // en vez de esconderse dentro de un <option> que sólo aparece al abrir el combo.
+    const regionesError = {
+        depto: document.getElementById('error-depto'),
+        maquina: document.getElementById('error-maquina'),
+        tipo_falla: document.getElementById('error-tipo-falla'),
+        falla: document.getElementById('error-falla'),
+        descripcion: document.getElementById('error-descripcion'),
+    };
+
+    // Textos de ayuda visibles: dicen qué falta para habilitar cada campo bloqueado.
+    // Se ocultan en cuanto el campo se habilita, mientras carga o si hay un error.
+    const camposCascada = [
+        { campo: 'maquina', control: selectMaquina, ayuda: document.getElementById('ayuda-maquina') },
+        { campo: 'tipo_falla', control: selectTipoFalla, ayuda: document.getElementById('ayuda-tipo-falla') },
+        { campo: 'falla', control: selectFalla, ayuda: document.getElementById('ayuda-falla') },
+        { campo: 'descripcion', control: selectDescripcion, ayuda: document.getElementById('ayuda-descripcion') },
+        // orden_trabajo no entra: nunca se bloquea, así que su ayuda es fija.
+    ];
+
+    // La orden de trabajo se puede capturar a mano en cualquier momento. En cuanto el
+    // operador escribe algo, la sugerencia automática deja de pisarle el valor; si la
+    // borra, vuelve a sugerirse sola.
+    let ordenTrabajoManual = false;
+    inputOrdenTrabajo.addEventListener('input', function () {
+        ordenTrabajoManual = this.value.trim() !== '';
+    });
+
+    /** Borra la orden sólo si la había puesto la sugerencia automática. */
+    function limpiarOrdenTrabajoSugerida() {
+        if (!ordenTrabajoManual) {
+            inputOrdenTrabajo.value = '';
+        }
+    }
+
+    function mostrarErrorCarga(campo, mensaje) {
+        const region = regionesError[campo];
+        if (region) {
+            region.textContent = mensaje;
+        }
+    }
+
+    function limpiarErrorCarga(campo) {
+        const region = regionesError[campo];
+        if (region) {
+            region.textContent = '';
+        }
+    }
+
+    function refrescarAyudas() {
+        camposCascada.forEach(({ campo, control, ayuda }) => {
+            if (!control || !ayuda) {
+                return;
+            }
+
+            const region = regionesError[campo];
+            const hayError = !!(region && region.textContent.trim() !== '');
+            const estaCargando = control.dataset.cargando === '1';
+
+            ayuda.classList.toggle('hidden', !control.disabled || hayError || estaCargando);
+        });
+    }
+
+    // Indicador de carga en los combos de la cascada: mientras la petición está en
+    // vuelo el select queda deshabilitado con "Cargando..." (mismo patrón que el
+    // combo de Departamento). Antes se quedaba con el texto anterior y en la red de
+    // la planta el operador creía que el combo estaba vacío.
+    function marcarCargando(select) {
+        select.dataset.cargando = '1';
+        select.disabled = true;
+        select.innerHTML = '<option value="">Cargando...</option>';
+    }
+
+    function terminarCarga(select) {
+        delete select.dataset.cargando;
+    }
+
+    // Cualquier cambio en la cascada puede habilitar/bloquear campos: el listener a
+    // nivel de formulario corre después del handler del propio campo.
+    form.addEventListener('change', refrescarAyudas);
+
+    // Fecha y hora son sólo informativas: el servidor las estampa al guardar.
+    // La pantalla puede quedar abierta horas, así que el reloj se mantiene al día
+    // para que lo que se ve coincida con lo que se va a guardar.
+    function actualizarRelojLocal() {
+        const ahora = new Date();
+        const dosDigitos = n => String(n).padStart(2, '0');
+        inputFecha.value = `${ahora.getFullYear()}-${dosDigitos(ahora.getMonth() + 1)}-${dosDigitos(ahora.getDate())}`;
+        inputHora.value = `${dosDigitos(ahora.getHours())}:${dosDigitos(ahora.getMinutes())}`;
+    }
+    actualizarRelojLocal();
+    setInterval(actualizarRelojLocal, 30000);
 
     // Ocultar botón/enlace de "Paro" en la barra de navegación solo en esta pantalla
     try {
@@ -199,33 +298,55 @@ document.addEventListener('DOMContentLoaded', function() {
         console.warn('No se pudo ocultar el botón de Paro en la barra de navegación:', e);
     }
 
-    // Cargar tipos de falla
-    async function cargarTiposFalla() {
+    // Cargar tipos de falla del departamento elegido: los tipos sin fallas en su
+    // catálogo no deben ofrecerse (dejarían el combo de Falla vacío).
+    async function cargarTiposFalla(departamento) {
+        limpiarErrorCarga('tipo_falla');
+        selectTipoFalla.innerHTML = '<option value="">Seleccione primero una máquina</option>';
+
+        if (!departamento) {
+            refrescarAyudas();
+            return;
+        }
+
+        marcarCargando(selectTipoFalla);
+
         try {
-            const response = await fetch('{{ route('api.mantenimiento.tipos-falla') }}');
+            const url = `{{ url('/api/mantenimiento/tipos-falla') }}/${encodeURIComponent(departamento)}`;
+            const response = await fetch(url);
             const result = await response.json();
 
-            if (result.success && result.data) {
-                // Limpiar opciones existentes
-                selectTipoFalla.innerHTML = '<option value="">Seleccione primero una máquina</option>';
+            selectTipoFalla.innerHTML = '<option value="">Seleccione primero una máquina</option>';
 
-                // Agregar tipos de falla
+            if (result.success && Array.isArray(result.data)) {
                 result.data.forEach(tipoFalla => {
                     const option = document.createElement('option');
                     option.value = tipoFalla;
                     option.textContent = tipoFalla;
                     selectTipoFalla.appendChild(option);
                 });
+                // El tipo de falla sólo se abre cuando ya hay una máquina elegida.
+                selectTipoFalla.disabled = !selectMaquina.value;
             } else {
                 console.error('Error al cargar tipos de falla:', result.error);
+                selectTipoFalla.disabled = true;
+                mostrarErrorCarga('tipo_falla', 'No se pudieron cargar los tipos de falla de este departamento.');
             }
         } catch (error) {
             console.error('Error al cargar tipos de falla:', error);
+            selectTipoFalla.innerHTML = '<option value="">Seleccione primero una máquina</option>';
+            selectTipoFalla.disabled = true;
+            mostrarErrorCarga('tipo_falla', 'No se pudieron cargar los tipos de falla. Revise la conexión e intente de nuevo.');
         }
+
+        terminarCarga(selectTipoFalla);
+        refrescarAyudas();
     }
 
     // Cargar departamentos y seleccionar automáticamente el del usuario
     async function cargarDepartamentos() {
+        limpiarErrorCarga('depto');
+
         try {
             const response = await fetch('{{ route('api.mantenimiento.departamentos') }}');
             const result = await response.json();
@@ -256,24 +377,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     if (deptoEncontrado) {
                         selectDepto.value = deptoEncontrado;
-                        // Actualizar el input hidden para compatibilidad
-                        document.getElementById('depto-hidden').value = deptoEncontrado;
-                        // Cargar máquinas automáticamente
+                        // Cargar máquinas y tipos de falla automáticamente
                         cargarMaquinas(deptoEncontrado);
+                        cargarTiposFalla(deptoEncontrado);
                     }
                 }
             } else {
                 console.error('Error al cargar departamentos:', result.error);
                 selectDepto.innerHTML = '<option value="">Error al cargar departamentos</option>';
+                mostrarErrorCarga('depto', 'No se pudieron cargar los departamentos.');
             }
         } catch (error) {
             console.error('Error al cargar departamentos:', error);
             selectDepto.innerHTML = '<option value="">Error al cargar departamentos</option>';
+            mostrarErrorCarga('depto', 'No se pudieron cargar los departamentos. Revise la conexión e intente de nuevo.');
         }
+
+        refrescarAyudas();
     }
 
     // Cargar fallas/descripcion por departamento y tipo de falla (CatParosFallas)
     async function cargarFallas(departamento, tipoFallaId = null) {
+        limpiarErrorCarga('falla');
+        limpiarErrorCarga('descripcion');
+
         // Reset si no hay depto
         if (!departamento) {
             while (selectFalla.options.length > 1) {
@@ -281,17 +408,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             selectFalla.value = '';
             selectFalla.disabled = true;
-            selectFalla.innerHTML = '<option value=\"\">Seleccione primero un departamento</option>';
+            selectFalla.innerHTML = '<option value=\"\">Seleccione primero un tipo de falla</option>';
             while (selectDescripcion.options.length > 1) {
                 selectDescripcion.remove(1);
             }
             selectDescripcion.value = '';
             selectDescripcion.disabled = true;
-            selectDescripcion.innerHTML = '<option value=\"\">Seleccione primero un departamento</option>';
+            selectDescripcion.innerHTML = '<option value=\"\">Seleccione primero un tipo de falla</option>';
+            refrescarAyudas();
             return;
         }
 
         let url = '';
+
+        marcarCargando(selectFalla);
+        marcarCargando(selectDescripcion);
 
         try {
             // El backend resuelve cuándo un departamento comparte catálogo con Tejido.
@@ -309,27 +440,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Limpiar y cargar Descripción
                 selectDescripcion.innerHTML = '<option value=\"\">Seleccione una descripción</option>';
 
+                // Ambos selects se valúan con el Id de CatParosFallas: así Falla y
+                // Descripción siempre apuntan a la MISMA fila del catálogo. Antes se
+                // guardaban como texto suelto y se emparejaban por coincidencia, lo que
+                // permitía grabar un par que no existe en el catálogo.
                 result.data.forEach(item => {
-                    // Obtener valores de forma segura
+                    const id = String(item.Id ?? '').trim();
                     const falla = String(item.Falla ?? item.falla ?? '').trim();
                     const descripcion = String(item.Descripcion ?? item.descripcion ?? '').trim();
 
-                    // Solo agregar si hay una falla válida
-                    if (falla) {
-                        // Falla
-                        const optF = document.createElement('option');
-                        optF.value = falla;
-                        optF.textContent = falla;
-                        optF.dataset.desc = descripcion || '';
-                        selectFalla.appendChild(optF);
+                    if (!id || !falla) {
+                        return;
                     }
 
-                    // Solo agregar descripción si tiene un valor válido
-                    if (descripcion && falla) {
+                    const optF = document.createElement('option');
+                    optF.value = id;
+                    optF.textContent = falla;
+                    selectFalla.appendChild(optF);
+
+                    if (descripcion) {
                         const optD = document.createElement('option');
-                        optD.value = descripcion;
+                        optD.value = id;
                         optD.textContent = descripcion;
-                        optD.dataset.falla = falla;
                         selectDescripcion.appendChild(optD);
                     }
                 });
@@ -351,6 +483,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 selectFalla.disabled = true;
                 selectDescripcion.innerHTML = '<option value=\"\">Error al cargar descripciones</option>';
                 selectDescripcion.disabled = true;
+                mostrarErrorCarga('falla', 'No se pudieron cargar las fallas de este tipo.');
+                mostrarErrorCarga('descripcion', 'No se pudieron cargar las descripciones de este tipo.');
             }
         } catch (error) {
             console.error('Error al cargar fallas:', error);
@@ -359,14 +493,17 @@ document.addEventListener('DOMContentLoaded', function() {
             selectFalla.disabled = true;
             selectDescripcion.innerHTML = '<option value=\"\">Error al cargar descripciones</option>';
             selectDescripcion.disabled = true;
+            mostrarErrorCarga('falla', 'No se pudieron cargar las fallas. Revise la conexión e intente de nuevo.');
+            mostrarErrorCarga('descripcion', 'No se pudieron cargar las descripciones. Revise la conexión e intente de nuevo.');
         }
+
+        terminarCarga(selectFalla);
+        terminarCarga(selectDescripcion);
+        refrescarAyudas();
     }
 
     // Event listener para Tipo Falla: recargar fallas y habilitar descripción
     selectTipoFalla.addEventListener('change', function() {
-        // Mantener checkbox siempre marcado
-        checkboxNotificarSupervisor.checked = true;
-
         // Recargar fallas con el tipo de falla seleccionado
         const departamentoSeleccionado = selectDepto.value;
         if (departamentoSeleccionado && this.value) {
@@ -381,43 +518,22 @@ document.addEventListener('DOMContentLoaded', function() {
             selectDescripcion.value = '';
             selectDescripcion.disabled = true;
             selectDescripcion.innerHTML = '<option value="">Seleccione primero un tipo de falla</option>';
-            // Solo deshabilitar orden de trabajo si no hay tipo de falla seleccionado
-            if (!this.value) {
-                inputOrdenTrabajo.disabled = true;
-            }
         }
     });
 
-    // Sincronizar selects: elegir Falla → selecciona su Descripción
-    selectFalla.addEventListener('change', function() {
-        const val = this.value;
-        if (!val) {
-            selectDescripcion.value = '';
-            return;
-        }
-        // Buscar opción en Descripción con data-falla coincidente
-        const match = Array.from(selectDescripcion.options).find(o => (o.dataset?.falla ?? '') === val);
-        if (match) {
-            selectDescripcion.value = match.value;
-        }
-    });
+    // Falla y Descripción comparten valor (el Id del catálogo), así que sincronizarlos
+    // es copiar el valor. Si la falla no tiene descripción, el combo de Descripción
+    // simplemente queda sin selección.
+    function sincronizarFallaDescripcion(origen, destino) {
+        const fallaId = origen.value;
+        destino.value = fallaId;
 
-    // Sincronizar selects: elegir Descripción → selecciona su Falla y habilita orden de trabajo
-    selectDescripcion.addEventListener('change', function() {
-        const val = this.value;
-        if (!val) {
-            selectFalla.value = '';
-            inputOrdenTrabajo.disabled = true;
+        if (!fallaId) {
             return;
         }
-        const match = Array.from(selectFalla.options).find(o => (o.dataset?.desc ?? '') === val);
-        if (match) {
-            selectFalla.value = match.value;
-        }
-        // Habilitar orden de trabajo cuando hay descripción seleccionada
-        inputOrdenTrabajo.disabled = false;
-        // Solo cargar orden de trabajo sugerida si el campo está vacío
-        // Si ya tiene un valor, mantenerlo
+
+        // Solo cargar orden de trabajo sugerida si el campo está vacío: si ya
+        // tiene un valor capturado a mano, se respeta.
         const departamentoSeleccionado = selectDepto.value;
         const maquinaSeleccionada = selectMaquina.value;
         if (departamentoSeleccionado && maquinaSeleccionada && !inputOrdenTrabajo.value) {
@@ -426,10 +542,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 maquinaSeleccionada
             );
         }
-    });
+    }
+
+    selectFalla.addEventListener('change', () => sincronizarFallaDescripcion(selectFalla, selectDescripcion));
+    selectDescripcion.addEventListener('change', () => sincronizarFallaDescripcion(selectDescripcion, selectFalla));
 
     // Cargar máquinas por departamento
     async function cargarMaquinas(departamento) {
+        limpiarErrorCarga('maquina');
+
         if (!departamento) {
             // Limpiar máquinas y deshabilitar select
             while (selectMaquina.options.length > 1) {
@@ -438,8 +559,11 @@ document.addEventListener('DOMContentLoaded', function() {
             selectMaquina.value = '';
             selectMaquina.disabled = true;
             selectMaquina.innerHTML = '<option value="">Seleccione primero un departamento</option>';
+            refrescarAyudas();
             return;
         }
+
+        marcarCargando(selectMaquina);
 
         try {
             const response = await fetch(`{{ url('/api/mantenimiento/maquinas') }}/${encodeURIComponent(departamento)}`);
@@ -482,11 +606,18 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 console.error('Error al cargar máquinas:', result.error);
                 selectMaquina.innerHTML = '<option value="">Error al cargar máquinas</option>';
+                selectMaquina.disabled = true;
+                mostrarErrorCarga('maquina', 'No se pudieron cargar las máquinas de este departamento.');
             }
         } catch (error) {
             console.error('Error al cargar máquinas:', error);
             selectMaquina.innerHTML = '<option value="">Error al cargar máquinas</option>';
+            selectMaquina.disabled = true;
+            mostrarErrorCarga('maquina', 'No se pudieron cargar las máquinas. Revise la conexión e intente de nuevo.');
         }
+
+        terminarCarga(selectMaquina);
+        refrescarAyudas();
     }
 
     function departamentoParaOrdenTrabajo(departamentoSeleccionado) {
@@ -501,8 +632,13 @@ document.addEventListener('DOMContentLoaded', function() {
             : departamentoSeleccionado;
     }
 
-    // Cargar orden de trabajo sugerida por depto + máquina (ReqProgramaTejido en proceso)
+    // Cargar orden de trabajo sugerida por depto + máquina (ReqProgramaTejido en proceso).
+    // Nunca pisa lo que el operador haya escrito a mano.
     async function cargarOrdenTrabajo(departamento, maquina) {
+        if (ordenTrabajoManual) {
+            return;
+        }
+
         // Si falta alguno, limpiar y salir
         if (!departamento || !maquina) {
             // Si cambia a valor vacío, limpiamos el input
@@ -534,30 +670,27 @@ document.addEventListener('DOMContentLoaded', function() {
     // Event listener para cambio de departamento
     selectDepto.addEventListener('change', function() {
         const departamentoSeleccionado = this.value;
-        // Actualizar el input hidden
-        document.getElementById('depto-hidden').value = departamentoSeleccionado;
 
         if (departamentoSeleccionado) {
-            // Habilitar máquina
+            // Habilitar máquina y recargar los tipos de falla de este departamento
             cargarMaquinas(departamentoSeleccionado);
+            cargarTiposFalla(departamentoSeleccionado);
             // Deshabilitar y limpiar campos siguientes
             selectTipoFalla.disabled = true;
             selectTipoFalla.value = '';
             selectDescripcion.disabled = true;
             selectDescripcion.value = '';
             selectDescripcion.innerHTML = '<option value="">Seleccione primero un tipo de falla</option>';
-            inputOrdenTrabajo.disabled = true;
-            inputOrdenTrabajo.value = '';
+            limpiarOrdenTrabajoSugerida();
             selectFalla.value = '';
             selectFalla.disabled = true;
-            selectFalla.innerHTML = '<option value="">Seleccione primero un departamento</option>';
+            selectFalla.innerHTML = '<option value="">Seleccione primero un tipo de falla</option>';
         } else {
             // Si no hay departamento, deshabilitar todo
             selectMaquina.disabled = true;
             selectMaquina.innerHTML = '<option value="">Seleccione primero un departamento</option>';
             selectTipoFalla.disabled = true;
             selectDescripcion.disabled = true;
-            inputOrdenTrabajo.disabled = true;
             selectFalla.disabled = true;
         }
     });
@@ -575,11 +708,10 @@ document.addEventListener('DOMContentLoaded', function() {
             selectDescripcion.disabled = true;
             selectDescripcion.value = '';
             selectDescripcion.innerHTML = '<option value="">Seleccione primero un tipo de falla</option>';
-            inputOrdenTrabajo.disabled = true;
-            inputOrdenTrabajo.value = '';
+            limpiarOrdenTrabajoSugerida();
             selectFalla.value = '';
             selectFalla.disabled = true;
-            selectFalla.innerHTML = '<option value="">Seleccione primero un departamento</option>';
+            selectFalla.innerHTML = '<option value="">Seleccione primero un tipo de falla</option>';
             // Cargar orden de trabajo sugerida
             cargarOrdenTrabajo(
                 departamentoParaOrdenTrabajo(departamentoSeleccionado),
@@ -590,24 +722,15 @@ document.addEventListener('DOMContentLoaded', function() {
             selectTipoFalla.disabled = true;
             selectTipoFalla.value = '';
             selectDescripcion.disabled = true;
-            inputOrdenTrabajo.disabled = true;
-            inputOrdenTrabajo.value = '';
+            limpiarOrdenTrabajoSugerida();
             selectFalla.value = '';
             selectFalla.disabled = true;
         }
     });
 
-    // Asegurar que el checkbox siempre esté marcado
-    checkboxNotificarSupervisor.checked = true;
-    checkboxNotificarSupervisor.addEventListener('change', function() {
-        // Si intentan desmarcarlo, volver a marcarlo
-        if (!this.checked) {
-            this.checked = true;
-        }
-    });
-
-    // Cargar datos al iniciar
-    cargarTiposFalla();
+    // Cargar datos al iniciar (los tipos de falla dependen del departamento y los
+    // carga cargarDepartamentos al autoseleccionar el área del usuario)
+    refrescarAyudas();
     cargarDepartamentos();
 
     // Submit del formulario
@@ -638,64 +761,27 @@ document.addEventListener('DOMContentLoaded', function() {
         btnAceptar.style.cursor = 'not-allowed';
         btnAceptar.style.opacity = '0.6';
 
-        const formData = new FormData(form);
-
-        // Asegurar que los campos deshabilitados (fecha, hora) se incluyan
-        const fechaInput = document.getElementById('fecha');
-        const horaInput = document.getElementById('hora');
-        if (fechaInput.value) {
-            formData.set('fecha', fechaInput.value);
-        }
-        if (horaInput.value) {
-            formData.set('hora', horaInput.value);
-        }
-        // Asegurar que el departamento se envíe (usar el select directamente)
-        if (selectDepto.value) {
-            formData.set('depto', selectDepto.value);
-        }
-
-        // Agregar el checkbox
-        formData.append('notificar_supervisor', checkboxNotificarSupervisor.checked ? '1' : '0');
+        // Fecha y hora no se envían: las estampa el servidor al guardar.
+        // La falla viaja como Id de catálogo; el servidor deriva Falla y Descripción.
+        const payload = {
+            depto: selectDepto.value,
+            maquina: selectMaquina.value,
+            falla_id: selectFalla.value,
+            orden_trabajo: inputOrdenTrabajo.value || null,
+            obs: document.getElementById('obs').value || null,
+        };
 
         try {
-            const maquinaVal = selectMaquina.value;
-            const tipoFallaVal = selectTipoFalla.value;
-            if (maquinaVal && tipoFallaVal) {
-                const validarUrl = new URL('{{ route('api.mantenimiento.paros.validar-duplicado') }}', window.location.origin);
-                validarUrl.searchParams.set('maquina', maquinaVal);
-                validarUrl.searchParams.set('tipo_falla', tipoFallaVal);
-                const valResp = await fetch(validarUrl.toString(), { headers: { 'Accept': 'application/json' } });
-                const valResult = await valResp.json().catch(function () { return {}; });
-                if (!valResp.ok || valResult.success === false) {
-                    restaurarBotonReportar();
-                    const errVal = valResult.error || 'No se pudo validar si el paro está duplicado. Intenta de nuevo.';
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({ icon: 'error', title: 'Error', text: errVal });
-                    } else {
-                        alert(errVal);
-                    }
-                    return;
-                }
-                if (valResult.duplicado) {
-                    restaurarBotonReportar();
-                    const msgDuplicado = valResult.message || 'No se puede reportar: ya existe un paro activo con el mismo tipo de falla en este telar.';
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({ icon: 'error', title: 'Ya hay un paro en esta maquina con este tipo de falla', text: 'Finalice el paro actual antes de reportar otro igual.' });
-                    } else {
-                        alert('Ya hay un paro en esta maquina con este tipo de falla. Finalice el paro actual antes de reportar otro igual.');
-                    }
-                    return;
-                }
-            }
-
-            // Enviar datos al servidor
+            // El duplicado lo resuelve el propio store dentro de su transacción y
+            // responde 422; una comprobación previa aparte sólo añadía un viaje.
             const response = await fetch('{{ route('api.mantenimiento.paros.store') }}', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
                     'Accept': 'application/json',
+                    'Content-Type': 'application/json',
                 },
-                body: formData
+                body: JSON.stringify(payload)
             });
 
             const result = await response.json();
@@ -704,6 +790,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const folio = (result.data && result.data.folio) ? result.data.folio : (result.folio || '—');
                 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                 const mensajeHtml = 'Folio: <strong>' + esc(folio) + '</strong>' + (result.message ? '<br><br>' + esc(result.message) : '');
+
+                // Siempre a Solicitudes: con document.referrer el operador acababa en
+                // cualquier parte si llegó por un enlace externo o abrió la pestaña directa.
+                const irASolicitudes = () => {
+                    window.location.href = '{{ route('mantenimiento.solicitudes') }}';
+                };
+
                 // Mostrar mensaje de éxito con SweetAlert
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
@@ -712,24 +805,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         html: mensajeHtml,
                         timer: 6000,
                         showConfirmButton: false
-                    }).then(() => {
-                        // Volver a la página anterior
-                        if (document.referrer && document.referrer !== window.location.href) {
-                            window.location.href = document.referrer;
-                        } else {
-                            // Si no hay referrer, ir a solicitudes
-                            window.location.href = '{{ route('mantenimiento.solicitudes') }}';
-                        }
-                    });
+                    }).then(irASolicitudes);
                 } else {
                     alert(result.message || 'Paro reportado correctamente');
-                    // Volver a la página anterior
-                    if (document.referrer && document.referrer !== window.location.href) {
-                        window.location.href = document.referrer;
-                    } else {
-                        // Si no hay referrer, ir a solicitudes
-                        window.location.href = '{{ route('mantenimiento.solicitudes') }}';
-                    }
+                    irASolicitudes();
                 }
             } else {
                 // Error del servidor - reabilitar botón

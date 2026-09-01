@@ -104,8 +104,12 @@ final class CrudoAuditServiceTest extends TestCase
 
         $this->assertStringContainsString('Falla: TRAMA FLOJA', $message);
         $this->assertStringContainsString('Orden: ORD-100', $message);
+        // El prefijo pasó de "Checklist:" a "Observaciones:" al unificar el notifier:
+        // ahora lo comparten Crudo (donde Obs es el resumen del checklist) y el alta
+        // manual de Mantenimiento (donde Obs es texto libre del operador). El contenido
+        // que se verifica —que el checklist llega íntegro al mensaje— no cambia.
         $this->assertStringContainsString(
-            'Checklist: Auditoría #158 | Alineación: Bien | Dibujo JAC: Mal',
+            'Observaciones: Auditoría #158 | Alineación: Bien | Dibujo JAC: Mal',
             $message,
         );
     }

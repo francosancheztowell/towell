@@ -8,6 +8,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DuplicarTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
+use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -144,11 +145,13 @@ class RepasoController extends Controller
             ->first();
     }
 
+    /**
+     * El salon del repaso sale del numero de telar (401-402 son Karl Mayer). Si el numero no
+     * cae en ningun rango conocido se conserva el default historico de JACQUARD.
+     */
     private function derivarSalon(string $noTelarId): string
     {
-        $num = (int) preg_replace('/\D/', '', $noTelarId);
-
-        return $num >= 299 ? 'SMIT' : 'JACQUARD';
+        return TelarSalonResolver::salonDesdeTelar($noTelarId) ?: 'JACQUARD';
     }
 
     private function obtenerRegistroAnterior(string $salon, string $noTelarId): ?ReqProgramaTejido

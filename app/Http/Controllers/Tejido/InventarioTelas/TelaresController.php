@@ -348,6 +348,9 @@ class TelaresController extends Controller
         if ($telar >= 303 && $telar <= 306) {
             return 'KARL MAYER';
         } // Ajustable
+        if ($telar == 401 || $telar == 402) {
+            return 'KARL MAYER';
+        }  // Karl Mayer
 
         return $strict ? null : 'JACQUARD';
     }

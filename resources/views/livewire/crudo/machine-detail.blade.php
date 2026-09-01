@@ -516,6 +516,52 @@
                                                     {{ implode(' · ', array_filter([$paro['obs'], $paro['obsCierre']])) }}
                                                 </p>
                                             @endif
+
+                                            {{--
+                                                ponytail: el detalle ya viene en $paro, así que el sub-modal es
+                                                un <dialog> nativo; nada de Livewire ni de otra consulta al abrirlo.
+                                            --}}
+                                            <button
+                                                type="button"
+                                                class="crudo-paro-abrir"
+                                                onclick="this.nextElementSibling.showModal()"
+                                            >
+                                                <span class="sr-only">Ver detalle del paro {{ $paro['folio'] ?: '' }}</span>
+                                            </button>
+                                            <dialog
+                                                class="crudo-paro-dialog"
+                                                onclick="if (event.target === this) this.close()"
+                                            >
+                                                <header class="crudo-paro-dialog-head">
+                                                    <span class="crudo-paro-badge">{{ $paro['estatus'] }}</span>
+                                                    <h4>{{ $paro['falla'] ?: 'Sin falla registrada' }}</h4>
+                                                    <button type="button" class="crudo-paro-dialog-close" onclick="this.closest('dialog').close()" aria-label="Cerrar">
+                                                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                                                    </button>
+                                                </header>
+                                                <dl class="crudo-paro-dialog-datos">
+                                                    @foreach ([
+                                                        'Folio' => $paro['folio'],
+                                                        'Tipo de falla' => $paro['tipo'],
+                                                        'Departamento' => $paro['depto'],
+                                                        'Orden de trabajo' => $paro['ordenTrabajo'],
+                                                        'Inicio' => $paro['inicio'],
+                                                        'Fin' => $paro['activo'] ? 'En curso' : $paro['fin'],
+                                                        'Duración' => $paro['duracion'],
+                                                        'Reportó' => $paro['reporto'],
+                                                        'Turno de quien reportó' => $paro['turno'] ? 'Turno '.$paro['turno'] : '',
+                                                        'Atendió' => $paro['atendio'],
+                                                        'Turno de quien atendió' => $paro['turnoAtendio'] ? 'Turno '.$paro['turnoAtendio'] : '',
+                                                        'Motivo / observaciones' => $paro['obs'],
+                                                        'Observaciones de cierre' => $paro['obsCierre'],
+                                                    ] as $etiqueta => $valor)
+                                                        <div>
+                                                            <dt>{{ $etiqueta }}</dt>
+                                                            <dd>{{ trim((string) $valor) !== '' ? $valor : 'Sin registrar' }}</dd>
+                                                        </div>
+                                                    @endforeach
+                                                </dl>
+                                            </dialog>
                                         </li>
                                     @endforeach
                                     {{-- Se muestra solo cuando el filtro deja la lista vacía. --}}

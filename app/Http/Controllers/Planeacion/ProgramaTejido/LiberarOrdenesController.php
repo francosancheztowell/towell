@@ -227,10 +227,10 @@ class LiberarOrdenesController extends Controller
                 $registro->BomName = $auto !== null ? trim((string) $auto['bomName']) : null;
             });
 
-            // Artículos de felpa: el renglón muestra el check "Asignar flogs" en la columna Flog.
-            $articulosFelpa = $this->clavesArticulosFelpa($registros);
-            $registros->each(function ($registro) use ($articulosFelpa) {
-                $registro->EsArticuloFelpa = isset($articulosFelpa[self::claveItemTalla($registro->ItemId ?? '', $registro->InventSizeId ?? '')]);
+            // Catálogo de flogs: el renglón que empata decide si lleva flog o no (check en la columna Flog).
+            $articulosConFlog = $this->clavesArticulosConFlog($registros);
+            $registros->each(function ($registro) use ($articulosConFlog) {
+                $registro->RequiereDecisionFlog = isset($articulosConFlog[self::claveItemTalla($registro->ItemId ?? '', $registro->InventSizeId ?? '')]);
             });
 
             // Obtener opciones de hilos para el select desde INVENTTABLE (TwTipoHiloId)
@@ -636,7 +636,7 @@ class LiberarOrdenesController extends Controller
                 $registro->ActualizaLmat = $registro->ActualizaLmat ?? 0;
 
                 // Flog: cualquier renglón puede cambiarlo desde la grilla. El flag "asignar flogs"
-                // (sólo lo ofrecen los renglones de felpa) no vive aquí, viaja a CatCodificados.
+                // (sólo lo deciden los renglones del catálogo) no vive aquí, viaja a CatCodificados.
                 $flogsId = trim((string) ($item['flogsId'] ?? ''));
                 if ($flogsId !== '' && $flogsId !== trim((string) ($registro->FlogsId ?? ''))) {
                     $errorFlog = $this->aplicarDatosFlog($registro, $flogsId);
@@ -649,7 +649,11 @@ class LiberarOrdenesController extends Controller
                         ], 422);
                     }
                 }
-                $asignarFlogs = filter_var($item['asignarFlogs'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                // null = el renglón no está en el catálogo de flogs, no hay decisión que guardar:
+                // AsignarFlogs conserva su valor (1 por default en CatCodificados).
+                $asignarFlogs = array_key_exists('asignarFlogs', $item) && $item['asignarFlogs'] !== null
+                    ? filter_var($item['asignarFlogs'], FILTER_VALIDATE_BOOLEAN)
+                    : null;
 
                 $errorMetricas = $this->validarMetricasProduccionParaLiberacion($registro);
                 if ($errorMetricas !== null) {
@@ -1267,7 +1271,7 @@ class LiberarOrdenesController extends Controller
      *
      * @param  string|null  $codigoDibujoDesdePantalla  Valor de la columna Codigo Dibujo al liberar (mismo que en la vista); si es null/vacío se intenta resolver con CatCodificados.
      */
-    private function actualizarCatCodificados(ReqProgramaTejido $registro, ?string $codigoDibujoDesdePantalla = null, bool $asignarFlogs = false): void
+    private function actualizarCatCodificados(ReqProgramaTejido $registro, ?string $codigoDibujoDesdePantalla = null, ?bool $asignarFlogs = null): void
     {
         try {
             $noProduccion = trim((string) ($registro->NoProduccion ?? ''));
@@ -1344,13 +1348,17 @@ class LiberarOrdenesController extends Controller
                 'ActualizaLmat' => $registro->ActualizaLmat ?? 0,
                 'FlogsId' => $registro->FlogsId,
                 'NombreProyecto' => $registro->NombreProyecto,
-                // 0 = ignorar flogs, 1 = asignar / considerar flogs (check de la grilla).
-                'AsignarFlogs' => $asignarFlogs ? 1 : 0,
                 'CategoriaCalidad' => $registro->CategoriaCalidad,
                 'CustName' => $registro->CustName,
                 'PesoMuestra' => $registro->PesoMuestra,
                 'OrdPrincipal' => $registro->OrdPrincipal,
             ];
+
+            // 0 = la orden no lleva flog, 1 = sí lo lleva. Sólo se escribe cuando el renglón
+            // está en el catálogo y el usuario decidió; si no, la columna se deja intacta.
+            if ($asignarFlogs !== null) {
+                $payload['AsignarFlogs'] = $asignarFlogs ? 1 : 0;
+            }
 
             $updated = false;
 
@@ -2413,21 +2421,22 @@ class LiberarOrdenesController extends Controller
         return null;
     }
 
-    /** Clave normalizada item+talla usada para cruzar contra TwArticulosFelpas. */
+    /** Clave normalizada item+talla usada para cruzar contra el catálogo TwArticulosFelpas. */
     private static function claveItemTalla(?string $itemId, ?string $inventSizeId): string
     {
         return mb_strtoupper(trim((string) $itemId)).'|'.mb_strtoupper(trim((string) $inventSizeId));
     }
 
     /**
-     * Artículos de felpa del lote, en UNA consulta a AX (no una por renglón).
-     * TwArticulosFelpas sólo tiene ITEMID/INVENTSIZEID/ITEMNAME: no aporta flog,
-     * únicamente marca qué renglones son felpa y por tanto ofrecen el check "Asignar flogs".
+     * Artículos del catálogo de flogs presentes en el lote, en UNA consulta a AX (no una
+     * por renglón). Pese al nombre, TwArticulosFelpas no es sólo felpa: es el catálogo de
+     * combinaciones item+talla de cualquier tipo de artículo donde el usuario decide si la
+     * orden lleva flog. Sólo tiene ITEMID/INVENTSIZEID/ITEMNAME: no aporta el flog en sí.
      *
      * @param  Collection<int, ReqProgramaTejido>  $registros
      * @return array<string, true> claves item|talla presentes en la tabla
      */
-    private function clavesArticulosFelpa($registros): array
+    private function clavesArticulosConFlog($registros): array
     {
         $itemIds = $registros
             ->map(fn ($r) => trim((string) ($r->ItemId ?? '')))
@@ -2447,8 +2456,8 @@ class LiberarOrdenesController extends Controller
                 ->whereIn('ITEMID', $itemIds)
                 ->get();
         } catch (\Throwable $e) {
-            // Sin AX no se puede saber qué es felpa. Se prefiere no bloquear renglones
-            // (el flujo actual sigue funcionando) a tumbar la pantalla completa.
+            // Sin AX no se sabe qué renglones piden decisión. Se prefiere no ofrecerla (todos
+            // conservan su AsignarFlogs) a tumbar la pantalla completa.
             Log::warning('LiberarOrdenes: no se pudo consultar TwArticulosFelpas', ['error' => $e->getMessage()]);
 
             return [];
@@ -2513,8 +2522,8 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
-     * Flog vigente para un item + talla, para precargar la celda cuando el usuario
-     * marca "Asignar flogs" en un renglón de felpa. Mismo criterio que Codificación:
+     * Flog vigente para un item + talla, para precargar la celda de los renglones del
+     * catálogo (check "Asignar flogs"). Mismo criterio que Codificación:
      * TwFlogsItemLine + TwFlogsTable, estados vigentes, el más reciente.
      *
      * @return JsonResponse

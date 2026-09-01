@@ -107,7 +107,7 @@ final class CrudoAuditService
                 ]);
             }
 
-            if ($this->hasActiveDuplicateStop(
+            if (ManFallasParos::hayActivoEnMaquina(
                 (string) $data['no_telar_id'],
                 (string) $principalCatalog->TipoFallaId,
             )) {
@@ -273,17 +273,6 @@ final class CrudoAuditService
             ->whereIn('Id', $ids)
             ->get()
             ->keyBy(fn (CatParosFallas $item): int => (int) $item->Id);
-    }
-
-    private function hasActiveDuplicateStop(string $machineId, string $failureTypeId): bool
-    {
-        // Comparación directa (SARGable): permite usar índices de ManFallasParos.
-        // SQL Server ignora espacios finales en columnas CHAR/NCHAR al comparar.
-        return ManFallasParos::query()
-            ->where('Estatus', 'Activo')
-            ->where('MaquinaId', trim($machineId))
-            ->where('TipoFallaId', trim($failureTypeId))
-            ->exists();
     }
 
     private function answerLabel(?bool $answer): string
