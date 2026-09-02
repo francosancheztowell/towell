@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Services\Crudo;
 
 use App\Helpers\FolioHelper;
+use App\Helpers\TurnoHelper;
 use App\Models\Crudo\CrudoAuditoria;
 use App\Models\Mantenimiento\CatParosFallas;
 use App\Models\Mantenimiento\ManFallasParos;
+use App\Support\Crudo\CrudoProductionDay;
+use Carbon\Carbon;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -22,9 +25,7 @@ final class CrudoAuditService
      */
     public function todayForMachine(string $machineId): Collection
     {
-        $today = now(config('app.timezone'));
-        $from = $today->copy()->startOfDay();
-        $to = $from->copy()->addDay();
+        [$from, $to] = $this->todayWindow();
 
         return CrudoAuditoria::query()
             ->select([
@@ -291,9 +292,24 @@ final class CrudoAuditService
 
     private function userShift(Authenticatable $user): int
     {
-        $shift = (int) data_get($user, 'turno', 1);
+        return TurnoHelper::resolverTurnoOperativo(data_get($user, 'turno', 1));
+    }
 
-        return in_array($shift, [1, 2, 3, 4], true) ? $shift : 1;
+    /**
+     * Ventana 06:30-06:30 del día de producción en curso, la misma que usa
+     * CrudoReporteDiaBuilder::auditorias, para que el modal y el reporte
+     * coincidan en qué auditorías son "de hoy".
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function todayWindow(): array
+    {
+        $timezone = config('app.timezone');
+        $productionDay = CrudoProductionDay::forInstant(now($timezone));
+        $startMinutes = (int) config('crudo.production_day_start_minutes', 390);
+        $from = Carbon::parse($productionDay, $timezone)->addMinutes($startMinutes);
+
+        return [$from, $from->copy()->addDay()];
     }
 
     private function nullableText(mixed $value): ?string

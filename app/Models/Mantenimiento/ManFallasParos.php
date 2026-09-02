@@ -69,10 +69,16 @@ class ManFallasParos extends Model
      */
     public static function hayActivoEnMaquina(?string $maquinaId, ?string $tipoFallaId): bool
     {
+        // lockForUpdate (WITH (rowlock,updlock,holdlock) en SQL Server) bloquea el
+        // rango consultado hasta que la transacción llamante termine: dos POST
+        // concurrentes para el mismo telar/tipo ya no pueden pasar ambos el check
+        // y crear dos paros activos. Sin transacción abierta el hint no tiene
+        // efecto distinto a una lectura normal.
         return static::query()
             ->where('Estatus', 'Activo')
             ->where('MaquinaId', trim((string) $maquinaId))
             ->where('TipoFallaId', trim((string) $tipoFallaId))
+            ->lockForUpdate()
             ->exists();
     }
 }

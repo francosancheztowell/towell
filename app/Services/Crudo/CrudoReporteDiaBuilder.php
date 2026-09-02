@@ -6,6 +6,7 @@ namespace App\Services\Crudo;
 
 use App\Exports\CrudoReporteDiaExport;
 use App\Models\Crudo\CrudoAuditoria;
+use App\Support\Crudo\CrudoProductionDay;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Database\Eloquent\Collection;
@@ -34,9 +35,10 @@ final readonly class CrudoReporteDiaBuilder
             return $parsed;
         }
 
-        return (new DateTimeImmutable('now', $timezone))
-            ->modify('-'.(int) config('crudo.production_day_start_minutes', 390).' minutes')
-            ->setTime(0, 0);
+        return new DateTimeImmutable(
+            CrudoProductionDay::forInstant(new DateTimeImmutable('now', $timezone)),
+            $timezone,
+        );
     }
 
     public function export(DateTimeImmutable $day): CrudoReporteDiaExport

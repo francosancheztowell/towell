@@ -14,6 +14,7 @@ use App\Services\Crudo\CrudoAccess;
 use App\Services\Crudo\CrudoAlineacionNotifier;
 use App\Services\Crudo\CrudoAuditService;
 use App\Services\Mantenimiento\ParoTelegramNotifier;
+use App\Support\Crudo\CrudoProductionDay;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -34,7 +35,7 @@ final class CrudoAuditController extends Controller
 
         return CrudoAuditHistoryResource::collection($audits)->additional([
             'meta' => [
-                'fecha' => now(config('app.timezone'))->toDateString(),
+                'fecha' => CrudoProductionDay::forInstant(now(config('app.timezone'))),
                 'total' => $audits->count(),
             ],
         ]);

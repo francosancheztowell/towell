@@ -8,17 +8,12 @@ final class CrudoAccess
 {
     public function authorize(): void
     {
-        $module = trim((string) config('crudo.permission_module', ''));
+        abort_unless($this->canAccess(), 403, 'No tienes acceso al módulo de Andon.');
+    }
 
-        if ($module === '') {
-            return;
-        }
-
-        abort_unless(
-            function_exists('userCan') && userCan('acceso', $module),
-            403,
-            'No tienes acceso al módulo de Andon.',
-        );
+    public function canAccess(): bool
+    {
+        return function_exists('userCan') && userCan('acceso', $this->permissionModule());
     }
 
     public function canRegister(): bool
