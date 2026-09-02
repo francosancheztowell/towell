@@ -67,7 +67,7 @@
 
 .crudo-filter > span {
     color: #64748b;
-    font-size: 0.55rem;
+    font-size: 0.65rem;
     font-weight: 800;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -130,7 +130,7 @@
     align-self: center;
     margin-left: 0.1rem;
     color: #64748b;
-    font-size: 0.62rem;
+    font-size: 0.65rem;
     font-weight: 700;
     white-space: nowrap;
 }
@@ -161,7 +161,7 @@
     align-self: center;
     margin-left: 0.15rem;
     color: #0284c7;
-    font-size: 0.62rem;
+    font-size: 0.65rem;
     font-weight: 800;
     white-space: nowrap;
 }
@@ -255,7 +255,7 @@
 
 .crudo-eyebrow {
     color: #0284c7;
-    font-size: 0.52rem;
+    font-size: 0.65rem;
     font-weight: 900;
     letter-spacing: 0.12em;
     line-height: 1.2;
@@ -418,7 +418,7 @@ button.crudo-status-card:disabled {
 .crudo-compact-label {
     margin: 0.55rem 0.05rem 0.35rem;
     color: #64748b;
-    font-size: 0.52rem;
+    font-size: 0.65rem;
     font-weight: 900;
     letter-spacing: 0.09em;
     line-height: 1.2;
@@ -445,7 +445,7 @@ button.crudo-status-card:disabled {
 .crudo-kpi-kilos-dia {
     margin: 0;
     color: #0284c7;
-    font-size: 0.55rem;
+    font-size: 0.65rem;
     font-weight: 800;
     letter-spacing: 0.06em;
     line-height: 1.2;
@@ -481,7 +481,7 @@ button.crudo-status-card:disabled {
 
 .crudo-kpi-kilos-col > span {
     color: #64748b;
-    font-size: 0.58rem;
+    font-size: 0.65rem;
     font-weight: 800;
     letter-spacing: 0.06em;
     line-height: 1.15;
@@ -596,7 +596,7 @@ button.crudo-status-card:disabled {
 .crudo-gauge > span {
     margin-top: 0.15rem;
     color: #64748b;
-    font-size: 0.58rem;
+    font-size: 0.65rem;
     font-weight: 800;
     letter-spacing: 0.05em;
     line-height: 1.1;
@@ -664,7 +664,7 @@ button.crudo-status-card:disabled {
 
 .crudo-area-table th {
     color: #334155;
-    font-size: 0.56rem;
+    font-size: 0.65rem;
     font-weight: 850;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -900,7 +900,7 @@ button.crudo-status-card:disabled {
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.92);
     color: var(--status-ink, var(--machine-accent));
-    font-size: 0.62rem;
+    font-size: 0.65rem;
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--machine-accent) 20%, transparent);
 }
 
@@ -999,7 +999,7 @@ button.crudo-status-card:disabled {
 .crudo-machine-tooltip span {
     margin-top: 0.1rem;
     color: #cbd5e1;
-    font-size: 0.56rem;
+    font-size: 0.65rem;
 }
 
 .crudo-machine-card:hover .crudo-machine-tooltip,
@@ -1439,7 +1439,7 @@ button.crudo-status-card:disabled {
 .crudo-defectos-nota {
     margin-top: 0.4rem;
     color: #64748b;
-    font-size: 0.62rem;
+    font-size: 0.65rem;
     font-weight: 750;
 }
 
@@ -1585,7 +1585,7 @@ button.crudo-status-card:disabled {
 
 .crudo-estado-metricas span {
     color: #64748b;
-    font-size: 0.62rem;
+    font-size: 0.65rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -1727,7 +1727,7 @@ button.crudo-status-card:disabled {
 
 .crudo-modal-program-field dt {
     color: #64748b;
-    font-size: 0.62rem;
+    font-size: 0.65rem;
     font-weight: 800;
     letter-spacing: 0.04em;
     line-height: 1.15;
@@ -1806,7 +1806,7 @@ button.crudo-status-card:disabled {
     display: block;
     margin-top: 0.15rem;
     color: #b45309;
-    font-size: 0.6rem;
+    font-size: 0.65rem;
     font-weight: 800;
     text-align: center;
     white-space: nowrap;
@@ -2009,7 +2009,7 @@ button.crudo-status-card:disabled {
 .crudo-flog-fields dt,
 .crudo-flog-simulations > p {
     color: #64748b;
-    font-size: 0.62rem;
+    font-size: 0.65rem;
     font-weight: 900;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -2098,7 +2098,7 @@ button.crudo-status-card:disabled {
     background: rgb(15 23 42 / 82%);
     padding: 0.2rem 0.4rem;
     color: #fff;
-    font-size: 0.58rem;
+    font-size: 0.65rem;
     font-weight: 900;
 }
 
@@ -2940,7 +2940,7 @@ button.crudo-status-card:disabled {
     background: #fff;
     padding: 0.1rem 0.45rem;
     color: #475569;
-    font-size: 0.62rem;
+    font-size: 0.65rem;
     font-weight: 850;
     white-space: nowrap;
     cursor: pointer;
@@ -2987,7 +2987,7 @@ button.crudo-status-card:disabled {
 .crudo-paros-tope {
     padding: 0.2rem 0.1rem 0;
     color: #64748b;
-    font-size: 0.6rem;
+    font-size: 0.65rem;
     font-weight: 750;
     text-align: center;
 }
@@ -3048,7 +3048,7 @@ button.crudo-status-card:disabled {
     background: #dcfce7;
     padding: 0.05rem 0.4rem;
     color: #166534;
-    font-size: 0.6rem;
+    font-size: 0.65rem;
     font-weight: 900;
     letter-spacing: 0.03em;
     text-transform: uppercase;
@@ -3077,7 +3077,7 @@ button.crudo-status-card:disabled {
 
 .crudo-paro-tags {
     color: #64748b;
-    font-size: 0.62rem;
+    font-size: 0.65rem;
     font-weight: 750;
 }
 
@@ -3098,7 +3098,7 @@ button.crudo-status-card:disabled {
 
 .crudo-paro-obs {
     color: #64748b;
-    font-size: 0.62rem;
+    font-size: 0.65rem;
     font-style: italic;
 }
 
@@ -3466,9 +3466,11 @@ button.crudo-status-card:disabled {
         grid-template-columns: 1fr;
     }
 
-    .crudo-sidebar {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+    /*
+     * ponytail: .crudo-sidebar en 2 columnas se definió aquí, pero los dos
+     * media queries siguientes (641-1050 y ≤640) la pisan sin excepción en
+     * todo este rango con 1 columna: nunca llegaba a aplicarse. Removida.
+     */
 }
 
 @media (min-width: 641px) and (max-width: 1050px),
@@ -3493,10 +3495,6 @@ button.crudo-status-card:disabled {
         grid-template-columns: minmax(0, 0.42fr) minmax(0, 1fr) minmax(0, 1.15fr);
         gap: 0.45rem;
         align-items: start;
-    }
-
-    .crudo-salon-smith {
-        grid-column: auto;
     }
 
     .crudo-salon {
@@ -3528,7 +3526,7 @@ button.crudo-status-card:disabled {
         max-width: 100%;
         overflow: hidden;
         padding: 0.1rem 0.3rem;
-        font-size: 0.5rem;
+        font-size: 0.65rem;
         text-overflow: ellipsis;
     }
 
@@ -3588,7 +3586,7 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-eyebrow {
-        font-size: 0.5rem;
+        font-size: 0.65rem;
         letter-spacing: 0.1em;
     }
 
@@ -3622,7 +3620,7 @@ button.crudo-status-card:disabled {
         grid-row: 1 / -1;
         width: 1.4rem;
         height: 1.4rem;
-        font-size: 0.62rem;
+        font-size: 0.65rem;
     }
 
     .crudo-status-value {
@@ -3636,7 +3634,7 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-status-copy strong {
-        font-size: 0.5rem;
+        font-size: 0.65rem;
     }
 
     .crudo-kpi-grid {
@@ -3659,7 +3657,7 @@ button.crudo-status-card:disabled {
 
     .crudo-kpi-grid :is(article, button) span {
         overflow: hidden;
-        font-size: 0.55rem;
+        font-size: 0.65rem;
         font-weight: 900;
         text-overflow: ellipsis;
     }
@@ -3682,11 +3680,11 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-kpi-kilos-dia {
-        font-size: 0.5rem;
+        font-size: 0.65rem;
     }
 
     .crudo-kpi-kilos-dia strong {
-        font-size: 0.62rem;
+        font-size: 0.65rem;
     }
 
     .crudo-gauge {
@@ -3698,12 +3696,12 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-gauge > span {
-        font-size: 0.48rem;
+        font-size: 0.65rem;
     }
 
     .crudo-compact-label {
         margin-top: 0.45rem;
-        font-size: 0.5rem;
+        font-size: 0.65rem;
     }
 
     .crudo-area-table th,
@@ -3713,7 +3711,7 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-area-table th {
-        font-size: 0.48rem;
+        font-size: 0.65rem;
     }
 
     .crudo-modal-backdrop {
@@ -3788,11 +3786,11 @@ button.crudo-status-card:disabled {
     .crudo-modal-program {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 0.12rem 0.7rem;
-        font-size: 0.62rem;
+        font-size: 0.65rem;
     }
 
     .crudo-modal-program-field dt {
-        font-size: 0.62rem;
+        font-size: 0.65rem;
     }
 
     .crudo-modal-program-field dd {
@@ -3815,7 +3813,7 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-modal-kpi small {
-        font-size: 0.64rem;
+        font-size: 0.65rem;
         line-height: 1.2;
         white-space: normal;
     }
@@ -3841,6 +3839,15 @@ button.crudo-status-card:disabled {
     .crudo-production-detail-grid {
         grid-template-columns: minmax(0, 1.6fr) minmax(8rem, 0.65fr) minmax(9rem, 0.75fr);
         gap: 0.4rem;
+    }
+
+    /*
+     * El mínimo de 24rem de la segunda columna (base, escritorio) aprieta el
+     * checklist a un ancho ilegible en tablet portrait (~768px). Apilar es
+     * el mismo criterio que ya usa este bloque para las demás grids.
+     */
+    .crudo-audit-modal-grid {
+        grid-template-columns: 1fr;
     }
 
     .crudo-history-row {
@@ -3878,10 +3885,6 @@ button.crudo-status-card:disabled {
         font-size: 0.78rem;
     }
 
-    .crudo-flog-panel {
-        grid-column: auto;
-    }
-
     .crudo-flog-fields {
         gap: 0.25rem;
     }
@@ -3892,7 +3895,7 @@ button.crudo-status-card:disabled {
 
     .crudo-flog-fields dt,
     .crudo-flog-simulations > p {
-        font-size: 0.52rem;
+        font-size: 0.65rem;
     }
 
     .crudo-flog-fields dd {
@@ -3916,13 +3919,13 @@ button.crudo-status-card:disabled {
     .crudo-flog-empty-simulation {
         min-height: 5rem;
         padding: 0.35rem;
-        font-size: 0.62rem;
+        font-size: 0.65rem;
     }
 
     .crudo-flog-line-warning {
         margin-top: 0.25rem;
         padding: 0.3rem 0.35rem;
-        font-size: 0.56rem;
+        font-size: 0.65rem;
     }
 
     .crudo-skeleton-columns {
@@ -3956,7 +3959,7 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-detail-table th {
-        font-size: 0.62rem;
+        font-size: 0.65rem;
         letter-spacing: 0.035em;
     }
 
@@ -3969,7 +3972,7 @@ button.crudo-status-card:disabled {
         height: auto;
         min-height: 1.65rem;
         padding: 0.25rem 0.4rem;
-        font-size: 0.58rem;
+        font-size: 0.65rem;
         line-height: 1.05;
         text-align: center;
         white-space: normal;
@@ -3990,7 +3993,7 @@ button.crudo-status-card:disabled {
 
     .crudo-audit-header {
         min-height: 1.7rem;
-        font-size: 0.58rem;
+        font-size: 0.65rem;
     }
 
     .crudo-audit-header > span {
@@ -4021,8 +4024,19 @@ button.crudo-status-card:disabled {
         display: none;
     }
 
+    /*
+     * Se oculta solo visualmente (no display:none): con display:none el
+     * <label> perdía su nombre accesible completo para lectores de pantalla,
+     * no solo el texto en pantalla.
+     */
     .crudo-filter > span {
-        display: none;
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
     }
 
     .crudo-machine-grid {
@@ -4080,20 +4094,12 @@ button.crudo-status-card:disabled {
         grid-template-columns: 1fr;
     }
 
-    .crudo-salon-smith {
-        grid-column: auto;
-    }
-
     .crudo-sidebar,
     .crudo-modal-columns,
     .crudo-production-detail-grid,
     .crudo-audit-modal-grid,
     .crudo-history-row {
         grid-template-columns: 1fr;
-    }
-
-    .crudo-flog-panel {
-        grid-column: auto;
     }
 
     .crudo-skeleton-columns {
@@ -4157,7 +4163,7 @@ button.crudo-status-card:disabled {
     .crudo-audit-header > span {
         gap: 0.2rem;
         padding-inline: 0.3rem;
-        font-size: 0.62rem;
+        font-size: 0.65rem;
     }
 
     .crudo-audit-question {
@@ -4179,6 +4185,30 @@ button.crudo-status-card:disabled {
         min-width: 0;
         padding-inline: 0.5rem;
         font-size: 0.74rem;
+    }
+}
+
+/*
+ * TV / monitores grandes: los clamp() de arriba topan en un máximo pensado
+ * para escritorio (~1366-1920 px). Desde ahí el tablero dejaba de crecer y
+ * en una pantalla 4K quedaba chico con mucho margen vacío alrededor.
+ */
+@media (min-width: 1920px) {
+    .crudo-salons-grid,
+    .crudo-dashboard:fullscreen .crudo-salons-grid,
+    :fullscreen .crudo-dashboard .crudo-salons-grid {
+        --crudo-card-min: clamp(6.75rem, 4.2vw, 9.5rem);
+        --crudo-card-h: clamp(9.65rem, 6vw, 14rem);
+        --crudo-card-h-physical: clamp(8.4rem, 5.2vw, 12.2rem);
+    }
+
+    .crudo-loom-number {
+        font-size: clamp(1.25rem, 1vw, 2rem);
+    }
+
+    .crudo-machine-quality,
+    .crudo-machine-metric {
+        font-size: clamp(1.4rem, 1.15vw, 2.2rem);
     }
 }
 
