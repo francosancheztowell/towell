@@ -142,6 +142,9 @@ const AUDIT_HISTORY_LIST_SELECTOR = '[data-crudo-audit-history-list]'
 const AUDIT_HISTORY_COUNT_SELECTOR = '[data-crudo-audit-history-count]'
 const QUALITY_DEFECT_SELECT_SELECTOR = '[data-crudo-quality-defect-select]'
 const PENDING_DETAIL_SELECTOR = '[data-crudo-detail-pending]'
+const CRUDO_MODAL_SELECTOR = '[data-crudo-modal]'
+const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), textarea:not([disabled]), '
+  + 'input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
 const LIVEWIRE_ERROR_SELECTOR = '[data-crudo-livewire-error]'
 
 const formatInteger = (value: number): string => Math.round(value).toLocaleString('es-MX')
@@ -481,6 +484,62 @@ const syncPendingDetail = (): void => {
   if (pendingDetailTimer !== null) {
     window.clearTimeout(pendingDetailTimer)
     pendingDetailTimer = null
+  }
+}
+
+let modalFocusTarget: HTMLElement | null = null
+let modalFocusTrigger: HTMLElement | null = null
+
+const trapModalTab = (event: KeyboardEvent): void => {
+  if (event.key !== 'Tab' || !modalFocusTarget) {
+    return
+  }
+
+  const focusable = Array.from(modalFocusTarget.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+    .filter((element) => element.offsetParent !== null)
+
+  if (focusable.length === 0) {
+    event.preventDefault()
+    return
+  }
+
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
+/**
+ * Mueve el foco al modal recién abierto (los tres llevan [data-crudo-modal])
+ * y lo regresa al disparador al cerrarse. Sin esto el foco de teclado se
+ * quedaba detrás de un aria-modal, inalcanzable con Tab.
+ */
+const syncModalFocus = (): void => {
+  const modal = document.querySelector<HTMLElement>(CRUDO_MODAL_SELECTOR)
+
+  if (modal && modal !== modalFocusTarget) {
+    modalFocusTarget = modal
+    modalFocusTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    document.addEventListener('keydown', trapModalTab)
+
+    const firstFocusable = modal.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
+    window.requestAnimationFrame(() => (firstFocusable ?? modal).focus({ preventScroll: true }))
+  }
+
+  if (!modal && modalFocusTarget) {
+    modalFocusTarget = null
+    document.removeEventListener('keydown', trapModalTab)
+    const trigger = modalFocusTrigger
+    modalFocusTrigger = null
+    if (trigger?.isConnected) {
+      trigger.focus({ preventScroll: true })
+    }
   }
 }
 
@@ -889,6 +948,7 @@ const observeQualityDefectEditors = (): void => {
   hydrateAuditHistories()
   syncAuditActionStates()
   syncPendingDetail()
+  syncModalFocus()
 
   const crudoRoot = document.querySelector<HTMLElement>(CRUDO_ROOT_SELECTOR)
   if (!crudoRoot || (auditDefectObserver && observedAuditRoot === crudoRoot)) {
@@ -901,6 +961,7 @@ const observeQualityDefectEditors = (): void => {
   auditDefectObserver = new MutationObserver((mutations) => {
     auditHistoryRequests.abortDisconnected()
     syncPendingDetail()
+    syncModalFocus()
     if (mutations.some((mutation) => mutation.addedNodes.length > 0 || mutation.attributeName === 'hidden')) {
       hydrateQualityDefectEditors()
       hydrateAuditHistories()

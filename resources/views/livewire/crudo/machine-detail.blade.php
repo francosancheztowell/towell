@@ -67,7 +67,7 @@
             aria-modal="true"
             aria-labelledby="crudo-machine-modal-title"
         >
-            <article class="crudo-modal">
+            <article class="crudo-modal" tabindex="-1">
                 <button
                     type="button"
                     class="crudo-modal-close"

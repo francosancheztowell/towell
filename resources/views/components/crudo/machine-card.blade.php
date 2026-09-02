@@ -18,10 +18,19 @@
     data-telar="{{ $machine['telar'] }}"
     data-state="{{ $machine['state'] }}"
     data-signature="{{ $machine['state'] }}:{{ $machine['pieces'] }}:{{ $machine['seconds'] }}:{{ $machine['kilos'] }}:{{ $machine['efficiencyPercent'] ?? 0 }}"
-    aria-label="Abrir detalle del telar {{ $machine['telar'] }}, estado {{ $machine['stateLabel'] }}"
+    @if ($fueraDeOperacion)
+        disabled
+        tabindex="-1"
+        aria-hidden="true"
+    @else
+        aria-label="Abrir detalle del telar {{ $machine['telar'] }}, estado {{ $machine['stateLabel'] }}"
+    @endif
 >
     @unless ($fueraDeOperacion)
         <span class="crudo-loom-number">{{ $machine['telar'] }}</span>
+        <span class="crudo-machine-state-dot" aria-hidden="true">
+            <i class="fa-solid {{ $machine['stateIcon'] ?? 'fa-circle-question' }}"></i>
+        </span>
     @endunless
 
     {{--

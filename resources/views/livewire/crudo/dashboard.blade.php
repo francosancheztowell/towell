@@ -92,12 +92,20 @@
                 <i class="fa-solid fa-expand"></i>
             </button>
 
+            @php
+                $cacheStateLabel = match ($cacheState) {
+                    'fresh' => 'Datos al día',
+                    'stale' => 'Datos desactualizados',
+                    default => 'Sin conexión con el servidor',
+                };
+            @endphp
             <div
                 class="crudo-navbar-freshness"
                 data-cache-state="{{ $cacheState }}"
-                title="Estado de actualización del tablero"
+                title="{{ $cacheStateLabel }}"
             >
                 <span class="crudo-live-dot" aria-hidden="true"></span>
+                <span class="sr-only">{{ $cacheStateLabel }}·</span>
                 @if ($generatedAt)
                     <time datetime="{{ $generatedAt }}" data-crudo-relative-time>ahora</time>
                 @else
@@ -297,8 +305,8 @@
         ];
     @endphp
 
-    <div class="crudo-modal-backdrop" wire:click.self="cerrarEstado" data-state="{{ $estadoDetalle }}">
-        <div class="crudo-modal crudo-modal-estado" role="dialog" aria-modal="true"
+    <div class="crudo-modal-backdrop" wire:click.self="cerrarEstado" data-crudo-modal data-state="{{ $estadoDetalle }}">
+        <div class="crudo-modal crudo-modal-estado" tabindex="-1" role="dialog" aria-modal="true"
              aria-label="Telares en estado {{ $estadoCard['label'] }}">
             <header class="crudo-estado-header" data-state="{{ $estadoDetalle }}">
                 <span class="crudo-estado-header-icon"><i class="fa-solid {{ $estadoCard['icon'] }}"></i></span>
@@ -376,8 +384,8 @@
 
 {{-- Desglose del KPI de segundas: defectos por telar, en tabla o en gráfica. --}}
 @if ($defectosAbierto && $defectos !== null)
-    <div class="crudo-modal-backdrop" wire:click.self="cerrarDefectos">
-        <div class="crudo-modal crudo-modal-defectos" role="dialog" aria-modal="true"
+    <div class="crudo-modal-backdrop" wire:click.self="cerrarDefectos" data-crudo-modal>
+        <div class="crudo-modal crudo-modal-defectos" tabindex="-1" role="dialog" aria-modal="true"
              aria-label="Segundas por telar">
             <header class="crudo-estado-header" data-state="bad_quality">
                 <span class="crudo-estado-header-icon"><i class="fa-solid fa-circle-xmark"></i></span>
