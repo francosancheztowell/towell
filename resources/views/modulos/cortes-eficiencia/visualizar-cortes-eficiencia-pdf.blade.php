@@ -123,10 +123,13 @@
         $telarSize = $toPx(19.50, $sizeScale, 12.60, 20.00);
         $rpmSize = $toPx(19.50, $sizeScale, 12.60, 20.00);
         $focusCellHeight = $toPx(13.20, $sizeScale, 8.20, 13.40);
-        $turnoHdrSize = $toPx(9.30, $sizeScale, 6.00, 9.50);
-        $horarioHdrSize = $toPx(8.90, $sizeScale, 5.80, 9.20);
-        $turnoHdrHeight = $toPx(16.40, $sizeScale, 10.00, 16.70);
-        $horarioHdrHeight = $toPx(15.20, $sizeScale, 9.50, 15.50);
+        $turnoHdrSize = $toPx(17.00, $sizeScale, 11.00, 17.20);
+        $horarioHdrSize = $toPx(16.50, $sizeScale, 10.50, 17.00);
+        // RPM y Telar comparten dos filas de encabezado; aumenta su presencia
+        // vertical sin modificar las columnas compactas de 10 mm.
+        $fixedColumnHdrSize = $toPx(15.00, $sizeScale, 10.50, 15.20);
+        $turnoHdrHeight = $toPx(25.00, $sizeScale, 16.00, 25.50);
+        $horarioHdrHeight = $toPx(23.00, $sizeScale, 15.00, 23.50);
         $titleSize = $toPx(11.50, $sizeScale, 7.10, 11.80);
 
         $padV = number_format($clamp(0.90 * $sizeScale, 0.35, 0.95), 2, '.', '');
@@ -268,7 +271,7 @@
             background-color: #374151;
             color: #ffffff;
             font-weight: bold;
-            font-size: {{ $thSize }};
+            font-size: {{ $fixedColumnHdrSize }};
         }
         .col-telar { width: {{ $telarColWidth }}; }
         .col-fecha { width: 18px; }
@@ -325,7 +328,7 @@
             font-size: 0;
             line-height: 0;
         }
-        th.col-rpm { font-size: {{ $thSize }}; }
+        th.col-rpm { font-size: {{ $fixedColumnHdrSize }}; }
         td.col-rpm {
             font-size: {{ $rpmSize }};
             font-weight: 700;
