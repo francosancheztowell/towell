@@ -76,7 +76,10 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
             ->where('history.DATAAREAID', $this->dataAreaId())
             ->whereIn('history.PRODID', array_keys($missingProdIds))
             ->whereNotNull('history.ORDENTEJIDO')
-            ->whereRaw("LTRIM(RTRIM(history.ORDENTEJIDO)) <> ''")
+            // SQL Server ignora espacios finales al comparar cadenas, así que
+            // '<> ""' ya descarta vacíos y valores solo de espacios sin
+            // necesidad de LTRIM/RTRIM (no sargable).
+            ->where('history.ORDENTEJIDO', '<>', '')
             ->select([
                 'history.PRODID',
                 'history.ORDENTEJIDO',
@@ -281,11 +284,12 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
         return array_values($machines);
     }
 
-    public function activeParos(): array
+    public function activeParos(array $telares = []): array
     {
         return $this->catalog()
             ->table($this->table('paros'))
             ->where('Estatus', 'Activo')
+            ->when($telares !== [], fn ($query) => $query->whereIn('MaquinaId', $telares))
             ->orderByDesc('Fecha')
             ->orderByDesc('Hora')
             ->get([

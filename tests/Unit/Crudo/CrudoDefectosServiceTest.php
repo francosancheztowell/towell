@@ -106,7 +106,7 @@ final class CrudoDefectosServiceTest extends TestCase
                 return [];
             }
 
-            public function activeParos(): array
+            public function activeParos(array $telares = []): array
             {
                 return [];
             }

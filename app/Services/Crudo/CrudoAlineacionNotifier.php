@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Crudo;
 
+use App\Helpers\TowellLogo;
 use App\Mail\CrudoAlineacionMail;
 use App\Models\Crudo\CrudoAuditoria;
 use App\Models\Sistema\SYSMensaje;
@@ -34,7 +35,7 @@ final class CrudoAlineacionNotifier
         }
 
         try {
-            Mail::to($destinatarios)->send(new CrudoAlineacionMail($audit, $this->rutaLogo()));
+            Mail::to($destinatarios)->send(new CrudoAlineacionMail($audit, TowellLogo::path()));
         } catch (Throwable $exception) {
             // Corre en defer(): nadie lee la excepción, y el aviso no debe
             // tumbar una auditoría que ya quedó guardada.
@@ -44,12 +45,5 @@ final class CrudoAlineacionNotifier
                 'error' => $exception->getMessage(),
             ]);
         }
-    }
-
-    private function rutaLogo(): ?string
-    {
-        $ruta = public_path('images/fondosTowell/logo.png');
-
-        return is_file($ruta) ? $ruta : null;
     }
 }

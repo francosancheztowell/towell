@@ -465,9 +465,13 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
         return $this->machines;
     }
 
-    public function activeParos(): array
+    /** @var list<string> */
+    public array $requestedParosTelares = [];
+
+    public function activeParos(array $telares = []): array
     {
         $this->parosCalls++;
+        $this->requestedParosTelares = $telares;
 
         return $this->paros;
     }

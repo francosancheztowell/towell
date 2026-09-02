@@ -239,6 +239,19 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
         );
     }
 
+    public function test_active_stops_can_be_scoped_to_a_list_of_machines(): void
+    {
+        DB::connection('crudo_test_catalog')->table('ManFallasParos')->insert([
+            $this->paro('201', 'Calidad', 'Activo'),
+            $this->paro('300', 'Tejedores', 'Activo'),
+        ]);
+
+        $rows = (new SqlServerCrudoReadRepository)->activeParos(['201']);
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('201', $rows[0]->MaquinaId);
+    }
+
     public function test_it_reads_the_active_program_display_fields_for_a_machine(): void
     {
         DB::connection('crudo_test_catalog')->table('ReqProgramaTejido')->insert([

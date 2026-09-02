@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Services\Crudo;
 
 use App\Helpers\FolioHelper;
+use App\Helpers\StringTruncator;
 use App\Helpers\TurnoHelper;
 use App\Models\Crudo\CrudoAuditoria;
 use App\Models\Mantenimiento\CatParosFallas;
 use App\Models\Mantenimiento\ManFallasParos;
+use App\Support\Crudo\CrudoAuditAnswer;
+use App\Support\Crudo\CrudoDefectRanking;
 use App\Support\Crudo\CrudoProductionDay;
+use App\Support\Crudo\CrudoSalon;
 use Carbon\Carbon;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Collection;
@@ -186,7 +190,7 @@ final class CrudoAuditService
         }
 
         // ManFallasParos.Obs es NVARCHAR(255).
-        return Str::limit(implode(' | ', $parts), 255, '');
+        return (string) StringTruncator::truncateToLength(implode(' | ', $parts), 255);
     }
 
     /**
@@ -201,14 +205,7 @@ final class CrudoAuditService
             ]);
         }
 
-        $principal = $defects[0];
-        foreach (array_slice($defects, 1) as $defect) {
-            if ($defect['piezas'] > $principal['piezas']) {
-                $principal = $defect;
-            }
-        }
-
-        return $principal;
+        return $defects[CrudoDefectRanking::principalIndex($defects)];
     }
 
     /**
@@ -278,16 +275,12 @@ final class CrudoAuditService
 
     private function answerLabel(?bool $answer): string
     {
-        return match ($answer) {
-            true => 'Bien',
-            false => 'Mal',
-            null => 'Sin evaluar',
-        };
+        return CrudoAuditAnswer::fromBool($answer)->label();
     }
 
     private function isJacquard(string $salon): bool
     {
-        return str_contains(Str::upper(trim($salon)), 'JAC');
+        return CrudoSalon::isJacquard($salon);
     }
 
     private function userShift(Authenticatable $user): int

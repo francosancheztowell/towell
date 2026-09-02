@@ -123,12 +123,14 @@ final readonly class CrudoDashboardService
         $today = CrudoProductionDay::forInstant($now);
         $includesToday = $from->format('Y-m-d') <= $today && $to->format('Y-m-d') >= $today;
 
-        $parosByTelar = $includesToday ? $this->groupParosByTelar($this->repository->activeParos()) : [];
+        $catalogTelares = array_map(static fn (array $row): string => (string) $row['telar'], $catalog);
+        $parosByTelar = $includesToday
+            ? $this->groupParosByTelar($this->repository->activeParos($catalogTelares))
+            : [];
         $metricsByTelar = $this->metricsFromAggregateRows(
             $this->cachedProductionRows($from, $to),
         );
 
-        $catalogTelares = array_map(static fn (array $row): string => (string) $row['telar'], $catalog);
         $telares = array_values(array_unique([...$catalogTelares, ...array_keys($metricsByTelar)]));
         $activePrograms = $telares !== [] ? $this->repository->activePrograms($telares) : [];
         $programsByTelar = $includesToday ? $this->groupProgramsByTelar($activePrograms) : [];

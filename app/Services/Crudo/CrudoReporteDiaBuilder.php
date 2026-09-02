@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Crudo;
 
 use App\Exports\CrudoReporteDiaExport;
+use App\Helpers\TowellLogo;
 use App\Models\Crudo\CrudoAuditoria;
 use App\Support\Crudo\CrudoProductionDay;
 use DateTimeImmutable;
@@ -112,8 +113,6 @@ final readonly class CrudoReporteDiaBuilder
     /** Mismo archivo que usan los PDF y el export de Alineación. */
     public function rutaLogo(): ?string
     {
-        $ruta = public_path('images/fondosTowell/logo.png');
-
-        return is_file($ruta) ? $ruta : null;
+        return TowellLogo::path();
     }
 }

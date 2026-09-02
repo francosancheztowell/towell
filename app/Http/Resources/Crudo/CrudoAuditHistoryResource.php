@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Resources\Crudo;
 
 use App\Models\Mantenimiento\CatParosFallas;
+use App\Support\Crudo\CrudoAuditAnswer;
+use App\Support\Crudo\CrudoDefectRanking;
+use App\Support\Crudo\CrudoSalon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Str;
 
 final class CrudoAuditHistoryResource extends JsonResource
 {
@@ -106,31 +108,16 @@ final class CrudoAuditHistoryResource extends JsonResource
      */
     private function principalDefectIndex(array $defects): ?int
     {
-        if ($defects === []) {
-            return null;
-        }
-
-        $principalIndex = 0;
-        foreach ($defects as $index => $defect) {
-            if ($defect['piezas'] > $defects[$principalIndex]['piezas']) {
-                $principalIndex = $index;
-            }
-        }
-
-        return $principalIndex;
+        return CrudoDefectRanking::principalIndex($defects);
     }
 
     private function answer(?bool $answer): string
     {
-        return match ($answer) {
-            true => 'bien',
-            false => 'mal',
-            null => 'sin_evaluar',
-        };
+        return CrudoAuditAnswer::fromBool($answer)->value;
     }
 
     private function isJacquard(): bool
     {
-        return str_contains(Str::upper(trim((string) $this->Salon)), 'JAC');
+        return CrudoSalon::isJacquard((string) $this->Salon);
     }
 }
