@@ -129,8 +129,11 @@
         // Objetivo: celdas más estrechas (tamaño título) y comentarios a 2 renglones.
         $factorComentariosAncho = $clamp(($longitudComentarioMax - 10) / 20, 0.0, 1.0);
         $efWeight = 1.22 + ($factorComentariosAncho * 0.38) + ($densidadComentarios * 0.14);
-        $rpmWeight = 1.02;
-        $telarWeight = 1.08;
+        // RPM y Telar son valores cortos (tres dígitos); liberar este espacio
+        // permite que las celdas de eficiencia y sus observaciones ganen ancho
+        // de manera uniforme en los tres turnos.
+        $rpmWeight = 0.50;
+        $telarWeight = 0.50;
         $totalWeight = $turnosActivos * ($rpmWeight + $telarWeight + (3 * $efWeight));
 
         $toPct = function (float $weight) use ($totalWeight): string {
@@ -272,6 +275,16 @@
         /* ── Anchos de columnas de datos ── */
         .col-rpm { width: {{ $rpmColWidth }}; }
         .col-pef { width: {{ $efColWidth }}; }
+        /* Dompdf calcula una tabla fija usando la primera fila. Esta fila técnica
+           impide que los colspan de Turno distribuyan RPM/Telar en partes iguales. */
+        .column-sizing-row th {
+            height: 0;
+            min-height: 0;
+            padding: 0;
+            border: 0;
+            font-size: 0;
+            line-height: 0;
+        }
         th.col-rpm { font-size: {{ $thSize }}; }
         td.col-rpm {
             font-size: {{ $rpmSize }};
@@ -391,8 +404,26 @@
         $cellH    = ['cell-h1', 'cell-h2', 'cell-h3'];
     @endphp
 
-    <table>
+        <table>
+            <colgroup>
+                @for ($turno = 1; $turno <= ($maxTurno ?? 3); $turno++)
+                    <col class="col-rpm" style="width: {{ $rpmColWidth }};">
+                    <col class="col-telar" style="width: {{ $telarColWidth }};">
+                    <col class="col-pef" style="width: {{ $efColWidth }};">
+                    <col class="col-pef" style="width: {{ $efColWidth }};">
+                    <col class="col-pef" style="width: {{ $efColWidth }};">
+                @endfor
+            </colgroup>
         <thead>
+            <tr class="column-sizing-row" aria-hidden="true">
+                @for ($turno = 1; $turno <= $turnosActivos; $turno++)
+                    <th style="width: {{ $rpmColWidth }};"></th>
+                    <th style="width: {{ $telarColWidth }};"></th>
+                    <th style="width: {{ $efColWidth }};"></th>
+                    <th style="width: {{ $efColWidth }};"></th>
+                    <th style="width: {{ $efColWidth }};"></th>
+                @endfor
+            </tr>
 
             {{-- ── Fila 1: Turno N ── --}}
             <tr>
