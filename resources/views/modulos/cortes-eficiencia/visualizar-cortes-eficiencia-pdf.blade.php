@@ -118,9 +118,10 @@
         // Prioriza la legibilidad de los valores de cada horario y usa el margen
         // vertical disponible antes de reducirlos por el hard-fit de una hoja.
         $efSize = $toPx(22.50, $sizeScale, 13.40, 23.00);
-        $commentSize = $toPx(10.60, $sizeScale, 6.20, 10.70);
-        $telarSize = $toPx(15.20, $sizeScale, 8.80, 15.40);
-        $rpmSize = $toPx(15.20, $sizeScale, 8.80, 15.40);
+        // Mejora la lectura de observaciones sin cambiar el ancho de sus columnas.
+        $commentSize = $toPx(14.50, $sizeScale, 9.00, 15.00);
+        $telarSize = $toPx(19.50, $sizeScale, 12.60, 20.00);
+        $rpmSize = $toPx(19.50, $sizeScale, 12.60, 20.00);
         $focusCellHeight = $toPx(13.20, $sizeScale, 8.20, 13.40);
         $turnoHdrSize = $toPx(9.30, $sizeScale, 6.00, 9.50);
         $horarioHdrSize = $toPx(8.90, $sizeScale, 5.80, 9.20);
