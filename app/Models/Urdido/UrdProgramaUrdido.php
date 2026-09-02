@@ -49,6 +49,21 @@ class UrdProgramaUrdido extends Model
         'CalidadComentario',
         'AutorizaCalidad',
         'FechaCalidad',
+        'CalidadCuenta',
+        'CalidadBobinas',
+        'CalidadLoteCoincide',
+        'CalidadLoteVisible',
+    ];
+
+    /**
+     * Puntos del checklist de calidad. null = sin contestar, true = bien, false = mal.
+     * El estado agregado (`Calidad`) se deriva de estos: basta uno en false para que sea malo.
+     */
+    public const CALIDAD_PUNTOS = [
+        'CalidadCuenta' => 'Número de cuenta correcta',
+        'CalidadBobinas' => 'La cantidad de bobinas es la correcta',
+        'CalidadLoteCoincide' => 'Lote de hilo coincide',
+        'CalidadLoteVisible' => 'Se ve el o los lotes de hilo',
     ];
 
     protected $casts = [
@@ -64,6 +79,10 @@ class UrdProgramaUrdido extends Model
         'FechaFinaliza' => 'date',
         'Calidad' => 'string',
         'FechaCalidad' => 'datetime',
+        'CalidadCuenta' => 'boolean',
+        'CalidadBobinas' => 'boolean',
+        'CalidadLoteCoincide' => 'boolean',
+        'CalidadLoteVisible' => 'boolean',
     ];
 
     /**
