@@ -19,6 +19,7 @@ final class CrudoReporteDiaMail extends Mailable
     /**
      * @param  array<string, int|float>  $summary  Resumen del tablero (CrudoDashboardData::$summary).
      * @param  string  $contenido  Bytes del .xlsx ya generado.
+     * @param  list<array{telar: string, orden: string, producto: string}>  $sinPesoMuestra
      */
     public function __construct(
         private readonly DateTimeImmutable $day,
@@ -26,6 +27,7 @@ final class CrudoReporteDiaMail extends Mailable
         private readonly string $contenido,
         private readonly string $nombreArchivo,
         private readonly ?string $rutaLogo = null,
+        private readonly array $sinPesoMuestra = [],
     ) {}
 
     public function envelope(): Envelope
@@ -49,6 +51,7 @@ final class CrudoReporteDiaMail extends Mailable
                 'fecha' => $this->day->format('d/m/Y'),
                 'summary' => $this->summary,
                 'logo' => $this->rutaLogo,
+                'sinPesoMuestra' => $this->sinPesoMuestra,
             ],
         );
     }

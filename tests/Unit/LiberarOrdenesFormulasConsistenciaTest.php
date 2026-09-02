@@ -254,11 +254,16 @@ class LiberarOrdenesFormulasConsistenciaTest extends TestCase
     }
 
     /** SaldoMarbete redondea y devuelve 0 ante datos inválidos (=SI(ESERROR(...),0,...)). */
-    public function test_saldo_marbete_redondea_y_maneja_errores(): void
+    public function test_saldo_marbete_techa_y_maneja_errores(): void
     {
         $m = $this->method('saldoMarbeteDesdeFormula');
 
-        $this->assertSame(12, $m->invoke($this->controller, 4104, 6, 57)); // (4104/6)/57 = 12
+        $this->assertSame(12, $m->invoke($this->controller, 4104, 6, 57)); // (4104/6)/57 = 12 exacto
+
+        // TECHO, no REDONDEAR: el último rollo sale parcial pero lleva marbete, así que cuadra
+        // con TotalRollos. Con round estos dos daban 143 y 12, uno abajo.
+        $this->assertSame(144, $m->invoke($this->controller, 12891, 3, 30));  // 143.23 → 144
+        $this->assertSame(13, $m->invoke($this->controller, 4105, 6, 57));    // 12.003 → 13, una pieza extra ya pide otro marbete
         $this->assertSame(0, $m->invoke($this->controller, 1000, 0, 5));   // tiras 0
         $this->assertSame(0, $m->invoke($this->controller, 1000, 5, 0));   // reps 0
         $this->assertSame(0, $m->invoke($this->controller, null, 5, 5));

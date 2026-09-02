@@ -65,6 +65,11 @@ class LiberarOrdenesLiberarTest extends TestCase
             $table->string('ITEMID');
         });
 
+        // index() lee los tipos de hilo del catálogo de AX.
+        Schema::connection('sqlsrv_ti')->create('INVENTTABLE', function (Blueprint $table) {
+            $table->string('TwTipoHiloId')->nullable();
+        });
+
         // Catálogo de flogs: item+talla (de cualquier artículo, pese al nombre de la tabla
         // en AX) cuyos renglones deciden si la orden lleva flog. Se siembra por prueba.
         Schema::connection('sqlsrv_ti')->create('TwArticulosFelpas', function (Blueprint $table) {
@@ -236,7 +241,7 @@ class LiberarOrdenesLiberarTest extends TestCase
         foreach (['ReqProgramaTejidoLine', 'ReqModelosCodificados', 'CatCodificados', 'ReqPesosRolloTejido', 'ReqProgramaTejido'] as $tabla) {
             $schema->dropIfExists($tabla);
         }
-        foreach (['BOMTABLE', 'BOMVERSION', 'TwArticulosFelpas'] as $tabla) {
+        foreach (['BOMTABLE', 'BOMVERSION', 'TwArticulosFelpas', 'INVENTTABLE'] as $tabla) {
             Schema::connection('sqlsrv_ti')->dropIfExists($tabla);
         }
         parent::tearDown();
@@ -487,12 +492,16 @@ class LiberarOrdenesLiberarTest extends TestCase
     public function test_catalogo_de_flogs_empata_por_item_y_talla_exactos(): void
     {
         DB::connection('sqlsrv_ti')->table('TwArticulosFelpas')->insert([
-            ['ITEMID' => 'IT100', 'INVENTSIZEID' => 'STD', 'ITEMNAME' => 'ARTICULO EN CATALOGO'],
+            // AX guarda el item CON sufijo aquí ('6598-1' en producción) pero sin él en
+            // TwFlogsItemLine. Si el cruce no normaliza, el catálogo nunca empata.
+            ['ITEMID' => 'IT100-1', 'INVENTSIZEID' => 'STD', 'ITEMNAME' => 'ARTICULO CON SUFIJO AX'],
+            ['ITEMID' => 'IT200', 'INVENTSIZEID' => 'STD', 'ITEMNAME' => 'ARTICULO SIN SUFIJO'],
         ]);
 
         $registros = collect([
-            ['ItemId' => 'IT100', 'InventSizeId' => 'STD'],   // empata
+            ['ItemId' => 'IT100', 'InventSizeId' => 'STD'],   // empata con la fila 'IT100-1' de AX
             ['ItemId' => 'it100', 'InventSizeId' => 'std'],   // empata (la clave normaliza a mayúsculas)
+            ['ItemId' => 'IT200', 'InventSizeId' => 'STD'],   // empata con la fila sin sufijo
             ['ItemId' => 'IT100', 'InventSizeId' => 'FEL'],   // mismo item, otra talla
             ['ItemId' => 'IT999', 'InventSizeId' => 'STD'],   // item fuera del catálogo
         ])->map(function (array $attrs) {
@@ -514,8 +523,169 @@ class LiberarOrdenesLiberarTest extends TestCase
 
         $this->assertTrue($decide($registros[0]));
         $this->assertTrue($decide($registros[1]));
-        $this->assertFalse($decide($registros[2]));
+        $this->assertTrue($decide($registros[2]));
         $this->assertFalse($decide($registros[3]));
+        $this->assertFalse($decide($registros[4]));
+    }
+
+    /**
+     * La fila espejo en CatCodificados no existe: la liberación NO se frena, pero la respuesta
+     * dice cuáles órdenes no se copiaron al catálogo. Antes era un return mudo y el usuario
+     * leía "liberadas correctamente" con codificados vacío.
+     */
+    public function test_orden_sin_fila_en_codificados_se_libera_pero_se_avisa(): void
+    {
+        $id = $this->sembrarRegistro();
+        // A propósito NO se siembra CatCodificados.
+
+        $response = $this->liberar([[
+            'id' => $id,
+            'bomId' => 'BOM-CRUDO-01',
+            'bomName' => 'LISTA MATERIALES CRUDO 01',
+            'noProduccion' => '79001',
+        ]]);
+
+        $data = $response->getData(true);
+        $this->assertTrue($data['success']);
+        $this->assertSame(['79001 (telar 201)'], $data['sinSincronizar']);
+        $this->assertStringContainsString('no se encontró renglón en codificados', $data['message']);
+
+        // La orden sí quedó liberada: el aviso no bloquea.
+        $this->assertSame('79001', DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $id)->value('NoProduccion'));
+    }
+
+    /** Con la fila presente no hay aviso. */
+    public function test_orden_sincronizada_no_reporta_aviso(): void
+    {
+        $id = $this->sembrarRegistro();
+        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+            'OrdenTejido' => '79002', 'TelarId' => '201',
+        ]);
+
+        $data = $this->liberar([[
+            'id' => $id,
+            'bomId' => 'BOM-CRUDO-01',
+            'bomName' => 'LISTA MATERIALES CRUDO 01',
+            'noProduccion' => '79002',
+        ]])->getData(true);
+
+        $this->assertSame([], $data['sinSincronizar']);
+        $this->assertStringNotContainsString('Aviso:', $data['message']);
+    }
+
+    /**
+     * Si AX no responde no se puede validar el flog. Antes esta rama aceptaba el valor
+     * capturado: un timeout era MÁS permisivo que un AX que contesta "no existe".
+     */
+    public function test_flog_se_rechaza_cuando_ax_no_responde(): void
+    {
+        $id = $this->sembrarRegistro();
+
+        // El doble de sqlsrv_ti no tiene TwFlogsTable: consultarla lanza excepción.
+        $response = $this->liberar([[
+            'id' => $id,
+            'bomId' => 'BOM-CRUDO-01',
+            'bomName' => 'LISTA MATERIALES CRUDO 01',
+            'noProduccion' => '79003',
+            'flogsId' => 'CE-INVENTADO-001',
+        ]]);
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertStringContainsString('No se pudo validar el flog', $response->getData(true)['message']);
+
+        // Rollback: nada se liberó.
+        $this->assertNull(DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $id)->value('NoProduccion'));
+    }
+
+    /** index() esconde los renglones con NoExisteBase; liberar() los rechaza con el mismo criterio. */
+    public function test_registro_con_no_existe_base_no_se_puede_liberar(): void
+    {
+        $id = $this->sembrarRegistro(['NoExisteBase' => 'SIN BASE']);
+
+        $response = $this->liberar([[
+            'id' => $id,
+            'bomId' => 'BOM-CRUDO-01',
+            'bomName' => 'LISTA MATERIALES CRUDO 01',
+            'noProduccion' => '79004',
+        ]]);
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertStringContainsString('No existe base', $response->getData(true)['message']);
+        $this->assertNull(DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $id)->value('NoProduccion'));
+    }
+
+    /**
+     * AX guarda el mismo salón con varios nombres: un L.Mat con TWSALON = 'ITEMA' es del salón
+     * SMIT. Antes se normalizaba sólo el lado del programa (SMIT) y se comparaba contra el valor
+     * crudo de AX, así que ese L.Mat era inalcanzable por cualquier ruta.
+     */
+    public function test_lmat_guardado_con_variante_de_salon_de_ax_es_valido(): void
+    {
+        $this->sembrarBomCrudo('BOM-ITEMA-01', 'IT300', 'STD', 'ITEMA');
+        $id = $this->sembrarRegistro(['ItemId' => 'IT300', 'SalonTejidoId' => 'SMIT']);
+        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+            'OrdenTejido' => '79005', 'TelarId' => '201',
+        ]);
+
+        $response = $this->liberar([[
+            'id' => $id,
+            'bomId' => 'BOM-ITEMA-01',
+            'bomName' => 'LISTA MATERIALES BOM-ITEMA-01',
+            'noProduccion' => '79005',
+        ]]);
+
+        $this->assertNotSame(422, $response->getStatusCode());
+        $this->assertSame('BOM-ITEMA-01', DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $id)->value('BomId'));
+    }
+
+    /**
+     * La pantalla debe costar lo mismo con 1 renglón que con 12: ninguna consulta puede
+     * depender del número de filas.
+     *
+     * Medido contra la BD real antes de quitar los N+1: 3 renglones = 15 queries (5 por fila) y
+     * 7.9 s, de los cuales 7.6 s eran consultas a AX una por renglón. Con 20-60 renglones —lo
+     * que trae el departamento nuevo— eso son minutos de carga. Este test es el guard: si
+     * alguien vuelve a meter una consulta dentro del each de renglones, se pone rojo.
+     */
+    public function test_index_no_hace_consultas_por_renglon(): void
+    {
+        DB::connection('sqlsrv')->table('ReqPesosRolloTejido')->insert([
+            'InventSizeId' => 'STD', 'PesoRollo' => 41, 'FechaModificacion' => '2026-01-01',
+        ]);
+
+        $contar = function (): int {
+            foreach (['sqlsrv', 'sqlsrv_ti'] as $conexion) {
+                DB::connection($conexion)->flushQueryLog();
+                DB::connection($conexion)->enableQueryLog();
+            }
+
+            // Instancia nueva: los caches del controlador son por request, no entre requests.
+            (new LiberarOrdenesController)->index(Request::create('/liberar-ordenes', 'GET', ['dias' => 10.999]));
+
+            return count(DB::connection('sqlsrv')->getQueryLog())
+                + count(DB::connection('sqlsrv_ti')->getQueryLog());
+        };
+
+        $this->sembrarRegistro(['NoTelarId' => '201']);
+        $conUno = $contar();
+
+        // Once renglones más, repartidos en varios telares y salones para que la resolución del
+        // "registro anterior" tenga trabajo real que hacer.
+        for ($i = 0; $i < 11; $i++) {
+            $this->sembrarRegistro([
+                'NoTelarId' => (string) (202 + $i),
+                'SalonTejidoId' => $i % 2 === 0 ? 'JACQUARD' : 'SMIT',
+                'ItemId' => 'IT'.(100 + $i),
+                'InventSizeId' => $i % 3 === 0 ? 'FEL' : 'STD',
+            ]);
+        }
+        $conDoce = $contar();
+
+        $this->assertSame(
+            $conUno,
+            $conDoce,
+            "index() hace consultas por renglón: {$conUno} queries con 1 registro y {$conDoce} con 12."
+        );
     }
 
     /**
@@ -542,8 +712,8 @@ class LiberarOrdenesLiberarTest extends TestCase
         $this->assertSame(30, $preview['valores']['repeticiones']);
         $this->assertEqualsWithDelta(21.3, $preview['valores']['mtsRollo'], 0.001);  // 142×30/100 ÷2
         $this->assertEqualsWithDelta(45, $preview['valores']['pzasRollo'], 0.001);   // 30×3 ÷2
-        $this->assertSame(286, $preview['valores']['noMarbete']);                    // round((12891/3)/30) ×2
         $this->assertEqualsWithDelta(287, $preview['valores']['totalRollos'], 0.001); // ceil(12891/45)
+        $this->assertSame(287, $preview['valores']['noMarbete']);                    // = TotalRollos (pendientes, sin producidos)
         $this->assertEqualsWithDelta(12915, $preview['valores']['totalPzas'], 0.001);
 
         // Repeticiones capturadas a mano sustituyen a la fórmula y arrastran la cadena,
@@ -557,8 +727,8 @@ class LiberarOrdenesLiberarTest extends TestCase
         $this->assertSame(20, $conReps['repeticiones']);
         $this->assertEqualsWithDelta(30, $conReps['pzasRollo'], 0.001);
         $this->assertEqualsWithDelta(14.2, $conReps['mtsRollo'], 0.001);
-        $this->assertSame(430, $conReps['noMarbete']);                        // round((12891/3)/20) ×2
         $this->assertEqualsWithDelta(430, $conReps['totalRollos'], 0.001);     // ceil(12891/30)
+        $this->assertSame(430, $conReps['noMarbete']);                        // = TotalRollos
 
         // TotalRollos capturado a mano solo re-deriva TotalPzas (= PzasRollo × TotalRollos)
         $conRollos = $controller->marbetes(

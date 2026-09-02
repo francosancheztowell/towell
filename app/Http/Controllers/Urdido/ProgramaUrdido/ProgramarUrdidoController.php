@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Urdido\ProgramaUrdido;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\Programas\SendUrdidoQualityNotification;
 use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProgramaEngomado;
-use App\Models\Sistema\SYSMensaje;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
 use App\Services\Programas\ProgramaPrioridadService;
@@ -16,7 +16,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -97,6 +96,7 @@ class ProgramarUrdidoController extends Controller
             'programaRoutes' => ProgramaRouteHelper::urdido(),
             'observacionesMaxLength' => ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
             'calidadComentarioMaxLength' => ProgramaConfig::CALIDAD_COMENTARIO_MAX_LENGTH,
+            'calidadPuntos' => UrdProgramaUrdido::CALIDAD_PUNTOS,
         ]);
     }
 
@@ -257,6 +257,7 @@ class ProgramarUrdidoController extends Controller
                     'AutorizaCalidad',
                     'FechaCalidad',
                     'Incorrecto',
+                    ...array_keys(UrdProgramaUrdido::CALIDAD_PUNTOS),
                 ],
                 fn ($query) => $query
                     ->whereIn('Status', ProgramaConfig::ACTIVE_STATUSES)
@@ -308,6 +309,7 @@ class ProgramarUrdidoController extends Controller
                         'calidadcomentario' => $orden->CalidadComentario ?? null,
                         'autoriza_calidad' => $orden->AutorizaCalidad ?? null,
                         'fecha_calidad' => $orden->FechaCalidad ? $orden->FechaCalidad->format('Y-m-d H:i:s') : null,
+                        'calidad_puntos' => $this->puntosCalidad($orden),
                     ];
                 }
             }
@@ -479,65 +481,67 @@ class ProgramarUrdidoController extends Controller
         }
     }
 
+    /**
+     * Puntos del checklist de una orden, en el orden del catálogo.
+     *
+     * @return array<string, bool|null>
+     */
+    private function puntosCalidad(object $orden): array
+    {
+        $puntos = [];
+        foreach (array_keys(UrdProgramaUrdido::CALIDAD_PUNTOS) as $campo) {
+            $puntos[$campo] = $orden->{$campo} === null ? null : (bool) $orden->{$campo};
+        }
+
+        return $puntos;
+    }
+
     public function actualizarCalidad(Request $request): JsonResponse
     {
         try {
-            if (! function_exists('userEsArea') || ! userEsArea('Calidad')) {
+            if (! function_exists('userCan') || ! userCan('registrar', 'Programa Urdido')) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Solo el área de Calidad puede evaluar una orden.',
+                    'error' => 'No tiene permiso para evaluar la calidad de una orden.',
                 ], 403);
             }
 
+            $campos = array_keys(UrdProgramaUrdido::CALIDAD_PUNTOS);
+
+            // Los cuatro puntos son obligatorios: el estado se deriva de ellos, no llega del front.
             $request->validate([
                 'id' => 'required|integer|exists:UrdProgramaUrdido,Id',
-                'calidad' => ['required', 'string', Rule::in(['A', 'R', 'O'])],
                 'calidadcomentario' => 'nullable|string|max:'.ProgramaConfig::CALIDAD_COMENTARIO_MAX_LENGTH,
+                ...array_fill_keys($campos, 'required|boolean'),
             ]);
 
             $orden = UrdProgramaUrdido::findOrFail($request->id);
-            $orden->Calidad = $request->calidad;
+
+            $algunoMalo = false;
+            foreach ($campos as $campo) {
+                $valor = $request->boolean($campo);
+                $orden->{$campo} = $valor;
+                $algunoMalo = $algunoMalo || ! $valor;
+            }
+
+            $orden->Calidad = $algunoMalo ? '0' : '1';
             $orden->CalidadComentario = $request->calidadcomentario;
-            $orden->AutorizaCalidad = Auth::user()->nombre;
+            $orden->AutorizaCalidad = (string) (Auth::user()->nombre ?? '');
             $orden->FechaCalidad = now();
             $orden->save();
 
-            $estadoTexto = match ($request->calidad) {
-                'A' => '✅ Aprobado',
-                'R' => '❌ Rechazado',
-                'O' => '⚠️ Con observaciones',
-            };
-
-            $mensaje = "🏭 *CALIDAD URDIDO*\n\n";
-            $mensaje .= "📋 Folio: {$orden->Folio}\n";
-            $mensaje .= "📅 Fecha: {$orden->FechaCalidad->format('d/m/Y H:i')}\n";
-            $mensaje .= "👷‍♂️ Realizó: {$orden->AutorizaCalidad}\n";
-            $mensaje .= "🏭 Maquina: {$orden->MaquinaId}\n";
-            $mensaje .= "🏭 Lote Prov: {$orden->LoteProveedor}\n";
-            $mensaje .= "⚙️ Fibra: {$orden->Fibra}\n";
-            $mensaje .= "📐 Cuenta: {$orden->InventSizeId}\n\n";
-            $mensaje .= "Status: {$estadoTexto}\n";
-            if ($request->calidadcomentario) {
-                $mensaje .= "💬 Obs: {$request->calidadcomentario}";
-            }
-
-            $botToken = config('services.telegram.bot_token');
-            $chatIds = SYSMensaje::getChatIdsPorModulo('UrdidoCalidad');
-
-            if (! empty($botToken) && ! empty($chatIds)) {
-                $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
-                foreach ($chatIds as $chatId) {
-                    try {
-                        Http::timeout(10)->post($url, [
-                            'chat_id' => $chatId,
-                            'text' => $mensaje,
-                            'parse_mode' => 'Markdown',
-                        ]);
-                    } catch (\Throwable $e) {
-                        Log::warning('Error al enviar telegram calidad urdido: '.$e->getMessage());
-                    }
-                }
-            }
+            SendUrdidoQualityNotification::dispatchAfterResponse([
+                'folio' => (string) ($orden->Folio ?? ''),
+                'date' => $orden->FechaCalidad->format('d/m/Y H:i'),
+                'author' => $orden->AutorizaCalidad,
+                'machine' => (string) ($orden->MaquinaId ?? ''),
+                'supplier_lot' => (string) ($orden->LoteProveedor ?? ''),
+                'fiber' => (string) ($orden->Fibra ?? ''),
+                'size' => (string) ($orden->InventSizeId ?? ''),
+                'quality' => (string) $orden->Calidad,
+                'comment' => (string) ($orden->CalidadComentario ?? ''),
+                'points' => $this->puntosCalidad($orden),
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -545,7 +549,8 @@ class ProgramarUrdidoController extends Controller
                 'calidad' => $orden->Calidad,
                 'calidadcomentario' => $orden->CalidadComentario,
                 'autoriza_calidad' => $orden->AutorizaCalidad,
-                'fecha_calidad' => $orden->FechaCalidad,
+                'fecha_calidad' => $orden->FechaCalidad->format('Y-m-d H:i:s'),
+                'calidad_puntos' => $this->puntosCalidad($orden),
             ]);
         } catch (ValidationException $e) {
             return response()->json([

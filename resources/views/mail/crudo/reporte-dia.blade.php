@@ -86,6 +86,30 @@
                     </td>
                 </tr>
 
+                @if (!empty($sinPesoMuestra))
+                    <tr>
+                        <td align="center" style="padding:26px 12px 0">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                                   style="background:#ffe0dd;border:2px solid #d10000;border-radius:7px;
+                                          font-family:Arial,Helvetica,sans-serif">
+                                <tr>
+                                    <td align="center" style="padding:16px">
+                                        <div style="font-size:26px;font-weight:bold;line-height:1;color:#d10000">
+                                            {{ count($sinPesoMuestra) }}
+                                        </div>
+                                        <div style="font-size:12px;font-weight:bold;padding-top:6px;color:#d10000">
+                                            TELARES SIN PESO MUESTRA
+                                        </div>
+                                        <div style="font-size:11px;padding-top:4px;color:#d10000">
+                                            El detalle viene en el Excel adjunto
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                @endif
+
                 <tr>
                     <td align="center" style="padding:28px 24px 12px;font-family:Arial,Helvetica,sans-serif;{{ $tituloSeccion }}">
                         INDICADORES DEL DÍA

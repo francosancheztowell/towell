@@ -43,6 +43,8 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
         'Kg', 'Kg Meta', '% Cumpl.',
     ];
 
+    private const PESO_HEADERS = ['Telar', 'Orden', 'Producto'];
+
     private const AUDIT_HEADERS = [
         'Hora', 'Turno', 'Salón', 'Telar', 'Orden', 'Auditor', 'Alineación',
         'Dibujo JAC', 'Ident. julio', 'Marbetes', 'Defectos', 'Observaciones',
@@ -98,14 +100,22 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
 
     private int $auditLastRow = 0;
 
+    private int $pesoTitleRow = 0;
+
+    private int $pesoHeaderRow = 0;
+
+    private int $pesoLastRow = 0;
+
     /**
      * @param  iterable<int, CrudoAuditoria>  $auditorias
+     * @param  list<array{telar: string, orden: string, producto: string}>  $sinPesoMuestra
      */
     public function __construct(
         private readonly CrudoDashboardData $data,
         private readonly DateTimeImmutable $day,
         private readonly ?string $rutaLogo = null,
         private readonly iterable $auditorias = [],
+        private readonly array $sinPesoMuestra = [],
     ) {
         $this->build();
     }
@@ -129,6 +139,17 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
     public function summary(): array
     {
         return $this->data->summary;
+    }
+
+    /**
+     * Telares con programa EnProceso sin peso muestra, para que el correo los
+     * liste sin repetir la consulta.
+     *
+     * @return list<array{telar: string, orden: string, producto: string}>
+     */
+    public function sinPesoMuestra(): array
+    {
+        return $this->sinPesoMuestra;
     }
 
     public function drawings()
@@ -173,6 +194,8 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
             ['% Calidad', (float) ($summary['qualityPercent'] ?? 0), null, '0.0"%"'],
         ]);
 
+        $this->buildPesoMuestraBlock();
+
         $this->rows[] = [''];
 
         $this->headerRow = count($this->rows) + 1;
@@ -204,6 +227,30 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
 
         $this->buildSalonBlock();
         $this->buildAuditBlock();
+    }
+
+    /** Telares corriendo sin peso muestra capturado: bloque en rojo, arriba. */
+    private function buildPesoMuestraBlock(): void
+    {
+        if ($this->sinPesoMuestra === []) {
+            return;
+        }
+
+        $this->rows[] = [''];
+        $this->pesoTitleRow = count($this->rows) + 1;
+        $this->rows[] = ['TELARES SIN PESO MUESTRA — '.count($this->sinPesoMuestra).' telar(es)'];
+        $this->pesoHeaderRow = count($this->rows) + 1;
+        $this->rows[] = self::PESO_HEADERS;
+
+        foreach ($this->sinPesoMuestra as $fila) {
+            $this->rows[] = [
+                $fila['telar'],
+                $fila['orden'] === '' ? '—' : $fila['orden'],
+                $fila['producto'],
+            ];
+        }
+
+        $this->pesoLastRow = count($this->rows);
     }
 
     /** Auditorías que Calidad capturó dentro del mismo día de producción. */
@@ -391,6 +438,7 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
                 $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
                 $this->styleTiles($sheet);
+                $this->stylePesoMuestraBlock($sheet);
                 $this->styleTable($sheet);
                 $this->styleSalonBlock($sheet);
                 $this->styleAuditBlock($sheet);
@@ -508,6 +556,33 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
             ->addCondition("AND(\$L{$first}<>\"\",\$K{$first}<\$L{$first})");
         $bajoMeta->getStyle()->getFont()->setBold(true)->getColor()->setARGB('FF96700A');
         $sheet->getStyle("K{$first}:K{$lastRow}")->setConditionalStyles([$bajoMeta]);
+    }
+
+    private function stylePesoMuestraBlock(Worksheet $sheet): void
+    {
+        if ($this->pesoLastRow === 0) {
+            return;
+        }
+
+        $lastColumn = Coordinate::stringFromColumnIndex(count(self::PESO_HEADERS));
+        $header = $this->pesoHeaderRow;
+
+        $sheet->mergeCells("A{$this->pesoTitleRow}:{$lastColumn}{$this->pesoTitleRow}");
+        $sheet->getStyle("A{$this->pesoTitleRow}")->getFont()
+            ->setBold(true)->setSize(12)->getColor()->setARGB('FFFFFFFF');
+        $sheet->getStyle("A{$this->pesoTitleRow}:{$lastColumn}{$this->pesoTitleRow}")->getFill()
+            ->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFD10000');
+
+        $sheet->getStyle("A{$header}:{$lastColumn}{$header}")->getFont()
+            ->setBold(true)->setSize(10)->getColor()->setARGB('FFD10000');
+        $sheet->getStyle("A{$header}:{$lastColumn}{$this->pesoLastRow}")->getFill()
+            ->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFE0DD');
+        $sheet->getStyle("A{$header}:{$lastColumn}{$this->pesoLastRow}")->getBorders()->getAllBorders()
+            ->setBorderStyle(Border::BORDER_THIN)->getColor()->setARGB('FFD10000');
+        $sheet->getStyle('A'.($header + 1).":B{$this->pesoLastRow}")->getFont()
+            ->setBold(true)->getColor()->setARGB('FFD10000');
+        $sheet->getStyle("A{$header}:B{$this->pesoLastRow}")->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
     }
 
     private function styleAuditBlock(Worksheet $sheet): void

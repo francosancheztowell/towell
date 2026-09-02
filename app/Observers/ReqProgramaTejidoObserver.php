@@ -4,11 +4,13 @@ namespace App\Observers;
 
 use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
+use App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqAplicaciones;
 use App\Models\Planeacion\ReqMatrizHilos;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqProgramaTejidoLine;
+use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use DateTimeInterface;
@@ -66,7 +68,8 @@ class ReqProgramaTejidoObserver
         'TotalPedido' => 'Pedido',
         'SaldoPedido' => 'Saldos',
         'Produccion' => 'Produccion',
-        'ProduccionMarbetes' => 'ProduccionMarbetes',
+        // ProduccionMarbetes NO se sincroniza: en ReqProgramaTejido son piezas y en
+        // CatCodificados son marbetes (lo alimenta el proceso externo). Distinta unidad.
         'FlogsId' => 'FlogsId',
         'NombreProyecto' => 'NombreProyecto',
         'PesoCrudo' => 'P_crudo',
@@ -78,18 +81,20 @@ class ReqProgramaTejidoObserver
 
     /**
      * Campos input cuyo cambio dispara recálculo de las fórmulas de producción
-     * (Repeticiones, PzasRollo, MtsRollo, TotalRollos, TotalPzas, SaldoMarbete, NoMarbete).
+     * (Repeticiones, PzasRollo, MtsRollo, TotalRollos, TotalPzas).
      *
      * Cadena:
      *   PesoRollo (maestro o 90 para felpa) ─→ Repeticiones = TRUNC((PesoRollo/PesoCrudo)/NoTiras × 1000)
      *                                                       ├─→ PzasRollo = Rep × NoTiras  (÷2 si FEL)
      *                                                       ├─→ MtsRollo  = (LargoCrudo × Rep)/100  (÷2 si FEL)
      *                                                       └─→ TotalRollos = CEIL(TotalPedido / PzasRollo)
-     *                                                              ├─→ TotalPzas  = TotalRollos × PzasRollo
-     *                                                              └─→ NoMarbete  = TotalRollos − ProduccionMarbetes
+     *                                                              └─→ TotalPzas  = TotalRollos × PzasRollo
+     *
+     * SaldoMarbete / NoMarbete NO se recalculan aquí: los lleva el proceso externo
+     * (NoMarbete = TotalRollos − ProduccionMarbetes). Solo Liberar Órdenes fija el valor inicial.
      */
     public const CAMPOS_RECALC_FORMULA = [
-        'TamanoClave', 'InventSizeId', 'PesoCrudo', 'NoTiras', 'LargoCrudo', 'SaldoPedido', 'TotalPedido', 'Produccion', 'ProduccionMarbetes',
+        'TamanoClave', 'InventSizeId', 'PesoCrudo', 'NoTiras', 'LargoCrudo', 'SaldoPedido', 'TotalPedido', 'Produccion',
     ];
 
     public function saved(ReqProgramaTejido $programa): void
@@ -102,7 +107,7 @@ class ReqProgramaTejidoObserver
 
         // Si cambió algún input que afecta las fórmulas (TamanoClave, InventSizeId, PesoCrudo,
         // NoTiras, LargoCrudo, SaldoPedido), recalcular toda la cadena Repeticiones → PzasRollo →
-        // MtsRollo → TotalRollos → TotalPzas → SaldoMarbete y propagar a CatCodificados.
+        // MtsRollo → TotalRollos → TotalPzas y propagar a CatCodificados.
         if ($this->debeRecalcularFormulas($programa)) {
             $this->recalcularFormulasProduccion($programa);
         }
@@ -124,8 +129,8 @@ class ReqProgramaTejidoObserver
 
     /**
      * Recalcula la cadena completa de fórmulas y la persiste tanto en ReqProgramaTejido como en
-     * CatCodificados (si la fila existe). Maneja el ajuste FEL (÷2 en PzasRollo y MtsRollo,
-     * ×2 en SaldoMarbete si aplica).
+     * CatCodificados (si la fila existe). Maneja el ajuste FEL (÷2 en PzasRollo y MtsRollo).
+     * No escribe SaldoMarbete/NoMarbete.
      *
      * Público para poder llamarse desde flujos con saveQuietly() (UpdateTejido, etc.) o desde
      * scripts de mantenimiento masivo.
@@ -139,8 +144,6 @@ class ReqProgramaTejidoObserver
             // TotalRollos/TotalPzas se calculan sobre el PEDIDO completo (no el saldo pendiente).
             // Fallback a SaldoPedido/Produccion solo si TotalPedido viene vacío (órdenes antiguas).
             $totalPedido = (float) ($programa->TotalPedido ?? $programa->SaldoPedido ?? $programa->Produccion ?? 0);
-            // Marbetes ya producidos (columna ProduccionMarbetes); null → 0.
-            $produccionMarbetes = (float) ($programa->ProduccionMarbetes ?? 0);
 
             if ($pCrudo <= 0 || $tiras <= 0) {
                 Log::info('ReqProgramaTejidoObserver: skip recalc (PesoCrudo o NoTiras invalido)', [
@@ -155,9 +158,11 @@ class ReqProgramaTejidoObserver
             // Misma semántica que LiberarOrdenesController:
             //  - Felpa nominal (TamanoClave/NombreProducto con "FELPA") → peso rodillo fijo 90.
             //  - El ajuste ÷2 en PzasRollo/MtsRollo aplica a felpa nominal Y a tamaños "FEL".
-            $esFelpaNominal = $this->esTamanoFelpa($programa);
-            $aplicaAjusteFel = $esFelpaNominal || $this->esFelpaInventSize($programa);
-            $pesoRollo = $this->obtenerPesoRolloMaestro($programa, $esFelpaNominal);
+            //  - Karl Mayer no se rige por felpa: ni peso 90 ni ajuste ×2 / ÷2.
+            $esKarlMayer = TelarSalonResolver::esKarlMayer($programa->SalonTejidoId ?? null, $programa->NoTelarId ?? null);
+            $esFelpaNominal = ! $esKarlMayer && $this->esTamanoFelpa($programa);
+            $aplicaAjusteFel = ! $esKarlMayer && ($esFelpaNominal || $this->esFelpaInventSize($programa));
+            $pesoRollo = $this->obtenerPesoRolloMaestro($programa, $esFelpaNominal, $esKarlMayer);
 
             // === CADENA DE FÓRMULAS ===
             $repeticiones = (int) ((($pesoRollo / $pCrudo) / $tiras) * 1000); // TRUNC
@@ -190,17 +195,9 @@ class ReqProgramaTejidoObserver
                 ? (float) round($totalRollos * $pzasRollo, 0)
                 : null;
 
-            // NoMarbete = REDONDEAR((Pedido / NoTiras) / Repeticiones, 0), ×2 si FEL/Felpa.
-            // Única fórmula válida (la de CatCodificados, ver SaldoMarbeteCodificacionService):
-            // NO se resta ProduccionMarbetes — el marbetaje se calcula sobre el pedido completo,
-            // si no el valor se movía solo conforme se producía y dejaba de cuadrar con el catálogo.
-            $noMarbete = $totalPedido > 0
-                ? (float) round(($totalPedido / $tiras) / $repeticiones, 0)
-                : null;
-            if ($noMarbete !== null && $aplicaAjusteFel) {
-                $noMarbete = (float) round($noMarbete * 2);
-            }
-            $saldoMarbete = $noMarbete;
+            // SaldoMarbete / NoMarbete NO se tocan aquí: los mantiene el proceso externo
+            // (NoMarbete = TotalRollos − ProduccionMarbetes conforme se imprimen marbetes).
+            // El cron de 30 min pasa por aquí; si escribiera marbetes pisaba el pendiente.
 
             // === UPDATE directo (evita recursión del observer) ===
             $tabla = $programa->getTable();
@@ -213,8 +210,6 @@ class ReqProgramaTejidoObserver
                     'MtsRollo' => $mtsRollo,
                     'TotalRollos' => $totalRollos,
                     'TotalPzas' => $totalPzas,
-                    'SaldoMarbete' => $saldoMarbete,
-                    'NoMarbete' => $noMarbete,
                     'RollosProgramados' => $totalRollos,
                     'UpdatedAt' => Carbon::now(),
                 ]);
@@ -235,13 +230,12 @@ class ReqProgramaTejidoObserver
             }
 
             // Sincronizar las mismas fórmulas a CatCodificados (si existe la fila)
+            // Mismo criterio que LiberarOrdenesController: OrdenTejido + TelarId. Solo por OrdenTejido
+            // se pisaban filas de otros telares cuando un folio se reparte entre varios.
             $noProduccion = trim((string) ($programa->NoProduccion ?? ''));
             $afectadasCat = 0;
             if ($noProduccion !== '') {
-                $tablaCat = (new CatCodificados)->getTable();
-                // Mismo criterio que LiberarOrdenesController: OrdenTejido + TelarId. Solo por OrdenTejido
-                // se pisaban filas de otros telares cuando un folio se reparte entre varios.
-                $queryCat = $connection->table($tablaCat)->where('OrdenTejido', $noProduccion);
+                $queryCat = $connection->table((new CatCodificados)->getTable())->where('OrdenTejido', $noProduccion);
                 $telar = trim((string) ($programa->NoTelarId ?? ''));
                 if ($telar !== '') {
                     $queryCat->where('TelarId', $telar);
@@ -252,7 +246,6 @@ class ReqProgramaTejidoObserver
                     'MtsRollo' => $mtsRollo,
                     'TotalRollos' => $totalRollos,
                     'TotalPzas' => $totalPzas,
-                    'NoMarbete' => $noMarbete,
                     'FechaModificacion' => Carbon::now()->format('Y-m-d'),
                     'HoraModificacion' => Carbon::now()->format('H:i:s'),
                 ];
@@ -269,8 +262,8 @@ class ReqProgramaTejidoObserver
                 'esFelpaNominal' => $esFelpaNominal,
                 'aplicaAjusteFel' => $aplicaAjusteFel,
                 'pesoRollo_usado' => $pesoRollo,
-                'inputs' => compact('pCrudo', 'tiras', 'largo', 'totalPedido', 'produccionMarbetes'),
-                'resultados' => compact('repeticiones', 'pzasRollo', 'mtsRollo', 'totalRollos', 'totalPzas', 'noMarbete'),
+                'inputs' => compact('pCrudo', 'tiras', 'largo', 'totalPedido'),
+                'resultados' => compact('repeticiones', 'pzasRollo', 'mtsRollo', 'totalRollos', 'totalPzas'),
                 'filas_RPT_afectadas' => $afectadasRpt,
                 'filas_CAT_afectadas' => $afectadasCat,
             ]);
@@ -313,16 +306,22 @@ class ReqProgramaTejidoObserver
 
     /**
      * Obtiene el PesoRollo a usar en la fórmula (mismo orden que LiberarOrdenesController):
+     *   - Karl Mayer: 27.5 kg
      *   - Felpa nominal (FELPA en clave/nombre): 90 kg fijo
      *   - Resto: InventSizeId exacto en ReqPesosRollosTejido → "FEL" (si el tamaño contiene FEL) → "DEF" → 41.5
      */
-    private function obtenerPesoRolloMaestro(ReqProgramaTejido $programa, bool $esFelpaNominal): float
+    private function obtenerPesoRolloMaestro(ReqProgramaTejido $programa, bool $esFelpaNominal, bool $esKarlMayer = false): float
     {
         // El PesoRollo guardado gana sobre el maestro: es el que el usuario capturó al liberar y con el
         // que se calcularon las Repeticiones que quedaron en CatCodificados. Ignorarlo desalinea ambas tablas.
         $pesoGuardado = $programa->PesoRollo ?? null;
         if ($pesoGuardado !== null && is_numeric($pesoGuardado) && (float) $pesoGuardado > 0.0) {
             return (float) $pesoGuardado;
+        }
+
+        // Karl Mayer va antes que felpa: es su peso estándar, y el capturado ya ganó arriba.
+        if ($esKarlMayer) {
+            return LiberarOrdenesController::PESO_ROLLO_KG_KARL_MAYER;
         }
 
         if ($esFelpaNominal) {
@@ -420,15 +419,23 @@ class ReqProgramaTejidoObserver
                 return;
             }
 
-            // Update masivo: aplica a TODAS las filas con el mismo OrdenTejido (cubre el caso de
-            // múltiples telares o múltiples filas relacionadas al mismo número de producción —
-            // útil para flujos como Balanceo que actualizan varias órdenes).
-            $afectadas = $connection->table($tabla)
-                ->where('OrdenTejido', $noProduccion)
-                ->update($cambiosFiltrados);
+            // Se acota al telar del registro, igual que LiberarOrdenesController::actualizarCatCodificados.
+            // Sin este filtro el update masivo por OrdenTejido escribía los datos de un telar en las
+            // filas de los otros: hay órdenes repartidas en dos telares y cada una tiene sus propias
+            // métricas. Si el registro no trae telar se conserva el update masivo, que es el caso de
+            // Balanceo (varias filas de la misma orden sin telar propio).
+            $noTelarId = trim((string) ($programa->NoTelarId ?? ''));
+
+            $query = $connection->table($tabla)->where('OrdenTejido', $noProduccion);
+            if ($noTelarId !== '' && in_array('TelarId', $columnasExistentes, true)) {
+                $query->where('TelarId', $noTelarId);
+            }
+
+            $afectadas = $query->update($cambiosFiltrados);
 
             Log::info('ReqProgramaTejidoObserver: CatCodificados sincronizado', [
                 'orden' => $noProduccion,
+                'telar' => $noTelarId !== '' ? $noTelarId : 'todos',
                 'filas_afectadas' => $afectadas,
                 'campos_solicitados' => array_keys($cambios),
                 'campos_actualizados' => array_keys($cambiosFiltrados),

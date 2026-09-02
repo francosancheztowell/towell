@@ -12,6 +12,7 @@ use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\Catalogos\ReqPesosRollosTejido;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
@@ -27,14 +28,20 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LiberarOrdenesController extends Controller
 {
-    /** TwSalon en AX para BOM CRUDO de tejido. Valores tal cual los guarda BOMTABLE. */
-    private const BOM_CRUDO_TW_SALONES = ['SMIT', 'JACQUARD', 'KM'];
-
     /** Peso estándar rodillo cuando TamanoClave / producto son Felpa (FELPA…). Metros/Pzas÷2 y marbetes×2 con mismo formato que tamaño FEL. */
     private const PESO_ROLLO_KG_FELPA = 90.0;
 
+    /** Peso estándar rodillo en Karl Mayer. Es solo el valor inicial: se edita en la grilla como cualquier otro. */
+    public const PESO_ROLLO_KG_KARL_MAYER = 27.5;
+
     /** Cache en memoria para Schema::getColumnListing, por nombre de tabla */
     private static array $columnListingCache = [];
+
+    /** Catálogo de pesos de rollo por InventSizeId; se carga una vez por request. */
+    private ?array $pesosRolloCache = null;
+
+    /** L.Mat CRUDO del lote por item|talla|salón; null = no precargado (ruta de un solo renglón). */
+    private ?array $bomCrudoCache = null;
 
     /**
      * Columnas de una tabla con cache estático para evitar consultar la metadata
@@ -128,57 +135,17 @@ class LiberarOrdenesController extends Controller
                     && (empty($registro->NoExisteBase) || is_null($registro->NoExisteBase));
             })->values();
 
-            // Calcular prioridad del registro anterior para cada registro
-            // Prioridad = "CHECAR + NombreProducto" del registro anterior en ReqProgramaTejido
-            // Buscar el registro anterior que tenga el mismo NoTelarId según el ordenamiento original
-            $registros->each(function ($registro) {
-                $noTelarId = $registro->NoTelarId ?? null;
-                $salonTejidoId = $registro->SalonTejidoId ?? '';
-                $fechaInicio = $registro->FechaInicio ?? null;
-                $idActual = $registro->Id ?? null;
+            // Prioridad = "SALDAR + NombreProducto" del registro anterior en el mismo salón+telar.
+            // Se resuelve con UNA consulta para todo el lote (antes era una por renglón).
+            $candidatosAnteriores = $this->candidatosPrioridadAnterior($registros);
 
-                if (! $noTelarId || ! $idActual) {
-                    $registro->PrioridadAnterior = '';
-
-                    return;
-                }
-
-                // Buscar el registro anterior en ReqProgramaTejido con el mismo NoTelarId
-                // El ordenamiento original es: SalonTejidoId, NoTelarId, FechaInicio (asc)
-                $query = ReqProgramaTejido::query()
-                    ->select(['Id', 'NombreProducto', 'SalonTejidoId', 'NoTelarId', 'FechaInicio'])
-                    ->where('NoTelarId', $noTelarId)
-                    ->where('SalonTejidoId', $salonTejidoId);
-
-                // Construir condiciones para encontrar el registro anterior
-                if ($fechaInicio) {
-                    // Buscar registros con FechaInicio menor, o si es igual, con Id menor
-                    $query->where(function ($q) use ($fechaInicio, $idActual) {
-                        $q->where('FechaInicio', '<', $fechaInicio)
-                            ->orWhere(function ($q2) use ($fechaInicio, $idActual) {
-                                $q2->where('FechaInicio', '=', $fechaInicio)
-                                    ->where('Id', '<', $idActual);
-                            });
-                    });
-                } else {
-                    // Si no tiene FechaInicio, buscar por Id menor
-                    $query->where('Id', '<', $idActual);
-                }
-
-                // Ordenar por FechaInicio DESC y Id DESC para obtener el registro más cercano anterior
-                $registroAnterior = $query->orderByDesc('FechaInicio')
-                    ->orderByDesc('Id')
-                    ->first();
-
-                if ($registroAnterior && ! empty($registroAnterior->NombreProducto)) {
-                    $nombreProductoAnterior = $registroAnterior->NombreProducto;
-                    // Formar prioridad: "CHECAR + NombreProducto"
-                    $prioridadFormada = 'SALDAR '.$nombreProductoAnterior;
-                    $registro->PrioridadAnterior = $prioridadFormada;
-                } else {
-                    $registro->PrioridadAnterior = '';
-                }
+            $registros->each(function ($registro) use ($candidatosAnteriores) {
+                $registro->PrioridadAnterior = $this->prioridadAnterior($registro, $candidatosAnteriores);
             });
+
+            // Una sola consulta a AX con las L.Mat de todo el lote: sin esto, el each de abajo
+            // pega a AX por renglón.
+            $this->precargarBomCrudo($registros);
 
             // Calcular campos en la carga para mostrarlos en la vista
             $registros->each(function ($registro) {
@@ -231,6 +198,15 @@ class LiberarOrdenesController extends Controller
             $articulosConFlog = $this->clavesArticulosConFlog($registros);
             $registros->each(function ($registro) use ($articulosConFlog) {
                 $registro->RequiereDecisionFlog = isset($articulosConFlog[self::claveItemTalla($registro->ItemId ?? '', $registro->InventSizeId ?? '')]);
+            });
+
+            // El flog sugerido se resuelve aquí, en UNA consulta para todo el lote. Antes el
+            // front lo pedía por renglón (una petición HTTP cada uno, en serie).
+            $flogsSugeridos = $this->flogsSugeridosDelLote($registros->filter(fn ($r) => $r->RequiereDecisionFlog));
+            $registros->each(function ($registro) use ($flogsSugeridos) {
+                $registro->FlogSugerido = $registro->RequiereDecisionFlog
+                    ? ($flogsSugeridos[self::claveItemTalla($registro->ItemId ?? '', $registro->InventSizeId ?? '')] ?? null)
+                    : null;
             });
 
             // Obtener opciones de hilos para el select desde INVENTTABLE (TwTipoHiloId)
@@ -316,8 +292,24 @@ class LiberarOrdenesController extends Controller
         $bomIds = $registrosInput->pluck('bomId')->map(fn ($v) => trim((string) $v))->filter()->unique();
 
         $registrosBd = ReqProgramaTejido::whereIn('Id', $registrosInput->pluck('id')->map(fn ($v) => (int) $v)->all())
-            ->get(['Id', 'ItemId', 'InventSizeId', 'SalonTejidoId'])
+            ->get(['Id', 'ItemId', 'InventSizeId', 'SalonTejidoId', 'NoExisteBase'])
             ->keyBy('Id');
+
+        // index() esconde los renglones con NoExisteBase, pero liberar() no los rechazaba: un id
+        // posteado a mano pasaba. Mismo criterio en las dos puntas.
+        $sinBase = $registrosBd
+            ->filter(fn ($r) => ! empty($r->NoExisteBase))
+            ->map(fn ($r) => (string) $r->Id)
+            ->values()
+            ->all();
+
+        if ($sinBase !== []) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pueden liberar registros marcados con "No existe base": '
+                    .implode(', ', $sinBase).'.',
+            ], 422);
+        }
 
         // Clave item|talla|bom => salones en los que ese L.Mat es válido.
         $salonesValidos = [];
@@ -363,7 +355,7 @@ class LiberarOrdenesController extends Controller
             // Si el renglón no trae salón, basta con que el L.Mat sea de uno de los válidos.
             $ok = $salonRegistro !== ''
                 ? in_array($salonRegistro, $salones, true)
-                : array_intersect($salones, self::BOM_CRUDO_TW_SALONES) !== [];
+                : array_intersect($salones, TelarSalonResolver::salonesCanonicos()) !== [];
 
             if (! $ok) {
                 $bomsInvalidos[] = $bomId.' (orden '.$registroBd->Id.')';
@@ -385,6 +377,9 @@ class LiberarOrdenesController extends Controller
         DB::beginTransaction();
 
         $actualizados = collect();
+        // Órdenes liberadas cuya fila espejo en CatCodificados no existía: se avisan en la
+        // respuesta en vez de quedar en silencio, pero NO frenan la liberación.
+        $sinSincronizar = [];
 
         try {
             $foliosUsadosEnLote = [];
@@ -449,6 +444,17 @@ class LiberarOrdenesController extends Controller
 
                 // Calcular campos de producción
                 $pCrudo = $registro->PesoCrudo ?? null;
+
+                // Karl Mayer captura las tiras en la grilla y nada se guarda hasta liberar, así
+                // que el valor de la pantalla manda y se persiste. En los demás salones las tiras
+                // no son editables: se ignora lo que venga en el request.
+                if ($this->esKarlMayer($registro) && $this->valorRequestNumericoPresente($item['noTiras'] ?? null)) {
+                    $tirasCapturadas = (int) round((float) $item['noTiras']);
+                    if ($tirasCapturadas > 0) {
+                        $registro->NoTiras = $tirasCapturadas;
+                    }
+                }
+
                 $tiras = $registro->NoTiras ?? null;
 
                 // PesoRollo: se respeta lo que el usuario haya capturado en la grilla para CUALQUIER tamaño (incluida felpa).
@@ -538,10 +544,11 @@ class LiberarOrdenesController extends Controller
                 // vuelve al peso maestro y cambia Repeticiones/PzasRollo/MtsRollo respecto a lo liberado.
                 $registro->PesoRollo = $pesoRolloFinal;
                 $registro->Repeticiones = $repeticiones;
-                // No. marbetes = fórmula del catálogo (round((Pedido/NoTiras)/Repeticiones) ×2 si FEL),
-                // no TotalRollos: es la única que cuadra con CatCodificados.
-                $registro->SaldoMarbete = $saldoMarbeteValor > 0 ? (float) $saldoMarbeteValor : null;
-                $registro->NoMarbete = $registro->SaldoMarbete;
+                // No. marbetes = marbetes pendientes = TotalRollos − CatCodificados.ProduccionMarbetes.
+                // Al liberar aún no hay marbetes producidos, así que SaldoMarbete = TotalRollos.
+                // El observer y el cron lo van descontando después (ver ReqProgramaTejidoObserver).
+                $registro->SaldoMarbete = $totalRollos;
+                $registro->NoMarbete = $totalRollos;
                 $registro->RollosProgramados = $totalRollos;
                 $registro->MtsRollo = $mtsRollo;
                 $registro->PzasRollo = $pzasRollo;
@@ -579,6 +586,8 @@ class LiberarOrdenesController extends Controller
                 }
                 if (isset($item['totalRollos']) && $item['totalRollos'] !== null && $item['totalRollos'] !== '') {
                     $registro->TotalRollos = (float) ceil((float) $item['totalRollos']);
+                    $registro->SaldoMarbete = $registro->TotalRollos;
+                    $registro->NoMarbete = $registro->TotalRollos;
                     if ($registro->PzasRollo !== null && is_numeric($registro->PzasRollo)) {
                         $registro->TotalPzas = round((float) $registro->TotalRollos * (float) $registro->PzasRollo, 0);
                     }
@@ -674,11 +683,15 @@ class LiberarOrdenesController extends Controller
                 $registro->save();
 
                 // Actualizar CatCodificados con los mismos campos (código de dibujo: grilla o último catálogo Item+salón)
-                $this->actualizarCatCodificados(
+                $sincronizado = $this->actualizarCatCodificados(
                     $registro,
                     $codigoDibujoParaCat !== '' ? $codigoDibujoParaCat : null,
                     $asignarFlogs
                 );
+
+                if (! $sincronizado) {
+                    $sinSincronizar[] = $registro->NoProduccion.' (telar '.trim((string) ($registro->NoTelarId ?? '?')).')';
+                }
 
                 // Actualizar ReqModelosCodificados con OrdPrincipal y PesoMuestra
                 $this->actualizarReqModelosCodificados($registro);
@@ -731,7 +744,8 @@ class LiberarOrdenesController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Órdenes liberadas correctamente.',
+                    'message' => self::mensajeLiberacion('Órdenes liberadas correctamente.', $sinSincronizar),
+                    'sinSincronizar' => $sinSincronizar,
                     'fileName' => 'ORDEN_CAMBIO_MODELO_'.now()->format('Ymd_His').'.xlsx',
                     'fileData' => base64_encode($excelBinary),
                     'redirectUrl' => route('catalogos.req-programa-tejido'),
@@ -751,9 +765,29 @@ class LiberarOrdenesController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Órdenes liberadas correctamente, pero no se pudo generar el Excel de orden de cambio. Reimprímelo desde Programa Tejido.',
+            'message' => self::mensajeLiberacion(
+                'Órdenes liberadas correctamente, pero no se pudo generar el Excel de orden de cambio. Reimprímelo desde Programa Tejido.',
+                $sinSincronizar
+            ),
+            'sinSincronizar' => $sinSincronizar,
             'redirectUrl' => route('catalogos.req-programa-tejido'),
         ]);
+    }
+
+    /**
+     * Agrega al mensaje de éxito las órdenes que no se pudieron espejar en CatCodificados.
+     * La liberación sí ocurrió: el aviso es para que el usuario sepa cuáles revisar a mano.
+     *
+     * @param  array<int, string>  $sinSincronizar
+     */
+    private static function mensajeLiberacion(string $base, array $sinSincronizar): string
+    {
+        if ($sinSincronizar === []) {
+            return $base;
+        }
+
+        return $base.' Aviso: no se encontró renglón en codificados para '
+            .implode(', ', $sinSincronizar).'; esos datos no se copiaron al catálogo.';
     }
 
     /**
@@ -827,7 +861,7 @@ class LiberarOrdenesController extends Controller
                     ->select('BV.ITEMID', 'BT.TWINVENTSIZEID', 'BT.BOMID as bomId', 'BT.NAME as bomName')
                     ->where('BT.ITEMGROUPID', 'CRUDO')
                     ->where('BT.Vigente', 1)
-                    ->whereIn('BT.TwSalon', self::BOM_CRUDO_TW_SALONES)
+                    ->whereIn('BT.TwSalon', TelarSalonResolver::todosLosAliasesAx())
                     ->where(function ($query) use ($pairs) {
                         foreach ($pairs as $pair) {
                             $query->orWhere(function ($q) use ($pair) {
@@ -1008,7 +1042,7 @@ class LiberarOrdenesController extends Controller
         try {
             $data = $request->validate([
                 'id' => ['required', 'integer', Rule::exists(ReqProgramaTejido::tableName(), 'Id')],
-                'field' => 'required|string|in:MtsRollo,PzasRollo,TotalRollos,TotalPzas,Repeticiones,SaldoMarbete,Densidad,CombinaTrama',
+                'field' => 'required|string|in:MtsRollo,PzasRollo,TotalRollos,TotalPzas,Repeticiones,SaldoMarbete,Densidad,CombinaTrama,NoTiras',
                 'value' => 'nullable',
             ]);
 
@@ -1028,8 +1062,31 @@ class LiberarOrdenesController extends Controller
                     ], 404);
                 }
 
+                // Las tiras solo se capturan a mano en Karl Mayer; en los demás salones vienen
+                // del artículo y editarlas movería toda la cadena de marbetes sin control.
+                if ($field === 'NoTiras' && ! $this->esKarlMayer($registro)) {
+                    DB::rollBack();
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Las tiras solo se pueden editar en órdenes de Karl Mayer.',
+                    ], 422);
+                }
+
                 // Validar y convertir el valor según el tipo de campo
-                if ($field === 'CombinaTrama') {
+                if ($field === 'NoTiras') {
+                    $tiras = $value !== null && $value !== '' ? (int) round((float) $value) : 0;
+                    if ($tiras <= 0) {
+                        DB::rollBack();
+
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Las tiras deben ser mayores a cero.',
+                        ], 422);
+                    }
+                    // El observer recalcula repeticiones, marbetes y rollos al guardar.
+                    $registro->NoTiras = $tiras;
+                } elseif ($field === 'CombinaTrama') {
                     // Campo string
                     $registro->CombinaTram = $value !== null ? trim((string) $value) : null;
                 } elseif ($field === 'SaldoMarbete') {
@@ -1241,6 +1298,8 @@ class LiberarOrdenesController extends Controller
                 $registroCodificado->NoMarbete = $value !== null && $value !== '' ? (float) round((float) $value, 0) : null;
             } elseif ($campoCatCodificados === 'Repeticiones') {
                 $registroCodificado->Repeticiones = $value !== null && $value !== '' ? (int) (float) $value : null;
+            } elseif ($campoCatCodificados === 'NoTiras') {
+                $registroCodificado->NoTiras = $value !== null && $value !== '' ? (int) round((float) $value) : null;
             } elseif ($campoCatCodificados === 'Densidad') {
                 $registroCodificado->Densidad = $value !== null ? round((float) $value, 4) : null;
             } elseif ($campoCatCodificados === 'CombinaTram') {
@@ -1271,14 +1330,14 @@ class LiberarOrdenesController extends Controller
      *
      * @param  string|null  $codigoDibujoDesdePantalla  Valor de la columna Codigo Dibujo al liberar (mismo que en la vista); si es null/vacío se intenta resolver con CatCodificados.
      */
-    private function actualizarCatCodificados(ReqProgramaTejido $registro, ?string $codigoDibujoDesdePantalla = null, ?bool $asignarFlogs = null): void
+    private function actualizarCatCodificados(ReqProgramaTejido $registro, ?string $codigoDibujoDesdePantalla = null, ?bool $asignarFlogs = null): bool
     {
         try {
             $noProduccion = trim((string) ($registro->NoProduccion ?? ''));
             $noTelarId = trim((string) ($registro->NoTelarId ?? ''));
 
             if (empty($noProduccion)) {
-                return;
+                return false;
             }
 
             $modelo = new CatCodificados;
@@ -1309,7 +1368,14 @@ class LiberarOrdenesController extends Controller
             $registroCodificado = $query->first();
 
             if (! $registroCodificado) {
-                return;
+                // Antes era un return mudo: la orden quedaba liberada y codificados sin datos,
+                // con el usuario leyendo "liberadas correctamente". Quien llama lo reporta.
+                Log::warning('LiberarOrdenes: sin fila en CatCodificados para sincronizar', [
+                    'orden' => $noProduccion,
+                    'telar' => $noTelarId,
+                ]);
+
+                return false;
             }
 
             // Código de dibujo: priorizar lo enviado desde la grilla (autollenado o edición); si no, último CatCodificados (misma lógica que obtenerCodigoDibujo)
@@ -1477,12 +1543,16 @@ class LiberarOrdenesController extends Controller
                 $registroCodificado->save();
                 $registroCodificado->refresh();
             }
+
+            return true;
         } catch (\Throwable $e) {
             Log::warning('LiberarOrdenesController::actualizarCatCodificados error', [
                 'orden' => $registro->NoProduccion ?? null,
                 'telar' => $registro->NoTelarId ?? null,
                 'error' => $e->getMessage(),
             ]);
+
+            return false;
         }
     }
 
@@ -1701,10 +1771,27 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
+     * Karl Mayer no se rige por las reglas de felpa: ni el peso fijo de 90 kg ni el ×2 / ÷2.
+     * Se resuelve por salón capturado y, si viene vacío, por número de telar (401-402).
+     */
+    private function esKarlMayer(?ReqProgramaTejido $registro): bool
+    {
+        return $registro !== null && TelarSalonResolver::esKarlMayer(
+            $registro->SalonTejidoId ?? null,
+            $registro->NoTelarId ?? null
+        );
+    }
+
+    /**
      * FEL en InventSizeId o Felpa por tamano/nombre: duplicar marbetes y mitad en Mts/Pzas x rollo.
+     * En Karl Mayer no aplica aunque el tamaño diga FELPA.
      */
     private function debeAplicarAjusteFormatoFelRollo(?string $inventSizeId, ?ReqProgramaTejido $registro = null): bool
     {
+        if ($this->esKarlMayer($registro)) {
+            return false;
+        }
+
         if ($registro !== null && $this->esTamanoFelpa($registro)) {
             return true;
         }
@@ -1856,7 +1943,8 @@ class LiberarOrdenesController extends Controller
         return [
             'pesoRollo' => (float) $pesoRollo,
             'repeticiones' => $repeticiones,
-            'saldoMarbete' => $saldoMarbeteValor,
+            // No. marbetes = TotalRollos (pendientes antes de liberar = todos).
+            'saldoMarbete' => $totalRollos !== null ? (int) $totalRollos : 0,
             'mtsRollo' => $mtsRollo,
             'pzasRollo' => $pzasRollo,
             'totalRollos' => $totalRollos,
@@ -2005,7 +2093,13 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
-     * =SI(ESERROR((cantidad a producir / tiras) / repeticiones), 0, REDONDEAR(..., 0)) — resultado entero.
+     * =SI(ESERROR((cantidad a producir / tiras) / repeticiones), 0, MULTIPLO.SUPERIOR(..., 1)) — entero.
+     *
+     * TECHO, no REDONDEAR: es la misma división que TotalRollos —(Pedido/Tiras)/Repeticiones
+     * ≡ Pedido/PzasRollo— y el último rollo sale parcial pero igual lleva marbete. Con
+     * REDONDEAR quedaba 1 abajo de TotalRollos siempre que el decimal fuera menor a 0.5.
+     * Misma fórmula en ReqProgramaTejidoObserver y SaldoMarbeteCodificacionService: los tres
+     * tienen que techar o se pisan entre sí en el siguiente save().
      */
     private function saldoMarbeteDesdeFormula($cantidadProducir, $tiras, $repeticiones): int
     {
@@ -2021,7 +2115,7 @@ class LiberarOrdenesController extends Controller
 
         $raw = ((float) $cantidadProducir / (float) $tiras) / (float) $repeticiones;
 
-        return (int) round($raw, 0);
+        return (int) ceil($raw);
     }
 
     /**
@@ -2087,12 +2181,20 @@ class LiberarOrdenesController extends Controller
 
     /**
      * Obtiene el peso del rollo desde la tabla ReqPesosRolloTejido.
+     * Karl Mayer: {@see self::PESO_ROLLO_KG_KARL_MAYER} kg, sin importar felpa ni catálogo.
      * Felpa (TamanoClave / nombre con FELPA): siempre {@see self::PESO_ROLLO_KG_FELPA} kg.
      * Orden de búsqueda: 1) InventSizeId exacto del registro; 2) FEL (si aplica); 3) DEF.
      * Si no encuentra nada, retorna null (para usar 41.5 como default).
+     *
+     * Los tres son solo el valor inicial: lo que el usuario capture en la columna Peso x Rollo
+     * gana en index() y al liberar, igual que para cualquier otro tamaño.
      */
     private function obtenerPesoRollo(ReqProgramaTejido $registro): ?float
     {
+        if ($this->esKarlMayer($registro)) {
+            return self::PESO_ROLLO_KG_KARL_MAYER;
+        }
+
         if ($this->esTamanoFelpa($registro)) {
             return self::PESO_ROLLO_KG_FELPA;
         }
@@ -2134,16 +2236,40 @@ class LiberarOrdenesController extends Controller
 
     private function obtenerPesoRolloPorInventSizeId(string $inventSizeId): ?float
     {
-        $pesoRollo = ReqPesosRollosTejido::where('InventSizeId', trim($inventSizeId))
-            ->whereNotNull('PesoRollo')
+        return $this->catalogoPesosRollo()[mb_strtoupper(trim($inventSizeId))] ?? null;
+    }
+
+    /**
+     * Catálogo completo de pesos de rollo indexado por InventSizeId, cargado UNA vez por
+     * request. Antes se consultaba por renglón y hasta 3 veces cada uno (talla exacta → FEL →
+     * DEF): con 20-60 renglones en pantalla eran ~150 queries para leer una tabla chica.
+     *
+     * Se conserva el desempate original (FechaModificacion, FechaCreacion, Id descendentes):
+     * gana la primera fila de cada talla en ese orden.
+     *
+     * @return array<string, float>
+     */
+    private function catalogoPesosRollo(): array
+    {
+        if ($this->pesosRolloCache !== null) {
+            return $this->pesosRolloCache;
+        }
+
+        $this->pesosRolloCache = [];
+
+        foreach (ReqPesosRollosTejido::whereNotNull('PesoRollo')
             ->orderByDesc('FechaModificacion')
             ->orderByDesc('FechaCreacion')
             ->orderByDesc('Id')
-            ->first();
+            ->get(['InventSizeId', 'PesoRollo']) as $fila) {
+            $clave = mb_strtoupper(trim((string) ($fila->InventSizeId ?? '')));
+            if ($clave === '' || isset($this->pesosRolloCache[$clave]) || $fila->PesoRollo === null) {
+                continue;
+            }
+            $this->pesosRolloCache[$clave] = (float) $fila->PesoRollo;
+        }
 
-        return $pesoRollo && $pesoRollo->PesoRollo !== null
-            ? (float) $pesoRollo->PesoRollo
-            : null;
+        return $this->pesosRolloCache;
     }
 
     private function resolverBomCrudoExacto(ReqProgramaTejido $registro): ?object
@@ -2196,7 +2322,7 @@ class LiberarOrdenesController extends Controller
      * y el JOIN devolvía la misma fila 2-3 veces.
      *
      * @param  string|null  $inventSizeId  null u '' = no filtrar por talla
-     * @param  string|null  $salon  null u '' = aceptar cualquiera de BOM_CRUDO_TW_SALONES
+     * @param  string|null  $salon  null u '' = aceptar cualquier variante conocida de AX
      */
     private function bomCrudoQuery(string $itemId, ?string $inventSizeId = null, ?string $salon = null): Builder
     {
@@ -2217,9 +2343,9 @@ class LiberarOrdenesController extends Controller
         }
 
         if ($salon !== null && trim($salon) !== '') {
-            $query->where('BT.TWSALON', $this->normalizarSalon($salon));
+            $query->whereIn('BT.TWSALON', TelarSalonResolver::salonAliasesAx($salon));
         } else {
-            $query->whereIn('BT.TwSalon', self::BOM_CRUDO_TW_SALONES);
+            $query->whereIn('BT.TwSalon', TelarSalonResolver::todosLosAliasesAx());
         }
 
         return $query->orderBy('BT.BOMID');
@@ -2238,6 +2364,12 @@ class LiberarOrdenesController extends Controller
             return [];
         }
 
+        // Si el lote ya se precargó (pantalla index), se resuelve en memoria. Fuera de esa
+        // ruta —liberar(), marbetes()— se consulta el renglón suelto como siempre.
+        if ($this->bomCrudoCache !== null) {
+            return $this->bomCrudoCache[self::claveBomCrudo($itemId, $inventSizeId, $salon)] ?? [];
+        }
+
         return $this->bomCrudoQuery($itemId, $inventSizeId, $salon)
             ->get()
             ->map(fn ($row) => [
@@ -2250,23 +2382,183 @@ class LiberarOrdenesController extends Controller
             ->all();
     }
 
+    /** Clave item|talla|salón con la que se indexan las L.Mat CRUDO del lote. */
+    private static function claveBomCrudo(string $itemId, string $inventSizeId, string $salon): string
+    {
+        return mb_strtoupper(trim($itemId)).'|'.mb_strtoupper(trim($inventSizeId)).'|'.mb_strtoupper(trim($salon));
+    }
+
+    /**
+     * Trae en UNA consulta a AX todas las L.Mat CRUDO vigentes de los items del lote y las
+     * indexa por item|talla|salón, para que `resolverBomCrudoOpciones()` no pegue a AX por
+     * renglón. Era el peor N+1 de la pantalla: ~1.5 s por renglón, 96% del tiempo de carga,
+     * cuando el catálogo CRUDO vigente completo son ~166 filas que se leen en una query.
+     *
+     * @param  Collection<int, ReqProgramaTejido>  $registros
+     */
+    private function precargarBomCrudo($registros): void
+    {
+        $this->bomCrudoCache = [];
+
+        $itemIds = $registros
+            ->map(fn ($r) => trim((string) ($r->ItemId ?? '')))
+            ->filter()
+            ->unique()
+            ->map(fn (string $id) => $id.'-1')   // AX cuelga las versiones del item con sufijo
+            ->values()
+            ->all();
+
+        if ($itemIds === []) {
+            return;
+        }
+
+        try {
+            $filas = DB::connection('sqlsrv_ti')
+                ->table('BOMTABLE as BT')
+                ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
+                ->distinct()
+                ->select('BV.ITEMID', 'BT.TWINVENTSIZEID', 'BT.TWSALON', 'BT.BOMID as bomId', 'BT.NAME as bomName')
+                ->where('BT.ITEMGROUPID', 'CRUDO')
+                ->where('BT.Vigente', 1)
+                ->whereIn('BV.ITEMID', $itemIds)
+                ->orderBy('BT.BOMID')
+                ->get();
+        } catch (\Throwable $e) {
+            // Sin AX la pantalla sigue cargando: los renglones salen sin L.Mat autoasignada,
+            // igual que cuando la consulta por renglón fallaba.
+            Log::warning('LiberarOrdenes: no se pudo precargar BOMTABLE', ['error' => $e->getMessage()]);
+
+            return;
+        }
+
+        foreach ($filas as $fila) {
+            $bomId = trim((string) ($fila->bomId ?? ''));
+            if ($bomId === '') {
+                continue;
+            }
+
+            $clave = self::claveBomCrudo(
+                self::itemIdSinSufijo((string) ($fila->ITEMID ?? '')),
+                (string) ($fila->TWINVENTSIZEID ?? ''),
+                $this->normalizarSalon((string) ($fila->TWSALON ?? ''))
+            );
+
+            // Un mismo BOMID puede venir repetido por tener varias versiones en BOMVERSION.
+            if (isset($this->bomCrudoCache[$clave][$bomId])) {
+                continue;
+            }
+
+            $this->bomCrudoCache[$clave][$bomId] = [
+                'bomId' => $bomId,
+                'bomName' => trim((string) ($fila->bomName ?? '')),
+            ];
+        }
+
+        foreach ($this->bomCrudoCache as $clave => $opciones) {
+            $this->bomCrudoCache[$clave] = array_values($opciones);
+        }
+    }
+
     private function normalizarSalonBomCrudo(ReqProgramaTejido $registro): string
     {
         return $this->normalizarSalon((string) ($registro->SalonTejidoId ?? ''));
     }
 
     /**
-     * Traduce el salón del programa al valor que usa BOMTABLE.TWSALON en AX:
-     * 'JACUARD' (dato sucio) → JACQUARD, 'KARL MAYER' → KM, 'ITEMA' → SMIT.
+     * Traduce cualquier variante (del programa o de AX) al salón canónico.
+     * Un salón nuevo se da de alta en {@see TelarSalonResolver}, que es el único lugar
+     * del sistema donde vive ese vocabulario.
      */
     private function normalizarSalon(string $salon): string
     {
-        return match (strtoupper(trim($salon))) {
-            'JACUARD' => 'JACQUARD',
-            'KARL MAYER', 'KARLMAYER' => 'KM',
-            'ITEMA' => 'SMIT',
-            default => strtoupper(trim($salon)),
-        };
+        return TelarSalonResolver::normalizeSalon($salon);
+    }
+
+    /**
+     * Candidatos a "registro anterior" de todo el lote, en UNA consulta, agrupados por
+     * salón|telar. Antes se consultaba uno por renglón. Se traen todas las órdenes de esos
+     * salones y telares (incluidas las ya liberadas: el anterior puede ser cualquiera), y el
+     * par exacto se filtra al agrupar, porque whereIn sobre dos columnas es un superset.
+     *
+     * @param  Collection<int, ReqProgramaTejido>  $registros
+     * @return array<string, array<int, object>>
+     */
+    private function candidatosPrioridadAnterior($registros): array
+    {
+        $telares = $registros->map(fn ($r) => trim((string) ($r->NoTelarId ?? '')))->filter()->unique()->values()->all();
+
+        if ($telares === []) {
+            return [];
+        }
+
+        $salones = $registros->map(fn ($r) => (string) ($r->SalonTejidoId ?? ''))->unique()->values()->all();
+
+        $filas = ReqProgramaTejido::query()
+            ->select(['Id', 'NombreProducto', 'SalonTejidoId', 'NoTelarId', 'FechaInicio'])
+            ->whereIn('NoTelarId', $telares)
+            ->whereIn('SalonTejidoId', $salones)
+            ->orderBy('FechaInicio')
+            ->orderBy('Id')
+            ->get();
+
+        $porGrupo = [];
+        foreach ($filas as $fila) {
+            $porGrupo[self::clavePrioridad($fila->SalonTejidoId ?? '', $fila->NoTelarId ?? '')][] = $fila;
+        }
+
+        return $porGrupo;
+    }
+
+    private static function clavePrioridad(?string $salon, ?string $telar): string
+    {
+        return trim((string) $salon).'|'.trim((string) $telar);
+    }
+
+    /**
+     * El registro inmediatamente anterior del mismo salón+telar: FechaInicio menor, o la misma
+     * fecha con Id menor. Mismo criterio que la consulta que había por renglón.
+     *
+     * ponytail: recorrido lineal sobre el grupo (mismo salón+telar, decenas de filas); si un
+     * telar llegara a tener miles de órdenes, indexar el grupo por fecha.
+     *
+     * @param  array<string, array<int, object>>  $candidatos
+     */
+    private function prioridadAnterior(ReqProgramaTejido $registro, array $candidatos): string
+    {
+        $telar = trim((string) ($registro->NoTelarId ?? ''));
+        $idActual = $registro->Id ?? null;
+
+        if ($telar === '' || ! $idActual) {
+            return '';
+        }
+
+        $grupo = $candidatos[self::clavePrioridad($registro->SalonTejidoId ?? '', $telar)] ?? [];
+        $fechaInicio = $registro->FechaInicio ?? null;
+        $fechaActual = $fechaInicio ? Carbon::parse($fechaInicio)->format('Y-m-d H:i:s') : null;
+
+        $anterior = null;
+        foreach ($grupo as $fila) {
+            if ((int) $fila->Id === (int) $idActual) {
+                continue;
+            }
+
+            $fechaFila = $fila->FechaInicio ? Carbon::parse($fila->FechaInicio)->format('Y-m-d H:i:s') : null;
+
+            $esAnterior = $fechaActual !== null
+                ? ($fechaFila !== null && ($fechaFila < $fechaActual || ($fechaFila === $fechaActual && (int) $fila->Id < (int) $idActual)))
+                : (int) $fila->Id < (int) $idActual;
+
+            if (! $esAnterior) {
+                continue;
+            }
+
+            // El grupo viene ordenado ascendente, así que el último que cumple es el más cercano.
+            $anterior = $fila;
+        }
+
+        return $anterior !== null && ! empty($anterior->NombreProducto)
+            ? 'SALDAR '.$anterior->NombreProducto
+            : '';
     }
 
     /**
@@ -2449,11 +2741,19 @@ class LiberarOrdenesController extends Controller
             return [];
         }
 
+        // AX no es consistente con el sufijo: TwArticulosFelpas guarda '6598-1' y
+        // TwFlogsItemLine el mismo item como '6598'. Se consultan ambas formas y la
+        // clave se normaliza sin sufijo; si no, el catálogo nunca empata.
+        $buscar = array_values(array_unique(array_merge(
+            $itemIds,
+            array_map(static fn (string $id): string => $id.'-1', $itemIds)
+        )));
+
         try {
             $filas = DB::connection('sqlsrv_ti')
                 ->table('TwArticulosFelpas')
                 ->select('ITEMID', 'INVENTSIZEID')
-                ->whereIn('ITEMID', $itemIds)
+                ->whereIn('ITEMID', $buscar)
                 ->get();
         } catch (\Throwable $e) {
             // Sin AX no se sabe qué renglones piden decisión. Se prefiere no ofrecerla (todos
@@ -2465,10 +2765,67 @@ class LiberarOrdenesController extends Controller
 
         $claves = [];
         foreach ($filas as $fila) {
-            $claves[self::claveItemTalla($fila->ITEMID ?? '', $fila->INVENTSIZEID ?? '')] = true;
+            $claves[self::claveItemTalla(self::itemIdSinSufijo((string) ($fila->ITEMID ?? '')), $fila->INVENTSIZEID ?? '')] = true;
         }
 
         return $claves;
+    }
+
+    /**
+     * Flog vigente por item|talla para todo el lote, en UNA consulta a AX. Mismo criterio de
+     * desempate que {@see self::obtenerFlogSugerido()}: el flog más reciente es el de mayor
+     * número final, no el mayor alfabéticamente (CE-100 > CE-99).
+     *
+     * Ojo con el sufijo: TwFlogsItemLine guarda el item SIN '-1' (al revés que
+     * TwArticulosFelpas), y la columna trae relleno, de ahí el LTRIM/RTRIM.
+     *
+     * @param  Collection<int, ReqProgramaTejido>  $registros
+     * @return array<string, string> clave item|talla => IDFLOG
+     */
+    private function flogsSugeridosDelLote($registros): array
+    {
+        $itemIds = $registros
+            ->map(fn ($r) => trim((string) ($r->ItemId ?? '')))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($itemIds === []) {
+            return [];
+        }
+
+        try {
+            $filas = DB::connection('sqlsrv_ti')
+                ->table('dbo.TwFlogsItemLine as fil')
+                ->join('dbo.TwFlogsTable as ft', 'ft.IDFLOG', '=', 'fil.IDFLOG')
+                ->select('fil.ITEMID', 'fil.INVENTSIZEID', 'ft.IDFLOG')
+                ->whereIn(DB::raw('LTRIM(RTRIM(fil.ITEMID))'), $itemIds)
+                ->whereIn('ft.ESTADOFLOG', [3, 4, 5, 21])
+                ->get();
+        } catch (\Throwable $e) {
+            // Sin AX el renglón sale con el flog vacío y el usuario lo captura a mano.
+            Log::warning('LiberarOrdenes: no se pudieron precargar los flogs sugeridos', ['error' => $e->getMessage()]);
+
+            return [];
+        }
+
+        $mejores = [];
+        foreach ($filas as $fila) {
+            $idFlog = trim((string) ($fila->IDFLOG ?? ''));
+            if ($idFlog === '') {
+                continue;
+            }
+
+            $clave = self::claveItemTalla((string) ($fila->ITEMID ?? ''), (string) ($fila->INVENTSIZEID ?? ''));
+            $numero = preg_match('/(\d+)$/', $idFlog, $m) ? (int) $m[1] : 0;
+
+            if (! isset($mejores[$clave]) || $numero > $mejores[$clave]['numero']) {
+                $mejores[$clave] = ['numero' => $numero, 'idFlog' => $idFlog];
+            }
+        }
+
+        return array_map(fn (array $v) => $v['idFlog'], $mejores);
     }
 
     /**
@@ -2509,13 +2866,15 @@ class LiberarOrdenesController extends Controller
                 $registro->CategoriaCalidad = trim((string) ($cliente->CategoriaCalidad ?? '')) ?: $registro->CategoriaCalidad;
             }
         } catch (\Throwable $e) {
-            // ponytail: si AX no responde se acepta el flog capturado en vez de tumbar la
-            // liberación completa; la validación real es la de arriba, con AX en línea.
+            // Un timeout de AX no puede ser MÁS permisivo que un AX que responde "no existe":
+            // antes esta rama aceptaba el flog capturado y dejaba la orden con un flog que
+            // podía no existir. Sin poder validar, se rechaza igual que un flog inválido.
             Log::warning('LiberarOrdenes: no se pudieron leer los datos del flog en AX', [
                 'flogsId' => $flogsId,
                 'error' => $e->getMessage(),
             ]);
-            UpdateHelpers::applyFlogYTipoPedido($registro, $flogsId);
+
+            return 'No se pudo validar el flog "'.$flogsId.'" contra AX. Intenta de nuevo.';
         }
 
         return null;

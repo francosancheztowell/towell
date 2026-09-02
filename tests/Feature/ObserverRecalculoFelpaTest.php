@@ -70,6 +70,7 @@ class ObserverRecalculoFelpaTest extends TestCase
             $table->float('NoMarbete')->nullable();
             $table->date('FechaModificacion')->nullable();
             $table->time('HoraModificacion')->nullable();
+            $table->string('UsuarioModifica')->nullable();
         });
     }
 
@@ -78,7 +79,7 @@ class ObserverRecalculoFelpaTest extends TestCase
         $id = DB::connection('sqlsrv')->table('ReqProgramaTejido')->insertGetId($atributos);
         /** @var ReqProgramaTejido $programa */
         $programa = ReqProgramaTejido::on('sqlsrv')->findOrFail($id);
-        (new ReqProgramaTejidoObserver())->recalcularFormulasProduccion($programa);
+        (new ReqProgramaTejidoObserver)->recalcularFormulasProduccion($programa);
 
         return $programa->fresh();
     }
@@ -103,7 +104,7 @@ class ObserverRecalculoFelpaTest extends TestCase
         $this->assertEqualsWithDelta(37.23, (float) $programa->MtsRollo, 0.01); // 74.46 ÷ 2
         $this->assertSame(84.0, (float) $programa->TotalRollos);   // ceil(6106/73)
         $this->assertSame(6132.0, (float) $programa->TotalPzas);
-        $this->assertSame(84.0, (float) $programa->SaldoMarbete);
+        $this->assertNull($programa->SaldoMarbete); // el observer no toca marbetes
     }
 
     public function test_no_felpa_usa_peso_maestro_sin_ajuste(): void
@@ -154,7 +155,7 @@ class ObserverRecalculoFelpaTest extends TestCase
 
         $cat = DB::connection('sqlsrv')->table('CatCodificados')->where('OrdenTejido', '36686')->first();
         $this->assertSame(73.0, (float) $cat->PzasRollo);
-        $this->assertSame(84.0, (float) $cat->NoMarbete);
+        $this->assertSame(68.0, (float) $cat->NoMarbete); // intacto: lo lleva el proceso externo
         $this->assertSame(84.0, (float) $cat->TotalRollos);
     }
 }

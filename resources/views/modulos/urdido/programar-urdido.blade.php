@@ -153,10 +153,15 @@
     <!-- Modal Detalle de Calidad (EDICIÓN) -->
     <div id="modalCalidad" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
         <div class="relative bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 my-8">
-            <!-- Header -->
-            <div class="flex items-center justify-between p-6 border-b border-gray-200">
-                <h2 class="text-xl font-bold text-gray-800">Evaluación de Calidad</h2>
-                <button type="button" onclick="cerrarModalCalidad()" class="text-gray-400 hover:text-gray-600 transition-colors">
+            <!-- Header: el folio vive aquí, no en el cuerpo -->
+            <div class="flex items-start justify-between gap-4 p-5 border-b border-gray-200">
+                <div class="min-w-0">
+                    <h2 class="text-xl font-bold text-gray-800">Evaluación de Calidad</h2>
+                    <p class="mt-0.5 text-sm text-gray-500">
+                        Folio <span id="modalCalidadFolio" class="font-semibold text-gray-700">—</span>
+                    </p>
+                </div>
+                <button type="button" onclick="cerrarModalCalidad()" class="shrink-0 text-gray-400 hover:text-gray-600 transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
@@ -164,42 +169,37 @@
             </div>
 
             <!-- Body -->
-            <div class="p-6">
-                <p class="mb-4 text-sm text-gray-600">Folio: <strong id="modalCalidadFolio"></strong></p>
-
-                <!-- Opción de calidad - Switch único -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Estado:</label>
-                    <div class="flex items-center gap-4">
-                        <button type="button" id="btnCalidadSwitch" onclick="cyclicCalidad()"
-                            class="w-16 h-16 border-2 border-gray-300 rounded-xl flex items-center justify-center text-3xl transition-all duration-200 hover:scale-105">
-                            <span id="calidadIcono">—</span>
-                        </button>
-                        <div class="flex flex-col">
-                            <span id="calidadTexto" class="text-sm font-medium text-gray-500">Sin evaluar</span>
-                            <span class="text-xs text-gray-400">Clic para cambiar</span>
+            <div class="p-5 space-y-4">
+                <!-- Checklist: un botón por punto, clic alterna bueno/malo. El estado se deriva de los 4. -->
+                <div id="calidadChecklist" class="space-y-2">
+                    @foreach ($calidadPuntos as $campo => $etiqueta)
+                        <div class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2">
+                            <span class="text-sm text-gray-700">{{ $etiqueta }}</span>
+                            <button type="button" data-punto="{{ $campo }}" data-valor=""
+                                onclick="alternarPuntoCalidad(this)" title="Clic para alternar bueno / malo"
+                                class="h-11 w-11 shrink-0 rounded-lg border-2 border-gray-300 text-lg font-bold text-gray-400 transition-colors">—</button>
                         </div>
-                    </div>
+                    @endforeach
                 </div>
 
                 <!-- Observaciones textarea -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones:</label>
-                    <textarea id="calidadcomentario" rows="3" maxlength="{{ $calidadComentarioMaxLength }}"
+                    <label for="calidadcomentario" class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Observaciones</label>
+                    <textarea id="calidadcomentario" rows="2" maxlength="{{ $calidadComentarioMaxLength }}"
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                        placeholder="Ingrese observaciones (máx. 60 caracteres)"></textarea>
+                        placeholder="Opcional, máx. {{ $calidadComentarioMaxLength }} caracteres"></textarea>
                 </div>
 
             </div>
 
             <!-- Footer -->
-            <div class="flex justify-end gap-2 p-6 border-t border-gray-200">
+            <div class="flex gap-2 p-5 pt-0">
                 <button type="button" onclick="cerrarModalCalidad()"
-                    class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">
+                    class="flex-1 px-8 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">
                     Cancelar
                 </button>
                 <button type="button" id="btnGuardarCalidad" onclick="guardarCalidad()"
-                    class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                    class="flex-1 px-8 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
                     <span id="btnGuardarCalidadText">Guardar</span>
                 </button>
             </div>
@@ -209,58 +209,56 @@
     <!-- Modal Ver Calidad (SOLO LECTURA) -->
     <div id="modalVerCalidad" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
         <div class="relative bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 my-8">
-            <!-- Header -->
-            <div class="flex items-center justify-between p-6 border-b border-gray-200">
-                <h2 class="text-xl font-bold text-gray-800">Detalle de Calidad</h2>
-                <button type="button" onclick="cerrarModalVerCalidad()" class="text-gray-400 hover:text-gray-600 transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
+            <!-- Header: título, folio y el estado como distintivo -->
+            <div class="flex items-start justify-between gap-4 p-6 border-b border-gray-200">
+                <div class="min-w-0">
+                    <h2 class="text-xl font-bold text-gray-800">Detalle de Calidad</h2>
+                    <p class="mt-0.5 text-sm text-gray-500">
+                        Folio <span id="modalVerCalidadFolio" class="font-semibold text-gray-700">—</span>
+                    </p>
+                </div>
+                <div class="flex shrink-0 items-center gap-3">
+                    <span id="modalVerCalidadEstado"
+                        class="rounded-full border px-3 py-1 text-sm font-semibold border-gray-200 bg-gray-100 text-gray-600">Sin evaluar</span>
+                    <button type="button" onclick="cerrarModalVerCalidad()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <!-- Body -->
-            <div class="p-6">
-                <p class="mb-4 text-sm text-gray-600">Folio: <strong id="modalVerCalidadFolio"></strong></p>
-
-                <!-- Estado (solo lectura) -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Estado:</label>
-                    <div class="flex items-center gap-4">
-                        <div id="modalVerCalidadIconoContainer"
-                            class="w-16 h-16 border-2 border-gray-300 rounded-xl flex items-center justify-center text-3xl bg-gray-50">
-                            <span id="modalVerCalidadIcono">—</span>
-                        </div>
-                        <div class="flex flex-col">
-                            <span id="modalVerCalidadTexto" class="text-sm font-medium text-gray-500">Sin evaluar</span>
-                            <span class="text-xs text-gray-400">Solo visualización</span>
-                        </div>
+            <div class="p-6 space-y-5">
+                <!-- Quién autorizó y cuándo, lo primero que se busca al abrir -->
+                <dl class="grid grid-cols-2 gap-4 rounded-lg bg-gray-50 px-4 py-3">
+                    <div class="min-w-0">
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Autorizó</dt>
+                        <dd id="modalVerCalidadAutoriza" class="mt-0.5 break-words text-sm font-medium text-gray-800">—</dd>
                     </div>
-                </div>
+                    <div class="min-w-0">
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Fecha y hora</dt>
+                        <dd id="modalVerCalidadFecha" class="mt-0.5 text-sm font-medium text-gray-800">—</dd>
+                    </div>
+                </dl>
 
-                <!-- Observaciones (solo lectura) -->
+                <!-- Checklist (solo lectura) -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Observaciones:</label>
-                    <textarea id="modalVerCalidadComentario" rows="3" maxlength="{{ $calidadComentarioMaxLength }}" readonly
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700 resize-none"></textarea>
+                    <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Puntos revisados</h3>
+                    <ul id="modalVerCalidadChecklist" class="divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-200"></ul>
                 </div>
 
-                <div class="mt-4 grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Autorizó:</label>
-                        <div id="modalVerCalidadAutoriza" class="min-h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">—</div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha:</label>
-                        <div id="modalVerCalidadFecha" class="min-h-[38px] border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">—</div>
-                    </div>
+                <!-- Observaciones: texto plano, y sólo si las hay -->
+                <div id="modalVerCalidadObsBloque" hidden>
+                    <h3 class="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Observaciones</h3>
+                    <p id="modalVerCalidadComentario" class="whitespace-pre-line text-sm text-gray-700"></p>
                 </div>
             </div>
 
             <!-- Footer -->
-            <div class="flex justify-end gap-2 p-6 border-t border-gray-200">
+            <div class="p-6 pt-0">
                 <button type="button" onclick="cerrarModalVerCalidad()"
-                    class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">
+                    class="w-full px-8 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">
                     Cerrar
                 </button>
             </div>
@@ -465,15 +463,8 @@
                         `
                         : `<span class="px-2 text-gray-700">${orden.observaciones || ''}</span>`;
 
-                    const calidadCell = orden.calidad
-                        ? (
-                            orden.calidad === 'A'
-                                ? '<span class="text-green-600 font-bold text-lg">✓</span>'
-                                : orden.calidad === 'R'
-                                    ? '<span class="text-red-600 font-bold text-lg">✗</span>'
-                                    : '<span class="text-yellow-500 font-bold text-lg">!</span>'
-                        )
-                        : '<span class="text-gray-300 text-lg">—</span>';
+                    const calidadVisual = visualCalidad(orden.calidad);
+                    const calidadCell = `<span class="${calidadVisual.iconClass} font-bold text-lg">${calidadVisual.icono}</span>`;
 
                     return `
                         <tr
@@ -1323,8 +1314,60 @@
 
             let ordenCalidadId = null;
 
-            const estadosCalidad = [null, 'A', 'R', 'O'];
-            const estadoActualIdx = { value: 0 };
+            const CALIDAD_PUNTOS = @json($calidadPuntos);
+
+            // 'A'/'R' son evaluaciones previas al checklist; '1'/'0' las derivadas de los 4 puntos.
+            const CALIDAD_VISUAL = {
+                bueno: { icono: '✓', iconClass: 'text-green-600', texto: 'Aprobado', badge: 'border-green-200 bg-green-100 text-green-700' },
+                malo: { icono: '✗', iconClass: 'text-red-600', texto: 'Rechazado', badge: 'border-red-200 bg-red-100 text-red-700' },
+                sin: { icono: '—', iconClass: 'text-gray-400', texto: 'Sin evaluar', badge: 'border-gray-200 bg-gray-100 text-gray-600' },
+            };
+
+            function visualCalidad(valor) {
+                if (valor === '1' || valor === 'A') return CALIDAD_VISUAL.bueno;
+                if (valor === '0' || valor === 'R') return CALIDAD_VISUAL.malo;
+                return CALIDAD_VISUAL.sin;
+            }
+
+            // 'Y-m-d H:i:s' -> 'dd/mm/aaaa hh:mm'. Sin librería: el formato de origen es fijo.
+            function formatearFechaCalidad(valor) {
+                if (!valor) return '—';
+                const m = String(valor).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+                return m ? `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}` : valor;
+            }
+
+            // data-valor: '' sin contestar, '1' bien, '0' mal.
+            function pintarPuntoCalidad(btn, valor) {
+                btn.dataset.valor = valor ?? '';
+                const bueno = valor === '1';
+                const malo = valor === '0';
+                btn.textContent = bueno ? '✓' : malo ? '✗' : '—';
+                btn.className = 'h-11 w-11 shrink-0 rounded-lg border-2 text-lg font-bold transition-colors '
+                    + (bueno ? 'border-green-500 bg-green-50 text-green-600'
+                        : malo ? 'border-red-500 bg-red-50 text-red-600'
+                            : 'border-gray-300 text-gray-400');
+            }
+
+            // El primer clic pone bueno; de ahí en adelante alterna. No se vuelve a "sin contestar".
+            function alternarPuntoCalidad(btn) {
+                pintarPuntoCalidad(btn, btn.dataset.valor === '1' ? '0' : '1');
+                actualizarDisplayCalidad();
+            }
+
+            // null = sin contestar, true = bien, false = mal.
+            function leerPuntosCalidad() {
+                const puntos = {};
+                document.querySelectorAll('#calidadChecklist [data-punto]').forEach(btn => {
+                    puntos[btn.dataset.punto] = btn.dataset.valor === '' ? null : btn.dataset.valor === '1';
+                });
+                return puntos;
+            }
+
+            function calidadDerivada(puntos) {
+                const valores = Object.keys(CALIDAD_PUNTOS).map(campo => puntos?.[campo] ?? null);
+                if (valores.some(v => v === null)) return null;
+                return valores.includes(false) ? '0' : '1';
+            }
 
             function obtenerOrdenCalidadVisual(ordenId = null, mccoy = null) {
                 if (ordenId !== null && mccoy !== null) {
@@ -1345,9 +1388,11 @@
                 document.getElementById('modalCalidadFolio').textContent = orden.folio || '';
                 document.getElementById('calidadcomentario').value = orden.calidadcomentario || '';
 
-                const calidadActual = orden.calidad || null;
-                estadoActualIdx.value = estadosCalidad.indexOf(calidadActual);
-                if (estadoActualIdx.value === -1) estadoActualIdx.value = 0;
+                const puntos = orden.calidad_puntos || {};
+                document.querySelectorAll('#calidadChecklist [data-punto]').forEach(btn => {
+                    const valor = puntos[btn.dataset.punto];
+                    pintarPuntoCalidad(btn, valor === null || valor === undefined ? '' : (valor ? '1' : '0'));
+                });
 
                 actualizarDisplayCalidad();
 
@@ -1364,43 +1409,31 @@
                     return;
                 }
 
-                document.getElementById('modalVerCalidadFolio').textContent = orden.folio || '';
-                document.getElementById('modalVerCalidadComentario').value = orden.calidadcomentario || '';
+                document.getElementById('modalVerCalidadFolio').textContent = orden.folio || '—';
                 document.getElementById('modalVerCalidadAutoriza').textContent = orden.autoriza_calidad || '—';
-                document.getElementById('modalVerCalidadFecha').textContent = orden.fecha_calidad || '—';
+                document.getElementById('modalVerCalidadFecha').textContent = formatearFechaCalidad(orden.fecha_calidad);
 
-                const calidad = orden.calidad;
-                const iconoContainer = document.getElementById('modalVerCalidadIconoContainer');
-                const icono = document.getElementById('modalVerCalidadIcono');
-                const texto = document.getElementById('modalVerCalidadTexto');
+                const visual = visualCalidad(orden.calidad);
+                const estado = document.getElementById('modalVerCalidadEstado');
+                estado.textContent = visual.texto;
+                estado.className = `rounded-full border px-3 py-1 text-sm font-semibold ${visual.badge}`;
 
-                iconoContainer.className = 'w-16 h-16 border-2 border-gray-300 rounded-xl flex items-center justify-center text-3xl bg-gray-50';
+                const puntos = orden.calidad_puntos || {};
+                document.getElementById('modalVerCalidadChecklist').innerHTML =
+                    Object.entries(CALIDAD_PUNTOS).map(([campo, etiqueta]) => {
+                        const valor = puntos[campo] ?? null;
+                        const p = valor === null ? CALIDAD_VISUAL.sin : (valor ? CALIDAD_VISUAL.bueno : CALIDAD_VISUAL.malo);
+                        return `
+                            <li class="flex items-center justify-between gap-3 px-4 py-3">
+                                <span class="text-sm text-gray-700">${etiqueta}</span>
+                                <span class="text-lg font-bold ${p.iconClass}">${p.icono}</span>
+                            </li>
+                        `;
+                    }).join('');
 
-                if (calidad === 'A') {
-                    icono.textContent = '✓';
-                    icono.className = 'text-green-600';
-                    iconoContainer.classList.add('border-green-500', 'bg-green-50');
-                    texto.textContent = 'Aprobado';
-                    texto.className = 'text-sm font-medium text-green-600';
-                } else if (calidad === 'R') {
-                    icono.textContent = '✗';
-                    icono.className = 'text-red-600';
-                    iconoContainer.classList.add('border-red-500', 'bg-red-50');
-                    texto.textContent = 'Rechazado';
-                    texto.className = 'text-sm font-medium text-red-600';
-                } else if (calidad === 'O') {
-                    icono.textContent = '!';
-                    icono.className = 'text-yellow-500';
-                    iconoContainer.classList.add('border-yellow-500', 'bg-yellow-50');
-                    texto.textContent = 'Con Observaciones';
-                    texto.className = 'text-sm font-medium text-yellow-500';
-                } else {
-                    icono.textContent = '—';
-                    icono.className = 'text-gray-400';
-                    iconoContainer.classList.add('border-gray-300');
-                    texto.textContent = 'Sin evaluar';
-                    texto.className = 'text-sm font-medium text-gray-500';
-                }
+                const comentario = (orden.calidadcomentario || '').trim();
+                document.getElementById('modalVerCalidadComentario').textContent = comentario;
+                document.getElementById('modalVerCalidadObsBloque').hidden = comentario === '';
 
                 document.getElementById('modalVerCalidad').style.display = 'flex';
             }
@@ -1409,44 +1442,10 @@
                 document.getElementById('modalVerCalidad').style.display = 'none';
             }
 
-            function cyclicCalidad() {
-                estadoActualIdx.value = (estadoActualIdx.value + 1) % estadosCalidad.length;
-                actualizarDisplayCalidad();
-            }
-
+            // El estado no se muestra al capturar: sale de los 4 puntos y se ve en el tablero.
             function actualizarDisplayCalidad() {
-                const calidad = estadosCalidad[estadoActualIdx.value];
-                const btn = document.getElementById('btnCalidadSwitch');
-                const icono = document.getElementById('calidadIcono');
-                const texto = document.getElementById('calidadTexto');
-
-                btn.className = 'w-16 h-16 border-2 rounded-xl flex items-center justify-center text-3xl transition-all duration-200 hover:scale-105';
-
-                if (calidad === 'A') {
-                    icono.textContent = '✓';
-                    icono.className = 'text-green-600';
-                    btn.classList.add('border-green-500', 'bg-green-50');
-                    texto.textContent = 'Aprobado';
-                    texto.className = 'text-sm font-medium text-green-600';
-                } else if (calidad === 'R') {
-                    icono.textContent = '✗';
-                    icono.className = 'text-red-600';
-                    btn.classList.add('border-red-500', 'bg-red-50');
-                    texto.textContent = 'Rechazado';
-                    texto.className = 'text-sm font-medium text-red-600';
-                } else if (calidad === 'O') {
-                    icono.textContent = '!';
-                    icono.className = 'text-yellow-500';
-                    btn.classList.add('border-yellow-500', 'bg-yellow-50');
-                    texto.textContent = 'Con Observaciones';
-                    texto.className = 'text-sm font-medium text-yellow-500';
-                } else {
-                    icono.textContent = '—';
-                    icono.className = 'text-gray-400';
-                    btn.classList.add('border-gray-300');
-                    texto.textContent = 'Sin evaluar';
-                    texto.className = 'text-sm font-medium text-gray-500';
-                }
+                document.getElementById('btnGuardarCalidad').disabled =
+                    calidadDerivada(leerPuntosCalidad()) === null;
             }
 
             function cerrarModalCalidad() {
@@ -1457,11 +1456,11 @@
             async function guardarCalidad() {
                 const btn = document.getElementById('btnGuardarCalidad');
                 const btnText = document.getElementById('btnGuardarCalidadText');
-                const calidad = estadosCalidad[estadoActualIdx.value];
+                const puntos = leerPuntosCalidad();
                 const calidadcomentario = document.getElementById('calidadcomentario').value;
 
-                if (!calidad) {
-                    Swal.fire({ icon: 'warning', title: 'Seleccione un estado', timer: 1500, showConfirmButton: false });
+                if (calidadDerivada(puntos) === null) {
+                    Swal.fire({ icon: 'warning', title: 'Conteste los 4 puntos', timer: 1500, showConfirmButton: false });
                     return;
                 }
 
@@ -1471,7 +1470,7 @@
                 try {
                     const data = await fetchJson(routes.actualizarCalidad, {
                         method: 'POST',
-                        body: JSON.stringify({ id: ordenCalidadId, calidad, calidadcomentario }),
+                        body: JSON.stringify({ id: ordenCalidadId, calidadcomentario, ...puntos }),
                     });
 
                     if (!data?.success) {
@@ -1481,21 +1480,26 @@
                     for (let mccoy = 1; mccoy <= 4; mccoy++) {
                         const ordenIdx = (state.ordenes[mccoy] || []).findIndex(o => o.id === ordenCalidadId);
                         if (ordenIdx !== -1) {
-                            state.ordenes[mccoy][ordenIdx].calidad = data.calidad;
-                            state.ordenes[mccoy][ordenIdx].calidadcomentario = data.calidadcomentario;
+                            Object.assign(state.ordenes[mccoy][ordenIdx], {
+                                calidad: data.calidad,
+                                calidadcomentario: data.calidadcomentario,
+                                autoriza_calidad: data.autoriza_calidad,
+                                fecha_calidad: data.fecha_calidad,
+                                calidad_puntos: data.calidad_puntos,
+                            });
                             break;
                         }
                     }
 
                     cerrarModalCalidad();
                     renderAllTables();
-                    const calidadTexto = calidad === 'A' ? 'Aprobado' : calidad === 'R' ? 'Rechazado' : 'Con observaciones';
+                    const calidadTexto = visualCalidad(data.calidad).texto;
                     const msg = data.calidadcomentario
                         ? `${calidadTexto}: ${data.calidadcomentario}`
                         : calidadTexto;
                     Swal.fire({ icon: 'success', title: '¡Guardado!', text: msg, timer: 2000, showConfirmButton: false });
                 } catch (err) {
-                    Swal.fire({ icon: 'error', title: 'Error de conexión', text: err.message, timer: 2000, showConfirmButton: false });
+                    Swal.fire({ icon: 'error', title: 'No se pudo guardar', text: err.message, timer: 3000, showConfirmButton: false });
                 } finally {
                     btn.disabled = false;
                     btnText.textContent = 'Guardar';
@@ -1506,7 +1510,7 @@
             window.abrirModalCalidadPorOrden = abrirModalCalidadPorOrden;
             window.cerrarModalCalidad = cerrarModalCalidad;
             window.guardarCalidad = guardarCalidad;
-            window.cyclicCalidad = cyclicCalidad;
+            window.alternarPuntoCalidad = alternarPuntoCalidad;
             window.abrirModalVerCalidad = abrirModalVerCalidad;
             window.cerrarModalVerCalidad = cerrarModalVerCalidad;
 
