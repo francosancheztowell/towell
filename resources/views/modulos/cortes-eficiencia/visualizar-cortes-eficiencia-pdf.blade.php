@@ -115,7 +115,9 @@
         $bodySize = $toPx(10.40, $sizeScale, 6.40, 10.90);
         $thSize = $toPx(10.60, $sizeScale, 6.60, 11.00);
         $tdSize = $toPx(10.40, $sizeScale, 6.40, 10.90);
-        $efSize = $toPx(17.60, $sizeScale, 9.60, 18.00);
+        // Prioriza la legibilidad de los valores de cada horario y usa el margen
+        // vertical disponible antes de reducirlos por el hard-fit de una hoja.
+        $efSize = $toPx(22.50, $sizeScale, 13.40, 23.00);
         $commentSize = $toPx(10.60, $sizeScale, 6.20, 10.70);
         $telarSize = $toPx(15.20, $sizeScale, 8.80, 15.40);
         $rpmSize = $toPx(15.20, $sizeScale, 8.80, 15.40);
