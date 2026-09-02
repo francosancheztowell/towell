@@ -12,6 +12,10 @@
         $rowsConComentario = 0;
         $celdasConComentario = 0;
         $longitudComentarioMax = 0;
+        $longitudComentarioPorTurnoHorario = [];
+        for ($turno = 1; $turno <= $turnosActivos; $turno++) {
+            $longitudComentarioPorTurnoHorario[$turno] = [1 => 0, 2 => 0, 3 => 0];
+        }
 
         foreach ($rows as $row) {
             $hayComentarioEnFila = false;
@@ -36,6 +40,10 @@
                     $celdasConComentario++;
                     $longitud = function_exists('mb_strlen') ? mb_strlen($texto) : strlen($texto);
                     $longitudComentarioMax = max($longitudComentarioMax, $longitud);
+                    $longitudComentarioPorTurnoHorario[$turno][$slot] = max(
+                        $longitudComentarioPorTurnoHorario[$turno][$slot],
+                        $longitud,
+                    );
                 }
             }
 
@@ -107,10 +115,10 @@
         $bodySize = $toPx(10.40, $sizeScale, 6.40, 10.90);
         $thSize = $toPx(10.60, $sizeScale, 6.60, 11.00);
         $tdSize = $toPx(10.40, $sizeScale, 6.40, 10.90);
-        $efSize = $toPx(15.40, $sizeScale, 9.20, 15.80);
+        $efSize = $toPx(17.60, $sizeScale, 9.60, 18.00);
         $commentSize = $toPx(10.60, $sizeScale, 6.20, 10.70);
-        $telarSize = $toPx(13.80, $sizeScale, 8.60, 14.10);
-        $rpmSize = $toPx(13.80, $sizeScale, 8.60, 14.10);
+        $telarSize = $toPx(15.20, $sizeScale, 8.80, 15.40);
+        $rpmSize = $toPx(15.20, $sizeScale, 8.80, 15.40);
         $focusCellHeight = $toPx(13.20, $sizeScale, 8.20, 13.40);
         $turnoHdrSize = $toPx(9.30, $sizeScale, 6.00, 9.50);
         $horarioHdrSize = $toPx(8.90, $sizeScale, 5.80, 9.20);
@@ -125,31 +133,60 @@
         $marginBase = $clamp(3.0 - ((1 - $sizeScale) * 2.70), 1.2, 3.0);
         $marginPage = $toMm($marginBase);
 
-        // Ajuste dinámico de anchos por encabezado/contenido.
-        // Objetivo: celdas más estrechas (tamaño título) y comentarios a 2 renglones.
-        $factorComentariosAncho = $clamp(($longitudComentarioMax - 10) / 20, 0.0, 1.0);
-        $efWeight = 1.22 + ($factorComentariosAncho * 0.38) + ($densidadComentarios * 0.14);
-        // RPM y Telar son valores cortos (tres dígitos); liberar este espacio
-        // permite que las celdas de eficiencia y sus observaciones ganen ancho
-        // de manera uniforme en los tres turnos.
-        $rpmWeight = 0.50;
-        $telarWeight = 0.50;
-        $totalWeight = $turnosActivos * ($rpmWeight + $telarWeight + (3 * $efWeight));
+        // Medidas físicas: no se estiran al ancho de la hoja. Una tabla con menos
+        // turnos/horarios ocupa menos espacio y queda centrada.
+        $rpmColWidth = '10mm';
+        $telarColWidth = '10mm';
+        $efColWidthNormalMm = 22.0;
+        $efColWidthMaxMm = 30.0;
 
-        $toPct = function (float $weight) use ($totalWeight): string {
-            return number_format(($weight / $totalWeight) * 100, 3, '.', '') . '%';
-        };
+        // Sin ningún horario capturado, las tres columnas de eficiencia del turno
+        // permanecen vacías. En ese caso ocupan el mismo ancho compacto de RPM/Telar.
+        $efColWidthPorTurno = [];
+        $anchosNormalesMm = [];
+        $anchoCompactoTotalMm = 0.0;
+        for ($turno = 1; $turno <= $turnosActivos; $turno++) {
+            $hayHorarioCapturado = false;
+            foreach ([1, 2, 3] as $horario) {
+                $valorHorario = trim((string) (($horariosPorTurno[$turno][$horario] ?? '--:--')));
+                if ($valorHorario !== '' && $valorHorario !== '--:--') {
+                    $hayHorarioCapturado = true;
+                    break;
+                }
+            }
 
-        $telarColWidth = $toPct($telarWeight);
-        $rpmColWidth = $toPct($rpmWeight);
-        $efColWidth = $toPct($efWeight);
+            for ($horario = 1; $horario <= 3; $horario++) {
+                if (! $hayHorarioCapturado) {
+                    $efColWidthPorTurno[$turno][$horario] = $rpmColWidth;
+                    $anchoCompactoTotalMm += 10.0;
+                    continue;
+                }
+
+                $longitudComentario = $longitudComentarioPorTurnoHorario[$turno][$horario];
+                $anchoDeseadoMm = $efColWidthNormalMm + max(0, $longitudComentario - 12) * 0.28;
+                $anchosNormalesMm[$turno][$horario] = min($efColWidthMaxMm, $anchoDeseadoMm);
+            }
+        }
+
+        // Mantiene la tabla en una sola hoja A4 horizontal aun con varios comentarios.
+        $anchoDisponibleParaComentariosMm = 199.0 - ($turnosActivos * 20.0) - $anchoCompactoTotalMm;
+        $anchoNormalTotalMm = array_sum(array_merge(...array_map('array_values', $anchosNormalesMm ?: [[]])));
+        $factorAnchoNormal = $anchoNormalTotalMm > 0
+            ? min(1.0, $anchoDisponibleParaComentariosMm / $anchoNormalTotalMm)
+            : 1.0;
+
+        foreach ($anchosNormalesMm as $turno => $anchosPorHorario) {
+            foreach ($anchosPorHorario as $horario => $anchoMm) {
+                $efColWidthPorTurno[$turno][$horario] = $toMm($anchoMm * $factorAnchoNormal);
+            }
+        }
 
     @endphp
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         @page {
-            size: A4 landscape;
+            size: A4 portrait;
             margin: {{ $marginPage }} {{ $marginPage }} 0mm {{ $marginPage }};
         }
 
@@ -203,7 +240,8 @@
 
         /* ── Tabla ── */
         table {
-            width: 100%;
+            width: auto;
+            margin: 0 auto;
             border-collapse: collapse;
             table-layout: fixed;
         }
@@ -274,7 +312,6 @@
 
         /* ── Anchos de columnas de datos ── */
         .col-rpm { width: {{ $rpmColWidth }}; }
-        .col-pef { width: {{ $efColWidth }}; }
         /* Dompdf calcula una tabla fija usando la primera fila. Esta fila técnica
            impide que los colspan de Turno distribuyan RPM/Telar en partes iguales. */
         .column-sizing-row th {
@@ -409,9 +446,9 @@
                 @for ($turno = 1; $turno <= ($maxTurno ?? 3); $turno++)
                     <col class="col-rpm" style="width: {{ $rpmColWidth }};">
                     <col class="col-telar" style="width: {{ $telarColWidth }};">
-                    <col class="col-pef" style="width: {{ $efColWidth }};">
-                    <col class="col-pef" style="width: {{ $efColWidth }};">
-                    <col class="col-pef" style="width: {{ $efColWidth }};">
+                    <col class="col-pef" style="width: {{ $efColWidthPorTurno[$turno][1] }};">
+                    <col class="col-pef" style="width: {{ $efColWidthPorTurno[$turno][2] }};">
+                    <col class="col-pef" style="width: {{ $efColWidthPorTurno[$turno][3] }};">
                 @endfor
             </colgroup>
         <thead>
@@ -419,9 +456,9 @@
                 @for ($turno = 1; $turno <= $turnosActivos; $turno++)
                     <th style="width: {{ $rpmColWidth }};"></th>
                     <th style="width: {{ $telarColWidth }};"></th>
-                    <th style="width: {{ $efColWidth }};"></th>
-                    <th style="width: {{ $efColWidth }};"></th>
-                    <th style="width: {{ $efColWidth }};"></th>
+                    <th style="width: {{ $efColWidthPorTurno[$turno][1] }};"></th>
+                    <th style="width: {{ $efColWidthPorTurno[$turno][2] }};"></th>
+                    <th style="width: {{ $efColWidthPorTurno[$turno][3] }};"></th>
                 @endfor
             </tr>
 
