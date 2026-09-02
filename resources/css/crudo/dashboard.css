@@ -352,14 +352,8 @@ button.crudo-status-card:disabled {
     --status: #eab308;
     /* El amarillo puro es ilegible como texto: la variante tipográfica es ámbar. */
     --status-ink: #96700a;
-    /*
-     * Pedido explícito: fondo fuerte con texto blanco para verse a distancia.
-     * El amarillo puro (#eab308) da 1.9:1 de contraste con blanco, por debajo
-     * incluso del mínimo AA de texto grande (3:1): a distancia se leía peor,
-     * no mejor. --status-ink (4.55:1, AA para texto normal) cumple el mismo
-     * pedido sin ese efecto.
-     */
-    --status-bg: #96700a;
+    /* Amarillo fuerte con texto blanco: pedido explícito para verse a distancia. */
+    --status-bg: #eab308;
     --status-bg-soft: #fff9d1;
 }
 
