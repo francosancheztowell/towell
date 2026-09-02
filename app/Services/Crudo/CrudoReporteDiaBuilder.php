@@ -9,6 +9,7 @@ use App\Models\Crudo\CrudoAuditoria;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Arma el reporte diario de telares. Vive aparte del controlador porque el
@@ -45,7 +46,36 @@ final readonly class CrudoReporteDiaBuilder
             $day,
             $this->rutaLogo(),
             $this->auditorias($day),
+            $this->sinPesoMuestra(),
         );
+    }
+
+    /**
+     * Telares cuyo programa EnProceso no tiene peso muestra capturado. Sin ese
+     * dato Calidad no puede pesar la muestra, así que se listan aparte.
+     *
+     * ponytail: consulta directa a la conexión del catálogo; no vale la pena
+     * ampliar el repositorio del tablero para una lista de tres columnas.
+     *
+     * @return list<array{telar: string, orden: string, producto: string}>
+     */
+    private function sinPesoMuestra(): array
+    {
+        $filas = DB::connection((string) config('crudo.connections.catalog', 'sqlsrv'))
+            ->table((string) config('crudo.tables.programs', 'dbo.ReqProgramaTejido'))
+            ->where('EnProceso', 1)
+            ->where(static function ($query): void {
+                // PesoMuestra es texto en SQL Server: el vacío también es faltante.
+                $query->whereNull('PesoMuestra')->orWhere('PesoMuestra', '');
+            })
+            ->orderBy('NoTelarId')
+            ->get(['NoTelarId', 'NoProduccion', 'NombreProducto']);
+
+        return $filas->map(static fn (object $fila): array => [
+            'telar' => trim((string) $fila->NoTelarId),
+            'orden' => trim((string) $fila->NoProduccion),
+            'producto' => trim((string) $fila->NombreProducto),
+        ])->all();
     }
 
     /**

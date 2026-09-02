@@ -43,6 +43,7 @@ final class EnviarReporteCrudoCommand extends Command
                 (string) Excel::raw($export, ExcelFormat::XLSX),
                 $reporte->fileName($day),
                 $reporte->rutaLogo(),
+                $export->sinPesoMuestra(),
             ));
         } catch (Throwable $exception) {
             // El scheduler no tiene quien lea la salida: el log es la traza real.
