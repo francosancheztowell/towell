@@ -16,6 +16,7 @@
     <div
         class="crudo-page min-h-full w-full px-2 py-1 sm:px-4 lg:px-5"
         data-crudo-root
+        @if (app()->environment('local')) data-crudo-retry-busy @endif
     >
         <aside
             class="crudo-livewire-error"

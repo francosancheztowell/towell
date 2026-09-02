@@ -14,7 +14,7 @@
         <section class="crudo-salon crudo-salon-{{ str($salon)->slug() }}">
             <header>
                 <h2>{{ $salonLabels[$salon] ?? $salon }}</h2>
-                <span class="crudo-salon-efficiency">{{ number_format((float) $salonEficiencias->avg(), 1) }}%</span>
+                <span class="crudo-salon-efficiency" data-crudo-salon-efficiency="{{ $salon }}">{{ number_format((float) $salonEficiencias->avg(), 1) }}%</span>
             </header>
 
             @if ($salonLayout['physical'])

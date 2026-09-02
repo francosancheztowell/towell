@@ -1,9 +1,12 @@
 /*
  * El servidor embebido de PHP (`artisan serve`) atiende una petición a la vez:
  * si un clic cae mientras el poll reconstruye el tablero, responde 503 sin haber
- * ejecutado nada. Como la petición no llegó a correr, repetirla es seguro.
+ * ejecutado nada. Como la petición no llegó a correr, repetirla es seguro. Por
+ * eso dashboard.ts solo instala este reintento cuando el servidor es ese
+ * (ver data-crudo-retry-busy en index.blade.php); en producción un 503 no da
+ * esa garantía y reintentar podría reenviar una acción que sí corrió.
  *
- * ponytail: dos reintentos con espera corta. Si hiciera falta backoff real, el
+ * ponytail: cuatro reintentos con espera corta. Si hiciera falta backoff real, el
  * problema sería el dimensionamiento del servidor, no la petición.
  */
 export const BUSY_STATUS = 503

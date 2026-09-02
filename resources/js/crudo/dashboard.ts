@@ -180,6 +180,15 @@ const installBusyServerRetry = (): void => {
     return
   }
 
+  // El reintento asume que un 503 significa "el servidor no ejecutó nada",
+  // cierto solo con el servidor de desarrollo (`artisan serve`, un solo
+  // worker). En producción (Apache/PHP-FPM) un 503 puede llegar después de
+  // que la acción sí corrió, y reintentar la reenviaría por segunda vez.
+  const root = document.querySelector<HTMLElement>(CRUDO_ROOT_SELECTOR)
+  if (!root || !('crudoRetryBusy' in root.dataset)) {
+    return
+  }
+
   fetchRetryInstalled = true
   window.fetch = withBusyRetry(
     window.fetch.bind(window),
@@ -261,6 +270,11 @@ const installLivewireErrorHandler = (): void => {
     })
 
     fail(({ status, preventDefault }) => {
+      // El backdrop se marca "is-closing" al pedir el cierre de un modal y se
+      // limpia cuando Livewire quita el nodo del DOM. Si esa petición falla,
+      // el nodo se queda y el backdrop se veía "cursor: wait" para siempre.
+      document.querySelectorAll('.is-closing').forEach((element) => element.classList.remove('is-closing'))
+
       if (status < 400) {
         return
       }
@@ -380,6 +394,36 @@ const updateMachineCard = (machine: Machine): void => {
   }
 }
 
+/**
+ * El plano de salones va en wire:ignore (nunca se re-renderiza por Livewire),
+ * así que el promedio de eficiencia del encabezado de cada salón se recalcula
+ * aquí en cada pulso, igual que ya hace updateMachineCard con cada tarjeta.
+ * Los telares fuera de operación no traen tarjeta con [data-crudo-efficiency]
+ * (machine-card.blade.php los omite), así que quedan fuera del promedio sin
+ * duplicar la lista de config('crudo.telares_fuera') en el cliente.
+ */
+const updateSalonEfficiencies = (machines: Machine[]): void => {
+  const bySalon = new Map<string, number[]>()
+
+  machines.forEach((machine) => {
+    const button = findMachineButton(machine.telar)
+    if (!button || !button.querySelector('[data-crudo-efficiency]')) {
+      return
+    }
+
+    const values = bySalon.get(machine.salon) ?? []
+    values.push(machine.efficiencyPercent ?? 0)
+    bySalon.set(machine.salon, values)
+  })
+
+  document.querySelectorAll<HTMLElement>('[data-crudo-salon-efficiency]').forEach((element) => {
+    const salon = element.dataset.crudoSalonEfficiency ?? ''
+    const values = bySalon.get(salon) ?? []
+    const average = values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : 0
+    element.textContent = `${average.toFixed(1)}%`
+  })
+}
+
 const updateDashboardCards = (): void => {
   const machines = parseMachinesJson()
   machinesByTelar = new Map(machines.map((machine) => [machine.telar, machine]))
@@ -392,6 +436,7 @@ const updateDashboardCards = (): void => {
   machines.forEach((machine) => {
     updateMachineCard(machine)
   })
+  updateSalonEfficiencies(machines)
 }
 
 const showPendingDetail = (machine: Machine, button: HTMLElement): void => {
@@ -515,13 +560,18 @@ const observeDashboard = (): void => {
 }
 
 const toggleFullscreen = async (): Promise<void> => {
-  if (document.fullscreenElement) {
-    await document.exitFullscreen()
-    return
-  }
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen()
+      return
+    }
 
-  if (document.fullscreenEnabled && document.documentElement.requestFullscreen) {
-    await document.documentElement.requestFullscreen()
+    if (document.fullscreenEnabled && document.documentElement.requestFullscreen) {
+      await document.documentElement.requestFullscreen()
+    }
+  } catch {
+    // Permiso denegado, iframe sin allow="fullscreen", etc.: no hay nada que
+    // el usuario deba hacer distinto, así que no se muestra ningún error.
   }
 }
 
@@ -1302,6 +1352,13 @@ document.addEventListener('pointerdown', (event) => {
 
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') {
+    return
+  }
+
+  // Un <dialog> nativo abierto (paro, flog) ya cierra con Escape por su
+  // cuenta; si lo dejamos pasar aquí también cerraríamos el modal que lo
+  // contiene con la misma tecla.
+  if (document.querySelector('dialog[open]')) {
     return
   }
 

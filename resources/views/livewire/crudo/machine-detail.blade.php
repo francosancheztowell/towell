@@ -328,7 +328,7 @@
                                                 $capturePieces = (int) $capture['pieces'];
                                                 $captureWeight = (float) $capture['weight'];
                                             @endphp
-                                            <tr>
+                                            <tr wire:key="crudo-capture-{{ $capture['recId'] }}">
                                                 <td title="{{ $capture['date'] ?? '' }}">{{ ($capture['date'] ?? '') ?: '—' }}</td>
                                                 <td title="{{ $capture['purchBarcode'] ?? '' }}">{{ ($capture['purchBarcode'] ?? '') ?: '—' }}</td>
                                                 <td title="{{ $capture['weavingOrder'] ?? '' }}">{{ ($capture['weavingOrder'] ?? '') ?: '—' }}</td>
@@ -482,6 +482,7 @@
                                 <ul class="crudo-paros-history-list">
                                     @foreach ($parosTelar as $paro)
                                         <li
+                                            wire:key="crudo-paro-{{ $paro['folio'] ?: $loop->index }}-{{ $paro['inicio'] }}"
                                             class="crudo-paro-row {{ $paro['activo'] ? 'is-activo' : '' }}"
                                             data-ventana="{{ $paro['ventana'] }}"
                                         >
@@ -615,6 +616,7 @@
                     <div
                         class="crudo-audit-modal-form"
                         wire:key="crudo-audit-form-{{ $selectedMachine['telar'] }}"
+                        wire:ignore
                         data-crudo-audit-form
                         data-crudo-audit-url="{{ route('crudo.auditorias.store') }}"
                         data-crudo-audit-stop-url="{{ route('crudo.auditorias.store-with-stop') }}"
@@ -627,7 +629,7 @@
                             class="crudo-audit-modal-grid"
                             data-crudo-audit-content
                         >
-                            <section class="crudo-detail-panel crudo-audit-panel" wire:ignore>
+                            <section class="crudo-detail-panel crudo-audit-panel">
                                 <div class="crudo-detail-panel-heading">
                                     <div>
                                         <h3>Checklist de telares reincidentes de defectos</h3>
@@ -701,7 +703,7 @@
                                 </label>
                             </section>
 
-                            <section class="crudo-detail-panel crudo-audit-defects-panel" wire:ignore>
+                            <section class="crudo-detail-panel crudo-audit-defects-panel">
                                 <div class="crudo-detail-panel-heading">
                                     <div>
                                         <h3>Defectos encontrados</h3>

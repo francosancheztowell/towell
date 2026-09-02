@@ -306,7 +306,7 @@
                     <h2>{{ $estadoCard['label'] }}</h2>
                     <p>{{ count($machinesDetalle) }} {{ count($machinesDetalle) === 1 ? 'telar' : 'telares' }} · {{ $estadoCard['description'] }}</p>
                 </div>
-                <button type="button" class="crudo-modal-close" wire:click="cerrarEstado" aria-label="Cerrar">
+                <button type="button" class="crudo-modal-close" wire:click="cerrarEstado" data-crudo-modal-close aria-label="Cerrar">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </header>
@@ -314,7 +314,7 @@
             <div class="crudo-estado-list">
                 @forelse ($machinesDetalle as $item)
                     @php $paro = $item['paro'] ?? null; @endphp
-                    <article class="crudo-estado-item" data-state="{{ $item['state'] }}">
+                    <article wire:key="crudo-estado-item-{{ $item['telar'] }}" class="crudo-estado-item" data-state="{{ $item['state'] }}">
                         <header class="crudo-estado-item-head">
                             <span class="crudo-estado-telar">{{ $item['telar'] }}</span>
                             <span class="crudo-estado-salon">{{ $item['salon'] }}</span>
@@ -388,7 +388,7 @@
                         {{ count($defectos['telares']) }} {{ count($defectos['telares']) === 1 ? 'telar' : 'telares' }}
                     </p>
                 </div>
-                <button type="button" class="crudo-modal-close" wire:click="cerrarDefectos" aria-label="Cerrar">
+                <button type="button" class="crudo-modal-close" wire:click="cerrarDefectos" data-crudo-modal-close aria-label="Cerrar">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </header>
@@ -463,7 +463,7 @@
                                 </thead>
                                 <tbody>
                                     @foreach ($defectos['telares'] as $fila)
-                                        <tr data-salon="{{ $fila['salon'] ?? 'Sin clasificar' }}">
+                                        <tr wire:key="crudo-defecto-fila-{{ $fila['telar'] }}" data-salon="{{ $fila['salon'] ?? 'Sin clasificar' }}">
                                             <td class="crudo-defectos-telar">{{ $fila['telar'] }}</td>
                                             @foreach ($defectos['columnas'] as $indice => $columna)
                                                 @php($valor = (float) ($fila['defectos'][$columna] ?? 0))
