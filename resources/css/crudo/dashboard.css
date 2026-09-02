@@ -964,6 +964,31 @@ button.crudo-status-card:disabled {
     background: #4b5563;
 }
 
+/*
+ * Saldo negativo (ReqProgramaTejido): se produjo/asignó de más contra el
+ * pedido. Aviso independiente del color de estado (paro/segundas/bajos
+ * kg/operando) — outline en vez de border para no pelear con el borde de
+ * estado, y punteado en vez de sólido para no confundirse con el rojo de
+ * un paro activo cuando coinciden en el mismo telar.
+ */
+@keyframes crudo-saldo-negativo-pulse {
+    0%, 100% {
+        outline-color: #dc2626;
+        outline-offset: 2px;
+    }
+
+    50% {
+        outline-color: #fca5a5;
+        outline-offset: 4px;
+    }
+}
+
+.crudo-machine-card[data-saldo-negativo] {
+    outline: 3.5px dashed #dc2626;
+    outline-offset: 2px;
+    animation: crudo-saldo-negativo-pulse 1.8s ease-in-out infinite;
+}
+
 .crudo-machine-tooltip {
     position: absolute;
     bottom: calc(100% + 0.45rem);
@@ -993,6 +1018,14 @@ button.crudo-status-card:disabled {
     margin-top: 0.1rem;
     color: #cbd5e1;
     font-size: 0.65rem;
+}
+
+.crudo-machine-tooltip span.crudo-machine-tooltip-saldo {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: #fca5a5;
+    font-weight: 800;
 }
 
 .crudo-machine-card:hover .crudo-machine-tooltip,
@@ -1732,6 +1765,30 @@ button.crudo-status-card:disabled {
 /* El saldo es lo que falta por producir: se lee con el color del estado. */
 .crudo-modal-orden-stat.is-saldo dd {
     color: var(--status-ink, var(--status));
+}
+
+/*
+ * Saldo negativo: se produjo/asignó de más contra el pedido. Aviso aparte
+ * del color de estado del telar (paro/segundas/bajos kg/operando), con
+ * línea punteada para no confundirse con el rojo sólido de un paro activo.
+ */
+.crudo-modal-orden-stat.is-saldo.is-saldo-negativo {
+    padding: 0.25rem 0.4rem;
+    outline: 3px dashed #dc2626;
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+    animation: crudo-saldo-negativo-pulse 1.8s ease-in-out infinite;
+}
+
+.crudo-modal-orden-stat.is-saldo-negativo dt {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: #dc2626;
+}
+
+.crudo-modal-orden-stat.is-saldo.is-saldo-negativo dd {
+    color: #dc2626;
 }
 
 .crudo-modal-kpi {

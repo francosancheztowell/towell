@@ -27,7 +27,7 @@ type Machine = {
   stateLabel: string
   stateIcon: string
   paro: Record<string, string | null> | null
-  programa: Record<string, string | null> | null
+  programa: Record<string, string | number | null> | null
 }
 
 type QualityDefectCatalogItem = {
@@ -378,7 +378,10 @@ const updateMachineCard = (machine: Machine): void => {
     return
   }
 
-  const signature = `${machine.state}:${machine.pieces}:${machine.seconds}:${machine.kilos}:${machine.efficiencyPercent}`
+  const saldoPedido = machine.programa?.saldoPedido
+  const saldoNegativo = typeof saldoPedido === 'number' && saldoPedido < 0
+
+  const signature = `${machine.state}:${machine.pieces}:${machine.seconds}:${machine.kilos}:${machine.efficiencyPercent}:${saldoNegativo ? '1' : '0'}`
   if (button.dataset.signature === signature) {
     return
   }
@@ -389,7 +392,20 @@ const updateMachineCard = (machine: Machine): void => {
     flashParoAlert(button)
   }
   button.dataset.signature = signature
-  button.setAttribute('aria-label', `Abrir detalle del telar ${machine.telar}, estado ${machine.stateLabel}`)
+  button.toggleAttribute('data-saldo-negativo', saldoNegativo)
+  button.setAttribute(
+    'aria-label',
+    `Abrir detalle del telar ${machine.telar}, estado ${machine.stateLabel}${saldoNegativo ? ', saldo negativo' : ''}`,
+  )
+
+  const tooltipSaldo = button.querySelector<HTMLElement>('[data-crudo-tooltip-saldo]')
+  if (tooltipSaldo) {
+    tooltipSaldo.hidden = !saldoNegativo
+    const tooltipSaldoValue = tooltipSaldo.querySelector<HTMLElement>('[data-crudo-tooltip-saldo-value]')
+    if (tooltipSaldoValue && saldoNegativo) {
+      tooltipSaldoValue.textContent = `Saldo ${formatInteger(saldoPedido)}`
+    }
+  }
 
   const efficiency = button.querySelector<HTMLElement>('[data-crudo-efficiency]')
   if (efficiency) {

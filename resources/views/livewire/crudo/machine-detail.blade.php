@@ -33,9 +33,13 @@
 
     // Solo NoMarbete y SaldoPedido de ReqProgramaTejido: dos cifras grandes, sin rollos ni pedido.
     $num = fn (mixed $v) => is_numeric($v) ? number_format(round((float) $v)) : '—';
+    $saldoPedidoValue = $selectedMachine['programa']['saldoPedido'] ?? null;
+    // Saldo negativo: se produjo/asignó de más contra el pedido. Aviso aparte
+    // del color de estado del telar (paro/segundas/bajos kg/operando).
+    $saldoEsNegativo = is_numeric($saldoPedidoValue) && (float) $saldoPedidoValue < 0;
     $ordenStats = [
         ['label' => 'Marbetes', 'value' => $num($selectedMachine['programa']['marbetes'] ?? null)],
-        ['label' => 'Saldo', 'value' => $num($selectedMachine['programa']['saldoPedido'] ?? null), 'tone' => 'saldo'],
+        ['label' => 'Saldo', 'value' => $num($saldoPedidoValue), 'tone' => 'saldo', 'negativo' => $saldoEsNegativo],
     ];
 
     $detailKilos = (float) ($selectedMachine['kilos'] ?? 0);
@@ -107,9 +111,19 @@
                                         </dd>
                                     </div>
                                     @foreach ($ordenStats as $stat)
-                                        <div @class(['crudo-modal-program-field', 'crudo-modal-orden-stat', 'is-saldo' => ($stat['tone'] ?? null) === 'saldo'])>
-                                            <dt>{{ $stat['label'] }}</dt>
-                                            <dd>{{ $stat['value'] }}</dd>
+                                        @php
+                                            $statEsNegativo = $stat['negativo'] ?? false;
+                                            $negativoIcon = $statEsNegativo ? ' <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>' : '';
+                                            $negativoSrOnly = $statEsNegativo ? '<span class="sr-only"> (saldo negativo)</span>' : '';
+                                        @endphp
+                                        <div @class([
+                                            'crudo-modal-program-field',
+                                            'crudo-modal-orden-stat',
+                                            'is-saldo' => ($stat['tone'] ?? null) === 'saldo',
+                                            'is-saldo-negativo' => $statEsNegativo,
+                                        ])>
+                                            <dt>{{ $stat['label'] }}{!! $negativoIcon !!}</dt>
+                                            <dd>{{ $stat['value'] }}{!! $negativoSrOnly !!}</dd>
                                         </div>
                                     @endforeach
                                 </dl>

@@ -366,6 +366,40 @@ final class CrudoMachineDetailTest extends TestCase
         $this->assertLessThan(strpos($html, 'Clave AX'), strpos($html, '<dt>Orden</dt>'));
     }
 
+    public function test_a_negative_saldo_pedido_is_highlighted_in_the_modal(): void
+    {
+        $machine = $this->machineData();
+        $machine['programa'] = [
+            'orden' => 'ORD-PROG-201',
+            'itemId' => 'AX-201',
+            'marbetes' => 12,
+            'saldoPedido' => -75,
+        ];
+
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $machine)
+            ->assertSee('is-saldo-negativo', false)
+            ->assertSee('>-75<', false)
+            ->assertSee('fa-triangle-exclamation', false)
+            ->assertSee('(saldo negativo)');
+    }
+
+    public function test_a_positive_saldo_pedido_is_not_highlighted_in_the_modal(): void
+    {
+        $machine = $this->machineData();
+        $machine['programa'] = [
+            'orden' => 'ORD-PROG-201',
+            'itemId' => 'AX-201',
+            'marbetes' => 12,
+            'saldoPedido' => 75,
+        ];
+
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $machine)
+            ->assertDontSee('is-saldo-negativo', false)
+            ->assertSee('>75</dd>', false);
+    }
+
     public function test_it_renders_an_active_stop_inside_the_compact_status_card(): void
     {
         $machine = $this->machineData();
