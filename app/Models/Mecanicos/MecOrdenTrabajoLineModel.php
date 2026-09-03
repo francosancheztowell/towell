@@ -34,6 +34,9 @@ class MecOrdenTrabajoLineModel extends Model
         'Calificacion',
         'CveTejedor',
         'NomTejedor',
+        'Turno',
+        'Fecha',
+        'comentarios',
     ];
 
     protected $casts = [
@@ -45,6 +48,8 @@ class MecOrdenTrabajoLineModel extends Model
         'FaltaRefacc' => 'boolean',
         'TotalMinutos' => 'integer',
         'Calificacion' => 'integer',
+        'Turno' => 'integer',
+        'Fecha' => 'date',
     ];
 
     public function ordenTrabajo(): BelongsTo

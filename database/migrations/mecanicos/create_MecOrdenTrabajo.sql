@@ -104,3 +104,31 @@ END;
 ');
 
 COMMIT TRANSACTION;
+
+
+
+
+-- =============================================================================
+-- Captura por renglón: turno, fecha y comentarios de la intervención
+-- =============================================================================
+-- El turno y la fecha viven en el renglón y no en la cabecera: una orden puede
+-- cruzar turnos y días, y cada intervención la captura el mecánico que estaba
+-- en piso. Turno 4 es el comodín que cubre descansos (ver App\Helpers\TurnoHelper).
+
+IF COL_LENGTH('dbo.MecOrdenTrabajoLine', 'Turno') IS NULL
+BEGIN
+    ALTER TABLE dbo.MecOrdenTrabajoLine ADD Turno INT NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.MecOrdenTrabajoLine', 'Fecha') IS NULL
+BEGIN
+    ALTER TABLE dbo.MecOrdenTrabajoLine ADD Fecha DATE NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.MecOrdenTrabajoLine', 'comentarios') IS NULL
+BEGIN
+    ALTER TABLE dbo.MecOrdenTrabajoLine ADD comentarios VARCHAR(500) NULL;
+END
+GO
