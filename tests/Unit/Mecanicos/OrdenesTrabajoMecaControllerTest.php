@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Mecanicos;
 
 use App\Http\Controllers\mecanicos\OrdenesTrabajoMecaController;
+use App\Models\Mecanicos\MecOrdenTrabajoModel;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
@@ -39,10 +40,21 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
             $table->integer('Turno')->nullable();
             $table->string('Obs')->nullable();
             $table->string('ObsCierre')->nullable();
+            $table->integer('Calidad')->nullable();
+            $table->string('CveAtendio')->nullable();
+            $table->string('NomAtendio')->nullable();
         });
         $schema->create('MecOrdenTrabajoTable', function (Blueprint $table): void {
             $table->string('Folio')->primary();
             $table->string('FolioParo')->nullable();
+            $table->string('Estatus')->nullable();
+        });
+        $schema->create('MecOrdenTrabajoLine', function (Blueprint $table): void {
+            $table->increments('Id');
+            $table->string('Folio');
+            $table->integer('Calificacion')->nullable();
+            $table->string('CveTejedor')->nullable();
+            $table->string('NomTejedor')->nullable();
         });
         $schema->create('URDCatalogoMaquinas', function (Blueprint $table): void {
             $table->string('MaquinaId')->primary();
@@ -306,5 +318,24 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
 
         $heredada = $origen->invoke($controller, [...$cabecera, 'Orden' => null], false);
         $this->assertSame('OP-100', $heredada['Orden']);
+    }
+
+    public function test_la_orden_queda_calificada_solo_con_notas_dentro_de_la_escala(): void
+    {
+        $orden = MecOrdenTrabajoModel::create(['Folio' => 'MEC00001', 'Estatus' => 'Terminado']);
+        $completas = new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'todasLasLineasCalificadas');
+        $controller = new OrdenesTrabajoMecaController;
+
+        DB::connection('sqlsrv')->table('MecOrdenTrabajoLine')->insert([
+            ['Folio' => 'MEC00001', 'Calificacion' => 5],
+            ['Folio' => 'MEC00001', 'Calificacion' => 1],
+        ]);
+        $orden->load('lineas');
+        $this->assertTrue($completas->invoke($controller, $orden));
+
+        DB::connection('sqlsrv')->table('MecOrdenTrabajoLine')
+            ->insert(['Folio' => 'MEC00001', 'Calificacion' => null]);
+        $orden->load('lineas');
+        $this->assertFalse($completas->invoke($controller, $orden));
     }
 }

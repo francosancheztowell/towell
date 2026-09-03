@@ -318,7 +318,8 @@
                     <select id="linea-calificacion" name="Calificacion" disabled
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500">
                         <option value="">Sin calificar</option>
-                        @for ($i = 1; $i <= 10; $i++)
+                        {{-- Escala 1-5: la misma de las estrellas con que se cierra el paro. --}}
+                        @for ($i = 1; $i <= 5; $i++)
                             <option value="{{ $i }}">{{ $i }}</option>
                         @endfor
                     </select>

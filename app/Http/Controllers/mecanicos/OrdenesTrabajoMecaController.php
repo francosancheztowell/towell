@@ -12,6 +12,7 @@ use App\Models\Mecanicos\MecOrdenTrabajoModel;
 use App\Models\Sistema\SSYSFoliosSecuencia;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Urdido\URDCatalogoMaquina;
+use App\Services\Mecanicos\CalificacionParoService;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -44,6 +45,16 @@ class OrdenesTrabajoMecaController extends Controller
     private const ESTATUS_CANCELADO = 'Cancelado';
 
     private const HORAS_HISTORIAL_PAROS = 12;
+
+    /**
+     * Escala de calificación del renglón. La define CalificacionParoService
+     * porque es la misma de ManFallasParos.Calidad (estrellas 1-5): la nota que
+     * hereda del paro y la que captura el tejedor a mano tienen que significar
+     * exactamente lo mismo.
+     */
+    private const CALIFICACION_MINIMA = CalificacionParoService::CALIFICACION_MINIMA;
+
+    private const CALIFICACION_MAXIMA = CalificacionParoService::CALIFICACION_MAXIMA;
 
     public function index(): View
     {
@@ -470,7 +481,7 @@ class OrdenesTrabajoMecaController extends Controller
                 && $this->puedeCalificarComoTejedor()
             ) {
                 $validated = $request->validate([
-                    'Calificacion' => ['required', 'integer', 'between:1,10'],
+                    'Calificacion' => ['required', 'integer', 'between:'.self::CALIFICACION_MINIMA.','.self::CALIFICACION_MAXIMA],
                 ]);
 
                 [$cve, $nombre] = $this->datosTejedorSesion();
@@ -584,9 +595,12 @@ class OrdenesTrabajoMecaController extends Controller
 
     /**
      * Mecánico finaliza la captura: pasa a Terminado y bloquea edición.
-     * Después solo el tejedor puede calificar.
+     *
+     * Si el paro de origen ya está cerrado, su calificación se hereda aquí mismo
+     * y la orden puede saltar directo a Calificado. Si todavía está abierto, el
+     * cierre del paro la calificará después (ver CalificacionParoService).
      */
-    public function finalizar(string $folio): JsonResponse
+    public function finalizar(string $folio, CalificacionParoService $calificaciones): JsonResponse
     {
         if (! $this->puedeFinalizarComoMecanico()) {
             return response()->json([
@@ -626,12 +640,18 @@ class OrdenesTrabajoMecaController extends Controller
         }
 
         try {
-            $orden->update(['Estatus' => self::ESTATUS_TERMINADO]);
+            $heredada = DB::transaction(function () use ($orden, $calificaciones): bool {
+                $orden->update(['Estatus' => self::ESTATUS_TERMINADO]);
+
+                return $calificaciones->calificarOrden($orden);
+            });
+
+            $orden->refresh();
             $orden->load(['lineas' => fn ($query) => $query->orderBy('Id')]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Orden finalizada. Ya no se puede editar; el tejedor puede calificarla.',
+                'message' => $this->mensajeFinalizacion((string) $orden->Estatus, $heredada),
                 'data' => $orden,
             ]);
         } catch (\Throwable $exception) {
@@ -795,7 +815,7 @@ class OrdenesTrabajoMecaController extends Controller
             'Turno' => ['required', 'integer', 'between:1,4'],
             'Fecha' => ['required', 'date_format:Y-m-d'],
             'comentarios' => ['nullable', 'string', 'max:500'],
-            'Calificacion' => ['nullable', 'integer', 'between:1,10'],
+            'Calificacion' => ['nullable', 'integer', 'between:'.self::CALIFICACION_MINIMA.','.self::CALIFICACION_MAXIMA],
             'CveTejedor' => ['nullable', 'string', 'max:30'],
             'NomTejedor' => ['nullable', 'string', 'max:150'],
         ];
@@ -1219,8 +1239,26 @@ class OrdenesTrabajoMecaController extends Controller
         return $lineas->every(function ($linea): bool {
             $calificacion = $linea->Calificacion;
 
-            return $calificacion !== null && (int) $calificacion >= 1 && (int) $calificacion <= 10;
+            return $calificacion !== null
+                && (int) $calificacion >= self::CALIFICACION_MINIMA
+                && (int) $calificacion <= self::CALIFICACION_MAXIMA;
         });
+    }
+
+    /**
+     * Explica al mecánico en qué punto del flujo quedó la orden al finalizarla.
+     */
+    private function mensajeFinalizacion(string $estatus, bool $heredada): string
+    {
+        if (! $heredada) {
+            return 'Orden finalizada. Ya no se puede editar; el tejedor puede calificarla.';
+        }
+
+        if ($estatus === self::ESTATUS_CALIFICADO) {
+            return 'Orden finalizada y calificada con la calificación del paro. Falta que el supervisor la autorice.';
+        }
+
+        return 'Orden finalizada. Se aplicó la calificación del paro a los renglones pendientes.';
     }
 
     /**

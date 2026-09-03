@@ -14,6 +14,7 @@ use App\Models\Sistema\SYSUsuario;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\Mantenimiento\ParoTelegramNotifier;
+use App\Services\Mecanicos\CalificacionParoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -817,8 +818,12 @@ class MantenimientoParosController extends Controller
     /**
      * Finalizar un paro/falla (actualizar con datos de cierre).
      */
-    public function finalizar(Request $request, int $id, ParoTelegramNotifier $notifier): JsonResponse
-    {
+    public function finalizar(
+        Request $request,
+        int $id,
+        ParoTelegramNotifier $notifier,
+        CalificacionParoService $calificaciones,
+    ): JsonResponse {
         try {
             $paro = ManFallasParos::find($id);
 
@@ -873,8 +878,17 @@ class MantenimientoParosController extends Controller
                 $updateData['ObsCierre'] = $datos['obs_cierre'];
             }
 
-            $paro->update($updateData);
-            $paro->refresh();
+            // El cierre del paro y la calificación que hereda a sus órdenes de
+            // trabajo van juntos: un paro cerrado cuya OT quedó sin calificar
+            // deja al tejedor esperando una captura que ya nadie le va a pedir.
+            $ordenesCalificadas = DB::connection('sqlsrv')->transaction(
+                function () use ($paro, $updateData, $calificaciones): int {
+                    $paro->update($updateData);
+                    $paro->refresh();
+
+                    return $calificaciones->propagarAOrdenesDelParo($paro);
+                }
+            );
 
             // Cerrar un paro también notifica siempre, igual que reportarlo: el
             // checkbox de la vista tampoco se podía desmarcar.
@@ -886,11 +900,15 @@ class MantenimientoParosController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Paro finalizado correctamente y notificación enviada a Telegram',
+                'message' => 'Paro finalizado correctamente y notificación enviada a Telegram'
+                    .($ordenesCalificadas > 0
+                        ? '. Se calificaron '.$ordenesCalificadas.($ordenesCalificadas === 1 ? ' orden de trabajo' : ' órdenes de trabajo').' con esta calificación'
+                        : ''),
                 'data' => [
                     'id' => $paro->Id,
                     'folio' => $paro->Folio,
                     'notificacion_enviada' => true,
+                    'ordenes_calificadas' => $ordenesCalificadas,
                 ],
             ]);
         } catch (ValidationException $e) {
