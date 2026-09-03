@@ -27,7 +27,7 @@ type Machine = {
   stateLabel: string
   stateIcon: string
   paro: Record<string, string | null> | null
-  programa: Record<string, string | null> | null
+  programa: Record<string, string | number | null> | null
 }
 
 type QualityDefectCatalogItem = {
@@ -118,14 +118,29 @@ type LivewireRequestHook = (request: {
   }) => void) => void
 }) => void
 
+type HttpError = Error & { status?: number, data?: unknown, errors?: Record<string, string[]> | null }
+
+type CrudoHttpConfig = { signal?: AbortSignal, responseType?: 'blob' }
+
+type CrudoHttp = {
+  get: <T = unknown>(url: string, config?: CrudoHttpConfig) => Promise<T>
+  post: <T = unknown>(url: string, data?: unknown, config?: CrudoHttpConfig) => Promise<T>
+}
+
 type CrudoWindow = Window & typeof globalThis & {
   Livewire?: {
     dispatch: (event: string) => void
     hook?: (name: 'request', callback: LivewireRequestHook) => void
   }
-  Swal?: {
-    fire: (options: Record<string, unknown>) => Promise<unknown>
-  }
+  http?: CrudoHttp
+  notify?: CrudoNotify
+}
+
+type CrudoNotify = {
+  loading: (title?: string) => void
+  close: () => void
+  success: (message: string) => void
+  error: (message: string) => void
 }
 
 const DASHBOARD_SELECTOR = '[data-crudo-dashboard]'
@@ -142,6 +157,9 @@ const AUDIT_HISTORY_LIST_SELECTOR = '[data-crudo-audit-history-list]'
 const AUDIT_HISTORY_COUNT_SELECTOR = '[data-crudo-audit-history-count]'
 const QUALITY_DEFECT_SELECT_SELECTOR = '[data-crudo-quality-defect-select]'
 const PENDING_DETAIL_SELECTOR = '[data-crudo-detail-pending]'
+const CRUDO_MODAL_SELECTOR = '[data-crudo-modal]'
+const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), textarea:not([disabled]), '
+  + 'input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
 const LIVEWIRE_ERROR_SELECTOR = '[data-crudo-livewire-error]'
 
 const formatInteger = (value: number): string => Math.round(value).toLocaleString('es-MX')
@@ -177,6 +195,15 @@ let fetchRetryInstalled = false
 
 const installBusyServerRetry = (): void => {
   if (fetchRetryInstalled || typeof window.fetch !== 'function') {
+    return
+  }
+
+  // El reintento asume que un 503 significa "el servidor no ejecutó nada",
+  // cierto solo con el servidor de desarrollo (`artisan serve`, un solo
+  // worker). En producción (Apache/PHP-FPM) un 503 puede llegar después de
+  // que la acción sí corrió, y reintentar la reenviaría por segunda vez.
+  const root = document.querySelector<HTMLElement>(CRUDO_ROOT_SELECTOR)
+  if (!root || !('crudoRetryBusy' in root.dataset)) {
     return
   }
 
@@ -261,6 +288,11 @@ const installLivewireErrorHandler = (): void => {
     })
 
     fail(({ status, preventDefault }) => {
+      // El backdrop se marca "is-closing" al pedir el cierre de un modal y se
+      // limpia cuando Livewire quita el nodo del DOM. Si esa petición falla,
+      // el nodo se queda y el backdrop se veía "cursor: wait" para siempre.
+      document.querySelectorAll('.is-closing').forEach((element) => element.classList.remove('is-closing'))
+
       if (status < 400) {
         return
       }
@@ -346,7 +378,10 @@ const updateMachineCard = (machine: Machine): void => {
     return
   }
 
-  const signature = `${machine.state}:${machine.pieces}:${machine.seconds}:${machine.kilos}:${machine.efficiencyPercent}`
+  const saldoPedido = machine.programa?.saldoPedido
+  const saldoNegativo = typeof saldoPedido === 'number' && saldoPedido < 0
+
+  const signature = `${machine.state}:${machine.pieces}:${machine.seconds}:${machine.kilos}:${machine.efficiencyPercent}:${saldoNegativo ? '1' : '0'}`
   if (button.dataset.signature === signature) {
     return
   }
@@ -357,7 +392,20 @@ const updateMachineCard = (machine: Machine): void => {
     flashParoAlert(button)
   }
   button.dataset.signature = signature
-  button.setAttribute('aria-label', `Abrir detalle del telar ${machine.telar}, estado ${machine.stateLabel}`)
+  button.toggleAttribute('data-saldo-negativo', saldoNegativo)
+  button.setAttribute(
+    'aria-label',
+    `Abrir detalle del telar ${machine.telar}, estado ${machine.stateLabel}${saldoNegativo ? ', saldo negativo' : ''}`,
+  )
+
+  const tooltipSaldo = button.querySelector<HTMLElement>('[data-crudo-tooltip-saldo]')
+  if (tooltipSaldo) {
+    tooltipSaldo.hidden = !saldoNegativo
+    const tooltipSaldoValue = tooltipSaldo.querySelector<HTMLElement>('[data-crudo-tooltip-saldo-value]')
+    if (tooltipSaldoValue && saldoNegativo) {
+      tooltipSaldoValue.textContent = `Saldo ${formatInteger(saldoPedido)}`
+    }
+  }
 
   const efficiency = button.querySelector<HTMLElement>('[data-crudo-efficiency]')
   if (efficiency) {
@@ -380,6 +428,36 @@ const updateMachineCard = (machine: Machine): void => {
   }
 }
 
+/**
+ * El plano de salones va en wire:ignore (nunca se re-renderiza por Livewire),
+ * así que el promedio de eficiencia del encabezado de cada salón se recalcula
+ * aquí en cada pulso, igual que ya hace updateMachineCard con cada tarjeta.
+ * Los telares fuera de operación no traen tarjeta con [data-crudo-efficiency]
+ * (machine-card.blade.php los omite), así que quedan fuera del promedio sin
+ * duplicar la lista de config('crudo.telares_fuera') en el cliente.
+ */
+const updateSalonEfficiencies = (machines: Machine[]): void => {
+  const bySalon = new Map<string, number[]>()
+
+  machines.forEach((machine) => {
+    const button = findMachineButton(machine.telar)
+    if (!button || !button.querySelector('[data-crudo-efficiency]')) {
+      return
+    }
+
+    const values = bySalon.get(machine.salon) ?? []
+    values.push(machine.efficiencyPercent ?? 0)
+    bySalon.set(machine.salon, values)
+  })
+
+  document.querySelectorAll<HTMLElement>('[data-crudo-salon-efficiency]').forEach((element) => {
+    const salon = element.dataset.crudoSalonEfficiency ?? ''
+    const values = bySalon.get(salon) ?? []
+    const average = values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : 0
+    element.textContent = `${average.toFixed(1)}%`
+  })
+}
+
 const updateDashboardCards = (): void => {
   const machines = parseMachinesJson()
   machinesByTelar = new Map(machines.map((machine) => [machine.telar, machine]))
@@ -392,6 +470,7 @@ const updateDashboardCards = (): void => {
   machines.forEach((machine) => {
     updateMachineCard(machine)
   })
+  updateSalonEfficiencies(machines)
 }
 
 const showPendingDetail = (machine: Machine, button: HTMLElement): void => {
@@ -436,6 +515,62 @@ const syncPendingDetail = (): void => {
   if (pendingDetailTimer !== null) {
     window.clearTimeout(pendingDetailTimer)
     pendingDetailTimer = null
+  }
+}
+
+let modalFocusTarget: HTMLElement | null = null
+let modalFocusTrigger: HTMLElement | null = null
+
+const trapModalTab = (event: KeyboardEvent): void => {
+  if (event.key !== 'Tab' || !modalFocusTarget) {
+    return
+  }
+
+  const focusable = Array.from(modalFocusTarget.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+    .filter((element) => element.offsetParent !== null)
+
+  if (focusable.length === 0) {
+    event.preventDefault()
+    return
+  }
+
+  const first = focusable[0] as HTMLElement
+  const last = focusable[focusable.length - 1] as HTMLElement
+
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
+/**
+ * Mueve el foco al modal recién abierto (los tres llevan [data-crudo-modal])
+ * y lo regresa al disparador al cerrarse. Sin esto el foco de teclado se
+ * quedaba detrás de un aria-modal, inalcanzable con Tab.
+ */
+const syncModalFocus = (): void => {
+  const modal = document.querySelector<HTMLElement>(CRUDO_MODAL_SELECTOR)
+
+  if (modal && modal !== modalFocusTarget) {
+    modalFocusTarget = modal
+    modalFocusTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    document.addEventListener('keydown', trapModalTab)
+
+    const firstFocusable = modal.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
+    window.requestAnimationFrame(() => (firstFocusable ?? modal).focus({ preventScroll: true }))
+  }
+
+  if (!modal && modalFocusTarget) {
+    modalFocusTarget = null
+    document.removeEventListener('keydown', trapModalTab)
+    const trigger = modalFocusTrigger
+    modalFocusTrigger = null
+    if (trigger?.isConnected) {
+      trigger.focus({ preventScroll: true })
+    }
   }
 }
 
@@ -515,13 +650,18 @@ const observeDashboard = (): void => {
 }
 
 const toggleFullscreen = async (): Promise<void> => {
-  if (document.fullscreenElement) {
-    await document.exitFullscreen()
-    return
-  }
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen()
+      return
+    }
 
-  if (document.fullscreenEnabled && document.documentElement.requestFullscreen) {
-    await document.documentElement.requestFullscreen()
+    if (document.fullscreenEnabled && document.documentElement.requestFullscreen) {
+      await document.documentElement.requestFullscreen()
+    }
+  } catch {
+    // Permiso denegado, iframe sin allow="fullscreen", etc.: no hay nada que
+    // el usuario deba hacer distinto, así que no se muestra ningún error.
   }
 }
 
@@ -539,15 +679,11 @@ const loadQualityDefectOptions = (url: string): Promise<QualityDefectOption[]> =
     return existingRequest
   }
 
-  const request = fetch(url, {
-    credentials: 'same-origin',
-    headers: {
-      Accept: 'application/json',
-    },
-  })
-    .then(async (response): Promise<QualityDefectOption[]> => {
-      const payload = (await response.json()) as QualityDefectsResponse
-      if (!response.ok || payload.success === false) {
+  const http = (window as CrudoWindow).http
+
+  const request = (http ? http.get<QualityDefectsResponse>(url) : Promise.reject(new Error('http no disponible')))
+    .then((payload): QualityDefectOption[] => {
+      if (payload.success === false) {
         throw new Error(payload.error || 'No fue posible consultar el catálogo de defectos.')
       }
 
@@ -766,24 +902,17 @@ const loadAuditHistory = async (history: HTMLElement, force = false): Promise<vo
   appendTextElement(list, 'p', 'crudo-audit-history-state', 'Cargando auditorías…')
 
   const requestSignal = auditHistoryRequests.begin(history)
+  const http = (window as CrudoWindow).http
 
   try {
-    const response = await fetch(url, {
-      signal: requestSignal,
-      credentials: 'same-origin',
-      headers: {
-        Accept: 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-    })
-    const payload = await response.json().catch((): AuditHistoryResponse => ({})) as AuditHistoryResponse
+    if (!http) {
+      throw new Error('http no disponible')
+    }
+
+    const payload = await http.get<AuditHistoryResponse>(url, { signal: requestSignal })
 
     if (requestSignal.aborted || !history.isConnected) {
       return
-    }
-
-    if (!response.ok) {
-      throw new Error(payload.message || 'No fue posible consultar las auditorías de hoy.')
     }
 
     if (!isCurrentAuditHistoryRequest(url, history.dataset.crudoAuditHistoryUrl)) {
@@ -839,6 +968,7 @@ const observeQualityDefectEditors = (): void => {
   hydrateAuditHistories()
   syncAuditActionStates()
   syncPendingDetail()
+  syncModalFocus()
 
   const crudoRoot = document.querySelector<HTMLElement>(CRUDO_ROOT_SELECTOR)
   if (!crudoRoot || (auditDefectObserver && observedAuditRoot === crudoRoot)) {
@@ -851,6 +981,7 @@ const observeQualityDefectEditors = (): void => {
   auditDefectObserver = new MutationObserver((mutations) => {
     auditHistoryRequests.abortDisconnected()
     syncPendingDetail()
+    syncModalFocus()
     if (mutations.some((mutation) => mutation.addedNodes.length > 0 || mutation.attributeName === 'hidden')) {
       hydrateQualityDefectEditors()
       hydrateAuditHistories()
@@ -907,6 +1038,18 @@ const auditAnswer = (value: string): boolean | null => {
   return null
 }
 
+// Los tres selectores que collectAuditPayload (valida y arma el payload) y
+// syncAuditActionState (solo mira si hay algo capturado) leen del mismo
+// formulario, para no recorrerlo dos veces con selectores que podrían divergir.
+const auditChecklistInputs = (form: HTMLElement): HTMLInputElement[] =>
+  Array.from(form.querySelectorAll<HTMLInputElement>('[data-crudo-audit-result-input]'))
+
+const auditDefectRows = (form: HTMLElement): HTMLElement[] =>
+  Array.from(form.querySelectorAll<HTMLElement>('[data-crudo-audit-defect-row]'))
+
+const auditObservationsField = (form: HTMLElement): HTMLTextAreaElement | null =>
+  form.querySelector<HTMLTextAreaElement>('textarea[name="crudo-audit-observations"]')
+
 const collectAuditPayload = (form: HTMLElement): AuditPayload => {
   const telar = form.dataset.crudoAuditTelar?.trim() ?? ''
   const salon = form.dataset.crudoAuditSalon?.trim() ?? ''
@@ -921,7 +1064,7 @@ const collectAuditPayload = (form: HTMLElement): AuditPayload => {
     identificacion_julio: null,
   }
 
-  form.querySelectorAll<HTMLInputElement>('[data-crudo-audit-result-input]').forEach((input) => {
+  auditChecklistInputs(form).forEach((input) => {
     const key = input.dataset.questionKey as AuditChecklistKey | undefined
     if (key && key in checklist) {
       checklist[key] = auditAnswer(input.value)
@@ -931,7 +1074,7 @@ const collectAuditPayload = (form: HTMLElement): AuditPayload => {
   const defects: AuditPayload['defectos'] = []
   const selectedDefects = new Set<number>()
 
-  form.querySelectorAll<HTMLElement>('[data-crudo-audit-defect-row]').forEach((row, index) => {
+  auditDefectRows(form).forEach((row, index) => {
     const select = row.querySelector<HTMLSelectElement>(QUALITY_DEFECT_SELECT_SELECTOR)
     const quantity = row.querySelector<HTMLInputElement>('input[name="crudo-audit-defect-pieces[]"]')
     const selectedId = Number.parseInt(select?.value ?? '', 10)
@@ -959,8 +1102,7 @@ const collectAuditPayload = (form: HTMLElement): AuditPayload => {
     defects.push({ defecto_id: selectedId, piezas: pieces })
   })
 
-  const observations = form.querySelector<HTMLTextAreaElement>('textarea[name="crudo-audit-observations"]')
-    ?.value.trim() ?? ''
+  const observations = auditObservationsField(form)?.value.trim() ?? ''
   const order = form.dataset.crudoAuditOrder?.trim() ?? ''
 
   const rawTags = form.querySelector<HTMLInputElement>('[data-crudo-audit-marbetes]')?.value.trim() ?? ''
@@ -987,6 +1129,20 @@ const validationMessage = (payload: AuditSaveResponse, fallback: string): string
   return messages[0] ?? payload.error ?? payload.message ?? fallback
 }
 
+/**
+ * http.post lanza con el cuerpo de la respuesta en .data para cualquier
+ * status fuera de 2xx (422 de validación incluido); el success:false con
+ * 200 se sigue lanzando a mano como Error simple. Unifica ambos casos.
+ */
+const messageFromCrudoError = (error: unknown, fallback: string): string => {
+  const httpError = error as HttpError
+  if (httpError?.data && typeof httpError.data === 'object') {
+    return validationMessage(httpError.data as AuditSaveResponse, fallback)
+  }
+
+  return error instanceof Error ? error.message : fallback
+}
+
 const showAuditFeedback = (
   form: HTMLElement,
   message: string,
@@ -1002,32 +1158,10 @@ const showAuditFeedback = (
   feedback.textContent = message
 }
 
-const showAuditSuccess = (message: string): void => {
-  const swal = (window as CrudoWindow).Swal
-  if (swal) {
-    void swal.fire({
-      toast: true,
-      position: 'top-end',
-      icon: 'success',
-      title: message,
-      showConfirmButton: false,
-      timer: 2800,
-      timerProgressBar: true,
-    })
-
-    return
-  }
-
-  window.setTimeout(() => window.alert(message), 0)
-}
-
 const syncAuditActionState = (form: HTMLElement): void => {
-  const checklistValues = Array.from(
-    form.querySelectorAll<HTMLInputElement>('[data-crudo-audit-result-input]'),
-  ).map((input) => input.value)
-  const observations = form.querySelector<HTMLTextAreaElement>('textarea[name="crudo-audit-observations"]')
-    ?.value ?? ''
-  const defects = Array.from(form.querySelectorAll<HTMLElement>('[data-crudo-audit-defect-row]'))
+  const checklistValues = auditChecklistInputs(form).map((input) => input.value)
+  const observations = auditObservationsField(form)?.value ?? ''
+  const defects = auditDefectRows(form)
     .map((row) => ({
       defectId: row.querySelector<HTMLSelectElement>(QUALITY_DEFECT_SELECT_SELECTOR)?.value ?? '',
       pieces: row.querySelector<HTMLInputElement>('input[name="crudo-audit-defect-pieces[]"]')?.value ?? '',
@@ -1094,7 +1228,7 @@ const resetAuditForm = (form: HTMLElement): void => {
     input.value = '0'
   })
 
-  const observations = form.querySelector<HTMLTextAreaElement>('textarea[name="crudo-audit-observations"]')
+  const observations = auditObservationsField(form)
   if (observations) {
     observations.value = ''
   }
@@ -1136,7 +1270,6 @@ const submitAudit = async (button: HTMLElement, withStop: boolean): Promise<void
     return
   }
 
-  const csrfToken = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? ''
   setAuditSubmitting(form, true)
   showAuditFeedback(
     form,
@@ -1145,20 +1278,14 @@ const submitAudit = async (button: HTMLElement, withStop: boolean): Promise<void
   )
 
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': csrfToken,
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      body: JSON.stringify(payload),
-    })
-    const responsePayload = await response.json().catch((): AuditSaveResponse => ({})) as AuditSaveResponse
+    const http = (window as CrudoWindow).http
+    if (!http) {
+      throw new Error('http no disponible')
+    }
 
-    if (!response.ok || responsePayload.success === false) {
+    const responsePayload = await http.post<AuditSaveResponse>(url, payload)
+
+    if (responsePayload.success === false) {
       throw new Error(validationMessage(responsePayload, 'No fue posible guardar la auditoría.'))
     }
 
@@ -1167,7 +1294,7 @@ const submitAudit = async (button: HTMLElement, withStop: boolean): Promise<void
       : 'Auditoría guardada correctamente.')
 
     resetAuditForm(form)
-    showAuditSuccess(successMessage)
+    ;(window as CrudoWindow).notify?.success(successMessage)
     ;(window as CrudoWindow).Livewire?.dispatch('crudo-auditoria-guardada')
 
     if (withStop) {
@@ -1176,7 +1303,7 @@ const submitAudit = async (button: HTMLElement, withStop: boolean): Promise<void
   } catch (error) {
     showAuditFeedback(
       form,
-      error instanceof Error ? error.message : 'No fue posible guardar la auditoría.',
+      messageFromCrudoError(error, 'No fue posible guardar la auditoría.'),
       'error',
     )
   } finally {
@@ -1305,16 +1432,16 @@ document.addEventListener('keydown', (event) => {
     return
   }
 
+  // Un <dialog> nativo abierto (paro, flog) ya cierra con Escape por su
+  // cuenta; si lo dejamos pasar aquí también cerraríamos el modal que lo
+  // contiene con la misma tecla.
+  if (document.querySelector('dialog[open]')) {
+    return
+  }
+
   const closeButton = document.querySelector<HTMLButtonElement>('[data-crudo-modal-close]')
   closeButton?.click()
 })
-
-type CrudoNotify = {
-  loading: (title?: string) => void
-  close: () => void
-  success: (message: string) => void
-  error: (message: string) => void
-}
 
 /**
  * El reporte se descarga con fetch en vez de dejar navegar el enlace: una
@@ -1322,7 +1449,7 @@ type CrudoNotify = {
  * Excel tarda lo que tarde la agregación de producción.
  */
 const descargarReporte = async (link: HTMLAnchorElement): Promise<void> => {
-  const notify = (window as unknown as { notify?: CrudoNotify }).notify
+  const notify = (window as CrudoWindow).notify
   const icon = link.querySelector('i')
   const iconClass = icon?.className ?? ''
 
@@ -1332,12 +1459,14 @@ const descargarReporte = async (link: HTMLAnchorElement): Promise<void> => {
   notify?.loading('Generando reporte…')
 
   try {
-    const response = await fetch(link.href, { credentials: 'same-origin' })
-    if (!response.ok) {
-      throw new Error(`No fue posible generar el reporte (${response.status}).`)
+    const http = (window as CrudoWindow).http
+    if (!http) {
+      throw new Error('http no disponible')
     }
 
-    const url = URL.createObjectURL(await response.blob())
+    const blob = await http.get<Blob>(link.href, { responseType: 'blob' })
+
+    const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
     anchor.download = link.dataset.crudoNombreArchivo || 'reporte_telares.xlsx'
@@ -1348,8 +1477,11 @@ const descargarReporte = async (link: HTMLAnchorElement): Promise<void> => {
     notify?.success('Reporte descargado')
   } catch (error) {
     notify?.close()
+    const httpError = error as HttpError
     notify?.error(
-      error instanceof Error ? error.message : 'No fue posible generar el reporte.',
+      httpError?.status
+        ? `No fue posible generar el reporte (${httpError.status}).`
+        : (error instanceof Error ? error.message : 'No fue posible generar el reporte.'),
     )
   } finally {
     delete link.dataset.crudoDescargando

@@ -52,11 +52,14 @@ interface CrudoReadRepository
     public function machines(): array;
 
     /**
-     * Paros activos (Estatus = 'Activo') de dbo.ManFallasParos para telares de tejido/calidad.
+     * Paros activos (Estatus = 'Activo') de dbo.ManFallasParos. Con $telares no
+     * vacío, acota a esos telares del catálogo del módulo en vez de leer todas
+     * las áreas de la planta.
      *
+     * @param  list<string>  $telares
      * @return list<object>
      */
-    public function activeParos(): array;
+    public function activeParos(array $telares = []): array;
 
     /**
      * Programa en proceso (EnProceso = 1) de ReqProgramaTejido para los telares dados.

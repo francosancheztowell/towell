@@ -105,7 +105,7 @@ final class CrudoPerformanceStructureTest extends TestCase
         $this->assertIsString($typescript);
         $this->assertStringContainsString('auditHistoryRequests.abortDisconnected()', $typescript);
         $this->assertMatchesRegularExpression(
-            '/fetch\(url,\s*\{[^}]*signal:/s',
+            '/http\.get[^(]*\(url,\s*\{[^}]*signal:/s',
             $typescript,
         );
     }

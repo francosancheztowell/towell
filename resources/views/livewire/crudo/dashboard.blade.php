@@ -92,12 +92,20 @@
                 <i class="fa-solid fa-expand"></i>
             </button>
 
+            @php
+                $cacheStateLabel = match ($cacheState) {
+                    'fresh' => 'Datos al día',
+                    'stale' => 'Datos desactualizados',
+                    default => 'Sin conexión con el servidor',
+                };
+            @endphp
             <div
                 class="crudo-navbar-freshness"
                 data-cache-state="{{ $cacheState }}"
-                title="Estado de actualización del tablero"
+                title="{{ $cacheStateLabel }}"
             >
                 <span class="crudo-live-dot" aria-hidden="true"></span>
+                <span class="sr-only">{{ $cacheStateLabel }}·</span>
                 @if ($generatedAt)
                     <time datetime="{{ $generatedAt }}" data-crudo-relative-time>ahora</time>
                 @else
@@ -265,6 +273,56 @@
                     </table>
                 </div>
             </section>
+
+            {{-- Saldo pasado: SaldoPedido negativo (se produjo/asignó de más). --}}
+            @php
+                $telaresFuera = config('crudo.telares_fuera', []);
+                $saldosPasados = collect($machines)
+                    ->reject(fn ($m) => in_array((string) $m['telar'], $telaresFuera, true))
+                    ->filter(fn ($m) => is_numeric($m['programa']['saldoPedido'] ?? null)
+                        && (float) $m['programa']['saldoPedido'] < 0)
+                    ->sortBy(fn ($m) => (float) $m['programa']['saldoPedido'])
+                    ->values();
+            @endphp
+
+            @if ($saldosPasados->isNotEmpty())
+                <section class="crudo-panel crudo-panel-saldos">
+                    <div class="crudo-panel-heading">
+                        <div>
+                            <h2>
+                                <i class="fa-solid fa-triangle-exclamation text-red-600" aria-hidden="true"></i>
+                                Órdenes con saldo pasado
+                            </h2>
+                            <p class="crudo-eyebrow">
+                                {{ $saldosPasados->count() }} {{ $saldosPasados->count() === 1 ? 'telar' : 'telares' }} produjo de más contra el pedido
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="crudo-saldos-scroll">
+                        <table class="crudo-area-table crudo-saldos-table">
+                            <thead>
+                                <tr>
+                                    <th>Telar</th>
+                                    <th>Orden</th>
+                                    <th title="Kilos producidos de más contra el pedido">Saldo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($saldosPasados as $item)
+                                    <tr wire:key="crudo-saldo-pasado-{{ $item['telar'] }}">
+                                        <td>{{ $item['telar'] }}</td>
+                                        <td class="crudo-saldos-orden" title="{{ $item['programa']['orden'] ?? 'Sin orden' }}">
+                                            {{ $item['programa']['orden'] ?? 'Sin orden' }}
+                                        </td>
+                                        <td class="crudo-saldos-monto">{{ number_format((float) $item['programa']['saldoPedido']) }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            @endif
         </aside>
 
     <main class="crudo-floor" aria-label="Distribución de máquinas por salón">
@@ -297,8 +355,8 @@
         ];
     @endphp
 
-    <div class="crudo-modal-backdrop" wire:click.self="cerrarEstado" data-state="{{ $estadoDetalle }}">
-        <div class="crudo-modal crudo-modal-estado" role="dialog" aria-modal="true"
+    <div class="crudo-modal-backdrop" wire:click.self="cerrarEstado" data-crudo-modal data-state="{{ $estadoDetalle }}">
+        <div class="crudo-modal crudo-modal-estado" tabindex="-1" role="dialog" aria-modal="true"
              aria-label="Telares en estado {{ $estadoCard['label'] }}">
             <header class="crudo-estado-header" data-state="{{ $estadoDetalle }}">
                 <span class="crudo-estado-header-icon"><i class="fa-solid {{ $estadoCard['icon'] }}"></i></span>
@@ -306,7 +364,7 @@
                     <h2>{{ $estadoCard['label'] }}</h2>
                     <p>{{ count($machinesDetalle) }} {{ count($machinesDetalle) === 1 ? 'telar' : 'telares' }} · {{ $estadoCard['description'] }}</p>
                 </div>
-                <button type="button" class="crudo-modal-close" wire:click="cerrarEstado" aria-label="Cerrar">
+                <button type="button" class="crudo-modal-close" wire:click="cerrarEstado" data-crudo-modal-close aria-label="Cerrar">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </header>
@@ -314,7 +372,7 @@
             <div class="crudo-estado-list">
                 @forelse ($machinesDetalle as $item)
                     @php $paro = $item['paro'] ?? null; @endphp
-                    <article class="crudo-estado-item" data-state="{{ $item['state'] }}">
+                    <article wire:key="crudo-estado-item-{{ $item['telar'] }}" class="crudo-estado-item" data-state="{{ $item['state'] }}">
                         <header class="crudo-estado-item-head">
                             <span class="crudo-estado-telar">{{ $item['telar'] }}</span>
                             <span class="crudo-estado-salon">{{ $item['salon'] }}</span>
@@ -376,8 +434,8 @@
 
 {{-- Desglose del KPI de segundas: defectos por telar, en tabla o en gráfica. --}}
 @if ($defectosAbierto && $defectos !== null)
-    <div class="crudo-modal-backdrop" wire:click.self="cerrarDefectos">
-        <div class="crudo-modal crudo-modal-defectos" role="dialog" aria-modal="true"
+    <div class="crudo-modal-backdrop" wire:click.self="cerrarDefectos" data-crudo-modal>
+        <div class="crudo-modal crudo-modal-defectos" tabindex="-1" role="dialog" aria-modal="true"
              aria-label="Segundas por telar">
             <header class="crudo-estado-header" data-state="bad_quality">
                 <span class="crudo-estado-header-icon"><i class="fa-solid fa-circle-xmark"></i></span>
@@ -388,7 +446,7 @@
                         {{ count($defectos['telares']) }} {{ count($defectos['telares']) === 1 ? 'telar' : 'telares' }}
                     </p>
                 </div>
-                <button type="button" class="crudo-modal-close" wire:click="cerrarDefectos" aria-label="Cerrar">
+                <button type="button" class="crudo-modal-close" wire:click="cerrarDefectos" data-crudo-modal-close aria-label="Cerrar">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </header>
@@ -463,7 +521,7 @@
                                 </thead>
                                 <tbody>
                                     @foreach ($defectos['telares'] as $fila)
-                                        <tr data-salon="{{ $fila['salon'] ?? 'Sin clasificar' }}">
+                                        <tr wire:key="crudo-defecto-fila-{{ $fila['telar'] }}" data-salon="{{ $fila['salon'] ?? 'Sin clasificar' }}">
                                             <td class="crudo-defectos-telar">{{ $fila['telar'] }}</td>
                                             @foreach ($defectos['columnas'] as $indice => $columna)
                                                 @php($valor = (float) ($fila['defectos'][$columna] ?? 0))

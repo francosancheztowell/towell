@@ -8,6 +8,7 @@ use App\Contracts\Crudo\CrudoReadRepository;
 use App\DTOs\Crudo\CrudoDashboardData;
 use App\DTOs\Crudo\CrudoMachineMetrics;
 use App\Enums\Crudo\CrudoMachineState;
+use App\Support\Crudo\CrudoProductionDay;
 use Carbon\CarbonImmutable;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\Cache;
@@ -108,21 +109,28 @@ final readonly class CrudoDashboardService
     private function buildForRange(DateTimeImmutable $from, DateTimeImmutable $to): CrudoDashboardData
     {
         $catalog = $this->machineCatalog();
-        $now = new DateTimeImmutable('now', $from->getTimezone());
+        $now = CarbonImmutable::now($from->getTimezone());
 
         // El paro y los datos descriptivos del programa solo se muestran en
         // periodos que incluyen hoy. ProdKgDia sí se consulta siempre porque
         // negocio definió el programa EnProceso como estándar único, incluso
         // al consultar fechas históricas.
-        $includesToday = $from->format('Y-m-d') <= $now->format('Y-m-d')
-            && $to->format('Y-m-d') >= $now->format('Y-m-d');
+        //
+        // "Hoy" se compara contra el día de producción (06:30-06:30), no el
+        // calendario: de madrugada (00:00-06:30) el día de producción sigue
+        // siendo el de ayer, y comparar contra el calendario apagaba los
+        // paros activos y el programa en ese tramo.
+        $today = CrudoProductionDay::forInstant($now);
+        $includesToday = $from->format('Y-m-d') <= $today && $to->format('Y-m-d') >= $today;
 
-        $parosByTelar = $includesToday ? $this->groupParosByTelar($this->repository->activeParos()) : [];
+        $catalogTelares = array_map(static fn (array $row): string => (string) $row['telar'], $catalog);
+        $parosByTelar = $includesToday
+            ? $this->groupParosByTelar($this->repository->activeParos($catalogTelares))
+            : [];
         $metricsByTelar = $this->metricsFromAggregateRows(
             $this->cachedProductionRows($from, $to),
         );
 
-        $catalogTelares = array_map(static fn (array $row): string => (string) $row['telar'], $catalog);
         $telares = array_values(array_unique([...$catalogTelares, ...array_keys($metricsByTelar)]));
         $activePrograms = $telares !== [] ? $this->repository->activePrograms($telares) : [];
         $programsByTelar = $includesToday ? $this->groupProgramsByTelar($activePrograms) : [];

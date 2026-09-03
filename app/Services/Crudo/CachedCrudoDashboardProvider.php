@@ -19,6 +19,21 @@ final readonly class CachedCrudoDashboardProvider implements CrudoDashboardProvi
         private CrudoDashboardService $dashboard,
     ) {}
 
+    /**
+     * Corto identificador de qué fuente de datos generó el snapshot. Sin esto,
+     * dos entornos que comparten el mismo store de caché (Redis) pero apuntan
+     * a bases distintas (source/catalog/data_area_id) podían servirse
+     * snapshots ajenos hasta por 1 h.
+     */
+    private function sourceFingerprint(): string
+    {
+        return substr(sha1(implode('|', [
+            (string) config('crudo.connections.source'),
+            (string) config('crudo.connections.catalog'),
+            (string) config('crudo.data_area_id'),
+        ])), 0, 8);
+    }
+
     public function get(
         DateTimeImmutable $date,
         bool $forceRefresh = false,
@@ -27,7 +42,8 @@ final readonly class CachedCrudoDashboardProvider implements CrudoDashboardProvi
     ): array {
         $to ??= $date;
         $cacheKey = sprintf(
-            'crudo:dashboard:%s:%s',
+            'crudo:dashboard:%s:%s:%s',
+            $this->sourceFingerprint(),
             $date->format('Y-m-d'),
             $to->format('Y-m-d'),
         );
@@ -95,7 +111,8 @@ final readonly class CachedCrudoDashboardProvider implements CrudoDashboardProvi
         }
 
         $key = sprintf(
-            'crudo:detail:%s:%s:%s',
+            'crudo:detail:%s:%s:%s:%s',
+            $this->sourceFingerprint(),
             sha1(trim($telar)),
             $from->format('Y-m-d'),
             $to->format('Y-m-d'),

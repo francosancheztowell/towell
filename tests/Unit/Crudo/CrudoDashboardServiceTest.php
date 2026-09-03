@@ -8,6 +8,7 @@ use App\Contracts\Crudo\CrudoReadRepository;
 use App\Services\Crudo\CrudoDashboardService;
 use App\Services\Crudo\CrudoProductionTargetService;
 use App\Services\Crudo\CrudoStatusResolver;
+use Carbon\Carbon;
 use DateTimeImmutable;
 use DateTimeZone;
 use Tests\TestCase;
@@ -335,6 +336,39 @@ final class CrudoDashboardServiceTest extends TestCase
         $this->assertSame(['Juan Pérez', 'Ana López'], array_column($paro['todos'], 'reportedBy'));
     }
 
+    public function test_active_stop_still_shows_between_midnight_and_six_thirty(): void
+    {
+        // El día de producción corre 06:30-06:30: a la 01:00 el tablero abre en
+        // el día de producción de ayer, que no coincide con el día de calendario
+        // de "hoy". Antes del fix, comparar contra el calendario dejaba
+        // $includesToday en false y el paro activo desaparecía del tablero.
+        Carbon::setTestNow(Carbon::parse('2026-07-29 01:00:00', 'America/Mexico_City'));
+
+        $this->repository->paros = [
+            (object) [
+                'MaquinaId' => '201',
+                'Falla' => '62',
+                'Descripcion' => 'REVERSA',
+                'NomEmpl' => 'Operador de prueba',
+                'Fecha' => '2026-07-28',
+                'Hora' => '23:00:00',
+            ],
+        ];
+
+        $productionDay = new DateTimeImmutable('2026-07-28', new DateTimeZone('America/Mexico_City'));
+        $machine = $this->service->build($productionDay)->toArray()['machines'][0];
+
+        $this->assertSame(1, $this->repository->parosCalls);
+        $this->assertSame('REVERSA', $machine['paro']['falla']);
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
+
     private function date(): DateTimeImmutable
     {
         return new DateTimeImmutable('2026-07-28', new DateTimeZone('America/Mexico_City'));
@@ -431,9 +465,13 @@ final class FakeCrudoReadRepository implements CrudoReadRepository
         return $this->machines;
     }
 
-    public function activeParos(): array
+    /** @var list<string> */
+    public array $requestedParosTelares = [];
+
+    public function activeParos(array $telares = []): array
     {
         $this->parosCalls++;
+        $this->requestedParosTelares = $telares;
 
         return $this->paros;
     }

@@ -118,7 +118,7 @@
                 <tr>
                     <td align="center"
                         style="background:#f8fafc;border-top:1px solid #e2e8f0;border-radius:0 0 10px 10px;
-                               padding:16px 24px;font-size:11px;color:#94a3b8;line-height:1.6;
+                               padding:16px 24px;font-size:11px;color:#64748b;line-height:1.6;
                                font-family:Arial,Helvetica,sans-serif">
                         Generado automáticamente por el tablero ANDON de Crudo · Towell<br>
                         Auditoría #{{ $audit->getKey() }} · Este buzón no recibe respuestas

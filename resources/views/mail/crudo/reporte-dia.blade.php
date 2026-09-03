@@ -3,14 +3,14 @@
     $tarjetas = [
         ['Paro', $summary['paro'] ?? 0, '#ffe0dd', '#d10000'],
         ['Mala calidad', $summary['bad_quality'] ?? 0, '#e4eaff', '#0000d6'],
-        ['Bajos kg', $summary['low_kilos'] ?? 0, '#fff9d1', '#96700a'],
+        ['Bajos kg', $summary['low_kilos'] ?? 0, '#fff9d1', '#7c5709'],
         ['Sin datos', $summary['no_data'] ?? 0, '#ececec', '#3f3f3f'],
-        ['En operación', $summary['operating'] ?? 0, '#ddfbe9', '#009e2b'],
+        ['En operación', $summary['operating'] ?? 0, '#ddfbe9', '#15803d'],
     ];
 
     $cumplimiento = (float) ($summary['efficiencyPercent'] ?? 0);
     $barra = max(0, min(100, $cumplimiento));
-    $colorBarra = $barra >= 95 ? '#009e2b' : ($barra >= 85 ? '#96700a' : '#d10000');
+    $colorBarra = $barra >= 95 ? '#15803d' : ($barra >= 85 ? '#7c5709' : '#d10000');
 
     $indicadores = [
         ['Telares en piso', number_format((float) ($summary['total'] ?? 0)), false],
@@ -173,7 +173,7 @@
                 <tr>
                     <td align="center"
                         style="background:#f8fafc;border-top:1px solid #e2e8f0;border-radius:0 0 10px 10px;
-                               padding:16px 24px;font-size:11px;color:#94a3b8;line-height:1.6;
+                               padding:16px 24px;font-size:11px;color:#64748b;line-height:1.6;
                                font-family:Arial,Helvetica,sans-serif">
                         Generado automáticamente por el tablero ANDON de Crudo · Towell<br>
                         Envíos diarios a las 06:00, 14:00 y 22:00 h · Este buzón no recibe respuestas

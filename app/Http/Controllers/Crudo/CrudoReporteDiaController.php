@@ -23,7 +23,14 @@ final class CrudoReporteDiaController extends Controller
         // Mismo permiso que la auditoría del telar: `registrar` sobre Crudo.
         $this->access->authorizeRegister();
 
-        $day = $this->reporte->productionDay((string) $request->query('fecha', ''));
+        // Antes, una fecha mal formada caía en silencio al día de hoy sin
+        // avisar; ahora se rechaza para que quien pide el reporte sepa que
+        // el parámetro no se entendió, en vez de recibir el día equivocado.
+        $validated = $request->validate([
+            'fecha' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+
+        $day = $this->reporte->productionDay((string) ($validated['fecha'] ?? ''));
 
         return Excel::download(
             $this->reporte->export($day),

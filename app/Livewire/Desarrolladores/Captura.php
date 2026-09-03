@@ -789,9 +789,9 @@ class Captura extends Component
 
         $codigo = (string) ($resultado['codigoDibujo'] ?? '');
         // El sufijo .JC5 se pinta aparte, no ocupa casillas.
-        $codigo = (string) preg_replace('/\.(?:JC5|JCS)$/i', '', strtoupper(trim($codigo)));
+        $codigo = (string) preg_replace('/\.(?:JC5|JCS)$/i', '', mb_strtoupper(trim($codigo)));
 
-        $letras = str_split(substr($codigo, 0, 20));
+        $letras = mb_str_split(mb_substr($codigo, 0, 20));
         $this->codificacion = array_pad($letras, 20, '');
     }
 

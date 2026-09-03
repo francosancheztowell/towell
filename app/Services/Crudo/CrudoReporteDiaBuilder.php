@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Crudo;
 
 use App\Exports\CrudoReporteDiaExport;
+use App\Helpers\TowellLogo;
 use App\Models\Crudo\CrudoAuditoria;
+use App\Support\Crudo\CrudoProductionDay;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Database\Eloquent\Collection;
@@ -34,9 +36,10 @@ final readonly class CrudoReporteDiaBuilder
             return $parsed;
         }
 
-        return (new DateTimeImmutable('now', $timezone))
-            ->modify('-'.(int) config('crudo.production_day_start_minutes', 390).' minutes')
-            ->setTime(0, 0);
+        return new DateTimeImmutable(
+            CrudoProductionDay::forInstant(new DateTimeImmutable('now', $timezone)),
+            $timezone,
+        );
     }
 
     public function export(DateTimeImmutable $day): CrudoReporteDiaExport
@@ -110,8 +113,6 @@ final readonly class CrudoReporteDiaBuilder
     /** Mismo archivo que usan los PDF y el export de Alineación. */
     public function rutaLogo(): ?string
     {
-        $ruta = public_path('images/fondosTowell/logo.png');
-
-        return is_file($ruta) ? $ruta : null;
+        return TowellLogo::path();
     }
 }

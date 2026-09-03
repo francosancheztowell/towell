@@ -41,6 +41,27 @@ final class CrudoLivewireTest extends TestCase
             ->assertSee('crudo-loom-number', false);
     }
 
+    public function test_a_negative_saldo_pedido_marks_the_machine_card(): void
+    {
+        $data = $this->dashboardData();
+        $data['machines'][0]['programa'] = ['saldoPedido' => -120];
+        $this->app->instance(CrudoDashboardProvider::class, new FakeCrudoDashboardProvider($data));
+
+        Livewire::test(TestableCrudoDashboard::class)
+            ->assertSee('data-saldo-negativo', false)
+            ->assertSee('Saldo -120', false);
+    }
+
+    public function test_a_positive_saldo_pedido_does_not_mark_the_machine_card(): void
+    {
+        $data = $this->dashboardData();
+        $data['machines'][0]['programa'] = ['saldoPedido' => 120];
+        $this->app->instance(CrudoDashboardProvider::class, new FakeCrudoDashboardProvider($data));
+
+        Livewire::test(TestableCrudoDashboard::class)
+            ->assertDontSee('data-saldo-negativo', false);
+    }
+
     public function test_it_forces_refresh_on_manual_action(): void
     {
         Livewire::test(TestableCrudoDashboard::class)
