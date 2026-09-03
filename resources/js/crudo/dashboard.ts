@@ -382,7 +382,7 @@ const updateMachineCard = (machine: Machine): void => {
   const saldoPedido = machine.programa?.saldoPedido
   const saldoNegativo = typeof saldoPedido === 'number' && saldoPedido < 0
 
-  const signature = `${machine.state}:${machine.pieces}:${machine.seconds}:${machine.kilos}:${machine.efficiencyPercent}:${saldoNegativo ? '1' : '0'}`
+  const signature = `${machine.state}:${machine.pieces}:${machine.seconds}:${machine.kilos}:${machine.efficiencyPercent}:${machine.rpm ?? 0}:${saldoPedido ?? 0}:${saldoNegativo ? '1' : '0'}`
   if (button.dataset.signature === signature) {
     return
   }
@@ -421,6 +421,12 @@ const updateMachineCard = (machine: Machine): void => {
   const kilos = button.querySelector<HTMLElement>('[data-crudo-kilos]')
   if (kilos) {
     kilos.textContent = `${formatInteger(machine.kilos)} kg`
+  }
+
+  const saldo = button.querySelector<HTMLElement>('[data-crudo-saldo]')
+  if (saldo) {
+    saldo.textContent = saldoPedido != null ? `${formatInteger(saldoPedido)}` : '--'
+    saldo.classList.toggle('crudo-saldo-negativo', saldoNegativo)
   }
 
   const name = button.querySelector<HTMLElement>('[data-crudo-name]')
