@@ -14,7 +14,7 @@
 
 @section('content')
     <div
-        class="crudo-page min-h-full w-full px-1 py-1 sm:px-2 lg:px-2"
+        class="crudo-page min-h-full w-full px-0 py-1"
         data-crudo-root
         @if (app()->environment('local')) data-crudo-retry-busy @endif
     >

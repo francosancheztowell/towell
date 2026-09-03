@@ -57,7 +57,7 @@
             </div>
             <div class="crudo-machine-metric-cell">
                 <span class="crudo-machine-label">Kg</span>
-                <span class="crudo-machine-metric" data-crudo-kilos>{{ number_format(round((float) $machine['kilos'])) }} kg</span>
+                <span class="crudo-machine-metric" data-crudo-kilos>{{ number_format(round((float) $machine['kilos'])) }}</span>
             </div>
             <div class="crudo-machine-metric-cell">
                 <span class="crudo-machine-label">Saldo</span>

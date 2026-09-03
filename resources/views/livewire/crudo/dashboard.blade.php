@@ -149,7 +149,6 @@
             <section class="crudo-panel crudo-panel-overview">
                 <div class="crudo-panel-heading">
                     <div>
-                        <p class="crudo-eyebrow">Resumen general</p>
                         <h2>{{ $summary['total'] }} telares</h2>
                     </div>
                 </div>
@@ -173,8 +172,6 @@
                         </button>
                     @endforeach
                 </div>
-
-                <p class="crudo-compact-label">Producción del periodo</p>
 
                 @php
                     $kilos = (float) $summary['kilos'];
@@ -254,7 +251,7 @@
                                 <th title="Paro">Paro</th>
                                 <th title="Mala calidad">Cal.</th>
                                 <th title="Bajos kilogramos">Kg</th>
-                                <th>Total</th>
+                                <th title="Total de telares">Tot.</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -289,11 +286,8 @@
                 <section class="crudo-panel crudo-panel-saldos">
                     <div class="crudo-panel-heading">
                         <div>
-                            <h2>
-                                <i class="fa-solid fa-triangle-exclamation text-red-600" aria-hidden="true"></i>
-                                Órdenes con saldo pasado
-                            </h2>
                             <p class="crudo-eyebrow">
+                                <i class="fa-solid fa-triangle-exclamation text-red-600" aria-hidden="true"></i>
                                 {{ $saldosPasados->count() }} {{ $saldosPasados->count() === 1 ? 'telar' : 'telares' }} produjo de más contra el pedido
                             </p>
                         </div>

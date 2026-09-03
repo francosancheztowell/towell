@@ -420,7 +420,7 @@ const updateMachineCard = (machine: Machine): void => {
 
   const kilos = button.querySelector<HTMLElement>('[data-crudo-kilos]')
   if (kilos) {
-    kilos.textContent = `${formatInteger(machine.kilos)} kg`
+    kilos.textContent = formatInteger(machine.kilos)
   }
 
   const saldo = button.querySelector<HTMLElement>('[data-crudo-saldo]')
