@@ -35,6 +35,7 @@ class MecOrdenTrabajoLineModel extends Model
         'CveTejedor',
         'NomTejedor',
         'Turno',
+        'Fecha',
         'comentarios',
     ];
 
@@ -48,6 +49,7 @@ class MecOrdenTrabajoLineModel extends Model
         'TotalMinutos' => 'integer',
         'Calificacion' => 'integer',
         'Turno' => 'integer',
+        'Fecha' => 'date',
     ];
 
     public function ordenTrabajo(): BelongsTo
