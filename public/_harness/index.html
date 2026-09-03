@@ -1,0 +1,226 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="/_harness/dash.css">
+<style>body{margin:0;font-family:system-ui,sans-serif}.overflow-x-auto{overflow-x:auto}
+.text-red-700{color:#b91c1c}.text-blue-700{color:#1d4ed8}.text-amber-700{color:#b45309}.text-red-600{color:#dc2626}</style>
+</head><body data-crudo-root>
+<div class="crudo-page min-h-full w-full px-0 py-1" data-crudo-root>
+<div class="crudo-dashboard">
+<div class="crudo-content-grid">
+  <aside class="crudo-sidebar">
+    <section class="crudo-panel crudo-panel-overview">
+      <div class="crudo-panel-heading"><div><h2>142 telares</h2></div></div>
+      <div class="crudo-status-list">
+        <button class="crudo-status-card" data-state="paro"><span class="crudo-status-icon"><i class="fa-solid fa-triangle-exclamation"></i></span><span class="crudo-status-value">12</span><span class="crudo-status-copy"><strong>Paro</strong></span></button>
+        <button class="crudo-status-card" data-state="bad_quality"><span class="crudo-status-icon"><i class="fa-solid fa-circle-xmark"></i></span><span class="crudo-status-value">7</span><span class="crudo-status-copy"><strong>Mala calidad</strong></span></button>
+        <button class="crudo-status-card" data-state="low_kilos"><span class="crudo-status-icon"><i class="fa-solid fa-arrow-down"></i></span><span class="crudo-status-value">23</span><span class="crudo-status-copy"><strong>Bajos kg</strong></span></button>
+        <button class="crudo-status-card" data-state="operating"><span class="crudo-status-icon"><i class="fa-solid fa-circle-check"></i></span><span class="crudo-status-value">96</span><span class="crudo-status-copy"><strong>En operación</strong></span></button>
+        <button class="crudo-status-card" data-state="no_data"><span class="crudo-status-icon"><i class="fa-solid fa-minus"></i></span><span class="crudo-status-value">4</span><span class="crudo-status-copy"><strong>Sin datos</strong></span></button>
+      </div>
+      <div class="crudo-kpi-grid">
+        <article class="crudo-kpi-kilos">
+          <p class="crudo-kpi-kilos-dia">meta <strong>18,400</strong></p>
+          <p class="crudo-kpi-kilos-row"><span class="crudo-kpi-kilos-col"><strong>16,912</strong><span>real</span></span><span class="crudo-kpi-kilos-sep">/</span><span class="crudo-kpi-kilos-col crudo-kpi-kilos-meta"><strong>18,400</strong><span>esperado</span></span></p>
+          <div class="crudo-progress" data-tone="warn" style="--crudo-progress:82%"><span></span></div>
+        </article>
+        <div class="crudo-gauge-pair">
+          <div class="crudo-gauge" data-tone="good"><svg viewBox="0 0 100 62"><path class="crudo-gauge-track" d="M10 56 A40 40 0 0 1 90 56"/><path class="crudo-gauge-value" d="M10 56 A40 40 0 0 1 90 56" stroke-dasharray="100 26"/><text class="crudo-gauge-num" x="50" y="50" text-anchor="middle">94<tspan class="crudo-gauge-pct">%</tspan></text></svg><span>Calidad</span></div>
+          <div class="crudo-gauge" data-tone="warn"><svg viewBox="0 0 100 62"><path class="crudo-gauge-track" d="M10 56 A40 40 0 0 1 90 56"/><path class="crudo-gauge-value" d="M10 56 A40 40 0 0 1 90 56" stroke-dasharray="80 46"/><text class="crudo-gauge-num" x="50" y="50" text-anchor="middle">87<tspan class="crudo-gauge-pct">%</tspan></text></svg><span>Eficiencia</span></div>
+        </div>
+        <article class="crudo-kpi-mini"><strong>3,204</strong><span>pzas</span></article>
+        <button class="crudo-kpi-mini crudo-kpi-mini-button"><strong>184</strong><span>2das</span></button>
+      </div>
+    </section>
+    <section class="crudo-panel crudo-panel-areas">
+      <div class="crudo-panel-heading"><div><h2>Alertas por salón</h2></div></div>
+      <div class="overflow-x-auto"><table class="crudo-area-table"><thead><tr><th>Salón</th><th>Paro</th><th>Cal.</th><th>Kg</th><th>Tot.</th></tr></thead>
+      <tbody><tr><td>KM</td><td class="text-red-700">2</td><td class="text-blue-700">1</td><td class="text-amber-700">3</td><td>12</td></tr>
+      <tr><td>JAC</td><td class="text-red-700">5</td><td class="text-blue-700">3</td><td class="text-amber-700">9</td><td>48</td></tr>
+      <tr><td>SMI</td><td class="text-red-700">5</td><td class="text-blue-700">3</td><td class="text-amber-700">11</td><td>82</td></tr></tbody></table></div>
+    </section>
+    <section class="crudo-panel crudo-panel-saldos">
+      <div class="crudo-panel-heading"><div><p class="crudo-eyebrow"><i class="fa-solid fa-triangle-exclamation text-red-600"></i> 4 telares produjo de más contra el pedido</p></div></div>
+      <div class="crudo-saldos-scroll"><table class="crudo-area-table crudo-saldos-table"><thead><tr><th>Telar</th><th>Orden</th><th>Saldo</th></tr></thead>
+      <tbody><tr><td>214</td><td class="crudo-saldos-orden">ORD-99213</td><td class="crudo-saldos-monto">-412</td></tr>
+      <tr><td>118</td><td class="crudo-saldos-orden">ORD-88120</td><td class="crudo-saldos-monto">-233</td></tr>
+      <tr><td>307</td><td class="crudo-saldos-orden">ORD-77451</td><td class="crudo-saldos-monto">-98</td></tr></tbody></table></div>
+    </section>
+  </aside>
+  <main class="crudo-floor"><div class="crudo-salons-grid"><section class="crudo-salon crudo-salon-karl-mayer"><header><h2>KARL MAYER</h2><span class="crudo-salon-efficiency">91%</span></header><div class="crudo-machine-grid-physical " style="display:grid;grid-template-columns:repeat(1,minmax(var(--crudo-card-min),1fr));gap:0.55rem;padding-top:0.5rem"><button class="crudo-machine-card group" data-state="paro">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">214</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">94%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">1,240</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">1,182</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">-1,412</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="operating">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">216</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">100%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">985</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">642</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">2,340</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="bad_quality">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">218</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">87%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">1,102</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">1,004</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">-98</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="low_kilos">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">220</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">72%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">640</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">318</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">12,450</span></div>
+  </div></button></div></section><section class="crudo-salon crudo-salon-jacquard"><header><h2>JACQUARD</h2><span class="crudo-salon-efficiency">88%</span></header><div class="crudo-machine-grid-physical " style="display:grid;grid-template-columns:repeat(3,minmax(var(--crudo-card-min),1fr));gap:0.55rem;padding-top:0.5rem"><button class="crudo-machine-card group" data-state="paro">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">214</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">94%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">1,240</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">1,182</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">-1,412</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="operating">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">216</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">100%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">985</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">642</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">2,340</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="bad_quality">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">218</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">87%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">1,102</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">1,004</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">-98</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="low_kilos">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">220</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">72%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">640</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">318</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">12,450</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="paro">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">218</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">94%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">1,240</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">1,182</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">-1,412</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="operating">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">220</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">100%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">985</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">642</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">2,340</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="bad_quality">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">222</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">87%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">1,102</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">1,004</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">-98</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="low_kilos">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">224</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">72%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">640</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">318</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">12,450</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="paro">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">222</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">94%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">1,240</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">1,182</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">-1,412</span></div>
+  </div></button></div></section><section class="crudo-salon crudo-salon-smith"><header><h2>SMITH</h2><span class="crudo-salon-efficiency">93%</span></header><div class="crudo-machine-grid-physical " style="display:grid;grid-template-columns:repeat(4,minmax(var(--crudo-card-min),1fr));gap:0.55rem;padding-top:0.5rem"><button class="crudo-machine-card group" data-state="paro">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">214</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">94%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">1,240</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">1,182</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">-1,412</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="operating">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">216</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">100%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">985</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">642</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">2,340</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="bad_quality">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">218</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">87%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">1,102</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">1,004</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">-98</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="low_kilos">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">220</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">72%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">640</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">318</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">12,450</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="paro">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">218</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">94%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">1,240</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">1,182</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">-1,412</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="operating">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">220</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">100%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">985</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">642</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">2,340</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="bad_quality">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">222</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">87%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">1,102</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">1,004</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">-98</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="low_kilos">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">224</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">72%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">640</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">318</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">12,450</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="paro">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">222</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">94%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">1,240</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">1,182</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">-1,412</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="operating">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">224</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">100%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">985</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">642</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">2,340</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="bad_quality">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">226</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">87%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">1,102</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">1,004</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">-98</span></div>
+  </div></button><button class="crudo-machine-card group" data-state="low_kilos">
+  <div class="crudo-machine-header-row"><span class="crudo-loom-number">228</span><span class="crudo-loom" style="--loom-image:url('/images/crudo/jacquard.webp')"></span></div>
+  <div class="crudo-machine-grid-metrics">
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Ef</span><span class="crudo-machine-quality">72%</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">RPM</span><span class="crudo-machine-rpm">640</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Kg</span><span class="crudo-machine-metric">318</span></div>
+    <div class="crudo-machine-metric-cell"><span class="crudo-machine-label">Saldo</span><span class="crudo-machine-saldo crudo-saldo-negativo">12,450</span></div>
+  </div></button></div></section></div></main>
+</div></div></div>
+</body></html>
