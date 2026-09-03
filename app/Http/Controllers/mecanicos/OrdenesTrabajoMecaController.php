@@ -145,14 +145,8 @@ class OrdenesTrabajoMecaController extends Controller
 
     public function parosActivos(): JsonResponse
     {
-        $foliosYaUsados = MecOrdenTrabajoModel::query()
-            ->whereNotNull('FolioParo')
-            ->where('FolioParo', '<>', '')
-            ->pluck('FolioParo');
-
         $paros = ManFallasParos::query()
             ->where('Estatus', 'Activo')
-            ->whereNotIn('Folio', $foliosYaUsados)
             ->orderByDesc('Fecha')
             ->orderByDesc('Hora')
             ->get([
@@ -182,9 +176,9 @@ class OrdenesTrabajoMecaController extends Controller
     /**
      * Historial de paros elegibles de un telar para crear una OT.
      *
-     * Solo incluye paros de las últimas 12 horas. Se excluyen los folios ya
-     * vinculados a otra orden para que la UI no ofrezca una selección que el
-     * backend necesariamente rechazaría.
+     * Solo incluye paros de las últimas 12 horas. Un mismo paro puede originar
+     * varias órdenes (una intervención puede requerir varios pases), así que no
+     * se excluyen los folios ya vinculados a otra orden.
      */
     public function parosHistorial(Request $request): JsonResponse
     {
@@ -193,16 +187,11 @@ class OrdenesTrabajoMecaController extends Controller
         ]);
 
         $telarId = trim((string) $datos['TelarId']);
-        $foliosYaUsados = MecOrdenTrabajoModel::query()
-            ->whereNotNull('FolioParo')
-            ->where('FolioParo', '<>', '')
-            ->pluck('FolioParo');
 
         $paros = ManFallasParos::query()
             ->where('MaquinaId', $telarId)
             ->whereNotNull('Folio')
             ->where('Folio', '<>', '')
-            ->whereNotIn('Folio', $foliosYaUsados)
             ->tap(fn (Builder $query) => $this->aplicarFiltroParosUltimasHoras($query))
             ->orderByDesc('Fecha')
             ->orderByDesc('Hora')
@@ -274,7 +263,6 @@ class OrdenesTrabajoMecaController extends Controller
             $datos['Fecha'] = $this->fechaCreacionFolio();
 
             $this->validarOrdenNoVacia($datos);
-            $this->validarFolioParoDisponible($datos['FolioParo'] ?? null);
 
             $orden = DB::transaction(function () use ($datos): MecOrdenTrabajoModel {
                 $folio = $this->siguienteFolio();
@@ -334,7 +322,6 @@ class OrdenesTrabajoMecaController extends Controller
             $this->asegurarEditablePorMecanico($orden);
 
             $datos = $this->normalizarCabecera($request->validate($this->reglasCabecera()));
-            $this->validarFolioParoDisponible($datos['FolioParo'] ?? null, $folio);
 
             // Fecha de creación del folio y estatus de flujo no se editan aquí.
             unset($datos['Fecha'], $datos['Estatus']);
@@ -976,24 +963,6 @@ class OrdenesTrabajoMecaController extends Controller
         ]);
     }
 
-    private function validarFolioParoDisponible(?string $folioParo, ?string $folioActual = null): void
-    {
-        if ($folioParo === null || $folioParo === '') {
-            return;
-        }
-
-        $existe = MecOrdenTrabajoModel::query()
-            ->where('FolioParo', $folioParo)
-            ->when($folioActual !== null, fn ($query) => $query->where('Folio', '<>', $folioActual))
-            ->exists();
-
-        if ($existe) {
-            throw ValidationException::withMessages([
-                'FolioParo' => ['Ese folio de paro ya tiene una orden de trabajo asociada.'],
-            ]);
-        }
-    }
-
     /**
      * La cabecera de una OT nueva procede de un paro elegible o de una captura
      * manual explícita. Los datos de un paro se vuelven
@@ -1025,6 +994,10 @@ class OrdenesTrabajoMecaController extends Controller
                 ]);
             }
 
+            // El # de orden se sugiere desde el paro, pero es el único dato de la
+            // cabecera que el mecánico puede corregir a mano al crear el folio.
+            $ordenCapturada = trim((string) ($datos['Orden'] ?? ''));
+
             $datos = [
                 ...$datos,
                 'TelarId' => trim((string) $paro->MaquinaId),
@@ -1033,7 +1006,9 @@ class OrdenesTrabajoMecaController extends Controller
                 'Comentarios' => $this->textoComentariosParo($paro),
                 'FechaParo' => optional($paro->Fecha)->toDateString(),
                 'HoraParo' => $this->normalizarHoraHistorica($paro->Hora),
-                'Orden' => trim((string) ($paro->OrdenTrabajo ?? '')) ?: null,
+                'Orden' => $ordenCapturada !== ''
+                    ? $ordenCapturada
+                    : (trim((string) ($paro->OrdenTrabajo ?? '')) ?: null),
                 'Turno' => $paro->Turno !== null ? (int) $paro->Turno : null,
                 'Estatus' => self::ESTATUS_ACTIVO,
             ];

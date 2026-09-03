@@ -59,7 +59,7 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_historial_de_paros_solo_devuelve_folios_elegibles_del_telar(): void
+    public function test_historial_de_paros_incluye_folios_ya_ligados_a_otra_orden(): void
     {
         DB::connection('sqlsrv')->table('dbo.ManFallasParos')->insert([
             [
@@ -114,9 +114,18 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
 
         $this->assertTrue($payload['success']);
         $this->assertFalse($payload['captura_manual_permitida']);
-        $this->assertSame(['PARO-201-A'], collect($payload['data'])->pluck('Folio')->all());
-        $this->assertSame('M-01 — Falla mecánica', $payload['data'][0]['FallaTexto']);
-        $this->assertSame("Observación inicial\nCierre registrado", $payload['data'][0]['ComentariosTexto']);
+
+        // Un mismo paro puede originar varias órdenes, así que PARO-201-USADO
+        // sigue ofreciéndose aunque ya esté ligado a MEC00001. El paro de otro
+        // telar sí queda fuera.
+        $this->assertSame(
+            ['PARO-201-USADO', 'PARO-201-A'],
+            collect($payload['data'])->pluck('Folio')->all()
+        );
+
+        $conDatos = collect($payload['data'])->firstWhere('Folio', 'PARO-201-A');
+        $this->assertSame('M-01 — Falla mecánica', $conDatos['FallaTexto']);
+        $this->assertSame("Observación inicial\nCierre registrado", $conDatos['ComentariosTexto']);
     }
 
     public function test_historial_de_paros_solo_incluye_las_ultimas_12_horas(): void
@@ -271,5 +280,31 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
         $this->assertSame('2026-08-20', $datos['FechaParo']);
         $this->assertSame('201', $datos['TelarId']);
         $this->assertSame('M-01 — Falla mecánica', $datos['Falla']);
+    }
+
+    public function test_el_numero_de_orden_capturado_gana_al_del_paro(): void
+    {
+        DB::connection('sqlsrv')->table('dbo.ManFallasParos')->insert([
+            'Folio' => 'PARO-201-A',
+            'Estatus' => 'Activo',
+            'Fecha' => '2026-09-02',
+            'Hora' => '08:30:00',
+            'MaquinaId' => '201',
+            'OrdenTrabajo' => 'OP-100',
+        ]);
+
+        $controller = new OrdenesTrabajoMecaController;
+        $origen = new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'resolverOrigenCabecera');
+        $cabecera = [
+            'TelarId' => '201',
+            'FolioParo' => 'PARO-201-A',
+            'Falla' => 'texto cliente',
+        ];
+
+        $corregida = $origen->invoke($controller, [...$cabecera, 'Orden' => 'OP-999'], false);
+        $this->assertSame('OP-999', $corregida['Orden']);
+
+        $heredada = $origen->invoke($controller, [...$cabecera, 'Orden' => null], false);
+        $this->assertSame('OP-100', $heredada['Orden']);
     }
 }

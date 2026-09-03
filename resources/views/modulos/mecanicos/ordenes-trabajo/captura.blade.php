@@ -133,7 +133,7 @@
                         <select id="linea-turno" name="Turno"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                             @foreach ([1, 2, 3, 4] as $turno)
-                                <option value="{{ $turno }}" @selected($turno === $turnoSugerido)>Turno {{ $turno }}@if ($turno === 4) · comodín @endif</option>
+                                <option value="{{ $turno }}" @selected($turno === $turnoSugerido)>Turno {{ $turno }}@if ($turno === 4) @endif</option>
                             @endforeach
                         </select>
                         <p class="mt-1 text-xs text-gray-500">Sugerido: Turno {{ $turnoSugerido }}.</p>

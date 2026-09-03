@@ -672,12 +672,16 @@ document.addEventListener('DOMContentLoaded', () => {
         ];
     }
 
+    /**
+     * Campos que se llenan desde el paro y quedan bloqueados al crear.
+     * 'cabecera-orden' queda fuera a proposito: se sugiere desde el paro pero
+     * el mecanico puede corregirlo.
+     */
     function camposDatosParo() {
         return [
             'cabecera-folio-paro',
             'cabecera-fecha-paro',
             'cabecera-hora-paro',
-            'cabecera-orden',
         ];
     }
 
