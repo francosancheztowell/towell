@@ -975,18 +975,54 @@ button.crudo-status-card:disabled {
     0%, 100% {
         outline-color: #dc2626;
         outline-offset: 2px;
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.65);
     }
 
     50% {
         outline-color: #fca5a5;
-        outline-offset: 4px;
+        outline-offset: 5px;
+        box-shadow: 0 0 14px 4px rgba(220, 38, 38, 0.8);
     }
 }
 
 .crudo-machine-card[data-saldo-negativo] {
-    outline: 3.5px dashed #dc2626;
+    outline: 7px dashed #dc2626;
     outline-offset: 2px;
-    animation: crudo-saldo-negativo-pulse 1.8s ease-in-out infinite;
+    animation: crudo-saldo-negativo-pulse 1.2s ease-in-out infinite;
+}
+
+/* Mismo aviso rojo que la tarjeta del telar, para ligar tablero y sidebar. */
+.crudo-panel-saldos {
+    outline: 5px dashed #dc2626;
+    outline-offset: -2px;
+    animation: crudo-saldo-negativo-pulse 1.2s ease-in-out infinite;
+}
+
+/* Tabla de telares con saldo pasado: mismo rojo que el outline de la tarjeta. */
+.crudo-panel-saldos .crudo-saldos-scroll {
+    max-height: 11rem;
+    overflow-y: auto;
+}
+
+.crudo-saldos-table td {
+    font-size: 0.85rem;
+}
+
+.crudo-saldos-table .crudo-saldos-orden {
+    max-width: 7rem;
+    overflow: hidden;
+    color: #64748b;
+    font-weight: 600;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.crudo-saldos-table .crudo-saldos-monto {
+    color: #dc2626;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
 }
 
 .crudo-machine-tooltip {

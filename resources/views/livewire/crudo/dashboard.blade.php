@@ -273,6 +273,56 @@
                     </table>
                 </div>
             </section>
+
+            {{-- Saldo pasado: SaldoPedido negativo (se produjo/asignó de más). --}}
+            @php
+                $telaresFuera = config('crudo.telares_fuera', []);
+                $saldosPasados = collect($machines)
+                    ->reject(fn ($m) => in_array((string) $m['telar'], $telaresFuera, true))
+                    ->filter(fn ($m) => is_numeric($m['programa']['saldoPedido'] ?? null)
+                        && (float) $m['programa']['saldoPedido'] < 0)
+                    ->sortBy(fn ($m) => (float) $m['programa']['saldoPedido'])
+                    ->values();
+            @endphp
+
+            @if ($saldosPasados->isNotEmpty())
+                <section class="crudo-panel crudo-panel-saldos">
+                    <div class="crudo-panel-heading">
+                        <div>
+                            <h2>
+                                <i class="fa-solid fa-triangle-exclamation text-red-600" aria-hidden="true"></i>
+                                Órdenes con saldo pasado
+                            </h2>
+                            <p class="crudo-eyebrow">
+                                {{ $saldosPasados->count() }} {{ $saldosPasados->count() === 1 ? 'telar' : 'telares' }} produjo de más contra el pedido
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="crudo-saldos-scroll">
+                        <table class="crudo-area-table crudo-saldos-table">
+                            <thead>
+                                <tr>
+                                    <th>Telar</th>
+                                    <th>Orden</th>
+                                    <th title="Kilos producidos de más contra el pedido">Saldo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($saldosPasados as $item)
+                                    <tr wire:key="crudo-saldo-pasado-{{ $item['telar'] }}">
+                                        <td>{{ $item['telar'] }}</td>
+                                        <td class="crudo-saldos-orden" title="{{ $item['programa']['orden'] ?? 'Sin orden' }}">
+                                            {{ $item['programa']['orden'] ?? 'Sin orden' }}
+                                        </td>
+                                        <td class="crudo-saldos-monto">{{ number_format((float) $item['programa']['saldoPedido']) }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            @endif
         </aside>
 
     <main class="crudo-floor" aria-label="Distribución de máquinas por salón">
