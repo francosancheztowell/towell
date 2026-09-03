@@ -68,7 +68,7 @@
 
                 <dl class="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-gray-100 pt-3 sm:grid-cols-3 md:grid-cols-5 md:gap-x-6">
                     <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Fecha</dt>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Fecha de orden</dt>
                         <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ optional($orden->Fecha)->format('d/m/Y') ?? '—' }}</dd>
                     </div>
                     <div>

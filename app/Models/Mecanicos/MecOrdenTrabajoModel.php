@@ -25,6 +25,7 @@ class MecOrdenTrabajoModel extends Model
         'TelarId',
         'FolioParo',
         'Falla',
+        'Comentarios',
         'FechaParo',
         'HoraParo',
         'Estatus',

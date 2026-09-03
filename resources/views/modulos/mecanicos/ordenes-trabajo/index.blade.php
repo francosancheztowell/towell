@@ -103,40 +103,41 @@
             <div id="bloque-seleccion-paro" class="mb-4 rounded-md border border-blue-100 bg-blue-50 p-3">
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div>
-                        <label for="select-telar-paro" class="mb-1 block text-xs font-semibold text-blue-900">Telar <span class="font-normal">(opcional)</span></label>
+                        <label for="select-telar-paro" class="mb-1 block text-xs font-semibold text-blue-900">Máquina <span class="font-normal">(opcional)</span></label>
                         <select id="select-telar-paro"
                             class="w-full rounded-md border border-blue-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600">
-                            <option value="">Cargando telares…</option>
+                            <option value="">Cargando máquinas…</option>
                         </select>
                     </div>
                     <div>
                         <label for="select-paro-folio" class="mb-1 block text-xs font-semibold text-blue-900">Folio de paro <span class="font-normal">(opcional)</span></label>
                         <select id="select-paro-folio" disabled
                             class="w-full rounded-md border border-blue-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 disabled:cursor-not-allowed disabled:bg-gray-100">
-                            <option value="">Seleccione telar primero</option>
+                            <option value="">Seleccione máquina primero</option>
                         </select>
                     </div>
                 </div>
-                <p class="mt-2 text-xs text-blue-800">Seleccione telar y folio de paro para precargar falla, fechas, turno y orden; o capture manualmente los campos de abajo.</p>
+                <label class="mt-3 flex items-center gap-2 text-sm font-medium text-blue-900">
+                    <input id="check-captura-manual" name="CapturaManual" type="checkbox" value="1" disabled
+                        class="size-4 rounded border-blue-300 text-blue-600 focus:ring-blue-600">
+                    Captura manual
+                </label>
+                <p id="ayuda-captura-manual" class="mt-2 text-xs text-blue-800">Seleccione una máquina para consultar los paros de las últimas 12 horas.</p>
             </div>
 
             <input id="cabecera-folio" type="hidden">
+            <input id="cabecera-folio-paro-valor" name="FolioParo" type="hidden">
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                    <label for="cabecera-fecha" class="mb-1 block text-xs font-medium text-gray-700">Fecha de orden <span class="text-red-600">*</span></label>
-                    <input id="cabecera-fecha" name="Fecha" type="date" required
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                </div>
-                <div>
-                    <label for="cabecera-telar" class="mb-1 block text-xs font-medium text-gray-700">Telar <span class="text-red-600">*</span></label>
-                    <input id="cabecera-telar" name="TelarId" maxlength="10" required placeholder="Ej. 201"
+                    <label for="cabecera-telar" class="mb-1 block text-xs font-medium text-gray-700">Máquina <span class="text-red-600">*</span></label>
+                    <input id="cabecera-telar" name="TelarId" maxlength="50" required placeholder="Ej. 201"
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                 </div>
                 <div>
                     <label for="cabecera-folio-paro" class="mb-1 block text-xs font-medium text-gray-700">Folio de paro</label>
-                    <input id="cabecera-folio-paro" name="FolioParo" maxlength="30"
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+                    <input id="cabecera-folio-paro" maxlength="30" readonly
+                        class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 outline-none">
                 </div>
                 <div>
                     <label for="cabecera-estatus" class="mb-1 block text-xs font-medium text-gray-700">Estatus</label>
@@ -154,6 +155,11 @@
                     <input id="cabecera-falla" name="Falla" maxlength="150" required
                         placeholder="Código y descripción de la falla"
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+                </div>
+                <div class="md:col-span-2">
+                    <label for="cabecera-comentarios" class="mb-1 block text-xs font-medium text-gray-700">Comentarios</label>
+                    <textarea id="cabecera-comentarios" name="Comentarios" maxlength="500" rows="3"
+                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"></textarea>
                 </div>
                 <div>
                     <label for="cabecera-fecha-paro" class="mb-1 block text-xs font-medium text-gray-700">Fecha de paro</label>
@@ -178,7 +184,6 @@
                         <option value="1">1</option>
                         <option value="2">2</option>
                         <option value="3">3</option>
-                        <option value="4">4</option>
                     </select>
                 </div>
             </div>
@@ -344,7 +349,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const baseUrl = @json(url('/mecanicos/ordenes-trabajo'));
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || @json(csrf_token());
-    const fechaActual = @json($fechaInicial);
+    const turnoSugerido = @json((string) $turnoSugerido);
     const telaresCatalogo = @json($telares);
     const operadores = @json($operadores);
     const puedeCrear = @json($puedeCrear);
@@ -354,7 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modoTejedor = @json($modoTejedor);
     const esTejedor = modoTejedor; // compatibilidad con lógica previa de UI
     const operadoresPorClave = new Map(operadores.map(operador => [String(operador.CveEmpl), operador]));
-    const state = { ordenes: [], orden: null, paros: [], filtroEstatus: '' };
+    const state = { ordenes: [], orden: null, parosTelar: [], filtroEstatus: '' };
 
     const $ = (selector) => document.querySelector(selector);
     const ordenesBody = $('#ordenes-body');
@@ -644,30 +649,76 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('');
     }
 
-    async function cargarParosActivos() {
+    function camposCapturaManual() {
+        return [
+            'cabecera-telar',
+            'cabecera-falla',
+            'cabecera-comentarios',
+        ];
+    }
+
+    function camposDatosParo() {
+        return [
+            'cabecera-folio-paro',
+            'cabecera-fecha-paro',
+            'cabecera-hora-paro',
+            'cabecera-orden',
+            'cabecera-estatus',
+        ];
+    }
+
+    function establecerCamposCreacion({ manual = false, hayParos = false, telarSeleccionado = false } = {}) {
+        const esEdicion = Boolean($('#cabecera-folio').value);
+        if (esEdicion) return;
+
+        camposCapturaManual().forEach(id => {
+            const campo = document.getElementById(id);
+            campo.readOnly = !manual;
+            campo.classList.toggle('bg-gray-50', !manual);
+            campo.classList.toggle('text-gray-600', !manual);
+        });
+        camposDatosParo().forEach(id => {
+            document.getElementById(id).disabled = true;
+        });
+
+        const turno = $('#cabecera-turno');
+        turno.disabled = !manual;
+        turno.classList.toggle('bg-gray-50', !manual);
+        turno.classList.toggle('text-gray-600', !manual);
+        if (manual && ! turno.value) {
+            turno.value = turnoSugerido;
+        }
+
+        const check = $('#check-captura-manual');
+        if (! telarSeleccionado) {
+            check.disabled = true;
+            check.checked = false;
+            $('#ayuda-captura-manual').textContent = 'Seleccione una máquina para consultar los paros de las últimas 12 horas.';
+            return;
+        }
+
+        check.disabled = false;
+        check.checked = manual;
+        $('#ayuda-captura-manual').textContent = hayParos
+            ? 'Selecciona un folio de paro de las últimas 12 horas, o habilita la captura manual para editar el turno.'
+            : 'No hay paros de las últimas 12 horas para esta máquina. La captura manual está habilitada.';
+    }
+
+    function resetearOrigenCreacion() {
         const selectTelar = $('#select-telar-paro');
         const selectParo = $('#select-paro-folio');
-        selectTelar.innerHTML = '<option value="">Cargando telares…</option>';
-        selectParo.innerHTML = '<option value="">Seleccione telar primero</option>';
+        selectTelar.innerHTML = '<option value="">Seleccione máquina</option>';
+        selectParo.innerHTML = '<option value="">Seleccione máquina primero</option>';
         selectParo.disabled = true;
-
-        try {
-            const result = await api(`${baseUrl}/paros-activos`);
-            state.paros = result.data || [];
-            poblarSelectTelares();
-            poblarSelectParosPorTelar('');
-            limpiarCabeceraParaCapturaManual();
-        } catch (error) {
-            selectTelar.innerHTML = '<option value="">No fue posible cargar telares</option>';
-            selectParo.innerHTML = '<option value="">Seleccione telar primero</option>';
-            selectParo.disabled = true;
-            limpiarCabeceraParaCapturaManual();
-        }
+        state.parosTelar = [];
+        poblarSelectTelares();
+        limpiarCabeceraParaSeleccionTelar();
+        establecerCamposCreacion();
     }
 
     function poblarSelectTelares() {
         const select = $('#select-telar-paro');
-        select.innerHTML = '<option value="">Seleccione telar</option>';
+        select.innerHTML = '<option value="">Seleccione máquina</option>';
 
         telaresCatalogo.forEach(({ id, label }) => {
             const option = document.createElement('option');
@@ -676,34 +727,30 @@ document.addEventListener('DOMContentLoaded', () => {
             select.appendChild(option);
         });
 
-        const manualOption = document.createElement('option');
-        manualOption.value = '__manual__';
-        manualOption.textContent = 'Capturar manualmente';
-        select.appendChild(manualOption);
     }
 
     function poblarSelectParosPorTelar(telarId) {
         const select = $('#select-paro-folio');
         select.innerHTML = '<option value="">Seleccione folio de paro</option>';
 
-        if (! telarId || telarId === '__manual__') {
+        if (! telarId) {
             select.disabled = true;
-            select.innerHTML = '<option value="">Seleccione telar primero</option>';
+            select.innerHTML = '<option value="">Seleccione máquina primero</option>';
             return;
         }
 
-        const parosTelar = state.paros.filter(paro => String(paro.MaquinaId ?? '') === String(telarId));
+        const parosTelar = state.parosTelar;
 
         if (! parosTelar.length) {
             select.disabled = true;
-            select.innerHTML = '<option value="">Sin paros activos para este telar</option>';
+            select.innerHTML = '<option value="">Sin paros disponibles para esta máquina</option>';
             return;
         }
 
         select.disabled = false;
         parosTelar.forEach(paro => {
             const option = document.createElement('option');
-            option.value = paro.Id;
+            option.value = paro.Folio;
             const falla = String(paro.FallaTexto || paro.Falla || '').trim();
             option.textContent = falla !== '' ? `${paro.Folio} · ${falla}` : String(paro.Folio);
             select.appendChild(option);
@@ -728,19 +775,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function resetearCabecera() {
         $('#form-cabecera').reset();
         $('#cabecera-folio').value = '';
-        $('#cabecera-fecha').value = fechaActual;
         $('#cabecera-estatus').value = 'Activo';
         $('#titulo-modal-cabecera').textContent = 'Nueva orden de trabajo';
         $('#subtitulo-modal-cabecera').textContent = 'El folio se asigna al guardar.';
         $('#btn-guardar-cabecera').textContent = 'Guardar orden';
         habilitarSelectsParo(true);
-        resetearSelectsParo();
+        resetearOrigenCreacion();
     }
 
     async function abrirNuevaOrden() {
         resetearCabecera();
         abrirModal(modalCabecera);
-        await cargarParosActivos();
     }
 
     async function abrirEdicionCabecera() {
@@ -749,10 +794,11 @@ document.addEventListener('DOMContentLoaded', () => {
         cerrarModal(modalDetalle);
         resetearCabecera();
         $('#cabecera-folio').value = state.orden.Folio;
-        $('#cabecera-fecha').value = dateInputValue(state.orden.Fecha);
         $('#cabecera-telar').value = state.orden.TelarId || '';
         $('#cabecera-folio-paro').value = state.orden.FolioParo || '';
+        $('#cabecera-folio-paro-valor').value = state.orden.FolioParo || '';
         $('#cabecera-falla').value = state.orden.Falla || '';
+        $('#cabecera-comentarios').value = state.orden.Comentarios || '';
         $('#cabecera-fecha-paro').value = dateInputValue(state.orden.FechaParo);
         $('#cabecera-hora-paro').value = timeInputValue(state.orden.HoraParo);
         $('#cabecera-estatus').value = state.orden.Estatus || 'Activo';
@@ -762,50 +808,91 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#subtitulo-modal-cabecera').textContent = 'Actualiza los datos de la cabecera.';
         $('#btn-guardar-cabecera').textContent = 'Guardar cambios';
         habilitarSelectsParo(false);
+        [
+            ...camposCapturaManual(),
+            ...camposDatosParo(),
+            'cabecera-turno',
+        ].forEach(id => {
+            const campo = document.getElementById(id);
+            campo.disabled = false;
+            campo.readOnly = false;
+            campo.classList.remove('bg-gray-50', 'text-gray-600');
+        });
         abrirModal(modalCabecera);
     }
 
-    function onTelarParoChange() {
+    async function onTelarParoChange() {
         const telar = $('#select-telar-paro').value;
         $('#select-paro-folio').value = '';
+        state.parosTelar = [];
+        limpiarCabeceraParaSeleccionTelar();
 
-        if (telar === '__manual__' || telar === '') {
+        if (! telar) {
             poblarSelectParosPorTelar('');
-            limpiarCabeceraParaCapturaManual();
+            establecerCamposCreacion();
             return;
         }
 
         $('#cabecera-telar').value = telar;
-        limpiarCamposDesdeParo();
-        poblarSelectParosPorTelar(telar);
+        $('#select-paro-folio').innerHTML = '<option value="">Consultando paros…</option>';
+        $('#select-paro-folio').disabled = true;
+
+        try {
+            const result = await api(`${baseUrl}/paros-historial?${new URLSearchParams({ TelarId: telar }).toString()}`);
+            state.parosTelar = result.data || [];
+            poblarSelectParosPorTelar(telar);
+            establecerCamposCreacion({
+                manual: state.parosTelar.length === 0,
+                hayParos: state.parosTelar.length > 0,
+                telarSeleccionado: true,
+            });
+            if (state.parosTelar.length === 0) {
+                $('#cabecera-folio-paro').value = 'Sin Folio de Paro.';
+                $('#cabecera-turno').value = turnoSugerido;
+            }
+        } catch (error) {
+            $('#select-paro-folio').innerHTML = '<option value="">No fue posible consultar paros</option>';
+            $('#select-paro-folio').disabled = true;
+            establecerCamposCreacion();
+            notificar('error', mensajeError(error));
+        }
     }
 
     function aplicarParoSeleccionado() {
-        const paro = state.paros.find(item => String(item.Id) === $('#select-paro-folio').value);
+        const paro = state.parosTelar.find(item => String(item.Folio) === $('#select-paro-folio').value);
         if (! paro) {
-            limpiarCamposDesdeParo();
+            limpiarCabeceraParaSeleccionTelar();
             const telar = $('#select-telar-paro').value;
-            if (telar && telar !== '__manual__') {
+            if (telar) {
                 $('#cabecera-telar').value = telar;
             }
+            establecerCamposCreacion({
+                manual: false,
+                hayParos: state.parosTelar.length > 0,
+                telarSeleccionado: true,
+            });
             return;
         }
 
-        $('#cabecera-fecha').value = fechaActual;
         $('#cabecera-telar').value = paro.MaquinaId || '';
         $('#cabecera-folio-paro').value = paro.Folio || '';
+        $('#cabecera-folio-paro-valor').value = paro.Folio || '';
         $('#cabecera-falla').value = paro.FallaTexto || paro.Falla || '';
+        $('#cabecera-comentarios').value = paro.ComentariosTexto || '';
         $('#cabecera-fecha-paro').value = dateInputValue(paro.Fecha);
         $('#cabecera-hora-paro').value = timeInputValue(paro.Hora);
         $('#cabecera-orden').value = paro.OrdenTrabajo || '';
         $('#cabecera-turno').value = paro.Turno || '';
         $('#cabecera-estatus').value = 'Activo';
+        establecerCamposCreacion({ hayParos: true, telarSeleccionado: true });
     }
 
     function limpiarCamposDesdeParo() {
         [
             'cabecera-folio-paro',
+            'cabecera-folio-paro-valor',
             'cabecera-falla',
+            'cabecera-comentarios',
             'cabecera-fecha-paro',
             'cabecera-hora-paro',
             'cabecera-orden',
@@ -814,25 +901,12 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById(id).value = '';
         });
 
-        $('#cabecera-fecha').value = fechaActual;
         $('#cabecera-estatus').value = 'Activo';
     }
 
-    function limpiarCabeceraParaCapturaManual() {
-        [
-            'cabecera-telar',
-            'cabecera-folio-paro',
-            'cabecera-falla',
-            'cabecera-fecha-paro',
-            'cabecera-hora-paro',
-            'cabecera-orden',
-            'cabecera-turno',
-        ].forEach(id => {
-            document.getElementById(id).value = '';
-        });
-
-        $('#cabecera-fecha').value = fechaActual;
-        $('#cabecera-estatus').value = 'Activo';
+    function limpiarCabeceraParaSeleccionTelar() {
+        limpiarCamposDesdeParo();
+        $('#cabecera-telar').value = '';
     }
 
     function llenarSelectOperadores() {
@@ -1010,6 +1084,28 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#btn-editar-cabecera').addEventListener('click', abrirEdicionCabecera);
     $('#select-telar-paro').addEventListener('change', onTelarParoChange);
     $('#select-paro-folio').addEventListener('change', aplicarParoSeleccionado);
+    $('#check-captura-manual').addEventListener('change', event => {
+        if ($('#cabecera-folio').value) return;
+        const telar = $('#select-telar-paro').value;
+
+        if (event.target.checked) {
+            $('#select-paro-folio').value = '';
+            limpiarCamposDesdeParo();
+            $('#cabecera-telar').value = telar;
+            $('#cabecera-folio-paro').value = 'Sin Folio de Paro.';
+            $('#cabecera-turno').value = turnoSugerido;
+        } else {
+            limpiarCamposDesdeParo();
+            $('#cabecera-telar').value = telar;
+            poblarSelectParosPorTelar(telar);
+        }
+
+        establecerCamposCreacion({
+            manual: event.target.checked,
+            hayParos: state.parosTelar.length > 0,
+            telarSeleccionado: Boolean($('#select-telar-paro').value),
+        });
+    });
     $('#linea-operador').addEventListener('change', () => {
         const operador = operadoresPorClave.get($('#linea-operador').value);
         if (operador) $('#linea-nom-operador').value = operador.NomEmpl || '';
