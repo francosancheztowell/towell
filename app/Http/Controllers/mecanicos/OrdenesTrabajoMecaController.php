@@ -101,6 +101,7 @@ class OrdenesTrabajoMecaController extends Controller
             'tejedorNombre' => trim((string) ($usuario->nombre ?? '')),
             'usuarioCapturaCve' => trim((string) ($usuario->numero_empleado ?? '')),
             'usuarioCapturaNombre' => trim((string) ($usuario->nombre ?? '')),
+            'turnoSugerido' => (int) TurnoHelper::getTurnoActual(),
         ]);
     }
 
@@ -800,6 +801,9 @@ class OrdenesTrabajoMecaController extends Controller
             'FaltaRefacc' => ['nullable', 'boolean'],
             'HoraInicial' => ['nullable', 'date_format:H:i'],
             'HoraFinal' => ['nullable', 'date_format:H:i'],
+            // Turno 4 es el comodín que cubre descansos (ver TurnoHelper).
+            'Turno' => ['required', 'integer', 'between:1,4'],
+            'comentarios' => ['nullable', 'string', 'max:500'],
             'Calificacion' => ['nullable', 'integer', 'between:1,10'],
             'CveTejedor' => ['nullable', 'string', 'max:30'],
             'NomTejedor' => ['nullable', 'string', 'max:150'],
@@ -824,7 +828,7 @@ class OrdenesTrabajoMecaController extends Controller
 
     private function normalizarLinea(array $datos): array
     {
-        foreach (['CveOperador', 'NomOperador', 'CveTejedor', 'NomTejedor'] as $campo) {
+        foreach (['CveOperador', 'NomOperador', 'CveTejedor', 'NomTejedor', 'comentarios'] as $campo) {
             $valor = trim((string) ($datos[$campo] ?? ''));
             $datos[$campo] = $valor !== '' ? $valor : null;
         }
@@ -833,6 +837,7 @@ class OrdenesTrabajoMecaController extends Controller
             $datos[$campo] = filter_var($datos[$campo] ?? false, FILTER_VALIDATE_BOOLEAN);
         }
 
+        $datos['Turno'] = isset($datos['Turno']) ? (int) $datos['Turno'] : null;
         $datos['HoraInicial'] = $this->normalizarHora($datos['HoraInicial'] ?? null);
         $datos['HoraFinal'] = $this->normalizarHora($datos['HoraFinal'] ?? null);
         $datos['TotalMinutos'] = $this->calcularTotalMinutos($datos['HoraInicial'], $datos['HoraFinal']);

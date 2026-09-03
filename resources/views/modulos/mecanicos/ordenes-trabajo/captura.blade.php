@@ -27,6 +27,7 @@
     $puedeCalificar = $puedeCalificar ?? false;
     $puedeAutorizar = $puedeAutorizar ?? false;
     $bloqueadaEdicion = $bloqueadaEdicion ?? in_array($estatusActual, ['Terminado', 'Calificado', 'Autorizado'], true);
+    $turnoSugerido = (int) ($turnoSugerido ?? \App\Helpers\TurnoHelper::getTurnoActual());
 @endphp
 <div class="w-full p-3 sm:p-4 lg:p-5">
     <div class="mx-auto max-w-7xl space-y-3 lg:max-w-[100rem] lg:space-y-4">
@@ -113,8 +114,8 @@
                 <input id="linea-id" type="hidden">
 
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12 lg:gap-4">
-                    <div class="lg:col-span-4">
-                        <label for="linea-operador" class="mb-1 block text-sm font-medium text-gray-700">Clave <span class="font-normal text-gray-500">(capturando)</span></label>
+                    <div class="lg:col-span-8">
+                        <label for="linea-operador" class="mb-1 block text-sm font-medium text-gray-700">Mecánico <span class="font-normal text-gray-500">(capturando)</span></label>
                         <select id="linea-operador" name="CveOperador"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                             <option value="">Seleccione</option>
@@ -122,12 +123,19 @@
                                 <option value="{{ $operador->CveEmpl }}">{{ $operador->CveEmpl }} · {{ $operador->NomEmpl }}@if ($operador->Turno) (T{{ $operador->Turno }}) @endif</option>
                             @endforeach
                         </select>
-                    </div>
-                    <div class="lg:col-span-8">
-                        <label for="linea-nom-operador" class="mb-1 block text-sm font-medium text-gray-700">Mecánico <span class="font-normal text-gray-500">(capturando)</span></label>
-                        <input id="linea-nom-operador" name="NomOperador" maxlength="150"
-                            class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                         <p class="mt-1 text-xs text-gray-500">Se precarga con el usuario en sesión. Para guardar completa trabajo realizado y horas.</p>
+                        {{-- El nombre viaja junto con la clave: el select ya muestra ambos. --}}
+                        <input id="linea-nom-operador" name="NomOperador" type="hidden" maxlength="150">
+                    </div>
+                    <div class="lg:col-span-4">
+                        <label for="linea-turno" class="mb-1 block text-sm font-medium text-gray-700">Turno <span class="font-normal text-gray-500">(registro)</span></label>
+                        <select id="linea-turno" name="Turno"
+                            class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+                            @foreach ([1, 2, 3, 4] as $turno)
+                                <option value="{{ $turno }}" @selected($turno === $turnoSugerido)>Turno {{ $turno }}@if ($turno === 4) · comodín @endif</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-xs text-gray-500">Sugerido por la hora del sistema: Turno {{ $turnoSugerido }}.</p>
                     </div>
                 </div>
 
@@ -160,6 +168,14 @@
                     </div>
                 </div>
 
+                <div>
+                    <label for="linea-comentarios" class="mb-1 block text-sm font-medium text-gray-700">Comentarios <span class="font-normal text-gray-500">(opcional)</span></label>
+                    <textarea id="linea-comentarios" name="comentarios" rows="3" maxlength="500"
+                        placeholder="Detalle de la intervención, refacciones pendientes, observaciones para el siguiente turno…"
+                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"></textarea>
+                    <p class="mt-1 text-xs text-gray-500"><span id="linea-comentarios-contador">0</span>/500 caracteres.</p>
+                </div>
+
                 <div class="flex flex-col-reverse gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:justify-end">
                     <button id="btn-limpiar-linea" type="button"
                         class="min-h-11 w-full rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto sm:text-base">
@@ -187,11 +203,12 @@
                 <i class="fas fa-arrows-alt-h mr-1"></i> Desliza horizontalmente para ver todas las columnas.
             </div>
             <div class="max-w-full overflow-x-auto overscroll-x-contain" tabindex="0" aria-label="Tabla de intervenciones; desplázate horizontalmente para ver todas las columnas">
-                <table class="min-w-[1100px] w-full divide-y divide-gray-200 text-sm md:min-w-[1280px]">
+                <table class="min-w-[1280px] w-full divide-y divide-gray-200 text-sm md:min-w-[1460px]">
                     <thead class="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-600">
                         <tr>
                             <th class="whitespace-nowrap px-3 py-2.5 text-left">Clave</th>
                             <th class="min-w-40 px-3 py-2.5 text-left">Mecánico</th>
+                            <th class="px-2 py-2.5 text-center">Turno</th>
                             <th class="px-2 py-2.5 text-center">Ajustó</th>
                             <th class="px-2 py-2.5 text-center">Reparó</th>
                             <th class="px-2 py-2.5 text-center">Cambió</th>
@@ -200,6 +217,7 @@
                             <th class="whitespace-nowrap px-3 py-2.5 text-center">H. inicial</th>
                             <th class="whitespace-nowrap px-3 py-2.5 text-center">H. final</th>
                             <th class="whitespace-nowrap px-3 py-2.5 text-center">Tiempo</th>
+                            <th class="min-w-48 px-3 py-2.5 text-left">Comentarios</th>
                             <th class="px-2 py-2.5 text-center">Calif.</th>
                             <th class="whitespace-nowrap px-3 py-2.5 text-left">Cve. tej.</th>
                             <th class="min-w-40 px-3 py-2.5 text-left">Nombre tejedor</th>
@@ -234,6 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tejedorNombre = @json($tejedorNombre);
     const capturaCve = @json($usuarioCapturaCve ?? '');
     const capturaNombre = @json($usuarioCapturaNombre ?? '');
+    const turnoSugerido = @json($turnoSugerido);
 
     const $ = (selector) => document.querySelector(selector);
     const lineasBody = $('#lineas-body');
@@ -342,7 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#total-lineas').textContent = `${lineas.length} ${lineas.length === 1 ? 'renglón' : 'renglones'}`;
 
         if (! lineas.length) {
-            lineasBody.innerHTML = '<tr><td colspan="14" class="px-4 py-10 text-center text-sm text-gray-500">No hay renglones capturados.</td></tr>';
+            lineasBody.innerHTML = '<tr><td colspan="16" class="px-4 py-10 text-center text-sm text-gray-500">No hay renglones capturados.</td></tr>';
             return;
         }
 
@@ -372,6 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <tr class="group transition hover:bg-gray-50">
                 <td class="whitespace-nowrap px-3 py-2.5 text-gray-700">${display(linea.CveOperador)}</td>
                 <td class="px-3 py-2.5 font-medium text-gray-800">${display(linea.NomOperador)}</td>
+                <td class="px-2 py-2.5 text-center text-gray-700">${display(linea.Turno)}</td>
                 <td class="px-2 py-2.5 text-center">${iconoBooleano(linea.Ajusto)}</td>
                 <td class="px-2 py-2.5 text-center">${iconoBooleano(linea.Reparo)}</td>
                 <td class="px-2 py-2.5 text-center">${iconoBooleano(linea.Cambio)}</td>
@@ -380,6 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="whitespace-nowrap px-3 py-2.5 text-center text-gray-700">${display(timeInputValue(linea.HoraInicial))}</td>
                 <td class="whitespace-nowrap px-3 py-2.5 text-center text-gray-700">${display(timeInputValue(linea.HoraFinal))}</td>
                 <td class="whitespace-nowrap px-3 py-2.5 text-center text-gray-700">${linea.TotalMinutos == null ? '—' : `${linea.TotalMinutos} min`}</td>
+                <td class="px-3 py-2.5 text-gray-700"><span class="line-clamp-2" title="${escapeHtml(linea.comentarios ?? '')}">${display(linea.comentarios)}</span></td>
                 <td class="px-2 py-2.5 text-center text-gray-700">${califCell}</td>
                 <td class="whitespace-nowrap px-3 py-2.5 text-gray-700">${cveCell}</td>
                 <td class="px-3 py-2.5 text-gray-800">${nomCell}</td>
@@ -417,6 +438,8 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#linea-falta-refacc').checked = Boolean(linea.FaltaRefacc);
         $('#linea-hora-inicial').value = timeInputValue(linea.HoraInicial);
         $('#linea-hora-final').value = timeInputValue(linea.HoraFinal);
+        aplicarTurno(linea.Turno);
+        $('#linea-comentarios').value = linea.comentarios || '';
         if ($('#linea-calificacion')) $('#linea-calificacion').value = linea.Calificacion ?? '';
         if ($('#linea-cve-tejedor')) $('#linea-cve-tejedor').value = linea.CveTejedor || '';
         if ($('#linea-nom-tejedor')) $('#linea-nom-tejedor').value = linea.NomTejedor || '';
@@ -426,6 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (lineaSinCaptura(linea)) {
             aplicarUsuarioCaptura();
         }
+        actualizarContadorComentarios();
         calcularMinutosEnPantalla();
     }
 
@@ -438,8 +462,25 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#subtitulo-formulario').textContent = `Orden ${orden.Folio}`;
         $('#btn-guardar-linea').textContent = 'Guardar intervención';
         aplicarUsuarioCaptura();
+        aplicarTurno(null);
+        actualizarContadorComentarios();
         document.getElementById('seccion-captura')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         $('#linea-operador')?.focus();
+    }
+
+    /**
+     * Turno del renglón: el capturado si existe, si no el sugerido por la hora del sistema.
+     */
+    function aplicarTurno(valor) {
+        const select = $('#linea-turno');
+        if (! select) return;
+        const turno = [1, 2, 3, 4].includes(Number(valor)) ? Number(valor) : Number(turnoSugerido);
+        select.value = String(turno);
+    }
+
+    function actualizarContadorComentarios() {
+        const contador = $('#linea-comentarios-contador');
+        if (contador) contador.textContent = String(($('#linea-comentarios')?.value || '').length);
     }
 
     function prepararCapturaInicial() {
@@ -497,7 +538,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const tieneTrabajo = Boolean(data.Ajusto || data.Reparo || data.Cambio || data.Lubrico || data.FaltaRefacc);
 
         if (! cve || ! nom) {
-            return 'Selecciona la clave y el nombre del mecánico que está capturando.';
+            return 'Selecciona el mecánico que está capturando.';
+        }
+        if (! [1, 2, 3, 4].includes(Number(data.Turno))) {
+            return 'Selecciona el turno en el que se está registrando la intervención.';
         }
         if (! tieneTrabajo) {
             return 'Marca al menos un trabajo realizado (Ajustó, Reparó, Cambió, Lubricó o Falta refacc.).';
@@ -655,9 +699,16 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#btn-nuevo-renglon')?.addEventListener('click', prepararNuevoRenglon);
     $('#btn-limpiar-linea')?.addEventListener('click', prepararCapturaInicial);
     $('#linea-operador')?.addEventListener('change', () => {
-        const operador = operadoresPorClave.get($('#linea-operador').value);
+        const clave = $('#linea-operador').value;
+        if (! clave) {
+            $('#linea-nom-operador').value = '';
+            return;
+        }
+        const operador = operadoresPorClave.get(clave);
+        // Sin catálogo (usuario en sesión inyectado a mano) se conserva el nombre precargado.
         if (operador) $('#linea-nom-operador').value = operador.NomEmpl || '';
     });
+    $('#linea-comentarios')?.addEventListener('input', actualizarContadorComentarios);
     $('#linea-hora-inicial')?.addEventListener('input', calcularMinutosEnPantalla);
     $('#linea-hora-final')?.addEventListener('input', calcularMinutosEnPantalla);
     document.getElementById('btn-finalizar-orden')?.addEventListener('click', finalizarOrden);
