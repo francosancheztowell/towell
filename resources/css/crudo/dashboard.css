@@ -692,7 +692,7 @@ button.crudo-status-card:disabled {
     --crudo-card-h: clamp(7.8rem, 8.8vw, 9.4rem);
     --crudo-card-h-physical: clamp(7.8rem, 8.8vw, 9.4rem);
     display: grid;
-    grid-template-columns: minmax(0, 0.4fr) minmax(0, 1fr) minmax(0, 1.25fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 3fr) minmax(0, 4fr);
     gap: 0.65rem;
     align-items: stretch;
 }
@@ -781,14 +781,22 @@ button.crudo-status-card:disabled {
     padding-top: 0.5rem;
 }
 
-/* ponytail: KM es la columna angosta; el título va a la izquierda para no
-   quedar debajo del badge de eficiencia. */
+/* KM es la columna de 1 telar de ancho (1fr); distribuimos título y badge limpiamente sin colisiones */
 .crudo-salon-karl-mayer > header {
-    justify-content: flex-start;
+    justify-content: space-between;
+    padding: 0.25rem 0.45rem 0.35rem;
 }
 
 .crudo-salon-karl-mayer > header h2 {
-    padding-left: 0.35rem;
+    padding-left: 0.15rem;
+    font-size: 1.05rem;
+}
+
+.crudo-salon-karl-mayer .crudo-salon-efficiency {
+    position: static;
+    transform: none;
+    padding: 0.15rem 0.45rem;
+    font-size: 0.95rem;
 }
 
 .crudo-salon-karl-mayer .crudo-machine-grid-physical {
@@ -4089,7 +4097,7 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-salons-grid {
-        grid-template-columns: minmax(0, 0.45fr) minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr) minmax(0, 3fr);
         gap: 0.5rem;
     }
 
