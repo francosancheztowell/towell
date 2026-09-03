@@ -22,6 +22,7 @@ type Machine = {
   secondsPercent: number
   efficiencyPercent: number
   efficiencyObs: string
+  rpm?: number | null
   expectedKilos: number
   state: string
   stateLabel: string
@@ -410,6 +411,11 @@ const updateMachineCard = (machine: Machine): void => {
   const efficiency = button.querySelector<HTMLElement>('[data-crudo-efficiency]')
   if (efficiency) {
     efficiency.textContent = `${formatInteger(machine.efficiencyPercent ?? 0)}%`
+  }
+
+  const rpm = button.querySelector<HTMLElement>('[data-crudo-rpm]')
+  if (rpm) {
+    rpm.textContent = machine.rpm != null ? `${formatInteger(machine.rpm)}` : '--'
   }
 
   const kilos = button.querySelector<HTMLElement>('[data-crudo-kilos]')

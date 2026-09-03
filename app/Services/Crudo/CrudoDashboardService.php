@@ -595,6 +595,9 @@ final readonly class CrudoDashboardService
                 efficiencyObs: (string) ($efficiencyByTelar[$telar]['obs'] ?? ''),
                 efficiencyDate: (string) ($efficiencyByTelar[$telar]['date'] ?? ''),
                 efficiencyStale: (bool) ($efficiencyByTelar[$telar]['stale'] ?? false),
+                rpm: isset($efficiencyByTelar[$telar]['rpm']) && $efficiencyByTelar[$telar]['rpm'] !== null
+                    ? (float) $efficiencyByTelar[$telar]['rpm']
+                    : null,
             );
         }
 
@@ -628,7 +631,7 @@ final readonly class CrudoDashboardService
      * su fecha para avisarlo en el modal.
      *
      * @param  list<object>  $rows
-     * @return array<string, array{percent: float, obs: string, date: string, stale: bool}>
+     * @return array<string, array{percent: float, rpm: ?float, obs: string, date: string, stale: bool}>
      */
     private function efficiencyByTelar(array $rows, DateTimeImmutable $from, DateTimeImmutable $to): array
     {
@@ -646,10 +649,14 @@ final readonly class CrudoDashboardService
                     continue;
                 }
 
+                $rawRpm = $row->{'RpmR'.$revision} ?? ($row->RpmStd ?? null);
+                $rpm = ($rawRpm !== null && $rawRpm !== '') ? (float) $rawRpm : null;
+
                 $date = $this->efficiencyDate($row->Date ?? null);
 
                 $latest[$telar] = [
                     'percent' => (float) $value,
+                    'rpm' => $rpm,
                     'obs' => trim((string) ($row->{'ObsR'.$revision} ?? '')),
                     'date' => $date,
                     'stale' => $date !== '' && (

@@ -7,6 +7,7 @@ use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\Catalogos\ReqPesosRollosTejido;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -31,8 +32,9 @@ class OrdenDeCambioFelpaController extends Controller
      * Usado cuando se libera una ordeddn desde LiberarOrdenesController.
      *
      * @param  iterable<ReqProgramaTejido>  $registros
+     * @param  bool  $sincronizarCatCodificados  false = solo genera el Excel, no escribe en BD (reimpresión)
      */
-    public function generarExcelDesdeBD(iterable $registros)
+    public function generarExcelDesdeBD(iterable $registros, bool $sincronizarCatCodificados = true)
     {
         $horaActual = $this->obtenerHoraActual();
 
@@ -100,8 +102,11 @@ class OrdenDeCambioFelpaController extends Controller
                 // Llenar la fila en REGISTRO con las fórmulas y valores calculados
                 $this->llenarFilaRegistroDesdeBD($spreadsheet, $datosRegistro, $filaRegistro);
 
-                // Crear registro en CatCodificados con los valores de las fórmulas
-                $this->crearOActualizarModeloCodificado($registro, $datosRegistro);
+                // Crear registro en CatCodificados con los valores de las fórmulas.
+                // La reimpresión pasa false: solo vuelve a imprimir, no toca la BD.
+                if ($sincronizarCatCodificados) {
+                    $this->crearOActualizarModeloCodificado($registro, $datosRegistro);
+                }
 
                 $registrosParaFormato[] = [
                     'fila' => $filaRegistro,
@@ -1071,11 +1076,11 @@ class OrdenDeCambioFelpaController extends Controller
         // Fechas
         $fechaOrden = '';
         if ($registro->ProgramarProd) {
-            if ($registro->ProgramarProd instanceof \Carbon\Carbon) {
+            if ($registro->ProgramarProd instanceof Carbon) {
                 $fechaOrden = $registro->ProgramarProd->format('d-m-Y');
             } elseif (is_string($registro->ProgramarProd)) {
                 try {
-                    $fechaOrden = \Carbon\Carbon::parse($registro->ProgramarProd)->format('d-m-Y');
+                    $fechaOrden = Carbon::parse($registro->ProgramarProd)->format('d-m-Y');
                 } catch (\Exception $e) {
                     $fechaOrden = $registro->ProgramarProd;
                 }
@@ -1085,12 +1090,12 @@ class OrdenDeCambioFelpaController extends Controller
         $fechaCumplimiento = '';
         $fechaCompromiso = '';
         if ($registro->FechaFinal) {
-            if ($registro->FechaFinal instanceof \Carbon\Carbon) {
+            if ($registro->FechaFinal instanceof Carbon) {
                 $fechaCumplimiento = $registro->FechaFinal->format('d-m-Y');
                 $fechaCompromiso = $registro->FechaFinal->format('d-m-Y');
             } elseif (is_string($registro->FechaFinal)) {
                 try {
-                    $dt = \Carbon\Carbon::parse($registro->FechaFinal);
+                    $dt = Carbon::parse($registro->FechaFinal);
                     $fechaCumplimiento = $dt->format('d-m-Y');
                     $fechaCompromiso = $dt->format('d-m-Y');
                 } catch (\Exception $e) {
@@ -1400,18 +1405,18 @@ class OrdenDeCambioFelpaController extends Controller
 
             // Fechas - usar setAttribute para que Laravel maneje el cast correctamente
             if ($registro->ProgramarProd) {
-                $fechaTejido = $registro->ProgramarProd instanceof \Carbon\Carbon
+                $fechaTejido = $registro->ProgramarProd instanceof Carbon
                     ? $registro->ProgramarProd
-                    : \Carbon\Carbon::parse($registro->ProgramarProd);
+                    : Carbon::parse($registro->ProgramarProd);
                 $catCodificado->setAttribute('FechaTejido', $fechaTejido);
             } else {
                 $catCodificado->setAttribute('FechaTejido', now());
             }
 
             if ($registro->FechaFinal) {
-                $fechaFinal = $registro->FechaFinal instanceof \Carbon\Carbon
+                $fechaFinal = $registro->FechaFinal instanceof Carbon
                     ? $registro->FechaFinal
-                    : \Carbon\Carbon::parse($registro->FechaFinal);
+                    : Carbon::parse($registro->FechaFinal);
                 $catCodificado->setAttribute('FechaCumplimiento', $fechaFinal);
                 $catCodificado->setAttribute('FechaCompromiso', $fechaFinal);
             } else {

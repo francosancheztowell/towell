@@ -61,7 +61,8 @@ class ReimprimirOrdenesController extends Controller
 
             // Usar el controlador de orden de cambio para generar el Excel
             $ordenCambioController = new OrdenDeCambioFelpaController;
-            $response = $ordenCambioController->generarExcelDesdeBD(collect([$registroReqProgramaTejido]));
+            // Reimprimir es solo lectura: no sincroniza CatCodificados ni ReqModelosCodificados.
+            $response = $ordenCambioController->generarExcelDesdeBD(collect([$registroReqProgramaTejido]), false);
 
             // Si la respuesta es un StreamedResponse, retornarla directamente
             if ($response instanceof StreamedResponse) {

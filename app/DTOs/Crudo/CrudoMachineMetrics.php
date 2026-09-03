@@ -37,6 +37,7 @@ final readonly class CrudoMachineMetrics
         // Fecha del corte usado y si viene de un día anterior al consultado.
         public string $efficiencyDate = '',
         public bool $efficiencyStale = false,
+        public ?float $rpm = null,
     ) {}
 
     /**
@@ -60,6 +61,7 @@ final readonly class CrudoMachineMetrics
             'efficiencyObs' => $this->efficiencyObs,
             'efficiencyDate' => $this->efficiencyDate,
             'efficiencyStale' => $this->efficiencyStale,
+            'rpm' => $this->rpm !== null ? (int) round($this->rpm) : null,
             'expectedKilos' => round($this->expectedKilos, 1),
             'dailyTargetKilos' => round($this->dailyTargetKilos, 1),
             'productionStandardStatus' => $this->productionStandardStatus,

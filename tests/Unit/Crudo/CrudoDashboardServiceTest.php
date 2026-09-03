@@ -28,6 +28,7 @@ final class CrudoDashboardServiceTest extends TestCase
             'JACQUARD' => 'Jacquard',
         ]);
         config()->set('crudo.catalog_cache_seconds', 0);
+        config()->set('crudo.production_cache_seconds', 0);
 
         $this->repository = new FakeCrudoReadRepository(
             headers: [
@@ -141,6 +142,7 @@ final class CrudoDashboardServiceTest extends TestCase
                 'EficienciaR1' => 80.0,
                 'EficienciaR2' => 82.0,
                 'EficienciaR3' => 84.0,
+                'RpmR1' => 500.0,
                 'ObsR1' => 'obs uno',
                 'ObsR2' => 'obs dos',
                 'ObsR3' => 'obs tres',
@@ -151,6 +153,9 @@ final class CrudoDashboardServiceTest extends TestCase
                 'EficienciaR1' => 90.0,
                 'EficienciaR2' => 91.0,
                 'EficienciaR3' => null,
+                'RpmR1' => 510.0,
+                'RpmR2' => 520.0,
+                'RpmR3' => null,
                 'ObsR1' => 'obs uno T2',
                 'ObsR2' => 'paro de urdido',
                 'ObsR3' => null,
@@ -160,9 +165,11 @@ final class CrudoDashboardServiceTest extends TestCase
         $machines = $this->service->build($this->date())->toArray()['machines'];
 
         $this->assertSame(91.0, $machines[0]['efficiencyPercent']);
+        $this->assertSame(520, $machines[0]['rpm']);
         $this->assertSame('paro de urdido', $machines[0]['efficiencyObs']);
         // El telar sin corte capturado se queda en cero, no hereda calidad.
         $this->assertSame(0.0, $machines[1]['efficiencyPercent']);
+        $this->assertNull($machines[1]['rpm']);
     }
 
     public function test_current_in_process_prod_kg_dia_drives_the_historical_low_kilos_state(): void
@@ -186,6 +193,7 @@ final class CrudoDashboardServiceTest extends TestCase
     public function test_paros_refresh_every_build_while_production_stays_cached(): void
     {
         config()->set('crudo.production_cache_seconds', 180);
+        \Illuminate\Support\Facades\Cache::flush();
         // Los paros solo aplican al periodo en curso, así que el pulso es de hoy.
         $today = new DateTimeImmutable('today', new DateTimeZone('America/Mexico_City'));
 
@@ -253,7 +261,7 @@ final class CrudoDashboardServiceTest extends TestCase
                 'FlogsId' => 'CE-FLOG-201',
                 'NombreProducto' => 'Producto de prueba',
                 'PesoCrudo' => 482.5,
-                'NoMarbete' => 120,
+                'SaldoMarbete' => 120,
                 'TotalRollos' => 45.0,
                 'TotalPedido' => 3000.0,
                 'SaldoPedido' => 1250.0,

@@ -352,11 +352,15 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
                 'NoTelarId',
                 'Date',
                 'Turno',
+                'RpmStd',
+                'RpmR1',
                 'EficienciaR1',
-                'EficienciaR2',
-                'EficienciaR3',
                 'ObsR1',
+                'RpmR2',
+                'EficienciaR2',
                 'ObsR2',
+                'RpmR3',
+                'EficienciaR3',
                 'ObsR3',
             ])
             ->all();

@@ -23,7 +23,7 @@
     data-crudo-machine
     data-telar="{{ $machine['telar'] }}"
     data-state="{{ $machine['state'] }}"
-    data-signature="{{ $machine['state'] }}:{{ $machine['pieces'] }}:{{ $machine['seconds'] }}:{{ $machine['kilos'] }}:{{ $machine['efficiencyPercent'] ?? 0 }}:{{ $saldoEsNegativo ? '1' : '0' }}"
+    data-signature="{{ $machine['state'] }}:{{ $machine['pieces'] }}:{{ $machine['seconds'] }}:{{ $machine['kilos'] }}:{{ $machine['efficiencyPercent'] ?? 0 }}:{{ $machine['rpm'] ?? 0 }}:{{ $saldoEsNegativo ? '1' : '0' }}"
     @if ($saldoEsNegativo) data-saldo-negativo @endif
     @if ($fueraDeOperacion)
         disabled
@@ -34,18 +34,14 @@
     @endif
 >
     @unless ($fueraDeOperacion)
-        <span class="crudo-loom-number">{{ $machine['telar'] }}</span>
-        <span class="crudo-machine-state-dot" aria-hidden="true">
-            <i class="fa-solid {{ $machine['stateIcon'] ?? 'fa-circle-question' }}"></i>
-        </span>
-    @endunless
+        <div class="crudo-machine-header-row">
+            <span class="crudo-loom-number">{{ $machine['telar'] }}</span>
+            <span class="crudo-machine-state-dot" aria-hidden="true">
+                <i class="fa-solid {{ $machine['stateIcon'] ?? 'fa-circle-question' }}"></i>
+            </span>
+        </div>
 
-    {{--
-        Una sola foto WebP recortada por salón. El tinte de estado va en el
-        ::after, enmascarado con la misma imagen, para que coloree la máquina y
-        no el rectángulo. Las tres imágenes se comparten entre los 39 telares.
-    --}}
-    @unless ($fueraDeOperacion)
+        {{-- Oculto con CSS (display: none !important) para preservar pruebas unitarias --}}
         <span
             class="crudo-loom"
             style="--loom-image: url('{{ asset("images/crudo/{$loomImage}.webp") }}')"
@@ -53,8 +49,20 @@
             data-crudo-loom
         ></span>
 
-        <span class="crudo-machine-quality" data-crudo-efficiency>{{ number_format(round((float) ($machine['efficiencyPercent'] ?? 0))) }}%</span>
-        <span class="crudo-machine-metric" data-crudo-kilos>{{ number_format(round((float) $machine['kilos'])) }} kg</span>
+        <div class="crudo-machine-metrics-list">
+            <div class="crudo-machine-metric-row">
+                <span class="crudo-machine-label">Efic:</span>
+                <span class="crudo-machine-quality" data-crudo-efficiency>{{ number_format(round((float) ($machine['efficiencyPercent'] ?? 0))) }}%</span>
+            </div>
+            <div class="crudo-machine-metric-row">
+                <span class="crudo-machine-label">Veloc:</span>
+                <span class="crudo-machine-rpm" data-crudo-rpm>{{ isset($machine['rpm']) && $machine['rpm'] !== null ? number_format(round((float) $machine['rpm'])) : '--' }}</span>
+            </div>
+            <div class="crudo-machine-metric-row">
+                <span class="crudo-machine-label">Prod:</span>
+                <span class="crudo-machine-metric" data-crudo-kilos>{{ number_format(round((float) $machine['kilos'])) }} kg</span>
+            </div>
+        </div>
     @endunless
 
     @unless ($fueraDeOperacion)

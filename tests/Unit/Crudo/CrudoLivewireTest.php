@@ -255,7 +255,7 @@ final class CrudoLivewireTest extends TestCase
             $tabletRules,
         );
         $this->assertStringContainsString('.crudo-orders-table .crudo-orders-col-lot {', $tabletRules);
-        $this->assertStringContainsString('width: 15%', $tabletRules);
+        $this->assertStringContainsString('width: 24%', $tabletRules);
         $this->assertStringContainsString('.crudo-orders-table td {', $tabletRules);
         $this->assertStringContainsString('font-size: 0.78rem', $tabletRules);
         $this->assertStringContainsString('.crudo-flog-simulation img {', $tabletRules);

@@ -407,9 +407,10 @@ class CatCodificacionController extends Controller
                 ? trim((string) $validated['alturaRizo'])
                 : null;
             $actualizaLmat = (bool) $validated['actualizaLmat'];
-            // Si Act Lmat está desactivado, forzar BomId y BomName a null
-            $bomId = $actualizaLmat
-                ? (isset($validated['bomId']) && $validated['bomId'] !== '' && $validated['bomId'] !== null ? trim((string) $validated['bomId']) : null)
+            // La L.Mat solo se escribe cuando Act Lmat está activo Y llega un BomId.
+            // Desmarcar Act Lmat NO borra la L.Mat: se conserva la que ya tenía el registro.
+            $bomId = $actualizaLmat && isset($validated['bomId']) && $validated['bomId'] !== '' && $validated['bomId'] !== null
+                ? trim((string) $validated['bomId'])
                 : null;
 
             // Obtener BomName desde sqlsrv_ti si tenemos BomId
@@ -465,9 +466,6 @@ class CatCodificacionController extends Controller
                     // (L.Mat no vigente) se limpia, en vez de dejar pegado el del L.Mat
                     // anterior y guardar una pareja BomId/BomName que no corresponde.
                     $catCod->BomName = $bomName;
-                } else {
-                    $catCod->BomId = null;
-                    $catCod->BomName = null;
                 }
                 $catCod->save();
                 $actualizados[] = 'CatCodificados';
@@ -483,9 +481,6 @@ class CatCodificacionController extends Controller
                 if ($bomId !== null) {
                     $prog->BomId = $bomId;
                     $prog->BomName = $bomName;
-                } else {
-                    $prog->BomId = null;
-                    $prog->BomName = null;
                 }
                 $prog->save();
             }
