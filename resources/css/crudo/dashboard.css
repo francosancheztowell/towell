@@ -173,8 +173,8 @@ body:has([data-crudo-root]) main.app-main {
 
 .crudo-content-grid {
     display: grid;
-    grid-template-columns: minmax(14.25rem, 15.5rem) minmax(0, 1fr);
-    gap: 0.6rem;
+    grid-template-columns: minmax(11.2rem, 12.2rem) minmax(0, 1fr);
+    gap: 0.5rem;
     align-items: start;
 }
 
@@ -193,7 +193,7 @@ body:has([data-crudo-root]) main.app-main {
 }
 
 .crudo-panel {
-    padding: 0.68rem;
+    padding: 0.52rem;
 }
 
 .crudo-panel-heading,
@@ -297,14 +297,14 @@ body:has([data-crudo-root]) main.app-main {
     --status-bg: #f1f5f9;
     display: grid;
     /* Icono + cifra arriba, etiqueta abajo a todo el ancho: la cifra manda. */
-    grid-template-columns: 2.1rem minmax(0, 1fr);
+    grid-template-columns: 1.8rem minmax(0, 1fr);
     grid-template-rows: auto auto;
-    gap: 0.2rem 0.45rem;
+    gap: 0.15rem 0.35rem;
     align-items: center;
-    min-height: 3.8rem;
-    padding: 0.45rem 0.55rem;
+    min-height: 3.3rem;
+    padding: 0.35rem 0.42rem;
     border: 1px solid color-mix(in srgb, var(--status) 22%, white);
-    border-radius: 0.7rem;
+    border-radius: 0.65rem;
     background: var(--status-bg);
     text-align: left;
 }
@@ -380,20 +380,20 @@ button.crudo-status-card:disabled {
 
 .crudo-status-icon {
     display: grid;
-    width: 2.1rem;
-    height: 2.1rem;
+    width: 1.8rem;
+    height: 1.8rem;
     place-items: center;
-    border-radius: 0.55rem;
+    border-radius: 0.5rem;
     background: #fff;
     color: var(--status-ink, var(--status));
-    font-size: 0.88rem;
+    font-size: 0.8rem;
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--status) 18%, white);
 }
 
 .crudo-status-value {
     align-self: center;
     color: #0f172a;
-    font-size: 1.75rem;
+    font-size: 1.45rem;
     font-weight: 900;
     line-height: 1;
 }
@@ -409,7 +409,7 @@ button.crudo-status-card:disabled {
     color: #1e293b;
     /* Etiquetas largas ("Mala calidad") deben partir, no desbordar la tarjeta. */
     overflow-wrap: anywhere;
-    font-size: 0.72rem;
+    font-size: 0.67rem;
     font-weight: 800;
     line-height: 1.15;
 }
@@ -473,7 +473,7 @@ button.crudo-status-card:disabled {
 
 .crudo-kpi-kilos-col strong {
     color: #0f172a;
-    font-size: 1.65rem;
+    font-size: 1.35rem;
     font-weight: 900;
     line-height: 1.05;
 }
@@ -499,14 +499,14 @@ button.crudo-status-card:disabled {
     align-self: start;
     margin-top: 0.15rem;
     color: #7dd3fc;
-    font-size: 1.35rem;
+    font-size: 1.2rem;
     font-weight: 800;
     line-height: 1;
 }
 
 .crudo-kpi-kilos {
-    gap: 0.55rem;
-    padding: 0.55rem 0.7rem 0.7rem;
+    gap: 0.45rem;
+    padding: 0.45rem 0.55rem 0.55rem;
 }
 
 /* Barra de meta: el ancho lo pone --crudo-progress, el color el tono. */
@@ -562,7 +562,7 @@ button.crudo-status-card:disabled {
 .crudo-gauge svg {
     display: block;
     width: 100%;
-    max-width: 6.4rem;
+    max-width: 5.0rem;
     height: auto;
 }
 
@@ -650,9 +650,9 @@ button.crudo-status-card:disabled {
 .crudo-area-table th,
 .crudo-area-table td {
     border-bottom: 1px solid #e2e8f0;
-    padding: 0.34rem 0.26rem;
+    padding: 0.25rem 0.18rem;
     text-align: center;
-    font-size: 1.05rem;
+    font-size: 0.95rem;
 }
 
 .crudo-area-table th:first-child,
@@ -662,9 +662,9 @@ button.crudo-status-card:disabled {
 
 .crudo-area-table th {
     color: #475569;
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     font-weight: 800;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
 }
 
@@ -689,8 +689,8 @@ button.crudo-status-card:disabled {
  */
 .crudo-salons-grid {
     --crudo-card-min: clamp(6.6rem, 7.8vw, 9.8rem);
-    --crudo-card-h: clamp(7.4rem, 8.4vw, 9.2rem);
-    --crudo-card-h-physical: clamp(7.4rem, 8.4vw, 9.2rem);
+    --crudo-card-h: clamp(6.5rem, 7.2vw, 7.5rem);
+    --crudo-card-h-physical: clamp(6.5rem, 7.2vw, 7.5rem);
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 3fr) minmax(0, 4fr);
     gap: 0.65rem;
@@ -819,7 +819,7 @@ button.crudo-status-card:disabled {
 
 .crudo-salon-smith .crudo-machine-column:nth-child(n + 3)::before {
     display: block;
-    min-height: var(--crudo-card-h-physical, 8.2rem);
+    min-height: var(--crudo-card-h-physical, 7.2rem);
     content: "";
 }
 
@@ -829,13 +829,13 @@ button.crudo-status-card:disabled {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    gap: 0.28rem;
+    gap: 0.22rem;
     min-width: 0;
-    min-height: var(--crudo-card-h, 8.2rem);
+    min-height: var(--crudo-card-h, 7.2rem);
     border: 1.5px solid color-mix(in srgb, var(--machine-accent) 55%, #cbd5e1);
     border-radius: 0.75rem;
     background: var(--status-bg);
-    padding: 0.38rem 0.48rem;
+    padding: 0.32rem 0.44rem 0.32rem;
     color: var(--machine-accent);
     contain: layout paint style;
     outline: none;
@@ -854,8 +854,8 @@ button.crudo-status-card:disabled {
 }
 
 .crudo-machine-grid-physical .crudo-machine-card {
-    min-height: var(--crudo-card-h-physical, 8.2rem);
-    padding: 0.34rem 0.44rem;
+    min-height: var(--crudo-card-h-physical, 7.2rem);
+    padding: 0.3rem 0.4rem 0.3rem;
 }
 
 .crudo-machine-card:hover,
@@ -948,10 +948,10 @@ button.crudo-status-card:disabled {
 .crudo-machine-grid-metrics {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.25rem 0.32rem;
+    gap: 0.22rem 0.28rem;
     width: 100%;
-    margin-top: 0;
-    padding-top: 0;
+    margin: 0;
+    padding: 0;
 }
 
 .crudo-machine-metric-cell {
@@ -960,12 +960,12 @@ button.crudo-status-card:disabled {
     align-items: center;
     justify-content: center;
     min-width: 0;
-    padding: 0.16rem 0.2rem 0.22rem;
+    padding: 0.14rem 0.2rem 0.18rem;
     border-radius: 0.38rem;
     background: rgba(15, 23, 42, 0.25);
     border: 1px solid rgba(255, 255, 255, 0.18);
     box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.08);
-    line-height: 1.1;
+    line-height: 1.05;
     text-align: center;
 }
 
@@ -3600,9 +3600,9 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-machine-grid-physical .crudo-machine-card {
-        min-height: 7.6rem;
-        padding: 0.3rem 0.38rem;
-        gap: 0.2rem;
+        min-height: 6.8rem;
+        padding: 0.28rem 0.35rem 0.28rem;
+        gap: 0.18rem;
     }
 
     .crudo-machine-grid-physical .crudo-loom {
@@ -3617,7 +3617,7 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-machine-grid-physical .crudo-machine-metric-cell {
-        padding: 0.12rem 0.15rem 0.18rem;
+        padding: 0.1rem 0.15rem 0.14rem;
     }
 
     .crudo-machine-grid-physical .crudo-machine-label {
@@ -3628,11 +3628,11 @@ button.crudo-status-card:disabled {
     .crudo-machine-grid-physical .crudo-machine-rpm,
     .crudo-machine-grid-physical .crudo-machine-metric,
     .crudo-machine-grid-physical .crudo-machine-saldo {
-        font-size: 0.98rem;
+        font-size: 0.94rem;
     }
 
     .crudo-salon-smith .crudo-machine-column:nth-child(n + 3)::before {
-        min-height: 7.6rem;
+        min-height: 6.8rem;
     }
 
     .crudo-panel {
@@ -4095,11 +4095,11 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-machine-card {
-        min-height: 8.0rem;
+        min-height: 7.2rem;
     }
 
     .crudo-salon-smith .crudo-machine-column:nth-child(n + 3)::before {
-        min-height: 8.0rem;
+        min-height: 7.2rem;
     }
 }
 
@@ -4132,11 +4132,11 @@ button.crudo-status-card:disabled {
 
     /* Con el piso a todo lo ancho las tarjetas ya no se aprietan. */
     .crudo-machine-grid-physical .crudo-machine-card {
-        min-height: 8.0rem;
+        min-height: 7.2rem;
     }
 
     .crudo-salon-smith .crudo-machine-column:nth-child(n + 3)::before {
-        min-height: 8.0rem;
+        min-height: 7.2rem;
     }
 }
 
@@ -4248,8 +4248,8 @@ button.crudo-status-card:disabled {
     .crudo-dashboard:fullscreen .crudo-salons-grid,
     :fullscreen .crudo-dashboard .crudo-salons-grid {
         --crudo-card-min: clamp(8.5rem, 6vw, 13rem);
-        --crudo-card-h: clamp(9.6rem, 7vw, 13.5rem);
-        --crudo-card-h-physical: clamp(9.6rem, 7vw, 13.5rem);
+        --crudo-card-h: clamp(8.6rem, 6.2vw, 11.5rem);
+        --crudo-card-h-physical: clamp(8.6rem, 6.2vw, 11.5rem);
     }
 
     .crudo-loom {
