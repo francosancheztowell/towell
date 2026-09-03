@@ -63,6 +63,8 @@ class OrdenesTrabajoMecaController extends Controller
             'puedeFinalizar' => $this->puedeFinalizarComoMecanico(),
             'puedeCalificar' => $this->puedeCalificarComoTejedor(),
             'turnoSugerido' => (int) TurnoHelper::getTurnoActual(),
+            'fechaSugerida' => $this->ahoraPlanta()->toDateString(),
+            'horaSugerida' => $this->ahoraPlanta()->format('H:i'),
         ]);
     }
 
@@ -102,6 +104,7 @@ class OrdenesTrabajoMecaController extends Controller
             'usuarioCapturaCve' => trim((string) ($usuario->numero_empleado ?? '')),
             'usuarioCapturaNombre' => trim((string) ($usuario->nombre ?? '')),
             'turnoSugerido' => (int) TurnoHelper::getTurnoActual(),
+            'fechaSugerida' => $this->ahoraPlanta()->toDateString(),
         ]);
     }
 
@@ -280,7 +283,8 @@ class OrdenesTrabajoMecaController extends Controller
                     ...$datos,
                     'Folio' => $folio,
                     'Fecha' => $datos['Fecha'],
-                    'Estatus' => $datos['Estatus'] ?? 'Activo',
+                    // Toda orden nace Activa; el estatus solo avanza por el flujo.
+                    'Estatus' => self::ESTATUS_ACTIVO,
                 ]);
 
                 $this->asegurarLineaInicial($orden);
@@ -728,7 +732,6 @@ class OrdenesTrabajoMecaController extends Controller
             'Comentarios' => ['nullable', 'string', 'max:500'],
             'FechaParo' => ['nullable', 'date'],
             'HoraParo' => ['nullable', 'date_format:H:i'],
-            'Estatus' => ['nullable', 'string', 'max:15'],
             'Orden' => ['nullable', 'string', 'max:20'],
             'Turno' => ['nullable', 'integer', 'between:1,3'],
         ];
@@ -803,6 +806,7 @@ class OrdenesTrabajoMecaController extends Controller
             'HoraFinal' => ['nullable', 'date_format:H:i'],
             // Turno 4 es el comodín que cubre descansos (ver TurnoHelper).
             'Turno' => ['required', 'integer', 'between:1,4'],
+            'Fecha' => ['required', 'date_format:Y-m-d'],
             'comentarios' => ['nullable', 'string', 'max:500'],
             'Calificacion' => ['nullable', 'integer', 'between:1,10'],
             'CveTejedor' => ['nullable', 'string', 'max:30'],
@@ -812,7 +816,7 @@ class OrdenesTrabajoMecaController extends Controller
 
     private function normalizarCabecera(array $datos): array
     {
-        foreach (['TelarId', 'FolioParo', 'Falla', 'Comentarios', 'Estatus', 'Orden'] as $campo) {
+        foreach (['TelarId', 'FolioParo', 'Falla', 'Comentarios', 'Orden'] as $campo) {
             if (array_key_exists($campo, $datos)) {
                 $valor = trim((string) ($datos[$campo] ?? ''));
                 $datos[$campo] = $valor !== '' ? $valor : null;
@@ -881,11 +885,20 @@ class OrdenesTrabajoMecaController extends Controller
     }
 
     /**
+     * Reloj de planta. Único origen de los valores sugeridos en la UI para que
+     * no dependan de la zona horaria del navegador del mecánico.
+     */
+    private function ahoraPlanta(): Carbon
+    {
+        return now('America/Mexico_City');
+    }
+
+    /**
      * Fecha de la orden = día en que se genera el folio, no la fecha del paro.
      */
     private function fechaCreacionFolio(): string
     {
-        return now('America/Mexico_City')->toDateString();
+        return $this->ahoraPlanta()->toDateString();
     }
 
     private function siguienteFolio(): string

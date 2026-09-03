@@ -28,6 +28,7 @@
     $puedeAutorizar = $puedeAutorizar ?? false;
     $bloqueadaEdicion = $bloqueadaEdicion ?? in_array($estatusActual, ['Terminado', 'Calificado', 'Autorizado'], true);
     $turnoSugerido = (int) ($turnoSugerido ?? \App\Helpers\TurnoHelper::getTurnoActual());
+    $fechaSugerida = $fechaSugerida ?? now('America/Mexico_City')->toDateString();
 @endphp
 <div class="w-full p-3 sm:p-4 lg:p-5">
     <div class="mx-auto max-w-7xl space-y-3 lg:max-w-[100rem] lg:space-y-4">
@@ -114,7 +115,7 @@
                 <input id="linea-id" type="hidden">
 
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12 lg:gap-4">
-                    <div class="lg:col-span-8">
+                    <div class="lg:col-span-6">
                         <label for="linea-operador" class="mb-1 block text-sm font-medium text-gray-700">Mecánico <span class="font-normal text-gray-500">(capturando)</span></label>
                         <select id="linea-operador" name="CveOperador"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
@@ -127,7 +128,7 @@
                         {{-- El nombre viaja junto con la clave: el select ya muestra ambos. --}}
                         <input id="linea-nom-operador" name="NomOperador" type="hidden" maxlength="150">
                     </div>
-                    <div class="lg:col-span-4">
+                    <div class="lg:col-span-3">
                         <label for="linea-turno" class="mb-1 block text-sm font-medium text-gray-700">Turno <span class="font-normal text-gray-500">(registro)</span></label>
                         <select id="linea-turno" name="Turno"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
@@ -135,7 +136,13 @@
                                 <option value="{{ $turno }}" @selected($turno === $turnoSugerido)>Turno {{ $turno }}@if ($turno === 4) · comodín @endif</option>
                             @endforeach
                         </select>
-                        <p class="mt-1 text-xs text-gray-500">Sugerido por la hora del sistema: Turno {{ $turnoSugerido }}.</p>
+                        <p class="mt-1 text-xs text-gray-500">Sugerido: Turno {{ $turnoSugerido }}.</p>
+                    </div>
+                    <div class="lg:col-span-3">
+                        <label for="linea-fecha" class="mb-1 block text-sm font-medium text-gray-700">Fecha <span class="font-normal text-gray-500">(registro)</span></label>
+                        <input id="linea-fecha" name="Fecha" type="date" value="{{ $fechaSugerida }}"
+                            class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+                        <p class="mt-1 text-xs text-gray-500">Sugerida: hoy.</p>
                     </div>
                 </div>
 
@@ -209,6 +216,7 @@
                             <th class="whitespace-nowrap px-3 py-2.5 text-left">Clave</th>
                             <th class="min-w-40 px-3 py-2.5 text-left">Mecánico</th>
                             <th class="px-2 py-2.5 text-center">Turno</th>
+                            <th class="whitespace-nowrap px-3 py-2.5 text-center">Fecha</th>
                             <th class="px-2 py-2.5 text-center">Ajustó</th>
                             <th class="px-2 py-2.5 text-center">Reparó</th>
                             <th class="px-2 py-2.5 text-center">Cambió</th>
@@ -253,6 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const capturaCve = @json($usuarioCapturaCve ?? '');
     const capturaNombre = @json($usuarioCapturaNombre ?? '');
     const turnoSugerido = @json($turnoSugerido);
+    const fechaSugerida = @json($fechaSugerida);
 
     const $ = (selector) => document.querySelector(selector);
     const lineasBody = $('#lineas-body');
@@ -267,6 +276,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return text ? escapeHtml(text) : '<span class="text-gray-400">—</span>';
     };
     const timeInputValue = (value) => value ? String(value).slice(0, 5) : '';
+    const dateInputValue = (value) => value ? String(value).slice(0, 10) : '';
+    const dateDisplay = (value) => {
+        const fecha = dateInputValue(value);
+        if (! fecha) return '<span class="text-gray-400">—</span>';
+        const [anio, mes, dia] = fecha.split('-');
+        return `${dia}/${mes}/${anio}`;
+    };
     const iconoBooleano = (value) => value
         ? '<i class="fas fa-check text-green-600" aria-label="Sí"></i>'
         : '<span class="text-gray-300">—</span>';
@@ -361,7 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#total-lineas').textContent = `${lineas.length} ${lineas.length === 1 ? 'renglón' : 'renglones'}`;
 
         if (! lineas.length) {
-            lineasBody.innerHTML = '<tr><td colspan="16" class="px-4 py-10 text-center text-sm text-gray-500">No hay renglones capturados.</td></tr>';
+            lineasBody.innerHTML = '<tr><td colspan="17" class="px-4 py-10 text-center text-sm text-gray-500">No hay renglones capturados.</td></tr>';
             return;
         }
 
@@ -392,6 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="whitespace-nowrap px-3 py-2.5 text-gray-700">${display(linea.CveOperador)}</td>
                 <td class="px-3 py-2.5 font-medium text-gray-800">${display(linea.NomOperador)}</td>
                 <td class="px-2 py-2.5 text-center text-gray-700">${display(linea.Turno)}</td>
+                <td class="whitespace-nowrap px-3 py-2.5 text-center text-gray-700">${dateDisplay(linea.Fecha)}</td>
                 <td class="px-2 py-2.5 text-center">${iconoBooleano(linea.Ajusto)}</td>
                 <td class="px-2 py-2.5 text-center">${iconoBooleano(linea.Reparo)}</td>
                 <td class="px-2 py-2.5 text-center">${iconoBooleano(linea.Cambio)}</td>
@@ -439,6 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#linea-hora-inicial').value = timeInputValue(linea.HoraInicial);
         $('#linea-hora-final').value = timeInputValue(linea.HoraFinal);
         aplicarTurno(linea.Turno);
+        aplicarFecha(linea.Fecha);
         $('#linea-comentarios').value = linea.comentarios || '';
         if ($('#linea-calificacion')) $('#linea-calificacion').value = linea.Calificacion ?? '';
         if ($('#linea-cve-tejedor')) $('#linea-cve-tejedor').value = linea.CveTejedor || '';
@@ -463,6 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#btn-guardar-linea').textContent = 'Guardar intervención';
         aplicarUsuarioCaptura();
         aplicarTurno(null);
+        aplicarFecha(null);
         actualizarContadorComentarios();
         document.getElementById('seccion-captura')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         $('#linea-operador')?.focus();
@@ -476,6 +495,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (! select) return;
         const turno = [1, 2, 3, 4].includes(Number(valor)) ? Number(valor) : Number(turnoSugerido);
         select.value = String(turno);
+    }
+
+    /**
+     * Fecha del renglón: la capturada si existe, si no la de hoy en planta.
+     */
+    function aplicarFecha(valor) {
+        const input = $('#linea-fecha');
+        if (! input) return;
+        input.value = dateInputValue(valor) || fechaSugerida;
     }
 
     function actualizarContadorComentarios() {
@@ -542,6 +570,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (! [1, 2, 3, 4].includes(Number(data.Turno))) {
             return 'Selecciona el turno en el que se está registrando la intervención.';
+        }
+        if (! /^\d{4}-\d{2}-\d{2}$/.test(String(data.Fecha || ''))) {
+            return 'Captura la fecha en la que se está registrando la intervención.';
         }
         if (! tieneTrabajo) {
             return 'Marca al menos un trabajo realizado (Ajustó, Reparó, Cambió, Lubricó o Falta refacc.).';

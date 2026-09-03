@@ -131,6 +131,7 @@
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                     <label for="cabecera-telar" class="mb-1 block text-xs font-medium text-gray-700">Máquina <span class="text-red-600">*</span></label>
+                    {{-- Al crear se refleja desde el selector de arriba; solo se edita en edición de cabecera. --}}
                     <input id="cabecera-telar" name="TelarId" maxlength="50" required placeholder="Ej. 201"
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                 </div>
@@ -138,17 +139,6 @@
                     <label for="cabecera-folio-paro" class="mb-1 block text-xs font-medium text-gray-700">Folio de paro</label>
                     <input id="cabecera-folio-paro" maxlength="30" readonly
                         class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 outline-none">
-                </div>
-                <div>
-                    <label for="cabecera-estatus" class="mb-1 block text-xs font-medium text-gray-700">Estatus</label>
-                    <select id="cabecera-estatus" name="Estatus"
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                        <option value="Activo">Activo</option>
-                        <option value="Terminado">Terminado</option>
-                        <option value="Calificado">Calificado</option>
-                        <option value="Autorizado">Autorizado</option>
-                        <option value="Cancelado">Cancelado</option>
-                    </select>
                 </div>
                 <div class="md:col-span-2">
                     <label for="cabecera-falla" class="mb-1 block text-xs font-medium text-gray-700">Descripción de falla <span class="text-red-600">*</span></label>
@@ -224,10 +214,12 @@
                 <i class="fas fa-arrows-alt-h mr-1"></i> Desliza horizontalmente para consultar todos los datos de cada intervención.
             </div>
             <div class="max-w-full overflow-x-auto overscroll-x-contain rounded-md border border-gray-200" tabindex="0" aria-label="Tabla de intervenciones; desplázate horizontalmente para ver todas las columnas">
-                <table id="tabla-lineas" class="min-w-[1260px] divide-y divide-gray-200 text-xs">
+                <table id="tabla-lineas" class="min-w-[1500px] divide-y divide-gray-200 text-xs">
                     <thead class="bg-gray-50 font-semibold uppercase tracking-wide text-gray-600">
                         <tr>
                             <th class="px-3 py-3 text-left">Mecánico</th>
+                            <th class="px-2 py-3 text-center">Turno</th>
+                            <th class="whitespace-nowrap px-3 py-3 text-center">Fecha</th>
                             <th class="px-2 py-3 text-center">Ajustó</th>
                             <th class="px-2 py-3 text-center">Reparó</th>
                             <th class="px-2 py-3 text-center">Cambió</th>
@@ -236,6 +228,7 @@
                             <th class="px-3 py-3 text-center">H. inicial</th>
                             <th class="px-3 py-3 text-center">H. final</th>
                             <th class="px-3 py-3 text-center">Minutos</th>
+                            <th class="min-w-48 px-3 py-3 text-left">Comentarios</th>
                             <th class="px-3 py-3 text-center">Calif.</th>
                             <th class="px-3 py-3 text-left">Tejedor</th>
                             <th class="px-3 py-3 text-right">Acciones</th>
@@ -266,17 +259,28 @@
 
         <form id="form-linea" class="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5">
             <input id="linea-id" type="hidden">
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
+                <div class="md:col-span-2">
                     <label for="linea-operador" class="mb-1 block text-xs font-medium text-gray-700">Mecánico</label>
                     <select id="linea-operador" name="CveOperador"
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                         <option value="">Seleccione</option>
                     </select>
+                    {{-- El nombre viaja junto con la clave: el select ya muestra ambos. --}}
+                    <input id="linea-nom-operador" name="NomOperador" type="hidden" maxlength="150">
                 </div>
                 <div>
-                    <label for="linea-nom-operador" class="mb-1 block text-xs font-medium text-gray-700">Nombre mecánico</label>
-                    <input id="linea-nom-operador" name="NomOperador" maxlength="150"
+                    <label for="linea-turno" class="mb-1 block text-xs font-medium text-gray-700">Turno</label>
+                    <select id="linea-turno" name="Turno"
+                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+                        @foreach ([1, 2, 3, 4] as $turno)
+                            <option value="{{ $turno }}">Turno {{ $turno }}@if ($turno === 4) · comodín @endif</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="linea-fecha" class="mb-1 block text-xs font-medium text-gray-700">Fecha</label>
+                    <input id="linea-fecha" name="Fecha" type="date"
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                 </div>
             </div>
@@ -334,6 +338,13 @@
                 </div>
             </div>
 
+            <div class="mt-5">
+                <label for="linea-comentarios" class="mb-1 block text-xs font-medium text-gray-700">Comentarios <span class="font-normal text-gray-500">(opcional)</span></label>
+                <textarea id="linea-comentarios" name="comentarios" rows="3" maxlength="500"
+                    placeholder="Detalle de la intervención, refacciones pendientes, observaciones para el siguiente turno…"
+                    class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"></textarea>
+            </div>
+
             <div class="sticky bottom-0 -mx-4 mt-6 flex justify-end border-t border-gray-200 bg-white px-4 pt-4 sm:-mx-5 sm:px-5">
                 <button id="btn-guardar-linea" type="submit" class="w-full rounded-md bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black sm:w-auto">
                     Guardar intervención
@@ -350,6 +361,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const baseUrl = @json(url('/mecanicos/ordenes-trabajo'));
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || @json(csrf_token());
     const turnoSugerido = @json((string) $turnoSugerido);
+    const fechaSugerida = @json($fechaSugerida);
+    const horaSugerida = @json($horaSugerida);
     const telaresCatalogo = @json($telares);
     const operadores = @json($operadores);
     const puedeCrear = @json($puedeCrear);
@@ -618,7 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const puedeEditarLinea = ! bloqueadaEdicion && puedeEditar;
         const puedeEliminarLinea = ! bloqueadaEdicion && puedeEliminar;
         if (! lineas.length) {
-            lineasBody.innerHTML = '<tr><td colspan="12" class="px-4 py-8 text-center text-sm text-gray-500">No hay renglones.</td></tr>';
+            lineasBody.innerHTML = '<tr><td colspan="15" class="px-4 py-8 text-center text-sm text-gray-500">No hay renglones.</td></tr>';
             return;
         }
 
@@ -634,6 +647,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
             <tr class="hover:bg-gray-50">
                 <td class="px-3 py-3 text-gray-800"><span class="font-medium">${display(linea.NomOperador)}</span><br><span class="text-gray-500">${display(linea.CveOperador)}</span></td>
+                <td class="px-2 py-3 text-center text-gray-700">${display(linea.Turno)}</td>
+                <td class="whitespace-nowrap px-3 py-3 text-center text-gray-700">${dateDisplay(linea.Fecha)}</td>
                 <td class="px-2 py-3 text-center">${iconoBooleano(linea.Ajusto)}</td>
                 <td class="px-2 py-3 text-center">${iconoBooleano(linea.Reparo)}</td>
                 <td class="px-2 py-3 text-center">${iconoBooleano(linea.Cambio)}</td>
@@ -642,6 +657,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="whitespace-nowrap px-3 py-3 text-center text-gray-700">${display(timeInputValue(linea.HoraInicial))}</td>
                 <td class="whitespace-nowrap px-3 py-3 text-center text-gray-700">${display(timeInputValue(linea.HoraFinal))}</td>
                 <td class="px-3 py-3 text-center text-gray-700">${display(linea.TotalMinutos)}</td>
+                <td class="px-3 py-3 text-gray-700"><span class="line-clamp-2" title="${escapeHtml(linea.comentarios ?? '')}">${display(linea.comentarios)}</span></td>
                 <td class="px-3 py-3 text-center text-gray-700">${display(linea.Calificacion)}</td>
                 <td class="px-3 py-3 text-gray-800"><span class="font-medium">${display(linea.NomTejedor)}</span><br><span class="text-gray-500">${display(linea.CveTejedor)}</span></td>
                 <td class="whitespace-nowrap px-3 py-3 text-right">${acciones}</td>
@@ -651,7 +667,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function camposCapturaManual() {
         return [
-            'cabecera-telar',
             'cabecera-falla',
             'cabecera-comentarios',
         ];
@@ -663,8 +678,15 @@ document.addEventListener('DOMContentLoaded', () => {
             'cabecera-fecha-paro',
             'cabecera-hora-paro',
             'cabecera-orden',
-            'cabecera-estatus',
         ];
+    }
+
+    /**
+     * En captura manual no hay paro que consultar: la fecha y la hora se sugieren
+     * con el reloj de planta, pero el mecánico puede corregirlas.
+     */
+    function camposParoEditablesEnManual() {
+        return ['cabecera-fecha-paro', 'cabecera-hora-paro'];
     }
 
     function establecerCamposCreacion({ manual = false, hayParos = false, telarSeleccionado = false } = {}) {
@@ -677,16 +699,28 @@ document.addEventListener('DOMContentLoaded', () => {
             campo.classList.toggle('bg-gray-50', !manual);
             campo.classList.toggle('text-gray-600', !manual);
         });
+
+        // La máquina se elige en el selector de arriba; aquí solo se refleja.
+        const telar = $('#cabecera-telar');
+        telar.readOnly = true;
+        telar.classList.add('bg-gray-50', 'text-gray-600');
+
         camposDatosParo().forEach(id => {
-            document.getElementById(id).disabled = true;
+            const editable = manual && camposParoEditablesEnManual().includes(id);
+            const campo = document.getElementById(id);
+            campo.disabled = ! editable;
+            campo.classList.toggle('bg-gray-50', ! editable);
+            campo.classList.toggle('text-gray-600', ! editable);
         });
 
         const turno = $('#cabecera-turno');
         turno.disabled = !manual;
         turno.classList.toggle('bg-gray-50', !manual);
         turno.classList.toggle('text-gray-600', !manual);
-        if (manual && ! turno.value) {
-            turno.value = turnoSugerido;
+        if (manual) {
+            if (! turno.value) turno.value = turnoSugerido;
+            if (! $('#cabecera-fecha-paro').value) $('#cabecera-fecha-paro').value = fechaSugerida;
+            if (! $('#cabecera-hora-paro').value) $('#cabecera-hora-paro').value = horaSugerida;
         }
 
         const check = $('#check-captura-manual');
@@ -700,7 +734,7 @@ document.addEventListener('DOMContentLoaded', () => {
         check.disabled = false;
         check.checked = manual;
         $('#ayuda-captura-manual').textContent = hayParos
-            ? 'Selecciona un folio de paro de las últimas 12 horas, o habilita la captura manual para editar el turno.'
+            ? 'Selecciona un folio de paro de las últimas 12 horas, o habilita la captura manual para editar falla, turno, fecha y hora.'
             : 'No hay paros de las últimas 12 horas para esta máquina. La captura manual está habilitada.';
     }
 
@@ -775,7 +809,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function resetearCabecera() {
         $('#form-cabecera').reset();
         $('#cabecera-folio').value = '';
-        $('#cabecera-estatus').value = 'Activo';
         $('#titulo-modal-cabecera').textContent = 'Nueva orden de trabajo';
         $('#subtitulo-modal-cabecera').textContent = 'El folio se asigna al guardar.';
         $('#btn-guardar-cabecera').textContent = 'Guardar orden';
@@ -801,7 +834,6 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#cabecera-comentarios').value = state.orden.Comentarios || '';
         $('#cabecera-fecha-paro').value = dateInputValue(state.orden.FechaParo);
         $('#cabecera-hora-paro').value = timeInputValue(state.orden.HoraParo);
-        $('#cabecera-estatus').value = state.orden.Estatus || 'Activo';
         $('#cabecera-orden').value = state.orden.Orden || '';
         $('#cabecera-turno').value = state.orden.Turno || '';
         $('#titulo-modal-cabecera').textContent = `Editar orden ${state.orden.Folio}`;
@@ -811,6 +843,7 @@ document.addEventListener('DOMContentLoaded', () => {
         [
             ...camposCapturaManual(),
             ...camposDatosParo(),
+            'cabecera-telar',
             'cabecera-turno',
         ].forEach(id => {
             const campo = document.getElementById(id);
@@ -818,6 +851,8 @@ document.addEventListener('DOMContentLoaded', () => {
             campo.readOnly = false;
             campo.classList.remove('bg-gray-50', 'text-gray-600');
         });
+        // El folio de paro se hereda del paro: nunca se teclea, tampoco en edición.
+        $('#cabecera-folio-paro').readOnly = true;
         abrirModal(modalCabecera);
     }
 
@@ -883,7 +918,6 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#cabecera-hora-paro').value = timeInputValue(paro.Hora);
         $('#cabecera-orden').value = paro.OrdenTrabajo || '';
         $('#cabecera-turno').value = paro.Turno || '';
-        $('#cabecera-estatus').value = 'Activo';
         establecerCamposCreacion({ hayParos: true, telarSeleccionado: true });
     }
 
@@ -900,8 +934,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ].forEach(id => {
             document.getElementById(id).value = '';
         });
-
-        $('#cabecera-estatus').value = 'Activo';
     }
 
     function limpiarCabeceraParaSeleccionTelar() {
@@ -928,6 +960,20 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#subtitulo-modal-linea').textContent = state.orden ? `Orden ${state.orden.Folio}` : '';
         $('#btn-guardar-linea').textContent = 'Guardar intervención';
         llenarSelectOperadores();
+        aplicarTurnoLinea(null);
+        aplicarFechaLinea(null);
+    }
+
+    /**
+     * Turno y fecha del renglón: los capturados si existen, si no los del reloj de planta.
+     */
+    function aplicarTurnoLinea(valor) {
+        const turno = ['1', '2', '3', '4'].includes(String(valor)) ? String(valor) : turnoSugerido;
+        $('#linea-turno').value = turno;
+    }
+
+    function aplicarFechaLinea(valor) {
+        $('#linea-fecha').value = dateInputValue(valor) || fechaSugerida;
     }
 
     function abrirNuevaLinea() {
@@ -951,6 +997,9 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#linea-falta-refacc').checked = Boolean(linea.FaltaRefacc);
         $('#linea-hora-inicial').value = timeInputValue(linea.HoraInicial);
         $('#linea-hora-final').value = timeInputValue(linea.HoraFinal);
+        aplicarTurnoLinea(linea.Turno);
+        aplicarFechaLinea(linea.Fecha);
+        $('#linea-comentarios').value = linea.comentarios || '';
         $('#linea-calificacion').value = linea.Calificacion ?? '';
         $('#linea-cve-tejedor').value = linea.CveTejedor || '';
         $('#linea-nom-tejedor').value = linea.NomTejedor || '';
@@ -1107,7 +1156,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     $('#linea-operador').addEventListener('change', () => {
-        const operador = operadoresPorClave.get($('#linea-operador').value);
+        const clave = $('#linea-operador').value;
+        if (! clave) {
+            $('#linea-nom-operador').value = '';
+            return;
+        }
+        const operador = operadoresPorClave.get(clave);
         if (operador) $('#linea-nom-operador').value = operador.NomEmpl || '';
     });
     $('#linea-hora-inicial').addEventListener('input', calcularMinutosEnPantalla);
