@@ -40,7 +40,7 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
 
     private const SALON_HEADERS = [
         'Salón', 'Telares', 'Paro', 'Mala calidad', 'Bajos kg', 'En operación', 'Sin datos',
-        'Kg', 'Kg Meta', '% Cumpl.',
+        'Segundas/Telar', 'Kg', 'Kg Meta', '% Cumpl.',
     ];
 
     private const PESO_HEADERS = ['Telar', 'Orden', 'Producto'];
@@ -348,7 +348,7 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
             $label,
             $machine->paro['falla'] ?? '',
             $machine->programa['orden'] ?? '',
-            $machine->programa['claveModelo'] ?? ($machine->programa['nombreProducto'] ?? ''),
+            $machine->programa['nombreProducto'] ?? ($machine->programa['claveModelo'] ?? ''),
             round($machine->pieces),
             round($machine->seconds),
             round($machine->secondsPercent, 1),
@@ -367,7 +367,7 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
         $this->salonHeaderRow = count($this->rows) + 1;
         $this->rows[] = self::SALON_HEADERS;
 
-        $vacio = ['telares' => 0, 'kilos' => 0.0, 'meta' => 0.0] + array_fill_keys(self::GROUP_ORDER, 0);
+        $vacio = ['telares' => 0, 'kilos' => 0.0, 'meta' => 0.0, 'segundas' => 0.0] + array_fill_keys(self::GROUP_ORDER, 0);
         $salones = [];
         $totales = $vacio;
 
@@ -377,9 +377,11 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
             $salones[$machine->salon]['telares']++;
             $salones[$machine->salon][$machine->state->value]++;
             $salones[$machine->salon]['kilos'] += $machine->kilos;
+            $salones[$machine->salon]['segundas'] += $machine->seconds;
             $totales['telares']++;
             $totales[$machine->state->value]++;
             $totales['kilos'] += $machine->kilos;
+            $totales['segundas'] += $machine->seconds;
 
             if ($machine->productionStandardStatus === CrudoProductionTargetService::COMPLETE) {
                 $salones[$machine->salon]['meta'] += $machine->expectedKilos;
@@ -409,6 +411,7 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
             $datos['low_kilos'],
             $datos['operating'],
             $datos['no_data'],
+            $datos['telares'] > 0 ? round($datos['segundas'] / $datos['telares'], 1) : 0,
             round($datos['kilos'], 1),
             round($datos['meta'], 1),
             $datos['meta'] > 0 ? round(($datos['kilos'] / $datos['meta']) * 100, 1) : null,
@@ -630,8 +633,16 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
             ->setBorderStyle(Border::BORDER_THIN)->getColor()->setARGB('FFCBD5E1');
         $sheet->getStyle('B'.($header + 1).":{$lastColumn}{$total}")->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_CENTER);
-        $sheet->getStyle('H'.($header + 1).":I{$total}")->getNumberFormat()->setFormatCode('#,##0.0');
-        $sheet->getStyle('J'.($header + 1).":J{$total}")->getNumberFormat()->setFormatCode('0.0"%"');
+        $sheet->getStyle('H'.($header + 1).":H{$total}")->getNumberFormat()->setFormatCode('#,##0.0');
+        $sheet->getStyle('I'.($header + 1).":J{$total}")->getNumberFormat()->setFormatCode('#,##0.0');
+        $sheet->getStyle('K'.($header + 1).":K{$total}")->getNumberFormat()->setFormatCode('0.0"%"');
+
+        // Segundas/Telar: columna propia resaltada para que salte a la vista.
+        $sheet->getStyle('H'.($header + 1).":H{$total}")->getFont()
+            ->setBold(true)->getColor()->setARGB('FF96700A');
+        $sheet->getStyle('H'.($header + 1).":H{$total}")->getFill()
+            ->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFF9D1');
+
         $sheet->getStyle("A{$total}:{$lastColumn}{$total}")->getFont()->setBold(true);
         $sheet->getStyle("A{$total}:{$lastColumn}{$total}")->getFill()
             ->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFE2E8F0');
