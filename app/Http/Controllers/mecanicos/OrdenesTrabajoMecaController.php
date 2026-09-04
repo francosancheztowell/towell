@@ -6,20 +6,20 @@ use App\Helpers\FolioHelper;
 use App\Helpers\TurnoHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Mantenimiento\ManFallasParos;
-use App\Models\Mantenimiento\ManOperadoresMantenimiento;
 use App\Models\Mecanicos\MecOrdenTrabajoLineModel;
 use App\Models\Mecanicos\MecOrdenTrabajoModel;
 use App\Models\Sistema\SSYSFoliosSecuencia;
 use App\Models\Sistema\SYSRoles;
+use App\Models\Sistema\Usuario;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\Mecanicos\CalificacionParoService;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -30,6 +30,12 @@ class OrdenesTrabajoMecaController extends Controller
     private const MODULO_PERMISO = 'Ordenes de Trabajo';
 
     private const MODULO_FOLIOS = 'Mecanicos';
+
+    /**
+     * Área de SYSUsuario que agrupa a los mecánicos que capturan intervenciones.
+     * Se compara en mayúsculas porque el campo se captura a mano.
+     */
+    private const AREA_MANTENIMIENTO = 'MANTENIMIENTO';
 
     private const PREFIJO_FOLIOS = 'MEC';
 
@@ -783,11 +789,34 @@ class OrdenesTrabajoMecaController extends Controller
         });
     }
 
-    private function operadoresMecanicos(): Collection
+    /**
+     * Mecánicos que pueden aparecer como "capturando" en un renglón.
+     *
+     * Salen de SYSUsuario (área Mantenimiento) y no del catálogo
+     * ManOperadoresMantenimiento: quien captura una intervención es una persona
+     * con cuenta, área y permisos en el sistema, y esa es la única tabla que lo
+     * garantiza. El catálogo sigue siendo el de paros de mantenimiento y puede
+     * tener gente sin acceso a la aplicación.
+     *
+     * Las claves se conservan (CveEmpl/NomEmpl/Turno/Depto) para no cambiar el
+     * contrato de la vista ni el de los renglones ya guardados.
+     *
+     * @return SupportCollection<int, object>
+     */
+    private function operadoresMecanicos(): SupportCollection
     {
-        return ManOperadoresMantenimiento::query()
-            ->orderBy('NomEmpl')
-            ->get(['CveEmpl', 'NomEmpl', 'Turno', 'Depto']);
+        return Usuario::query()
+            ->whereRaw('UPPER(LTRIM(RTRIM(area))) = ?', [self::AREA_MANTENIMIENTO])
+            ->orderBy('nombre')
+            ->get(['numero_empleado', 'nombre', 'turno', 'puesto'])
+            ->map(fn (Usuario $usuario) => (object) [
+                'CveEmpl' => trim((string) $usuario->numero_empleado),
+                'NomEmpl' => trim((string) $usuario->nombre),
+                'Turno' => $usuario->turno !== null ? (int) $usuario->turno : null,
+                'Depto' => trim((string) ($usuario->puesto ?? '')),
+            ])
+            ->filter(fn (object $operador) => $operador->CveEmpl !== '')
+            ->values();
     }
 
     /**
