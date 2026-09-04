@@ -10,6 +10,7 @@ use App\Models\Mantenimiento\ManOperadoresMantenimiento;
 use App\Models\Mecanicos\MecOrdenTrabajoLineModel;
 use App\Models\Mecanicos\MecOrdenTrabajoModel;
 use App\Models\Sistema\SSYSFoliosSecuencia;
+use App\Models\Sistema\SYSRoles;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\Mecanicos\CalificacionParoService;
@@ -440,16 +441,37 @@ class OrdenesTrabajoMecaController extends Controller
         } catch (ValidationException $exception) {
             return $this->respuestaValidacion($exception);
         } catch (\Throwable $exception) {
-            Log::error('Error al agregar renglón a orden de trabajo mecánica', [
-                'folio' => $folio,
-                'error' => $exception->getMessage(),
-            ]);
+            $this->registrarErrorInesperado(
+                'Error al agregar renglón a orden de trabajo mecánica',
+                $exception,
+                ['folio' => $folio, 'campos' => array_keys($datosLinea ?? [])]
+            );
 
             return response()->json([
                 'success' => false,
                 'error' => 'No se pudo agregar el renglón.',
             ], 500);
         }
+    }
+
+    /**
+     * Registra una excepción inesperada con lo mínimo para diagnosticarla.
+     *
+     * El mensaje suelto no alcanza: un 500 aquí suele ser un desajuste entre el
+     * código y el esquema real de SQL Server (una columna que la migración
+     * manual nunca aplicó, un CHECK, un truncamiento). La clase de excepción y
+     * el origen dicen cuál de los tres es, sin tener que reproducirlo.
+     */
+    private function registrarErrorInesperado(string $mensaje, \Throwable $exception, array $contexto = []): void
+    {
+        Log::error($mensaje, [
+            ...$contexto,
+            'excepcion' => $exception::class,
+            'error' => $exception->getMessage(),
+            'origen' => $exception->getFile().':'.$exception->getLine(),
+            'idusuario' => Auth::user()?->idusuario,
+            'numero_empleado' => Auth::user()?->numero_empleado,
+        ]);
     }
 
     public function updateLinea(Request $request, string $folio, int $linea): JsonResponse
@@ -536,11 +558,11 @@ class OrdenesTrabajoMecaController extends Controller
         } catch (ValidationException $exception) {
             return $this->respuestaValidacion($exception);
         } catch (\Throwable $exception) {
-            Log::error('Error al actualizar renglón de orden de trabajo mecánica', [
-                'folio' => $folio,
-                'linea_id' => $linea,
-                'error' => $exception->getMessage(),
-            ]);
+            $this->registrarErrorInesperado(
+                'Error al actualizar renglón de orden de trabajo mecánica',
+                $exception,
+                ['folio' => $folio, 'linea_id' => $linea]
+            );
 
             return response()->json([
                 'success' => false,
@@ -655,10 +677,11 @@ class OrdenesTrabajoMecaController extends Controller
                 'data' => $orden,
             ]);
         } catch (\Throwable $exception) {
-            Log::error('Error al finalizar orden de trabajo mecánica', [
-                'folio' => $folio,
-                'error' => $exception->getMessage(),
-            ]);
+            $this->registrarErrorInesperado(
+                'Error al finalizar orden de trabajo mecánica',
+                $exception,
+                ['folio' => $folio]
+            );
 
             return response()->json([
                 'success' => false,
@@ -1329,10 +1352,65 @@ class OrdenesTrabajoMecaController extends Controller
             return null;
         }
 
+        $this->registrarPermisoDenegado($accion);
+
         return response()->json([
             'success' => false,
             'error' => $mensaje,
         ], 403);
+    }
+
+    /**
+     * Deja en el log el porqué exacto de un 403 de permisos.
+     *
+     * Sin esto, un 403 puede venir de tres causas indistinguibles desde el
+     * cliente: el módulo no existe con ese nombre en SYSRoles (un acento o un
+     * espacio de más bastan), el usuario no tiene fila en SYSUsuariosRoles, o
+     * la tiene con el permiso en 0. Cada una se corrige en un lugar distinto.
+     */
+    private function registrarPermisoDenegado(string $accion): void
+    {
+        $usuario = Auth::user();
+
+        $rol = SYSRoles::query()
+            ->select('idrol', 'modulo')
+            ->where('modulo', self::MODULO_PERMISO)
+            ->first();
+
+        $permisos = userPermissions(self::MODULO_PERMISO);
+
+        if (! $rol) {
+            $motivo = 'modulo_no_encontrado_en_sysroles';
+        } elseif (! $permisos) {
+            $motivo = 'usuario_sin_fila_en_sysusuariosroles';
+        } else {
+            $motivo = 'permiso_en_cero';
+        }
+
+        Log::warning('Permiso denegado en Ordenes de Trabajo', [
+            'motivo' => $motivo,
+            'accion_requerida' => $accion,
+            'modulo_buscado' => self::MODULO_PERMISO,
+            'idrol_encontrado' => $rol?->idrol,
+            'modulos_similares' => $rol
+                ? null
+                : SYSRoles::query()
+                    ->where('modulo', 'LIKE', '%rdenes de Trabajo%')
+                    ->pluck('modulo', 'idrol')
+                    ->all(),
+            'idusuario' => $usuario?->idusuario,
+            'numero_empleado' => $usuario?->numero_empleado,
+            'area' => $usuario?->area,
+            'puesto' => $usuario?->puesto,
+            'es_tejedor' => $this->esTejedor(),
+            'permisos_del_modulo' => $permisos ? [
+                'acceso' => $permisos->acceso,
+                'crear' => $permisos->crear,
+                'modificar' => $permisos->modificar,
+                'eliminar' => $permisos->eliminar,
+                'registrar' => $permisos->registrar,
+            ] : null,
+        ]);
     }
 
     /**
@@ -1353,9 +1431,17 @@ class OrdenesTrabajoMecaController extends Controller
         return [$cve, $nombre];
     }
 
+    /**
+     * Bloquea la mutación solo al tejedor que está en modo solo-calificación.
+     *
+     * Tiene que usar el mismo criterio que la vista (`$modoTejedor`), que es
+     * `esTejedor() && ! puedeRegistrar()`. Cuando esto miraba `esTejedor()` a
+     * secas, un tejedor con permiso registrar veía los botones habilitados y
+     * recibía 403 al guardar: la pantalla decía que sí y el servidor que no.
+     */
     private function respuestaSiTejedorNoPuedeMutar(string $mensaje): ?JsonResponse
     {
-        if (! $this->esTejedor()) {
+        if (! $this->esModoTejedorSoloCalificacion()) {
             return null;
         }
 
