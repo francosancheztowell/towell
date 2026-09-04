@@ -292,7 +292,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ? ''
             : String(seleccionada);
         let html = '<option value="">—</option>';
-        for (let i = 1; i <= 10; i++) {
+        // Escala 1-5: la misma de las estrellas con que se cierra el paro.
+        for (let i = 1; i <= 5; i++) {
             html += `<option value="${i}" ${actual === String(i) ? 'selected' : ''}>${i}</option>`;
         }
         return html;

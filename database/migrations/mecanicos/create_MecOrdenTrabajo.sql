@@ -132,3 +132,44 @@ BEGIN
     ALTER TABLE dbo.MecOrdenTrabajoLine ADD comentarios VARCHAR(500) NULL;
 END
 GO
+
+-- =============================================================================
+-- Calificación del renglón: escala 1-5 alineada con el paro de origen
+-- =============================================================================
+-- La orden nace de un paro (MecOrdenTrabajoTable.FolioParo -> ManFallasParos.Folio)
+-- y ese paro ya se califica al cerrarlo con estrellas 1-5 (ManFallasParos.Calidad).
+-- Al finalizar la orden esa nota se hereda a los renglones sin calificar, así que
+-- ambas columnas tienen que medir en la misma escala. Antes el renglón aceptaba
+-- 1-10 (solo por validación de Laravel: la columna nunca tuvo CHECK).
+--
+-- Al momento de este cambio existían 2 renglones calificados, ambos fuera de la
+-- nueva escala (un 6 y un 10). Se reescalan dividiendo entre 2 y redondeando
+-- hacia arriba, que es la conversión inversa de 1-5 -> 1-10.
+--
+-- Revisa el SELECT antes de correr el UPDATE.
+
+SELECT Id, Folio, Calificacion
+FROM dbo.MecOrdenTrabajoLine
+WHERE Calificacion > 5;
+GO
+
+UPDATE dbo.MecOrdenTrabajoLine
+SET Calificacion = CASE
+        WHEN Calificacion > 10 THEN 5
+        ELSE (Calificacion + 1) / 2
+    END
+WHERE Calificacion > 5;
+GO
+
+-- Opcional pero recomendado: la escala pasa a estar garantizada por la base y no
+-- solo por la validación de PHP. Ejecutar SOLO después del UPDATE de arriba.
+IF NOT EXISTS (
+    SELECT 1 FROM sys.check_constraints
+    WHERE name = N'CK_MecOrdenTrabajoLine_Calificacion'
+)
+BEGIN
+    ALTER TABLE dbo.MecOrdenTrabajoLine
+        ADD CONSTRAINT CK_MecOrdenTrabajoLine_Calificacion
+        CHECK (Calificacion IS NULL OR Calificacion BETWEEN 1 AND 5);
+END
+GO
