@@ -973,7 +973,7 @@ button.crudo-status-card:disabled {
 .crudo-machine-grid-metrics {
     --crudo-metric-base: 1.16rem;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
     gap: 0.22rem 0.28rem;
     /* Crece hasta el fondo de la tarjeta: sin esto el min-height dejaba una
        franja de fondo debajo de Kg/Saldo que se leia como un borde. */
@@ -3569,7 +3569,7 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-salons-grid {
-        grid-template-columns: minmax(0, 0.42fr) minmax(0, 1fr) minmax(0, 1.15fr);
+        grid-template-columns: minmax(0, 0.34fr) minmax(0, 1fr) minmax(0, 1.23fr);
         gap: 0.45rem;
         align-items: start;
     }
