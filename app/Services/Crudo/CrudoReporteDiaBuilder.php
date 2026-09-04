@@ -7,6 +7,7 @@ namespace App\Services\Crudo;
 use App\Exports\CrudoReporteDiaExport;
 use App\Helpers\TowellLogo;
 use App\Models\Crudo\CrudoAuditoria;
+use App\Models\Urdido\UrdProgramaUrdido;
 use App\Support\Crudo\CrudoProductionDay;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -50,6 +51,7 @@ final readonly class CrudoReporteDiaBuilder
             $this->rutaLogo(),
             $this->auditorias($day),
             $this->sinPesoMuestra(),
+            $this->programasUrdidoAuditados($day),
         );
     }
 
@@ -102,6 +104,26 @@ final readonly class CrudoReporteDiaBuilder
             ->where('Fecha', '>=', $inicio)
             ->where('Fecha', '<', $inicio->modify('+1 day'))
             ->orderBy('Fecha')
+            ->get();
+    }
+
+    /**
+     * Programas de urdido con checklist de calidad completado (los 4 puntos +
+     * autorización) dentro de la misma ventana 06:30 → 06:30 del reporte.
+     *
+     * @return Collection<int, UrdProgramaUrdido>
+     */
+    private function programasUrdidoAuditados(DateTimeImmutable $day): Collection
+    {
+        $inicio = $day->setTime(0, 0)
+            ->modify('+'.(int) config('crudo.production_day_start_minutes', 390).' minutes');
+
+        return UrdProgramaUrdido::query()
+            ->whereNotNull('AutorizaCalidad')
+            ->whereNotNull('FechaCalidad')
+            ->where('FechaCalidad', '>=', $inicio)
+            ->where('FechaCalidad', '<', $inicio->modify('+1 day'))
+            ->orderBy('FechaCalidad')
             ->get();
     }
 

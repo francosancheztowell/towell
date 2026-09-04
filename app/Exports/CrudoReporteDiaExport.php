@@ -8,6 +8,7 @@ use App\DTOs\Crudo\CrudoDashboardData;
 use App\DTOs\Crudo\CrudoMachineMetrics;
 use App\Enums\Crudo\CrudoMachineState;
 use App\Models\Crudo\CrudoAuditoria;
+use App\Models\Urdido\UrdProgramaUrdido;
 use App\Services\Crudo\CrudoProductionTargetService;
 use DateTimeImmutable;
 use Maatwebsite\Excel\Concerns\FromArray;
@@ -48,6 +49,11 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
     private const AUDIT_HEADERS = [
         'Hora', 'Turno', 'Salón', 'Telar', 'Orden', 'Auditor', 'Alineación',
         'Dibujo JAC', 'Ident. julio', 'Marbetes', 'Defectos', 'Observaciones',
+    ];
+
+    private const URDIDO_HEADERS = [
+        'Hora', 'Folio', 'Máquina', 'Fibra', 'Cuenta', 'Calibre', 'Kilos',
+        'Calidad', 'Autorizó', 'Comentario',
     ];
 
     /**
@@ -100,6 +106,12 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
 
     private int $auditLastRow = 0;
 
+    private int $urdidoTitleRow = 0;
+
+    private int $urdidoHeaderRow = 0;
+
+    private int $urdidoLastRow = 0;
+
     private int $pesoTitleRow = 0;
 
     private int $pesoHeaderRow = 0;
@@ -109,6 +121,7 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
     /**
      * @param  iterable<int, CrudoAuditoria>  $auditorias
      * @param  list<array{telar: string, orden: string, producto: string}>  $sinPesoMuestra
+     * @param  iterable<int, UrdProgramaUrdido>  $programasUrdidoAuditados
      */
     public function __construct(
         private readonly CrudoDashboardData $data,
@@ -116,6 +129,7 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
         private readonly ?string $rutaLogo = null,
         private readonly iterable $auditorias = [],
         private readonly array $sinPesoMuestra = [],
+        private readonly iterable $programasUrdidoAuditados = [],
     ) {
         $this->build();
     }
@@ -227,6 +241,7 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
 
         $this->buildSalonBlock();
         $this->buildAuditBlock();
+        $this->buildUrdidoBlock();
     }
 
     /** Telares corriendo sin peso muestra capturado: bloque en rojo, arriba. */
@@ -284,6 +299,37 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
         }
 
         $this->auditLastRow = count($this->rows);
+    }
+
+    /** Programas de urdido con checklist de calidad ya completado en el día. */
+    private function buildUrdidoBlock(): void
+    {
+        $this->rows[] = [''];
+        $this->urdidoTitleRow = count($this->rows) + 1;
+        $this->rows[] = ['URDIDO — CHECKLIST DE CALIDAD COMPLETADO'];
+        $this->urdidoHeaderRow = count($this->rows) + 1;
+        $this->rows[] = self::URDIDO_HEADERS;
+
+        foreach ($this->programasUrdidoAuditados as $programa) {
+            $this->rows[] = [
+                $programa->FechaCalidad?->format('H:i'),
+                $programa->Folio,
+                $programa->MaquinaId,
+                $programa->Fibra,
+                $programa->Cuenta,
+                $programa->Calibre,
+                round((float) $programa->Kilos, 1),
+                $programa->Calidad === '0' ? 'Mal' : 'Bien',
+                $programa->AutorizaCalidad,
+                $programa->CalidadComentario,
+            ];
+        }
+
+        if (count($this->rows) === $this->urdidoHeaderRow) {
+            $this->rows[] = ['Sin checklists de calidad completados para el día.'];
+        }
+
+        $this->urdidoLastRow = count($this->rows);
     }
 
     private function respuesta(?bool $valor): string
@@ -445,6 +491,7 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
                 $this->styleTable($sheet);
                 $this->styleSalonBlock($sheet);
                 $this->styleAuditBlock($sheet);
+                $this->styleUrdidoBlock($sheet);
 
                 foreach (range('A', $last) as $column) {
                     $sheet->getColumnDimension($column)->setAutoSize(true);
@@ -610,6 +657,39 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
             ->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle('K'.($header + 1).":{$last}{$this->auditLastRow}")->getAlignment()
             ->setWrapText(true);
+    }
+
+    private function styleUrdidoBlock(Worksheet $sheet): void
+    {
+        $lastColumn = Coordinate::stringFromColumnIndex(count(self::URDIDO_HEADERS));
+        $header = $this->urdidoHeaderRow;
+
+        $sheet->mergeCells("A{$this->urdidoTitleRow}:{$lastColumn}{$this->urdidoTitleRow}");
+        $sheet->getStyle("A{$this->urdidoTitleRow}")->getFont()
+            ->setBold(true)->setSize(12)->getColor()->setARGB('FF1E293B');
+
+        $sheet->getStyle("A{$header}:{$lastColumn}{$header}")->getFont()
+            ->setBold(true)->setSize(10)->getColor()->setARGB('FFFFFFFF');
+        $sheet->getStyle("A{$header}:{$lastColumn}{$header}")->getFill()
+            ->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF334155');
+        $sheet->getStyle("A{$header}:{$lastColumn}{$header}")->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)->setWrapText(true);
+
+        $sheet->getStyle("A{$header}:{$lastColumn}{$this->urdidoLastRow}")->getBorders()->getAllBorders()
+            ->setBorderStyle(Border::BORDER_THIN)->getColor()->setARGB('FFCBD5E1');
+        $sheet->getStyle('A'.($header + 1).":H{$this->urdidoLastRow}")->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('J'.($header + 1).":J{$this->urdidoLastRow}")->getAlignment()
+            ->setWrapText(true);
+
+        // Calidad 'Mal' resaltada como el resto del reporte, para que salte a la vista.
+        $mal = new Conditional;
+        $mal->setConditionType(Conditional::CONDITION_CELLIS)
+            ->setOperatorType(Conditional::OPERATOR_EQUAL)
+            ->addCondition('"Mal"');
+        $mal->getStyle()->getFont()->setBold(true)->getColor()->setARGB('FFD10000');
+        $mal->getStyle()->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFE0DD');
+        $sheet->getStyle('H'.($header + 1).":H{$this->urdidoLastRow}")->setConditionalStyles([$mal]);
     }
 
     private function styleSalonBlock(Worksheet $sheet): void
