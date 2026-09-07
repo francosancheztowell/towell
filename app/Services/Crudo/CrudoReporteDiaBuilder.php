@@ -20,7 +20,10 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class CrudoReporteDiaBuilder
 {
-    public function __construct(private CrudoDashboardService $dashboard) {}
+    public function __construct(
+        private CrudoDashboardService $dashboard,
+        private CrudoDefectosService $defectos,
+    ) {}
 
     /**
      * El día de producción corre de 06:30 a 06:30; sin fecha válida se toma el
@@ -52,6 +55,7 @@ final readonly class CrudoReporteDiaBuilder
             $this->auditorias($day),
             $this->sinPesoMuestra(),
             $this->programasUrdidoAuditados($day),
+            $this->defectos->porTelar($day, $day),
         );
     }
 

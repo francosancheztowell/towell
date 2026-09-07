@@ -112,6 +112,15 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
 
     private int $urdidoLastRow = 0;
 
+    private int $defectosTitleRow = 0;
+
+    private int $defectosHeaderRow = 0;
+
+    private int $defectosTotalRow = 0;
+
+    /** @var list<string> */
+    private array $defectosColumnas = [];
+
     private int $pesoTitleRow = 0;
 
     private int $pesoHeaderRow = 0;
@@ -122,6 +131,7 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
      * @param  iterable<int, CrudoAuditoria>  $auditorias
      * @param  list<array{telar: string, orden: string, producto: string}>  $sinPesoMuestra
      * @param  iterable<int, UrdProgramaUrdido>  $programasUrdidoAuditados
+     * @param  array{columnas?: list<string>, telares?: list<array{telar: string, total: float, defectos: array<string, float>}>, recortados?: int}  $defectos
      */
     public function __construct(
         private readonly CrudoDashboardData $data,
@@ -130,6 +140,7 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
         private readonly iterable $auditorias = [],
         private readonly array $sinPesoMuestra = [],
         private readonly iterable $programasUrdidoAuditados = [],
+        private readonly array $defectos = [],
     ) {
         $this->build();
     }
@@ -240,6 +251,7 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
         }
 
         $this->buildSalonBlock();
+        $this->buildDefectosBlock();
         $this->buildAuditBlock();
         $this->buildUrdidoBlock();
     }
@@ -266,6 +278,69 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
         }
 
         $this->pesoLastRow = count($this->rows);
+    }
+
+    /**
+     * Segundas por telar y tipo de defecto: la misma matriz del modal "2das"
+     * del tablero, ordenada de más a menos para que el peor telar quede arriba.
+     */
+    private function buildDefectosBlock(): void
+    {
+        $columnas = array_values(array_map(
+            static fn ($columna): string => (string) $columna,
+            $this->defectos['columnas'] ?? [],
+        ));
+        $telares = array_values($this->defectos['telares'] ?? []);
+
+        $this->rows[] = [''];
+        $this->defectosTitleRow = count($this->rows) + 1;
+        $this->rows[] = ['SEGUNDAS POR TELAR'];
+
+        if ($columnas === [] || $telares === []) {
+            $this->rows[] = ['Sin defectos capturados para el día.'];
+
+            return;
+        }
+
+        $this->defectosColumnas = $columnas;
+        $this->defectosHeaderRow = count($this->rows) + 1;
+        $this->rows[] = array_merge(['Salón', 'Telar'], $columnas, ['Total']);
+
+        // El salón sale del tablero ya cargado; no hay otra consulta por esto.
+        $salones = [];
+        foreach ($this->data->machines as $machine) {
+            $salones[$machine->telar] = $machine->salon;
+        }
+
+        usort($telares, static fn (array $a, array $b): int => $b['total'] <=> $a['total']);
+
+        $totales = array_fill_keys($columnas, 0.0);
+        $granTotal = 0.0;
+
+        foreach ($telares as $fila) {
+            $celdas = [$salones[$fila['telar']] ?? 'Sin clasificar', $fila['telar']];
+
+            foreach ($columnas as $columna) {
+                $valor = (float) ($fila['defectos'][$columna] ?? 0);
+                $totales[$columna] += $valor;
+                $celdas[] = round($valor);
+            }
+
+            $celdas[] = round((float) $fila['total']);
+            $granTotal += (float) $fila['total'];
+            $this->rows[] = $celdas;
+        }
+
+        $this->rows[] = array_merge(
+            ['TOTAL', count($telares).' telar(es)'],
+            array_map(static fn (float $valor): float => round($valor), array_values($totales)),
+            [round($granTotal)],
+        );
+        $this->defectosTotalRow = count($this->rows);
+
+        if ((int) ($this->defectos['recortados'] ?? 0) > 0) {
+            $this->rows[] = ['Los '.$this->defectos['recortados'].' tipos de defecto menos frecuentes están sumados en "Otros".'];
+        }
     }
 
     /** Auditorías que Calidad capturó dentro del mismo día de producción. */
@@ -490,6 +565,7 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
                 $this->stylePesoMuestraBlock($sheet);
                 $this->styleTable($sheet);
                 $this->styleSalonBlock($sheet);
+                $this->styleDefectosBlock($sheet);
                 $this->styleAuditBlock($sheet);
                 $this->styleUrdidoBlock($sheet);
 
@@ -690,6 +766,45 @@ final class CrudoReporteDiaExport implements FromArray, WithDrawings, WithEvents
         $mal->getStyle()->getFont()->setBold(true)->getColor()->setARGB('FFD10000');
         $mal->getStyle()->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFE0DD');
         $sheet->getStyle('H'.($header + 1).":H{$this->urdidoLastRow}")->setConditionalStyles([$mal]);
+    }
+
+    private function styleDefectosBlock(Worksheet $sheet): void
+    {
+        $sheet->mergeCells("A{$this->defectosTitleRow}:".self::LAST_COLUMN."{$this->defectosTitleRow}");
+        $sheet->getStyle("A{$this->defectosTitleRow}")->getFont()
+            ->setBold(true)->setSize(12)->getColor()->setARGB('FF1E293B');
+
+        if ($this->defectosHeaderRow === 0) {
+            return;
+        }
+
+        $lastColumn = Coordinate::stringFromColumnIndex(count($this->defectosColumnas) + 3);
+        $header = $this->defectosHeaderRow;
+        $total = $this->defectosTotalRow;
+
+        $sheet->getStyle("A{$header}:{$lastColumn}{$header}")->getFont()
+            ->setBold(true)->setSize(10)->getColor()->setARGB('FFFFFFFF');
+        $sheet->getStyle("A{$header}:{$lastColumn}{$header}")->getFill()
+            ->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF334155');
+        $sheet->getStyle("A{$header}:{$lastColumn}{$header}")->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)->setWrapText(true);
+
+        $sheet->getStyle("A{$header}:{$lastColumn}{$total}")->getBorders()->getAllBorders()
+            ->setBorderStyle(Border::BORDER_THIN)->getColor()->setARGB('FFCBD5E1');
+        $sheet->getStyle('B'.($header + 1).":{$lastColumn}{$total}")->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('C'.($header + 1).":{$lastColumn}{$total}")->getNumberFormat()
+            ->setFormatCode('#,##0;;"·"');
+
+        // Columna Total con el mismo realce que Segundas/Telar del resumen.
+        $sheet->getStyle("{$lastColumn}".($header + 1).":{$lastColumn}{$total}")->getFont()
+            ->setBold(true)->getColor()->setARGB('FF96700A');
+        $sheet->getStyle("{$lastColumn}".($header + 1).":{$lastColumn}{$total}")->getFill()
+            ->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFF9D1');
+
+        $sheet->getStyle("A{$total}:{$lastColumn}{$total}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$total}:{$lastColumn}{$total}")->getFill()
+            ->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFE2E8F0');
     }
 
     private function styleSalonBlock(Worksheet $sheet): void
