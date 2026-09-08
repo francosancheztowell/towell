@@ -7,6 +7,7 @@ namespace App\Services\Crudo;
 use Carbon\CarbonImmutable;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * Historial de paros de un telar para el modal del andón: activos y terminados
@@ -100,12 +101,272 @@ final class CrudoParosHistoryService
                 // Ventana más chica a la que pertenece: la vista filtra con CSS
                 // sin volver al servidor.
                 'ventana' => $this->ventana($comienzo, $to, $minutos),
+                'ordenes' => [],
             ];
         }
 
         usort($paros, static fn (array $a, array $b): int => $b['ordenamiento'] <=> $a['ordenamiento']);
 
+        return $this->adjuntarRenglones($paros);
+    }
+
+    /**
+     * Cuelga las OT y sus renglones capturados de cada paro.
+     *
+     * El puente es MecOrdenTrabajoTable.FolioParo = ManFallasParos.Folio; los
+     * renglones viven en MecOrdenTrabajoLine por Folio de OT. Un paro puede
+     * tener varias órdenes. Si el catálogo de OT falla, el historial de paros
+     * sigue vivo: el andón no depende de mecánicos para mostrar el paro.
+     *
+     * @param  list<array<string, mixed>>  $paros
+     * @return list<array<string, mixed>>
+     */
+    private function adjuntarRenglones(array $paros): array
+    {
+        if ($paros === []) {
+            return $paros;
+        }
+
+        $folios = array_values(array_unique(array_filter(
+            array_map(static fn (array $paro): string => trim((string) ($paro['folio'] ?? '')), $paros),
+            static fn (string $folio): bool => $folio !== '',
+        )));
+
+        if ($folios === []) {
+            return $paros;
+        }
+
+        try {
+            $ordenesPorParo = $this->ordenesPorFolioParo($folios);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return $paros;
+        }
+
+        foreach ($paros as &$paro) {
+            $paro['ordenes'] = $ordenesPorParo[trim((string) ($paro['folio'] ?? ''))] ?? [];
+        }
+        unset($paro);
+
         return $paros;
+    }
+
+    /**
+     * @param  list<string>  $foliosParo
+     * @return array<string, list<array<string, mixed>>>
+     */
+    private function ordenesPorFolioParo(array $foliosParo): array
+    {
+        $conexion = (string) config('crudo.connections.catalog', 'sqlsrv');
+        $tablaOt = (string) config('crudo.tables.ordenes_trabajo', 'dbo.MecOrdenTrabajoTable');
+        $tablaLineas = (string) config('crudo.tables.ordenes_trabajo_lineas', 'dbo.MecOrdenTrabajoLine');
+
+        $cabeceras = DB::connection($conexion)
+            ->table($tablaOt)
+            ->whereIn('FolioParo', $foliosParo)
+            ->orderBy('Folio')
+            ->get(['Folio', 'FolioParo', 'Estatus']);
+
+        $foliosOt = [];
+        foreach ($cabeceras as $cabecera) {
+            $folioOt = trim((string) ($cabecera->Folio ?? ''));
+            if ($folioOt !== '') {
+                $foliosOt[] = $folioOt;
+            }
+        }
+
+        $lineasPorOt = [];
+        if ($foliosOt !== []) {
+            $lineas = DB::connection($conexion)
+                ->table($tablaLineas)
+                ->whereIn('Folio', $foliosOt)
+                ->orderBy('Id')
+                ->get([
+                    'Id',
+                    'Folio',
+                    'CveOperador',
+                    'NomOperador',
+                    'Turno',
+                    'Fecha',
+                    'Ajusto',
+                    'Reparo',
+                    'Cambio',
+                    'Lubrico',
+                    'FaltaRefacc',
+                    'HoraInicial',
+                    'HoraFinal',
+                    'TotalMinutos',
+                    'comentarios',
+                    'Calificacion',
+                    'CveTejedor',
+                    'NomTejedor',
+                ]);
+
+            foreach ($lineas as $linea) {
+                $renglon = $this->mapearRenglon($linea);
+                if ($renglon === null) {
+                    continue;
+                }
+
+                $lineasPorOt[trim((string) ($linea->Folio ?? ''))][] = $renglon;
+            }
+        }
+
+        $ordenesPorParo = [];
+        foreach ($cabeceras as $cabecera) {
+            $folioParo = trim((string) ($cabecera->FolioParo ?? ''));
+            $folioOt = trim((string) ($cabecera->Folio ?? ''));
+            if ($folioParo === '' || $folioOt === '') {
+                continue;
+            }
+
+            $renglones = $this->renglonesUnicos($lineasPorOt[$folioOt] ?? []);
+            if ($renglones === []) {
+                continue;
+            }
+
+            $ordenesPorParo[$folioParo][] = [
+                'folio' => $folioOt,
+                'estatus' => trim((string) ($cabecera->Estatus ?? '')) ?: 'Activo',
+                'renglones' => $renglones,
+            ];
+        }
+
+        return $ordenesPorParo;
+    }
+
+    /**
+     * En captura, al guardar se limpia el form y el siguiente Guardar inserta
+     * otro renglón. El andón no necesita ver clones idénticos: se queda el primero.
+     *
+     * @param  list<array<string, mixed>>  $renglones
+     * @return list<array<string, mixed>>
+     */
+    private function renglonesUnicos(array $renglones): array
+    {
+        $vistos = [];
+        $unicos = [];
+
+        foreach ($renglones as $renglon) {
+            $huella = implode("\0", [
+                (string) ($renglon['cveOperador'] ?? ''),
+                (string) ($renglon['nomOperador'] ?? ''),
+                (string) ($renglon['turno'] ?? ''),
+                (string) ($renglon['fecha'] ?? ''),
+                implode(',', $renglon['trabajos'] ?? []),
+                (string) ($renglon['horaInicial'] ?? ''),
+                (string) ($renglon['horaFinal'] ?? ''),
+                (string) ($renglon['comentarios'] ?? ''),
+            ]);
+
+            if (isset($vistos[$huella])) {
+                continue;
+            }
+
+            $vistos[$huella] = true;
+            $unicos[] = $renglon;
+        }
+
+        return $unicos;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function mapearRenglon(object $linea): ?array
+    {
+        $cveOperador = trim((string) ($linea->CveOperador ?? ''));
+        $nomOperador = trim((string) ($linea->NomOperador ?? ''));
+        $horaInicial = $this->horaCorta($linea->HoraInicial ?? null);
+        $horaFinal = $this->horaCorta($linea->HoraFinal ?? null);
+        $checks = [
+            ['label' => 'Ajustó', 'on' => $this->esVerdadero($linea->Ajusto ?? false)],
+            ['label' => 'Reparó', 'on' => $this->esVerdadero($linea->Reparo ?? false)],
+            ['label' => 'Cambió', 'on' => $this->esVerdadero($linea->Cambio ?? false)],
+            ['label' => 'Lubricó', 'on' => $this->esVerdadero($linea->Lubrico ?? false)],
+            ['label' => 'Falta ref.', 'on' => $this->esVerdadero($linea->FaltaRefacc ?? false)],
+        ];
+        $trabajos = array_values(array_map(
+            static fn (array $check): string => $check['label'],
+            array_filter($checks, static fn (array $check): bool => $check['on']),
+        ));
+
+        if (
+            $cveOperador === ''
+            && $nomOperador === ''
+            && $trabajos === []
+            && $horaInicial === ''
+            && $horaFinal === ''
+        ) {
+            return null;
+        }
+
+        $minutos = $linea->TotalMinutos !== null && $linea->TotalMinutos !== ''
+            ? (int) $linea->TotalMinutos
+            : null;
+
+        return [
+            'id' => (int) ($linea->Id ?? 0),
+            'cveOperador' => $cveOperador,
+            'nomOperador' => $nomOperador,
+            'turno' => $linea->Turno !== null && $linea->Turno !== '' ? (int) $linea->Turno : null,
+            'fecha' => $this->fechaCorta($linea->Fecha ?? null),
+            'trabajos' => $trabajos,
+            'checks' => $checks,
+            'horaInicial' => $horaInicial,
+            'horaFinal' => $horaFinal,
+            'tiempo' => $this->minutosTexto($minutos),
+            'comentarios' => trim((string) ($linea->comentarios ?? '')),
+            'calificacion' => $linea->Calificacion !== null && $linea->Calificacion !== ''
+                ? (int) $linea->Calificacion
+                : null,
+            'cveTejedor' => trim((string) ($linea->CveTejedor ?? '')),
+            'nomTejedor' => trim((string) ($linea->NomTejedor ?? '')),
+        ];
+    }
+
+    private function esVerdadero(mixed $valor): bool
+    {
+        return $valor === true || $valor === 1 || $valor === '1';
+    }
+
+    private function horaCorta(mixed $hora): string
+    {
+        $texto = trim((string) ($hora ?? ''));
+        if ($texto === '') {
+            return '';
+        }
+
+        if (preg_match('/(\d{1,2}):(\d{2})/', $texto, $partes) === 1) {
+            return sprintf('%02d:%02d', (int) $partes[1], (int) $partes[2]);
+        }
+
+        return $texto;
+    }
+
+    private function fechaCorta(mixed $fecha): string
+    {
+        if ($fecha === null || $fecha === '') {
+            return '';
+        }
+
+        try {
+            return CarbonImmutable::parse($fecha, config('app.timezone'))->format('d/m');
+        } catch (Throwable) {
+            return trim((string) $fecha);
+        }
+    }
+
+    private function minutosTexto(?int $minutos): string
+    {
+        if ($minutos === null || $minutos <= 0) {
+            return '';
+        }
+
+        $horas = intdiv($minutos, 60);
+
+        return $horas > 0 ? $horas.'h '.($minutos % 60).'m' : $minutos.'m';
     }
 
     /**
@@ -143,7 +404,7 @@ final class CrudoParosHistoryService
 
         try {
             $dia = CarbonImmutable::parse($fecha, config('app.timezone'))->startOfDay();
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
 
