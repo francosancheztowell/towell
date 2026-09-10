@@ -29,6 +29,9 @@
     $bloqueadaEdicion = $bloqueadaEdicion ?? in_array($estatusActual, ['Terminado', 'Calificado', 'Autorizado'], true);
     $turnoSugerido = (int) ($turnoSugerido ?? \App\Helpers\TurnoHelper::getTurnoActual());
     $fechaSugerida = $fechaSugerida ?? now('America/Mexico_City')->toDateString();
+    $nombrePrimerMecanico = trim((string) optional($orden->lineas)->first(
+        fn ($linea) => trim((string) ($linea->NomOperador ?? '')) !== ''
+    )?->NomOperador) ?: '—';
 @endphp
 <div class="w-full p-3 sm:p-4 lg:p-5">
     <div class="mx-auto max-w-7xl space-y-3 lg:max-w-[100rem] lg:space-y-4">
@@ -49,10 +52,6 @@
                     </div>
                     <div class="flex flex-wrap items-center justify-end gap-2">
                         @if (! $bloqueadaEdicion && ! ($modoTejedor ?? false) && ($puedeEditar || $puedeCrear))
-                            <button id="btn-limpiar-linea" type="button"
-                                class="inline-flex min-h-11 items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:text-base">
-                                Limpiar
-                            </button>
                             <button id="btn-guardar-linea" type="submit" form="form-linea"
                                 class="inline-flex min-h-11 items-center justify-center rounded-md bg-gray-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60 sm:text-base">
                                 Guardar intervención
@@ -78,34 +77,34 @@
                     </div>
                 </div>
 
-                <dl class="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-gray-100 pt-2 sm:grid-cols-4 lg:grid-cols-8">
+                <dl class="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-gray-100 pt-2 sm:grid-cols-4 lg:grid-cols-7">
                     <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Fecha de orden</dt>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Fecha</dt>
                         <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ optional($orden->Fecha)->format('d/m/Y') ?? '—' }}</dd>
                     </div>
-                    <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Telar</dt>
-                        <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ $orden->TelarId ?: '—' }}</dd>
-                    </div>
                     <div class="min-w-0">
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Falla</dt>
-                        <dd class="mt-0.5 line-clamp-2 text-base font-bold text-gray-900 sm:text-lg" title="{{ $fallaTexto }}">{{ $fallaTexto }}</dd>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Mecánico</dt>
+                        <dd class="mt-0.5 truncate text-base font-bold text-gray-900 sm:text-lg" title="{{ $nombrePrimerMecanico }}">{{ $nombrePrimerMecanico }}</dd>
                     </div>
                     <div>
                         <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Turno</dt>
                         <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ $orden->Turno ?: '—' }}</dd>
                     </div>
-                    <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm"># Orden</dt>
-                        <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ $orden->Orden ?: '—' }}</dd>
-                    </div>
                     <div class="min-w-0">
                         <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Folio de paro</dt>
                         <dd class="mt-0.5 break-words text-base font-bold text-gray-900 sm:text-lg">{{ $orden->FolioParo ?: 'Sin folio de paro' }}</dd>
                     </div>
-                    <div class="col-span-2 min-w-0 sm:col-span-2 lg:col-span-2">
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Comentarios</dt>
-                        <dd class="mt-0.5 line-clamp-2 whitespace-pre-line break-words text-sm font-semibold text-gray-800 sm:text-base" title="{{ trim((string) $orden->Comentarios) ?: 'Sin comentarios' }}">{{ trim((string) $orden->Comentarios) ?: 'Sin comentarios' }}</dd>
+                    <div>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Telar</dt>
+                        <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ $orden->TelarId ?: '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Orden</dt>
+                        <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ $orden->Orden ?: '—' }}</dd>
+                    </div>
+                    <div class="min-w-0">
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Falla</dt>
+                        <dd class="mt-0.5 line-clamp-2 text-base font-bold text-gray-900 sm:text-lg" title="{{ $fallaTexto }}">{{ $fallaTexto }}</dd>
                     </div>
                 </dl>
             </div>
@@ -157,30 +156,29 @@
                     </div>
                 </fieldset>
 
-                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4 lg:gap-3">
-                    <div>
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-12 lg:gap-3">
+                    <div class="lg:col-span-2">
                         <label for="linea-hora-inicial" class="mb-1 block text-sm font-medium text-gray-700">Hora inicial</label>
                         <input id="linea-hora-inicial" name="HoraInicial" type="time"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                     </div>
-                    <div>
+                    <div class="lg:col-span-2">
                         <label for="linea-hora-final" class="mb-1 block text-sm font-medium text-gray-700">Hora final</label>
                         <input id="linea-hora-final" name="HoraFinal" type="time"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                     </div>
-                    <div>
+                    <div class="lg:col-span-2">
                         <label for="linea-total-minutos" class="mb-1 block text-sm font-medium text-gray-700">Tiempo total</label>
                         <input id="linea-total-minutos" type="text" readonly placeholder="—"
                             class="min-h-11 w-full cursor-not-allowed rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-base text-gray-600">
                     </div>
-                </div>
-
-                <div>
-                    <label for="linea-comentarios" class="mb-1 block text-sm font-medium text-gray-700">Comentarios</label>
-                    <textarea id="linea-comentarios" name="comentarios" rows="2" maxlength="500"
-                        placeholder="Detalle de la intervención, refacciones pendientes, observaciones para el siguiente turno…"
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"></textarea>
-                    <p class="mt-0.5 text-xs text-gray-500"><span id="linea-comentarios-contador">0</span>/500 caracteres.</p>
+                    <div class="sm:col-span-2 lg:col-span-6">
+                        <label for="linea-comentarios" class="mb-1 block text-sm font-medium text-gray-700">Comentarios</label>
+                        <textarea id="linea-comentarios" name="comentarios" rows="2" maxlength="500"
+                            placeholder="Detalle de la intervención, refacciones pendientes, observaciones para el siguiente turno…"
+                            class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"></textarea>
+                        <p class="mt-0.5 text-xs text-gray-500"><span id="linea-comentarios-contador">0</span>/500 caracteres.</p>
+                    </div>
                 </div>
             </form>
         </section>
@@ -712,7 +710,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    $('#btn-limpiar-linea')?.addEventListener('click', prepararCapturaInicial);
     $('#linea-operador')?.addEventListener('change', () => {
         const clave = $('#linea-operador').value;
         if (! clave) {

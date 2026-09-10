@@ -39,12 +39,12 @@
                             <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Folio</th>
                             <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Status</th>
                             <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Fecha</th>
-                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Telar</th>
-                            <th class="min-w-52 bg-gray-50 px-5 py-4">Falla</th>
-                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Folio paro</th>
-                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4"># Orden</th>
+                            <th class="min-w-44 bg-gray-50 px-5 py-4">Mecánico</th>
                             <th class="whitespace-nowrap bg-gray-50 px-5 py-4 text-center">Turno</th>
-                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4 text-center">Mecánicos</th>
+                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Folio de paro</th>
+                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Telar</th>
+                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Orden</th>
+                            <th class="min-w-52 bg-gray-50 px-5 py-4">Falla</th>
                             <th class="whitespace-nowrap bg-gray-50 px-5 py-4 text-right">Acciones</th>
                         </tr>
                     </thead>
@@ -429,6 +429,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return `<span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-700">${content}</span>`;
     }
 
+    function nombrePrimerMecanico(orden) {
+        const lineas = orden.lineas || [];
+        const linea = lineas.find((item) => String(item.NomOperador || '').trim() !== '');
+
+        return String(linea?.NomOperador || '').trim();
+    }
+
     function iconoBooleano(value) {
         return value
             ? '<i class="fas fa-check text-green-600" aria-label="Sí"></i>'
@@ -571,14 +578,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="whitespace-nowrap px-5 py-4 text-gray-700">
                     <div class="font-semibold text-gray-900">${dateDisplay(orden.Fecha)}</div>
                 </td>
-                <td class="whitespace-nowrap px-5 py-4 text-gray-700">${display(orden.TelarId)}</td>
-                <td class="min-w-52 px-5 py-4 font-semibold text-gray-900">${display(orden.Falla)}</td>
-                <td class="whitespace-nowrap px-5 py-4 text-gray-700">${display(orden.FolioParo)}</td>
-                <td class="whitespace-nowrap px-5 py-4 text-gray-700">${display(orden.Orden)}</td>
+                <td class="min-w-44 px-5 py-4 font-semibold text-gray-900">${display(nombrePrimerMecanico(orden))}</td>
                 <td class="px-5 py-4 text-center">${turnoBadge(orden.Turno)}</td>
-                <td class="px-5 py-4 text-center">
-                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-700">${orden.lineas_count ?? orden.lineas?.length ?? 0}</span>
-                </td>
+                <td class="whitespace-nowrap px-5 py-4 text-gray-700">${display(orden.FolioParo)}</td>
+                <td class="whitespace-nowrap px-5 py-4 text-gray-700">${display(orden.TelarId)}</td>
+                <td class="whitespace-nowrap px-5 py-4 text-gray-700">${display(orden.Orden)}</td>
+                <td class="min-w-52 px-5 py-4 font-semibold text-gray-900">${display(orden.Falla)}</td>
                 <td class="whitespace-nowrap px-5 py-4 text-right">
                     ${accionPrincipal}
                 </td>
