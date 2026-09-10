@@ -11,6 +11,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
@@ -337,5 +338,34 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
             ->insert(['Folio' => 'MEC00001', 'Calificacion' => null]);
         $orden->load('lineas');
         $this->assertFalse($completas->invoke($controller, $orden));
+    }
+
+    public function test_reglas_de_linea_exigen_comentarios(): void
+    {
+        $method = new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'reglasLinea');
+        $reglas = $method->invoke(new OrdenesTrabajoMecaController);
+
+        $this->assertContains('required', $reglas['comentarios']);
+        $this->assertNotContains('nullable', $reglas['comentarios']);
+    }
+
+    public function test_linea_completa_rechaza_comentarios_vacios(): void
+    {
+        $method = new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'validarLineaCompleta');
+        $controller = new OrdenesTrabajoMecaController;
+
+        try {
+            $method->invoke($controller, [
+                'CveOperador' => '123',
+                'NomOperador' => 'Juan',
+                'Ajusto' => true,
+                'HoraInicial' => '08:00:00',
+                'HoraFinal' => '09:00:00',
+                'comentarios' => '   ',
+            ]);
+            $this->fail('Se esperaba ValidationException por comentarios vacíos.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('comentarios', $exception->errors());
+        }
     }
 }

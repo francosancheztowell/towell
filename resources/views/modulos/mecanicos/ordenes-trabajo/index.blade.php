@@ -340,7 +340,7 @@
             </div>
 
             <div class="mt-5">
-                <label for="linea-comentarios" class="mb-1 block text-xs font-medium text-gray-700">Comentarios <span class="font-normal text-gray-500">(opcional)</span></label>
+                <label for="linea-comentarios" class="mb-1 block text-xs font-medium text-gray-700">Comentarios</label>
                 <textarea id="linea-comentarios" name="comentarios" rows="3" maxlength="500"
                     placeholder="Detalle de la intervención, refacciones pendientes, observaciones para el siguiente turno…"
                     class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"></textarea>
@@ -550,13 +550,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const folio = escapeHtml(orden.Folio);
             const capturaUrl = `${baseUrl}/${encodeURIComponent(orden.Folio)}/captura`;
             const estatus = orden.Estatus || 'Activo';
-            const bloqueadaEdicion = ['Terminado', 'Calificado', 'Autorizado'].includes(estatus);
+            const folioCerrado = ['Terminado', 'Calificado', 'Autorizado', 'Cancelado'].includes(estatus);
             let accionPrincipal = '';
             if (modoTejedor) {
                 accionPrincipal = estatus === 'Terminado'
                     ? `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700" title="Calificar renglones"><i class="fas fa-star"></i> Calificar</a>`
                     : `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-100" title="Ver renglones"><i class="fas fa-eye"></i> Ver</a>`;
-            } else if (puedeEditar && ! bloqueadaEdicion) {
+            } else if (puedeEditar && ! folioCerrado) {
                 accionPrincipal = `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-black" title="Editar / capturar"><i class="fas fa-pen"></i> Editar</a>`;
             } else {
                 accionPrincipal = `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-100" title="Ver"><i class="fas fa-eye"></i> Ver</a>`;
@@ -580,14 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-700">${orden.lineas_count ?? orden.lineas?.length ?? 0}</span>
                 </td>
                 <td class="whitespace-nowrap px-5 py-4 text-right">
-                    <div class="flex items-center justify-end gap-2">
-                        ${modoTejedor ? '' : `<button type="button" data-action="ver-orden" data-folio="${folio}"
-                            class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-100"
-                            title="Ver (solo lectura)">
-                            <i class="fas fa-eye"></i> Ver
-                        </button>`}
-                        ${accionPrincipal}
-                    </div>
+                    ${accionPrincipal}
                 </td>
             </tr>
         `;
@@ -1098,13 +1091,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             button.disabled = false;
             button.textContent = id ? 'Guardar cambios' : 'Guardar intervención';
-        }
-    });
-
-    $('#tabla-ordenes').addEventListener('click', (event) => {
-        const verButton = event.target.closest('[data-action="ver-orden"]');
-        if (verButton) {
-            cargarDetalle(verButton.dataset.folio);
         }
     });
 

@@ -47,7 +47,17 @@
                             </span>
                         @endif
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-wrap items-center justify-end gap-2">
+                        @if (! $bloqueadaEdicion && ! ($modoTejedor ?? false) && ($puedeEditar || $puedeCrear))
+                            <button id="btn-limpiar-linea" type="button"
+                                class="inline-flex min-h-11 items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:text-base">
+                                Limpiar
+                            </button>
+                            <button id="btn-guardar-linea" type="submit" form="form-linea"
+                                class="inline-flex min-h-11 items-center justify-center rounded-md bg-gray-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60 sm:text-base">
+                                Guardar intervención
+                            </button>
+                        @endif
                         @if ($bloqueada)
                             <span class="inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
                                 <i class="fas fa-lock"></i> Autorizada · solo lectura
@@ -68,7 +78,7 @@
                     </div>
                 </div>
 
-                <dl class="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-gray-100 pt-2 sm:grid-cols-3 lg:grid-cols-6">
+                <dl class="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-gray-100 pt-2 sm:grid-cols-4 lg:grid-cols-8">
                     <div>
                         <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Fecha de orden</dt>
                         <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ optional($orden->Fecha)->format('d/m/Y') ?? '—' }}</dd>
@@ -77,7 +87,7 @@
                         <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Telar</dt>
                         <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ $orden->TelarId ?: '—' }}</dd>
                     </div>
-                    <div class="col-span-2 sm:col-span-1">
+                    <div class="min-w-0">
                         <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Falla</dt>
                         <dd class="mt-0.5 line-clamp-2 text-base font-bold text-gray-900 sm:text-lg" title="{{ $fallaTexto }}">{{ $fallaTexto }}</dd>
                     </div>
@@ -93,9 +103,9 @@
                         <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Folio de paro</dt>
                         <dd class="mt-0.5 break-words text-base font-bold text-gray-900 sm:text-lg">{{ $orden->FolioParo ?: 'Sin folio de paro' }}</dd>
                     </div>
-                    <div class="col-span-full min-w-0 border-t border-gray-100 pt-2">
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Comentarios</dt>
-                        <dd class="mt-0.5 whitespace-pre-line break-words text-sm text-gray-800">{{ trim((string) $orden->Comentarios) ?: 'Sin comentarios' }}</dd>
+                    <div class="col-span-2 min-w-0 sm:col-span-2 lg:col-span-2">
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Comentarios</dt>
+                        <dd class="mt-0.5 line-clamp-2 whitespace-pre-line break-words text-sm font-semibold text-gray-800 sm:text-base" title="{{ trim((string) $orden->Comentarios) ?: 'Sin comentarios' }}">{{ trim((string) $orden->Comentarios) ?: 'Sin comentarios' }}</dd>
                     </div>
                 </dl>
             </div>
@@ -138,12 +148,12 @@
 
                 <fieldset class="rounded-md border border-gray-200 px-3 py-1.5 sm:px-3">
                     <legend class="px-1 text-sm font-semibold text-gray-800">Trabajo realizado</legend>
-                    <div class="grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-5 md:gap-2">
-                        <label class="flex min-h-9 items-center gap-2 text-sm text-gray-700 sm:text-base"><input id="linea-ajusto" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Ajustó</label>
-                        <label class="flex min-h-9 items-center gap-2 text-sm text-gray-700 sm:text-base"><input id="linea-reparo" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Reparó</label>
-                        <label class="flex min-h-9 items-center gap-2 text-sm text-gray-700 sm:text-base"><input id="linea-cambio" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Cambió</label>
-                        <label class="flex min-h-9 items-center gap-2 text-sm text-gray-700 sm:text-base"><input id="linea-lubrico" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Lubricó</label>
-                        <label class="col-span-2 flex min-h-9 items-center gap-2 text-sm text-gray-700 sm:col-span-1 sm:text-base"><input id="linea-falta-refacc" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Falta refacc.</label>
+                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5 md:gap-3">
+                        <label class="flex min-h-11 items-center gap-2.5 text-sm text-gray-700 sm:text-base"><input id="linea-ajusto" type="checkbox" class="size-6 shrink-0 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Ajustó</label>
+                        <label class="flex min-h-11 items-center gap-2.5 text-sm text-gray-700 sm:text-base"><input id="linea-reparo" type="checkbox" class="size-6 shrink-0 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Reparó</label>
+                        <label class="flex min-h-11 items-center gap-2.5 text-sm text-gray-700 sm:text-base"><input id="linea-cambio" type="checkbox" class="size-6 shrink-0 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Cambió</label>
+                        <label class="flex min-h-11 items-center gap-2.5 text-sm text-gray-700 sm:text-base"><input id="linea-lubrico" type="checkbox" class="size-6 shrink-0 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Lubricó</label>
+                        <label class="col-span-2 flex min-h-11 items-center gap-2.5 text-sm text-gray-700 sm:col-span-1 sm:text-base"><input id="linea-falta-refacc" type="checkbox" class="size-6 shrink-0 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Falta refacc.</label>
                     </div>
                 </fieldset>
 
@@ -166,22 +176,11 @@
                 </div>
 
                 <div>
-                    <label for="linea-comentarios" class="mb-1 block text-sm font-medium text-gray-700">Comentarios <span class="font-normal text-gray-500">(opcional)</span></label>
+                    <label for="linea-comentarios" class="mb-1 block text-sm font-medium text-gray-700">Comentarios</label>
                     <textarea id="linea-comentarios" name="comentarios" rows="2" maxlength="500"
                         placeholder="Detalle de la intervención, refacciones pendientes, observaciones para el siguiente turno…"
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"></textarea>
                     <p class="mt-0.5 text-xs text-gray-500"><span id="linea-comentarios-contador">0</span>/500 caracteres.</p>
-                </div>
-
-                <div class="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
-                    <button id="btn-limpiar-linea" type="button"
-                        class="min-h-11 w-full rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto sm:text-base">
-                        Limpiar
-                    </button>
-                    <button id="btn-guardar-linea" type="submit"
-                        class="min-h-11 w-full rounded-md bg-gray-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:text-base">
-                        Guardar intervención
-                    </button>
                 </div>
             </form>
         </section>
@@ -189,13 +188,6 @@
 
         {{-- Tabla de renglones --}}
         <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-            <div class="flex flex-col gap-1 border-b border-gray-100 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3.5">
-                <div class="min-w-0">
-                    <h2 class="text-base font-bold text-gray-900 sm:text-lg">Renglones capturados</h2>
-                    <p class="mt-0.5 text-sm text-gray-600">Intervenciones de la orden {{ $orden->Folio }}.</p>
-                </div>
-                <span id="total-lineas" class="shrink-0 text-sm font-semibold text-gray-600"></span>
-            </div>
             <div class="border-b border-gray-100 px-3 py-2 text-xs text-gray-500 xl:hidden">
                 <i class="fas fa-arrows-alt-h mr-1"></i> Desliza horizontalmente para ver todas las columnas.
             </div>
@@ -365,7 +357,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderLineas() {
         const lineas = orden.lineas || [];
-        $('#total-lineas').textContent = `${lineas.length} ${lineas.length === 1 ? 'renglón' : 'renglones'}`;
+        const totalLineas = $('#total-lineas');
+        if (totalLineas) {
+            totalLineas.textContent = `${lineas.length} ${lineas.length === 1 ? 'renglón' : 'renglones'}`;
+        }
 
         if (! lineas.length) {
             lineasBody.innerHTML = '<tr><td colspan="17" class="px-4 py-10 text-center text-sm text-gray-500">No hay renglones capturados.</td></tr>';
@@ -566,6 +561,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (! horaIni || ! horaFin) {
             return 'Captura hora inicial y hora final para guardar el renglón.';
+        }
+        if (! String(data.comentarios || '').trim()) {
+            return 'Los comentarios del renglón son obligatorios.';
         }
         return null;
     }
