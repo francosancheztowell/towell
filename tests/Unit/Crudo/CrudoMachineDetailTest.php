@@ -9,6 +9,7 @@ use App\Contracts\Crudo\CrudoFlogProvider;
 use App\Livewire\Crudo\MachineDetail;
 use App\Livewire\Crudo\MachineFlogSummary;
 use DateTimeImmutable;
+use Livewire\Attributes\Computed;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -559,6 +560,41 @@ final class CrudoMachineDetailTest extends TestCase
         ], $this->provider->detailArguments[array_key_last($this->provider->detailArguments)]);
     }
 
+    public function test_el_dialogo_de_paro_terminado_junta_obs_ini_y_final(): void
+    {
+        $html = Livewire::test(TestableCrudoMachineDetailWithParos::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
+            ->html();
+
+        $this->assertStringContainsString('Obs ini / Obs final', $html);
+        $this->assertStringContainsString('Hilo roto', $html);
+        $this->assertStringContainsString('Se cambió balero', $html);
+        $this->assertStringContainsString('crudo-paro-obs-sep', $html);
+        $this->assertStringNotContainsString('Observaciones de cierre', $html);
+        $this->assertStringContainsString('Intervenciones', $html);
+        $this->assertStringContainsString('MEC00025', $html);
+        $this->assertStringContainsString('Mecánico Uno', $html);
+        $this->assertStringContainsString('Ajustó', $html);
+        $this->assertStringContainsString('fa-check', $html);
+        $this->assertStringContainsString('08:10', $html);
+        $this->assertStringContainsString('Se cambió balero', $html);
+        $this->assertStringContainsString('Pedro Tejedor', $html);
+    }
+
+    public function test_el_dialogo_de_paro_activo_solo_muestra_observaciones_de_inicio(): void
+    {
+        $html = Livewire::test(TestableCrudoMachineDetailWithActiveParo::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
+            ->html();
+
+        $this->assertStringContainsString('<dt>Observaciones</dt>', $html);
+        $this->assertStringContainsString('Revisar orillo', $html);
+        $this->assertStringNotContainsString('Obs ini / Obs final', $html);
+        $this->assertStringNotContainsString('Observaciones de cierre', $html);
+        $this->assertStringContainsString('Sin intervenciones capturadas.', $html);
+        $this->assertStringNotContainsString('Sin renglones capturados en esta orden.', $html);
+    }
+
     public function test_next_open_uses_the_latest_range_received_from_the_dashboard(): void
     {
         Livewire::test(TestableCrudoMachineDetail::class)
@@ -782,6 +818,107 @@ final class TestableCrudoMachineDetail extends MachineDetail
     }
 
     protected function authorizeRegisterAudit(): void {}
+}
+
+final class TestableCrudoMachineDetailWithParos extends MachineDetail
+{
+    protected function authorizeAccess(): void {}
+
+    protected function canRegisterAudit(): bool
+    {
+        return true;
+    }
+
+    protected function authorizeRegisterAudit(): void {}
+
+    #[Computed]
+    public function paros(): array
+    {
+        return [[
+            'folio' => 'P-100',
+            'activo' => false,
+            'estatus' => 'Terminado',
+            'inicio' => '07/09 08:00',
+            'fin' => '07/09 10:00',
+            'duracion' => '2h 0m',
+            'falla' => 'Balero',
+            'tipo' => 'Mecánico',
+            'depto' => 'Jacquard',
+            'reporto' => 'Juan',
+            'turno' => 1,
+            'atendio' => 'Pedro',
+            'turnoAtendio' => 1,
+            'obs' => 'Hilo roto',
+            'obsCierre' => 'Se cambió balero',
+            'ordenTrabajo' => 'OT-1',
+            'ordenamiento' => 1,
+            'ventana' => '2d',
+            'ordenes' => [[
+                'folio' => 'MEC00025',
+                'estatus' => 'Terminado',
+                'renglones' => [[
+                    'id' => 1,
+                    'cveOperador' => '1001',
+                    'nomOperador' => 'Mecánico Uno',
+                    'turno' => 1,
+                    'fecha' => '07/09',
+                    'trabajos' => ['Ajustó', 'Reparó'],
+                    'checks' => [
+                        ['label' => 'Ajustó', 'on' => true],
+                        ['label' => 'Reparó', 'on' => true],
+                        ['label' => 'Cambió', 'on' => false],
+                        ['label' => 'Lubricó', 'on' => false],
+                        ['label' => 'Falta ref.', 'on' => false],
+                    ],
+                    'horaInicial' => '08:10',
+                    'horaFinal' => '09:40',
+                    'tiempo' => '1h 30m',
+                    'comentarios' => 'Se cambió balero',
+                    'calificacion' => 5,
+                    'cveTejedor' => '2002',
+                    'nomTejedor' => 'Pedro Tejedor',
+                ]],
+            ]],
+        ]];
+    }
+}
+
+final class TestableCrudoMachineDetailWithActiveParo extends MachineDetail
+{
+    protected function authorizeAccess(): void {}
+
+    protected function canRegisterAudit(): bool
+    {
+        return true;
+    }
+
+    protected function authorizeRegisterAudit(): void {}
+
+    #[Computed]
+    public function paros(): array
+    {
+        return [[
+            'folio' => 'P-101',
+            'activo' => true,
+            'estatus' => 'Activo',
+            'inicio' => '07/09 08:00',
+            'fin' => '',
+            'duracion' => '1h 10m',
+            'falla' => 'REVERSA',
+            'tipo' => 'Mecánico',
+            'depto' => 'Jacquard',
+            'reporto' => 'Juan',
+            'turno' => 1,
+            'atendio' => '',
+            'turnoAtendio' => null,
+            'obs' => 'Revisar orillo',
+            'obsCierre' => '',
+            'ordenTrabajo' => '',
+            'ordenamiento' => 1,
+            'ventana' => '2d',
+            'ordenes' => [],
+        ]];
+    }
 }
 
 final class DeniedCrudoMachineDetail extends MachineDetail

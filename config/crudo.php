@@ -25,6 +25,8 @@ return [
         'machines' => env('CRUDO_MACHINES_TABLE', 'dbo.ReqTelares'),
         'sequence' => env('CRUDO_SEQUENCE_TABLE', 'dbo.InvSecuenciaTelares'),
         'paros' => env('CRUDO_PAROS_TABLE', 'dbo.ManFallasParos'),
+        'ordenes_trabajo' => env('CRUDO_OT_TABLE', 'dbo.MecOrdenTrabajoTable'),
+        'ordenes_trabajo_lineas' => env('CRUDO_OT_LINES_TABLE', 'dbo.MecOrdenTrabajoLine'),
         'programs' => env('CRUDO_PROGRAMS_TABLE', 'dbo.ReqProgramaTejido'),
         'flogs' => env('CRUDO_FLOGS_TABLE', 'dbo.TwFlogsTable'),
         'flog_lines' => env('CRUDO_FLOG_LINES_TABLE', 'dbo.TwFlogsItemLine'),

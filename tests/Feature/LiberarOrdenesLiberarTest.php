@@ -529,11 +529,10 @@ class LiberarOrdenesLiberarTest extends TestCase
     }
 
     /**
-     * La fila espejo en CatCodificados no existe: la liberación NO se frena, pero la respuesta
-     * dice cuáles órdenes no se copiaron al catálogo. Antes era un return mudo y el usuario
-     * leía "liberadas correctamente" con codificados vacío.
+     * La fila espejo en CatCodificados no existe todavía (caso normal en órdenes nuevas:
+     * la crea la orden de cambio después). La liberación no se frena ni avisa nada.
      */
-    public function test_orden_sin_fila_en_codificados_se_libera_pero_se_avisa(): void
+    public function test_orden_sin_fila_en_codificados_se_libera_sin_aviso(): void
     {
         $id = $this->sembrarRegistro();
         // A propósito NO se siembra CatCodificados.
@@ -547,30 +546,11 @@ class LiberarOrdenesLiberarTest extends TestCase
 
         $data = $response->getData(true);
         $this->assertTrue($data['success']);
-        $this->assertSame(['79001 (telar 201)'], $data['sinSincronizar']);
-        $this->assertStringContainsString('no se encontró renglón en codificados', $data['message']);
-
-        // La orden sí quedó liberada: el aviso no bloquea.
-        $this->assertSame('79001', DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $id)->value('NoProduccion'));
-    }
-
-    /** Con la fila presente no hay aviso. */
-    public function test_orden_sincronizada_no_reporta_aviso(): void
-    {
-        $id = $this->sembrarRegistro();
-        DB::connection('sqlsrv')->table('CatCodificados')->insert([
-            'OrdenTejido' => '79002', 'TelarId' => '201',
-        ]);
-
-        $data = $this->liberar([[
-            'id' => $id,
-            'bomId' => 'BOM-CRUDO-01',
-            'bomName' => 'LISTA MATERIALES CRUDO 01',
-            'noProduccion' => '79002',
-        ]])->getData(true);
-
-        $this->assertSame([], $data['sinSincronizar']);
         $this->assertStringNotContainsString('Aviso:', $data['message']);
+        $this->assertArrayNotHasKey('sinSincronizar', $data);
+
+        // La orden sí quedó liberada.
+        $this->assertSame('79001', DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $id)->value('NoProduccion'));
     }
 
     /**

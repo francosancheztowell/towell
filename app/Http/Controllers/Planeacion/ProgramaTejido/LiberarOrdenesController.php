@@ -377,9 +377,6 @@ class LiberarOrdenesController extends Controller
         DB::beginTransaction();
 
         $actualizados = collect();
-        // Órdenes liberadas cuya fila espejo en CatCodificados no existía: se avisan en la
-        // respuesta en vez de quedar en silencio, pero NO frenan la liberación.
-        $sinSincronizar = [];
 
         try {
             $foliosUsadosEnLote = [];
@@ -683,15 +680,13 @@ class LiberarOrdenesController extends Controller
                 $registro->save();
 
                 // Actualizar CatCodificados con los mismos campos (código de dibujo: grilla o último catálogo Item+salón)
-                $sincronizado = $this->actualizarCatCodificados(
+                // ponytail: si la fila aún no existe, no se avisa: la crea después
+                // crearOActualizarModeloCodificado() al generar la orden de cambio.
+                $this->actualizarCatCodificados(
                     $registro,
                     $codigoDibujoParaCat !== '' ? $codigoDibujoParaCat : null,
                     $asignarFlogs
                 );
-
-                if (! $sincronizado) {
-                    $sinSincronizar[] = $registro->NoProduccion.' (telar '.trim((string) ($registro->NoTelarId ?? '?')).')';
-                }
 
                 // Actualizar ReqModelosCodificados con OrdPrincipal y PesoMuestra
                 $this->actualizarReqModelosCodificados($registro);
@@ -744,8 +739,7 @@ class LiberarOrdenesController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => self::mensajeLiberacion('Órdenes liberadas correctamente.', $sinSincronizar),
-                    'sinSincronizar' => $sinSincronizar,
+                    'message' => 'Órdenes liberadas correctamente.',
                     'fileName' => 'ORDEN_CAMBIO_MODELO_'.now()->format('Ymd_His').'.xlsx',
                     'fileData' => base64_encode($excelBinary),
                     'redirectUrl' => route('catalogos.req-programa-tejido'),
@@ -765,29 +759,9 @@ class LiberarOrdenesController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => self::mensajeLiberacion(
-                'Órdenes liberadas correctamente, pero no se pudo generar el Excel de orden de cambio. Reimprímelo desde Programa Tejido.',
-                $sinSincronizar
-            ),
-            'sinSincronizar' => $sinSincronizar,
+            'message' => 'Órdenes liberadas correctamente, pero no se pudo generar el Excel de orden de cambio. Reimprímelo desde Programa Tejido.',
             'redirectUrl' => route('catalogos.req-programa-tejido'),
         ]);
-    }
-
-    /**
-     * Agrega al mensaje de éxito las órdenes que no se pudieron espejar en CatCodificados.
-     * La liberación sí ocurrió: el aviso es para que el usuario sepa cuáles revisar a mano.
-     *
-     * @param  array<int, string>  $sinSincronizar
-     */
-    private static function mensajeLiberacion(string $base, array $sinSincronizar): string
-    {
-        if ($sinSincronizar === []) {
-            return $base;
-        }
-
-        return $base.' Aviso: no se encontró renglón en codificados para '
-            .implode(', ', $sinSincronizar).'; esos datos no se copiaron al catálogo.';
     }
 
     /**
@@ -1368,13 +1342,7 @@ class LiberarOrdenesController extends Controller
             $registroCodificado = $query->first();
 
             if (! $registroCodificado) {
-                // Antes era un return mudo: la orden quedaba liberada y codificados sin datos,
-                // con el usuario leyendo "liberadas correctamente". Quien llama lo reporta.
-                Log::warning('LiberarOrdenes: sin fila en CatCodificados para sincronizar', [
-                    'orden' => $noProduccion,
-                    'telar' => $noTelarId,
-                ]);
-
+                // Normal en órdenes nuevas: la fila la crea después la orden de cambio.
                 return false;
             }
 

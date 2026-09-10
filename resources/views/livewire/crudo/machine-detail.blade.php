@@ -501,36 +501,18 @@
                                             data-ventana="{{ $paro['ventana'] }}"
                                         >
                                             <div class="crudo-paro-row-head">
-                                                <span class="crudo-paro-badge">{{ $paro['estatus'] }}</span>
-                                                <span class="crudo-paro-horas">
-                                                    {{ $paro['inicio'] }} →
-                                                    {{ $paro['activo'] ? 'en curso' : ($paro['fin'] ?: 'sin hora fin') }}
-                                                    @if ($paro['duracion'] !== '')
-                                                        · {{ $paro['duracion'] }}
-                                                    @endif
+                                                <span class="crudo-paro-badge">{{ $paro['activo'] ? 'Activo' : 'Terminado' }}</span>
+                                                <span class="crudo-paro-personas">
+                                                    <i class="fa-solid fa-user" aria-hidden="true"></i>
+                                                    {{ $paro['reporto'] ?: 'Sin registrar' }}
                                                 </span>
                                             </div>
                                             <p class="crudo-paro-falla">
+                                                @if ($paro['folio'] !== '')
+                                                    <span class="crudo-paro-folio">{{ $paro['folio'] }}</span>
+                                                @endif
                                                 {{ $paro['falla'] ?: 'Sin falla registrada' }}
-                                                @if ($paro['tipo'] !== '' || $paro['depto'] !== '')
-                                                    <span class="crudo-paro-tags">
-                                                        {{ implode(' · ', array_filter([$paro['tipo'], $paro['depto']])) }}
-                                                    </span>
-                                                @endif
                                             </p>
-                                            <p class="crudo-paro-personas">
-                                                <i class="fa-solid fa-user" aria-hidden="true"></i>
-                                                {{ $paro['reporto'] ?: 'Sin registrar' }}
-                                                @if ($paro['atendio'] !== '')
-                                                    <i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i>
-                                                    {{ $paro['atendio'] }}
-                                                @endif
-                                            </p>
-                                            @if ($paro['obs'] !== '' || $paro['obsCierre'] !== '')
-                                                <p class="crudo-paro-obs">
-                                                    {{ implode(' · ', array_filter([$paro['obs'], $paro['obsCierre']])) }}
-                                                </p>
-                                            @endif
 
                                             {{--
                                                 ponytail: el detalle ya viene en $paro, así que el sub-modal es
@@ -548,34 +530,113 @@
                                                 onclick="if (event.target === this) this.close()"
                                             >
                                                 <header class="crudo-paro-dialog-head">
-                                                    <span class="crudo-paro-badge">{{ $paro['estatus'] }}</span>
-                                                    <h4>{{ $paro['falla'] ?: 'Sin falla registrada' }}</h4>
+                                                    <h4>
+                                                        @if ($paro['folio'] !== '')
+                                                            <span class="crudo-paro-folio">{{ $paro['folio'] }}</span>
+                                                        @endif
+                                                        {{ $paro['falla'] ?: 'Sin falla registrada' }}
+                                                    </h4>
+                                                    <span class="crudo-paro-badge {{ $paro['activo'] ? 'is-activo' : '' }}">
+                                                        {{ $paro['activo'] ? 'Activo' : 'Terminado' }}
+                                                    </span>
                                                     <button type="button" class="crudo-paro-dialog-close" onclick="this.closest('dialog').close()" aria-label="Cerrar">
                                                         <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                                                     </button>
                                                 </header>
                                                 <dl class="crudo-paro-dialog-datos">
-                                                    @foreach ([
-                                                        'Folio' => $paro['folio'],
+                                                    {{-- Un paro abierto no tiene fin, atención ni cierre: esos campos solo estorban. --}}
+                                                    @foreach ($paro['activo'] ? [
                                                         'Tipo de falla' => $paro['tipo'],
-                                                        'Departamento' => $paro['depto'],
                                                         'Orden de trabajo' => $paro['ordenTrabajo'],
                                                         'Inicio' => $paro['inicio'],
-                                                        'Fin' => $paro['activo'] ? 'En curso' : $paro['fin'],
+                                                        'Tiempo transcurrido' => $paro['duracion'],
+                                                        'Reportó' => $paro['reporto'],
+                                                    ] : [
+                                                        'Tipo de falla' => $paro['tipo'],
+                                                        'Orden de trabajo' => $paro['ordenTrabajo'],
+                                                        'Inicio' => $paro['inicio'],
+                                                        'Fin' => $paro['fin'],
                                                         'Duración' => $paro['duracion'],
                                                         'Reportó' => $paro['reporto'],
-                                                        'Turno de quien reportó' => $paro['turno'] ? 'Turno '.$paro['turno'] : '',
                                                         'Atendió' => $paro['atendio'],
-                                                        'Turno de quien atendió' => $paro['turnoAtendio'] ? 'Turno '.$paro['turnoAtendio'] : '',
-                                                        'Motivo / observaciones' => $paro['obs'],
-                                                        'Observaciones de cierre' => $paro['obsCierre'],
                                                     ] as $etiqueta => $valor)
                                                         <div>
                                                             <dt>{{ $etiqueta }}</dt>
                                                             <dd>{{ trim((string) $valor) !== '' ? $valor : 'Sin registrar' }}</dd>
                                                         </div>
                                                     @endforeach
+                                                    <div class="crudo-paro-obs">
+                                                        @if ($paro['activo'])
+                                                            <dt>Observaciones</dt>
+                                                            <dd>{{ trim((string) $paro['obs']) !== '' ? $paro['obs'] : 'Sin registrar' }}</dd>
+                                                        @else
+                                                            <dt>Obs ini / Obs final</dt>
+                                                            <dd>
+                                                                {{ trim((string) $paro['obs']) !== '' ? $paro['obs'] : 'Sin registrar' }}
+                                                                <span class="crudo-paro-obs-sep">/</span>
+                                                                {{ trim((string) $paro['obsCierre']) !== '' ? $paro['obsCierre'] : 'Sin registrar' }}
+                                                            </dd>
+                                                        @endif
+                                                    </div>
                                                 </dl>
+                                                <section class="crudo-paro-renglones">
+                                                    <h5>Intervenciones</h5>
+                                                    @forelse ($paro['ordenes'] ?? [] as $ot)
+                                                        <article class="crudo-paro-ot" wire:key="crudo-paro-ot-{{ $paro['folio'] }}-{{ $ot['folio'] }}">
+                                                            <header class="crudo-paro-ot-head">
+                                                                <span class="crudo-paro-folio">{{ $ot['folio'] }}</span>
+                                                                <span class="crudo-paro-ot-estatus">{{ $ot['estatus'] }}</span>
+                                                            </header>
+                                                            @foreach ($ot['renglones'] as $renglon)
+                                                                <div class="crudo-paro-renglon" wire:key="crudo-paro-ren-{{ $renglon['id'] }}">
+                                                                    <p class="crudo-paro-renglon-horas">
+                                                                        {{ $renglon['horaInicial'] !== '' ? $renglon['horaInicial'] : '—' }}–{{ $renglon['horaFinal'] !== '' ? $renglon['horaFinal'] : '—' }}
+                                                                        @if ($renglon['tiempo'] !== '')
+                                                                            <span>{{ $renglon['tiempo'] }}</span>
+                                                                        @endif
+                                                                    </p>
+                                                                    <div class="crudo-paro-renglon-meta">
+                                                                        <p class="crudo-paro-renglon-quien">
+                                                                            {{ $renglon['nomOperador'] !== '' ? $renglon['nomOperador'] : ($renglon['cveOperador'] !== '' ? $renglon['cveOperador'] : 'Sin mecánico') }}
+                                                                            @if ($renglon['turno'] !== null)
+                                                                                <span>T{{ $renglon['turno'] }}</span>
+                                                                            @endif
+                                                                            @if ($renglon['fecha'] !== '')
+                                                                                <span>{{ $renglon['fecha'] }}</span>
+                                                                            @endif
+                                                                        </p>
+                                                                        <ul class="crudo-paro-renglon-checks">
+                                                                            @foreach ($renglon['checks'] ?? [] as $check)
+                                                                                <li class="{{ $check['on'] ? 'is-on' : '' }}">
+                                                                                    <i class="fa-solid {{ $check['on'] ? 'fa-check' : 'fa-minus' }}" aria-hidden="true"></i>
+                                                                                    {{ $check['label'] }}
+                                                                                </li>
+                                                                            @endforeach
+                                                                        </ul>
+                                                                        @if ($renglon['comentarios'] !== '')
+                                                                            <p class="crudo-paro-renglon-comentarios">{{ $renglon['comentarios'] }}</p>
+                                                                        @endif
+                                                                        @if ($renglon['calificacion'] !== null || $renglon['nomTejedor'] !== '' || $renglon['cveTejedor'] !== '')
+                                                                            <p class="crudo-paro-renglon-calif">
+                                                                                @if ($renglon['calificacion'] !== null)
+                                                                                    Calif. {{ $renglon['calificacion'] }}
+                                                                                @endif
+                                                                                @if ($renglon['nomTejedor'] !== '' || $renglon['cveTejedor'] !== '')
+                                                                                    @if ($renglon['calificacion'] !== null)
+                                                                                        ·
+                                                                                    @endif
+                                                                                    {{ $renglon['nomTejedor'] !== '' ? $renglon['nomTejedor'] : $renglon['cveTejedor'] }}
+                                                                                @endif
+                                                                            </p>
+                                                                        @endif
+                                                                    </div>
+                                                                </div>
+                                                            @endforeach
+                                                        </article>
+                                                    @empty
+                                                        <p class="crudo-paro-renglones-vacio">Sin intervenciones capturadas.</p>
+                                                    @endforelse
+                                                </section>
                                             </dialog>
                                         </li>
                                     @endforeach

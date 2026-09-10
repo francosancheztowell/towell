@@ -2,7 +2,9 @@
 
 namespace App\Models\Planeacion;
 
+use App\Livewire\Mecanicos\VerificaMaquina\Show;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class ReqTelares extends Model
 {
@@ -24,7 +26,7 @@ class ReqTelares extends Model
         'NoTelarId',      // Mapeo de columna "Telar"
         'Nombre',         // Mapeo de columna "Nombre"
         'Grupo',           // Mapeo de columna "Grupo"
-        'VelocidadSTD'    // Mapeo de columna "VelocidadSTD"
+        'VelocidadSTD',    // Mapeo de columna "VelocidadSTD"
     ];
 
     /**
@@ -51,8 +53,8 @@ class ReqTelares extends Model
     public static function obtenerTodos()
     {
         return self::orderBy('SalonTejidoId')
-                  ->orderBy('NoTelarId')
-                  ->get();
+            ->orderBy('NoTelarId')
+            ->get();
     }
 
     /**
@@ -79,8 +81,8 @@ class ReqTelares extends Model
         }
 
         return $query->orderBy('SalonTejidoId')
-                    ->orderBy('NoTelarId')
-                    ->get();
+            ->orderBy('NoTelarId')
+            ->get();
     }
 
     /**
@@ -89,8 +91,8 @@ class ReqTelares extends Model
     public static function existeTelar($salon, $telar)
     {
         return self::where('SalonTejidoId', $salon)
-                  ->where('NoTelarId', $telar)
-                  ->exists();
+            ->where('NoTelarId', $telar)
+            ->exists();
     }
 
     /**
@@ -102,7 +104,7 @@ class ReqTelares extends Model
             'SalonTejidoId' => $datos['salon'] ?? null,
             'NoTelarId' => $datos['telar'] ?? null,
             'Nombre' => $datos['nombre'] ?? null,
-            'Grupo' => $datos['grupo'] ?? null
+            'Grupo' => $datos['grupo'] ?? null,
         ]);
     }
 
@@ -115,7 +117,7 @@ class ReqTelares extends Model
             'SalonTejidoId' => $datos['salon'] ?? $this->SalonTejidoId,
             'NoTelarId' => $datos['telar'] ?? $this->NoTelarId,
             'Nombre' => $datos['nombre'] ?? $this->Nombre,
-            'Grupo' => $datos['grupo'] ?? $this->Grupo
+            'Grupo' => $datos['grupo'] ?? $this->Grupo,
         ]);
     }
 
@@ -133,5 +135,16 @@ class ReqTelares extends Model
     public function getTelarAttribute()
     {
         return $this->NoTelarId;
+    }
+
+    /**
+     * Cualquier alta/baja/cambio (store/update/destroy, import Excel, o
+     * cualquier otro módulo que escriba este catálogo compartido) invalida el
+     * catálogo cacheado en Estado de Máquina (Show::telaresCatalogo).
+     */
+    protected static function booted(): void
+    {
+        static::saved(fn () => Cache::forget(Show::CACHE_KEY_TELARES));
+        static::deleted(fn () => Cache::forget(Show::CACHE_KEY_TELARES));
     }
 }

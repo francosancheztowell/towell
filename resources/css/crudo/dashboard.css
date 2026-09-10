@@ -3109,19 +3109,36 @@ button.crudo-status-card:disabled {
     scrollbar-width: thin;
 }
 
+/* Mismos verdes/rojos plenos que las tarjetas del andon. */
 .crudo-paro-row {
     position: relative;
     min-width: 0;
-    border: 1px solid #dbe5ee;
-    border-left: 0.25rem solid #16a34a;
+    border: 1px solid #166534;
     border-radius: 0.62rem;
-    background: #fff;
+    background: #15803d;
     padding: 0.3rem 1rem 0.3rem 0.45rem;
+    color: #fff;
 }
 
+.crudo-paro-row .crudo-paro-falla,
+.crudo-paro-row .crudo-paro-folio,
+.crudo-paro-row .crudo-paro-folio::after,
+.crudo-paro-row .crudo-paro-personas,
+.crudo-paro-row .crudo-paro-personas i,
+.crudo-paro-row::after {
+    color: #fff;
+}
+
+/* En la fila el pill va sobre color pleno; en el modal conserva el verde suave. */
+.crudo-paro-row .crudo-paro-badge {
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
+}
+
+/* Paro sin cerrar: rojo pleno, se lee a distancia sin necesidad de leer texto. */
 .crudo-paro-row.is-activo {
-    border-left-color: #dc2626;
-    background: #fff7f7;
+    border-color: #b91c1c;
+    background: #dc2626;
 }
 
 .crudo-paro-row-head {
@@ -3142,53 +3159,39 @@ button.crudo-status-card:disabled {
     text-transform: uppercase;
 }
 
-.crudo-paro-row.is-activo .crudo-paro-badge {
-    background: #fee2e2;
-    color: #991b1b;
-}
-
-.crudo-paro-horas {
-    color: #334155;
-    font-size: 0.72rem;
-    font-weight: 800;
-}
 
 /* La falla es lo que se lee a distancia; lo demás es contexto. */
 .crudo-paro-falla {
     margin: 0.12rem 0 0;
-    color: #0f172a;
     font-size: 1.2rem;
     font-weight: 900;
     line-height: 1.15;
     overflow-wrap: anywhere;
 }
 
-.crudo-paro-tags {
-    color: #64748b;
-    font-size: 0.65rem;
-    font-weight: 700;
+.crudo-paro-folio {
+    font-size: inherit;
+    font-weight: 900;
 }
 
-.crudo-paro-personas,
-.crudo-paro-obs {
-    margin: 0.05rem 0 0;
-    color: #475569;
-    font-size: 0.66rem;
-    font-weight: 700;
+.crudo-paro-folio::after {
+    margin: 0 0.15rem 0 0.25rem;
+    content: '·';
+    opacity: 0.6;
+}
+
+.crudo-paro-personas {
+    margin: 0;
+    font-size: 0.88rem;
+    font-weight: 800;
     line-height: 1.25;
     overflow-wrap: anywhere;
 }
 
 .crudo-paro-personas i {
     margin-right: 0.15rem;
-    color: #64748b;
 }
 
-.crudo-paro-obs {
-    color: #64748b;
-    font-size: 0.65rem;
-    font-style: italic;
-}
 
 /* Botón invisible que cubre la fila: hace clicable el paro sin tocar su maquetación. */
 .crudo-paro-abrir {
@@ -3208,7 +3211,6 @@ button.crudo-status-card:disabled {
     position: absolute;
     top: 0.35rem;
     right: 0.45rem;
-    color: #64748b;
     content: '›';
     font-size: 1rem;
     font-weight: 900;
@@ -3216,16 +3218,13 @@ button.crudo-status-card:disabled {
 }
 
 .crudo-paro-row:hover {
-    border-color: #64748b;
-    background: #f8fafc;
+    border-color: #14532d;
+    background: #166534;
 }
 
 .crudo-paro-row.is-activo:hover {
-    background: #fff1f1;
-}
-
-.crudo-paro-row:hover::after {
-    color: #2563eb;
+    border-color: #7f1d1d;
+    background: #b91c1c;
 }
 
 .crudo-paro-abrir:focus-visible {
@@ -3270,6 +3269,20 @@ button.crudo-status-card:disabled {
     overflow-wrap: anywhere;
 }
 
+/* Folio en gris y estatus a color: el título se sigue leyendo primero. */
+.crudo-paro-dialog-head .crudo-paro-folio {
+    color: #64748b;
+}
+
+.crudo-paro-dialog-head .crudo-paro-badge {
+    font-size: 0.72rem;
+}
+
+.crudo-paro-badge.is-activo {
+    background: #dc2626;
+    color: #fff;
+}
+
 .crudo-paro-dialog-close {
     min-width: 1.5rem;
     min-height: 1.5rem;
@@ -3304,6 +3317,158 @@ button.crudo-status-card:disabled {
     font-weight: 800;
     line-height: 1.25;
     overflow-wrap: anywhere;
+}
+
+.crudo-paro-obs {
+    grid-column: 1 / -1;
+}
+
+.crudo-paro-obs-sep {
+    margin: 0 0.35rem;
+    color: #94a3b8;
+    font-weight: 700;
+}
+
+.crudo-paro-renglones {
+    margin-top: 1rem;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 0.85rem;
+}
+
+.crudo-paro-renglones h5 {
+    margin: 0 0 0.35rem;
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.crudo-paro-ot + .crudo-paro-ot {
+    margin-top: 0.85rem;
+}
+
+.crudo-paro-ot-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+}
+
+.crudo-paro-ot-head .crudo-paro-folio {
+    color: #0f172a;
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.crudo-paro-ot-estatus {
+    color: #94a3b8;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.crudo-paro-renglon {
+    display: grid;
+    grid-template-columns: 7.6rem minmax(0, 1fr);
+    gap: 0.2rem 1rem;
+    border-top: 1px solid #eef2f6;
+    padding: 0.6rem 0 0.55rem;
+}
+
+.crudo-paro-renglon p {
+    margin: 0;
+}
+
+.crudo-paro-renglon-horas {
+    color: #0f172a;
+    font-size: 0.95rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+    line-height: 1.25;
+}
+
+.crudo-paro-renglon-horas span {
+    display: block;
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.crudo-paro-renglon-quien {
+    color: #0f172a;
+    font-size: 0.92rem;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.crudo-paro-renglon-quien span {
+    margin-left: 0.35rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.crudo-paro-renglon-checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.28rem 0.7rem;
+    margin: 0.38rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.crudo-paro-renglon-checks li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+    color: #94a3b8;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.crudo-paro-renglon-checks li.is-on {
+    color: #166534;
+}
+
+.crudo-paro-renglon-checks i {
+    width: 0.8rem;
+    font-size: 0.72rem;
+}
+
+.crudo-paro-renglon-checks li.is-on i {
+    color: #16a34a;
+}
+
+.crudo-paro-renglon-comentarios {
+    margin-top: 0.42rem;
+    border-left: 2px solid #86efac;
+    background: #f0fdf4;
+    padding: 0.35rem 0.55rem;
+    color: #14532d;
+    font-size: 0.88rem;
+    font-weight: 650;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.crudo-paro-renglon-calif {
+    margin-top: 0.28rem;
+    color: #64748b;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.crudo-paro-renglones-vacio {
+    margin: 0.15rem 0 0;
+    color: #94a3b8;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+@media (max-width: 32rem) {
+    .crudo-paro-renglon {
+        grid-template-columns: 1fr;
+        gap: 0.2rem;
+    }
 }
 
 .crudo-audit-history-list {

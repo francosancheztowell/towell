@@ -9,6 +9,7 @@ use App\Models\Mecanicos\MecVerificaMaquinaLineModel;
 use App\Models\Mecanicos\MecVerificaMaquinaModel;
 use App\Models\Planeacion\ReqTelares;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Renderless;
 use Livewire\Component;
 
@@ -34,6 +35,12 @@ class Show extends Component
     private const ESTATUS_TERMINADO = 'Terminado';
 
     private const ESTATUS_AUTORIZADO = 'Autorizado';
+
+    private const CACHE_TTL = 3600;
+
+    public const CACHE_KEY_TELARES = 'mecanicos_telares_catalogo';
+
+    public const CACHE_KEY_ACTIVIDADES = 'mecanicos_actividades_catalogo';
 
     public string $folio = '';
 
@@ -193,7 +200,7 @@ class Show extends Component
      */
     private function telaresCatalogo(): array
     {
-        return ReqTelares::query()
+        return Cache::remember(self::CACHE_KEY_TELARES, self::CACHE_TTL, fn () => ReqTelares::query()
             ->orderBy('NoTelarId')
             ->get(['NoTelarId', 'Nombre', 'SalonTejidoId'])
             ->map(fn ($telar) => [
@@ -201,7 +208,7 @@ class Show extends Component
                 'Nombre' => (string) $telar->Nombre,
                 'SalonTejidoId' => (string) $telar->SalonTejidoId,
             ])
-            ->all();
+            ->all());
     }
 
     /**
@@ -209,7 +216,7 @@ class Show extends Component
      */
     private function actividadesCatalogo(): array
     {
-        return MecActividadesModel::query()
+        return Cache::remember(self::CACHE_KEY_ACTIVIDADES, self::CACHE_TTL, fn () => MecActividadesModel::query()
             ->orderBy('Orden')
             ->orderBy('Id')
             ->get(['Id', 'Actividad'])
@@ -217,7 +224,7 @@ class Show extends Component
                 'Id' => (int) $actividad->Id,
                 'Actividad' => (string) $actividad->Actividad,
             ])
-            ->all();
+            ->all());
     }
 
     /**
