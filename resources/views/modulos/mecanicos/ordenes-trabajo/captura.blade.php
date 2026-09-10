@@ -103,18 +103,11 @@
 
         @if (! $bloqueadaEdicion && ! ($modoTejedor ?? false) && ($puedeEditar || $puedeCrear))
         {{-- Formulario de captura (mecánico / supervisor) --}}
-        <section id="seccion-captura" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4 lg:p-5">
-            <div class="flex flex-col gap-2 border-b border-gray-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
-                <div class="min-w-0">
-                    <h2 id="titulo-formulario" class="text-lg font-bold text-gray-900 sm:text-xl">Capturar intervención</h2>
-                    <p id="subtitulo-formulario" class="mt-0.5 text-sm text-gray-600 sm:text-base">Orden {{ $orden->Folio }}</p>
-                </div>
-            </div>
-
-            <form id="form-linea" class="mt-4 space-y-4">
+        <section id="seccion-captura" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+            <form id="form-linea" class="space-y-3">
                 <input id="linea-id" type="hidden">
 
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12 lg:gap-4">
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-12 lg:gap-3">
                     <div class="lg:col-span-6">
                         <label for="linea-operador" class="mb-1 block text-sm font-medium text-gray-700">Mecánico <span class="font-normal text-gray-500">(capturando)</span></label>
                         <select id="linea-operador" name="CveOperador"
@@ -124,7 +117,6 @@
                                 <option value="{{ $operador->CveEmpl }}">{{ $operador->CveEmpl }} · {{ $operador->NomEmpl }}@if ($operador->Turno) (T{{ $operador->Turno }}) @endif</option>
                             @endforeach
                         </select>
-                        <p class="mt-1 text-xs text-gray-500">Se precarga con el usuario en sesión. Para guardar completa trabajo realizado y horas.</p>
                         {{-- El nombre viaja junto con la clave: el select ya muestra ambos. --}}
                         <input id="linea-nom-operador" name="NomOperador" type="hidden" maxlength="150">
                     </div>
@@ -136,28 +128,26 @@
                                 <option value="{{ $turno }}" @selected($turno === $turnoSugerido)>Turno {{ $turno }}@if ($turno === 4) @endif</option>
                             @endforeach
                         </select>
-                        <p class="mt-1 text-xs text-gray-500">Sugerido: Turno {{ $turnoSugerido }}.</p>
                     </div>
                     <div class="lg:col-span-3">
                         <label for="linea-fecha" class="mb-1 block text-sm font-medium text-gray-700">Fecha <span class="font-normal text-gray-500">(registro)</span></label>
                         <input id="linea-fecha" name="Fecha" type="date" value="{{ $fechaSugerida }}"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                        <p class="mt-1 text-xs text-gray-500">Sugerida: hoy.</p>
                     </div>
                 </div>
 
-                <fieldset class="rounded-md border border-gray-200 px-3 py-2.5 sm:px-4">
-                    <legend class="px-1 text-sm font-semibold text-gray-800 sm:text-base">Trabajo realizado</legend>
-                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5 md:gap-3">
-                        <label class="flex min-h-10 items-center gap-2 text-sm text-gray-700 sm:text-base"><input id="linea-ajusto" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Ajustó</label>
-                        <label class="flex min-h-10 items-center gap-2 text-sm text-gray-700 sm:text-base"><input id="linea-reparo" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Reparó</label>
-                        <label class="flex min-h-10 items-center gap-2 text-sm text-gray-700 sm:text-base"><input id="linea-cambio" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Cambió</label>
-                        <label class="flex min-h-10 items-center gap-2 text-sm text-gray-700 sm:text-base"><input id="linea-lubrico" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Lubricó</label>
-                        <label class="col-span-2 flex min-h-10 items-center gap-2 text-sm text-gray-700 sm:col-span-1 sm:text-base"><input id="linea-falta-refacc" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Falta refacc.</label>
+                <fieldset class="rounded-md border border-gray-200 px-3 py-1.5 sm:px-3">
+                    <legend class="px-1 text-sm font-semibold text-gray-800">Trabajo realizado</legend>
+                    <div class="grid grid-cols-2 gap-1 sm:grid-cols-3 md:grid-cols-5 md:gap-2">
+                        <label class="flex min-h-9 items-center gap-2 text-sm text-gray-700 sm:text-base"><input id="linea-ajusto" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Ajustó</label>
+                        <label class="flex min-h-9 items-center gap-2 text-sm text-gray-700 sm:text-base"><input id="linea-reparo" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Reparó</label>
+                        <label class="flex min-h-9 items-center gap-2 text-sm text-gray-700 sm:text-base"><input id="linea-cambio" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Cambió</label>
+                        <label class="flex min-h-9 items-center gap-2 text-sm text-gray-700 sm:text-base"><input id="linea-lubrico" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Lubricó</label>
+                        <label class="col-span-2 flex min-h-9 items-center gap-2 text-sm text-gray-700 sm:col-span-1 sm:text-base"><input id="linea-falta-refacc" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Falta refacc.</label>
                     </div>
                 </fieldset>
 
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4 lg:gap-3">
                     <div>
                         <label for="linea-hora-inicial" class="mb-1 block text-sm font-medium text-gray-700">Hora inicial</label>
                         <input id="linea-hora-inicial" name="HoraInicial" type="time"
@@ -177,13 +167,13 @@
 
                 <div>
                     <label for="linea-comentarios" class="mb-1 block text-sm font-medium text-gray-700">Comentarios <span class="font-normal text-gray-500">(opcional)</span></label>
-                    <textarea id="linea-comentarios" name="comentarios" rows="3" maxlength="500"
+                    <textarea id="linea-comentarios" name="comentarios" rows="2" maxlength="500"
                         placeholder="Detalle de la intervención, refacciones pendientes, observaciones para el siguiente turno…"
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"></textarea>
-                    <p class="mt-1 text-xs text-gray-500"><span id="linea-comentarios-contador">0</span>/500 caracteres.</p>
+                    <p class="mt-0.5 text-xs text-gray-500"><span id="linea-comentarios-contador">0</span>/500 caracteres.</p>
                 </div>
 
-                <div class="flex flex-col-reverse gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:justify-end">
+                <div class="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
                     <button id="btn-limpiar-linea" type="button"
                         class="min-h-11 w-full rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto sm:text-base">
                         Limpiar
@@ -462,8 +452,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if ($('#linea-calificacion')) $('#linea-calificacion').value = linea.Calificacion ?? '';
         if ($('#linea-cve-tejedor')) $('#linea-cve-tejedor').value = linea.CveTejedor || '';
         if ($('#linea-nom-tejedor')) $('#linea-nom-tejedor').value = linea.NomTejedor || '';
-        $('#titulo-formulario').textContent = lineaSinCaptura(linea) ? 'Captura del primer renglón' : 'Editar intervención';
-        $('#subtitulo-formulario').textContent = `Orden ${orden.Folio}`;
         $('#btn-guardar-linea').textContent = lineaSinCaptura(linea) ? 'Guardar primer renglón' : 'Guardar cambios';
         if (lineaSinCaptura(linea)) {
             aplicarUsuarioCaptura();
@@ -477,8 +465,6 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#form-linea').reset();
         $('#linea-id').value = '';
         if ($('#linea-total-minutos')) $('#linea-total-minutos').value = '';
-        $('#titulo-formulario').textContent = 'Capturar nueva intervención';
-        $('#subtitulo-formulario').textContent = `Orden ${orden.Folio}`;
         $('#btn-guardar-linea').textContent = 'Guardar intervención';
         aplicarUsuarioCaptura();
         aplicarTurno(null);
