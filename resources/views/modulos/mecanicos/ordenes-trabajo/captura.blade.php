@@ -34,7 +34,7 @@
     <div class="mx-auto max-w-7xl space-y-3 lg:max-w-[100rem] lg:space-y-4">
         {{-- Resumen de la orden --}}
         <section class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
-            <div class="flex flex-col gap-3 sm:gap-4">
+            <div class="flex flex-col gap-2">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="inline-flex rounded-md bg-gray-900 px-3 py-1.5 text-sm font-bold text-white sm:text-base">
@@ -68,7 +68,7 @@
                     </div>
                 </div>
 
-                <dl class="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-gray-100 pt-3 sm:grid-cols-3 md:grid-cols-5 md:gap-x-6">
+                <dl class="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-gray-100 pt-2 sm:grid-cols-3 lg:grid-cols-6">
                     <div>
                         <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Fecha de orden</dt>
                         <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ optional($orden->Fecha)->format('d/m/Y') ?? '—' }}</dd>
@@ -89,6 +89,14 @@
                         <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm"># Orden</dt>
                         <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ $orden->Orden ?: '—' }}</dd>
                     </div>
+                    <div class="min-w-0">
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Folio de paro</dt>
+                        <dd class="mt-0.5 break-words text-base font-bold text-gray-900 sm:text-lg">{{ $orden->FolioParo ?: 'Sin folio de paro' }}</dd>
+                    </div>
+                    <div class="col-span-full min-w-0 border-t border-gray-100 pt-2">
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Comentarios</dt>
+                        <dd class="mt-0.5 whitespace-pre-line break-words text-sm text-gray-800">{{ trim((string) $orden->Comentarios) ?: 'Sin comentarios' }}</dd>
+                    </div>
                 </dl>
             </div>
         </section>
@@ -101,14 +109,6 @@
                     <h2 id="titulo-formulario" class="text-lg font-bold text-gray-900 sm:text-xl">Capturar intervención</h2>
                     <p id="subtitulo-formulario" class="mt-0.5 text-sm text-gray-600 sm:text-base">Orden {{ $orden->Folio }}</p>
                 </div>
-                <button id="btn-nuevo-renglon" type="button"
-                    @class([
-                        'inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto sm:text-base',
-                        'hidden' => ! ($puedeCrear ?? false),
-                    ])>
-                    <i class="fas fa-plus"></i>
-                    Nuevo renglón
-                </button>
             </div>
 
             <form id="form-linea" class="mt-4 space-y-4">
@@ -728,7 +728,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    $('#btn-nuevo-renglon')?.addEventListener('click', prepararNuevoRenglon);
     $('#btn-limpiar-linea')?.addEventListener('click', prepararCapturaInicial);
     $('#linea-operador')?.addEventListener('change', () => {
         const clave = $('#linea-operador').value;
