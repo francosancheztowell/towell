@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <title>ORDEN ENGOMADO {{ $orden->Folio ?? '' }}</title>
     {{--
-        Formato simplificado de reimpresión: una hoja por julio con solo cinco
-        datos, a tamaño grande para leerse desde el piso. Dos columnas, salvo el
-        lote de proveedor, que ocupa el ancho completo.
+        Etiqueta simplificada: una hoja por julio. Logo + folio arriba, recuadro
+        con el lote de proveedor en grande y debajo orden/julio y cuenta/calibre
+        en dos columnas. Pie con clave de formato, versión y fecha.
     --}}
     <style>
-        @page { margin: 10mm; }
+        @page { margin: 8mm; }
 
         body {
             margin: 0;
@@ -18,75 +18,47 @@
             font-family: Arial, sans-serif;
         }
 
-        .hoja {
-            width: 100%;
-            page-break-after: always;
-        }
+        .hoja { width: 100%; page-break-after: always; }
+        .hoja:last-child { page-break-after: auto; }
 
-        .hoja:last-child {
-            page-break-after: auto;
-        }
-
-        .encabezado {
-            display: table;
-            width: 100%;
-            border-bottom: 3px solid #000;
-            padding-bottom: 4mm;
-            margin-bottom: 8mm;
-        }
-
-        .encabezado-logo { display: table-cell; width: 30%; vertical-align: middle; }
-        .encabezado-logo img { max-height: 46px; }
-
-        .encabezado-titulo {
+        .encabezado { display: table; width: 100%; margin-bottom: 4mm; }
+        .encabezado-logo { display: table-cell; width: 50%; vertical-align: middle; }
+        .encabezado-logo img { max-height: 40px; }
+        .encabezado-folio {
             display: table-cell;
-            width: 70%;
+            width: 50%;
             vertical-align: middle;
             text-align: right;
-            font-size: 16pt;
-            font-weight: bold;
-            letter-spacing: 1px;
+            font-size: 12pt;
         }
 
-        .encabezado-titulo small {
-            display: block;
-            color: #c00000;
-            font-size: 11pt;
-        }
-
-        table.datos {
+        table.etiqueta {
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
         }
 
-        table.datos td {
-            width: 50%;
-            border: 2px solid #000;
-            padding: 6mm 5mm;
-            vertical-align: top;
+        table.etiqueta td {
+            border: 1px solid #000;
+            text-align: center;
+            padding: 2mm;
         }
 
-        td.completo { width: 100%; }
+        .rotulo { font-size: 11pt; font-weight: bold; letter-spacing: 1px; }
+        .dato { font-size: 12pt; }
 
-        .etiqueta {
-            display: block;
-            margin-bottom: 3mm;
-            font-size: 13pt;
-            font-weight: bold;
-            letter-spacing: 2px;
-        }
-
-        .valor {
-            display: block;
-            font-size: 52pt;
+        .lote {
+            font-size: 46pt;
             font-weight: bold;
             line-height: 1;
             word-wrap: break-word;
+            padding: 3mm 2mm;
         }
 
-        /* El lote suele ser texto largo: entra completo, aunque más chico. */
-        .valor-lote { font-size: 40pt; }
+        .pie { display: table; width: 100%; margin-top: 2mm; font-size: 7pt; }
+        .pie div { display: table-cell; width: 33.33%; }
+        .pie .centro { text-align: center; }
+        .pie .derecha { text-align: right; }
     </style>
 </head>
 <body>
@@ -116,40 +88,39 @@
                         <img src="{{ $logoBase64 }}" alt="Towell">
                     @endif
                 </div>
-                <div class="encabezado-titulo">
-                    ORDEN ENGOMADO
-                    <small>Folio {{ $orden->Folio ?? '—' }}@if (! empty($esReimpresion)) · REIMPRESIÓN @endif</small>
-                </div>
+                <div class="encabezado-folio">Folio: {{ $orden->Folio ?? '—' }}</div>
             </div>
 
-            <table class="datos">
+            <table class="etiqueta">
                 <tr>
-                    <td>
-                        <span class="etiqueta">ORDEN</span>
-                        <span class="valor">{{ $ordenNo }}</span>
-                    </td>
-                    <td>
-                        <span class="etiqueta">JULIO</span>
-                        <span class="valor">{{ $julio }}</span>
-                    </td>
+                    <td class="rotulo" colspan="2">LOTE PROVEEDOR</td>
                 </tr>
                 <tr>
-                    <td>
-                        <span class="etiqueta">CUENTA</span>
-                        <span class="valor">{{ $cuenta }}</span>
-                    </td>
-                    <td>
-                        <span class="etiqueta">CALIBRE</span>
-                        <span class="valor">{{ $calibre }}</span>
-                    </td>
+                    <td class="lote" colspan="2">{{ $loteProveedor }}</td>
                 </tr>
                 <tr>
-                    <td class="completo" colspan="2">
-                        <span class="etiqueta">LOTE PROVEEDOR</span>
-                        <span class="valor valor-lote">{{ $loteProveedor }}</span>
-                    </td>
+                    <td class="rotulo">ORDEN</td>
+                    <td class="rotulo">JULIO</td>
+                </tr>
+                <tr>
+                    <td class="dato">{{ $ordenNo }}</td>
+                    <td class="dato">{{ $julio }}</td>
+                </tr>
+                <tr>
+                    <td class="rotulo">CUENTA</td>
+                    <td class="rotulo">CALIBRE</td>
+                </tr>
+                <tr>
+                    <td class="dato">{{ $cuenta }}</td>
+                    <td class="dato">{{ $calibre }}</td>
                 </tr>
             </table>
+
+            <div class="pie">
+                <div>F-PR-70</div>
+                <div class="centro">Versión: 0</div>
+                <div class="derecha">{{ now()->format('d/m/Y') }}</div>
+            </div>
         </div>
     @endforeach
 </body>
