@@ -866,7 +866,7 @@ class OrdenesTrabajoMecaController extends Controller
             // Turno 4 es el comodín que cubre descansos (ver TurnoHelper).
             'Turno' => ['required', 'integer', 'between:1,4'],
             'Fecha' => ['required', 'date_format:Y-m-d'],
-            'comentarios' => ['nullable', 'string', 'max:500'],
+            'comentarios' => ['required', 'string', 'max:500'],
             'Calificacion' => ['nullable', 'integer', 'between:'.self::CALIFICACION_MINIMA.','.self::CALIFICACION_MAXIMA],
             'CveTejedor' => ['nullable', 'string', 'max:30'],
             'NomTejedor' => ['nullable', 'string', 'max:150'],
@@ -1347,6 +1347,10 @@ class OrdenesTrabajoMecaController extends Controller
 
         if ($horaInicial === '' || $horaFinal === '') {
             $errors['HoraInicial'] = ['Captura hora inicial y hora final para guardar el renglón.'];
+        }
+
+        if (trim((string) ($datos['comentarios'] ?? '')) === '') {
+            $errors['comentarios'] = ['Los comentarios del renglón son obligatorios.'];
         }
 
         if ($errors !== []) {

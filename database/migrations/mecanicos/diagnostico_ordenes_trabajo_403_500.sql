@@ -2,9 +2,26 @@
 -- Diagnostico y reparacion: 403 al agregar renglones + 500 en storeLinea
 -- Modulo: Mecanicos > Ordenes de Trabajo  (SYSRoles.orden = 1101)
 -- =============================================================================
--- Ejecutar en el servidor SQL que usa la aplicacion de 192.168.2.15.
+-- Ejecutar en ProdTowel @ 192.168.2.24 (la base que usa la app de .15).
 -- Los bloques 1 a 4 son SOLO LECTURA. El bloque 5 modifica el esquema y es
 -- idempotente. Revisa la salida de 1-4 antes de correr el 5.
+--
+-- -----------------------------------------------------------------------------
+-- HALLAZGO CONFIRMADO (verificado contra ProdTowel @ 192.168.2.24):
+--
+--   500 -> dbo.MecOrdenTrabajoLine NO tiene la columna Turno.
+--          storeLinea() la inserta siempre (es 'required' en reglasLinea()), asi
+--          que el INSERT falla con "Invalid column name 'Turno'" y el catch
+--          convierte la excepcion en 500. Los ALTER de 'comentarios' y 'Fecha'
+--          si se aplicaron; el de 'Turno' no. Lo corrige el bloque 5.
+--
+--   403 -> YA NO APLICA para el empleado 3517 (Angel Galeno Velazquez,
+--          idusuario 113): area='Mantenimiento', y en el modulo 193 tiene
+--          acceso/crear/modificar/eliminar en 1. Las dos guardias de storeLinea
+--          pasan. Los 403 fueron de antes de que se le cargaran los permisos.
+--          registrar=0, asi que no puede autorizar ordenes: eso es correcto,
+--          autorizar es de supervisor.
+-- -----------------------------------------------------------------------------
 -- =============================================================================
 
 PRINT '===== Servidor y base en uso =====';

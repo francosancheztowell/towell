@@ -29,12 +29,15 @@
     $bloqueadaEdicion = $bloqueadaEdicion ?? in_array($estatusActual, ['Terminado', 'Calificado', 'Autorizado'], true);
     $turnoSugerido = (int) ($turnoSugerido ?? \App\Helpers\TurnoHelper::getTurnoActual());
     $fechaSugerida = $fechaSugerida ?? now('America/Mexico_City')->toDateString();
+    $nombrePrimerMecanico = trim((string) optional($orden->lineas)->first(
+        fn ($linea) => trim((string) ($linea->NomOperador ?? '')) !== ''
+    )?->NomOperador) ?: '—';
 @endphp
 <div class="w-full p-3 sm:p-4 lg:p-5">
     <div class="mx-auto max-w-7xl space-y-3 lg:max-w-[100rem] lg:space-y-4">
         {{-- Resumen de la orden --}}
         <section class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
-            <div class="flex flex-col gap-3 sm:gap-4">
+            <div class="flex flex-col gap-2">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <div class="flex flex-wrap items-center gap-2">
                         <span class="inline-flex rounded-md bg-gray-900 px-3 py-1.5 text-sm font-bold text-white sm:text-base">
@@ -47,7 +50,13 @@
                             </span>
                         @endif
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-wrap items-center justify-end gap-2">
+                        @if (! $bloqueadaEdicion && ! ($modoTejedor ?? false) && ($puedeEditar || $puedeCrear))
+                            <button id="btn-guardar-linea" type="submit" form="form-linea"
+                                class="inline-flex min-h-11 items-center justify-center rounded-md bg-gray-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60 sm:text-base">
+                                Guardar intervención
+                            </button>
+                        @endif
                         @if ($bloqueada)
                             <span class="inline-flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
                                 <i class="fas fa-lock"></i> Autorizada · solo lectura
@@ -68,26 +77,34 @@
                     </div>
                 </div>
 
-                <dl class="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-gray-100 pt-3 sm:grid-cols-3 md:grid-cols-5 md:gap-x-6">
+                <dl class="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-gray-100 pt-2 sm:grid-cols-4 lg:grid-cols-7">
                     <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Fecha de orden</dt>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Fecha</dt>
                         <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ optional($orden->Fecha)->format('d/m/Y') ?? '—' }}</dd>
                     </div>
-                    <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Telar</dt>
-                        <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ $orden->TelarId ?: '—' }}</dd>
-                    </div>
-                    <div class="col-span-2 sm:col-span-1">
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Falla</dt>
-                        <dd class="mt-0.5 line-clamp-2 text-base font-bold text-gray-900 sm:text-lg" title="{{ $fallaTexto }}">{{ $fallaTexto }}</dd>
+                    <div class="min-w-0">
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Mecánico</dt>
+                        <dd class="mt-0.5 truncate text-base font-bold text-gray-900 sm:text-lg" title="{{ $nombrePrimerMecanico }}">{{ $nombrePrimerMecanico }}</dd>
                     </div>
                     <div>
                         <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Turno</dt>
                         <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ $orden->Turno ?: '—' }}</dd>
                     </div>
+                    <div class="min-w-0">
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Folio de paro</dt>
+                        <dd class="mt-0.5 break-words text-base font-bold text-gray-900 sm:text-lg">{{ $orden->FolioParo ?: 'Sin folio de paro' }}</dd>
+                    </div>
                     <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm"># Orden</dt>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Telar</dt>
+                        <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ $orden->TelarId ?: '—' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Orden</dt>
                         <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ $orden->Orden ?: '—' }}</dd>
+                    </div>
+                    <div class="min-w-0">
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Falla</dt>
+                        <dd class="mt-0.5 line-clamp-2 text-base font-bold text-gray-900 sm:text-lg" title="{{ $fallaTexto }}">{{ $fallaTexto }}</dd>
                     </div>
                 </dl>
             </div>
@@ -95,26 +112,11 @@
 
         @if (! $bloqueadaEdicion && ! ($modoTejedor ?? false) && ($puedeEditar || $puedeCrear))
         {{-- Formulario de captura (mecánico / supervisor) --}}
-        <section id="seccion-captura" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4 lg:p-5">
-            <div class="flex flex-col gap-2 border-b border-gray-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
-                <div class="min-w-0">
-                    <h2 id="titulo-formulario" class="text-lg font-bold text-gray-900 sm:text-xl">Capturar intervención</h2>
-                    <p id="subtitulo-formulario" class="mt-0.5 text-sm text-gray-600 sm:text-base">Orden {{ $orden->Folio }}</p>
-                </div>
-                <button id="btn-nuevo-renglon" type="button"
-                    @class([
-                        'inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto sm:text-base',
-                        'hidden' => ! ($puedeCrear ?? false),
-                    ])>
-                    <i class="fas fa-plus"></i>
-                    Nuevo renglón
-                </button>
-            </div>
-
-            <form id="form-linea" class="mt-4 space-y-4">
+        <section id="seccion-captura" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+            <form id="form-linea" class="space-y-3">
                 <input id="linea-id" type="hidden">
 
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-12 lg:gap-4">
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-12 lg:gap-3">
                     <div class="lg:col-span-6">
                         <label for="linea-operador" class="mb-1 block text-sm font-medium text-gray-700">Mecánico <span class="font-normal text-gray-500">(capturando)</span></label>
                         <select id="linea-operador" name="CveOperador"
@@ -124,7 +126,6 @@
                                 <option value="{{ $operador->CveEmpl }}">{{ $operador->CveEmpl }} · {{ $operador->NomEmpl }}@if ($operador->Turno) (T{{ $operador->Turno }}) @endif</option>
                             @endforeach
                         </select>
-                        <p class="mt-1 text-xs text-gray-500">Se precarga con el usuario en sesión. Para guardar completa trabajo realizado y horas.</p>
                         {{-- El nombre viaja junto con la clave: el select ya muestra ambos. --}}
                         <input id="linea-nom-operador" name="NomOperador" type="hidden" maxlength="150">
                     </div>
@@ -136,62 +137,48 @@
                                 <option value="{{ $turno }}" @selected($turno === $turnoSugerido)>Turno {{ $turno }}@if ($turno === 4) @endif</option>
                             @endforeach
                         </select>
-                        <p class="mt-1 text-xs text-gray-500">Sugerido: Turno {{ $turnoSugerido }}.</p>
                     </div>
                     <div class="lg:col-span-3">
                         <label for="linea-fecha" class="mb-1 block text-sm font-medium text-gray-700">Fecha <span class="font-normal text-gray-500">(registro)</span></label>
                         <input id="linea-fecha" name="Fecha" type="date" value="{{ $fechaSugerida }}"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                        <p class="mt-1 text-xs text-gray-500">Sugerida: hoy.</p>
                     </div>
                 </div>
 
-                <fieldset class="rounded-md border border-gray-200 px-3 py-2.5 sm:px-4">
-                    <legend class="px-1 text-sm font-semibold text-gray-800 sm:text-base">Trabajo realizado</legend>
+                <fieldset class="rounded-md border border-gray-200 px-3 py-1.5 sm:px-3">
+                    <legend class="px-1 text-sm font-semibold text-gray-800">Trabajo realizado</legend>
                     <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5 md:gap-3">
-                        <label class="flex min-h-10 items-center gap-2 text-sm text-gray-700 sm:text-base"><input id="linea-ajusto" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Ajustó</label>
-                        <label class="flex min-h-10 items-center gap-2 text-sm text-gray-700 sm:text-base"><input id="linea-reparo" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Reparó</label>
-                        <label class="flex min-h-10 items-center gap-2 text-sm text-gray-700 sm:text-base"><input id="linea-cambio" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Cambió</label>
-                        <label class="flex min-h-10 items-center gap-2 text-sm text-gray-700 sm:text-base"><input id="linea-lubrico" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Lubricó</label>
-                        <label class="col-span-2 flex min-h-10 items-center gap-2 text-sm text-gray-700 sm:col-span-1 sm:text-base"><input id="linea-falta-refacc" type="checkbox" class="size-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Falta refacc.</label>
+                        <label class="flex min-h-11 items-center gap-2.5 text-sm text-gray-700 sm:text-base"><input id="linea-ajusto" type="checkbox" class="size-6 shrink-0 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Ajustó</label>
+                        <label class="flex min-h-11 items-center gap-2.5 text-sm text-gray-700 sm:text-base"><input id="linea-reparo" type="checkbox" class="size-6 shrink-0 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Reparó</label>
+                        <label class="flex min-h-11 items-center gap-2.5 text-sm text-gray-700 sm:text-base"><input id="linea-cambio" type="checkbox" class="size-6 shrink-0 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Cambió</label>
+                        <label class="flex min-h-11 items-center gap-2.5 text-sm text-gray-700 sm:text-base"><input id="linea-lubrico" type="checkbox" class="size-6 shrink-0 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Lubricó</label>
+                        <label class="col-span-2 flex min-h-11 items-center gap-2.5 text-sm text-gray-700 sm:col-span-1 sm:text-base"><input id="linea-falta-refacc" type="checkbox" class="size-6 shrink-0 rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Falta refacc.</label>
                     </div>
                 </fieldset>
 
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
-                    <div>
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-12 lg:gap-3">
+                    <div class="lg:col-span-2">
                         <label for="linea-hora-inicial" class="mb-1 block text-sm font-medium text-gray-700">Hora inicial</label>
                         <input id="linea-hora-inicial" name="HoraInicial" type="time"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                     </div>
-                    <div>
+                    <div class="lg:col-span-2">
                         <label for="linea-hora-final" class="mb-1 block text-sm font-medium text-gray-700">Hora final</label>
                         <input id="linea-hora-final" name="HoraFinal" type="time"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                     </div>
-                    <div>
+                    <div class="lg:col-span-2">
                         <label for="linea-total-minutos" class="mb-1 block text-sm font-medium text-gray-700">Tiempo total</label>
                         <input id="linea-total-minutos" type="text" readonly placeholder="—"
                             class="min-h-11 w-full cursor-not-allowed rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-base text-gray-600">
                     </div>
-                </div>
-
-                <div>
-                    <label for="linea-comentarios" class="mb-1 block text-sm font-medium text-gray-700">Comentarios <span class="font-normal text-gray-500">(opcional)</span></label>
-                    <textarea id="linea-comentarios" name="comentarios" rows="3" maxlength="500"
-                        placeholder="Detalle de la intervención, refacciones pendientes, observaciones para el siguiente turno…"
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"></textarea>
-                    <p class="mt-1 text-xs text-gray-500"><span id="linea-comentarios-contador">0</span>/500 caracteres.</p>
-                </div>
-
-                <div class="flex flex-col-reverse gap-2 border-t border-gray-100 pt-3 sm:flex-row sm:justify-end">
-                    <button id="btn-limpiar-linea" type="button"
-                        class="min-h-11 w-full rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto sm:text-base">
-                        Limpiar
-                    </button>
-                    <button id="btn-guardar-linea" type="submit"
-                        class="min-h-11 w-full rounded-md bg-gray-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:text-base">
-                        Guardar intervención
-                    </button>
+                    <div class="sm:col-span-2 lg:col-span-6">
+                        <label for="linea-comentarios" class="mb-1 block text-sm font-medium text-gray-700">Comentarios</label>
+                        <textarea id="linea-comentarios" name="comentarios" rows="2" maxlength="500"
+                            placeholder="Detalle de la intervención, refacciones pendientes, observaciones para el siguiente turno…"
+                            class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"></textarea>
+                        <p class="mt-0.5 text-xs text-gray-500"><span id="linea-comentarios-contador">0</span>/500 caracteres.</p>
+                    </div>
                 </div>
             </form>
         </section>
@@ -199,13 +186,6 @@
 
         {{-- Tabla de renglones --}}
         <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-            <div class="flex flex-col gap-1 border-b border-gray-100 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3.5">
-                <div class="min-w-0">
-                    <h2 class="text-base font-bold text-gray-900 sm:text-lg">Renglones capturados</h2>
-                    <p class="mt-0.5 text-sm text-gray-600">Intervenciones de la orden {{ $orden->Folio }}.</p>
-                </div>
-                <span id="total-lineas" class="shrink-0 text-sm font-semibold text-gray-600"></span>
-            </div>
             <div class="border-b border-gray-100 px-3 py-2 text-xs text-gray-500 xl:hidden">
                 <i class="fas fa-arrows-alt-h mr-1"></i> Desliza horizontalmente para ver todas las columnas.
             </div>
@@ -375,7 +355,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderLineas() {
         const lineas = orden.lineas || [];
-        $('#total-lineas').textContent = `${lineas.length} ${lineas.length === 1 ? 'renglón' : 'renglones'}`;
+        const totalLineas = $('#total-lineas');
+        if (totalLineas) {
+            totalLineas.textContent = `${lineas.length} ${lineas.length === 1 ? 'renglón' : 'renglones'}`;
+        }
 
         if (! lineas.length) {
             lineasBody.innerHTML = '<tr><td colspan="17" class="px-4 py-10 text-center text-sm text-gray-500">No hay renglones capturados.</td></tr>';
@@ -462,8 +445,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if ($('#linea-calificacion')) $('#linea-calificacion').value = linea.Calificacion ?? '';
         if ($('#linea-cve-tejedor')) $('#linea-cve-tejedor').value = linea.CveTejedor || '';
         if ($('#linea-nom-tejedor')) $('#linea-nom-tejedor').value = linea.NomTejedor || '';
-        $('#titulo-formulario').textContent = lineaSinCaptura(linea) ? 'Captura del primer renglón' : 'Editar intervención';
-        $('#subtitulo-formulario').textContent = `Orden ${orden.Folio}`;
         $('#btn-guardar-linea').textContent = lineaSinCaptura(linea) ? 'Guardar primer renglón' : 'Guardar cambios';
         if (lineaSinCaptura(linea)) {
             aplicarUsuarioCaptura();
@@ -477,8 +458,6 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#form-linea').reset();
         $('#linea-id').value = '';
         if ($('#linea-total-minutos')) $('#linea-total-minutos').value = '';
-        $('#titulo-formulario').textContent = 'Capturar nueva intervención';
-        $('#subtitulo-formulario').textContent = `Orden ${orden.Folio}`;
         $('#btn-guardar-linea').textContent = 'Guardar intervención';
         aplicarUsuarioCaptura();
         aplicarTurno(null);
@@ -580,6 +559,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (! horaIni || ! horaFin) {
             return 'Captura hora inicial y hora final para guardar el renglón.';
+        }
+        if (! String(data.comentarios || '').trim()) {
+            return 'Los comentarios del renglón son obligatorios.';
         }
         return null;
     }
@@ -728,8 +710,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    $('#btn-nuevo-renglon')?.addEventListener('click', prepararNuevoRenglon);
-    $('#btn-limpiar-linea')?.addEventListener('click', prepararCapturaInicial);
     $('#linea-operador')?.addEventListener('change', () => {
         const clave = $('#linea-operador').value;
         if (! clave) {
