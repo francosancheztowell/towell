@@ -38,9 +38,6 @@
     };
   })();
 
-  // Cargar utilidades JS externas (refactor deuda técnica - integración completa)
-  window.PTFormatters = window.PTFormatters || null;
-  window.ProgramaTejidoUtils = window.ProgramaTejidoUtils || null;
 
 @include('modulos.programa-tejido.modal.duplicar-dividir')
 
@@ -71,9 +68,6 @@
       * @returns {Function}
       */
     const throttle = (fn, delay) => {
-      if (window.ProgramaTejidoUtils?.throttle) {
-        return window.ProgramaTejidoUtils.throttle(fn, delay);
-      }
       let lastCall = 0;
       return function (...args) {
         const now = Date.now();
@@ -178,9 +172,6 @@
     function clearRowCache() { PT.rowCache = new WeakMap(); }
 
     function normalizeTelarValue(value) {
-      if (window.ProgramaTejidoUtils?.normalizeTelarValue) {
-        return window.ProgramaTejidoUtils.normalizeTelarValue(value);
-      }
       const str = String(value ?? '').trim();
       if (!str) return '';
       const num = Number(str);
@@ -221,16 +212,12 @@
     const DD_DATE_TIME_COLS = new Set(['FechaInicio','FechaFinal','EntregaCte']);
     const DD_DATE_ONLY_COLS = new Set(['EntregaProduc','EntregaPT','ProgramarProd','Programado']);
 
-    // Usar PTFormatters si está disponible (cargado via formatters.js)
-    const Formatters = window.PTFormatters || null;
-
     /**
      * Formatea un valor como fecha y hora (dd/mm/yyyy HH:mm).
      * @param {string|null} raw - Valor crudo de la celda
      * @returns {string}
      */
     function ddFormatDateTime(raw) {
-      if (Formatters?.formatDateTime) return Formatters.formatDateTime(raw);
       if (typeof formatDateTimeDisplay === 'function') return formatDateTimeDisplay(raw);
       return raw ? String(raw) : '';
     }
@@ -241,7 +228,6 @@
      * @returns {string}
      */
     function ddFormatDateOnly(raw) {
-      if (Formatters?.formatDateOnly) return Formatters.formatDateOnly(raw);
       if (typeof formatDateOnlyDisplay === 'function') return formatDateOnlyDisplay(raw);
       if (typeof formatDateDisplay === 'function') return formatDateDisplay(raw);
       return raw ? String(raw) : '';
@@ -253,7 +239,6 @@
      * @returns {string}
      */
     function ddFormatNumber(raw) {
-      if (Formatters?.formatNumber) return Formatters.formatNumber(raw);
       if (typeof formatNumber2 === 'function') return formatNumber2(raw);
       const n = Number(raw);
       if (!Number.isFinite(n)) return raw == null ? '' : String(raw);
@@ -261,7 +246,6 @@
     }
 
     function ddSetCellValue(cell, display, rawValue) {
-      if (Formatters?.setCellValue) return Formatters.setCellValue(cell, display, rawValue);
       if (!cell) return;
       cell.innerHTML = display ?? '';
       if (rawValue === null || rawValue === undefined) {
@@ -272,8 +256,6 @@
     }
 
     function ddFormatCell(column, raw) {
-      if (Formatters?.formatCell) return Formatters.formatCell(column, raw);
-
       if (column === 'EnProceso') {
         const checked = (raw == 1 || raw === true) ? 'checked' : '';
         return {
