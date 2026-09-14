@@ -1,0 +1,35 @@
+name: Frontend checks
+
+# Red minima para el refactor de JS a TypeScript. Corre lo unico que hoy esta verde
+# y es fiable: tipos, tests de JS y build.
+#
+# php artisan test NO se corre aqui a proposito: la suite tiene 41 fallos por tablas
+# que faltan en sqlite (ver phpunit.xml). Meterla ahora deja el CI en rojo permanente
+# y nadie lo mira. Se anade cuando esos tests tengan el trait UsesSqlsrvSqlite.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Tipos
+        run: npm run typecheck
+
+      - name: Tests JS
+        run: npm run test:js
+
+      - name: Build
+        run: npm run build
