@@ -218,7 +218,12 @@
   </script>
 
   <!-- ====== Scripts ====== -->
-    @vite(['resources/js/app-core.js', 'resources/js/app-filters.js'])
+    {{-- app-filters.js se desconecto a proposito: @vite emite <script type="module">, que es
+         diferido, asi que siempre ganaba sobre los <script> inline de las vistas y reasignaba
+         window.applyFilters / removeFilter / resetFilters / openFilterModal. Encima su HTML
+         (#filtersModal, #f_list, #f_col_select) no existe en ninguna vista del repo, asi que
+         las funciones ganadoras eran no-ops silenciosos y rompian los filtros de 5 paginas. --}}
+    @vite(['resources/js/app-core.js'])
 
   @stack('scripts')
 

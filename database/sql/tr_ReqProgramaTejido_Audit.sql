@@ -23,7 +23,7 @@
   Reglas que este trigger NO puede romper
     1. Nunca abortar la escritura que audita. Por eso STR en los floats: un CAST a DECIMAL
        con un valor fuera de rango lanza overflow y revierte el UPDATE del negocio.
-    2. Nunca perder un cambio. Por eso NVARCHAR(200) en texto (Prioridad es nvarchar(150))
+    2. Nunca perder un cambio. Por eso NVARCHAR(200) en texto, y NVARCHAR(300) en Prioridad (su ancho real)
        y comparacion NULL-aware explicita en vez de centinelas tipo ISNULL(x, '~').
     3. El servidor es SQL Server 2008 R2 (compat 100): nada de TRY_CAST, TRY_CONVERT,
        FORMAT, STRING_AGG ni THROW.
@@ -142,8 +142,8 @@ BEGIN
             Programado_new = CONVERT(NVARCHAR(10), i.Programado, 23),
             TamanoClave_ant = LTRIM(RTRIM(CONVERT(NVARCHAR(200), d.TamanoClave))),
             TamanoClave_new = LTRIM(RTRIM(CONVERT(NVARCHAR(200), i.TamanoClave))),
-            Prioridad_ant = LTRIM(RTRIM(CONVERT(NVARCHAR(200), d.Prioridad))),
-            Prioridad_new = LTRIM(RTRIM(CONVERT(NVARCHAR(200), i.Prioridad))),
+            Prioridad_ant = LTRIM(RTRIM(CONVERT(NVARCHAR(300), d.Prioridad))),
+            Prioridad_new = LTRIM(RTRIM(CONVERT(NVARCHAR(300), i.Prioridad))),
             CalendarioId_ant = LTRIM(RTRIM(CONVERT(NVARCHAR(200), d.CalendarioId))),
             CalendarioId_new = LTRIM(RTRIM(CONVERT(NVARCHAR(200), i.CalendarioId))),
             Reprogramar_ant = LTRIM(RTRIM(CONVERT(NVARCHAR(200), d.Reprogramar))),

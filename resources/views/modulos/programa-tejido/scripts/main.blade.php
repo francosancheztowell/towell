@@ -2435,6 +2435,15 @@
             }
           } catch (err) {
             PT.loader.hide();
+            // Sin este aviso el fallo es invisible: la fila queda movida en pantalla
+            // y el usuario asume que se guardo. Pasa con 419 (CSRF vencido), 500, o
+            // cuando el servidor responde HTML y resp.json() revienta.
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: 'No se pudo guardar la prioridad: ' + (err.message || 'Error desconocido'),
+              confirmButtonColor: '#dc2626'
+            });
             clearVisualRows();
           }
           return false;
@@ -2968,13 +2977,14 @@
               ? dt.toLocaleDateString('es-MX')
               : dt.toLocaleString('es-MX');
           } catch (e) {
-            return String(value);
+            return escapeHtmlPtModal(value);
           }
         }
         if (!isNaN(value) && !Number.isInteger(parseFloat(value))) {
           return parseFloat(value).toFixed(2);
         }
-        return String(value);
+        // Se asigna con innerHTML => escapar el texto libre de BD.
+        return escapeHtmlPtModal(value);
       };
 
       const idsUnicos = Array.from(new Set(registrosIds || [])).filter(Boolean);
@@ -3622,6 +3632,20 @@
     (function() {
       // Función para procesar la selección
       async function procesarSeleccionReprogramar(registroId, valor, checkbox, texto) {
+        // Estado previo, para poder revertir al valor real y no a vacio: un registro
+        // en "P. Siguiente" que falle al pasar a "P. Ultima" quedaba en blanco en
+        // pantalla mientras la BD seguia en 1.
+        const previo = {
+          checked: checkbox.checked,
+          valor: checkbox.getAttribute('data-valor-actual') || '',
+          texto: texto.textContent
+        };
+        const revertir = () => {
+          checkbox.checked = previo.checked;
+          checkbox.setAttribute('data-valor-actual', previo.valor);
+          texto.textContent = previo.texto;
+        };
+
         // Actualizar UI
         checkbox.checked = true;
         checkbox.setAttribute('data-valor-actual', valor);
@@ -3651,18 +3675,12 @@
             toast('Reprogramar actualizado correctamente', 'success');
           } else {
             toast(data.message || 'Error al actualizar reprogramar', 'error');
-            // Revertir cambios
-            checkbox.checked = false;
-            checkbox.setAttribute('data-valor-actual', '');
-            texto.textContent = '';
+            revertir();
           }
         } catch (error) {
           PT.loader.hide();
           toast('Error al procesar la solicitud', 'error');
-          // Revertir cambios
-          checkbox.checked = false;
-          checkbox.setAttribute('data-valor-actual', '');
-          texto.textContent = '';
+          revertir();
         }
       }
 

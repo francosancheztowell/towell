@@ -3,9 +3,9 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <x-navbar.button-create onclick="openCreateModal()" title="Nuevo Comentario" module="Atadores"/>
-        <x-navbar.button-edit id="btnEdit" onclick="editSelected()" title="Editar Comentario" module="Atadores" :disabled="true"/>
-        <x-navbar.button-delete id="btnDelete" onclick="deleteSelected()" title="Eliminar Comentario" module="Atadores" :disabled="true"/>
+        <x-navbar.button-create onclick="openCreateModal()" title="Nuevo Comentario" module="Comentarios"/>
+        <x-navbar.button-edit id="btnEdit" onclick="editSelected()" title="Editar Comentario" module="Comentarios" :disabled="true"/>
+        <x-navbar.button-delete id="btnDelete" onclick="deleteSelected()" title="Eliminar Comentario" module="Comentarios" :disabled="true"/>
     </div>
 @endsection
 

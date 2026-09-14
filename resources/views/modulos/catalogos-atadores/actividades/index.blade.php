@@ -2,9 +2,9 @@
 @section('page-title', 'Catálogo de Actividades')
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <x-navbar.button-create onclick="openCreateModal()" title="Nueva Actividad" module="Atadores"/>
-        <x-navbar.button-edit id="btnEdit" onclick="editSelected()" title="Editar Actividad" module="Atadores" :disabled="true"/>
-        <x-navbar.button-delete id="btnDelete" onclick="deleteSelected()" title="Eliminar Actividad" module="Atadores" :disabled="true"/>
+        <x-navbar.button-create onclick="openCreateModal()" title="Nueva Actividad" module="Actividades"/>
+        <x-navbar.button-edit id="btnEdit" onclick="editSelected()" title="Editar Actividad" module="Actividades" :disabled="true"/>
+        <x-navbar.button-delete id="btnDelete" onclick="deleteSelected()" title="Eliminar Actividad" module="Actividades" :disabled="true"/>
     </div>
 @endsection
 

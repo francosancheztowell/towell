@@ -23,7 +23,12 @@ yarn-error.log
 /.idea
 /.nova
 /.vscode
-/.github
+# .github sigue ignorado salvo el CI: los workflows de gemini-* se mantienen locales
+# a proposito. Se ignora el contenido (no el directorio) para poder exceptuar dentro.
+/.github/*
+!/.github/workflows/
+/.github/workflows/*
+!/.github/workflows/frontend-checks.yml
 /.zed
 
 /app/Mcp
