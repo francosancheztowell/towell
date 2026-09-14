@@ -247,9 +247,6 @@ Route::get('/modulo-consultar-requerimiento/{folio}', [ConsultarRequerimientoCon
 Route::post('/modulo-consultar-requerimiento/{folio}/status', [ConsultarRequerimientoController::class, 'updateStatus'])->name('modulo.consultar.requerimiento.status');
 Route::get('/modulo-consultar-requerimiento/{folio}/resumen', [ConsultarRequerimientoController::class, 'resumen'])->name('modulo.consultar.requerimiento.resumen');
 
-Route::get('/tejido/jacquard-sulzer/{telar}', [TelaresController::class, 'mostrarTelarSulzer'])->name('tejido.mostrarTelarSulzer');
-Route::get('/ordenes-programadas-dinamica/{telar}', [TelaresController::class, 'obtenerOrdenesProgramadas'])->name('ordenes.programadas');
-
 Route::prefix('api/telares')->controller(TelaresController::class)->group(function () {
     Route::get('/proceso-actual/{telarId}', 'procesoActual')->whereNumber('telarId');
     Route::get('/siguiente-orden/{telarId}', 'siguienteOrden')->whereNumber('telarId');

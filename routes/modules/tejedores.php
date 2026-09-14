@@ -39,8 +39,6 @@ Route::prefix('tejedores')->name('tejedores.')->group(function () {
 Route::prefix('tejedores')->group(function () {
     // Atado de Julio
     Route::get('/atadodejulio', [NotificarMontadoJulioController::class, 'index'])->name('notificar.atado.julio');
-    Route::get('/atadodejulio/telares', [NotificarMontadoJulioController::class, 'telares'])->name('notificar.atado.julio.telares');
-    Route::get('/atadodejulio/detalle', [NotificarMontadoJulioController::class, 'detalle'])->name('notificar.atado.julio.detalle');
     Route::post('/atadodejulio/notificar', [NotificarMontadoJulioController::class, 'notificar'])->name('notificar.atado.julio.notificar');
 
     // Cortado de Rollo
@@ -55,8 +53,6 @@ Route::prefix('tejedores')->group(function () {
 
     // Redirects legacy
     Route::redirect('/notificarmontadodejulio', '/tejedores/atadodejulio', 301);
-    Route::redirect('/notificarmontadodejulio/telares', '/tejedores/atadodejulio/telares', 301);
-    Route::redirect('/notificarmontadodejulio/detalle', '/tejedores/atadodejulio/detalle', 301);
     Route::redirect('/notificarmontadodejulio/notificar', '/tejedores/atadodejulio/notificar', 301);
     Route::redirect('/notificarcortadoderollo', '/tejedores/cortadoderollo', 301);
     Route::redirect('/notificarcortadoderollo/telares', '/tejedores/cortadoderollo/telares', 301);
@@ -67,8 +63,6 @@ Route::prefix('tejedores')->group(function () {
     Route::redirect('/notificarcortadoderollo/insertar', '/tejedores/cortadoderollo/insertar', 301);
 
     Route::redirect('/notificar-montado-julios', '/tejedores/atadodejulio', 301);
-    Route::redirect('/notificar-montado-julios/telares', '/tejedores/atadodejulio/telares', 301);
-    Route::redirect('/notificar-montado-julios/detalle', '/tejedores/atadodejulio/detalle', 301);
     Route::redirect('/notificar-montado-julios/notificar', '/tejedores/atadodejulio/notificar', 301);
     Route::redirect('/notificar-mont-rollos', '/tejedores/cortadoderollo', 301);
     Route::redirect('/notificar-mont-rollos/notificar', '/tejedores/cortadoderollo/notificar', 301);
@@ -85,10 +79,12 @@ Route::get('/tel-bpm', function () {
 });
 
 Route::resource('tel-actividades-bpm', TelActividadesBPMController::class)
+    ->only(['index', 'store', 'update', 'destroy'])
     ->parameters(['tel-actividades-bpm' => 'telActividadesBPM'])
     ->names('tel-actividades-bpm');
 
 Route::resource('tel-telares-operador', TelTelaresOperadorController::class)
+    ->only(['index', 'store', 'update', 'destroy'])
     ->parameters(['tel-telares-operador' => 'telTelaresOperador'])
     ->names('tel-telares-operador');
 
@@ -102,6 +98,7 @@ Route::get('/ActividadesBPM', [TelActividadesBPMController::class, 'index'])->na
 Route::get('tel-bpm/log-debug', [TelBpmController::class, 'logDebug'])->name('tel-bpm.log-debug');
 
 Route::resource('tel-bpm', TelBpmController::class)
+    ->only(['index', 'show', 'store', 'update', 'destroy'])
     ->parameters(['tel-bpm' => 'folio'])
     ->names('tel-bpm');
 

@@ -116,9 +116,7 @@ class TelegramController extends Controller
             if (empty($botToken)) {
                 $payload = ['success' => false, 'message' => 'Token del bot no configurado'];
 
-                return $request->wantsJson()
-                    ? response()->json($payload, 500)
-                    : view('modulos.telegram.bot-info', $payload);
+                return response()->json($payload, 500);
             }
 
             $url = "https://api.telegram.org/bot{$botToken}/getMe";
@@ -128,9 +126,7 @@ class TelegramController extends Controller
                 $data = $response->json();
                 $payload = ['success' => true, 'data' => $data];
 
-                return $request->wantsJson()
-                    ? response()->json($payload)
-                    : view('modulos.telegram.bot-info', $payload);
+                return response()->json($payload);
             }
 
             $payload = [
@@ -139,16 +135,12 @@ class TelegramController extends Controller
                 'error' => $response->json(),
             ];
 
-            return $request->wantsJson()
-                ? response()->json($payload, 500)
-                : view('modulos.telegram.bot-info', $payload);
+            return response()->json($payload, 500);
 
         } catch (\Exception $e) {
             $payload = ['success' => false, 'message' => 'Error: '.$e->getMessage()];
 
-            return $request->wantsJson()
-                ? response()->json($payload, 500)
-                : view('modulos.telegram.bot-info', $payload);
+            return response()->json($payload, 500);
         }
     }
 

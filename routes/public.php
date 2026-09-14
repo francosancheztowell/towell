@@ -24,9 +24,7 @@ Route::view('/offline', 'offline')->name('offline');
 
 Route::prefix('modulos-sin-auth')->name('modulos.sin.auth.')->group(function () {
     Route::get('/', [ModulosController::class, 'index'])->name('index');
-    Route::get('/create', [ModulosController::class, 'create'])->name('create');
     Route::post('/', [ModulosController::class, 'store'])->name('store');
-    Route::get('/{id}/edit', [ModulosController::class, 'edit'])->whereNumber('id')->name('edit');
     Route::put('/{id}', [ModulosController::class, 'update'])->whereNumber('id')->name('update');
     Route::delete('/{id}', [ModulosController::class, 'destroy'])->whereNumber('id')->name('destroy');
 });

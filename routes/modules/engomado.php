@@ -105,10 +105,12 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
 });
 
 Route::resource('eng-actividades-bpm', EngActividadesBpmController::class)
+    ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
     ->parameters(['eng-actividades-bpm' => 'engActividadesBpm'])
     ->names('eng-actividades-bpm');
 
 Route::resource('eng-bpm', EngBpmController::class)
+    ->only(['index', 'store', 'update', 'destroy'])
     ->parameters(['eng-bpm' => 'id'])
     ->names('eng-bpm');
 
@@ -128,9 +130,11 @@ Route::get('eng-formulacion/colores-formula', [EngProduccionFormulacionControlle
 Route::get('eng-formulacion/formulas-disponibles', [EngProduccionFormulacionController::class, 'getFormulasDisponibles'])->name('eng-formulacion.formulas-disponibles');
 
 Route::resource('eng-formulacion', EngProduccionFormulacionController::class)
+    ->only(['index', 'store', 'update', 'destroy'])
     ->parameters(['eng-formulacion' => 'folio'])
     ->names('eng-formulacion');
 
 Route::resource('urd-eng-nucleos', UrdEngNucleosController::class)
+    ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
     ->parameters(['urd-eng-nucleos' => 'urdEngNucleo'])
     ->names('urd-eng-nucleos');

@@ -101,10 +101,12 @@ Route::prefix('urdido')->name('urdido.')->group(function () {
 });
 
 Route::resource('urd-actividades-bpm', UrdActividadesBpmController::class)
+    ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
     ->parameters(['urd-actividades-bpm' => 'urdActividadesBpm'])
     ->names('urd-actividades-bpm');
 
 Route::resource('urd-bpm', UrdBpmController::class)
+    ->only(['index', 'store', 'update', 'destroy'])
     ->parameters(['urd-bpm' => 'id'])
     ->names('urd-bpm');
 
