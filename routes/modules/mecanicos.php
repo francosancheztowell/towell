@@ -43,6 +43,9 @@ Route::prefix('mecanicos/reportes')
     ->as('mecanicos.reportes.')
     ->group(function (): void {
         Route::get('/ot-diarias', [MecReportesController::class, 'otDiarias'])->name('ot-diarias');
+        Route::post('/ot-diarias/excel', [MecReportesController::class, 'exportarExcelOtDiarias'])->name('ot-diarias.excel');
+        Route::post('/ot-diarias/pdf', [MecReportesController::class, 'exportarPdfOtDiarias'])->name('ot-diarias.pdf');
+        Route::post('/ot-diarias/telegram-imagen', [MecReportesController::class, 'telegramImagenOtDiarias'])->name('ot-diarias.telegram-imagen');
         Route::get('/estado-maquina', [MecReportesController::class, 'estadoMaquina'])->name('estado-maquina');
         Route::get('/estado-maquina/semanas', [MecReportesController::class, 'semanasEstadoMaquina'])->name('estado-maquina.semanas');
         Route::post('/estado-maquina/excel', [MecReportesController::class, 'exportarExcelEstadoMaquina'])->name('estado-maquina.excel');
