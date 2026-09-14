@@ -12,8 +12,9 @@ use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
 /**
- * Gap: al editar "Pedido" inline, UpdateHelpers::applyCantidad() a veces escribe en
- * Produccion (no en SaldoPedido) según cuál esté ya capturado. El observer no incluía
+ * Gap: al editar "Pedido" inline, UpdateTejido::actualizar() (ver el bloque de
+ * TotalPedido/SaldoPedido) a veces escribe en Produccion (no en SaldoPedido) según cuál
+ * esté ya capturado. El observer no incluía
  * Produccion ni en el mapeo de sincronización a CatCodificados ni en los campos que
  * disparan el recálculo de marbetes (Repeticiones/PzasRollo/TotalRollos/TotalPzas).
  */
