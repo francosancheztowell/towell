@@ -425,7 +425,9 @@ const updateMachineCard = (machine: Machine): void => {
 
   const saldo = button.querySelector<HTMLElement>('[data-crudo-saldo]')
   if (saldo) {
-    saldo.textContent = saldoPedido != null ? `${formatInteger(saldoPedido)}` : '--'
+    // programa es Record<string, string | number | null>, asi que saldoPedido puede venir
+    // como string. formatInteger hace Math.round(), que ya coaccionaba: se explicita.
+    saldo.textContent = saldoPedido != null ? `${formatInteger(Number(saldoPedido))}` : '--'
     saldo.classList.toggle('crudo-saldo-negativo', saldoNegativo)
   }
 

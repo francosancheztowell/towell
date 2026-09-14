@@ -14,6 +14,8 @@
     "include": [
         "resources/js/trazabilidad/**/*.ts",
         "resources/js/crudo/**/*.ts",
-        "resources/js/urd-eng/**/*.ts"
+        "resources/js/urd-eng/**/*.ts",
+        "resources/js/programa-tejido/**/*.ts",
+        "resources/js/utils/**/*.ts"
     ]
 }
