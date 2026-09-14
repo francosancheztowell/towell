@@ -255,34 +255,8 @@ class UtilityHelpers
         return $out;
     }
 
-    public static function marcarCambioHiloAnterior(string $salon, $noTelarId, ?string $nuevoHilo): void
-    {
-        try {
-            $anterior = ReqProgramaTejido::query()
-                ->salon($salon)
-                ->telar($noTelarId)
-                ->where('Ultimo', 1)
-                ->first();
-
-            if (! $anterior) {
-                $anterior = ReqProgramaTejido::query()
-                    ->salon($salon)
-                    ->telar($noTelarId)
-                    ->orderByDesc('Id')
-                    ->first();
-            }
-
-            if ($anterior && $anterior->FibraRizo !== null && $anterior->FibraRizo !== '' && $anterior->FibraRizo !== $nuevoHilo) {
-                $anterior->CambioHilo = 1;
-                $anterior->save();
-            }
-        } catch (\Throwable $e) {
-            Log::warning('marcarCambioHiloAnterior error', ['msg' => $e->getMessage()]);
-        }
-    }
-
     /**
-     * Versión bulk de marcarCambioHiloAnterior para múltiples telares.
+     * Marca CambioHilo en el ultimo registro de cada telar cuyo hilo cambio.
      * Reduce N*2 queries a 2 queries (1 bulk get + 1 bulk update si hay cambios).
      *
      * @param  array  $telaresIds  Array de telar IDs

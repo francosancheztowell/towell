@@ -402,12 +402,6 @@ class CodificacionController extends Controller
         return array_map(fn ($col, $idx) => ['index' => $idx, 'nombre' => $col], self::COLUMNAS, array_keys(self::COLUMNAS));
     }
 
-    /** Obtener campos del modelo con sus tipos */
-    public static function getCamposModelo(): array
-    {
-        return self::CAMPOS_MODELO;
-    }
-
     /** Vista principal - Solo estructura, datos via API */
     public function index()
     {
