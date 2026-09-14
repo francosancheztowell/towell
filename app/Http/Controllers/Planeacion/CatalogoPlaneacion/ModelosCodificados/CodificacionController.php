@@ -208,11 +208,30 @@ class CodificacionController extends Controller
         });
     }
 
-    private function normalizeDataForTable(array $data, array $columns, array $lengths): array
+    /** Columnas enteras de la tabla (para redondear decimales antes del insert) */
+    private function getIntColumns(string $table): array
+    {
+        return Cache::remember("int_columns_{$table}", 3600, function () use ($table) {
+            $rows = DB::select(
+                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+                 WHERE TABLE_NAME = ? AND DATA_TYPE IN ('int','bigint','smallint','tinyint')",
+                [$table]
+            );
+
+            return array_fill_keys(array_column($rows, 'COLUMN_NAME'), true);
+        });
+    }
+
+    private function normalizeDataForTable(array $data, array $columns, array $lengths, array $intColumns = []): array
     {
         $normalized = [];
         foreach ($data as $column => $value) {
             if (! isset($columns[$column])) {
+                continue;
+            }
+            if (isset($intColumns[$column]) && $value !== null && $value !== '' && is_numeric($value)) {
+                $normalized[$column] = (int) round((float) $value);
+
                 continue;
             }
             $normalized[$column] = $this->truncateValueForColumn($column, $value, $lengths);
@@ -1168,6 +1187,7 @@ class CodificacionController extends Controller
             $registrosCreados = [];
             $columns = $this->getTableColumns('ReqModelosCodificados');
             $lengths = $this->getColumnMaxLengths('ReqModelosCodificados');
+            $intColumns = $this->getIntColumns('ReqModelosCodificados');
             $hasCustName = Schema::hasColumn('ReqModelosCodificados', 'CustName');
             DB::beginTransaction();
 
@@ -1204,7 +1224,7 @@ class CodificacionController extends Controller
                             }
                         }
 
-                        $data = $this->normalizeDataForTable($data, $columns, $lengths);
+                        $data = $this->normalizeDataForTable($data, $columns, $lengths, $intColumns);
                         $nuevoRegistro = new ReqModelosCodificados;
                         $nuevoRegistro->forceFill($data);
                         $nuevoRegistro->save();

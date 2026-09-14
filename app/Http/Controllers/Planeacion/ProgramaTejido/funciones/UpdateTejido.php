@@ -9,7 +9,6 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UpdateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UtilityHelpers;
 use App\Models\Planeacion\ReqAplicaciones;
-use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqProgramaTejidoLine;
 use App\Observers\ReqProgramaTejidoObserver;
@@ -88,12 +87,11 @@ class UpdateTejido
         if (array_key_exists('tamano_clave', $data)) {
             $nuevaClave = $data['tamano_clave'] ?: null;
 
-            // Validar que el salón sea Jacquard o Smit antes de aplicar cambios del modelo
+            // ponytail: el salón ya no se filtra a Jacquard/Smit. Solo acota la búsqueda del
+            // modelo codificado; Karl Mayer (y cualquier salón nuevo) también trae sus datos.
             $salon = $registro->SalonTejidoId ?? '';
-            $salonUpper = strtoupper($salon);
-            $esJacquardOSmit = str_contains($salonUpper, 'JAC') || str_contains($salonUpper, 'SMI') || str_contains($salonUpper, 'SMIT');
 
-            if (! empty($nuevaClave) && $esJacquardOSmit) {
+            if (! empty($nuevaClave)) {
                 // Primero verificar si existe en el salón actual
                 $datosModelo = self::obtenerDatosModeloCodificado($salon, $nuevaClave);
 
@@ -334,7 +332,7 @@ class UpdateTejido
                     $afectaDuracion = true;
                     $afectaFormulas = true;
                 } else {
-                    // No existe en el salón actual, buscar en otros salones Jacquard/Smit
+                    // Sin modelo codificado NO se actualiza nada: buscar en otros salones para avisar dónde está
                     $salonEncontrado = self::buscarClaveModeloEnOtrosSalones($nuevaClave, $salon);
 
                     if ($salonEncontrado) {
@@ -346,21 +344,17 @@ class UpdateTejido
                             'salon_encontrado' => $salonEncontrado,
                         ], 422);
                     } else {
-                        // No existe en ningún salón Jacquard/Smit, retornar error
+                        // No existe en ningún salón, retornar error
                         return response()->json([
                             'success' => false,
-                            'message' => "La clave modelo \"{$nuevaClave}\" no existe en los codificados de Jacquard o SMIT",
+                            'message' => "La clave modelo \"{$nuevaClave}\" no existe en Modelos Codificados",
                             'tipo' => 'error',
                         ], 422);
                     }
                 }
             } else {
-                // Si no es Jacquard/Smit o la clave está vacía, solo actualizar la clave sin cambiar otros campos
-                $registro->TamanoClave = $nuevaClave;
-                if (! empty($nuevaClave)) {
-                    $afectaDuracion = true;
-                    $afectaFormulas = true;
-                }
+                // Clave vacía: solo se limpia, no hay modelo del cual traer datos
+                $registro->TamanoClave = null;
             }
         }
 
@@ -697,69 +691,20 @@ class UpdateTejido
     }
 
     /**
-     * Busca la clave modelo en otros salones Jacquard/Smit (excluyendo el salón actual)
+     * Busca la clave modelo en cualquier otro salón (excluyendo el salón actual)
      * Retorna el nombre del salón donde se encontró, o null si no existe
      */
     private static function buscarClaveModeloEnOtrosSalones(string $tamanoClave, string $salonActual): ?string
     {
-        $tam = trim($tamanoClave);
-        if ($tam === '') {
+        // ponytail: una sola búsqueda sin filtro de salón; si cae en el salón actual no hay nada que avisar.
+        $modelo = TejidoHelpers::obtenerModeloPorTamanoClave($tamanoClave, null, ['SalonTejidoId']);
+        $salonEncontrado = trim((string) ($modelo->SalonTejidoId ?? ''));
+
+        if ($salonEncontrado === '' || strcasecmp($salonEncontrado, trim($salonActual)) === 0) {
             return null;
         }
 
-        // Normalizar: quitar dobles espacios y usar mayúsculas para comparación flexible
-        $tam = preg_replace('/\s+/', ' ', $tam);
-        $tamUpper = strtoupper($tam);
-
-        // Obtener todos los salones Jacquard/Smit disponibles
-        $salonesJacquardOSmit = ReqModelosCodificados::query()
-            ->where(function ($q) {
-                $q->whereRaw('UPPER(SalonTejidoId) LIKE ?', ['%JAC%'])
-                    ->orWhereRaw('UPPER(SalonTejidoId) LIKE ?', ['%SMI%'])
-                    ->orWhereRaw('UPPER(SalonTejidoId) LIKE ?', ['%SMIT%']);
-            })
-            ->distinct()
-            ->pluck('SalonTejidoId')
-            ->filter(function ($s) use ($salonActual) {
-                // Excluir el salón actual
-                return strtoupper($s) !== strtoupper($salonActual);
-            })
-            ->values()
-            ->toArray();
-
-        // Buscar en cada salón
-        foreach ($salonesJacquardOSmit as $salon) {
-            $qBase = ReqModelosCodificados::where('SalonTejidoId', $salon);
-
-            // Intento exacto
-            $existe = (clone $qBase)
-                ->whereRaw("REPLACE(UPPER(LTRIM(RTRIM(TamanoClave))), '  ', ' ') = ?", [$tamUpper])
-                ->exists();
-
-            if ($existe) {
-                return $salon;
-            }
-
-            // Prefijo
-            $existe = (clone $qBase)
-                ->whereRaw('UPPER(TamanoClave) like ?', [$tamUpper.'%'])
-                ->exists();
-
-            if ($existe) {
-                return $salon;
-            }
-
-            // Contiene
-            $existe = (clone $qBase)
-                ->whereRaw('UPPER(TamanoClave) like ?', ['%'.$tamUpper.'%'])
-                ->exists();
-
-            if ($existe) {
-                return $salon;
-            }
-        }
-
-        return null;
+        return $salonEncontrado;
     }
 
     /**
@@ -789,29 +734,8 @@ class UpdateTejido
             'CalibreComb5', 'CalibreComb52', 'FibraComb5', 'CodColorC5', 'NomColorC5', 'LargoToalla',
         ];
 
-        $qBase = ReqModelosCodificados::where('SalonTejidoId', $salon);
-
-        // Intento exacto
-        $datos = (clone $qBase)
-            ->whereRaw("REPLACE(UPPER(LTRIM(RTRIM(TamanoClave))), '  ', ' ') = ?", [strtoupper($tam)])
-            ->select($selectCols)
-            ->first();
-
-        // Prefijo
-        if (! $datos) {
-            $datos = (clone $qBase)
-                ->whereRaw('UPPER(TamanoClave) like ?', [strtoupper($tam).'%'])
-                ->select($selectCols)
-                ->first();
-        }
-
-        // Contiene
-        if (! $datos) {
-            $datos = (clone $qBase)
-                ->whereRaw('UPPER(TamanoClave) like ?', ['%'.strtoupper($tam).'%'])
-                ->select($selectCols)
-                ->first();
-        }
+        // Buscador canónico: resuelve alias de salón (KM = KARL MAYER, SMIT = ITEMA, ...)
+        $datos = TejidoHelpers::obtenerModeloPorTamanoClave($tam, $salon, $selectCols);
 
         if (! $datos) {
             return null;

@@ -8,6 +8,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\OrdCompartidaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UpdateHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,10 +23,21 @@ class DuplicarTejido
 
         $data = $request->validated();
 
-        $salonOrigen = $data['salon_tejido_id'];
+        // El front manda el salon normalizado ('KM'); en BD se guarda canonico ('KARL MAYER').
+        // Se normaliza UNA vez aqui para que las claves de los mapas batch, los where() y lo
+        // que se persiste hablen el mismo idioma; si no, las posiciones se calculan sobre un
+        // telar vacio y el insert choca contra UX_ReqProgramaTejido_Telar_Posicion.
         $telarOrigen = $data['no_telar_id'];
-        $salonDestino = $data['salon_destino'] ?? $salonOrigen;
-        $destinos = $data['destinos'];
+        $salonOrigen = TelarSalonResolver::normalizeSalon($data['salon_tejido_id'], $telarOrigen);
+        $salonDestino = TelarSalonResolver::normalizeSalon($data['salon_destino'] ?? $salonOrigen);
+        $destinos = array_map(static function (array $d) use ($salonDestino) {
+            $d['salon_destino'] = TelarSalonResolver::normalizeSalon(
+                ! empty($d['salon_destino']) ? $d['salon_destino'] : $salonDestino,
+                $d['telar'] ?? null
+            );
+
+            return $d;
+        }, $data['destinos']);
 
         $pedidoGlobal = TejidoHelpers::sanitizeNullableNumber($data['pedido'] ?? null);
         $inventSizeId = $data['invent_size_id'] ?? null;
@@ -194,7 +206,7 @@ class DuplicarTejido
                 $saldoDestinoRaw = $destino['saldo'] ?? null;
                 $observacionesDestino = $destino['observaciones'] ?? null;
 
-                // Usar el salón específico del destino si está disponible, de lo contrario el global
+                // Ya viene normalizado desde el inicio de duplicar()
                 $salonDestinoFila = ! empty($destino['salon_destino']) ? $destino['salon_destino'] : $salonDestino;
 
                 $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''

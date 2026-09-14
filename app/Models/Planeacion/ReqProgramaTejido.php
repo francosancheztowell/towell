@@ -3,6 +3,8 @@
 namespace App\Models\Planeacion;
 
 use App\Helpers\StringTruncator;
+use App\Observers\ReqProgramaTejidoObserver;
+use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -198,7 +200,13 @@ class ReqProgramaTejido extends Model
      |===========================*/
     public function scopeSalon(Builder $q, string $salon): Builder
     {
-        return $q->where('SalonTejidoId', $salon);
+        // El front manda el salon normalizado ('KM'), la BD lo guarda como 'KARL MAYER'
+        // (igual SMIT/SMITH/ITEMA y JACQUARD/JAC/JC5): se busca por todos los alias.
+        $aliases = TelarSalonResolver::salonAliases($salon);
+
+        return empty($aliases)
+            ? $q->where('SalonTejidoId', $salon)
+            : $q->whereIn('SalonTejidoId', $aliases);
     }
 
     public function scopeTelar(Builder $q, $noTelar): Builder
@@ -327,7 +335,7 @@ class ReqProgramaTejido extends Model
         if ($dispatcher) {
             static::setEventDispatcher($dispatcher);
         }
-        static::observe(\App\Observers\ReqProgramaTejidoObserver::class);
+        static::observe(ReqProgramaTejidoObserver::class);
     }
 
     /**
@@ -343,7 +351,7 @@ class ReqProgramaTejido extends Model
      */
     public static function regenerarLineas(iterable $registros): void
     {
-        $observer = new \App\Observers\ReqProgramaTejidoObserver;
+        $observer = new ReqProgramaTejidoObserver;
         foreach ($registros as $registro) {
             if ($registro instanceof static && $registro->Id) {
                 $observer->regenerateLinesFor($registro);
