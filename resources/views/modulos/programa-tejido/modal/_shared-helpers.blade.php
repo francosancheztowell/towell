@@ -252,7 +252,8 @@ function escapeHtmlPtModal(s) {
 		.replace(/&/g, '&amp;')
 		.replace(/</g, '&lt;')
 		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;');
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#039;');
 }
 window.escapeHtmlPtModal = escapeHtmlPtModal;
 
@@ -1581,8 +1582,9 @@ function formatearValorCelda(registro, field, value, dateType) {
 		return parseFloat(value).toFixed(2);
 	}
 
-	// Valor por defecto
-	return String(value);
+	// Valor por defecto. El resultado se asigna con innerHTML y las ramas de arriba
+	// devuelven HTML, así que esta rama (texto libre de BD) debe ir escapada.
+	return escapeHtmlPtModal(value);
 }
 
 // Funciones helper para mostrar/ocultar loading

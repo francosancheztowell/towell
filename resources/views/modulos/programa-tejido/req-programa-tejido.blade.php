@@ -137,7 +137,10 @@ document.addEventListener('DOMContentLoaded', function () {
           return number_format((float)$value, 2);
         }
 
-        return $value;
+        // La celda se pinta con {!! !!} porque las ramas de arriba devuelven HTML.
+        // Esta rama es texto libre de BD (Observaciones, NombreProyecto: editables inline
+        // por cualquier usuario) => escapar o es XSS almacenado.
+        return e($value);
       };
     @endphp
 

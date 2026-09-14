@@ -2968,13 +2968,14 @@
               ? dt.toLocaleDateString('es-MX')
               : dt.toLocaleString('es-MX');
           } catch (e) {
-            return String(value);
+            return escapeHtmlPtModal(value);
           }
         }
         if (!isNaN(value) && !Number.isInteger(parseFloat(value))) {
           return parseFloat(value).toFixed(2);
         }
-        return String(value);
+        // Se asigna con innerHTML => escapar el texto libre de BD.
+        return escapeHtmlPtModal(value);
       };
 
       const idsUnicos = Array.from(new Set(registrosIds || [])).filter(Boolean);
