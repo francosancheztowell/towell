@@ -92,7 +92,9 @@ function selectRow(rowElement, rowIndex) {
 			canViewLines: true
 		});
 	} catch (e) {
-		// Error silencioso para mejor rendimiento
+		// No se traga: los bugs de seleccion se manifiestan como "hago clic y no
+		// pasa nada" y sin esto no dejan rastro en consola.
+		console.error('[PT] fallo en la seleccion de fila:', e);
 	}
 }
 
@@ -123,7 +125,9 @@ function deselectRow() {
 			canViewLines: false
 		});
 	} catch (e) {
-		// Error silencioso para mejor rendimiento
+		// No se traga: los bugs de seleccion se manifiestan como "hago clic y no
+		// pasa nada" y sin esto no dejan rastro en consola.
+		console.error('[PT] fallo en la seleccion de fila:', e);
 	}
 }
 
