@@ -468,16 +468,46 @@
                 >
             @endforeach
 
-            <div class="crudo-defectos-vistas" role="radiogroup" aria-label="Filtrar por salón">
-                @foreach ($filtrosDefectos as $clave => $filtro)
-                    <label for="crudo-defectos-salon-{{ Str::slug($clave) }}" data-vista="{{ $clave }}">
-                        {{ $filtro['etiqueta'] }}
-                        <span class="crudo-paros-conteo">{{ $filtro['conteo'] }}</span>
-                    </label>
-                @endforeach
+            <div class="crudo-defectos-vistas">
+                <span class="crudo-defectos-grupo" role="radiogroup" aria-label="Filtrar por salón">
+                    <span class="crudo-defectos-grupo-titulo">Salón</span>
+                    @foreach ($filtrosDefectos as $clave => $filtro)
+                        <label for="crudo-defectos-salon-{{ Str::slug($clave) }}" data-vista="{{ $clave }}">
+                            {{ $filtro['etiqueta'] }}
+                            <span class="crudo-paros-conteo">{{ $filtro['conteo'] }}</span>
+                        </label>
+                    @endforeach
+                </span>
+
+                {{-- Turno: sí pasa por el servidor, los totales se recalculan. --}}
+                <span class="crudo-defectos-grupo" role="group" aria-label="Filtrar por turno">
+                    <span class="crudo-defectos-grupo-titulo">Turno</span>
+                    <button
+                        type="button"
+                        class="{{ $defectosTurno === '' ? 'is-active' : '' }}"
+                        aria-pressed="{{ $defectosTurno === '' ? 'true' : 'false' }}"
+                        wire:click="$set('defectosTurno', '')"
+                    >Todos</button>
+                    {{-- Los cuatro turnos siempre visibles: que falte uno se lee como
+                         "no hubo captura", no como que el filtro desapareció. --}}
+                    @php($totalesTurno = collect($defectos['turnos'] ?? [])->pluck('total', 'turno'))
+                    @foreach (['1', '2', '3', '4'] as $turno)
+                        <button
+                            type="button"
+                            class="{{ $defectosTurno === $turno ? 'is-active' : '' }}"
+                            aria-pressed="{{ $defectosTurno === $turno ? 'true' : 'false' }}"
+                            wire:click="$set('defectosTurno', '{{ $turno }}')"
+                            title="Solo segundas capturadas en el turno {{ $turno }}"
+                        >
+                            T{{ $turno }}
+                            <span class="crudo-paros-conteo">{{ number_format((float) ($totalesTurno[$turno] ?? 0)) }}</span>
+                        </button>
+                    @endforeach
+                </span>
 
                 {{-- Orden: sí pasa por el servidor, porque el pulso repinta la tabla. --}}
-                <span class="crudo-defectos-orden">
+                <span class="crudo-defectos-grupo crudo-defectos-orden" role="group" aria-label="Ordenar">
+                    <span class="crudo-defectos-grupo-titulo">Orden</span>
                     @foreach (['telar' => 'Telar', 'desc' => '2das ↓', 'asc' => '2das ↑'] as $orden => $etiqueta)
                         <button
                             type="button"
@@ -503,14 +533,18 @@
                             <table class="crudo-detail-table crudo-defectos-table">
                                 <thead>
                                     <tr>
-                                        <th>Telar</th>
+                                        <th scope="col">Telar</th>
                                         @foreach ($defectos['columnas'] as $indice => $columna)
-                                            <th style="--color-defecto: {{ $coloresDefecto[$indice % count($coloresDefecto)] }}">
+                                            <th
+                                                scope="col"
+                                                class="crudo-defectos-col"
+                                                style="--color-defecto: {{ $coloresDefecto[$indice % count($coloresDefecto)] }}"
+                                            >
                                                 <span class="crudo-defectos-chip" aria-hidden="true"></span>
-                                                {{ $columna }}
+                                                <span class="crudo-defectos-col-nombre">{{ $columna }}</span>
                                             </th>
                                         @endforeach
-                                        <th>Total</th>
+                                        <th scope="col" class="crudo-defectos-col">Total</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -520,13 +554,13 @@
                                             @foreach ($defectos['columnas'] as $indice => $columna)
                                                 @php($valor = (float) ($fila['defectos'][$columna] ?? 0))
                                                 <td
-                                                    @class(['crudo-defectos-cero' => $valor === 0.0])
+                                                    @class(['crudo-defectos-col', 'crudo-defectos-cero' => $valor === 0.0])
                                                     style="--color-defecto: {{ $coloresDefecto[$indice % count($coloresDefecto)] }}"
                                                 >
                                                     {{ $valor === 0.0 ? '·' : number_format($valor) }}
                                                 </td>
                                             @endforeach
-                                            <td class="crudo-defectos-total">
+                                            <td class="crudo-defectos-col crudo-defectos-total">
                                                 {{-- Barra de proporción: el peor telar se ve sin leer los números. --}}
                                                 <span
                                                     class="crudo-defectos-barra"

@@ -43,6 +43,9 @@ class Dashboard extends Component
     /** Orden del desglose: telar | asc | desc (por segundas). */
     public string $defectosOrden = 'telar';
 
+    /** Turno del desglose: '' = todos, o '1'..'4'. */
+    public string $defectosTurno = '';
+
     public bool $interactionPaused = false;
 
     private bool $forceRefreshOnNextRender = false;
@@ -128,6 +131,7 @@ class Dashboard extends Component
     public function cerrarDefectos(): void
     {
         $this->defectosAbierto = false;
+        $this->defectosTurno = '';
     }
 
     public function refreshDashboard(): void
@@ -216,11 +220,11 @@ class Dashboard extends Component
         }
 
         try {
-            $desglose = $this->defectos->porTelar($this->rangeFrom(), $this->rangeTo());
+            $desglose = $this->defectos->porTelar($this->rangeFrom(), $this->rangeTo(), $this->defectosTurno);
         } catch (Throwable $exception) {
             report($exception);
 
-            return ['columnas' => [], 'telares' => [], 'porDefecto' => [], 'total' => 0.0, 'recortados' => 0, 'maximo' => 0.0];
+            return ['columnas' => [], 'telares' => [], 'porDefecto' => [], 'turnos' => [], 'total' => 0.0, 'recortados' => 0, 'maximo' => 0.0];
         }
 
         $salones = [];

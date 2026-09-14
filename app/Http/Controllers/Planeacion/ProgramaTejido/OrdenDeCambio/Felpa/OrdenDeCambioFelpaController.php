@@ -7,6 +7,7 @@ use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\Catalogos\ReqPesosRollosTejido;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -396,11 +397,11 @@ class OrdenDeCambioFelpaController extends Controller
         $this->establecerFormulaCelda($sheet, 'C19', '=REGISTRO!AU'.$filaRegistro);
         $this->establecerFormulaCelda($sheet, 'D19', '=REGISTRO!AU'.$filaRegistro);
 
-        // Fórmula K19
-        if ($tipoFormato === 'smit' || $tipoFormato === 'jacquard') {
-            $this->establecerFormulaCelda($sheet, 'K19', '=K17*M19');
-        } else {
+        // Fórmula K19: solo felpa divide entre 2. KM queda fuera igual que en la liberacion.
+        if ($tipoFormato === 'felpa') {
             $this->establecerFormulaCelda($sheet, 'K19', '=K17*M19/2');
+        } else {
+            $this->establecerFormulaCelda($sheet, 'K19', '=K17*M19');
         }
 
         // Velocidad / tiras
@@ -1845,6 +1846,12 @@ class OrdenDeCambioFelpaController extends Controller
      */
     protected function determinarTipoFormatoDesdeBD(ReqProgramaTejido $registro): string
     {
+        // Karl Mayer va antes que la deteccion de felpa: su catalogo usa TamanoClave tipo FELPA####
+        // pero no se rige por las reglas de felpa, igual que en LiberarOrdenesController.
+        if (TelarSalonResolver::esKarlMayer($registro->SalonTejidoId ?? null, $registro->NoTelarId ?? null)) {
+            return 'km';
+        }
+
         $tamanoClave = strtoupper($registro->TamanoClave ?? '');
         if (stripos($tamanoClave, 'FELPA') !== false) {
             return 'felpa';

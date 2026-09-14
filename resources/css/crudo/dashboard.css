@@ -1345,62 +1345,63 @@ button.crudo-status-card:disabled {
 
 .crudo-defectos-vistas {
     display: flex;
-    gap: 0.3rem;
+    flex-wrap: wrap;
+    gap: 0.35rem 1rem;
+    align-items: center;
     border-bottom: 1px solid #e2e8f0;
-    padding: 0.5rem 1rem;
+    background: #f8fafc;
+    padding: 0.55rem 1rem;
 }
 
-.crudo-defectos-vistas label {
-    min-height: 1.5rem;
+/* Tres grupos con etiqueta propia: salón, turno y orden ya no se confunden
+   entre sí, que era el problema de tenerlos todos como píldoras sueltas. */
+.crudo-defectos-grupo {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    align-items: center;
+}
+
+.crudo-defectos-grupo-titulo {
+    margin-right: 0.15rem;
+    color: #94a3b8;
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.crudo-defectos-vistas label,
+.crudo-defectos-grupo button {
+    display: inline-flex;
+    min-height: 1.6rem;
+    align-items: center;
+    gap: 0.3rem;
     border: 1px solid #dbe5ee;
     border-radius: 999px;
     background: #fff;
     padding: 0.2rem 0.7rem;
     color: #475569;
-    font-size: 0.7rem;
-    font-weight: 800;
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
     cursor: pointer;
 }
 
-.crudo-defectos-vistas label:hover {
+.crudo-defectos-vistas label:hover,
+.crudo-defectos-grupo button:hover {
     border-color: #64748b;
 }
 
-.crudo-defectos-vistas label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-}
-
-/* El orden se separa de los filtros de salón: son dos cosas distintas. */
-.crudo-defectos-orden {
-    display: inline-flex;
-    gap: 0.3rem;
-    margin-left: auto;
-    padding-left: 0.6rem;
-    border-left: 1px solid #e2e8f0;
-}
-
-.crudo-defectos-orden button {
-    min-height: 1.5rem;
-    border: 1px solid #dbe5ee;
-    border-radius: 999px;
-    background: #fff;
-    padding: 0.2rem 0.6rem;
-    color: #475569;
-    font-size: 0.7rem;
-    font-weight: 800;
-    white-space: nowrap;
-}
-
-.crudo-defectos-orden button:hover {
-    border-color: #64748b;
-}
-
-.crudo-defectos-orden button.is-active {
+.crudo-defectos-grupo button.is-active {
     border-color: #0284c7;
     background: #e0f2fe;
     color: #0c4a6e;
+}
+
+/* El orden se manda al final de la barra: es lo menos usado de los tres. */
+.crudo-defectos-orden {
+    margin-left: auto;
 }
 
 .crudo-defectos-vista-input[value="todos"]:checked ~ .crudo-defectos-vistas label[data-vista="todos"],
@@ -1483,12 +1484,47 @@ button.crudo-status-card:disabled {
     color: var(--color-defecto, #475569);
     vertical-align: bottom;
     white-space: normal;
-    line-height: 1.15;
+    line-height: 1.2;
     text-wrap: balance;
 }
 
+/* Los nombres llegan en mayúsculas desde el ERP ("ERROR DE PESO") y en bloque
+   no se leen: se bajan a minúsculas y solo se capitaliza la inicial. */
+.crudo-defectos-table thead th {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    text-transform: lowercase;
+}
+
+.crudo-defectos-table thead th::first-letter {
+    text-transform: uppercase;
+}
+
+/* ::first-letter solo aplica en un contenedor de bloque: el nombre va en un
+   inline-block para que la inicial sí se capitalice detrás del punto de color. */
+.crudo-defectos-col-nombre {
+    display: inline-block;
+    max-width: 100%;
+    vertical-align: bottom;
+}
+
+.crudo-defectos-col-nombre::first-letter {
+    text-transform: uppercase;
+}
+
+/* Línea vertical entre columnas: sin ella la vista es una malla de cifras y
+   se salta de renglón al seguir una columna. */
+.crudo-defectos-table .crudo-defectos-col {
+    border-left: 1px solid #e8eef4;
+}
+
+.crudo-defectos-table thead .crudo-defectos-col {
+    border-left-color: #dbe5ee;
+}
+
 .crudo-defectos-table tbody tr:nth-child(even) td {
-    background: #f1f5f9;
+    background: #f6f9fc;
 }
 
 .crudo-defectos-table tbody tr:hover td {
@@ -1507,7 +1543,7 @@ button.crudo-status-card:disabled {
 }
 
 .crudo-defectos-table tbody tr:nth-child(even) td:first-child {
-    background: #f1f5f9;
+    background: #f6f9fc;
 }
 
 .crudo-defectos-table tbody tr:hover td:first-child {

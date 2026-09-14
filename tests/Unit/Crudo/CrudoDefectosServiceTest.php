@@ -66,6 +66,24 @@ final class CrudoDefectosServiceTest extends TestCase
         $this->assertSame(4.0, $resultado['total']);
     }
 
+    public function test_filtra_por_turno_sin_mover_los_conteos_de_los_botones(): void
+    {
+        $filas = [
+            $this->fila('201', 'Error de trama', 10, '1'),
+            $this->fila('201', 'Marra', 4, '2'),
+            $this->fila('204', 'Error de trama', 6, '2'),
+        ];
+
+        $todos = $this->service($filas)->porTelar(new DateTimeImmutable('2026-08-13'), new DateTimeImmutable('2026-08-13'));
+        $segundo = $this->service($filas)->porTelar(new DateTimeImmutable('2026-08-13'), new DateTimeImmutable('2026-08-13'), '2');
+
+        $this->assertSame(20.0, $todos['total']);
+        $this->assertSame(10.0, $segundo['total']);
+        $this->assertSame(['201', '204'], array_column($segundo['telares'], 'telar'));
+        // Los conteos de los botones se cuentan antes de filtrar: no bailan.
+        $this->assertSame([['turno' => '1', 'total' => 10.0], ['turno' => '2', 'total' => 10.0]], $segundo['turnos']);
+    }
+
     /**
      * @param  list<object>  $filas
      */
@@ -125,10 +143,11 @@ final class CrudoDefectosServiceTest extends TestCase
         return new CrudoDefectosService($repository);
     }
 
-    private function fila(string $telar, string $descripcion, float $cantidad): object
+    private function fila(string $telar, string $descripcion, float $cantidad, string $turno = '1'): object
     {
         return (object) [
             'TELAR' => $telar,
+            'turno' => $turno,
             'code' => '01',
             'description' => $descripcion,
             'quantity' => $cantidad,

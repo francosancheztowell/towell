@@ -24,21 +24,34 @@ final readonly class CrudoDefectosService
      *     columnas: list<string>,
      *     telares: list<array{telar: string, total: float, defectos: array<string, float>}>,
      *     porDefecto: list<array{defecto: string, total: float}>,
+     *     turnos: list<array{turno: string, total: float}>,
      *     total: float,
      *     recortados: int
      * }
      */
-    public function porTelar(DateTimeImmutable $from, DateTimeImmutable $to): array
+    public function porTelar(DateTimeImmutable $from, DateTimeImmutable $to, ?string $turno = null): array
     {
         $filas = $this->cachedRows($from, $to);
 
         $porDefecto = [];
         $porTelar = [];
+        $porTurno = [];
 
         foreach ($filas as $fila) {
             $telar = trim((string) ($fila->TELAR ?? ''));
             $cantidad = is_numeric($fila->quantity ?? null) ? (float) $fila->quantity : 0.0;
             if ($telar === '' || $cantidad <= 0) {
+                continue;
+            }
+
+            // El turno alimenta el filtro del modal. Los conteos de los botones se
+            // cuentan antes de filtrar, para que no bailen al elegir uno.
+            $turnoFila = (string) preg_replace('/\D+/', '', (string) ($fila->turno ?? ''));
+            if ($turnoFila !== '') {
+                $porTurno[$turnoFila] = ($porTurno[$turnoFila] ?? 0) + $cantidad;
+            }
+
+            if ($turno !== null && $turno !== '' && $turnoFila !== $turno) {
                 continue;
             }
 
@@ -85,8 +98,14 @@ final readonly class CrudoDefectosService
             array_keys($porDefecto),
         );
 
+        ksort($porTurno);
+
         return [
             'columnas' => $columnas,
+            'turnos' => array_map(
+                static fn (string $clave): array => ['turno' => $clave, 'total' => $porTurno[$clave]],
+                array_keys($porTurno),
+            ),
             'telares' => $telares,
             'porDefecto' => $ranking,
             'total' => array_sum($porDefecto),

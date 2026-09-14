@@ -204,9 +204,10 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
             ->where('h.DATAAREAID', $this->dataAreaId())
             ->where('h.TRANSDATE', '>=', $start->format('Y-m-d H:i:s'))
             ->where('h.TRANSDATE', '<', $end->format('Y-m-d H:i:s'))
-            ->groupBy('h.TELAR', 'l.CODDEFECTOID', 'l.DESCRIP')
+            ->groupBy('h.TELAR', 'l.TURNO', 'l.CODDEFECTOID', 'l.DESCRIP')
             ->selectRaw('
                 h.TELAR AS TELAR,
+                l.TURNO AS turno,
                 l.CODDEFECTOID AS code,
                 l.DESCRIP AS description,
                 SUM(COALESCE(l.CANTIDAD, 0)) AS quantity
