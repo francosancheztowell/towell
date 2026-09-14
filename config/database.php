@@ -100,11 +100,11 @@ return [
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),
-            'host' => '192.168.2.28',
-            'port' => '1433',
-            'database' => 'ProdTowel',
-            'username' => 'laravel',
-            'password' => 'Francost15',
+            'host' => env('DB_HOST'),
+            'port' => env('DB_PORT'),
+            'database' => env('DB_DATABASE'),
+            'username' => env('DB_USERNAME'),
+            'password' => env('DB_PASSWORD'),
             'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,
@@ -114,11 +114,11 @@ return [
 
         'sqlsrv_ti' => [
             'driver' => 'sqlsrv',
-            'host' => env('DB_HOST_TIPRO', '192.168.2.24'), // Asegúrate de que este es el host correcto
-            'port' => env('DB_PORT_TIPRO', '1433'),
-            'database' => env('DB_DATABASE_TIPRO', 'TOW_PRO'),
-            'username' => env('DB_USERNAME_TIPRO', 'ax'),
-            'password' => env('DB_PASSWORD_TIPRO', 'TWPL-sql2k8'),
+            'host' => env('DB_HOST_TIPRO'), // Asegúrate de que este es el host correcto
+            'port' => env('DB_PORT_TIPRO'),
+            'database' => env('DB_DATABASE_TIPRO'),
+            'username' => env('DB_USERNAME_TIPRO'),
+            'password' => env('DB_PASSWORD_TIPRO'),
             'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,
@@ -127,16 +127,29 @@ return [
 
         'sqlsrv_tow_pro' => [
             'driver' => 'sqlsrv',
-            'host' => env('DB_HOST_TOW_PRO', '192.168.2.24'),
-            'port' => env('DB_PORT_TOW_PRO', '1433'),
-            'database' => env('DB_DATABASE_TOW_PRO', 'TOW_PRO'),
-            'username' => env('DB_USERNAME_TOW_PRO', 'ax'),
+            'host' => env('DB_HOST_TOW_PRO'),
+            'port' => env('DB_PORT_TOW_PRO'),
+            'database' => env('DB_DATABASE_TOW_PRO'),
+            'username' => env('DB_USERNAME_TOW_PRO'),
             'password' => env('DB_PASSWORD_TOW_PRO'),
             'charset' => 'utf8',
             'prefix' => '',
             'prefix_indexes' => true,
             'trust_server_certificate' => true,
         ],
+        'sqlsrv_tow_tow' => [
+            'driver' => 'sqlsrv',
+            'host' => env('DB_HOST_TOW_TOW'),
+            'port' => env('DB_PORT_TOW_TOW'),
+            'database'=> env('DB_DATABASE_TOW_TOW'),
+            'username' => env('DB_USERNAME_TOW_TOW'),
+            'password' => env('DB_PASSWORD_TOW_TOW'),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'trust_server_certificate' => true,
+        ],
+        #comentario de prueba
     ],
 
     /*

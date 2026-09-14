@@ -14,6 +14,7 @@ use App\Models\Sistema\Usuario;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\Mecanicos\CalificacionParoService;
+use App\Services\Mecanicos\RefaccionesParoService;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -86,7 +87,7 @@ class OrdenesTrabajoMecaController extends Controller
         ]);
     }
 
-    public function captura(string $folio): View
+    public function captura(string $folio, RefaccionesParoService $refaccionesParo): View
     {
         $orden = MecOrdenTrabajoModel::query()
             ->with(['lineas' => fn ($query) => $query->orderBy('Id')])
@@ -104,6 +105,7 @@ class OrdenesTrabajoMecaController extends Controller
 
         return view('modulos.mecanicos.ordenes-trabajo.captura', [
             'orden' => $orden,
+            'refacciones' => $refaccionesParo->porFolioParo($orden->FolioParo),
             'operadores' => $this->operadoresMecanicos(),
             'esTejedor' => $this->esTejedor(),
             'modoTejedor' => $modoTejedor,
@@ -262,6 +264,32 @@ class OrdenesTrabajoMecaController extends Controller
         return response()->json([
             'success' => true,
             'data' => $orden,
+        ]);
+    }
+
+    /**
+     * Refacciones de EasyMaint (Tow_Tow) ligadas al folio de paro de la OT.
+     */
+    public function refacciones(string $folio, RefaccionesParoService $refaccionesParo): JsonResponse
+    {
+        $orden = MecOrdenTrabajoModel::find($folio);
+
+        if (! $orden) {
+            return $this->ordenNoEncontrada();
+        }
+
+        if (! $this->tejedorPuedeVerOrden($orden)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'No tienes acceso a esta orden: el telar no está asignado a tu usuario.',
+            ], 403);
+        }
+
+        $resultado = $refaccionesParo->porFolioParo($orden->FolioParo);
+
+        return response()->json([
+            'success' => true,
+            ...$resultado,
         ]);
     }
 
