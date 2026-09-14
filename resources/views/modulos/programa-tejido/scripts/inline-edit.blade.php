@@ -585,6 +585,54 @@ const uiInlineEditableFields = {
     });
   }
 
+  // Vuelve a consultar Velocidad/Eficiencia STD (mismo endpoint que usa el modal Duplicar/Dividir)
+  // y las guarda en la orden. Se dispara al cambiar el hilo (FibraRizo) desde la edición inline.
+  async function recalcularStdParaFila(row, fibraId) {
+    const rowId = row.getAttribute('data-id');
+    const noTelarCell = row.querySelector('td[data-column="NoTelarId"]');
+    const calibreCell = row.querySelector('td[data-column="CalibreTrama2"]') || row.querySelector('td[data-column="CalibreTrama"]');
+    const noTelar = noTelarCell ? getCellValue(noTelarCell) : '';
+    const calibreTrama = calibreCell ? getCellValue(calibreCell) : '';
+
+    if (!fibraId || !noTelar || !calibreTrama) return;
+
+    try {
+      const params = new URLSearchParams({ fibra_id: fibraId, no_telar_id: noTelar, calibre_trama: calibreTrama });
+      const res = await fetch(`/programa-tejido/eficiencia-velocidad-std?${params.toString()}`, {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      });
+      if (!res.ok) return;
+
+      const std = await res.json();
+      if (std.velocidad == null && std.eficiencia == null) return;
+
+      const payload = {};
+      if (std.velocidad != null) payload.VelocidadSTD = std.velocidad;
+      if (std.eficiencia != null) payload.EficienciaSTD = std.eficiencia;
+
+      const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+      const saveRes = await fetch(`/planeacion/programa-tejido/${rowId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+          'X-CSRF-TOKEN': csrf
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload)
+      });
+      if (!saveRes.ok) return;
+
+      const saveResult = await saveRes.json().catch(() => ({}));
+      applyRowUpdatesFromBackend(row, payload);
+      window.PTStore?.set(String(rowId), saveResult?.data ?? payload);
+    } catch (e) {
+      console.warn('recalcularStdParaFila error', e);
+    }
+  }
+
   // Guardar campo individual
   async function saveInlineField(input, row, cell) {
     const columnName = input.dataset.field;
@@ -638,6 +686,11 @@ const uiInlineEditableFields = {
       // si backend manda resumen, actualiza otras celdas (fechas/saldo/etc)
       if (result?.data) applyRowUpdatesFromBackend(row, result.data);
       window.PTStore?.set(String(rowId), result?.data ?? { [payloadField]: value });
+
+      // Cambiar el hilo (FibraRizo) invalida Velocidad/Eficiencia STD: recalcular contra el catálogo
+      if (columnName === 'FibraRizo') {
+        await recalcularStdParaFila(row, value);
+      }
 
       // Actualizar índice de filtros en memoria para reflejar los nuevos valores
       if (window.PT?.filterIndex) {
