@@ -743,3 +743,16 @@ window.resetFilters = resetAllFilters;
 window.applyProgramaTejidoFilters = applyProgramaTejidoFilters;
 window.applyAndCloseProgramaTejidoFilterModal = applyAndCloseProgramaTejidoFilterModal;
 window.saveDateRangeFilters = saveDateRangeFilters;
+
+// El boton #btnFilters vive en components/navbar/sections/programa-tejido.blade.php y no
+// trae onclick. Antes lo enganchaba app-filters.js; al desconectarlo, el modulo engancha
+// el suyo aqui, que es donde vive openProgramaTejidoFilterModal.
+document.addEventListener('DOMContentLoaded', function () {
+    const btnFilters = document.getElementById('btnFilters');
+    if (!btnFilters) return;
+
+    btnFilters.addEventListener('click', function (e) {
+        e.preventDefault();
+        openProgramaTejidoFilterModal();
+    });
+});

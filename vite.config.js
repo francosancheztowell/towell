@@ -22,7 +22,6 @@ export default defineConfig({
         'resources/css/app.css',
         'resources/js/app.js',
         'resources/js/app-core.js',
-        'resources/js/app-filters.js',
         'resources/css/trazabilidad/index.css',
         'resources/js/trazabilidad/index.ts',
         'resources/css/crudo/dashboard.css',
