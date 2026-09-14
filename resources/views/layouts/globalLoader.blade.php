@@ -1,1 +1,0 @@
-<x-layout.global-loader />
