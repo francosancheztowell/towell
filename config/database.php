@@ -137,6 +137,20 @@ return [
             'prefix_indexes' => true,
             'trust_server_certificate' => true,
         ],
+
+        // EasyMaint / refacciones (TwRefacionesTable + TwRefaccionesLine).
+        'sqlsrv_tow_tow' => [
+            'driver' => 'sqlsrv',
+            'host' => env('DB_HOST_TOW_TOW', env('DB_HOST_TOW_PRO', '192.168.2.24')),
+            'port' => env('DB_PORT_TOW_TOW', env('DB_PORT_TOW_PRO', '1433')),
+            'database' => env('DB_DATABASE_TOW_TOW', 'Tow_Tow'),
+            'username' => env('DB_USERNAME_TOW_TOW', env('DB_USERNAME_TOW_PRO', 'ax')),
+            'password' => env('DB_PASSWORD_TOW_TOW', env('DB_PASSWORD_TOW_PRO')),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'trust_server_certificate' => true,
+        ],
     ],
 
     /*
