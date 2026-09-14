@@ -607,9 +607,10 @@ const uiInlineEditableFields = {
       const std = await res.json();
       if (std.velocidad == null && std.eficiencia == null) return;
 
+      // El backend (UpdateTejido::actualizar) solo acepta estas claves snake_case, no los nombres de columna
       const payload = {};
-      if (std.velocidad != null) payload.VelocidadSTD = std.velocidad;
-      if (std.eficiencia != null) payload.EficienciaSTD = std.eficiencia;
+      if (std.velocidad != null) payload.velocidad_std = std.velocidad;
+      if (std.eficiencia != null) payload.eficiencia_std = std.eficiencia;
 
       const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
       const saveRes = await fetch(`/planeacion/programa-tejido/${rowId}`, {
@@ -626,8 +627,11 @@ const uiInlineEditableFields = {
       if (!saveRes.ok) return;
 
       const saveResult = await saveRes.json().catch(() => ({}));
-      applyRowUpdatesFromBackend(row, payload);
-      window.PTStore?.set(String(rowId), saveResult?.data ?? payload);
+      const display = {};
+      if (std.velocidad != null) display.VelocidadSTD = std.velocidad;
+      if (std.eficiencia != null) display.EficienciaSTD = std.eficiencia;
+      applyRowUpdatesFromBackend(row, display);
+      window.PTStore?.set(String(rowId), saveResult?.data ?? display);
     } catch (e) {
       console.warn('recalcularStdParaFila error', e);
     }

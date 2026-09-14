@@ -59,6 +59,8 @@ class UpdateTejido
             'fecha_final' => ['sometimes', 'nullable', 'date'],
             'ancho' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'ancho_toalla' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'velocidad_std' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'eficiencia_std' => ['sometimes', 'nullable', 'numeric', 'min:0'],
         ]);
 
         // Snapshot
@@ -77,6 +79,14 @@ class UpdateTejido
 
         if (array_key_exists('hilo', $data)) {
             $registro->FibraRizo = $data['hilo'] ?: null;
+        }
+
+        if (array_key_exists('velocidad_std', $data)) {
+            $registro->VelocidadSTD = $data['velocidad_std'] !== null ? (float) $data['velocidad_std'] : null;
+        }
+
+        if (array_key_exists('eficiencia_std', $data)) {
+            $registro->EficienciaSTD = $data['eficiencia_std'] !== null ? (float) $data['eficiencia_std'] : null;
         }
 
         if (array_key_exists('calendario_id', $data)) {
