@@ -184,6 +184,8 @@
         </section>
         @endif
 
+        @include('modulos.mecanicos.ordenes-trabajo._refacciones', ['refacciones' => $refacciones ?? null])
+
         {{-- Tabla de renglones --}}
         <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-100 px-3 py-2 text-xs text-gray-500 xl:hidden">
