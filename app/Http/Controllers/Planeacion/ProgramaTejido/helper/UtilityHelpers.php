@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\helper;
 
 use App\Models\Planeacion\ReqProgramaTejido;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class UtilityHelpers
 {
@@ -211,108 +209,5 @@ class UtilityHelpers
             'CodColorComb5' => $r->CodColorComb5,
             'NombreCC5' => $r->NombreCC5,
         ];
-    }
-
-    public static function resolveTipoPedidoFromFlog(?string $flogsId): ?string
-    {
-        if (! $flogsId || strlen($flogsId) < 2) {
-            return null;
-        }
-
-        return strtoupper(substr($flogsId, 0, 2));
-    }
-
-    public static function resolverAliases(Request $req): array
-    {
-        $map = [
-            'NombreProducto' => ['Nombre', 'NombreProducto', 'Modelo', 'Producto'],
-            'NoTiras' => ['NoTiras', 'Tiras'],
-            'Luchaje' => ['Luchaje', 'LargoToalla', 'Largo', 'Altura', 'Alto'],
-            'ColorTrama' => ['ColorTrama'],
-            'NombreCC1' => ['NombreCC1', 'NomColorC1'],
-            'NombreCC2' => ['NombreCC2', 'NomColorC2'],
-            'MedidaPlano' => ['MedidaPlano', 'Plano'],
-            'NombreCPie' => ['NombreCPie', 'Color Pie', 'Nombre C Pie'],
-            'PasadasTrama' => ['PasadasTrama', 'Total'],
-            'CodColorComb2' => ['CodColorC2', 'FibraC2', 'FibraComb2'],
-        ];
-        $out = [];
-        foreach ($map as $db => $aliases) {
-            foreach ($aliases as $a) {
-                if ($req->has($a) && $req->filled($a)) {
-                    $val = $req->input($a);
-                    if (in_array($db, ['NoTiras', 'Luchaje', 'MedidaPlano', 'PasadasTrama'])) {
-                        $val = is_numeric($val) ? (int) $val : $val;
-                    } else {
-                        $val = (string) $val;
-                    }
-                    $out[$db] = $val;
-                    break;
-                }
-            }
-        }
-
-        return $out;
-    }
-
-    /**
-     * Marca CambioHilo en el ultimo registro de cada telar cuyo hilo cambio.
-     * Reduce N*2 queries a 2 queries (1 bulk get + 1 bulk update si hay cambios).
-     *
-     * @param  array  $telaresIds  Array de telar IDs
-     * @return array Array con IDs de registros actualizados
-     */
-    public static function marcarCambioHiloBulk(string $salon, array $telaresIds, ?string $nuevoHilo): array
-    {
-        if (empty($telaresIds) || $nuevoHilo === null) {
-            return [];
-        }
-
-        try {
-            // Bulk query: obtener último de cada telar
-            $anteriores = ReqProgramaTejido::query()
-                ->salon($salon)
-                ->whereIn('NoTelarId', $telaresIds)
-                ->where('Ultimo', '1')
-                ->get(['Id', 'NoTelarId', 'FibraRizo'])
-                ->keyBy('NoTelarId');
-
-            // Para telares sin Ultimo=1, obtener el más reciente
-            $telaresSinUltimo = array_diff($telaresIds, $anteriores->keys()->all());
-            if (! empty($telaresSinUltimo)) {
-                $alternativos = ReqProgramaTejido::query()
-                    ->salon($salon)
-                    ->whereIn('NoTelarId', $telaresSinUltimo)
-                    ->orderByDesc('Id')
-                    ->get(['Id', 'NoTelarId', 'FibraRizo'])
-                    ->groupBy('NoTelarId')
-                    ->map(fn ($group) => $group->first())
-                    ->filter();
-
-                foreach ($alternativos as $telarId => $registro) {
-                    $anteriores->put($telarId, $registro);
-                }
-            }
-
-            // Determinar cuáles necesitan CambioHilo=1
-            $idsActualizar = [];
-            foreach ($anteriores as $telarId => $registro) {
-                if ($registro->FibraRizo !== null && $registro->FibraRizo !== '' && $registro->FibraRizo !== $nuevoHilo) {
-                    $idsActualizar[] = $registro->Id;
-                }
-            }
-
-            // Bulk update si hay cambios
-            if (! empty($idsActualizar)) {
-                ReqProgramaTejido::whereIn('Id', $idsActualizar)
-                    ->update(['CambioHilo' => 1, 'UpdatedAt' => now()]);
-            }
-
-            return $idsActualizar;
-        } catch (\Throwable $e) {
-            Log::warning('marcarCambioHiloBulk error', ['msg' => $e->getMessage()]);
-
-            return [];
-        }
     }
 }
