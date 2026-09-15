@@ -45,6 +45,10 @@ class TejidoHelpers
             ->where('NoTelarId', $noTelarId)
             ->whereNotNull('Posicion')
             ->orderBy('Posicion', 'asc')
+            // ponytail: UPDLOCK sobre las filas del telar serializa a dos inserts que
+            // pelean por la misma posicion. Un telar vacio no deja rango que bloquear;
+            // si eso llega a chocar, hace falta un lock por telar (tabla o app lock).
+            ->lockForUpdate()
             ->pluck('Posicion')
             ->toArray();
 

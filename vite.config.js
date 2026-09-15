@@ -31,6 +31,7 @@ export default defineConfig({
         'resources/css/tejido/inventario-telas.css',
         'resources/js/catcodificacion/index.js',
         'resources/js/lmat-lista/index.js',
+        'resources/js/programa-tejido/index.js',
       ],
       refresh: true,
     }),

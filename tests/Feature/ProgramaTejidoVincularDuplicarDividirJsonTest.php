@@ -3,10 +3,21 @@
 namespace Tests\Feature;
 
 use App\Models\Sistema\Usuario;
+use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
 class ProgramaTejidoVincularDuplicarDividirJsonTest extends TestCase
 {
+    use UsesSqlsrvSqlite;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // La regla exists:ReqProgramaTejido consulta la tabla; sin ella el
+        // validador reventaba con PDOException y la ruta devolvia 500, no 422.
+        $this->createProgramaTejidoTable();
+    }
+
     private function actingUsuario(): Usuario
     {
         $user = new Usuario([

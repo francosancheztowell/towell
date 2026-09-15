@@ -15,7 +15,6 @@ use App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController;
 use App\Http\Controllers\Planeacion\CatLMat\CatLMatController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ColumnasProgramaTejidoController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\DescargarProgramaController;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa\OrdenDeCambioFelpaController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ProgramaTejidoBalanceoController;
@@ -224,7 +223,6 @@ Route::post('/planeacion/programa-tejido/{id}/cambiar-telar', [ProgramaTejidoOpe
 Route::post('/planeacion/programa-tejido/duplicar-telar', [ProgramaTejidoOperacionesController::class, 'duplicarTelar'])->name('programa-tejido.duplicar-telar');
 Route::post('/planeacion/programa-tejido/dividir-telar', [ProgramaTejidoOperacionesController::class, 'dividirTelar'])->name('programa-tejido.dividir-telar');
 Route::post('/planeacion/programa-tejido/dividir-saldo', [ProgramaTejidoOperacionesController::class, 'dividirSaldo'])->name('programa-tejido.dividir-saldo');
-Route::post('/planeacion/programa-tejido/vincular-telar', [ProgramaTejidoOperacionesController::class, 'vincularTelar'])->name('programa-tejido.vincular-telar');
 Route::post('/planeacion/programa-tejido/vincular-registros-existentes', [ProgramaTejidoOperacionesController::class, 'vincularRegistrosExistentes'])->name('programa-tejido.vincular-registros-existentes');
 Route::post('/planeacion/programa-tejido/{id}/desvincular', [ProgramaTejidoOperacionesController::class, 'desvincularRegistro'])->name('programa-tejido.desvincular');
 Route::get('/planeacion/programa-tejido/registros-ord-compartida/{ordCompartida}', [ProgramaTejidoOperacionesController::class, 'getRegistrosPorOrdCompartida'])->name('programa-tejido.registros-ord-compartida');
@@ -289,7 +287,6 @@ Route::post('/planeacion/muestras/{id}/cambiar-telar', [ProgramaTejidoOperacione
 Route::post('/planeacion/muestras/duplicar-telar', [ProgramaTejidoOperacionesController::class, 'duplicarTelar'])->name('muestras.duplicar-telar');
 Route::post('/planeacion/muestras/dividir-telar', [ProgramaTejidoOperacionesController::class, 'dividirTelar'])->name('muestras.dividir-telar');
 Route::post('/planeacion/muestras/dividir-saldo', [ProgramaTejidoOperacionesController::class, 'dividirSaldo'])->name('muestras.dividir-saldo');
-Route::post('/planeacion/muestras/vincular-telar', [ProgramaTejidoOperacionesController::class, 'vincularTelar'])->name('muestras.vincular-telar');
 Route::post('/planeacion/muestras/vincular-registros-existentes', [ProgramaTejidoOperacionesController::class, 'vincularRegistrosExistentes'])->name('muestras.vincular-registros-existentes');
 Route::post('/planeacion/muestras/{id}/desvincular', [ProgramaTejidoOperacionesController::class, 'desvincularRegistro'])->name('muestras.desvincular');
 Route::get('/planeacion/muestras/registros-ord-compartida/{ordCompartida}', [ProgramaTejidoOperacionesController::class, 'getRegistrosPorOrdCompartida'])->name('muestras.registros-ord-compartida');

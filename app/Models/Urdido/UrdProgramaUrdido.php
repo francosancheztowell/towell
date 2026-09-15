@@ -60,10 +60,8 @@ class UrdProgramaUrdido extends Model
      * El estado agregado (`Calidad`) se deriva de estos: basta uno en false para que sea malo.
      */
     public const CALIDAD_PUNTOS = [
-        'CalidadCuenta' => 'Número de cuenta correcta',
-        'CalidadBobinas' => 'La cantidad de bobinas es la correcta',
-        'CalidadLoteCoincide' => 'Lote de hilo coincide',
-        'CalidadLoteVisible' => 'Se ve el o los lotes de hilo',
+        'CalidadCuenta' => 'Número de cuenta vs cantidad de bobinas correcta',
+        'CalidadLoteCoincide' => 'Lote/Proveedor de hilo físico coincide vs programa de urdido',
     ];
 
     protected $casts = [

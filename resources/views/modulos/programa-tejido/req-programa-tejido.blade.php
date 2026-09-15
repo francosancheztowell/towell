@@ -49,6 +49,9 @@ document.addEventListener('DOMContentLoaded', function () {
     @php
       $columns   = $columns ?? [];
       $registros = $registros ?? collect();
+      // Columnas ocultas resueltas en el servidor: salen ya con display:none, sin
+      // el salto de layout ni las ~5 000 escrituras inline que hacia el front.
+      $ocultas = array_fill_keys($hiddenFields ?? [], true);
 
       $getRegistroId = function($registro) {
         return $registro->Id ?? $registro->id ?? '';
@@ -142,6 +145,28 @@ document.addEventListener('DOMContentLoaded', function () {
         // por cualquier usuario) => escapar o es XSS almacenado.
         return e($value);
       };
+
+      $celda = function($registro, $colIndex, $col) use ($formatValue, $ocultas) {
+        $field = $col['field'];
+        $rawValue = $registro->{$field} ?? '';
+        if ($rawValue instanceof \Carbon\Carbon) {
+          $rawValue = $rawValue->format('Y-m-d H:i:s');
+        }
+        $esNegativo = $field === 'PTvsCte'
+          && $rawValue !== null && $rawValue !== ''
+          && (is_numeric($rawValue) ? (float) $rawValue : 0) < 0;
+
+        $class = 'column-'.$colIndex
+          .(($col['dateType'] ?? null) ? ' pt-wrap' : '')
+          .($esNegativo ? ' valor-negativo' : '');
+
+        return '<td class="'.$class.'"'
+          .(isset($ocultas[$field]) ? ' style="display:none"' : '')
+          .' data-column="'.e($field).'"'
+          .' data-value="'.e(is_scalar($rawValue) ? $rawValue : json_encode($rawValue)).'"'
+          .($esNegativo ? ' data-es-negativo="1"' : '')
+          .'>'.$formatValue($registro, $field, $col['dateType'] ?? null).'</td>';
+      };
     @endphp
 
     @if($registros && $registros->count() > 0)
@@ -153,7 +178,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 @foreach($columns as $index => $col)
                   <th
                     class="px-2 py-1 text-left text-xs font-semibold text-white whitespace-nowrap column-{{ $index }}"
-                    style="position: sticky; top: 0; background-color: #1b4a7b; min-width: 80px; z-index: 10;"
+                    style="position: sticky; top: 0; background-color: #1b4a7b; min-width: 80px; z-index: 10;{{ isset($ocultas[$col['field']]) ? 'display:none;' : '' }}"
                     data-column="{{ $col['field'] }}"
                     data-index="{{ $index }}"
                   >
@@ -181,28 +206,7 @@ document.addEventListener('DOMContentLoaded', function () {
                   @if($esRepaso) data-es-repaso="1" @endif
                   @if($tieneNoExisteBase) data-no-existe-base="1" @endif
                 >
-                  @foreach($columns as $colIndex => $col)
-                    @php
-                      $rawValue = $registro->{$col['field']} ?? '';
-                      if ($rawValue instanceof \Carbon\Carbon) {
-                        $rawValue = $rawValue->format('Y-m-d H:i:s');
-                      }
-                      // Detectar valores negativos en PTvsCte (Dif vs Compromiso)
-                      $esNegativo = false;
-                      if ($col['field'] === 'PTvsCte' && $rawValue !== null && $rawValue !== '') {
-                        $valorNumerico = is_numeric($rawValue) ? (float)$rawValue : 0;
-                        $esNegativo = $valorNumerico < 0;
-                      }
-                    @endphp
-                    <td
-                      class="px-3 py-2 text-sm text-gray-700 {{ ($col['dateType'] ?? null) ? 'whitespace-normal' : 'whitespace-nowrap' }} column-{{ $colIndex }} {{ $esNegativo ? 'valor-negativo' : '' }}"
-                      data-column="{{ $col['field'] }}"
-                      data-value="{{ e(is_scalar($rawValue) ? $rawValue : json_encode($rawValue)) }}"
-                      @if($esNegativo) data-es-negativo="1" @endif
-                    >
-                      {!! $formatValue($registro, $col['field'], $col['dateType'] ?? null) !!}
-                    </td>
-                  @endforeach
+                  @foreach($columns as $colIndex => $col){!! $celda($registro, $colIndex, $col) !!}@endforeach
                 </tr>
               @endforeach
             </tbody>
@@ -342,6 +346,7 @@ document.addEventListener('DOMContentLoaded', function () {
 @push('scripts')
   {!! view('modulos.programa-tejido.scripts.main', [
     'columns' => $columns ?? [],
+    'hiddenFields' => $hiddenFields ?? [],
     'basePath' => $basePath ?? null,
     'apiPath' => $apiPath ?? null,
     'linePath' => $linePath ?? null,

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { checkFilterMatch, dateInRange, groupFiltersByColumn, rowMatchesCustomFilters } from '../../resources/js/programa-tejido/filter-engine.js'
+import { checkFilterMatch, dateInRange, groupFiltersByColumn, rowMatchesCustomFilters } from '../../resources/js/programa-tejido/filter-engine.ts'
 
 test('dateInRange incluye los dos extremos del rango', () => {
   // El bug viejo: new Date('2026-09-15') es medianoche UTC, o sea el 14 en
@@ -37,4 +37,24 @@ test('rowMatchesCustomFilters: OR dentro de la columna, AND entre columnas', () 
   assert.equal(rowMatchesCustomFilters({ SalonTejidoId: 'JAC', NoTelarId: '401' }, filtros), false)
   assert.equal(rowMatchesCustomFilters({ SalonTejidoId: 'SMI', NoTelarId: '402' }, filtros), false)
   assert.equal(rowMatchesCustomFilters({ SalonTejidoId: 'SMI' }, filtros), false)
+})
+
+// El motor pasó a TypeScript: estos casos fijan el comportamiento en los bordes que
+// noUncheckedIndexedAccess obligó a tratar explicitamente.
+test('dateInRange acepta fecha con hora y sin hora', () => {
+	assert.equal(dateInRange('2026-03-10 14:30:00', '2026-03-10', '2026-03-10'), true)
+	assert.equal(dateInRange('2026-03-10', '2026-03-10', '2026-03-10'), true)
+	assert.equal(dateInRange('', '2026-03-10', null), false)
+	assert.equal(dateInRange(null, null, null), false)
+})
+
+test('groupFiltersByColumn agrupa varias condiciones de la misma columna', () => {
+	const g = groupFiltersByColumn([
+		{ column: 'NoTelarId', operator: 'equals', value: '301' },
+		{ column: 'NoTelarId', operator: 'equals', value: '302' },
+		{ column: 'Producto', operator: 'contains', value: 'Toalla' },
+	])
+	assert.equal(g.NoTelarId.length, 2)
+	assert.equal(g.Producto.length, 1)
+	assert.equal(g.Producto[0].value, 'toalla')
 })

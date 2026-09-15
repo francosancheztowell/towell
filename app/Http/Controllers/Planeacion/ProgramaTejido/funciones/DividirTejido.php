@@ -9,6 +9,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
+use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,9 +31,11 @@ class DividirTejido
     {
         AuditoriaHelper::contexto('DIVIDIR');
 
-        $salonOrigen = $request->input('salon_tejido_id');
+        // El front manda 'KM'; en BD el salon es 'KARL MAYER'. Sin normalizar, la
+        // comparacion contra el registro original falla y se divide otra fila.
         $telarOrigen = $request->input('no_telar_id');
-        $salonDestino = $request->input('salon_destino', $salonOrigen);
+        $salonOrigen = TelarSalonResolver::normalizeSalon($request->input('salon_tejido_id'), $telarOrigen);
+        $salonDestino = TelarSalonResolver::normalizeSalon($request->input('salon_destino') ?: $salonOrigen);
         $destinos = $request->input('destinos', []);
         $codArticulo = $request->input('cod_articulo');
         $producto = $request->input('producto');
@@ -68,16 +71,25 @@ class DividirTejido
             // Obtener el registro espec├¡fico a dividir:
             // 1) Si viene registro_id_original, usar ese.
             // 2) Si no, usar el ├║ltimo del telar (fallback anterior).
+            $registroOriginal = null;
             if (! empty($registroIdOriginal)) {
                 $registroOriginal = ReqProgramaTejido::find($registroIdOriginal);
-                // Verificar que el registro encontrado pertenece al telar y sal├│n correctos
-                if ($registroOriginal && ($registroOriginal->SalonTejidoId !== $salonOrigen || $registroOriginal->NoTelarId !== $telarOrigen)) {
-                    $registroOriginal = null; // No es del telar correcto, usar fallback
-                }
-            }
+                $mismoTelar = $registroOriginal
+                    && TelarSalonResolver::normalizeSalon($registroOriginal->SalonTejidoId, $registroOriginal->NoTelarId) === $salonOrigen
+                    && TelarSalonResolver::normalizeTelar($registroOriginal->NoTelarId) === TelarSalonResolver::normalizeTelar($telarOrigen);
 
-            // Fallback: obtener el ├║ltimo registro del telar
-            if (! $registroOriginal) {
+                // Antes caia al ultimo del telar: dividia una fila distinta a la que se pidio.
+                if (! $mismoTelar) {
+                    DBFacade::rollBack();
+                    ReqProgramaTejido::restoreObservers($dispatcher);
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'El registro a dividir no pertenece al telar indicado.',
+                    ], 404);
+                }
+            } else {
+                // Sin registro_id_original (llamadas viejas): el ultimo del telar.
                 $registroOriginal = ReqProgramaTejido::query()
                     ->salon($salonOrigen)
                     ->telar($telarOrigen)
@@ -92,9 +104,12 @@ class DividirTejido
             }
 
             if (! $registroOriginal) {
+                DBFacade::rollBack();
+                ReqProgramaTejido::restoreObservers($dispatcher);
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'No se encontr├│ el registro para dividir',
+                    'message' => 'No se encontro el registro para dividir',
                 ], 404);
             }
 

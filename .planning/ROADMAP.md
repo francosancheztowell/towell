@@ -64,8 +64,13 @@ Plans:
   3. Estados loading/error/empty explícitos y accesibles (landmarks, foco, labels).
 **Plans**: TBD — replanear con `/gsd:plan-phase 4` (el plan anterior asumía Blade+Vite modules, ver `.superseded`)
 
+> ⚠️ El criterio de éxito 1 (paginar server-side) se midió y **no es el cuello de botella**:
+> son 85 filas / 7 820 celdas, y el 79 % del HTML se va en atributos repetidos y en las
+> 59 columnas que el usuario pesado oculta. Ver `04-PERF-MEDIDO.md` antes de planear.
+
 Plans:
 - [ ] 04-XX: TBD
+- [ ] 04-perf: cortes 1–3 de `04-PERF-MEDIDO.md` (selección en CSS, ocultas antes del paint, clases utilitarias). Independientes de Livewire.
 
 ### Phase 5: Mutaciones
 **Goal**: Mutaciones extraídas verticalmente a FormRequests + servicios por caso de uso; deduplicación de backend resuelta.

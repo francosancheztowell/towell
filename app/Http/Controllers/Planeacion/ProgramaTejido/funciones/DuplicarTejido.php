@@ -73,6 +73,7 @@ class DuplicarTejido
 
             if (! $original) {
                 DBFacade::rollBack();
+                ReqProgramaTejido::restoreObservers($dispatcher);
 
                 return response()->json([
                     'success' => false,
@@ -93,6 +94,7 @@ class DuplicarTejido
                     $existe = ReqProgramaTejido::where('OrdCompartida', (int) $ordCompartidaExistente)->exists();
                     if (! $existe) {
                         DBFacade::rollBack();
+                        ReqProgramaTejido::restoreObservers($dispatcher);
 
                         return response()->json([
                             'success' => false,
@@ -106,6 +108,13 @@ class DuplicarTejido
                     // Si origen no tiene NoProduccion, queda null y los duplicados se crearán sin
                     // OrdCompartida; el recálculo de líder se omite más abajo.
                     $ordCompartidaAVincular = OrdCompartidaHelper::obtenerOrdCompartidaDesdeRegistro($original);
+                }
+
+                // El origen tambien es parte del grupo: sin esto queda fuera de su propio
+                // OrdCompartida y el recalculo de lider solo ve a las copias.
+                if ($ordCompartidaAVincular && (int) ($original->OrdCompartida ?? 0) !== $ordCompartidaAVincular) {
+                    $original->OrdCompartida = $ordCompartidaAVincular;
+                    $original->saveQuietly();
                 }
             }
 
@@ -167,6 +176,9 @@ class DuplicarTejido
                     ->whereNotNull('Posicion')
                     ->orderBy('Posicion', 'asc')
                     ->select(['NoTelarId', 'Posicion'])
+                    // ponytail: mismo UPDLOCK que obtenerSiguientePosicionDisponible; un telar
+                    // vacio sigue sin rango que bloquear (ver comentario en TejidoHelpers).
+                    ->lockForUpdate()
                     ->get();
                 foreach ($rows as $row) {
                     $posicionesMap[$salon.'|'.$row->NoTelarId][] = (int) $row->Posicion;

@@ -543,13 +543,6 @@ class ProgramaTejidoOperacionesController extends Controller
         return DividirTejido::dividir($request);
     }
 
-    public function vincularTelar(Request $request)
-    {
-        $request->merge(['vincular' => true]);
-
-        return DuplicarTejido::duplicar($request);
-    }
-
     public function vincularRegistrosExistentes(Request $request)
     {
         return VincularTejido::vincularRegistrosExistentes($request);

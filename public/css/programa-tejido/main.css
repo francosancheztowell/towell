@@ -46,6 +46,16 @@ thead th:not(.pinned-column) {
   z-index: 10 !important;
 }
 
+/* Reemplaza las utilidades px-3 py-2 text-sm whitespace-nowrap que antes se
+   repetian en cada uno de los ~7 800 <td>. El color lo pone la regla de abajo. */
+#mainTable tbody td {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  white-space: nowrap;
+}
+#mainTable tbody td.pt-wrap { white-space: normal; }
+
 /* Restaurar estilos por defecto de las celdas cuando NO están fijadas - forzar reset */
 tbody td:not(.pinned-column) {
   background-color: transparent !important;
@@ -278,8 +288,8 @@ th[data-column="EntregaPT"] {
 .selectable-row.dd-drop-before td { box-shadow: inset 0 2px 0 0 var(--dd-line-color); }
 .selectable-row.dd-drop-after td { box-shadow: inset 0 -2px 0 0 var(--dd-line-color); }
 
-td { transition: background-color 0.3s ease-in-out; }
-.selectable-row.dragging ~ tr td, .selectable-row.dragging td { transition: none !important; }
+/* Sin transition en las celdas: son ~7 800 y cada cambio de clase de fila le
+   agendaba una animacion a todas. El hover y la seleccion se sienten inmediatos. */
 .selectable-row.bg-yellow-100 { background-color: #fef3c7 !important; }
 .selectable-row.bg-yellow-100 td { background-color: #fef3c7 !important; }
 

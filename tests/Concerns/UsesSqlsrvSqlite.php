@@ -24,6 +24,55 @@ trait UsesSqlsrvSqlite
         DB::connection('sqlsrv')->getPdo();
     }
 
+    /**
+     * Tabla ReqProgramaTejido con las columnas que tocan index() y balancear().
+     * No son las 92: solo lo que esos dos select piden, mas Id para las reglas
+     * exists:ReqProgramaTejido de los FormRequest.
+     *
+     * Va en la conexion por defecto, no en 'sqlsrv': el modelo no declara
+     * $connection, asi que resuelve a la default (sqlite en phpunit.xml).
+     */
+    protected function createProgramaTejidoTable(): void
+    {
+        $schema = Schema::connection(config('database.default'));
+
+        // Muestras es el mismo esquema con otro nombre: el middleware
+        // ProgramaTejidoContext cambia la tabla del modelo segun la ruta.
+        foreach (['ReqProgramaTejido', 'MuestrasPrograma'] as $tabla) {
+            if ($schema->hasTable($tabla)) {
+                continue;
+            }
+            $schema->create($tabla, function (Blueprint $table) {
+                $table->integer('Id')->primary();
+                $table->string('SalonTejidoId')->nullable();
+                $table->string('NoTelarId')->nullable();
+                $table->string('ItemId')->nullable();
+                $table->string('NombreProducto')->nullable();
+                $table->string('TamanoClave')->nullable();
+                $table->string('Maquina')->nullable();
+                $table->integer('Posicion')->nullable();
+                $table->string('Ultimo')->nullable();
+                $table->string('CambioHilo')->nullable();
+                $table->string('CuentaRizo')->nullable();
+                $table->string('CalibreRizo2')->nullable();
+                $table->integer('EnProceso')->nullable();
+                $table->string('Reprogramar')->nullable();
+                $table->float('TotalPedido')->nullable();
+                $table->float('PorcentajeSegundos')->nullable();
+                $table->float('SaldoPedido')->nullable();
+                $table->float('Produccion')->nullable();
+                $table->dateTime('FechaInicio')->nullable();
+                $table->dateTime('FechaFinal')->nullable();
+                $table->integer('OrdCompartida')->nullable();
+                $table->float('VelocidadSTD')->nullable();
+                $table->float('EficienciaSTD')->nullable();
+                $table->float('NoTiras')->nullable();
+                $table->float('Luchaje')->nullable();
+                $table->float('PesoCrudo')->nullable();
+            });
+        }
+    }
+
     protected function createControlMermaTables(bool $includeAuthTable = false): void
     {
         $schema = Schema::connection('sqlsrv');

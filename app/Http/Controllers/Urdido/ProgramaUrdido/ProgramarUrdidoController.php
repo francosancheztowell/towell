@@ -508,7 +508,7 @@ class ProgramarUrdidoController extends Controller
 
             $campos = array_keys(UrdProgramaUrdido::CALIDAD_PUNTOS);
 
-            // Los cuatro puntos son obligatorios: el estado se deriva de ellos, no llega del front.
+            // Los puntos del checklist son obligatorios: el estado se deriva de ellos, no llega del front.
             $request->validate([
                 'id' => 'required|integer|exists:UrdProgramaUrdido,Id',
                 'calidadcomentario' => 'nullable|string|max:'.ProgramaConfig::CALIDAD_COMENTARIO_MAX_LENGTH,

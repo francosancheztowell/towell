@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\EliminarTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\UpdateTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UtilityHelpers;
+use App\Models\Planeacion\OrdColProgramaTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log as LogFacade;
 
 /**
@@ -133,10 +135,12 @@ class ProgramaTejidoController extends Controller
             ])->ordenado()->get();
 
             $columns = UtilityHelpers::getTableColumns();
+            $hiddenFields = self::columnasOcultasDelUsuario();
 
             return view('modulos.programa-tejido.req-programa-tejido', compact(
                 'registros',
                 'columns',
+                'hiddenFields',
                 'basePath',
                 'apiPath',
                 'linePath',
@@ -151,12 +155,40 @@ class ProgramaTejidoController extends Controller
             return view('modulos.programa-tejido.req-programa-tejido', [
                 'registros' => collect(),
                 'columns' => UtilityHelpers::getTableColumns(),
+                'hiddenFields' => [],
                 'error' => 'Error al cargar los datos: '.$e->getMessage(),
                 'basePath' => $basePath ?? '/planeacion/programa-tejido',
                 'apiPath' => $apiPath ?? '/programa-tejido',
                 'linePath' => $linePath ?? '/planeacion/req-programa-tejido-line',
                 'pageTitle' => $pageTitle ?? 'Programa de Tejido',
             ]);
+        }
+    }
+
+    /**
+     * Columnas que el usuario tiene ocultas. Se resuelven en el servidor para que el
+     * HTML salga ya oculto: antes el front pintaba las 92, y despues escribia
+     * style.display='none' celda por celda (59 columnas x 86 elementos = 5 074
+     * escrituras) con el salto de layout correspondiente.
+     */
+    private static function columnasOcultasDelUsuario(): array
+    {
+        $userId = Auth::id();
+        if (! $userId) {
+            return [];
+        }
+
+        try {
+            return OrdColProgramaTejido::query()
+                ->where('UsuarioId', $userId)
+                ->where('Estado', 1)
+                ->pluck('Columna')
+                ->all();
+        } catch (\Throwable $e) {
+            // Sin estado guardado se pintan todas: el front sigue pudiendo ocultarlas.
+            LogFacade::warning('No se pudieron leer las columnas ocultas', ['msg' => $e->getMessage()]);
+
+            return [];
         }
     }
 
