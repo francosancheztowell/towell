@@ -536,6 +536,14 @@
         });
       }
 
+      // El arrastre reescribe FechaInicio/FechaFinal/Posicion/EnProceso/Ultimo/HorasProd
+      // en el DOM, y applyProgramaTejidoFilters() prefiere PT_FILTER_INDEX sobre el DOM
+      // (filters.blade.php:156). Sin esto, filtrar despues de arrastrar evalua los valores
+      // previos al arrastre y esconde o muestra las filas equivocadas.
+      // ponytail: rebuild completo en vez de ir fila por fila; son ~85 filas y solo corre
+      // al soltar un arrastre. Si la tabla crece, pasar a updateRow() por fila afectada.
+      window.PT?.filterIndex?.rebuild();
+
       if (registroId) ddSelectRowById(registroId);
       if (typeof window.updateTotales === 'function') window.updateTotales();
     };
@@ -1726,7 +1734,7 @@
 
               // Limpiar la selección si la fila eliminada estaba seleccionada
               if (isSelected) {
-                window.selectedRowIndex = null;
+                window.selectedRowIndex = -1; // -1, no null: null >= 0 es true en JS
 
                 // También limpiar cualquier referencia visual de selección
                 if (tb) {
@@ -1876,7 +1884,7 @@
           rowToDelete.remove();
           window.PTStore?.remove(String(id));
           window.PT?.filterIndex?.removeRow(id);
-          window.selectedRowIndex = null;
+          window.selectedRowIndex = -1; // -1, no null: null >= 0 es true en JS
         }
         if (data.registros_ids && Array.isArray(data.registros_ids) && data.registros_ids.length > 0) {
           await actualizarRegistrosVinculados(data.registros_ids, null);
@@ -2216,7 +2224,7 @@
           // Crear nuevo handler para selecciÃ³n (mismo patrÃ³n que assignClickEvents)
           row._selectionHandler = function(e) {
             // No seleccionar si estamos en modo inline edit y se hace click en una celda editable
-            if (typeof inlineEditMode !== 'undefined' && inlineEditMode) {
+            if (window.inlineEditMode) {
               const cell = e.target.closest('td[data-column]');
               if (cell) {
                 const col = cell.getAttribute('data-column');
@@ -3515,7 +3523,7 @@
               // Crear nuevo handler
               row._selectionHandler = function(e) {
                 // No seleccionar si estamos en modo inline edit y se hace click en una celda editable
-                if (inlineEditMode) {
+                if (window.inlineEditMode) {
                   const cell = e.target.closest('td[data-column]');
                   if (cell) {
                     const col = cell.getAttribute('data-column');

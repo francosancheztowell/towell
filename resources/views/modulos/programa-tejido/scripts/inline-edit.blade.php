@@ -1,7 +1,7 @@
 // =========================
 // Inline Edit - Estado
 // =========================
-// inlineEditMode y catalogosCache ya están declarados en state.blade.php
+// inlineEditMode vive en window (state.blade.php); catalogosCache tambien se declara alli
 // inlineFieldPayloadMap también está en state.blade.php y usa nombres de BD
 // uiInlineEditableFields ahora usa directamente los nombres de BD que coinciden con data-column
 
@@ -32,7 +32,11 @@ function formatDateTimeDisplay(raw) {
   const date = d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const hh = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${date}<br>${hh}:${mm}`;
+  // Separador de espacio, igual que el servidor (d/m/Y H:i), _shared-helpers y state.
+  // Con <br> las filas tocadas por arrastre o edicion inline se veian a dos lineas
+  // y el resto a una; ademas checkDateFilters cae a textContent cuando la celda no
+  // trae data-value, y ahi el <br> producia "05/01/202614:30", sin separador.
+  return `${date} ${hh}:${mm}`;
 }
 
 function formatNumber2(raw) {
@@ -795,7 +799,7 @@ const uiInlineEditableFields = {
 
   // Aplicar modo inline
   window.applyInlineModeToRows = function() {
-    if (!inlineEditMode) return;
+    if (!window.inlineEditMode) return;
 
     const rows = window.allRows?.length ? window.allRows : $$('.selectable-row');
     rows.forEach(r => r.classList.add('inline-edit-ready'));
@@ -810,7 +814,7 @@ const uiInlineEditableFields = {
 
     // Crear nuevo handler
     tb._inlineEditHandler = function inlineEditClickHandler(e) {
-      if (!inlineEditMode) return;
+      if (!window.inlineEditMode) return;
 
       // Buscar la celda clickeada
       const cell = e.target.closest('td[data-column]');
@@ -840,11 +844,10 @@ const uiInlineEditableFields = {
   };
 
   window.toggleInlineEditMode = function() {
-    inlineEditMode = !inlineEditMode;
-    window.inlineEditMode = inlineEditMode; // Sincronizar con window
+    window.inlineEditMode = !window.inlineEditMode;
 
     const tb = tbodyEl();
-    if (inlineEditMode) {
+    if (window.inlineEditMode) {
       tb?.classList.add('inline-edit-mode');
       // Forzar re-aplicación del modo inline
       if (tb?.dataset.inlineBound) {

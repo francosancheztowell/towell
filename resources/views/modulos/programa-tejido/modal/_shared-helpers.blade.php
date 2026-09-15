@@ -1072,7 +1072,9 @@ async function agregarRegistroSinRecargar(data, { preventReload = false } = {}) 
 		// Encontrar la posición correcta para insertar (ordenado por NoTelar, luego por FechaInicio)
 		const filasExistentes = Array.from(tb.querySelectorAll('.selectable-row'));
 		const noTelarNuevo = registro.NoTelarId ? String(registro.NoTelarId).trim() : '';
-		const fechaInicio = registro.FechaInicio ? new Date(registro.FechaInicio) : null;
+		// Local, no UTC: se compara contra parsearFecha() de abajo, que construye la fecha
+		// por componentes. Mezclar ambos criterios desplazaba la insercion un dia.
+		const fechaInicio = registro.FechaInicio ? parseSqlDateTimeLocal(registro.FechaInicio) : null;
 		let insertarAntes = null;
 
 		// Función auxiliar para parsear fecha desde texto
@@ -1276,7 +1278,7 @@ async function agregarRegistroSinRecargar(data, { preventReload = false } = {}) 
 			// Crear nuevo handler de selección
 			row._selectionHandler = function(e) {
 				// No seleccionar si estamos en modo inline edit y se hace click en una celda editable
-				if (typeof inlineEditMode !== 'undefined' && inlineEditMode) {
+				if (window.inlineEditMode) {
 					const cell = e.target.closest('td[data-column]');
 					if (cell) {
 						const col = cell.getAttribute('data-column');
@@ -1541,8 +1543,11 @@ function formatearValorCelda(registro, field, value, dateType) {
 	if (field === 'EntregaCte') {
 		if (!value || value === null || value === '') return '';
 		try {
-			const dt = new Date(value);
-			if (dt.getFullYear() <= 1970) return '';
+			// parseSqlDateTimeLocal parsea por componentes en hora local (esta declarado
+			// en inline-edit.blade.php, mismo scope de script). new Date('2026-01-05')
+			// se interpreta como UTC y en America/Mexico_City devolvia el dia anterior.
+			const dt = parseSqlDateTimeLocal(value);
+			if (!dt || dt.getFullYear() <= 1970) return '';
 			const day = String(dt.getDate()).padStart(2, '0');
 			const month = String(dt.getMonth() + 1).padStart(2, '0');
 			const year = dt.getFullYear();
@@ -1557,8 +1562,11 @@ function formatearValorCelda(registro, field, value, dateType) {
 	// Fechas
 	if (dateType === 'date' || dateType === 'datetime') {
 		try {
-			const dt = new Date(value);
-			if (dt.getFullYear() <= 1970) return '';
+			// parseSqlDateTimeLocal parsea por componentes en hora local (esta declarado
+			// en inline-edit.blade.php, mismo scope de script). new Date('2026-01-05')
+			// se interpreta como UTC y en America/Mexico_City devolvia el dia anterior.
+			const dt = parseSqlDateTimeLocal(value);
+			if (!dt || dt.getFullYear() <= 1970) return '';
 			if (dateType === 'date') {
 				const day = String(dt.getDate()).padStart(2, '0');
 				const month = String(dt.getMonth() + 1).padStart(2, '0');

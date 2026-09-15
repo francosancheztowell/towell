@@ -31,11 +31,14 @@ window.PTStore = new PTStore();
 let filters = [];
 let hiddenColumns = [];
 let pinnedColumns = [];
-let allRows = [];
-let selectedRowIndex = -1;
-window.selectedRowIndex = selectedRowIndex; // Exponer globalmente
-let inlineEditMode = false;
-window.inlineEditMode = inlineEditMode; // Exponer globalmente
+// Fuente unica en window: main.blade.php y _shared-helpers.blade.php escriben
+// estos tres desde otro punto del script. Tenerlos ademas como binding lexico
+// creaba DOS estados: filters/selection usaban uno y el resto el otro, asi que
+// tras filtrar+borrar la seleccion operaba sobre filas ya desconectadas del DOM
+// y revertia valores de un registro que el usuario no habia tocado.
+window.allRows = [];
+window.selectedRowIndex = -1;
+window.inlineEditMode = false;
 
 const normalizeInputValue = (value) => {
 	if (value === undefined || value === null) return '';

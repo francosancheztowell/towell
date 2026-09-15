@@ -1,6 +1,6 @@
 // ===== Seleccion de filas - OPTIMIZADO =====
-const getSelectableRows = () => (allRows.length > 0 ? allRows : $$('.selectable-row'));
-const isInlineEditActive = () => inlineEditMode || window.inlineEditMode;
+const getSelectableRows = () => (window.allRows.length > 0 ? window.allRows : $$('.selectable-row'));
+const isInlineEditActive = () => !!window.inlineEditMode;
 
 function updateRowSelectionStyles(row, isSelected, inlineActive) {
 	const esRepaso = row.dataset.esRepaso === '1';
@@ -53,14 +53,14 @@ function selectRow(rowElement, rowIndex) {
 		}
 
 		// Toggle si ya estaba seleccionada
-		if (selectedRowIndex === rowIndex && rowElement.classList.contains('bg-blue-700')) {
+		if (window.selectedRowIndex === rowIndex && rowElement.classList.contains('bg-blue-700')) {
 			return deselectRow();
 		}
 
 		// Cerrar edicion inline de la fila anterior si existe y desactivar modo inline
-		if (selectedRowIndex >= 0 && selectedRowIndex !== rowIndex) {
+		if (window.selectedRowIndex >= 0 && window.selectedRowIndex !== rowIndex) {
 			const rows = getSelectableRows();
-			const previousRow = rows[selectedRowIndex];
+			const previousRow = rows[window.selectedRowIndex];
 			if (previousRow && typeof window.closeInlineEditForRow === 'function') {
 				window.closeInlineEditForRow(previousRow);
 			}
@@ -74,8 +74,7 @@ function selectRow(rowElement, rowIndex) {
 
 		updateRowSelectionStyles(rowElement, true, isInlineEditActive());
 
-		selectedRowIndex = rowIndex;
-		window.selectedRowIndex = rowIndex; // Sincronizar con window
+		window.selectedRowIndex = rowIndex;
 
 		// Disparar evento personalizado para notificar cambio de seleccion
 		document.dispatchEvent(new CustomEvent('pt:selection-changed', {
@@ -101,9 +100,9 @@ function selectRow(rowElement, rowIndex) {
 function deselectRow() {
 	try {
 		// Cerrar edicion inline de la fila seleccionada si existe
-		if (selectedRowIndex >= 0) {
+		if (window.selectedRowIndex >= 0) {
 			const rows = getSelectableRows();
-			const currentRow = rows[selectedRowIndex];
+			const currentRow = rows[window.selectedRowIndex];
 			if (currentRow && typeof window.closeInlineEditForRow === 'function') {
 				window.closeInlineEditForRow(currentRow);
 			}
@@ -111,8 +110,7 @@ function deselectRow() {
 
 		clearSelectionStyles();
 
-		selectedRowIndex = -1;
-		window.selectedRowIndex = -1; // Sincronizar con window
+		window.selectedRowIndex = -1;
 
 		// Disparar evento personalizado para notificar cambio de seleccion
 		document.dispatchEvent(new CustomEvent('pt:selection-changed', {

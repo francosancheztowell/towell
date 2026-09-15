@@ -186,7 +186,7 @@ function applyProgramaTejidoFilters() {
         }
     });
 
-    allRows = rows;
+    window.allRows = rows;
     // clearRowCache puede no estar disponible en este scope, verificar antes de llamar
     if (typeof clearRowCache === 'function') {
         clearRowCache();
@@ -195,7 +195,7 @@ function applyProgramaTejidoFilters() {
     } else if (window.PT && typeof window.PT.clearRowCache === 'function') {
         window.PT.clearRowCache();
     }
-    if (inlineEditMode) applyInlineModeToRows();
+    if (window.inlineEditMode) applyInlineModeToRows();
 
     lastFilterState = currentState;
     updateFilterUI();
