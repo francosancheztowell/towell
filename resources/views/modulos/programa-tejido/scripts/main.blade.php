@@ -1276,90 +1276,8 @@
       // Asegurar que window.filters también esté actualizado
       window.filters = filters;
 
-      // Aplicar filtros usando el sistema existente
-      // SIEMPRE usar applyProgramaTejidoFilters - es la función correcta del sistema
-      if (typeof window.applyProgramaTejidoFilters === 'function') {
-        window.applyProgramaTejidoFilters();
-      } else if (typeof applyProgramaTejidoFilters === 'function') {
-        applyProgramaTejidoFilters();
-      } else {
-        console.error('[applyColumnFilterManual] applyProgramaTejidoFilters no disponible!');
-        // Si no está disponible, usar fallback manual (no debería llegar aquí)
-        // Fallback: aplicar manualmente
-        const tb = tbodyEl();
-        if (!tb) return;
-
-        // Usar la misma lógica que applyFilters en filters.blade.php
-        const rows = window.allRows?.length ? window.allRows : qsa('.selectable-row', tb);
-
-        // Agrupar filtros por columna para permitir múltiples valores en la misma columna
-        // Lógica: OR entre valores de la misma columna, AND entre diferentes columnas
-        // IMPORTANTE: Usar exactamente la misma lógica que filters.blade.php
-        const filtersByColumn = {};
-        const currentFilters = (typeof filters !== 'undefined' ? filters : window.filters) || [];
-        if (currentFilters.length > 0) {
-          currentFilters.forEach(f => {
-            const col = f.column;
-            if (!filtersByColumn[col]) {
-              filtersByColumn[col] = [];
-            }
-            filtersByColumn[col].push({
-              value: String(f.value || '').toLowerCase(),
-              operator: f.operator || 'equals', // El sistema usa 'contains' por defecto, pero nosotros usamos 'equals'
-            });
-          });
-        }
-
-        // Función para verificar un valor contra un filtro (igual que en filters.blade.php)
-        const checkFilterMatch = (cellValue, filter) => {
-          const filterValue = String(filter.value || '').toLowerCase();
-          switch (filter.operator) {
-            case 'equals':   return cellValue === filterValue;
-            case 'starts':   return cellValue.startsWith(filterValue);
-            case 'ends':     return cellValue.endsWith(filterValue);
-            case 'not':      return !cellValue.includes(filterValue);
-            case 'empty':    return cellValue === '';
-            case 'notEmpty': return cellValue !== '';
-            default:         return cellValue.includes(filterValue);
-          }
-        };
-
-        rows.forEach(row => {
-          // Verificar filtros personalizados con lógica OR por columna, AND entre columnas
-          let matchesCustom = true;
-          if (Object.keys(filtersByColumn).length > 0) {
-            // Para cada columna con filtros, al menos uno debe coincidir (OR)
-            // Todas las columnas deben tener al menos una coincidencia (AND entre columnas)
-            matchesCustom = Object.entries(filtersByColumn).every(([column, columnFilters]) => {
-              // Usar el selector sin escape para que funcione igual que filters.blade.php
-              const cell = row.querySelector(`[data-column="${column}"]`);
-              if (!cell) return false;
-
-              // Usar data-value primero, luego textContent (igual que filters.blade.php)
-              // IMPORTANTE: Normalizar exactamente igual que en filters.blade.php
-              const rawCellValue = cell.dataset.value || cell.textContent || '';
-              const cellValue = String(rawCellValue).toLowerCase().trim();
-
-              // OR: al menos un filtro de esta columna debe coincidir
-              const matches = columnFilters.some(filter => {
-                const result = checkFilterMatch(cellValue, filter);
-                // Debug solo para la primera columna filtrada
-                return result;
-              });
-              return matches;
-            });
-          }
-
-          // Aplicar visibilidad según si cumple todos los filtros
-          if (matchesCustom) {
-            row.style.display = '';
-            row.classList.remove('filter-hidden');
-          } else {
-            row.style.display = 'none';
-            row.classList.add('filter-hidden');
-          }
-        });
-      }
+      // filters.blade.php siempre expone applyProgramaTejidoFilters en window.
+      window.applyProgramaTejidoFilters();
 
       // Actualizar iconos después de aplicar filtros
       setTimeout(() => {
@@ -3361,38 +3279,6 @@
         sessionStorage.removeItem('priorityChangeType');
       }, 350);
     }
-
-    // =========================
-    // IntegraciÃ³n filtro layout
-    // =========================
-    window.applyTableFilters = function(values) {
-      try {
-        const tb = tbodyEl();
-        if (!tb) return;
-
-        refreshAllRows();
-
-        const rows = window.allRows.slice();
-        const entries = Object.entries(values || {});
-        const filtered = entries.length
-          ? rows.filter(tr => entries.every(([col, val]) => {
-              const escapedCol = escapeCSSValue(col);
-              const selector = '[data-column="' + escapedCol + '"]';
-              const cell = tr.querySelector(selector);
-              if (!cell) return false;
-              return (cell.textContent || '').toLowerCase().includes(String(val).toLowerCase());
-            }))
-          : rows;
-
-        tb.innerHTML = '';
-        const frag = document.createDocumentFragment();
-        filtered.forEach(r => frag.appendChild(r));
-        tb.appendChild(frag);
-
-        refreshAllRows();
-        updateTotales();
-      } catch (e) {}
-    };
 
     // =========================
     // Dropdown Actualizar

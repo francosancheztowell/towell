@@ -117,37 +117,9 @@ function applyProgramaTejidoFilters() {
             .map(([key]) => quickFilterConfig[key].check)
         : [];
 
-    // Agrupar filtros por columna para permitir múltiples valores en la misma columna
-    // Lógica: OR entre valores de la misma columna, AND entre diferentes columnas
-    const filtersByColumn = hasCustomFilters
-        ? (window.PTFilterEngine
-            ? window.PTFilterEngine.groupFiltersByColumn(filters)
-            : (() => {
-                const acc = {};
-                filters.forEach(f => {
-                    if (!acc[f.column]) acc[f.column] = [];
-                    acc[f.column].push({ value: String(f.value || '').trim().toLowerCase(), operator: f.operator || 'contains' });
-                });
-                return acc;
-            })())
-        : {};
-
-    // Función para verificar un valor contra un filtro
-    const checkFilterMatch = window.PTFilterEngine
-        ? window.PTFilterEngine.checkFilterMatch
-        : (cellValue, filter) => {
-            const filterValue = String(filter.value || '').toLowerCase().trim();
-            const normalizedCellValue = String(cellValue || '').toLowerCase().trim();
-            switch (filter.operator) {
-                case 'equals':   return normalizedCellValue === filterValue;
-                case 'starts':   return normalizedCellValue.startsWith(filterValue);
-                case 'ends':     return normalizedCellValue.endsWith(filterValue);
-                case 'not':      return !normalizedCellValue.includes(filterValue);
-                case 'empty':    return normalizedCellValue === '';
-                case 'notEmpty': return normalizedCellValue !== '';
-                default:         return normalizedCellValue.includes(filterValue);
-            }
-        };
+    // Agrupar filtros por columna: OR entre valores de la misma columna, AND entre columnas.
+    const filtersByColumn = hasCustomFilters ? window.PTFilterEngine.groupFiltersByColumn(filters) : {};
+    const checkFilterMatch = window.PTFilterEngine.checkFilterMatch;
 
     let visibleRows = 0;
 
