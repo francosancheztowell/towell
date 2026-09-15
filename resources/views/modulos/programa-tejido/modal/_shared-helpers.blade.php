@@ -1186,7 +1186,6 @@ async function agregarRegistroSinRecargar(data, { preventReload = false } = {}) 
 		} else {
 			tb.appendChild(row);
 		}
-		window.PTStore?.set(String(registro.Id), registro);
 		window.PT?.filterIndex?.updateRow(row);
 
 		// Hacer scroll para que la nueva fila sea visible

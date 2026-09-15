@@ -1636,7 +1636,6 @@
 
               // Eliminar la fila del DOM
               rowToDelete.remove();
-              window.PTStore?.remove(String(id));
               window.PT?.filterIndex?.removeRow(id);
 
               // Si el registro eliminado tenía Ultimo=1, buscar el último registro del mismo telar y actualizarlo
@@ -1786,7 +1785,6 @@
           const ghost = document.querySelector(`tr.selectable-row[data-id="${id}"]`);
           if (ghost) {
             ghost.remove();
-            window.PTStore?.remove(String(id));
           }
           if (typeof refreshAllRows === 'function') refreshAllRows();
         }
@@ -1842,7 +1840,6 @@
                 const ghost = document.querySelector(`tr.selectable-row[data-id="${id}"]`);
                 if (ghost) {
                   ghost.remove();
-                  window.PTStore?.remove(String(id));
                 }
                 if (typeof refreshAllRows === 'function') refreshAllRows();
                 // Cerrar el modal sin mensaje de error: ya no existe (p. ej. doble DELETE o otra pestaña).
@@ -1882,7 +1879,6 @@
         const rowToDelete = tb ? tb.querySelector(`tr.selectable-row[data-id="${id}"]`) : null;
         if (rowToDelete) {
           rowToDelete.remove();
-          window.PTStore?.remove(String(id));
           window.PT?.filterIndex?.removeRow(id);
           window.selectedRowIndex = -1; // -1, no null: null >= 0 es true en JS
         }
@@ -1946,7 +1942,6 @@
                 const ghost = document.querySelector(`tr.selectable-row[data-id="${id}"]`);
                 if (ghost) {
                   ghost.remove();
-                  window.PTStore?.remove(String(id));
                 }
                 if (typeof refreshAllRows === 'function') refreshAllRows();
                 return { ok: true, alreadyGone: true };
@@ -3028,7 +3023,6 @@
           celda.innerHTML = formatearValor(registro, field, value);
         });
 
-        window.PTStore?.set(String(registroId), registro);
         window.PT?.filterIndex?.updateRow(fila);
       }
     }
@@ -3445,30 +3439,6 @@
     })();
 
     // =========================
-    // Store initialization
-    // =========================
-    /**
-     * Puebla window.PTStore con los datos actuales de la tabla.
-     * Se ejecuta una vez al cargar la página, después de que el DOM está listo.
-     */
-    function initStoreFromTable() {
-      if (!window.PTStore) return;
-      const rows = document.querySelectorAll('#mainTable tbody .selectable-row');
-      const datos = [];
-      rows.forEach(row => {
-        const id = row.getAttribute('data-id');
-        if (!id) return;
-        const registro = { Id: id };
-        row.querySelectorAll('td').forEach(td => {
-          const col = td.getAttribute('data-column');
-          if (col) registro[col] = td.dataset.value || td.textContent.trim();
-        });
-        datos.push(registro);
-      });
-      if (datos.length > 0) window.PTStore.loadFromServer(datos);
-    }
-
-    // =========================
     // Init
     // =========================
     document.addEventListener('DOMContentLoaded', () => {
@@ -3582,9 +3552,6 @@
       if (typeof window.initReprogramarListeners === 'function') {
         setTimeout(() => window.initReprogramarListeners(), 300);
       }
-
-      // Poblar el store centralizado con los datos de la tabla
-      setTimeout(initStoreFromTable, 100);
 
       const balanceBtn = document.querySelector('a[title="Balancear"]');
       if (balanceBtn) {

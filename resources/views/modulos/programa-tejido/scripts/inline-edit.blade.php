@@ -635,7 +635,6 @@ const uiInlineEditableFields = {
       if (std.velocidad != null) display.VelocidadSTD = std.velocidad;
       if (std.eficiencia != null) display.EficienciaSTD = std.eficiencia;
       applyRowUpdatesFromBackend(row, display);
-      window.PTStore?.set(String(rowId), saveResult?.data ?? display);
     } catch (e) {
       console.warn('recalcularStdParaFila error', e);
     }
@@ -693,7 +692,6 @@ const uiInlineEditableFields = {
 
       // si backend manda resumen, actualiza otras celdas (fechas/saldo/etc)
       if (result?.data) applyRowUpdatesFromBackend(row, result.data);
-      window.PTStore?.set(String(rowId), result?.data ?? { [payloadField]: value });
 
       // Cambiar el hilo (FibraRizo) invalida Velocidad/Eficiencia STD: recalcular contra el catálogo
       if (columnName === 'FibraRizo') {
