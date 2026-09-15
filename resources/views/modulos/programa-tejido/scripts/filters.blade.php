@@ -133,17 +133,14 @@ function applyProgramaTejidoFilters() {
         // Filtros custom usan índice en memoria si disponible, fallback al DOM
         let matchesCustom = true;
         if (hasCustomFilters) {
-            matchesCustom = Object.entries(filtersByColumn).every(([column, columnFilters]) => {
-                let cellValue;
-                if (rowData) {
-                    cellValue = String(rowData[column] ?? '').toLowerCase().trim();
-                } else {
+            matchesCustom = rowData
+                ? window.PTFilterEngine.rowMatchesCustomFilters(rowData, filtersByColumn)
+                : Object.entries(filtersByColumn).every(([column, columnFilters]) => {
                     const cell = row.querySelector(`[data-column="${column}"]`);
                     if (!cell) return false;
-                    cellValue = String(cell.dataset.value || cell.textContent || '').trim().toLowerCase();
-                }
-                return columnFilters.some(filter => checkFilterMatch(cellValue, filter));
-            });
+                    const cellValue = String(cell.dataset.value || cell.textContent || '').trim().toLowerCase();
+                    return columnFilters.some(filter => checkFilterMatch(cellValue, filter));
+                });
         }
 
         const matchesDates = !hasDateFilters || checkDateFilters(row);
@@ -200,6 +197,10 @@ function applyProgramaTejidoFilters() {
 }
 
 // ===== Verificar filtros de fecha =====
+// data-value de las columnas de fecha viene como 'Y-m-d H:i:s' y los <input type="date">
+// entregan 'Y-m-d', asi que PTFilterEngine.dateInRange compara strings y no toca
+// zonas horarias: new Date('2026-09-15') era UTC medianoche, o sea el dia 14 en
+// America/Mexico_City, y el rango se corria un dia dejando fuera el 'hasta'.
 function checkDateFilters(row) {
     for (const [field, range] of Object.entries(dateRangeFilters)) {
         if (!range.desde && !range.hasta) continue;
@@ -208,46 +209,10 @@ function checkDateFilters(row) {
         const cell = row.querySelector(`[data-column="${columnName}"]`);
         if (!cell) return false;
 
-        const cellValue = (cell.dataset.value || cell.textContent || '').trim();
-        if (!cellValue) return false;
-
-        const cellDate = parseDate(cellValue);
-        if (!cellDate) return false;
-
-        if (range.desde) {
-            const desdeDate = new Date(range.desde);
-            desdeDate.setHours(0, 0, 0, 0);
-            if (cellDate < desdeDate) return false;
-        }
-
-        if (range.hasta) {
-            const hastaDate = new Date(range.hasta);
-            hastaDate.setHours(23, 59, 59, 999);
-            if (cellDate > hastaDate) return false;
-        }
+        const cellValue = (cell.dataset.value || '').trim();
+        if (!window.PTFilterEngine.dateInRange(cellValue, range.desde, range.hasta)) return false;
     }
     return true;
-}
-
-function parseDate(str) {
-    if (!str) return null;
-
-    // Intentar varios formatos
-    // Formato dd/mm/yyyy
-    let match = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-    if (match) {
-        return new Date(match[3], match[2] - 1, match[1]);
-    }
-
-    // Formato yyyy-mm-dd
-    match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (match) {
-        return new Date(match[1], match[2] - 1, match[3]);
-    }
-
-    // Intentar parse directo
-    const d = new Date(str);
-    return isNaN(d.getTime()) ? null : d;
 }
 
 // ===== Quick filters: toggle + UI =====
