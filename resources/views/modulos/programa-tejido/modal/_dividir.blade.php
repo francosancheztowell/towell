@@ -1,18 +1,14 @@
 {{-- Funciones específicas para dividir telares --}}
 {{-- NOTA: Este archivo se incluye dentro de un bloque <script>, NO agregar etiquetas <script> aquí --}}
 
-const calcularSaldoAbortByRow = new WeakMap();
-const calcularSaldoDebounceTimerByRow = new WeakMap();
-const CALCULAR_SALDO_DEBOUNCE_MS = 220;
-
-// Función para calcular el Saldo Total usando el controller (cancela petición anterior por fila)
-async function calcularSaldoTotal(row) {
+// Saldo Total en modo dividir: en dividir el porcentaje de segundas es siempre 0,
+// asi que total = pedido y saldo = max(0, pedido - produccion). No hay nada que
+// preguntarle al servidor.
+function calcularSaldoTotal(row) {
 	if (!row) return;
+	if (getModoActual() !== 'dividir') return;
 
-	const modoActual = getModoActual();
-	if (modoActual !== 'dividir') return;
-
-	const { pedidoTempoInput, porcentajeSegundosInput, totalInput } = getRowInputs(row);
+	const { pedidoTempoInput, totalInput } = getRowInputs(row);
 	const produccionInput = getProduccionInputFromRow(row);
 	const saldoTotalInput = row.querySelector('.saldo-total-cell input');
 
@@ -21,81 +17,24 @@ async function calcularSaldoTotal(row) {
 	}
 
 	const pedido = (typeof parseNumeroConMiles === 'function' ? parseNumeroConMiles(pedidoTempoInput.value) : parseFloat(pedidoTempoInput.value)) || 0;
-	const porcentajeSegundos = 0;
 	const produccion = parseFloat(produccionInput.value) || 0;
+	const dosDecimales = (n) => Math.round(n * 100) / 100;
 
-	const prev = calcularSaldoAbortByRow.get(row);
-	if (prev) {
-		prev.abort();
-	}
-	const controller = new AbortController();
-	calcularSaldoAbortByRow.set(row, controller);
+	saldoTotalInput.value = dosDecimales(Math.max(0, pedido - produccion)).toString();
+	if (totalInput) totalInput.value = dosDecimales(pedido).toString();
 
-	try {
-		const csrfToken = getCsrfToken();
+	// Los dos valores primero y los eventos despues: un listener de saldo no debe
+	// leer un total desincronizado. El listener de totalInput ignora los eventos
+	// sinteticos (isTrusted === false), asi que esto no reentra.
+	saldoTotalInput.dispatchEvent(new Event('input', { bubbles: true }));
+	if (totalInput) totalInput.dispatchEvent(new Event('input', { bubbles: true }));
 
-		const response = await fetch('/programa-tejido/calcular-totales-dividir', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'X-CSRF-TOKEN': csrfToken,
-				'Accept': 'application/json'
-			},
-			body: JSON.stringify({
-				pedido: pedido,
-				porcentaje_segundos: porcentajeSegundos,
-				produccion: produccion
-			}),
-			signal: controller.signal
-		});
-
-		if (!response.ok) {
-			return;
-		}
-
-		const data = await response.json();
-
-		if (data.success) {
-			saldoTotalInput.value = data.saldo_total.toString();
-
-			if (totalInput) {
-				totalInput.value = data.total_pedido.toString();
-			}
-
-			saldoTotalInput.dispatchEvent(new Event('input', { bubbles: true }));
-			if (totalInput) {
-				totalInput.dispatchEvent(new Event('input', { bubbles: true }));
-			}
-			if (typeof recomputeState === 'function') recomputeState();
-		}
-	} catch (error) {
-		if (error && error.name === 'AbortError') {
-			return;
-		}
-	}
+	if (typeof recomputeState === 'function') recomputeState();
 }
 
-function scheduleCalcularSaldoTotalDebounced(row) {
-	if (!row) return;
-	if (getModoActual() !== 'dividir') return;
-	const existing = calcularSaldoDebounceTimerByRow.get(row);
-	if (existing) clearTimeout(existing);
-	const t = setTimeout(() => {
-		calcularSaldoDebounceTimerByRow.delete(row);
-		calcularSaldoTotal(row);
-	}, CALCULAR_SALDO_DEBOUNCE_MS);
-	calcularSaldoDebounceTimerByRow.set(row, t);
-}
-
-function flushCalcularSaldoTotalDebounced(row) {
-	if (!row) return Promise.resolve();
-	const existing = calcularSaldoDebounceTimerByRow.get(row);
-	if (existing) {
-		clearTimeout(existing);
-		calcularSaldoDebounceTimerByRow.delete(row);
-	}
-	return Promise.resolve(calcularSaldoTotal(row));
-}
+// ponytail: alias, el calculo ya es sincrono; los llama duplicar-dividir.blade.php.
+function scheduleCalcularSaldoTotalDebounced(row) { calcularSaldoTotal(row); }
+function flushCalcularSaldoTotalDebounced(row) { calcularSaldoTotal(row); return Promise.resolve(); }
 
 window.calcularSaldoTotal = calcularSaldoTotal;
 window.scheduleCalcularSaldoTotalDebounced = scheduleCalcularSaldoTotalDebounced;

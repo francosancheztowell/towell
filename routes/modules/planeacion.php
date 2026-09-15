@@ -264,7 +264,6 @@ Route::get('/programa-tejido/hilos-options', [ProgramaTejidoCatalogosController:
 Route::get('/programa-tejido/eficiencia-std', [ProgramaTejidoCatalogosController::class, 'getEficienciaStd']);
 Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoCatalogosController::class, 'getVelocidadStd']);
 Route::get('/programa-tejido/eficiencia-velocidad-std', [ProgramaTejidoCatalogosController::class, 'getEficienciaVelocidadStd']);
-Route::post('/programa-tejido/calcular-totales-dividir', [DividirTejido::class, 'calcularTotalesDividir']);
 Route::get('/programa-tejido/columnas', [ColumnasProgramaTejidoController::class, 'index']);
 Route::get('/programa-tejido/columnas/visibles', [ColumnasProgramaTejidoController::class, 'getColumnasVisibles']);
 Route::post('/programa-tejido/columnas', [ColumnasProgramaTejidoController::class, 'store']);
@@ -328,7 +327,6 @@ Route::get('/muestras/hilos-options', [ProgramaTejidoCatalogosController::class,
 Route::get('/muestras/eficiencia-std', [ProgramaTejidoCatalogosController::class, 'getEficienciaStd']);
 Route::get('/muestras/velocidad-std', [ProgramaTejidoCatalogosController::class, 'getVelocidadStd']);
 Route::get('/muestras/eficiencia-velocidad-std', [ProgramaTejidoCatalogosController::class, 'getEficienciaVelocidadStd']);
-Route::post('/muestras/calcular-totales-dividir', [DividirTejido::class, 'calcularTotalesDividir']);
 Route::get('/muestras/columnas', [ColumnasProgramaTejidoController::class, 'index']);
 Route::get('/muestras/columnas/visibles', [ColumnasProgramaTejidoController::class, 'getColumnasVisibles']);
 Route::post('/muestras/columnas', [ColumnasProgramaTejidoController::class, 'store']);
