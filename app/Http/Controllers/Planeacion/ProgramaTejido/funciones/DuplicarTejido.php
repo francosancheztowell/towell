@@ -232,7 +232,7 @@ class DuplicarTejido
                 $nuevo->Ultimo = 1;
                 $nuevo->CambioHilo = 0;
 
-                $nuevo->Maquina = TejidoHelpers::construirMaquinaConBase($original->Maquina ?? null, $salonDestinoFila, $telarDestino);
+                $nuevo->Maquina = TejidoHelpers::construirMaquinaConSalon($original->Maquina ?? null, $salonDestinoFila, $telarDestino);
 
                 // Limpiar campos que siempre deben resetearse en duplicación
                 $nuevo->Produccion = null;
@@ -363,7 +363,7 @@ class DuplicarTejido
                     $nuevo->Maquina = StringTruncator::truncate('Maquina', $destino['maquina']);
                 } else {
                     // Construir Maquina si no viene
-                    $nuevo->Maquina = TejidoHelpers::construirMaquinaConBase($original->Maquina ?? null, $salonDestinoFila, $telarDestino);
+                    $nuevo->Maquina = TejidoHelpers::construirMaquinaConSalon($original->Maquina ?? null, $salonDestinoFila, $telarDestino);
                 }
 
                 // TamanoClave: priorizar valor del destino (fila)

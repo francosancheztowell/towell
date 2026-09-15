@@ -177,25 +177,6 @@ class TejidoHelpers
         return trim($prefijo).' '.trim((string) $telar);
     }
 
-    public static function construirMaquinaConBase(?string $maquinaBase, ?string $salon, $telar): string
-    {
-        $prefijo = null;
-
-        if ($maquinaBase && preg_match('/^([A-Za-z]+)\s*\d*/', trim($maquinaBase), $m)) {
-            $prefijo = $m[1];
-        }
-
-        if (! $prefijo && $salon) {
-            $prefijo = rtrim(substr($salon, 0, 4), '0123456789');
-        }
-
-        if (! $prefijo) {
-            $prefijo = 'TEL';
-        }
-
-        return trim($prefijo).' '.trim((string) $telar);
-    }
-
     /**
      * Calcula horas de producción a partir de un ReqProgramaTejido.
      * API canónica para Balancear, Duplicar, Dividir, Update.

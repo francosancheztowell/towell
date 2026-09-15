@@ -239,7 +239,7 @@ class ProgramaTejidoOperacionesController extends Controller
             if (! is_null($nuevaVelocidad)) {
                 $registro->VelocidadSTD = $nuevaVelocidad;
             }
-            $registro->Maquina = $this->construirMaquinaSegunSalon($registro->Maquina ?? '', $nuevoSalon, $nuevoTelar);
+            $registro->Maquina = TejidoHelpers::construirMaquinaConSalon($registro->Maquina, $nuevoSalon, $nuevoTelar);
             if ($modeloDestino && $modeloDestino->AnchoToalla) {
                 $registro->Ancho = $modeloDestino->AnchoToalla;
                 $registro->AnchoToalla = $modeloDestino->AnchoToalla;
@@ -584,32 +584,6 @@ class ProgramaTejidoOperacionesController extends Controller
         }
 
         return (int) $trimmed;
-    }
-
-    private function construirMaquinaSegunSalon(string $maquinaBase, ?string $salon, $nuevoTelar): string
-    {
-        $salonNorm = strtoupper(trim((string) $salon));
-
-        if ($salonNorm !== '') {
-            if (preg_match('/SMI(T)?/i', $salonNorm)) {
-                $prefijo = 'SMI';
-            } elseif (preg_match('/JAC/i', $salonNorm)) {
-                $prefijo = 'JAC';
-            }
-        }
-
-        if (! isset($prefijo)) {
-            if (preg_match('/^([A-Za-z]+)/', $maquinaBase, $m)) {
-                $prefijo = $m[1];
-            }
-        }
-
-        if (! isset($prefijo)) {
-            $prefijo = substr($salonNorm, 0, 4);
-            $prefijo = rtrim($prefijo, '0123456789');
-        }
-
-        return trim($prefijo).' '.$nuevoTelar;
     }
 
     /**
