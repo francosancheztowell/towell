@@ -45,8 +45,7 @@ class DateHelpers
      */
     public static function recalcularFechasSecuencia(
         Collection $registrosOrdenados,
-        Carbon $inicioOriginal,
-        bool $respetarInicioPrimerRegistro = false
+        Carbon $inicioOriginal
     ): array {
         $updates = [];
         $detalles = [];
@@ -67,7 +66,7 @@ class DateHelpers
             $nuevoInicio = $esEnProceso ? Carbon::now() : $cursor->copy();
 
             // snap al calendario si cae en gap (no aplicar a EnProceso)
-            if (! $esEnProceso && ! empty($r->CalendarioId) && ! ($respetarInicioPrimerRegistro && $i === 0)) {
+            if (! $esEnProceso && ! empty($r->CalendarioId)) {
                 $nuevoInicio = self::snapInicioAlCalendario($r->CalendarioId, $nuevoInicio) ?? $nuevoInicio;
             }
 
