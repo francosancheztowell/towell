@@ -334,8 +334,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
 {{-- OJO: EL JS de duplicar/dividir NO VA AQUÍ (si lo incluyes aquí se imprime) --}}
 
-<link rel="stylesheet" href="{{ asset('css/programa-tejido/main.css') }}">
-<link rel="stylesheet" href="{{ asset('css/programa-tejido/modals.css') }}">
+{{-- ?v=filemtime obligatorio: .htaccess le pone un ano de expiracion al CSS y
+     estos dos no pasan por Vite, asi que sin esto el navegador sigue sirviendo el
+     de antes. Al mover las utilidades de la celda (px-3 py-2 text-sm) del HTML a
+     #mainTable tbody td, un main.css cacheado deja la tabla sin tamano ni padding
+     y la pagina se ve "con zoom". --}}
+<link rel="stylesheet" href="{{ asset('css/programa-tejido/main.css') }}?v={{ filemtime(public_path('css/programa-tejido/main.css')) }}">
+<link rel="stylesheet" href="{{ asset('css/programa-tejido/modals.css') }}?v={{ filemtime(public_path('css/programa-tejido/modals.css')) }}">
 
 {{-- balanceo --}}
 @include('modulos.programa-tejido.balancear')

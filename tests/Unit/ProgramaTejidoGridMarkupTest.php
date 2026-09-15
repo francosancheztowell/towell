@@ -100,4 +100,21 @@ class ProgramaTejidoGridMarkupTest extends TestCase
         $this->assertStringContainsString('#mainTable tbody td {', $css);
         $this->assertStringContainsString('#mainTable tbody td.pt-wrap { white-space: normal; }', $css);
     }
+
+    public function test_el_css_del_modulo_lleva_cache_busting(): void
+    {
+        // .htaccess le da un ano de expiracion al text/css y estos dos no pasan por
+        // Vite. Sin ?v= el navegador sirve el de antes: al mover px-3/py-2/text-sm
+        // de la celda a #mainTable tbody td, un main.css viejo deja la tabla sin
+        // tamano ni padding y la pagina se ve "con zoom".
+        $vista = $this->src('resources/views/modulos/programa-tejido/req-programa-tejido.blade.php');
+
+        foreach (['main', 'modals'] as $hoja) {
+            $this->assertStringContainsString(
+                "asset('css/programa-tejido/{$hoja}.css') }}?v={{ filemtime(public_path('css/programa-tejido/{$hoja}.css'))",
+                $vista,
+                "css/programa-tejido/{$hoja}.css se sirve sin ?v="
+            );
+        }
+    }
 }
