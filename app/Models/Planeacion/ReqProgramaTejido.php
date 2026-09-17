@@ -65,6 +65,11 @@ class ReqProgramaTejido extends Model
         'OrdPrincipal',
         'FechaArranque', 'FechaFinaliza',
         'IdRedbooth', 'NombreRedbooth',
+        // Karl Mayer (telares 401/402): no teje con rizo/pie/C1-C5, sino con cuatro barras.
+        'CuentaBarra1', 'CalibreBarra1', 'CodColorBarra1', 'ColorBarra1', 'FibraBarra1', 'PasadasBarra1',
+        'CuentaBarra2', 'CalibreBarra2', 'CodColorBarra2', 'ColorBarra2', 'FibraBarra2', 'PasadasBarra2',
+        'CuentaBarra3', 'CalibreBarra3', 'CodColorBarra3', 'ColorBarra3', 'FibraBarra3', 'PasadasBarra3',
+        'CuentaBarra4', 'CalibreBarra4', 'CodColorBarra4', 'ColorBarra4', 'FibraBarra4', 'PasadasBarra4',
     ];
 
     /**
@@ -107,6 +112,10 @@ class ReqProgramaTejido extends Model
         'PasadasComb3' => 'integer',
         'PasadasComb4' => 'integer',
         'PasadasComb5' => 'integer',
+        'PasadasBarra1' => 'integer',
+        'PasadasBarra2' => 'integer',
+        'PasadasBarra3' => 'integer',
+        'PasadasBarra4' => 'integer',
         'AnchoToalla' => 'float',
 
         'CalibreComb1' => 'string', // NVARCHAR(20) en SQL Server

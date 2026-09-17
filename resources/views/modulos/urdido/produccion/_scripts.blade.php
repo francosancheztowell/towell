@@ -2182,7 +2182,10 @@
                     return;
                 }
 
-                @if(isset($orden) && $orden)
+                {{-- isset($orden->Id) y no isset($orden) && $orden: un string no vacio pasaba
+                     el guard viejo y reventaba en $orden->Id. isset() sobre una propiedad de
+                     algo que no es objeto devuelve false sin lanzar error. --}}
+                @if(isset($orden->Id))
                 const ordenId = {{ $orden->Id }};
 
                 const confirmado = await Swal.fire({

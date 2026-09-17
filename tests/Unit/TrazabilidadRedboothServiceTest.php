@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Models\Planeacion\Catalogos\CatCodificados;
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Trazabilidad\TrazabilidadRedboothService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
 final class TrazabilidadRedboothServiceTest extends TestCase
 {
+    use UsesSqlsrvSqlite;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -30,20 +35,12 @@ final class TrazabilidadRedboothServiceTest extends TestCase
             $table->string('Flogs', 100)->nullable();
             $table->string('Orden', 60)->nullable();
         });
-        Schema::connection('sqlsrv')->create('ReqProgramaTejido', function (Blueprint $table): void {
-            $table->id('Id');
-            $table->string('NoProduccion', 60)->nullable();
-            $table->string('FlogsId', 100)->nullable();
-            $table->integer('IdRedbooth')->nullable();
-            $table->string('NombreRedbooth', 255)->nullable();
-        });
-        Schema::connection('sqlsrv')->create('CatCodificados', function (Blueprint $table): void {
-            $table->id('Id');
-            $table->string('OrdenTejido', 60)->nullable();
-            $table->string('FlogsId', 100)->nullable();
-            $table->integer('IdRedbooth')->nullable();
-            $table->string('NombreRedbooth', 255)->nullable();
-        });
+
+        // TrazaProduccion se queda en 'sqlsrv' porque su modelo declara esa conexion.
+        // ReqProgramaTejido y CatCodificados no la declaran y resuelven a la default, que es
+        // tambien donde mira assertDatabaseHas(): por eso van con el helper.
+        $this->createTablaDesdeModelo(ReqProgramaTejido::class);
+        $this->createTablaDesdeModelo(CatCodificados::class);
     }
 
     public function test_it_finds_flog_orders_and_their_existing_redbooth_links(): void
@@ -54,7 +51,7 @@ final class TrazabilidadRedboothServiceTest extends TestCase
             ['Flogs' => 'FLOG-100', 'Orden' => 'SIN-REGISTRO'],
             ['Flogs' => 'OTRO-FLOG', 'Orden' => '99999'],
         ]);
-        DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
+        DB::table('ReqProgramaTejido')->insert([
             [
                 'NoProduccion' => '36737',
                 'FlogsId' => 'FLOG-100',
@@ -74,7 +71,7 @@ final class TrazabilidadRedboothServiceTest extends TestCase
                 'NombreRedbooth' => 'No pertenece a la trazabilidad actual',
             ],
         ]);
-        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+        DB::table('CatCodificados')->insert([
             [
                 'OrdenTejido' => '36737',
                 'FlogsId' => 'FLOG-100',
@@ -97,7 +94,7 @@ final class TrazabilidadRedboothServiceTest extends TestCase
 
     public function test_it_also_finds_an_order_linked_directly_by_flogs_id(): void
     {
-        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+        DB::table('CatCodificados')->insert([
             'OrdenTejido' => '40001',
             'FlogsId' => 'FLOG-DIRECTO',
             'IdRedbooth' => 70001,
@@ -117,11 +114,11 @@ final class TrazabilidadRedboothServiceTest extends TestCase
             ['Flogs' => 'FLOG-MASIVO', 'Orden' => '41001'],
             ['Flogs' => 'FLOG-MASIVO', 'Orden' => '41002'],
         ]);
-        DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
+        DB::table('ReqProgramaTejido')->insert([
             'NoProduccion' => '41001',
             'FlogsId' => 'FLOG-MASIVO',
         ]);
-        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+        DB::table('CatCodificados')->insert([
             ['OrdenTejido' => '41001', 'FlogsId' => 'FLOG-MASIVO'],
             ['OrdenTejido' => '41002', 'FlogsId' => 'FLOG-MASIVO'],
         ]);
@@ -137,12 +134,12 @@ final class TrazabilidadRedboothServiceTest extends TestCase
             'NoProduccion' => '41001',
             'IdRedbooth' => 81001,
             'NombreRedbooth' => 'Tarea de todo el Flog',
-        ], 'sqlsrv');
+        ]);
         $this->assertDatabaseHas('CatCodificados', [
             'OrdenTejido' => '41002',
             'IdRedbooth' => 81001,
             'NombreRedbooth' => 'Tarea de todo el Flog',
-        ], 'sqlsrv');
+        ]);
     }
 
     public function test_it_does_not_overwrite_orders_when_the_flog_already_has_a_link(): void
@@ -151,7 +148,7 @@ final class TrazabilidadRedboothServiceTest extends TestCase
             ['Flogs' => 'FLOG-CON-VINCULO', 'Orden' => '42001'],
             ['Flogs' => 'FLOG-CON-VINCULO', 'Orden' => '42002'],
         ]);
-        DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
+        DB::table('ReqProgramaTejido')->insert([
             [
                 'NoProduccion' => '42001',
                 'FlogsId' => 'FLOG-CON-VINCULO',
@@ -175,6 +172,6 @@ final class TrazabilidadRedboothServiceTest extends TestCase
             'NoProduccion' => '42002',
             'IdRedbooth' => null,
             'NombreRedbooth' => null,
-        ], 'sqlsrv');
+        ]);
     }
 }

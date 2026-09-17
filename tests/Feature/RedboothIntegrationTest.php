@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Integraciones\RedboothCredential;
+use App\Models\Planeacion\Catalogos\CatCodificados;
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Sistema\Usuario;
 use App\Services\Integraciones\RedboothService;
 use Illuminate\Database\Schema\Blueprint;
@@ -12,10 +14,13 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
 final class RedboothIntegrationTest extends TestCase
 {
+    use UsesSqlsrvSqlite;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -46,27 +51,16 @@ final class RedboothIntegrationTest extends TestCase
             $table->timestamp('expires_at');
             $table->timestamps();
         });
-        Schema::connection('sqlsrv')->create('ReqProgramaTejido', function (Blueprint $table): void {
-            $table->id('Id');
-            $table->string('NoProduccion', 60)->nullable();
-            $table->string('NoTelarId', 60)->nullable();
-            $table->string('FlogsId', 100)->nullable();
-            $table->integer('IdRedbooth')->nullable();
-            $table->string('NombreRedbooth', 255)->nullable();
-        });
-        Schema::connection('sqlsrv')->create('CatCodificados', function (Blueprint $table): void {
-            $table->id('Id');
-            $table->string('OrdenTejido', 60)->nullable();
-            $table->string('TelarId', 60)->nullable();
-            $table->string('FlogsId', 100)->nullable();
-            $table->integer('IdRedbooth')->nullable();
-            $table->string('NombreRedbooth', 255)->nullable();
-        });
         Schema::connection('sqlsrv')->create('TrazaProduccion', function (Blueprint $table): void {
             $table->id('Id');
             $table->string('Flogs', 100)->nullable();
             $table->string('Orden', 60)->nullable();
         });
+
+        // RedboothCredentials y TrazaProduccion van en 'sqlsrv' porque sus modelos declaran esa
+        // conexion. ReqProgramaTejido y CatCodificados no la declaran y resuelven a la default.
+        $this->createTablaDesdeModelo(ReqProgramaTejido::class);
+        $this->createTablaDesdeModelo(CatCodificados::class, ['TelarId']);
     }
 
     public function test_connect_redirects_to_redbooth_with_state(): void
@@ -366,11 +360,11 @@ final class RedboothIntegrationTest extends TestCase
             'refresh_token' => 'refresh-token',
             'expires_at' => now()->addHour(),
         ]);
-        $programaId = DB::connection('sqlsrv')->table('ReqProgramaTejido')->insertGetId([
+        $programaId = DB::table('ReqProgramaTejido')->insertGetId([
             'NoProduccion' => '36737',
             'NoTelarId' => '204',
         ]);
-        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+        DB::table('CatCodificados')->insert([
             'OrdenTejido' => '36737',
             'TelarId' => 'OTRO-TELAR',
         ]);
@@ -395,13 +389,13 @@ final class RedboothIntegrationTest extends TestCase
             'Id' => $programaId,
             'IdRedbooth' => 62542504,
             'NombreRedbooth' => '1.ALPURA MB',
-        ], 'sqlsrv');
+        ]);
         $this->assertDatabaseHas('CatCodificados', [
             'OrdenTejido' => '36737',
             'TelarId' => 'OTRO-TELAR',
             'IdRedbooth' => 62542504,
             'NombreRedbooth' => '1.ALPURA MB',
-        ], 'sqlsrv');
+        ]);
     }
 
     public function test_trazabilidad_assigns_redbooth_to_all_flog_orders_when_none_is_linked(): void
@@ -413,15 +407,15 @@ final class RedboothIntegrationTest extends TestCase
             'refresh_token' => 'refresh-token',
             'expires_at' => now()->addHour(),
         ]);
-        $programaId = DB::connection('sqlsrv')->table('ReqProgramaTejido')->insertGetId([
+        $programaId = DB::table('ReqProgramaTejido')->insertGetId([
             'NoProduccion' => '51001',
             'FlogsId' => 'FLOG-MASIVO',
         ]);
-        DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
+        DB::table('ReqProgramaTejido')->insert([
             'NoProduccion' => '51002',
             'FlogsId' => 'FLOG-MASIVO',
         ]);
-        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+        DB::table('CatCodificados')->insert([
             ['OrdenTejido' => '51001', 'FlogsId' => 'FLOG-MASIVO'],
             ['OrdenTejido' => '51002', 'FlogsId' => 'FLOG-MASIVO'],
         ]);
@@ -450,13 +444,13 @@ final class RedboothIntegrationTest extends TestCase
 
         $this->assertSame(
             2,
-            DB::connection('sqlsrv')->table('ReqProgramaTejido')
+            DB::table('ReqProgramaTejido')
                 ->where('IdRedbooth', 62542504)
                 ->count(),
         );
         $this->assertSame(
             2,
-            DB::connection('sqlsrv')->table('CatCodificados')
+            DB::table('CatCodificados')
                 ->where('IdRedbooth', 62542504)
                 ->count(),
         );
@@ -471,7 +465,7 @@ final class RedboothIntegrationTest extends TestCase
             'refresh_token' => 'refresh-token',
             'expires_at' => now()->addHour(),
         ]);
-        $programaId = DB::connection('sqlsrv')->table('ReqProgramaTejido')->insertGetId([
+        $programaId = DB::table('ReqProgramaTejido')->insertGetId([
             'NoProduccion' => '36737',
             'IdRedbooth' => 62542504,
             'NombreRedbooth' => '1.ALPURA MB',
@@ -536,13 +530,13 @@ final class RedboothIntegrationTest extends TestCase
     public function test_programa_tejido_removes_redbooth_link_from_req_and_cat_by_order(): void
     {
         $usuario = $this->usuario();
-        $programaId = DB::connection('sqlsrv')->table('ReqProgramaTejido')->insertGetId([
+        $programaId = DB::table('ReqProgramaTejido')->insertGetId([
             'NoProduccion' => '36737',
             'NoTelarId' => '204',
             'IdRedbooth' => 62542504,
             'NombreRedbooth' => '1.ALPURA MB',
         ]);
-        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+        DB::table('CatCodificados')->insert([
             'OrdenTejido' => '36737',
             'TelarId' => 'OTRO-TELAR',
             'IdRedbooth' => 62542504,
@@ -559,13 +553,13 @@ final class RedboothIntegrationTest extends TestCase
             'Id' => $programaId,
             'IdRedbooth' => null,
             'NombreRedbooth' => null,
-        ], 'sqlsrv');
+        ]);
         $this->assertDatabaseHas('CatCodificados', [
             'OrdenTejido' => '36737',
             'TelarId' => 'OTRO-TELAR',
             'IdRedbooth' => null,
             'NombreRedbooth' => null,
-        ], 'sqlsrv');
+        ]);
     }
 
     public function test_cat_codificados_saves_redbooth_link_and_syncs_req_by_order(): void
@@ -577,11 +571,11 @@ final class RedboothIntegrationTest extends TestCase
             'refresh_token' => 'refresh-token',
             'expires_at' => now()->addHour(),
         ]);
-        DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
+        DB::table('ReqProgramaTejido')->insert([
             'NoProduccion' => '36737',
             'NoTelarId' => '204',
         ]);
-        $catId = DB::connection('sqlsrv')->table('CatCodificados')->insertGetId([
+        $catId = DB::table('CatCodificados')->insertGetId([
             'OrdenTejido' => '36737',
             'TelarId' => 'OTRO-TELAR',
         ]);
@@ -604,17 +598,17 @@ final class RedboothIntegrationTest extends TestCase
             'Id' => $catId,
             'IdRedbooth' => 62542504,
             'NombreRedbooth' => '1.ALPURA MB',
-        ], 'sqlsrv');
+        ]);
         $this->assertDatabaseHas('ReqProgramaTejido', [
             'NoProduccion' => '36737',
             'IdRedbooth' => 62542504,
             'NombreRedbooth' => '1.ALPURA MB',
-        ], 'sqlsrv');
+        ]);
     }
 
     public function test_cat_codificados_without_link_opens_the_redbooth_selector(): void
     {
-        $catId = DB::connection('sqlsrv')->table('CatCodificados')->insertGetId([
+        $catId = DB::table('CatCodificados')->insertGetId([
             'OrdenTejido' => '36737',
         ]);
 
@@ -631,12 +625,12 @@ final class RedboothIntegrationTest extends TestCase
     public function test_cat_codificados_removes_redbooth_link_and_syncs_req_by_order(): void
     {
         $usuario = $this->usuario();
-        DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
+        DB::table('ReqProgramaTejido')->insert([
             'NoProduccion' => '36737',
             'IdRedbooth' => 62542504,
             'NombreRedbooth' => '1.ALPURA MB',
         ]);
-        $catId = DB::connection('sqlsrv')->table('CatCodificados')->insertGetId([
+        $catId = DB::table('CatCodificados')->insertGetId([
             'OrdenTejido' => '36737',
             'IdRedbooth' => 62542504,
             'NombreRedbooth' => '1.ALPURA MB',
@@ -654,12 +648,12 @@ final class RedboothIntegrationTest extends TestCase
             'Id' => $catId,
             'IdRedbooth' => null,
             'NombreRedbooth' => null,
-        ], 'sqlsrv');
+        ]);
         $this->assertDatabaseHas('ReqProgramaTejido', [
             'NoProduccion' => '36737',
             'IdRedbooth' => null,
             'NombreRedbooth' => null,
-        ], 'sqlsrv');
+        ]);
     }
 
     public function test_callback_rejects_an_invalid_state(): void

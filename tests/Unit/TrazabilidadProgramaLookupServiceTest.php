@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Trazabilidad\TrazabilidadProgramaLookupService;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
+use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
 final class TrazabilidadProgramaLookupServiceTest extends TestCase
 {
+    use UsesSqlsrvSqlite;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -25,28 +27,14 @@ final class TrazabilidadProgramaLookupServiceTest extends TestCase
             ],
         ]);
 
-        Schema::connection('sqlsrv')->create('ReqProgramaTejido', function (Blueprint $table): void {
-            $table->id('Id');
-            $table->string('NoProduccion')->nullable();
-            $table->string('NoTelarId')->nullable();
-            $table->string('SalonTejidoId')->nullable();
-            $table->float('TotalPedido')->nullable();
-            $table->float('Produccion')->nullable();
-            $table->float('SaldoPedido')->nullable();
-            $table->float('TotalPzas')->nullable();
-            $table->float('StdDia')->nullable();
-            $table->float('ProdKgDia')->nullable();
-            $table->boolean('EnProceso')->default(false);
-            $table->dateTime('FechaInicio')->nullable();
-            $table->dateTime('FechaFinal')->nullable();
-            $table->integer('OrdCompartida')->nullable();
-            $table->boolean('OrdCompartidaLider')->default(false);
-        });
+        // El modelo no declara $connection, asi que la tabla, los inserts y el listener que
+        // cuenta consultas tienen que vivir todos en la conexion por defecto.
+        $this->createTablaDesdeModelo(ReqProgramaTejido::class);
     }
 
     public function test_it_queries_each_normalized_order_only_once_per_request(): void
     {
-        DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
+        DB::table('ReqProgramaTejido')->insert([
             [
                 'NoProduccion' => 'z125691',
                 'NoTelarId' => '301',
@@ -62,7 +50,7 @@ final class TrazabilidadProgramaLookupServiceTest extends TestCase
         ]);
 
         $queries = 0;
-        DB::connection('sqlsrv')->listen(function ($query) use (&$queries): void {
+        DB::listen(function ($query) use (&$queries): void {
             if (str_contains($query->sql, 'ReqProgramaTejido')) {
                 $queries++;
             }

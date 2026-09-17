@@ -3,15 +3,19 @@
 namespace Tests\Unit;
 
 use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ConsultasDesarrolladorService;
+use App\Models\Planeacion\ReqProgramaTejido;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use ReflectionMethod;
+use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
 class ConsultasDesarrolladorServiceTest extends TestCase
 {
+    use UsesSqlsrvSqlite;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -35,16 +39,10 @@ class ConsultasDesarrolladorServiceTest extends TestCase
             $table->string('Fecha')->nullable();
         });
 
-        Schema::connection('sqlsrv')->create('ReqProgramaTejido', function (Blueprint $table) {
-            $table->increments('Id');
-            $table->string('SalonTejidoId')->nullable();
-            $table->string('NoTelarId')->nullable();
-            $table->string('NoProduccion')->nullable();
-            $table->string('FechaInicio')->nullable();
-            $table->string('TamanoClave')->nullable();
-            $table->string('NombreProducto')->nullable();
-            $table->integer('EnProceso')->default(0);
-        });
+        // AtaMontadoTelas va en 'sqlsrv' porque AtaMontadoTelasModel si declara esa conexion.
+        // ReqProgramaTejido no la declara y resuelve a la default, asi que va aparte: antes se
+        // creaba en 'sqlsrv' y el servicio la buscaba en la default, donde no existia.
+        $this->createTablaDesdeModelo(ReqProgramaTejido::class);
     }
 
     public function test_obtener_julios_por_telar_filtra_por_no_telar_id_y_tipo(): void
@@ -105,7 +103,7 @@ class ConsultasDesarrolladorServiceTest extends TestCase
 
     public function test_obtener_telares_destino_label_es_solo_no_telar_id(): void
     {
-        DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
+        DB::table('ReqProgramaTejido')->insert([
             ['SalonTejidoId' => 'S1', 'NoTelarId' => '101', 'NoProduccion' => null, 'FechaInicio' => null, 'TamanoClave' => null, 'NombreProducto' => null, 'EnProceso' => 0],
             ['SalonTejidoId' => 'S2', 'NoTelarId' => '202', 'NoProduccion' => null, 'FechaInicio' => null, 'TamanoClave' => null, 'NombreProducto' => null, 'EnProceso' => 0],
         ]);
@@ -126,7 +124,7 @@ class ConsultasDesarrolladorServiceTest extends TestCase
 
     public function test_obtener_telares_destino_value_es_salon_pipe_telar(): void
     {
-        DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
+        DB::table('ReqProgramaTejido')->insert([
             ['SalonTejidoId' => 'S1', 'NoTelarId' => '101', 'NoProduccion' => null, 'FechaInicio' => null, 'TamanoClave' => null, 'NombreProducto' => null, 'EnProceso' => 0],
             ['SalonTejidoId' => 'S2', 'NoTelarId' => '202', 'NoProduccion' => null, 'FechaInicio' => null, 'TamanoClave' => null, 'NombreProducto' => null, 'EnProceso' => 0],
         ]);
@@ -142,7 +140,7 @@ class ConsultasDesarrolladorServiceTest extends TestCase
 
     public function test_obtener_telares_destino_excluye_nulos(): void
     {
-        DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
+        DB::table('ReqProgramaTejido')->insert([
             // Valid row
             ['SalonTejidoId' => 'S1', 'NoTelarId' => '101', 'NoProduccion' => null, 'FechaInicio' => null, 'TamanoClave' => null, 'NombreProducto' => null, 'EnProceso' => 0],
             // Null salon
@@ -162,7 +160,7 @@ class ConsultasDesarrolladorServiceTest extends TestCase
 
     public function test_obtener_producciones_incluye_campo_id(): void
     {
-        DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
+        DB::table('ReqProgramaTejido')->insert([
             [
                 'SalonTejidoId' => 'S1',
                 'NoTelarId' => '101',
@@ -186,7 +184,7 @@ class ConsultasDesarrolladorServiceTest extends TestCase
 
     public function test_obtener_producciones_excluye_filas_sin_orden(): void
     {
-        DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
+        DB::table('ReqProgramaTejido')->insert([
             [
                 'SalonTejidoId' => 'S1',
                 'NoTelarId' => '101',

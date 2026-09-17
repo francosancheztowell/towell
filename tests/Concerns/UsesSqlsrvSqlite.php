@@ -73,8 +73,86 @@ trait UsesSqlsrvSqlite
         }
     }
 
+    /**
+     * Crea la tabla de un modelo derivando las columnas de su $fillable y los tipos de su
+     * $casts, todo nullable menos la PK.
+     *
+     * Existe porque ReqProgramaTejido, ReqModelosCodificados y CatCodificados tienen 166, 144
+     * y 168 columnas: enumerarlas a mano en cada test se desincroniza al primer ALTER (las
+     * columnas Barra1-4 de Karl Mayer serian el primer caso). Derivarlas del modelo mantiene
+     * el esquema de prueba al dia solo.
+     *
+     * Va en la conexion por defecto porque estos modelos no declaran $connection.
+     *
+     * @param  class-string<Model>  $modelClass
+     * @param  array<int, string>  $extra  columnas que no estan en $fillable (calculadas, legacy)
+     */
+    protected function createTablaDesdeModelo(string $modelClass, array $extra = []): void
+    {
+        $modelo = new $modelClass;
+        $schema = Schema::connection(config('database.default'));
+        $tabla = $modelo->getTable();
+
+        if ($schema->hasTable($tabla)) {
+            return;
+        }
+
+        $pk = $modelo->getKeyName();
+        $casts = $modelo->getCasts();
+        $columnas = array_values(array_unique(array_merge([$pk], $modelo->getFillable(), $extra)));
+
+        $schema->create($tabla, function (Blueprint $table) use ($columnas, $pk, $casts) {
+            foreach ($columnas as $columna) {
+                if ($columna === $pk) {
+                    // increments() y no integer()->primary(): varios tests insertan sin pasar Id.
+                    $table->increments($columna);
+
+                    continue;
+                }
+
+                $tipo = strtok((string) ($casts[$columna] ?? 'string'), ':');
+
+                match (true) {
+                    in_array($tipo, ['int', 'integer'], true) => $table->integer($columna)->nullable(),
+                    in_array($tipo, ['float', 'double', 'real', 'decimal'], true) => $table->float($columna)->nullable(),
+                    in_array($tipo, ['bool', 'boolean'], true) => $table->boolean($columna)->nullable(),
+                    in_array($tipo, ['date', 'datetime', 'immutable_date', 'immutable_datetime', 'timestamp'], true) => $table->dateTime($columna)->nullable(),
+                    default => $table->text($columna)->nullable(),
+                };
+            }
+        });
+    }
+
+    /**
+     * Adjunta un esquema sqlite llamado 'dbo' y crea una tabla dentro.
+     *
+     * Varias consultas escriben el prefijo de SQL Server a mano (dbo.ReqCalendarioLine,
+     * dbo.SSYSFoliosSecuencias). Sqlite lo lee como nombre de esquema, no como parte del
+     * nombre de la tabla, asi que basta con darle un esquema que se llame igual.
+     *
+     * @param  array<string, string>  $columnas  nombre => tipo sqlite
+     */
+    protected function createTablaDbo(string $tabla, array $columnas): void
+    {
+        $conexion = DB::connection(config('database.default'));
+
+        if (! in_array('dbo', array_column($conexion->select('PRAGMA database_list'), 'name'), true)) {
+            $conexion->statement("ATTACH DATABASE ':memory:' AS dbo");
+        }
+
+        $definicion = implode(', ', array_map(
+            fn (string $nombre, string $tipo): string => '"'.$nombre.'" '.$tipo,
+            array_keys($columnas),
+            $columnas
+        ));
+
+        $conexion->statement('CREATE TABLE IF NOT EXISTS dbo."'.$tabla.'" ('.$definicion.')');
+    }
+
     protected function createControlMermaTables(bool $includeAuthTable = false): void
     {
+        // Se queda en 'sqlsrv' a proposito: EngProduccionEngomado si declara
+        // $connection = 'sqlsrv', y estos tests pasan hoy. No tocar sin medir.
         $schema = Schema::connection('sqlsrv');
 
         $schema->create('EngProgramaEngomado', function (Blueprint $table) {
@@ -143,7 +221,9 @@ trait UsesSqlsrvSqlite
 
     protected function createTejidoPromedioParosTables(bool $includeAuthTable = false): void
     {
-        $schema = Schema::connection('sqlsrv');
+        // Ver nota en createControlMermaTables(): TejMarcas / TejEficiencia tampoco declaran
+        // $connection, por eso se creaban en 'sqlsrv' y se leian desde la default.
+        $schema = Schema::connection(config('database.default'));
 
         $schema->create('TejMarcas', function (Blueprint $table) {
             $table->string('Folio')->primary();

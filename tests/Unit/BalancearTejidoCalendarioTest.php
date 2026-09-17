@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
+use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
 /**
@@ -18,10 +19,19 @@ use Tests\TestCase;
  */
 class BalancearTejidoCalendarioTest extends TestCase
 {
+    use UsesSqlsrvSqlite;
+
     protected function setUp(): void
     {
         parent::setUp();
         BalancearTejido::clearCalendarioLinesCache();
+
+        // El caso "sin lineas" igual consulta el calendario antes de devolver null.
+        $this->createTablaDbo('ReqCalendarioLine', [
+            'CalendarioId' => 'text',
+            'FechaInicio' => 'text',
+            'FechaFin' => 'text',
+        ]);
     }
 
     // =========================================================
@@ -35,17 +45,17 @@ class BalancearTejidoCalendarioTest extends TestCase
     private function makeReg(array $attrs = []): ReqProgramaTejido
     {
         $defaults = [
-            'SaldoPedido'  => 5000,
-            'TotalPedido'  => 5000,
-            'Produccion'   => 0,
+            'SaldoPedido' => 5000,
+            'TotalPedido' => 5000,
+            'Produccion' => 0,
             'VelocidadSTD' => 100.0,
-            'EficienciaSTD'=> 0.85,
-            'NoTiras'      => 4.0,
-            'Luchaje'      => 200.0,
+            'EficienciaSTD' => 0.85,
+            'NoTiras' => 4.0,
+            'Luchaje' => 200.0,
             'Repeticiones' => 16.0,
             'CalendarioId' => null,
-            'EnProceso'    => 0,
-            'FechaInicio'  => '2026-01-01 06:00:00',
+            'EnProceso' => 0,
+            'FechaInicio' => '2026-01-01 06:00:00',
             'NombreProducto' => 'TOALLA STD',
         ];
         $reg = new ReqProgramaTejido(array_merge($defaults, $attrs));
@@ -54,6 +64,7 @@ class BalancearTejidoCalendarioTest extends TestCase
         if (isset($attrs['Total'])) {
             $reg->Total = $attrs['Total'];
         }
+
         return $reg;
     }
 
@@ -68,9 +79,10 @@ class BalancearTejidoCalendarioTest extends TestCase
         return array_map(function (array $p): array {
             $ini = Carbon::parse($p[0]);
             $fin = Carbon::parse($p[1]);
+
             return [
-                'ini'    => $ini,
-                'fin'    => $fin,
+                'ini' => $ini,
+                'fin' => $fin,
                 'ini_ts' => $ini->getTimestamp(),
                 'fin_ts' => $fin->getTimestamp(),
             ];
@@ -83,7 +95,7 @@ class BalancearTejidoCalendarioTest extends TestCase
 
     public function test_resolver_inicio_fin_sin_calendario_retorna_inicio_sin_snap(): void
     {
-        $reg    = $this->makeReg(['CalendarioId' => null, 'SaldoPedido' => 0]);
+        $reg = $this->makeReg(['CalendarioId' => null, 'SaldoPedido' => 0]);
         $inicio = Carbon::parse('2026-01-05 08:00:00');
 
         [$ini, $fin, $horas] = BalancearTejido::resolverInicioFin($inicio->copy(), $reg);
@@ -97,7 +109,7 @@ class BalancearTejidoCalendarioTest extends TestCase
 
     public function test_resolver_inicio_fin_repaso_fallback_usa_12_horas(): void
     {
-        $reg    = $this->makeReg(['CalendarioId' => null, 'SaldoPedido' => 0, 'NombreProducto' => 'REPASO ESPECIAL']);
+        $reg = $this->makeReg(['CalendarioId' => null, 'SaldoPedido' => 0, 'NombreProducto' => 'REPASO ESPECIAL']);
         $inicio = Carbon::parse('2026-01-05 08:00:00');
 
         [, $fin, $horas] = BalancearTejido::resolverInicioFin($inicio->copy(), $reg);
@@ -110,7 +122,7 @@ class BalancearTejidoCalendarioTest extends TestCase
     {
         // Inicio cae en GAP (fuera de cualquier línea de calendario)
         // Pero con aplicarSnap=false, el inicio no debe moverse
-        $reg    = $this->makeReg(['CalendarioId' => null, 'SaldoPedido' => 0]);
+        $reg = $this->makeReg(['CalendarioId' => null, 'SaldoPedido' => 0]);
         $inicio = Carbon::parse('2026-01-05 03:00:00'); // hora de madrugada
 
         [$ini] = BalancearTejido::resolverInicioFin($inicio->copy(), $reg, false);
@@ -129,13 +141,14 @@ class BalancearTejidoCalendarioTest extends TestCase
         ]);
 
         $consumidos = 0;
-        $cursor     = Carbon::parse('2026-01-01 06:00:00');
+        $cursor = Carbon::parse('2026-01-01 06:00:00');
 
         [$cursorFinal, $exhausted] = BalancearTejido::iterarLineasActivas(
             $lines,
             $cursor,
             function (int $disponibles) use (&$consumidos): array {
                 $consumidos += $disponibles;
+
                 return [$disponibles, false]; // consumir todo y parar
             }
         );
@@ -153,13 +166,14 @@ class BalancearTejidoCalendarioTest extends TestCase
         ]);
 
         $segmentos = 0;
-        $cursor    = Carbon::parse('2026-01-01 06:00:00'); // antes de la primera línea
+        $cursor = Carbon::parse('2026-01-01 06:00:00'); // antes de la primera línea
 
         BalancearTejido::iterarLineasActivas(
             $lines,
             $cursor,
             function (int $disponibles) use (&$segmentos): array {
                 $segmentos++;
+
                 return [$disponibles, true]; // consumir y continuar
             }
         );
@@ -239,7 +253,7 @@ class BalancearTejidoCalendarioTest extends TestCase
         // luego inyectando vía Reflection.
         BalancearTejido::clearCalendarioLinesCache();
 
-        $ref  = new \ReflectionClass(BalancearTejido::class);
+        $ref = new \ReflectionClass(BalancearTejido::class);
         $prop = $ref->getProperty('calLinesCache');
         $prop->setAccessible(true);
         $prop->setValue(null, [$calId => $lines]);
@@ -317,14 +331,14 @@ class BalancearTejidoCalendarioTest extends TestCase
         ]));
 
         $inicio = Carbon::parse('2026-01-01 06:00:00');
-        $horas  = 12.0;
+        $horas = 12.0;
 
         $fin = BalancearTejido::calcularFechaFinalDesdeInicio($calId, $inicio, $horas);
         $this->assertNotNull($fin, 'Debe haber suficientes horas en el calendario');
 
         // Ahora usamos calcularHorasDisponiblesHastaFecha para verificar la inversa
         // El método es private, lo invocamos vía Reflection
-        $ref    = new \ReflectionClass(BalancearTejido::class);
+        $ref = new \ReflectionClass(BalancearTejido::class);
         $method = $ref->getMethod('calcularHorasDisponiblesHastaFecha');
         $method->setAccessible(true);
 

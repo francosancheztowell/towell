@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Mantenimiento\ManFallasParos;
 use App\Models\Mecanicos\MecOrdenTrabajoLineModel;
 use App\Models\Mecanicos\MecOrdenTrabajoModel;
+use App\Models\Planeacion\ReqTelares;
 use App\Models\Sistema\SSYSFoliosSecuencia;
 use App\Models\Sistema\SYSRoles;
 use App\Models\Sistema\Usuario;
@@ -855,6 +856,10 @@ class OrdenesTrabajoMecaController extends Controller
      */
     private function catalogoTelares(): array
     {
+        $salones = ReqTelares::query()
+            ->pluck('SalonTejidoId', 'NoTelarId')
+            ->all();
+
         return URDCatalogoMaquina::query()
             ->select('MaquinaId', 'Nombre', 'Departamento')
             ->whereNotNull('MaquinaId')
@@ -862,15 +867,13 @@ class OrdenesTrabajoMecaController extends Controller
             ->orderBy('Departamento')
             ->orderBy('MaquinaId')
             ->get()
-            ->map(function (URDCatalogoMaquina $maquina): array {
+            ->map(function (URDCatalogoMaquina $maquina) use ($salones): array {
                 $maquinaId = trim((string) $maquina->MaquinaId);
-                $nombre = trim((string) $maquina->Nombre);
-                $departamento = trim((string) $maquina->Departamento);
-                $label = $nombre !== '' ? "{$maquinaId} — {$nombre}" : $maquinaId;
+                $salon = trim((string) ($salones[$maquinaId] ?? ''));
 
                 return [
                     'id' => $maquinaId,
-                    'label' => $departamento !== '' ? "{$departamento} · {$label}" : $label,
+                    'label' => $salon !== '' ? "{$maquinaId} · Salón {$salon}" : $maquinaId,
                 ];
             })
             ->filter(fn (array $item): bool => $item['id'] !== '')

@@ -62,6 +62,16 @@ class ProgramBoardReadServiceTest extends TestCase
             $table->text('Observaciones')->nullable();
             $table->string('BomFormula')->nullable();
         });
+
+        // El servicio marca que folios ya tienen produccion capturada en AX; sin estas dos
+        // tablas la consulta truena antes de llegar a las aserciones.
+        foreach (['UrdProduccionUrdido', 'EngProduccionEngomado'] as $tabla) {
+            Schema::connection('sqlsrv')->create($tabla, function (Blueprint $table): void {
+                $table->increments('Id');
+                $table->string('Folio')->nullable();
+                $table->boolean('AX')->default(false);
+            });
+        }
     }
 
     public function test_urdido_is_sorted_in_sql_and_grouped_by_machine(): void
@@ -158,7 +168,15 @@ class ProgramBoardReadServiceTest extends TestCase
         );
         $queries = DB::connection('sqlsrv')->getQueryLog();
 
-        $this->assertCount(2, $queries);
+        // Lo que importa es que el estatus de urdido se resuelva de un solo golpe para los dos
+        // folios, no uno por orden. Contar el total de consultas ataba el test a cuantas hace el
+        // board en total, que ya incluye la del bloqueo por AX.
+        $consultasUrdido = array_filter(
+            $queries,
+            fn (array $query): bool => str_contains($query['query'], 'UrdProgramaUrdido')
+        );
+
+        $this->assertCount(1, $consultasUrdido);
         $this->assertTrue($board['lanes'][0]['orders'][0]['urdido_finished']);
         $this->assertFalse($board['lanes'][1]['orders'][0]['urdido_finished']);
     }

@@ -4,13 +4,18 @@ namespace Tests\Unit;
 
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqModelosCodificados;
+use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
 class ReqModeloCodificadoBusquedaTest extends TestCase
 {
+    use UsesSqlsrvSqlite;
+
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->createTablaDesdeModelo(ReqModelosCodificados::class);
     }
 
     public function test_busqueda_exacta_encuentra_registro(): void
