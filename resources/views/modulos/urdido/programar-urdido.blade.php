@@ -994,13 +994,17 @@
                         const respuesta = await Swal.fire({
                             icon: yaIncorrecta ? 'warning' : 'question',
                             title: '¿La cuenta/calibre es correcta?',
-                            html: `<p class="text-sm text-gray-600">Cuenta/Calibre: <strong>${orden?.cuenta_calibre || '—'}</strong></p>`
+                            html: `<p class="text-sm text-gray-500">Folio: <strong>${orden?.folio || '—'}</strong></p>`
+                                + `<p class="mt-1 text-2xl font-bold text-gray-800">${orden?.cuenta_calibre || '—'}</p>`
                                 + (yaIncorrecta ? '<p class="mt-2 text-sm text-red-600">Esta orden está marcada como incorrecta. Solo un supervisor puede liberarla.</p>' : ''),
                             showDenyButton: true,
+                            showCancelButton: true,
                             confirmButtonText: 'Sí, es correcta',
                             denyButtonText: yaIncorrecta ? 'Sigue incorrecta' : 'No',
+                            cancelButtonText: 'Cancelar',
                             confirmButtonColor: '#2563eb',
                             denyButtonColor: '#dc2626',
+                            cancelButtonColor: '#6b7280',
                             allowOutsideClick: false,
                         });
 
