@@ -135,22 +135,58 @@ class OrdenesTrabajoMecaController extends Controller
             'fecha' => ['nullable', 'date'],
             'estatus' => ['nullable', 'string', 'max:15'],
             'buscar' => ['nullable', 'string', 'max:100'],
+            'folio' => ['nullable', 'string', 'max:30'],
+            'telar' => ['nullable', 'string', 'max:50'],
+            'folio_paro' => ['nullable', 'string', 'max:30'],
+            'orden' => ['nullable', 'string', 'max:20'],
+            'falla' => ['nullable', 'string', 'max:150'],
+            'turno' => ['nullable', 'string', 'max:5'],
+            'mecanico' => ['nullable', 'string', 'max:150'],
         ]);
 
+        $like = static fn (string $valor): string => '%'.trim($valor).'%';
         $buscar = trim((string) ($datos['buscar'] ?? ''));
+        $mecanico = trim((string) ($datos['mecanico'] ?? ''));
 
         $ordenes = MecOrdenTrabajoModel::query()
-            ->with(['lineas' => fn ($query) => $query->orderBy('Id')])
-            ->withCount('lineas')
+            ->addSelect([
+                'NomMecanico' => MecOrdenTrabajoLineModel::query()
+                    ->select('NomOperador')
+                    ->whereColumn('MecOrdenTrabajoLine.Folio', 'MecOrdenTrabajoTable.Folio')
+                    ->whereNotNull('NomOperador')
+                    ->where('NomOperador', '!=', '')
+                    ->orderBy('Id')
+                    ->limit(1),
+            ])
             ->when($datos['fecha'] ?? null, fn ($query, $fecha) => $query->whereDate('Fecha', $fecha))
             ->when($datos['estatus'] ?? null, fn ($query, $estatus) => $query->where('Estatus', $estatus))
-            ->when($buscar !== '', function ($query) use ($buscar) {
-                $query->where(function ($subquery) use ($buscar) {
-                    $subquery->where('Folio', 'like', "%{$buscar}%")
-                        ->orWhere('TelarId', 'like', "%{$buscar}%")
-                        ->orWhere('FolioParo', 'like', "%{$buscar}%")
-                        ->orWhere('Falla', 'like', "%{$buscar}%")
-                        ->orWhere('Orden', 'like', "%{$buscar}%");
+            ->when(trim((string) ($datos['folio'] ?? '')) !== '', fn ($query) => $query->where('Folio', 'like', $like($datos['folio'])))
+            ->when(trim((string) ($datos['telar'] ?? '')) !== '', fn ($query) => $query->where('TelarId', 'like', $like($datos['telar'])))
+            ->when(trim((string) ($datos['folio_paro'] ?? '')) !== '', fn ($query) => $query->where('FolioParo', 'like', $like($datos['folio_paro'])))
+            ->when(trim((string) ($datos['orden'] ?? '')) !== '', fn ($query) => $query->where('Orden', 'like', $like($datos['orden'])))
+            ->when(trim((string) ($datos['falla'] ?? '')) !== '', fn ($query) => $query->where('Falla', 'like', $like($datos['falla'])))
+            ->when(trim((string) ($datos['turno'] ?? '')) !== '', fn ($query) => $query->where('Turno', trim((string) $datos['turno'])))
+            ->when($mecanico !== '', function ($query) use ($mecanico, $like) {
+                $query->whereExists(function ($exists) use ($mecanico, $like) {
+                    $exists->selectRaw('1')
+                        ->from('MecOrdenTrabajoLine')
+                        ->whereColumn('MecOrdenTrabajoLine.Folio', 'MecOrdenTrabajoTable.Folio')
+                        ->where('NomOperador', 'like', $like($mecanico));
+                });
+            })
+            ->when($buscar !== '', function ($query) use ($buscar, $like) {
+                $query->where(function ($subquery) use ($buscar, $like) {
+                    $subquery->where('Folio', 'like', $like($buscar))
+                        ->orWhere('TelarId', 'like', $like($buscar))
+                        ->orWhere('FolioParo', 'like', $like($buscar))
+                        ->orWhere('Falla', 'like', $like($buscar))
+                        ->orWhere('Orden', 'like', $like($buscar))
+                        ->orWhereExists(function ($exists) use ($buscar, $like) {
+                            $exists->selectRaw('1')
+                                ->from('MecOrdenTrabajoLine')
+                                ->whereColumn('MecOrdenTrabajoLine.Folio', 'MecOrdenTrabajoTable.Folio')
+                                ->where('NomOperador', 'like', $like($buscar));
+                        });
                 });
             })
             ->tap(fn (Builder $query) => $this->aplicarFiltroTelaresTejedor($query))

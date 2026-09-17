@@ -184,32 +184,29 @@
         </section>
         @endif
 
-        {{-- Tabla de renglones --}}
+        {{-- Tabla de renglones: table-fixed + padding/texto por breakpoint para que quepa sin min-width. --}}
         <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-            <div class="border-b border-gray-100 px-3 py-2 text-xs text-gray-500 xl:hidden">
-                <i class="fas fa-arrows-alt-h mr-1"></i> Desliza horizontalmente para ver todas las columnas.
-            </div>
-            <div class="max-w-full overflow-x-auto overscroll-x-contain" tabindex="0" aria-label="Tabla de intervenciones; desplázate horizontalmente para ver todas las columnas">
-                <table class="min-w-[1280px] w-full divide-y divide-gray-200 text-sm md:min-w-[1460px]">
-                    <thead class="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-600">
+            <div class="max-w-full overflow-auto overscroll-contain select-text" tabindex="0" aria-label="Tabla de intervenciones">
+                <table class="w-full table-fixed border-collapse text-[9px] leading-tight sm:text-[10px] md:text-xs lg:text-sm">
+                    <thead class="bg-gray-50 font-semibold text-gray-600">
                         <tr>
-                            <th class="whitespace-nowrap px-3 py-2.5 text-left">Clave</th>
-                            <th class="min-w-40 px-3 py-2.5 text-left">Mecánico</th>
-                            <th class="px-2 py-2.5 text-center">Turno</th>
-                            <th class="whitespace-nowrap px-3 py-2.5 text-center">Fecha</th>
-                            <th class="px-2 py-2.5 text-center">Ajustó</th>
-                            <th class="px-2 py-2.5 text-center">Reparó</th>
-                            <th class="px-2 py-2.5 text-center">Cambió</th>
-                            <th class="px-2 py-2.5 text-center">Lubricó</th>
-                            <th class="whitespace-nowrap px-2 py-2.5 text-center">Falta ref.</th>
-                            <th class="whitespace-nowrap px-3 py-2.5 text-center">H. inicial</th>
-                            <th class="whitespace-nowrap px-3 py-2.5 text-center">H. final</th>
-                            <th class="whitespace-nowrap px-3 py-2.5 text-center">Tiempo</th>
-                            <th class="min-w-48 px-3 py-2.5 text-left">Comentarios</th>
-                            <th class="px-2 py-2.5 text-center">Calif.</th>
-                            <th class="whitespace-nowrap px-3 py-2.5 text-left">Cve. tej.</th>
-                            <th class="min-w-40 px-3 py-2.5 text-left">Nombre tejedor</th>
-                            <th class="sticky right-0 whitespace-nowrap bg-gray-50 px-3 py-2.5 text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)]">Acciones</th>
+                            <th class="hidden truncate px-0.5 py-1 text-left sm:table-cell sm:px-1 md:px-1.5 md:py-1.5">Clave</th>
+                            <th class="truncate px-0.5 py-1 text-left sm:px-1 md:px-1.5 md:py-1.5">Mecánico</th>
+                            <th class="px-0.5 py-1 text-center sm:px-1 md:px-1.5 md:py-1.5"><span class="lg:hidden">T</span><span class="hidden lg:inline">Turno</span></th>
+                            <th class="truncate px-0.5 py-1 text-center sm:px-1 md:px-1.5 md:py-1.5">Fecha</th>
+                            <th class="px-0.5 py-1 text-center sm:px-1 md:py-1.5" title="Ajustó"><span class="lg:hidden">Aj</span><span class="hidden lg:inline">Ajustó</span></th>
+                            <th class="px-0.5 py-1 text-center sm:px-1 md:py-1.5" title="Reparó"><span class="lg:hidden">Re</span><span class="hidden lg:inline">Reparó</span></th>
+                            <th class="px-0.5 py-1 text-center sm:px-1 md:py-1.5" title="Cambió"><span class="lg:hidden">Ca</span><span class="hidden lg:inline">Cambió</span></th>
+                            <th class="px-0.5 py-1 text-center sm:px-1 md:py-1.5" title="Lubricó"><span class="lg:hidden">Lu</span><span class="hidden lg:inline">Lubricó</span></th>
+                            <th class="px-0.5 py-1 text-center sm:px-1 md:py-1.5" title="Falta refacción"><span class="lg:hidden">Fr</span><span class="hidden lg:inline">Falta ref.</span></th>
+                            <th class="truncate px-0.5 py-1 text-center sm:px-1 md:px-1.5 md:py-1.5"><span class="lg:hidden">Ini</span><span class="hidden lg:inline">H. inicial</span></th>
+                            <th class="truncate px-0.5 py-1 text-center sm:px-1 md:px-1.5 md:py-1.5"><span class="lg:hidden">Fin</span><span class="hidden lg:inline">H. final</span></th>
+                            <th class="truncate px-0.5 py-1 text-center sm:px-1 md:px-1.5 md:py-1.5">Min</th>
+                            <th class="truncate px-0.5 py-1 text-left sm:px-1 md:px-1.5 md:py-1.5">Comentarios</th>
+                            <th class="px-0.5 py-1 text-center sm:px-1 md:py-1.5"><span class="lg:hidden">Cal</span><span class="hidden lg:inline">Calif.</span></th>
+                            <th class="hidden truncate px-0.5 py-1 text-left md:table-cell md:px-1.5 md:py-1.5">Cve.tej</th>
+                            <th class="truncate px-0.5 py-1 text-left sm:px-1 md:px-1.5 md:py-1.5">Tejedor</th>
+                            <th class="sticky right-0 truncate bg-gray-50 px-0.5 py-1 text-right sm:px-1 md:px-1.5 md:py-1.5">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="lineas-body" class="divide-y divide-gray-100 bg-white"></tbody>
@@ -369,7 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         lineasBody.innerHTML = lineas.map(linea => {
             const califCell = puedeCalificar
-                ? `<select data-calificacion-linea="${linea.Id}" class="min-h-9 w-16 rounded border border-gray-300 px-1 py-1 text-sm outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600">${opcionesCalificacion(linea.Calificacion)}</select>`
+                ? `<select data-calificacion-linea="${linea.Id}" class="min-h-7 w-11 rounded border border-gray-300 px-0.5 py-0.5 text-[10px] outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 sm:min-h-8 sm:w-14 sm:text-xs md:min-h-9 md:w-16 md:text-sm">${opcionesCalificacion(linea.Calificacion)}</select>`
                 : display(linea.Calificacion);
 
             const cveCell = puedeCalificar
@@ -389,25 +386,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${puedeEliminar && lineas.length > 1 ? `<button type="button" data-action="eliminar" data-linea-id="${linea.Id}" class="ml-1 rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-700 transition hover:bg-red-50">Eliminar</button>` : ''}`;
             }
 
+            const td = 'truncate px-0.5 py-1 sm:px-1 md:px-1.5 md:py-1.5';
             return `
             <tr class="group transition hover:bg-gray-50">
-                <td class="whitespace-nowrap px-3 py-2.5 text-gray-700">${display(linea.CveOperador)}</td>
-                <td class="px-3 py-2.5 font-medium text-gray-800">${display(linea.NomOperador)}</td>
-                <td class="px-2 py-2.5 text-center text-gray-700">${display(linea.Turno)}</td>
-                <td class="whitespace-nowrap px-3 py-2.5 text-center text-gray-700">${dateDisplay(linea.Fecha)}</td>
-                <td class="px-2 py-2.5 text-center">${iconoBooleano(linea.Ajusto)}</td>
-                <td class="px-2 py-2.5 text-center">${iconoBooleano(linea.Reparo)}</td>
-                <td class="px-2 py-2.5 text-center">${iconoBooleano(linea.Cambio)}</td>
-                <td class="px-2 py-2.5 text-center">${iconoBooleano(linea.Lubrico)}</td>
-                <td class="px-2 py-2.5 text-center">${iconoBooleano(linea.FaltaRefacc)}</td>
-                <td class="whitespace-nowrap px-3 py-2.5 text-center text-gray-700">${display(timeInputValue(linea.HoraInicial))}</td>
-                <td class="whitespace-nowrap px-3 py-2.5 text-center text-gray-700">${display(timeInputValue(linea.HoraFinal))}</td>
-                <td class="whitespace-nowrap px-3 py-2.5 text-center text-gray-700">${linea.TotalMinutos == null ? '—' : `${linea.TotalMinutos} min`}</td>
-                <td class="px-3 py-2.5 text-gray-700"><span class="line-clamp-2" title="${escapeHtml(linea.comentarios ?? '')}">${display(linea.comentarios)}</span></td>
-                <td class="px-2 py-2.5 text-center text-gray-700">${califCell}</td>
-                <td class="whitespace-nowrap px-3 py-2.5 text-gray-700">${cveCell}</td>
-                <td class="px-3 py-2.5 text-gray-800">${nomCell}</td>
-                <td class="sticky right-0 whitespace-nowrap bg-white px-3 py-2.5 text-right shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)] group-hover:bg-gray-50">${acciones}</td>
+                <td class="hidden ${td} text-gray-700 sm:table-cell">${display(linea.CveOperador)}</td>
+                <td class="${td} font-medium text-gray-800" title="${escapeHtml(linea.NomOperador ?? '')}">${display(linea.NomOperador)}</td>
+                <td class="${td} text-center text-gray-700">${display(linea.Turno)}</td>
+                <td class="${td} text-center text-gray-700">${dateDisplay(linea.Fecha)}</td>
+                <td class="${td} text-center">${iconoBooleano(linea.Ajusto)}</td>
+                <td class="${td} text-center">${iconoBooleano(linea.Reparo)}</td>
+                <td class="${td} text-center">${iconoBooleano(linea.Cambio)}</td>
+                <td class="${td} text-center">${iconoBooleano(linea.Lubrico)}</td>
+                <td class="${td} text-center">${iconoBooleano(linea.FaltaRefacc)}</td>
+                <td class="${td} text-center text-gray-700">${display(timeInputValue(linea.HoraInicial))}</td>
+                <td class="${td} text-center text-gray-700">${display(timeInputValue(linea.HoraFinal))}</td>
+                <td class="${td} text-center text-gray-700">${linea.TotalMinutos == null ? '—' : linea.TotalMinutos}</td>
+                <td class="${td} text-gray-700" title="${escapeHtml(linea.comentarios ?? '')}">${display(linea.comentarios)}</td>
+                <td class="${td} text-center text-gray-700">${califCell}</td>
+                <td class="hidden ${td} text-gray-700 md:table-cell">${cveCell}</td>
+                <td class="${td} text-gray-800" title="${escapeHtml(linea.NomTejedor ?? '')}">${nomCell}</td>
+                <td class="sticky right-0 ${td} bg-white text-right group-hover:bg-gray-50">${acciones}</td>
             </tr>`;
         }).join('');
     }

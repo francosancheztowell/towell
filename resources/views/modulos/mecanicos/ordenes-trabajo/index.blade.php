@@ -3,7 +3,7 @@
 @section('page-title', 'Órdenes de trabajo')
 
 @section('navbar-right')
-    <div class="flex items-center gap-2">
+    <div class="relative flex items-center gap-2">
         <x-navbar.button-report
             id="btn-filtrar-ordenes-trabajo"
             title="Filtrar órdenes"
@@ -25,67 +25,102 @@
 @endsection
 
 @section('content')
-<div class="flex h-[calc(100vh-64px)] w-full flex-col overflow-hidden p-3 sm:p-4 md:p-5">
-    <div class="mx-auto flex min-h-0 w-full max-w-[96rem] flex-1 flex-col">
-        <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-            <div
-                class="min-h-0 flex-1 overflow-auto overscroll-contain"
-                tabindex="0"
-                aria-label="Tabla de órdenes de trabajo"
-            >
-                <table id="tabla-ordenes" class="w-full min-w-[1100px] divide-y divide-gray-200 text-sm">
-                    <thead class="sticky top-0 z-10 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 shadow-sm">
-                        <tr>
-                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Folio</th>
-                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Status</th>
-                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Fecha</th>
-                            <th class="min-w-44 bg-gray-50 px-5 py-4">Mecánico</th>
-                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4 text-center">Turno</th>
-                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Folio de paro</th>
-                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Telar</th>
-                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Orden</th>
-                            <th class="min-w-52 bg-gray-50 px-5 py-4">Falla</th>
-                            <th class="whitespace-nowrap bg-gray-50 px-5 py-4 text-right">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ordenes-body" class="divide-y divide-gray-100 bg-white">
-                        <tr>
-                            <td colspan="10" class="px-5 py-12 text-center text-sm text-gray-500">
-                                Cargando órdenes de trabajo…
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+@php
+    $th = 'group/th relative border border-gray-300 bg-gray-100 px-0.5 py-1 text-center font-semibold text-gray-700 sm:px-1 sm:py-1.5 md:px-1.5 md:py-2 lg:px-2';
+@endphp
+<div class="flex h-[calc(100vh-64px)] w-full flex-col overflow-hidden p-1 sm:p-2 md:p-3">
+    <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+        <div
+            class="min-h-0 flex-1 overflow-auto overscroll-contain select-text"
+            tabindex="0"
+            aria-label="Tabla de órdenes de trabajo"
+        >
+            <table id="tabla-ordenes" class="w-full table-fixed border-collapse border border-gray-300 text-[10px] leading-tight sm:text-xs md:text-sm">
+                <colgroup>
+                    <col class="w-[11%]">
+                    <col class="w-[11%]">
+                    <col class="w-[9%]">
+                    <col class="w-[14%]">
+                    <col class="w-[6%]">
+                    <col class="w-[10%]">
+                    <col class="w-[7%]">
+                    <col class="w-[8%]">
+                    <col class="w-[11%]">
+                    <col class="w-[13%]">
+                </colgroup>
+                <thead class="sticky top-0 z-10 bg-gray-100 text-gray-700 shadow-sm">
+                    <tr>
+                        <th class="{{ $th }}" data-col="folio">Folio <i class="fas fa-filter ml-0.5 text-[8px] text-gray-400 sm:text-[10px]"></i></th>
+                        <th class="{{ $th }}" data-col="estatus">Status <i class="fas fa-filter ml-0.5 text-[8px] text-gray-400 sm:text-[10px]"></i></th>
+                        <th class="{{ $th }}" data-col="fecha">Fecha <i class="fas fa-filter ml-0.5 text-[8px] text-gray-400 sm:text-[10px]"></i></th>
+                        <th class="{{ $th }}" data-col="mecanico">Mecánico <i class="fas fa-filter ml-0.5 text-[8px] text-gray-400 sm:text-[10px]"></i></th>
+                        <th class="{{ $th }}" data-col="turno">Turno <i class="fas fa-filter ml-0.5 text-[8px] text-gray-400 sm:text-[10px]"></i></th>
+                        <th class="{{ $th }}" data-col="folio_paro">Folio paro <i class="fas fa-filter ml-0.5 text-[8px] text-gray-400 sm:text-[10px]"></i></th>
+                        <th class="{{ $th }}" data-col="telar">Telar <i class="fas fa-filter ml-0.5 text-[8px] text-gray-400 sm:text-[10px]"></i></th>
+                        <th class="{{ $th }}" data-col="orden">Orden <i class="fas fa-filter ml-0.5 text-[8px] text-gray-400 sm:text-[10px]"></i></th>
+                        <th class="{{ $th }}" data-col="falla">Falla <i class="fas fa-filter ml-0.5 text-[8px] text-gray-400 sm:text-[10px]"></i></th>
+                        <th class="{{ $th }}">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="ordenes-body" class="bg-white">
+                    <tr>
+                        <td colspan="10" class="px-3 py-10 text-center text-xs text-gray-500 sm:text-sm">
+                            Cargando órdenes de trabajo…
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<div id="panel-filtros" class="fixed right-2 z-40 mt-1 hidden w-[min(calc(100%-1rem),24rem)] rounded-lg border border-gray-200 bg-white p-3 shadow-xl sm:right-4 sm:p-4" style="top: 64px;" role="dialog" aria-labelledby="titulo-panel-filtros">
+    <div class="mb-3 flex items-center justify-between">
+        <h2 id="titulo-panel-filtros" class="text-sm font-bold text-gray-900 sm:text-base">Filtrar órdenes</h2>
+        <button type="button" id="btn-cerrar-filtros" class="flex h-8 w-8 items-center justify-center rounded-full text-xl leading-none text-gray-500 hover:bg-gray-100" aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="space-y-3">
+        <div>
+            <label for="filtro-buscar" class="mb-1 block text-xs font-medium text-gray-700">Buscar</label>
+            <input id="filtro-buscar" type="search" maxlength="100" placeholder="Folio, telar, paro, falla, orden o mecánico…"
+                class="min-h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+        </div>
+        <div>
+            <label for="filtro-fecha" class="mb-1 block text-xs font-medium text-gray-700">Fecha</label>
+            <input id="filtro-fecha" type="date"
+                class="min-h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+            <p class="mt-1 text-xs text-gray-500">Vacío = todos los registros.</p>
+        </div>
+        <div>
+            <p class="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">Estatus</p>
+            <div class="grid grid-cols-2 gap-2" id="filtro-estatus-opciones" role="group" aria-label="Estatus">
+                <button type="button" data-estatus="" class="filtro-estatus-btn">Todos</button>
+                <button type="button" data-estatus="Activo" class="filtro-estatus-btn">Activo</button>
+                <button type="button" data-estatus="Terminado" class="filtro-estatus-btn">Finalizado</button>
+                <button type="button" data-estatus="Calificado" class="filtro-estatus-btn">Calificado</button>
+                <button type="button" data-estatus="Autorizado" class="filtro-estatus-btn">Autorizado</button>
+                <button type="button" data-estatus="Cancelado" class="filtro-estatus-btn">Cancelado</button>
             </div>
-        </section>
+        </div>
+        <div id="chips-filtros" class="flex flex-wrap items-center gap-1.5 border-t border-gray-100 pt-2"></div>
     </div>
 </div>
 
-<div id="modal-filtros" class="fixed inset-0 z-50 hidden items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-filtros-ordenes">
-    <div class="w-full max-w-md rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
-        <div class="flex items-center justify-between border-b border-gray-200 px-4 py-4 sm:px-5">
-            <h2 id="titulo-modal-filtros-ordenes" class="text-lg font-bold text-gray-900">Filtrar órdenes</h2>
-            <button type="button" data-close-modal="modal-filtros" class="flex h-10 w-10 items-center justify-center rounded-full text-2xl leading-none text-gray-500 transition hover:bg-gray-100 hover:text-gray-900" aria-label="Cerrar">&times;</button>
-        </div>
+<div id="menu-columna" class="fixed z-[70] hidden min-w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg" role="menu">
+    <button type="button" data-menu="filtrar" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50" role="menuitem">
+        <i class="fas fa-filter text-amber-500"></i> Filtrar esta columna
+    </button>
+    <button type="button" data-menu="quitar" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50" role="menuitem">
+        <i class="fas fa-times text-gray-400"></i> Quitar filtro
+    </button>
+</div>
 
-        <div class="space-y-4 p-4 sm:p-5">
-            <div>
-                <label for="filtro-fecha" class="mb-1 block text-xs font-medium text-gray-700">Fecha</label>
-                <input id="filtro-fecha" type="date"
-                    class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                <p class="mt-1 text-xs text-gray-500">Dejar vacío para ver todos los registros.</p>
-            </div>
-
-            <p class="text-xs font-medium uppercase tracking-wide text-gray-500">Estatus</p>
-            <div class="grid grid-cols-2 gap-3" id="filtro-estatus-opciones">
-                <button type="button" data-estatus="" class="filtro-estatus-btn min-h-14 rounded-xl border border-gray-300 bg-white px-3 py-3 text-base font-bold text-gray-700 transition active:scale-[0.98]">Todos</button>
-                <button type="button" data-estatus="Activo" class="filtro-estatus-btn min-h-14 rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 text-base font-bold text-blue-800 transition active:scale-[0.98]">Activo</button>
-                <button type="button" data-estatus="Terminado" class="filtro-estatus-btn min-h-14 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-base font-bold text-amber-800 transition active:scale-[0.98]">Finalizado</button>
-                <button type="button" data-estatus="Calificado" class="filtro-estatus-btn min-h-14 rounded-xl border border-violet-200 bg-violet-50 px-3 py-3 text-base font-bold text-violet-800 transition active:scale-[0.98]">Calificado</button>
-                <button type="button" data-estatus="Autorizado" class="filtro-estatus-btn min-h-14 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-base font-bold text-emerald-800 transition active:scale-[0.98]">Autorizado</button>
-                <button type="button" data-estatus="Cancelado" class="filtro-estatus-btn min-h-14 rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-base font-bold text-red-800 transition active:scale-[0.98]">Cancelado</button>
-            </div>
-        </div>
+<div id="popover-columna" class="fixed z-[71] hidden w-64 rounded-md border border-gray-200 bg-white p-3 shadow-xl">
+    <p id="popover-columna-titulo" class="mb-2 text-sm font-semibold text-gray-800"></p>
+    <input id="popover-columna-valor" class="min-h-10 w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+    <div class="mt-2 flex justify-end gap-2">
+        <button type="button" id="popover-columna-quitar" class="rounded-md px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100">Quitar</button>
+        <button type="button" id="popover-columna-aplicar" class="rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-black">Aplicar</button>
     </div>
 </div>
 
@@ -131,7 +166,6 @@
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                     <label for="cabecera-telar" class="mb-1 block text-xs font-medium text-gray-700">Máquina <span class="text-red-600">*</span></label>
-                    {{-- Al crear se refleja desde el selector de arriba; solo se edita en edición de cabecera. --}}
                     <input id="cabecera-telar" name="TelarId" maxlength="50" required placeholder="Ej. 201"
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                 </div>
@@ -186,174 +220,6 @@
         </form>
     </div>
 </div>
-
-<div id="modal-detalle" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-2 sm:p-4 md:p-6" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-detalle">
-    <div class="flex max-h-[calc(100vh-1rem)] w-full max-w-[96rem] flex-col overflow-hidden rounded-lg bg-white shadow-2xl sm:max-h-[calc(100vh-2rem)]">
-        <div class="flex shrink-0 items-start justify-between gap-3 border-b border-gray-200 px-4 py-3 sm:px-5 sm:py-4">
-            <div>
-                <h2 id="titulo-modal-detalle" class="text-lg font-bold text-gray-900">Detalle de orden</h2>
-                <p id="detalle-resumen" class="mt-1 text-sm text-gray-600"></p>
-            </div>
-            <button type="button" data-close-modal="modal-detalle" class="rounded p-1 text-xl leading-none text-gray-500 transition hover:bg-gray-100 hover:text-gray-900" aria-label="Cerrar">&times;</button>
-        </div>
-
-        <div class="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5">
-            <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p class="text-sm text-gray-600">Cada renglón representa la intervención de un mecánico.</p>
-                <div class="flex flex-wrap gap-2">
-                    <button id="btn-editar-cabecera" type="button" class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
-                        <i class="fas fa-pen mr-1"></i> Editar cabecera
-                    </button>
-                    <button id="btn-agregar-linea" type="button" class="rounded-md bg-gray-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-black">
-                        <i class="fas fa-plus mr-1"></i> Agregar renglón
-                    </button>
-                </div>
-            </div>
-
-            <div class="mb-2 text-xs text-gray-500 lg:hidden">
-                <i class="fas fa-arrows-alt-h mr-1"></i> Desliza horizontalmente para consultar todos los datos de cada intervención.
-            </div>
-            <div class="max-w-full overflow-x-auto overscroll-x-contain rounded-md border border-gray-200" tabindex="0" aria-label="Tabla de intervenciones; desplázate horizontalmente para ver todas las columnas">
-                <table id="tabla-lineas" class="min-w-[1500px] divide-y divide-gray-200 text-xs">
-                    <thead class="bg-gray-50 font-semibold uppercase tracking-wide text-gray-600">
-                        <tr>
-                            <th class="px-3 py-3 text-left">Mecánico</th>
-                            <th class="px-2 py-3 text-center">Turno</th>
-                            <th class="whitespace-nowrap px-3 py-3 text-center">Fecha</th>
-                            <th class="px-2 py-3 text-center">Ajustó</th>
-                            <th class="px-2 py-3 text-center">Reparó</th>
-                            <th class="px-2 py-3 text-center">Cambió</th>
-                            <th class="px-2 py-3 text-center">Lubricó</th>
-                            <th class="px-2 py-3 text-center">Falta refacc.</th>
-                            <th class="px-3 py-3 text-center">H. inicial</th>
-                            <th class="px-3 py-3 text-center">H. final</th>
-                            <th class="px-3 py-3 text-center">Minutos</th>
-                            <th class="min-w-48 px-3 py-3 text-left">Comentarios</th>
-                            <th class="px-3 py-3 text-center">Calif.</th>
-                            <th class="px-3 py-3 text-left">Tejedor</th>
-                            <th class="px-3 py-3 text-right">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="lineas-body" class="divide-y divide-gray-100"></tbody>
-                </table>
-            </div>
-
-            <div class="sticky bottom-0 -mx-4 mt-5 flex justify-end border-t border-gray-200 bg-white px-4 pt-4 sm:-mx-5 sm:px-5">
-                <button id="btn-eliminar-orden" type="button" class="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50">
-                    <i class="fas fa-trash mr-1"></i> Eliminar orden
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div id="modal-linea" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/50 p-2 sm:p-4 md:p-6" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-linea">
-    <div class="flex max-h-[calc(100vh-1rem)] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl sm:max-h-[calc(100vh-2rem)] md:max-w-4xl">
-        <div class="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3 sm:px-5 sm:py-4">
-            <div>
-                <h2 id="titulo-modal-linea" class="text-lg font-bold text-gray-900">Capturar intervención</h2>
-                <p id="subtitulo-modal-linea" class="mt-0.5 text-xs text-gray-500"></p>
-            </div>
-            <button type="button" data-close-modal="modal-linea" class="rounded p-1 text-xl leading-none text-gray-500 transition hover:bg-gray-100 hover:text-gray-900" aria-label="Cerrar">&times;</button>
-        </div>
-
-        <form id="form-linea" class="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5">
-            <input id="linea-id" type="hidden">
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
-                <div class="md:col-span-2">
-                    <label for="linea-operador" class="mb-1 block text-xs font-medium text-gray-700">Mecánico</label>
-                    <select id="linea-operador" name="CveOperador"
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                        <option value="">Seleccione</option>
-                    </select>
-                    {{-- El nombre viaja junto con la clave: el select ya muestra ambos. --}}
-                    <input id="linea-nom-operador" name="NomOperador" type="hidden" maxlength="150">
-                </div>
-                <div>
-                    <label for="linea-turno" class="mb-1 block text-xs font-medium text-gray-700">Turno</label>
-                    <select id="linea-turno" name="Turno"
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                        @foreach ([1, 2, 3, 4] as $turno)
-                            <option value="{{ $turno }}">Turno {{ $turno }}@if ($turno === 4) · comodín @endif</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label for="linea-fecha" class="mb-1 block text-xs font-medium text-gray-700">Fecha</label>
-                    <input id="linea-fecha" name="Fecha" type="date"
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                </div>
-            </div>
-
-            <fieldset class="mt-5 rounded-md border border-gray-200 p-4">
-                <legend class="px-1 text-sm font-semibold text-gray-800">Trabajo realizado</legend>
-                <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-                    <label class="flex items-center gap-2 text-sm text-gray-700"><input id="linea-ajusto" name="Ajusto" type="checkbox" class="rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Ajustó</label>
-                    <label class="flex items-center gap-2 text-sm text-gray-700"><input id="linea-reparo" name="Reparo" type="checkbox" class="rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Reparó</label>
-                    <label class="flex items-center gap-2 text-sm text-gray-700"><input id="linea-cambio" name="Cambio" type="checkbox" class="rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Cambió</label>
-                    <label class="flex items-center gap-2 text-sm text-gray-700"><input id="linea-lubrico" name="Lubrico" type="checkbox" class="rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Lubricó</label>
-                    <label class="flex items-center gap-2 text-sm text-gray-700"><input id="linea-falta-refacc" name="FaltaRefacc" type="checkbox" class="rounded border-gray-300 text-gray-900 focus:ring-gray-900"> Falta refacc.</label>
-                </div>
-            </fieldset>
-
-            <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-4">
-                <div>
-                    <label for="linea-hora-inicial" class="mb-1 block text-xs font-medium text-gray-700">Hora inicial</label>
-                    <input id="linea-hora-inicial" name="HoraInicial" type="time"
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                </div>
-                <div>
-                    <label for="linea-hora-final" class="mb-1 block text-xs font-medium text-gray-700">Hora final</label>
-                    <input id="linea-hora-final" name="HoraFinal" type="time"
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-                </div>
-                <div>
-                    <label for="linea-total-minutos" class="mb-1 block text-xs font-medium text-gray-700">Tiempo total</label>
-                    <input id="linea-total-minutos" type="text" readonly placeholder="—"
-                        class="w-full cursor-not-allowed rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
-                </div>
-                <div>
-                    <label for="linea-calificacion" class="mb-1 block text-xs font-medium text-gray-700">Calificación</label>
-                    {{-- Calificar solo en captura, después de Finalizar --}}
-                    <select id="linea-calificacion" name="Calificacion" disabled
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500">
-                        <option value="">Sin calificar</option>
-                        {{-- Escala 1-5: la misma de las estrellas con que se cierra el paro. --}}
-                        @for ($i = 1; $i <= 5; $i++)
-                            <option value="{{ $i }}">{{ $i }}</option>
-                        @endfor
-                    </select>
-                </div>
-            </div>
-
-            <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                    <label for="linea-cve-tejedor" class="mb-1 block text-xs font-medium text-gray-700">Clave tejedor</label>
-                    <input id="linea-cve-tejedor" name="CveTejedor" maxlength="30" disabled
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500">
-                </div>
-                <div>
-                    <label for="linea-nom-tejedor" class="mb-1 block text-xs font-medium text-gray-700">Firma / nombre del tejedor</label>
-                    <input id="linea-nom-tejedor" name="NomTejedor" maxlength="150" disabled
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-500">
-                </div>
-            </div>
-
-            <div class="mt-5">
-                <label for="linea-comentarios" class="mb-1 block text-xs font-medium text-gray-700">Comentarios</label>
-                <textarea id="linea-comentarios" name="comentarios" rows="3" maxlength="500"
-                    placeholder="Detalle de la intervención, refacciones pendientes, observaciones para el siguiente turno…"
-                    class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"></textarea>
-            </div>
-
-            <div class="sticky bottom-0 -mx-4 mt-6 flex justify-end border-t border-gray-200 bg-white px-4 pt-4 sm:-mx-5 sm:px-5">
-                <button id="btn-guardar-linea" type="submit" class="w-full rounded-md bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black sm:w-auto">
-                    Guardar intervención
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
 @endsection
 
 @push('scripts')
@@ -365,23 +231,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const fechaSugerida = @json($fechaSugerida);
     const horaSugerida = @json($horaSugerida);
     const telaresCatalogo = @json($telares);
-    const operadores = @json($operadores);
-    const puedeCrear = @json($puedeCrear);
     const puedeEditar = @json($puedeEditar);
-    const puedeEliminar = @json($puedeEliminar);
-    const puedeRegistrar = @json($puedeRegistrar);
     const modoTejedor = @json($modoTejedor);
-    const esTejedor = modoTejedor; // compatibilidad con lógica previa de UI
-    const operadoresPorClave = new Map(operadores.map(operador => [String(operador.CveEmpl), operador]));
-    const state = { ordenes: [], orden: null, parosTelar: [], filtroEstatus: '' };
+    const columnas = {
+        folio: { param: 'folio', label: 'Folio' },
+        estatus: { param: 'estatus', label: 'Status' },
+        fecha: { param: 'fecha', label: 'Fecha', tipo: 'date' },
+        mecanico: { param: 'mecanico', label: 'Mecánico' },
+        turno: { param: 'turno', label: 'Turno' },
+        folio_paro: { param: 'folio_paro', label: 'Folio de paro' },
+        telar: { param: 'telar', label: 'Telar' },
+        orden: { param: 'orden', label: 'Orden' },
+        falla: { param: 'falla', label: 'Falla' },
+    };
+    const state = {
+        ordenes: [],
+        parosTelar: [],
+        filtros: { estatus: '', fecha: '', buscar: '', folio: '', telar: '', folio_paro: '', orden: '', falla: '', turno: '', mecanico: '' },
+        columnaMenu: null,
+    };
+    const cell = 'truncate border border-gray-200 px-0.5 py-1 text-center sm:px-1 sm:py-1.5 md:px-1.5 md:py-2 lg:px-2';
 
     const $ = (selector) => document.querySelector(selector);
     const ordenesBody = $('#ordenes-body');
-    const lineasBody = $('#lineas-body');
     const modalCabecera = $('#modal-cabecera');
-    const modalDetalle = $('#modal-detalle');
-    const modalLinea = $('#modal-linea');
-    const modalFiltros = $('#modal-filtros');
+    const menuColumna = $('#menu-columna');
+    const popoverColumna = $('#popover-columna');
 
     const escapeHtml = (value) => String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -419,27 +294,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         ? 'bg-blue-100 text-blue-800'
                         : 'bg-gray-100 text-gray-700';
 
-        return `<span class="inline-flex rounded-full px-3 py-1.5 text-xs font-bold ${classes}">${escapeHtml(label)}</span>`;
+        return `<span class="inline-flex max-w-full truncate rounded-full px-1.5 py-0.5 text-[9px] font-bold sm:px-2 sm:py-0.5 sm:text-[10px] md:px-2.5 md:py-1 md:text-xs ${classes}">${escapeHtml(label)}</span>`;
     }
 
     function turnoBadge(turno) {
         const value = String(turno ?? '').trim();
         const content = value !== '' ? escapeHtml(value) : '—';
 
-        return `<span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-700">${content}</span>`;
-    }
-
-    function nombrePrimerMecanico(orden) {
-        const lineas = orden.lineas || [];
-        const linea = lineas.find((item) => String(item.NomOperador || '').trim() !== '');
-
-        return String(linea?.NomOperador || '').trim();
-    }
-
-    function iconoBooleano(value) {
-        return value
-            ? '<i class="fas fa-check text-green-600" aria-label="Sí"></i>'
-            : '<span class="text-gray-300">—</span>';
+        return `<span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-gray-100 text-[10px] font-bold text-gray-700 sm:h-6 sm:w-6 sm:text-xs md:h-7 md:w-7">${content}</span>`;
     }
 
     function abrirModal(modal) {
@@ -453,37 +315,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function notificar(icon, title) {
+        if (window.notify?.[icon]) {
+            window.notify[icon](title);
+            return;
+        }
         if (window.Swal) {
             Swal.fire({ icon, title, toast: true, position: 'top-end', showConfirmButton: false, timer: 2800, timerProgressBar: true });
             return;
         }
-
         window.alert(title);
     }
 
-    async function confirmar(title, text, confirmText = 'Sí, continuar') {
-        if (! window.Swal) return window.confirm(`${title}\n${text}`);
-
-        const result = await Swal.fire({
-            icon: 'warning',
-            title,
-            text,
-            showCancelButton: true,
-            confirmButtonText: confirmText,
-            cancelButtonText: 'Cerrar',
-            confirmButtonColor: '#b91c1c',
-        });
-
-        return result.isConfirmed;
-    }
-
     function mensajeError(error) {
-        const errors = error?.payload?.errors || {};
+        const errors = error?.payload?.errors || error?.errors || {};
         const validationMessages = Object.values(errors).flat().filter(Boolean);
-        return validationMessages[0] || error?.payload?.error || 'Ocurrió un error inesperado.';
+        return validationMessages[0] || error?.payload?.error || error?.message || 'Ocurrió un error inesperado.';
     }
 
     async function api(url, options = {}) {
+        if (window.http) {
+            const method = (options.method || 'GET').toLowerCase();
+            try {
+                const payload = method === 'get'
+                    ? await window.http.get(url)
+                    : await window.http[method](url, options.data);
+                if (payload?.success === false) {
+                    const error = new Error(payload.error || 'No se pudo completar la solicitud.');
+                    error.payload = payload;
+                    throw error;
+                }
+                return payload;
+            } catch (error) {
+                error.payload = error.payload || error.data || {};
+                throw error;
+            }
+        }
+
         const headers = { Accept: 'application/json', ...(options.headers || {}) };
         if (options.method && options.method !== 'GET') headers['X-CSRF-TOKEN'] = csrfToken;
         if (options.data !== undefined) headers['Content-Type'] = 'application/json';
@@ -506,50 +373,70 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function obtenerFiltros() {
         const params = new URLSearchParams();
-        const fecha = $('#filtro-fecha')?.value;
-        if (fecha) params.set('fecha', fecha);
-        if (state.filtroEstatus) params.set('estatus', state.filtroEstatus);
+        Object.entries(state.filtros).forEach(([key, value]) => {
+            const texto = String(value ?? '').trim();
+            if (texto) params.set(key, texto);
+        });
         return params;
     }
 
     function actualizarBotonesFiltroEstatus() {
-        const base = 'filtro-estatus-btn min-h-14 rounded-xl px-3 py-3 text-base font-bold transition active:scale-[0.98]';
+        const base = 'filtro-estatus-btn min-h-8 rounded-md px-2 py-1 text-[10px] font-bold transition active:scale-[0.98] sm:min-h-9 sm:px-2.5 sm:text-xs md:min-h-10 md:px-3 md:text-sm';
 
         document.querySelectorAll('.filtro-estatus-btn').forEach(button => {
             const estatus = button.dataset.estatus ?? '';
-            const activo = estatus === state.filtroEstatus;
+            const activo = estatus === state.filtros.estatus;
+            button.setAttribute('aria-pressed', activo ? 'true' : 'false');
 
             if (estatus === '') {
-                button.className = activo
-                    ? `${base} bg-gray-900 text-white shadow`
-                    : `${base} border border-gray-300 bg-white text-gray-700`;
+                button.className = activo ? `${base} bg-gray-900 text-white shadow` : `${base} border border-gray-300 bg-white text-gray-700`;
             } else if (estatus === 'Activo') {
-                button.className = activo
-                    ? `${base} bg-blue-600 text-white shadow`
-                    : `${base} border border-blue-200 bg-blue-50 text-blue-800`;
+                button.className = activo ? `${base} bg-blue-600 text-white shadow` : `${base} border border-blue-200 bg-blue-50 text-blue-800`;
             } else if (estatus === 'Terminado') {
-                button.className = activo
-                    ? `${base} bg-amber-500 text-white shadow`
-                    : `${base} border border-amber-200 bg-amber-50 text-amber-800`;
+                button.className = activo ? `${base} bg-amber-500 text-white shadow` : `${base} border border-amber-200 bg-amber-50 text-amber-800`;
             } else if (estatus === 'Calificado') {
-                button.className = activo
-                    ? `${base} bg-violet-600 text-white shadow`
-                    : `${base} border border-violet-200 bg-violet-50 text-violet-800`;
+                button.className = activo ? `${base} bg-violet-600 text-white shadow` : `${base} border border-violet-200 bg-violet-50 text-violet-800`;
             } else if (estatus === 'Autorizado') {
-                button.className = activo
-                    ? `${base} bg-emerald-600 text-white shadow`
-                    : `${base} border border-emerald-200 bg-emerald-50 text-emerald-800`;
+                button.className = activo ? `${base} bg-emerald-600 text-white shadow` : `${base} border border-emerald-200 bg-emerald-50 text-emerald-800`;
             } else if (estatus === 'Cancelado') {
-                button.className = activo
-                    ? `${base} bg-red-600 text-white shadow`
-                    : `${base} border border-red-200 bg-red-50 text-red-800`;
+                button.className = activo ? `${base} bg-red-600 text-white shadow` : `${base} border border-red-200 bg-red-50 text-red-800`;
             }
         });
     }
 
+    function renderChipsFiltros() {
+        const chips = $('#chips-filtros');
+        const activos = Object.entries(state.filtros).filter(([key, value]) => {
+            if (key === 'buscar' || key === 'estatus' || key === 'fecha') return false;
+            return String(value ?? '').trim() !== '';
+        });
+
+        const extra = [];
+        if (state.filtros.buscar) extra.push(['buscar', 'Buscar', state.filtros.buscar]);
+        if (state.filtros.fecha) extra.push(['fecha', 'Fecha', dateDisplay(state.filtros.fecha)]);
+        if (state.filtros.estatus) extra.push(['estatus', 'Status', state.filtros.estatus === 'Terminado' ? 'Finalizado' : state.filtros.estatus]);
+
+        const items = [
+            ...extra,
+            ...activos.map(([key, value]) => [key, columnas[key]?.label || key, value]),
+        ];
+
+        if (! items.length) {
+            chips.innerHTML = '<p class="text-xs text-gray-400">Sin filtros de columna. Click derecho en un encabezado para filtrar.</p>';
+            return;
+        }
+
+        chips.innerHTML = items.map(([key, label, value]) => `
+            <button type="button" data-chip="${escapeHtml(key)}" class="inline-flex max-w-full items-center gap-1 rounded-full bg-gray-900 px-2 py-0.5 text-[10px] font-medium text-white sm:text-xs">
+                <span class="truncate">${escapeHtml(label)}: ${escapeHtml(value)}</span>
+                <span aria-hidden="true">×</span>
+            </button>
+        `).join('') + `<button type="button" data-chip="__all" class="text-[10px] font-semibold text-gray-500 underline sm:text-xs">Limpiar</button>`;
+    }
+
     function renderOrdenes() {
         if (! state.ordenes.length) {
-            ordenesBody.innerHTML = '<tr><td colspan="10" class="px-5 py-12 text-center text-sm text-gray-500">No hay órdenes con los filtros seleccionados.</td></tr>';
+            ordenesBody.innerHTML = '<tr><td colspan="10" class="px-3 py-10 text-center text-xs text-gray-500 sm:text-sm">No hay órdenes con los filtros seleccionados.</td></tr>';
             return;
         }
 
@@ -559,143 +446,114 @@ document.addEventListener('DOMContentLoaded', () => {
             const estatus = orden.Estatus || 'Activo';
             const folioCerrado = ['Terminado', 'Calificado', 'Autorizado', 'Cancelado'].includes(estatus);
             let accionPrincipal = '';
+            const btnBase = 'inline-flex min-h-9 min-w-20 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold sm:min-h-10 sm:min-w-24 sm:px-3 sm:py-2 sm:text-sm md:min-h-11 md:px-4';
             if (modoTejedor) {
                 accionPrincipal = estatus === 'Terminado'
-                    ? `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700" title="Calificar renglones"><i class="fas fa-star"></i> Calificar</a>`
-                    : `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-100" title="Ver renglones"><i class="fas fa-eye"></i> Ver</a>`;
+                    ? `<a href="${capturaUrl}" class="${btnBase} bg-indigo-600 text-white hover:bg-indigo-700" title="Calificar renglones"><i class="fas fa-star"></i> Calificar</a>`
+                    : `<a href="${capturaUrl}" class="${btnBase} border border-gray-300 text-gray-700 hover:bg-gray-100" title="Ver renglones"><i class="fas fa-eye"></i> Ver</a>`;
             } else if (puedeEditar && ! folioCerrado) {
-                accionPrincipal = `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-black" title="Editar / capturar"><i class="fas fa-pen"></i> Editar</a>`;
+                accionPrincipal = `<a href="${capturaUrl}" class="${btnBase} bg-gray-900 text-white hover:bg-black" title="Editar / capturar"><i class="fas fa-pen"></i> Editar</a>`;
             } else {
-                accionPrincipal = `<a href="${capturaUrl}" class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-100" title="Ver"><i class="fas fa-eye"></i> Ver</a>`;
+                accionPrincipal = `<a href="${capturaUrl}" class="${btnBase} border border-gray-300 text-gray-700 hover:bg-gray-100" title="Ver"><i class="fas fa-eye"></i> Ver</a>`;
             }
 
+            const mecanico = String(orden.NomMecanico || '').trim();
+            const falla = String(orden.Falla || '').trim();
+
             return `
-            <tr class="transition hover:bg-gray-50">
-                <td class="whitespace-nowrap px-5 py-4">
-                    <span class="inline-flex items-center rounded-md bg-gray-900 px-2.5 py-1 text-sm font-bold text-white">${folio}</span>
-                </td>
-                <td class="whitespace-nowrap px-5 py-4">${statusBadge(orden.Estatus)}</td>
-                <td class="whitespace-nowrap px-5 py-4 text-gray-700">
-                    <div class="font-semibold text-gray-900">${dateDisplay(orden.Fecha)}</div>
-                </td>
-                <td class="min-w-44 px-5 py-4 font-semibold text-gray-900">${display(nombrePrimerMecanico(orden))}</td>
-                <td class="px-5 py-4 text-center">${turnoBadge(orden.Turno)}</td>
-                <td class="whitespace-nowrap px-5 py-4 text-gray-700">${display(orden.FolioParo)}</td>
-                <td class="whitespace-nowrap px-5 py-4 text-gray-700">${display(orden.TelarId)}</td>
-                <td class="whitespace-nowrap px-5 py-4 text-gray-700">${display(orden.Orden)}</td>
-                <td class="min-w-52 px-5 py-4 font-semibold text-gray-900">${display(orden.Falla)}</td>
-                <td class="whitespace-nowrap px-5 py-4 text-right">
-                    ${accionPrincipal}
-                </td>
+            <tr class="odd:bg-white even:bg-slate-50 hover:bg-blue-50 odd:hover:bg-blue-50 even:hover:bg-blue-50">
+                <td class="${cell}"><span class="inline-block max-w-full truncate rounded bg-gray-900 px-1 py-0.5 font-bold text-white sm:px-1.5">${folio}</span></td>
+                <td class="${cell}">${statusBadge(orden.Estatus)}</td>
+                <td class="${cell} text-gray-700">${dateDisplay(orden.Fecha)}</td>
+                <td class="${cell} font-semibold text-gray-900" title="${escapeHtml(mecanico)}">${display(mecanico)}</td>
+                <td class="${cell}">${turnoBadge(orden.Turno)}</td>
+                <td class="${cell} text-gray-700">${display(orden.FolioParo)}</td>
+                <td class="${cell} text-gray-700">${display(orden.TelarId)}</td>
+                <td class="${cell} text-gray-700">${display(orden.Orden)}</td>
+                <td class="${cell} font-semibold text-gray-900" title="${escapeHtml(falla)}">${display(falla)}</td>
+                <td class="${cell}">${accionPrincipal}</td>
             </tr>
         `;
         }).join('');
     }
 
     async function cargarOrdenes() {
-        ordenesBody.innerHTML = '<tr><td colspan="10" class="px-5 py-12 text-center text-sm text-gray-500">Cargando órdenes de trabajo…</td></tr>';
+        ordenesBody.innerHTML = '<tr><td colspan="10" class="px-3 py-10 text-center text-xs text-gray-500 sm:text-sm">Cargando órdenes de trabajo…</td></tr>';
 
         try {
             const result = await api(`${baseUrl}/registros?${obtenerFiltros().toString()}`);
             state.ordenes = result.data || [];
             renderOrdenes();
+            renderChipsFiltros();
         } catch (error) {
-            ordenesBody.innerHTML = `<tr><td colspan="10" class="px-5 py-12 text-center text-sm text-red-600">${escapeHtml(mensajeError(error))}</td></tr>`;
+            ordenesBody.innerHTML = `<tr><td colspan="10" class="px-3 py-10 text-center text-xs text-red-600 sm:text-sm">${escapeHtml(mensajeError(error))}</td></tr>`;
         }
     }
 
-    async function cargarDetalle(folio) {
-        try {
-            const result = await api(`${baseUrl}/${encodeURIComponent(folio)}`);
-            state.orden = result.data;
-            $('#titulo-modal-detalle').textContent = `Orden ${state.orden.Folio}`;
-            $('#detalle-resumen').textContent = `Telar ${state.orden.TelarId || '—'} · ${state.orden.Falla || 'Sin descripción'} · Turno ${state.orden.Turno || '—'}`;
-
-            // Tras Finalizar/Calificar/Autorizar no se edita desde el modal.
-            const bloqueadaEdicion = ['Terminado', 'Calificado', 'Autorizado'].includes(state.orden.Estatus);
-            $('#btn-editar-cabecera').classList.toggle('hidden', bloqueadaEdicion || ! puedeEditar);
-            $('#btn-agregar-linea').classList.toggle('hidden', bloqueadaEdicion || ! puedeCrear);
-            $('#btn-eliminar-orden').classList.toggle('hidden', bloqueadaEdicion || ! puedeEliminar);
-
-            renderLineas();
-            abrirModal(modalDetalle);
-        } catch (error) {
-            notificar('error', mensajeError(error));
-        }
+    function cerrarMenus() {
+        menuColumna.classList.add('hidden');
+        popoverColumna.classList.add('hidden');
+        state.columnaMenu = null;
     }
 
-    function renderLineas() {
-        const lineas = state.orden?.lineas || [];
-        const bloqueadaEdicion = ['Terminado', 'Calificado', 'Autorizado'].includes(state.orden?.Estatus);
-        const puedeEditarLinea = ! bloqueadaEdicion && puedeEditar;
-        const puedeEliminarLinea = ! bloqueadaEdicion && puedeEliminar;
-        if (! lineas.length) {
-            lineasBody.innerHTML = '<tr><td colspan="15" class="px-4 py-8 text-center text-sm text-gray-500">No hay renglones.</td></tr>';
-            return;
-        }
+    function posicionar(el, x, y) {
+        const width = el.offsetWidth || 220;
+        const height = el.offsetHeight || 120;
+        const left = Math.min(x, window.innerWidth - width - 8);
+        const top = Math.min(y, window.innerHeight - height - 8);
+        el.style.left = `${Math.max(8, left)}px`;
+        el.style.top = `${Math.max(8, top)}px`;
+    }
 
-        lineasBody.innerHTML = lineas.map(linea => {
-            let acciones = '<span class="text-gray-400">—</span>';
-            if (puedeEditarLinea || puedeEliminarLinea) {
-                acciones = `
-                    ${puedeEditarLinea ? `<button type="button" data-action="editar-linea" data-linea-id="${linea.Id}" class="rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100">Editar</button>` : ''}
-                    ${puedeEliminarLinea && lineas.length > 1 ? `<button type="button" data-action="eliminar-linea" data-linea-id="${linea.Id}" class="ml-1 rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50">Eliminar</button>` : ''}
-                `;
-            }
+    function abrirMenuColumna(event, col) {
+        if (! columnas[col]) return;
+        event.preventDefault();
+        state.columnaMenu = col;
+        popoverColumna.classList.add('hidden');
+        menuColumna.classList.remove('hidden');
+        posicionar(menuColumna, event.clientX, event.clientY);
+    }
 
-            return `
-            <tr class="hover:bg-gray-50">
-                <td class="px-3 py-3 text-gray-800"><span class="font-medium">${display(linea.NomOperador)}</span><br><span class="text-gray-500">${display(linea.CveOperador)}</span></td>
-                <td class="px-2 py-3 text-center text-gray-700">${display(linea.Turno)}</td>
-                <td class="whitespace-nowrap px-3 py-3 text-center text-gray-700">${dateDisplay(linea.Fecha)}</td>
-                <td class="px-2 py-3 text-center">${iconoBooleano(linea.Ajusto)}</td>
-                <td class="px-2 py-3 text-center">${iconoBooleano(linea.Reparo)}</td>
-                <td class="px-2 py-3 text-center">${iconoBooleano(linea.Cambio)}</td>
-                <td class="px-2 py-3 text-center">${iconoBooleano(linea.Lubrico)}</td>
-                <td class="px-2 py-3 text-center">${iconoBooleano(linea.FaltaRefacc)}</td>
-                <td class="whitespace-nowrap px-3 py-3 text-center text-gray-700">${display(timeInputValue(linea.HoraInicial))}</td>
-                <td class="whitespace-nowrap px-3 py-3 text-center text-gray-700">${display(timeInputValue(linea.HoraFinal))}</td>
-                <td class="px-3 py-3 text-center text-gray-700">${display(linea.TotalMinutos)}</td>
-                <td class="px-3 py-3 text-gray-700"><span class="line-clamp-2" title="${escapeHtml(linea.comentarios ?? '')}">${display(linea.comentarios)}</span></td>
-                <td class="px-3 py-3 text-center text-gray-700">${display(linea.Calificacion)}</td>
-                <td class="px-3 py-3 text-gray-800"><span class="font-medium">${display(linea.NomTejedor)}</span><br><span class="text-gray-500">${display(linea.CveTejedor)}</span></td>
-                <td class="whitespace-nowrap px-3 py-3 text-right">${acciones}</td>
-            </tr>`;
-        }).join('');
+    function abrirPopoverColumna(col, x, y) {
+        if (! columnas[col]) return;
+        state.columnaMenu = col;
+        const meta = columnas[col];
+        $('#popover-columna-titulo').textContent = `Filtrar ${meta.label}`;
+        const input = $('#popover-columna-valor');
+        input.type = meta.tipo === 'date' ? 'date' : 'text';
+        input.value = state.filtros[meta.param] || '';
+        input.placeholder = meta.tipo === 'date' ? '' : `Valor de ${meta.label}`;
+        menuColumna.classList.add('hidden');
+        popoverColumna.classList.remove('hidden');
+        posicionar(popoverColumna, x, y);
+        input.focus();
+        input.select();
+    }
+
+    function aplicarFiltroColumna(quitar = false) {
+        const col = state.columnaMenu;
+        if (! col || ! columnas[col]) return;
+        const param = columnas[col].param;
+        state.filtros[param] = quitar ? '' : ($('#popover-columna-valor').value || '').trim();
+        if (param === 'fecha') $('#filtro-fecha').value = state.filtros.fecha;
+        if (param === 'estatus') actualizarBotonesFiltroEstatus();
+        cerrarMenus();
+        cargarOrdenes();
     }
 
     function camposCapturaManual() {
-        return [
-            'cabecera-falla',
-            'cabecera-comentarios',
-        ];
+        return ['cabecera-falla', 'cabecera-comentarios'];
     }
 
-    /**
-     * Campos que se llenan desde el paro y quedan bloqueados al crear.
-     * 'cabecera-orden' queda fuera a proposito: se sugiere desde el paro pero
-     * el mecanico puede corregirlo.
-     */
     function camposDatosParo() {
-        return [
-            'cabecera-folio-paro',
-            'cabecera-fecha-paro',
-            'cabecera-hora-paro',
-        ];
+        return ['cabecera-folio-paro', 'cabecera-fecha-paro', 'cabecera-hora-paro'];
     }
 
-    /**
-     * En captura manual no hay paro que consultar: la fecha y la hora se sugieren
-     * con el reloj de planta, pero el mecánico puede corregirlas.
-     */
     function camposParoEditablesEnManual() {
         return ['cabecera-fecha-paro', 'cabecera-hora-paro'];
     }
 
     function establecerCamposCreacion({ manual = false, hayParos = false, telarSeleccionado = false } = {}) {
-        const esEdicion = Boolean($('#cabecera-folio').value);
-        if (esEdicion) return;
-
         camposCapturaManual().forEach(id => {
             const campo = document.getElementById(id);
             campo.readOnly = !manual;
@@ -703,7 +561,6 @@ document.addEventListener('DOMContentLoaded', () => {
             campo.classList.toggle('text-gray-600', !manual);
         });
 
-        // La máquina se elige en el selector de arriba; aquí solo se refleja.
         const telar = $('#cabecera-telar');
         telar.readOnly = true;
         telar.classList.add('bg-gray-50', 'text-gray-600');
@@ -742,9 +599,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetearOrigenCreacion() {
-        const selectTelar = $('#select-telar-paro');
         const selectParo = $('#select-paro-folio');
-        selectTelar.innerHTML = '<option value="">Seleccione máquina</option>';
         selectParo.innerHTML = '<option value="">Seleccione máquina primero</option>';
         selectParo.disabled = true;
         state.parosTelar = [];
@@ -756,14 +611,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function poblarSelectTelares() {
         const select = $('#select-telar-paro');
         select.innerHTML = '<option value="">Seleccione máquina</option>';
-
         telaresCatalogo.forEach(({ id, label }) => {
             const option = document.createElement('option');
             option.value = id;
             option.textContent = label;
             select.appendChild(option);
         });
-
     }
 
     function poblarSelectParosPorTelar(telarId) {
@@ -776,16 +629,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const parosTelar = state.parosTelar;
-
-        if (! parosTelar.length) {
+        if (! state.parosTelar.length) {
             select.disabled = true;
             select.innerHTML = '<option value="">Sin paros disponibles para esta máquina</option>';
             return;
         }
 
         select.disabled = false;
-        parosTelar.forEach(paro => {
+        state.parosTelar.forEach(paro => {
             const option = document.createElement('option');
             option.value = paro.Folio;
             const falla = String(paro.FallaTexto || paro.Falla || '').trim();
@@ -794,68 +645,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function resetearSelectsParo() {
-        $('#select-telar-paro').value = '';
-        poblarSelectParosPorTelar('');
-    }
-
-    function habilitarSelectsParo(habilitar) {
-        const bloque = $('#bloque-seleccion-paro');
-        if (bloque) bloque.classList.toggle('hidden', ! habilitar);
-
-        $('#select-telar-paro').disabled = ! habilitar;
-        if (! habilitar) {
-            $('#select-paro-folio').disabled = true;
-        }
-    }
-
     function resetearCabecera() {
         $('#form-cabecera').reset();
         $('#cabecera-folio').value = '';
         $('#titulo-modal-cabecera').textContent = 'Nueva orden de trabajo';
         $('#subtitulo-modal-cabecera').textContent = 'El folio se asigna al guardar.';
         $('#btn-guardar-cabecera').textContent = 'Guardar orden';
-        habilitarSelectsParo(true);
         resetearOrigenCreacion();
     }
 
     async function abrirNuevaOrden() {
         resetearCabecera();
-        abrirModal(modalCabecera);
-    }
-
-    async function abrirEdicionCabecera() {
-        if (! state.orden) return;
-
-        cerrarModal(modalDetalle);
-        resetearCabecera();
-        $('#cabecera-folio').value = state.orden.Folio;
-        $('#cabecera-telar').value = state.orden.TelarId || '';
-        $('#cabecera-folio-paro').value = state.orden.FolioParo || '';
-        $('#cabecera-folio-paro-valor').value = state.orden.FolioParo || '';
-        $('#cabecera-falla').value = state.orden.Falla || '';
-        $('#cabecera-comentarios').value = state.orden.Comentarios || '';
-        $('#cabecera-fecha-paro').value = dateInputValue(state.orden.FechaParo);
-        $('#cabecera-hora-paro').value = timeInputValue(state.orden.HoraParo);
-        $('#cabecera-orden').value = state.orden.Orden || '';
-        $('#cabecera-turno').value = state.orden.Turno || '';
-        $('#titulo-modal-cabecera').textContent = `Editar orden ${state.orden.Folio}`;
-        $('#subtitulo-modal-cabecera').textContent = 'Actualiza los datos de la cabecera.';
-        $('#btn-guardar-cabecera').textContent = 'Guardar cambios';
-        habilitarSelectsParo(false);
-        [
-            ...camposCapturaManual(),
-            ...camposDatosParo(),
-            'cabecera-telar',
-            'cabecera-turno',
-        ].forEach(id => {
-            const campo = document.getElementById(id);
-            campo.disabled = false;
-            campo.readOnly = false;
-            campo.classList.remove('bg-gray-50', 'text-gray-600');
-        });
-        // El folio de paro se hereda del paro: nunca se teclea, tampoco en edición.
-        $('#cabecera-folio-paro').readOnly = true;
         abrirModal(modalCabecera);
     }
 
@@ -901,9 +701,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (! paro) {
             limpiarCabeceraParaSeleccionTelar();
             const telar = $('#select-telar-paro').value;
-            if (telar) {
-                $('#cabecera-telar').value = telar;
-            }
+            if (telar) $('#cabecera-telar').value = telar;
             establecerCamposCreacion({
                 manual: false,
                 hayParos: state.parosTelar.length > 0,
@@ -944,195 +742,61 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#cabecera-telar').value = '';
     }
 
-    function llenarSelectOperadores() {
-        const select = $('#linea-operador');
-        select.innerHTML = '<option value="">Seleccione</option>';
-        operadores.forEach(operador => {
-            const option = document.createElement('option');
-            option.value = operador.CveEmpl;
-            option.textContent = `${operador.CveEmpl} · ${operador.NomEmpl}${operador.Turno ? ` (T${operador.Turno})` : ''}`;
-            select.appendChild(option);
-        });
-    }
-
-    function resetearLinea() {
-        $('#form-linea').reset();
-        $('#linea-id').value = '';
-        $('#linea-total-minutos').value = '';
-        $('#titulo-modal-linea').textContent = 'Capturar intervención';
-        $('#subtitulo-modal-linea').textContent = state.orden ? `Orden ${state.orden.Folio}` : '';
-        $('#btn-guardar-linea').textContent = 'Guardar intervención';
-        llenarSelectOperadores();
-        aplicarTurnoLinea(null);
-        aplicarFechaLinea(null);
-    }
-
-    /**
-     * Turno y fecha del renglón: los capturados si existen, si no los del reloj de planta.
-     */
-    function aplicarTurnoLinea(valor) {
-        const turno = ['1', '2', '3', '4'].includes(String(valor)) ? String(valor) : turnoSugerido;
-        $('#linea-turno').value = turno;
-    }
-
-    function aplicarFechaLinea(valor) {
-        $('#linea-fecha').value = dateInputValue(valor) || fechaSugerida;
-    }
-
-    function abrirNuevaLinea() {
-        if (! state.orden) return;
-        resetearLinea();
-        abrirModal(modalLinea);
-    }
-
-    function abrirEdicionLinea(id) {
-        const linea = state.orden?.lineas?.find(item => Number(item.Id) === Number(id));
-        if (! linea) return;
-
-        resetearLinea();
-        $('#linea-id').value = linea.Id;
-        $('#linea-operador').value = linea.CveOperador || '';
-        $('#linea-nom-operador').value = linea.NomOperador || '';
-        $('#linea-ajusto').checked = Boolean(linea.Ajusto);
-        $('#linea-reparo').checked = Boolean(linea.Reparo);
-        $('#linea-cambio').checked = Boolean(linea.Cambio);
-        $('#linea-lubrico').checked = Boolean(linea.Lubrico);
-        $('#linea-falta-refacc').checked = Boolean(linea.FaltaRefacc);
-        $('#linea-hora-inicial').value = timeInputValue(linea.HoraInicial);
-        $('#linea-hora-final').value = timeInputValue(linea.HoraFinal);
-        aplicarTurnoLinea(linea.Turno);
-        aplicarFechaLinea(linea.Fecha);
-        $('#linea-comentarios').value = linea.comentarios || '';
-        $('#linea-calificacion').value = linea.Calificacion ?? '';
-        $('#linea-cve-tejedor').value = linea.CveTejedor || '';
-        $('#linea-nom-tejedor').value = linea.NomTejedor || '';
-        $('#titulo-modal-linea').textContent = 'Editar intervención';
-        $('#btn-guardar-linea').textContent = 'Guardar cambios';
-        calcularMinutosEnPantalla();
-        abrirModal(modalLinea);
-    }
-
-    function calcularMinutosEnPantalla() {
-        const inicio = $('#linea-hora-inicial').value;
-        const fin = $('#linea-hora-final').value;
-        if (! inicio || ! fin) {
-            $('#linea-total-minutos').value = '';
-            return;
-        }
-
-        const [inicioHora, inicioMinutos] = inicio.split(':').map(Number);
-        const [finHora, finMinutos] = fin.split(':').map(Number);
-        let total = ((finHora * 60) + finMinutos) - ((inicioHora * 60) + inicioMinutos);
-        if (total < 0) total += 24 * 60;
-        $('#linea-total-minutos').value = `${total} min`;
-    }
-
-    function datosFormulario(form) {
-        return Object.fromEntries(new FormData(form).entries());
-    }
-
-    function datosLinea() {
-        const data = datosFormulario($('#form-linea'));
-        ['Ajusto', 'Reparo', 'Cambio', 'Lubrico', 'FaltaRefacc'].forEach(campo => {
-            data[campo] = $(`#linea-${campo.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`)}`).checked;
-        });
-        return data;
-    }
-
     $('#form-cabecera').addEventListener('submit', async (event) => {
         event.preventDefault();
         const button = $('#btn-guardar-cabecera');
-        const folio = $('#cabecera-folio').value;
         button.disabled = true;
         button.textContent = 'Guardando…';
 
         try {
-            const result = await api(folio ? `${baseUrl}/${encodeURIComponent(folio)}` : baseUrl, {
-                method: folio ? 'PUT' : 'POST',
-                data: datosFormulario($('#form-cabecera')),
+            const result = await api(baseUrl, {
+                method: 'POST',
+                data: Object.fromEntries(new FormData($('#form-cabecera')).entries()),
             });
-
-            cerrarModal(modalCabecera);
-
-            if (! folio) {
-                window.location.assign(`${baseUrl}/${encodeURIComponent(result.data.Folio)}/captura`);
-                return;
-            }
-
-            await cargarOrdenes();
-            notificar('success', result.message || 'Orden guardada correctamente.');
-            await cargarDetalle(result.data.Folio);
+            window.location.assign(`${baseUrl}/${encodeURIComponent(result.data.Folio)}/captura`);
         } catch (error) {
             notificar('error', mensajeError(error));
-        } finally {
             button.disabled = false;
-            button.textContent = folio ? 'Guardar cambios' : 'Guardar orden';
+            button.textContent = 'Guardar orden';
         }
     });
 
-    $('#form-linea').addEventListener('submit', async (event) => {
-        event.preventDefault();
-        if (! state.orden) return;
+    const panelFiltros = $('#panel-filtros');
+    const btnFiltrar = $('#btn-filtrar-ordenes-trabajo');
 
-        const button = $('#btn-guardar-linea');
-        const id = $('#linea-id').value;
-        button.disabled = true;
-        button.textContent = 'Guardando…';
+    function panelFiltrosAbierto() {
+        return ! panelFiltros.classList.contains('hidden');
+    }
 
-        try {
-            const result = await api(id
-                ? `${baseUrl}/${encodeURIComponent(state.orden.Folio)}/lineas/${id}`
-                : `${baseUrl}/${encodeURIComponent(state.orden.Folio)}/lineas`, {
-                method: id ? 'PUT' : 'POST',
-                data: datosLinea(),
-            });
+    function abrirPanelFiltros() {
+        actualizarBotonesFiltroEstatus();
+        renderChipsFiltros();
+        panelFiltros.classList.remove('hidden');
+        btnFiltrar?.setAttribute('aria-expanded', 'true');
+        $('#filtro-buscar')?.focus();
+    }
 
-            cerrarModal(modalLinea);
-            await cargarDetalle(state.orden.Folio);
-            await cargarOrdenes();
-            notificar('success', result.message || 'Intervención guardada correctamente.');
-        } catch (error) {
-            notificar('error', mensajeError(error));
-        } finally {
-            button.disabled = false;
-            button.textContent = id ? 'Guardar cambios' : 'Guardar intervención';
-        }
+    function cerrarPanelFiltros() {
+        panelFiltros.classList.add('hidden');
+        btnFiltrar?.setAttribute('aria-expanded', 'false');
+    }
+
+    function togglePanelFiltros() {
+        if (panelFiltrosAbierto()) cerrarPanelFiltros();
+        else abrirPanelFiltros();
+    }
+
+    btnFiltrar?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        togglePanelFiltros();
     });
-
-    $('#tabla-lineas').addEventListener('click', async (event) => {
-        const button = event.target.closest('[data-action]');
-        if (! button || ! state.orden) return;
-
-        const id = button.dataset.lineaId;
-        if (button.dataset.action === 'editar-linea') {
-            abrirEdicionLinea(id);
-            return;
-        }
-
-        if (button.dataset.action === 'eliminar-linea') {
-            const confirmed = await confirmar('¿Eliminar renglón?', 'Esta intervención se quitará de la orden.', 'Sí, eliminar');
-            if (! confirmed) return;
-
-            try {
-                const result = await api(`${baseUrl}/${encodeURIComponent(state.orden.Folio)}/lineas/${id}`, { method: 'DELETE' });
-                await cargarDetalle(state.orden.Folio);
-                await cargarOrdenes();
-                notificar('success', result.message);
-            } catch (error) {
-                notificar('error', mensajeError(error));
-            }
-        }
-    });
+    $('#btn-cerrar-filtros')?.addEventListener('click', cerrarPanelFiltros);
 
     $('#btn-nueva-orden')?.addEventListener('click', abrirNuevaOrden);
-    $('#btn-agregar-linea').addEventListener('click', abrirNuevaLinea);
-    $('#btn-editar-cabecera').addEventListener('click', abrirEdicionCabecera);
     $('#select-telar-paro').addEventListener('change', onTelarParoChange);
     $('#select-paro-folio').addEventListener('change', aplicarParoSeleccionado);
     $('#check-captura-manual').addEventListener('change', event => {
-        if ($('#cabecera-folio').value) return;
         const telar = $('#select-telar-paro').value;
-
         if (event.target.checked) {
             $('#select-paro-folio').value = '';
             limpiarCamposDesdeParo();
@@ -1144,70 +808,127 @@ document.addEventListener('DOMContentLoaded', () => {
             $('#cabecera-telar').value = telar;
             poblarSelectParosPorTelar(telar);
         }
-
         establecerCamposCreacion({
             manual: event.target.checked,
             hayParos: state.parosTelar.length > 0,
             telarSeleccionado: Boolean($('#select-telar-paro').value),
         });
     });
-    $('#linea-operador').addEventListener('change', () => {
-        const clave = $('#linea-operador').value;
-        if (! clave) {
-            $('#linea-nom-operador').value = '';
-            return;
-        }
-        const operador = operadoresPorClave.get(clave);
-        if (operador) $('#linea-nom-operador').value = operador.NomEmpl || '';
-    });
-    $('#linea-hora-inicial').addEventListener('input', calcularMinutosEnPantalla);
-    $('#linea-hora-final').addEventListener('input', calcularMinutosEnPantalla);
-
-    $('#btn-eliminar-orden').addEventListener('click', async () => {
-        if (! state.orden) return;
-        const confirmed = await confirmar('¿Eliminar orden?', `Se eliminará la orden ${state.orden.Folio} y todas sus intervenciones.`, 'Sí, eliminar orden');
-        if (! confirmed) return;
-
-        try {
-            const result = await api(`${baseUrl}/${encodeURIComponent(state.orden.Folio)}`, { method: 'DELETE' });
-            cerrarModal(modalDetalle);
-            await cargarOrdenes();
-            notificar('success', result.message);
-        } catch (error) {
-            notificar('error', mensajeError(error));
-        }
-    });
 
     document.querySelectorAll('[data-close-modal]').forEach(button => {
         button.addEventListener('click', () => cerrarModal(document.getElementById(button.dataset.closeModal)));
     });
-
-    [modalCabecera, modalDetalle, modalLinea, modalFiltros].forEach(modal => {
-        modal.addEventListener('click', event => {
-            if (event.target === modal) cerrarModal(modal);
-        });
-    });
-
-    $('#btn-filtrar-ordenes-trabajo')?.addEventListener('click', () => {
-        actualizarBotonesFiltroEstatus();
-        abrirModal(modalFiltros);
-    });
-
-    $('#filtro-fecha')?.addEventListener('change', () => {
-        cargarOrdenes();
+    modalCabecera.addEventListener('click', event => {
+        if (event.target === modalCabecera) cerrarModal(modalCabecera);
     });
 
     document.querySelectorAll('.filtro-estatus-btn').forEach(button => {
         button.addEventListener('click', () => {
-            state.filtroEstatus = button.dataset.estatus ?? '';
+            state.filtros.estatus = button.dataset.estatus ?? '';
             actualizarBotonesFiltroEstatus();
-            cerrarModal(modalFiltros);
             cargarOrdenes();
         });
     });
 
+    $('#filtro-fecha').addEventListener('change', () => {
+        state.filtros.fecha = $('#filtro-fecha').value;
+        cargarOrdenes();
+    });
+
+    let buscarTimer = null;
+    $('#filtro-buscar').addEventListener('input', () => {
+        clearTimeout(buscarTimer);
+        buscarTimer = setTimeout(() => {
+            state.filtros.buscar = $('#filtro-buscar').value.trim();
+            cargarOrdenes();
+        }, 300);
+    });
+
+    $('#chips-filtros').addEventListener('click', (event) => {
+        const chip = event.target.closest('[data-chip]');
+        if (! chip) return;
+        if (chip.dataset.chip === '__all') {
+            Object.keys(state.filtros).forEach(key => { state.filtros[key] = ''; });
+            $('#filtro-buscar').value = '';
+            $('#filtro-fecha').value = '';
+        } else {
+            state.filtros[chip.dataset.chip] = '';
+            if (chip.dataset.chip === 'buscar') $('#filtro-buscar').value = '';
+            if (chip.dataset.chip === 'fecha') $('#filtro-fecha').value = '';
+        }
+        actualizarBotonesFiltroEstatus();
+        cargarOrdenes();
+    });
+
+    const thead = $('#tabla-ordenes thead');
+    let ignorarClickTrasMenu = false;
+    thead.addEventListener('contextmenu', (event) => {
+        const th = event.target.closest('th[data-col]');
+        if (! th) return;
+        ignorarClickTrasMenu = true;
+        abrirMenuColumna(event, th.dataset.col);
+    });
+    thead.addEventListener('click', (event) => {
+        if (ignorarClickTrasMenu) {
+            ignorarClickTrasMenu = false;
+            return;
+        }
+        if (! event.target.closest('i.fa-filter')) return;
+        const th = event.target.closest('th[data-col]');
+        if (! th) return;
+        const rect = th.getBoundingClientRect();
+        abrirPopoverColumna(th.dataset.col, rect.left, rect.bottom + 4);
+    });
+
+    let pressTimer = null;
+    thead.addEventListener('touchstart', (event) => {
+        const th = event.target.closest('th[data-col]');
+        if (! th) return;
+        const touch = event.changedTouches[0];
+        pressTimer = setTimeout(() => abrirMenuColumna({
+            preventDefault() {},
+            clientX: touch.clientX,
+            clientY: touch.clientY,
+        }, th.dataset.col), 500);
+    }, { passive: true });
+    ['touchend', 'touchmove', 'touchcancel'].forEach(tipo => {
+        thead.addEventListener(tipo, () => clearTimeout(pressTimer));
+    });
+
+    menuColumna.addEventListener('click', (event) => {
+        const action = event.target.closest('[data-menu]')?.dataset.menu;
+        if (action === 'filtrar') {
+            abrirPopoverColumna(state.columnaMenu, event.clientX, event.clientY);
+            return;
+        }
+        if (action === 'quitar') {
+            aplicarFiltroColumna(true);
+        }
+    });
+    $('#popover-columna-aplicar').addEventListener('click', () => aplicarFiltroColumna(false));
+    $('#popover-columna-quitar').addEventListener('click', () => aplicarFiltroColumna(true));
+    $('#popover-columna-valor').addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') aplicarFiltroColumna(false);
+    });
+    document.addEventListener('click', (event) => {
+        if (! event.target.closest('#menu-columna, #popover-columna, th[data-col]')) {
+            cerrarMenus();
+        }
+        if (! event.target.closest('#panel-filtros, #btn-filtrar-ordenes-trabajo')) {
+            cerrarPanelFiltros();
+        }
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            cerrarMenus();
+            cerrarPanelFiltros();
+            if (! modalCabecera.classList.contains('hidden')) cerrarModal(modalCabecera);
+        }
+    });
+
     cargarOrdenes();
     actualizarBotonesFiltroEstatus();
+    renderChipsFiltros();
 });
 </script>
 @endpush

@@ -52,7 +52,7 @@
         </div>
         <div class="max-w-full overflow-x-auto overscroll-x-contain" tabindex="0" aria-label="Tabla de refacciones del paro">
             <table class="min-w-[720px] w-full divide-y divide-gray-200 text-sm">
-                <thead class="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                <thead class="bg-gray-50 text-xs font-semibold text-gray-600">
                     <tr>
                         <th class="whitespace-nowrap px-3 py-2.5 text-left">Folio</th>
                         <th class="whitespace-nowrap px-3 py-2.5 text-center">Fecha</th>

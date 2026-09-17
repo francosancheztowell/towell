@@ -6,6 +6,7 @@ namespace Tests\Unit\Mecanicos;
 
 use App\Http\Controllers\mecanicos\OrdenesTrabajoMecaController;
 use App\Models\Mecanicos\MecOrdenTrabajoModel;
+use App\Models\Sistema\User;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
@@ -49,6 +50,11 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
             $table->string('Folio')->primary();
             $table->string('FolioParo')->nullable();
             $table->string('Estatus')->nullable();
+            $table->date('Fecha')->nullable();
+            $table->string('TelarId')->nullable();
+            $table->string('Falla')->nullable();
+            $table->string('Orden')->nullable();
+            $table->integer('Turno')->nullable();
         });
         $schema->create('MecOrdenTrabajoLine', function (Blueprint $table): void {
             $table->increments('Id');
@@ -56,6 +62,7 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
             $table->integer('Calificacion')->nullable();
             $table->string('CveTejedor')->nullable();
             $table->string('NomTejedor')->nullable();
+            $table->string('NomOperador')->nullable();
         });
         $schema->create('URDCatalogoMaquinas', function (Blueprint $table): void {
             $table->string('MaquinaId')->primary();
@@ -367,5 +374,51 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
         } catch (ValidationException $exception) {
             $this->assertArrayHasKey('comentarios', $exception->errors());
         }
+    }
+
+    public function test_registros_lista_sin_lineas_y_filtra_por_columna(): void
+    {
+        $user = new User;
+        $user->area = 'MANTENIMIENTO';
+        $user->numero_empleado = '100';
+        $this->actingAs($user);
+
+        DB::connection('sqlsrv')->table('MecOrdenTrabajoTable')->insert([
+            [
+                'Folio' => 'MEC00001',
+                'Fecha' => '2026-09-02',
+                'TelarId' => '201',
+                'Falla' => 'Rota',
+                'Estatus' => 'Activo',
+                'FolioParo' => 'P1',
+                'Orden' => 'OP1',
+                'Turno' => 1,
+            ],
+            [
+                'Folio' => 'MEC00002',
+                'Fecha' => '2026-09-02',
+                'TelarId' => '305',
+                'Falla' => 'Otro',
+                'Estatus' => 'Terminado',
+                'FolioParo' => 'P2',
+                'Orden' => 'OP2',
+                'Turno' => 2,
+            ],
+        ]);
+        DB::connection('sqlsrv')->table('MecOrdenTrabajoLine')->insert([
+            ['Folio' => 'MEC00001', 'NomOperador' => 'Juan Perez'],
+            ['Folio' => 'MEC00002', 'NomOperador' => 'Ana Lopez'],
+        ]);
+
+        $response = (new OrdenesTrabajoMecaController)->registros(
+            Request::create('/mecanicos/ordenes-trabajo/registros', 'GET', ['telar' => '201'])
+        );
+        $payload = $response->getData(true);
+
+        $this->assertTrue($payload['success']);
+        $this->assertCount(1, $payload['data']);
+        $this->assertSame('MEC00001', $payload['data'][0]['Folio']);
+        $this->assertSame('Juan Perez', $payload['data'][0]['NomMecanico']);
+        $this->assertArrayNotHasKey('lineas', $payload['data'][0]);
     }
 }
