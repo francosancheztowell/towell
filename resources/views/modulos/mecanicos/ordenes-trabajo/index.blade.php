@@ -38,14 +38,14 @@
             <table id="tabla-ordenes" class="w-full table-fixed border-collapse border border-gray-300 text-[10px] leading-tight sm:text-xs md:text-sm">
                 <colgroup>
                     <col class="w-[11%]">
-                    <col class="w-[11%]">
+                    <col class="w-[8%]">
                     <col class="w-[9%]">
                     <col class="w-[14%]">
-                    <col class="w-[6%]">
-                    <col class="w-[10%]">
+                    <col class="w-[4%]">
                     <col class="w-[7%]">
+                    <col class="w-[5%]">
                     <col class="w-[8%]">
-                    <col class="w-[11%]">
+                    <col class="w-[21%]">
                     <col class="w-[13%]">
                 </colgroup>
                 <thead class="sticky top-0 z-10 bg-gray-100 text-gray-700 shadow-sm">
@@ -141,7 +141,7 @@
                         <label for="select-telar-paro" class="mb-1 block text-xs font-semibold text-blue-900">Máquina <span class="font-normal">(opcional)</span></label>
                         <select id="select-telar-paro"
                             class="w-full rounded-md border border-blue-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600">
-                            <option value="">Cargando máquinas…</option>
+                            <option value="">Seleccione máquina</option>
                         </select>
                     </div>
                     <div>
@@ -919,11 +919,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') {
-            cerrarMenus();
-            cerrarPanelFiltros();
-            if (! modalCabecera.classList.contains('hidden')) cerrarModal(modalCabecera);
-        }
+        if (event.key !== 'Escape') return;
+        cerrarMenus();
+        cerrarPanelFiltros();
+        if (! modalCabecera.classList.contains('hidden')) cerrarModal(modalCabecera);
     });
 
     cargarOrdenes();
