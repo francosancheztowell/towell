@@ -21,14 +21,14 @@ class PlaneacionUtileriaRouteContractTest extends TestCase
             routeName: 'planeacion.utileria.finalizar.procesar',
             expectedUri: 'planeacion/utileria/finalizar/procesar',
             expectedMethods: ['POST'],
-            expectedMiddleware: ['web', 'auth'],
+            expectedMiddleware: ['web', 'auth', 'module.permission:modificar,Utilería'],
         );
 
         $this->assertRouteContract(
             routeName: 'planeacion.utileria.mover.procesar',
             expectedUri: 'planeacion/utileria/mover/procesar',
             expectedMethods: ['POST'],
-            expectedMiddleware: ['web', 'auth'],
+            expectedMiddleware: ['web', 'auth', 'module.permission:modificar,Utilería'],
         );
     }
 

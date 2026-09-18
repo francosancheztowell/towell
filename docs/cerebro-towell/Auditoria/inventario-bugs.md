@@ -1,8 +1,8 @@
-# Inventario vivo — bugs / arquitectura crítica (Towell ERP)
+﻿# Inventario vivo — bugs / arquitectura crítica (Towell ERP)
 
 **Propósito:** backlog priorizado, honestidad sobre evidencia. No es un changelog ni un plan de sprint.
 **Fuente base:** `docs/auditoria/auditoria-critica-towell.md` (PR [#32](https://github.com/francosancheztowell/towell/pull/32)) + verificación puntual en `main` / rama de auditoría (2026-09-18).
-**Última actualización:** 2026-09-18 (BUG-003 slice Mantto revertido a pedido de Franco: paros otra vez solo `auth`).
+**Última actualización:** 2026-09-18 (esqueleto AuthZ Planeación BUG-003 en liberar/L.Mat/mover; slice Mantto paros revertido — solo `auth` otra vez).
 **Reglas:** no inventar bugs sin path/símbolo. `confirmado` = leído en código; `hipótesis` = plausible pero no cerrado en esta pasada.
 
 ---
@@ -25,7 +25,7 @@
 |----|-----|------|--------|-----------|---------|--------|-------|
 | BUG-001 | P0 | Auth / Config | CRUD módulos sin autenticación | `routes/public.php` grupo `auth` (URI histórica `/modulos-sin-auth`, names `modulos.gestion.*`) → `ModulosController::{index,store,update,destroy}`. Guest test: `tests/Feature/PublicSensitiveRoutesAuthTest.php` | Quien alcance la URL administra menú y plantillas de permiso | mitigado | 2026-09-18: exige sesión. Nombres `modulos.sin.auth.*` eliminados. No hay middleware de módulo en el router (`userCan` no se inventó). URI conservada para clientes logueados. PR [#33](https://github.com/francosancheztowell/towell/pull/33). |
 | BUG-002 | P0 | Auth | `GET /obtener-empleados/{area}` sin auth | `routes/public.php` grupo `auth` → `UsuarioController::obtenerEmpleados` (`usuarios.obtener-empleados`). Guest test: `tests/Feature/PublicSensitiveRoutesAuthTest.php` | Filtración de nómina/empleados por área sin sesión | mitigado | 2026-09-18: `GET /obtener-empleados/{area}` exige sesión (302 login / 401 JSON). PR [#33](https://github.com/francosancheztowell/towell/pull/33). |
-| BUG-003 | P0 | AuthZ | APIs solo con `auth`; menú ≠ autorización | `routes/web.php` L8–25: único middleware de grupo `auth`. `rg userCan\|can:` en `routes/` = 0 (auditoría) | Cualquier usuario autenticado puede pegarle a liberar / L.Mat / paros / mover | confirmado | **Slice Mantto revertido (Franco, 2026-09-18):** `store`/`finalizar` de paros vuelven a exigir solo `auth`; el menú puede ocultar la UI y el API no 403 por `userCan('crear'\|'modificar','Solicitudes')`. Feature: `tests/Feature/MantenimientoParosAuthorizationTest.php`. El bug **sigue abierto** en Planea (liberar / L.Mat / mover). |
+| BUG-003 | P0 | AuthZ | APIs solo con `auth`; menú ≠ autorización | Esqueleto Planeación: `EnsureModulePermission` (`module.permission`) en POST liberar (programa-tejido + muestras), `planeacion.lmat.guardar`, mover/finalizar utilería. Tests: `tests/Feature/PlaneacionMutationAuthorizationTest.php`. Paros/Mantto: AuthZ `userCan` **revertida** (PR #37); Engomado/Urdido y GETs planeación siguen solo `auth`. | Usuario autenticado sin módulo ya no pega a liberar/L.Mat/mover; paros y resto ERP siguen abiertos | mitigado (esqueleto Planeación) | 2026-09-18: módulos SYSRoles **Programa Tejido** (`crear`), **Codificación** (`modificar`), **Utilería** (`modificar`, con acento — verificado en LA-GTECLAVE). AuthZ ERP completa abierta. No Livewire Liberar ni P1. PR [#36](https://github.com/francosancheztowell/towell/pull/36). |
 | BUG-004 | P1 | Planeación / AX | Liberar fuerza `CreaProd = 1` (re-encola AX) | `LiberarOrdenesController` L613 y payload L1381; contraste `OrdenDeCambioFelpaController` omite `CreaProd` en update | Re-liberar vuelve a encolar producción en AX | confirmado | No tocar `CreaProd` si el row ya existe. Test de no-regresión. |
 | BUG-005 | P1 | Engomado | `actualizarStatus` → En Proceso sin exigir Urdido Finalizado | `ProgramarEngomadoController::actualizarStatus` L490–540: solo AX lock; **no** chequea urdido. `ProgramBoardActionService::productionBlockReasonForOrder` L207–219 **sí** exige Finalizado | Stack legacy (UI default) salta la regla de negocio | confirmado | Delegar POST al service. Ruta `verificar-en-proceso` no se llama desde vistas. |
 | BUG-006 | P1 | Utilería | Mover puede anular `FechaFinaliza` | `MoverOrdenesController::sincronizarCatCodificados` L605 → `actualizarFechasArranqueFinaliza($reg, null, null)` con default `actualizarFechaFinaliza=true` | Órdenes finalizadas pierden fecha al cambiar salón | confirmado | Pasar `actualizarFechaFinaliza: false`. `AGENTS.md` desactualizado. |
@@ -71,6 +71,7 @@ Franco pidió abrir paros a cualquier sesión autenticada. Se revirtió el gate 
 3. **`store` de paros SÍ valida duplicado**; falta solo la ruta GET documentada (BUG-013 matizado).
 4. **Docs menú aún en `modulos_v2`** mientras código usa `v3` (BUG-019).
 5. **Dual `MecActividadesController`** y **dual path `UrdEngNucleos`** confirmados en árbol (BUG-021/022).
+6. **BUG-003 esqueleto Planeación (2026-09-18):** `EnsureModulePermission` cubre liberar / L.Mat / mover / finalizar. Paros, Engomado/Urdido y el resto de mutaciones autenticadas siguen abiertas. AuthZ ERP completa **sigue abierta**.
 
 ---
 
@@ -85,7 +86,7 @@ Franco pidió abrir paros a cualquier sesión autenticada. Se revirtió el gate 
 
 ## Gaps aún sin analizar (próximas pasadas)
 
-- Middleware / policies por módulo (mapa completo de endpoints sin `userCan`).
+- Middleware / policies por módulo (mapa completo de endpoints sin `userCan`). Esqueleto Planeación (liberar / L.Mat / mover) ya no está en cero; falta el resto del ERP.
 - Jobs/queues AX: retries, idempotencia, dead letters.
 - Livewire `Captura` desarrolladores vs writers Excel/liberar (calibres FLOAT).
 - Producto terminado / Telegram / Redbooth (solo `require` en web.php).
