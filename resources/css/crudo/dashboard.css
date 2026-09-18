@@ -1659,11 +1659,12 @@ button.crudo-status-card:disabled {
     flex-direction: column;
     gap: 0.45rem;
     border: 1px solid #e2e8f0;
-    border-top: 4px solid var(--status);
     border-radius: 0.75rem;
-    padding: 0.6rem 0.7rem 0.7rem;
+    padding: 0.85rem 0.7rem 0.7rem;
     background: #fff;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    box-shadow:
+        inset 0 4px 0 var(--status),
+        0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
 .crudo-estado-item-head {
@@ -2685,32 +2686,36 @@ button.crudo-status-card:disabled {
 }
 
 .crudo-orders-table .crudo-orders-col-date {
-    width: 12%;
+    width: 11%;
 }
 
 .crudo-orders-table .crudo-orders-col-roll {
-    width: 13%;
+    width: 12%;
 }
 
 .crudo-orders-table .crudo-orders-col-order {
-    width: 11%;
+    width: 10%;
 }
 
 /* Pzas, kg, p. crudo y 2das: columnas iguales y centradas, para que los números
    no se apelotonen contra el lote. */
 .crudo-orders-table .crudo-orders-col-number {
-    width: 10%;
+    width: 9%;
 }
 
 /* El lote del proveedor es texto libre y suele ser el dato más largo: se lleva
    el ancho sobrante y, si aun así no cabe, parte en dos líneas en vez de
    cortarse con puntos suspensivos. */
 .crudo-orders-table .crudo-orders-col-lot {
-    width: 24%;
+    width: 20%;
 }
 
-.crudo-orders-table th:last-child,
-.crudo-orders-table td:last-child {
+.crudo-orders-table .crudo-orders-col-turn {
+    width: 9%;
+}
+
+.crudo-orders-table th:nth-child(8),
+.crudo-orders-table td:nth-child(8) {
     overflow: visible;
     overflow-wrap: anywhere;
     white-space: normal;
@@ -2737,9 +2742,14 @@ button.crudo-status-card:disabled {
 
 .crudo-orders-table th:nth-child(-n + 3),
 .crudo-orders-table td:nth-child(-n + 3),
+.crudo-orders-table th:nth-child(8),
+.crudo-orders-table td:nth-child(8) {
+    text-align: left;
+}
+
 .crudo-orders-table th:last-child,
 .crudo-orders-table td:last-child {
-    text-align: left;
+    text-align: center;
 }
 
 .crudo-orders-table tbody tr {
@@ -2779,6 +2789,22 @@ button.crudo-status-card:disabled {
 .crudo-defect-table th:not(:first-child),
 .crudo-defect-table td:not(:first-child) {
     width: 15%;
+}
+
+.crudo-defect-table thead tr {
+    height: 2.9rem;
+}
+
+.crudo-defect-table th:not(:first-child) {
+    font-size: 0.72rem;
+    line-height: 1.15;
+    white-space: normal;
+}
+
+.crudo-defect-turn-share {
+    display: block;
+    font-weight: 700;
+    color: #64748b;
 }
 
 .crudo-defect-table tbody tr {
@@ -4121,8 +4147,14 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-production-detail-grid {
-        grid-template-columns: minmax(0, 1.6fr) minmax(8rem, 0.65fr) minmax(9rem, 0.75fr);
+        /* Órdenes a todo el ancho (9 columnas: Fecha…Turno). Defectos y Flog
+           abajo, lado a lado: si van en 3 columnas, Lote y Turno se recortan. */
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         gap: 0.4rem;
+    }
+
+    .crudo-orders-panel {
+        grid-column: 1 / -1;
     }
 
     /*
@@ -4139,8 +4171,17 @@ button.crudo-status-card:disabled {
         gap: 0.4rem;
     }
 
+    .crudo-detail-table-scroll.crudo-orders-table-wrap {
+        overflow-x: auto;
+    }
+
+    .crudo-orders-table {
+        min-width: 0;
+        width: 100%;
+    }
+
     .crudo-orders-table .crudo-orders-col-date {
-        width: 13%;
+        width: 11%;
     }
 
     .crudo-orders-table .crudo-orders-col-roll {
@@ -4148,25 +4189,62 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-orders-table .crudo-orders-col-order {
-        width: 12%;
+        width: 11%;
     }
 
     .crudo-orders-table .crudo-orders-col-number {
-        width: 9.5%;
+        width: 8%;
     }
 
     .crudo-orders-table .crudo-orders-col-lot {
-        width: 24%;
+        width: 18%;
+    }
+
+    .crudo-orders-table .crudo-orders-col-turn {
+        width: 9%;
     }
 
     .crudo-orders-table th,
     .crudo-orders-table td {
-        padding-right: 0.15rem;
-        padding-left: 0.15rem;
+        padding-right: 0.2rem;
+        padding-left: 0.2rem;
+    }
+
+    .crudo-orders-table th {
+        white-space: normal;
+        line-height: 1.15;
+        overflow-wrap: anywhere;
+        letter-spacing: 0.02em;
+    }
+
+    .crudo-orders-table thead tr {
+        height: auto;
+        min-height: 2.35rem;
     }
 
     .crudo-orders-table td {
         font-size: 0.78rem;
+    }
+
+    .crudo-orders-table th:last-child,
+    .crudo-orders-table td:last-child {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: clip;
+    }
+
+    .crudo-defect-table th:first-child,
+    .crudo-defect-table td:first-child {
+        width: 36%;
+    }
+
+    .crudo-defect-table th:not(:first-child),
+    .crudo-defect-table td:not(:first-child) {
+        width: 16%;
+    }
+
+    .crudo-defect-table th:not(:first-child) {
+        font-size: 0.62rem;
     }
 
     .crudo-flog-fields {
@@ -4357,6 +4435,17 @@ button.crudo-status-card:disabled {
 
     .crudo-salon-smith {
         grid-column: 1 / -1;
+    }
+
+    /* Vertical: el modal tiene alto de sobra y las 9 columnas de órdenes
+       necesitan el ancho completo. Defectos y Flog bajan debajo. */
+    .crudo-production-detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .crudo-orders-table {
+        min-width: 0;
+        width: 100%;
     }
 
     /* Con el piso a todo lo ancho las tarjetas ya no se aprietan. */

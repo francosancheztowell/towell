@@ -11,6 +11,7 @@ use App\Services\Crudo\CrudoStatusResolver;
 use Carbon\Carbon;
 use DateTimeImmutable;
 use DateTimeZone;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 final class CrudoDashboardServiceTest extends TestCase
@@ -193,7 +194,7 @@ final class CrudoDashboardServiceTest extends TestCase
     public function test_paros_refresh_every_build_while_production_stays_cached(): void
     {
         config()->set('crudo.production_cache_seconds', 180);
-        \Illuminate\Support\Facades\Cache::flush();
+        Cache::flush();
         // Los paros solo aplican al periodo en curso, así que el pulso es de hoy.
         $today = new DateTimeImmutable('today', new DateTimeZone('America/Mexico_City'));
 
@@ -235,6 +236,13 @@ final class CrudoDashboardServiceTest extends TestCase
         $this->assertSame(2, $detail['captures'][0]['defectLineCount']);
         $this->assertSame(100.0, $detail['captures'][0]['pieces']);
         $this->assertSame(5.0, $detail['captures'][0]['seconds']);
+        $this->assertSame([
+            '1' => 60.0,
+            '2' => 0.0,
+            '3' => 40.0,
+            '4' => 0.0,
+        ], $detail['piecesByTurn']);
+        $this->assertSame('1,3', $detail['captures'][0]['turns']);
     }
 
     public function test_machine_detail_breaks_defects_down_by_capture_turn(): void

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Imports\ReqModelosCodificadosImport;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
+use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -15,6 +16,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\Reader\Xls as XlsReader;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
@@ -69,6 +71,8 @@ class CodificacionController extends Controller
         'Luchaje' => 'zero',
         'CalibreTrama' => 'zero',
         'CalibreTrama2' => 'zero',
+        'CodColorTrama' => null,
+        'ColorTrama' => null,
         'FibraId' => null,
         'DobladilloId' => null,
         'MedidaPlano' => 'zero',
@@ -111,22 +115,32 @@ class CodificacionController extends Controller
         'CalibreComb1' => null,
         'CalibreComb12' => null,
         'FibraComb1' => null,
+        'CodColorC1' => null,
+        'NomColorC1' => null,
         'PasadasComb1' => 'zero',
         'CalibreComb2' => null,
         'CalibreComb22' => null,
         'FibraComb2' => null,
+        'CodColorC2' => null,
+        'NomColorC2' => null,
         'PasadasComb2' => 'zero',
         'CalibreComb3' => null,
         'CalibreComb32' => null,
         'FibraComb3' => null,
+        'CodColorC3' => null,
+        'NomColorC3' => null,
         'PasadasComb3' => 'zero',
         'CalibreComb4' => null,
         'CalibreComb42' => null,
         'FibraComb4' => null,
+        'CodColorC4' => null,
+        'NomColorC4' => null,
         'PasadasComb4' => 'zero',
         'CalibreComb5' => null,
         'CalibreComb52' => null,
         'FibraComb5' => null,
+        'CodColorC5' => null,
+        'NomColorC5' => null,
         'PasadasComb5' => 'zero',
         'Total' => 'zero',
         'PasadasDibujo' => null,
@@ -147,13 +161,66 @@ class CodificacionController extends Controller
         'ColumCU' => null,
         'ColumCV' => null,
         'ComprobarModDup' => null,
+
+        // Karl Mayer (telares 401/402): construccion de cuatro barras en vez de rizo/pie/C1-C5.
+        // Van aqui y no solo en el formulario porque store() y update() hacen
+        // $request->only(array_keys(CAMPOS_MODELO)): lo que falte en esta lista se descarta
+        // en silencio, que es lo que ya les pasa a los 12 campos de color.
+        'CuentaBarra1' => null,
+        'CalibreBarra1' => null,
+        'CodColorBarra1' => null,
+        'ColorBarra1' => null,
+        'FibraBarra1' => null,
+        'PasadasBarra1' => 'zero',
+        'CuentaBarra2' => null,
+        'CalibreBarra2' => null,
+        'CodColorBarra2' => null,
+        'ColorBarra2' => null,
+        'FibraBarra2' => null,
+        'PasadasBarra2' => 'zero',
+        'CuentaBarra3' => null,
+        'CalibreBarra3' => null,
+        'CodColorBarra3' => null,
+        'ColorBarra3' => null,
+        'FibraBarra3' => null,
+        'PasadasBarra3' => 'zero',
+        'CuentaBarra4' => null,
+        'CalibreBarra4' => null,
+        'CodColorBarra4' => null,
+        'ColorBarra4' => null,
+        'FibraBarra4' => null,
+        'PasadasBarra4' => 'zero',
+    ];
+
+    /** Karl Mayer: cuatro barras (no hay Barra5 en BD). */
+    private const CAMPOS_KM = [
+        'CuentaBarra1', 'CalibreBarra1', 'CodColorBarra1', 'ColorBarra1', 'FibraBarra1', 'PasadasBarra1',
+        'CuentaBarra2', 'CalibreBarra2', 'CodColorBarra2', 'ColorBarra2', 'FibraBarra2', 'PasadasBarra2',
+        'CuentaBarra3', 'CalibreBarra3', 'CodColorBarra3', 'ColorBarra3', 'FibraBarra3', 'PasadasBarra3',
+        'CuentaBarra4', 'CalibreBarra4', 'CodColorBarra4', 'ColorBarra4', 'FibraBarra4', 'PasadasBarra4',
+    ];
+
+    /** Jacquard / Smit: rizo, pie, trama y C1–C5. Karl Mayer no los guarda. */
+    private const CAMPOS_STD = [
+        'CalibreTrama', 'CalibreTrama2', 'CodColorTrama', 'ColorTrama', 'FibraId',
+        'AnchoPeineTrama', 'LogLuchaTotal',
+        'TipoRizo', 'AlturaRizo', 'CuentaRizo', 'CalibreRizo', 'CalibreRizo2', 'FibraRizo',
+        'CuentaPie', 'CalibrePie', 'CalibrePie2', 'FibraPie',
+        'MedidaCenefa', 'MedIniRizoCenefa',
+        'Comb1', 'Obs1', 'Comb2', 'Obs2', 'Comb3', 'Obs3', 'Comb4', 'Obs4',
+        'CalTramaFondoC1', 'CalTramaFondoC12', 'FibraTramaFondoC1', 'PasadasTramaFondoC1',
+        'CalibreComb1', 'CalibreComb12', 'FibraComb1', 'CodColorC1', 'NomColorC1', 'PasadasComb1',
+        'CalibreComb2', 'CalibreComb22', 'FibraComb2', 'CodColorC2', 'NomColorC2', 'PasadasComb2',
+        'CalibreComb3', 'CalibreComb32', 'FibraComb3', 'CodColorC3', 'NomColorC3', 'PasadasComb3',
+        'CalibreComb4', 'CalibreComb42', 'FibraComb4', 'CodColorC4', 'NomColorC4', 'PasadasComb4',
+        'CalibreComb5', 'CalibreComb52', 'FibraComb5', 'CodColorC5', 'NomColorC5', 'PasadasComb5',
     ];
 
     /** Campos de fecha para validación */
     private const DATE_FIELDS = ['FechaTejido', 'FechaCumplimiento', 'FechaCompromiso'];
 
-    /** Campos requeridos para creación */
-    private const REQUIRED_FIELDS = ['TamanoClave', 'OrdenTejido'];
+    /** Campos requeridos en alta y edición. Tamaño Clave se arma con Clave AX + Tamaño. */
+    private const REQUIRED_FIELDS = ['TamanoClave', 'OrdenTejido', 'SalonTejidoId', 'ItemId', 'InventSizeId'];
 
     private function clearCodificacionCache(?int $id = null): void
     {
@@ -255,9 +322,100 @@ class CodificacionController extends Controller
         return CatCodificados::where('NoOrden', $orden)->orderByDesc('Id')->first();
     }
 
-    private function mapCatCodificadosToReq(CatCodificados $cat): array
+    /**
+     * Modelo similar: orden, clave modelo, o par Clave AX + Tamaño.
+     *
+     * @param  array{orden?: string, clave_modelo?: string, item_id?: string, invent_size_id?: string}  $q
+     */
+    private function findCatCodificadoSimilar(array $q): ?CatCodificados
+    {
+        $orden = trim((string) ($q['orden'] ?? ''));
+        $clave = trim((string) ($q['clave_modelo'] ?? ''));
+        $item = trim((string) ($q['item_id'] ?? ''));
+        $size = trim((string) ($q['invent_size_id'] ?? ''));
+
+        if ($orden !== '') {
+            $hit = $this->findCatCodificadoByOrden($orden);
+            if ($hit) {
+                return $hit;
+            }
+        }
+
+        if ($clave !== '') {
+            $hit = CatCodificados::where('ClaveModelo', $clave)->orderByDesc('Id')->first();
+            if ($hit) {
+                return $hit;
+            }
+            $hit = CatCodificados::where('Clave', $clave)->orderByDesc('Id')->first();
+            if ($hit) {
+                return $hit;
+            }
+        }
+
+        if ($item !== '' && $size !== '') {
+            return CatCodificados::where('ItemId', $item)
+                ->where('InventSizeId', $size)
+                ->orderByDesc('Id')
+                ->first();
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array{orden?: string, clave_modelo?: string, excluir_id?: int|string|null}  $q
+     */
+    private function findReqModeloSimilar(array $q): ?ReqModelosCodificados
+    {
+        $orden = trim((string) ($q['orden'] ?? ''));
+        $clave = trim((string) ($q['clave_modelo'] ?? ''));
+        $excluir = $q['excluir_id'] ?? null;
+
+        $base = ReqModelosCodificados::query();
+        if ($excluir !== null && $excluir !== '') {
+            $base->where('Id', '!=', $excluir);
+        }
+
+        if ($orden !== '') {
+            return (clone $base)->where('OrdenTejido', $orden)->orderByDesc('Id')->first();
+        }
+
+        if ($clave !== '') {
+            return (clone $base)
+                ->where(function ($w) use ($clave) {
+                    $w->where('ClaveModelo', $clave)->orWhere('TamanoClave', $clave);
+                })
+                ->orderByDesc('Id')
+                ->first();
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $campos
+     * @return array<string, mixed>
+     */
+    private function respuestaModeloSimilar(string $origen, string $orden, string $claveMod, string $itemId, string $sizeId, string $nombre, array $campos): array
     {
         return [
+            'success' => true,
+            'data' => [
+                'origen' => $origen,
+                'orden_trabajo' => $orden,
+                'salon' => trim((string) ($campos['SalonTejidoId'] ?? '')),
+                'clave_mod' => $claveMod,
+                'clave_ax' => $itemId,
+                'tamano' => $sizeId,
+                'nombre' => $nombre,
+                'campos' => $campos,
+            ],
+        ];
+    }
+
+    private function mapCatCodificadosToReq(CatCodificados $cat): array
+    {
+        $mapped = [
             'FechaTejido' => $cat->FechaTejido ?? null,
             'FechaCumplimiento' => $cat->FechaCumplimiento ?? null,
             'SalonTejidoId' => $cat->Departamento ?? null,
@@ -265,6 +423,7 @@ class CodificacionController extends Controller
             'Prioridad' => $cat->Prioridad ?? null,
             'Nombre' => $cat->Nombre ?? null,
             'ClaveModelo' => $cat->ClaveModelo ?? null,
+            'TamanoClave' => $cat->ClaveModelo ?? $cat->Clave ?? null,
             'ItemId' => $cat->ItemId ?? null,
             'InventSizeId' => $cat->InventSizeId ?? null,
             'Tolerancia' => $cat->Tolerancia ?? null,
@@ -374,7 +533,33 @@ class CodificacionController extends Controller
             'ComprobarModDup' => $cat->ComprobarModDup ?? null,
             'Produccion' => $cat->Produccion ?? null,
             'Saldos' => $cat->Saldos ?? null,
+            'CuentaBarra1' => $cat->CuentaBarra1 ?? null,
+            'CalibreBarra1' => $cat->CalibreBarra1 ?? null,
+            'CodColorBarra1' => $cat->CodColorBarra1 ?? null,
+            'ColorBarra1' => $cat->ColorBarra1 ?? null,
+            'FibraBarra1' => $cat->FibraBarra1 ?? null,
+            'PasadasBarra1' => $cat->PasadasBarra1 ?? null,
+            'CuentaBarra2' => $cat->CuentaBarra2 ?? null,
+            'CalibreBarra2' => $cat->CalibreBarra2 ?? null,
+            'CodColorBarra2' => $cat->CodColorBarra2 ?? null,
+            'ColorBarra2' => $cat->ColorBarra2 ?? null,
+            'FibraBarra2' => $cat->FibraBarra2 ?? null,
+            'PasadasBarra2' => $cat->PasadasBarra2 ?? null,
+            'CuentaBarra3' => $cat->CuentaBarra3 ?? null,
+            'CalibreBarra3' => $cat->CalibreBarra3 ?? null,
+            'CodColorBarra3' => $cat->CodColorBarra3 ?? null,
+            'ColorBarra3' => $cat->ColorBarra3 ?? null,
+            'FibraBarra3' => $cat->FibraBarra3 ?? null,
+            'PasadasBarra3' => $cat->PasadasBarra3 ?? null,
+            'CuentaBarra4' => $cat->CuentaBarra4 ?? null,
+            'CalibreBarra4' => $cat->CalibreBarra4 ?? null,
+            'CodColorBarra4' => $cat->CodColorBarra4 ?? null,
+            'ColorBarra4' => $cat->ColorBarra4 ?? null,
+            'FibraBarra4' => $cat->FibraBarra4 ?? null,
+            'PasadasBarra4' => $cat->PasadasBarra4 ?? null,
         ];
+
+        return $this->volcarConstruccionViejaABarrasSiKm($mapped);
     }
 
     private function truncateValueForColumn(string $column, $value, array $lengths)
@@ -465,14 +650,20 @@ class CodificacionController extends Controller
             $codificacion->wasRecentlyCreated = false;
         }
 
-        return view('catalagos.codificacion-form', compact('codificacion'));
+        return view('catalagos.codificacion-form', [
+            'codificacion' => $codificacion,
+            'esDuplicado' => $codificacion !== null,
+        ]);
     }
 
     public function edit($id)
     {
         $codificacion = ReqModelosCodificados::findOrFail($id);
 
-        return view('catalagos.codificacion-form', compact('codificacion'));
+        return view('catalagos.codificacion-form', [
+            'codificacion' => $codificacion,
+            'esDuplicado' => false,
+        ]);
     }
 
     /** API: todos los registros - Optimizado con índice Id */
@@ -625,19 +816,161 @@ class CodificacionController extends Controller
                 : 'sometimes|nullable';
         }
 
-        if ($isCreate) {
-            foreach (self::REQUIRED_FIELDS as $field) {
-                $rules[$field] = 'required';
+        foreach (self::REQUIRED_FIELDS as $field) {
+            $rules[$field] = 'required';
+        }
+        $rules['OrdenTejido'] = 'required|regex:/^\d+$/';
+
+        return $rules;
+    }
+
+    /**
+     * KM no persiste rizo/pie/trama/C1–C5. Jacquard y Smit no persisten barras.
+     * Vaciar en servidor porque los hidden del cliente igual pueden viajar en el POST.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function payloadSegunSalon(array $data): array
+    {
+        $salon = (string) ($data['SalonTejidoId'] ?? '');
+        $telar = (string) ($data['NoTelarId'] ?? '');
+        $normalizado = TelarSalonResolver::normalizeSalon($salon, $telar);
+        if ($normalizado !== '') {
+            $data['SalonTejidoId'] = $normalizado;
+        }
+
+        $data = $this->volcarConstruccionViejaABarrasSiKm($data);
+        $km = TelarSalonResolver::esKarlMayer($data['SalonTejidoId'] ?? '', $telar);
+        foreach ($km ? self::CAMPOS_STD : self::CAMPOS_KM as $campo) {
+            $data[$campo] = null;
+        }
+
+        return $data;
+    }
+
+    private function valorConstruccionLleno(mixed $valor): bool
+    {
+        $s = trim((string) ($valor ?? ''));
+
+        return $s !== '' && $s !== '0' && $s !== '0.0' && $s !== '0.00';
+    }
+
+    /**
+     * Captura vieja de KM: rizo/pie/C1–C5 en vez de barras.
+     * Si las barras están vacías, se copian en orden a Barra 1–4.
+     * Si ya hay barras, esas mandan.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function volcarConstruccionViejaABarrasSiKm(array $data, ?string $salonForzado = null): array
+    {
+        $salon = trim((string) ($salonForzado ?? '')) !== ''
+            ? (string) $salonForzado
+            : (string) ($data['SalonTejidoId'] ?? '');
+        $telar = (string) ($data['NoTelarId'] ?? '');
+        if (! TelarSalonResolver::esKarlMayer($salon, $telar)) {
+            return $data;
+        }
+
+        for ($n = 1; $n <= 4; $n++) {
+            if ($this->valorConstruccionLleno($data["CuentaBarra{$n}"] ?? null)
+                || $this->valorConstruccionLleno($data["CalibreBarra{$n}"] ?? null)
+                || $this->valorConstruccionLleno($data["FibraBarra{$n}"] ?? null)) {
+                return $data;
             }
         }
 
-        return $rules;
+        $fuentes = [
+            [
+                'Cuenta' => $data['CuentaRizo'] ?? null,
+                'Calibre' => $data['CalibreRizo'] ?? $data['CalibreRizo2'] ?? null,
+                'Fibra' => $data['FibraRizo'] ?? null,
+            ],
+            [
+                'Cuenta' => $data['CuentaPie'] ?? null,
+                'Calibre' => $data['CalibrePie'] ?? $data['CalibrePie2'] ?? null,
+                'Fibra' => $data['FibraPie'] ?? null,
+            ],
+        ];
+        for ($c = 1; $c <= 5; $c++) {
+            $hilo = $data['CalibreComb'.$c.'2'] ?? null;
+            $fuentes[] = [
+                'Cuenta' => null,
+                'Calibre' => $data["CalibreComb{$c}"] ?? $hilo,
+                'CodColor' => $data["CodColorC{$c}"] ?? null,
+                'Color' => $data["NomColorC{$c}"] ?? null,
+                'Fibra' => $data["FibraComb{$c}"] ?? null,
+                'Pasadas' => $data["PasadasComb{$c}"] ?? null,
+            ];
+        }
+
+        $barra = 1;
+        foreach ($fuentes as $src) {
+            if ($barra > 4) {
+                break;
+            }
+            $hay = $this->valorConstruccionLleno($src['Cuenta'] ?? null)
+                || $this->valorConstruccionLleno($src['Calibre'] ?? null)
+                || $this->valorConstruccionLleno($src['Fibra'] ?? null)
+                || $this->valorConstruccionLleno($src['CodColor'] ?? null)
+                || $this->valorConstruccionLleno($src['Color'] ?? null)
+                || $this->valorConstruccionLleno($src['Pasadas'] ?? null);
+            if (! $hay) {
+                continue;
+            }
+            $data["CuentaBarra{$barra}"] = $src['Cuenta'] ?? null;
+            $data["CalibreBarra{$barra}"] = $src['Calibre'] ?? null;
+            $data["CodColorBarra{$barra}"] = $src['CodColor'] ?? null;
+            $data["ColorBarra{$barra}"] = $src['Color'] ?? null;
+            $data["FibraBarra{$barra}"] = $src['Fibra'] ?? null;
+            $data["PasadasBarra{$barra}"] = $src['Pasadas'] ?? null;
+            $barra++;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Tamaño Clave y Clave Modelo = Clave AX + Tamaño (InventSizeId).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function completarClaves(array $data): array
+    {
+        $item = trim((string) ($data['ItemId'] ?? ''));
+        $size = trim((string) ($data['InventSizeId'] ?? ''));
+        $concat = $item.$size;
+        if ($concat === '') {
+            return $data;
+        }
+        if (trim((string) ($data['TamanoClave'] ?? '')) === '') {
+            $data['TamanoClave'] = $concat;
+        }
+        if (trim((string) ($data['ClaveModelo'] ?? '')) === '') {
+            $data['ClaveModelo'] = $concat;
+        }
+
+        return $data;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function datosDeRequest(Request $request): array
+    {
+        $data = $this->completarClaves($request->only(array_keys(self::CAMPOS_MODELO)));
+
+        return $this->payloadSegunSalon($data);
     }
 
     /** API: crear */
     public function store(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), $this->getValidationRules(true));
+        $data = $this->datosDeRequest($request);
+        $validator = Validator::make($data, $this->getValidationRules(true));
 
         if ($validator->fails()) {
             return response()->json([
@@ -647,7 +980,7 @@ class CodificacionController extends Controller
             ], 422);
         }
 
-        $codificacion = ReqModelosCodificados::create($request->only(array_keys(self::CAMPOS_MODELO)));
+        $codificacion = ReqModelosCodificados::create($data);
         $this->clearCodificacionCache((int) $codificacion->Id);
 
         return response()->json([
@@ -665,7 +998,8 @@ class CodificacionController extends Controller
             return response()->json(['success' => false, 'message' => 'No encontrado'], 404);
         }
 
-        $validator = Validator::make($request->all(), $this->getValidationRules(false));
+        $data = $this->datosDeRequest($request);
+        $validator = Validator::make($data, $this->getValidationRules(false));
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
@@ -674,7 +1008,7 @@ class CodificacionController extends Controller
             ], 422);
         }
 
-        $codificacion->update($request->only(array_keys(self::CAMPOS_MODELO)));
+        $codificacion->update($data);
         $this->clearCodificacionCache((int) $codificacion->Id);
 
         return response()->json([
@@ -788,7 +1122,7 @@ class CodificacionController extends Controller
                     'poll_url' => '/planeacion/catalogos/codificacion-modelos/excel-progress/'.$importId,
                 ],
             ], 202);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json(['success' => false, 'message' => 'Validación fallida', 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
             Log::error('Error importación Excel', ['error' => $e->getMessage()]);
@@ -943,6 +1277,12 @@ class CodificacionController extends Controller
                 // Convertir telar a string para consistencia
                 $telarStr = (string) $telar;
 
+                // InvSecuenciaTelares guarda KM; el form y ReqModelosCodificados usan KARL MAYER.
+                $canon = TelarSalonResolver::normalizeSalon($salon, $telarStr);
+                if ($canon === 'KARL MAYER') {
+                    $salon = 'KARL MAYER';
+                }
+
                 // ITEMA se trata como SMIT - unificar ambos
                 if ($salon === 'ITEMA' || $salon === 'SMIT') {
                     // Agrupar todos los telares de ITEMA y SMIT juntos bajo SMIT
@@ -982,6 +1322,17 @@ class CodificacionController extends Controller
                 // Siempre asignar a ITEMA también (son los mismos telares)
                 $telaresPorSalon['ITEMA'] = $telaresITEMASMIT;
             }
+
+            if (! in_array('KARL MAYER', $salones, true)) {
+                $salones[] = 'KARL MAYER';
+            }
+            $kmTelares = $telaresPorSalon['KARL MAYER'] ?? [];
+            foreach (['401', '402'] as $telarKm) {
+                if (! in_array($telarKm, $kmTelares, true)) {
+                    $kmTelares[] = $telarKm;
+                }
+            }
+            $telaresPorSalon['KARL MAYER'] = $kmTelares;
 
             // Ordenar salones y telares
             sort($salones);
@@ -1106,18 +1457,27 @@ class CodificacionController extends Controller
     public function getCatCodificadosByOrden(Request $request): JsonResponse
     {
         $orden = trim((string) $request->query('orden_trabajo', $request->query('orden', '')));
-        if ($orden === '') {
+        $clave = trim((string) $request->query('clave_modelo', ''));
+        $item = trim((string) $request->query('item_id', ''));
+        $size = trim((string) $request->query('invent_size_id', ''));
+
+        if ($orden === '' && $clave === '' && ($item === '' || $size === '')) {
             return response()->json([
                 'success' => false,
-                'message' => 'Orden de trabajo requerida',
+                'message' => 'Indica orden de tejido, clave modelo o Clave AX + Tamaño',
             ], 422);
         }
 
-        $registro = $this->findCatCodificadoByOrden($orden);
+        $registro = $this->findCatCodificadoSimilar([
+            'orden' => $orden,
+            'clave_modelo' => $clave,
+            'item_id' => $item,
+            'invent_size_id' => $size,
+        ]);
         if (! $registro) {
             return response()->json([
                 'success' => false,
-                'message' => 'No se encontro registro en CatCodificados',
+                'message' => 'No se encontró un modelo similar en CatCodificados',
             ], 404);
         }
 
@@ -1126,17 +1486,130 @@ class CodificacionController extends Controller
             $claveMod = trim((string) ($registro->Clave ?? ''));
         }
 
+        $campos = $this->volcarConstruccionViejaABarrasSiKm(
+            $this->mapCatCodificadosToReq($registro),
+            $request->query('salon')
+        );
+        $itemId = trim((string) ($registro->ItemId ?? ''));
+        $sizeId = trim((string) ($registro->InventSizeId ?? ''));
+        $concat = $itemId.$sizeId;
+        if (trim((string) ($campos['TamanoClave'] ?? '')) === '' && $concat !== '') {
+            $campos['TamanoClave'] = $concat;
+        }
+        if (trim((string) ($campos['ClaveModelo'] ?? '')) === '' && $concat !== '') {
+            $campos['ClaveModelo'] = $concat;
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
                 'orden_trabajo' => trim((string) ($registro->OrdenTejido ?? $orden)),
                 'salon' => trim((string) ($registro->Departamento ?? '')),
                 'clave_mod' => $claveMod,
-                'clave_ax' => trim((string) ($registro->ItemId ?? '')),
-                'tamano' => trim((string) ($registro->InventSizeId ?? '')),
+                'clave_ax' => $itemId,
+                'tamano' => $sizeId,
                 'nombre' => trim((string) ($registro->Nombre ?? '')),
+                'campos' => $campos,
             ],
         ]);
+    }
+
+    public function modeloSimilar(Request $request): JsonResponse
+    {
+        $origen = strtolower(trim((string) $request->query('origen', '')));
+        $por = strtolower(trim((string) $request->query('por', '')));
+        $valor = trim((string) $request->query('valor', ''));
+        $excluir = $request->query('excluir_id');
+
+        if (! in_array($origen, ['req', 'cat'], true) || ! in_array($por, ['orden', 'clave'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Indica de dónde (esta tabla o CatCodificados) y cómo (orden o clave modelo)',
+            ], 422);
+        }
+
+        if ($valor === '') {
+            return response()->json([
+                'success' => false,
+                'message' => $por === 'orden' ? 'Escribe la orden de tejido' : 'Escribe la clave modelo',
+            ], 422);
+        }
+
+        if ($por === 'orden' && ! preg_match('/^\d+$/', $valor)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La orden de tejido solo lleva números',
+            ], 422);
+        }
+
+        $q = [
+            'orden' => $por === 'orden' ? $valor : '',
+            'clave_modelo' => $por === 'clave' ? $valor : '',
+            'excluir_id' => $excluir,
+        ];
+
+        if ($origen === 'cat') {
+            $registro = $this->findCatCodificadoSimilar($q);
+            if (! $registro) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No hay un modelo con esos datos en CatCodificados',
+                ], 404);
+            }
+
+            $claveMod = trim((string) ($registro->ClaveModelo ?? ''));
+            if ($claveMod === '' || $claveMod === '0') {
+                $claveMod = trim((string) ($registro->Clave ?? ''));
+            }
+            $campos = $this->volcarConstruccionViejaABarrasSiKm(
+                $this->mapCatCodificadosToReq($registro),
+                $request->query('salon')
+            );
+            $itemId = trim((string) ($registro->ItemId ?? ''));
+            $sizeId = trim((string) ($registro->InventSizeId ?? ''));
+            $concat = $itemId.$sizeId;
+            if (trim((string) ($campos['TamanoClave'] ?? '')) === '' && $concat !== '') {
+                $campos['TamanoClave'] = $concat;
+            }
+            if (trim((string) ($campos['ClaveModelo'] ?? '')) === '' && $concat !== '') {
+                $campos['ClaveModelo'] = $concat;
+            }
+
+            return response()->json($this->respuestaModeloSimilar(
+                'cat',
+                trim((string) ($registro->OrdenTejido ?? $q['orden'])),
+                $claveMod,
+                $itemId,
+                $sizeId,
+                trim((string) ($registro->Nombre ?? '')),
+                $campos
+            ));
+        }
+
+        $registro = $this->findReqModeloSimilar($q);
+        if (! $registro) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay un modelo con esos datos en esta tabla',
+            ], 404);
+        }
+
+        $campos = array_intersect_key(
+            $registro->getAttributes(),
+            array_flip(array_keys(self::CAMPOS_MODELO))
+        );
+        unset($campos['Id']);
+        $campos = $this->volcarConstruccionViejaABarrasSiKm($campos, $request->query('salon'));
+
+        return response()->json($this->respuestaModeloSimilar(
+            'req',
+            trim((string) ($registro->OrdenTejido ?? $q['orden'])),
+            trim((string) ($registro->ClaveModelo ?: $registro->TamanoClave ?: '')),
+            trim((string) ($registro->ItemId ?? '')),
+            trim((string) ($registro->InventSizeId ?? '')),
+            trim((string) ($registro->Nombre ?? '')),
+            $campos
+        ));
     }
 
     /**

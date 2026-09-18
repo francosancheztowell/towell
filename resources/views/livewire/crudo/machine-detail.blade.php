@@ -323,6 +323,7 @@
                                         <col class="crudo-orders-col-number">
                                         <col class="crudo-orders-col-number">
                                         <col class="crudo-orders-col-lot">
+                                        <col class="crudo-orders-col-turn">
                                     </colgroup>
                                     <thead>
                                         <tr>
@@ -334,6 +335,7 @@
                                             <th title="Peso crudo real en g/pz: kg de la captura entre sus piezas">Crudo</th>
                                             <th>2das</th>
                                             <th title="Lote del proveedor, ligado por la orden de urdido">Lote</th>
+                                            <th title="Turnos con piezas en esta captura (PIEZAST1–PIEZAST4)">Turno</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -341,6 +343,10 @@
                                             @php
                                                 $capturePieces = (int) $capture['pieces'];
                                                 $captureWeight = (float) $capture['weight'];
+                                                $captureTurns = trim((string) ($capture['turns'] ?? ''));
+                                                if ($captureTurns === '') {
+                                                    $captureTurns = \App\Support\Crudo\CrudoDefectTurnShare::captureTurnsLabel($capture);
+                                                }
                                             @endphp
                                             <tr wire:key="crudo-capture-{{ $capture['recId'] }}">
                                                 <td title="{{ $capture['date'] ?? '' }}">{{ ($capture['date'] ?? '') ?: '—' }}</td>
@@ -351,9 +357,10 @@
                                                 <td>{{ $capturePieces > 0 ? number_format(($captureWeight * 1000) / $capturePieces) : '—' }}</td>
                                                 <td>{{ number_format((int) $capture['seconds']) }}</td>
                                                 <td title="{{ ($capture['warpingOrder'] ?? '') !== '' ? 'Urdido '.$capture['warpingOrder'] : '' }}">{{ ($capture['supplierLot'] ?? '') ?: '—' }}</td>
+                                                <td>{{ $captureTurns !== '' ? $captureTurns : '—' }}</td>
                                             </tr>
                                         @empty
-                                            <tr><td colspan="8">Sin capturas en el periodo seleccionado.</td></tr>
+                                            <tr><td colspan="9">Sin capturas en el periodo seleccionado.</td></tr>
                                         @endforelse
                                     </tbody>
                                 </table>
@@ -379,10 +386,13 @@
                                     <thead>
                                         <tr>
                                             <th>Defecto</th>
-                                            <th>T1</th>
-                                            <th>T2</th>
-                                            <th>T3</th>
-                                            <th>T4</th>
+                                            @foreach (['1', '2', '3', '4'] as $defectTurn)
+                                                @php $turnShare = (int) ($selectedMachine['defectTurnPercents'][$defectTurn] ?? 0); @endphp
+                                                <th title="{{ $turnShare }}% de calidad en T{{ $defectTurn }} (100 − 2das/piezas del turno)">
+                                                    T{{ $defectTurn }}
+                                                    <span class="crudo-defect-turn-share">({{ $turnShare }}%)</span>
+                                                </th>
+                                            @endforeach
                                         </tr>
                                     </thead>
                                     <tbody>

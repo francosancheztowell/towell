@@ -9,6 +9,7 @@ use App\Services\Crudo\CrudoAccess;
 use App\Services\Crudo\CrudoParosHistoryService;
 use App\Services\Crudo\CrudoProductionTargetService;
 use App\Services\Crudo\CrudoStatusResolver;
+use App\Support\Crudo\CrudoDefectTurnShare;
 use App\Support\Crudo\ResolvesCrudoPeriod;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Cache;
@@ -234,6 +235,7 @@ class MachineDetail extends Component
             'defectLineCount',
             'defects',
             'captures',
+            'piecesByTurn',
         ];
 
         foreach ($detailKeys as $key) {
@@ -270,8 +272,35 @@ class MachineDetail extends Component
             'icon' => $estado->icon(),
         ], $states);
         $machine['defectLineCount'] ??= 0;
+        $machine['piecesByTurn'] = self::normalizedPiecesByTurn(
+            $machine['piecesByTurn'] ?? null,
+            $machine['captures'],
+        );
+        $machine['defectTurnPercents'] = CrudoDefectTurnShare::percents(
+            $machine['defects'],
+            $machine['piecesByTurn'],
+        );
 
         return $machine;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $piecesByTurn
+     * @param  list<array<string, mixed>>  $captures
+     * @return array{1: float, 2: float, 3: float, 4: float}
+     */
+    private static function normalizedPiecesByTurn(?array $piecesByTurn, array $captures): array
+    {
+        if (is_array($piecesByTurn) && $piecesByTurn !== []) {
+            return [
+                '1' => (float) ($piecesByTurn['1'] ?? $piecesByTurn[1] ?? 0),
+                '2' => (float) ($piecesByTurn['2'] ?? $piecesByTurn[2] ?? 0),
+                '3' => (float) ($piecesByTurn['3'] ?? $piecesByTurn[3] ?? 0),
+                '4' => (float) ($piecesByTurn['4'] ?? $piecesByTurn[4] ?? 0),
+            ];
+        }
+
+        return CrudoDefectTurnShare::piecesFromCaptures($captures);
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Contracts\Crudo\CrudoReadRepository;
 use App\DTOs\Crudo\CrudoDashboardData;
 use App\DTOs\Crudo\CrudoMachineMetrics;
 use App\Enums\Crudo\CrudoMachineState;
+use App\Support\Crudo\CrudoDefectTurnShare;
 use App\Support\Crudo\CrudoProductionDay;
 use Carbon\CarbonImmutable;
 use DateTimeImmutable;
@@ -58,6 +59,8 @@ final readonly class CrudoDashboardService
 
         $captureLimit = max(5, (int) config('crudo.detail_capture_limit', 25));
         $visibleCaptures = $this->attachSupplierLots(array_slice($raw['captures'], -$captureLimit));
+        // Piezas por turno de TODAS las capturas del periodo, no solo las 25 del modal.
+        $piecesByTurn = CrudoDefectTurnShare::piecesFromCaptures($raw['captures']);
 
         return [
             'captureCount' => (int) $raw['captureCount'],
@@ -76,6 +79,7 @@ final readonly class CrudoDashboardService
             'defectLineCount' => (int) $raw['defectLineCount'],
             'defects' => $defectsList,
             'captures' => $visibleCaptures,
+            'piecesByTurn' => $piecesByTurn,
         ];
     }
 
@@ -362,7 +366,7 @@ final readonly class CrudoDashboardService
                 $metrics[$telar]['defects'][$defectKey]['turns'][$turn] += $quantity;
             }
 
-            $metrics[$telar]['captures'][] = [
+            $captureRow = [
                 'recId' => trim((string) $header->RECID),
                 'order' => $order ?: 'Sin orden',
                 'date' => $this->formatCaptureDate($header->TRANSDATE ?? null),
@@ -380,6 +384,8 @@ final readonly class CrudoDashboardService
                 'defectLineCount' => $captureDefectLineCount,
                 'observations' => trim((string) ($header->OBSERVACIONES ?? '')),
             ];
+            $captureRow['turns'] = CrudoDefectTurnShare::captureTurnsLabel($captureRow);
+            $metrics[$telar]['captures'][] = $captureRow;
         }
 
         return $metrics;

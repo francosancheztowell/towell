@@ -230,13 +230,13 @@ final class CrudoLivewireTest extends TestCase
         $this->assertSame(1, $matched);
         $tabletRules = $matches['rules'];
         $this->assertStringContainsString(
-            'grid-template-columns: clamp(11.5rem, 18vw, 14rem) minmax(0, 1fr)',
+            'grid-template-columns: clamp(9.5rem, 14vw, 12.5rem) minmax(0, 1fr)',
             $tabletRules,
         );
         $this->assertStringContainsString('.crudo-sidebar {', $tabletRules);
         $this->assertStringContainsString('grid-template-columns: minmax(0, 1fr)', $tabletRules);
         $this->assertStringContainsString(
-            'grid-template-columns: minmax(0, 0.42fr) minmax(0, 1fr) minmax(0, 1.15fr)',
+            'grid-template-columns: minmax(0, 0.34fr) minmax(0, 1fr) minmax(0, 1.23fr)',
             $tabletRules,
         );
         $this->assertStringContainsString('[data-crudo-detail-modal] .crudo-modal {', $tabletRules);
@@ -251,11 +251,14 @@ final class CrudoLivewireTest extends TestCase
         );
         $this->assertStringContainsString('white-space: normal', $tabletRules);
         $this->assertStringContainsString(
-            'grid-template-columns: minmax(0, 1.6fr) minmax(8rem, 0.65fr) minmax(9rem, 0.75fr)',
+            'grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)',
             $tabletRules,
         );
+        $this->assertStringContainsString('.crudo-orders-panel {', $tabletRules);
+        $this->assertStringContainsString('.crudo-detail-table-scroll.crudo-orders-table-wrap {', $tabletRules);
         $this->assertStringContainsString('.crudo-orders-table .crudo-orders-col-lot {', $tabletRules);
-        $this->assertStringContainsString('width: 24%', $tabletRules);
+        $this->assertStringContainsString('width: 18%', $tabletRules);
+        $this->assertStringContainsString('.crudo-orders-table .crudo-orders-col-turn {', $tabletRules);
         $this->assertStringContainsString('.crudo-orders-table td {', $tabletRules);
         $this->assertStringContainsString('font-size: 0.78rem', $tabletRules);
         $this->assertStringContainsString('.crudo-flog-simulation img {', $tabletRules);

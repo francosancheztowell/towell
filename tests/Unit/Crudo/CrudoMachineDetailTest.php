@@ -70,6 +70,7 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertDontSee('<th>Urdido</th>', false)
             ->assertSee('Lote')
             ->assertSee('29734-AP-35')
+            ->assertSee('Turno')
             ->assertDontSee('Peso (kg)')
             ->assertSee('Error de trama')
             ->assertSee('Defectos registrados')
@@ -118,6 +119,83 @@ final class CrudoMachineDetailTest extends TestCase
         // El detalle sigue visible con el formulario abierto: se reconsulta al abrirlo.
         $this->assertSame(2, $this->provider->detailCalls);
         $this->assertSame(0, $this->flogProvider->calls);
+    }
+
+    public function test_defect_headers_show_quality_percent_per_turn(): void
+    {
+        $machine = $this->machineData();
+        $machine['pieces'] = 100.0;
+        $machine['seconds'] = 10.0;
+        $machine['qualityPercent'] = 90.0;
+        $machine['secondsPercent'] = 10.0;
+        $machine['defects'] = [[
+            'code' => '01',
+            'description' => 'Error de trama',
+            'quantity' => 10.0,
+            'turns' => [
+                '1' => 0.0,
+                '2' => 0.0,
+                '3' => 10.0,
+                '4' => 0.0,
+                'other' => 0.0,
+            ],
+        ]];
+        $machine['captures'][0]['piecesT1'] = 0.0;
+        $machine['captures'][0]['piecesT2'] = 0.0;
+        $machine['captures'][0]['piecesT3'] = 100.0;
+        $machine['captures'][0]['piecesT4'] = 0.0;
+        $machine['captures'][0]['pieces'] = 100.0;
+        $machine['captures'][0]['seconds'] = 10.0;
+        $this->app->instance(
+            CrudoDashboardProvider::class,
+            new FakeCrudoDashboardProviderForDetail($machine),
+        );
+
+        $html = Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $machine)
+            ->call('loadDetail')
+            ->html();
+
+        $this->assertMatchesRegularExpression('/T1\s*<span class="crudo-defect-turn-share">\(0%\)<\/span>/', $html);
+        $this->assertMatchesRegularExpression('/T2\s*<span class="crudo-defect-turn-share">\(0%\)<\/span>/', $html);
+        $this->assertMatchesRegularExpression('/T3\s*<span class="crudo-defect-turn-share">\(90%\)<\/span>/', $html);
+        $this->assertMatchesRegularExpression('/T4\s*<span class="crudo-defect-turn-share">\(0%\)<\/span>/', $html);
+        $this->assertStringContainsString('90% de calidad en T3', $html);
+    }
+
+    public function test_orders_table_shows_capture_turns_joined_with_comma(): void
+    {
+        $machine = $this->machineData();
+        $machine['captures'][0]['piecesT1'] = 60.0;
+        $machine['captures'][0]['piecesT2'] = 0.0;
+        $machine['captures'][0]['piecesT3'] = 40.0;
+        $machine['captures'][0]['piecesT4'] = 0.0;
+        $this->app->instance(
+            CrudoDashboardProvider::class,
+            new FakeCrudoDashboardProviderForDetail($machine),
+        );
+
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $machine)
+            ->call('loadDetail')
+            ->assertSee('Turno')
+            ->assertSee('1,3');
+    }
+
+    public function test_defect_headers_show_zero_percent_when_there_are_no_defects(): void
+    {
+        $machine = $this->machineData();
+        $machine['defects'] = [];
+        $this->app->instance(
+            CrudoDashboardProvider::class,
+            new FakeCrudoDashboardProviderForDetail($machine),
+        );
+
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $machine)
+            ->call('loadDetail')
+            ->assertSee('Sin defectos registrados en este periodo.')
+            ->assertSee('(0%)');
     }
 
     public function test_open_uses_the_dashboard_context_and_pauses_polling_until_close(): void
