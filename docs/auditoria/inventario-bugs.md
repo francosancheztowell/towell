@@ -2,7 +2,7 @@
 
 **Propósito:** backlog priorizado, honestidad sobre evidencia. No es un changelog ni un plan de sprint.
 **Fuente base:** `docs/auditoria/auditoria-critica-towell.md` (PR [#32](https://github.com/francosancheztowell/towell/pull/32)) + verificación puntual en `main` / rama de auditoría (2026-09-18).
-**Última actualización:** 2026-09-18 (BUG-003 slice Mantto: paros `store`/`finalizar` gated con `userCan`).
+**Última actualización:** 2026-09-18 (BUG-003 slice Mantto revertido a pedido de Franco: paros otra vez solo `auth`).
 **Reglas:** no inventar bugs sin path/símbolo. `confirmado` = leído en código; `hipótesis` = plausible pero no cerrado en esta pasada.
 
 ---
@@ -25,7 +25,7 @@
 |----|-----|------|--------|-----------|---------|--------|-------|
 | BUG-001 | P0 | Auth / Config | CRUD módulos sin autenticación | `routes/public.php` L25–30 → `ModulosController::{index,store,update,destroy}` bajo `/modulos-sin-auth` | Quien alcance la URL administra menú y plantillas de permiso | confirmado | Eliminar grupo o meter bajo `auth` + `userCan`. Tratar hits históricos como incidente. |
 | BUG-002 | P0 | Auth | `GET /obtener-empleados/{area}` sin auth | `routes/public.php` L19–20 → `UsuarioController::obtenerEmpleados` | Filtración de nómina/empleados por área sin sesión | confirmado | Mover dentro de `auth` o exigir token/firma. |
-| BUG-003 | P0 | AuthZ | APIs solo con `auth`; menú ≠ autorización | `routes/web.php` L8–25: único middleware de grupo `auth`. `rg userCan\|can:` en `routes/` = 0 (auditoría) | Cualquier usuario autenticado puede pegarle a liberar / L.Mat / paros / mover | confirmado | **Slice Mantto (2026-09-18):** `MantenimientoParosController::{store,finalizar}` exigen `userCan('crear'\|'modificar', 'Solicitudes')` y responden 403 JSON. Feature: `tests/Feature/MantenimientoParosAuthorizationTest.php`. El bug **sigue abierto** hasta Planea (liberar / L.Mat) y el resto de mutaciones. |
+| BUG-003 | P0 | AuthZ | APIs solo con `auth`; menú ≠ autorización | `routes/web.php` L8–25: único middleware de grupo `auth`. `rg userCan\|can:` en `routes/` = 0 (auditoría) | Cualquier usuario autenticado puede pegarle a liberar / L.Mat / paros / mover | confirmado | **Slice Mantto revertido (Franco, 2026-09-18):** `store`/`finalizar` de paros vuelven a exigir solo `auth`; el menú puede ocultar la UI y el API no 403 por `userCan('crear'\|'modificar','Solicitudes')`. Feature: `tests/Feature/MantenimientoParosAuthorizationTest.php`. El bug **sigue abierto** en Planea (liberar / L.Mat / mover). |
 | BUG-004 | P1 | Planeación / AX | Liberar fuerza `CreaProd = 1` (re-encola AX) | `LiberarOrdenesController` L613 y payload L1381; contraste `OrdenDeCambioFelpaController` omite `CreaProd` en update | Re-liberar vuelve a encolar producción en AX | confirmado | No tocar `CreaProd` si el row ya existe. Test de no-regresión. |
 | BUG-005 | P1 | Engomado | `actualizarStatus` → En Proceso sin exigir Urdido Finalizado | `ProgramarEngomadoController::actualizarStatus` L490–540: solo AX lock; **no** chequea urdido. `ProgramBoardActionService::productionBlockReasonForOrder` L207–219 **sí** exige Finalizado | Stack legacy (UI default) salta la regla de negocio | confirmado | Delegar POST al service. Ruta `verificar-en-proceso` no se llama desde vistas. |
 | BUG-006 | P1 | Utilería | Mover puede anular `FechaFinaliza` | `MoverOrdenesController::sincronizarCatCodificados` L605 → `actualizarFechasArranqueFinaliza($reg, null, null)` con default `actualizarFechaFinaliza=true` | Órdenes finalizadas pierden fecha al cambiar salón | confirmado | Pasar `actualizarFechaFinaliza: false`. `AGENTS.md` desactualizado. |
@@ -45,7 +45,7 @@
 | BUG-020 | P2 | FS / Vistas | Typo congelado `resources/views/catalagos/` | Árbol git: `resources/views/catalagos/**` | Rutas Blade y links frágiles; rename rompe | confirmado | Deuda; no renombrar sin plan. |
 | BUG-021 | P2 | Mecánicos | Dos `MecActividadesController` | `app/Http/Controllers/mecanicos/MecActividadesController.php` y `.../Catalogos/MecActividadesController.php` | Ambigüedad de mantenimiento / imports | confirmado | Unificar o renombrar. |
 | BUG-022 | P2 | Modelos | `UrdEngNucleos` duplicado (case paths) | `app/Models/UrdEngomado/UrdEngNucleos.php` vs `app/Models/urdengomado/UrdEngNucleos.php` | En Linux/CI el autoload puede divergir de Windows | confirmado | Un path canónico. |
-| BUG-023 | P2 | Tests | Mutaciones críticas sin Feature tests | No hay tests de `MoverOrdenesController`, `FinalizarOrdenesController`, `CatLMatController::guardarLmat`. Paros: hay Feature AuthZ de `store`/`finalizar`, no happy-path de negocio | Regresiones llegan a planta | confirmado | Feature HTTP antes de extraer services. |
+| BUG-023 | P2 | Tests | Mutaciones críticas sin Feature tests | No hay tests de `MoverOrdenesController`, `FinalizarOrdenesController`, `CatLMatController::guardarLmat`. Paros: hay Feature de `auth` (no `userCan`) en `store`/`finalizar`, no happy-path de negocio | Regresiones llegan a planta | confirmado | Feature HTTP antes de extraer services. |
 | BUG-024 | P2 | Atadores | `OeeAtadoresFileService` ~3097 LOC | `app/Services/OeeAtadores/OeeAtadoresFileService.php` | Segundo ERP embebido; riesgo de cambio | confirmado | Partir por bounded use-case. |
 | BUG-025 | P3 | Paros | UserId mágico `=== 6` en departamentos | `MantenimientoParosController::departamentos` L61 | Permiso hardcodeado a un empleado | confirmado | Config/rol, no ID. |
 | BUG-026 | P3 | Auth | `Auth::login(..., true)` remember-me siempre | `AuthController` (auditoría Top10 #10) | Sesiones eternas en PCs compartidas | hipótesis | Verificar política de planta. |
@@ -54,14 +54,13 @@
 
 ---
 
-## Slice Mantto de BUG-003 (2026-09-18)
+## Slice Mantto de BUG-003 (revertido 2026-09-18)
 
-Paros ya no se mutan con solo estar logueado:
+Franco pidió abrir paros a cualquier sesión autenticada. Se revirtió el gate de PR [#34](https://github.com/francosancheztowell/towell/pull/34):
 
-- `POST /api/mantenimiento/paros` → `userCan('crear', 'Solicitudes')` o 403 JSON.
-- `PUT /api/mantenimiento/paros/{id}/finalizar` → `userCan('modificar', 'Solicitudes')` o 403 JSON.
-- Módulo SYSRoles confirmado: **`Solicitudes`** (navbar `module="Solicitudes"`; mismo string que `grantModulo` en tests unitarios).
-- Fuera de este slice: `userId === 6` en `departamentos()` (BUG-025), Planea liberar/L.Mat, Urdido/Engomado.
+- `POST /api/mantenimiento/paros` y `PUT /api/mantenimiento/paros/{id}/finalizar` ya no llaman `userCan`.
+- Guest sigue 401/302 (`auth` en la ruta). El menú puede ocultar la UI; el API no bloquea por módulo **Solicitudes**.
+- Slice Planea (liberar / L.Mat / mover) no se toca. Fuera de este slice: `userId === 6` en `departamentos()` (BUG-025).
 
 ---
 

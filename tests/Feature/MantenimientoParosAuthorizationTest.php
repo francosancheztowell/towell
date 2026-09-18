@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 /**
- * BUG-003 (slice Mantto): store/finalizar de paros no se autorizan con el menú.
- * userCan('crear'|'modificar', 'Solicitudes') es el candado real.
+ * Paros de mantenimiento: Franco pidió revertir el gate de módulo.
+ * Guest sigue bloqueado; cualquier usuario autenticado (sin Solicitudes) no recibe 403 de userCan.
  */
 class MantenimientoParosAuthorizationTest extends TestCase
 {
@@ -59,6 +59,23 @@ class MantenimientoParosAuthorizationTest extends TestCase
         }
     }
 
+    private function assertNoUserCanForbidden(int $status, mixed $payload): void
+    {
+        $this->assertNotSame(
+            403,
+            $status,
+            'El API de paros no debe devolver 403 por userCan(Solicitudes); solo se exige sesión.'
+        );
+
+        if (! is_array($payload)) {
+            return;
+        }
+
+        $error = (string) ($payload['error'] ?? '');
+        $this->assertStringNotContainsString('No tienes permiso para reportar paros.', $error);
+        $this->assertStringNotContainsString('No tienes permiso para finalizar paros.', $error);
+    }
+
     public function test_guest_no_puede_crear_paro(): void
     {
         $this->assertGuestAuthBlocked('POST', '/api/mantenimiento/paros');
@@ -86,51 +103,26 @@ class MantenimientoParosAuthorizationTest extends TestCase
         );
     }
 
-    public function test_autenticado_sin_crear_no_puede_reportar_paro(): void
+    public function test_autenticado_sin_permiso_de_modulo_puede_reportar_paro(): void
     {
-        $usuario = $this->actuandoComo(['acceso' => 1]);
-
-        $this->actingAs($usuario)
-            ->postJson('/api/mantenimiento/paros', [
-                'depto' => 'Tejedores',
-                'maquina' => 'T-01',
-                'falla_id' => 1,
-            ])
-            ->assertForbidden()
-            ->assertJson([
-                'success' => false,
-                'error' => 'No tienes permiso para reportar paros.',
-            ]);
-    }
-
-    public function test_autenticado_sin_modificar_no_puede_finalizar_paro(): void
-    {
-        $usuario = $this->actuandoComo(['acceso' => 1, 'crear' => 1]);
-
-        $this->actingAs($usuario)
-            ->putJson('/api/mantenimiento/paros/1/finalizar', [
-                'atendio' => 'Operador',
-                'calidad' => 5,
-            ])
-            ->assertForbidden()
-            ->assertJson([
-                'success' => false,
-                'error' => 'No tienes permiso para finalizar paros.',
-            ]);
-    }
-
-    public function test_con_permiso_crear_el_store_no_devuelve_403(): void
-    {
-        $usuario = $this->actuandoComo(['acceso' => 1, 'crear' => 1]);
+        $usuario = $this->actuandoComo([]);
 
         $response = $this->actingAs($usuario)->postJson('/api/mantenimiento/paros', []);
 
-        $this->assertNotSame(
-            403,
-            $response->status(),
-            'Con permiso crear el alta no debe cortarse por AuthZ (se espera 422 de validación).'
-        );
+        $this->assertNoUserCanForbidden($response->status(), $response->json());
         $response->assertStatus(422);
+    }
+
+    public function test_autenticado_sin_permiso_de_modulo_puede_finalizar_paro(): void
+    {
+        $usuario = $this->actuandoComo(['acceso' => 1]);
+
+        $response = $this->actingAs($usuario)->putJson('/api/mantenimiento/paros/1/finalizar', [
+            'atendio' => 'Operador',
+            'calidad' => 5,
+        ]);
+
+        $this->assertNoUserCanForbidden($response->status(), $response->json());
     }
 
     public function test_rutas_de_mutacion_exigen_auth(): void
