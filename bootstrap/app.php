@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'redbooth.api-key' => \App\Http\Middleware\AuthenticateRedboothApiKey::class,
+            'modulo.permiso' => \App\Http\Middleware\EnsureModulePermission::class,
         ]);
 
         // Registrar middleware para forzar HTTPS - TEMPORALMENTE DESHABILITADO

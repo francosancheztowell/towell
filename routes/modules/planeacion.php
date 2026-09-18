@@ -110,7 +110,9 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
     Route::get('/lmat/api/catalogos-materiales', [CatLMatController::class, 'getCatalogosMateriales'])->name('lmat.catalogos-materiales');
     Route::get('/lmat/api/por-orden/{orden}', [CatLMatController::class, 'getLmatPorOrden'])->name('lmat.por-orden');
     Route::get('/lmat/api/catcodificados-por-orden/{orden}', [CatLMatController::class, 'getRegistroCatCodificadosPorOrden'])->name('lmat.catcodificados-por-orden');
-    Route::post('/lmat/api/guardar', [CatLMatController::class, 'guardarLmat'])->name('lmat.guardar');
+    Route::post('/lmat/api/guardar', [CatLMatController::class, 'guardarLmat'])
+        ->middleware('modulo.permiso:modificar,Codificación')
+        ->name('lmat.guardar');
 
     Route::get('/alineacion', [AlineacionController::class, 'index'])->name('alineacion.index');
     Route::get('/alineacion/api/data', [AlineacionController::class, 'apiData'])->name('alineacion.api.data');
@@ -124,12 +126,16 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
         // * Finalizar Órdenes
         Route::get('/finalizar/telares', [FinalizarOrdenesController::class, 'getTelares'])->name('finalizar.telares');
         Route::get('/finalizar/ordenes', [FinalizarOrdenesController::class, 'getOrdenesByTelar'])->name('finalizar.ordenes');
-        Route::post('/finalizar/procesar', [FinalizarOrdenesController::class, 'finalizarOrdenes'])->name('finalizar.procesar');
+        Route::post('/finalizar/procesar', [FinalizarOrdenesController::class, 'finalizarOrdenes'])
+            ->middleware('modulo.permiso:modificar,Utilería')
+            ->name('finalizar.procesar');
 
         // * Mover Órdenes
         Route::get('/mover/telares', [MoverOrdenesController::class, 'getTelares'])->name('mover.telares');
         Route::get('/mover/registros', [MoverOrdenesController::class, 'getRegistrosByTelar'])->name('mover.registros');
-        Route::post('/mover/procesar', [MoverOrdenesController::class, 'moverOrdenes'])->name('mover.procesar');
+        Route::post('/mover/procesar', [MoverOrdenesController::class, 'moverOrdenes'])
+            ->middleware('modulo.permiso:modificar,Utilería')
+            ->name('mover.procesar');
     });
 
     Route::get('/telares', [CatalagoTelarController::class, 'index'])->name('telares.index');
@@ -203,7 +209,9 @@ Route::delete('/planeacion/programa-tejido/redbooth/{programa}', [RedboothProgra
 // Rutas específicas de programa-tejido (sin parámetros dinámicos)
 Route::get('/planeacion/programa-tejido/auditoria', [AuditoriaProgramaTejidoController::class, 'index'])->name('programa-tejido.auditoria');
 Route::get('/planeacion/programa-tejido/liberar-ordenes', [LiberarOrdenesController::class, 'index'])->name('programa-tejido.liberar-ordenes');
-Route::post('/planeacion/programa-tejido/liberar-ordenes/procesar', [LiberarOrdenesController::class, 'liberar'])->name('programa-tejido.liberar-ordenes.procesar');
+Route::post('/planeacion/programa-tejido/liberar-ordenes/procesar', [LiberarOrdenesController::class, 'liberar'])
+    ->middleware('modulo.permiso:registrar,Programa Tejido')
+    ->name('programa-tejido.liberar-ordenes.procesar');
 Route::get('/planeacion/programa-tejido/liberar-ordenes/bom-sugerencias', [LiberarOrdenesController::class, 'obtenerBomYNombre'])->name('programa-tejido.liberar-ordenes.bom');
 Route::get('/planeacion/programa-tejido/liberar-ordenes/tipo-hilo', [LiberarOrdenesController::class, 'obtenerTipoHilo'])->name('programa-tejido.liberar-ordenes.tipo-hilo');
 Route::get('/planeacion/programa-tejido/liberar-ordenes/codigo-dibujo', [LiberarOrdenesController::class, 'obtenerCodigoDibujo'])->name('programa-tejido.liberar-ordenes.codigo-dibujo');
@@ -271,7 +279,9 @@ Route::post('/programa-tejido/columnas', [ColumnasProgramaTejidoController::clas
 Route::get('/planeacion/muestras', [ProgramaTejidoController::class, 'index'])->name('muestras.index');
 
 Route::get('/planeacion/muestras/liberar-ordenes', [LiberarOrdenesController::class, 'index'])->name('muestras.liberar-ordenes');
-Route::post('/planeacion/muestras/liberar-ordenes/procesar', [LiberarOrdenesController::class, 'liberar'])->name('muestras.liberar-ordenes.procesar');
+Route::post('/planeacion/muestras/liberar-ordenes/procesar', [LiberarOrdenesController::class, 'liberar'])
+    ->middleware('modulo.permiso:registrar,Programa Tejido')
+    ->name('muestras.liberar-ordenes.procesar');
 Route::get('/planeacion/muestras/liberar-ordenes/bom-sugerencias', [LiberarOrdenesController::class, 'obtenerBomYNombre'])->name('muestras.liberar-ordenes.bom');
 Route::get('/planeacion/muestras/liberar-ordenes/tipo-hilo', [LiberarOrdenesController::class, 'obtenerTipoHilo'])->name('muestras.liberar-ordenes.tipo-hilo');
 Route::get('/planeacion/muestras/liberar-ordenes/codigo-dibujo', [LiberarOrdenesController::class, 'obtenerCodigoDibujo'])->name('muestras.liberar-ordenes.codigo-dibujo');
