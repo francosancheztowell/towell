@@ -508,8 +508,8 @@ class ModulosController extends Controller
      */
     private function getModulosIndexRoute(): string
     {
-        if (request()->routeIs('modulos.sin.auth.*')) {
-            return 'modulos.sin.auth.index';
+        if (request()->routeIs('modulos.gestion.*')) {
+            return 'modulos.gestion.index';
         }
 
         if (request()->routeIs('configuracion.utileria.modulos.*')) {

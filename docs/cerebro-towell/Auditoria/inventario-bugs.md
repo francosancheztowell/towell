@@ -2,7 +2,7 @@
 
 **Propósito:** backlog priorizado, honestidad sobre evidencia. No es un changelog ni un plan de sprint.
 **Fuente base:** `docs/auditoria/auditoria-critica-towell.md` (PR [#32](https://github.com/francosancheztowell/towell/pull/32)) + verificación puntual en `main` / rama de auditoría (2026-09-18).
-**Última actualización:** 2026-09-18 ~10:57 CT (America/Mexico_City).
+**Última actualización:** 2026-09-18 (mitigación P0 BUG-001/BUG-002: `auth` en rutas públicas sensibles).
 **Reglas:** no inventar bugs sin path/símbolo. `confirmado` = leído en código; `hipótesis` = plausible pero no cerrado en esta pasada.
 
 ---
@@ -23,8 +23,8 @@
 
 | ID | Sev | Área | Título | Evidencia | Impacto | Estado | Notas |
 |----|-----|------|--------|-----------|---------|--------|-------|
-| BUG-001 | P0 | Auth / Config | CRUD módulos sin autenticación | `routes/public.php` L25–30 → `ModulosController::{index,store,update,destroy}` bajo `/modulos-sin-auth` | Quien alcance la URL administra menú y plantillas de permiso | confirmado | Eliminar grupo o meter bajo `auth` + `userCan`. Tratar hits históricos como incidente. |
-| BUG-002 | P0 | Auth | `GET /obtener-empleados/{area}` sin auth | `routes/public.php` L19–20 → `UsuarioController::obtenerEmpleados` | Filtración de nómina/empleados por área sin sesión | confirmado | Mover dentro de `auth` o exigir token/firma. |
+| BUG-001 | P0 | Auth / Config | CRUD módulos sin autenticación | `routes/public.php` grupo `auth` (URI histórica `/modulos-sin-auth`, names `modulos.gestion.*`) → `ModulosController::{index,store,update,destroy}`. Guest test: `tests/Feature/PublicSensitiveRoutesAuthTest.php` | Quien alcance la URL administra menú y plantillas de permiso | mitigado | 2026-09-18: exige sesión. Nombres `modulos.sin.auth.*` eliminados. No hay middleware de módulo en el router (`userCan` no se inventó). URI conservada para clientes logueados. PR [#33](https://github.com/francosancheztowell/towell/pull/33). |
+| BUG-002 | P0 | Auth | `GET /obtener-empleados/{area}` sin auth | `routes/public.php` grupo `auth` → `UsuarioController::obtenerEmpleados` (`usuarios.obtener-empleados`). Guest test: `tests/Feature/PublicSensitiveRoutesAuthTest.php` | Filtración de nómina/empleados por área sin sesión | mitigado | 2026-09-18: `GET /obtener-empleados/{area}` exige sesión (302 login / 401 JSON). PR [#33](https://github.com/francosancheztowell/towell/pull/33). |
 | BUG-003 | P0 | AuthZ | APIs solo con `auth`; menú ≠ autorización | `routes/web.php` L8–25: único middleware de grupo `auth`. `rg userCan\|can:` en `routes/` = 0 (auditoría) | Cualquier usuario autenticado puede pegarle a liberar / L.Mat / paros / mover | confirmado | Middleware por módulo. Denegar por defecto. |
 | BUG-004 | P1 | Planeación / AX | Liberar fuerza `CreaProd = 1` (re-encola AX) | `LiberarOrdenesController` L613 y payload L1381; contraste `OrdenDeCambioFelpaController` omite `CreaProd` en update | Re-liberar vuelve a encolar producción en AX | confirmado | No tocar `CreaProd` si el row ya existe. Test de no-regresión. |
 | BUG-005 | P1 | Engomado | `actualizarStatus` → En Proceso sin exigir Urdido Finalizado | `ProgramarEngomadoController::actualizarStatus` L490–540: solo AX lock; **no** chequea urdido. `ProgramBoardActionService::productionBlockReasonForOrder` L207–219 **sí** exige Finalizado | Stack legacy (UI default) salta la regla de negocio | confirmado | Delegar POST al service. Ruta `verificar-en-proceso` no se llama desde vistas. |
