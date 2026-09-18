@@ -8,11 +8,15 @@ final class CrudoDefectTurnShare
 {
     /**
      * Calidad por turno, misma regla que el gauge del modal:
-     * 100 − (2das del turno / piezas del turno). Sin piezas, 0.
+     * 100 − (2das del turno / piezas del turno).
+     *
+     * Devuelve null cuando el turno no aporta información de falla: sin piezas
+     * (el turno no corrió) o sin 2das (100%). El modal los pinta como “—” para
+     * que el % solo señale a los turnos que sí fallaron.
      *
      * @param  list<array{turns?: array<string, float|int>}>  $defects
      * @param  array<string, float|int>  $piecesByTurn
-     * @return array{1: int, 2: int, 3: int, 4: int}
+     * @return array{1: int|null, 2: int|null, 3: int|null, 4: int|null}
      */
     public static function percents(array $defects, array $piecesByTurn = []): array
     {
@@ -33,9 +37,9 @@ final class CrudoDefectTurnShare
         $percents = [];
         foreach ($seconds as $turn => $quantity) {
             $pieces = is_numeric($piecesByTurn[$turn] ?? null) ? (float) $piecesByTurn[$turn] : 0.0;
-            $percents[$turn] = $pieces > 0
+            $percents[$turn] = ($pieces > 0 && $quantity > 0)
                 ? (int) round(max(0, 100 - (($quantity / $pieces) * 100)))
-                : 0;
+                : null;
         }
 
         return $percents;

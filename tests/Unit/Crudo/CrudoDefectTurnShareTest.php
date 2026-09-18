@@ -17,7 +17,7 @@ final class CrudoDefectTurnShareTest extends TestCase
             ['1' => 0, '2' => 0, '3' => 100, '4' => 0],
         );
 
-        $this->assertSame(['1' => 0, '2' => 0, '3' => 90, '4' => 0], $percents);
+        $this->assertSame(['1' => null, '2' => null, '3' => 90, '4' => null], $percents);
     }
 
     public function test_quality_is_computed_per_turn_from_that_turn_pieces(): void
@@ -27,17 +27,17 @@ final class CrudoDefectTurnShareTest extends TestCase
             ['1' => 60, '2' => 0, '3' => 40, '4' => 0],
         );
 
-        $this->assertSame(['1' => 97, '2' => 0, '3' => 93, '4' => 0], $percents);
+        $this->assertSame(['1' => 97, '2' => null, '3' => 93, '4' => null], $percents);
     }
 
-    public function test_it_returns_zero_when_a_turn_has_no_pieces(): void
+    public function test_it_returns_null_when_a_turn_has_no_pieces(): void
     {
         $this->assertSame(
-            ['1' => 0, '2' => 0, '3' => 0, '4' => 0],
+            ['1' => null, '2' => null, '3' => null, '4' => null],
             CrudoDefectTurnShare::percents([], []),
         );
         $this->assertSame(
-            ['1' => 0, '2' => 0, '3' => 0, '4' => 0],
+            ['1' => null, '2' => null, '3' => null, '4' => null],
             CrudoDefectTurnShare::percents(
                 [['turns' => ['3' => 8]]],
                 ['1' => 0, '2' => 0, '3' => 0, '4' => 0],
@@ -62,13 +62,14 @@ final class CrudoDefectTurnShareTest extends TestCase
         $this->assertSame('', CrudoDefectTurnShare::captureTurnsLabel([]));
     }
 
-    public function test_perfect_turn_is_one_hundred_when_it_has_pieces_and_no_seconds(): void
+    public function test_turn_without_seconds_is_not_scored(): void
     {
+        // Sin 2das no hubo falla: no se pinta 100%, se ignora el turno.
         $percents = CrudoDefectTurnShare::percents(
             [['turns' => ['1' => 0, '2' => 0, '3' => 0, '4' => 0]]],
             ['1' => 50, '2' => 0, '3' => 0, '4' => 0],
         );
 
-        $this->assertSame(['1' => 100, '2' => 0, '3' => 0, '4' => 0], $percents);
+        $this->assertSame(['1' => null, '2' => null, '3' => null, '4' => null], $percents);
     }
 }

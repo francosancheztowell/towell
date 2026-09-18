@@ -387,10 +387,12 @@
                                         <tr>
                                             <th>Defecto</th>
                                             @foreach (['1', '2', '3', '4'] as $defectTurn)
-                                                @php $turnShare = (int) ($selectedMachine['defectTurnPercents'][$defectTurn] ?? 0); @endphp
-                                                <th title="{{ $turnShare }}% de calidad en T{{ $defectTurn }} (100 − 2das/piezas del turno)">
+                                                @php $turnShare = $selectedMachine['defectTurnPercents'][$defectTurn] ?? null; @endphp
+                                                <th title="{{ $turnShare !== null
+                                                    ? $turnShare.'% de calidad en T'.$defectTurn.' (100 − 2das/piezas del turno)'
+                                                    : 'T'.$defectTurn.' sin 2das en el periodo: no se calcula calidad' }}">
                                                     T{{ $defectTurn }}
-                                                    <span class="crudo-defect-turn-share">({{ $turnShare }}%)</span>
+                                                    <span class="crudo-defect-turn-share">({{ $turnShare !== null ? $turnShare.'%' : '—' }})</span>
                                                 </th>
                                             @endforeach
                                         </tr>

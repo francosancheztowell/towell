@@ -55,7 +55,7 @@ class CodificacionFormularioTest extends TestCase
         $this->assertStringContainsString('value="2028"', $html);
         $this->assertStringContainsString('FIL. 370 VOLUMINIZADO', $html);
         $this->assertStringContainsString('Construcción · cuatro barras', $html);
-        $this->assertStringContainsString('sin capturar', $html);
+        $this->assertStringNotContainsString('sin capturar', $html);
         $this->assertDoesNotMatchRegularExpression('/data-solo-salon="km"[^>]*\bhidden\b/', $html);
         $this->assertMatchesRegularExpression('/data-solo-salon="std"[^>]*\bhidden\b/', $html);
         $this->assertStringNotContainsString('name="ColumCT"', $html);
@@ -63,7 +63,7 @@ class CodificacionFormularioTest extends TestCase
         $this->assertStringNotContainsString('Datos cargados', $html);
         $this->assertStringContainsString('no tiene telar', $html);
         $this->assertStringNotContainsString('todavía tiene cuenta en rizo', $html);
-        $this->assertMatchesRegularExpression('/id="sec-trama"[^>]*\bhidden\b/', $html);
+        $this->assertMatchesRegularExpression('/data-solo-salon="std"[^>]*\bhidden\b/', $html);
         $this->assertStringContainsString('Construcción · cuatro barras', $html);
     }
 
@@ -82,7 +82,7 @@ class CodificacionFormularioTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('todavía tiene cuenta en rizo', $html);
-        $this->assertStringContainsString('sin capturar', $html);
+        $this->assertStringNotContainsString('sin capturar', $html);
     }
 
     public function test_el_formulario_jacquard_muestra_rizo_y_oculta_barras(): void
@@ -101,9 +101,14 @@ class CodificacionFormularioTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('Construcción · rizo, pie y cenefa', $html);
+        $this->assertStringContainsString('Construcción · rizo, pie y trama', $html);
         $this->assertStringContainsString('value="1840"', $html);
-        $this->assertDoesNotMatchRegularExpression('/id="sec-trama"[^>]*\bhidden\b/', $html);
+        $this->assertStringContainsString('>Rizo</span>', $html);
+        $this->assertStringContainsString('>Pie</span>', $html);
+        $this->assertStringContainsString('>Trama</span>', $html);
+        $this->assertStringNotContainsString('>Cenefa</span>', $html);
+        $this->assertStringContainsString('Med. de cenefa', $html);
+        $this->assertStringNotContainsString('Jacquard y Smit no usan barras', $html);
         $this->assertMatchesRegularExpression('/data-solo-salon="km"[^>]*\bhidden\b/', $html);
     }
 
@@ -127,10 +132,25 @@ class CodificacionFormularioTest extends TestCase
         $this->assertStringContainsString('.cod-grid--id { grid-template-columns: repeat(5, minmax(0, 1fr)); }', $html);
         $this->assertStringContainsString('.cod-id-resto { display: contents; }', $html);
         $this->assertStringNotContainsString('<h2>Identificación</h2>', $html);
+        $this->assertStringNotContainsString('id="cod-identity"', $html);
+        $this->assertStringNotContainsString('Si hay Clave AX y Tamaño, se busca solo', $html);
+        $this->assertStringNotContainsString('El programa de tejido recalcula', $html);
+        $this->assertStringContainsString('maxlength="20"', $html);
         $this->assertStringNotContainsString('href="#sec-fechas"', $html);
         $this->assertDoesNotMatchRegularExpression('/<label[^>]*>Item ID</', $html);
         $this->assertMatchesRegularExpression('/name="TamanoClave"[^>]*type="hidden"|type="hidden"[^>]*name="TamanoClave"/', $html);
         $this->assertMatchesRegularExpression('/name="ClaveModelo"[^>]*type="hidden"|type="hidden"[^>]*name="ClaveModelo"/', $html);
+        $this->assertMatchesRegularExpression('/name="OrdenTejido"[^>]*type="hidden"|type="hidden"[^>]*name="OrdenTejido"/', $html);
+        $this->assertDoesNotMatchRegularExpression('/<label[^>]*>Orden Tejido</', $html);
+        $this->assertDoesNotMatchRegularExpression('/<label[^>]*>Velocidad STD</', $html);
+        $this->assertDoesNotMatchRegularExpression('/<label[^>]*>Cat\. Calidad</', $html);
+        $this->assertStringContainsString('>Calidad</label>', $html);
+        $this->assertStringContainsString('NAC - 1', $html);
+        $this->assertStringContainsString('NAC - 3', $html);
+        $this->assertStringContainsString('name="Rasurado"', $html);
+        $this->assertStringContainsString('name="CambioRepaso"', $html);
+        $this->assertMatchesRegularExpression('/name="Rasurado"[^>]*>[\s\S]*<option value="SI"/', $html);
+        $this->assertMatchesRegularExpression('/name="CambioRepaso"[^>]*>[\s\S]*<option value="NO"/', $html);
     }
 
     public function test_duplicar_marca_los_campos_que_hay_que_cambiar(): void
@@ -213,7 +233,7 @@ class CodificacionFormularioTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertMatchesRegularExpression('/id="sec-trama"[^>]*\bhidden\b/', $html);
+        $this->assertMatchesRegularExpression('/data-solo-salon="std"[^>]*\bhidden\b/', $html);
         $this->assertMatchesRegularExpression('/id="sec-fechas"[^>]*\bhidden\b/', $html);
         $this->assertMatchesRegularExpression('/data-solo-salon="km"[^>]*\bhidden\b/', $html);
     }
@@ -390,6 +410,7 @@ class CodificacionFormularioTest extends TestCase
             'NomColorC1' => 'CRUDO',
             'CalibreComb2' => '40',
             'FibraComb2' => 'C2',
+            'CalibreRizo2' => '15.949999999999999',
         ]);
 
         $json = $this->getJson('/planeacion/catalogos/codificacion-modelos/modelo-similar?origen=cat&por=orden&valor=36440&salon=KARL MAYER')
@@ -402,6 +423,7 @@ class CodificacionFormularioTest extends TestCase
         $this->assertSame('C1', $json['campos']['FibraBarra3']);
         $this->assertSame('CRUDO', $json['campos']['ColorBarra3']);
         $this->assertSame('C2', $json['campos']['FibraBarra4']);
+        $this->assertEqualsWithDelta(15.95, (float) $json['campos']['CalibreRizo2'], 0.001);
     }
 
     public function test_km_con_barras_no_copia_rizo_ni_pie(): void
@@ -446,6 +468,31 @@ class CodificacionFormularioTest extends TestCase
         $this->assertSame('920', (string) $row->CuentaBarra2);
         $this->assertNull($row->CuentaRizo);
         $this->assertNull($row->CuentaPie);
+    }
+
+    public function test_calibres_se_guardan_a_dos_decimales(): void
+    {
+        $this->postJson('/planeacion/catalogos/codificacion-modelos', [
+            'OrdenTejido' => '200',
+            'SalonTejidoId' => 'JACQUARD',
+            'ItemId' => '10',
+            'InventSizeId' => 'A',
+            'CalibreRizo' => '370.0',
+            'CalibreRizo2' => '15.949999999999999',
+            'CalibrePie2' => '70.919998000000007',
+        ])->assertCreated();
+
+        $row = ReqModelosCodificados::where('OrdenTejido', '200')->first();
+        $this->assertEqualsWithDelta(370.0, (float) $row->CalibreRizo, 0.001);
+        $this->assertEqualsWithDelta(15.95, (float) $row->CalibreRizo2, 0.001);
+        $this->assertEqualsWithDelta(70.92, (float) $row->CalibrePie2, 0.001);
+
+        $html = $this->get('/planeacion/catalogos/codificacion-modelos/'.$row->Id.'/edit')
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('value="15.95"', $html);
+        $this->assertStringContainsString('value="70.92"', $html);
+        $this->assertStringNotContainsString('15.949999999999999', $html);
     }
 
     public function test_modelo_similar_exige_origen_por_y_valor(): void

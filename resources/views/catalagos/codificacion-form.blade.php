@@ -54,8 +54,8 @@
                 $value = '';
             }
         }
-        if ($type === 'number' && is_numeric($value) && str_contains((string) $value, '.')) {
-            $value = rtrim(rtrim(number_format((float) $value, 4, '.', ''), '0'), '.');
+        if ($type === 'number' && is_numeric($value)) {
+            $value = rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
         }
         if (! empty($opts['ceroEsVacio']) && in_array(trim((string) $value), ['0', '0.0', '0.00'], true)) {
             $value = '';
@@ -111,19 +111,36 @@
         $ariaLabel = $bare ? ' aria-label="'.e($label).'"' : '';
         $inputmodeAttr = ! empty($opts['inputmode']) ? ' inputmode="'.e($opts['inputmode']).'"' : '';
         $patternAttr = ! empty($opts['pattern']) ? ' pattern="'.e($opts['pattern']).'"' : '';
+        $max = isset($opts['max']) ? (int) $opts['max'] : 0;
+        $maxAttr = $max > 0 ? ' maxlength="'.$max.'"' : '';
+        $countId = $max > 0 ? $safeId.'-count' : '';
         $hintId = $hint ? $safeId.'-hint' : '';
-        $described = $hint ? ' aria-describedby="'.$hintId.'"' : '';
+        $describedIds = trim(($hintId ? $hintId.' ' : '').$countId);
+        $described = $describedIds !== '' ? ' aria-describedby="'.$describedIds.'"' : '';
 
         if ($isSelect) {
             $selectAttr = $selectId ? ' id="'.e($selectId).'"' : ' id="'.$safeId.'"';
             $control = "<select {$req} {$selectAttr} name=\"{$safeName}\" class=\"{$classes}\"{$roleAttr}{$described}{$ariaLabel}>"
                 .'<option value="">Seleccionar...</option>';
-            if ($value !== '' && $value !== null) {
+            $opciones = $opts['options'] ?? [];
+            $actual = trim((string) $value);
+            $matched = false;
+            foreach ($opciones as $optVal => $optLabel) {
+                if (is_int($optVal)) {
+                    $optVal = $optLabel;
+                }
+                $sel = ($actual !== '' && strcasecmp($actual, (string) $optVal) === 0) ? ' selected' : '';
+                if ($sel !== '') {
+                    $matched = true;
+                }
+                $control .= '<option value="'.e((string) $optVal).'"'.$sel.'>'.e((string) $optLabel).'</option>';
+            }
+            if ($actual !== '' && ! $matched) {
                 $control .= '<option value="'.$safeValue.'" selected>'.$safeValue.'</option>';
             }
             $control .= '</select>';
         } else {
-            $control = "<input {$req}{$stepAttr}{$readonlyAttr}{$inputmodeAttr}{$patternAttr} type=\"".e($type)."\" id=\"{$safeId}\" name=\"{$safeName}\" value=\"{$safeValue}\" placeholder=\"{$safePlaceholder}\" class=\"{$classes}\"{$roleAttr}{$described}{$ariaLabel} />";
+            $control = "<input {$req}{$stepAttr}{$readonlyAttr}{$inputmodeAttr}{$patternAttr}{$maxAttr} type=\"".e($type)."\" id=\"{$safeId}\" name=\"{$safeName}\" value=\"{$safeValue}\" placeholder=\"{$safePlaceholder}\" class=\"{$classes}\"{$roleAttr}{$described}{$ariaLabel} />";
         }
 
         if ($bare) {
@@ -145,6 +162,9 @@
         if ($hint) {
             echo '<p id="'.$hintId.'" class="cod-hint">'.e($hint).'</p>';
         }
+        if ($max > 0) {
+            echo '<p id="'.$countId.'" class="cod-count" hidden>0/'.$max.'</p>';
+        }
         echo '<p class="cod-error" data-error-for="'.$safeName.'"'.($error ? '' : ' hidden').'>'.e($error).'</p>';
         echo '</div>';
     };
@@ -153,14 +173,6 @@
     $telarActual = old('NoTelarId', $codificacion?->NoTelarId ?? '');
     $esKarlMayer = \App\Support\Planeacion\TelarSalonResolver::esKarlMayer($salonActual, $telarActual);
     $salonElegido = trim((string) $salonActual) !== '' || trim((string) $telarActual) !== '';
-
-    $nombreMostrar = old('Nombre', $codificacion?->Nombre ?? '');
-    $claveMostrar = old('TamanoClave', $codificacion?->TamanoClave ?? '');
-    $ordenMostrar = old('OrdenTejido', $codificacion?->OrdenTejido ?? '');
-    $flogMostrar = old('FlogsId', $codificacion?->FlogsId ?? '');
-    $itemMostrar = old('ItemId', $codificacion?->ItemId ?? '');
-    $sizeMostrar = old('InventSizeId', $codificacion?->InventSizeId ?? '');
-    $idMostrar = $esEdicion ? (string) $codificacion->Id : '';
 
     $barrasVacias = $esKarlMayer && collect([1, 2, 3, 4])->every(function ($n) use ($valorCampo) {
         return trim((string) $valorCampo("CuentaBarra{$n}")) === ''
@@ -171,48 +183,12 @@
         trim((string) $valorCampo('CuentaRizo')) !== ''
         || trim((string) $valorCampo('CuentaPie')) !== ''
     );
-
-    $salonChip = match (true) {
-        $esKarlMayer => ['KARL MAYER', 'cod-chip--km'],
-        $salonElegido && str_contains(strtoupper((string) $salonActual), 'JAC') => [$salonActual ?: 'JACQUARD', 'cod-chip--jac'],
-        $salonElegido => [$salonActual ?: 'SMIT', 'cod-chip--smit'],
-        default => ['Sin salón', 'cod-chip--none'],
-    };
 @endphp
 
 <div class="cod-page">
-    <div class="cod-identity" id="cod-identity">
-        <div class="cod-identity__main">
-            <div class="cod-identity__title">
-                <p class="cod-identity__nombre" id="cod-id-nombre">{{ $nombreMostrar !== '' ? $nombreMostrar : 'Sin nombre' }}</p>
-                <p class="cod-identity__meta">
-                    <span id="cod-id-clave">{{ $claveMostrar !== '' ? $claveMostrar : '—' }}</span>
-                    <span aria-hidden="true">·</span>
-                    Orden <span id="cod-id-orden">{{ $ordenMostrar !== '' ? $ordenMostrar : '—' }}</span>
-                    @if($idMostrar !== '')
-                        <span aria-hidden="true">·</span>
-                        <span class="text-gray-400">#{{ $idMostrar }}</span>
-                    @endif
-                    <span id="cod-id-item-wrap" @if(trim($itemMostrar.' '.$sizeMostrar) === '') hidden @endif>
-                        <span aria-hidden="true">·</span>
-                        <span id="cod-id-item">{{ trim($itemMostrar.' '.$sizeMostrar) }}</span>
-                    </span>
-                    <span aria-hidden="true">·</span>
-                    <span id="cod-id-flog">{{ $flogMostrar !== '' ? $flogMostrar : 'Sin flog' }}</span>
-                </p>
-            </div>
-            <div class="cod-identity__tags">
-                <span class="cod-chip {{ $salonChip[1] }}" id="cod-id-salon">{{ $salonChip[0] }}</span>
-                <span class="cod-chip {{ ($esKarlMayer && trim((string) $telarActual) === '') ? 'cod-chip--warn' : '' }}" id="cod-id-telar">
-                    Telar {{ $telarActual !== '' && $telarActual !== null ? $telarActual : '—' }}
-                </span>
-            </div>
-        </div>
-    </div>
-
     @if($esDuplicado)
         <div class="cod-banner" role="status">
-            Duplicado de un modelo existente. Cambia <strong>Clave AX</strong>, <strong>Tamaño</strong>, <strong>Orden</strong>, <strong>Flog</strong>, <strong>Nombre</strong>, <strong>Fecha</strong> y <strong>Pedido</strong> — el resto ya viene copiado.
+            Duplicado de un modelo existente. Cambia <strong>Clave AX</strong>, <strong>Tamaño</strong>, <strong>Flog</strong>, <strong>Nombre</strong>, <strong>Fecha</strong> y <strong>Pedido</strong> — el resto ya viene copiado.
         </div>
     @endif
 
@@ -247,23 +223,18 @@
                     $render('NoTelarId', 'No. Telar', ['select' => true, 'selectId' => 'no-telar-select', 'role' => 'primary']);
                     $render('TamanoClave', 'Tamaño Clave', ['hidden' => true, 'dup' => $esDuplicado]);
                     $render('ClaveModelo', 'Clave Modelo', ['hidden' => true]);
+                    $render('OrdenTejido', 'Orden Tejido', ['hidden' => true, 'dup' => $esDuplicado]);
+                    $render('VelocidadSTD', 'Velocidad STD', ['hidden' => true]);
                 @endphp
                 <div class="cod-id-resto" data-need-salon @unless($salonElegido) hidden @endunless>
                     @php
-                        $render('OrdenTejido', 'Orden Tejido', [
-                            'required' => true,
-                            'role' => 'primary',
-                            'dup' => $esDuplicado,
-                            'inputmode' => 'numeric',
-                            'pattern' => '[0-9]*',
-                        ]);
-                        $render('ItemId', 'Clave AX', ['required' => true, 'role' => 'primary']);
-                        $render('InventSizeId', 'Tamaño', ['required' => true, 'role' => 'primary']);
-                        $render('Nombre', 'Nombre', ['dup' => $esDuplicado]);
-                        $render('CodigoDibujo', 'Código Dibujo');
-                        $render('FlogsId', 'Flogs ID', ['dup' => $esDuplicado, 'hint' => 'Si hay Clave AX y Tamaño, se busca solo']);
-                        $render('NombreProyecto', 'Nombre Proyecto');
-                        $render('Clave', 'Clave');
+                        $render('ItemId', 'Clave AX', ['required' => true, 'role' => 'primary', 'max' => 20]);
+                        $render('InventSizeId', 'Tamaño', ['required' => true, 'role' => 'primary', 'max' => 20]);
+                        $render('Nombre', 'Nombre', ['dup' => $esDuplicado, 'max' => 60]);
+                        $render('CodigoDibujo', 'Código Dibujo', ['max' => 40]);
+                        $render('FlogsId', 'Flogs ID', ['dup' => $esDuplicado, 'max' => 60]);
+                        $render('NombreProyecto', 'Nombre Proyecto', ['max' => 60]);
+                        $render('Clave', 'Clave', ['max' => 20]);
                     @endphp
                 </div>
             </div>
@@ -281,7 +252,14 @@
                     $render('Prioridad', 'Prioridad');
                     $render('Tolerancia', 'Tolerancia');
                     $render('Vendedor', 'Vendedor');
-                    $render('CatCalidad', 'Cat. Calidad');
+                    $render('CatCalidad', 'Calidad', [
+                        'select' => true,
+                        'options' => [
+                            'NAC - 1' => 'NAC - 1',
+                            'NAC - 2' => 'NAC - 2',
+                            'NAC - 3' => 'NAC - 3',
+                        ],
+                    ]);
                     $render('Obs5', 'Observaciones comerciales', ['ceroEsVacio' => true]);
                 @endphp
             </div>
@@ -302,27 +280,14 @@
                     $render('NoTiras', 'No. Tiras', ['type' => 'number']);
                     $render('MedidaPlano', 'Medida plano', ['type' => 'number']);
                     $render('DobladilloId', 'Tipo plano');
-                    $render('Rasurado', 'Rasurada');
-                    $render('CambioRepaso', 'Cambio de repaso');
-                    $render('VelocidadSTD', 'Velocidad STD', ['type' => 'number']);
-                @endphp
-            </div>
-        </section>
-
-        <section class="cod-section" id="sec-trama" data-solo-salon="std" @unless($salonElegido && ! $esKarlMayer) hidden @endunless>
-            <header class="cod-section__head">
-                <h2>Trama</h2>
-                <p>Solo Jacquard y Smit. Karl Mayer no usa trama ni combinaciones.</p>
-            </header>
-            <div class="cod-grid">
-                @php
-                    $render('CalibreTrama', 'Calibre Trama', ['type' => 'number', 'step' => '0.0001']);
-                    $render('CalibreTrama2', 'Calibre Trama 2', ['type' => 'number', 'step' => '0.0001']);
-                    $render('CodColorTrama', 'Cód. color trama');
-                    $render('ColorTrama', 'Color trama');
-                    $render('FibraId', 'Fibra ID');
-                    $render('AnchoPeineTrama', 'Ancho peine trama', ['type' => 'number']);
-                    $render('LogLuchaTotal', 'Log. de lucha total', ['type' => 'number']);
+                    $render('Rasurado', 'Rasurada', [
+                        'select' => true,
+                        'options' => ['SI' => 'Sí', 'NO' => 'No'],
+                    ]);
+                    $render('CambioRepaso', 'Cambio de repaso', [
+                        'select' => true,
+                        'options' => ['SI' => 'Sí', 'NO' => 'No'],
+                    ]);
                 @endphp
             </div>
         </section>
@@ -347,16 +312,9 @@
                         </thead>
                         <tbody>
                             @foreach([1, 2, 3, 4] as $n)
-                                @php
-                                    $barraVacia = collect(["CuentaBarra{$n}", "CalibreBarra{$n}", "CodColorBarra{$n}", "ColorBarra{$n}", "FibraBarra{$n}", "PasadasBarra{$n}"])
-                                        ->every(fn ($campo) => trim((string) $valorCampo($campo, $campo === "PasadasBarra{$n}" ? ['type' => 'number'] : [])) === '');
-                                @endphp
-                                <tr class="{{ $barraVacia ? 'cod-table__empty' : '' }}">
+                                <tr>
                                     <th scope="row">
                                         <span class="cod-bar-num">{{ $n }}</span>
-                                        @if($barraVacia)
-                                            <span class="cod-bar-empty">sin capturar</span>
-                                        @endif
                                     </th>
                                     <td>@php $render("CuentaBarra{$n}", 'Cuenta', ['bare' => true]); @endphp</td>
                                     <td>@php $render("CalibreBarra{$n}", 'Calibre', ['bare' => true]); @endphp</td>
@@ -373,39 +331,58 @@
 
             <section class="cod-section" data-solo-salon="std" @unless($salonElegido && ! $esKarlMayer) hidden @endunless>
                 <header class="cod-section__head">
-                    <h2>Construcción · rizo, pie y cenefa</h2>
-                    <p>Jacquard y Smit no usan barras. Las combinaciones vacías no se usan.</p>
+                    <h2>Construcción · rizo, pie y trama</h2>
                 </header>
-                <div class="cod-const-std">
-                    <div class="cod-card">
-                        <h3>Rizo</h3>
-                        <div class="cod-grid cod-grid--2">
-                            @php
-                                $render('TipoRizo', 'Tipo de rizo');
-                                $render('AlturaRizo', 'Altura de rizo');
-                                $render('CuentaRizo', 'Cuenta');
-                                $render('CalibreRizo', 'Calibre', ['type' => 'number', 'step' => '0.0001']);
-                                $render('CalibreRizo2', 'Calibre 2', ['type' => 'number', 'step' => '0.0001']);
-                                $render('FibraRizo', 'Fibra');
-                            @endphp
-                        </div>
-                    </div>
-                    <div class="cod-card">
-                        <h3>Pie</h3>
-                        <div class="cod-grid cod-grid--2">
-                            @php
-                                $render('CuentaPie', 'Cuenta');
-                                $render('CalibrePie', 'Calibre', ['type' => 'number', 'step' => '0.0001']);
-                                $render('CalibrePie2', 'Calibre 2', ['type' => 'number', 'step' => '0.0001']);
-                                $render('FibraPie', 'Fibra');
-                            @endphp
-                        </div>
-                    </div>
+                <div class="cod-table-wrap">
+                    <table class="cod-table">
+                        <thead>
+                            <tr>
+                                <th scope="col"></th>
+                                <th scope="col">Cuenta</th>
+                                <th scope="col">Calibre</th>
+                                <th scope="col">Calibre 2</th>
+                                <th scope="col">Fibra</th>
+                                <th scope="col">Tipo / cód.</th>
+                                <th scope="col">Altura / color</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <th scope="row"><span class="cod-bar-num">Rizo</span></th>
+                                <td>@php $render('CuentaRizo', 'Cuenta rizo', ['bare' => true]); @endphp</td>
+                                <td>@php $render('CalibreRizo', 'Calibre rizo', ['bare' => true, 'type' => 'number', 'step' => '0.01']); @endphp</td>
+                                <td>@php $render('CalibreRizo2', 'Calibre 2 rizo', ['bare' => true, 'type' => 'number', 'step' => '0.01']); @endphp</td>
+                                <td>@php $render('FibraRizo', 'Fibra rizo', ['bare' => true]); @endphp</td>
+                                <td>@php $render('TipoRizo', 'Tipo de rizo', ['bare' => true]); @endphp</td>
+                                <td>@php $render('AlturaRizo', 'Altura de rizo', ['bare' => true]); @endphp</td>
+                            </tr>
+                            <tr>
+                                <th scope="row"><span class="cod-bar-num">Pie</span></th>
+                                <td>@php $render('CuentaPie', 'Cuenta pie', ['bare' => true]); @endphp</td>
+                                <td>@php $render('CalibrePie', 'Calibre pie', ['bare' => true, 'type' => 'number', 'step' => '0.01']); @endphp</td>
+                                <td>@php $render('CalibrePie2', 'Calibre 2 pie', ['bare' => true, 'type' => 'number', 'step' => '0.01']); @endphp</td>
+                                <td>@php $render('FibraPie', 'Fibra pie', ['bare' => true]); @endphp</td>
+                                <td><span class="cod-na">—</span></td>
+                                <td><span class="cod-na">—</span></td>
+                            </tr>
+                            <tr>
+                                <th scope="row"><span class="cod-bar-num">Trama</span></th>
+                                <td><span class="cod-na">—</span></td>
+                                <td>@php $render('CalibreTrama', 'Calibre trama', ['bare' => true, 'type' => 'number', 'step' => '0.01']); @endphp</td>
+                                <td>@php $render('CalibreTrama2', 'Calibre 2 trama', ['bare' => true, 'type' => 'number', 'step' => '0.01']); @endphp</td>
+                                <td>@php $render('FibraId', 'Fibra trama', ['bare' => true]); @endphp</td>
+                                <td>@php $render('CodColorTrama', 'Cód. color trama', ['bare' => true]); @endphp</td>
+                                <td>@php $render('ColorTrama', 'Color trama', ['bare' => true]); @endphp</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-                <div class="cod-grid mt-3">
+                <div class="cod-grid">
                     @php
                         $render('MedidaCenefa', 'Med. de cenefa');
                         $render('MedIniRizoCenefa', 'Med. inicio rizo a cenefa');
+                        $render('AnchoPeineTrama', 'Ancho peine trama', ['type' => 'number']);
+                        $render('LogLuchaTotal', 'Log. de lucha total', ['type' => 'number']);
                     @endphp
                 </div>
 
@@ -444,8 +421,8 @@
                                             <span class="cod-na">—</span>
                                         @endif
                                     </td>
-                                    <td>@php $render("CalibreComb{$n}", "C{$n}", ['bare' => true, 'type' => 'number', 'step' => '0.0001']); @endphp</td>
-                                    <td>@php $render("CalibreComb{$n}2", "Hilo C{$n}", ['bare' => true, 'type' => 'number', 'step' => '0.0001']); @endphp</td>
+                                    <td>@php $render("CalibreComb{$n}", "C{$n}", ['bare' => true, 'type' => 'number', 'step' => '0.01']); @endphp</td>
+                                    <td>@php $render("CalibreComb{$n}2", "Hilo C{$n}", ['bare' => true, 'type' => 'number', 'step' => '0.01']); @endphp</td>
                                     <td>@php $render("FibraComb{$n}", "OBS C{$n}", ['bare' => true]); @endphp</td>
                                     <td>@php $render("CodColorC{$n}", "Cod Color C{$n}", ['bare' => true]); @endphp</td>
                                     <td>@php $render("NomColorC{$n}", "Nombre Color C{$n}", ['bare' => true]); @endphp</td>
@@ -459,8 +436,8 @@
                 <h3 class="cod-sub">Trama de fondo C1</h3>
                 <div class="cod-grid">
                     @php
-                        $render('CalTramaFondoC1', 'C1 trama de fondo', ['type' => 'number', 'step' => '0.0001']);
-                        $render('CalTramaFondoC12', 'Hilo fondo C1', ['type' => 'number', 'step' => '0.0001']);
+                        $render('CalTramaFondoC1', 'C1 trama de fondo', ['type' => 'number', 'step' => '0.01']);
+                        $render('CalTramaFondoC12', 'Hilo fondo C1', ['type' => 'number', 'step' => '0.01']);
                         $render('FibraTramaFondoC1', 'OBS fondo C1');
                         $render('PasadasTramaFondoC1', 'Pasadas fondo C1', ['type' => 'number']);
                     @endphp
@@ -473,26 +450,24 @@
                 <h2>Observaciones</h2>
             </header>
             <div class="cod-grid cod-grid--full">
-                @php $render('Obs', 'Observaciones', ['ceroEsVacio' => true]); @endphp
+                @php $render('Obs', 'Observaciones', ['ceroEsVacio' => true, 'max' => 100]); @endphp
             </div>
         </section>
 
-        <section class="cod-section" id="sec-metricas" data-need-salon @unless($salonElegido) hidden @endunless>
+        <section class="cod-section" id="sec-metricas" hidden>
             <details class="cod-details">
                 <summary>
                     <span>Métricas y cálculo</span>
-                    <span class="cod-details__hint">El programa de tejido recalcula la mayoría. Editarlas aquí no cambia el cálculo aguas abajo.</span>
                 </summary>
                 <div class="cod-grid mt-3">
                     @php
-                        $hintCalc = 'Se recalcula en el programa de tejido';
-                        $render('Repeticiones', 'Repeticiones', ['type' => 'number', 'role' => 'derived', 'hint' => $hintCalc]);
-                        $render('TotalMarbetes', 'Total Marbetes', ['type' => 'number', 'role' => 'derived', 'hint' => $hintCalc]);
-                        $render('Total', 'Total', ['type' => 'number', 'step' => '0.0001', 'role' => 'derived', 'hint' => $hintCalc]);
-                        $render('Densidad', 'Densidad', ['type' => 'number', 'step' => '0.0001', 'role' => 'derived', 'hint' => $hintCalc]);
-                        $render('KGDia', 'KG/Día', ['type' => 'number', 'step' => '0.0001', 'role' => 'derived', 'hint' => $hintCalc]);
-                        $render('PzasDiaPasadas', 'Pzas/Día/pasadas', ['type' => 'number', 'step' => '0.0001', 'role' => 'derived', 'hint' => $hintCalc]);
-                        $render('PzasDiaFormula', 'Pzas/Día/fórmula', ['type' => 'number', 'step' => '0.0001', 'role' => 'derived', 'hint' => $hintCalc]);
+                        $render('Repeticiones', 'Repeticiones', ['type' => 'number', 'role' => 'derived']);
+                        $render('TotalMarbetes', 'Total Marbetes', ['type' => 'number', 'role' => 'derived']);
+                        $render('Total', 'Total', ['type' => 'number', 'step' => '0.0001', 'role' => 'derived']);
+                        $render('Densidad', 'Densidad', ['type' => 'number', 'step' => '0.0001', 'role' => 'derived']);
+                        $render('KGDia', 'KG/Día', ['type' => 'number', 'step' => '0.0001', 'role' => 'derived']);
+                        $render('PzasDiaPasadas', 'Pzas/Día/pasadas', ['type' => 'number', 'step' => '0.0001', 'role' => 'derived']);
+                        $render('PzasDiaFormula', 'Pzas/Día/fórmula', ['type' => 'number', 'step' => '0.0001', 'role' => 'derived']);
                         $render('TIRAS', 'TIRAS', ['type' => 'number', 'step' => '0.0001', 'role' => 'derived']);
                         $render('PASADAS', 'PASADAS', ['type' => 'number', 'step' => '0.0001', 'role' => 'derived']);
                         $render('Contraccion', 'Contracción');
@@ -560,63 +535,6 @@
         -webkit-user-select: text;
         user-select: text;
     }
-    .cod-identity {
-        position: sticky;
-        top: 0;
-        z-index: 30;
-        background: rgba(255, 255, 255, 0.96);
-        border: 1px solid #d1d5db;
-        border-top: none;
-        border-radius: 0 0 0.5rem 0.5rem;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
-        margin: 0 0 0.75rem;
-        padding: 0.65rem 0.85rem 0.45rem;
-        backdrop-filter: blur(6px);
-    }
-    .cod-identity__main {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-    }
-    .cod-identity__nombre {
-        font-size: 1.05rem;
-        font-weight: 700;
-        color: #111827;
-        line-height: 1.2;
-        margin: 0;
-    }
-    .cod-identity__meta {
-        margin: 0.15rem 0 0;
-        font-size: 0.75rem;
-        color: #4b5563;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.35rem;
-    }
-    .cod-identity__tags {
-        display: flex;
-        gap: 0.4rem;
-        flex-wrap: wrap;
-        align-items: center;
-    }
-    .cod-chip {
-        display: inline-flex;
-        align-items: center;
-        min-height: 1.75rem;
-        padding: 0.15rem 0.55rem;
-        border-radius: 999px;
-        font-size: 0.7rem;
-        font-weight: 700;
-        border: 1px solid transparent;
-        white-space: nowrap;
-    }
-    .cod-chip--km { background: #fff7ed; color: #9a3412; border-color: #fdba74; }
-    .cod-chip--jac { background: #eef2ff; color: #3730a3; border-color: #a5b4fc; }
-    .cod-chip--smit { background: #eff6ff; color: #1e40af; border-color: #93c5fd; }
-    .cod-chip--none { background: #f3f4f6; color: #4b5563; border-color: #d1d5db; }
-    .cod-chip--warn { background: #fef3c7; color: #92400e; border-color: #f59e0b; }
     .cod-banner {
         background: #eff6ff;
         border: 1px solid #bfdbfe;
@@ -632,43 +550,89 @@
         color: #78350f;
     }
     .cod-form {
-        background: #fff;
-        border: 1px solid #d1d5db;
-        border-radius: 0.5rem;
-        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        background: transparent;
+        border: 0;
+        overflow: visible;
+    }
+    #sec-construccion {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
     }
     .cod-section {
-        padding: 0.9rem 0.9rem 1rem;
-        border-top: 1px solid #e5e7eb;
-        scroll-margin-top: 6.5rem;
+        background: #fff;
+        border: 2px solid #cbd5e1;
+        border-left: 4px solid #64748b;
+        border-radius: 0.5rem;
+        padding: 0;
+        scroll-margin-top: 1rem;
+        overflow: hidden;
     }
-    .cod-field { scroll-margin-top: 6.5rem; }
-    .cod-section:first-child { border-top: 0; }
-    .cod-section--km { background: #fffbf5; }
+    .cod-section[hidden] { display: none !important; }
+    .cod-field { scroll-margin-top: 1rem; }
+    #sec-identificacion {
+        border-left-color: #2563eb;
+        padding: 0.9rem 1rem;
+        background: #fff;
+    }
+    #sec-fechas { border-left-color: #4f46e5; }
+    #sec-medidas { border-left-color: #0f766e; }
+    .cod-section--km { border-left-color: #c2410c; background: #fff; }
+    .cod-section[data-solo-salon="std"] { border-left-color: #1d4ed8; }
+    #sec-obs { border-left-color: #475569; }
+    .cod-section,
+    .cod-section__head {
+        background: #fff;
+    }
     .cod-section__head {
         display: flex;
         flex-wrap: wrap;
         align-items: baseline;
-        gap: 0.5rem 1rem;
-        margin-bottom: 0.7rem;
+        gap: 0.35rem 0.85rem;
+        margin: 0;
+        padding: 0.5rem 0.95rem;
+        border-bottom: 1px solid #e2e8f0;
     }
     .cod-section__head h2 {
         margin: 0;
-        font-size: 0.9rem;
+        font-size: 0.82rem;
         font-weight: 700;
-        color: #111827;
+        color: #0f172a;
+        letter-spacing: 0.01em;
     }
     .cod-section__head p,
     .cod-section__note {
         margin: 0;
         font-size: 0.72rem;
-        color: #6b7280;
+        color: #64748b;
     }
+    .cod-section > :not(.cod-section__head) {
+        padding-left: 0.95rem;
+        padding-right: 0.95rem;
+    }
+    .cod-section > .cod-grid,
+    .cod-section > .cod-table-wrap {
+        padding-top: 0.8rem;
+        padding-bottom: 0.95rem;
+    }
+    .cod-section > .cod-sub,
+    .cod-section > .cod-section__note {
+        padding-top: 0.15rem;
+    }
+    .cod-section > .cod-table-wrap + .cod-sub { padding-top: 0.35rem; }
+    .cod-section > .cod-table-wrap:last-child,
+    .cod-section > .cod-grid:last-child {
+        padding-bottom: 0.95rem;
+    }
+    #sec-identificacion > .cod-grid { padding: 0; }
     .cod-sub {
-        margin: 1rem 0 0.35rem;
-        font-size: 0.8rem;
+        margin: 0.65rem 0 0.3rem;
+        font-size: 0.78rem;
         font-weight: 700;
-        color: #1f2937;
+        color: #1e3a8a;
     }
     .cod-grid {
         display: grid;
@@ -712,6 +676,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
     }
+    .cod-count { margin: 0.1rem 0 0; font-size: 0.65rem; color: #9ca3af; text-align: right; }
     .cod-error { margin: 0.2rem 0 0; font-size: 0.68rem; color: #b91c1c; }
     .cod-input {
         width: 100%;
@@ -784,7 +749,7 @@
         text-align: left;
     }
     .cod-table thead th {
-        background: #f3f4f6;
+        background: #fff;
         font-weight: 600;
         color: #111827;
         white-space: nowrap;
@@ -935,7 +900,7 @@
     const ALIAS_KM = ['KM', 'KARL MAYER', 'KARLMAYER'];
     const TELARES_KM = ['401', '402'];
     const CERO_ES_VACIO = ['Comb1', 'Comb2', 'Comb3', 'Comb4', 'Obs', 'Obs1', 'Obs2', 'Obs3', 'Obs4', 'Obs5'];
-    const REQUIRED = ['SalonTejidoId', 'OrdenTejido', 'ItemId', 'InventSizeId'];
+    const REQUIRED = ['SalonTejidoId', 'ItemId', 'InventSizeId'];
 
     const form = document.getElementById('codificacion-form');
     const idEl = document.getElementById('codificacion-id');
@@ -956,8 +921,9 @@
     function limpiarValor(value, fieldName) {
         const s = String(value ?? '').trim();
         if (CERO_ES_VACIO.includes(fieldName) && (s === '0' || s === '0.0' || s === '0.00')) return '';
-        if (/^-?\d+\.\d{6,}$/.test(s)) {
-            return String(parseFloat(parseFloat(s).toFixed(4)));
+        if (s !== '' && isFinite(Number(s)) && s.indexOf('.') !== -1) {
+            const n = Math.round(Number(s) * 100) / 100;
+            return String(n);
         }
         return value;
     }
@@ -999,12 +965,6 @@
             }
             setBloqueVisible(el, visibleSegunSalon(el, elegido, km));
         });
-        pintarIdentidad();
-    }
-
-    function textoO(valor, vacio) {
-        const s = String(valor || '').trim();
-        return s === '' ? vacio : s;
     }
 
     function syncClaves(force) {
@@ -1029,35 +989,34 @@
         return concat;
     }
 
-    function pintarIdentidad() {
-        const salon = document.getElementById('salon-tejido-select')?.value || '';
-        const telar = document.getElementById('no-telar-select')?.value || '';
-        const chipSalon = document.getElementById('cod-id-salon');
-        const chipTelar = document.getElementById('cod-id-telar');
-        const km = esKarlMayer();
-        if (chipSalon) {
-            chipSalon.textContent = salon || 'Sin salón';
-            chipSalon.className = 'cod-chip ' + (km ? 'cod-chip--km' : (salon === '' ? 'cod-chip--none' : (salon.toUpperCase().includes('JAC') ? 'cod-chip--jac' : 'cod-chip--smit')));
+    function aplicarRegla(el) {
+        if (!el || !el.name || el.disabled || el.type === 'hidden') return true;
+        const max = parseInt(el.getAttribute('maxlength') || '0', 10);
+        const soloNumeros = el.getAttribute('inputmode') === 'numeric' && el.type !== 'number';
+        let v = String(el.value || '');
+        if (soloNumeros) {
+            const d = v.replace(/\D+/g, '');
+            if (v !== d) {
+                el.value = d;
+                v = d;
+            }
         }
-        if (chipTelar) {
-            chipTelar.textContent = 'Telar ' + (telar || '—');
-            chipTelar.className = 'cod-chip' + (km && telar === '' ? ' cod-chip--warn' : '');
+        if (el.type === 'number' && v !== '' && isFinite(Number(v))) {
+            const n = Math.round(Number(v) * 100) / 100;
+            el.value = String(n);
+            v = el.value;
         }
-        const set = (id, val, vacio) => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = textoO(val, vacio);
-        };
-        set('cod-id-nombre', form.querySelector('[name="Nombre"]')?.value, 'Sin nombre');
-        set('cod-id-clave', form.querySelector('[name="TamanoClave"]')?.value || syncClaves(), '—');
-        set('cod-id-orden', form.querySelector('[name="OrdenTejido"]')?.value, '—');
-        set('cod-id-flog', form.querySelector('[name="FlogsId"]')?.value, 'Sin flog');
-        const item = (form.querySelector('[name="ItemId"]')?.value || '').trim();
-        const size = (form.querySelector('[name="InventSizeId"]')?.value || '').trim();
-        const itemWrap = document.getElementById('cod-id-item-wrap');
-        const itemEl = document.getElementById('cod-id-item');
-        const itemSize = (item + ' ' + size).trim();
-        if (itemEl) itemEl.textContent = itemSize;
-        if (itemWrap) itemWrap.hidden = itemSize === '';
+        if (max > 0 && v.length > max) {
+            el.value = v.slice(0, max);
+            v = el.value;
+            showFieldError(el.name, max + ' caracteres');
+        }
+        const count = el.parentElement ? el.parentElement.querySelector('.cod-count') : null;
+        if (count && max > 0) {
+            count.textContent = v.length + '/' + max;
+            count.hidden = document.activeElement !== el && v.length === 0;
+        }
+        return true;
     }
 
     function serializar() {
@@ -1112,7 +1071,17 @@
             if (!el || String(el.value || '').trim() === '') {
                 showFieldError(name, 'Obligatorio');
                 if (!first) first = el;
+                return;
             }
+            aplicarRegla(el);
+            if (el.getAttribute('inputmode') === 'numeric' && el.type !== 'number' && /\D/.test(el.value)) {
+                showFieldError(name, 'Solo números');
+                if (!first) first = el;
+            }
+        });
+        form.querySelectorAll('[maxlength]').forEach(function (el) {
+            if (el.disabled || REQUIRED.indexOf(el.name) !== -1) return;
+            aplicarRegla(el);
         });
         if (first) {
             first.scrollIntoView({ block: 'center' });
@@ -1234,16 +1203,21 @@
         }
     }
 
+    function redondearValor(val) {
+        if (val == null || val === '') return val;
+        const s = String(val).trim();
+        if (s === '' || s.indexOf('.') === -1 || !isFinite(Number(s))) return val;
+        return String(Math.round(Number(s) * 100) / 100);
+    }
+
     function aplicarCamposSimilar(campos) {
         const salonActual = (document.getElementById('salon-tejido-select')?.value || '').trim();
         const telarActual = (document.getElementById('no-telar-select')?.value || '').trim();
-        const ordenActual = (form.querySelector('[name="OrdenTejido"]')?.value || '').trim();
         Object.keys(campos || {}).forEach(function (name) {
             if (salonActual && (name === 'SalonTejidoId' || name === 'NoTelarId')) return;
-            if (ordenActual && name === 'OrdenTejido') return;
             const el = form.querySelector('[name="' + name + '"]');
             if (!el) return;
-            const val = campos[name] == null ? '' : String(campos[name]);
+            const val = campos[name] == null ? '' : String(redondearValor(campos[name]));
             if (el.tagName === 'SELECT' && val !== '') {
                 const existe = Array.from(el.options).some(function (o) { return o.value === val; });
                 if (!existe) {
@@ -1263,7 +1237,7 @@
         }
         syncClaves(true);
         aplicarSalon();
-        pintarIdentidad();
+        form.querySelectorAll('input[type="number"]').forEach(aplicarRegla);
     }
 
     function modalSimilar() { return document.getElementById('cod-modal-similar'); }
@@ -1371,7 +1345,6 @@
             if (proy && proy.dataset.tocado !== '1' && result.data.nombre) {
                 proy.value = result.data.nombre;
             }
-            pintarIdentidad();
         } catch (err) {
             // TI puede no estar; el flog se sigue tecleando a mano.
         }
@@ -1397,17 +1370,23 @@
     });
 
     document.addEventListener('input', function (e) {
-        if (e.target.name === 'OrdenTejido') {
-            const digits = String(e.target.value || '').replace(/\D+/g, '');
-            if (e.target.value !== digits) e.target.value = digits;
-        }
+        if (!form.contains(e.target)) return;
         if (e.target.name === 'ItemId' || e.target.name === 'InventSizeId') {
             syncClaves(true);
         }
-        pintarIdentidad();
-        if (form.contains(e.target) && snapshot && serializar() !== snapshot) marcarDirty(true);
-        else if (snapshot && serializar() === snapshot) marcarDirty(false);
         if (e.target.name) clearFieldError(e.target.name);
+        aplicarRegla(e.target);
+        if (snapshot && serializar() !== snapshot) marcarDirty(true);
+        else if (snapshot && serializar() === snapshot) marcarDirty(false);
+    });
+    document.addEventListener('focusin', function (e) {
+        if (form.contains(e.target)) aplicarRegla(e.target);
+    });
+    document.addEventListener('focusout', function (e) {
+        if (!form.contains(e.target)) return;
+        aplicarRegla(e.target);
+        const count = e.target.parentElement ? e.target.parentElement.querySelector('.cod-count') : null;
+        if (count && String(e.target.value || '') === '') count.hidden = true;
     });
 
     document.addEventListener('keydown', function (e) {
@@ -1461,11 +1440,12 @@
         if (saving) return;
         syncClaves(!isEdit);
         if (!validarCliente()) {
-            notify()?.warning?.('Completa salón, orden, Clave AX y Tamaño');
+            notify()?.warning?.('Completa salón, Clave AX y Tamaño');
             return;
         }
 
         const n = notify();
+        form.querySelectorAll('input[type="number"]').forEach(aplicarRegla);
         const data = Object.fromEntries(new FormData(form).entries());
         if (data.SalonTejidoId === 'ITEMA') data.SalonTejidoId = 'SMIT';
 
@@ -1554,7 +1534,6 @@
         });
         await loadSalonesYTelares();
         aplicarSalon();
-        pintarIdentidad();
         snapshot = serializar();
         marcarDirty(false);
         syncClaves();

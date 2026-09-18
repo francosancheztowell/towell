@@ -220,7 +220,7 @@ class CodificacionController extends Controller
     private const DATE_FIELDS = ['FechaTejido', 'FechaCumplimiento', 'FechaCompromiso'];
 
     /** Campos requeridos en alta y edición. Tamaño Clave se arma con Clave AX + Tamaño. */
-    private const REQUIRED_FIELDS = ['TamanoClave', 'OrdenTejido', 'SalonTejidoId', 'ItemId', 'InventSizeId'];
+    private const REQUIRED_FIELDS = ['TamanoClave', 'SalonTejidoId', 'ItemId', 'InventSizeId'];
 
     private function clearCodificacionCache(?int $id = null): void
     {
@@ -559,7 +559,7 @@ class CodificacionController extends Controller
             'PasadasBarra4' => $cat->PasadasBarra4 ?? null,
         ];
 
-        return $this->volcarConstruccionViejaABarrasSiKm($mapped);
+        return $this->redondearDosDecimales($this->volcarConstruccionViejaABarrasSiKm($mapped));
     }
 
     private function truncateValueForColumn(string $column, $value, array $lengths)
@@ -819,7 +819,7 @@ class CodificacionController extends Controller
         foreach (self::REQUIRED_FIELDS as $field) {
             $rules[$field] = 'required';
         }
-        $rules['OrdenTejido'] = 'required|regex:/^\d+$/';
+        $rules['OrdenTejido'] = 'nullable|regex:/^\d+$/';
 
         return $rules;
     }
@@ -957,11 +957,31 @@ class CodificacionController extends Controller
     }
 
     /**
+     * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
+    private function redondearDosDecimales(array $data): array
+    {
+        foreach ($data as $campo => $valor) {
+            if ($valor === null || $valor === '') {
+                continue;
+            }
+            if (! is_numeric($valor)) {
+                continue;
+            }
+            if (! str_contains((string) $valor, '.')) {
+                continue;
+            }
+            $data[$campo] = round((float) $valor, 2);
+        }
+
+        return $data;
+    }
+
     private function datosDeRequest(Request $request): array
     {
         $data = $this->completarClaves($request->only(array_keys(self::CAMPOS_MODELO)));
+        $data = $this->redondearDosDecimales($data);
 
         return $this->payloadSegunSalon($data);
     }
@@ -1561,10 +1581,10 @@ class CodificacionController extends Controller
             if ($claveMod === '' || $claveMod === '0') {
                 $claveMod = trim((string) ($registro->Clave ?? ''));
             }
-            $campos = $this->volcarConstruccionViejaABarrasSiKm(
+            $campos = $this->redondearDosDecimales($this->volcarConstruccionViejaABarrasSiKm(
                 $this->mapCatCodificadosToReq($registro),
                 $request->query('salon')
-            );
+            ));
             $itemId = trim((string) ($registro->ItemId ?? ''));
             $sizeId = trim((string) ($registro->InventSizeId ?? ''));
             $concat = $itemId.$sizeId;
@@ -1599,7 +1619,7 @@ class CodificacionController extends Controller
             array_flip(array_keys(self::CAMPOS_MODELO))
         );
         unset($campos['Id']);
-        $campos = $this->volcarConstruccionViejaABarrasSiKm($campos, $request->query('salon'));
+        $campos = $this->redondearDosDecimales($this->volcarConstruccionViejaABarrasSiKm($campos, $request->query('salon')));
 
         return response()->json($this->respuestaModeloSimilar(
             'req',

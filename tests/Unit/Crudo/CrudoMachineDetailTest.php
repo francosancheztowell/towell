@@ -156,10 +156,10 @@ final class CrudoMachineDetailTest extends TestCase
             ->call('loadDetail')
             ->html();
 
-        $this->assertMatchesRegularExpression('/T1\s*<span class="crudo-defect-turn-share">\(0%\)<\/span>/', $html);
-        $this->assertMatchesRegularExpression('/T2\s*<span class="crudo-defect-turn-share">\(0%\)<\/span>/', $html);
+        $this->assertMatchesRegularExpression('/T1\s*<span class="crudo-defect-turn-share">\(—\)<\/span>/u', $html);
+        $this->assertMatchesRegularExpression('/T2\s*<span class="crudo-defect-turn-share">\(—\)<\/span>/u', $html);
         $this->assertMatchesRegularExpression('/T3\s*<span class="crudo-defect-turn-share">\(90%\)<\/span>/', $html);
-        $this->assertMatchesRegularExpression('/T4\s*<span class="crudo-defect-turn-share">\(0%\)<\/span>/', $html);
+        $this->assertMatchesRegularExpression('/T4\s*<span class="crudo-defect-turn-share">\(—\)<\/span>/u', $html);
         $this->assertStringContainsString('90% de calidad en T3', $html);
     }
 
@@ -182,7 +182,7 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSee('1,3');
     }
 
-    public function test_defect_headers_show_zero_percent_when_there_are_no_defects(): void
+    public function test_defect_headers_show_no_percent_when_there_are_no_defects(): void
     {
         $machine = $this->machineData();
         $machine['defects'] = [];
@@ -195,7 +195,9 @@ final class CrudoMachineDetailTest extends TestCase
             ->dispatch('open-crudo-detail', telar: '201', machine: $machine)
             ->call('loadDetail')
             ->assertSee('Sin defectos registrados en este periodo.')
-            ->assertSee('(0%)');
+            // Sin 2das no hubo falla: el encabezado no califica el turno.
+            ->assertDontSee('crudo-defect-turn-share">(0%)', false)
+            ->assertSee('(—)');
     }
 
     public function test_open_uses_the_dashboard_context_and_pauses_polling_until_close(): void
