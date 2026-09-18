@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use Illuminate\Routing\Route as IlluminateRoute;
 use Illuminate\Support\Facades\Route;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class PublicSensitiveRoutesAuthTest extends TestCase
@@ -24,9 +25,7 @@ class PublicSensitiveRoutesAuthTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider formerPublicSensitiveEndpoints
-     */
+    #[DataProvider('formerPublicSensitiveEndpoints')]
     public function test_guest_cannot_hit_former_public_sensitive_endpoints(string $method, string $uri): void
     {
         $response = $this->call($method, $uri);
