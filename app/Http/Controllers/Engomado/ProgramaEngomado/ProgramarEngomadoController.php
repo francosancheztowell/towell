@@ -7,20 +7,24 @@ use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\UrdProgramaUrdido;
 use App\Services\Programas\ProgramaPrioridadService;
+use App\Services\Programas\ProgramBoardActionService;
 use App\Support\Programas\ProgramaConfig;
+use App\Support\Programas\ProgramaModulo;
 use App\Support\Programas\ProgramaRouteHelper;
+use DomainException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ProgramarEngomadoController extends Controller
 {
-    public function __construct(private readonly ProgramaPrioridadService $prioridadService) {}
+    public function __construct(
+        private readonly ProgramaPrioridadService $prioridadService,
+        private readonly ProgramBoardActionService $boardActionService,
+    ) {}
 
     /**
      * Verifica si el usuario puede editar: solo usuarios con puesto de Supervisor.
@@ -38,22 +42,23 @@ class ProgramarEngomadoController extends Controller
     }
 
     /**
-     * Mostrar la vista de programar engomado (versión clásica).
-     * El board Livewire queda disponible en la ruta .legacy.
+     * Tablero canónico: Livewire ProgramBoard (mismas reglas que Urdido).
      */
     public function index(): View
+    {
+        return view('modulos.engomado.programar-engomado-livewire');
+    }
+
+    /**
+     * Fallback Blade clásico. Las mutaciones POST delegan a ProgramBoardActionService.
+     */
+    public function legacy(): View
     {
         return view('modulos.engomado.programar-engomado', [
             'canEdit' => $this->usuarioPuedeEditar(),
             'programaRoutes' => ProgramaRouteHelper::engomado(),
             'observacionesMaxLength' => ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
         ]);
-    }
-
-    // ponytail: la ruta .legacy ahora sirve el board Livewire; borrarla si nadie la usa
-    public function legacy(): View
-    {
-        return view('modulos.engomado.programar-engomado-livewire');
     }
 
     /**
@@ -174,14 +179,6 @@ class ProgramarEngomadoController extends Controller
         }
 
         return null;
-    }
-
-    private function activeOrdersQuery()
-    {
-        return EngProgramaEngomado::query()
-            ->whereIn('Status', ProgramaConfig::ACTIVE_STATUSES)
-            ->whereNotNull('MaquinaEng')
-            ->where('MaquinaEng', '!=', '');
     }
 
     private function fechaProgFallback(object $orden): int
@@ -377,19 +374,18 @@ class ProgramarEngomadoController extends Controller
     }
 
     /**
-     * Intercambiar prioridad entre dos órdenes mediante drag and drop
-     * Intercambia el campo Prioridad (único globalmente, sin importar tabla)
+     * Intercambiar prioridad entre dos órdenes mediante drag and drop.
      */
     public function intercambiarPrioridad(Request $request): JsonResponse
     {
         try {
-            // Habilitado para todos los usuarios
             $request->validate([
                 'source_id' => 'required|integer|exists:EngProgramaEngomado,Id',
                 'target_id' => 'required|integer|exists:EngProgramaEngomado,Id',
             ]);
-            $this->prioridadService->swapPriorities(
-                EngProgramaEngomado::class,
+
+            $this->boardActionService->swapPriorities(
+                ProgramaModulo::Engomado,
                 (int) $request->source_id,
                 (int) $request->target_id
             );
@@ -398,14 +394,19 @@ class ProgramarEngomadoController extends Controller
                 'success' => true,
                 'message' => 'Prioridad actualizada correctamente',
             ]);
+        } catch (DomainException $e) {
+            $status = str_contains($e->getMessage(), 'permiso') ? 403 : 422;
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], $status);
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'error' => 'Error de validación: '.$e->getMessage(),
             ], 422);
         } catch (\Throwable $e) {
-            DB::rollBack();
-
             return response()->json([
                 'success' => false,
                 'error' => 'Error al intercambiar prioridad: '.$e->getMessage(),
@@ -431,14 +432,21 @@ class ProgramarEngomadoController extends Controller
                 'observaciones' => 'nullable|string|max:'.ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
             ]);
 
-            $orden = EngProgramaEngomado::findOrFail($request->id);
-            $orden->Observaciones = $request->observaciones ?? '';
-            $orden->save();
+            $this->boardActionService->saveObservations(
+                ProgramaModulo::Engomado,
+                (int) $request->id,
+                trim((string) ($request->observaciones ?? ''))
+            );
 
             return response()->json([
                 'success' => true,
                 'message' => 'Observaciones guardadas correctamente',
             ]);
+        } catch (DomainException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 422);
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
@@ -452,40 +460,9 @@ class ProgramarEngomadoController extends Controller
         }
     }
 
-    private function jsonSiAxBloqueaEstatus(EngProgramaEngomado $orden, string $nuevoStatus): ?JsonResponse
-    {
-        if (! ProgramaConfig::estatusBloqueadoPorAxProduccion($nuevoStatus)) {
-            return null;
-        }
-
-        if (! EngProduccionEngomado::folioTieneAx((string) $orden->Folio)) {
-            return null;
-        }
-
-        return response()->json([
-            'success' => false,
-            'error' => ProgramaConfig::mensajeAxBloqueaEstatus('EngProduccionEngomado'),
-        ], 422);
-    }
-
     /**
-     * Recalcular prioridades consecutivas para todas las órdenes activas de engomado
-     */
-    private function recalcularPrioridadesEngomado(): void
-    {
-        try {
-            $this->prioridadService->recalculatePriorities(
-                $this->activeOrdersQuery(),
-                fn ($orden) => $this->fechaProgFallback($orden)
-            );
-        } catch (\Throwable $e) {
-            Log::error('Error al recalcular prioridades engomado: '.$e->getMessage());
-        }
-    }
-
-    /**
-     * Actualizar el status de una orden de engomado
-     * Si se cancela, se elimina la prioridad y se recalculan todas las demás
+     * Actualizar el status de una orden de engomado.
+     * Delega a ProgramBoardActionService (Urdido Finalizado + tope 2× En Proceso + AX).
      */
     public function actualizarStatus(Request $request): JsonResponse
     {
@@ -502,59 +479,27 @@ class ProgramarEngomadoController extends Controller
                 'status' => ['required', 'string', Rule::in(ProgramaConfig::STATUS_OPTIONS)],
             ]);
 
-            $orden = EngProgramaEngomado::findOrFail($request->id);
-            $nuevoStatus = $request->status;
-            $statusAnterior = $orden->Status;
-
-            if ($orden->Status === $nuevoStatus) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Status sin cambios',
-                ]);
-            }
-
-            if ($bloqueoAx = $this->jsonSiAxBloqueaEstatus($orden, $nuevoStatus)) {
-                return $bloqueoAx;
-            }
-
-            DB::beginTransaction();
-
-            $orden->Status = $nuevoStatus;
-
-            if ($nuevoStatus === 'Cancelado') {
-                $orden->Prioridad = null;
-                $orden->save();
-
-                try {
-                    EngProduccionEngomado::where('Folio', $orden->Folio)->delete();
-                } catch (\Throwable $e) {
-                    // No lanzar, solo registrar
-                }
-
-                $this->recalcularPrioridadesEngomado();
-            } elseif ($statusAnterior === 'Cancelado' && in_array($nuevoStatus, ProgramaConfig::ACTIVE_STATUSES, true)) {
-                $orden->Prioridad = $this->prioridadService->nextPriority($this->activeOrdersQuery());
-                $orden->save();
-            } else {
-                $orden->save();
-            }
-
-            DB::commit();
+            $this->boardActionService->changeStatus(
+                ProgramaModulo::Engomado,
+                (int) $request->id,
+                (string) $request->status
+            );
 
             return response()->json([
                 'success' => true,
                 'message' => 'Status actualizado correctamente',
             ]);
+        } catch (DomainException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 422);
         } catch (ValidationException $e) {
-            DB::rollBack();
-
             return response()->json([
                 'success' => false,
                 'error' => 'Error de validación: '.$e->getMessage(),
             ], 422);
         } catch (\Throwable $e) {
-            DB::rollBack();
-
             return response()->json([
                 'success' => false,
                 'error' => 'Error al actualizar status: '.$e->getMessage(),

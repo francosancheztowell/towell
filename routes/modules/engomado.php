@@ -59,6 +59,7 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
     Route::redirect('/bpm', '/eng-bpm', 301);
     Route::get('/capturadeformula', [EngProduccionFormulacionController::class, 'index'])->name('captura-formula');
 
+    // Default = Livewire ProgramBoard. `/legacy` = Blade clásico (mismas mutaciones vía ActionService).
     Route::get('/programar-engomado', [ProgramarEngomadoController::class, 'index'])->name('programar.engomado');
     Route::get('/programar-engomado/legacy', [ProgramarEngomadoController::class, 'legacy'])->name('programar.engomado.legacy');
     Route::get('/reimpresion-engomado', [ProgramarEngomadoController::class, 'reimpresionFinalizadas'])->name('reimpresion.finalizadas');

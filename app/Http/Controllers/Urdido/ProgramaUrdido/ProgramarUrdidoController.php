@@ -4,25 +4,27 @@ namespace App\Http\Controllers\Urdido\ProgramaUrdido;
 
 use App\Http\Controllers\Controller;
 use App\Jobs\Programas\SendUrdidoQualityNotification;
-use App\Models\Engomado\EngProduccionEngomado;
-use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
 use App\Services\Programas\ProgramaPrioridadService;
+use App\Services\Programas\ProgramBoardActionService;
 use App\Support\Programas\ProgramaConfig;
+use App\Support\Programas\ProgramaModulo;
 use App\Support\Programas\ProgramaRouteHelper;
+use DomainException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ProgramarUrdidoController extends Controller
 {
-    public function __construct(private readonly ProgramaPrioridadService $prioridadService) {}
+    public function __construct(
+        private readonly ProgramaPrioridadService $prioridadService,
+        private readonly ProgramBoardActionService $boardActionService,
+    ) {}
 
     /**
      * Verifica si el usuario puede editar: solo usuarios con puesto de Supervisor.
@@ -81,14 +83,16 @@ class ProgramarUrdidoController extends Controller
     }
 
     /**
-     * Mostrar la vista de programar urdido (diseño clásico).
-     * El board Livewire queda disponible en la ruta .livewire.
+     * Tablero canónico: Livewire ProgramBoard.
      */
     public function index(): View
     {
-        return $this->legacy();
+        return view('modulos.urdido.programar-urdido-livewire');
     }
 
+    /**
+     * Fallback Blade clásico. Las mutaciones POST delegan a ProgramBoardActionService.
+     */
     public function legacy(): View
     {
         return view('modulos.urdido.programar-urdido', [
@@ -213,13 +217,6 @@ class ProgramarUrdidoController extends Controller
         }
 
         return null;
-    }
-
-    private function activeOrdersQuery()
-    {
-        return UrdProgramaUrdido::query()
-            ->whereIn('Status', ProgramaConfig::ACTIVE_STATUSES)
-            ->whereNotNull('MaquinaId');
     }
 
     private function createdAtFallback(object $orden): int
@@ -408,7 +405,6 @@ class ProgramarUrdidoController extends Controller
     public function intercambiarPrioridad(Request $request): JsonResponse
     {
         try {
-            // Habilitado para cualquier usuario con permiso de modificar el módulo (no solo supervisores)
             if ($noAutorizado = $this->jsonSiNoPuedeModificarPrograma()) {
                 return $noAutorizado;
             }
@@ -417,8 +413,8 @@ class ProgramarUrdidoController extends Controller
                 'source_id' => 'required|integer|exists:UrdProgramaUrdido,Id',
                 'target_id' => 'required|integer|exists:UrdProgramaUrdido,Id',
             ]);
-            $this->prioridadService->swapPriorities(
-                UrdProgramaUrdido::class,
+            $this->boardActionService->swapPriorities(
+                ProgramaModulo::Urdido,
                 (int) $request->source_id,
                 (int) $request->target_id
             );
@@ -427,14 +423,19 @@ class ProgramarUrdidoController extends Controller
                 'success' => true,
                 'message' => 'Prioridad actualizada correctamente',
             ]);
+        } catch (DomainException $e) {
+            $status = str_contains($e->getMessage(), 'permiso') ? 403 : 422;
+
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], $status);
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'error' => 'Error de validación: '.$e->getMessage(),
             ], 422);
         } catch (\Throwable $e) {
-            // La transacción vive dentro de ProgramaPrioridadService::swapPriorities(),
-            // que ya hace rollback por su cuenta: aquí no hay nada que revertir.
             return response()->json([
                 'success' => false,
                 'error' => 'Error al intercambiar prioridad: '.$e->getMessage(),
@@ -460,14 +461,21 @@ class ProgramarUrdidoController extends Controller
                 'observaciones' => 'nullable|string|max:'.ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
             ]);
 
-            $orden = UrdProgramaUrdido::findOrFail($request->id);
-            $orden->Observaciones = $request->observaciones ?? '';
-            $orden->save();
+            $this->boardActionService->saveObservations(
+                ProgramaModulo::Urdido,
+                (int) $request->id,
+                trim((string) ($request->observaciones ?? ''))
+            );
 
             return response()->json([
                 'success' => true,
                 'message' => 'Observaciones guardadas correctamente',
             ]);
+        } catch (DomainException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 422);
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
@@ -565,41 +573,9 @@ class ProgramarUrdidoController extends Controller
         }
     }
 
-    private function jsonSiAxBloqueaEstatus(UrdProgramaUrdido $orden, string $nuevoStatus): ?JsonResponse
-    {
-        if (! ProgramaConfig::estatusBloqueadoPorAxProduccion($nuevoStatus)) {
-            return null;
-        }
-
-        if (! UrdProduccionUrdido::folioTieneAx((string) $orden->Folio)) {
-            return null;
-        }
-
-        return response()->json([
-            'success' => false,
-            'error' => ProgramaConfig::MENSAJE_AX_BLOQUEA_ESTATUS,
-        ], 422);
-    }
-
     /**
-     * Recalcular prioridades consecutivas para todas las órdenes activas
-     * Excluye órdenes canceladas
-     */
-    private function recalcularPrioridades(): void
-    {
-        try {
-            $this->prioridadService->recalculatePriorities(
-                $this->activeOrdersQuery(),
-                fn ($orden) => $this->createdAtFallback($orden)
-            );
-        } catch (\Throwable $e) {
-            Log::error('Error al recalcular prioridades: '.$e->getMessage());
-        }
-    }
-
-    /**
-     * Actualizar el status de una orden
-     * Si se cancela, se elimina la prioridad y se recalculan todas las demás
+     * Actualizar el status de una orden.
+     * Delega a ProgramBoardActionService (tope 2× En Proceso + AX + cancelación en cascada).
      */
     public function actualizarStatus(Request $request): JsonResponse
     {
@@ -616,111 +592,27 @@ class ProgramarUrdidoController extends Controller
                 'status' => ['required', 'string', Rule::in(ProgramaConfig::STATUS_OPTIONS)],
             ]);
 
-            $orden = UrdProgramaUrdido::findOrFail($request->id);
-            $nuevoStatus = $request->status;
-            $statusAnterior = $orden->Status;
-
-            if ($orden->Status === $nuevoStatus) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Status sin cambios',
-                ]);
-            }
-
-            if ($bloqueoAx = $this->jsonSiAxBloqueaEstatus($orden, $nuevoStatus)) {
-                return $bloqueoAx;
-            }
-
-            if ($nuevoStatus === 'En Proceso') {
-                $mcCoy = $this->extractMcCoyNumber($orden->MaquinaId);
-                $limitePorMaquina = 2;
-
-                if ($mcCoy !== null) {
-                    $cantidadEnProceso = UrdProgramaUrdido::where('Status', 'En Proceso')
-                        ->whereNotNull('MaquinaId')
-                        ->where('Id', '!=', $orden->Id)
-                        ->get()
-                        ->filter(function ($item) use ($mcCoy) {
-                            return $this->extractMcCoyNumber($item->MaquinaId) === $mcCoy;
-                        })
-                        ->count();
-
-                    if ($cantidadEnProceso >= $limitePorMaquina) {
-                        $nombreMaquina = $mcCoy === 4 ? 'Karl Mayer' : "MC Coy {$mcCoy}";
-
-                        return response()->json([
-                            'success' => false,
-                            'error' => "Ya existen {$limitePorMaquina} ordenes en proceso en {$nombreMaquina}.",
-                        ], 422);
-                    }
-                }
-            }
-
-            DB::beginTransaction();
-
-            $orden->Status = $nuevoStatus;
-
-            // Si se cancela, eliminar prioridad y recalcular todas las demás
-            if ($nuevoStatus === 'Cancelado') {
-                $orden->Prioridad = null;
-                $orden->save();
-
-                // Eliminar registros de producción de urdido cuando se cancela
-                try {
-                    $registrosEliminados = UrdProduccionUrdido::where('Folio', $orden->Folio)->delete();
-
-                } catch (\Throwable $e) {
-                    // No lanzar excepción, solo registrar el error
-                }
-
-                // También cancelar la orden correspondiente en engomado si existe
-                try {
-                    $ordenEngomado = EngProgramaEngomado::where('Folio', $orden->Folio)->first();
-                    if ($ordenEngomado && ! in_array($ordenEngomado->Status, ['Cancelado', 'Finalizado'])) {
-                        $ordenEngomado->Status = 'Cancelado';
-                        $ordenEngomado->Prioridad = null;
-                        $ordenEngomado->save();
-
-                        // Eliminar registros de producción de engomado cuando se cancela
-                        try {
-
-                            $registrosEliminados = EngProduccionEngomado::where('Folio', $orden->Folio)->delete();
-                        } catch (\Throwable $e) {
-                            // No lanzar excepción, solo registrar el error
-                        }
-
-                    }
-                } catch (\Throwable $e) {
-                    // No lanzar excepción, solo registrar el error
-                }
-
-                // Recalcular prioridades de todas las órdenes activas
-                $this->recalcularPrioridades();
-            }
-            // Si se reactiva desde cancelado, asignar nueva prioridad al final
-            elseif ($statusAnterior === 'Cancelado' && in_array($nuevoStatus, ProgramaConfig::ACTIVE_STATUSES, true)) {
-                $orden->Prioridad = $this->prioridadService->nextPriority($this->activeOrdersQuery());
-                $orden->save();
-            } else {
-                $orden->save();
-            }
-
-            DB::commit();
+            $this->boardActionService->changeStatus(
+                ProgramaModulo::Urdido,
+                (int) $request->id,
+                (string) $request->status
+            );
 
             return response()->json([
                 'success' => true,
                 'message' => 'Status actualizado correctamente',
             ]);
+        } catch (DomainException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+            ], 422);
         } catch (ValidationException $e) {
-            DB::rollBack();
-
             return response()->json([
                 'success' => false,
                 'error' => 'Error de validación: '.$e->getMessage(),
             ], 422);
         } catch (\Throwable $e) {
-            DB::rollBack();
-
             return response()->json([
                 'success' => false,
                 'error' => 'Error al actualizar status: '.$e->getMessage(),

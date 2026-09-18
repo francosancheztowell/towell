@@ -214,12 +214,13 @@ class ProgramBoardActionService
 
             $urdidoStatus = $query->value('Status');
 
-            return $urdidoStatus === 'Finalizado'
-                ? null
-                : 'La orden de Urdido debe estar finalizada antes de iniciar Engomado.';
+            if ($urdidoStatus !== 'Finalizado') {
+                return 'La orden de Urdido debe estar finalizada antes de iniciar Engomado.';
+            }
         }
 
-        $lane = $module->laneKey((string) $order->MaquinaId);
+        $machineColumn = $module->machineColumn();
+        $lane = $module->laneKey((string) $order->getAttribute($machineColumn));
         if ($lane === null) {
             return null;
         }
@@ -227,16 +228,16 @@ class ProgramBoardActionService
         $query = $module->programModel()::query()
             ->where('Status', 'En Proceso')
             ->where('Id', '!=', $order->Id)
-            ->whereNotNull('MaquinaId');
+            ->whereNotNull($machineColumn);
 
         if ($lockRows) {
             $query->lockForUpdate();
         }
 
         $inProcess = $query
-            ->get(['Id', 'MaquinaId'])
+            ->get(['Id', $machineColumn])
             ->filter(fn (Model $candidate): bool => $module->laneKey(
-                (string) $candidate->MaquinaId
+                (string) $candidate->getAttribute($machineColumn)
             ) === $lane)
             ->count();
 
@@ -244,7 +245,8 @@ class ProgramBoardActionService
             return null;
         }
 
-        $machine = $lane === '4' ? 'Karl Mayer' : "MC Coy {$lane}";
+        $laneMeta = collect($module->lanes())->firstWhere('key', $lane);
+        $machine = is_array($laneMeta) ? $laneMeta['label'] : $lane;
 
         return "Ya existen 2 órdenes en proceso en {$machine}. Finaliza una antes de cargar otra.";
     }
