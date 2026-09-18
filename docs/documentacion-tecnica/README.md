@@ -31,6 +31,7 @@ Esta carpeta contiene la version tecnica de la documentacion de Towell. Esta ori
 
 ## Anexos
 
+- [`docs/auditoria/auditoria-critica-towell.md`](../auditoria/auditoria-critica-towell.md) — auditoría crítica de arquitectura y lógica de negocio (riesgos P0–P3, no es manual de uso)
 - `MANUAL-TECNICO-DETALLADO-TOWELL.md` - manual consolidado con detalle tecnico por fase y funciones
 - `MANUAL-TECNICO-DETALLADO-TOWELL-PDF.html` - version imprimible/compartible del manual tecnico
 - `MATRIZ-TECNICA-RUTAS.md` - trazabilidad rapida entre rutas, controladores y archivos clave
