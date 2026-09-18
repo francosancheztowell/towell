@@ -30,11 +30,6 @@ class MantenimientoParosController extends Controller
     private const DIAS_HISTORICO_DEFAULT = 30;
 
     /**
-     * Nombre de SYSRoles.modulo para solicitudes/paros (navbar `module="Solicitudes"`).
-     */
-    private const MODULO_PERMISO = 'Solicitudes';
-
-    /**
      * Mostrar vista de nuevo paro con departamento pre-seleccionado del usuario.
      */
     public function nuevoParo()
@@ -471,10 +466,6 @@ class MantenimientoParosController extends Controller
                 ], 401);
             }
 
-            if ($respuesta = $this->respuestaSinPermiso('crear', 'No tienes permiso para reportar paros.')) {
-                return $respuesta;
-            }
-
             // Largos alineados con las columnas de ManFallasParos.
             // Mensajes en español: la app corre con APP_LOCALE=en y el front muestra
             // este texto tal cual al operador.
@@ -834,10 +825,6 @@ class MantenimientoParosController extends Controller
         CalificacionParoService $calificaciones,
     ): JsonResponse {
         try {
-            if ($respuesta = $this->respuestaSinPermiso('modificar', 'No tienes permiso para finalizar paros.')) {
-                return $respuesta;
-            }
-
             $paro = ManFallasParos::find($id);
 
             if (! $paro) {
@@ -969,31 +956,5 @@ class MantenimientoParosController extends Controller
                 'data' => [],
             ], 500);
         }
-    }
-
-    /**
-     * 403 JSON cuando el usuario no tiene el permiso de SYSUsuariosRoles.
-     *
-     * El menú oculta la UI; este guard es el que autoriza de verdad.
-     */
-    private function respuestaSinPermiso(string $accion, string $mensaje): ?JsonResponse
-    {
-        if (userCan($accion, self::MODULO_PERMISO)) {
-            return null;
-        }
-
-        $usuario = Auth::user();
-
-        Log::warning('Permiso denegado en paros de mantenimiento', [
-            'accion_requerida' => $accion,
-            'modulo_buscado' => self::MODULO_PERMISO,
-            'idusuario' => $usuario?->idusuario,
-            'numero_empleado' => $usuario?->numero_empleado,
-        ]);
-
-        return response()->json([
-            'success' => false,
-            'error' => $mensaje,
-        ], 403);
     }
 }
