@@ -9,4 +9,4 @@ Programa/producción engomado; fórmula; BPM; calificar julios eng; reportes.
 ## Reglas
 - Fórmula: todas las del BOM del folio
 - AX=1 misma regla que urdido sobre EngProduccionEngomado
-- **P1:** `actualizarStatus` puede En Proceso sin exigir Urdido Finalizado (check en otro endpoint)
+- Status En Proceso exige Urdido Finalizado y tope 2× por máquina vía `ProgramBoardActionService` (mismo camino Livewire y POST legacy)

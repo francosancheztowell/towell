@@ -73,7 +73,7 @@
 
 | Campo | Valor |
 |-------|--------|
-| **Estado actual** | **Híbrido dual.** Default `ProgramarUrdidoController::index()` → `legacy()` → Blade `programar-urdido`. Ruta explícita `/programar-urdido/livewire` → Blade livewire con `<livewire:urd-eng.program-board module="urdido">`. Mutaciones legacy vía POST `actualizar-status` etc. Service canónico: `ProgramBoardActionService`. |
+| **Estado actual** | **Livewire default (2026-09-18).** `ProgramarUrdidoController::index()` → `programar-urdido-livewire` (`<livewire:urd-eng.program-board module="urdido">`). `/legacy` = Blade. `/livewire` redirige 301 al default. POST status/prioridad/observaciones delegan a `ProgramBoardActionService`. |
 | **Recomendación** | **Congelar legacy / forzar Livewire** (tablero de status). Producción/BPM/reportes: **No migrar ahora**. |
 | **Criterios** | SÍ: dual-path + board interactivo + service ya testeado. NO: captura producción 2k+ LOC Blade. |
 | **Riesgo si se migra mal** | Dejar POST legacy vivos con reglas distintas; operadores en URL vieja. |
@@ -83,7 +83,7 @@
 
 | Campo | Valor |
 |-------|--------|
-| **Estado actual** | **Híbrido invertido (peligroso).** `index()` sirve Blade legacy `programar-engomado` (UI default). Ruta **nombrada** `programar.engomado.legacy` sirve **Livewire** (`programar-engomado-livewire` + `ProgramBoard module="engomado"`). **No** hay ruta `*.livewire` en `engomado.php`. Legacy `actualizarStatus` **no** exige Urdido Finalizado ni límite 2× En Proceso (BUG-005/016). Livewire service **sí**. |
+| **Estado actual** | **Livewire default (2026-09-18).** `index()` → `programar-engomado-livewire`. `/legacy` = Blade. POST `actualizar-status` delega a `ProgramBoardActionService` (Urdido Finalizado + 2× En Proceso). BUG-005/016/031 mitigados. |
 | **Recomendación** | **Congelar legacy / forzar Livewire** — **prioridad P1 sobre “migrar más UI”**. |
 | **Criterios** | SÍ: dual-path risk máximo del ERP. NO: captura-fórmula 3589 LOC Blade, módulo producción, Excel. |
 | **Riesgo si se migra mal** | Engomar sin urdido finalizado; sobrecarga máquina; confusión `.legacy` = Livewire. |

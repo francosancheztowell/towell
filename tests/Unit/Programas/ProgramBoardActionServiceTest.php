@@ -217,6 +217,70 @@ class ProgramBoardActionServiceTest extends TestCase
             'La orden de Urdido debe estar finalizada antes de iniciar Engomado.',
             $reason
         );
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('La orden de Urdido debe estar finalizada antes de iniciar Engomado.');
+
+        app(ProgramBoardActionService::class)->changeStatus(
+            ProgramaModulo::Engomado,
+            1,
+            'En Proceso'
+        );
+    }
+
+    public function test_engomado_cannot_exceed_two_in_process_orders_per_machine(): void
+    {
+        $this->insertUrdido(1, 'ORD-401', 'Mc Coy 1', 'Finalizado', 1);
+        $this->insertUrdido(2, 'ORD-402', 'Mc Coy 1', 'Finalizado', 2);
+        $this->insertUrdido(3, 'ORD-403', 'Mc Coy 1', 'Finalizado', 3);
+
+        foreach ([
+            [1, 'ORD-401', 'West Point 2', 'En Proceso', 1],
+            [2, 'ORD-402', 'West Point 2', 'En Proceso', 2],
+            [3, 'ORD-403', 'West Point 2', 'Programado', 3],
+        ] as [$id, $folio, $machine, $status, $priority]) {
+            DB::connection('sqlsrv')->table('EngProgramaEngomado')->insert([
+                'Id' => $id,
+                'Folio' => $folio,
+                'MaquinaEng' => $machine,
+                'Status' => $status,
+                'Prioridad' => $priority,
+                'FechaProg' => '2026-07-29',
+            ]);
+        }
+
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Ya existen 2 órdenes en proceso en West Point 2. Finaliza una antes de cargar otra.');
+
+        app(ProgramBoardActionService::class)->changeStatus(
+            ProgramaModulo::Engomado,
+            3,
+            'En Proceso'
+        );
+    }
+
+    public function test_engomado_can_start_when_urdido_is_finalized_and_machine_has_capacity(): void
+    {
+        $this->insertUrdido(1, 'ORD-500', 'Mc Coy 1', 'Finalizado', 1);
+        DB::connection('sqlsrv')->table('EngProgramaEngomado')->insert([
+            'Id' => 1,
+            'Folio' => 'ORD-500',
+            'MaquinaEng' => 'West Point 2',
+            'Status' => 'Programado',
+            'Prioridad' => 1,
+            'FechaProg' => '2026-07-29',
+        ]);
+
+        app(ProgramBoardActionService::class)->changeStatus(
+            ProgramaModulo::Engomado,
+            1,
+            'En Proceso'
+        );
+
+        $this->assertSame(
+            'En Proceso',
+            DB::connection('sqlsrv')->table('EngProgramaEngomado')->where('Id', 1)->value('Status')
+        );
     }
 
     private function createProgramTable(string $tableName, string $machineColumn, bool $quality = false): void
