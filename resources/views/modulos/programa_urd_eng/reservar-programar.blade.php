@@ -1821,17 +1821,9 @@ const actions = {
             const localidad = state.selectedInventario.wmsLocationId ||
                               state.selectedInventario.data?.WMSLocationId || '';
 
-            // Actualizar telar - SOLO el registro especÃ­fico que se estÃ¡ reservando
-            await http.post(API.actualizarTelar, {
-                id:        tel.id, // ID del registro especÃ­fico (REQUERIDO para actualizar solo ese registro)
-                no_telar:  tel.no_telar,
-                tipo:      tel.tipo,
-                metros:    state.selectedInventario.metros || 0,
-                no_julio:  state.selectedInventario.numJulio || '',
-                no_orden:  lote,
-                localidad: localidad
-            });
-
+            // El telar se marca dentro de la misma transaccion que crea la reserva
+            // (ver payload.telar mas abajo). Antes eran dos POST: si el segundo
+            // fallaba, el telar quedaba con julio y orden sin reserva detras.
             const tTipo = normalizeTipo(tel.tipo).toUpperCase();
 
             const ix = state.telaresData.findIndex(x =>
@@ -1880,7 +1872,13 @@ const actions = {
                 ProdDate:        it.ProdDate || null,
                 fecha:           tel.fecha || null,
                 turno:           tel.turno || null,
-                tej_inventario_telares_id: parseInt(tel.id, 10) // ID del registro especÃ­fico (REQUERIDO - convertir a entero)
+                tej_inventario_telares_id: parseInt(tel.id, 10), // ID del registro especÃ­fico (REQUERIDO - convertir a entero)
+                telar: {
+                    metros:    state.selectedInventario.metros || 0,
+                    no_julio:  state.selectedInventario.numJulio || '',
+                    no_orden:  lote,
+                    localidad: localidad
+                }
             };
 
             await http.post(API.reservarInventario, payload);

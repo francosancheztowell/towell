@@ -5,28 +5,26 @@ declare(strict_types=1);
 namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
-use App\Services\ProgramaUrdEng\InventarioTelaresService;
-use App\Models\Engomado\EngProgramaEngomado;
-use App\Models\Sistema\SSYSFoliosSecuencia;
-use App\Models\Tejido\TejInventarioTelares;
-use App\Models\Urdido\AuditoriaUrdEng;
-use App\Models\Urdido\UrdConsumoHilo;
-use App\Models\Urdido\UrdJuliosOrden;
-use App\Models\Urdido\UrdProgramaUrdido;
-use Carbon\Carbon;
+use App\Services\ProgramaUrdEng\CrearOrdenesService;
+use DomainException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 /**
- * Crea órdenes de urdido y engomado.
- * Orden de guardado: Folio CH → Folio URD/ENG → UrdProgramaUrdido → UrdConsumoHilo → UrdJuliosOrden → EngProgramaEngomado → actualizar no_orden en TejInventarioTelares.
+ * Alta de ordenes de urdido y engomado. El trabajo lo hace CrearOrdenesService;
+ * aqui solo se valida la forma del payload y se traduce el resultado a JSON.
+ *
+ * El permiso ('crear') lo aplica el middleware module.permission en
+ * routes/modules/programa-urd-eng.php.
  */
 class ProgramarUrdEngController extends Controller
 {
-    private const STATUS_ACTIVO = 'Activo';
+    public function __construct(
+        private CrearOrdenesService $ordenes
+    ) {}
 
     public function crearOrdenes(Request $request): JsonResponse
     {
@@ -38,313 +36,31 @@ class ProgramarUrdEngController extends Controller
             'datosEngomado' => 'required|array',
         ]);
 
-        $grupo = $request->input('grupo');
-        $destinoSeleccionado = trim((string) ($grupo['salonTejidoId'] ?? ''));
-
-        if ($destinoSeleccionado === '') {
-            return response()->json([
-                'success' => false,
-                'error' => 'Debe seleccionar un destino antes de crear la orden.',
-            ], 422);
-        }
-
-        // Validar que fibra/hilo no sea vacío (obligatorio para Rizo y Pie)
-        $fibra = trim((string) ($grupo['fibra'] ?? $grupo['hilo'] ?? ''));
-        if ($fibra === '') {
-            return response()->json([
-                'success' => false,
-                'error' => 'La fibra/hilo es obligatoria para crear órdenes. Regrese a Programación de Requerimientos y seleccione la fibra en cada telar.',
-            ], 422);
-        }
-        $fechaRequerimiento = $request->input('fechaRequerimiento');
-        $materialesEngomado = $request->input('materialesEngomado', []);
-        $construccionUrdido = $request->input('construccionUrdido', []);
-        $datosEngomado = $request->input('datosEngomado', []);
-
         $usuario = Auth::user();
-        $numeroEmpleado = $usuario->numero_empleado ?? null;
-        $nombreEmpleado = $usuario->nombre ?? null;
 
         try {
-            DB::beginTransaction();
-
-            $folioConsumo = SSYSFoliosSecuencia::nextFolio('CambioHilo', 5)['folio'];
-            $folio = $this->obtenerFolioUrdEng();
-
-            $telaresStr = $grupo['telaresStr'] ?? $grupo['noTelarId'] ?? null;
-            $tipo = $this->normalizeTipo($grupo['tipo'] ?? null);
-
-            $bomFormula = trim($datosEngomado['bomFormula'] ?? '') ?: $this->obtenerBomFormula($datosEngomado['lMatEngomado'] ?? null);
-            $tipoAtado = $grupo['tipoAtado'] ?? '';
-            $bomUrdId = trim($grupo['bomId'] ?? '');
-            $loteProveedor = $this->obtenerLoteProveedor($materialesEngomado);
-            $fechaReq = $this->obtenerFechaReq($telaresStr, $tipo, $grupo['fechaReq'] ?? null);
-
-            $urdido = UrdProgramaUrdido::create([
-                'Folio' => $folio,
-                'FolioConsumo' => $folioConsumo,
-                'NoTelarId' => $telaresStr,
-                'RizoPie' => $tipo,
-                'Cuenta' => $grupo['cuenta'] ?? null,
-                'Calibre' => isset($grupo['calibre']) ? (float) $grupo['calibre'] : null,
-                'FechaReq' => $fechaReq,
-                'Fibra' => $grupo['fibra'] ?? $grupo['hilo'] ?? null,
-                'InventSizeId' => $grupo['tamano'] ?? $grupo['inventSizeId'] ?? null,
-                'Metros' => isset($grupo['metros']) ? (float) $grupo['metros'] : null,
-                'Kilos' => isset($grupo['kilos']) ? (float) $grupo['kilos'] : null,
-                'SalonTejidoId' => $destinoSeleccionado,
-                'MaquinaId' => $grupo['maquinaId'] ?? null,
-                'BomId' => $bomUrdId,
-                'FechaProg' => now()->format('Y-m-d'),
-                'Status' => $grupo['status'] ?? 'Activo',
-                'BomFormula' => $bomFormula,
-                'TipoAtado' => $tipoAtado,
-                'CveEmpl' => $numeroEmpleado,
-                'NomEmpl' => $nombreEmpleado,
-                'LoteProveedor' => $loteProveedor,
-            ]);
-            $camposCreateUrd = self::camposCreateParaAuditoria($urdido, ['Folio', 'FolioConsumo', 'Cuenta', 'Calibre', 'Fibra', 'Metros', 'Kilos', 'RizoPie', 'MaquinaId', 'BomId']);
-            AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_URDIDO, (int) $urdido->Id, $urdido->Folio, AuditoriaUrdEng::ACCION_CREATE, $camposCreateUrd);
-
-            foreach ($materialesEngomado as $material) {
-                UrdConsumoHilo::create([
-                    'Folio' => $folio,
-                    'FolioConsumo' => $folioConsumo,
-                    'ItemId' => $material['itemId'] ?? null,
-                    'ConfigId' => $material['configId'] ?? null,
-                    'InventSizeId' => $material['inventSizeId'] ?? null,
-                    'InventColorId' => $material['inventColorId'] ?? null,
-                    'InventLocationId' => $material['inventLocationId'] ?? null,
-                    'InventBatchId' => $material['inventBatchId'] ?? null,
-                    'WMSLocationId' => $material['wmsLocationId'] ?? null,
-                    'InventSerialId' => $material['inventSerialId'] ?? null,
-                    'InventQty' => isset($material['kilos']) ? (float) $material['kilos'] : null,
-                    'ProdDate' => $this->parseProdDate($material['prodDate'] ?? null),
-                    'Status' => $material['status'] ?? 'Activo',
-                    'NumeroEmpleado' => $material['numeroEmpleado'] ?? $numeroEmpleado,
-                    'NombreEmpl' => $material['nombreEmpl'] ?? $nombreEmpleado,
-                    'Conos' => isset($material['conos']) ? (int) $material['conos'] : null,
-                    'LoteProv' => $material['loteProv'] ?? null,
-                    'NoProv' => $material['noProv'] ?? null,
-                    'FechaRegistro' => now(),
-                    'FechaRequerimiento' => $fechaRequerimiento ?? null,
-                ]);
-            }
-
-            foreach ($construccionUrdido as $julio) {
-                if (! empty($julio['julios']) || ! empty($julio['hilos'])) {
-                    UrdJuliosOrden::create([
-                        'Folio' => $folio,
-                        'Julios' => isset($julio['julios']) && $julio['julios'] !== '' ? (int) $julio['julios'] : null,
-                        'Hilos' => isset($julio['hilos']) && $julio['hilos'] !== '' ? (int) $julio['hilos'] : null,
-                        'Obs' => $julio['observaciones'] ?? null,
-                    ]);
-                }
-            }
-
-            $engomado = EngProgramaEngomado::create([
-                'Folio' => $folio,
-                'NoTelarId' => $telaresStr,
-                'RizoPie' => $tipo,
-                'Cuenta' => $grupo['cuenta'] ?? null,
-                'Calibre' => isset($grupo['calibre']) ? (float) $grupo['calibre'] : null,
-                'FechaReq' => $fechaReq,
-                'Fibra' => $grupo['fibra'] ?? $grupo['hilo'] ?? null,
-                'InventSizeId' => $grupo['tamano'] ?? $grupo['inventSizeId'] ?? null,
-                'Metros' => isset($grupo['metros']) ? (float) $grupo['metros'] : null,
-                'Kilos' => isset($grupo['kilos']) ? (float) $grupo['kilos'] : null,
-                'SalonTejidoId' => $destinoSeleccionado,
-                'MaquinaUrd' => $grupo['maquinaId'] ?? null,
-                'BomUrd' => $grupo['bomId'] ?? null,
-                'FechaProg' => now()->format('Y-m-d'),
-                'Status' => $grupo['status'] ?? 'Activo',
-                'Nucleo' => isset($datosEngomado['nucleo']) && $datosEngomado['nucleo'] !== '' ? (string) $datosEngomado['nucleo'] : null,
-                'NoTelas' => isset($datosEngomado['noTelas']) && $datosEngomado['noTelas'] !== '' ? (int) $datosEngomado['noTelas'] : null,
-                'AnchoBalonas' => isset($datosEngomado['anchoBalonas']) && $datosEngomado['anchoBalonas'] !== '' ? (int) $datosEngomado['anchoBalonas'] : null,
-                'MetrajeTelas' => isset($datosEngomado['metrajeTelas']) && $datosEngomado['metrajeTelas'] !== '' ? (float) str_replace(',', '', $datosEngomado['metrajeTelas']) : null,
-                'Cuentados' => isset($datosEngomado['cuendeadosMin']) && $datosEngomado['cuendeadosMin'] !== '' ? (int) $datosEngomado['cuendeadosMin'] : null,
-                'MaquinaEng' => $datosEngomado['maquinaEngomado'] ?? null,
-                'BomEng' => $datosEngomado['lMatEngomado'] ?? null,
-                'Obs' => $datosEngomado['observaciones'] ?? null,
-                'BomFormula' => $bomFormula,
-                'TipoAtado' => $tipoAtado,
-                'CveEmpl' => $numeroEmpleado,
-                'NomEmpl' => $nombreEmpleado,
-                'LoteProveedor' => $loteProveedor,
-            ]);
-            $camposCreateEng = self::camposCreateParaAuditoria($engomado, ['Folio', 'Cuenta', 'Calibre', 'Fibra', 'Metros', 'Kilos', 'RizoPie', 'MaquinaUrd', 'BomUrd', 'NoTelas', 'AnchoBalonas', 'MetrajeTelas', 'Cuentados']);
-            AuditoriaUrdEng::registrar(AuditoriaUrdEng::TABLA_ENGOMADO, (int) $engomado->Id, $engomado->Folio, AuditoriaUrdEng::ACCION_CREATE, $camposCreateEng);
-
-            $telaresActualizados = $this->marcarTelaresProgramados($telaresStr, $tipo, $folio);
-
-            DB::commit();
+            $data = $this->ordenes->crear(
+                $request->only(['grupo', 'materialesEngomado', 'construccionUrdido', 'datosEngomado', 'fechaRequerimiento']),
+                $usuario->numero_empleado ?? null,
+                $usuario->nombre ?? null,
+            );
 
             return response()->json([
                 'success' => true,
                 'message' => 'Órdenes creadas exitosamente',
-                'data' => [
-                    'folio' => $folio,
-                    'folioConsumo' => $folioConsumo,
-                    'telares_actualizados' => $telaresActualizados,
-                ],
+                'data' => $data,
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            DB::rollBack();
+        } catch (DomainException $e) {
+            // Falta un dato de negocio (destino, fibra): es culpa del payload, no del servidor.
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 422);
+        } catch (ValidationException $e) {
             Log::error('crearOrdenes: validación', ['errors' => $e->errors()]);
 
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
-            DB::rollBack();
             Log::error('crearOrdenes', ['msg' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
 
             return response()->json(['success' => false, 'error' => 'Error al crear órdenes: '.$e->getMessage()], 500);
         }
-    }
-
-    private function obtenerFolioUrdEng(): string
-    {
-        try {
-            return SSYSFoliosSecuencia::nextFolio('URD/ENG', 5)['folio'];
-        } catch (\Exception $e) {
-            return SSYSFoliosSecuencia::nextFolioById(14, 5)['folio'];
-        }
-    }
-
-    private function obtenerBomFormula(?string $bomEngId): ?string
-    {
-        if (empty($bomEngId)) {
-            return null;
-        }
-        try {
-            $row = DB::connection('sqlsrv_ti')
-                ->table('BOM')
-                ->where('BOMID', $bomEngId)
-                ->where('DATAAREAID', 'PRO')
-                ->where('ITEMID', 'like', 'TE-PD-ENF%')
-                ->value('ITEMID');
-
-            return $row ?: null;
-        } catch (\Throwable $e) {
-            Log::warning('obtenerBomFormula', ['bomId' => $bomEngId, 'error' => $e->getMessage()]);
-
-            return null;
-        }
-    }
-
-    private function obtenerLoteProveedor(array $materialesEngomado): ?string
-    {
-        foreach ($materialesEngomado as $m) {
-            if (! empty($m['inventBatchId'])) {
-                return $m['inventBatchId'];
-            }
-        }
-
-        return null;
-    }
-
-    private function obtenerFechaReq(?string $telaresStr, ?string $tipo, $fallback = null): ?string
-    {
-        if (empty($telaresStr)) {
-            return $fallback;
-        }
-
-        $telares = array_filter(array_map('trim', explode(',', $telaresStr)));
-        $fechas = [];
-
-        foreach ($telares as $noTelar) {
-            $q = TejInventarioTelares::where('no_telar', $noTelar)->where('status', self::STATUS_ACTIVO);
-            if ($tipo) {
-                $q->where('tipo', $tipo);
-            }
-            $telar = $q->first();
-            if ($telar && $telar->fecha) {
-                try {
-                    $fechas[] = $telar->fecha instanceof Carbon ? $telar->fecha : Carbon::parse($telar->fecha);
-                } catch (\Throwable $e) {
-                    continue;
-                }
-            }
-        }
-
-        if (empty($fechas)) {
-            return $fallback;
-        }
-
-        return min($fechas)->format('Y-m-d');
-    }
-
-    /**
-     * Marca los telares como programados en TejInventarioTelares.
-     * Solo actualiza no_orden y Programado. El hilo se guarda únicamente en el payload
-     * de UrdProgramaUrdido/EngProgramaEngomado, NO en tej_inventario_telares.
-     *
-     * @return int Cantidad de telares actualizados
-     */
-    private function marcarTelaresProgramados(?string $telaresStr, ?string $tipo, string $folio): int
-    {
-        if (empty($telaresStr)) {
-            return 0;
-        }
-
-        $telares = array_filter(array_map('trim', explode(',', $telaresStr)));
-        $count = 0;
-
-        foreach ($telares as $noTelar) {
-            $q = TejInventarioTelares::where('no_telar', $noTelar)->where('status', self::STATUS_ACTIVO);
-            if ($tipo) {
-                $q->where('tipo', $tipo);
-            }
-            $telar = $q->first();
-            if ($telar) {
-                $telar->update(['no_orden' => $folio, 'Programado' => true]);
-                $count++;
-            }
-        }
-
-        return $count;
-    }
-
-    private function normalizeTipo($tipo): ?string
-    {
-        // Una sola definicion: el servicio tambien entiende las barras de Karl Mayer.
-        return app(InventarioTelaresService::class)->normalizeTipo($tipo);
-    }
-
-    private function parseProdDate($prodDate): ?string
-    {
-        if ($prodDate === null || $prodDate === '') {
-            return null;
-        }
-        if ($prodDate instanceof Carbon) {
-            return $prodDate->format('Y-m-d');
-        }
-        if (is_string($prodDate)) {
-            try {
-                return Carbon::parse($prodDate)->format('Y-m-d');
-            } catch (\Throwable $e) {
-                return null;
-            }
-        }
-        if (is_numeric($prodDate)) {
-            try {
-                return Carbon::createFromTimestamp($prodDate)->format('Y-m-d');
-            } catch (\Throwable $e) {
-                return null;
-            }
-        }
-
-        return null;
-    }
-
-    /** Para auditoría en create: "Campo: (vacío) -> valor" por cada campo indicado. */
-    private static function camposCreateParaAuditoria($modelo, array $nombresCampos): string
-    {
-        $partes = [];
-        foreach ($nombresCampos as $campo) {
-            $valor = $modelo->getAttribute($campo);
-            $partes[] = AuditoriaUrdEng::formatoCampo($campo, null, $valor);
-        }
-
-        return implode(', ', $partes);
     }
 }

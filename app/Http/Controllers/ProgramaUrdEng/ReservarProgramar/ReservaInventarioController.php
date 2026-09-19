@@ -4,7 +4,9 @@ namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
 use App\Services\ProgramaUrdEng\InventarioReservasService;
+use App\Services\ProgramaUrdEng\ReservarProgramarActionService;
 use Carbon\Carbon;
+use DomainException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +19,8 @@ use Throwable;
 class ReservaInventarioController extends Controller
 {
     public function __construct(
-        private InventarioReservasService $reservasService
+        private InventarioReservasService $reservasService,
+        private ReservarProgramarActionService $acciones
     ) {}
 
     /** POST reservar pieza (idempotente por índice único). */
@@ -45,7 +48,19 @@ class ReservaInventarioController extends Controller
                 'tej_inventario_telares_id' => ['required', 'integer'],
                 'NumeroEmpleado' => ['nullable', 'string', 'max:20'],
                 'NombreEmpl' => ['nullable', 'string', 'max:120'],
+                // Opcional: si vienen, el telar se marca en la misma transaccion
+                // en vez de con un POST aparte a actualizar-telar.
+                'telar' => ['nullable', 'array'],
+                'telar.metros' => ['nullable', 'numeric'],
+                'telar.no_julio' => ['nullable', 'string', 'max:50'],
+                'telar.no_orden' => ['nullable', 'string', 'max:50'],
+                'telar.localidad' => ['nullable', 'string', 'max:10'],
             ]);
+
+            $camposTelar = ReservarProgramarActionService::camposDeInventario(
+                (array) ($data['telar'] ?? [])
+            );
+            unset($data['telar']);
 
             $data['Fecha'] = $this->parseFecha($data['fecha'] ?? null, $data['ProdDate'] ?? null);
             $data['Turno'] = isset($data['turno']) && is_numeric($data['turno']) ? (int) $data['turno'] : null;
@@ -74,13 +89,16 @@ class ReservaInventarioController extends Controller
                 }
             }
 
-            $result = $this->reservasService->ejecutarReserva($data);
+            $result = $this->acciones->reservarConTelar($data, $camposTelar);
 
             return response()->json([
                 'success' => true,
                 'created' => $result['created'],
                 'message' => $result['message'],
+                'telares_actualizados' => $result['telares_actualizados'],
             ]);
+        } catch (DomainException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 404);
         } catch (Throwable $e) {
             Log::error('ReservaInventario.reservar', [
                 'msg' => $e->getMessage(),

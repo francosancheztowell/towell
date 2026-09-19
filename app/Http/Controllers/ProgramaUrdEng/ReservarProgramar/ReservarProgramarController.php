@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
-use App\Models\Inventario\InvTelasReservadas;
 use App\Models\Planeacion\ReqTelares;
-use App\Models\Tejedores\TejNotificaTejedorModel;
 use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\ProgramaUrdEng\InventarioTelaresService;
-use App\Services\ProgramaUrdEng\ProgramasUrdidoEngomadoService;
-use Illuminate\Database\Eloquent\Collection;
+use App\Services\ProgramaUrdEng\ReservarProgramarActionService;
+use DomainException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -26,7 +24,7 @@ class ReservarProgramarController extends Controller
 
     public function __construct(
         private InventarioTelaresService $telaresService,
-        private ProgramasUrdidoEngomadoService $programasService
+        private ReservarProgramarActionService $acciones
     ) {}
 
     /* ==================== Vistas ==================== */
@@ -143,76 +141,40 @@ class ReservarProgramarController extends Controller
 
     public function actualizarTelar(Request $request): JsonResponse
     {
+        $datos = $request->validate([
+            'no_telar' => ['required', 'string', 'max:50'],
+            'tipo' => ['nullable', 'string', 'max:20'],
+            'metros' => ['nullable', 'numeric'],
+            'no_julio' => ['nullable', 'string', 'max:50'],
+            'no_orden' => ['nullable', 'string', 'max:50'],
+            'localidad' => ['nullable', 'string', 'max:10'],
+            'tipo_atado' => ['nullable', 'string', 'in:Normal,Especial'],
+            'hilo' => ['nullable', 'string', 'max:50'],
+            'cuenta' => ['nullable', 'string', 'max:50'],
+            'calibre' => ['nullable', 'numeric'],
+            'id' => ['nullable', 'integer'],
+            'fecha' => ['nullable', 'string'],
+            'turno' => ['nullable'],
+            'folio' => ['nullable', 'string', 'max:50'],
+            'lote_proveedor' => ['nullable', 'string', 'max:50'],
+            'no_proveedor' => ['nullable', 'string', 'max:50'],
+            'solo_inventario' => ['nullable', 'boolean'],
+        ]);
+
+        $noTelar = (string) $datos['no_telar'];
+
         try {
-            $request->validate([
-                'no_telar' => ['required', 'string', 'max:50'],
-                'tipo' => ['nullable', 'string', 'max:20'],
-                'metros' => ['nullable', 'numeric'],
-                'no_julio' => ['nullable', 'string', 'max:50'],
-                'no_orden' => ['nullable', 'string', 'max:50'],
-                'localidad' => ['nullable', 'string', 'max:10'],
-                'tipo_atado' => ['nullable', 'string', 'in:Normal,Especial'],
-                'hilo' => ['nullable', 'string', 'max:50'],
-                'cuenta' => ['nullable', 'string', 'max:50'],
-                'calibre' => ['nullable', 'numeric'],
-                'id' => ['nullable', 'integer'],
-                'fecha' => ['nullable', 'string'],
-                'turno' => ['nullable'],
-                'folio' => ['nullable', 'string', 'max:50'],
-                'lote_proveedor' => ['nullable', 'string', 'max:50'],
-                'no_proveedor' => ['nullable', 'string', 'max:50'],
-                'solo_inventario' => ['nullable', 'boolean'],
-            ]);
-
-            $noTelar = (string) $request->input('no_telar');
-            $tipo = $this->telaresService->normalizeTipo($request->input('tipo'));
-            $id = $request->filled('id') ? (int) $request->input('id') : null;
-            $fechaRaw = $request->filled('fecha') ? (string) $request->input('fecha') : null;
-            $fecha = $fechaRaw ? substr(trim($fechaRaw), 0, 10) : null;
-            $turno = $request->filled('turno') ? $request->input('turno') : null;
-
-            // Separar campos para inventario vs programas
-            $updateInventario = $this->extraerCamposInventario($request);
-            $updateProgramas = $this->extraerCamposProgramas($request);
-
-            if (empty($updateProgramas) && empty($updateInventario)) {
-                return response()->json(['success' => false, 'message' => 'No hay campos para actualizar'], 400);
-            }
-
-            $actualizadosInventario = 0;
-            $actualizadosUrdido = 0;
-            $actualizadosEngomado = 0;
-
-            // Actualizar inventario
-            if (! empty($updateInventario)) {
-                $actualizadosInventario = $this->actualizarInventarioTelares($id, $noTelar, $tipo, $updateInventario, $fecha, $turno);
-                if ($actualizadosInventario === -1) {
-                    return response()->json(['success' => false, 'message' => 'Telar no encontrado o no está activo'], 404);
-                }
-            }
-
-            // Actualizar programas (UrdProgramaUrdido / EngProgramaEngomado) solo por Folio.
-            // Desde Programación de Requerimientos no se actualizan programas, solo inventario (solo_inventario=true).
-            if (! empty($updateProgramas) && ! $request->boolean('solo_inventario')) {
-                $telar = $this->obtenerTelarParaActualizar($id, $noTelar, $tipo);
-                $folioDesdeTelar = $telar ? trim((string) ($telar->no_orden ?? '')) : '';
-                if ($folioDesdeTelar !== '') {
-                    $tipoParaProgramas = $updateProgramas['tipo'] ?? $tipo;
-                    $resultado = $this->programasService->actualizar($noTelar, $tipoParaProgramas, $updateProgramas, $folioDesdeTelar);
-                    $actualizadosUrdido = $resultado['urdido'] ?? 0;
-                    $actualizadosEngomado = $resultado['engomado'] ?? 0;
-                }
-            }
+            $detalle = $this->acciones->actualizarTelar($datos);
 
             return response()->json([
                 'success' => true,
-                'message' => $this->construirMensajeActualizacion($noTelar, $actualizadosInventario, $actualizadosUrdido, $actualizadosEngomado),
-                'detalle' => [
-                    'tej_inventario_telares' => $actualizadosInventario,
-                    'urd_programa_urdido' => $actualizadosUrdido,
-                    'eng_programa_engomado' => $actualizadosEngomado,
-                ],
+                'message' => $this->acciones->mensajeDeActualizacion($noTelar, $detalle),
+                'detalle' => $detalle,
             ]);
+        } catch (DomainException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+        } catch (\RuntimeException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 404);
         } catch (\Throwable $e) {
             Log::error('actualizarTelar', ['msg' => $e->getMessage()]);
 
@@ -222,91 +184,31 @@ class ReservarProgramarController extends Controller
 
     public function liberarTelar(Request $request): JsonResponse
     {
+        $request->validate([
+            'id' => ['nullable', 'integer'],
+            'no_telar' => ['required', 'string', 'max:50'],
+            'tipo' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $noTelar = (string) $request->input('no_telar');
+
         try {
-            $request->validate([
-                'id' => ['nullable', 'integer'],
-                'no_telar' => ['required', 'string', 'max:50'],
-                'tipo' => ['nullable', 'string', 'max:20'],
-            ]);
-
-            $id = $request->filled('id') ? (int) $request->input('id') : null;
-            $noTelar = (string) $request->input('no_telar');
-            $tipo = $this->telaresService->normalizeTipo($request->input('tipo'));
-
-            // Buscar telar activo
-            $telar = $this->buscarTelarParaLiberar($id, $noTelar, $tipo);
-            if (! $telar) {
-                return response()->json(['success' => false, 'message' => 'Telar no encontrado o no esta activo'], 404);
-            }
-
-            $noJulio = trim((string) ($telar->no_julio ?? ''));
-            $noOrden = trim((string) ($telar->no_orden ?? ''));
-            $tipoTelar = $this->telaresService->normalizeTipo($telar->tipo ?? $tipo);
-            if ($noJulio === '' || $noOrden === '') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Este telar no esta reservado (no tiene no_julio y no_orden)',
-                ], 400);
-            }
-
-            // Eliminar solo la reserva activa del telar que coincide con No. Julio y Lote/No. Orden.
-            // Esto evita borrar otras reservas activas del mismo NoTelarId.
-            $reservasEliminar = InvTelasReservadas::where('NoTelarId', $noTelar)
-                ->where('Status', 'Reservado')
-                ->where('InventSerialId', $noJulio)
-                ->where('InventBatchId', $noOrden);
-
-            if ($tipoTelar !== null && $tipoTelar !== '') {
-                $reservasEliminar->where('Tipo', $tipoTelar);
-            }
-
-            $eliminadas = $reservasEliminar
-                ->get()
-                ->each(fn ($r) => $r->delete())
-                ->count();
-
-            // Si existe notificación que coincida con telar+tipo+no_julio+no_orden, resetearla.
-            $notifica = TejNotificaTejedorModel::query()
-                ->whereRaw('LTRIM(RTRIM(telar)) = ?', [trim($noTelar)])
-                ->whereRaw('LTRIM(RTRIM(no_julio)) = ?', [$noJulio])
-                ->whereRaw('LTRIM(RTRIM(no_orden)) = ?', [$noOrden])
-                ->when($tipoTelar !== null && $tipoTelar !== '', function ($q) use ($tipoTelar) {
-                    $q->whereRaw('LOWER(LTRIM(RTRIM(tipo))) = ?', [mb_strtolower(trim((string) $tipoTelar), 'UTF-8')]);
-                })
-                ->orderByDesc('Fecha')
-                ->orderByDesc('id')
-                ->first();
-
-            if ($notifica) {
-                $notifica->update([
-                    'no_julio' => null,
-                    'no_orden' => null,
-                    'Reserva' => 0,
-                ]);
-            }
-
-            // Limpiar campos al liberar el telar
-            $telar->update([
-                'hilo' => null,
-                'metros' => null,
-                'no_julio' => null,
-                'no_orden' => null,
-                'Reservado' => false,
-                'Programado' => false,
-                'ConfigId' => null,
-                'InventSizeId' => null,
-                'InventColorId' => null,
-                'localidad' => null,
-                'LoteProveedor' => null,
-                'NoProveedor' => null,
-            ]);
+            $resultado = $this->acciones->liberar(
+                $request->filled('id') ? (int) $request->input('id') : null,
+                $noTelar,
+                $this->telaresService->normalizeTipo($request->input('tipo')),
+            );
 
             return response()->json([
                 'success' => true,
-                'message' => "Telar {$noTelar} liberado correctamente. {$eliminadas} reserva(s) eliminada(s).",
-                'data' => $telar->fresh(),
-                'reservas_eliminadas' => $eliminadas,
+                'message' => "Telar {$noTelar} liberado correctamente. {$resultado['reservas_eliminadas']} reserva(s) eliminada(s).",
+                'data' => $resultado['telar'],
+                'reservas_eliminadas' => $resultado['reservas_eliminadas'],
             ]);
+        } catch (DomainException $e) {
+            $status = str_contains($e->getMessage(), 'no encontrado') ? 404 : 400;
+
+            return response()->json(['success' => false, 'message' => $e->getMessage()], $status);
         } catch (\Throwable $e) {
             Log::error('liberarTelar', ['msg' => $e->getMessage()]);
 
@@ -424,162 +326,5 @@ class ReservarProgramarController extends Controller
 
             return [];
         }
-    }
-
-    /**
-     * Obtiene el registro del telar en BD (por id o por no_telar + tipo).
-     * Usado para tomar no_orden solo desde BD y no desde el request al actualizar programas.
-     */
-    private function obtenerTelarParaActualizar(?int $id, string $noTelar, ?string $tipo): ?TejInventarioTelares
-    {
-        if ($id) {
-            return TejInventarioTelares::where('id', $id)
-                ->where('status', self::STATUS_ACTIVO)
-                ->first();
-        }
-        $query = TejInventarioTelares::where('no_telar', $noTelar)->where('status', self::STATUS_ACTIVO);
-        if ($tipo !== null && $tipo !== '') {
-            $query->where('tipo', $tipo);
-        }
-
-        return $query->first();
-    }
-
-    private function extraerCamposInventario(Request $request): array
-    {
-        $update = [];
-        if ($request->filled('metros')) {
-            $update['metros'] = (float) $request->input('metros');
-        }
-        if ($request->filled('no_julio')) {
-            $update['no_julio'] = (string) $request->input('no_julio');
-        }
-        if ($request->filled('no_orden')) {
-            $update['no_orden'] = (string) $request->input('no_orden');
-            $update['LoteProveedor'] = (string) $request->input('no_orden');
-        }
-        if ($request->filled('localidad')) {
-            $update['localidad'] = (string) $request->input('localidad');
-        }
-        if ($request->filled('tipo_atado')) {
-            $update['tipo_atado'] = (string) $request->input('tipo_atado');
-        }
-        if ($request->filled('hilo')) {
-            $update['hilo'] = (string) $request->input('hilo');
-        }
-        if ($request->has('cuenta')) {
-            $update['cuenta'] = (string) ($request->input('cuenta') ?? '');
-        }
-        if ($request->has('calibre')) {
-            $update['calibre'] = $request->input('calibre') !== '' && $request->input('calibre') !== null ? (float) $request->input('calibre') : null;
-        }
-        if ($request->filled('lote_proveedor')) {
-            $update['LoteProveedor'] = (string) $request->input('lote_proveedor');
-        }
-        if ($request->filled('no_proveedor')) {
-            $update['NoProveedor'] = (string) $request->input('no_proveedor');
-        }
-
-        return $update;
-    }
-
-    private function extraerCamposProgramas(Request $request): array
-    {
-        $update = [];
-        if ($request->filled('hilo')) {
-            $update['hilo'] = (string) $request->input('hilo');
-        }
-        if ($request->filled('cuenta')) {
-            $update['cuenta'] = (string) $request->input('cuenta');
-        }
-        if ($request->filled('calibre')) {
-            $update['calibre'] = (float) $request->input('calibre');
-        }
-        if ($request->filled('tipo')) {
-            $update['tipo'] = $this->telaresService->normalizeTipo($request->input('tipo'));
-        }
-
-        return $update;
-    }
-
-    /**
-     * @return int Registros actualizados, o -1 si no se encontró el telar
-     */
-    private function actualizarInventarioTelares(?int $id, string $noTelar, ?string $tipo, array $updateData, ?string $fecha = null, $turno = null): int
-    {
-        if ($id) {
-            $telar = TejInventarioTelares::where('id', $id)->where('status', self::STATUS_ACTIVO)->first();
-            if (! $telar) {
-                return -1;
-            }
-            $telar->update($updateData);
-
-            return 1;
-        }
-
-        // Sin id: usar no_telar + tipo + fecha + turno para acotar al registro exacto
-        $query = TejInventarioTelares::where('no_telar', $noTelar)->where('status', self::STATUS_ACTIVO);
-        if ($tipo !== null) {
-            $query->where('tipo', $tipo);
-        }
-        if ($fecha !== null && $fecha !== '') {
-            $query->whereDate('fecha', $fecha);
-        }
-        if ($turno !== null && $turno !== '') {
-            $query->where('turno', $turno);
-        }
-
-        /** @var Collection<int, TejInventarioTelares> $telares */
-        $telares = $query->get();
-        if ($telares->isEmpty()) {
-            return -1;
-        }
-
-        $count = 0;
-        foreach ($telares as $telar) {
-            $telar->update($updateData);
-            $count++;
-        }
-
-        return $count;
-    }
-
-    private function buscarTelarParaLiberar(?int $id, string $noTelar, ?string $tipo)
-    {
-        $q = TejInventarioTelares::where('status', self::STATUS_ACTIVO);
-        if ($id) {
-            $q->where('id', (int) $id);
-        } else {
-            $q->where('no_telar', $noTelar);
-            if ($tipo !== null) {
-                $q->where('tipo', $tipo);
-            }
-        }
-
-        // Priorizar registros realmente reservados
-        $telar = (clone $q)
-            ->whereNotNull('no_julio')->where('no_julio', '!=', '')
-            ->whereNotNull('no_orden')->where('no_orden', '!=', '')
-            ->first();
-
-        return $telar ?: $q->first();
-    }
-
-    private function construirMensajeActualizacion(string $noTelar, int $inv, int $urd, int $eng): string
-    {
-        $partes = [];
-        if ($inv > 0) {
-            $partes[] = "{$inv} registro(s) en TejInventarioTelares";
-        }
-        if ($urd > 0) {
-            $partes[] = "{$urd} registro(s) en UrdProgramaUrdido";
-        }
-        if ($eng > 0) {
-            $partes[] = "{$eng} registro(s) en EngProgramaEngomado";
-        }
-
-        $msg = "Telar {$noTelar} actualizado";
-
-        return ! empty($partes) ? $msg.': '.implode(', ', $partes) : $msg.' (no se encontraron registros para actualizar)';
     }
 }
