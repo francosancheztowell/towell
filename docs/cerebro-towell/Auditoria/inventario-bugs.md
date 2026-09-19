@@ -1,8 +1,8 @@
-﻿# Inventario vivo — bugs / arquitectura crítica (Towell ERP)
+# Inventario vivo — bugs / arquitectura crítica (Towell ERP)
 
 **Propósito:** backlog priorizado, honestidad sobre evidencia. No es un changelog ni un plan de sprint.
 **Fuente base:** `docs/auditoria/auditoria-critica-towell.md` (PR [#32](https://github.com/francosancheztowell/towell/pull/32)) + verificación puntual en `main` / rama de auditoría (2026-09-18).
-**Última actualización:** 2026-09-19 (BUG-006/008 mitigados; tablero Urd/Eng residual: `/legacy` 301 → Livewire; GET `verificar-en-proceso` eliminado; BUG-017 mitigado).
+**Última actualización:** 2026-09-19 (BUG-006/008/017 mitigados; tablero Urd/Eng /legacy 301; BUG-009 parcial LiberarMarbetesCalculator; BUG-004 wontfix/CreaProd intencional).
 **Reglas:** no inventar bugs sin path/símbolo. `confirmado` = leído en código; `hipótesis` = plausible pero no cerrado en esta pasada.
 
 ---
@@ -31,7 +31,7 @@
 | BUG-006 | P1 | Utilería | Mover puede anular `FechaFinaliza` | Mitigado: `MoverOrdenesController::sincronizarCatCodificados` pasa `actualizarFechaFinaliza: false`. Feature: `tests/Feature/MoverOrdenesFechaFinalizaTest.php` | Ya no se anula al sincronizar CatCodificados por cambio de salón | mitigado | 2026-09-19. `FechaFinaliza` solo se sella al finalizar (utilería / tejedores). |
 | BUG-007 | P1 | L.Mat / AX | Dos SQLs incompatibles L.Mat CRUDO → AX | `LiberarOrdenesController::bomCrudoQuery` L2295–2319 (`whereExists` + filtro salón) vs `CatCodificacionController::queryLmatDesdeTi` L537–562 (`JOIN BOMVERSION`, `limit(50)`, sin salón) | Mismo ítem/size puede listar BOMs distintos; select truncado | confirmado | Unificar en `LmatCrudoQueryService`. Quitar `limit(50)`. |
 | BUG-008 | P1 | L.Mat | % total = 100 solo en frontend | Mitigado: `CatLMatController::validarSumaPorcentajes` exige suma === 100 antes de AX. Feature: `tests/Feature/CatLMatGuardarPorcentajeTest.php` | POST directo con % ≠ 100 ahora 422 | mitigado | 2026-09-19. El modal ya bloqueaba; el API ahora también. |
-| BUG-009 | P1 | Arquitectura | Fat controller LiberarOrdenes ~2941 LOC | `app/Http/Controllers/Planeacion/ProgramaTejido/LiberarOrdenesController.php` (wc = 2941) | Imposible testear/revisar; mezcla AX, Cat, BOM, marbetes | confirmado | Nota: se citaba ~2537; en `main` actual es **2941**. Extraer servicios. |
+| BUG-009 | P1 | Arquitectura | Fat controller LiberarOrdenes ~2941 LOC | `LiberarOrdenesController` (~2561 LOC post-extracción) + `app/Services/Planeacion/Liberar/LiberarMarbetesCalculator.php` | Imposible testear/revisar; mezcla AX, Cat, BOM, marbetes | confirmado (parcial) | 2026-09-19: cadena marbetes extraída (`calcular`, repeticiones, ceil, FEL, peso rollo). Tests: `LiberarMarbetesCalculatorTest`, smoke `LiberarMarbetesRoutesTest`. Quedan AX/BOM/Cat en el controller. PR #41. |
 | BUG-010 | P1 | Arquitectura | ~139 controllers vs ~54 services | Conteo árbol `app/Http/Controllers/*.php` = 139; `app/Services/*.php` = 54 | Dominio vive en controllers; services son excepción (~24% importan Services) | confirmado | Deuda estructural, no bug puntual. |
 | BUG-011 | P1 | Urd/Eng | Fork legacy Blade vs Livewire (reglas distintas) | Default UI = Livewire `ProgramBoard` (`index()` → `programar-*-livewire`). POST `actualizar-status` / prioridad / observaciones delegan a `ProgramBoardActionService`. `GET …/legacy` redirige 301 al default (no hay tablero Blade interactivo). Tests: `ProgramBoardStructureTest`, `ProgramBoardStatusGuardsTest`, `ProgramBoardRouteContractTest` | Una verdad de mutación; no hay board Blade más débil | mitigado | 2026-09-19. `actualizarCalidad` / `marcarIncorrecto` / bulk prioridades siguen en controller (sin equivalente de status en el service). |
 | BUG-012 | P1 | Codificación | Dual `ReqModelosCodificados` vs `CatCodificados` | `CodificacionController` + `catalagos/catalogoCodificacion.blade.php` vs `CatCodificacionController` + `catcodificacion/` | Dos superficies HTTP, Excel duplicado, rutas parecidas | confirmado | Decinir canónico; congelar legacy. |
@@ -66,7 +66,7 @@ Franco pidió abrir paros a cualquier sesión autenticada. Se revirtió el gate 
 
 ## Hallazgos nuevos de esta pasada (además de la lista conocida)
 
-1. **Liberar LOC real = 2941** (no ~2537) — BUG-009.
+1. **Liberar LOC real = 2941** (no ~2537) — BUG-009. 2026-09-19: ~2561 tras extraer `LiberarMarbetesCalculator` (mitigación parcial).
 2. **`sqlsrv_tow_tow` ya está en `config/database.php`** — el hallazgo “missing connection” baja a hipótesis de `.env` (BUG-015).
 3. **`store` de paros SÍ valida duplicado**; falta solo la ruta GET documentada (BUG-013 matizado).
 4. **Docs menú aún en `modulos_v2`** mientras código usa `v3` (BUG-019).

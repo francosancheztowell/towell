@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\Liberar\LiberarMarbetesCalculator;
 use Carbon\Carbon;
 use ReflectionClass;
 use ReflectionMethod;
@@ -23,10 +24,13 @@ class LiberarOrdenesFormulasConsistenciaTest extends TestCase
 {
     private LiberarOrdenesController $controller;
 
+    private LiberarMarbetesCalculator $calculator;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->controller = new LiberarOrdenesController;
+        $this->calculator = new LiberarMarbetesCalculator;
     }
 
     private function method(string $name): ReflectionMethod
@@ -40,20 +44,16 @@ class LiberarOrdenesFormulasConsistenciaTest extends TestCase
     /** Caso exacto reportado: orden 36643 (peso crudo cambió de ~64 a 121). */
     public function test_orden_36643_queda_consistente(): void
     {
-        $reps = $this->method('repeticionesDesdePesoRollo');
-        $pzasM = $this->method('pzasRolloDesdeRepeticiones');
-        $totM = $this->method('derivarTotalRollosTotalPzas');
-
         // PesoRollo default 41.5, PesoCrudo 121, NoTiras 6 → Repeticiones 57
-        $repeticiones = $reps->invoke($this->controller, 41.5, 121, 6);
+        $repeticiones = $this->calculator->repeticionesDesdePesoRollo(41.5, 121, 6);
         $this->assertSame(57, $repeticiones);
 
-        $pzasRollo = $pzasM->invoke($this->controller, $repeticiones, 6);
+        $pzasRollo = $this->calculator->pzasRolloDesdeRepeticiones($repeticiones, 6);
         $this->assertSame(342.0, $pzasRollo, 'PzasRollo debe ser 57×6=342, NO el 636 viejo.');
         $this->assertNotSame(636.0, $pzasRollo);
 
         ['totalRollos' => $totalRollos, 'totalPzas' => $totalPzas] =
-            $totM->invoke($this->controller, $pzasRollo, 4104, null);
+            $this->calculator->derivarTotalRollosTotalPzas($pzasRollo, 4104, null);
 
         $this->assertSame(12.0, $totalRollos, 'ceil(4104/342)=12, NO 7.');
         $this->assertSame(4104.0, $totalPzas, '342×12=4104, NO 4452.');
@@ -62,48 +62,40 @@ class LiberarOrdenesFormulasConsistenciaTest extends TestCase
     /** PzasRollo se deriva solo de Repeticiones×NoTiras; no existe forma de inyectar un valor viejo. */
     public function test_pzas_rollo_solo_depende_de_repeticiones_y_tiras(): void
     {
-        $pzasM = $this->method('pzasRolloDesdeRepeticiones');
-
-        $this->assertSame(342.0, $pzasM->invoke($this->controller, 57, 6));
-        $this->assertSame(636.0, $pzasM->invoke($this->controller, 106, 6)); // si las reps fueran 106
-        $this->assertNull($pzasM->invoke($this->controller, 0, 6));
-        $this->assertNull($pzasM->invoke($this->controller, 57, 0));
-        $this->assertNull($pzasM->invoke($this->controller, null, 6));
+        $this->assertSame(342.0, $this->calculator->pzasRolloDesdeRepeticiones(57, 6));
+        $this->assertSame(636.0, $this->calculator->pzasRolloDesdeRepeticiones(106, 6)); // si las reps fueran 106
+        $this->assertNull($this->calculator->pzasRolloDesdeRepeticiones(0, 6));
+        $this->assertNull($this->calculator->pzasRolloDesdeRepeticiones(57, 0));
+        $this->assertNull($this->calculator->pzasRolloDesdeRepeticiones(null, 6));
 
         // La firma del método NO admite un parámetro de "valor almacenado" → imposible desfasarse.
-        $this->assertSame(2, $this->method('pzasRolloDesdeRepeticiones')->getNumberOfParameters());
+        $this->assertSame(2, (new \ReflectionMethod(LiberarMarbetesCalculator::class, 'pzasRolloDesdeRepeticiones'))->getNumberOfParameters());
     }
 
     /** Override del usuario en TotalRollos: TotalPzas debe seguir = PzasRollo × TotalRollos. */
     public function test_override_total_rollos_recalcula_total_pzas(): void
     {
-        $totM = $this->method('derivarTotalRollosTotalPzas');
-
         // Usuario fuerza 7 rollos con PzasRollo correcto de 342.
-        ['totalRollos' => $tr, 'totalPzas' => $tp] = $totM->invoke($this->controller, 342.0, 4104, 7);
+        ['totalRollos' => $tr, 'totalPzas' => $tp] = $this->calculator->derivarTotalRollosTotalPzas(342.0, 4104, 7);
         $this->assertSame(7.0, $tr);
         $this->assertSame(2394.0, $tp, '342×7=2394.');
 
         // Override con decimal se redondea hacia arriba (techo).
-        ['totalRollos' => $tr2] = $totM->invoke($this->controller, 342.0, 4104, 6.2);
+        ['totalRollos' => $tr2] = $this->calculator->derivarTotalRollosTotalPzas(342.0, 4104, 6.2);
         $this->assertSame(7.0, $tr2);
     }
 
     /** Ajuste FEL: PzasRollo se divide ÷2 y los totales siguen consistentes con el PzasRollo ajustado. */
     public function test_fel_divide_pzas_y_totales_quedan_consistentes(): void
     {
-        $pzasM = $this->method('pzasRolloDesdeRepeticiones');
-        $felM = $this->method('aplicarAjusteFelMtsYpzas');
-        $totM = $this->method('derivarTotalRollosTotalPzas');
-
-        $pzasRollo = $pzasM->invoke($this->controller, 57, 6); // 342
+        $pzasRollo = $this->calculator->pzasRolloDesdeRepeticiones(57, 6); // 342
         $mts = 100.0;
 
         // FEL: pzas 342 → 171
-        $felM->invokeArgs($this->controller, ['MODELO-FEL', &$mts, &$pzasRollo]);
+        $this->calculator->aplicarAjusteFelMtsYpzas('MODELO-FEL', $mts, $pzasRollo);
         $this->assertSame(171.0, $pzasRollo);
 
-        ['totalRollos' => $tr, 'totalPzas' => $tp] = $totM->invoke($this->controller, $pzasRollo, 4104, null);
+        ['totalRollos' => $tr, 'totalPzas' => $tp] = $this->calculator->derivarTotalRollosTotalPzas($pzasRollo, 4104, null);
         $this->assertSame((float) ceil(4104 / 171), $tr);
         $this->assertSame(round(171.0 * $tr, 0), $tp);
     }
@@ -111,11 +103,6 @@ class LiberarOrdenesFormulasConsistenciaTest extends TestCase
     /** Muchas órdenes: la invariante se cumple para cientos de combinaciones. */
     public function test_invariante_se_cumple_para_muchas_ordenes(): void
     {
-        $reps = $this->method('repeticionesDesdePesoRollo');
-        $pzasM = $this->method('pzasRolloDesdeRepeticiones');
-        $totM = $this->method('derivarTotalRollosTotalPzas');
-        $marbM = $this->method('saldoMarbeteDesdeFormula');
-
         $pesosRollo = [41.5, 50.0, 65.0, 90.0];
         $pesosCrudo = [40, 55, 64, 80, 100, 121, 150, 180, 220];
         $tirasList = [2, 4, 6, 8, 10, 12];
@@ -126,19 +113,19 @@ class LiberarOrdenesFormulasConsistenciaTest extends TestCase
         foreach ($pesosRollo as $pesoRollo) {
             foreach ($pesosCrudo as $pesoCrudo) {
                 foreach ($tirasList as $tiras) {
-                    $repeticiones = $reps->invoke($this->controller, $pesoRollo, $pesoCrudo, $tiras);
+                    $repeticiones = $this->calculator->repeticionesDesdePesoRollo($pesoRollo, $pesoCrudo, $tiras);
                     if ($repeticiones === null || $repeticiones <= 0) {
                         continue;
                     }
 
-                    $pzasRollo = $pzasM->invoke($this->controller, $repeticiones, $tiras);
+                    $pzasRollo = $this->calculator->pzasRolloDesdeRepeticiones($repeticiones, $tiras);
 
                     // PzasRollo = round(Repeticiones × NoTiras), exacto.
                     $this->assertSame(round($repeticiones * $tiras, 0), $pzasRollo);
 
                     foreach ($pedidos as $pedido) {
                         ['totalRollos' => $tr, 'totalPzas' => $tp] =
-                            $totM->invoke($this->controller, $pzasRollo, $pedido, null);
+                            $this->calculator->derivarTotalRollosTotalPzas($pzasRollo, $pedido, null);
 
                         $ctx = "pesoRollo=$pesoRollo pesoCrudo=$pesoCrudo tiras=$tiras pedido=$pedido rep=$repeticiones pzas=$pzasRollo";
 
@@ -154,7 +141,7 @@ class LiberarOrdenesFormulasConsistenciaTest extends TestCase
                         $this->assertLessThan($pedido, ($tr - 1) * $pzasRollo, "Sin rollo de sobra: $ctx");
 
                         // El no. de marbetes nunca es negativo.
-                        $this->assertGreaterThanOrEqual(0, $marbM->invoke($this->controller, $pedido, $tiras, $repeticiones));
+                        $this->assertGreaterThanOrEqual(0, $this->calculator->saldoMarbeteDesdeFormula($pedido, $tiras, $repeticiones));
                     }
 
                     $casosVerificados++;
@@ -176,18 +163,21 @@ class LiberarOrdenesFormulasConsistenciaTest extends TestCase
         $registro = $registro ?? new ReqProgramaTejido;
         $registro->SaldoPedido = $pedido;
 
-        $repeticiones = $this->method('repeticionesDesdePesoRollo')->invoke($this->controller, $pesoRollo, $pesoCrudo, $tiras);
-        $saldoMarbete = $this->method('saldoMarbeteDesdeFormula')->invoke($this->controller, $pedido, $tiras, $repeticiones);
+        $repeticiones = $this->calculator->repeticionesDesdePesoRollo($pesoRollo, $pesoCrudo, $tiras);
+        $saldoMarbete = $this->calculator->saldoMarbeteDesdeFormula($pedido, $tiras, $repeticiones);
         $mtsRollo = ($largo > 0 && $repeticiones !== null && $repeticiones > 0) ? ($largo * $repeticiones) / 100 : null;
-        $pzasRollo = $this->method('pzasRolloDesdeRepeticiones')->invoke($this->controller, $repeticiones, $tiras);
+        $pzasRollo = $this->calculator->pzasRolloDesdeRepeticiones($repeticiones, $tiras);
 
         // Ajuste FEL idéntico a index(): saldo×2, mts÷2, pzas÷2 cuando aplica.
-        $this->method('aplicarAjusteFelTamanho')->invokeArgs(
-            $this->controller,
-            [$registro->InventSizeId ?? null, &$saldoMarbete, &$mtsRollo, &$pzasRollo, $registro]
+        $this->calculator->aplicarAjusteFelTamanho(
+            $registro->InventSizeId ?? null,
+            $saldoMarbete,
+            $mtsRollo,
+            $pzasRollo,
+            $registro
         );
 
-        $tot = $this->method('derivarTotalRollosTotalPzas')->invoke($this->controller, $pzasRollo, $pedido, null);
+        $tot = $this->calculator->derivarTotalRollosTotalPzas($pzasRollo, $pedido, null);
         $totalRollos = $tot['totalRollos'];
         $totalPzas = $tot['totalPzas'];
 
@@ -244,41 +234,35 @@ class LiberarOrdenesFormulasConsistenciaTest extends TestCase
     /** Repeticiones TRUNCA hacia cero (no redondea). */
     public function test_repeticiones_trunca_hacia_cero(): void
     {
-        $m = $this->method('repeticionesDesdePesoRollo');
-
-        $this->assertSame(57, $m->invoke($this->controller, 41.5, 121, 6));   // 57.16 → 57
-        $this->assertSame(100, $m->invoke($this->controller, 50, 100, 5));    // 100.0 exacto
-        $this->assertNull($m->invoke($this->controller, 41.5, 0, 6));
-        $this->assertNull($m->invoke($this->controller, 41.5, 121, 0));
-        $this->assertNull($m->invoke($this->controller, 41.5, null, 6));
+        $this->assertSame(57, $this->calculator->repeticionesDesdePesoRollo(41.5, 121, 6));   // 57.16 → 57
+        $this->assertSame(100, $this->calculator->repeticionesDesdePesoRollo(50, 100, 5));    // 100.0 exacto
+        $this->assertNull($this->calculator->repeticionesDesdePesoRollo(41.5, 0, 6));
+        $this->assertNull($this->calculator->repeticionesDesdePesoRollo(41.5, 121, 0));
+        $this->assertNull($this->calculator->repeticionesDesdePesoRollo(41.5, null, 6));
     }
 
     /** SaldoMarbete redondea y devuelve 0 ante datos inválidos (=SI(ESERROR(...),0,...)). */
     public function test_saldo_marbete_techa_y_maneja_errores(): void
     {
-        $m = $this->method('saldoMarbeteDesdeFormula');
-
-        $this->assertSame(12, $m->invoke($this->controller, 4104, 6, 57)); // (4104/6)/57 = 12 exacto
+        $this->assertSame(12, $this->calculator->saldoMarbeteDesdeFormula(4104, 6, 57)); // (4104/6)/57 = 12 exacto
 
         // TECHO, no REDONDEAR: el último rollo sale parcial pero lleva marbete, así que cuadra
         // con TotalRollos. Con round estos dos daban 143 y 12, uno abajo.
-        $this->assertSame(144, $m->invoke($this->controller, 12891, 3, 30));  // 143.23 → 144
-        $this->assertSame(13, $m->invoke($this->controller, 4105, 6, 57));    // 12.003 → 13, una pieza extra ya pide otro marbete
-        $this->assertSame(0, $m->invoke($this->controller, 1000, 0, 5));   // tiras 0
-        $this->assertSame(0, $m->invoke($this->controller, 1000, 5, 0));   // reps 0
-        $this->assertSame(0, $m->invoke($this->controller, null, 5, 5));
+        $this->assertSame(144, $this->calculator->saldoMarbeteDesdeFormula(12891, 3, 30));  // 143.23 → 144
+        $this->assertSame(13, $this->calculator->saldoMarbeteDesdeFormula(4105, 6, 57));    // 12.003 → 13, una pieza extra ya pide otro marbete
+        $this->assertSame(0, $this->calculator->saldoMarbeteDesdeFormula(1000, 0, 5));   // tiras 0
+        $this->assertSame(0, $this->calculator->saldoMarbeteDesdeFormula(1000, 5, 0));   // reps 0
+        $this->assertSame(0, $this->calculator->saldoMarbeteDesdeFormula(null, 5, 5));
     }
 
     /** TotalRollos: techo exacto, +1 unidad, y null sin override cuando no hay PzasRollo. */
     public function test_total_rollos_bordes_off_by_one(): void
     {
-        $m = $this->method('derivarTotalRollosTotalPzas');
-
-        $this->assertSame(12.0, $m->invoke($this->controller, 342.0, 4104, null)['totalRollos']); // exacto
-        $this->assertSame(13.0, $m->invoke($this->controller, 342.0, 4105, null)['totalRollos']); // +1 pieza
-        $this->assertSame(1.0, $m->invoke($this->controller, 342.0, 1, null)['totalRollos']);     // pedido mínimo
-        $this->assertNull($m->invoke($this->controller, null, 4104, null)['totalRollos']);        // sin pzas ni override
-        $this->assertNull($m->invoke($this->controller, 342.0, 0, null)['totalRollos']);          // pedido 0
+        $this->assertSame(12.0, $this->calculator->derivarTotalRollosTotalPzas(342.0, 4104, null)['totalRollos']); // exacto
+        $this->assertSame(13.0, $this->calculator->derivarTotalRollosTotalPzas(342.0, 4105, null)['totalRollos']); // +1 pieza
+        $this->assertSame(1.0, $this->calculator->derivarTotalRollosTotalPzas(342.0, 1, null)['totalRollos']);     // pedido mínimo
+        $this->assertNull($this->calculator->derivarTotalRollosTotalPzas(null, 4104, null)['totalRollos']);        // sin pzas ni override
+        $this->assertNull($this->calculator->derivarTotalRollosTotalPzas(342.0, 0, null)['totalRollos']);          // pedido 0
     }
 
     /** Fórmula INN de fecha programada: dentro del rango → HOY; fuera → null. */
@@ -305,9 +289,6 @@ class LiberarOrdenesFormulasConsistenciaTest extends TestCase
     /** Estrés con pedidos decimales y valores grandes: la invariante nunca se rompe. */
     public function test_estres_pedidos_decimales_y_grandes(): void
     {
-        $pzasM = $this->method('pzasRolloDesdeRepeticiones');
-        $totM = $this->method('derivarTotalRollosTotalPzas');
-
         $reps = [1, 7, 33, 57, 106, 250, 999];
         $tiras = [1, 3, 6, 11];
         $pedidos = [1, 4104.5, 9999.99, 100000, 1234567];
@@ -315,11 +296,11 @@ class LiberarOrdenesFormulasConsistenciaTest extends TestCase
         $verificados = 0;
         foreach ($reps as $rep) {
             foreach ($tiras as $t) {
-                $pzas = $pzasM->invoke($this->controller, $rep, $t);
+                $pzas = $this->calculator->pzasRolloDesdeRepeticiones($rep, $t);
                 $this->assertSame((float) ($rep * $t), $pzas);
 
                 foreach ($pedidos as $pedido) {
-                    ['totalRollos' => $tr, 'totalPzas' => $tp] = $totM->invoke($this->controller, $pzas, $pedido, null);
+                    ['totalRollos' => $tr, 'totalPzas' => $tp] = $this->calculator->derivarTotalRollosTotalPzas($pzas, $pedido, null);
                     $this->assertSame((float) ceil($pedido / $pzas), $tr);
                     $this->assertSame(round($pzas * $tr, 0), $tp);
                     $this->assertGreaterThanOrEqual($pedido, $tp);
