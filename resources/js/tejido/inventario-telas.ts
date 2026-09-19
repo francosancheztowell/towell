@@ -332,6 +332,11 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
             // Invalidar caché para que se actualice en la próxima carga
             invalidarCacheInventario();
 
+            // El registro vuelve a existir: si esta casilla se habia eliminado antes,
+            // dejaria de poder borrarse (el guard de data-eliminado corta el desmarcado
+            // y el renglon quedaba vivo en la base sin manera de quitarlo).
+            checkbox.removeAttribute('data-eliminado');
+
             // El checkbox ya está marcado visualmente, mantenerlo así
             // Remover el atributo de cambio reciente después de un momento
             setTimeout(() => {
