@@ -245,16 +245,16 @@
                      cada uno dentro de columnas donde no aportaban nada. --}}
                 <div class="inv-telas-pie-grid mt-2 grid grid-cols-2 min-[900px]:grid-cols-4 gap-4 border-t border-gray-200 pt-2">
                     <div class="{{ $rowClass }}">
+                        <span class="{{ $labelClass }}">Artículo:</span>
+                        <span class="{{ $valueClass }}">{{ ($telar->ItemId ?? '') . ' ' . ($telar->Nombre_Producto ?? '') }}</span>
+                    </div>
+                    <div class="{{ $rowClass }}">
                         <span class="{{ $labelClass }}">Tamaño:</span>
                         <span class="{{ $valueClass }}">{{ $telar->Tamano_AX ?? '-' }}</span>
                     </div>
                     <div class="{{ $rowClass }}">
                         <span class="{{ $labelClass }}">Pedido:</span>
                         <span class="{{ $valueClass }}">{{ $formatPedido($telar->Saldos ?? null) }}</span>
-                    </div>
-                    <div class="{{ $rowClass }}">
-                        <span class="{{ $labelClass }}">Artículo:</span>
-                        <span class="{{ $valueClass }}">{{ ($telar->ItemId ?? '') . ' ' . ($telar->Nombre_Producto ?? '') }}</span>
                     </div>
                     <div class="{{ $rowClass }}">
                         <span class="{{ $labelClass }}">Producción:</span>
