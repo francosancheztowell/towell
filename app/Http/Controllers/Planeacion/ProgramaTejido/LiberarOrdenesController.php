@@ -11,10 +11,10 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa\OrdenDeCa
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\Liberar\LiberarBomCrudoResolver;
 use App\Services\Planeacion\Liberar\LiberarMarbetesCalculator;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
-use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -34,11 +34,9 @@ class LiberarOrdenesController extends Controller
     /** Cache en memoria para Schema::getColumnListing, por nombre de tabla */
     private static array $columnListingCache = [];
 
-    /** L.Mat CRUDO del lote por item|talla|salón; null = no precargado (ruta de un solo renglón). */
-    private ?array $bomCrudoCache = null;
-
     public function __construct(
         private readonly LiberarMarbetesCalculator $marbetesCalculator = new LiberarMarbetesCalculator,
+        private readonly LiberarBomCrudoResolver $bomCrudoResolver = new LiberarBomCrudoResolver,
     ) {}
 
     /**
@@ -143,7 +141,7 @@ class LiberarOrdenesController extends Controller
 
             // Una sola consulta a AX con las L.Mat de todo el lote: sin esto, el each de abajo
             // pega a AX por renglón.
-            $this->precargarBomCrudo($registros);
+            $this->bomCrudoResolver->precargar($registros);
 
             // Calcular campos en la carga para mostrarlos en la vista
             $registros->each(function ($registro) {
@@ -187,7 +185,7 @@ class LiberarOrdenesController extends Controller
                 }
                 $registro->Densidad = $densidad;
 
-                $auto = self::bomAutoAsignable($this->resolverBomCrudoOpciones($registro));
+                $auto = LiberarBomCrudoResolver::bomAutoAsignable($this->bomCrudoResolver->resolverOpciones($registro));
                 $registro->BomId = $auto !== null ? trim((string) $auto['bomId']) : null;
                 $registro->BomName = $auto !== null ? trim((string) $auto['bomName']) : null;
             });
@@ -310,27 +308,7 @@ class LiberarOrdenesController extends Controller
         }
 
         // Clave item|talla|bom => salones en los que ese L.Mat es válido.
-        $salonesValidos = [];
-        if ($bomIds->isNotEmpty()) {
-            $filas = DB::connection('sqlsrv_ti')
-                ->table('BOMTABLE as BT')
-                ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
-                ->distinct()
-                ->select('BT.BOMID', 'BT.TWINVENTSIZEID', 'BT.TWSALON', 'BV.ITEMID')
-                ->whereIn('BT.BOMID', $bomIds->all())
-                ->where('BT.ITEMGROUPID', 'CRUDO')
-                ->where('BT.Vigente', 1)
-                ->get();
-
-            foreach ($filas as $fila) {
-                $clave = implode('|', [
-                    self::itemIdSinSufijo((string) $fila->ITEMID),
-                    trim((string) $fila->TWINVENTSIZEID),
-                    trim((string) $fila->BOMID),
-                ]);
-                $salonesValidos[$clave][] = $this->normalizarSalon((string) $fila->TWSALON);
-            }
-        }
+        $salonesValidos = $this->bomCrudoResolver->salonesValidosPorBomIds($bomIds->all());
 
         $bomsInvalidos = [];
         foreach ($registrosInput as $item) {
@@ -348,7 +326,7 @@ class LiberarOrdenesController extends Controller
             ]);
 
             $salones = $salonesValidos[$clave] ?? [];
-            $salonRegistro = $this->normalizarSalonBomCrudo($registroBd);
+            $salonRegistro = $this->bomCrudoResolver->normalizarSalonBomCrudo($registroBd);
 
             // Si el renglón no trae salón, basta con que el L.Mat sea de uno de los válidos.
             $ok = $salonRegistro !== ''
@@ -594,7 +572,7 @@ class LiberarOrdenesController extends Controller
 
                 if (empty($registro->BomName) && ! empty($registro->BomId) && ! $bomNameIngresadoManual) {
                     try {
-                        $result = $this->resolverBomCrudoExacto($registro);
+                        $result = $this->bomCrudoResolver->resolverExacto($registro);
 
                         if ($result && ! empty($result->bomName)) {
                             if (! empty($result->bomId)) {
@@ -779,109 +757,18 @@ class LiberarOrdenesController extends Controller
         try {
             // Si viene 'combinations', buscar múltiples combinaciones
             if ($combinationsParam !== '') {
-                $combinations = array_filter(array_map('trim', explode(',', $combinationsParam)));
+                $pairs = $this->bomCrudoResolver->parsearCombinaciones($combinationsParam);
 
-                if (empty($combinations)) {
+                if ($pairs === []) {
                     return response()->json([
                         'success' => true,
                         'data' => [],
                     ]);
                 }
-
-                // Parsear combinaciones: "itemId::inventSizeId" o "itemId::inventSizeId::..." (tercer segmento ignorado).
-                // Legado: "itemId:inventSizeId".
-                // BT+BV, ITEMID (-1), TWINVENTSIZEID, ITEMGROUPID = CRUDO, TwSalon ∈ SMIT/JACQUARD (±JACUARD en AX).
-                $pairs = [];
-                foreach ($combinations as $combo) {
-                    $itemIdCombo = '';
-                    $inventSizeIdCombo = '';
-                    if (str_contains($combo, '::')) {
-                        $parts = array_map('trim', explode('::', $combo, 3));
-                        $itemIdCombo = $parts[0] ?? '';
-                        $inventSizeIdCombo = $parts[1] ?? '';
-                    } else {
-                        $parts = array_map('trim', explode(':', $combo, 2));
-                        if (count($parts) === 2) {
-                            $itemIdCombo = $parts[0];
-                            $inventSizeIdCombo = $parts[1];
-                        }
-                    }
-                    if ($itemIdCombo === '' || $inventSizeIdCombo === '') {
-                        continue;
-                    }
-                    $pairs[] = [
-                        'itemIdWithSuffix' => $itemIdCombo.'-1',
-                        'inventSizeId' => $inventSizeIdCombo,
-                    ];
-                }
-
-                if (empty($pairs)) {
-                    return response()->json([
-                        'success' => true,
-                        'data' => [],
-                    ]);
-                }
-
-                // DISTINCT: BOMVERSION tiene varias versiones por item, y sin él la
-                // misma dupla item/L.Mat volvía 2-3 veces. El front autollena solo
-                // cuando la clave trae exactamente una opción, así que las filas
-                // repetidas hacían que pareciera ambiguo lo que no lo era.
-                $results = DB::connection('sqlsrv_ti')
-                    ->table('BOMTABLE as BT')
-                    ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
-                    ->distinct()
-                    ->select('BV.ITEMID', 'BT.TWINVENTSIZEID', 'BT.BOMID as bomId', 'BT.NAME as bomName')
-                    ->where('BT.ITEMGROUPID', 'CRUDO')
-                    ->where('BT.Vigente', 1)
-                    ->whereIn('BT.TwSalon', TelarSalonResolver::todosLosAliasesAx())
-                    ->where(function ($query) use ($pairs) {
-                        foreach ($pairs as $pair) {
-                            $query->orWhere(function ($q) use ($pair) {
-                                $q->where('BV.ITEMID', $pair['itemIdWithSuffix'])
-                                    ->where('BT.TWINVENTSIZEID', $pair['inventSizeId']);
-                            });
-                        }
-                    })
-                    ->orderBy('BT.BOMID')
-                    ->get();
-
-                // Clave: item|talla (mismo criterio que el autofill en Blade).
-                // Se devuelven TODAS las opciones distintas: si hay más de una, el
-                // front deja el campo vacío en vez de elegir una al azar.
-                $porClave = [];
-                foreach ($results as $result) {
-                    $matchingPairs = array_values(array_filter(
-                        $pairs,
-                        static function (array $p) use ($result): bool {
-                            return $p['itemIdWithSuffix'] === $result->ITEMID && $p['inventSizeId'] === $result->TWINVENTSIZEID;
-                        }
-                    ));
-
-                    if ($matchingPairs === []) {
-                        continue;
-                    }
-
-                    $key = self::itemIdSinSufijo((string) $result->ITEMID).'|'.$result->TWINVENTSIZEID;
-                    $bomId = trim((string) $result->bomId);
-
-                    // Este endpoint sólo alimenta el autollenado masivo del front, así que
-                    // las ESTAND se omiten: nunca deben quedar puestas sin que alguien las
-                    // elija. Para buscarlas a mano está la rama individual (por itemId).
-                    if ($bomId === '' || self::esBomEstandar($bomId)) {
-                        continue;
-                    }
-
-                    $porClave[$key][$bomId] = [
-                        'bomId' => $bomId,
-                        'bomName' => trim((string) $result->bomName),
-                    ];
-                }
-
-                $map = array_map('array_values', $porClave);
 
                 return response()->json([
                     'success' => true,
-                    'data' => $map,
+                    'data' => $this->bomCrudoResolver->opcionesPorCombinaciones($pairs),
                 ]);
             }
 
@@ -894,22 +781,13 @@ class LiberarOrdenesController extends Controller
                 ]);
             }
 
-            $query = $this->bomCrudoQuery($itemId, $inventSizeId, $salon);
-
-            if ($term !== '') {
-                $query->where(function ($q) use ($term) {
-                    $q->where('BT.BOMID', 'like', '%'.$term.'%')
-                        ->orWhere('BT.NAME', 'like', '%'.$term.'%');
-                });
-            }
-
-            $results = $query->limit(20)->get();
-
-            // Fallback: mismo item, pero sin filtrar talla ni salón. Antes soltaba
-            // también el item y ofrecía L.Mat de otros productos.
-            if ($results->isEmpty() && $allowFallback) {
-                $results = $this->queryBomFallback($itemId, $term);
-            }
+            $results = $this->bomCrudoResolver->buscarPorItem(
+                $itemId,
+                $inventSizeId,
+                $salon,
+                $term,
+                $allowFallback
+            );
 
             return response()->json([
                 'success' => true,
@@ -928,30 +806,6 @@ class LiberarOrdenesController extends Controller
                 'message' => 'Error al buscar L.Mat.',
             ], 500);
         }
-    }
-
-    /**
-     * Búsqueda amplia cuando la exacta no devuelve nada: relaja talla y salón,
-     * pero NUNCA el ItemId. Sin item no hay resultados.
-     */
-    private function queryBomFallback(string $itemId, string $term = '', int $limit = 50)
-    {
-        $itemId = trim($itemId);
-
-        if ($itemId === '') {
-            return collect();
-        }
-
-        $query = $this->bomCrudoQuery($itemId);
-
-        if ($term !== '') {
-            $query->where(function ($q) use ($term) {
-                $q->where('BT.BOMID', 'like', '%'.$term.'%')
-                    ->orWhere('BT.NAME', 'like', '%'.$term.'%');
-            });
-        }
-
-        return $query->limit($limit)->get();
     }
 
     /**
@@ -982,7 +836,7 @@ class LiberarOrdenesController extends Controller
 
             $map = [];
             foreach ($results as $result) {
-                $itemIdOriginal = self::itemIdSinSufijo((string) $result->ITEMID);
+                $itemIdOriginal = LiberarBomCrudoResolver::itemIdSinSufijo((string) $result->ITEMID);
                 $map[$itemIdOriginal] = $result->TwTipoHiloId ?? null;
             }
 
@@ -1860,208 +1714,6 @@ class LiberarOrdenesController extends Controller
         }
     }
 
-    private function resolverBomCrudoExacto(ReqProgramaTejido $registro): ?object
-    {
-        $auto = self::bomAutoAsignable($this->resolverBomCrudoOpciones($registro));
-
-        return $auto !== null ? (object) $auto : null;
-    }
-
-    /**
-     * Las L.Mat 'ESTAND ...' son genéricas: AX las liga a cientos de items a la vez
-     * (ESTAND JS 3060-3524 cuelga de 1025 items en BOMVERSION), así que "pertenece
-     * al item" no las distingue de la L.Mat propia del producto.
-     */
-    private static function esBomEstandar(string $bomId): bool
-    {
-        return str_starts_with(mb_strtoupper(trim($bomId)), 'ESTAND');
-    }
-
-    /**
-     * L.Mat que se puede poner sola en el renglón: sólo cuando queda exactamente una
-     * candidata NO estándar. Las ESTAND siguen en la lista para elegirlas a mano.
-     *
-     * @param  array<int, array{bomId: string, bomName: string}>  $opciones
-     * @return array{bomId: string, bomName: string}|null
-     */
-    private static function bomAutoAsignable(array $opciones): ?array
-    {
-        $candidatas = array_values(array_filter(
-            $opciones,
-            static fn (array $o): bool => ! self::esBomEstandar((string) ($o['bomId'] ?? ''))
-        ));
-
-        return count($candidatas) === 1 ? $candidatas[0] : null;
-    }
-
-    /**
-     * Quita únicamente el sufijo '-1' de AX. Un str_replace('-1', '') global
-     * destrozaba items que llevan '-1' en medio (ej. '3-100-1' → '300').
-     */
-    private static function itemIdSinSufijo(string $itemId): string
-    {
-        return preg_replace('/-1$/', '', trim($itemId)) ?? trim($itemId);
-    }
-
-    /**
-     * Query base de L.Mat CRUDO: única fuente de verdad para todas las búsquedas
-     * de BOM del módulo. Amarra el L.Mat al ItemId con EXISTS en lugar de JOIN
-     * porque un item puede tener varias versiones del mismo BOMID en BOMVERSION,
-     * y el JOIN devolvía la misma fila 2-3 veces.
-     *
-     * @param  string|null  $inventSizeId  null u '' = no filtrar por talla
-     * @param  string|null  $salon  null u '' = aceptar cualquier variante conocida de AX
-     */
-    private function bomCrudoQuery(string $itemId, ?string $inventSizeId = null, ?string $salon = null): Builder
-    {
-        $query = DB::connection('sqlsrv_ti')
-            ->table('BOMTABLE as BT')
-            ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
-            ->where('BT.ITEMGROUPID', 'CRUDO')
-            ->where('BT.Vigente', 1)
-            ->whereExists(function ($sub) use ($itemId) {
-                $sub->select(DB::raw('1'))
-                    ->from('BOMVERSION as BV')
-                    ->whereColumn('BV.BOMID', 'BT.BOMID')
-                    ->where('BV.ITEMID', $itemId.'-1');
-            });
-
-        if ($inventSizeId !== null && trim($inventSizeId) !== '') {
-            $query->where('BT.TWINVENTSIZEID', trim($inventSizeId));
-        }
-
-        if ($salon !== null && trim($salon) !== '') {
-            $query->whereIn('BT.TWSALON', TelarSalonResolver::salonAliasesAx($salon));
-        } else {
-            $query->whereIn('BT.TwSalon', TelarSalonResolver::todosLosAliasesAx());
-        }
-
-        return $query->orderBy('BT.BOMID');
-    }
-
-    /**
-     * @return array<int, array{bomId: string, bomName: string}>
-     */
-    private function resolverBomCrudoOpciones(ReqProgramaTejido $registro): array
-    {
-        $itemId = trim((string) ($registro->ItemId ?? ''));
-        $inventSizeId = trim((string) ($registro->InventSizeId ?? ''));
-        $salon = $this->normalizarSalonBomCrudo($registro);
-
-        if ($itemId === '' || $inventSizeId === '' || $salon === '') {
-            return [];
-        }
-
-        // Si el lote ya se precargó (pantalla index), se resuelve en memoria. Fuera de esa
-        // ruta —liberar(), marbetes()— se consulta el renglón suelto como siempre.
-        if ($this->bomCrudoCache !== null) {
-            return $this->bomCrudoCache[self::claveBomCrudo($itemId, $inventSizeId, $salon)] ?? [];
-        }
-
-        return $this->bomCrudoQuery($itemId, $inventSizeId, $salon)
-            ->get()
-            ->map(fn ($row) => [
-                'bomId' => trim((string) ($row->bomId ?? '')),
-                'bomName' => trim((string) ($row->bomName ?? '')),
-            ])
-            ->filter(fn (array $row) => $row['bomId'] !== '')
-            ->unique('bomId')
-            ->values()
-            ->all();
-    }
-
-    /** Clave item|talla|salón con la que se indexan las L.Mat CRUDO del lote. */
-    private static function claveBomCrudo(string $itemId, string $inventSizeId, string $salon): string
-    {
-        return mb_strtoupper(trim($itemId)).'|'.mb_strtoupper(trim($inventSizeId)).'|'.mb_strtoupper(trim($salon));
-    }
-
-    /**
-     * Trae en UNA consulta a AX todas las L.Mat CRUDO vigentes de los items del lote y las
-     * indexa por item|talla|salón, para que `resolverBomCrudoOpciones()` no pegue a AX por
-     * renglón. Era el peor N+1 de la pantalla: ~1.5 s por renglón, 96% del tiempo de carga,
-     * cuando el catálogo CRUDO vigente completo son ~166 filas que se leen en una query.
-     *
-     * @param  Collection<int, ReqProgramaTejido>  $registros
-     */
-    private function precargarBomCrudo($registros): void
-    {
-        $this->bomCrudoCache = [];
-
-        $itemIds = $registros
-            ->map(fn ($r) => trim((string) ($r->ItemId ?? '')))
-            ->filter()
-            ->unique()
-            ->map(fn (string $id) => $id.'-1')   // AX cuelga las versiones del item con sufijo
-            ->values()
-            ->all();
-
-        if ($itemIds === []) {
-            return;
-        }
-
-        try {
-            $filas = DB::connection('sqlsrv_ti')
-                ->table('BOMTABLE as BT')
-                ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
-                ->distinct()
-                ->select('BV.ITEMID', 'BT.TWINVENTSIZEID', 'BT.TWSALON', 'BT.BOMID as bomId', 'BT.NAME as bomName')
-                ->where('BT.ITEMGROUPID', 'CRUDO')
-                ->where('BT.Vigente', 1)
-                ->whereIn('BV.ITEMID', $itemIds)
-                ->orderBy('BT.BOMID')
-                ->get();
-        } catch (\Throwable $e) {
-            // Sin AX la pantalla sigue cargando: los renglones salen sin L.Mat autoasignada,
-            // igual que cuando la consulta por renglón fallaba.
-            Log::warning('LiberarOrdenes: no se pudo precargar BOMTABLE', ['error' => $e->getMessage()]);
-
-            return;
-        }
-
-        foreach ($filas as $fila) {
-            $bomId = trim((string) ($fila->bomId ?? ''));
-            if ($bomId === '') {
-                continue;
-            }
-
-            $clave = self::claveBomCrudo(
-                self::itemIdSinSufijo((string) ($fila->ITEMID ?? '')),
-                (string) ($fila->TWINVENTSIZEID ?? ''),
-                $this->normalizarSalon((string) ($fila->TWSALON ?? ''))
-            );
-
-            // Un mismo BOMID puede venir repetido por tener varias versiones en BOMVERSION.
-            if (isset($this->bomCrudoCache[$clave][$bomId])) {
-                continue;
-            }
-
-            $this->bomCrudoCache[$clave][$bomId] = [
-                'bomId' => $bomId,
-                'bomName' => trim((string) ($fila->bomName ?? '')),
-            ];
-        }
-
-        foreach ($this->bomCrudoCache as $clave => $opciones) {
-            $this->bomCrudoCache[$clave] = array_values($opciones);
-        }
-    }
-
-    private function normalizarSalonBomCrudo(ReqProgramaTejido $registro): string
-    {
-        return $this->normalizarSalon((string) ($registro->SalonTejidoId ?? ''));
-    }
-
-    /**
-     * Traduce cualquier variante (del programa o de AX) al salón canónico.
-     * Un salón nuevo se da de alta en {@see TelarSalonResolver}, que es el único lugar
-     * del sistema donde vive ese vocabulario.
-     */
-    private function normalizarSalon(string $salon): string
-    {
-        return TelarSalonResolver::normalizeSalon($salon);
-    }
-
     /**
      * Candidatos a "registro anterior" de todo el lote, en UNA consulta, agrupados por
      * salón|telar. Antes se consultaba uno por renglón. Se traen todas las órdenes de esos
@@ -2353,7 +2005,7 @@ class LiberarOrdenesController extends Controller
 
         $claves = [];
         foreach ($filas as $fila) {
-            $claves[self::claveItemTalla(self::itemIdSinSufijo((string) ($fila->ITEMID ?? '')), $fila->INVENTSIZEID ?? '')] = true;
+            $claves[self::claveItemTalla(LiberarBomCrudoResolver::itemIdSinSufijo((string) ($fila->ITEMID ?? '')), $fila->INVENTSIZEID ?? '')] = true;
         }
 
         return $claves;

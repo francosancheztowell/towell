@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\Liberar\LiberarBomCrudoResolver;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -862,9 +863,7 @@ class LiberarOrdenesLiberarTest extends TestCase
         $registro = $this->sembrarRegistro(['ItemId' => 'IT700']);
         $modelo = ReqProgramaTejido::find($registro);
 
-        $metodo = new \ReflectionMethod(LiberarOrdenesController::class, 'resolverBomCrudoOpciones');
-        $metodo->setAccessible(true);
-        $opciones = $metodo->invoke(new LiberarOrdenesController, $modelo);
+        $opciones = (new LiberarBomCrudoResolver)->resolverOpciones($modelo);
 
         $this->assertCount(1, $opciones, 'Las 3 versiones de AX deben colapsar en una sola opción.');
         $this->assertSame('BOM-MULTI-03', $opciones[0]['bomId']);
@@ -876,9 +875,7 @@ class LiberarOrdenesLiberarTest extends TestCase
      */
     public function test_lmat_estandar_no_se_autoasigna(): void
     {
-        $metodo = new \ReflectionMethod(LiberarOrdenesController::class, 'bomAutoAsignable');
-        $metodo->setAccessible(true);
-        $decidir = fn (array $opciones) => $metodo->invoke(null, $opciones);
+        $decidir = fn (array $opciones) => LiberarBomCrudoResolver::bomAutoAsignable($opciones);
 
         $estand = ['bomId' => 'ESTAND JS 3060-3524', 'bomName' => 'ESTANDAR JACQUARD SMIT'];
         $propia = ['bomId' => 'TEJ MB SD NAT', 'bomName' => 'TEJIDO MB'];
