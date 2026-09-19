@@ -10,6 +10,7 @@ use App\Services\Programas\ProgramaPrioridadService;
 use App\Services\Programas\ProgramBoardActionService;
 use App\Support\Programas\ProgramaConfig;
 use App\Support\Programas\ProgramaModulo;
+use App\Support\Programas\ProgramaRouteHelper;
 use DomainException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -82,11 +83,17 @@ class ProgramarUrdidoController extends Controller
     }
 
     /**
-     * Tablero canónico: Livewire ProgramBoard.
+     * Mostrar el programa de urdido con el diseño clásico de tablas por máquina.
      */
     public function index(): View
     {
-        return view('modulos.urdido.programar-urdido-livewire');
+        return view('modulos.urdido.programar-urdido', [
+            'canEdit' => $this->usuarioPuedeEditar(),
+            'programaRoutes' => ProgramaRouteHelper::urdido(),
+            'observacionesMaxLength' => ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
+            'calidadComentarioMaxLength' => ProgramaConfig::CALIDAD_COMENTARIO_MAX_LENGTH,
+            'calidadPuntos' => UrdProgramaUrdido::CALIDAD_PUNTOS,
+        ]);
     }
 
     /**

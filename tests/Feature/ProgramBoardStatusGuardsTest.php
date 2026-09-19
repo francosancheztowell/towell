@@ -35,22 +35,24 @@ class ProgramBoardStatusGuardsTest extends TestCase
         $this->grantModulePermissions(['modificar' => 1, 'crear' => 1, 'registrar' => 1, 'acceso' => 1]);
     }
 
-    public function test_default_engomado_and_urdido_boards_render_livewire_program_board(): void
+    public function test_default_engomado_and_urdido_boards_render_classic_tables(): void
     {
         $user = $this->supervisor();
 
         $engomado = $this->actingAs($user)->get('/engomado/programar-engomado');
         $engomado->assertOk();
-        $engomado->assertSee('program-board-page', false);
+        $engomado->assertViewIs('modulos.engomado.programar-engomado');
+        $engomado->assertSee('tabla1TableBody', false);
         $engomado->assertSee('West Point 2');
 
         $urdido = $this->actingAs($user)->get('/urdido/programar-urdido');
         $urdido->assertOk();
-        $urdido->assertSee('program-board-page', false);
+        $urdido->assertViewIs('modulos.urdido.programar-urdido');
+        $urdido->assertSee('Karl Mayer');
         $urdido->assertSee('MC Coy 1');
     }
 
-    public function test_legacy_boards_redirect_to_the_livewire_default(): void
+    public function test_legacy_boards_redirect_to_the_classic_default(): void
     {
         $user = $this->supervisor();
 

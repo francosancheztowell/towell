@@ -10,6 +10,7 @@ use App\Services\Programas\ProgramaPrioridadService;
 use App\Services\Programas\ProgramBoardActionService;
 use App\Support\Programas\ProgramaConfig;
 use App\Support\Programas\ProgramaModulo;
+use App\Support\Programas\ProgramaRouteHelper;
 use DomainException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -41,11 +42,15 @@ class ProgramarEngomadoController extends Controller
     }
 
     /**
-     * Tablero canónico: Livewire ProgramBoard (mismas reglas que Urdido).
+     * Mostrar el programa de engomado con el diseño clásico de tablas por máquina.
      */
     public function index(): View
     {
-        return view('modulos.engomado.programar-engomado-livewire');
+        return view('modulos.engomado.programar-engomado', [
+            'canEdit' => $this->usuarioPuedeEditar(),
+            'programaRoutes' => ProgramaRouteHelper::engomado(),
+            'observacionesMaxLength' => ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
+        ]);
     }
 
     /**

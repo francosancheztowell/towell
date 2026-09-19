@@ -915,73 +915,7 @@
                     if (btnProduccion) btnProduccion.classList.remove('opacity-60', 'pointer-events-none');
                 };
 
-
-                // Verificar si ya hay 2 órdenes con status "En Proceso" en la misma máquina
-                try {
-                    // Obtener el MaquinaId de la orden seleccionada
-                    let maquinaId = state.ordenSeleccionada.maquina_id || null;
-
-                    // Si no está en la orden seleccionada, buscarla en el estado
-                    if (!maquinaId) {
-                        for (let mccoy = 1; mccoy <= 4; mccoy++) {
-                            const orden = (state.ordenes[mccoy] || []).find(o => o.id === state.ordenSeleccionada.id);
-                            if (orden) {
-                                if (orden.maquina_id) {
-                                    maquinaId = orden.maquina_id;
-                                } else {
-                                    // Construir maquina_id basado en mccoy si no existe
-                                    if (mccoy === 4) {
-                                        maquinaId = 'Karl Mayer';
-                                    } else {
-                                        maquinaId = `Mc Coy ${mccoy}`;
-                                    }
-                                }
-                                break;
-                            }
-                        }
-                    }
-
-                    // Si aún no tenemos maquina_id, intentar obtenerlo del mccoy de la orden seleccionada
-                    if (!maquinaId && state.ordenSeleccionada.mccoy) {
-                        const mccoy = state.ordenSeleccionada.mccoy;
-                        if (mccoy === 4) {
-                            maquinaId = 'Karl Mayer';
-                        } else {
-                            maquinaId = `Mc Coy ${mccoy}`;
-                        }
-                    }
-
-                    const verificarUrl = `${routes.verificarEnProceso}?excluir_id=${state.ordenSeleccionada.id}${maquinaId ? `&maquina_id=${encodeURIComponent(maquinaId)}` : ''}`;
-                    const verificarResponse = await fetchJson(verificarUrl);
-
-                    if (verificarResponse.success && verificarResponse.tieneOrdenEnProceso) {
-                        if (typeof Swal !== 'undefined') {
-                            Swal.fire({
-                                icon: 'warning',
-                                title: 'No se puede cargar la orden',
-                                html: `
-                                    <p class="mb-2">${verificarResponse.mensaje || 'Ya existen 2 órdenes con status "En Proceso" en esta máquina.'}</p>
-                                    <p class="text-sm text-gray-600">Por favor, finaliza alguna de las órdenes en proceso en esta máquina antes de cargar una nueva.</p>
-                                    <p class="text-sm text-gray-500 mt-2">Cantidad actual: ${verificarResponse.cantidad || 0} / ${verificarResponse.limite || 2}</p>
-                                `,
-                                confirmButtonColor: '#2563eb',
-                            });
-                        } else {
-                            alert(verificarResponse.mensaje || 'Ya existen 2 órdenes con status "En Proceso" en esta máquina. No se puede cargar otra orden.');
-                        }
-                        liberarBoton();
-                        return;
-                    }
-                } catch (error) {
-                    console.error('Error al verificar órdenes en proceso:', error);
-                    showError('Error al verificar órdenes en proceso. Por favor, intente nuevamente.');
-                    liberarBoton();
-                    return;
-                }
-
-                // ponytail: eliminada la precomprobación check_only. Devolvía puedeCrear=true
-                // siempre y en Urdido ni existía: renderizaba la página completa de producción
-                // solo para descartarla (timeouts de 3s). Los permisos se validan en el servidor.
+                // Los límites por máquina se validan al cargar en el servidor.
 
                 // Karl Mayer (MC Coy 4): confirmar cuenta/calibre antes de cargar
                 if (Number(state.ordenSeleccionada.mccoy) === 4) {

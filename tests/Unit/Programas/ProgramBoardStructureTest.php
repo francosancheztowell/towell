@@ -47,14 +47,14 @@ class ProgramBoardStructureTest extends TestCase
         $this->assertFileDoesNotExist(resource_path('js/urd-eng/index.js'));
     }
 
-    public function test_current_program_routes_render_the_livewire_board(): void
+    public function test_current_program_routes_render_the_classic_tables(): void
     {
         $this->assertSame(
-            'modulos.urdido.programar-urdido-livewire',
+            'modulos.urdido.programar-urdido',
             $this->app->make(ProgramarUrdidoController::class)->index()->name()
         );
         $this->assertSame(
-            'modulos.engomado.programar-engomado-livewire',
+            'modulos.engomado.programar-engomado',
             $this->app->make(ProgramarEngomadoController::class)->index()->name()
         );
     }
