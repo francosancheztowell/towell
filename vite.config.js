@@ -30,8 +30,6 @@ export default defineConfig({
         'resources/js/urd-eng/program-board.ts',
         'resources/js/tejido/inventario-telas.ts',
         'resources/css/tejido/inventario-telas.css',
-        'resources/js/programa-urd-eng/creacion-ordenes/index.ts',
-        'resources/css/programa-urd-eng/tabla.css',
         'resources/js/catcodificacion/index.js',
         'resources/js/lmat-lista/index.js',
         'resources/js/programa-tejido/index.js',

@@ -9,20 +9,13 @@
         "noEmit": true,
         "noUncheckedIndexedAccess": true,
         "exactOptionalPropertyTypes": true,
-        "skipLibCheck": true,
-        // Los imports relativos llevan .ts para que node --test pueda cargar los
-        // modulos directamente (tests/Js/*.test.mjs). Vite los resuelve igual.
-        "allowImportingTsExtensions": true
+        "skipLibCheck": true
     },
     "include": [
         "resources/js/trazabilidad/**/*.ts",
         "resources/js/crudo/**/*.ts",
         "resources/js/urd-eng/**/*.ts",
         "resources/js/programa-tejido/**/*.ts",
-        "resources/js/programa-urd-eng/**/*.ts",
         "resources/js/utils/**/*.ts"
-    ],
-    "exclude": [
-        "resources/js/programa-urd-eng/creacion-ordenes/index.ts"
     ]
 }

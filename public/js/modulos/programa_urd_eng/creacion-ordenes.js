@@ -1,130 +1,254 @@
-/**
- * Creacion de ordenes de urdido y engomado.
- *
- * Port del antiguo public/js/modulos/programa_urd_eng/creacion-ordenes.js, que
- * vivia fuera de Vite y sin tipos (BUG-033). La logica de pantalla se mantiene
- * tal cual; lo que era puro (formato, agrupacion, destinos, cache) vive ahora
- * en modulos aparte y con test.
- *
- * Esta pantalla no es un CRUD sino una hoja de calculo: autocompletados contra
- * el ERP, calculo de consumos en vivo y seleccion de lotes. Por eso se queda en
- * TypeScript y no pasa a Livewire; solo su POST final escribe en base.
- *
- * ponytail: este archivo esta fuera de tsconfig.include (127 errores de DOM sin
- * tipar heredados del port). Los modulos con logica -- formato, agrupar,
- * destinos, persistencia -- si compilan en strict y tienen test. Mismo criterio
- * que resources/js/tejido/inventario-telas.ts. Tiparlo entero se hace cuando se
- * toque esta pantalla, no a ciegas: su POST crea ordenes de produccion.
- */
+(() => {
+    'use strict';
 
-import { agruparTelares, normalizarTelares } from './agrupar.ts'
-import {
-    destinoInicial as getInitialDestino,
-    destinoPorTelar,
-    marcarDestinoPendiente as syncDestinoSelectState,
-    normalizarDestino as normalizeDestinoValue,
-    opcionesDestino,
-    requiereDestinoManual as grupoRequiereDestinoManual,
-} from './destinos.ts'
-import {
-    aNumero as toNumber,
-    estaVacio as isBlank,
-    esNulo as isNil,
-    formatoFecha as fmtDate,
-    formatoNumero as fmtNumber,
-    normalizarTipo,
-} from './formato.ts'
-import {
-    guardarMateriales,
-    guardarSelecciones,
-    materialesGuardados,
-    olvidarMateriales,
-    seleccionesGuardadas,
-} from './persistencia.ts'
-import type { ConfigCreacionOrdenes, Grupo, TelarNormalizado } from './types.ts'
+    /* =================== Config & Utils =================== */
 
-declare const Swal: { fire(opciones: Record<string, unknown>): Promise<{ isConfirmed: boolean; value?: unknown }> }
+    const qs  = (sel, ctx=document) => ctx.querySelector(sel);
+    const qsa = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
 
-interface VentanaCreacionOrdenes extends Window {
-    initCreacionOrdenes?: (config: ConfigCreacionOrdenes) => void
-    crearOrdenes?: () => Promise<void>
-    http?: {
-        get(url: string): Promise<any>
-        post(url: string, data?: unknown): Promise<any>
+    const isNil   = v => v === null || v === undefined;
+    const isBlank = v => isNil(v) || String(v).trim() === '';
+    const DEFAULT_DESTINO_OPTIONS = ['Itema Nuevo', 'Itema Viejo', 'Jacquard Sulzer', 'Jacquard Smit', 'Smit'];
+
+
+    const toNumber = (v, def=0) => {
+        if (isNil(v)) return def;
+        const num = parseFloat(String(v).replace(/,/g, ''));
+        return Number.isNaN(num) ? def : num;
+    };
+
+    const fmtNumber = (v, dec=2) => {
+        const n = toNumber(v, null);
+        if (n === null) return '';
+        return n.toLocaleString('es-MX', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    };
+
+    const fmtDate = (dateStr) => {
+        if (isBlank(dateStr)) return '';
+        try {
+            // Si viene como datetime (ej: "2025-01-15 14:30:00"), tomar solo la parte de la fecha
+            let datePart = String(dateStr).trim();
+            // Si contiene espacio, tomar solo la parte antes del espacio
+            if (datePart.includes(' ')) {
+                datePart = datePart.split(' ')[0];
+            }
+            // Si contiene 'T' (formato ISO), tomar solo la parte antes de la T
+            if (datePart.includes('T')) {
+                datePart = datePart.split('T')[0];
+            }
+            // Crear fecha y formatear solo la fecha sin hora
+            const d = new Date(datePart + 'T00:00:00');
+            if (Number.isNaN(d.getTime())) return datePart;
+            // Formatear solo la fecha (día/mes/año) sin hora
+            return d.toLocaleDateString('es-MX', { day:'2-digit', month:'2-digit', year:'numeric' });
+        } catch {
+            // Si falla, intentar retornar solo la parte de la fecha
+            const str = String(dateStr).trim();
+            if (str.includes(' ')) return str.split(' ')[0];
+            if (str.includes('T')) return str.split('T')[0];
+            return str;
+        }
+    };
+
+    const normalizarTipo = (tipo) => {
+        const up = String(tipo || '').toUpperCase().trim();
+        if (up === 'RIZO') return 'Rizo';
+        if (up === 'PIE')  return 'Pie';
+        return tipo || '';
+    };
+
+    const safeJSON = {
+        get(key, fallback=null) {
+            try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback; }
+            catch { return fallback; }
+        },
+        set(key, val) {
+            try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+        }
+    };
+
+    const fetchJSON = async (url, opts={}) => {
+        const res = await fetch(url, { headers: { 'Accept':'application/json', 'X-Requested-With':'XMLHttpRequest' }, ...opts });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+    };
+
+    const debounce = (fn, ms=300) => {
+        let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    };
+
+    const positionDropdown = (inputEl, container) => {
+        const rect = inputEl.getBoundingClientRect();
+        container.style.top  = (rect.bottom + window.scrollY + 4) + 'px';
+        container.style.left = (rect.left   + window.scrollX) + 'px';
+        container.style.width = rect.width + 'px';
+    };
+
+    /* =================== Estado =================== */
+    const STORAGE_KEY_MATERIALES  = 'creacion_ordenes_materiales';
+    const STORAGE_KEY_SELECCIONES = 'creacion_ordenes_selecciones';
+
+    let telaresData = [];
+    let filaSeleccionadaId = null;
+    const gruposData = Object.create(null); // { filaId: { grupo, bomId, kilos, materialesUrdido } }
+    let config = {}; // Configuración con rutas y datos
+    let sortState = { column: null, direction: null }; // Estado de ordenamiento: { column: 'itemId', direction: 'asc'|'desc' }
+
+    function getDestinoOptions() {
+        return Array.isArray(config.destinoOptions) && config.destinoOptions.length
+            ? config.destinoOptions
+            : DEFAULT_DESTINO_OPTIONS;
     }
-}
 
-const ventana = window as VentanaCreacionOrdenes
+    function normalizeDestinoValue(destino) {
+        const value = String(destino || '').trim();
+        if (!value) return '';
 
-const qs = (sel: string, ctx: Document | HTMLElement = document): any => ctx.querySelector(sel)
-const qsa = (sel: string, ctx: Document | HTMLElement = document): any[] => Array.from(ctx.querySelectorAll(sel))
+        const normalized = value.toUpperCase().replace(/\s+/g, ' ');
 
-/** Cliente HTTP comun del repo; antes era un fetch propio sin manejo de 419. */
-const fetchJSON = async (url: string, opts: RequestInit = {}): Promise<any> => {
-    if (ventana.http) {
-        return opts.method && opts.method.toUpperCase() !== 'GET'
-            ? ventana.http.post(url, opts.body ? JSON.parse(String(opts.body)) : {})
-            : ventana.http.get(url)
+        if (normalized === 'ITEMA NUEVO') return 'Itema Nuevo';
+        if (normalized === 'ITEMA VIEJO') return 'Itema Viejo';
+        if (normalized === 'JACQUARD SULZER' || normalized === 'SULZER') return 'Jacquard Sulzer';
+        if (normalized === 'JACQUARD SMIT' || normalized === 'JACQUARD' || normalized === 'JAC') return 'Jacquard Smit';
+        if (normalized === 'SMIT' || normalized === 'SMITH') return 'Smit';
+
+        return '';
     }
 
-    const res = await fetch(url, {
-        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-        ...opts,
-    })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-
-    return res.json()
-}
-
-const debounce = <T extends (...args: any[]) => void>(fn: T, ms = 300) => {
-    let t: ReturnType<typeof setTimeout>
-
-    return (...args: Parameters<T>): void => {
-        clearTimeout(t)
-        t = setTimeout(() => fn(...args), ms)
+    function grupoRequiereDestinoManual(grupo) {
+        return Array.isArray(grupo?.telares) && grupo.telares.length > 1;
     }
-}
 
-const positionDropdown = (inputEl: HTMLElement, container: HTMLElement): void => {
-    const rect = inputEl.getBoundingClientRect()
-    container.style.top = `${rect.bottom + window.scrollY + 4}px`
-    container.style.left = `${rect.left + window.scrollX}px`
-    container.style.width = `${rect.width}px`
-}
+    function destinoPorTelar(noTelar) {
+        const n = parseInt(noTelar, 10);
+        if (!n) return '';
+        if (n >= 207 && n <= 211) return 'Jacquard Sulzer';
+        if ([201,202,203,204,205,206,213,214,215].includes(n)) return 'Jacquard Smit';
+        if (n >= 305 && n <= 316) return 'Smit';
+        if ([303,304,317,318].includes(n)) return 'Itema Viejo';
+        if ([299,300,301,302,319,320].includes(n)) return 'Itema Nuevo';
+        return '';
+    }
 
-/* =================== Estado =================== */
+    function getInitialDestino(grupo) {
+        if (grupoRequiereDestinoManual(grupo)) return '';
+        const explicito = normalizeDestinoValue(grupo?.destino);
+        if (explicito) return explicito;
+        if (Array.isArray(grupo?.telares) && grupo.telares.length === 1) {
+            return destinoPorTelar(grupo.telares[0].no_telar);
+        }
+        return '';
+    }
 
-let telaresData: TelarNormalizado[] = []
-let filaSeleccionadaId: string | null = null
-const gruposData: Record<string, any> = Object.create(null)
-let config: ConfigCreacionOrdenes = { routes: {} }
-let sortState: { column: string | null; direction: string | null } = { column: null, direction: null }
+    function buildDestinoOptionsHtml(selectedDestino='') {
+        const normalized = normalizeDestinoValue(selectedDestino);
+        const options = ['', ...getDestinoOptions()];
 
-const getDestinoOptions = (): string[] => opcionesDestino(config.destinoOptions)
+        return options.map(option => {
+            if (option === '') {
+                return `<option value="" ${normalized === '' ? 'selected' : ''}>Seleccione...</option>`;
+            }
 
-function buildDestinoOptionsHtml(selectedDestino = ''): string {
-    const normalized = normalizeDestinoValue(selectedDestino)
+            return `<option value="${option}" ${normalized === option ? 'selected' : ''}>${option}</option>`;
+        }).join('');
+    }
 
-    return ['', ...getDestinoOptions()]
-        .map((option) =>
-            option === ''
-                ? `<option value="" ${normalized === '' ? 'selected' : ''}>Seleccione...</option>`
-                : `<option value="${option}" ${normalized === option ? 'selected' : ''}>${option}</option>`,
-        )
-        .join('')
-}
+    function syncDestinoSelectState(selectEl) {
+        if (!selectEl) return;
+        const hasValue = !isBlank(selectEl.value);
+        selectEl.classList.toggle('border-amber-400', !hasValue);
+        selectEl.classList.toggle('bg-amber-50', !hasValue);
+    }
 
-/** Puente a los modulos de cache, para no tocar las ~13 llamadas de abajo. */
-const LS = {
-    getMateriales: (bomId: string) => materialesGuardados(bomId),
-    setMateriales: (bomId: string, urdido: unknown[] = [], engomado: unknown[] = []) =>
-        guardarMateriales(bomId, urdido, engomado),
-    wipeMateriales: (bomId: string) => olvidarMateriales(bomId),
-    getSelecciones: (bomId: string) => seleccionesGuardadas(bomId),
-    setSelecciones: (bomId: string, selecciones: unknown[] = []) => guardarSelecciones(bomId, selecciones),
-}
+    /* =================== LS helpers específicos =================== */
+    const LS = {
+        getMateriales(bomId) {
+            const all = safeJSON.get(STORAGE_KEY_MATERIALES, {});
+            return all[bomId] || null;
+        },
+        setMateriales(bomId, materialesUrdido=[], materialesEngomado=[]) {
+            if (isBlank(bomId)) return;
+            const all = safeJSON.get(STORAGE_KEY_MATERIALES, {});
+            all[bomId] = { materialesUrdido: Array.isArray(materialesUrdido)?materialesUrdido:[],
+                           materialesEngomado: Array.isArray(materialesEngomado)?materialesEngomado:[],
+                           timestamp: Date.now() };
+            safeJSON.set(STORAGE_KEY_MATERIALES, all);
+        },
+        wipeMateriales(bomId) {
+            const all = safeJSON.get(STORAGE_KEY_MATERIALES, {});
+            delete all[bomId]; safeJSON.set(STORAGE_KEY_MATERIALES, all);
+        },
+        getSelecciones(bomId) {
+            const all = safeJSON.get(STORAGE_KEY_SELECCIONES, {});
+            return all[bomId] || [];
+        },
+        setSelecciones(bomId, selecciones=[]) {
+            const all = safeJSON.get(STORAGE_KEY_SELECCIONES, {});
+            all[bomId] = selecciones; safeJSON.set(STORAGE_KEY_SELECCIONES, all);
+        }
+    };
 
-const normalizeInput = normalizarTelares
+    /* =================== Normalización entrada =================== */
+    function normalizeInput(arr) {
+        return (arr || []).map(t => ({
+            ...t,
+            tipo: normalizarTipo(t.tipo) || 'Rizo',
+            hilo: !isBlank(t.hilo) ? String(t.hilo).trim() : null,
+            tamano: !isBlank(t.tamano) ? String(t.tamano).trim() : null,
+            calibre: !isBlank(t.calibre) ? parseFloat(t.calibre) : null,
+            metros: toNumber(t.metros, 0),
+            kilos : toNumber(t.kilos, 0),
+            agrupar: !!t.agrupar
+        }));
+    }
+
+    /* =================== Agrupar telares =================== */
+    function agruparTelares(telares) {
+        const grupos = Object.create(null);
+        const singles = [];
+
+        for (const telar of (telares || [])) {
+            if (!telar.agrupar) { singles.push(telar); continue; }
+
+            const tipoN = normalizarTipo(telar.tipo) || 'Rizo';
+            const up    = String(tipoN || '').toUpperCase();
+            const esPie = up === 'PIE';
+
+            const cuenta   = String(telar.cuenta || '').trim();
+            const calibre  = !isBlank(telar.calibre) ? parseFloat(telar.calibre) : null;
+            // Hilo no se usa en la clave de agrupación (ni Rizo ni Pie)
+            const hilo = !isBlank(telar.hilo) ? String(telar.hilo).trim() : '';
+            const tamano   = !isBlank(telar.tamano) ? String(telar.tamano).trim() : '';
+            const urdido   = String(telar.urdido || '').trim();
+            const tipoAtado= String(telar.tipo_atado || 'Normal').trim();
+            const destino  = String(telar.destino || '').trim();
+
+            const clave = `${cuenta}|${up}|${urdido}|${tipoAtado}`;
+
+            if (!grupos[clave]) {
+                grupos[clave] = { telares:[], cuenta, calibre, hilo, tamano, tipo:tipoN, urdido, tipoAtado, destino,
+                                  fechaReq: telar.fecha_req || '', metros:0, kilos:0, maquinaId: telar.urdido || telar.maquina_urd || telar.maquinaId || '' };
+            }
+            grupos[clave].telares.push(telar);
+            grupos[clave].metros += telar.metros || 0;
+            grupos[clave].kilos  += telar.kilos  || 0;
+        }
+
+        const out = Object.values(grupos).map(g => ({
+            ...g,
+            destino: g.telares.length > 1 ? '' : g.destino,
+            telaresStr: g.telares.map(t=>t.no_telar).join(',')
+        }));
+        for (const t of singles) {
+            const calSingle = !isBlank(t.calibre) ? parseFloat(t.calibre) : null;
+            out.push({
+                telares:[t], telaresStr:t.no_telar, cuenta:t.cuenta || '', calibre: calSingle !== null ? calSingle : '', hilo:t.hilo || '', tamano:t.tamano || '',
+                tipo: normalizarTipo(t.tipo) || 'Rizo', urdido:t.urdido || '', tipoAtado:t.tipo_atado || 'Normal', destino:t.destino || '',
+                fechaReq:t.fecha_req || '', metros:t.metros || 0, kilos:t.kilos || 0, maquinaId: t.urdido || t.maquina_urd || t.maquinaId || ''
+            });
+        }
+        return out;
+    }
 
     /* =================== Render tabla principal =================== */
     function renderTabla() {
@@ -912,11 +1036,10 @@ const normalizeInput = normalizarTelares
     }
 
     // Exponer función de inicialización globalmente
-ventana.initCreacionOrdenes = initCreacionOrdenes
-export { initCreacionOrdenes }
+    window.initCreacionOrdenes = initCreacionOrdenes;
 
     /* =================== Crear Órdenes =================== */
-ventana.crearOrdenes = async function crearOrdenes(): Promise<void> {
+    window.crearOrdenes = async function() {
         try {
             // Validar que haya una fila seleccionada
             if (!filaSeleccionadaId || !gruposData[filaSeleccionadaId]) {
@@ -1333,3 +1456,5 @@ ventana.crearOrdenes = async function crearOrdenes(): Promise<void> {
             }
         }
     };
+
+    })();
