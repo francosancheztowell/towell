@@ -7,7 +7,6 @@ use App\Helpers\FolioHelper;
 use App\Helpers\StringTruncator;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa\OrdenDeCambioFelpaController;
-use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\Liberar\LiberarBomCrudoResolver;
 use App\Services\Planeacion\Liberar\LiberarCatCodificadosWriter;
@@ -15,13 +14,13 @@ use App\Services\Planeacion\Liberar\LiberarCodigoDibujoResolver;
 use App\Services\Planeacion\Liberar\LiberarFlogSugeridoService;
 use App\Services\Planeacion\Liberar\LiberarMarbetesCalculator;
 use App\Services\Planeacion\Liberar\LiberarProgramaScheduling;
+use App\Services\Planeacion\Liberar\LiberarValidacionesService;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -32,9 +31,6 @@ class LiberarOrdenesController extends Controller
     /** Alias público para Blade/observer. Fuente: {@see LiberarMarbetesCalculator::PESO_ROLLO_KG_KARL_MAYER}. */
     public const PESO_ROLLO_KG_KARL_MAYER = LiberarMarbetesCalculator::PESO_ROLLO_KG_KARL_MAYER;
 
-    /** Cache en memoria para Schema::getColumnListing, por nombre de tabla */
-    private static array $columnListingCache = [];
-
     public function __construct(
         private readonly LiberarMarbetesCalculator $marbetesCalculator = new LiberarMarbetesCalculator,
         private readonly LiberarBomCrudoResolver $bomCrudoResolver = new LiberarBomCrudoResolver,
@@ -42,21 +38,8 @@ class LiberarOrdenesController extends Controller
         private readonly LiberarFlogSugeridoService $flogSugerido = new LiberarFlogSugeridoService,
         private readonly LiberarCodigoDibujoResolver $codigoDibujoResolver = new LiberarCodigoDibujoResolver,
         private readonly LiberarProgramaScheduling $scheduling = new LiberarProgramaScheduling,
+        private readonly LiberarValidacionesService $validaciones = new LiberarValidacionesService,
     ) {}
-
-    /**
-     * Columnas de una tabla con cache estático para evitar consultar la metadata
-     * en cada save/registro. La metadata no cambia durante el request; en workers
-     * persistentes (queue/octane) el cache se refresca por proceso.
-     */
-    private static function columnasDeTabla(string $table): array
-    {
-        if (! isset(self::$columnListingCache[$table])) {
-            self::$columnListingCache[$table] = Schema::getColumnListing($table);
-        }
-
-        return self::$columnListingCache[$table];
-    }
 
     /**
      * Muestra los registros de ReqProgramaTejido que no tienen orden de producción
@@ -371,7 +354,7 @@ class LiberarOrdenesController extends Controller
                     ], 422);
                 }
 
-                $errorUnico = $this->validarOrdenTejidoUnicoParaLiberacion($folio, $registro);
+                $errorUnico = $this->validaciones->validarOrdenTejidoUnicoParaLiberacion($folio, $registro);
                 if ($errorUnico !== null) {
                     DB::rollBack();
 
@@ -604,7 +587,7 @@ class LiberarOrdenesController extends Controller
 
                         return response()->json([
                             'success' => false,
-                            'message' => $errorFlog.$this->referenciaCortaRegistro($registro),
+                            'message' => $errorFlog.$this->validaciones->referenciaCortaRegistro($registro),
                         ], 422);
                     }
                 }
@@ -614,7 +597,7 @@ class LiberarOrdenesController extends Controller
                     ? filter_var($item['asignarFlogs'], FILTER_VALIDATE_BOOLEAN)
                     : null;
 
-                $errorMetricas = $this->validarMetricasProduccionParaLiberacion($registro);
+                $errorMetricas = $this->validaciones->validarMetricasProduccionParaLiberacion($registro);
                 if ($errorMetricas !== null) {
                     DB::rollBack();
 
@@ -949,183 +932,6 @@ class LiberarOrdenesController extends Controller
                 'message' => 'Error inesperado al guardar el campo.',
             ], 500);
         }
-    }
-
-    /**
-     * OrdenTejido / NoProduccion debe ser único: no puede repetirse en otro registro de programa
-     * ni en CatCodificados para otro telar (mismo telar = fila que se actualizará al liberar).
-     *
-     * @return string|null mensaje de error para JSON, o null si el folio es válido
-     */
-    private function validarOrdenTejidoUnicoParaLiberacion(string $folio, ReqProgramaTejido $registro): ?string
-    {
-        $folio = trim($folio);
-        if ($folio === '') {
-            return 'No se pudo validar el número de orden.';
-        }
-
-        $duplicadoPrograma = ReqProgramaTejido::query()
-            ->where('NoProduccion', $folio)
-            ->where('Id', '!=', $registro->Id)
-            ->exists();
-
-        if ($duplicadoPrograma) {
-            return 'El número de orden "'.$folio.'" ya está asignado en otro registro del programa de tejido.';
-        }
-
-        try {
-            $modelo = new CatCodificados;
-            $table = $modelo->getTable();
-            $columns = self::columnasDeTabla($table);
-
-            $query = CatCodificados::query();
-            $hasKeyFilter = false;
-
-            if (in_array('OrdenTejido', $columns, true)) {
-                $query->where('OrdenTejido', $folio);
-                $hasKeyFilter = true;
-            } elseif (in_array('NumOrden', $columns, true)) {
-                $query->where('NumOrden', $folio);
-                $hasKeyFilter = true;
-            }
-
-            if (! $hasKeyFilter && in_array('NoProduccion', $columns, true)) {
-                $query->where('NoProduccion', $folio);
-                $hasKeyFilter = true;
-            }
-
-            if (! $hasKeyFilter) {
-                return null;
-            }
-
-            $codificados = $query->get();
-            if ($codificados->isEmpty()) {
-                return null;
-            }
-
-            $telarCol = null;
-            if (in_array('TelarId', $columns, true)) {
-                $telarCol = 'TelarId';
-            } elseif (in_array('NoTelarId', $columns, true)) {
-                $telarCol = 'NoTelarId';
-            }
-
-            $noTelarSesion = trim((string) ($registro->NoTelarId ?? ''));
-
-            if ($telarCol === null) {
-                return 'El número de orden "'.$folio.'" ya existe en catálogo codificados.';
-            }
-
-            foreach ($codificados as $c) {
-                $telarCod = trim((string) ($c->{$telarCol} ?? ''));
-                if ($telarCod !== $noTelarSesion) {
-                    return 'El número de orden "'.$folio.'" ya existe en codificados para otro telar.';
-                }
-            }
-        } catch (\Throwable $e) {
-            Log::warning('validarOrdenTejidoUnicoParaLiberacion', [
-                'folio' => $folio,
-                'error' => $e->getMessage(),
-            ]);
-
-            return 'No se pudo validar la unicidad del número de orden en codificados.';
-        }
-
-        return null;
-    }
-
-    /**
-     * ¿Peso, ancho y largo presentes para poder exigir densidad mayor a cero?
-     */
-    private function registroTieneDatosParaCalcularDensidad(ReqProgramaTejido $registro): bool
-    {
-        $peso = $registro->PesoCrudo ?? null;
-        $ancho = $registro->Ancho ?? null;
-        $largo = $registro->LargoCrudo ?? null;
-        if ($peso === null || $ancho === null || $largo === null) {
-            return false;
-        }
-        if (! is_numeric($peso) || ! is_numeric($ancho)) {
-            return false;
-        }
-        if ((float) $ancho <= 0.0) {
-            return false;
-        }
-        $largoNum = is_numeric($largo)
-            ? (float) $largo
-            : (float) str_replace([' Cms.', 'Cms.', 'cm', 'CM', ' '], '', (string) $largo);
-
-        return $largoNum > 0.0;
-    }
-
-    private function referenciaCortaRegistro(ReqProgramaTejido $registro): string
-    {
-        $partes = array_filter([
-            $registro->NombreProducto !== null ? trim((string) $registro->NombreProducto) : '',
-            $registro->ItemId !== null ? trim((string) $registro->ItemId) : '',
-        ], static fn (string $s): bool => $s !== '');
-
-        $extra = $partes !== [] ? ' — '.implode(' / ', $partes) : '';
-
-        return ' (Id '.$registro->Id.$extra.')';
-    }
-
-    /**
-     * Tiras, saldo en toallas (SaldoPedido), marbetes, metros x rollo y resto de métricas no pueden ser cero ni nulos al liberar.
-     * Combina trama y observaciones opcionales.
-     */
-    private function validarMetricasProduccionParaLiberacion(ReqProgramaTejido $registro): ?string
-    {
-        $ref = $this->referenciaCortaRegistro($registro);
-
-        $tiras = $registro->NoTiras;
-        if ($tiras === null || ! is_numeric($tiras) || (int) $tiras <= 0) {
-            return 'Las tiras deben ser mayores a cero (no se puede liberar con tiras vacías o en cero).'.$ref;
-        }
-
-        $saldoToallas = $registro->SaldoPedido;
-        if ($saldoToallas === null || ! is_numeric($saldoToallas) || (float) $saldoToallas <= 0.0) {
-            return 'El saldo pedido en toallas debe ser mayor a cero.'.$ref;
-        }
-
-        $rep = $registro->Repeticiones;
-        if ($rep === null || ! is_numeric($rep) || (int) $rep <= 0) {
-            return 'Repeticiones deben ser mayores a cero según la fórmula (revisa peso de rollo, peso crudo y tiras).'.$ref;
-        }
-
-        $sm = $registro->SaldoMarbete;
-        if ($sm === null || ! is_numeric($sm) || (float) $sm <= 0.0) {
-            return 'No marbetes no puede ser cero ni vacío; debe coincidir con la fórmula.'.$ref;
-        }
-
-        $mts = $registro->MtsRollo;
-        if ($mts === null || ! is_numeric($mts) || (float) $mts <= 0.0) {
-            return 'Metros x rollo deben ser mayores a cero (no pueden quedar vacíos o en cero).'.$ref;
-        }
-
-        $pzas = $registro->PzasRollo;
-        if ($pzas === null || ! is_numeric($pzas) || (float) $pzas <= 0.0) {
-            return 'Pzas x rollo deben ser mayores a cero según la fórmula.'.$ref;
-        }
-
-        $tr = $registro->TotalRollos;
-        if ($tr === null || ! is_numeric($tr) || (float) $tr <= 0.0) {
-            return 'Total rollos debe ser mayor a cero.'.$ref;
-        }
-
-        $tp = $registro->TotalPzas;
-        if ($tp === null || ! is_numeric($tp) || (float) $tp <= 0.0) {
-            return 'Total piezas (toallas) debe ser mayor a cero.'.$ref;
-        }
-
-        if ($this->registroTieneDatosParaCalcularDensidad($registro)) {
-            $den = $registro->Densidad;
-            if ($den === null || ! is_numeric($den) || (float) $den <= 0.0) {
-                return 'Densidad debe ser mayor a cero (revisa ancho, largo y peso crudo).'.$ref;
-            }
-        }
-
-        return null;
     }
 
     /**

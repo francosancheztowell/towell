@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use Illuminate\Database\Schema\Blueprint;
@@ -29,15 +28,14 @@ class ObserverProduccionSyncTest extends TestCase
         config()->set('database.default', 'sqlsrv');
         config()->set('planeacion.programa_tejido_table', 'ReqProgramaTejido');
 
-        // El observer y el controlador cachean Schema::getColumnListing en propiedades
-        // ESTÁTICAS: dentro de una corrida completa, otro test deja cacheadas las columnas de
+        // El observer cachea Schema::getColumnListing en una propiedad ESTÁTICA:
+        // dentro de una corrida completa, otro test deja cacheadas las columnas de
         // 'CatCodificados' de SU esquema y aquí el sync se filtraba a cero. Aislado pasaba,
-        // en suite no. Se limpian antes de crear las tablas de esta prueba.
-        foreach ([ReqProgramaTejidoObserver::class, LiberarOrdenesController::class] as $clase) {
-            $prop = new \ReflectionProperty($clase, 'columnListingCache');
-            $prop->setAccessible(true);
-            $prop->setValue(null, []);
-        }
+        // en suite no. Se limpia antes de crear las tablas de esta prueba.
+        // LiberarValidacionesService ya no usa cache estático (es por instancia).
+        $prop = new \ReflectionProperty(ReqProgramaTejidoObserver::class, 'columnListingCache');
+        $prop->setAccessible(true);
+        $prop->setValue(null, []);
 
         $schema = Schema::connection('sqlsrv');
 

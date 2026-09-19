@@ -2,33 +2,22 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\Liberar\LiberarMarbetesCalculator;
-use ReflectionClass;
-use ReflectionMethod;
+use App\Services\Planeacion\Liberar\LiberarValidacionesService;
 use Tests\TestCase;
 
 class LiberarOrdenesFelTamanhoTest extends TestCase
 {
-    private LiberarOrdenesController $controller;
-
     private LiberarMarbetesCalculator $calculator;
+
+    private LiberarValidacionesService $validaciones;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->controller = new LiberarOrdenesController;
         $this->calculator = new LiberarMarbetesCalculator;
-    }
-
-    private function method(string $name): ReflectionMethod
-    {
-        $ref = new ReflectionClass(LiberarOrdenesController::class);
-        $m = $ref->getMethod($name);
-        $m->setAccessible(true);
-
-        return $m;
+        $this->validaciones = new LiberarValidacionesService;
     }
 
     public function test_es_invent_size_fel_es_cierto_cuando_la_cadena_contiene_fel(): void
@@ -107,7 +96,6 @@ class LiberarOrdenesFelTamanhoTest extends TestCase
 
     public function test_validar_metricas_rechaza_saldo_marbete_cero_con_pedido(): void
     {
-        $m = $this->method('validarMetricasProduccionParaLiberacion');
         $r = new ReqProgramaTejido;
         $r->Id = 99;
         $r->NombreProducto = 'Test';
@@ -121,14 +109,13 @@ class LiberarOrdenesFelTamanhoTest extends TestCase
         $r->TotalRollos = 2;
         $r->TotalPzas = 40.0;
 
-        $msg = $m->invoke($this->controller, $r);
+        $msg = $this->validaciones->validarMetricasProduccionParaLiberacion($r);
         $this->assertNotNull($msg);
         $this->assertStringContainsStringIgnoringCase('marbetes', (string) $msg);
     }
 
     public function test_validar_metricas_pasa_con_pedido_y_metricas_completas(): void
     {
-        $m = $this->method('validarMetricasProduccionParaLiberacion');
         $r = new ReqProgramaTejido;
         $r->Id = 1;
         $r->NoTiras = 4;
@@ -144,32 +131,30 @@ class LiberarOrdenesFelTamanhoTest extends TestCase
         $r->LargoCrudo = 50;
         $r->Densidad = 1.5;
 
-        $this->assertNull($m->invoke($this->controller, $r));
+        $this->assertNull($this->validaciones->validarMetricasProduccionParaLiberacion($r));
     }
 
     public function test_validar_metricas_rechaza_saldo_pedido_cero_o_nulo(): void
     {
-        $m = $this->method('validarMetricasProduccionParaLiberacion');
         $r = new ReqProgramaTejido;
         $r->Id = 2;
         $r->NoTiras = 8;
         $r->SaldoPedido = 0;
         $r->SaldoMarbete = 10;
 
-        $msg = $m->invoke($this->controller, $r);
+        $msg = $this->validaciones->validarMetricasProduccionParaLiberacion($r);
         $this->assertNotNull($msg);
         $this->assertStringContainsStringIgnoringCase('saldo pedido', (string) $msg);
     }
 
     public function test_validar_metricas_rechaza_tiras_cero_o_nulas(): void
     {
-        $m = $this->method('validarMetricasProduccionParaLiberacion');
         $r = new ReqProgramaTejido;
         $r->Id = 3;
         $r->NoTiras = 0;
         $r->SaldoPedido = 800;
 
-        $msg = $m->invoke($this->controller, $r);
+        $msg = $this->validaciones->validarMetricasProduccionParaLiberacion($r);
         $this->assertNotNull($msg);
         $this->assertStringContainsStringIgnoringCase('tiras', (string) $msg);
     }
