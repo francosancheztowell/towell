@@ -218,8 +218,10 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
     const calibreRizo = datos.CalibreRizo2 || 0;
     const calibrePie = datos.CalibrePie2 || 0;
 
-    // Extraer el número de turno del valor del checkbox (ej: "rizo1" -> 1, "pie2" -> 2)
-    const numeroTurno = parseInt(valorCheckbox.replace(/\D/g, ''));
+    // El turno lo declara el propio checkbox. Antes se sacaba quitandole las letras
+    // al value ("rizo1" -> 1), y en Karl Mayer el tipo tambien es un numero, asi que
+    // la barra 2 del turno 1 ("21") mandaba turno 21 y el guardado fallaba con 422.
+    const numeroTurno = parseInt(checkbox.dataset.turno, 10);
 
     // Convertir fecha del formato dd/mm a formato ISO (YYYY-MM-DD)
     function convertirFecha(fechaTexto, fechaISOExistente) {

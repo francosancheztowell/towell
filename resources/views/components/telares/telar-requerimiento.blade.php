@@ -134,6 +134,7 @@
                                                 id="{{ $prefijoId }}_{{ $componente['tipo'] }}{{ $turno }}"
                                                 data-telar="{{ $telar->Telar }}"
                                                 data-tipo="{{ $componente['tipo'] }}"
+                                                data-turno="{{ $turno }}"
                                                 title="{{ $componente['etiqueta'] }}"
                                                 {{ !$puedeCrear ? 'disabled' : '' }}
                                             >
