@@ -103,16 +103,10 @@
     <!-- Header dinámico -->
     @if($isActive)
         <div class="inv-telas-rail bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 relative">
-            <!-- Separador superior -->
-            <div class="absolute top-0 left-0 right-0 "></div>
-
-            <div class="flex items-center justify-between">
-
-                <!-- Número del telar más prominente -->
-                <div class=" text-white px-5 py-2">
-                    <div class="text-4xl font-bold">{{ $telar->Telar }}</div>
-                </div>
-            </div>
+            @if($showSiguienteOrden && ! $esKarlMayer)
+                <div class="col-label center">SIG. ORDEN</div>
+            @endif
+            <div class="telar-number-label">{{ $telar->Telar }}</div>
         </div>
     @else
         <div>Telar sin proceso activo</div>

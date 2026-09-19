@@ -201,59 +201,7 @@
   }
 })();
 
-/** Inyectar etiqueta "SIG. ORDEN" y número del telar en la columna izquierda (no podemos tocar el componente interno) */
-(function(){
-  function placeLabels(){
-    document.querySelectorAll('.telar-section').forEach(section => {
-      const col = section.querySelector(':scope > .inv-telas-rail');
-      if(!col) return;
 
-      // Buscar o crear la etiqueta "SIG. ORDEN"
-      let center = col.querySelector('.col-label.center');
-      if(!center){
-        center = document.createElement('div');
-        center.className = 'col-label center mt-4';
-        center.textContent = 'SIG. ORDEN';
-        col.appendChild(center);
-      }
-
-      // Buscar o crear el número del telar debajo de "SIG. ORDEN"
-      let telarNumber = col.querySelector('.telar-number-label');
-      if(!telarNumber){
-        // Buscar el número del telar en el header (elemento con text-4xl font-bold)
-        let numeroTelar = null;
-        const header = section.querySelector(':scope > .inv-telas-rail');
-        if(header){
-          const numeroElement = header.querySelector('.text-4xl.font-bold');
-          if(numeroElement && numeroElement.textContent.trim()){
-            numeroTelar = numeroElement.textContent.trim();
-          }
-        }
-
-        // Si no se encuentra, intentar desde el ID de la sección padre
-        if(!numeroTelar){
-          const sectionParent = section.closest('[id^="telar-"]');
-          if(sectionParent){
-            const idMatch = sectionParent.id.match(/telar-(\d+)/);
-            if(idMatch){
-              numeroTelar = idMatch[1];
-            }
-          }
-        }
-
-        if(numeroTelar){
-          telarNumber = document.createElement('div');
-          telarNumber.className = 'telar-number-label';
-          telarNumber.textContent = numeroTelar;
-          col.appendChild(telarNumber);
-        }
-      }
-    });
-  }
-  window.addEventListener('load', placeLabels);
-  document.addEventListener('visibilitychange', () => { if(!document.hidden) placeLabels(); });
-  setTimeout(placeLabels, 300);
-})();
 </script>
 @endif
 @endsection

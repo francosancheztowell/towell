@@ -63,13 +63,6 @@
     background: linear-gradient(to bottom, #2563eb, #1d4ed8);
 }
 
-.inventario-telas-page .telar-section > .inv-telas-rail > .flex,
-.inventario-telas-page .telar-section > .inv-telas-rail > .absolute,
-.inventario-telas-page .telar-section > .inv-telas-rail .text-4xl,
-.inventario-telas-page .telar-section .col-label.bottom {
-    display: none !important;
-}
-
 .inventario-telas-page .telar-section:has(> .inv-telas-rail) > :not(.inv-telas-rail):not(.fixed):not([id^="modal"]) {
     margin-left: var(--inv-rail);
     min-width: 0;

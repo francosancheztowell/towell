@@ -153,13 +153,6 @@
 
 <!-- Modal de Selección -->
 @once
-<style>
-    /* Fechas anteriores a hoy en el calendario: encabezado en color naranja/ámbar */
-    th.calendario-fecha-anterior {
-        background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
-        border-left: 3px solid #b45309;
-    }
-</style>
 <div id="modalSeleccion" class="fixed inset-0 bg-black/40 bg-opacity-60 overflow-y-auto h-full w-full hidden z-50">
     <div class="relative mx-auto p-0 w-full max-w-2xl shadow-2xl rounded-xl bg-white transform transition-all">
         <!-- Header del Modal con gradiente -->
