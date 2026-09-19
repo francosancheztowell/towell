@@ -207,7 +207,6 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
         }
     }
 
-    const valorCheckbox = checkbox.value;
     const tipo = checkbox.dataset.tipo;
 
     // Usar datos pasados como parámetros (específicos de este telar)
@@ -796,7 +795,7 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
                 }
 
                 // Marcar checkbox
-                const valorEsperado = `${tipo}${reg.turno}`;
+                const turnoEsperado = String(reg.turno);
                 const checkboxes = tablaDestino.querySelectorAll(`input[data-telar="${telarId}"][data-tipo="${tipo}"]`);
 
                 if (checkboxes.length === 0) {
@@ -804,7 +803,7 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
                 }
 
                 checkboxes.forEach(cb => {
-                    if (cb.value === valorEsperado) {
+                    if (cb.dataset.turno === turnoEsperado) {
                         // NO marcar si el checkbox fue eliminado
                         if (cb.getAttribute('data-eliminado') === 'true') {
                             cb.checked = false;
@@ -1024,11 +1023,11 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
                 const fechaRegistroStr = `${y}-${m}-${d}`;
 
                 // Marcar checkbox
-                const valorEsperado = `${tipo}${reg.turno}`;
+                const turnoEsperado = String(reg.turno);
                 const checkboxes = tablaDestino.querySelectorAll(`input[data-telar="${telarId}"][data-tipo="${tipo}"]`);
 
                 checkboxes.forEach(cb => {
-                    if (cb.value === valorEsperado) {
+                    if (cb.dataset.turno === turnoEsperado) {
                         // NO marcar si el checkbox fue eliminado
                         if (cb.getAttribute('data-eliminado') === 'true') {
                             cb.checked = false;

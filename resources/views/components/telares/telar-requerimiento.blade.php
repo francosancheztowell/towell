@@ -99,41 +99,12 @@
             @endphp
 
             <table class="inv-telas-dia {{ $calendarTableClass }}">
-                <thead>
-                    <tr>
-                        <th colspan="{{ $turnos }}" class="{{ $calendarHeaderClass }}">
-                            <div class="text-xs leading-tight">{{ $fecha }}</div>
-                            <div class="text-xs opacity-75 leading-tight">{{ $diaSemana }}</div>
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        @for($turno = 1; $turno <= $turnos; $turno++)
-                            <td class="{{ $calendarCellClass }}">
-                                <div class="font-bold text-gray-700 mb-1 text-xs">{{ $turno }}</div>
-                                <div class="space-y-0.5">
-                                    @foreach($componentes as $componente)
-                                        <label class="block">
-                                            <input
-                                                type="checkbox"
-                                                name="{{ $componente['tipo'] }}{{ $turno }}"
-                                                class="{{ $claseTabla }}{{ $componente['tipo'] }} {{ $checkboxBaseClass }} {{ !$puedeCrear ? $checkboxDisabledClass : '' }}"
-                                                value="{{ $componente['tipo'] }}{{ $turno }}"
-                                                id="{{ $prefijoId }}_{{ $componente['tipo'] }}{{ $turno }}"
-                                                data-telar="{{ $telar->Telar }}"
-                                                data-tipo="{{ $componente['tipo'] }}"
-                                                data-turno="{{ $turno }}"
-                                                title="{{ $componente['etiqueta'] }}"
-                                                {{ !$puedeCrear ? 'disabled' : '' }}
-                                            >
-                                        </label>
-                                    @endforeach
-                                </div>
-                            </td>
-                        @endfor
-                    </tr>
-                </tbody>
+                <thead><tr><th colspan="{{ $turnos }}" class="{{ $calendarHeaderClass }}"><div class="text-xs leading-tight">{{ $fecha }}</div><div class="text-xs opacity-75 leading-tight">{{ $diaSemana }}</div></th></tr></thead>
+                <tbody><tr>
+                    @for($turno = 1; $turno <= $turnos; $turno++)
+                        <td class="{{ $calendarCellClass }}"><div class="font-bold text-gray-700 mb-1 text-xs">{{ $turno }}</div><div class="space-y-0.5">@foreach($componentes as $componente)<label class="block"><input type="checkbox" class="{{ $checkboxBaseClass }} {{ !$puedeCrear ? $checkboxDisabledClass : '' }}" id="{{ $prefijoId }}_{{ $componente['tipo'] }}{{ $turno }}" data-telar="{{ $telar->Telar }}" data-tipo="{{ $componente['tipo'] }}" data-turno="{{ $turno }}" title="{{ $componente['etiqueta'] }}" {{ !$puedeCrear ? 'disabled' : '' }}></label>@endforeach</div></td>
+                    @endfor
+                </tr></tbody>
             </table>
         @endfor
             </div>
