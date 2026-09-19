@@ -1,6 +1,12 @@
 /**
  * Inventario de telas (Jacquard / Itema / Karl Mayer).
  *
+ * Sin !important: Tailwind v4 declara sus utilidades dentro de @layer utilities y
+ * este archivo va fuera de capa, asi que la cascada ya le da prioridad. Se quitaron
+ * los 46 que habia y el render no se movio ni un pixel (638 elementos comparados a
+ * 1920 y a 800 px). Si hace falta escribir uno, revisar primero si el conflicto es
+ * con otra regla de este mismo archivo.
+ *
  * Densidad de las tabletas actuales (~1180–1280 px): tipografía, riel y días
  * del calendario se topean a ese tamaño. En anchos menores se comprime para
  * que la tarjeta quepa sin scroll horizontal (antes el calendario iba a 108 %
@@ -42,14 +48,14 @@
     bottom: 0;
     left: 0;
     z-index: 1;
-    display: flex !important;
+    display: flex;
     width: var(--inv-rail);
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    padding: 0.5rem 0 0 !important;
+    padding: 0.5rem 0 0;
     border-right: 1px solid #e5e7eb;
-    background: linear-gradient(to bottom, #2563eb, #1d4ed8) !important;
+    background: linear-gradient(to bottom, #2563eb, #1d4ed8);
 }
 
 .inventario-telas-page .telar-section > .inv-telas-rail::before {
@@ -69,7 +75,7 @@
 }
 
 .inventario-telas-page .telar-section > .p-3 {
-    padding: var(--inv-pad) !important;
+    padding: var(--inv-pad);
 }
 
 .inventario-telas-page .telar-section .col-label {
@@ -107,15 +113,15 @@
 
 .inventario-telas-page .telar-section > div > .bg-gray-200 {
     height: 1px;
-    padding: 0 !important;
-    background: #e5e7eb !important;
+    padding: 0;
+    background: #e5e7eb;
 }
 
 .inventario-telas-page .inv-telas-proceso-grid,
 .inventario-telas-page .inv-telas-sig-grid {
-    display: grid !important;
+    display: grid;
     min-width: 0;
-    gap: 0.2rem var(--inv-gap) !important;
+    gap: 0.2rem var(--inv-gap);
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -131,21 +137,21 @@
 
 .inventario-telas-page .inv-telas-proceso-grid .space-y-2,
 .inventario-telas-page .inv-telas-sig-grid .space-y-2 {
-    display: flex !important;
-    height: auto !important;
-    flex-direction: column !important;
-    gap: 0.15rem !important;
-    justify-content: flex-start !important;
+    display: flex;
+    height: auto;
+    flex-direction: column;
+    gap: 0.15rem;
+    justify-content: flex-start;
 }
 
 .inventario-telas-page .inv-telas-proceso-grid .space-y-2 > div,
 .inventario-telas-page .inv-telas-sig-grid .space-y-2 > div {
-    display: flex !important;
+    display: flex;
     min-width: 0;
-    min-height: 0 !important;
-    align-items: center !important;
-    padding: 0.1rem 0 !important;
-    gap: 0.35rem !important;
+    min-height: 0;
+    align-items: center;
+    padding: 0.1rem 0;
+    gap: 0.35rem;
 }
 
 .inventario-telas-page .inv-telas-proceso-grid,
@@ -158,14 +164,14 @@
 .inventario-telas-page .inv-telas-proceso-grid .text-sm,
 .inventario-telas-page .inv-telas-sig-grid .text-sm,
 .inventario-telas-page .inv-telas-req .text-sm {
-    font-size: var(--inv-text) !important;
+    font-size: var(--inv-text);
     line-height: 1.25;
 }
 
 .inventario-telas-page .inv-telas-proceso-grid .text-xs,
 .inventario-telas-page .inv-telas-sig-grid .text-xs,
 .inventario-telas-page .inv-telas-calendario .text-xs {
-    font-size: var(--inv-text-xs) !important;
+    font-size: var(--inv-text-xs);
     line-height: 1.2;
 }
 
@@ -176,15 +182,15 @@
 }
 
 .inventario-telas-page .inv-telas-req {
-    padding: var(--inv-pad) !important;
+    padding: var(--inv-pad);
 }
 
 .inventario-telas-page .inv-telas-req-row {
-    display: flex !important;
+    display: flex;
     min-width: 0;
-    flex-direction: row !important;
+    flex-direction: row;
     flex-wrap: nowrap;
-    align-items: stretch !important;
+    align-items: stretch;
     gap: var(--inv-gap);
 }
 
@@ -195,17 +201,17 @@
     flex: 0 0 auto;
     flex-direction: column;
     justify-content: center;
-    margin-top: 0 !important;
-    margin-right: 0 !important;
-    margin-bottom: 0 !important;
-    padding: clamp(0.4rem, 0.7vw, 0.75rem) !important;
+    margin-top: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    padding: clamp(0.4rem, 0.7vw, 0.75rem);
 }
 
 .inventario-telas-page .inv-telas-cuentas-list {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.35rem !important;
-    font-size: var(--inv-text) !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: var(--inv-text);
 }
 
 .inventario-telas-page .inv-telas-cal-wrap {
@@ -220,29 +226,29 @@
 }
 
 .inventario-telas-page .inv-telas-calendario {
-    display: grid !important;
+    display: grid;
     width: 100%;
     min-width: 0;
-    padding-bottom: 0 !important;
-    overflow: hidden !important;
-    transform: none !important;
+    padding-bottom: 0;
+    overflow: hidden;
+    transform: none;
     justify-content: start;
-    gap: 0.2rem !important;
+    gap: 0.2rem;
     grid-template-columns: repeat(7, minmax(0, var(--inv-dia)));
 }
 
 .inventario-telas-page .inv-telas-dia {
-    width: 100% !important;
+    width: 100%;
     max-width: var(--inv-dia);
-    min-width: 0 !important;
-    flex-shrink: 1 !important;
+    min-width: 0;
+    flex-shrink: 1;
     table-layout: fixed;
 }
 
 .inventario-telas-page .inv-telas-dia th,
 .inventario-telas-page .inv-telas-dia td {
-    min-width: 0 !important;
-    padding: 0.2rem 0.1rem !important;
+    min-width: 0;
+    padding: 0.2rem 0.1rem;
 }
 
 .inventario-telas-page .inv-telas-calendario input[type="checkbox"] {
@@ -261,7 +267,7 @@
 }
 
 .inventario-telas-page .inv-telas-calendario th.calendario-fecha-anterior {
-    background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
     border-left: 3px solid #b45309;
 }
 
@@ -270,7 +276,7 @@
    peleaba el ancho con las cuentas. */
 @media (max-width: 899px) {
     .inventario-telas-page .inv-telas-req-row {
-        flex-direction: column !important;
+        flex-direction: column;
     }
 
     .inventario-telas-page .inv-telas-cuentas {
@@ -279,9 +285,9 @@
     }
 
     .inventario-telas-page .inv-telas-cuentas-list {
-        flex-direction: row !important;
+        flex-direction: row;
         flex-wrap: wrap;
-        gap: 0.75rem !important;
+        gap: 0.75rem;
     }
 
     .inventario-telas-page .inv-telas-calendario {
