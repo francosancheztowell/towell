@@ -131,18 +131,6 @@
                         <span class="{{ $labelClass }}">Tiras:</span>
                         <span class="{{ $valueClass }}">{{ $telar->Tiras ?? '-' }}</span>
                     </div>
-                    @unless($esKarlMayer)
-                        <div class="{{ $rowClass }}">
-                            <span class="{{ $labelClass }}">Tamaño:</span>
-                            <span class="{{ $valueClass }}">{{ $telar->Tamano_AX ?? '-' }}</span>
-                        </div>
-                    @endunless
-                    @unless($esKarlMayer)
-                        <div class="{{ $rowClass }}">
-                            <span class="{{ $labelClass }}">Artículo:</span>
-                            <span class="{{ $valueClass }}">{{ ($telar->ItemId ?? '') . ' ' . ($telar->Nombre_Producto ?? '') }}</span>
-                        </div>
-                    @endunless
                 </div>
 
                 <!-- Especificaciones Técnicas -->
@@ -177,18 +165,6 @@
                             </span>
                         </div>
                     @endif
-                    @unless($esKarlMayer)
-                        <div class="{{ $rowClass }}">
-                            <span class="{{ $labelClass }}">Pedido:</span>
-                            <span class="{{ $valueClass }}">{{ $formatPedido($telar->Saldos ?? null) }}</span>
-                        </div>
-                    @endunless
-                    @unless($esKarlMayer)
-                        <div class="{{ $rowClass }}">
-                            <span class="{{ $labelClass }}">Producción:</span>
-                            <span class="{{ $valueClass }}">{{ $telar->Prod_Kg_Dia ?? '-' }}</span>
-                        </div>
-                    @endunless
                 </div>
 
                 <!-- Información Adicional -->
@@ -240,9 +216,8 @@
                 </div>
             </div>
 
-            @if($esKarlMayer)
-                {{-- Los cuatro datos del pedido, en un renglon al pie: ocupaban una fila
-                     cada uno dentro de columnas donde no aportaban nada. --}}
+            {{-- Los cuatro datos del pedido, en un renglon al pie: ocupaban una fila
+                 cada uno dentro de columnas donde no aportaban nada. --}}
                 <div class="inv-telas-pie-grid mt-2 grid grid-cols-2 min-[900px]:grid-cols-4 gap-4 border-t border-gray-200 pt-2">
                     <div class="{{ $rowClass }}">
                         <span class="{{ $labelClass }}">Artículo:</span>
@@ -261,7 +236,6 @@
                         <span class="{{ $valueClass }}">{{ $telar->Prod_Kg_Dia ?? '-' }}</span>
                     </div>
                 </div>
-            @endif
         </div>
 
         @if($showSiguienteOrden && ! $esKarlMayer)
