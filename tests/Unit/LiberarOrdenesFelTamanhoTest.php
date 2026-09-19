@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\Liberar\LiberarMarbetesCalculator;
 use ReflectionClass;
 use ReflectionMethod;
 use Tests\TestCase;
@@ -12,10 +13,13 @@ class LiberarOrdenesFelTamanhoTest extends TestCase
 {
     private LiberarOrdenesController $controller;
 
+    private LiberarMarbetesCalculator $calculator;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->controller = new LiberarOrdenesController;
+        $this->calculator = new LiberarMarbetesCalculator;
     }
 
     private function method(string $name): ReflectionMethod
@@ -29,25 +33,21 @@ class LiberarOrdenesFelTamanhoTest extends TestCase
 
     public function test_es_invent_size_fel_es_cierto_cuando_la_cadena_contiene_fel(): void
     {
-        $m = $this->method('esInventSizeFel');
-
-        $this->assertTrue($m->invoke($this->controller, 'XFEL-40'));
-        $this->assertTrue($m->invoke($this->controller, 'fel'));
-        $this->assertFalse($m->invoke($this->controller, ''));
-        $this->assertFalse($m->invoke($this->controller, null));
-        $this->assertFalse($m->invoke($this->controller, 'STD'));
+        $this->assertTrue($this->calculator->esInventSizeFel('XFEL-40'));
+        $this->assertTrue($this->calculator->esInventSizeFel('fel'));
+        $this->assertFalse($this->calculator->esInventSizeFel(''));
+        $this->assertFalse($this->calculator->esInventSizeFel(null));
+        $this->assertFalse($this->calculator->esInventSizeFel('STD'));
     }
 
     public function test_aplicar_ajuste_fel_tamanho_duplica_saldo_y_divide_mts_y_pzas(): void
     {
-        $m = $this->method('aplicarAjusteFelTamanho');
-
         $inventSizeId = 'MODELO-FEL';
         $saldo = 10;
         $mts = 100.0;
         $pzas = 400.0;
 
-        $m->invokeArgs($this->controller, [$inventSizeId, &$saldo, &$mts, &$pzas]);
+        $this->calculator->aplicarAjusteFelTamanho($inventSizeId, $saldo, $mts, $pzas);
 
         $this->assertSame(20, $saldo);
         $this->assertSame(50.0, $mts);
@@ -56,14 +56,12 @@ class LiberarOrdenesFelTamanhoTest extends TestCase
 
     public function test_aplicar_ajuste_fel_tamanho_sin_fel_no_modifica(): void
     {
-        $m = $this->method('aplicarAjusteFelTamanho');
-
         $inventSizeId = 'NORMAL';
         $saldo = 10;
         $mts = 100.0;
         $pzas = 400.0;
 
-        $m->invokeArgs($this->controller, [$inventSizeId, &$saldo, &$mts, &$pzas]);
+        $this->calculator->aplicarAjusteFelTamanho($inventSizeId, $saldo, $mts, $pzas);
 
         $this->assertSame(10, $saldo);
         $this->assertSame(100.0, $mts);
@@ -78,18 +76,15 @@ class LiberarOrdenesFelTamanhoTest extends TestCase
      */
     public function test_ajuste_fel_de_pzas_es_independiente_del_de_mts(): void
     {
-        $mPzas = $this->method('aplicarAjusteFelPzasRollo');
-        $mMts = $this->method('aplicarAjusteFelMtsRollo');
-
         // Repeticiones 73 × NoTiras 2, recalculado siempre en servidor.
         $pzas = 146.0;
-        $mPzas->invokeArgs($this->controller, ['FEL', &$pzas]);
+        $this->calculator->aplicarAjusteFelPzasRollo('FEL', $pzas);
         $this->assertSame(73.0, $pzas);
 
         // MtsRollo que llegó del request ya dividido: no debe volver a dividirse,
         // por eso liberar() ni siquiera llama al ajuste en ese caso.
         $mts = 37.23;
-        $mMts->invokeArgs($this->controller, ['NORMAL', &$mts]);
+        $this->calculator->aplicarAjusteFelMtsRollo('NORMAL', $mts);
         $this->assertSame(37.23, $mts);
 
         // TotalPzas = TotalRollos × PzasRollo ya ajustado.
@@ -98,15 +93,12 @@ class LiberarOrdenesFelTamanhoTest extends TestCase
 
     public function test_aplicar_ajuste_fel_saldo_y_mts_pzas_en_dos_llamadas(): void
     {
-        $mSaldo = $this->method('aplicarAjusteFelSaldoMarbete');
-        $mMts = $this->method('aplicarAjusteFelMtsYpzas');
-
         $saldo = 5;
         $mts = 80.0;
         $pzas = 320.0;
 
-        $mSaldo->invokeArgs($this->controller, ['FEL', &$saldo]);
-        $mMts->invokeArgs($this->controller, ['FEL', &$mts, &$pzas]);
+        $this->calculator->aplicarAjusteFelSaldoMarbete('FEL', $saldo);
+        $this->calculator->aplicarAjusteFelMtsYpzas('FEL', $mts, $pzas);
 
         $this->assertSame(10, $saldo);
         $this->assertSame(40.0, $mts);
@@ -184,17 +176,14 @@ class LiberarOrdenesFelTamanhoTest extends TestCase
 
     public function test_obtener_peso_rollo_felpa_es_90_desde_tamano_clave(): void
     {
-        $m = $this->method('obtenerPesoRollo');
         $r = new ReqProgramaTejido;
         $r->TamanoClave = 'FELPA6598';
 
-        $this->assertSame(90.0, $m->invoke($this->controller, $r));
+        $this->assertSame(90.0, $this->calculator->obtenerPesoRollo($r));
     }
 
     public function test_aplicar_ajuste_fel_tamanho_para_felpa_sin_string_fel_en_inventsize(): void
     {
-        $m = $this->method('aplicarAjusteFelTamanho');
-
         $r = new ReqProgramaTejido;
         $r->TamanoClave = 'FELPA123';
         $r->NombreProducto = 'X';
@@ -205,7 +194,7 @@ class LiberarOrdenesFelTamanhoTest extends TestCase
         $mts = 100.0;
         $pzas = 400.0;
 
-        $m->invokeArgs($this->controller, [$inventSizeId, &$saldo, &$mts, &$pzas, $r]);
+        $this->calculator->aplicarAjusteFelTamanho($inventSizeId, $saldo, $mts, $pzas, $r);
 
         $this->assertSame(22, $saldo);
         $this->assertSame(50.0, $mts);
