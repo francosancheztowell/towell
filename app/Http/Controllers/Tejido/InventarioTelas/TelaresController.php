@@ -13,51 +13,19 @@ class TelaresController extends Controller
      */
     public function inventarioJacquard()
     {
-        $telaresOrdenados = $this->getSecuenciaTelares(['JACQUARD']); // pluck NoTelar por Secuencia
-        $datosTelaresCompletos = [];
+        $telares = $this->getSecuenciaTelares(['JACQUARD']);
+        $datos = $this->cargarTelares(['JACQUARD'], $telares);
 
-        foreach ($telaresOrdenados as $numeroTelar) {
-            $salones = ['JACQUARD'];
-            $candidatos = [$numeroTelar];
-
-            $telarEnProceso = $this->fetchTelarEnProceso($salones, $candidatos);
-            $ordenSig = null;
-
-            if ($telarEnProceso && $telarEnProceso->en_proceso) {
-                // Si hay telar en proceso, buscar siguiente orden usando su posición (secuencia)
-                $posicionActual = isset($telarEnProceso->Posicion) ? (int) $telarEnProceso->Posicion : null;
-
-                $ordenSig = $this->fetchSiguienteOrden(
-                    $salones,
-                    $numeroTelar,
-                    $telarEnProceso->Inicio_Tejido ?? null,
-                    $telarEnProceso->ProgramaId ?? null,
-                    $posicionActual
-                );
-
-                // Si no encuentra con posición, buscar cualquier orden disponible
-                if (! $ordenSig) {
-                    $ordenSig = $this->fetchPrimeraOrdenDisponible($salones, $numeroTelar);
-                }
-            } else {
-                // Si no hay proceso, buscar la primera orden disponible (más próxima)
-                $telarEnProceso = $this->objTelarVacio($numeroTelar);
-                $ordenSig = $this->fetchPrimeraOrdenDisponible($salones, $numeroTelar);
+        foreach ($this->ultimosJuliosPorTelar($telares) as $telar => $julios) {
+            if (isset($datos[$telar])) {
+                $datos[$telar]['telarData']->ultimoJulioRizo = $julios['Rizo'];
+                $datos[$telar]['telarData']->ultimoJulioPie = $julios['Pie'];
             }
-
-            $julios = $this->ultimoJulioRizoPiePorTelar($numeroTelar);
-            $telarEnProceso->ultimoJulioRizo = $julios['ultimoJulioRizo'];
-            $telarEnProceso->ultimoJulioPie = $julios['ultimoJulioPie'];
-
-            $datosTelaresCompletos[$numeroTelar] = [
-                'telarData' => $telarEnProceso,
-                'ordenSig' => $ordenSig,
-            ];
         }
 
         return view('modulos/tejido/inventario-telas/inventario-telas', [
-            'telares' => $telaresOrdenados,
-            'datosTelaresCompletos' => $datosTelaresCompletos,
+            'telares' => $telares,
+            'datosTelaresCompletos' => $datos,
             'tipoInventario' => 'jacquard',
         ]);
     }
@@ -136,65 +104,134 @@ class TelaresController extends Controller
 
     /**
      * Inventario de telares Karl Mayer (vista)
-     * Ordenado por la tabla InvSecuenciaTelares
+     *
+     * InvSecuenciaTelares no tiene renglones KARL MAYER (solo ITEMA/JACQUARD/SMIT),
+     * asi que la secuencia sale vacia y se completa con los telares del
+     * departamento en ReqProgramaTejido (401, 402, ...).
      */
     public function inventarioKarlMayer()
     {
-        // InvSecuenciaTelares no tiene renglones KARL MAYER (solo ITEMA/JACQUARD/SMIT),
-        // asi que la secuencia sale vacia y la vista no mostraba nada. Los telares se
-        // completan con los del departamento en ReqProgramaTejido (401, 402, ...).
-        $telaresOrdenados = $this->getSecuenciaTelares(['KARL MAYER']);
-        $telaresProgramados = DB::table('ReqProgramaTejido')
-            ->where('SalonTejidoId', 'KARL MAYER')
-            ->distinct()
-            ->orderBy('NoTelarId')
-            ->pluck('NoTelarId')
-            ->toArray();
-        $telaresOrdenados = array_values(array_unique(array_merge($telaresOrdenados, $telaresProgramados)));
+        $telares = array_values(array_unique(array_merge(
+            $this->getSecuenciaTelares(['KARL MAYER']),
+            DB::table('ReqProgramaTejido')
+                ->where('SalonTejidoId', 'KARL MAYER')
+                ->distinct()
+                ->orderBy('NoTelarId')
+                ->pluck('NoTelarId')
+                ->toArray()
+        )));
 
-        $datosTelaresCompletos = [];
+        $datos = $this->cargarTelares(['KARL MAYER'], $telares);
 
-        foreach ($telaresOrdenados as $numeroTelar) {
-            $salones = ['KARL MAYER'];
-            $candidatos = [$numeroTelar];
-
-            $telarEnProceso = $this->fetchTelarEnProceso($salones, $candidatos);
-            $ordenSig = null;
-
-            if ($telarEnProceso && $telarEnProceso->en_proceso) {
-                $posicionActual = isset($telarEnProceso->Posicion) ? (int) $telarEnProceso->Posicion : null;
-                $ordenSig = $this->fetchSiguienteOrden(
-                    $salones,
-                    $numeroTelar,
-                    $telarEnProceso->Inicio_Tejido ?? null,
-                    $telarEnProceso->ProgramaId ?? null,
-                    $posicionActual
-                );
-                // Si no encuentra con posición, buscar cualquier orden disponible
-                if (! $ordenSig) {
-                    $ordenSig = $this->fetchPrimeraOrdenDisponible($salones, $numeroTelar);
-                }
-            } else {
-                $telarEnProceso = $this->objTelarVacio($numeroTelar);
-                $ordenSig = $this->fetchPrimeraOrdenDisponible($salones, $numeroTelar);
+        // KM no teje rizo/pie: las cuatro barras reemplazan a los julios en la vista.
+        foreach ($this->barrasKarlMayerPorTelar($telares) as $telar => $barras) {
+            if (isset($datos[$telar])) {
+                $datos[$telar]['telarData']->barras = $barras;
             }
-
-            $julios = $this->ultimoJulioRizoPiePorTelar($numeroTelar);
-            $telarEnProceso->ultimoJulioRizo = $julios['ultimoJulioRizo'];
-            $telarEnProceso->ultimoJulioPie = $julios['ultimoJulioPie'];
-            $telarEnProceso->barras = $this->barrasKarlMayerPorTelar($numeroTelar);
-
-            $datosTelaresCompletos[$numeroTelar] = [
-                'telarData' => $telarEnProceso,
-                'ordenSig' => $ordenSig,
-            ];
         }
 
         return view('modulos/tejido/inventario-telas/inventario-telas', [
-            'telares' => $telaresOrdenados,
-            'datosTelaresCompletos' => $datosTelaresCompletos,
+            'telares' => $telares,
+            'datosTelaresCompletos' => $datos,
             'tipoInventario' => 'karl-mayer',
         ]);
+    }
+
+    /**
+     * Carga el programa de varios telares en una sola consulta.
+     *
+     * Antes cada telar disparaba 4-6 queries dentro de un foreach (95 en Jacquard).
+     * Aqui se trae todo el programa de los salones de golpe y el "en proceso" y la
+     * "siguiente orden" se resuelven en memoria con las mismas reglas de antes:
+     * en proceso = EnProceso 1 mas reciente; siguiente = la pendiente con Posicion
+     * mayor, y si no hay, la primera pendiente por Posicion o por FechaInicio.
+     *
+     * @param  array<int, mixed>  $telares
+     * @return array<mixed, array{telarData: object, ordenSig: object|null}>
+     */
+    private function cargarTelares(array $salones, array $telares): array
+    {
+        if ($telares === []) {
+            return [];
+        }
+
+        $programa = DB::table('ReqProgramaTejido')
+            ->whereIn('SalonTejidoId', $salones)
+            ->whereIn('NoTelarId', $telares)
+            ->select(array_merge($this->selectColsProceso(), ['EntregaCte as Entrega']))
+            ->get()
+            ->groupBy(fn ($fila) => (string) $fila->Telar);
+
+        $datos = [];
+
+        foreach ($telares as $telar) {
+            $filas = $programa[(string) $telar] ?? collect();
+
+            $enProceso = $filas->filter(fn ($f) => (int) $f->en_proceso === 1)
+                ->sortByDesc(fn ($f) => [(string) $f->Inicio_Tejido, (int) $f->ProgramaId])
+                ->first();
+
+            $pendientes = $filas->filter(fn ($f) => (int) $f->en_proceso !== 1);
+
+            if ($enProceso) {
+                $posicion = (int) ($enProceso->Posicion ?? 0);
+                $ordenSig = $this->ordenarPendientes(
+                    $pendientes->filter(fn ($f) => $f->Posicion !== null && (int) $f->Posicion > $posicion)
+                ) ?: $this->primeraPendiente($pendientes);
+            } else {
+                $enProceso = $this->objTelarVacio($telar);
+                $ordenSig = $this->primeraPendiente($pendientes);
+            }
+
+            $datos[$telar] = ['telarData' => $enProceso, 'ordenSig' => $ordenSig];
+        }
+
+        return $datos;
+    }
+
+    /** Pendiente mas proxima por Posicion, y si ninguna la tiene, por FechaInicio. */
+    private function primeraPendiente($pendientes)
+    {
+        return $this->ordenarPendientes($pendientes->filter(fn ($f) => $f->Posicion !== null))
+            ?: $this->ordenarPendientes($pendientes->filter(fn ($f) => $f->Inicio_Tejido !== null));
+    }
+
+    private function ordenarPendientes($pendientes)
+    {
+        return $pendientes
+            ->sortBy(fn ($f) => [(int) ($f->Posicion ?? PHP_INT_MAX), (string) $f->Inicio_Tejido, (int) $f->ProgramaId])
+            ->first();
+    }
+
+    /**
+     * Ultimo julio de rizo y pie de varios telares en una sola consulta.
+     *
+     * @return array<mixed, array{Rizo: ?string, Pie: ?string}>
+     */
+    private function ultimosJuliosPorTelar(array $telares): array
+    {
+        if ($telares === []) {
+            return [];
+        }
+
+        $ultimos = DB::table('AtaMontadoTelas')
+            ->whereIn('NoTelarId', array_map('strval', $telares))
+            ->whereIn('Tipo', ['Rizo', 'Pie'])
+            ->select('NoTelarId', 'Tipo', 'NoJulio', DB::raw(
+                'ROW_NUMBER() OVER (PARTITION BY NoTelarId, Tipo ORDER BY CAST(Fecha AS DATE) DESC, Id DESC) AS rn'
+            ));
+
+        $julios = array_fill_keys($telares, ['Rizo' => null, 'Pie' => null]);
+
+        foreach (DB::query()->fromSub($ultimos, 'u')->where('rn', 1)->get() as $fila) {
+            foreach ($telares as $telar) {
+                if ((string) $telar === (string) $fila->NoTelarId) {
+                    $julios[$telar][$fila->Tipo] = $fila->NoJulio !== '' ? (string) $fila->NoJulio : null;
+                }
+            }
+        }
+
+        return $julios;
     }
 
     /**
@@ -408,15 +445,6 @@ class TelaresController extends Controller
             'EntregaCte as Entrega',
         ];
 
-        // Ver todas las órdenes del telar (en proceso y no en proceso)
-        $todasOrdenes = DB::table('ReqProgramaTejido')
-            ->whereIn('SalonTejidoId', $salones)
-            ->where('NoTelarId', $noTelarId)
-            ->select('Id', 'EnProceso', 'Posicion', 'NoProduccion', 'FechaInicio')
-            ->orderBy('Posicion', 'asc')
-            ->orderBy('FechaInicio', 'asc')
-            ->get();
-
         // Si hay posición actual, buscar por secuencia (Posicion mayor a la actual)
         if (! is_null($posicionActual) && $posicionActual > 0) {
             // Intentar buscar con Posicion mayor primeroggg
@@ -540,78 +568,6 @@ class TelaresController extends Controller
     }
 
     /**
-     * Obtener la primera orden disponible para un telar (cuando no hay proceso actual).
-     */
-    private function fetchPrimeraOrdenDisponible(array $salones, $noTelarId, ?array $select = null)
-    {
-        $select = $select ?: [
-            'NoTelarId as Telar',
-            'NoProduccion as Orden_Prod',
-            'ItemId as ItemId',
-            'TamanoClave as Tamano_AX',
-            'NombreProducto as Nombre_Producto',
-            'CuentaRizo as Cuenta',
-            'CalibreRizo2',
-            'FibraRizo as Fibra_Rizo',
-            'CuentaPie as Cuenta_Pie',
-            'CalibrePie2',
-            'FibraPie as Fibra_Pie',
-            'TotalPedido as Saldos',
-            'FechaInicio as Inicio_Tejido',
-            'EntregaCte as Entrega',
-        ];
-
-        // Buscar ordenada por Posicion (secuencia), luego por fecha
-        // IMPORTANTE: EnProceso puede ser NULL, no solo 0
-        $orden = DB::table('ReqProgramaTejido')
-            ->whereIn('SalonTejidoId', $salones)
-            ->where('NoTelarId', $noTelarId)
-            ->where(function ($q) {
-                $q->where('EnProceso', 0)
-                    ->orWhereNull('EnProceso');
-            })
-            ->whereNotNull('Posicion')
-            ->select($select)
-            ->orderBy('Posicion', 'asc')
-            ->orderBy('FechaInicio', 'asc')
-            ->orderBy('Id', 'asc')
-            ->first();
-
-        // Si no encuentra con Posicion, buscar con FechaInicio
-        if (! $orden) {
-            $orden = DB::table('ReqProgramaTejido')
-                ->whereIn('SalonTejidoId', $salones)
-                ->where('NoTelarId', $noTelarId)
-                ->where(function ($q) {
-                    $q->where('EnProceso', 0)
-                        ->orWhereNull('EnProceso');
-                })
-                ->whereNotNull('FechaInicio')
-                ->select($select)
-                ->orderBy('FechaInicio', 'asc')
-                ->orderBy('Id', 'asc')
-                ->first();
-        }
-
-        // Si aún no encuentra, buscar sin restricciones
-        if (! $orden) {
-            $orden = DB::table('ReqProgramaTejido')
-                ->whereIn('SalonTejidoId', $salones)
-                ->where('NoTelarId', $noTelarId)
-                ->where(function ($q) {
-                    $q->where('EnProceso', 0)
-                        ->orWhereNull('EnProceso');
-                })
-                ->select($select)
-                ->orderBy('Id', 'asc')
-                ->first();
-
-        }
-
-        return $orden;
-    }
-
-    /**
      * Obtener la primera orden disponible usando candidatos (para ITEMA).
      */
     private function fetchPrimeraOrdenDisponibleConCandidatos(array $salones, array $candidatos, ?array $select = null)
@@ -718,24 +674,34 @@ class TelaresController extends Controller
     }
 
     /**
-     * Barras 1-4 montadas en un telar Karl Mayer.
+     * Barras 1-4 montadas en varios telares Karl Mayer, en una sola consulta.
      *
      * KM no teje rizo/pie: son cuatro barras y UrdProgramaUrdido las guarda en la
-     * misma columna RizoPie ('1'..'4' en vez de 'Rizo'/'Pie'). Se toma el ultimo
-     * registro de cada barra.
+     * misma columna RizoPie ('1'..'4' en vez de 'Rizo'/'Pie').
      *
-     * @return array<int, object|null>
+     * @return array<mixed, array<int, object|null>>
      */
-    private function barrasKarlMayerPorTelar($numeroTelar): array
+    private function barrasKarlMayerPorTelar(array $telares): array
     {
-        $barras = [];
+        if ($telares === []) {
+            return [];
+        }
 
-        foreach ([1, 2, 3, 4] as $barra) {
-            $barras[$barra] = DB::table('UrdProgramaUrdido')
-                ->where('NoTelarId', (string) $numeroTelar)
-                ->where('RizoPie', (string) $barra)
-                ->orderByDesc('Id')
-                ->first(['Cuenta', 'Calibre', 'Fibra', 'Folio', 'Status']);
+        $ultimas = DB::table('UrdProgramaUrdido')
+            ->whereIn('NoTelarId', array_map('strval', $telares))
+            ->whereIn('RizoPie', ['1', '2', '3', '4'])
+            ->select('NoTelarId', 'RizoPie', 'Cuenta', 'Calibre', 'Fibra', 'Folio', 'Status', DB::raw(
+                'ROW_NUMBER() OVER (PARTITION BY NoTelarId, RizoPie ORDER BY Id DESC) AS rn'
+            ));
+
+        $barras = array_fill_keys($telares, [1 => null, 2 => null, 3 => null, 4 => null]);
+
+        foreach (DB::query()->fromSub($ultimas, 'u')->where('rn', 1)->get() as $fila) {
+            foreach ($telares as $telar) {
+                if ((string) $telar === (string) $fila->NoTelarId) {
+                    $barras[$telar][(int) $fila->RizoPie] = $fila;
+                }
+            }
         }
 
         return $barras;
