@@ -135,6 +135,25 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+/* Karl Mayer lee mejor con las fechas antes que las barras: se intercambian la
+   segunda y la tercera columna sin tocar el orden del markup. Las cuatro llevan
+   order porque una columna sin declararlo se iria al principio. */
+.inventario-telas-page .telar-section[data-salon="Karl Mayer"] .inv-telas-proceso-grid > div:nth-child(1) {
+    order: 1;
+}
+
+.inventario-telas-page .telar-section[data-salon="Karl Mayer"] .inv-telas-proceso-grid > div:nth-child(2) {
+    order: 3;
+}
+
+.inventario-telas-page .telar-section[data-salon="Karl Mayer"] .inv-telas-proceso-grid > div:nth-child(3) {
+    order: 2;
+}
+
+.inventario-telas-page .telar-section[data-salon="Karl Mayer"] .inv-telas-proceso-grid > div:nth-child(4) {
+    order: 4;
+}
+
 @media (min-width: 900px) {
     .inventario-telas-page .inv-telas-proceso-grid {
         grid-template-columns: repeat(4, minmax(0, 1fr));

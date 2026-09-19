@@ -138,6 +138,10 @@
                     <div class="{{ $rowClass }}">
                         <span class="{{ $labelClass }}">Artículo:</span>
                         <span class="{{ $valueClass }}">{{ ($telar->ItemId ?? '') . ' ' . ($telar->Nombre_Producto ?? '') }}</span>
+                        @if($esKarlMayer)
+                            <span class="{{ $labelClass }} ml-4">Producción:</span>
+                            <span class="{{ $valueClass }}">{{ $telar->Prod_Kg_Dia ?? '-' }}</span>
+                        @endif
                     </div>
                 </div>
 
@@ -177,10 +181,12 @@
                         <span class="{{ $labelClass }}">Pedido:</span>
                         <span class="{{ $valueClass }}">{{ $formatPedido($telar->Saldos ?? null) }}</span>
                     </div>
-                    <div class="{{ $rowClass }}">
-                        <span class="{{ $labelClass }}">Producción:</span>
-                        <span class="{{ $valueClass }}">{{ $telar->Prod_Kg_Dia ?? '-' }}</span>
-                    </div>
+                    @unless($esKarlMayer)
+                        <div class="{{ $rowClass }}">
+                            <span class="{{ $labelClass }}">Producción:</span>
+                            <span class="{{ $valueClass }}">{{ $telar->Prod_Kg_Dia ?? '-' }}</span>
+                        </div>
+                    @endunless
                 </div>
 
                 <!-- Información Adicional -->
