@@ -59,9 +59,9 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
     Route::redirect('/bpm', '/eng-bpm', 301);
     Route::get('/capturadeformula', [EngProduccionFormulacionController::class, 'index'])->name('captura-formula');
 
-    // Default = Livewire ProgramBoard. `/legacy` = Blade clásico (mismas mutaciones vía ActionService).
+    // Default = Livewire ProgramBoard. `/legacy` redirige 301 al default (no hay tablero Blade interactivo).
     Route::get('/programar-engomado', [ProgramarEngomadoController::class, 'index'])->name('programar.engomado');
-    Route::get('/programar-engomado/legacy', [ProgramarEngomadoController::class, 'legacy'])->name('programar.engomado.legacy');
+    Route::redirect('/programar-engomado/legacy', '/engomado/programar-engomado', 301)->name('programar.engomado.legacy');
     Route::get('/reimpresion-engomado', [ProgramarEngomadoController::class, 'reimpresionFinalizadas'])->name('reimpresion.finalizadas');
     Route::get('/editar-ordenes-programadas', [EditarOrdenesEngomadoController::class, 'index'])->name('editar.ordenes.programadas');
     Route::post('/editar-ordenes-programadas/actualizar', [EditarOrdenesEngomadoController::class, 'actualizar'])->name('editar.ordenes.programadas.actualizar');
@@ -74,7 +74,6 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
     Route::get('/reportesengomado/resumen-engomado', [ReportesEngomadoController::class, 'reporteResumenEngomado'])->name('reportes.resumen-engomado');
     Route::get('/reportesengomado/resumen-engomado/excel', [ReportesEngomadoController::class, 'exportarResumenEngomadoExcel'])->name('reportes.resumen-engomado.excel');
     Route::get('/programar-engomado/ordenes', [ProgramarEngomadoController::class, 'getOrdenes'])->name('programar.engomado.ordenes');
-    Route::get('/programar-engomado/verificar-en-proceso', [ProgramarEngomadoController::class, 'verificarOrdenEnProceso'])->name('programar.engomado.verificar.en.proceso');
     Route::post('/programar-engomado/intercambiar-prioridad', [ProgramarEngomadoController::class, 'intercambiarPrioridad'])->name('programar.engomado.intercambiar.prioridad');
     Route::post('/programar-engomado/guardar-observaciones', [ProgramarEngomadoController::class, 'guardarObservaciones'])->name('programar.engomado.guardar.observaciones');
     Route::get('/programar-engomado/todas-ordenes', [ProgramarEngomadoController::class, 'getTodasOrdenes'])->name('programar.engomado.todas.ordenes');

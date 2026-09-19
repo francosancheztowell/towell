@@ -27,6 +27,7 @@ class ProgramBoardStructureTest extends TestCase
             $this->assertStringNotContainsString('<script>', $view);
         }
 
+        // Blade clásico queda en disco como archivo; ya no se sirve (GET /legacy → 301).
         $this->assertFileExists(resource_path('views/modulos/urdido/programar-urdido.blade.php'));
         $this->assertFileExists(resource_path('views/modulos/engomado/programar-engomado.blade.php'));
     }
@@ -58,14 +59,11 @@ class ProgramBoardStructureTest extends TestCase
         );
     }
 
-    public function test_legacy_views_stay_reachable_as_a_fallback(): void
+    public function test_legacy_and_verificar_controller_entrypoints_are_removed(): void
     {
-        $urdidoView = $this->app->make(ProgramarUrdidoController::class)->legacy();
-        $engomadoView = $this->app->make(ProgramarEngomadoController::class)->legacy();
-
-        $this->assertSame('modulos.urdido.programar-urdido', $urdidoView->name());
-        $this->assertSame('modulos.engomado.programar-engomado', $engomadoView->name());
-        $this->assertArrayHasKey('programaRoutes', $urdidoView->getData());
-        $this->assertArrayHasKey('programaRoutes', $engomadoView->getData());
+        $this->assertFalse(method_exists(ProgramarUrdidoController::class, 'legacy'));
+        $this->assertFalse(method_exists(ProgramarEngomadoController::class, 'legacy'));
+        $this->assertFalse(method_exists(ProgramarUrdidoController::class, 'verificarOrdenEnProceso'));
+        $this->assertFalse(method_exists(ProgramarEngomadoController::class, 'verificarOrdenEnProceso'));
     }
 }
