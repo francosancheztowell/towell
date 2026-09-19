@@ -39,3 +39,4 @@ Contenido principal:
 
 - Si el lector busca entender que hace el sistema desde negocio, iniciar en `docs/documentacion-corporativa/README.md`
 - Si el lector necesita mantener o evolucionar el sistema, iniciar en `docs/documentacion-tecnica/README.md`
+- Auditoría crítica (acoplamiento, AX/status, riesgos P0–P3): `docs/auditoria/auditoria-critica-towell.md`
