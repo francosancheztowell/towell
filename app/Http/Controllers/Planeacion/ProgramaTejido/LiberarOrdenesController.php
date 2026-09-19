@@ -11,6 +11,7 @@ use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\Liberar\LiberarBomCrudoResolver;
 use App\Services\Planeacion\Liberar\LiberarCatCodificadosWriter;
+use App\Services\Planeacion\Liberar\LiberarCodigoDibujoResolver;
 use App\Services\Planeacion\Liberar\LiberarFlogSugeridoService;
 use App\Services\Planeacion\Liberar\LiberarMarbetesCalculator;
 use App\Support\Planeacion\TelarSalonResolver;
@@ -39,6 +40,7 @@ class LiberarOrdenesController extends Controller
         private readonly LiberarBomCrudoResolver $bomCrudoResolver = new LiberarBomCrudoResolver,
         private readonly LiberarCatCodificadosWriter $catCodificadosWriter = new LiberarCatCodificadosWriter,
         private readonly LiberarFlogSugeridoService $flogSugerido = new LiberarFlogSugeridoService,
+        private readonly LiberarCodigoDibujoResolver $codigoDibujoResolver = new LiberarCodigoDibujoResolver,
     ) {}
 
     /**
@@ -649,7 +651,7 @@ class LiberarOrdenesController extends Controller
                     ], 422);
                 }
 
-                $codigoDibujoParaCat = $this->resolverCodigoDibujoParaLiberacion($item, $registro);
+                $codigoDibujoParaCat = $this->codigoDibujoResolver->paraLiberacion($item, $registro);
 
                 // Campos de auditoría usando el helper
                 AuditoriaHelper::aplicarCamposAuditoria($registro);
@@ -1096,25 +1098,6 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
-     * Pantalla tiene prioridad; si no, último código en CatCodificados (Item + salón, etc.).
-     */
-    private function resolverCodigoDibujoParaLiberacion(array $item, ReqProgramaTejido $registro): string
-    {
-        $explicit = trim((string) ($item['codigoDibujo'] ?? ''));
-        if ($explicit !== '') {
-            return $explicit;
-        }
-
-        $res = $this->catCodificadosWriter->resolverCodigoDibujo(
-            trim((string) ($registro->ItemId ?? '')),
-            trim((string) ($registro->InventSizeId ?? '')),
-            trim((string) ($registro->SalonTejidoId ?? ''))
-        );
-
-        return ($res !== null && $res !== '') ? trim((string) $res) : '';
-    }
-
-    /**
      * Tiras, saldo en toallas (SaldoPedido), marbetes, metros x rollo y resto de métricas no pueden ser cero ni nulos al liberar.
      * Combina trama y observaciones opcionales.
      */
@@ -1423,88 +1406,18 @@ class LiberarOrdenesController extends Controller
 
     /**
      * Obtiene el código de dibujo (CodigoDibujo) desde CatCodificados.
-     * Parámetro combinations: valores separados por coma; cada valor es
-     *   itemId::inventSizeId::salonTejidoId (salon = Departamento en CatCodificados), o legado itemId:inventSizeId.
-     * Orden de búsqueda (último Id con CodigoDibujo no vacío; coincide con resolverCodigoDibujoCatCodificados):
-     *   1) ItemId + Departamento (salón tejido)
-     *   2) ItemId + InventSizeId + Departamento
-     *   3) ItemId + InventSizeId (sin salón)
+     * Delega parseo y resolución a {@see LiberarCodigoDibujoResolver}.
      *
      * @return JsonResponse
      */
     public function obtenerCodigoDibujo(Request $request)
     {
-        $combinationsParam = trim((string) $request->query('combinations', ''));
-
-        if ($combinationsParam === '') {
-            return response()->json([
-                'success' => true,
-                'data' => [],
-            ]);
-        }
-
         try {
-            $combinations = array_filter(array_map('trim', explode(',', $combinationsParam)));
-
-            if (empty($combinations)) {
-                return response()->json([
-                    'success' => true,
-                    'data' => [],
-                ]);
-            }
-
-            $pairs = [];
-            foreach ($combinations as $combo) {
-                $itemId = '';
-                $inventSizeId = '';
-                $departamento = '';
-
-                if (str_contains($combo, '::')) {
-                    $parts = explode('::', $combo, 3);
-                    $itemId = trim((string) ($parts[0] ?? ''));
-                    $inventSizeId = trim((string) ($parts[1] ?? ''));
-                    $departamento = trim((string) ($parts[2] ?? ''));
-                } else {
-                    $parts = explode(':', $combo, 2);
-                    $itemId = trim((string) ($parts[0] ?? ''));
-                    $inventSizeId = trim((string) ($parts[1] ?? ''));
-                }
-
-                if ($itemId === '' || ($inventSizeId === '' && $departamento === '')) {
-                    continue;
-                }
-
-                $cacheKey = $itemId.'|'.$inventSizeId.'|'.$departamento;
-                $pairs[$cacheKey] = [
-                    'itemId' => $itemId,
-                    'inventSizeId' => $inventSizeId,
-                    'departamento' => $departamento,
-                    'cacheKey' => $cacheKey,
-                ];
-            }
-
-            if (empty($pairs)) {
-                return response()->json([
-                    'success' => true,
-                    'data' => [],
-                ]);
-            }
-
-            $map = [];
-            foreach ($pairs as $pair) {
-                $codigo = $this->catCodificadosWriter->resolverCodigoDibujo(
-                    $pair['itemId'],
-                    $pair['inventSizeId'],
-                    $pair['departamento']
-                );
-                if ($codigo !== null && $codigo !== '') {
-                    $map[$pair['cacheKey']] = $codigo;
-                }
-            }
-
             return response()->json([
                 'success' => true,
-                'data' => $map,
+                'data' => $this->codigoDibujoResolver->mapearCombinaciones(
+                    trim((string) $request->query('combinations', ''))
+                ),
             ]);
         } catch (\Exception $e) {
             return response()->json([
