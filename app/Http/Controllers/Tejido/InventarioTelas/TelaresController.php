@@ -140,7 +140,18 @@ class TelaresController extends Controller
      */
     public function inventarioKarlMayer()
     {
+        // InvSecuenciaTelares no tiene renglones KARL MAYER (solo ITEMA/JACQUARD/SMIT),
+        // asi que la secuencia sale vacia y la vista no mostraba nada. Los telares se
+        // completan con los del departamento en ReqProgramaTejido (401, 402, ...).
         $telaresOrdenados = $this->getSecuenciaTelares(['KARL MAYER']);
+        $telaresProgramados = DB::table('ReqProgramaTejido')
+            ->where('SalonTejidoId', 'KARL MAYER')
+            ->distinct()
+            ->orderBy('NoTelarId')
+            ->pluck('NoTelarId')
+            ->toArray();
+        $telaresOrdenados = array_values(array_unique(array_merge($telaresOrdenados, $telaresProgramados)));
+
         $datosTelaresCompletos = [];
 
         foreach ($telaresOrdenados as $numeroTelar) {
@@ -171,6 +182,7 @@ class TelaresController extends Controller
             $julios = $this->ultimoJulioRizoPiePorTelar($numeroTelar);
             $telarEnProceso->ultimoJulioRizo = $julios['ultimoJulioRizo'];
             $telarEnProceso->ultimoJulioPie = $julios['ultimoJulioPie'];
+            $telarEnProceso->barras = $this->barrasKarlMayerPorTelar($numeroTelar);
 
             $datosTelaresCompletos[$numeroTelar] = [
                 'telarData' => $telarEnProceso,
@@ -703,6 +715,30 @@ class TelaresController extends Controller
             'ultimoJulioRizo' => $rizo !== null && $rizo !== '' ? (string) $rizo : null,
             'ultimoJulioPie' => $pie !== null && $pie !== '' ? (string) $pie : null,
         ];
+    }
+
+    /**
+     * Barras 1-4 montadas en un telar Karl Mayer.
+     *
+     * KM no teje rizo/pie: son cuatro barras y UrdProgramaUrdido las guarda en la
+     * misma columna RizoPie ('1'..'4' en vez de 'Rizo'/'Pie'). Se toma el ultimo
+     * registro de cada barra.
+     *
+     * @return array<int, object|null>
+     */
+    private function barrasKarlMayerPorTelar($numeroTelar): array
+    {
+        $barras = [];
+
+        foreach ([1, 2, 3, 4] as $barra) {
+            $barras[$barra] = DB::table('UrdProgramaUrdido')
+                ->where('NoTelarId', (string) $numeroTelar)
+                ->where('RizoPie', (string) $barra)
+                ->orderByDesc('Id')
+                ->first(['Cuenta', 'Calibre', 'Fibra', 'Folio', 'Status']);
+        }
+
+        return $barras;
     }
 
     /**

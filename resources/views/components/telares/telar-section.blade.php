@@ -32,8 +32,13 @@
     $tipos = [
         'jacquard' => 'JACQUARD SULZER',
         'itema' => 'ITEMA',
-        'smith' => 'SMITH'
+        'smith' => 'SMITH',
+        'karl-mayer' => 'KARL MAYER',
     ];
+
+    // Karl Mayer no teje rizo/pie ni trama: son cuatro barras (UrdProgramaUrdido.RizoPie = 1..4).
+    $esKarlMayer = $tipo === 'karl-mayer';
+    $barras = $telar->barras ?? [];
 
     $tipoNombre = $tipos[$tipo] ?? $tipos['jacquard'];
     $isActive = $telar->en_proceso ?? false;
@@ -147,24 +152,36 @@
 
                 <!-- Especificaciones Técnicas -->
                 <div class="space-y-2">
-                    <div class="{{ $rowClass }}">
-                        <span class="{{ $labelClass }}">Rizo:</span>
-                        <span class="{{ $valueClass }}">
-                            {{ $formatSpec($telar->Cuenta ?? null, $telar->CalibreRizo2 ?? null, $telar->Fibra_Rizo ?? null) }}
-                        </span>
-                    </div>
-                    <div class="{{ $rowClass }}">
-                        <span class="{{ $labelClass }}">Pie:</span>
-                        <span class="{{ $valueClass }}">
-                            {{ $formatSpec($telar->Cuenta_Pie ?? null, $telar->CalibrePie2 ?? null, $telar->Fibra_Pie ?? null) }}
-                        </span>
-                    </div>
-                    <div class="{{ $rowClass }}">
-                        <span class="{{ $labelClass }}">Trama:</span>
-                        <span class="{{ $valueClass }}">
-                            {{ $formatTrama($telar->CalibreTrama2 ?? null, $telar->COLOR_TRAMA ?? null) }}
-                        </span>
-                    </div>
+                    @if($esKarlMayer)
+                        @foreach([1, 2, 3, 4] as $noBarra)
+                            @php $barra = $barras[$noBarra] ?? null; @endphp
+                            <div class="{{ $rowClass }}">
+                                <span class="{{ $labelClass }}">Barra {{ $noBarra }}:</span>
+                                <span class="{{ $valueClass }}">
+                                    {{ $formatSpec($barra->Cuenta ?? null, $barra->Calibre ?? null, $barra->Fibra ?? null) }}
+                                </span>
+                            </div>
+                        @endforeach
+                    @else
+                        <div class="{{ $rowClass }}">
+                            <span class="{{ $labelClass }}">Rizo:</span>
+                            <span class="{{ $valueClass }}">
+                                {{ $formatSpec($telar->Cuenta ?? null, $telar->CalibreRizo2 ?? null, $telar->Fibra_Rizo ?? null) }}
+                            </span>
+                        </div>
+                        <div class="{{ $rowClass }}">
+                            <span class="{{ $labelClass }}">Pie:</span>
+                            <span class="{{ $valueClass }}">
+                                {{ $formatSpec($telar->Cuenta_Pie ?? null, $telar->CalibrePie2 ?? null, $telar->Fibra_Pie ?? null) }}
+                            </span>
+                        </div>
+                        <div class="{{ $rowClass }}">
+                            <span class="{{ $labelClass }}">Trama:</span>
+                            <span class="{{ $valueClass }}">
+                                {{ $formatTrama($telar->CalibreTrama2 ?? null, $telar->COLOR_TRAMA ?? null) }}
+                            </span>
+                        </div>
+                    @endif
                     <div class="{{ $rowClass }}">
                         <span class="{{ $labelClass }}">Pedido:</span>
                         <span class="{{ $valueClass }}">{{ $formatPedido($telar->Saldos ?? null) }}</span>
@@ -203,19 +220,29 @@
 
                 <!-- Último julio (AtaMontadoTelas) -->
                 <div class="space-y-2">
-                    <div class="{{ $rowClass }}">
-                        <span class="{{ $labelClass }}">J Rizo:</span>
-                        <span class="{{ $valueClass }}">{{ $telar->ultimoJulioRizo ?? '-' }}</span>
-                    </div>
-                    <div class="{{ $rowClass }}">
-                        <span class="{{ $labelClass }}">J Pie:</span>
-                        <span class="{{ $valueClass }}">{{ $telar->ultimoJulioPie ?? '-' }}</span>
-                    </div>
+                    @if($esKarlMayer)
+                        @foreach([1, 2, 3, 4] as $noBarra)
+                            @php $barra = $barras[$noBarra] ?? null; @endphp
+                            <div class="{{ $rowClass }}">
+                                <span class="{{ $labelClass }}">Folio B{{ $noBarra }}:</span>
+                                <span class="{{ $valueClass }}">{{ $barra->Folio ?? '-' }}</span>
+                            </div>
+                        @endforeach
+                    @else
+                        <div class="{{ $rowClass }}">
+                            <span class="{{ $labelClass }}">J Rizo:</span>
+                            <span class="{{ $valueClass }}">{{ $telar->ultimoJulioRizo ?? '-' }}</span>
+                        </div>
+                        <div class="{{ $rowClass }}">
+                            <span class="{{ $labelClass }}">J Pie:</span>
+                            <span class="{{ $valueClass }}">{{ $telar->ultimoJulioPie ?? '-' }}</span>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
 
-        @if($showSiguienteOrden)
+        @if($showSiguienteOrden && ! $esKarlMayer)
             <!-- Separador visual -->
             @if($tieneOrdenSig)
                 <!-- Sección SIGUIENTE ORDEN con datos -->
