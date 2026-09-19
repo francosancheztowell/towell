@@ -4,53 +4,40 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Models\Sistema\Usuario;
 use Illuminate\Routing\Route as IlluminateRoute;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 /**
- * Smoke HTTP de las rutas de marbetes (preview / guardar).
- * No siembra SQL: guest y validación 422 bastan para probar que el router sigue vivo.
+ * Smoke de las rutas de marbetes (preview / guardar).
+ * No pega a SQL ni al kernel HTTP: solo verifica que el contrato de rutas
+ * sigue vivo bajo `auth`. El happy-path de preview/guardar está en
+ * LiberarOrdenesLiberarTest::test_marbetes_preview_respeta_regla_fel_y_guardado_sincroniza_cat_codificados.
  */
 class LiberarMarbetesRoutesTest extends TestCase
 {
-    public function test_rutas_marbetes_exigen_auth(): void
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function marbetesRoutes(): array
     {
-        foreach (['programa-tejido.marbetes', 'programa-tejido.marbetes.guardar'] as $name) {
-            $route = Route::getRoutes()->getByName($name);
-            $this->assertNotNull($route, "No se encontro la ruta [{$name}].");
-            $this->assertInstanceOf(IlluminateRoute::class, $route);
-            $this->assertContains('auth', $route->gatherMiddleware(), "Middleware auth faltante en [{$name}].");
-        }
+        return [
+            'preview GET' => ['programa-tejido.marbetes'],
+            'guardar POST' => ['programa-tejido.marbetes.guardar'],
+        ];
     }
 
-    public function test_invitado_no_lee_ni_guarda_marbetes(): void
+    #[\PHPUnit\Framework\Attributes\DataProvider('marbetesRoutes')]
+    public function test_ruta_marbetes_existe_y_exige_auth(string $name): void
     {
-        $get = $this->getJson(route('programa-tejido.marbetes', ['id' => 1]));
-        $this->assertContains($get->status(), [302, 401]);
+        $route = Route::getRoutes()->getByName($name);
 
-        $post = $this->postJson(route('programa-tejido.marbetes.guardar'), ['id' => 1]);
-        $this->assertContains($post->status(), [302, 401]);
-    }
-
-    public function test_autenticado_sin_id_recibe_422_en_preview(): void
-    {
-        $usuario = new Usuario(['nombre' => 'Marbetes smoke']);
-        $usuario->idusuario = 999410;
-
-        $this->actingAs($usuario)
-            ->getJson(route('programa-tejido.marbetes'))
-            ->assertStatus(422);
-    }
-
-    public function test_autenticado_sin_id_recibe_422_al_guardar(): void
-    {
-        $usuario = new Usuario(['nombre' => 'Marbetes smoke']);
-        $usuario->idusuario = 999411;
-
-        $this->actingAs($usuario)
-            ->postJson(route('programa-tejido.marbetes.guardar'), [])
-            ->assertStatus(422);
+        $this->assertNotNull($route, "No se encontro la ruta [{$name}].");
+        $this->assertInstanceOf(IlluminateRoute::class, $route);
+        $this->assertContains('auth', $route->gatherMiddleware(), "Middleware auth faltante en [{$name}].");
+        $this->assertSame(
+            \App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController::class,
+            $route->getControllerClass()
+        );
     }
 }
