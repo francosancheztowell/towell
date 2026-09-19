@@ -126,8 +126,9 @@ class PDFController extends Controller
                 'esReimpresion' => $esReimpresion,
             ])->render();
 
-            // 6) Configurar DomPDF
-            $dompdf = $this->crearDompdf($html);
+            // 6) Configurar DomPDF. La etiqueta simplificada va horizontal:
+            // es un rotulo para leer de lejos, no una hoja de texto.
+            $dompdf = $this->crearDompdf($html, $esSimplificado ? 'landscape' : 'portrait');
 
             // 6.1) Si es impresión parcial de engomado, marcar registros como impresos
             if ($esParcial && strtolower($tipo) === 'engomado' && $registrosProduccion && $registrosProduccion->count() > 0) {
@@ -253,7 +254,7 @@ class PDFController extends Controller
     /**
      * Crear y configurar instancia de Dompdf.
      */
-    protected function crearDompdf(string $html): Dompdf
+    protected function crearDompdf(string $html, string $orientacion = 'portrait'): Dompdf
     {
         $options = new Options;
         $options->set('isHtml5ParserEnabled', true);
@@ -265,7 +266,7 @@ class PDFController extends Controller
 
         $dompdf = new Dompdf($options);
         $dompdf->loadHtml($html, 'UTF-8');
-        $dompdf->setPaper('letter', 'portrait');
+        $dompdf->setPaper('letter', $orientacion);
 
         try {
             $dompdf->render();
