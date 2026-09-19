@@ -24,21 +24,10 @@
             ['tipo' => 'pie', 'etiqueta' => 'PIE', 'cuenta' => $telar->Cuenta_Pie ?? '', 'calibre' => $telar->CalibrePie2 ?? '', 'fibra' => $telar->Fibra_Pie ?? ''],
         ];
 
-    //esta es una funcion para verificar si el usuario tiene permiso de crear requerimientos
-    // Verificar permisos del usuario actual
-    $usuarioActual = Auth::user();
-    $idusuario = $usuarioActual ? $usuarioActual->idusuario : null;
-
-    // Obtener permisos del usuario para el módulo "Requerimientos" (idrol 21)
-    $permisos = null;
-    if ($idusuario) {
-        $permisos = \App\Models\Sistema\SYSUsuariosRoles::where('idusuario', $idusuario)
-            ->where('idrol', 21) // Requerimientos
-            ->first();
-    }
-
-    // Verificar si tiene permiso de crear
-    $puedeCrear = $permisos ? $permisos->crear == 1 : false;
+    // Permiso de crear requerimientos (idrol 21 = Inv Telas). Via userCan y no con un
+    // query propio: este componente se renderiza una vez por telar y la consulta se
+    // repetia 14 veces en Jacquard; el helper la memoiza para todo el request.
+    $puedeCrear = userCan('crear', 21);
 
     $containerClass = 'p-3 md:p-1.5 lg:p-3';
     $accountBoxClass = 'mb-2 md:mb-1.5 lg:mb-0 mr-0 md:mr-0 lg:mr-4 mt-0 md:mt-0 lg:mt-[32px] rounded-lg p-3 md:p-1.5 lg:p-3 border border-gray-200';
