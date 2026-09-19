@@ -293,8 +293,11 @@
         flex: 1 1 auto;
     }
 
+    /* minmax y no 1fr a secas: por encima de 900 px el dia reparte el ancho que
+       sobra, pero nunca baja de --inv-dia. Con 1fr puro, una ventana de ~900
+       apretaba los 7 dias a 83 px y los turnos quedaban sin espacio. */
     .inventario-telas-page .inv-telas-calendario {
-        grid-template-columns: repeat(7, minmax(0, 1fr));
+        grid-template-columns: repeat(7, minmax(var(--inv-dia), 1fr));
     }
 
     .inventario-telas-page .inv-telas-dia {
