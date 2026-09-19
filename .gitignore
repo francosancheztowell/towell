@@ -32,7 +32,9 @@ yarn-error.log
 /.zed
 
 /app/Mcp
-Atadores.md
+# Nota suelta en la raíz (2026); no ignorar la ficha del vault.
+/Atadores.md
+!docs/cerebro-towell/Modulos/Atadores.md
 ISSUES.md
 /routes/ai.php
 .gemini/
