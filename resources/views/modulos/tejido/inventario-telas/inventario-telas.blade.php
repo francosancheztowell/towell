@@ -18,6 +18,10 @@
     @vite('resources/css/tejido/inventario-telas.css')
 @endpush
 
+@push('scripts')
+    @vite('resources/js/tejido/inventario-telas.ts')
+@endpush
+
 @section('navbar-right')
     @if(count($telares ?? []) > 0)
     <div class="relative">
