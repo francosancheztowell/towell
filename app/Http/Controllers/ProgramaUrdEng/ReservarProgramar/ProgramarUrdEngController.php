@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
+use App\Services\ProgramaUrdEng\InventarioTelaresService;
 use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Sistema\SSYSFoliosSecuencia;
 use App\Models\Tejido\TejInventarioTelares;
@@ -305,12 +306,8 @@ class ProgramarUrdEngController extends Controller
 
     private function normalizeTipo($tipo): ?string
     {
-        if ($tipo === null || $tipo === '') {
-            return null;
-        }
-        $t = strtoupper(trim((string) $tipo));
-
-        return $t === 'RIZO' ? 'Rizo' : ($t === 'PIE' ? 'Pie' : null);
+        // Una sola definicion: el servicio tambien entiende las barras de Karl Mayer.
+        return app(InventarioTelaresService::class)->normalizeTipo($tipo);
     }
 
     private function parseProdDate($prodDate): ?string

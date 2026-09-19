@@ -244,6 +244,11 @@ class TelaresController extends Controller
             ])
             ->first();
 
+        // Karl Mayer no teje rizo/pie: el modal de seleccion necesita las cuatro barras.
+        if ($procesoActual && $tipoSalon === 'KARL MAYER') {
+            $procesoActual->barras = $this->barrasKarlMayerPorTelar([$telarId])[$telarId] ?? [];
+        }
+
         return response()->json($procesoActual ?: null);
     }
 

@@ -99,7 +99,7 @@
     });
 @endphp
 
-<div id="telar-{{ $telar->Telar }}" class="telar-section bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden" data-salon="{{ ucfirst($tipo) }}">
+<div id="telar-{{ $telar->Telar }}" class="telar-section bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden" data-salon="{{ $esKarlMayer ? 'Karl Mayer' : ucfirst($tipo) }}">
     <!-- Header dinámico -->
     @if($isActive)
         <div class="inv-telas-rail bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 relative">
@@ -314,7 +314,7 @@
             </div>
 
             <!-- Sección REQUERIMIENTO -->
-            <x-telares.telar-requerimiento :telar="$telar" :ordenSig="$ordenSig" :salon="ucfirst($tipo)" />
+            <x-telares.telar-requerimiento :telar="$telar" :ordenSig="$ordenSig" :salon="$esKarlMayer ? 'Karl Mayer' : ucfirst($tipo)" />
         @endif
     @else
         <!-- Telar sin proceso activo -->

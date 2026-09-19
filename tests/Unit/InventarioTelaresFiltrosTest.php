@@ -47,4 +47,26 @@ class InventarioTelaresFiltrosTest extends TestCase
         $this->assertCount(1, $whereRaw, 'hilo se compara sin distinguir mayusculas ni espacios.');
         $this->assertSame(['ALG-OPEN'], $whereRaw[0][1][1]);
     }
+
+    /**
+     * Karl Mayer no teje rizo/pie: son cuatro barras y se guardan como '1'..'4',
+     * el mismo canon de UrdProgramaUrdido.RizoPie y del alta de ordenes KM.
+     */
+    public function test_normalize_tipo_entiende_rizo_pie_y_las_barras_de_karl_mayer(): void
+    {
+        $service = new InventarioTelaresService;
+
+        foreach ([
+            'rizo' => 'Rizo',
+            'PIE' => 'Pie',
+            '3' => '3',
+            'Barra 2' => '2',
+            'B4' => '4',
+            '5' => null,        // solo hay cuatro barras
+            'barra' => null,
+            '' => null,
+        ] as $entrada => $esperado) {
+            $this->assertSame($esperado, $service->normalizeTipo((string) $entrada), "tipo: {$entrada}");
+        }
+    }
 }

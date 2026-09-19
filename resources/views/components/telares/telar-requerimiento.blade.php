@@ -8,6 +8,22 @@
 
 
 @php
+    // Karl Mayer no teje rizo/pie: son cuatro barras. El tipo que se guarda es '1'..'4',
+    // igual que UrdProgramaUrdido.RizoPie, y la etiqueta visible es "Barra N".
+    $esKarlMayer = strtolower(str_replace('-', ' ', (string) $salon)) === 'karl mayer';
+    $componentes = $esKarlMayer
+        ? collect([1, 2, 3, 4])->map(fn ($n) => [
+            'tipo' => (string) $n,
+            'etiqueta' => 'BARRA ' . $n,
+            'cuenta' => $telar->barras[$n]->Cuenta ?? '',
+            'calibre' => $telar->barras[$n]->Calibre ?? '',
+            'fibra' => $telar->barras[$n]->Fibra ?? '',
+        ])->all()
+        : [
+            ['tipo' => 'rizo', 'etiqueta' => 'RIZO', 'cuenta' => $telar->Cuenta ?? '', 'calibre' => $telar->CalibreRizo2 ?? '', 'fibra' => $telar->Fibra_Rizo ?? ''],
+            ['tipo' => 'pie', 'etiqueta' => 'PIE', 'cuenta' => $telar->Cuenta_Pie ?? '', 'calibre' => $telar->CalibrePie2 ?? '', 'fibra' => $telar->Fibra_Pie ?? ''],
+        ];
+
     //esta es una funcion para verificar si el usuario tiene permiso de crear requerimientos
     // Verificar permisos del usuario actual
     $usuarioActual = Auth::user();
@@ -54,38 +70,24 @@
         <div class="inv-telas-cuentas {{ $accountBoxClass }}">
             <div class="{{ $accountTitleClass }}">Cuentas:</div>
             <div class="inv-telas-cuentas-list {{ $accountListClass }}">
-                <div class="{{ $accountRowClass }}">
-                <div class="flex items-center">
-                    <span class="font-medium text-gray-600">RIZO</span>
-                        <span class="{{ $accountValueClass }}" id="cuenta-rizo-{{ $telar->Telar }}">
-                            {{ $telar->Cuenta ?? '' }}
-                        </span>
+                @foreach($componentes as $componente)
+                    <div class="{{ $accountRowClass }}">
+                        <div class="flex items-center">
+                            <span class="font-medium text-gray-600">{{ $componente['etiqueta'] }}</span>
+                            <span class="{{ $accountValueClass }}" id="cuenta-{{ $componente['tipo'] }}-{{ $telar->Telar }}">
+                                {{ $componente['cuenta'] }}
+                            </span>
+                        </div>
+                        <button
+                            type="button"
+                            class="{{ $accountButtonClass }}"
+                            title="Seleccionar cuenta {{ $componente['etiqueta'] }}"
+                            onclick="abrirModalSeleccion('{{ $telar->Telar }}', '{{ $componente['tipo'] }}', '{{ $componente['cuenta'] }}', '{{ $componente['calibre'] }}', '{{ $componente['fibra'] }}')"
+                        >
+                            <i class="fas fa-chevron-right text-sm"></i>
+                        </button>
                     </div>
-                    <button
-                        type="button"
-                        class="{{ $accountButtonClass }}"
-                        title="Seleccionar cuenta RIZO"
-                        onclick="abrirModalSeleccion('{{ $telar->Telar }}', 'rizo', '{{ $telar->Cuenta ?? '' }}', '{{ $telar->CalibreRizo2 ?? '' }}', '{{ $telar->Fibra_Rizo ?? '' }}')"
-                    >
-                        <i class="fas fa-chevron-right text-sm"></i>
-                    </button>
-                </div>
-                <div class="{{ $accountRowClass }}">
-                <div class="flex items-center">
-                    <span class="font-medium text-gray-600">PIE</span>
-                        <span class="{{ $accountValueClass }}" id="cuenta-pie-{{ $telar->Telar }}">
-                            {{ $telar->Cuenta_Pie ?? '' }}
-                        </span>
-                    </div>
-                    <button
-                        type="button"
-                        class="{{ $accountButtonClass }}"
-                        title="Seleccionar cuenta PIE"
-                        onclick="abrirModalSeleccion('{{ $telar->Telar }}', 'pie', '{{ $telar->Cuenta_Pie ?? '' }}', '{{ $telar->CalibrePie2 ?? '' }}', '{{ $telar->Fibra_Pie ?? '' }}')"
-                    >
-                        <i class="fas fa-chevron-right text-sm"></i>
-                    </button>
-                </div>
+                @endforeach
             </div>
         </div>
 
@@ -122,30 +124,21 @@
                             <td class="{{ $calendarCellClass }}">
                                 <div class="font-bold text-gray-700 mb-1 text-xs">{{ $turno }}</div>
                                 <div class="space-y-0.5">
-                                    <label class="block">
-                                        <input
-                                            type="checkbox"
-                                            name="rizo{{ $turno }}"
-                                            class="{{ $claseTabla }}rizo {{ $checkboxBaseClass }} {{ !$puedeCrear ? $checkboxDisabledClass : '' }}"
-                                            value="rizo{{ $turno }}"
-                                            id="{{ $prefijoId }}_rizo{{ $turno }}"
-                                            data-telar="{{ $telar->Telar }}"
-                                            data-tipo="rizo"
-                                            {{ !$puedeCrear ? 'disabled' : '' }}
-                                        >
-                                    </label>
-                                    <label class="block">
-                                        <input
-                                            type="checkbox"
-                                            name="pie{{ $turno }}"
-                                            class="{{ $claseTabla }}pie {{ $checkboxBaseClass }} {{ !$puedeCrear ? $checkboxDisabledClass : '' }}"
-                                            value="pie{{ $turno }}"
-                                            id="{{ $prefijoId }}_pie{{ $turno }}"
-                                            data-telar="{{ $telar->Telar }}"
-                                            data-tipo="pie"
-                                            {{ !$puedeCrear ? 'disabled' : '' }}
-                                        >
-                                    </label>
+                                    @foreach($componentes as $componente)
+                                        <label class="block">
+                                            <input
+                                                type="checkbox"
+                                                name="{{ $componente['tipo'] }}{{ $turno }}"
+                                                class="{{ $claseTabla }}{{ $componente['tipo'] }} {{ $checkboxBaseClass }} {{ !$puedeCrear ? $checkboxDisabledClass : '' }}"
+                                                value="{{ $componente['tipo'] }}{{ $turno }}"
+                                                id="{{ $prefijoId }}_{{ $componente['tipo'] }}{{ $turno }}"
+                                                data-telar="{{ $telar->Telar }}"
+                                                data-tipo="{{ $componente['tipo'] }}"
+                                                title="{{ $componente['etiqueta'] }}"
+                                                {{ !$puedeCrear ? 'disabled' : '' }}
+                                            >
+                                        </label>
+                                    @endforeach
                                 </div>
                             </td>
                         @endfor

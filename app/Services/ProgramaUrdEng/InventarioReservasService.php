@@ -589,6 +589,9 @@ class InventarioReservasService
                     } elseif (strpos($v, 'pie') !== false) {
                         $query->where('s.ItemId', 'like', self::PATTERN_PIE);
                     }
+                    // ponytail: una barra de Karl Mayer ('1'..'4') no filtra nada y se
+                    // ofrecen todos los julios. En TI-PRO solo existen items JU-ENG-RI y
+                    // JU-ENG-PI; cuando haya items por barra, agregar su patron aqui.
                     continue;
                 }
 

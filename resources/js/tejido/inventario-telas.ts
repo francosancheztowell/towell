@@ -43,6 +43,41 @@ if (!window._scrollToTelarDone) {
     });
 }
 
+/**
+ * El tipo de un checkbox es 'rizo', 'pie' o '1'..'4' (barras de Karl Mayer).
+ * esBarra() distingue; tipoServidor() es lo que se guarda en tej_inventario_telares,
+ * con el mismo canon que UrdProgramaUrdido.RizoPie.
+ */
+const esBarra = (tipo) => /^[1-4]$/.test(String(tipo))
+
+const tipoServidor = (tipo) => (esBarra(tipo) ? String(tipo) : (tipo === 'rizo' ? 'Rizo' : 'Pie'))
+
+/** Cuenta, calibre y fibra del componente (barra N, rizo o pie) de un registro de telar. */
+function datosComponente(datos, tipo) {
+    if (esBarra(tipo)) {
+        const barra = datos?.barras?.[String(tipo)]
+        return { cuenta: barra?.Cuenta ?? '', calibre: barra?.Calibre ?? '', fibra: barra?.Fibra ?? '' }
+    }
+
+    return tipo === 'rizo'
+        ? { cuenta: datos?.Cuenta ?? '', calibre: datos?.CalibreRizo2 ?? '', fibra: datos?.Fibra_Rizo ?? '' }
+        : { cuenta: datos?.Cuenta_Pie ?? '', calibre: datos?.CalibrePie2 ?? '', fibra: datos?.Fibra_Pie ?? '' }
+}
+
+
+/** Lo que pinta la tabla del modal de seleccion: guion cuando el dato no viene. */
+function datosParaModal(datos, tipo) {
+    const { cuenta, calibre, fibra } = datosComponente(datos, tipo)
+    const oGuion = (v) => (String(v ?? '').trim() !== '' ? v : '-')
+
+    return {
+        cuenta: oGuion(cuenta),
+        calibre: oGuion(calibre),
+        fibra: oGuion(fibra),
+        ordenProd: datos?.Orden_Prod || '',
+    }
+}
+
 /** Arranca una tarjeta de telar (antes era el IIFE por telar del Blade). */
 function initTelar(cfg: TelarConfig): void {
     const { telarId, telarData, ordenSigData, salonTelar } = cfg
@@ -205,8 +240,8 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
     }
 
     // Validar que tenemos los datos necesarios
-    const cuentaSeleccionada = tipo === 'rizo' ? cuentaRizo : cuentaPie;
-    const calibreSeleccionado = tipo === 'rizo' ? calibreRizo : calibrePie;
+    const cuentaSeleccionada = esBarra(tipo) ? datosComponente(datos, tipo).cuenta : (tipo === 'rizo' ? cuentaRizo : cuentaPie);
+    const calibreSeleccionado = esBarra(tipo) ? datosComponente(datos, tipo).calibre : (tipo === 'rizo' ? calibreRizo : calibrePie);
 
     // Convertir fecha y validar (usar fechaISO si está disponible del header modificado)
     const fechaConvertida = convertirFecha(fecha, fechaISO);
@@ -233,7 +268,7 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
 
         const datosEliminar = {
             no_telar: String(telarId),
-            tipo: tipo === 'rizo' ? 'Rizo' : 'Pie',
+            tipo: tipoServidor(tipo),
             fecha: fechaParaEliminar,
             turno: parseInt(numeroTurno)
         };
@@ -242,7 +277,7 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
         // IMPORTANTE: La verificación siempre debe usar el backend para obtener el estado más reciente
         // No confiar en el caché del frontend después de invalidaciones
         // El backend siempre tiene la verdad sobre el estado del registro específico
-        verificarEstadoTelarAntesDeEliminar(telarId, tipo === 'rizo' ? 'Rizo' : 'Pie', datosEliminar, checkbox, telarData);
+        verificarEstadoTelarAntesDeEliminar(telarId, tipoServidor(tipo), datosEliminar, checkbox, telarData);
 
         return; // Salir de la función si se deseleccionó
     }
@@ -271,12 +306,12 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
         // Por defecto: usar datos del proceso actual
         cuentaFinal = cuentaSeleccionada;
         calibreFinal = calibreSeleccionado;
-        hiloSeleccionado = tipo === 'rizo' ? (datos.Fibra_Rizo || '') : (datos.Fibra_Pie || '');
+        hiloSeleccionado = datosComponente(datos, tipo).fibra || '';
         noOrden = String(datos.Orden_Prod || '');
     }
     const datosInventario = {
         no_telar: String(telarId),
-        tipo: tipo === 'rizo' ? 'Rizo' : 'Pie',
+        tipo: tipoServidor(tipo),
         cuenta: String(cuentaFinal),
         calibre: calibreFinal ? parseFloat(calibreFinal) : null,
         fecha: fechaConvertida,
@@ -814,7 +849,7 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
     // Preparar filtros para el GET
     const filtros = {
         no_telar: String(telarId),
-        tipo: tipo === 'rizo' ? 'Rizo' : 'Pie'
+        tipo: tipoServidor(tipo)
     };
 
     // Agregar filtro por hilo si se proporciona
@@ -1027,7 +1062,7 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
     // Guardar el salón del telar para usarlo después
     // Buscar el salón desde el contexto del componente
     const salonTelar = document.querySelector(`input[data-telar="${telarId}"]`)?.closest('.telar-section')?.dataset?.salon ||
-                       (tipo === 'rizo' ? 'Jacquard' : 'Itema'); // Fallback
+                       (esBarra(tipo) ? 'Karl Mayer' : (tipo === 'rizo' ? 'Jacquard' : 'Itema')); // Fallback
     window.modalData.salonTelar = salonTelar;
 
     // Actualizar título del modal
@@ -1046,32 +1081,10 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
 
     Promise.all(promesas).then(([datosProceso, datosSiguiente]) => {
         // Configurar datos del proceso actual según el tipo (RIZO o PIE)
-        window.modalData.datosProceso = {
-            cuenta: tipo === 'rizo' ?
-                (datosProceso?.Cuenta && datosProceso.Cuenta.trim() !== '' ? datosProceso.Cuenta : '-') :
-                (datosProceso?.Cuenta_Pie && datosProceso.Cuenta_Pie.trim() !== '' ? datosProceso.Cuenta_Pie : '-'),
-            calibre: tipo === 'rizo' ?
-                (datosProceso?.CalibreRizo2 && datosProceso.CalibreRizo2 !== '' ? datosProceso.CalibreRizo2 : '-') :
-                (datosProceso?.CalibrePie2 && datosProceso.CalibrePie2 !== '' ? datosProceso.CalibrePie2 : '-'),
-            fibra: tipo === 'rizo' ?
-                (datosProceso?.Fibra_Rizo && datosProceso.Fibra_Rizo.trim() !== '' ? datosProceso.Fibra_Rizo : '-') :
-                (datosProceso?.Fibra_Pie && datosProceso.Fibra_Pie.trim() !== '' ? datosProceso.Fibra_Pie : '-'),
-            ordenProd: datosProceso?.Orden_Prod || ''
-        };
+        window.modalData.datosProceso = datosParaModal(datosProceso, tipo);
 
         // Configurar datos de la siguiente orden según el tipo (RIZO o PIE)
-        window.modalData.datosSiguiente = {
-            cuenta: tipo === 'rizo' ?
-                (datosSiguiente?.Cuenta && datosSiguiente.Cuenta.trim() !== '' ? datosSiguiente.Cuenta : '-') :
-                (datosSiguiente?.Cuenta_Pie && datosSiguiente.Cuenta_Pie.trim() !== '' ? datosSiguiente.Cuenta_Pie : '-'),
-            calibre: tipo === 'rizo' ?
-                (datosSiguiente?.CalibreRizo2 && datosSiguiente.CalibreRizo2 !== '' ? datosSiguiente.CalibreRizo2 : '-') :
-                (datosSiguiente?.CalibrePie2 && datosSiguiente.CalibrePie2 !== '' ? datosSiguiente.CalibrePie2 : '-'),
-            fibra: tipo === 'rizo' ?
-                (datosSiguiente?.Fibra_Rizo && datosSiguiente.Fibra_Rizo.trim() !== '' ? datosSiguiente.Fibra_Rizo : '-') :
-                (datosSiguiente?.Fibra_Pie && datosSiguiente.Fibra_Pie.trim() !== '' ? datosSiguiente.Fibra_Pie : '-'),
-            ordenProd: datosSiguiente?.Orden_Prod || ''
-        };
+        window.modalData.datosSiguiente = datosParaModal(datosSiguiente, tipo);
 
         // Actualizar tabla del modal
         document.getElementById('cuentaProceso').textContent = window.modalData.datosProceso.cuenta;
@@ -1110,18 +1123,7 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
                 // Hacer GET del proceso actual
                 obtenerDatosProcesoActual(telarId).then(datosProceso => {
                     if (datosProceso) {
-                        window.modalData.datosProceso = {
-                            cuenta: tipo === 'rizo' ?
-                                (datosProceso?.Cuenta && datosProceso.Cuenta.trim() !== '' ? datosProceso.Cuenta : '-') :
-                                (datosProceso?.Cuenta_Pie && datosProceso.Cuenta_Pie.trim() !== '' ? datosProceso.Cuenta_Pie : '-'),
-                            calibre: tipo === 'rizo' ?
-                                (datosProceso?.CalibreRizo2 && datosProceso.CalibreRizo2 !== '' ? datosProceso.CalibreRizo2 : '-') :
-                                (datosProceso?.CalibrePie2 && datosProceso.CalibrePie2 !== '' ? datosProceso.CalibrePie2 : '-'),
-                            fibra: tipo === 'rizo' ?
-                                (datosProceso?.Fibra_Rizo && datosProceso.Fibra_Rizo.trim() !== '' ? datosProceso.Fibra_Rizo : '-') :
-                                (datosProceso?.Fibra_Pie && datosProceso.Fibra_Pie.trim() !== '' ? datosProceso.Fibra_Pie : '-'),
-                            ordenProd: datosProceso?.Orden_Prod || ''
-                        };
+                        window.modalData.datosProceso = datosParaModal(datosProceso, tipo);
 
                         // Actualizar tabla del modal
                         document.getElementById('cuentaProceso').textContent = window.modalData.datosProceso.cuenta;
@@ -1145,18 +1147,7 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
                 // Hacer GET de la siguiente orden (con fibra si existe selección previa)
                 obtenerDatosSiguienteOrden(telarId, fibraPrevia).then(datosSiguiente => {
                     if (datosSiguiente) {
-                        window.modalData.datosSiguiente = {
-                            cuenta: tipo === 'rizo' ?
-                                (datosSiguiente?.Cuenta && datosSiguiente.Cuenta.trim() !== '' ? datosSiguiente.Cuenta : '-') :
-                                (datosSiguiente?.Cuenta_Pie && datosSiguiente.Cuenta_Pie.trim() !== '' ? datosSiguiente.Cuenta_Pie : '-'),
-                            calibre: tipo === 'rizo' ?
-                                (datosSiguiente?.CalibreRizo2 && datosSiguiente.CalibreRizo2 !== '' ? datosSiguiente.CalibreRizo2 : '-') :
-                                (datosSiguiente?.CalibrePie2 && datosSiguiente.CalibrePie2 !== '' ? datosSiguiente.CalibrePie2 : '-'),
-                            fibra: tipo === 'rizo' ?
-                                (datosSiguiente?.Fibra_Rizo && datosSiguiente.Fibra_Rizo.trim() !== '' ? datosSiguiente.Fibra_Rizo : '-') :
-                                (datosSiguiente?.Fibra_Pie && datosSiguiente.Fibra_Pie.trim() !== '' ? datosSiguiente.Fibra_Pie : '-'),
-                            ordenProd: datosSiguiente?.Orden_Prod || ''
-                        };
+                        window.modalData.datosSiguiente = datosParaModal(datosSiguiente, tipo);
 
                         // Actualizar tabla del modal
                         document.getElementById('cuentaSiguiente').textContent = window.modalData.datosSiguiente.cuenta;

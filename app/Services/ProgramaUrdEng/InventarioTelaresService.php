@@ -99,10 +99,19 @@ class InventarioTelaresService
         return $query;
     }
 
+    /**
+     * Rizo/Pie para los telares normales; '1'..'4' para las barras de Karl Mayer,
+     * que es como UrdProgramaUrdido.RizoPie ya las guarda.
+     */
     public function normalizeTipo($tipo): ?string
     {
         if ($tipo === null) return null;
         $t = strtoupper(trim((string)$tipo));
+
+        if (preg_match('/^(?:BARRA\s*|B)?([1-4])$/', $t, $m)) {
+            return $m[1];
+        }
+
         return $t === 'RIZO' ? 'Rizo' : ($t === 'PIE' ? 'Pie' : null);
     }
 
