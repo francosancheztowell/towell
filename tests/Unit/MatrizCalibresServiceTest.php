@@ -440,10 +440,12 @@ final class MatrizCalibresServiceTest extends TestCase
         $this->seedCatalogoAx('ITEM-NORMAL');
         $this->seedCatalogoAx('600/1');
         $payload = $this->payloadLMat('ITEM-NORMAL');
+        $payload['filas'][0]['porcentaje'] = 50;
         $filaPequena = $payload['filas'][0];
         $filaPequena['itemId'] = '600/1';
         $filaPequena['qty'] = 0.0001;
         $filaPequena['matrizCalibre'] = 600.1;
+        $filaPequena['porcentaje'] = 50;
         $payload['filas'][] = $filaPequena;
 
         $this->withoutMiddleware()
@@ -785,7 +787,8 @@ final class MatrizCalibresServiceTest extends TestCase
                 'inventColorId' => '1000',
                 'inventLocationId' => 'A-PTE-LISO',
                 'qty' => 0.5,
-                'porcentaje' => 50,
+                // guardarLmat exige suma de % = 100; una sola fila debe cerrar el total.
+                'porcentaje' => 100,
                 'matrizTipo' => 'TRAMA',
                 'matrizCalibre' => 10.1,
                 'matrizFibraId' => 'PES',
