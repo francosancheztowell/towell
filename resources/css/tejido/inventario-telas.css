@@ -272,7 +272,10 @@
     border-left: 3px solid #b45309;
 }
 
-@media (max-width: 699px) {
+/* Hasta 899 px (tablet en vertical: iPad 768, Android 800) la tarjeta se apila:
+   antes este rango caia en el layout de escritorio y el calendario de 7 dias
+   peleaba el ancho con las cuentas. */
+@media (max-width: 899px) {
     .inventario-telas-page .inv-telas-req-row {
         flex-direction: column !important;
     }
