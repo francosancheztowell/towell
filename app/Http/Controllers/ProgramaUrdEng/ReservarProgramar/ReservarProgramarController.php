@@ -12,6 +12,7 @@ use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\ProgramaUrdEng\InventarioTelaresService;
 use App\Services\ProgramaUrdEng\ProgramasUrdidoEngomadoService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -19,6 +20,9 @@ use Illuminate\Support\Facades\Log;
 class ReservarProgramarController extends Controller
 {
     private const STATUS_ACTIVO = 'Activo';
+
+    /** Debe coincidir con SYSRoles.modulo. */
+    private const MODULO = 'Programa Urd / Eng';
 
     public function __construct(
         private InventarioTelaresService $telaresService,
@@ -30,26 +34,22 @@ class ReservarProgramarController extends Controller
     public function index()
     {
         try {
-            $rows = $this->telaresService->baseQuery()->limit(1000)->get();
-
-            return view('modulos.programa_urd_eng.reservar-programar', [
-                'inventarioTelares' => $this->telaresService->normalizeTelares($rows),
-                'columnOptions' => $this->columnOptionsData(),
-                'canModificar' => function_exists('userCan') && userCan('modificar', 'Programa Urd / Eng'),
-                'canCrear' => function_exists('userCan') && userCan('crear', 'Programa Urd / Eng'),
-                'canEliminar' => function_exists('userCan') && userCan('eliminar', 'Programa Urd / Eng'),
-            ]);
+            // ponytail: sin paginar; son ~1k telares activos. Pasa a PaginacionCompat al migrar la vista.
+            $telares = $this->telaresService->normalizeTelares(
+                $this->telaresService->baseQuery()->limit(1000)->get()
+            );
         } catch (\Throwable $e) {
             Log::error('ReservarProgramarController::index', ['msg' => $e->getMessage()]);
-
-            return view('modulos.programa_urd_eng.reservar-programar', [
-                'inventarioTelares' => collect([]),
-                'columnOptions' => $this->columnOptionsData(),
-                'canModificar' => function_exists('userCan') && userCan('modificar', 'Programa Urd / Eng'),
-                'canCrear' => function_exists('userCan') && userCan('crear', 'Programa Urd / Eng'),
-                'canEliminar' => function_exists('userCan') && userCan('eliminar', 'Programa Urd / Eng'),
-            ]);
+            $telares = collect([]);
         }
+
+        return view('modulos.programa_urd_eng.reservar-programar', [
+            'inventarioTelares' => $telares,
+            'columnOptions' => $this->columnOptionsData(),
+            'canModificar' => userCan('modificar', self::MODULO),
+            'canCrear' => userCan('crear', self::MODULO),
+            'canEliminar' => userCan('eliminar', self::MODULO),
+        ]);
     }
 
     public function programacionRequerimientos(Request $request)
@@ -125,9 +125,6 @@ class ReservarProgramarController extends Controller
 
     public function programarTelar(Request $request): JsonResponse
     {
-        if (! function_exists('userCan') || ! userCan('crear', 'Programa Urd / Eng')) {
-            abort(403, 'No tiene permiso para programar.');
-        }
         try {
             $request->validate(['no_telar' => ['required', 'string', 'max:50']]);
             $noTelar = (string) $request->string('no_telar');
@@ -146,9 +143,6 @@ class ReservarProgramarController extends Controller
 
     public function actualizarTelar(Request $request): JsonResponse
     {
-        if (! function_exists('userCan') || ! userCan('modificar', 'Programa Urd / Eng')) {
-            abort(403, 'No tiene permiso para modificar.');
-        }
         try {
             $request->validate([
                 'no_telar' => ['required', 'string', 'max:50'],
@@ -228,9 +222,6 @@ class ReservarProgramarController extends Controller
 
     public function liberarTelar(Request $request): JsonResponse
     {
-        if (! function_exists('userCan') || ! userCan('eliminar', 'Programa Urd / Eng')) {
-            abort(403, 'No tiene permiso para liberar.');
-        }
         try {
             $request->validate([
                 'id' => ['nullable', 'integer'],
@@ -538,7 +529,7 @@ class ReservarProgramarController extends Controller
             $query->where('turno', $turno);
         }
 
-        /** @var \Illuminate\Database\Eloquent\Collection<int, TejInventarioTelares> $telares */
+        /** @var Collection<int, TejInventarioTelares> $telares */
         $telares = $query->get();
         if ($telares->isEmpty()) {
             return -1;

@@ -13,6 +13,47 @@ use Tests\TestCase;
  */
 class InventarioTelaresFiltrosTest extends TestCase
 {
+    /**
+     * El nombre de columna venia del querystring y entraba pelado en where().
+     * Laravel escapa el identificador, asi que no habia inyeccion, pero si se
+     * podia filtrar (y sondear) cualquier columna de la tabla.
+     */
+    public function test_solo_se_filtran_las_columnas_de_la_lista(): void
+    {
+        $query = $this->querySpy();
+
+        (new InventarioTelaresService)->applyFiltros($query, [
+            ['columna' => 'password', 'valor' => 'x'],
+            ['columna' => 'status', 'valor' => 'Inactivo'],
+            ['columna' => '; DROP TABLE tej_inventario_telares--', 'valor' => 'x'],
+            ['columna' => 'no_telar', 'valor' => '401'],
+        ]);
+
+        $this->assertSame(
+            [['no_telar', '=', '401']],
+            array_values(array_map(
+                fn ($l) => $l[1],
+                array_filter($query->llamadas, fn ($l) => $l[0] === 'where')
+            )),
+            'Solo no_telar esta en COLS_TELARES; el resto no debe llegar a SQL.'
+        );
+    }
+
+    private function querySpy(): object
+    {
+        return new class
+        {
+            public array $llamadas = [];
+
+            public function __call(string $metodo, array $args): static
+            {
+                $this->llamadas[] = [$metodo, $args];
+
+                return $this;
+            }
+        };
+    }
+
     public function test_los_filtros_se_traducen_a_condiciones_sql(): void
     {
         $query = new class

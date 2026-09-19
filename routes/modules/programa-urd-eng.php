@@ -11,48 +11,59 @@ use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ResumenSemanasControll
 use App\Http\Controllers\UrdEngomado\UrdEngNucleosController;
 use Illuminate\Support\Facades\Route;
 
+// Permisos del modulo. El nombre debe coincidir con SYSRoles.modulo.
+// Variables y no const: este archivo se re-incluye al rearrancar la app en tests.
+$modulo = 'Programa Urd / Eng';
+$puedeAcceder = "module.permission:acceso,{$modulo}";
+$puedeCrear = "module.permission:crear,{$modulo}";
+$puedeModificar = "module.permission:modificar,{$modulo}";
+$puedeEliminar = "module.permission:eliminar,{$modulo}";
+
 // Ruta principal: muestra directamente la vista de reservar-programar
 Route::get('/programaurdeng', [ReservarProgramarController::class, 'index'])
+    ->middleware($puedeAcceder)
     ->name('programa.urd.eng.index');
 
 Route::redirect('/programa-urd-eng', '/programaurdeng', 301);
 
 Route::redirect('/programaurdeng/reservaryprogramar', '/programaurdeng', 301);
 
-Route::prefix('programa-urd-eng')->name('programa.urd.eng.')->group(function () {
-    Route::get('/reservar-programar', [ReservarProgramarController::class, 'index'])->name('reservar.programar');
-    Route::get('/programacion-requerimientos', [ReservarProgramarController::class, 'programacionRequerimientos'])->name('programacion.requerimientos');
-    Route::get('/programacion-requerimientos/grupo-by-telar', [ReservarProgramarController::class, 'getGrupoByTelar'])->name('programacion.requerimientos.grupo.by.telar');
-    Route::get('/creacion-ordenes', [ReservarProgramarController::class, 'creacionOrdenes'])->name('creacion.ordenes');
-    Route::get('/karl-mayer', [ReservarProgramarController::class, 'karlMayer'])->name('karl.mayer');
+// Todo el grupo exige 'acceso'; las rutas que mutan suman su propio permiso encima.
+Route::prefix('programa-urd-eng')->name('programa.urd.eng.')->middleware($puedeAcceder)
+    ->group(function () use ($puedeCrear, $puedeModificar, $puedeEliminar) {
+        Route::get('/reservar-programar', [ReservarProgramarController::class, 'index'])->name('reservar.programar');
+        Route::get('/programacion-requerimientos', [ReservarProgramarController::class, 'programacionRequerimientos'])->name('programacion.requerimientos');
+        Route::get('/programacion-requerimientos/grupo-by-telar', [ReservarProgramarController::class, 'getGrupoByTelar'])->name('programacion.requerimientos.grupo.by.telar');
+        Route::get('/creacion-ordenes', [ReservarProgramarController::class, 'creacionOrdenes'])->name('creacion.ordenes');
+        Route::get('/karl-mayer', [ReservarProgramarController::class, 'karlMayer'])->name('karl.mayer');
 
-    Route::post('/programacion-requerimientos/resumen-semanas', [ResumenSemanasController::class, 'getResumenSemanas'])->name('programacion.resumen.semanas');
+        Route::post('/programacion-requerimientos/resumen-semanas', [ResumenSemanasController::class, 'getResumenSemanas'])->name('programacion.resumen.semanas');
 
-    Route::get('/inventario-telares', [InventarioTelaresController::class, 'getInventarioTelares'])->name('inventario.telares');
-    Route::get('/inventario-disponible', [InventarioDisponibleController::class, 'disponible'])->name('inventario.disponible.get');
-    Route::post('/inventario-disponible', [InventarioDisponibleController::class, 'disponible'])->name('inventario.disponible');
-    Route::post('/programar-telar', [ReservarProgramarController::class, 'programarTelar'])->name('programar.telar');
-    Route::post('/actualizar-telar', [ReservarProgramarController::class, 'actualizarTelar'])->name('actualizar.telar');
-    Route::post('/reservar-inventario', [ReservaInventarioController::class, 'reservar'])->name('reservar.inventario');
+        Route::get('/inventario-telares', [InventarioTelaresController::class, 'getInventarioTelares'])->name('inventario.telares');
+        Route::get('/inventario-disponible', [InventarioDisponibleController::class, 'disponible'])->name('inventario.disponible.get');
+        Route::post('/inventario-disponible', [InventarioDisponibleController::class, 'disponible'])->name('inventario.disponible');
+        Route::post('/programar-telar', [ReservarProgramarController::class, 'programarTelar'])->middleware($puedeCrear)->name('programar.telar');
+        Route::post('/actualizar-telar', [ReservarProgramarController::class, 'actualizarTelar'])->middleware($puedeModificar)->name('actualizar.telar');
+        Route::post('/reservar-inventario', [ReservaInventarioController::class, 'reservar'])->middleware($puedeModificar)->name('reservar.inventario');
 
-    Route::post('/liberar-telar', [ReservarProgramarController::class, 'liberarTelar'])->name('liberar.telar');
+        Route::post('/liberar-telar', [ReservarProgramarController::class, 'liberarTelar'])->middleware($puedeEliminar)->name('liberar.telar');
 
-    Route::get('/reservas/{noTelar}', [InventarioDisponibleController::class, 'porTelar'])->name('reservas.porTelar');
-    Route::post('/reservas/cancelar', [ReservaInventarioController::class, 'cancelar'])->name('reservas.cancelar');
-    Route::get('/reservas/diagnostico', [InventarioDisponibleController::class, 'diagnosticarReservas'])->name('reservas.diagnostico');
-    Route::get('/buscar-bom-urdido', [BomMaterialesController::class, 'buscarBomUrdido'])->name('buscar.bom.urdido');
-    Route::get('/buscar-bom-engomado', [BomMaterialesController::class, 'buscarBomEngomado'])->name('buscar.bom.engomado');
-    Route::get('/buscar-bom-formula', [BomMaterialesController::class, 'buscarBomFormula'])->name('buscar.bom.formula');
-    Route::get('/buscar-lote-proveedor', [BomMaterialesController::class, 'buscarLoteProveedor'])->name('buscar.lote.proveedor');
-    Route::get('/materiales-urdido', [BomMaterialesController::class, 'getMaterialesUrdido'])->name('materiales.urdido');
-    Route::get('/materiales-urdido-completo', [BomMaterialesController::class, 'getMaterialesUrdidoCompleto'])->name('materiales.urdido.completo');
-    Route::get('/materiales-engomado', [BomMaterialesController::class, 'getMaterialesEngomado'])->name('materiales.engomado');
-    Route::get('/anchos-balona', [BomMaterialesController::class, 'getAnchosBalona'])->name('anchos.balona');
-    Route::get('/maquinas-engomado', [BomMaterialesController::class, 'getMaquinasEngomado'])->name('maquinas.engomado');
-    Route::get('/nucleos', [UrdEngNucleosController::class, 'getNucleos'])->name('nucleos');
-    Route::post('/crear-ordenes', [ProgramarUrdEngController::class, 'crearOrdenes'])->name('crear.ordenes');
-    Route::post('/crear-orden-karl-mayer', [CrearOrdenKarlMayerController::class, 'store'])->name('crear.orden.karl.mayer');
-    Route::get('/hilos', [BomMaterialesController::class, 'obtenerHilos'])->name('hilos');
-    Route::get('/tamanos', [BomMaterialesController::class, 'obtenerTamanos'])->name('tamanos');
-    Route::get('/bom-formula', [BomMaterialesController::class, 'getBomFormula'])->name('bom.formula');
-});
+        Route::get('/reservas/{noTelar}', [InventarioDisponibleController::class, 'porTelar'])->name('reservas.porTelar');
+        Route::post('/reservas/cancelar', [ReservaInventarioController::class, 'cancelar'])->middleware($puedeEliminar)->name('reservas.cancelar');
+        Route::get('/reservas/diagnostico', [InventarioDisponibleController::class, 'diagnosticarReservas'])->name('reservas.diagnostico');
+        Route::get('/buscar-bom-urdido', [BomMaterialesController::class, 'buscarBomUrdido'])->name('buscar.bom.urdido');
+        Route::get('/buscar-bom-engomado', [BomMaterialesController::class, 'buscarBomEngomado'])->name('buscar.bom.engomado');
+        Route::get('/buscar-bom-formula', [BomMaterialesController::class, 'buscarBomFormula'])->name('buscar.bom.formula');
+        Route::get('/buscar-lote-proveedor', [BomMaterialesController::class, 'buscarLoteProveedor'])->name('buscar.lote.proveedor');
+        Route::get('/materiales-urdido', [BomMaterialesController::class, 'getMaterialesUrdido'])->name('materiales.urdido');
+        Route::get('/materiales-urdido-completo', [BomMaterialesController::class, 'getMaterialesUrdidoCompleto'])->name('materiales.urdido.completo');
+        Route::get('/materiales-engomado', [BomMaterialesController::class, 'getMaterialesEngomado'])->name('materiales.engomado');
+        Route::get('/anchos-balona', [BomMaterialesController::class, 'getAnchosBalona'])->name('anchos.balona');
+        Route::get('/maquinas-engomado', [BomMaterialesController::class, 'getMaquinasEngomado'])->name('maquinas.engomado');
+        Route::get('/nucleos', [UrdEngNucleosController::class, 'getNucleos'])->name('nucleos');
+        Route::post('/crear-ordenes', [ProgramarUrdEngController::class, 'crearOrdenes'])->middleware($puedeCrear)->name('crear.ordenes');
+        Route::post('/crear-orden-karl-mayer', [CrearOrdenKarlMayerController::class, 'store'])->middleware($puedeCrear)->name('crear.orden.karl.mayer');
+        Route::get('/hilos', [BomMaterialesController::class, 'obtenerHilos'])->name('hilos');
+        Route::get('/tamanos', [BomMaterialesController::class, 'obtenerTamanos'])->name('tamanos');
+        Route::get('/bom-formula', [BomMaterialesController::class, 'getBomFormula'])->name('bom.formula');
+    });

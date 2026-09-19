@@ -7,7 +7,6 @@ namespace App\Services\ProgramaUrdEng;
 use App\Models\Tejido\TejInventarioTelares;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class InventarioTelaresService
 {
@@ -17,6 +16,12 @@ class InventarioTelaresService
         'no_telar', 'tipo', 'cuenta', 'calibre', 'fecha', 'turno', 'hilo', 'metros',
         'no_julio', 'no_orden', 'tipo_atado', 'salon', 'Reservado', 'Programado',
     ];
+
+    /**
+     * Solo estas columnas se pueden filtrar desde el navegador. Sin la lista,
+     * el querystring elegia cualquier columna de la tabla.
+     */
+    public const ALLOWED_FILTERS = self::COLS_TELARES;
 
     public function baseQuery()
     {
@@ -30,7 +35,7 @@ class InventarioTelaresService
             : DB::table($table);
 
         $fechaYmd = $driver === 'sqlsrv'
-            ? DB::raw("CONVERT(VARCHAR(10), [fecha], 23) as [fecha_ymd]")
+            ? DB::raw('CONVERT(VARCHAR(10), [fecha], 23) as [fecha_ymd]')
             : DB::raw("DATE_FORMAT(fecha, '%Y-%m-%d') as fecha_ymd");
 
         $select = array_merge(['id'], self::COLS_TELARES, [$fechaYmd]);
@@ -55,8 +60,8 @@ class InventarioTelaresService
                 'no_orden' => $this->str($r->no_orden ?? null),
                 'tipo_atado' => $this->str($r->tipo_atado ?? 'Normal'),
                 'salon' => $this->str($r->salon ?? null),
-                'reservado' => (bool)($r->Reservado ?? false),
-                'programado' => (bool)($r->Programado ?? false),
+                'reservado' => (bool) ($r->Reservado ?? false),
+                'programado' => (bool) ($r->Programado ?? false),
                 '_index' => $i,
             ];
         });
@@ -74,28 +79,38 @@ class InventarioTelaresService
     public function applyFiltros($query, array $filtros)
     {
         foreach ($filtros as $f) {
-            $col = trim((string)($f['columna'] ?? ''));
-            $val = trim((string)($f['valor'] ?? ''));
-            if ($col === '' || $val === '') continue;
+            $col = trim((string) ($f['columna'] ?? ''));
+            $val = trim((string) ($f['valor'] ?? ''));
+            if ($col === '' || $val === '') {
+                continue;
+            }
+            if (! in_array($col, self::ALLOWED_FILTERS, true)) {
+                continue;
+            }
 
             if ($col === 'fecha') {
                 $date = $this->parseDateFlexible($val);
-                if ($date) $query->whereDate('fecha', $date->toDateString());
+                if ($date) {
+                    $query->whereDate('fecha', $date->toDateString());
+                }
+
                 continue;
             }
 
             if ($col === 'no_telar') {
                 $query->where($col, '=', $val);
+
                 continue;
             }
 
             if ($col === 'hilo') {
                 $query->whereNotNull($col)->where($col, '!=', '')
-                    ->whereRaw('LOWER(TRIM(' . $col . ')) = LOWER(TRIM(?))', [$val]);
+                    ->whereRaw('LOWER(TRIM('.$col.')) = LOWER(TRIM(?))', [$val]);
             } else {
                 $query->where($col, 'like', "%{$val}%");
             }
         }
+
         return $query;
     }
 
@@ -105,8 +120,10 @@ class InventarioTelaresService
      */
     public function normalizeTipo($tipo): ?string
     {
-        if ($tipo === null) return null;
-        $t = strtoupper(trim((string)$tipo));
+        if ($tipo === null) {
+            return null;
+        }
+        $t = strtoupper(trim((string) $tipo));
 
         if (preg_match('/^(?:BARRA\s*|B)?([1-4])$/', $t, $m)) {
             return $m[1];
@@ -117,26 +134,30 @@ class InventarioTelaresService
 
     private function normalizeTelar($v)
     {
-        if ($v === null || $v === '') return '';
-        return is_numeric($v) ? (int)$v : (string)$v;
+        if ($v === null || $v === '') {
+            return '';
+        }
+
+        return is_numeric($v) ? (int) $v : (string) $v;
     }
 
     private function str($v): string
     {
-        return $v === null ? '' : trim((string)$v);
+        return $v === null ? '' : trim((string) $v);
     }
 
     private function num($v): float
     {
-        return ($v === null || $v === '') ? 0.0 : (float)$v;
+        return ($v === null || $v === '') ? 0.0 : (float) $v;
     }
 
     private function normalizeDateFromRow($row): ?string
     {
         $ymd = $row->fecha_ymd ?? null;
-        if ($ymd !== null && $ymd !== '' && preg_match('/^(\d{4}-\d{2}-\d{2})/', trim((string)$ymd), $m)) {
+        if ($ymd !== null && $ymd !== '' && preg_match('/^(\d{4}-\d{2}-\d{2})/', trim((string) $ymd), $m)) {
             return $m[1];
         }
+
         return null;
     }
 
@@ -146,7 +167,8 @@ class InventarioTelaresService
         foreach (['Y-m-d', 'd/m/Y', 'd-m-Y', 'Y/m/d', 'Y.m.d', 'd.m.Y'] as $fmt) {
             try {
                 return Carbon::createFromFormat($fmt, $v)->startOfDay();
-            } catch (\Throwable) {}
+            } catch (\Throwable) {
+            }
         }
         try {
             return Carbon::parse($v)->startOfDay();

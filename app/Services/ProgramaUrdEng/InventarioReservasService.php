@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Services\ProgramaUrdEng;
 
 use App\Models\Inventario\InvTelasReservadas;
-use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Tejedores\TejNotificaTejedorModel;
+use App\Models\Tejido\TejInventarioTelares;
+use App\Support\ProgramaUrdEng\CompatibilidadInventario;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -20,14 +23,18 @@ use Throwable;
 class InventarioReservasService
 {
     /** Parámetros de conexión a la base de datos externa (TI-PRO) */
-    private const TI_CONN     = 'sqlsrv_ti';
-    private const DATAAREA    = 'PRO';
-    private const LOC_TELA    = 'A-JUL/TELA';
-    private const LIMIT_TI    = 2000;
+    private const TI_CONN = 'sqlsrv_ti';
+
+    private const DATAAREA = 'PRO';
+
+    private const LOC_TELA = 'A-JUL/TELA';
+
+    private const LIMIT_TI = 2000;
 
     /** Patrones de búsqueda de Items para distinguir entre tipo Rizo y Pie */
     private const PATTERN_RIZO = '%JU-ENG-RI%';
-    private const PATTERN_PIE  = '%JU-ENG-PI%';
+
+    private const PATTERN_PIE = '%JU-ENG-PI%';
 
     /** Columnas permitidas para filtrar en las peticiones del frontend */
     public const ALLOWED_FILTERS = [
@@ -38,29 +45,29 @@ class InventarioReservasService
 
     /** Mapeo de los campos del frontend a las columnas reales en la consulta SQL de TI-PRO */
     private const FILTER_SQL = [
-        'ItemId'           => 's.ItemId',
-        'ConfigId'         => 'd.ConfigId',
-        'InventSizeId'     => 'd.InventSizeId',
-        'InventColorId'    => 'd.InventColorId',
+        'ItemId' => 's.ItemId',
+        'ConfigId' => 'd.ConfigId',
+        'InventSizeId' => 'd.InventSizeId',
+        'InventColorId' => 'd.InventColorId',
         'InventLocationId' => 'd.InventLocationId',
-        'InventBatchId'    => 'd.InventBatchId',
-        'WMSLocationId'    => 'd.WMSLocationId',
-        'InventSerialId'   => 'd.InventSerialId',
-        'InventQty'        => 'ISNULL(s.PhysicalInvent,0)',
-        'Metros'           => 'ISNULL(ser.TwMts,0)',
-        'ProdDate'         => 'ser.ProdDate',
+        'InventBatchId' => 'd.InventBatchId',
+        'WMSLocationId' => 'd.WMSLocationId',
+        'InventSerialId' => 'd.InventSerialId',
+        'InventQty' => 'ISNULL(s.PhysicalInvent,0)',
+        'Metros' => 'ISNULL(ser.TwMts,0)',
+        'ProdDate' => 'ser.ProdDate',
     ];
 
     /**
      * Normaliza los filtros que llegan desde la petición (querystring/body).
      * Asegura que el array de salida tenga siempre el formato estricto: [['columna' => '...', 'valor' => '...']]
      *
-     * @param mixed $raw Filtros en formato crudo.
+     * @param  mixed  $raw  Filtros en formato crudo.
      * @return array Filtros estructurados.
      */
     public function normalizeFilters($raw): array
     {
-        if (!is_array($raw)) {
+        if (! is_array($raw)) {
             return [];
         }
 
@@ -69,10 +76,11 @@ class InventarioReservasService
             if (is_array($filter) && isset($filter['columna'], $filter['valor'])) {
                 $normalized[] = [
                     'columna' => (string) $filter['columna'],
-                    'valor' => (string) $filter['valor']
+                    'valor' => (string) $filter['valor'],
                 ];
             }
         }
+
         return $normalized;
     }
 
@@ -85,6 +93,7 @@ class InventarioReservasService
         if ($value === null || in_array($value, ['null', 'NULL'], true)) {
             return '';
         }
+
         return trim((string) $value);
     }
 
@@ -92,7 +101,7 @@ class InventarioReservasService
      * Genera una clave única (dimKey) para una pieza en base a sus dimensiones.
      * Esta clave es fundamental para cruzar (hacer match) el inventario físico de TI-PRO con las reservas locales.
      *
-     * @param array|object $obj Objeto o array con los datos de la pieza.
+     * @param  array|object  $obj  Objeto o array con los datos de la pieza.
      * @return string Clave concatenada con '|'.
      */
     public function dimKey($obj): string
@@ -115,7 +124,7 @@ class InventarioReservasService
      * Obtiene el inventario disponible consultando TI-PRO y lo fusiona con las reservas locales activas.
      * Es el core de la vista de inventario.
      *
-     * @param array $filtros Filtros normalizados a aplicar.
+     * @param  array  $filtros  Filtros normalizados a aplicar.
      * @return array Resultado con el formato ['data' => array, 'total' => int].
      */
     public function getDisponibleData(array $filtros): array
@@ -198,7 +207,7 @@ class InventarioReservasService
 
         if ($wantOnlyAvailable) {
             // Si queremos solo disponibles, excluye si tiene un telar asignado (es decir, está reservado)
-            return ($noTelarId !== null && $noTelarId !== '');
+            return $noTelarId !== null && $noTelarId !== '';
         }
 
         // Búsqueda por coincidencia de texto (LIKE) en el número de telar
@@ -216,6 +225,7 @@ class InventarioReservasService
             ->get()
             ->map(function ($r) {
                 $r->dimKey = $this->dimKey($r);
+
                 return $r;
             });
     }
@@ -223,12 +233,13 @@ class InventarioReservasService
     /**
      * Herramienta de diagnóstico: Muestra las reservas más recientes (con su dimKey calculada).
      */
-    public function getDiagnosticoReservas(?string $noTelar, int $limit): \Illuminate\Support\Collection
+    public function getDiagnosticoReservas(?string $noTelar, int $limit): Collection
     {
         $query = InvTelasReservadas::where('Status', 'Reservado')->orderByDesc('Id');
         if ($noTelar !== null && $noTelar !== '') {
             $query->where('NoTelarId', $noTelar);
         }
+
         return $query->limit($limit)->get();
     }
 
@@ -238,44 +249,57 @@ class InventarioReservasService
      * 2. Consume notificaciones de tejedor si aplican.
      * 3. Actualiza el inventario de telares marcándolo como reservado.
      *
-     * @param array $data Datos validados de la reserva.
+     * @param  array  $data  Datos validados de la reserva.
      * @return array ['created' => bool, 'message' => string]
      */
     public function ejecutarReserva(array $data): array
     {
-        $created = false;
-        $msg = 'Pieza reservada correctamente.';
+        // El lote es el prefijo del numero de julio ('00061-744' -> '00061').
+        $lote = CompatibilidadInventario::loteDerivado(
+            $data['InventSerialId'] ?? null,
+            $data['InventBatchId'] ?? null
+        );
+        if ($lote !== '') {
+            $data['InventBatchId'] = $lote;
+        }
 
-        // Derivar el InventBatchId a partir del prefijo de InventSerialId (ej. '00061-744' -> '00061')
-        $serialId = trim((string) ($data['InventSerialId'] ?? ''));
-        if ($serialId !== '' && strpos($serialId, '-') !== false) {
-            $prefijo = trim(explode('-', $serialId)[0] ?? '');
-            if ($prefijo !== '') {
-                $data['InventBatchId'] = $prefijo;
+        // Las tres escrituras son una sola operacion: si falla la del telar, no
+        // puede quedar una reserva huerfana con el telar sin marcar como Reservado.
+        return DB::transaction(function () use ($data): array {
+            $created = false;
+            $msg = 'Pieza reservada correctamente.';
+
+            // Regla de negocio: consumir notificaciones (avisos de los tejedores) previas a la reserva
+            $this->aplicarReglaNotificaTejedorAntesDeReservar($data);
+
+            try {
+                InvTelasReservadas::create($data);
+                $created = true;
+            } catch (QueryException $qe) {
+                if (! self::esViolacionDeUnico($qe)) {
+                    throw $qe;
+                }
+                $msg = 'La pieza ya estaba reservada (se evitó el duplicado).';
             }
-        }
 
-        // Regla de negocio: consumir notificaciones (avisos de los tejedores) previas a la reserva
-        $this->aplicarReglaNotificaTejedorAntesDeReservar($data);
-
-        try {
-            InvTelasReservadas::create($data);
-            $created = true;
-        } catch (\Illuminate\Database\QueryException $qe) {
-            // Códigos SQL Server 2601 y 2627 indican violación de índice único. Se ignora como "duplicado".
-            if (!in_array($qe->getCode(), [2601, 2627], true)) {
-                throw $qe;
+            // Actualizar el estado 'Reservado' y atributos dimensionales en el catálogo de telares
+            $tejInventarioTelaresId = $data['TejInventarioTelaresId'] ?? null;
+            if ($tejInventarioTelaresId) {
+                $this->actualizarEstadoTelarTrasReserva((int) $tejInventarioTelaresId, $data);
             }
-            $msg = 'La pieza ya estaba reservada (se evitó el duplicado).';
-        }
 
-        // Actualizar el estado 'Reservado' y atributos dimensionales en el catálogo de telares
-        $tejInventarioTelaresId = $data['TejInventarioTelaresId'] ?? null;
-        if ($tejInventarioTelaresId) {
-            $this->actualizarEstadoTelarTrasReserva((int) $tejInventarioTelaresId, $data);
-        }
+            return ['created' => $created, 'message' => $msg];
+        });
+    }
 
-        return ['created' => $created, 'message' => $msg];
+    /**
+     * 2601 y 2627 son violacion de indice unico en SQL Server. Vienen en
+     * errorInfo[1] (codigo del driver); getCode() devuelve el SQLSTATE '23000',
+     * que nunca coincide con esos numeros.
+     */
+    public static function esViolacionDeUnico(QueryException $qe): bool
+    {
+        return in_array((int) ($qe->errorInfo[1] ?? 0), [2601, 2627], true);
     }
 
     /**
@@ -283,42 +307,35 @@ class InventarioReservasService
      */
     private function actualizarEstadoTelarTrasReserva(int $telarId, array $data): void
     {
-        try {
-            $telar = TejInventarioTelares::where('id', $telarId)->where('status', 'Activo')->first();
+        $telar = TejInventarioTelares::where('id', $telarId)->where('status', 'Activo')->first();
 
-            if (!$telar) {
-                Log::warning('ReservaInventario: No se encontró telar activo para actualizar', [
-                    'tej_inventario_telares_id' => $telarId,
-                ]);
-                return;
-            }
-
-            $telar->Reservado = true;
-
-            if (isset($data['ConfigId'])) {
-                $telar->ConfigId = $this->normalizeDimValue($data['ConfigId']);
-            }
-            if (isset($data['InventSizeId'])) {
-                $telar->InventSizeId = $this->normalizeDimValue($data['InventSizeId']);
-            }
-            if (isset($data['InventColorId'])) {
-                $telar->InventColorId = $this->normalizeDimValue($data['InventColorId']);
-            }
-            if (array_key_exists('InventBatchId', $data)) {
-                $telar->LoteProveedor = $this->normalizeDimValue($data['InventBatchId']);
-            }
-            if (!empty($data['NoProveedor'])) {
-                $telar->NoProveedor = $this->normalizeDimValue($data['NoProveedor']);
-            }
-
-            $telar->save();
-
-        } catch (Throwable $e) {
-            Log::warning('Error al actualizar estatus de reservado en el telar', [
-                'tej_inventario_telares_id' => $telarId,
-                'error' => $e->getMessage(),
-            ]);
+        if (! $telar) {
+            // Antes se tragaba con un warning y la reserva respondia success:true
+            // dejando el telar sin marcar. Ahora revienta la transaccion.
+            throw new \RuntimeException(
+                "No se encontró telar activo {$telarId} para marcar como reservado."
+            );
         }
+
+        $telar->Reservado = true;
+
+        if (isset($data['ConfigId'])) {
+            $telar->ConfigId = $this->normalizeDimValue($data['ConfigId']);
+        }
+        if (isset($data['InventSizeId'])) {
+            $telar->InventSizeId = $this->normalizeDimValue($data['InventSizeId']);
+        }
+        if (isset($data['InventColorId'])) {
+            $telar->InventColorId = $this->normalizeDimValue($data['InventColorId']);
+        }
+        if (array_key_exists('InventBatchId', $data)) {
+            $telar->LoteProveedor = $this->normalizeDimValue($data['InventBatchId']);
+        }
+        if (! empty($data['NoProveedor'])) {
+            $telar->NoProveedor = $this->normalizeDimValue($data['NoProveedor']);
+        }
+
+        $telar->save();
     }
 
     /**
@@ -341,14 +358,14 @@ class InventarioReservasService
             ->whereRaw('LOWER(LTRIM(RTRIM(tipo))) = ?', [mb_strtolower($tipo, 'UTF-8')])
             ->where(function ($q) {
                 $q->whereNull('Reserva')
-                  ->orWhere('Reserva', 0)
-                  ->orWhere('Reserva', false);
+                    ->orWhere('Reserva', 0)
+                    ->orWhere('Reserva', false);
             })
             ->orderByDesc('Fecha')
             ->orderByDesc('id')
             ->first();
 
-        if (!$pendiente) {
+        if (! $pendiente) {
             return; // No hay reportes pendientes del tejedor
         }
 
@@ -423,11 +440,12 @@ class InventarioReservasService
             ? (int) $data['TejInventarioTelaresId']
             : null;
 
-        if (!$telarId) {
+        if (! $telarId) {
             return null;
         }
 
         $tipoTelar = TejInventarioTelares::where('id', $telarId)->value('tipo');
+
         return $this->normalizeTipoReserva($tipoTelar);
     }
 
@@ -458,7 +476,7 @@ class InventarioReservasService
      * Cancela una o varias reservas.
      * Puede cancelar a través del `Id` único, o bien localizándola por sus dimensiones.
      *
-     * @param array $input Datos de la reserva a cancelar.
+     * @param  array  $input  Datos de la reserva a cancelar.
      * @return array ['updated' => bool]
      */
     public function ejecutarCancelar(array $input): array
@@ -466,7 +484,7 @@ class InventarioReservasService
         $query = InvTelasReservadas::query();
 
         // 1. Identificar la reserva
-        if (!empty($input['Id'])) {
+        if (! empty($input['Id'])) {
             $query->where('Id', $input['Id']);
         } else {
             // Cancelar usando el conjunto dimensional exacto
@@ -505,7 +523,7 @@ class InventarioReservasService
                 ->where('Status', 'Reservado')
                 ->exists();
 
-            if (!$tieneReservasActivas) {
+            if (! $tieneReservasActivas) {
                 TejInventarioTelares::where('no_telar', $noTelarId)
                     ->where('status', 'Activo')
                     ->update(['Reservado' => false]);
@@ -522,8 +540,8 @@ class InventarioReservasService
      * Realiza la consulta a la base de datos externa de TI-PRO para obtener el inventario físico disponible.
      * Utiliza un nivel de aislamiento READ UNCOMMITTED (NOLOCK) para evitar bloqueos en el ERP de producción.
      *
-     * @param array $filtros Lista de filtros a aplicar en la consulta.
-     * @param int $limit Límite de registros a traer.
+     * @param  array  $filtros  Lista de filtros a aplicar en la consulta.
+     * @param  int  $limit  Límite de registros a traer.
      * @return array Resultados obtenidos.
      */
     private function queryDisponibleFromTiPro(array $filtros = [], int $limit = self::LIMIT_TI): array
@@ -578,7 +596,7 @@ class InventarioReservasService
                 $col = $f['columna'] ?? null;
                 $val = trim($f['valor'] ?? '');
 
-                if (!$col || $val === '') {
+                if (! $col || $val === '') {
                     continue;
                 }
 
@@ -589,6 +607,7 @@ class InventarioReservasService
                     } elseif (strpos($v, 'pie') !== false) {
                         $query->where('s.ItemId', 'like', self::PATTERN_PIE);
                     }
+
                     // ponytail: una barra de Karl Mayer ('1'..'4') no filtra nada y se
                     // ofrecen todos los julios. En TI-PRO solo existen items JU-ENG-RI y
                     // JU-ENG-PI; cuando haya items por barra, agregar su patron aqui.
@@ -600,8 +619,9 @@ class InventarioReservasService
                         $date = Carbon::parse($val)->format('Y-m-d');
                         $query->whereRaw('CAST(ser.ProdDate AS DATE) = ?', [$date]);
                     } catch (Throwable) {
-                        $query->whereRaw('CAST(ser.ProdDate AS NVARCHAR(23)) LIKE ?', ['%' . $val . '%']);
+                        $query->whereRaw('CAST(ser.ProdDate AS NVARCHAR(23)) LIKE ?', ['%'.$val.'%']);
                     }
+
                     continue;
                 }
 
@@ -610,8 +630,9 @@ class InventarioReservasService
                     if (is_numeric($val)) {
                         $query->whereRaw("$expr = ?", [(float) $val]);
                     } else {
-                        $query->whereRaw("CAST($expr AS NVARCHAR(50)) LIKE ?", ['%' . $val . '%']);
+                        $query->whereRaw("CAST($expr AS NVARCHAR(50)) LIKE ?", ['%'.$val.'%']);
                     }
+
                     continue;
                 }
 
@@ -620,7 +641,7 @@ class InventarioReservasService
                     $expr = self::FILTER_SQL[$col];
                     $query->whereRaw(
                         "LOWER(CAST($expr AS NVARCHAR(100))) LIKE ?",
-                        ['%' . mb_strtolower($val, 'UTF-8') . '%']
+                        ['%'.mb_strtolower($val, 'UTF-8').'%']
                     );
                 }
             }
