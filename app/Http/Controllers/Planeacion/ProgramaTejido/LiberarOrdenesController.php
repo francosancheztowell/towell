@@ -6,12 +6,12 @@ use App\Helpers\AuditoriaHelper;
 use App\Helpers\FolioHelper;
 use App\Helpers\StringTruncator;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UpdateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\OrdenDeCambio\Felpa\OrdenDeCambioFelpaController;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\Liberar\LiberarBomCrudoResolver;
 use App\Services\Planeacion\Liberar\LiberarCatCodificadosWriter;
+use App\Services\Planeacion\Liberar\LiberarFlogSugeridoService;
 use App\Services\Planeacion\Liberar\LiberarMarbetesCalculator;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
@@ -38,6 +38,7 @@ class LiberarOrdenesController extends Controller
         private readonly LiberarMarbetesCalculator $marbetesCalculator = new LiberarMarbetesCalculator,
         private readonly LiberarBomCrudoResolver $bomCrudoResolver = new LiberarBomCrudoResolver,
         private readonly LiberarCatCodificadosWriter $catCodificadosWriter = new LiberarCatCodificadosWriter,
+        private readonly LiberarFlogSugeridoService $flogSugerido = new LiberarFlogSugeridoService,
     ) {}
 
     /**
@@ -192,17 +193,17 @@ class LiberarOrdenesController extends Controller
             });
 
             // Catálogo de flogs: el renglón que empata decide si lleva flog o no (check en la columna Flog).
-            $articulosConFlog = $this->clavesArticulosConFlog($registros);
+            $articulosConFlog = $this->flogSugerido->clavesArticulosConFlog($registros);
             $registros->each(function ($registro) use ($articulosConFlog) {
-                $registro->RequiereDecisionFlog = isset($articulosConFlog[self::claveItemTalla($registro->ItemId ?? '', $registro->InventSizeId ?? '')]);
+                $registro->RequiereDecisionFlog = isset($articulosConFlog[LiberarFlogSugeridoService::claveItemTalla($registro->ItemId ?? '', $registro->InventSizeId ?? '')]);
             });
 
             // El flog sugerido se resuelve aquí, en UNA consulta para todo el lote. Antes el
             // front lo pedía por renglón (una petición HTTP cada uno, en serie).
-            $flogsSugeridos = $this->flogsSugeridosDelLote($registros->filter(fn ($r) => $r->RequiereDecisionFlog));
+            $flogsSugeridos = $this->flogSugerido->flogsSugeridosDelLote($registros->filter(fn ($r) => $r->RequiereDecisionFlog));
             $registros->each(function ($registro) use ($flogsSugeridos) {
                 $registro->FlogSugerido = $registro->RequiereDecisionFlog
-                    ? ($flogsSugeridos[self::claveItemTalla($registro->ItemId ?? '', $registro->InventSizeId ?? '')] ?? null)
+                    ? ($flogsSugeridos[LiberarFlogSugeridoService::claveItemTalla($registro->ItemId ?? '', $registro->InventSizeId ?? '')] ?? null)
                     : null;
             });
 
@@ -622,7 +623,7 @@ class LiberarOrdenesController extends Controller
                 // (sólo lo deciden los renglones del catálogo) no vive aquí, viaja a CatCodificados.
                 $flogsId = trim((string) ($item['flogsId'] ?? ''));
                 if ($flogsId !== '' && $flogsId !== trim((string) ($registro->FlogsId ?? ''))) {
-                    $errorFlog = $this->aplicarDatosFlog($registro, $flogsId);
+                    $errorFlog = $this->flogSugerido->aplicarDatosFlog($registro, $flogsId);
                     if ($errorFlog !== null) {
                         DB::rollBack();
 
@@ -1513,177 +1514,10 @@ class LiberarOrdenesController extends Controller
         }
     }
 
-    /** Clave normalizada item+talla usada para cruzar contra el catálogo TwArticulosFelpas. */
-    private static function claveItemTalla(?string $itemId, ?string $inventSizeId): string
-    {
-        return mb_strtoupper(trim((string) $itemId)).'|'.mb_strtoupper(trim((string) $inventSizeId));
-    }
-
-    /**
-     * Artículos del catálogo de flogs presentes en el lote, en UNA consulta a AX (no una
-     * por renglón). Pese al nombre, TwArticulosFelpas no es sólo felpa: es el catálogo de
-     * combinaciones item+talla de cualquier tipo de artículo donde el usuario decide si la
-     * orden lleva flog. Sólo tiene ITEMID/INVENTSIZEID/ITEMNAME: no aporta el flog en sí.
-     *
-     * @param  Collection<int, ReqProgramaTejido>  $registros
-     * @return array<string, true> claves item|talla presentes en la tabla
-     */
-    private function clavesArticulosConFlog($registros): array
-    {
-        $itemIds = $registros
-            ->map(fn ($r) => trim((string) ($r->ItemId ?? '')))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
-        if ($itemIds === []) {
-            return [];
-        }
-
-        // AX no es consistente con el sufijo: TwArticulosFelpas guarda '6598-1' y
-        // TwFlogsItemLine el mismo item como '6598'. Se consultan ambas formas y la
-        // clave se normaliza sin sufijo; si no, el catálogo nunca empata.
-        $buscar = array_values(array_unique(array_merge(
-            $itemIds,
-            array_map(static fn (string $id): string => $id.'-1', $itemIds)
-        )));
-
-        try {
-            $filas = DB::connection('sqlsrv_ti')
-                ->table('TwArticulosFelpas')
-                ->select('ITEMID', 'INVENTSIZEID')
-                ->whereIn('ITEMID', $buscar)
-                ->get();
-        } catch (\Throwable $e) {
-            // Sin AX no se sabe qué renglones piden decisión. Se prefiere no ofrecerla (todos
-            // conservan su AsignarFlogs) a tumbar la pantalla completa.
-            Log::warning('LiberarOrdenes: no se pudo consultar TwArticulosFelpas', ['error' => $e->getMessage()]);
-
-            return [];
-        }
-
-        $claves = [];
-        foreach ($filas as $fila) {
-            $claves[self::claveItemTalla(LiberarBomCrudoResolver::itemIdSinSufijo((string) ($fila->ITEMID ?? '')), $fila->INVENTSIZEID ?? '')] = true;
-        }
-
-        return $claves;
-    }
-
-    /**
-     * Flog vigente por item|talla para todo el lote, en UNA consulta a AX. Mismo criterio de
-     * desempate que {@see self::obtenerFlogSugerido()}: el flog más reciente es el de mayor
-     * número final, no el mayor alfabéticamente (CE-100 > CE-99).
-     *
-     * Ojo con el sufijo: TwFlogsItemLine guarda el item SIN '-1' (al revés que
-     * TwArticulosFelpas), y la columna trae relleno, de ahí el LTRIM/RTRIM.
-     *
-     * @param  Collection<int, ReqProgramaTejido>  $registros
-     * @return array<string, string> clave item|talla => IDFLOG
-     */
-    private function flogsSugeridosDelLote($registros): array
-    {
-        $itemIds = $registros
-            ->map(fn ($r) => trim((string) ($r->ItemId ?? '')))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
-        if ($itemIds === []) {
-            return [];
-        }
-
-        try {
-            $filas = DB::connection('sqlsrv_ti')
-                ->table('dbo.TwFlogsItemLine as fil')
-                ->join('dbo.TwFlogsTable as ft', 'ft.IDFLOG', '=', 'fil.IDFLOG')
-                ->select('fil.ITEMID', 'fil.INVENTSIZEID', 'ft.IDFLOG')
-                ->whereIn(DB::raw('LTRIM(RTRIM(fil.ITEMID))'), $itemIds)
-                ->whereIn('ft.ESTADOFLOG', [3, 4, 5, 21])
-                ->get();
-        } catch (\Throwable $e) {
-            // Sin AX el renglón sale con el flog vacío y el usuario lo captura a mano.
-            Log::warning('LiberarOrdenes: no se pudieron precargar los flogs sugeridos', ['error' => $e->getMessage()]);
-
-            return [];
-        }
-
-        $mejores = [];
-        foreach ($filas as $fila) {
-            $idFlog = trim((string) ($fila->IDFLOG ?? ''));
-            if ($idFlog === '') {
-                continue;
-            }
-
-            $clave = self::claveItemTalla((string) ($fila->ITEMID ?? ''), (string) ($fila->INVENTSIZEID ?? ''));
-            $numero = preg_match('/(\d+)$/', $idFlog, $m) ? (int) $m[1] : 0;
-
-            if (! isset($mejores[$clave]) || $numero > $mejores[$clave]['numero']) {
-                $mejores[$clave] = ['numero' => $numero, 'idFlog' => $idFlog];
-            }
-        }
-
-        return array_map(fn (array $v) => $v['idFlog'], $mejores);
-    }
-
-    /**
-     * Cambio de flog desde la grilla. El flog debe existir y estar vigente en AX: capturado
-     * a mano se puede escribir cualquier cosa y quedaría una orden con un flog inexistente.
-     * Si existe, arrastra lo que el flog define en AX (descripción, cliente, categoría) y el
-     * TipoPedido derivado del prefijo, igual que Duplicar.
-     *
-     * @return string|null mensaje de error, o null si el flog es válido
-     */
-    private function aplicarDatosFlog(ReqProgramaTejido $registro, string $flogsId): ?string
-    {
-        try {
-            $cabecera = DB::connection('sqlsrv_ti')
-                ->table('dbo.TwFlogsTable')
-                ->select('NAMEPROYECT', 'CUSTNAME')
-                ->where('IDFLOG', $flogsId)
-                ->whereIn('ESTADOFLOG', [3, 4, 5, 21])
-                ->first();
-
-            if (! $cabecera) {
-                return 'El flog "'.$flogsId.'" no existe o no está vigente en AX.';
-            }
-
-            UpdateHelpers::applyFlogYTipoPedido($registro, $flogsId);
-
-            $registro->NombreProyecto = trim((string) ($cabecera->NAMEPROYECT ?? '')) ?: $registro->NombreProyecto;
-            $registro->CustName = trim((string) ($cabecera->CUSTNAME ?? '')) ?: $registro->CustName;
-
-            $cliente = DB::connection('sqlsrv_ti')
-                ->table('dbo.TwFlogsCustomer')
-                ->select('CustName', 'CategoriaCalidad')
-                ->where('IdFlog', $flogsId)
-                ->first();
-
-            if ($cliente) {
-                $registro->CustName = trim((string) ($cliente->CustName ?? '')) ?: $registro->CustName;
-                $registro->CategoriaCalidad = trim((string) ($cliente->CategoriaCalidad ?? '')) ?: $registro->CategoriaCalidad;
-            }
-        } catch (\Throwable $e) {
-            // Un timeout de AX no puede ser MÁS permisivo que un AX que responde "no existe":
-            // antes esta rama aceptaba el flog capturado y dejaba la orden con un flog que
-            // podía no existir. Sin poder validar, se rechaza igual que un flog inválido.
-            Log::warning('LiberarOrdenes: no se pudieron leer los datos del flog en AX', [
-                'flogsId' => $flogsId,
-                'error' => $e->getMessage(),
-            ]);
-
-            return 'No se pudo validar el flog "'.$flogsId.'" contra AX. Intenta de nuevo.';
-        }
-
-        return null;
-    }
-
     /**
      * Flog vigente para un item + talla, para precargar la celda de los renglones del
-     * catálogo (check "Asignar flogs"). Mismo criterio que Codificación:
-     * TwFlogsItemLine + TwFlogsTable, estados vigentes, el más reciente.
+     * catálogo (check "Asignar flogs"). Delega la consulta a
+     * {@see LiberarFlogSugeridoService::sugerir()}.
      *
      * @return JsonResponse
      */
@@ -1697,27 +1531,9 @@ class LiberarOrdenesController extends Controller
         }
 
         try {
-            // Mismo criterio que Duplicar (getFlogByItem): el flog más reciente es el de mayor
-            // número final, no el mayor alfabéticamente (CE-100 > CE-99).
-            $flog = DB::connection('sqlsrv_ti')
-                ->table('dbo.TwFlogsItemLine as fil')
-                ->join('dbo.TwFlogsTable as ft', 'ft.IDFLOG', '=', 'fil.IDFLOG')
-                ->select('ft.IDFLOG', 'ft.NAMEPROYECT')
-                ->whereRaw('LTRIM(RTRIM(fil.ITEMID)) = ?', [$itemId])
-                ->whereRaw('LTRIM(RTRIM(fil.INVENTSIZEID)) = ?', [$inventSizeId])
-                ->whereIn('ft.ESTADOFLOG', [3, 4, 5, 21])
-                ->get()
-                ->sortByDesc(function ($fila) {
-                    return preg_match('/(\d+)$/', trim((string) ($fila->IDFLOG ?? '')), $m) ? (int) $m[1] : 0;
-                })
-                ->first();
-
             return response()->json([
                 'success' => true,
-                'data' => $flog ? [
-                    'flogsId' => trim((string) ($flog->IDFLOG ?? '')),
-                    'nombreProyecto' => trim((string) ($flog->NAMEPROYECT ?? '')),
-                ] : null,
+                'data' => $this->flogSugerido->sugerir($itemId, $inventSizeId),
             ]);
         } catch (\Throwable $e) {
             Log::error('LiberarOrdenes::obtenerFlogSugerido', [

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\Liberar\LiberarBomCrudoResolver;
+use App\Services\Planeacion\Liberar\LiberarFlogSugeridoService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -130,6 +131,7 @@ class LiberarOrdenesLiberarTest extends TestCase
             $table->string('CustName')->nullable();
             $table->string('FlogsId')->nullable();
             $table->string('NombreProyecto')->nullable();
+            $table->string('TipoPedido')->nullable();
             $table->float('PesoMuestra')->nullable();
             $table->integer('OrdPrincipal')->nullable();
             $table->integer('OrdCompartida')->nullable();
@@ -515,13 +517,10 @@ class LiberarOrdenesLiberarTest extends TestCase
             return $registro;
         });
 
-        $controller = new LiberarOrdenesController;
-        $metodo = new \ReflectionMethod($controller, 'clavesArticulosConFlog');
-        $metodo->setAccessible(true);
-        $claves = $metodo->invoke($controller, $registros);
+        $claves = (new LiberarFlogSugeridoService)->clavesArticulosConFlog($registros);
 
         $decide = fn (ReqProgramaTejido $r) => isset($claves[
-            mb_strtoupper(trim((string) $r->ItemId)).'|'.mb_strtoupper(trim((string) $r->InventSizeId))
+            LiberarFlogSugeridoService::claveItemTalla($r->ItemId, $r->InventSizeId)
         ]);
 
         $this->assertTrue($decide($registros[0]));
@@ -529,6 +528,93 @@ class LiberarOrdenesLiberarTest extends TestCase
         $this->assertTrue($decide($registros[2]));
         $this->assertFalse($decide($registros[3]));
         $this->assertFalse($decide($registros[4]));
+    }
+
+    /**
+     * index() precarga el flog sugerido del lote: el renglón del catálogo recibe
+     * el vigente de mayor número final; el que no empata no pide decisión.
+     */
+    public function test_index_asigna_flog_sugerido_al_renglon_del_catalogo(): void
+    {
+        $this->attachDboFlogTables();
+        DB::connection('sqlsrv_ti')->table('TwArticulosFelpas')->insert([
+            ['ITEMID' => 'IT100-1', 'INVENTSIZEID' => 'STD', 'ITEMNAME' => 'CON FLOG'],
+        ]);
+        DB::connection('sqlsrv_ti')->table('dbo.TwFlogsTable')->insert([
+            ['IDFLOG' => 'CE-99', 'NAMEPROYECT' => 'VIEJO', 'CUSTNAME' => 'X', 'ESTADOFLOG' => 3],
+            ['IDFLOG' => 'CE-100', 'NAMEPROYECT' => 'NUEVO', 'CUSTNAME' => 'X', 'ESTADOFLOG' => 5],
+        ]);
+        DB::connection('sqlsrv_ti')->table('dbo.TwFlogsItemLine')->insert([
+            ['IDFLOG' => 'CE-99', 'ITEMID' => 'IT100', 'INVENTSIZEID' => 'STD'],
+            ['IDFLOG' => 'CE-100', 'ITEMID' => 'IT100', 'INVENTSIZEID' => 'STD'],
+        ]);
+
+        $conFlog = $this->sembrarRegistro(['NoTelarId' => '201', 'ItemId' => 'IT100', 'InventSizeId' => 'STD']);
+        $sinFlog = $this->sembrarRegistro(['NoTelarId' => '202', 'ItemId' => 'IT999', 'InventSizeId' => 'STD']);
+
+        $view = (new LiberarOrdenesController)->index(Request::create('/liberar-ordenes', 'GET', ['dias' => 10.999]));
+        $this->assertFalse(isset($view->getData()['error']), $view->getData()['error'] ?? '');
+
+        $porId = collect($view->getData()['registros'])->keyBy('Id');
+        $this->assertTrue((bool) $porId[$conFlog]->RequiereDecisionFlog);
+        $this->assertSame('CE-100', $porId[$conFlog]->FlogSugerido);
+        $this->assertFalse((bool) $porId[$sinFlog]->RequiereDecisionFlog);
+        $this->assertNull($porId[$sinFlog]->FlogSugerido);
+    }
+
+    /**
+     * Liberar con un flog vigente arrastra descripción/cliente/categoría/tipo desde AX.
+     */
+    public function test_liberar_con_flog_valido_arrastra_datos_ax(): void
+    {
+        $this->attachDboFlogTables();
+        DB::connection('sqlsrv_ti')->table('dbo.TwFlogsTable')->insert([
+            'IDFLOG' => 'CE-44',
+            'NAMEPROYECT' => 'PROY LIBERAR',
+            'CUSTNAME' => 'CLIENTE CAB',
+            'ESTADOFLOG' => 4,
+        ]);
+        DB::connection('sqlsrv_ti')->table('dbo.TwFlogsCustomer')->insert([
+            'IdFlog' => 'CE-44',
+            'CustName' => 'CLIENTE FLOG',
+            'CategoriaCalidad' => 'PREMIUM',
+        ]);
+
+        $id = $this->sembrarRegistro(['CustName' => 'VIEJO']);
+        $response = $this->liberar([[
+            'id' => $id,
+            'bomId' => 'BOM-CRUDO-01',
+            'bomName' => 'LISTA MATERIALES CRUDO 01',
+            'noProduccion' => '79010',
+            'flogsId' => 'CE-44',
+        ]]);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $registro = DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $id)->first();
+        $this->assertSame('CE-44', $registro->FlogsId);
+        $this->assertSame('CE', $registro->TipoPedido);
+        $this->assertSame('PROY LIBERAR', $registro->NombreProyecto);
+        $this->assertSame('CLIENTE FLOG', $registro->CustName);
+        $this->assertSame('PREMIUM', $registro->CategoriaCalidad);
+        $this->assertSame(1, (int) $registro->CreaProd);
+    }
+
+    private function attachDboFlogTables(): void
+    {
+        $conexion = DB::connection('sqlsrv_ti');
+        if (! in_array('dbo', array_column($conexion->select('PRAGMA database_list'), 'name'), true)) {
+            $conexion->statement("ATTACH DATABASE ':memory:' AS dbo");
+        }
+
+        $conexion->statement('CREATE TABLE IF NOT EXISTS dbo."TwFlogsTable" (
+            "IDFLOG" TEXT, "NAMEPROYECT" TEXT, "CUSTNAME" TEXT, "ESTADOFLOG" INTEGER
+        )');
+        $conexion->statement('CREATE TABLE IF NOT EXISTS dbo."TwFlogsItemLine" (
+            "IDFLOG" TEXT, "ITEMID" TEXT, "INVENTSIZEID" TEXT
+        )');
+        $conexion->statement('CREATE TABLE IF NOT EXISTS dbo."TwFlogsCustomer" (
+            "IdFlog" TEXT, "CustName" TEXT, "CategoriaCalidad" TEXT
+        )');
     }
 
     /**
