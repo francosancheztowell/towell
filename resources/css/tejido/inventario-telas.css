@@ -91,8 +91,18 @@
     opacity: 0.95;
 }
 
-.inventario-telas-page .telar-section .col-label.center {
-    top: 32%;
+/* La etiqueta cuelga del bloque de siguiente orden y se sale hacia el riel, asi
+   queda a su altura aunque la tarjeta crezca (antes era un 32% de la tarjeta). */
+.inventario-telas-page .telar-section .inv-telas-sig-wrap {
+    position: relative;
+}
+
+.inventario-telas-page .telar-section .inv-telas-sig-wrap > .col-label.center {
+    top: 50%;
+    right: auto;
+    left: calc(-1 * var(--inv-rail));
+    width: var(--inv-rail);
+    z-index: 2;
     transform: translateY(-50%);
 }
 
@@ -274,6 +284,24 @@
 /* Hasta 899 px (tablet en vertical: iPad 768, Android 800) la tarjeta se apila:
    antes este rango caia en el layout de escritorio y el calendario de 7 dias
    peleaba el ancho con las cuentas. */
+/* En PC los 7 dias reparten el ancho libre en vez de quedarse en 6.5rem cada uno.
+   Va aqui y no en el @media de arriba porque las reglas base del calendario se
+   declaran despues y le ganarian por orden. */
+@media (min-width: 900px) {
+    .inventario-telas-page .inv-telas-cal-wrap {
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    .inventario-telas-page .inv-telas-calendario {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+    }
+
+    .inventario-telas-page .inv-telas-dia {
+        max-width: none;
+    }
+}
+
 @media (max-width: 899px) {
     .inventario-telas-page .inv-telas-req-row {
         flex-direction: column;

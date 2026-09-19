@@ -103,9 +103,6 @@
     <!-- Header dinámico -->
     @if($isActive)
         <div class="inv-telas-rail bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 relative">
-            @if($showSiguienteOrden && ! $esKarlMayer)
-                <div class="col-label center">SIG. ORDEN</div>
-            @endif
             <div class="telar-number-label">{{ $telar->Telar }}</div>
         </div>
     @else
@@ -240,7 +237,8 @@
             <!-- Separador visual -->
             @if($tieneOrdenSig)
                 <!-- Sección SIGUIENTE ORDEN con datos -->
-                <div class="p-3 border-t-2">
+                <div class="inv-telas-sig-wrap p-3 border-t-2">
+                    <div class="col-label center">SIG. ORDEN</div>
                     <div class="inv-telas-sig-grid grid grid-cols-2 min-[900px]:grid-cols-3 gap-4">
                         <!-- Columna 1: Orden -->
                         <div class="space-y-2">
