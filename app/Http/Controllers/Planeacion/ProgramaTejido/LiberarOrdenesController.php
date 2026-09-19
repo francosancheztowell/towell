@@ -14,11 +14,11 @@ use App\Services\Planeacion\Liberar\LiberarCatCodificadosWriter;
 use App\Services\Planeacion\Liberar\LiberarCodigoDibujoResolver;
 use App\Services\Planeacion\Liberar\LiberarFlogSugeridoService;
 use App\Services\Planeacion\Liberar\LiberarMarbetesCalculator;
+use App\Services\Planeacion\Liberar\LiberarProgramaScheduling;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -41,6 +41,7 @@ class LiberarOrdenesController extends Controller
         private readonly LiberarCatCodificadosWriter $catCodificadosWriter = new LiberarCatCodificadosWriter,
         private readonly LiberarFlogSugeridoService $flogSugerido = new LiberarFlogSugeridoService,
         private readonly LiberarCodigoDibujoResolver $codigoDibujoResolver = new LiberarCodigoDibujoResolver,
+        private readonly LiberarProgramaScheduling $scheduling = new LiberarProgramaScheduling,
     ) {}
 
     /**
@@ -102,31 +103,7 @@ class LiberarOrdenesController extends Controller
             // Calcular fechaFormula = HOY + días configurados por el usuario
             $fechaFormula = $hoy->copy()->addDays($dias);
 
-            $registros->each(function ($registro) use ($hoy, $fechaFormula) {
-                if ($registro->FechaInicio) {
-                    try {
-                        $fechaInicio = $registro->FechaInicio instanceof Carbon
-                            ? $registro->FechaInicio->copy()->startOfDay()
-                            : Carbon::parse($registro->FechaInicio)->startOfDay();
-
-                        $cumple = $fechaInicio->lte($fechaFormula);
-                        // Si FechaInicio <= fechaFormula (HOY + días configurados), asignar HOY, sino null
-                        if ($cumple) {
-                            $registro->ProgramadoCalculado = $hoy->copy();
-                        } else {
-                            $registro->ProgramadoCalculado = null;
-                        }
-                    } catch (\Exception $e) {
-                        Log::error('Error al procesar fecha', [
-                            'registro_id' => $registro->Id,
-                            'error' => $e->getMessage(),
-                        ]);
-                        $registro->ProgramadoCalculado = null;
-                    }
-                } else {
-                    $registro->ProgramadoCalculado = null;
-                }
-            });
+            $this->scheduling->aplicarProgramadoCalculado($registros, $hoy, $fechaFormula);
 
             // Filtrar solo los registros que tienen fecha INN (ProgramadoCalculado no nulo)
             // y que NO tengan valor en NoExisteBase
@@ -137,11 +114,7 @@ class LiberarOrdenesController extends Controller
 
             // Prioridad = "SALDAR + NombreProducto" del registro anterior en el mismo salón+telar.
             // Se resuelve con UNA consulta para todo el lote (antes era una por renglón).
-            $candidatosAnteriores = $this->candidatosPrioridadAnterior($registros);
-
-            $registros->each(function ($registro) use ($candidatosAnteriores) {
-                $registro->PrioridadAnterior = $this->prioridadAnterior($registro, $candidatosAnteriores);
-            });
+            $this->scheduling->aplicarPrioridadAnterior($registros);
 
             // Una sola consulta a AX con las L.Mat de todo el lote: sin esto, el each de abajo
             // pega a AX por renglón.
@@ -410,7 +383,7 @@ class LiberarOrdenesController extends Controller
 
                 $foliosUsadosEnLote[$folio] = true;
 
-                $programado = $this->calcularFechaProgramada($registro, $hoy, $fechaFormula);
+                $programado = $this->scheduling->calcularFechaProgramada($registro, $hoy, $fechaFormula);
 
                 // Configurar valores básicos del registro
                 $registro->Prioridad = $prioridad !== '' ? $prioridad : null;
@@ -1299,109 +1272,6 @@ class LiberarOrdenesController extends Controller
 
             return response()->json(['success' => false, 'message' => 'Error al guardar marbetes: '.$e->getMessage()], 500);
         }
-    }
-
-    /**
-     * Candidatos a "registro anterior" de todo el lote, en UNA consulta, agrupados por
-     * salón|telar. Antes se consultaba uno por renglón. Se traen todas las órdenes de esos
-     * salones y telares (incluidas las ya liberadas: el anterior puede ser cualquiera), y el
-     * par exacto se filtra al agrupar, porque whereIn sobre dos columnas es un superset.
-     *
-     * @param  Collection<int, ReqProgramaTejido>  $registros
-     * @return array<string, array<int, object>>
-     */
-    private function candidatosPrioridadAnterior($registros): array
-    {
-        $telares = $registros->map(fn ($r) => trim((string) ($r->NoTelarId ?? '')))->filter()->unique()->values()->all();
-
-        if ($telares === []) {
-            return [];
-        }
-
-        $salones = $registros->map(fn ($r) => (string) ($r->SalonTejidoId ?? ''))->unique()->values()->all();
-
-        $filas = ReqProgramaTejido::query()
-            ->select(['Id', 'NombreProducto', 'SalonTejidoId', 'NoTelarId', 'FechaInicio'])
-            ->whereIn('NoTelarId', $telares)
-            ->whereIn('SalonTejidoId', $salones)
-            ->orderBy('FechaInicio')
-            ->orderBy('Id')
-            ->get();
-
-        $porGrupo = [];
-        foreach ($filas as $fila) {
-            $porGrupo[self::clavePrioridad($fila->SalonTejidoId ?? '', $fila->NoTelarId ?? '')][] = $fila;
-        }
-
-        return $porGrupo;
-    }
-
-    private static function clavePrioridad(?string $salon, ?string $telar): string
-    {
-        return trim((string) $salon).'|'.trim((string) $telar);
-    }
-
-    /**
-     * El registro inmediatamente anterior del mismo salón+telar: FechaInicio menor, o la misma
-     * fecha con Id menor. Mismo criterio que la consulta que había por renglón.
-     *
-     * ponytail: recorrido lineal sobre el grupo (mismo salón+telar, decenas de filas); si un
-     * telar llegara a tener miles de órdenes, indexar el grupo por fecha.
-     *
-     * @param  array<string, array<int, object>>  $candidatos
-     */
-    private function prioridadAnterior(ReqProgramaTejido $registro, array $candidatos): string
-    {
-        $telar = trim((string) ($registro->NoTelarId ?? ''));
-        $idActual = $registro->Id ?? null;
-
-        if ($telar === '' || ! $idActual) {
-            return '';
-        }
-
-        $grupo = $candidatos[self::clavePrioridad($registro->SalonTejidoId ?? '', $telar)] ?? [];
-        $fechaInicio = $registro->FechaInicio ?? null;
-        $fechaActual = $fechaInicio ? Carbon::parse($fechaInicio)->format('Y-m-d H:i:s') : null;
-
-        $anterior = null;
-        foreach ($grupo as $fila) {
-            if ((int) $fila->Id === (int) $idActual) {
-                continue;
-            }
-
-            $fechaFila = $fila->FechaInicio ? Carbon::parse($fila->FechaInicio)->format('Y-m-d H:i:s') : null;
-
-            $esAnterior = $fechaActual !== null
-                ? ($fechaFila !== null && ($fechaFila < $fechaActual || ($fechaFila === $fechaActual && (int) $fila->Id < (int) $idActual)))
-                : (int) $fila->Id < (int) $idActual;
-
-            if (! $esAnterior) {
-                continue;
-            }
-
-            // El grupo viene ordenado ascendente, así que el último que cumple es el más cercano.
-            $anterior = $fila;
-        }
-
-        return $anterior !== null && ! empty($anterior->NombreProducto)
-            ? 'SALDAR '.$anterior->NombreProducto
-            : '';
-    }
-
-    /**
-     * Calcula la fecha programada basada en la fórmula INN
-     */
-    private function calcularFechaProgramada(ReqProgramaTejido $registro, Carbon $hoy, Carbon $fechaFormula): ?Carbon
-    {
-        if (! $registro->FechaInicio) {
-            return null;
-        }
-
-        $fechaInicio = $registro->FechaInicio instanceof Carbon
-            ? $registro->FechaInicio->copy()->startOfDay()
-            : Carbon::parse($registro->FechaInicio)->startOfDay();
-
-        return $fechaInicio->lte($fechaFormula) ? $hoy->copy() : null;
     }
 
     /**

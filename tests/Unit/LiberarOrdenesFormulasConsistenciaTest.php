@@ -2,12 +2,10 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\Liberar\LiberarMarbetesCalculator;
+use App\Services\Planeacion\Liberar\LiberarProgramaScheduling;
 use Carbon\Carbon;
-use ReflectionClass;
-use ReflectionMethod;
 use Tests\TestCase;
 
 /**
@@ -22,23 +20,15 @@ use Tests\TestCase;
  */
 class LiberarOrdenesFormulasConsistenciaTest extends TestCase
 {
-    private LiberarOrdenesController $controller;
-
     private LiberarMarbetesCalculator $calculator;
+
+    private LiberarProgramaScheduling $scheduling;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->controller = new LiberarOrdenesController;
         $this->calculator = new LiberarMarbetesCalculator;
-    }
-
-    private function method(string $name): ReflectionMethod
-    {
-        $m = (new ReflectionClass(LiberarOrdenesController::class))->getMethod($name);
-        $m->setAccessible(true);
-
-        return $m;
+        $this->scheduling = new LiberarProgramaScheduling;
     }
 
     /** Caso exacto reportado: orden 36643 (peso crudo cambió de ~64 a 121). */
@@ -268,22 +258,21 @@ class LiberarOrdenesFormulasConsistenciaTest extends TestCase
     /** Fórmula INN de fecha programada: dentro del rango → HOY; fuera → null. */
     public function test_fecha_programada_inn(): void
     {
-        $m = $this->method('calcularFechaProgramada');
         $hoy = Carbon::create(2026, 6, 20)->startOfDay();
         $fechaFormula = $hoy->copy()->addDays(10.999);
 
         $reg = new ReqProgramaTejido;
 
         $reg->FechaInicio = Carbon::create(2026, 6, 25); // dentro del rango
-        $resultado = $m->invoke($this->controller, $reg, $hoy, $fechaFormula);
+        $resultado = $this->scheduling->calcularFechaProgramada($reg, $hoy, $fechaFormula);
         $this->assertNotNull($resultado);
         $this->assertTrue($hoy->equalTo($resultado));
 
         $reg->FechaInicio = Carbon::create(2026, 8, 1); // fuera del rango
-        $this->assertNull($m->invoke($this->controller, $reg, $hoy, $fechaFormula));
+        $this->assertNull($this->scheduling->calcularFechaProgramada($reg, $hoy, $fechaFormula));
 
         $reg2 = new ReqProgramaTejido; // sin FechaInicio
-        $this->assertNull($m->invoke($this->controller, $reg2, $hoy, $fechaFormula));
+        $this->assertNull($this->scheduling->calcularFechaProgramada($reg2, $hoy, $fechaFormula));
     }
 
     /** Estrés con pedidos decimales y valores grandes: la invariante nunca se rompe. */
