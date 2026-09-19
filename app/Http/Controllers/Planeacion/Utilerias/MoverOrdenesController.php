@@ -602,7 +602,7 @@ class MoverOrdenesController extends Controller
         /** @var ReqProgramaTejido $regMovido */
         foreach ($registrosMovidos as $regMovido) {
             $movimientoService->actualizarReqModelosDesdePrograma($regMovido);
-            $movimientoService->actualizarFechasArranqueFinaliza($regMovido, null, null);
+            $movimientoService->actualizarFechasArranqueFinaliza($regMovido, null, null, actualizarFechaFinaliza: false);
         }
     }
 }

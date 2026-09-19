@@ -159,6 +159,8 @@ class CatLMatController extends Controller
             'filas.*.qty.gt' => 'La cantidad debe ser mayor a 0.',
         ]);
 
+        $this->validarSumaPorcentajes($data['filas']);
+
         // Validar que artículo/config/tamaño/color existan en AX antes de guardar.
         $this->validarFilasContraAx($data['filas']);
 
@@ -617,6 +619,28 @@ class CatLMatController extends Controller
             ]);
 
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * El modal ya bloquea guardar si el % no cierra en 100; el API debe
+     * rechazar el mismo payload si llega por POST directo.
+     *
+     * @param  array<int, array<string, mixed>>  $filas
+     *
+     * @throws ValidationException
+     */
+    private function validarSumaPorcentajes(array $filas): void
+    {
+        $total = round(array_sum(array_map(
+            static fn (array $fila): float => round((float) ($fila['porcentaje'] ?? 0), 2),
+            $filas
+        )), 2);
+
+        if (abs($total - 100.0) > 0.001) {
+            throw ValidationException::withMessages([
+                'filas' => 'El porcentaje total debe ser exactamente 100%.',
+            ]);
         }
     }
 
