@@ -306,6 +306,22 @@
     .inventario-telas-page .inv-telas-dia {
         max-width: none;
     }
+
+    /* Con el calendario expandido sobra sitio: casillas mas grandes y con aire
+       entre ellas, que en 34 px iban pegadas por necesidad. */
+    .inventario-telas-page .inv-telas-dia th,
+    .inventario-telas-page .inv-telas-dia td {
+        padding: 0.4rem 0.5rem;
+    }
+
+    .inventario-telas-page .inv-telas-calendario label {
+        padding-block: 0.22rem;
+    }
+
+    .inventario-telas-page .inv-telas-calendario input[type="checkbox"] {
+        width: 1.5rem;
+        height: 1.5rem;
+    }
 }
 
 @media (max-width: 899px) {
