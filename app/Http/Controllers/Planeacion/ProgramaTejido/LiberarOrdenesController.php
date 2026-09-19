@@ -12,6 +12,7 @@ use App\Services\Planeacion\Liberar\LiberarBomCrudoResolver;
 use App\Services\Planeacion\Liberar\LiberarCatCodificadosWriter;
 use App\Services\Planeacion\Liberar\LiberarCodigoDibujoResolver;
 use App\Services\Planeacion\Liberar\LiberarFlogSugeridoService;
+use App\Services\Planeacion\Liberar\LiberarHilosCatalogo;
 use App\Services\Planeacion\Liberar\LiberarMarbetesCalculator;
 use App\Services\Planeacion\Liberar\LiberarProgramaScheduling;
 use App\Services\Planeacion\Liberar\LiberarValidacionesService;
@@ -39,6 +40,7 @@ class LiberarOrdenesController extends Controller
         private readonly LiberarCodigoDibujoResolver $codigoDibujoResolver = new LiberarCodigoDibujoResolver,
         private readonly LiberarProgramaScheduling $scheduling = new LiberarProgramaScheduling,
         private readonly LiberarValidacionesService $validaciones = new LiberarValidacionesService,
+        private readonly LiberarHilosCatalogo $hilosCatalogo = new LiberarHilosCatalogo,
     ) {}
 
     /**
@@ -769,7 +771,8 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
-     * Obtiene el tipo de hilo (TipoHilo) desde INVENTTABLE para uno o múltiples items
+     * Obtiene el tipo de hilo (TipoHilo) desde INVENTTABLE para uno o múltiples items.
+     * Delega la consulta a {@see LiberarHilosCatalogo::mapaTipoHilo()}.
      *
      * @return JsonResponse
      */
@@ -785,24 +788,9 @@ class LiberarOrdenesController extends Controller
         }
 
         try {
-            $itemIds = array_filter(array_map('trim', explode(',', $itemIdsParam)));
-            $itemIdsWithSuffix = array_map(fn ($id) => $id.'-1', $itemIds);
-
-            $results = DB::connection('sqlsrv_ti')
-                ->table('INVENTTABLE')
-                ->select('ITEMID', 'TwTipoHiloId')
-                ->whereIn('ITEMID', $itemIdsWithSuffix)
-                ->get();
-
-            $map = [];
-            foreach ($results as $result) {
-                $itemIdOriginal = LiberarBomCrudoResolver::itemIdSinSufijo((string) $result->ITEMID);
-                $map[$itemIdOriginal] = $result->TwTipoHiloId ?? null;
-            }
-
             return response()->json([
                 'success' => true,
-                'data' => $map,
+                'data' => $this->hilosCatalogo->mapaTipoHilo($itemIdsParam),
             ]);
         } catch (\Exception $e) {
             Log::error('Error al obtener TipoHilo', [
@@ -1136,33 +1124,17 @@ class LiberarOrdenesController extends Controller
     }
 
     /**
-     * Obtiene las opciones de hilos para el select desde INVENTTABLE (TwTipoHiloId)
+     * Obtiene las opciones de hilos para el select desde TwTipoHilo.
+     * Delega la consulta a {@see LiberarHilosCatalogo::opciones()}.
      *
      * @return JsonResponse
      */
     public function obtenerOpcionesHilos()
     {
         try {
-            $hilos = DB::connection('sqlsrv_ti')
-                ->table('TwTipoHilo')
-                ->select('TipoHilo')
-                ->where('TipoHilo', '!=', '')
-                ->distinct()
-                ->pluck('TipoHilo')
-                ->filter(function ($value) {
-                    return ! empty(trim((string) $value));
-                })
-                ->map(function ($value) {
-                    return trim((string) $value);
-                })
-                ->unique()
-                ->sort()
-                ->values()
-                ->toArray();
-
             return response()->json([
                 'success' => true,
-                'data' => $hilos,
+                'data' => $this->hilosCatalogo->opciones(),
             ]);
         } catch (\Exception $e) {
             Log::error('Error al obtener opciones de hilos', [
