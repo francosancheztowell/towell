@@ -224,8 +224,6 @@ class LiberarValidacionesServiceTest extends TestCase
 
     public function test_error_al_consultar_codificados_devuelve_mensaje_de_unicidad(): void
     {
-        Schema::connection('sqlsrv')->dropIfExists('CatCodificados');
-
         Log::shouldReceive('warning')
             ->once()
             ->withArgs(function (string $mensaje, array $contexto): bool {
@@ -235,6 +233,15 @@ class LiberarValidacionesServiceTest extends TestCase
 
         $registro = $this->registroPrograma();
         $servicio = new LiberarValidacionesService;
+
+        // SQLite: listar columnas de una tabla inexistente no lanza, solo devuelve [].
+        // Se ceba el cache para entrar al query y forzar el catch (timeout/AX en prod).
+        $cache = new \ReflectionProperty(LiberarValidacionesService::class, 'columnListingCache');
+        $cache->setAccessible(true);
+        $cache->setValue($servicio, [
+            'CatCodificados' => ['OrdenTejido', 'TelarId'],
+        ]);
+        Schema::connection('sqlsrv')->dropIfExists('CatCodificados');
 
         $this->assertSame(
             'No se pudo validar la unicidad del número de orden en codificados.',
