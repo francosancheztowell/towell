@@ -348,7 +348,7 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
                     icon: 'success',
                     title: 'Guardado con éxito',
                     showConfirmButton: false,
-                    timer: 700,
+                    timer: 2500,
                     timerProgressBar: true,
                     position: 'top-end',
                     toast: true
@@ -1364,7 +1364,7 @@ function confirmarSeleccion() {
             icon: 'success',
             title: 'Actualizado',
             showConfirmButton: false,
-            timer: 500,
+            timer: 2000,
             timerProgressBar: false,
             position: 'top-end',
             toast: true
@@ -2726,7 +2726,7 @@ function eliminarRegistro(datosEliminar, checkbox) {
                 icon: 'success',
                 title: 'Eliminado con éxito',
                 showConfirmButton: false,
-                timer: 700,
+                timer: 2500,
                 timerProgressBar: true,
                 position: 'top-end',
                 toast: true
