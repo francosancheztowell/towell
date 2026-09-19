@@ -198,6 +198,7 @@
                 <div>
                     <label for="cabecera-orden" class="mb-1 block text-xs font-medium text-gray-700"># Orden</label>
                     <input id="cabecera-orden" name="Orden" maxlength="20"
+                        oninput="this.value = this.value.replace(/\s+/g, '')"
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                 </div>
                 <div>

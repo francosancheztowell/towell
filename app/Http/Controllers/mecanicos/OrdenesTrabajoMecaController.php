@@ -341,7 +341,7 @@ class OrdenesTrabajoMecaController extends Controller
         }
 
         try {
-            $datos = $this->normalizarCabecera($request->validate($this->reglasCabecera()));
+            $datos = $this->normalizarCabecera($request->validate($this->reglasCabecera(), $this->mensajesCabecera()));
             $datos = $this->resolverOrigenCabecera($datos, $request->boolean('CapturaManual'));
             $datos['Fecha'] = $this->fechaCreacionFolio();
 
@@ -404,7 +404,7 @@ class OrdenesTrabajoMecaController extends Controller
         try {
             $this->asegurarEditablePorMecanico($orden);
 
-            $datos = $this->normalizarCabecera($request->validate($this->reglasCabecera()));
+            $datos = $this->normalizarCabecera($request->validate($this->reglasCabecera(), $this->mensajesCabecera()));
 
             // Fecha de creación del folio y estatus de flujo no se editan aquí.
             unset($datos['Fecha'], $datos['Estatus']);
@@ -833,8 +833,20 @@ class OrdenesTrabajoMecaController extends Controller
             'Comentarios' => ['nullable', 'string', 'max:500'],
             'FechaParo' => ['nullable', 'date'],
             'HoraParo' => ['nullable', 'date_format:H:i'],
-            'Orden' => ['nullable', 'string', 'max:20'],
+            'Orden' => ['nullable', 'string', 'max:20', 'regex:/^\S+$/'],
             'Turno' => ['nullable', 'integer', 'between:1,3'],
+        ];
+    }
+
+    /**
+     * Mensajes en español: la app corre con APP_LOCALE=en y el front muestra este
+     * texto tal cual. La orden es un folio sin espacios (45867), no texto libre.
+     */
+    private function mensajesCabecera(): array
+    {
+        return [
+            'Orden.max' => 'La orden no puede pasar de 20 caracteres.',
+            'Orden.regex' => 'La orden no puede llevar espacios.',
         ];
     }
 
