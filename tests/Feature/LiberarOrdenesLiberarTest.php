@@ -403,6 +403,8 @@ class LiberarOrdenesLiberarTest extends TestCase
         $this->assertSame('LISTA MATERIALES CRUDO 01', $cat->BomName);
         $this->assertSame('NO', $cat->CambioRepaso);
         $this->assertSame('CLIENTE X', $cat->CustName);
+        // BUG-004 wontfix: CreaProd = 1 al liberar es intencional (re-encola AX).
+        $this->assertSame(1, (int) $cat->CreaProd);
     }
 
     /**
@@ -886,5 +888,36 @@ class LiberarOrdenesLiberarTest extends TestCase
         $this->assertSame($propia, $decidir([$estand, $propia]), 'Con una ESTAND al lado, gana la propia.');
         $this->assertNull($decidir([$propia, ['bomId' => 'TEJ OTRA', 'bomName' => 'y']]), 'Dos propias siguen siendo ambiguas.');
         $this->assertNull($decidir([]));
+    }
+
+    public function test_guardar_campo_editable_sincroniza_cat_codificados(): void
+    {
+        $id = $this->sembrarRegistro(['NoProduccion' => '77001', 'Densidad' => 0.1]);
+        DB::connection('sqlsrv')->table('CatCodificados')->insert([
+            'OrdenTejido' => '77001',
+            'TelarId' => '201',
+            'Densidad' => 0.1,
+        ]);
+
+        $response = (new LiberarOrdenesController)->guardarCamposEditables(
+            Request::create('/planeacion/liberar-ordenes/campo', 'POST', [
+                'id' => $id,
+                'field' => 'Densidad',
+                'value' => 0.4321,
+            ])
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertTrue($response->getData(true)['success']);
+        $this->assertEqualsWithDelta(
+            0.4321,
+            (float) DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $id)->value('Densidad'),
+            0.0001
+        );
+        $this->assertEqualsWithDelta(
+            0.4321,
+            (float) DB::connection('sqlsrv')->table('CatCodificados')->where('OrdenTejido', '77001')->value('Densidad'),
+            0.0001
+        );
     }
 }
