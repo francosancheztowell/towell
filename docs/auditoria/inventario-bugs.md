@@ -2,7 +2,7 @@
 
 **Propósito:** backlog priorizado, honestidad sobre evidencia. No es un changelog ni un plan de sprint.
 **Fuente base:** `docs/auditoria/auditoria-critica-towell.md` (PR [#32](https://github.com/francosancheztowell/towell/pull/32)) + verificación puntual en `main` / rama de auditoría (2026-09-18).
-**Última actualización:** 2026-09-19 (BUG-006/008 mitigados: FechaFinaliza al mover + L.Mat % = 100 en backend).
+**Última actualización:** 2026-09-19 (BUG-009 parcial: LiberarBomCrudoResolver; BUG-007 no unificado).
 **Reglas:** no inventar bugs sin path/símbolo. `confirmado` = leído en código; `hipótesis` = plausible pero no cerrado en esta pasada.
 
 ---
@@ -29,9 +29,9 @@
 | BUG-004 | P1 | Planeación / AX | Liberar fuerza `CreaProd = 1` (re-encola AX) | `LiberarOrdenesController` L613 y payload L1381; contraste `OrdenDeCambioFelpaController` omite `CreaProd` en update | Re-liberar vuelve a encolar producción en AX | confirmado | No tocar `CreaProd` si el row ya existe. Test de no-regresión. |
 | BUG-005 | P1 | Engomado | `actualizarStatus` → En Proceso sin exigir Urdido Finalizado | `ProgramarEngomadoController::actualizarStatus` L490–540: solo AX lock; **no** chequea urdido. `ProgramBoardActionService::productionBlockReasonForOrder` L207–219 **sí** exige Finalizado | Stack legacy (UI default) salta la regla de negocio | confirmado | Delegar POST al service. Ruta `verificar-en-proceso` no se llama desde vistas. |
 | BUG-006 | P1 | Utilería | Mover puede anular `FechaFinaliza` | Mitigado: `MoverOrdenesController::sincronizarCatCodificados` pasa `actualizarFechaFinaliza: false`. Feature: `tests/Feature/MoverOrdenesFechaFinalizaTest.php` | Ya no se anula al sincronizar CatCodificados por cambio de salón | mitigado | 2026-09-19. `FechaFinaliza` solo se sella al finalizar (utilería / tejedores). |
-| BUG-007 | P1 | L.Mat / AX | Dos SQLs incompatibles L.Mat CRUDO → AX | `LiberarOrdenesController::bomCrudoQuery` L2295–2319 (`whereExists` + filtro salón) vs `CatCodificacionController::queryLmatDesdeTi` L537–562 (`JOIN BOMVERSION`, `limit(50)`, sin salón) | Mismo ítem/size puede listar BOMs distintos; select truncado | confirmado | Unificar en `LmatCrudoQueryService`. Quitar `limit(50)`. |
+| BUG-007 | P1 | L.Mat / AX | Dos SQLs incompatibles L.Mat CRUDO → AX | `LiberarBomCrudoResolver::query` (`whereExists` + filtro salón) vs `CatCodificacionController::queryLmatDesdeTi` (`JOIN BOMVERSION`, `limit(50)`, sin salón) | Mismo ítem/size puede listar BOMs distintos; select truncado | confirmado | Liberar ya tiene dueño único. **No** unifica con Codificación. Follow-up: `LmatCrudoQueryService`. |
 | BUG-008 | P1 | L.Mat | % total = 100 solo en frontend | Mitigado: `CatLMatController::validarSumaPorcentajes` exige suma === 100 antes de AX. Feature: `tests/Feature/CatLMatGuardarPorcentajeTest.php` | POST directo con % ≠ 100 ahora 422 | mitigado | 2026-09-19. El modal ya bloqueaba; el API ahora también. |
-| BUG-009 | P1 | Arquitectura | Fat controller LiberarOrdenes ~2941 LOC | `app/Http/Controllers/Planeacion/ProgramaTejido/LiberarOrdenesController.php` (wc = 2941) | Imposible testear/revisar; mezcla AX, Cat, BOM, marbetes | confirmado | Nota: se citaba ~2537; en `main` actual es **2941**. Extraer servicios. |
+| BUG-009 | P1 | Arquitectura | Fat controller LiberarOrdenes ~2941 LOC | `LiberarOrdenesController` (~2214 LOC) + `LiberarMarbetesCalculator` + `LiberarBomCrudoResolver` | Imposible testear/revisar; mezcla AX, Cat, BOM, marbetes | confirmado (parcial) | 2026-09-19: extraídos marbetes + BomCrudo. Quedan Cat/flogs/folio. `CreaProd=1` intencional. |
 | BUG-010 | P1 | Arquitectura | ~139 controllers vs ~54 services | Conteo árbol `app/Http/Controllers/*.php` = 139; `app/Services/*.php` = 54 | Dominio vive en controllers; services son excepción (~24% importan Services) | confirmado | Deuda estructural, no bug puntual. |
 | BUG-011 | P1 | Urd/Eng | Fork legacy Blade vs Livewire (reglas distintas) | Urdido legacy 830 LOC / Engomado legacy 661 vs `ProgramBoardActionService` 303. Tabla reglas en auditoría §2.2 | Misma planta, dos verdades según URL | confirmado | Una sola ruta de mutación; apagar Blade o redirigir. |
 | BUG-012 | P1 | Codificación | Dual `ReqModelosCodificados` vs `CatCodificados` | `CodificacionController` + `catalagos/catalogoCodificacion.blade.php` vs `CatCodificacionController` + `catcodificacion/` | Dos superficies HTTP, Excel duplicado, rutas parecidas | confirmado | Decinir canónico; congelar legacy. |
@@ -66,7 +66,7 @@ Franco pidió abrir paros a cualquier sesión autenticada. Se revirtió el gate 
 
 ## Hallazgos nuevos de esta pasada (además de la lista conocida)
 
-1. **Liberar LOC real = 2941** (no ~2537) — BUG-009.
+1. **Liberar LOC real = 2941** (no ~2537) — BUG-009. 2026-09-19: ~2214 tras extraer marbetes + `LiberarBomCrudoResolver`.
 2. **`sqlsrv_tow_tow` ya está en `config/database.php`** — el hallazgo “missing connection” baja a hipótesis de `.env` (BUG-015).
 3. **`store` de paros SÍ valida duplicado**; falta solo la ruta GET documentada (BUG-013 matizado).
 4. **Docs menú aún en `modulos_v2`** mientras código usa `v3` (BUG-019).
