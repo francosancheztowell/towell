@@ -29,7 +29,7 @@ final class CrudoLivewireTest extends TestCase
     {
         Livewire::test(TestableCrudoDashboard::class)
             ->assertSee('1 telares')
-            ->assertSee('Producción del periodo')
+            ->assertSee('Alertas por salón')
             ->assertSee('crudo-panel-overview', false)
             ->assertDontSee('Lectura del semáforo')
             ->assertSee('<h2>JAC</h2>', false)
@@ -206,7 +206,8 @@ final class CrudoLivewireTest extends TestCase
         $this->app->instance(CrudoDashboardProvider::class, new FakeCrudoDashboardProvider($data));
 
         Livewire::test(TestableCrudoDashboard::class)
-            ->assertSee('>41 kg</span>', false)
+            // Kg del telar: etiqueta "Kg" aparte; el valor se redondea a entero.
+            ->assertSee('data-crudo-kilos>41</span>', false)
             ->assertSee('>95%</span>', false)
             ->assertSee('<strong>41</strong>', false)
             // Calidad y eficiencia globales viven en los velocímetros. Se comprueba

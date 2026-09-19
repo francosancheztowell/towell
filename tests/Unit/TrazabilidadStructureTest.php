@@ -183,13 +183,13 @@ class TrazabilidadStructureTest extends TestCase
         $advance = file_get_contents(resource_path('views/modulos/trazabilidad/resumen/_avance.blade.php'));
 
         $this->assertStringContainsString('data-tabla-avance-pedido', $advance);
-        foreach (['Flog', 'Tam.', 'Orden', 'Telar', 'Progr.', 'Prod.', 'Pedido', 'Ini.', 'Fin'] as $column) {
+        foreach (['Flog', 'Orden', 'Tam.', 'Telar', 'Progr.', 'Prod.', 'Rest.', 'Ini.', 'Fin'] as $column) {
             $this->assertStringContainsString('>'.$column.'</th>', $advance);
         }
         $this->assertStringContainsString('$tablaAvancePedido', $advance);
         $this->assertStringContainsString("\$fila['programado']", $advance);
         $this->assertStringContainsString("\$fila['produccion']", $advance);
-        $this->assertStringContainsString("\$fila['pedido']", $advance);
+        $this->assertStringContainsString("\$fila['restante']", $advance);
         $this->assertStringContainsString("\$fila['telar']", $advance);
         $this->assertStringContainsString("\$fila['enProceso']", $advance);
         $this->assertLessThan(strpos($advance, '>Tam.</th>'), strpos($advance, '>Orden</th>'));
