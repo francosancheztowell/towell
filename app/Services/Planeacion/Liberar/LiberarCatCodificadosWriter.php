@@ -22,6 +22,10 @@ final class LiberarCatCodificadosWriter
     /** Cache de metadata de columnas por instancia (un request / un writer). */
     private array $columnListingCache = [];
 
+    public function __construct(
+        private readonly LiberarCodigoDibujoResolver $codigoDibujoResolver = new LiberarCodigoDibujoResolver,
+    ) {}
+
     /**
      * Columnas de una tabla con cache para evitar consultar la metadata
      * en cada save/registro. Por instancia: no se comparte entre tests ni requests.
@@ -182,7 +186,7 @@ final class LiberarCatCodificadosWriter
             if ($explicito !== '') {
                 $codigoDibujoFinal = $explicito;
             } elseif (in_array('CodigoDibujo', $columns, true)) {
-                $resuelto = $this->resolverCodigoDibujo(
+                $resuelto = $this->codigoDibujoResolver->resolver(
                     trim((string) ($registro->ItemId ?? '')),
                     trim((string) ($registro->InventSizeId ?? '')),
                     trim((string) ($registro->SalonTejidoId ?? ''))
@@ -434,45 +438,10 @@ final class LiberarCatCodificadosWriter
     }
 
     /**
-     * Último CodigoDibujo no vacío en CatCodificados (Id descendente), priorizando Item + salón (Departamento).
-     * Fallback: Item+InventSize+Departamento; Item+InventSize sin salón.
-     *
-     * @return string|null Primer CodigoDibujo no vacío con Id más alto en cada consulta filtrada
+     * Alias de {@see LiberarCodigoDibujoResolver::resolver()} para callers del writer.
      */
     public function resolverCodigoDibujo(string $itemId, string $inventSizeId, string $departamento): ?string
     {
-        $try = function (\Illuminate\Database\Eloquent\Builder $q): ?string {
-            foreach ($q->orderByDesc('Id')->get(['Id', 'CodigoDibujo']) as $row) {
-                $c = trim((string) ($row->CodigoDibujo ?? ''));
-                if ($c !== '') {
-                    return $c;
-                }
-            }
-
-            return null;
-        };
-
-        // 1) Item + Departamento (= Salón tejido): último con código (regla de negocio principal)
-        if ($itemId !== '' && $departamento !== '') {
-            $c = $try(CatCodificados::query()->where('ItemId', $itemId)->where('Departamento', $departamento));
-            if ($c !== null) {
-                return $c;
-            }
-        }
-
-        // 2) Item + InventSizeId + Departamento (cuando hace falta acotar por tamaño en AX)
-        if ($itemId !== '' && $inventSizeId !== '' && $departamento !== '') {
-            $c = $try(CatCodificados::query()->where('ItemId', $itemId)->where('InventSizeId', $inventSizeId)->where('Departamento', $departamento));
-            if ($c !== null) {
-                return $c;
-            }
-        }
-
-        // 3) Sin salón conocido: por Item + InventSizeId únicamente
-        if ($itemId !== '' && $inventSizeId !== '') {
-            return $try(CatCodificados::query()->where('ItemId', $itemId)->where('InventSizeId', $inventSizeId));
-        }
-
-        return null;
+        return $this->codigoDibujoResolver->resolver($itemId, $inventSizeId, $departamento);
     }
 }
