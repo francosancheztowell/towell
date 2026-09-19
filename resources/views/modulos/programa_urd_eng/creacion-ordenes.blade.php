@@ -17,26 +17,11 @@
 </div>
 @endsection
 
+@push('styles')
+    @vite('resources/css/programa-urd-eng/tabla.css')
+@endpush
+
 @section('content')
-<style>
-    .sort-icon {
-        opacity: 0.5;
-        transition: opacity 0.2s;
-    }
-    .sortable:hover .sort-icon {
-        opacity: 1;
-    }
-    .sortable.sort-asc .sort-icon::before {
-        content: "\f0de"; /* fa-sort-up */
-    }
-    .sortable.sort-desc .sort-icon::before {
-        content: "\f0dd"; /* fa-sort-down */
-    }
-    .sortable.sort-asc .sort-icon,
-    .sortable.sort-desc .sort-icon {
-        opacity: 1;
-    }
-</style>
 <div class="w-full">
     {{-- =================== Tabla de requerimientos agrupados =================== --}}
     <div class="bg-white overflow-hidden mb-4">
@@ -283,7 +268,10 @@
     </div>
 </div>
 
-<script src="{{ asset('js/modulos/programa_urd_eng/creacion-ordenes.js') }}?v={{ filemtime(public_path('js/modulos/programa_urd_eng/creacion-ordenes.js')) }}"></script>
+@push('scripts')
+    @vite('resources/js/programa-urd-eng/creacion-ordenes/index.ts')
+@endpush
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     // Restricción en tiempo real: No. Julios máximo 15
@@ -296,12 +284,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = parseInt(input.value, 10);
         if (val > 15) {
             input.value = 15;
-            Swal.fire({ icon: 'warning', title: 'Máximo 15 julios', text: 'El número de julios no puede ser mayor a 15.', confirmButtonColor: '#2563eb', toast: true, position: 'top-end', timer: 2500, showConfirmButton: false });
+            window.notify?.warning('El número de julios no puede ser mayor a 15.');
         }
     });
 
-    if (typeof window.initCreacionOrdenes === 'function') {
-        window.initCreacionOrdenes({
+    // El bundle de Vite es un modulo: puede cargar despues de DOMContentLoaded.
+    const arrancar = () => window.initCreacionOrdenes({
             telaresData: @json($telaresSeleccionados ?? []),
             destinoOptions: ['Itema Nuevo', 'Itema Viejo', 'Jacquard Sulzer', 'Jacquard Smit', 'Smit'],
             routes: {
@@ -316,6 +304,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 crearOrdenes: '{{ route("programa.urd.eng.crear.ordenes") }}'
             }
         });
+
+    if (typeof window.initCreacionOrdenes === 'function') {
+        arrancar();
+    } else {
+        // Reintenta un instante mientras el modulo termina de evaluarse.
+        let intentos = 0;
+        const id = setInterval(() => {
+            if (typeof window.initCreacionOrdenes === 'function') {
+                clearInterval(id);
+                arrancar();
+            } else if (++intentos > 50) {
+                clearInterval(id);
+                window.notify?.error('No se pudo cargar la pantalla de creación de órdenes.');
+            }
+        }, 50);
     }
 });
 </script>
