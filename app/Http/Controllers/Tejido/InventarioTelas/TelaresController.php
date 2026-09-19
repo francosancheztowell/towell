@@ -36,68 +36,22 @@ class TelaresController extends Controller
      */
     public function inventarioItema()
     {
-        // Registros brutos (debug)
-        $todosRegistrosItema = DB::table('ReqProgramaTejido')
-            ->whereIn('SalonTejidoId', ['ITEMA', 'SMIT'])
-            ->select('NoTelarId', 'EnProceso', 'NoProduccion', 'NombreProducto', 'SalonTejidoId')
-            ->get();
+        $salones = ['ITEMA', 'SMIT'];
+        $telares = array_map('intval', $this->getSecuenciaTelares($salones));
 
-        // Tomar la secuencia desde la tabla
-        $telaresOrdenados = $this->getSecuenciaTelares(['ITEMA', 'SMIT']); // pluck NoTelar por Secuencia
-        $telaresOrdenados = array_map('intval', $telaresOrdenados);
+        // Un telar 3XX puede estar capturado como 1XX (318 -> 118).
+        $candidatosDe = fn ($telar) => $this->resolverCandidatosTelar((int) $telar, 'ITEMA');
 
-        $datosTelaresCompletos = [];
+        $datos = $this->cargarTelares($salones, $telares, $candidatosDe);
 
-        foreach ($telaresOrdenados as $numeroTelar) {
-            $salones = ['ITEMA', 'SMIT'];
-
-            // Resolver candidatos 3XX y 1XX si aplica
-            $candidatos = $this->resolverCandidatosTelar($numeroTelar, 'ITEMA');
-
-            // En proceso
-            $telarEnProceso = $this->fetchTelarEnProceso($salones, $candidatos);
-
-            // Siguiente orden
-            $ordenSig = null;
-            if ($telarEnProceso && $telarEnProceso->en_proceso) {
-                // Si hay telar en proceso, buscar siguiente orden usando candidatos (3XX y 1XX)
-                $candidatosOrden = $this->resolverCandidatosTelar($numeroTelar, 'ITEMA');
-                $ordenSig = $this->fetchSiguienteOrdenConCandidatos(
-                    $salones,
-                    $candidatosOrden,
-                    $telarEnProceso->Inicio_Tejido,
-                    $telarEnProceso->ProgramaId ?? null
-                );
-                // Si no encuentra con fecha, buscar cualquier orden disponible
-                if (! $ordenSig) {
-                    $ordenSig = $this->fetchPrimeraOrdenDisponibleConCandidatos($salones, $candidatosOrden);
-                }
-            } else {
-                // Si no hay proceso, buscar la primera orden disponible
-                $telarEnProceso = $this->objTelarVacio($numeroTelar);
-                $candidatosOrden = $this->resolverCandidatosTelar($numeroTelar, 'ITEMA');
-                $ordenSig = $this->fetchPrimeraOrdenDisponibleConCandidatos($salones, $candidatosOrden);
-            }
-
-            // Si el en_proceso se obtuvo con formato 1XX, mostrar 3XX en la vista (consistencia de secuencia)
-            if ($telarEnProceso && isset($telarEnProceso->Telar) && $telarEnProceso->Telar != $numeroTelar) {
-                $telarEnProceso->Telar = $numeroTelar;
-            }
-
-            $candidatosJulio = $this->resolverCandidatosTelar($numeroTelar, 'ITEMA');
-            $julios = $this->ultimoJulioRizoPiePorTelar($candidatosJulio);
-            $telarEnProceso->ultimoJulioRizo = $julios['ultimoJulioRizo'];
-            $telarEnProceso->ultimoJulioPie = $julios['ultimoJulioPie'];
-
-            $datosTelaresCompletos[$numeroTelar] = [
-                'telarData' => $telarEnProceso,
-                'ordenSig' => $ordenSig,
-            ];
+        foreach ($this->ultimosJuliosPorTelar($telares, $candidatosDe) as $telar => $julios) {
+            $datos[$telar]['telarData']->ultimoJulioRizo = $julios['Rizo'];
+            $datos[$telar]['telarData']->ultimoJulioPie = $julios['Pie'];
         }
 
         return view('modulos/tejido/inventario-telas/inventario-telas', [
-            'telares' => $telaresOrdenados,
-            'datosTelaresCompletos' => $datosTelaresCompletos,
+            'telares' => $telares,
+            'datosTelaresCompletos' => $datos,
             'tipoInventario' => 'itema',
         ]);
     }
@@ -149,15 +103,21 @@ class TelaresController extends Controller
      * @param  array<int, mixed>  $telares
      * @return array<mixed, array{telarData: object, ordenSig: object|null}>
      */
-    private function cargarTelares(array $salones, array $telares): array
+    private function cargarTelares(array $salones, array $telares, ?callable $candidatosDe = null): array
     {
         if ($telares === []) {
             return [];
         }
 
+        // Itema busca cada telar con dos numeros (318 y 118), de ahi los candidatos.
+        $candidatos = [];
+        foreach ($telares as $telar) {
+            $candidatos[(string) $telar] = array_map('strval', $candidatosDe ? $candidatosDe($telar) : [$telar]);
+        }
+
         $programa = DB::table('ReqProgramaTejido')
             ->whereIn('SalonTejidoId', $salones)
-            ->whereIn('NoTelarId', $telares)
+            ->whereIn('NoTelarId', array_merge(...array_values($candidatos)))
             ->select(array_merge($this->selectColsProceso(), ['EntregaCte as Entrega']))
             ->get()
             ->groupBy(fn ($fila) => (string) $fila->Telar);
@@ -165,10 +125,21 @@ class TelaresController extends Controller
         $datos = [];
 
         foreach ($telares as $telar) {
-            $filas = $programa[(string) $telar] ?? collect();
+            $suyos = $candidatos[(string) $telar];
+            $preferido = $suyos[0];
+
+            $filas = collect($suyos)
+                ->flatMap(fn ($candidato) => ($programa[$candidato] ?? collect())->all())
+                ->values();
 
             $enProceso = $filas->filter(fn ($f) => (int) $f->en_proceso === 1)
-                ->sortByDesc(fn ($f) => [(string) $f->Inicio_Tejido, (int) $f->ProgramaId])
+                // Primero el candidato preferido; entre varios en proceso, el de inicio
+                // mas reciente (de ahi los negativos, para ordenar descendente).
+                ->sortBy(fn ($f) => [
+                    (string) $f->Telar === $preferido ? 0 : 1,
+                    -1 * (int) strtotime((string) $f->Inicio_Tejido),
+                    -1 * (int) $f->ProgramaId,
+                ])
                 ->first();
 
             $pendientes = $filas->filter(fn ($f) => (int) $f->en_proceso !== 1);
@@ -181,6 +152,11 @@ class TelaresController extends Controller
             } else {
                 $enProceso = $this->objTelarVacio($telar);
                 $ordenSig = $this->primeraPendiente($pendientes);
+            }
+
+            // Si el registro se encontro como 1XX, la vista muestra el 3XX de la secuencia.
+            if (($enProceso->Telar ?? null) != $telar) {
+                $enProceso->Telar = $telar;
             }
 
             $datos[$telar] = ['telarData' => $enProceso, 'ordenSig' => $ordenSig];
@@ -208,25 +184,34 @@ class TelaresController extends Controller
      *
      * @return array<mixed, array{Rizo: ?string, Pie: ?string}>
      */
-    private function ultimosJuliosPorTelar(array $telares): array
+    private function ultimosJuliosPorTelar(array $telares, ?callable $candidatosDe = null): array
     {
         if ($telares === []) {
             return [];
         }
 
+        $candidatos = [];
+        foreach ($telares as $telar) {
+            $candidatos[(string) $telar] = array_map('strval', $candidatosDe ? $candidatosDe($telar) : [$telar]);
+        }
+
         $ultimos = DB::table('AtaMontadoTelas')
-            ->whereIn('NoTelarId', array_map('strval', $telares))
+            ->whereIn('NoTelarId', array_merge(...array_values($candidatos)))
             ->whereIn('Tipo', ['Rizo', 'Pie'])
             ->select('NoTelarId', 'Tipo', 'NoJulio', DB::raw(
                 'ROW_NUMBER() OVER (PARTITION BY NoTelarId, Tipo ORDER BY CAST(Fecha AS DATE) DESC, Id DESC) AS rn'
             ));
 
         $julios = array_fill_keys($telares, ['Rizo' => null, 'Pie' => null]);
+        $filas = DB::query()->fromSub($ultimos, 'u')->where('rn', 1)->get();
 
-        foreach (DB::query()->fromSub($ultimos, 'u')->where('rn', 1)->get() as $fila) {
-            foreach ($telares as $telar) {
-                if ((string) $telar === (string) $fila->NoTelarId) {
-                    $julios[$telar][$fila->Tipo] = $fila->NoJulio !== '' ? (string) $fila->NoJulio : null;
+        foreach ($telares as $telar) {
+            // El primer candidato manda; el 1XX solo cubre lo que no tenga el 3XX.
+            foreach ($candidatos[(string) $telar] as $candidato) {
+                foreach ($filas->where('NoTelarId', $candidato) as $fila) {
+                    if (($julios[$telar][$fila->Tipo] ?? null) === null) {
+                        $julios[$telar][$fila->Tipo] = $fila->NoJulio !== '' ? (string) $fila->NoJulio : null;
+                    }
                 }
             }
         }
@@ -401,28 +386,6 @@ class TelaresController extends Controller
     }
 
     /**
-     * Traer el registro en proceso respetando preferencia por el primer candidato.
-     */
-    private function fetchTelarEnProceso(array $salones, array $candidatos)
-    {
-        // Preferir el primer candidato si existieran ambos
-        $preferido = $candidatos[0];
-
-        $q = DB::table('ReqProgramaTejido')
-            ->whereIn('SalonTejidoId', $salones)
-            ->whereIn('NoTelarId', $candidatos)
-            ->where('EnProceso', 1)
-            ->select($this->selectColsProceso())
-            // preferencia: primero donde NoTelarId = $preferido
-            ->orderByRaw('CASE WHEN NoTelarId = ? THEN 0 ELSE 1 END', [$preferido])
-            // si hay más de uno en proceso, tomar el de inicio más reciente
-            ->orderBy('FechaInicio', 'desc')
-            ->orderBy('Id', 'desc');
-
-        return $q->first();
-    }
-
-    /**
      * Traer la siguiente orden programada con select configurable.
      * Si hay varias con la misma FechaInicio, se toma la de Id mayor al actual.
      */
@@ -490,71 +453,6 @@ class TelaresController extends Controller
     }
 
     /**
-     * Traer la siguiente orden programada usando candidatos (útil para ITEMA con 3XX/1XX).
-     * Busca en todos los candidatos y retorna la primera orden siguiente encontrada.
-     */
-    private function fetchSiguienteOrdenConCandidatos(array $salones, array $candidatos, $fechaInicioActual, $programaIdActual = null, $posicionActual = null, ?array $select = null)
-    {
-        $select = $select ?: [
-            'NoTelarId as Telar',
-            'NoProduccion as Orden_Prod',
-            'ItemId as ItemId',
-            'TamanoClave as Tamano_AX',
-            'NombreProducto as Nombre_Producto',
-            'CuentaRizo as Cuenta',
-            'CalibreRizo2',
-            'FibraRizo as Fibra_Rizo',
-            'CuentaPie as Cuenta_Pie',
-            'CalibrePie2',
-            'FibraPie as Fibra_Pie',
-            'TotalPedido as Saldos',
-            'FechaInicio as Inicio_Tejido',
-            'EntregaCte as Entrega',
-        ];
-
-        // Si hay posición actual, buscar por secuencia (Posicion mayor a la actual)
-        if (! is_null($posicionActual) && $posicionActual > 0) {
-            // Intentar buscar con Posicion mayor primero
-            // IMPORTANTE: EnProceso puede ser NULL, no solo 0
-            $ordenConPosicion = DB::table('ReqProgramaTejido')
-                ->whereIn('SalonTejidoId', $salones)
-                ->whereIn('NoTelarId', $candidatos)
-                ->where(function ($q) {
-                    $q->where('EnProceso', 0)
-                        ->orWhereNull('EnProceso');
-                })
-                ->whereNotNull('Posicion')
-                ->where('Posicion', '>', $posicionActual)
-                ->select($select)
-                ->orderBy('Posicion', 'asc')
-                ->orderBy('FechaInicio', 'asc')
-                ->orderBy('Id', 'asc')
-                ->first();
-
-            if ($ordenConPosicion) {
-                return $ordenConPosicion;
-            }
-        }
-
-        // Si no encontró con Posicion específica, buscar cualquier orden disponible
-        // Priorizar las que tienen Posicion
-        // IMPORTANTE: EnProceso puede ser NULL, no solo 0
-        return DB::table('ReqProgramaTejido')
-            ->whereIn('SalonTejidoId', $salones)
-            ->whereIn('NoTelarId', $candidatos)
-            ->where(function ($q) {
-                $q->where('EnProceso', 0)
-                    ->orWhereNull('EnProceso');
-            })
-            ->select($select)
-            ->orderByRaw('CASE WHEN Posicion IS NOT NULL THEN 0 ELSE 1 END') // Priorizar Posicion
-            ->orderBy('Posicion', 'asc')
-            ->orderBy('FechaInicio', 'asc')
-            ->orderBy('Id', 'asc')
-            ->first();
-    }
-
-    /**
      * Obtener secuencia de telares desde la tabla InvSecuenciaTelares.
      * Devuelve un array de NoTelar ordenado por Secuencia.
      */
@@ -565,112 +463,6 @@ class TelaresController extends Controller
             ->orderBy('Secuencia')
             ->pluck('NoTelar')
             ->toArray();
-    }
-
-    /**
-     * Obtener la primera orden disponible usando candidatos (para ITEMA).
-     */
-    private function fetchPrimeraOrdenDisponibleConCandidatos(array $salones, array $candidatos, ?array $select = null)
-    {
-        $select = $select ?: [
-            'NoTelarId as Telar',
-            'NoProduccion as Orden_Prod',
-            'ItemId as ItemId',
-            'TamanoClave as Tamano_AX',
-            'NombreProducto as Nombre_Producto',
-            'CuentaRizo as Cuenta',
-            'CalibreRizo2',
-            'FibraRizo as Fibra_Rizo',
-            'CuentaPie as Cuenta_Pie',
-            'CalibrePie2',
-            'FibraPie as Fibra_Pie',
-            'TotalPedido as Saldos',
-            'FechaInicio as Inicio_Tejido',
-            'EntregaCte as Entrega',
-        ];
-
-        // Buscar ordenada por Posicion (secuencia), luego por fecha
-        // IMPORTANTE: EnProceso puede ser NULL, no solo 0
-        $orden = DB::table('ReqProgramaTejido')
-            ->whereIn('SalonTejidoId', $salones)
-            ->whereIn('NoTelarId', $candidatos)
-            ->where(function ($q) {
-                $q->where('EnProceso', 0)
-                    ->orWhereNull('EnProceso');
-            })
-            ->whereNotNull('Posicion')
-            ->select($select)
-            ->orderBy('Posicion', 'asc')
-            ->orderBy('FechaInicio', 'asc')
-            ->orderBy('Id', 'asc')
-            ->first();
-
-        // Si no encuentra con Posicion, buscar con FechaInicio
-        if (! $orden) {
-            $orden = DB::table('ReqProgramaTejido')
-                ->whereIn('SalonTejidoId', $salones)
-                ->whereIn('NoTelarId', $candidatos)
-                ->where(function ($q) {
-                    $q->where('EnProceso', 0)
-                        ->orWhereNull('EnProceso');
-                })
-                ->whereNotNull('FechaInicio')
-                ->select($select)
-                ->orderBy('FechaInicio', 'asc')
-                ->orderBy('Id', 'asc')
-                ->first();
-        }
-
-        // Si aún no encuentra, buscar sin restricciones
-        if (! $orden) {
-            $orden = DB::table('ReqProgramaTejido')
-                ->whereIn('SalonTejidoId', $salones)
-                ->whereIn('NoTelarId', $candidatos)
-                ->where(function ($q) {
-                    $q->where('EnProceso', 0)
-                        ->orWhereNull('EnProceso');
-                })
-                ->select($select)
-                ->orderBy('Id', 'asc')
-                ->first();
-        }
-
-        return $orden;
-    }
-
-    /**
-     * Último julio Rizo y Pie desde AtaMontadoTelas (los más recientes por Fecha desc, Id desc).
-     * Retorna ['ultimoJulioRizo' => string|null, 'ultimoJulioPie' => string|null].
-     * Si $candidatos es array, se filtra por whereIn(NoTelarId).
-     */
-    private function ultimoJulioRizoPiePorTelar($numeroTelarOrCandidatos): array
-    {
-        $candidatos = is_array($numeroTelarOrCandidatos)
-            ? array_map('strval', $numeroTelarOrCandidatos)
-            : [(string) $numeroTelarOrCandidatos];
-
-        $conn = DB::connection('sqlsrv')->table('AtaMontadoTelas')->whereIn('NoTelarId', $candidatos);
-
-        // Rizo: más reciente por Fecha desc, luego Id desc
-        $rowRizo = (clone $conn)
-            ->where('Tipo', 'Rizo')
-            ->orderByRaw('CAST(Fecha AS DATE) DESC')
-            ->orderByDesc('Id')
-            ->first(['NoJulio']);
-        $rizo = $rowRizo->NoJulio ?? null;
-
-        // Pie: más reciente por Fecha desc, luego Id desc
-        $rowPie = (clone $conn)
-            ->where('Tipo', 'Pie')
-            ->orderByRaw('CAST(Fecha AS DATE) DESC')
-            ->orderByDesc('Id')
-            ->first(['NoJulio']);
-        $pie = $rowPie->NoJulio ?? null;
-
-        return [
-            'ultimoJulioRizo' => $rizo !== null && $rizo !== '' ? (string) $rizo : null,
-            'ultimoJulioPie' => $pie !== null && $pie !== '' ? (string) $pie : null,
-        ];
     }
 
     /**
