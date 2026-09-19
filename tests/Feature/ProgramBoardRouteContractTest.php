@@ -10,13 +10,11 @@ use Tests\TestCase;
 
 class ProgramBoardRouteContractTest extends TestCase
 {
-    public function test_current_and_legacy_alias_program_routes_are_authenticated(): void
+    public function test_current_program_board_routes_are_authenticated(): void
     {
         foreach ([
             'urdido.programar.urdido' => 'urdido/programar-urdido',
-            'urdido.programar.urdido.legacy' => 'urdido/programar-urdido/legacy',
             'engomado.programar.engomado' => 'engomado/programar-engomado',
-            'engomado.programar.engomado.legacy' => 'engomado/programar-engomado/legacy',
         ] as $name => $uri) {
             $route = Route::getRoutes()->getByName($name);
 
@@ -36,6 +34,38 @@ class ProgramBoardRouteContractTest extends TestCase
         $this->assertInstanceOf(IlluminateRoute::class, $route);
         $this->assertSame('urdido/programar-urdido/livewire', $route->uri());
         $this->assertContains('auth', $route->gatherMiddleware());
+    }
+
+    public function test_legacy_aliases_are_permanent_redirects_to_the_livewire_board(): void
+    {
+        foreach ([
+            'urdido.programar.urdido.legacy' => [
+                'uri' => 'urdido/programar-urdido/legacy',
+                'target' => '/urdido/programar-urdido',
+            ],
+            'engomado.programar.engomado.legacy' => [
+                'uri' => 'engomado/programar-engomado/legacy',
+                'target' => '/engomado/programar-engomado',
+            ],
+        ] as $name => $expected) {
+            $route = Route::getRoutes()->getByName($name);
+
+            $this->assertNotNull($route);
+            $this->assertInstanceOf(IlluminateRoute::class, $route);
+            $this->assertSame($expected['uri'], $route->uri());
+            $this->assertContains('auth', $route->gatherMiddleware());
+            $this->assertSame(301, $route->defaults['status'] ?? null);
+            $this->assertSame($expected['target'], $route->defaults['destination'] ?? null);
+        }
+    }
+
+    public function test_verificar_en_proceso_routes_are_removed(): void
+    {
+        $this->assertFalse(Route::getRoutes()->hasNamedRoute('urdido.programar.urdido.verificar.en.proceso'));
+        $this->assertFalse(Route::getRoutes()->hasNamedRoute('engomado.programar.engomado.verificar.en.proceso'));
+
+        $this->get('/urdido/programar-urdido/verificar-en-proceso')->assertNotFound();
+        $this->get('/engomado/programar-engomado/verificar-en-proceso')->assertNotFound();
     }
 
     public function test_guest_cannot_open_program_boards_or_mutate_status(): void

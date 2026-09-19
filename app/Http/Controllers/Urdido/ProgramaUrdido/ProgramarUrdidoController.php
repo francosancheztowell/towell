@@ -10,7 +10,6 @@ use App\Services\Programas\ProgramaPrioridadService;
 use App\Services\Programas\ProgramBoardActionService;
 use App\Support\Programas\ProgramaConfig;
 use App\Support\Programas\ProgramaModulo;
-use App\Support\Programas\ProgramaRouteHelper;
 use DomainException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -88,20 +87,6 @@ class ProgramarUrdidoController extends Controller
     public function index(): View
     {
         return view('modulos.urdido.programar-urdido-livewire');
-    }
-
-    /**
-     * Fallback Blade clásico. Las mutaciones POST delegan a ProgramBoardActionService.
-     */
-    public function legacy(): View
-    {
-        return view('modulos.urdido.programar-urdido', [
-            'canEdit' => $this->usuarioPuedeEditar(),
-            'programaRoutes' => ProgramaRouteHelper::urdido(),
-            'observacionesMaxLength' => ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
-            'calidadComentarioMaxLength' => ProgramaConfig::CALIDAD_COMENTARIO_MAX_LENGTH,
-            'calidadPuntos' => UrdProgramaUrdido::CALIDAD_PUNTOS,
-        ]);
     }
 
     /**
@@ -319,81 +304,6 @@ class ProgramarUrdidoController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'Error al obtener órdenes: '.$e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Verificar si hay órdenes con status "En Proceso" por máquina (MC Coy)
-     * Retorna true si hay al menos una orden con status "En Proceso" en la misma máquina
-     * (excluyendo la orden actual si se proporciona)
-     */
-    public function verificarOrdenEnProceso(Request $request): JsonResponse
-    {
-        try {
-            $ordenIdExcluir = $request->query('excluir_id');
-            $maquinaId = $request->query('maquina_id');
-
-            // Si no se proporciona maquina_id, permitir (no bloquear)
-            // Esto permite que funcione aunque no se pueda determinar la máquina
-            if (empty($maquinaId)) {
-                return response()->json([
-                    'success' => true,
-                    'tieneOrdenEnProceso' => false,
-                    'cantidad' => 0,
-                    'mensaje' => 'No se proporcionó información de máquina. Se permite cargar la orden.',
-                ]);
-            }
-
-            // Verificar por máquina (MC Coy)
-            $mcCoy = $this->extractMcCoyNumber($maquinaId);
-
-            // Si no se puede determinar el MC Coy, permitir (no bloquear)
-            if ($mcCoy === null) {
-                return response()->json([
-                    'success' => true,
-                    'tieneOrdenEnProceso' => false,
-                    'cantidad' => 0,
-                    'mensaje' => 'No se pudo determinar el MC Coy de la máquina. Se permite cargar la orden.',
-                ]);
-            }
-
-            // Obtener todas las órdenes en proceso y filtrar por MC Coy
-            $ordenesEnProceso = UrdProgramaUrdido::where('Status', 'En Proceso')
-                ->whereNotNull('MaquinaId')
-                ->get(['Id', 'MaquinaId'])
-                ->filter(function ($orden) use ($mcCoy, $ordenIdExcluir) {
-                    $ordenMcCoy = $this->extractMcCoyNumber($orden->MaquinaId);
-                    if ($ordenIdExcluir && $orden->Id == $ordenIdExcluir) {
-                        return false;
-                    }
-
-                    return $ordenMcCoy === $mcCoy;
-                });
-
-            $cantidadEnProceso = $ordenesEnProceso->count();
-
-            $nombreMaquina = $mcCoy == 4 ? 'Karl Mayer' : "MC Coy {$mcCoy}";
-
-            // Permitir hasta 2 órdenes en proceso por máquina
-            // Solo bloquear si ya hay 2 o más órdenes en proceso
-            $limitePorMaquina = 2;
-            $tieneOrdenEnProceso = $cantidadEnProceso >= $limitePorMaquina;
-
-            return response()->json([
-                'success' => true,
-                'tieneOrdenEnProceso' => $tieneOrdenEnProceso,
-                'cantidad' => $cantidadEnProceso,
-                'limite' => $limitePorMaquina,
-                'maquina' => $nombreMaquina,
-                'mensaje' => $tieneOrdenEnProceso
-                    ? "Ya existen {$limitePorMaquina} órdenes con status 'En Proceso' en {$nombreMaquina}. No se puede cargar otra orden en esta máquina hasta finalizar alguna de las actuales."
-                    : "Hay {$cantidadEnProceso} orden(es) en proceso en {$nombreMaquina}. Puede cargar hasta {$limitePorMaquina} órdenes en proceso por máquina.",
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al verificar órdenes en proceso: '.$e->getMessage(),
             ], 500);
         }
     }

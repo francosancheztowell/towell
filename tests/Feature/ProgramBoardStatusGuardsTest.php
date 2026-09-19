@@ -50,17 +50,32 @@ class ProgramBoardStatusGuardsTest extends TestCase
         $urdido->assertSee('MC Coy 1');
     }
 
-    public function test_legacy_boards_remain_the_classic_blade_fallback(): void
+    public function test_legacy_boards_redirect_to_the_livewire_default(): void
     {
         $user = $this->supervisor();
 
-        $engomado = $this->actingAs($user)->get('/engomado/programar-engomado/legacy');
-        $engomado->assertOk();
-        $engomado->assertDontSee('program-board-page', false);
+        $this->actingAs($user)
+            ->get('/engomado/programar-engomado/legacy')
+            ->assertRedirect('/engomado/programar-engomado')
+            ->assertStatus(301);
 
-        $urdido = $this->actingAs($user)->get('/urdido/programar-urdido/legacy');
-        $urdido->assertOk();
-        $urdido->assertDontSee('program-board-page', false);
+        $this->actingAs($user)
+            ->get('/urdido/programar-urdido/legacy')
+            ->assertRedirect('/urdido/programar-urdido')
+            ->assertStatus(301);
+    }
+
+    public function test_verificar_en_proceso_endpoints_are_gone(): void
+    {
+        $user = $this->supervisor();
+
+        $this->actingAs($user)
+            ->get('/engomado/programar-engomado/verificar-en-proceso')
+            ->assertNotFound();
+
+        $this->actingAs($user)
+            ->get('/urdido/programar-urdido/verificar-en-proceso')
+            ->assertNotFound();
     }
 
     public function test_authenticated_user_is_redirected_from_urdido_livewire_alias(): void

@@ -10,7 +10,6 @@ use App\Services\Programas\ProgramaPrioridadService;
 use App\Services\Programas\ProgramBoardActionService;
 use App\Support\Programas\ProgramaConfig;
 use App\Support\Programas\ProgramaModulo;
-use App\Support\Programas\ProgramaRouteHelper;
 use DomainException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -47,18 +46,6 @@ class ProgramarEngomadoController extends Controller
     public function index(): View
     {
         return view('modulos.engomado.programar-engomado-livewire');
-    }
-
-    /**
-     * Fallback Blade clásico. Las mutaciones POST delegan a ProgramBoardActionService.
-     */
-    public function legacy(): View
-    {
-        return view('modulos.engomado.programar-engomado', [
-            'canEdit' => $this->usuarioPuedeEditar(),
-            'programaRoutes' => ProgramaRouteHelper::engomado(),
-            'observacionesMaxLength' => ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
-        ]);
     }
 
     /**
@@ -282,93 +269,6 @@ class ProgramarEngomadoController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'Error al obtener órdenes: '.$e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Verificar si hay órdenes con status "En Proceso" por tabla (máquina)
-     * Retorna true si hay 2 o más órdenes con status "En Proceso" en la misma tabla
-     * (excluyendo la orden actual si se proporciona)
-     * También verifica que la orden de urdido esté finalizada antes de permitir poner en proceso
-     */
-    public function verificarOrdenEnProceso(Request $request): JsonResponse
-    {
-        try {
-            $ordenIdExcluir = $request->query('excluir_id');
-            $maquinaEng = $request->query('maquina_eng');
-            $folio = $request->query('folio');
-
-            // Verificar primero si la orden de urdido está finalizada
-            if (! empty($folio)) {
-                $urdido = UrdProgramaUrdido::where('Folio', $folio)->first();
-                if ($urdido && $urdido->Status !== 'Finalizado') {
-                    return response()->json([
-                        'success' => true,
-                        'tieneOrdenEnProceso' => true,
-                        'cantidad' => 0,
-                        'limite' => 2,
-                        'tabla' => '',
-                        'mensaje' => "No se puede cargar la orden. La orden de urdido debe tener status 'Finalizado' antes de poder ponerla en proceso en engomado.",
-                        'urdidoNoFinalizado' => true,
-                    ]);
-                }
-            }
-
-            // Si no se proporciona maquina_eng, permitir (no bloquear)
-            // Esto permite que funcione aunque no se pueda determinar la máquina
-            if (empty($maquinaEng)) {
-                return response()->json([
-                    'success' => true,
-                    'tieneOrdenEnProceso' => false,
-                    'cantidad' => 0,
-                    'mensaje' => 'No se proporcionó información de máquina. Se permite cargar la orden.',
-                ]);
-            }
-
-            // Verificar por tabla (extraída de MaquinaEng)
-            $tabla = $this->extractTablaNumber($maquinaEng);
-
-            // Si no se puede determinar la tabla, permitir (no bloquear)
-            if ($tabla === null) {
-                return response()->json([
-                    'success' => true,
-                    'tieneOrdenEnProceso' => false,
-                    'cantidad' => 0,
-                    'mensaje' => 'No se pudo determinar la tabla de la máquina. Se permite cargar la orden.',
-                ]);
-            }
-
-            // Obtener todas las órdenes en proceso y filtrar por tabla
-            $ordenesEnProceso = EngProgramaEngomado::where('Status', 'En Proceso')
-                ->whereNotNull('MaquinaEng')
-                ->get()
-                ->filter(function ($orden) use ($tabla, $ordenIdExcluir) {
-                    $ordenTabla = $this->extractTablaNumber($orden->MaquinaEng);
-                    if ($ordenIdExcluir && $orden->Id == $ordenIdExcluir) {
-                        return false;
-                    }
-
-                    return $ordenTabla === $tabla;
-                });
-
-            $cantidadEnProceso = $ordenesEnProceso->count();
-
-            $nombreTabla = $tabla == 1 ? 'West Point 2' : 'West Point 3';
-
-            // Restricción eliminada - se permite cualquier cantidad de órdenes en proceso
-            return response()->json([
-                'success' => true,
-                'tieneOrdenEnProceso' => false, // Siempre false para permitir cualquier cantidad
-                'cantidad' => $cantidadEnProceso,
-                'limite' => 0, // Sin límite
-                'tabla' => $nombreTabla,
-                'mensaje' => "Hay {$cantidadEnProceso} orden(es) en proceso en {$nombreTabla}.",
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al verificar órdenes en proceso: '.$e->getMessage(),
             ], 500);
         }
     }
