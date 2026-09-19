@@ -56,7 +56,9 @@ class LiberarProgramaSchedulingTest extends TestCase
         $r->SalonTejidoId = $attrs['SalonTejidoId'] ?? 'JACQUARD';
         $r->NoTelarId = $attrs['NoTelarId'] ?? '201';
         $r->NombreProducto = $attrs['NombreProducto'] ?? 'TOALLA ACTUAL';
-        $r->FechaInicio = $attrs['FechaInicio'] ?? Carbon::create(2026, 6, 20);
+        $r->FechaInicio = array_key_exists('FechaInicio', $attrs)
+            ? $attrs['FechaInicio']
+            : Carbon::create(2026, 6, 20);
 
         return $r;
     }
@@ -116,7 +118,8 @@ class LiberarProgramaSchedulingTest extends TestCase
                     && ($contexto['registro_id'] ?? null) === 77;
             });
 
-        $reg = $this->registro(['Id' => 77, 'FechaInicio' => 'no-es-fecha']);
+        $reg = new ReqProgramaTejido;
+        $reg->setRawAttributes(['Id' => 77, 'FechaInicio' => 'no-es-fecha']);
         $hoy = Carbon::create(2026, 6, 20)->startOfDay();
 
         $this->scheduling->aplicarProgramadoCalculado(collect([$reg]), $hoy, $hoy->copy()->addDays(10));
