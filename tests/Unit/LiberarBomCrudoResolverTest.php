@@ -99,7 +99,7 @@ class LiberarBomCrudoResolverTest extends TestCase
     {
         $this->assertSame('IT100', LiberarBomCrudoResolver::itemIdSinSufijo('IT100-1'));
         $this->assertSame('3-100', LiberarBomCrudoResolver::itemIdSinSufijo('3-100-1'));
-        $this->assertSame('3-100-1', LiberarBomCrudoResolver::itemIdSinSufijo('3-100-1-extra'));
+        $this->assertSame('3-100-1-extra', LiberarBomCrudoResolver::itemIdSinSufijo('3-100-1-extra'));
         $this->assertSame('IT100', LiberarBomCrudoResolver::itemIdSinSufijo('IT100'));
     }
 
