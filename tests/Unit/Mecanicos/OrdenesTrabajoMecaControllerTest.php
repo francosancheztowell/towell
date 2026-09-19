@@ -69,6 +69,11 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
             $table->string('Nombre')->nullable();
             $table->string('Departamento')->nullable();
         });
+        $schema->create('dbo.ReqTelares', function (Blueprint $table): void {
+            $table->increments('Id');
+            $table->string('NoTelarId')->nullable();
+            $table->string('SalonTejidoId')->nullable();
+        });
 
         Carbon::setTestNow(Carbon::parse('2026-09-02 10:00:00', 'America/Mexico_City'));
     }
@@ -236,13 +241,17 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
                 'Departamento' => 'Tejido',
             ],
         ]);
+        DB::connection('sqlsrv')->table('dbo.ReqTelares')->insert([
+            'NoTelarId' => '201',
+            'SalonTejidoId' => 'Jacquard',
+        ]);
 
         $method = new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'catalogoTelares');
         $catalogo = $method->invoke(new OrdenesTrabajoMecaController);
 
         $this->assertSame([
-            ['id' => 'WestPoint 2', 'label' => 'Engomado · WestPoint 2 — West Point'],
-            ['id' => '201', 'label' => 'Tejido · 201 — Jacquard'],
+            ['id' => 'WestPoint 2', 'label' => 'WestPoint 2'],
+            ['id' => '201', 'label' => '201 · Salón Jacquard'],
         ], $catalogo);
     }
 
