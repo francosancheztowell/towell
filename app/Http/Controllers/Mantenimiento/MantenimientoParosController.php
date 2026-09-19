@@ -473,14 +473,15 @@ class MantenimientoParosController extends Controller
                 'depto' => 'required|string|max:15',
                 'maquina' => 'required|string|max:15',
                 'falla_id' => 'required|integer',
-                'orden_trabajo' => 'nullable|string|max:50',
+                'orden_trabajo' => 'nullable|string|max:20|regex:/^\S+$/',
                 'obs' => 'nullable|string|max:255',
             ], [
                 'depto.required' => 'Selecciona un departamento.',
                 'maquina.required' => 'Selecciona una máquina.',
                 'falla_id.required' => 'Selecciona una falla.',
                 'falla_id.integer' => 'La falla seleccionada no es válida.',
-                'orden_trabajo.max' => 'La orden de trabajo no puede pasar de 50 caracteres.',
+                'orden_trabajo.max' => 'La orden de trabajo no puede pasar de 20 caracteres.',
+                'orden_trabajo.regex' => 'La orden de trabajo no puede llevar espacios.',
                 'obs.max' => 'Las observaciones no pueden pasar de 255 caracteres.',
             ]);
 

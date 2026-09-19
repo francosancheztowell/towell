@@ -122,12 +122,13 @@
                 <div>
                     <label for="orden_trabajo" class="block text-xs md:text-sm font-medium text-gray-700">Orden de Trabajo</label>
                     <p id="ayuda-orden-trabajo" class="text-xs md:text-sm text-gray-700">
-                        Se sugiere sola al elegir la máquina. Puede escribirla o corregirla a mano.
+                        Se sugiere sola al elegir la máquina. Puede escribirla o corregirla a mano. Máximo 20 caracteres, sin espacios.
                     </p>
                     <input
                         type="text"
                         id="orden_trabajo"
                         name="orden_trabajo"
+                        maxlength="20"
                         class="w-full px-2 py-1.5 md:px-3 md:py-2 text-xs md:text-sm border-2 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                         aria-describedby="ayuda-orden-trabajo"
                     >
@@ -222,7 +223,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // borra, vuelve a sugerirse sola.
     let ordenTrabajoManual = false;
     inputOrdenTrabajo.addEventListener('input', function () {
-        ordenTrabajoManual = this.value.trim() !== '';
+        // Las órdenes son un folio sin espacios (45867). Los operadores pegan texto
+        // extra detrás, así que se borra cualquier espacio mientras escriben.
+        const limpio = this.value.replace(/\s+/g, '');
+        if (limpio !== this.value) {
+            this.value = limpio;
+        }
+        ordenTrabajoManual = this.value !== '';
     });
 
     /** Borra la orden sólo si la había puesto la sugerencia automática. */
@@ -657,7 +664,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (result.success && Array.isArray(result.data) && result.data.length > 0) {
                 const primera = result.data[0];
                 // Siempre refrescar el valor sugerido al cambiar depto/maquina
-                inputOrdenTrabajo.value = primera.Orden_Prod || '';
+                inputOrdenTrabajo.value = String(primera.Orden_Prod || '').replace(/\s+/g, '').slice(0, 20);
             } else {
                 // Si no hay registros en proceso, limpiamos para no dejar valores viejos
                 inputOrdenTrabajo.value = '';
