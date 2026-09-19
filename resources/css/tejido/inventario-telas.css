@@ -322,6 +322,11 @@
         width: 1.5rem;
         height: 1.5rem;
     }
+
+    /* La card de cuentas empieza donde las casillas, no donde la cabecera de fecha. */
+    .inventario-telas-page .inv-telas-cuentas {
+        margin-top: 1.2rem;
+    }
 }
 
 @media (max-width: 899px) {
