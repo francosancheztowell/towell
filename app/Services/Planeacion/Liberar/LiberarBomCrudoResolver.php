@@ -15,9 +15,8 @@ use Illuminate\Support\Facades\Log;
  * Resolución de L.Mat CRUDO (BOMTABLE + BOMVERSION en sqlsrv_ti) al liberar.
  *
  * Extraído de LiberarOrdenesController: misma query EXISTS, mismos filtros de
- * salón/talla y la misma precarga por lote. No unifica todavía
- * {@see \App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController::queryLmatDesdeTi}
- * (JOIN + limit 50, sin filtro de salón): eso es follow-up de BUG-007.
+ * salón/talla y la misma precarga por lote. Cat Peso muestra delega aquí vía
+ * {@see \App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController::queryLmatDesdeTi}.
  */
 final class LiberarBomCrudoResolver
 {
