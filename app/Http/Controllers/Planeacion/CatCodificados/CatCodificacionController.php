@@ -10,6 +10,7 @@ use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\CatCodificados\Excel\CatCodificadosExcelHeaderMapper;
+use App\Services\Planeacion\Liberar\LiberarBomCrudoResolver;
 use App\Services\Planeacion\RevivirOrdenProgramaDesdeCatService;
 use App\Services\Planeacion\SaldoMarbeteCodificacionService;
 use App\Support\Planeacion\TelarSalonResolver;
@@ -31,6 +32,7 @@ class CatCodificacionController extends Controller
     public function __construct(
         private readonly CatCodificadosExcelHeaderMapper $headerMapper,
         private readonly SaldoMarbeteCodificacionService $saldoMarbeteCodificacion,
+        private readonly LiberarBomCrudoResolver $bomCrudoResolver,
     ) {}
 
     /**
@@ -321,7 +323,7 @@ class CatCodificacionController extends Controller
             $registro = CatCodificados::query()
                 ->where('OrdenTejido', $ordenTejido)
                 ->orderByDesc('Id')
-                ->first(['OrdenTejido', 'TelarId', 'ItemId', 'InventSizeId', 'Nombre', 'ClaveModelo', 'ActualizaLmat', 'PesoMuestra', 'AlturaRizo', 'BomId', 'BomName']);
+                ->first(['OrdenTejido', 'Departamento', 'TelarId', 'ItemId', 'InventSizeId', 'Nombre', 'ClaveModelo', 'ActualizaLmat', 'PesoMuestra', 'AlturaRizo', 'BomId', 'BomName']);
 
             if (! $registro) {
                 return response()->json([
@@ -344,7 +346,14 @@ class CatCodificacionController extends Controller
             $inventSizeId = $registro->InventSizeId !== null && trim((string) $registro->InventSizeId) !== ''
                 ? trim((string) $registro->InventSizeId) : null;
             if ($itemId !== '') {
-                $listaLmat = $this->queryLmatDesdeTi($itemId, $inventSizeId);
+                $listaLmat = $this->queryLmatDesdeTi(
+                    $itemId,
+                    $inventSizeId,
+                    $this->salonDesdeCat(
+                        $registro->Departamento !== null ? (string) $registro->Departamento : null,
+                        $registro->TelarId
+                    )
+                );
                 // Si tenemos lista y el registro tenía BomId pero no BomName, rellenar BomName desde TI
                 if ($bomId !== '' && $bomName === '' && count($listaLmat) > 0) {
                     foreach ($listaLmat as $item) {
@@ -420,12 +429,19 @@ class CatCodificacionController extends Controller
                 $catCod = CatCodificados::query()
                     ->where('OrdenTejido', $ordenTejido)
                     ->orderByDesc('Id')
-                    ->first(['ItemId', 'InventSizeId']);
+                    ->first(['ItemId', 'InventSizeId', 'Departamento', 'TelarId']);
 
                 $bomVigente = false;
                 if ($catCod && $catCod->ItemId) {
                     $invSize = $catCod->InventSizeId !== null ? trim((string) $catCod->InventSizeId) : null;
-                    $listaLmat = $this->queryLmatDesdeTi((string) $catCod->ItemId, $invSize !== '' ? $invSize : null);
+                    $listaLmat = $this->queryLmatDesdeTi(
+                        (string) $catCod->ItemId,
+                        $invSize !== '' ? $invSize : null,
+                        $this->salonDesdeCat(
+                            $catCod->Departamento !== null ? (string) $catCod->Departamento : null,
+                            $catCod->TelarId
+                        )
+                    );
                     foreach ($listaLmat as $item) {
                         if (isset($item['bomId']) && (string) $item['bomId'] === $bomId) {
                             $bomName = isset($item['bomName']) ? (string) $item['bomName'] : '';
@@ -528,13 +544,12 @@ class CatCodificacionController extends Controller
     }
 
     /**
-     * Consulta LMAT (Lista de materiales) en la BD sqlsrv_ti (BOMTABLE + BOMVERSION).
-     * Misma lógica que LiberarOrdenesController: si inventSizeId está vacío, no filtra por tamaño
-     * para devolver todos los BOM disponibles del artículo.
+     * Lista L.Mat CRUDO desde AX. Delega a LiberarBomCrudoResolver (EXISTS, sin
+     * tope 50). El shape {bomId, bomName} es el que consume el select de Peso muestra.
      *
      * @return array<int, array{bomId: string, bomName: string}>
      */
-    private function queryLmatDesdeTi(string $itemId, ?string $inventSizeId = null): array
+    private function queryLmatDesdeTi(string $itemId, ?string $inventSizeId = null, ?string $salon = null): array
     {
         try {
             $itemId = trim($itemId);
@@ -542,42 +557,39 @@ class CatCodificacionController extends Controller
                 return [];
             }
 
-            $itemIdWithSuffix = $itemId.'-1';
-            $query = DB::connection('sqlsrv_ti')
-                ->table('BOMTABLE as BT')
-                ->join('BOMVERSION as BV', 'BV.BOMID', '=', 'BT.BOMID')
-                ->select('BT.BOMID as bomId', 'BT.NAME as bomName')
-                ->where('BV.ITEMID', $itemIdWithSuffix)
-                ->where('BT.ITEMGROUPID', 'CRUDO')
-                ->where('BT.Vigente', 1)
-                // Todas las formas en que AX escribe los salones ('ITEMA', 'JACUARD', 'KM'...):
-                // con la lista corta, las L.Mat de Karl Mayer y las de ITEMA no se encontraban.
-                ->whereIn('BT.TwSalon', TelarSalonResolver::todosLosAliasesAx());
-
-            // Solo filtrar por tamaño si viene informado (igual que LiberarOrdenesController)
-            if ($inventSizeId !== null && trim((string) $inventSizeId) !== '') {
-                $query->where('BT.TWINVENTSIZEID', trim($inventSizeId));
-            }
-
-            $results = $query->orderBy('BT.BOMID')->limit(50)->get();
-
-            if ($results->isEmpty()) {
-                return [];
-            }
-
-            return $results->map(fn ($r) => [
-                'bomId' => $r->bomId !== null ? (string) $r->bomId : '',
-                'bomName' => $r->bomName !== null ? (string) $r->bomName : '',
-            ])->values()->all();
+            return $this->bomCrudoResolver
+                ->query($itemId, $inventSizeId, $salon)
+                ->get()
+                ->map(fn ($r) => [
+                    'bomId' => $r->bomId !== null ? (string) $r->bomId : '',
+                    'bomName' => $r->bomName !== null ? (string) $r->bomName : '',
+                ])
+                ->filter(fn (array $row) => $row['bomId'] !== '')
+                ->unique('bomId')
+                ->values()
+                ->all();
         } catch (\Throwable $e) {
             Log::warning('CatCodificacionController::queryLmatDesdeTi', [
                 'itemId' => $itemId,
                 'inventSizeId' => $inventSizeId ?? '',
+                'salon' => $salon ?? '',
                 'error' => $e->getMessage(),
             ]);
 
             return [];
         }
+    }
+
+    /**
+     * Salón de Cat para AX: Departamento es el salón; TelarId solo si Departamento viene vacío.
+     * Sin salón resoluble, null → LiberarBomCrudoResolver usa todos los alias AX.
+     */
+    private function salonDesdeCat(?string $departamento, mixed $telarId): ?string
+    {
+        $telar = $telarId !== null && trim((string) $telarId) !== '' ? (string) $telarId : null;
+        $salon = TelarSalonResolver::normalizeSalon($departamento, $telar);
+
+        return $salon !== '' ? $salon : null;
     }
 
     /**
