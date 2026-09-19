@@ -84,6 +84,11 @@ class InventarioTelaresService
                 continue;
             }
 
+            if ($col === 'no_telar') {
+                $query->where($col, '=', $val);
+                continue;
+            }
+
             if ($col === 'hilo') {
                 $query->whereNotNull($col)->where($col, '!=', '')
                     ->whereRaw('LOWER(TRIM(' . $col . ')) = LOWER(TRIM(?))', [$val]);

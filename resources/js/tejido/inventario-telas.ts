@@ -10,6 +10,8 @@
 // tipando por partes; cuando compile en strict, agregar "resources/js/tejido"
 // al include.
 
+import { http } from '../utils/http'
+
 type TelarConfig = {
   telarId: number
   telarData: Record<string, unknown>
@@ -100,13 +102,6 @@ function initTelar(cfg: TelarConfig): void {
                 const fibraNormalizada = fibraGuardada ? String(fibraGuardada).trim().toLowerCase() : '';
                 const fibraValida = fibraNormalizada && fibraNormalizada !== '' && fibraNormalizada !== '-';
 
-                console.log('Cargando requerimientos con selección guardada:', {
-                    telarId: telarId,
-                    tipo: tipoComponente,
-                    seleccion: seleccionGuardada.seleccion,
-                    fibra: fibraNormalizada,
-                    fibraValida: fibraValida
-                });
 
                 if (fibraValida) {
                     // Cargar requerimientos filtrando por la fibra guardada
@@ -295,11 +290,7 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
     checkbox.setAttribute('data-cambio-reciente', Date.now().toString());
 
     // Enviar datos a la nueva tabla de inventario
-    axios.post('/inventario-telares/guardar', datosInventario, {
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        }
-    })
+    http.post('/inventario-telares/guardar', datosInventario)
         .then(response => {
             // Invalidar caché para que se actualice en la próxima carga
             invalidarCacheInventario();
@@ -326,15 +317,10 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
     .catch(error => {
         // Mostrar notificación de error con más detalles
         if (typeof Swal !== 'undefined') {
-            let errorMessage = 'Error desconocido';
-
-            if (error.response?.data?.errors) {
-                // Mostrar errores de validación
-                const errors = error.response.data.errors;
-                errorMessage = Object.values(errors).flat().join(', ');
-            } else if (error.response?.data?.message) {
-                errorMessage = error.response.data.message;
-            }
+            // http normaliza el error: .message, .status, .data y .errors (422)
+            const errorMessage = error.errors
+                ? Object.values(error.errors).flat().join(', ')
+                : (error.message || 'Error desconocido');
 
             Swal.fire({
                 icon: 'error',
@@ -422,17 +408,10 @@ async function obtenerInventarioConCache(filtros = {}) {
             url += '?' + params.toString();
         }
 
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            cache: 'no-cache' // Evitar caché del navegador
-        });
+        const json = await http.get(url)
 
-        if (response.ok) {
-            const json = await response.json();
-            const registros = json?.data || [];
+        {
+            const registros = json?.data || [];  // http lanza si el servidor responde error
 
             // Actualizar caché para estos filtros
             if (!window.inventarioCache[cacheKey]) {
@@ -449,8 +428,6 @@ async function obtenerInventarioConCache(filtros = {}) {
             window.inventarioCache[`loading_${cacheKey}`] = false;
 
             return registros;
-        } else {
-            throw new Error('Error al obtener inventario');
         }
     } catch (error) {
         // Resolver todas las promesas pendientes con error
@@ -497,8 +474,11 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
 
     window.cargandoRequerimientosPorTelar[key] = true;
 
-    // Usar inventario con caché (más rápido)
-    obtenerInventarioConCache()
+    // El servidor filtra por telar y salon (InventarioTelaresController::getInventarioTelares)
+    const filtrosTelar = { no_telar: String(telarId) }
+    if (salon && salon !== '') filtrosTelar.salon = String(salon).trim()
+
+    obtenerInventarioConCache(filtrosTelar)
         .then(registros => {
 
             // Buscar todas las tablas que contienen checkboxes de este telar
@@ -848,79 +828,10 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
     }
 
     // Usar inventario con caché y filtros (más rápido y filtrado en el servidor)
-    console.log('Obteniendo inventario con filtros:', filtros);
     obtenerInventarioConCache(filtros)
         .then(registros => {
-            console.log('Registros recibidos del servidor:', {
-                total: registros.length,
-                registros: registros.slice(0, 5).map(r => ({
-                    no_telar: r.no_telar,
-                    tipo: r.tipo,
-                    hilo: r.hilo,
-                    fecha: r.fecha,
-                    turno: r.turno
-                })),
-                filtrosAplicados: filtros,
-                nota: 'El servidor debería haber filtrado por hilo, pero algunos registros pueden tener hilo vacío'
-            });
-
-            // Los registros ya vienen filtrados del servidor, pero hacer una verificación adicional
-            // IMPORTANTE: Filtrar en el cliente también para asegurar que solo se muestren registros con el hilo correcto
-            const registrosFiltrados = registros.filter(reg => {
-                // Solo registros con status Activo
-                if (reg.status && reg.status !== 'Activo') return false;
-
-                const telarCoincide = String(reg.no_telar) === String(telarId);
-                if (!telarCoincide) return false;
-
-                const salonRegistro = String(reg.salon || '').toLowerCase().trim();
-                const salonEsperado = String(salon || '').toLowerCase().trim();
-                let salonCoincide = true;
-                if (salonEsperado && salonEsperado !== '') {
-                    const salonRegistroNormalizado = salonRegistro.replace(/\s+/g, ' ').trim();
-                    const salonEsperadoNormalizado = salonEsperado.replace(/\s+/g, ' ').trim();
-                    salonCoincide = salonRegistroNormalizado === salonEsperadoNormalizado ||
-                                   salonRegistroNormalizado.includes(salonEsperadoNormalizado) ||
-                                   salonEsperadoNormalizado.includes(salonRegistroNormalizado);
-                }
-
-                const tipoRegistro = String(reg.tipo || '').toLowerCase().trim();
-                const tipoEsperado = tipo === 'rizo' ? 'rizo' : 'pie';
-                const tipoCoincide = tipoRegistro === tipoEsperado;
-
-                // Filtrar por fibra si se proporciona
-                // IMPORTANTE: Si hay filtro por fibra, SOLO aceptar registros con esa fibra exacta
-                // Rechazar registros con hilo vacío, NULL, o diferente
-                const fibraRegistro = String(reg.hilo || '').toLowerCase().trim();
-                const fibraEsperada = String(fibraFiltro || '').toLowerCase().trim();
-                const tieneFibraFiltro = fibraFiltro && fibraFiltro !== '' && fibraFiltro !== '-';
-
-                // Si hay filtro por fibra, el registro DEBE tener la fibra exacta (no vacía, no NULL)
-                let fibraCoincide = true;
-                if (tieneFibraFiltro) {
-                    // Con filtro: solo aceptar si la fibra coincide exactamente Y no está vacía
-                    fibraCoincide = fibraRegistro !== '' && fibraRegistro === fibraEsperada;
-                } else {
-                    // Sin filtro: aceptar todos (incluidos los vacíos)
-                    fibraCoincide = true;
-                }
-
-                // Debug: mostrar comparación de fibras (solo para el primer registro)
-                if (registros.length > 0 && registros.indexOf(reg) === 0) {
-                    console.log('Comparando fibras (filtro adicional en cliente):', {
-                        fibraRegistro: fibraRegistro,
-                        fibraEsperada: fibraEsperada,
-                        tieneFibraFiltro: tieneFibraFiltro,
-                        fibraCoincide: fibraCoincide,
-                        fibraFiltroOriginal: fibraFiltro,
-                        filtrosAplicadosEnGET: filtros,
-                        motivoRechazo: (tieneFibraFiltro && (!fibraRegistro || fibraRegistro !== fibraEsperada)) ?
-                            'Hilo vacío o diferente' : 'OK'
-                    });
-                }
-
-                return telarCoincide && salonCoincide && tipoCoincide && fibraCoincide;
-            });
+            // El servidor ya filtro por telar, salon, tipo e hilo: aqui no se vuelve a filtrar.
+            const registrosFiltrados = registros
 
             // Buscar todas las tablas que contienen checkboxes de este telar
             const todasLasTablasDelDocumento = Array.from(document.querySelectorAll('table'));
@@ -1088,19 +999,6 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
                 });
             });
 
-            console.log('Checkboxes marcados después del filtro:', {
-                registrosFiltrados: registrosFiltrados.length,
-                filtroAplicado: filtros,
-                telarId: telarId,
-                tipo: tipo,
-                hoy: hoy.toISOString().split('T')[0],
-                ultimoDia: ultimoDia.toISOString().split('T')[0],
-                registrosDetalle: registrosFiltrados.map(reg => ({
-                    fecha: reg.fecha,
-                    turno: reg.turno,
-                    tipo: reg.tipo
-                }))
-            });
 
             window.cargandoRequerimientosPorTelar[key] = false;
         })
@@ -1382,14 +1280,6 @@ function confirmarSeleccion() {
     const esProceso = seleccionado.value === 'proceso';
 
     // Debug: mostrar la fibra seleccionada
-    console.log('Fibra seleccionada:', {
-        fibraOriginal: fibraSeleccionada,
-        seleccion: seleccionado.value,
-        esProceso: esProceso,
-        telarId: telarIdParaFiltro,
-        tipo: tipoParaFiltro,
-        datosCompletos: datosSeleccionados
-    });
 
     // Limpiar TODOS los checkboxes de este telar y tipo antes de aplicar el nuevo filtro
     const todasLasTablasDelDocumento = Array.from(document.querySelectorAll('table'));
@@ -1406,13 +1296,6 @@ function confirmarSeleccion() {
         });
     });
 
-    console.log('Checkboxes limpiados antes de aplicar nuevo filtro:', {
-        telarId: telarIdParaFiltro,
-        tipo: tipoParaFiltro,
-        checkboxesLimpiados: todasLasTablasDelTelar.reduce((total, table) => {
-            return total + table.querySelectorAll(`input[data-telar="${telarIdParaFiltro}"][data-tipo="${tipoParaFiltro}"]`).length;
-        }, 0)
-    });
 
     // Actualizar el hilo en el inventario cuando se confirma una selección
     if (telarIdParaFiltro && tipoParaFiltro && fibraSeleccionada && fibraSeleccionada !== '-') {
@@ -1420,21 +1303,12 @@ function confirmarSeleccion() {
         const hiloParaActualizar = String(fibraSeleccionada).trim();
 
         // Llamar al endpoint para actualizar el hilo
-        fetch('/programa-urd-eng/actualizar-telar', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            body: JSON.stringify({
-                no_telar: telarIdParaFiltro,
-                tipo: tipoParaFiltro === 'rizo' ? 'Rizo' : 'Pie',
-                hilo: hiloParaActualizar
-            })
+        http.post('/programa-urd-eng/actualizar-telar', {
+            no_telar: telarIdParaFiltro,
+            tipo: tipoParaFiltro === 'rizo' ? 'Rizo' : 'Pie',
+            hilo: hiloParaActualizar
         })
-        .then(response => response.json())
         .then(data => {
-            console.log('Hilo actualizado en inventario:', data);
 
             // Invalidar TODOS los cachés para forzar una nueva consulta
             invalidarCacheInventario();
@@ -1446,15 +1320,6 @@ function confirmarSeleccion() {
                 const fibraNormalizada = fibraSeleccionada ? String(fibraSeleccionada).trim().toLowerCase() : '';
                 const fibraValida = fibraNormalizada && fibraNormalizada !== '' && fibraNormalizada !== '-';
 
-                console.log('Filtrando por fibra después de actualizar hilo:', {
-                    fibraNormalizada: fibraNormalizada,
-                    fibraValida: fibraValida,
-                    seleccion: seleccionado.value,
-                    telarId: telarIdParaFiltro,
-                    tipo: tipoParaFiltro,
-                    salonTelar: salonTelar,
-                    hiloActualizado: hiloParaActualizar
-                });
 
                 if (fibraValida) {
                     // Filtrar por la fibra específica seleccionada
@@ -1513,18 +1378,7 @@ function confirmarSeleccion() {
 // Función para obtener datos del proceso actual
 async function obtenerDatosProcesoActual(telarId) {
     try {
-        const response = await fetch(`/api/telares/proceso-actual/${telarId}`, {
-            method: 'GET',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
-        });
-
-        if (response.ok) {
-            return await response.json();
-        } else {
-            return null;
-        }
+        return await http.get(`/api/telares/proceso-actual/${telarId}`)
     } catch (error) {
         return null;
     }
@@ -1539,18 +1393,7 @@ async function obtenerDatosSiguienteOrden(telarId, fibra = null) {
             url += `?fibra=${encodeURIComponent(fibra)}`;
         }
 
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
-        });
-
-        if (response.ok) {
-            return await response.json();
-        } else {
-            return null;
-        }
+        return await http.get(url)
     } catch (error) {
         return null;
     }
@@ -1633,27 +1476,17 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
             turno: String(datosEliminar.turno)
         });
 
-        const response = await fetch(`/inventario-telares/verificar-estado?${params.toString()}`, {
-            method: 'GET',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            cache: 'no-cache' // Forzar que siempre consulte el servidor, no use caché del navegador
-        });
-
-        // Verificar que la respuesta sea válida
-        if (!response.ok) {
-            // Si es 404 (registro no encontrado), puede ser que ya fue eliminado
-            if (response.status === 404) {
-                const errorResult = await response.json().catch(() => ({ success: false, message: 'Registro no encontrado' }));
-                // Si el registro no existe, eliminar directamente (ya fue eliminado)
+        let result
+        try {
+            result = await http.get(`/inventario-telares/verificar-estado?${params.toString()}`)
+        } catch (err) {
+            // 404: el registro ya no existe, o sea que ya fue eliminado.
+            if (err.status === 404) {
                 eliminarRegistro(datosEliminar, checkbox);
                 return;
             }
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw err
         }
-
-        const result = await response.json();
 
         // Guardar datos completos del telar si están disponibles
         if (telarData) {
@@ -1704,14 +1537,6 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
                 window.puedeEliminar = result.puede_eliminar === false ? false : (result.puede_eliminar === true ? true : true);
 
                 // Debug: mostrar los valores recibidos
-                console.log('Valores recibidos del servidor:', {
-                    status_urdido: result.status_urdido,
-                    puede_eliminar: result.puede_eliminar,
-                    puede_eliminar_type: typeof result.puede_eliminar,
-                    statusUrdido: window.statusUrdido,
-                    puedeEliminar: window.puedeEliminar,
-                    puedeEliminarType: typeof window.puedeEliminar
-                });
                 // Guardar el ID del registro si está disponible en la respuesta
                 if (result.registro_id) {
                     window.registroIdPendienteCalendario = result.registro_id;
@@ -1807,19 +1632,11 @@ window.mostrarModalTelaReservada = function() {
     // Cambiar el texto según el estado (reservado o programado)
     // Buscar los elementos DENTRO del modal encontrado para evitar conflictos con múltiples instancias
     const estadoTela = window.estadoModalTela || 'reservado'; // Por defecto reservado
-    console.log('Mostrando modal con estado:', estadoTela); // Debug
     const tituloModal = modal.querySelector('#modalTelaReservadaTitulo');
     const descripcionModal = modal.querySelector('#modalTelaReservadaDescripcion');
     const textoEliminar = modal.querySelector('#modalTelaReservadaEliminarTexto');
 
     // Debug: verificar si los elementos se encuentran
-    console.log('Elementos encontrados:', {
-        tituloModal: !!tituloModal,
-        descripcionModal: !!descripcionModal,
-        textoEliminar: !!textoEliminar,
-        tituloTextoActual: tituloModal ? tituloModal.textContent : 'NO ENCONTRADO',
-        descripcionTextoActual: descripcionModal ? descripcionModal.textContent : 'NO ENCONTRADO'
-    });
 
     // Obtener los botones de eliminar y actualizar
     const btnEliminar = modal.querySelector('#btnEliminarReservado');
@@ -1829,22 +1646,13 @@ window.mostrarModalTelaReservada = function() {
     const statusUrdido = window.statusUrdido || null;
 
     // Debug: mostrar valores antes de evaluar
-    console.log('Valores en mostrarModalTelaReservada:', {
-        estadoTela: estadoTela,
-        puedeEliminar: puedeEliminar,
-        statusUrdido: statusUrdido,
-        puedeEliminarType: typeof puedeEliminar,
-        statusUrdidoType: typeof statusUrdido
-    });
 
     // Verificar y cambiar el texto según el estado
     if (estadoTela === 'programado') {
-        console.log('Cambiando textos a: programado'); // Debug
         // Si está solo programado (sin reservado), cambiar textos
         if (tituloModal) {
             tituloModal.textContent = 'Ya está programado';
             tituloModal.innerHTML = 'Ya está programado'; // Asegurar también innerHTML
-            console.log('Título actualizado a:', tituloModal.textContent, 'innerHTML:', tituloModal.innerHTML);
         } else {
             console.error('Error: No se encontró el elemento modalTelaReservadaTitulo en el modal');
         }
@@ -1893,7 +1701,6 @@ window.mostrarModalTelaReservada = function() {
         }
     } else {
         // Si está reservado (o por defecto), usar textos de reservado
-        console.log('Cambiando textos a: reservado');
         if (tituloModal) {
             tituloModal.textContent = 'Ya tiene tela reservada';
         }
@@ -2054,7 +1861,6 @@ window.mostrarModalCalendarioSemanal = function() {
         diaElement.onclick = function(e) {
             e.preventDefault();
             e.stopPropagation();
-            console.log('Click en fecha:', fechaISO);
             if (typeof window.mostrarSeleccionTurnos === 'function') {
                 window.mostrarSeleccionTurnos(fechaISO, diaContainer);
             } else {
@@ -2295,7 +2101,6 @@ window.cerrarModalCalendarioSemanal = function() {
 
 // Función para mostrar selección de turnos después de seleccionar fecha (debe ser global)
 window.mostrarSeleccionTurnos = async function(fechaISO, diaElement) {
-    console.log('mostrarSeleccionTurnos llamado con fecha:', fechaISO);
 
     if (!window.checkboxPendienteCalendario || !window.telarIdPendienteCalendario) {
         console.error('Faltan datos necesarios:', {
@@ -2345,7 +2150,6 @@ window.mostrarSeleccionTurnos = async function(fechaISO, diaElement) {
                 cont.style.display = 'none';
                 cont.style.visibility = 'hidden';
                 cont.innerHTML = '';
-                console.log(`Ocultando turnos del día ${contFecha}`);
             }
         });
     }
@@ -2387,24 +2191,11 @@ window.mostrarSeleccionTurnos = async function(fechaISO, diaElement) {
             params.append('registro_id_excluir', registroId);
         }
 
-        const response = await fetch(`/inventario-telares/verificar-turnos-ocupados?${params.toString()}`, {
-            method: 'GET',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            cache: 'no-cache'
-        });
-
-        if (!response.ok) {
-            throw new Error('Error al verificar turnos ocupados');
-        }
-
-        const result = await response.json();
+        const result = await http.get(`/inventario-telares/verificar-turnos-ocupados?${params.toString()}`)
 
         if (result.success) {
             const turnosOcupados = result.turnos_ocupados || [];
 
-            console.log('Turnos ocupados recibidos:', turnosOcupados);
 
             // Limpiar el contenedor y crear los botones de turno
             turnosContainer.innerHTML = '';
@@ -2422,7 +2213,6 @@ window.mostrarSeleccionTurnos = async function(fechaISO, diaElement) {
                 // Verificar si el turno está ocupado (comparar como número)
                 const turnoOcupado = turnosOcupados.includes(parseInt(turno, 10)) || turnosOcupados.includes(turno);
 
-                console.log(`Turno ${turno}: ocupado = ${turnoOcupado}`);
 
                 if (turnoOcupado) {
                     // Turno ocupado: fondo rojo tenue, texto rojo, deshabilitado
@@ -2458,7 +2248,6 @@ window.mostrarSeleccionTurnos = async function(fechaISO, diaElement) {
             turnosContainer.style.width = '100%';
             turnosContainer.style.boxSizing = 'border-box';
 
-            console.log('Botones de turno creados y mostrados');
         }
     } catch (error) {
         console.error('Error al verificar turnos ocupados:', error);
@@ -2582,12 +2371,7 @@ window.seleccionarTurno = function(turno, btnElement) {
     };
 
     // Hacer la petición de actualización directamente (sin modales intermedios)
-    axios.post('/inventario-telares/actualizar-fecha', datosActualizar, {
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            'Content-Type': 'application/json'
-        }
-    })
+    http.post('/inventario-telares/actualizar-fecha', datosActualizar)
     .then(() => {
         // Recargar la página y hacer scroll al telar actualizado
         // Usar hash para que al recargar se posicione en el telar
@@ -2601,7 +2385,7 @@ window.seleccionarTurno = function(turno, btnElement) {
             Swal.fire({
                 icon: 'error',
                 title: 'Error al actualizar',
-                text: error.response?.data?.message || 'No se pudo actualizar la fecha y turno del registro.',
+                text: error.message || 'No se pudo actualizar la fecha y turno del registro.',
                 showConfirmButton: true
             });
         }
@@ -2694,15 +2478,10 @@ async function actualizarRegistroConNuevaFecha(checkbox, telarId, tipo, turno, f
                 fecha_nueva: fechaNueva
             };
 
-            const responseActualizar = await axios.post('/inventario-telares/actualizar-fecha', datosActualizar, {
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'Content-Type': 'application/json'
-                }
-            });
+            const responseActualizar = await http.post('/inventario-telares/actualizar-fecha', datosActualizar)
 
-            if (!responseActualizar.data || responseActualizar.data.success === false) {
-                throw new Error(responseActualizar.data?.message || 'Error al actualizar la fecha del registro');
+            if (!responseActualizar || responseActualizar.success === false) {
+                throw new Error(responseActualizar?.message || 'Error al actualizar la fecha del registro');
             }
         } catch (errorActualizar) {
             console.error('Error al actualizar fecha del registro:', errorActualizar);
@@ -2762,7 +2541,7 @@ async function actualizarRegistroConNuevaFecha(checkbox, telarId, tipo, turno, f
             Swal.fire({
                 icon: 'error',
                 title: 'Error al actualizar',
-                text: error.message || error.response?.data?.message || 'No se pudo actualizar el registro. El registro original se mantiene.',
+                text: error.message || 'No se pudo actualizar el registro. El registro original se mantiene.',
                 showConfirmButton: false,
                 timer: 3000,
                 position: 'top-end',
@@ -2928,15 +2707,7 @@ function eliminarRegistro(datosEliminar, checkbox) {
     checkbox.checked = false;
 
     // Para DELETE, axios envía los datos en el body pero Laravel los lee desde input()
-    axios({
-        method: 'delete',
-        url: '/inventario-telares/eliminar',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            'Content-Type': 'application/json'
-        },
-        data: datosEliminar
-    })
+    http.delete('/inventario-telares/eliminar', { data: datosEliminar })
     .then(response => {
         // Invalidar caché para que se actualice en la próxima carga (pero NO recargar automáticamente)
         invalidarCacheInventario();
@@ -2971,11 +2742,7 @@ function eliminarRegistro(datosEliminar, checkbox) {
 
         // Mostrar notificación de error
         if (typeof Swal !== 'undefined') {
-            let errorMessage = 'Error desconocido';
-
-            if (error.response?.data?.message) {
-                errorMessage = error.response.data.message;
-            }
+            const errorMessage = error.message || 'Error desconocido';
 
             Swal.fire({
                 icon: 'error',
