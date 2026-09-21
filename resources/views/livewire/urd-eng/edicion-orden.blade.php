@@ -22,24 +22,11 @@
         }
         $porStatus = $esUrdido
             ? ['RizoPie', 'Cuenta', 'Calibre', 'Fibra', 'MaquinaId', 'BomId']
-            : ['RizoPie', 'Cuenta', 'Calibre', 'Fibra', 'MaquinaEng', 'BomEng', 'BomFormula', 'NoTelas'];
+            : ['RizoPie', 'Cuenta', 'Calibre', 'Fibra', 'MaquinaEng', 'BomEng', 'BomFormula'];
 
         return in_array($campo, $porStatus, true) && ! $editablePorStatus;
     };
 @endphp
-
-@if ($pendiente === 'NoTelas')
-    <div class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 p-4">
-        <div class="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" role="dialog" aria-modal="true">
-            <h2 class="text-base font-semibold text-gray-900">Confirmar cambio</h2>
-            <p class="mt-2 text-sm text-gray-700">{{ $pendienteMensaje }}</p>
-            <div class="mt-4 flex justify-end gap-2">
-                <button type="button" wire:click="descartarPendiente" class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm">Cancelar</button>
-                <button type="button" wire:click="confirmarNoTelas" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white">Confirmar</button>
-            </div>
-        </div>
-    </div>
-@endif
 
 <div class="w-full"
      data-edicion-orden
@@ -58,6 +45,18 @@
      @endif
      data-ruta-lote="{{ route('programa.urd.eng.buscar.lote.proveedor') }}"
 >
+    @if ($pendiente === 'NoTelas')
+        <div class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 p-4">
+            <div class="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" role="dialog" aria-modal="true">
+                <h2 class="text-base font-semibold text-gray-900">Confirmar cambio</h2>
+                <p class="mt-2 text-sm text-gray-700">{{ $pendienteMensaje }}</p>
+                <div class="mt-4 flex justify-end gap-2">
+                    <button type="button" wire:click="descartarPendiente" class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm">Cancelar</button>
+                    <button type="button" wire:click="confirmarNoTelas" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    @endif
 
     @unless($puedeEditar)
         <div class="mb-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -72,6 +71,12 @@
     @elseif(! $editablePorStatus)
         <div class="mb-2 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
             Orden en estado <strong>{{ $status ?: '—' }}</strong>: cuenta, calibre, fibra, máquina y bom no se pueden cambiar.
+        </div>
+    @endif
+
+    @if ($aviso !== '')
+        <div class="mb-2 rounded border px-3 py-2 text-sm {{ $avisoTipo === 'error' ? 'border-red-300 bg-red-50 text-red-800' : 'border-green-300 bg-green-50 text-green-800' }}">
+            {{ $aviso }}
         </div>
     @endif
 
@@ -101,7 +106,7 @@
             @unless($esUrdido)
                 <div>
                     <label class="{{ $label }}">No. de Telas</label>
-                    <input type="number" min="0" wire:model.blur="form.NoTelas" @disabled($bloqueado('NoTelas'))
+                    <input type="number" min="0" wire:model.live.debounce.400ms="form.NoTelas" @disabled($bloqueado('NoTelas'))
                         class="{{ $input }} {{ $bloqueado('NoTelas') ? $claseBloqueo : '' }}">
                 </div>
             @endunless

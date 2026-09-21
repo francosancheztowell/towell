@@ -97,6 +97,10 @@ class EdicionOrden extends Component
 
     public string $pendienteMensaje = '';
 
+    public string $aviso = '';
+
+    public string $avisoTipo = 'success';
+
     private BomMaterialesService $bomMateriales;
 
     /** La orden se lee una vez por request, no una por cada regla que la consulta. */
@@ -260,6 +264,7 @@ class EdicionOrden extends Component
                 $this->autocompletarTamano($orden);
             }
         } catch (Throwable $e) {
+            $this->ordenCache = null;
             $this->form[$campo] = $this->valorParaFormulario($this->orden(), $campo);
             $this->notificar('error', $e->getMessage());
         }
@@ -290,7 +295,7 @@ class EdicionOrden extends Component
 
         $camposPorStatus = $this->esUrdido()
             ? ['RizoPie', 'Cuenta', 'Calibre', 'Fibra', 'MaquinaId', 'BomId']
-            : ['RizoPie', 'Cuenta', 'Calibre', 'Fibra', 'MaquinaEng', 'BomEng', 'BomFormula', 'NoTelas'];
+            : ['RizoPie', 'Cuenta', 'Calibre', 'Fibra', 'MaquinaEng', 'BomEng', 'BomFormula'];
 
         abort_if(
             in_array($campo, $camposPorStatus, true) && ! in_array($status, $statusEditables, true),
@@ -751,6 +756,8 @@ class EdicionOrden extends Component
 
     private function notificar(string $tipo, string $mensaje): void
     {
+        $this->avisoTipo = $tipo;
+        $this->aviso = $mensaje;
         $this->dispatch('program-board-notify', type: $tipo, message: $mensaje);
     }
 }
