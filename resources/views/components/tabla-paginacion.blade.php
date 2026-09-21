@@ -17,7 +17,7 @@
         @if ($paginator->onFirstPage())
             <span class="{{ $deshabilitado }}" aria-disabled="true"><i class="fa-solid fa-chevron-left"></i></span>
         @else
-            <button type="button" wire:click="previousPage" wire:loading.attr="disabled"
+            <button type="button" wire:click="previousPage('{{ $paginator->getPageName() }}')" wire:loading.attr="disabled"
                     class="{{ $inactivo }}" rel="prev" aria-label="Página anterior">
                 <i class="fa-solid fa-chevron-left"></i>
             </button>
@@ -33,7 +33,7 @@
                     @if ($page == $paginator->currentPage())
                         <span class="{{ $activo }}" aria-current="page">{{ $page }}</span>
                     @else
-                        <button type="button" wire:key="pagina-{{ $page }}" wire:click="gotoPage({{ $page }})"
+                        <button type="button" wire:key="pagina-{{ $paginator->getPageName() }}-{{ $page }}" wire:click="gotoPage({{ $page }}, '{{ $paginator->getPageName() }}')"
                                 wire:loading.attr="disabled" class="{{ $inactivo }}">
                             {{ $page }}
                         </button>
@@ -43,7 +43,7 @@
         @endforeach
 
         @if ($paginator->hasMorePages())
-            <button type="button" wire:click="nextPage" wire:loading.attr="disabled"
+            <button type="button" wire:click="nextPage('{{ $paginator->getPageName() }}')" wire:loading.attr="disabled"
                     class="{{ $inactivo }}" rel="next" aria-label="Página siguiente">
                 <i class="fa-solid fa-chevron-right"></i>
             </button>

@@ -6,23 +6,10 @@
 @if(!$simple)
     <!-- Estilos PWA y optimización -->
     <style>
+        /* Placeholder de imagen diferida: gris plano hasta que carga.
+           Sin animacion infinita, que seguia corriendo despues del load. */
         img[loading="lazy"] {
-            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-        }
-        @keyframes loading {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-        .module-grid img {
-            will-change: transform;
-            backface-visibility: hidden;
-        }
-
-        /* Reset completo para eliminar espacios muertos */
-        * {
-            box-sizing: border-box;
+            background-color: #f0f0f0;
         }
 
         /* PWA: Safe area insets para notches en iOS y ocultar barra Chrome */

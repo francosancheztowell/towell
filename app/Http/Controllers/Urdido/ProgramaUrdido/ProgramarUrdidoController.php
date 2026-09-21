@@ -10,7 +10,6 @@ use App\Services\Programas\ProgramaPrioridadService;
 use App\Services\Programas\ProgramBoardActionService;
 use App\Support\Programas\ProgramaConfig;
 use App\Support\Programas\ProgramaModulo;
-use App\Support\Programas\ProgramaRouteHelper;
 use DomainException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -87,78 +86,16 @@ class ProgramarUrdidoController extends Controller
      */
     public function index(): View
     {
-        return view('modulos.urdido.programar-urdido', [
-            'canEdit' => $this->usuarioPuedeEditar(),
-            'programaRoutes' => ProgramaRouteHelper::urdido(),
-            'observacionesMaxLength' => ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
-            'calidadComentarioMaxLength' => ProgramaConfig::CALIDAD_COMENTARIO_MAX_LENGTH,
-            'calidadPuntos' => UrdProgramaUrdido::CALIDAD_PUNTOS,
-        ]);
+        return view('modulos.urdido.programar-urdido-livewire');
     }
 
     /**
      * Mostrar todas las ordenes para reimpresion
      * Ordenadas por las más recientes primero
      */
-    public function reimpresionFinalizadas(Request $request)
+    public function reimpresionFinalizadas(): View
     {
-        $busqueda = trim((string) $request->query('q', ''));
-        $folio = trim((string) $request->query('folio', ''));
-        $maquina = trim((string) $request->query('maquina', ''));
-        $tipo = trim((string) $request->query('tipo', ''));
-        $status = trim((string) $request->query('status', ''));
-
-        $query = UrdProgramaUrdido::select([
-            'Id',
-            'Folio',
-            'RizoPie',
-            'Cuenta',
-            'Calibre',
-            'Metros',
-            'MaquinaId',
-            'FechaProg',
-            'Status',
-            'Fibra',
-        ]);
-
-        // Filtro por folio
-        if ($folio !== '') {
-            $query->where('Folio', 'like', "%{$folio}%");
-        }
-
-        // Filtro por máquina
-        if ($maquina !== '') {
-            $query->where('MaquinaId', $maquina);
-        }
-
-        // Filtro por tipo
-        if ($tipo !== '') {
-            $query->where('RizoPie', $tipo);
-        }
-
-        // Filtro por status
-        if ($status !== '') {
-            $query->where('Status', $status);
-        }
-
-        // Búsqueda general (si no hay filtros específicos)
-        if ($busqueda !== '' && $folio === '' && $maquina === '' && $tipo === '' && $status === '') {
-            $query->where(function ($sub) use ($busqueda) {
-                $sub->where('Folio', 'like', "%{$busqueda}%")
-                    ->orWhere('Cuenta', 'like', "%{$busqueda}%")
-                    ->orWhere('MaquinaId', 'like', "%{$busqueda}%");
-            });
-        }
-
-        $ordenes = $query
-            ->orderBy('FechaProg', 'desc') // Más recientes primero
-            ->orderBy('Id', 'desc') // Si hay misma fecha, más reciente por ID
-            ->get(); // Sin límite para mostrar todas
-
-        return view('modulos.urdido.reimpresion-urdido', [
-            'ordenes' => $ordenes,
-            'busqueda' => $busqueda,
-        ]);
+        return view('modulos.urdido.reimpresion-urdido');
     }
 
     /**

@@ -50,11 +50,11 @@ class ProgramBoardStructureTest extends TestCase
     public function test_current_program_routes_render_the_classic_tables(): void
     {
         $this->assertSame(
-            'modulos.urdido.programar-urdido',
+            'modulos.urdido.programar-urdido-livewire',
             $this->app->make(ProgramarUrdidoController::class)->index()->name()
         );
         $this->assertSame(
-            'modulos.engomado.programar-engomado',
+            'modulos.engomado.programar-engomado-livewire',
             $this->app->make(ProgramarEngomadoController::class)->index()->name()
         );
     }

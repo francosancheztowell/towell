@@ -39,8 +39,10 @@ class Index extends Component
 
     public function filtrarEstatus(string $estatus): void
     {
-        $permitidos = ['', 'Activo', 'Terminado', 'Autorizado'];
-        abort_unless(in_array($estatus, $permitidos, true), 422, 'Estatus de filtro no válido.');
+        // ponytail: abortar aquí rompería la SPA de Livewire; el valor inválido se ignora.
+        if (! in_array($estatus, ['', 'Activo', 'Terminado', 'Autorizado'], true)) {
+            return;
+        }
 
         $this->estatus = $estatus;
         $this->resetPage();

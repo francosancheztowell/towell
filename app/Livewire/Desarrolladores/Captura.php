@@ -12,6 +12,7 @@ use App\Models\Planeacion\Muestras;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Tejedores\TejCatMatrizDesarrolladores;
 use App\Services\Planeacion\CatalogosMaterialesLMatService;
+use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -121,10 +122,36 @@ class Captura extends Component
         return $this->datosIndex()['telares'] ?? collect();
     }
 
+    /**
+     * Karl Mayer teje barras y el resto teje rizo/pie: son construcciones distintas,
+     * no dos telares intercambiables. Mover una orden KM al 310 la dejaria sin
+     * ninguna columna de su detalle, asi que el destino se queda dentro del salon.
+     */
     #[Computed]
     public function telaresDestino()
     {
-        return $this->datosIndex()['telaresDestino'] ?? collect();
+        $destinos = collect($this->datosIndex()['telaresDestino'] ?? []);
+        $origenEsKm = $this->esKarlMayer;
+
+        return $destinos->filter(function (array $destino) use ($origenEsKm): bool {
+            [$salon, $telar] = array_pad(explode('|', $destino['value'] ?? '', 2), 2, '');
+
+            return TelarSalonResolver::esKarlMayer($salon, $telar) === $origenEsKm;
+        })->values();
+    }
+
+    /**
+     * Karl Mayer son los telares 401 y 402. Cambia tanto que es casi otra captura:
+     * no hay julios, ni altura de rizo, ni desperdicio de trama, el codigo no lleva
+     * sufijo y el detalle son cuatro barras en vez de trama mas combinaciones.
+     */
+    #[Computed]
+    public function esKarlMayer(): bool
+    {
+        return TelarSalonResolver::esKarlMayer(
+            $this->filaSeleccionada['SalonTejidoId'] ?? null,
+            $this->telarId !== '' ? $this->telarId : null
+        );
     }
 
     /**
@@ -339,8 +366,11 @@ class Captura extends Component
         }
 
         $faltantes = [];
+        $esKm = $this->esKarlMayer;
 
-        if (trim((string) $this->form['NumeroJulioRizo']) === '') {
+        // Karl Mayer no monta julios ni teje rizo: pedirlos dejaba la captura sin
+        // salida, porque no hay valor honesto que poner.
+        if (! $esKm && trim((string) $this->form['NumeroJulioRizo']) === '') {
             $faltantes[] = 'Falta elegir el Julio Rizo.';
         }
 
@@ -350,7 +380,7 @@ class Captura extends Component
             }
         }
 
-        if (trim((string) $this->form['AlturaRizo']) === '') {
+        if (! $esKm && trim((string) $this->form['AlturaRizo']) === '') {
             $faltantes[] = 'Falta la altura de rizo.';
         }
 
@@ -364,8 +394,18 @@ class Captura extends Component
             $faltantes[] = 'Captura al menos un renglon de detalle.';
         }
 
+        // En Karl Mayer las cuatro barras son fijas y no siempre se usan las cuatro:
+        // una barra vacia no es un error, pero una a medias si.
+        if ($esKm && ! collect($this->detalles)->contains(fn (array $d): bool => $this->barraEnUso($d))) {
+            $faltantes[] = 'Captura al menos una barra.';
+        }
+
         foreach ($this->detalles as $i => $d) {
-            $renglon = 'Renglon '.($i + 1).': ';
+            if ($esKm && ! $this->barraEnUso($d)) {
+                continue;
+            }
+
+            $renglon = ($esKm ? 'Barra '.($i + 1) : 'Renglon '.($i + 1)).': ';
 
             if (! empty($d['noVigente'])) {
                 $faltantes[] = $renglon.'el calibre '.($d['Calibre'] ?? '').' ya no esta vigente, elige uno de la lista.';
@@ -383,6 +423,15 @@ class Captura extends Component
         }
 
         return $faltantes;
+    }
+
+    /** Una barra cuenta como capturada en cuanto tiene hilo o pasadas. */
+    public function barraEnUso(array $detalle): bool
+    {
+        return ! empty($detalle['CalibreId'])
+            || ! empty($detalle['noVigente'])
+            || trim((string) ($detalle['Calibre'] ?? '')) !== ''
+            || (int) ($detalle['Pasadas'] ?? 0) > 0;
     }
 
     // ── Acciones ──────────────────────────────────────────────────────────
@@ -407,6 +456,8 @@ class Captura extends Component
             $this->resumenGuardado,
             $this->problemas,
             $this->catalogosAx,
+            $this->esKarlMayer,
+            $this->telaresDestino,
         );
     }
 
@@ -486,6 +537,8 @@ class Captura extends Component
         $this->detalles = collect($resultado['detalles'] ?? [])
             ->map(function (array $d): array {
                 $fila = [
+                    // Solo Karl Mayer la trae; en el resto viaja vacia y no se guarda.
+                    'Cuenta' => (string) ($d['Cuenta'] ?? ''),
                     'Calibre' => (string) ($d['Calibre'] ?? ''),
                     'Hilo' => (string) ($d['Hilo'] ?? ''),
                     'Fibra' => (string) ($d['Fibra'] ?? ''),
@@ -795,12 +848,18 @@ class Captura extends Component
         $this->codificacion = array_pad($letras, 20, '');
     }
 
-    /** Los renglones de combinacion, que son los unicos que se agregan y se quitan. */
+    /**
+     * Los renglones de combinacion, que son los unicos que se agregan y se quitan.
+     *
+     * Por el prefijo exacto y no por "todo lo que no sea trama": las barras de Karl
+     * Mayer tampoco son trama, y con la regla negativa se renumeraban como
+     * PasadasComb1..4 al cargarlas, que es escribirlas en columnas de otro salon.
+     */
     private function indicesCombinacion(): array
     {
         return array_keys(array_filter(
             $this->detalles,
-            fn (array $d): bool => ! str_contains((string) ($d['slot'] ?? ''), 'Trama')
+            fn (array $d): bool => str_starts_with((string) ($d['slot'] ?? ''), 'PasadasComb')
         ));
     }
 
@@ -820,6 +879,11 @@ class Captura extends Component
 
     public function agregarFila(): void
     {
+        // Las barras son cuatro posiciones fisicas de la maquina: no se agregan.
+        if ($this->esKarlMayer) {
+            return;
+        }
+
         $combos = count($this->indicesCombinacion());
 
         if ($combos >= 5) {
@@ -829,7 +893,7 @@ class Captura extends Component
         }
 
         $this->detalles[] = [
-            'Calibre' => '', 'Hilo' => '', 'Fibra' => '', 'CodColor' => '',
+            'Cuenta' => '', 'Calibre' => '', 'Hilo' => '', 'Fibra' => '', 'CodColor' => '',
             'NombreColor' => '', 'Pasadas' => '', 'slot' => 'PasadasComb'.($combos + 1),
             'CalibreId' => null, 'noVigente' => false,
         ];
@@ -838,8 +902,9 @@ class Captura extends Component
 
     public function eliminarFila(int $indice): void
     {
-        // La trama no se elimina: es el renglon base de la orden, no una combinacion.
-        if (str_contains((string) ($this->detalles[$indice]['slot'] ?? ''), 'Trama')) {
+        // Solo se quitan combinaciones. La trama es el renglon base de la orden y las
+        // barras de Karl Mayer son posiciones fijas: ni una ni otras se eliminan.
+        if (! str_starts_with((string) ($this->detalles[$indice]['slot'] ?? ''), 'PasadasComb')) {
             return;
         }
 
@@ -973,6 +1038,7 @@ class Captura extends Component
 
     /** @var array<string, string> */
     private const COLUMNAS_DETALLE = [
+        'detalle_cuenta' => 'Cuenta',
         'detalle_calibre' => 'Calibre',
         'detalle_hilo' => 'Hilo',
         'detalle_fibra' => 'Fibra',
@@ -997,8 +1063,16 @@ class Captura extends Component
      */
     private function cargaUtil(array $fila): array
     {
+        $esKm = $this->esKarlMayer;
+
+        // En Karl Mayer una barra sin capturar no se manda: su columna se limpia en el
+        // servidor. En el resto, todo renglon visible lleva pasadas (lo exige problemas()).
+        $detalles = $esKm
+            ? array_values(array_filter($this->detalles, fn (array $d): bool => $this->barraEnUso($d)))
+            : $this->detalles;
+
         $pasadas = [];
-        foreach ($this->detalles as $detalle) {
+        foreach ($detalles as $detalle) {
             $slot = (string) ($detalle['slot'] ?? '');
             if ($slot !== '' && $detalle['Pasadas'] !== '' && $detalle['Pasadas'] !== null) {
                 $pasadas[$slot] = (int) $detalle['Pasadas'];
@@ -1012,23 +1086,27 @@ class Captura extends Component
             'accion' => $this->accion,
             'CambioTelarActivo' => $this->hayCambioTelar ? '1' : '0',
             'TelarDestino' => $this->hayCambioTelar ? $this->telarDestino : '',
-            'NumeroJulioRizo' => $this->form['NumeroJulioRizo'],
-            'NumeroJulioPie' => $this->form['NumeroJulioPie'],
+            // Karl Mayer no monta julios, no teje rizo y no tiene trama que desperdiciar:
+            // esos cuatro campos no se capturan y viajan vacios, no con el valor por
+            // defecto de la pantalla estandar.
+            'NumeroJulioRizo' => $esKm ? '' : $this->form['NumeroJulioRizo'],
+            'NumeroJulioPie' => $esKm ? '' : $this->form['NumeroJulioPie'],
             'TotalPasadasDibujo' => $this->totalPasadas,
             'HoraInicio' => $this->form['HoraInicio'] ?: null,
             'HoraFinal' => $this->form['HoraFinal'] ?: null,
             'EficienciaInicio' => $this->form['EficienciaInicio'],
             'EficienciaFinal' => $this->form['EficienciaFinal'],
             'Desarrollador' => $this->form['Desarrollador'],
-            'DesperdicioTrama' => $this->form['DesperdicioTrama'],
-            'AlturaRizo' => $this->form['AlturaRizo'] !== '' ? $this->form['AlturaRizo'] : null,
+            'DesperdicioTrama' => $esKm ? null : $this->form['DesperdicioTrama'],
+            'AlturaRizo' => $esKm || $this->form['AlturaRizo'] === '' ? null : $this->form['AlturaRizo'],
             'CodificacionModelo' => $this->codificacionModelo,
             'pasadas' => $pasadas,
-            'detalle_calibre' => array_column($this->detalles, 'Calibre'),
-            'detalle_hilo' => array_column($this->detalles, 'Hilo'),
-            'detalle_fibra' => array_column($this->detalles, 'Fibra'),
-            'detalle_codcolor' => array_column($this->detalles, 'CodColor'),
-            'detalle_nombrecolor' => array_column($this->detalles, 'NombreColor'),
+            'detalle_cuenta' => array_column($detalles, 'Cuenta'),
+            'detalle_calibre' => array_column($detalles, 'Calibre'),
+            'detalle_hilo' => array_column($detalles, 'Hilo'),
+            'detalle_fibra' => array_column($detalles, 'Fibra'),
+            'detalle_codcolor' => array_column($detalles, 'CodColor'),
+            'detalle_nombrecolor' => array_column($detalles, 'NombreColor'),
         ];
     }
 

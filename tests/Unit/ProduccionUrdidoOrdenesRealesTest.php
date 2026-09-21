@@ -3,13 +3,15 @@
 namespace Tests\Unit;
 
 use App\Http\Controllers\Urdido\Configuracion\ModuloProduccionUrdidoController;
-use App\Http\Controllers\Urdido\ProgramaUrdido\EditarOrdenesProgramadasController;
+use App\Livewire\UrdEng\EdicionOrden;
+use App\Models\Sistema\Usuario;
 use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProgramaUrdido;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Livewire\Features\SupportTesting\Testable;
+use Livewire\Livewire;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
@@ -66,6 +68,18 @@ class ProduccionUrdidoOrdenesRealesTest extends TestCase
             $table->string('Folio')->nullable();
             $table->integer('Julios')->nullable();
             $table->integer('Hilos')->nullable();
+        });
+        $schema->create('URDCatalogoMaquinas', function (Blueprint $table) {
+            $table->increments('Id');
+            $table->string('MaquinaId')->nullable();
+            $table->string('Nombre')->nullable();
+            $table->string('Departamento')->nullable();
+        });
+
+        $schema->create('UrdConsumoHilo', function (Blueprint $table) {
+            $table->increments('Id');
+            $table->string('Folio')->nullable();
+            $table->dateTime('FechaRequerimiento')->nullable();
         });
 
         $schema->create('UrdProduccionUrdido', function (Blueprint $table) {
@@ -175,9 +189,42 @@ class ProduccionUrdidoOrdenesRealesTest extends TestCase
 
     private function editarPlan(?int $id, $julios, $hilos): void
     {
-        app(EditarOrdenesProgramadasController::class)->actualizarJulios(
-            Request::create('/aj', 'POST', ['orden_id' => 1, 'id' => $id, 'no_julio' => $julios, 'hilos' => $hilos])
-        );
+        $editor = $this->editorDePlan();
+        $fila = $this->filaDePlan($editor, $id);
+        if ($fila === null) {
+            return;
+        }
+
+        $editor->set("julios.{$fila}.no_julio", (string) $julios)
+            ->set("julios.{$fila}.hilos", (string) $hilos);
+    }
+
+    /** La pantalla de edicion: ahora es el componente Livewire compartido. */
+    private function editorDePlan(): Testable
+    {
+        $supervisor = new Usuario([
+            'idusuario' => 77,
+            'numero_empleado' => '77',
+            'nombre' => 'Supervisor prueba',
+            'puesto' => 'Supervisor Urdido',
+        ]);
+        $supervisor->idusuario = 77;
+        $supervisor->exists = true;
+
+        return Livewire::actingAs($supervisor)
+            ->test(EdicionOrden::class, ['module' => 'urdido', 'ordenId' => 1]);
+    }
+
+    /** Fila del plan (0-3) que corresponde a un Id de UrdJuliosOrden; null = primera vacia. */
+    private function filaDePlan($editor, ?int $id): ?int
+    {
+        foreach ($editor->get('julios') as $i => $fila) {
+            if ($id === null ? $fila['id'] === null : (int) $fila['id'] === $id) {
+                return $i;
+            }
+        }
+
+        return null;
     }
 
     // ── el ensayo ────────────────────────────────────────────────────
@@ -395,9 +442,7 @@ class ProduccionUrdidoOrdenesRealesTest extends TestCase
             $capInicial = $this->capturadas($folio);
 
             foreach (UrdJuliosOrden::where('Folio', $folio)->orderBy('Id')->get() as $g) {
-                app(EditarOrdenesProgramadasController::class)->actualizarJulios(
-                    Request::create('/aj', 'POST', ['orden_id' => 1, 'id' => (int) $g->Id, 'no_julio' => '', 'hilos' => ''])
-                );
+                $this->editarPlan((int) $g->Id, '', '');
                 $this->entrar($folio);
             }
             $this->entrar($folio);

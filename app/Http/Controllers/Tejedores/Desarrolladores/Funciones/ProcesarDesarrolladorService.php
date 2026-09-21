@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Tejedores\Desarrolladores\Funciones;
 
 use App\Helpers\AuditoriaHelper;
+use App\Helpers\TelDesarrolladoresHelper;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
@@ -545,6 +546,24 @@ class ProcesarDesarrolladorService
 
     private function buildPasadasPayload(array $pasadasFromRequest, $ordenData): array
     {
+        // Karl Mayer: las pasadas van por barra y las cuatro columnas se reescriben
+        // siempre, para que quitar una barra no deje sus pasadas viejas colgando.
+        $barras = array_filter(
+            $pasadasFromRequest,
+            static fn ($key): bool => preg_match('/^PasadasBarra[1-4]$/', (string) $key) === 1,
+            ARRAY_FILTER_USE_KEY
+        );
+
+        if ($barras !== []) {
+            $payload = [];
+            foreach (TelDesarrolladoresHelper::BARRAS as $n) {
+                $valor = $barras["PasadasBarra{$n}"] ?? null;
+                $payload["PasadasBarra{$n}"] = ($valor === null || $valor === '') ? null : (int) $valor;
+            }
+
+            return $payload;
+        }
+
         $pasadasPayload = [];
         if (count($pasadasFromRequest) > 0) {
             $pasadasTrama = $pasadasFromRequest['PasadasTrama']

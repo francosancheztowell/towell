@@ -7,10 +7,9 @@ use App\Models\Atadores\AtaMontadoTelasModel;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Sistema\Usuario;
-use App\Models\Tejedores\TelTelaresOperador;
+use App\Support\Planeacion\TelarSalonResolver;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
@@ -70,15 +69,75 @@ class ConsultasDesarrolladorService
     }
 
     /**
-     * @return EloquentCollection<int, TelTelaresOperador>
+     * Telares que el operador puede elegir: los que tienen una orden corriendo.
+     *
+     * La fuente es el programa, no TelTelaresOperador. Esa tabla llega hasta el 320 y
+     * Karl Mayer usa el 401 y el 402: con ella como unica fuente, una orden KM existia
+     * en el programa y era elegible como telar destino, pero no habia forma de
+     * seleccionarla como origen. Ademas listaba telares parados, que no tienen nada
+     * que capturar.
+     *
+     * @return Collection<int, array{NoTelarId: string}>
      */
-    private function obtenerTelares(): EloquentCollection
+    private function obtenerTelares(): Collection
     {
-        return TelTelaresOperador::select('NoTelarId')
+        $query = ($this->modeloPrograma())::query()
             ->whereNotNull('NoTelarId')
-            ->groupBy('NoTelarId')
-            ->orderBy('NoTelarId')
-            ->get();
+            ->where('NoTelarId', '!=', '');
+
+        // Que telares tienen algo que capturar. Se marca en el desplegable: sin esto
+        // el operador elegia telar por telar hasta dar con uno que tuviera ordenes.
+        $conSiguientes = $this->telaresConOrdenesPendientes();
+
+        return $this->filtrarTelaresActivos($query)
+            ->distinct()
+            ->pluck('NoTelarId')
+            ->map(fn ($telar): string => trim((string) $telar))
+            ->filter()
+            ->unique()
+            // Orden numerico: con orderBy en SQL sobre una columna de texto, el 401
+            // caeria entre el 320 y el 299 segun la intercalacion.
+            ->sortBy(fn (string $telar): string => TelarSalonResolver::telarSortKey($telar))
+            ->values()
+            ->map(fn (string $telar): array => [
+                'NoTelarId' => $telar,
+                'tieneSiguientes' => isset($conSiguientes[$telar]),
+            ]);
+    }
+
+    /**
+     * Telares con al menos una orden capturable, indexados para poder consultarlos
+     * sin recorrer la lista por cada renglon del desplegable.
+     *
+     * @return array<string, true>
+     */
+    private function telaresConOrdenesPendientes(): array
+    {
+        $query = ($this->modeloPrograma())::query()
+            ->whereNotNull('NoTelarId')
+            ->where('NoTelarId', '!=', '')
+            ->whereNotNull('NoProduccion')
+            ->where('NoProduccion', '!=', '');
+
+        return $this->filtrarProduccionesDisponibles($query)
+            ->distinct()
+            ->pluck('NoTelarId')
+            ->map(fn ($telar): string => trim((string) $telar))
+            ->filter()
+            ->flip()
+            ->map(fn (): bool => true)
+            ->all();
+    }
+
+    /**
+     * Que cuenta como telar activo. En el programa, tener una orden en proceso.
+     *
+     * @param  Builder  $query
+     * @return Builder
+     */
+    protected function filtrarTelaresActivos($query)
+    {
+        return $query->where('EnProceso', 1);
     }
 
     /**
@@ -335,6 +394,12 @@ class ConsultasDesarrolladorService
 
             return false;
         };
+
+        // Karl Mayer no tiene trama ni combinaciones: sus cuatro barras se devuelven
+        // siempre, vacias incluidas, porque son posiciones fijas de la maquina.
+        if ($ordenData && TelarSalonResolver::esKarlMayer($ordenData->SalonTejidoId ?? null, $ordenData->NoTelarId ?? null)) {
+            return ['success' => true, 'detalles' => TelDesarrolladoresHelper::detallesKarlMayer($ordenData)];
+        }
 
         if ($ordenData) {
             $filaTrama = TelDesarrolladoresHelper::mapDetalleFila(

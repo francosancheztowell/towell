@@ -38,6 +38,10 @@ class ProgramBoard extends Component
 
     public string $qualityComment = '';
 
+    public bool $showPriority = false;
+
+    public string $priorityTargetId = '';
+
     public bool $showObservations = false;
 
     public bool $showQuality = false;
@@ -142,6 +146,63 @@ class ProgramBoard extends Component
         } finally {
             $this->interactionPaused = false;
             $this->dispatch('program-board-updated');
+        }
+    }
+
+    public function clearFilters(): void
+    {
+        $this->search = '';
+        $this->status = 'todos';
+        $this->clearSelection();
+    }
+
+    public function changeOrderStatus(int $orderId, string $status): void
+    {
+        abort_unless($this->canEdit, 403);
+        $this->resetValidation();
+        $this->selectOrder($orderId);
+        $this->pendingStatus = $status;
+        $this->changeStatus();
+    }
+
+    public function editOrderObservations(int $orderId): void
+    {
+        abort_unless($this->canEdit, 403);
+        $this->selectOrder($orderId);
+        $this->openObservations();
+    }
+
+    public function openPriority(): void
+    {
+        abort_unless($this->canEdit, 403);
+        $this->selectedOrder();
+        $this->priorityTargetId = '';
+        $this->showPriority = true;
+        $this->pauseForModal();
+    }
+
+    public function savePriority(): void
+    {
+        abort_unless($this->canEdit, 403);
+        $this->validate([
+            'priorityTargetId' => ['required', 'integer', 'different:selectedOrderId'],
+        ]);
+        $source = $this->selectedOrder();
+
+        try {
+            $this->actionService->swapPriorities(
+                $this->moduleEnum(),
+                (int) $source['id'],
+                (int) $this->priorityTargetId
+            );
+            $this->closeModal();
+            $this->notify('success', 'Prioridad actualizada.');
+            $this->dispatch('program-board-updated');
+        } catch (DomainException $exception) {
+            $this->addError('priorityTargetId', $exception->getMessage());
+        } catch (Throwable $exception) {
+            report($exception);
+            $this->addError('priorityTargetId', 'No fue posible actualizar la prioridad.');
         }
     }
 
@@ -282,6 +343,7 @@ class ProgramBoard extends Component
 
     public function closeModal(): void
     {
+        $this->showPriority = false;
         $this->showObservations = false;
         $this->showQuality = false;
         $this->showCancellationConfirmation = false;

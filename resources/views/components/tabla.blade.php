@@ -32,11 +32,15 @@
     'buscarPlaceholder' => 'Buscar…',
     'acciones' => null,
     'filtros' => null,
+    'seleccionInmediata' => false,
+    'objetivosExtra' => '',
+    'mostrarFiltros' => true,
+    'mostrarTamanoPagina' => true,
 ])
 
 @php
     // Un solo target para las acciones: mismo lugar en todas las pantallas.
-    $objetivosCarga = 'buscar,ordenar,gotoPage,previousPage,nextPage,porPagina';
+    $objetivosCarga = 'buscar,ordenar,gotoPage,previousPage,nextPage,porPagina'.($objetivosExtra !== '' ? ','.$objetivosExtra : '');
 @endphp
 
 @if (filled($acciones))
@@ -46,6 +50,7 @@
 @endif
 
 <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    @if ($mostrarFiltros)
     {{-- Barra: buscador + filtros de la pantalla --}}
     <div class="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-3 py-2.5">
         <label class="relative min-w-0 flex-1 sm:max-w-xs">
@@ -63,6 +68,8 @@
             <i class="fa-solid fa-circle-notch fa-spin"></i> Actualizando
         </span>
     </div>
+
+    @endif
 
     <div class="relative overflow-x-auto">
         <div wire:loading.delay.class="opacity-50" wire:target="{{ $objetivosCarga }}">
@@ -98,27 +105,48 @@
                 </thead>
 
                 <tbody x-data="{
+                    visual: @js($seleccionado),
+                    pending: 0,
+                    init() {
+                        this.$watch('$wire.seleccionado', value => { if (!this.pending) this.visual = value; });
+                    },
+                    async elegir(id) {
+                        this.visual = this.visual === id ? null : id;
+                        window.dispatchEvent(new CustomEvent('tabla-seleccion-local', { detail: { component: this.$wire.$id, id: this.visual } }));
+                        this.pending++;
+                        try { await this.$wire.seleccionar(id); }
+                        finally {
+                            this.pending--;
+                            if (!this.pending) this.visual = this.$wire.seleccionado;
+                        }
+                    },
                     mover(evento, paso) {
                         const filas = [...$el.querySelectorAll('tr[data-fila]')];
                         const actual = filas.indexOf(evento.target.closest('tr[data-fila]'));
                         filas[Math.min(filas.length - 1, Math.max(0, actual + paso))]?.focus();
                     }
-                }">
+                }" x-on:tabla-seleccion-local.window="if ($event.detail.component === $wire.$id) visual = $event.detail.id">
                     @forelse ($filas as $fila)
                         @php $id = (string) $fila->getKey(); @endphp
                         <tr data-fila tabindex="0"
-                            wire:key="fila-{{ $id }}"
-                            wire:click="seleccionar('{{ $id }}')"
+                            wire:key="fila-{{ $filas->getPageName() }}-{{ $id }}"
+                            @if ($seleccionInmediata)
+                                x-on:click="elegir(@js($id))"
+                                x-bind:style="visual === @js($id) ? 'background-color: #dbeafe; box-shadow: inset 4px 0 0 #3b82f6' : ''"
+                            @else
+                                wire:click="seleccionar('{{ $id }}')"
+                            @endif
                             @if ($alEditar) wire:dblclick="{{ $alEditar }}('{{ $id }}')" @endif
                             @keydown.enter.prevent="$wire.{{ $alEditar ?? 'seleccionar' }}('{{ $id }}')"
                             @keydown.arrow-down.prevent="mover($event, 1)"
                             @keydown.arrow-up.prevent="mover($event, -1)"
                             @class([
                                 'cursor-pointer border-b border-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500',
-                                'bg-blue-100 shadow-[inset_4px_0_0_0_#3b82f6]' => $seleccionado === $id,
-                                'odd:bg-white even:bg-slate-50/60 hover:bg-blue-50' => $seleccionado !== $id,
+                                'bg-blue-100 shadow-[inset_4px_0_0_0_#3b82f6]' => ! $seleccionInmediata && $seleccionado === $id,
+                                'odd:bg-white even:bg-slate-50/60 hover:bg-blue-50' => $seleccionInmediata || $seleccionado !== $id,
                             ])
-                            aria-selected="{{ $seleccionado === $id ? 'true' : 'false' }}">
+                            @if ($seleccionInmediata) x-bind:aria-selected="visual === @js($id) ? 'true' : 'false'"
+                            @else aria-selected="{{ $seleccionado === $id ? 'true' : 'false' }}" @endif>
                             @foreach ($columnas as $columna)
                                 @php
                                     $campo = $columna['campo'] ?? '';
@@ -156,6 +184,7 @@
                 @endif
             </span>
 
+            @if ($mostrarTamanoPagina)
             <label class="flex items-center gap-1.5">
                 <span class="hidden sm:inline">Mostrar</span>
                 <select wire:model.live="porPagina"
@@ -165,6 +194,7 @@
                     @endforeach
                 </select>
             </label>
+            @endif
         </div>
 
         {{ $filas->onEachSide(1)->links('components.tabla-paginacion') }}

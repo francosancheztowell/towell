@@ -7,8 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 class TejTrama extends Model
 {
     protected $table = 'TejTrama';
+
     protected $primaryKey = 'Folio';
+
+    protected $keyType = 'string';
+
     public $incrementing = false;
+
     public $timestamps = false;
 
     protected $fillable = [

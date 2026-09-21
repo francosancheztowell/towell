@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <title>ORDEN ENGOMADO {{ $orden->Folio ?? '' }}</title>
     {{--
-        Etiqueta simplificada: una hoja por julio. Logo + folio arriba, recuadro
+        Etiqueta simplificada: una etiqueta 4x6 in horizontal por julio. Logo + folio arriba, recuadro
         con el lote de proveedor en grande y debajo orden/julio y cuenta/calibre
         en dos columnas. Pie con clave de formato, versión y fecha.
     --}}
     <style>
-        @page { margin: 8mm; }
+        @page { margin: 4mm; }
 
         body {
             margin: 0;
@@ -21,15 +21,15 @@
         .hoja { width: 100%; page-break-after: always; }
         .hoja:last-child { page-break-after: auto; }
 
-        .encabezado { display: table; width: 100%; margin-bottom: 4mm; }
+        .encabezado { display: table; width: 100%; margin-bottom: 2mm; }
         .encabezado-logo { display: table-cell; width: 50%; vertical-align: middle; }
-        .encabezado-logo img { max-height: 40px; }
+        .encabezado-logo img { max-height: 26px; }
         .encabezado-folio {
             display: table-cell;
             width: 50%;
             vertical-align: middle;
             text-align: right;
-            font-size: 12pt;
+            font-size: 9pt;
         }
 
         table.etiqueta {
@@ -41,21 +41,21 @@
         table.etiqueta td {
             border: 1px solid #000;
             text-align: center;
-            padding: 2mm;
+            padding: 1mm;
         }
 
-        .rotulo { font-size: 11pt; font-weight: bold; letter-spacing: 1px; }
-        .dato { font-size: 12pt; }
+        .rotulo { font-size: 9pt; font-weight: bold; letter-spacing: 1px; }
+        .dato { font-size: 11pt; }
 
         .lote {
-            font-size: 46pt;
+            font-size: 30pt;
             font-weight: bold;
             line-height: 1;
             word-wrap: break-word;
-            padding: 3mm 2mm;
+            padding: 2mm 1mm;
         }
 
-        .pie { display: table; width: 100%; margin-top: 2mm; font-size: 7pt; }
+        .pie { display: table; width: 100%; margin-top: 1mm; font-size: 6pt; }
         .pie div { display: table-cell; width: 33.33%; }
         .pie .centro { text-align: center; }
         .pie .derecha { text-align: right; }

@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Tejedores\Desarrolladores\Funciones;
 
+use App\Helpers\TelDesarrolladoresHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\QueryHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Tejedores\TelTelaresOperador;
+use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
@@ -164,6 +166,15 @@ trait ArmaDatosDesarrollador
             if ($salonDestino === $salonOrigen && $telarDestino === $telarOrigen) {
                 throw ValidationException::withMessages([
                     'TelarDestino' => 'El telar destino debe ser diferente al telar origen.',
+                ]);
+            }
+
+            // Karl Mayer teje barras y el resto rizo/pie: no son telares intercambiables.
+            // Una orden movida de 401 a 310 llegaria sin una sola columna de su detalle.
+            if (TelarSalonResolver::esKarlMayer($salonOrigen, $telarOrigen)
+                !== TelarSalonResolver::esKarlMayer($salonDestino, $telarDestino)) {
+                throw ValidationException::withMessages([
+                    'TelarDestino' => 'Una orden de Karl Mayer solo se puede mover a otro telar de Karl Mayer (401 o 402).',
                 ]);
             }
 
@@ -331,6 +342,25 @@ trait ArmaDatosDesarrollador
         }
 
         $columnasPrograma = Schema::getColumnListing($programas->first()->getTable());
+
+        // Karl Mayer: se propagan sus barras y nada mas. Con el payload estandar, que
+        // nombra 35 columnas de trama y combinaciones, cada guardado de KM escribia
+        // NULL en columnas que no son suyas y dejaba las barras sin tocar.
+        if (TelarSalonResolver::esKarlMayer($programaInicial->SalonTejidoId ?? null, $programaInicial->NoTelarId ?? null)) {
+            $payloadPrograma = [];
+            foreach (TelDesarrolladoresHelper::BARRAS as $n) {
+                foreach (['Cuenta', 'Calibre', 'CodColor', 'Color', 'Fibra', 'Pasadas'] as $columna) {
+                    $payloadPrograma["{$columna}Barra{$n}"] = $fuenteDatos->{"{$columna}Barra{$n}"} ?? null;
+                }
+            }
+
+            if ($fechaInicioProgramada) {
+                $payloadPrograma['FechaInicio'] = $fechaInicioProgramada;
+            }
+
+            return $this->guardarProgramas($programas, $payloadPrograma, $columnasPrograma);
+        }
+
         $payloadPrograma = [
             'CalibreTrama' => $fuenteDatos->Tra ?? $fuenteDatos->CalibreTrama ?? null,
             'CalibreTrama2' => $fuenteDatos->CalibreTrama2 ?? null,
@@ -374,6 +404,18 @@ trait ArmaDatosDesarrollador
             $payloadPrograma['FechaInicio'] = $fechaInicioProgramada;
         }
 
+        return $this->guardarProgramas($programas, $payloadPrograma, $columnasPrograma);
+    }
+
+    /**
+     * Escribe el payload en cada programa y devuelve los registros recargados.
+     *
+     * @param  Collection<int, ReqProgramaTejido>  $programas
+     * @param  array<string, mixed>  $payloadPrograma
+     * @param  array<int, string>  $columnasPrograma
+     */
+    private function guardarProgramas(Collection $programas, array $payloadPrograma, array $columnasPrograma): Collection
+    {
         /** @var ReqProgramaTejido $programa */
         foreach ($programas as $programa) {
             foreach ($payloadPrograma as $column => $value) {
@@ -431,12 +473,16 @@ trait ArmaDatosDesarrollador
             'EficienciaFinal' => $this->normalizarEntero($request->input('EficienciaFinal')),
         ]);
 
+        // Karl Mayer no monta julios ni teje rizo: exigirlos dejaba su captura sin
+        // salida posible, porque no hay valor honesto que poner en esos campos.
+        $esKarlMayer = TelarSalonResolver::esKarlMayer(null, (string) $request->input('NoTelarId'));
+
         $validated = $request->validate([
             'NoTelarId' => 'required|string',
             'NoProduccion' => 'required|string|max:80',
             'registroId' => 'nullable|integer',
             'accion' => 'nullable|string|in:finalizar,reprogramar_siguiente,reprogramar_final',
-            'NumeroJulioRizo' => 'required|string|max:50',
+            'NumeroJulioRizo' => ($esKarlMayer ? 'nullable' : 'required').'|string|max:50',
             'NumeroJulioPie' => 'nullable|string|max:50',
             'TotalPasadasDibujo' => 'required|integer|min:1',
             'HoraInicio' => 'nullable|date_format:H:i',
@@ -447,11 +493,13 @@ trait ArmaDatosDesarrollador
             'TramaAnchoPeine' => 'nullable|numeric|min:0',
             'DesperdicioTrama' => 'nullable|numeric|min:0',
             // Misma regla que CatCodificacionController: un solo decimal, de 0 a 10.
-            'AlturaRizo' => 'required|numeric|min:0|max:10|decimal:0,1',
+            'AlturaRizo' => ($esKarlMayer ? 'nullable' : 'required').'|numeric|min:0|max:10|decimal:0,1',
             'LongitudLuchaTot' => 'nullable|numeric|min:0',
             'CodificacionModelo' => ['required', 'string', 'max:100', $this->reglaLongitudCodigoDibujo()],
             'pasadas' => 'nullable|array',
             'pasadas.*' => 'nullable|integer|min:1',
+            'detalle_cuenta' => 'nullable|array',
+            'detalle_cuenta.*' => 'nullable|string|max:50',
             'detalle_calibre' => 'nullable|array',
             'detalle_calibre.*' => 'nullable|string|max:50',
             'detalle_hilo' => 'nullable|array',
@@ -529,6 +577,20 @@ trait ArmaDatosDesarrollador
         if (! $ordenData) {
             return [];
         }
+
+        // Karl Mayer no tiene trama ni combinaciones. Las 24 columnas de barra se
+        // llaman igual en ReqProgramaTejido y en CatCodificados, asi que el payload
+        // es la copia directa, sin los alias del detalle estandar (Tra, FibraId...).
+        if (TelarSalonResolver::esKarlMayer($ordenData->SalonTejidoId ?? null, $ordenData->NoTelarId ?? null)) {
+            $payload = [];
+            foreach (TelDesarrolladoresHelper::BARRAS as $n) {
+                foreach (['Cuenta', 'Calibre', 'CodColor', 'Color', 'Fibra'] as $columna) {
+                    $payload["{$columna}Barra{$n}"] = data_get($ordenData, "{$columna}Barra{$n}");
+                }
+            }
+
+            return $payload;
+        }
         $colorTrama = data_get($ordenData, 'ColorTrama') ?: data_get($ordenData, 'FibraTrama');
 
         $payload = [
@@ -571,6 +633,7 @@ trait ArmaDatosDesarrollador
     private function aplicarDetalleDesdeRequest(array $detallePayload, array $validated): array
     {
         $calibres = $validated['detalle_calibre'] ?? [];
+        $cuentas = $validated['detalle_cuenta'] ?? [];
         $hilos = $validated['detalle_hilo'] ?? [];
         $fibras = $validated['detalle_fibra'] ?? [];
         $codColores = $validated['detalle_codcolor'] ?? [];
@@ -591,20 +654,41 @@ trait ArmaDatosDesarrollador
             return $detallePayload;
         }
 
-        $slotsCombinacionEnviados = array_flip(array_filter(
+        // Una barra que ya no se captura se limpia entera: si no, queda un calibre
+        // viejo con pasadas nuevas, que es peor que un hueco.
+        $barrasEnviadas = array_flip(array_filter(
             $pasadasKeys,
-            static fn ($key): bool => preg_match('/^PasadasComb[1-5]$/', (string) $key) === 1
+            static fn ($key): bool => preg_match('/^PasadasBarra[1-4]$/', (string) $key) === 1
         ));
-        for ($i = 1; $i <= 5; $i++) {
-            if (isset($slotsCombinacionEnviados["PasadasComb{$i}"])) {
-                continue;
-            }
+        if ($barrasEnviadas !== []) {
+            foreach (TelDesarrolladoresHelper::BARRAS as $n) {
+                if (isset($barrasEnviadas["PasadasBarra{$n}"])) {
+                    continue;
+                }
 
-            $detallePayload["CalibreComb{$i}"] = null;
-            $detallePayload["CalibreComb{$i}2"] = null;
-            $detallePayload["FibraComb{$i}"] = null;
-            $detallePayload["CodColorC{$i}"] = null;
-            $detallePayload["NomColorC{$i}"] = null;
+                foreach (['Cuenta', 'Calibre', 'CodColor', 'Color', 'Fibra'] as $columna) {
+                    $detallePayload["{$columna}Barra{$n}"] = null;
+                }
+            }
+        } else {
+            // Las columnas de combinacion solo se limpian en una captura estandar. En
+            // Karl Mayer no son "combinaciones vacias", son columnas de otro salon que
+            // esta captura no tiene por que tocar.
+            $slotsCombinacionEnviados = array_flip(array_filter(
+                $pasadasKeys,
+                static fn ($key): bool => preg_match('/^PasadasComb[1-5]$/', (string) $key) === 1
+            ));
+            for ($i = 1; $i <= 5; $i++) {
+                if (isset($slotsCombinacionEnviados["PasadasComb{$i}"])) {
+                    continue;
+                }
+
+                $detallePayload["CalibreComb{$i}"] = null;
+                $detallePayload["CalibreComb{$i}2"] = null;
+                $detallePayload["FibraComb{$i}"] = null;
+                $detallePayload["CodColorC{$i}"] = null;
+                $detallePayload["NomColorC{$i}"] = null;
+            }
         }
 
         $valor = static function (array $arr, int $i) {
@@ -621,6 +705,17 @@ trait ArmaDatosDesarrollador
             $fibra = $valor($fibras, $i);
             $codColor = $valor($codColores, $i);
             $nombreColor = $valor($nombreColores, $i);
+
+            if (preg_match('/^PasadasBarra([1-4])$/', $key, $mb)) {
+                $n = $mb[1];
+                $detallePayload["CuentaBarra{$n}"] = $valor($cuentas, $i);
+                $detallePayload["CalibreBarra{$n}"] = $calibre;
+                $detallePayload["FibraBarra{$n}"] = $fibra;
+                $detallePayload["CodColorBarra{$n}"] = $codColor;
+                $detallePayload["ColorBarra{$n}"] = $nombreColor;
+
+                continue;
+            }
 
             if ($key === 'PasadasTramaFondoC1' || $key === 'PasadasTrama') {
                 if ($calibre !== null) {

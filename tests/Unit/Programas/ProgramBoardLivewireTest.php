@@ -70,12 +70,62 @@ class ProgramBoardLivewireTest extends TestCase
         $this->assertSame([100, 101], $this->actionService->swapped);
     }
 
-    public function test_engomado_renders_the_urdido_prerequisite(): void
+    public function test_row_status_action_uses_the_clicked_order_and_preserves_confirmation(): void
+    {
+        Livewire::test(TestableProgramBoard::class, ['module' => 'urdido'])
+            ->call('selectOrder', 101)
+            ->call('changeOrderStatus', 100, 'Cancelado')
+            ->assertSet('selectedOrderId', 100)
+            ->assertSet('showCancellationConfirmation', true);
+
+        $this->assertNull($this->actionService->changedStatus);
+    }
+
+    public function test_row_observations_open_for_the_clicked_order(): void
+    {
+        Livewire::test(TestableProgramBoard::class, ['module' => 'urdido'])
+            ->call('selectOrder', 101)
+            ->call('editOrderObservations', 100)
+            ->assertSet('selectedOrderId', 100)
+            ->assertSet('observations', 'Observación inicial')
+            ->assertSet('showObservations', true)
+            ->assertSet('interactionPaused', true);
+    }
+
+    public function test_priority_dialog_saves_through_the_shared_service(): void
+    {
+        Livewire::test(TestableProgramBoard::class, ['module' => 'urdido'])
+            ->call('selectOrder', 100)
+            ->call('openPriority')
+            ->assertSet('showPriority', true)
+            ->assertSet('interactionPaused', true)
+            ->set('priorityTargetId', '101')
+            ->call('savePriority')
+            ->assertHasNoErrors()
+            ->assertSet('showPriority', false)
+            ->assertSet('interactionPaused', false);
+
+        $this->assertSame([100, 101], $this->actionService->swapped);
+    }
+
+    public function test_priority_dialog_does_not_swap_without_a_target(): void
+    {
+        Livewire::test(TestableProgramBoard::class, ['module' => 'urdido'])
+            ->call('selectOrder', 100)
+            ->call('openPriority')
+            ->call('savePriority')
+            ->assertHasErrors(['priorityTargetId' => 'required'])
+            ->assertSet('showPriority', true);
+
+        $this->assertNull($this->actionService->swapped);
+    }
+
+    public function test_engomado_renders_without_the_pending_urdido_lock(): void
     {
         Livewire::test(TestableProgramBoard::class, ['module' => 'engomado'])
             ->assertSee('West Point 2')
             ->assertSee('ENG-200')
-            ->assertSee('Urdido pendiente');
+            ->assertDontSee('fa-lock', false);
     }
 }
 

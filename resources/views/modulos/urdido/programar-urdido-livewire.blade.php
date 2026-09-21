@@ -1,8 +1,6 @@
 @extends('layouts.app', ['ocultarBotones' => true])
 
-@section('page-title')
-    <x-layout.page-title title="Programación Urdido" />
-@endsection
+@section('page-title', 'Programar Urdido')
 
 @section('navbar-right')
     <div id="program-board-navbar-controls" class="flex min-w-0 items-center"></div>
@@ -13,7 +11,7 @@
 @endpush
 
 @section('content')
-    <div class="program-board-page min-h-full w-full px-2 py-3 sm:px-4">
+    <div class="program-board-page min-h-full w-full">
         <livewire:urd-eng.program-board module="urdido" />
     </div>
 @endsection

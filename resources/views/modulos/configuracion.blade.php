@@ -7,7 +7,7 @@
 @endsection
 
 @section('content')
-    <div class="container mx-auto px-4 py-6 overflow-y-auto min-h-screen" id="globalLoader">
+    <div class="container mx-auto px-4 py-6 overflow-y-auto min-h-screen">
 
         @if (count($subModulos) === 0)
             <!-- Estado vacío -->

@@ -59,6 +59,15 @@ class DesarrolladoresCapturaLivewireTest extends TestCase
             $table->float('CalibreComb12')->nullable();
             $table->string('FibraComb1')->nullable();
             $table->integer('PasadasComb1')->nullable();
+            // Karl Mayer: cuatro barras en vez de trama mas combinaciones.
+            foreach ([1, 2, 3, 4] as $n) {
+                $table->string("CuentaBarra{$n}")->nullable();
+                $table->string("CalibreBarra{$n}")->nullable();
+                $table->string("CodColorBarra{$n}")->nullable();
+                $table->string("ColorBarra{$n}")->nullable();
+                $table->string("FibraBarra{$n}")->nullable();
+                $table->integer("PasadasBarra{$n}")->nullable();
+            }
         });
 
         $schema->create('TelTelaresOperador', function (Blueprint $table) {
@@ -176,15 +185,26 @@ class DesarrolladoresCapturaLivewireTest extends TestCase
 
     // ── Pantalla ──────────────────────────────────────────────────────────
 
-    public function test_carga_la_pantalla_con_el_selector_de_telares(): void
+    /**
+     * El selector lista los telares que estan corriendo algo, no el catalogo entero:
+     * un telar parado no tiene nada que capturar. El 102 existe en el programa con una
+     * orden pendiente pero sin ninguna en proceso, y por eso no sale.
+     */
+    public function test_el_selector_solo_lista_telares_con_orden_en_proceso(): void
     {
         $this->autenticar();
         $this->sembrarTelarConOrden();
 
+        DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
+            ['NoProduccion' => '90002', 'NoTelarId' => '101', 'SalonTejidoId' => 'S1', 'EnProceso' => true],
+            ['NoProduccion' => '90003', 'NoTelarId' => '102', 'SalonTejidoId' => 'S1', 'EnProceso' => false],
+        ]);
+
         Livewire::test(Captura::class)
             ->assertOk()
             ->assertSee('Seleccionar Telar')
-            ->assertSee('101');
+            ->assertSee('101')
+            ->assertDontSee('102');
     }
 
     public function test_al_elegir_telar_aparecen_sus_producciones(): void
@@ -819,5 +839,99 @@ class DesarrolladoresCapturaLivewireTest extends TestCase
             (int) DB::connection('sqlsrv')->table('TejCatMatrizDesarrolladores')->where('Codigo', '12/1X')->value('Id'),
             (int) $detalles[0]['CalibreId']
         );
+    }
+
+    // ── Karl Mayer (telares 401/402) ──────────────────────────────────────
+
+    /** Siembra una orden de Karl Mayer: cuatro barras, sin rizo ni pie. */
+    private function sembrarTelarKarlMayer(): int
+    {
+        return (int) DB::connection('sqlsrv')->table('ReqProgramaTejido')->insertGetId([
+            'NoProduccion' => '70001',
+            'NoTelarId' => '401',
+            'SalonTejidoId' => 'KARL MAYER',
+            'TamanoClave' => 'TAMKM',
+            'NombreProducto' => 'TELA KM',
+            'EnProceso' => false,
+            'FechaInicio' => '2026-03-10 06:00:00',
+            'CalibreBarra1' => '10.1',
+            'CuentaBarra1' => '24',
+            'PasadasBarra1' => 15,
+        ]);
+    }
+
+    /** El detalle de Karl Mayer son cuatro barras fijas, no trama mas combinaciones. */
+    public function test_karl_mayer_carga_sus_cuatro_barras(): void
+    {
+        $this->autenticar();
+        $id = $this->sembrarTelarKarlMayer();
+
+        $componente = Livewire::test(Captura::class)
+            ->set('telarId', '401')
+            ->call('seleccionar', $id);
+
+        $this->assertTrue($componente->instance()->esKarlMayer);
+        $this->assertSame(
+            ['PasadasBarra1', 'PasadasBarra2', 'PasadasBarra3', 'PasadasBarra4'],
+            array_column($componente->get('detalles'), 'slot')
+        );
+        $this->assertSame('24', $componente->get('detalles')[0]['Cuenta']);
+    }
+
+    /** Karl Mayer no monta julios ni teje rizo: exigirlos dejaba la captura sin salida. */
+    public function test_karl_mayer_no_exige_julio_ni_altura_de_rizo(): void
+    {
+        $this->autenticar();
+        $id = $this->sembrarTelarKarlMayer();
+
+        $problemas = Livewire::test(Captura::class)
+            ->set('telarId', '401')
+            ->call('seleccionar', $id)
+            ->set('form.EficienciaInicio', 80)
+            ->set('form.EficienciaFinal', 85)
+            ->set('codificacion', array_pad(mb_str_split('ABCDEFGHIJ'), 20, ''))
+            ->instance()->problemas;
+
+        $this->assertSame([], $problemas, implode(' | ', $problemas));
+    }
+
+    /** Las barras son posiciones fisicas de la maquina: no se agregan ni se quitan. */
+    public function test_karl_mayer_no_agrega_ni_elimina_barras(): void
+    {
+        $this->autenticar();
+        $id = $this->sembrarTelarKarlMayer();
+
+        $componente = Livewire::test(Captura::class)
+            ->set('telarId', '401')
+            ->call('seleccionar', $id)
+            ->call('agregarFila')
+            ->call('eliminarFila', 0);
+
+        $this->assertCount(4, $componente->get('detalles'));
+        $this->assertSame('PasadasBarra1', $componente->get('detalles')[0]['slot']);
+    }
+
+    /** Una orden KM solo se puede mover a otro telar KM: la construccion no es la misma. */
+    public function test_karl_mayer_solo_ofrece_destinos_karl_mayer(): void
+    {
+        $this->autenticar();
+        $id = $this->sembrarTelarKarlMayer();
+        $this->sembrarTelarConOrden();
+
+        DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
+            'NoProduccion' => '70002', 'NoTelarId' => '402', 'SalonTejidoId' => 'KARL MAYER', 'EnProceso' => true,
+        ]);
+
+        $destinos = Livewire::test(Captura::class)
+            ->set('telarId', '401')
+            ->call('seleccionar', $id)
+            ->instance()->telaresDestino;
+
+        $telares = array_map(
+            static fn (array $d): string => trim(explode('|', $d['value'], 2)[1] ?? ''),
+            $destinos->all()
+        );
+
+        $this->assertSame(['401', '402'], array_values(array_unique($telares)));
     }
 }

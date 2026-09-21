@@ -11,9 +11,10 @@ use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\ResumenSemanasControll
 use App\Http\Controllers\UrdEngomado\UrdEngNucleosController;
 use Illuminate\Support\Facades\Route;
 
-// Permisos del modulo. El nombre debe coincidir con SYSRoles.modulo.
+// Permisos del modulo por SYSRoles.idrol, no por nombre: hay nombres repetidos en SYSRoles
+// y userPermissions() indexa por nombre, asi que resolveria una fila arbitraria.
 // Variables y no const: este archivo se re-incluye al rearrancar la app en tests.
-$modulo = 'Programa Urd / Eng';
+$modulo = 52; // Programa Urd / Eng
 $puedeAcceder = "module.permission:acceso,{$modulo}";
 $puedeCrear = "module.permission:crear,{$modulo}";
 $puedeModificar = "module.permission:modificar,{$modulo}";

@@ -13,6 +13,18 @@ final class ProgramaConfig
 
     public const MENSAJE_AX_BLOQUEA_ESTATUS = 'No se puede poner Cancelado, Programado ni En Proceso: este folio ya tiene producción en AX (AX = 1) en UrdProduccionUrdido.';
 
+    public const ACCION_METROS_SOLO_CAMPO = 'solo_campo';
+
+    public const ACCION_METROS_ACTUALIZAR_TODA = 'actualizar_produccion_toda';
+
+    public const ACCION_METROS_ACTUALIZAR_SIN_HORA_INICIO = 'actualizar_produccion_sin_hora_inicio';
+
+    public const ACCIONES_METROS = [
+        self::ACCION_METROS_SOLO_CAMPO,
+        self::ACCION_METROS_ACTUALIZAR_TODA,
+        self::ACCION_METROS_ACTUALIZAR_SIN_HORA_INICIO,
+    ];
+
     public const OBSERVACIONES_MAX_LENGTH = 500;
 
     public const CALIDAD_COMENTARIO_MAX_LENGTH = 60;
@@ -20,6 +32,20 @@ final class ProgramaConfig
     public static function mensajeAxBloqueaEstatus(string $tablaProduccion): string
     {
         return "No se puede poner Cancelado, Programado ni En Proceso: este folio ya tiene producción en AX (AX = 1) en {$tablaProduccion}.";
+    }
+
+    /**
+     * Que puede hacer el cambio de Metros con la produccion, segun el estado de la orden.
+     *
+     * @return array<int, string>
+     */
+    public static function accionesMetrosPermitidas(string $status): array
+    {
+        return match ($status) {
+            'Finalizado' => [self::ACCION_METROS_SOLO_CAMPO, self::ACCION_METROS_ACTUALIZAR_TODA],
+            'En Proceso' => self::ACCIONES_METROS,
+            default => [self::ACCION_METROS_SOLO_CAMPO],
+        };
     }
 
     public static function estatusBloqueadoPorAxProduccion(string $status): bool

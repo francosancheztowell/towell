@@ -9,126 +9,17 @@ import "./programa-tejido/modal-cache-bootstrap.js";
     // ==============================
     // Constantes
     // ==============================
-    const NAV_STACK_KEY = "nav_stack";
-    const MAX_STACK_SIZE = 10;
-    const HOME_PATH = "/produccionProceso";
-    const HOME_PATHS = ["/produccionProceso"];
-    const CLICK_DEBOUNCE = 500; // ms
-
-    // ==============================
-    // Utilidades de navegación (stack)
-    // ==============================
-
-    // Normaliza URL para evitar duplicados por trailing slashes o variaciones
-    function normalizeUrl(url) {
-        if (!url || url === "/") return url;
-        // Eliminar trailing slashes (excepto root)
-        return url.replace(/\/+$/, "");
-    }
-
-    // Obtiene solo el pathname (sin query strings) para comparar páginas
-    function getBasePath(url) {
-        if (!url) return url;
-        return normalizeUrl(url.split("?")[0]);
-    }
-
-    const NavStack = {
-        get() {
-            try {
-                const stack = sessionStorage.getItem(NAV_STACK_KEY);
-                return stack ? JSON.parse(stack) : [];
-            } catch (e) {
-                return [];
-            }
-        },
-
-        save(stack) {
-            try {
-                sessionStorage.setItem(NAV_STACK_KEY, JSON.stringify(stack));
-            } catch (e) {
-                console.warn("No se pudo guardar el stack de navegación");
-            }
-        },
-
-        push(url) {
-            const normalized = normalizeUrl(url);
-            const basePath = getBasePath(normalized);
-            const stack = this.get();
-
-            // Evitar duplicados de la misma página (comparando solo pathname, ignorando query strings)
-            // Esto evita que refreshes o cambios de estado agreguen la misma página múltiples veces
-            if (stack.length > 0 && getBasePath(stack[stack.length - 1]) === basePath) {
-                return;
-            }
-
-            // Evitar crear bucles: si la URL que estamos agregando es igual a la penúltima,
-            // significa que estamos yendo y viniendo entre las mismas dos páginas
-            // En ese caso, eliminar la última entrada (que es la página intermedia) y no agregar esta
-            // Esto simula que nunca fuimos a esa página intermedia
-            if (stack.length >= 2) {
-                const penultimaBasePath = getBasePath(stack[stack.length - 2]);
-                if (penultimaBasePath === basePath) {
-                    // Estamos revirtiendo una navegación, eliminar la última entrada del stack
-                    stack.pop();
-                    this.save(stack);
-                    return;
-                }
-            }
-
-            stack.push(normalized);
-
-            // Limitar tamaño del stack
-            if (stack.length > MAX_STACK_SIZE) {
-                stack.shift();
-            }
-
-            this.save(stack);
-        },
-
-        pop() {
-            const stack = this.get();
-            const currentBasePath = getBasePath(window.location.pathname);
-
-            // Si no hay historial suficiente, regresar al home
-            if (stack.length === 0) {
-                return HOME_PATH;
-            }
-
-            // Primero, eliminar todas las instancias de la página actual del stack
-            // Esto previene bucles cuando se navega hacia atrás y adelante entre las mismas páginas
-            const filteredStack = stack.filter(url => getBasePath(url) !== currentBasePath);
-
-            // Si después de filtrar no queda nada, regresar al home
-            if (filteredStack.length === 0) {
-                this.save([]);
-                return HOME_PATH;
-            }
-
-            // Obtener la última URL del stack filtrado (que es la página anterior diferente)
-            const prevUrl = filteredStack[filteredStack.length - 1];
-            
-            // Eliminar la URL que vamos a usar del stack
-            filteredStack.pop();
-            
-            // Guardar el stack actualizado
-            this.save(filteredStack);
-
-            return prevUrl || HOME_PATH;
-        },
-
-        clear() {
-            sessionStorage.removeItem(NAV_STACK_KEY);
-        }
-    };
+    const CLICK_DEBOUNCE = 500; // ms, por elemento
+    const LOADER_DELAY = 150; // ms antes de mostrar el loader: evita parpadeo en navegaciones instantáneas
 
     // ==============================
     // Logout modal
     // ==============================
+    // Delegado en document: wire:navigate reemplaza el <body>, asi que un
+    // listener atado al boton se pierde en la primera transicion.
     function initLogout() {
-        const btn = document.getElementById("logout-btn");
-        if (!btn) return;
-
-        btn.addEventListener("click", function (e) {
+        document.addEventListener("click", function (e) {
+            if (!e.target.closest("#logout-btn")) return;
             e.preventDefault();
 
             Swal.fire({
@@ -140,15 +31,13 @@ import "./programa-tejido/modal-cache-bootstrap.js";
                 confirmButtonText: "Sí, salir",
                 cancelButtonText: "Cancelar"
             }).then((res) => {
-                if (res.isConfirmed) {
-                    const logoutForm = document.getElementById("logout-form");
-                    if (logoutForm) {
-                        if (typeof logoutForm.requestSubmit === "function") {
-                            logoutForm.requestSubmit();
-                        } else {
-                            logoutForm.submit();
-                        }
-                    }
+                if (!res.isConfirmed) return;
+                const logoutForm = document.getElementById("logout-form");
+                if (!logoutForm) return;
+                if (typeof logoutForm.requestSubmit === "function") {
+                    logoutForm.requestSubmit();
+                } else {
+                    logoutForm.submit();
                 }
             });
         });
@@ -158,127 +47,61 @@ import "./programa-tejido/modal-cache-bootstrap.js";
     // Menú usuario compacto
     // ==============================
     function initUserMenu() {
-        const btn = document.getElementById("btn-user-avatar");
-        const modal = document.getElementById("user-modal");
+        const estaAbierto = (modal) => modal.classList.contains("opacity-100");
 
-        if (!btn || !modal) return;
-
-        let open = false;
-
-        const show = (e) => {
-            if (e) e.stopPropagation();
+        const mostrar = (modal) => {
             modal.classList.remove("opacity-0", "invisible", "scale-95");
             modal.classList.add("opacity-100", "visible", "scale-100");
-            open = true;
         };
 
-        const hide = () => {
+        const ocultar = (modal) => {
             modal.classList.remove("opacity-100", "visible", "scale-100");
             modal.classList.add("opacity-0", "invisible", "scale-95");
-            open = false;
         };
 
-        btn.addEventListener("click", (e) => (open ? hide() : show(e)));
-
         document.addEventListener("click", (e) => {
-            if (!open) return;
-            const target = e.target;
-            if (!modal.contains(target) && !btn.contains(target)) {
-                hide();
+            const modal = document.getElementById("user-modal");
+            if (!modal) return;
+
+            const btn = e.target.closest("#btn-user-avatar");
+            if (btn) {
+                e.stopPropagation();
+                estaAbierto(modal) ? ocultar(modal) : mostrar(modal);
+                return;
+            }
+
+            if (estaAbierto(modal) && !modal.contains(e.target)) {
+                ocultar(modal);
             }
         });
 
         document.addEventListener("keydown", (e) => {
-            if (e.key === "Escape" && open) {
-                hide();
+            const modal = document.getElementById("user-modal");
+            if (e.key === "Escape" && modal && estaAbierto(modal)) {
+                ocultar(modal);
             }
         });
     }
 
     // ==============================
-    // Botón atrás - Lógica jerárquica basada en módulos
+    // Navegación: loader, debounce y botón atrás
     // ==============================
-    // Separado de initNavigation() para poder re-vincularlo tras cada
-    // transición `wire:navigate` de Livewire: esa navegación reemplaza el
-    // <body> completo (incluido este botón) sin recargar la página, y los
-    // <script type="module"> de Vite no se re-ejecutan en ese caso (el
-    // navegador solo evalúa un módulo ES una vez por URL), así que el
-    // listener original se perdía con el botón viejo.
-    function initBackButton() {
-        const btnBack = document.getElementById("btn-back");
-        if (!btnBack || btnBack.disabled) return;
-
-        btnBack.addEventListener("click", async (e) => {
-            e.preventDefault();
-
-            // Comportamiento custom si existe
-            if (typeof window.volverAlIndice === "function") {
-                window.volverAlIndice();
-                return;
-            }
-
-            // Obtener ruta del módulo padre desde la API
-            try {
-                const currentPath = window.location.pathname;
-                const response = await fetch(`/api/modulo-padre?ruta=${encodeURIComponent(currentPath)}`, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.success && data.rutaPadre) {
-                        window.location.replace(data.rutaPadre);
-                        return;
-                    }
-                }
-            } catch (error) {
-                console.warn('Error al obtener módulo padre, usando fallback:', error);
-            }
-
-            // Fallback: usar stack de navegación
-            const prevUrl = NavStack.pop();
-            window.location.replace(prevUrl);
-        });
-    }
-
-    // ==============================
-    // Navegación mejorada / botón atrás / debounce y stack
-    // ==============================
+    // El botón atrás es un <a href> con la ruta del padre ya resuelta en el
+    // servidor (ver navbar/sections/left.blade.php). Aquí solo se intercepta
+    // cuando la página define un comportamiento propio.
     function initNavigation() {
-        const path = window.location.pathname;
-        const currentUrl = window.location.pathname + window.location.search;
+        let loaderTimer = null;
 
-        // Usar replaceState para evitar que refreshes creen entradas en el historial del navegador
-        // Esto previene el problema de "volver a un estado anterior de la misma página"
-        if (window.history && window.history.replaceState) {
-            window.history.replaceState({ page: path }, "", currentUrl);
-        }
+        const mostrarLoader = () => {
+            const loader = document.getElementById("globalLoader");
+            if (!loader) return;
+            loaderTimer = setTimeout(() => loader.classList.remove("hidden"), LOADER_DELAY);
+        };
 
-        // Registrar página actual en el stack
-        NavStack.push(currentUrl);
-
-        // Marcador de navbar cargado (optimización)
-        const prevNavbarPath = sessionStorage.getItem("lastNavbarPath");
-        document.documentElement.setAttribute(
-            "data-navbar-loaded",
-            prevNavbarPath === path ? "true" : "false"
-        );
-        sessionStorage.setItem("lastNavbarPath", path);
-
-        // Limpiar stack de navegación al ir a páginas principales
-        if (HOME_PATHS.includes(path)) {
-            NavStack.clear();
-        }
-
-        // Botón atrás - Lógica jerárquica basada en módulos
-        initBackButton();
-
-        // Interceptar links para prevenir doble click
-        let lastClickTime = 0;
+        const ocultarLoader = () => {
+            clearTimeout(loaderTimer);
+            document.getElementById("globalLoader")?.classList.add("hidden");
+        };
 
         document.addEventListener("click", (e) => {
             const link = e.target.closest("a[href]");
@@ -290,34 +113,30 @@ import "./programa-tejido/modal-cache-bootstrap.js";
                 return;
             }
 
+            // Comportamiento propio del botón atrás, si la página lo define
+            if (link.id === "btn-back" && typeof window.volverAlIndice === "function") {
+                e.preventDefault();
+                window.volverAlIndice();
+                return;
+            }
+
+            // Debounce por elemento: dos clicks seguidos al MISMO link no
+            // disparan dos navegaciones, pero A y luego B sí funcionan.
             const now = Date.now();
-            if (now - lastClickTime < CLICK_DEBOUNCE) {
+            const ultimoClick = Number(link.dataset.lastClick || 0);
+            if (now - ultimoClick < CLICK_DEBOUNCE) {
                 e.preventDefault();
                 return;
             }
+            link.dataset.lastClick = String(now);
 
-            lastClickTime = now;
-            // La página se registra al cargar (en initNavigation), no aquí
+            mostrarLoader();
         });
-    }
 
-    // ==============================
-    // Persistencia UI simple y limpieza de caché
-    // ==============================
-    function initPageShowHandler() {
-        window.addEventListener("pageshow", (event) => {
-            // Si viene del back/forward cache del navegador, recargar
-            if (event.persisted) {
-                location.reload();
-                return;
-            }
-
-            // Recarga forzada manual
-            if (sessionStorage.getItem("forceReload")) {
-                sessionStorage.removeItem("forceReload");
-                location.reload();
-            }
-        });
+        // Si la navegación no ocurre (descarga, target raro, vuelta por bfcache),
+        // no dejar el loader colgado.
+        window.addEventListener("pageshow", ocultarLoader);
+        document.addEventListener("livewire:navigated", ocultarLoader);
     }
 
     // ==============================
@@ -351,7 +170,6 @@ import "./programa-tejido/modal-cache-bootstrap.js";
         initLogout();
         initUserMenu();
         initNavigation();
-        initPageShowHandler();
         initToastr();
     }
 
@@ -360,11 +178,4 @@ import "./programa-tejido/modal-cache-bootstrap.js";
     } else {
         initAppScripts();
     }
-
-    // Livewire dispara este evento tras cada `wire:navigate` (y también en la
-    // carga inicial). Solo re-vinculamos el botón atrás: los demás listeners
-    // de initAppScripts() están en document/window (persisten entre
-    // transiciones) y volver a registrarlos aquí los duplicaría.
-    document.addEventListener("livewire:navigated", initBackButton);
 })();
-

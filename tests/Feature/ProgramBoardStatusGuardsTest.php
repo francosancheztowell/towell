@@ -41,13 +41,13 @@ class ProgramBoardStatusGuardsTest extends TestCase
 
         $engomado = $this->actingAs($user)->get('/engomado/programar-engomado');
         $engomado->assertOk();
-        $engomado->assertViewIs('modulos.engomado.programar-engomado');
-        $engomado->assertSee('tabla1TableBody', false);
+        $engomado->assertViewIs('modulos.engomado.programar-engomado-livewire');
+        $engomado->assertSee('program-board-table', false);
         $engomado->assertSee('West Point 2');
 
         $urdido = $this->actingAs($user)->get('/urdido/programar-urdido');
         $urdido->assertOk();
-        $urdido->assertViewIs('modulos.urdido.programar-urdido');
+        $urdido->assertViewIs('modulos.urdido.programar-urdido-livewire');
         $urdido->assertSee('Karl Mayer');
         $urdido->assertSee('MC Coy 1');
     }

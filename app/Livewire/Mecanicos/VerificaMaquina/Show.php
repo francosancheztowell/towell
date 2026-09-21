@@ -105,14 +105,22 @@ class Show extends Component
     #[Renderless]
     public function capturar(string $noTelarId, int $actividadId, string $valor): float|string|null
     {
-        abort_unless($this->puedeCapturarFlag, 403, 'No tienes permiso para capturar esta verificación.');
-        abort_unless($this->estatus === self::ESTATUS_ACTIVO, 403, 'Solo se pueden editar folios con estatus Activo.');
+        // ponytail: guardias releídos del servidor; las flags públicas son solo hints de UI ($wire.set las puede cambiar).
+        abort_unless(userCan('crear', self::MODULO_PERMISO) || userCan('modificar', self::MODULO_PERMISO), 403, 'No tienes permiso para capturar esta verificación.');
+        abort_unless($this->estatusFresco() === self::ESTATUS_ACTIVO, 403, 'Solo se pueden editar folios con estatus Activo.');
         abort_unless(in_array($valor, self::VALORES_VALIDOS, true), 422, 'Valor inválido.');
 
-        $actividad = MecActividadesModel::query()->find($actividadId, ['Id', 'Orden', 'Actividad']);
-        abort_unless($actividad !== null, 404, 'Actividad no encontrada.');
-
-        $nombreActividad = (string) $actividad->Actividad;
+        // ponytail: el catálogo ya está cacheado; evita 1 query por click en celda.
+        $nombreActividad = null;
+        $orden = 0;
+        foreach ($this->actividadesCatalogo() as $item) {
+            if ($item['Id'] === $actividadId) {
+                $nombreActividad = $item['Actividad'];
+                $orden = (int) ($item['Orden'] ?? 0);
+                break;
+            }
+        }
+        abort_unless($nombreActividad !== null, 404, 'Actividad no encontrada.');
 
         MecVerificaMaquinaLineModel::updateOrCreate(
             [
@@ -121,7 +129,7 @@ class Show extends Component
                 'Actividad' => $nombreActividad,
             ],
             [
-                'Orden' => (int) $actividad->Orden,
+                'Orden' => $orden,
                 'Valor' => $valor,
             ],
         );
@@ -135,8 +143,9 @@ class Show extends Component
     #[Renderless]
     public function confirmarFinalizar(): array
     {
-        abort_unless($this->puedeFinalizarFlag, 403);
-        abort_unless($this->estatus === self::ESTATUS_ACTIVO, 403);
+        // ponytail: ver nota en capturar(); no confiar en flags/estatus del cliente.
+        abort_unless(userCan('modificar', self::MODULO_PERMISO), 403);
+        abort_unless($this->estatusFresco() === self::ESTATUS_ACTIVO, 403);
 
         if ($this->tieneCeldasIncompletas()) {
             return ['ok' => false, 'incompleto' => true];
@@ -151,8 +160,9 @@ class Show extends Component
     #[Renderless]
     public function confirmarFinalizarConIncompletos(): array
     {
-        abort_unless($this->puedeFinalizarFlag, 403);
-        abort_unless($this->estatus === self::ESTATUS_ACTIVO, 403);
+        // ponytail: ver nota en capturar(); no confiar en flags/estatus del cliente.
+        abort_unless(userCan('modificar', self::MODULO_PERMISO), 403);
+        abort_unless($this->estatusFresco() === self::ESTATUS_ACTIVO, 403);
 
         return $this->ejecutarFinalizar();
     }
@@ -163,8 +173,9 @@ class Show extends Component
     #[Renderless]
     public function autorizar(): array
     {
-        abort_unless($this->esSupervisorFlag, 403, 'No tienes permiso para autorizar (se requiere Registrar).');
-        abort_unless($this->estatus === self::ESTATUS_TERMINADO, 403, 'Solo se pueden autorizar registros Terminados.');
+        // ponytail: ver nota en capturar(); no confiar en flags/estatus del cliente.
+        abort_unless(userCan('registrar', self::MODULO_PERMISO), 403, 'No tienes permiso para autorizar (se requiere Registrar).');
+        abort_unless($this->estatusFresco() === self::ESTATUS_TERMINADO, 403, 'Solo se pueden autorizar registros Terminados.');
 
         MecVerificaMaquinaModel::whereKey($this->folio)->update([
             'Estatus' => self::ESTATUS_AUTORIZADO,
@@ -206,22 +217,24 @@ class Show extends Component
             ->map(fn ($telar) => [
                 'NoTelarId' => (string) $telar->NoTelarId,
                 'Nombre' => (string) $telar->Nombre,
-                'SalonTejidoId' => (string) $telar->SalonTejidoId,
+                // ponytail: trim aquí para que el filtro exacto de Alpine no esconda telares con espacios en BD.
+                'SalonTejidoId' => trim((string) $telar->SalonTejidoId),
             ])
             ->all());
     }
 
     /**
-     * @return list<array{Id: int, Actividad: string}>
+     * @return list<array{Id: int, Orden: int, Actividad: string}>
      */
     private function actividadesCatalogo(): array
     {
         return Cache::remember(self::CACHE_KEY_ACTIVIDADES, self::CACHE_TTL, fn () => MecActividadesModel::query()
             ->orderBy('Orden')
             ->orderBy('Id')
-            ->get(['Id', 'Actividad'])
+            ->get(['Id', 'Orden', 'Actividad'])
             ->map(fn ($actividad) => [
                 'Id' => (int) $actividad->Id,
+                'Orden' => (int) $actividad->Orden,
                 'Actividad' => (string) $actividad->Actividad,
             ])
             ->all());
@@ -285,7 +298,7 @@ class Show extends Component
         $conteo = [];
 
         foreach ($telares as $telar) {
-            $salon = $telar['SalonTejidoId'];
+            $salon = trim($telar['SalonTejidoId']);
             $conteo[$salon] = ($conteo[$salon] ?? 0) + 1;
         }
 
@@ -335,6 +348,15 @@ class Show extends Component
             ->count();
 
         return $capturadas < count($telares) * count($actividades);
+    }
+
+    /**
+     * Estatus real del folio. Las props públicas viajan al navegador y pueden
+     * cambiarse con $wire.set, así que ningún guardia puede usar $this->estatus.
+     */
+    private function estatusFresco(): string
+    {
+        return (string) (MecVerificaMaquinaModel::whereKey($this->folio)->value('Estatus') ?: self::ESTATUS_ACTIVO);
     }
 
     private function authorizeAccess(): void

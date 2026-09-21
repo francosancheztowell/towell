@@ -25,7 +25,7 @@
 @endsection
 
 @section('content')
-<div class="flex h-[calc(100vh-64px)] w-full flex-col overflow-hidden p-3 sm:p-4 md:p-5">
+<div class="flex h-[calc(100dvh-64px)] w-full flex-col overflow-hidden p-3 sm:p-4 md:p-5">
     <div class="mx-auto flex min-h-0 w-full max-w-[96rem] flex-1 flex-col">
         <livewire:mecanicos.verifica-maquina.index />
     </div>

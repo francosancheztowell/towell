@@ -8,7 +8,7 @@
 @endphp
 
 <div
-    class="flex h-full min-h-0 flex-row items-start gap-3 sm:gap-4"
+    class="flex h-full min-h-0 flex-col gap-3 sm:gap-4 lg:flex-row lg:items-start"
     wire:key="verifica-maquina-show-{{ $folio }}"
     x-data="{
         estatus: @js($estatus),
@@ -111,6 +111,7 @@
             } catch (error) {
                 contenedor.dataset.v = anterior
                 contenedor.querySelectorAll('.vm-mini').forEach((b) => b.classList.toggle('vm-mini-on', b.dataset.val === anterior))
+                if (window.notify) window.notify.error('No se pudo guardar la celda. Intenta de nuevo.')
             }
         },
 
@@ -199,7 +200,7 @@
          * pintan un poco más grandes que la celda de solo lectura de "Todas".
          */
         .vm-triple{display:none;align-items:center;justify-content:center;gap:.75rem}
-        .vm-mini{display:inline-flex;align-items:center;justify-content:center;height:4rem;width:4.25rem;border-radius:.875rem;border-width:2px;border-style:solid;font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:transform .12s,border-color .12s;cursor:pointer;border-color:#d1d5db;background:#fff;color:#9ca3af}
+        .vm-mini{display:inline-flex;align-items:center;justify-content:center;height:clamp(2.75rem,9vw,4rem);width:clamp(3rem,10vw,4.25rem);border-radius:.875rem;border-width:2px;border-style:solid;font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:transform .12s,border-color .12s;cursor:pointer;border-color:#d1d5db;background:#fff;color:#9ca3af}
         .vm-mini:hover{border-color:#374151;transform:scale(1.05)}
         .vm-mini-on{border-color:#111827;background:#111827;color:#fff}
 
@@ -214,7 +215,7 @@
     <style x-ref="colStyle"></style>
 
     {{-- Barra lateral: selección de máquina y sus telares --}}
-    <aside class="z-20 flex h-full min-h-0 w-60 shrink-0 flex-col overflow-y-auto sm:w-64 md:w-72">
+    <aside class="z-20 flex min-h-0 w-full shrink-0 flex-col lg:h-full lg:w-72 lg:overflow-y-auto">
         <div class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
             <h2 class="text-sm font-bold text-gray-900">Máquina</h2>
             <p class="mt-0.5 text-[11px] text-gray-500">Selecciona una máquina para elegir sus telares.</p>
@@ -346,7 +347,7 @@
                 <table class="divide-y divide-gray-200 text-sm">
                     <thead class="bg-gray-50 font-semibold uppercase tracking-wide text-gray-600">
                         <tr>
-                            <th scope="col" class="sticky left-0 top-0 z-40 min-w-80 max-w-md bg-gray-50 px-4 py-3.5 text-left text-sm">Actividad</th>
+                            <th scope="col" class="sticky left-0 top-0 z-40 min-w-44 max-w-md bg-gray-50 px-4 py-3.5 text-left text-sm sm:min-w-80">Actividad</th>
                             @foreach ($telares as $telar)<th scope="col" class="vm-col-{{ $telar['NoTelarId'] }} vm-th sticky top-0 z-30 bg-gray-50" title="{{ $telar['Nombre'] }} ({{ $telar['SalonTejidoId'] }})">{{ $telar['NoTelarId'] }}</th>@endforeach
                             <th scope="col" class="sticky top-0 z-30 whitespace-nowrap bg-gray-100 px-4 py-3.5 text-center text-sm">Todos los telares</th>
                         </tr>
@@ -355,10 +356,10 @@
                         @forelse ($actividades as $actividad)
                             @php $nombreActividad = $actividad['Actividad']; @endphp
                             <tr class="hover:bg-gray-50">
-                                <th scope="row" class="sticky left-0 z-20 min-w-80 max-w-md bg-white px-4 py-4 text-left">
-                                    <span class="line-clamp-2 text-lg font-bold leading-snug text-gray-900" title="{{ $nombreActividad }}">{{ $nombreActividad }}</span>
+                                <th scope="row" class="sticky left-0 z-20 min-w-44 max-w-md bg-white px-4 py-4 text-left sm:min-w-80">
+                                    <span class="line-clamp-2 text-base font-bold leading-snug text-gray-900 sm:text-lg" title="{{ $nombreActividad }}">{{ $nombreActividad }}</span>
                                 </th>
-                                @foreach ($telares as $telar)@php $v = $valores[$telar['NoTelarId'].'|'.$nombreActividad] ?? ''; @endphp<td class="vm-col-{{ $telar['NoTelarId'] }} vm-td"><span class="vm-view {{ $v !== '' ? 'vm-view-on' : 'vm-view-off' }}">{{ $v !== '' ? $v : '—' }}</span><div class="vm-triple" data-t="{{ $telar['NoTelarId'] }}" data-a="{{ $actividad['Id'] }}"@if ($v !== '') data-v="{{ $v }}"@endif><button type="button" class="vm-mini {{ $v === '1' ? 'vm-mini-on' : '' }}" data-val="1">1</button><button type="button" class="vm-mini {{ $v === '2' ? 'vm-mini-on' : '' }}" data-val="2">2</button><button type="button" class="vm-mini {{ $v === '3' ? 'vm-mini-on' : '' }}" data-val="3">3</button></div></td>@endforeach
+                                @foreach ($telares as $telar)@php $v = $valores[$telar['NoTelarId'].'|'.$nombreActividad] ?? ''; @endphp<td class="vm-col-{{ $telar['NoTelarId'] }} vm-td"><span class="vm-view {{ $v !== '' ? 'vm-view-on' : 'vm-view-off' }}">{{ $v !== '' ? $v : '—' }}</span><div class="vm-triple" role="group" aria-label="Telar {{ $telar['NoTelarId'] }}, {{ $nombreActividad }}" data-t="{{ $telar['NoTelarId'] }}" data-a="{{ $actividad['Id'] }}"@if ($v !== '') data-v="{{ $v }}"@endif><button type="button" class="vm-mini {{ $v === '1' ? 'vm-mini-on' : '' }}" data-val="1">1</button><button type="button" class="vm-mini {{ $v === '2' ? 'vm-mini-on' : '' }}" data-val="2">2</button><button type="button" class="vm-mini {{ $v === '3' ? 'vm-mini-on' : '' }}" data-val="3">3</button></div></td>@endforeach
                                 <td data-prom="{{ $actividad['Id'] }}" class="whitespace-nowrap bg-gray-50 px-4 py-3 text-center text-base font-bold text-gray-800">{{ $promedios[$nombreActividad] ?? '—' }}</td>
                             </tr>
                         @empty

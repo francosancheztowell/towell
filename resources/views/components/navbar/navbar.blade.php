@@ -13,13 +13,12 @@
     $fotoUrl = getFotoUsuarioUrl($usuario->foto ?? null);
     $usuarioInicial = strtoupper(substr($usuario->nombre, 0, 1));
 
-    // Verificar acceso al módulo Configuración
-    $tieneConfiguracion = (bool) ($tieneConfiguracion ?? false);
-    if (!$tieneConfiguracion && Auth::check() && $isProduccionIndex) {
-        $moduloService = app(ModuloService::class);
-        $modulos = $moduloService->getModulosPrincipalesPorUsuario(Auth::id());
-        $tieneConfiguracion = $modulos->contains('nombre', 'Configuración');
-    }
+    // Acceso al módulo Configuración (la lista viene del caché de módulos del usuario).
+    // El engranaje solo se ofrece desde el inicio.
+    $tieneConfiguracion = $isProduccionIndex
+        && app(ModuloService::class)
+            ->getModulosPrincipalesPorUsuario(Auth::id())
+            ->contains('nombre', 'Configuración');
 
     // Ocultar Paro solo en las secciones que no deben mostrar esta acción.
     $showParoButton = !request()->routeIs('catalogos.req-programa-tejido')
@@ -105,6 +104,7 @@
 @include('components.navbar.sections.user-modal')
 
 <!-- Scripts -->
+@if($isProgramaTejido)
 @push('scripts')
     <script>
         function mostrarModalDiasLiberar() {
@@ -168,3 +168,4 @@
         }
     </script>
 @endpush
+@endif

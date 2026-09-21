@@ -32,4 +32,10 @@ class ConsultasMuestrasDesarrolladorService extends ConsultasDesarrolladorServic
     {
         return $query;
     }
+
+    /** Por lo mismo, aqui un telar esta activo si tiene muestras pendientes. */
+    protected function filtrarTelaresActivos($query)
+    {
+        return $query;
+    }
 }

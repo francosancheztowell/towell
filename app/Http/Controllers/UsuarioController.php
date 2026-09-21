@@ -12,6 +12,7 @@ use App\Services\ModuloService;
 use App\Services\PermissionService;
 use App\Services\UsuarioService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -37,38 +38,8 @@ class UsuarioController extends Controller
                 ->with('error', 'Debes iniciar sesión para acceder a los módulos');
         }
 
-        $modulos = $this->moduloService->getModulosPrincipalesPorUsuario($usuarioActual->idusuario);
-
-        // Warm-up opcional: deshabilitado por defecto para acelerar el primer render tras login.
-        if (config('app.modules_warmup_on_login', false)) {
-            try {
-                foreach ($modulos as $m) {
-                    if (($m['nivel'] ?? null) !== 1) {
-                        continue;
-                    }
-
-                    $nombreModulo = trim((string) ($m['nombre'] ?? ''));
-                    if ($nombreModulo !== '') {
-                        $this->moduloService->getSubmodulosPorModuloPrincipal(
-                            $nombreModulo,
-                            $usuarioActual->idusuario
-                        );
-                    }
-                }
-            } catch (\Throwable $e) {
-                // Silencioso: es optimización, no debe tumbar la pantalla principal
-                if (config('app.debug')) {
-                    Log::debug('Warmup de caché de submódulos falló', ['error' => $e->getMessage()]);
-                }
-            }
-        }
-
-        $tieneConfiguracion = $modulos->contains('nombre', 'Configuración');
-
         return view('produccionProceso', [
-            'modulos' => $modulos,
-            'tieneConfiguracion' => $tieneConfiguracion,
-            'pageTitle' => 'Producción en Proceso',
+            'modulos' => $this->moduloService->getModulosPrincipalesPorUsuario($usuarioActual->idusuario),
         ]);
     }
 
@@ -343,50 +314,6 @@ class UsuarioController extends Controller
     }
 
     /**
-     * Mostrar submódulos de configuración (nivel 3)
-     */
-    public function showSubModulosConfiguracion(string $serie)
-    {
-        $usuarioActual = Auth::user();
-        $moduloPadre = SYSRoles::where('orden', $serie)->first();
-
-        if (! $moduloPadre) {
-            return redirect('/configuracion')
-                ->with('error', 'Módulo de configuración no encontrado');
-        }
-
-        $subModulos = $this->moduloService->getSubmodulosNivel3(
-            $serie,
-            $usuarioActual->idusuario
-        );
-
-        return view('modulos.submodulos', [
-            'moduloPrincipal' => $moduloPadre->modulo,
-            'subModulos' => $subModulos,
-            'rango' => ['inicio' => $serie, 'nombre' => $moduloPadre->modulo],
-        ]);
-    }
-
-    /**
-     * Mostrar configuracion de tejedores (nivel 3)
-     */
-    public function showTejedoresConfiguracion()
-    {
-        // Optimización: Usa índice IX_SYSRoles_Nivel_Dependencia para búsqueda rápida
-        $configurarModulo = SYSRoles::where('Nivel', 2)
-            ->where('Dependencia', 600)
-            ->where('modulo', 'Configurar')
-            ->select('idrol', 'orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
-            ->first();
-
-        if ($configurarModulo) {
-            return $this->showSubModulosConfiguracion($configurarModulo->orden);
-        }
-
-        return $this->showSubModulosConfiguracion('605');
-    }
-
-    /**
      * Mostrar submódulos de un módulo principal
      */
     public function showSubModulos(string $moduloPrincipal)
@@ -470,208 +397,39 @@ class UsuarioController extends Controller
         return view('modulos.submodulos', [
             'moduloPrincipal' => $moduloPadre->modulo,
             'subModulos' => $subModulos,
-            'rango' => ['inicio' => $moduloPadre->orden, 'nombre' => $moduloPadre->modulo],
         ]);
     }
 
     /**
-     * Mostrar submódulos de nivel 3
+     * Mostrar submódulos de nivel 3 de un módulo padre, identificado por su orden.
      */
     public function showSubModulosNivel3(string $moduloPadre = '104')
     {
-        $usuarioActual = Auth::user();
+        $moduloPadreInfo = SYSRoles::where('orden', $moduloPadre)
+            ->select('orden', 'modulo')
+            ->first();
 
-        try {
-            $subModulos = $this->moduloService->getSubmodulosNivel3(
+        if (! $moduloPadreInfo) {
+            Log::warning('Módulo padre de nivel 3 no encontrado', ['modulo_padre' => $moduloPadre]);
+
+            return redirect(ModuloService::RUTA_INICIO)
+                ->with('error', 'Módulo no encontrado. Puede que haya sido eliminado.');
+        }
+
+        return view('modulos.submodulos', [
+            'moduloPrincipal' => $moduloPadreInfo->modulo,
+            'subModulos' => $this->moduloService->getSubmodulosNivel3(
                 $moduloPadre,
-                $usuarioActual->idusuario
-            );
-
-            // Optimización: Usa índice IX_SYSRoles_orden para búsqueda rápida
-            $moduloPadreInfo = SYSRoles::where('orden', $moduloPadre)
-                ->select('orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
-                ->first();
-
-            return view('modulos.submodulos', [
-                'moduloPrincipal' => $moduloPadreInfo->modulo ?? "Submódulos de $moduloPadre",
-                'subModulos' => $subModulos,
-                'rango' => [
-                    'inicio' => $moduloPadre,
-                    'nombre' => $moduloPadreInfo->modulo ?? 'Submódulos',
-                ],
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error al obtener submódulos nivel 3', [
-                'error' => $e->getMessage(),
-                'modulo_padre' => $moduloPadre,
-            ]);
-
-            return redirect('/produccionProceso')
-                ->with('error', 'Error al cargar los submódulos');
-        }
-    }
-
-    /**
-     * API: Obtener submódulos de un módulo principal (para precarga)
-     */
-    public function getSubModulosAPI(string $moduloPrincipal)
-    {
-        $usuarioActual = Auth::user();
-
-        if (! $usuarioActual) {
-            return response()->json(['error' => 'No autenticado'], 401);
-        }
-
-        try {
-            $subModulos = $this->moduloService->getSubmodulosPorModuloPrincipal(
-                $moduloPrincipal,
-                $usuarioActual->idusuario
-            );
-
-            return response()->json($subModulos->values());
-        } catch (\Exception $e) {
-            Log::error('Error al obtener submódulos API', [
-                'error' => $e->getMessage(),
-                'modulo' => $moduloPrincipal,
-            ]);
-
-            return response()->json(['error' => 'Error al obtener submódulos'], 500);
-        }
-    }
-
-    /**
-     * API: Obtener ruta del módulo padre basado en la ruta actual
-     */
-    public function getModuloPadre(Request $request)
-    {
-        try {
-            $rutaActual = $request->input('ruta', $request->path());
-
-            // Normalizar ruta
-            $rutaActual = '/'.ltrim($rutaActual, '/');
-
-            // Buscar módulo por ruta exacta primero
-            // Optimización: Ruta está en INCLUDE del índice, acceso rápido
-            $modulo = SYSRoles::where('Ruta', $rutaActual)
-                ->select('idrol', 'orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
-                ->first();
-
-            // Si no encuentra, buscar por coincidencia (la ruta más específica que coincida)
-            // NOTA: LIKE 'texto%' puede usar índices parcialmente, pero LIKE '%texto%' no puede
-            if (! $modulo) {
-                $modulo = SYSRoles::where('Ruta', 'LIKE', $rutaActual.'%')
-                    ->select('idrol', 'orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
-                    ->orderByRaw('CASE WHEN Ruta = ? THEN 0 ELSE 1 END', [$rutaActual])
-                    ->orderByRaw('LEN(Ruta) DESC')
-                    ->orderBy('Nivel', 'desc')
-                    ->first();
-            }
-
-            // Si aún no encuentra, derivar el padre subiendo segmento por segmento
-            // hasta dar con una coincidencia exacta (p.ej. /mecanicos/ordenes-trabajo/VM00011/captura
-            // → /mecanicos/ordenes-trabajo/VM00011 → /mecanicos/ordenes-trabajo).
-            // Necesario para páginas de detalle anidadas (folio, captura, etc.) que nunca
-            // tendrán su propia fila en SYSRoles: el padre real está uno o más niveles arriba.
-            if (! $modulo) {
-                $partes = array_filter(array_values(explode('/', trim($rutaActual, '/'))));
-
-                while (count($partes) >= 2) {
-                    array_pop($partes);
-                    $rutaPadreDerivada = '/'.implode('/', $partes);
-                    $moduloPadreDerivado = SYSRoles::where('Ruta', $rutaPadreDerivada)
-                        ->select('orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
-                        ->first();
-                    if ($moduloPadreDerivado && $moduloPadreDerivado->Ruta) {
-                        return response()->json([
-                            'success' => true,
-                            'rutaPadre' => $moduloPadreDerivado->Ruta,
-                        ]);
-                    }
-                }
-            }
-
-            // Si aún no encuentra, intentar buscar por partes de la ruta
-            // NOTA: LIKE '%texto%' no puede usar índices eficientemente, pero es necesario como fallback
-            if (! $modulo) {
-                $partes = array_filter(array_values(explode('/', trim($rutaActual, '/'))));
-                if (count($partes) > 0) {
-                    $ultimaParte = end($partes);
-                    // Primero intentar con el mismo prefijo de módulo base para evitar falsos positivos
-                    // (p.ej. /tejido/reportes no debe resolverse con /tejedores/reportes-tejedores)
-                    if (count($partes) >= 2) {
-                        $prefijoPrincipal = '/'.$partes[0].'/';
-                        $modulo = SYSRoles::where('Ruta', 'LIKE', '%'.$ultimaParte.'%')
-                            ->where('Ruta', 'LIKE', $prefijoPrincipal.'%')
-                            ->select('idrol', 'orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
-                            ->orderByRaw('LEN(Ruta) DESC')
-                            ->orderBy('Nivel', 'desc')
-                            ->first();
-                    }
-                    // Fallback sin restricción de prefijo
-                    if (! $modulo) {
-                        $modulo = SYSRoles::where('Ruta', 'LIKE', '%'.$ultimaParte.'%')
-                            ->select('idrol', 'orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
-                            ->orderByRaw('LEN(Ruta) DESC')
-                            ->orderBy('Nivel', 'desc')
-                            ->first();
-                    }
-                }
-            }
-
-            if (! $modulo) {
-                return response()->json([
-                    'success' => false,
-                    'rutaPadre' => '/produccionProceso',
-                ]);
-            }
-
-            // Si es nivel 1, ir a produccionProceso
-            if ($modulo->Nivel == 1) {
-                return response()->json([
-                    'success' => true,
-                    'rutaPadre' => '/produccionProceso',
-                ]);
-            }
-
-            // Si tiene dependencia, buscar el módulo padre
-            // Optimización: Usa índice IX_SYSRoles_orden para búsqueda rápida
-            if ($modulo->Dependencia) {
-                $moduloPadre = SYSRoles::where('orden', $modulo->Dependencia)
-                    ->select('orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
-                    ->first();
-
-                if ($moduloPadre && $moduloPadre->Ruta) {
-                    return response()->json([
-                        'success' => true,
-                        'rutaPadre' => $moduloPadre->Ruta,
-                    ]);
-                }
-            }
-
-            // Fallback
-            return response()->json([
-                'success' => false,
-                'rutaPadre' => '/produccionProceso',
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error al obtener módulo padre', [
-                'error' => $e->getMessage(),
-                'ruta' => $request->input('ruta'),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'rutaPadre' => '/produccionProceso',
-            ]);
-        }
+                Auth::user()->idusuario
+            ),
+        ]);
     }
 
     /**
      * Obtener para cada módulo de Nivel 1 el listado de idrol de sus descendientes (Nivel 2 y 3).
      * Se usa en el formulario de usuario para cascada de permisos.
      *
-     * @param  \Illuminate\Support\Collection  $modulos
+     * @param  Collection  $modulos
      * @return array [ idrol_raiz => [ idrol_hijo1, idrol_hijo2, ... ], ... ]
      */
     private function obtenerDescendientesPorIdrolRaiz($modulos): array

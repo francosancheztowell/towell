@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class TejTramaConsumos extends Model
 {
     protected $table = 'TejTramaConsumos';
+
+    protected $primaryKey = 'Id';
+
     public $timestamps = false;
 
     protected $fillable = [

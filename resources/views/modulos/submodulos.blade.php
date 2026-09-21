@@ -6,7 +6,7 @@
 @endsection
 
 @section('content')
-    <div class="container mx-auto"  id="globalLoader">
+    <div class="container mx-auto">
         @if (count($subModulos) === 0)
             <!-- Estado vacío -->
             <div class="text-center py-12">

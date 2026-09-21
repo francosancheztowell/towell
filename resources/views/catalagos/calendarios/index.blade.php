@@ -538,6 +538,5 @@
         });
     </script>
 
-    @include('components.ui.toast-notification')
 @endsection
 

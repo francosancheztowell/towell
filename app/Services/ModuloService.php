@@ -5,14 +5,17 @@ namespace App\Services;
 use App\Models\Sistema\SYSRoles;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
-
+use Illuminate\Support\Facades\Log;
 
 class ModuloService
 {
     private const CACHE_TTL = 3600; // 1 hora
+
     // Versionado para evitar que el cache viejo conserve rutas fallback incorrectas (acentos, '/')
     // v3 invalida las entradas v2 que pudieron quedar vacías al crear módulos dinámicos.
     private const CACHE_PREFIX = 'modulos_v3';
+
+    public const RUTA_INICIO = '/produccionProceso';
 
     /**
      * Método genérico para obtener módulos por nivel y usuario
@@ -24,9 +27,9 @@ class ModuloService
         ?string $dependencia = null,
         ?string $cacheKey = null
     ): Collection {
-        $cacheKey = $cacheKey ?? "{$this->getCachePrefix()}_nivel{$nivel}_user_{$idusuario}" . ($dependencia ? "_dep{$dependencia}" : "");
+        $cacheKey = $cacheKey ?? "{$this->getCachePrefix()}_nivel{$nivel}_user_{$idusuario}".($dependencia ? "_dep{$dependencia}" : '');
 
-        $data = Cache::remember($cacheKey, self::CACHE_TTL, function() use ($idusuario, $nivel, $dependencia) {
+        $data = Cache::remember($cacheKey, self::CACHE_TTL, function () use ($idusuario, $nivel, $dependencia) {
             // Optimización: Filtrar primero por índices de SYSRoles (Nivel, Dependencia) antes del JOIN
             // Esto permite que SQL Server use el índice IX_SYSRoles_Nivel_Dependencia_orden eficientemente
             $query = SYSRoles::query()
@@ -43,10 +46,10 @@ class ModuloService
 
             // JOIN optimizado: SQL Server puede usar IX_SYSUsuariosRoles_idrol_idusuario_acceso
             // El índice tiene idrol primero, perfecto para el JOIN
-            $query->join('SYSUsuariosRoles', function($join) use ($idusuario) {
+            $query->join('SYSUsuariosRoles', function ($join) use ($idusuario) {
                 $join->on('SYSRoles.idrol', '=', 'SYSUsuariosRoles.idrol')
-                     ->where('SYSUsuariosRoles.idusuario', '=', $idusuario)
-                     ->where('SYSUsuariosRoles.acceso', '=', true);
+                    ->where('SYSUsuariosRoles.idusuario', '=', $idusuario)
+                    ->where('SYSUsuariosRoles.acceso', '=', true);
             });
 
             // Select específico: solo columnas necesarias para reducir transferencia de datos
@@ -68,7 +71,7 @@ class ModuloService
                 )
                 ->orderBy('SYSRoles.orden') // Aprovecha índice compuesto con orden incluido
                 ->get()
-                ->map(function($modulo) {
+                ->map(function ($modulo) {
                     return [
                         'nombre' => $modulo->modulo,
                         'imagen' => $modulo->imagen ?? 'default.png',
@@ -100,7 +103,7 @@ class ModuloService
         $result = $this->getModulosPorNivelYUsuario($idusuario, 1, null, $cacheKey);
 
         // Ordenar: Configuración primero
-        return $result->sortBy(function($modulo) {
+        return $result->sortBy(function ($modulo) {
             return $modulo['nombre'] === 'Configuración' ? '0' : $modulo['orden'];
         })->values();
     }
@@ -112,14 +115,94 @@ class ModuloService
     {
         $moduloPadreResuelto = $moduloPadre ?: $this->buscarModuloPrincipal($moduloPrincipal);
 
-        if (!$moduloPadreResuelto) {
+        if (! $moduloPadreResuelto) {
             return collect([]);
         }
 
         $ordenPadre = (string) $moduloPadreResuelto->orden;
-        $cacheKey = "{$this->getCachePrefix()}_submodulos_{$moduloPrincipal}_user_{$idusuario}";
+        // La llave va por `orden`, no por el texto recibido: "Tejido", "tejido", "/tejido"
+        // y "200" son el mismo modulo y antes generaban cuatro entradas del mismo dato.
+        $cacheKey = "{$this->getCachePrefix()}_submodulos_{$ordenPadre}_user_{$idusuario}";
 
         return $this->getModulosPorNivelYUsuario($idusuario, 2, $ordenPadre, $cacheKey);
+    }
+
+    /**
+     * Ruta del modulo padre de una ruta cualquiera, para el boton "atras".
+     *
+     * Toma el modulo cuya Ruta es el prefijo mas largo de $rutaActual:
+     * - si la ruta es mas profunda que ese modulo (pagina de detalle tipo
+     *   /mecanicos/ordenes-trabajo/VM00011/captura), el padre es el modulo mismo;
+     * - si coincide exacto, sube por Dependencia;
+     * - nivel 1 o sin coincidencia, al inicio.
+     */
+    public function rutaPadreDe(string $rutaActual): string
+    {
+        $rutaActual = '/'.trim(str_replace('\\', '/', $rutaActual), '/');
+        $arbol = $this->arbolRutas();
+
+        $actual = null;
+        foreach ($arbol as $modulo) {
+            $ruta = $modulo['ruta'];
+            if ($rutaActual !== $ruta && ! str_starts_with($rutaActual, $ruta.'/')) {
+                continue;
+            }
+            if ($actual === null || strlen($ruta) > strlen($actual['ruta'])) {
+                $actual = $modulo;
+            }
+        }
+
+        if ($actual === null) {
+            return self::RUTA_INICIO;
+        }
+
+        if ($rutaActual !== $actual['ruta']) {
+            return $actual['ruta'];
+        }
+
+        if ((int) $actual['nivel'] <= 1 || $actual['dependencia'] === null) {
+            return self::RUTA_INICIO;
+        }
+
+        return $arbol[$actual['dependencia']]['ruta'] ?? self::RUTA_INICIO;
+    }
+
+    /**
+     * Arbol completo de modulos indexado por `orden`, con la Ruta ya normalizada.
+     * Son ~100 filas y no dependen del usuario: una sola entrada de cache global.
+     *
+     * @return array<string, array{ruta: string, nivel: int, dependencia: ?string}>
+     */
+    private function arbolRutas(): array
+    {
+        try {
+            return $this->cargarArbolRutas();
+        } catch (\Throwable $e) {
+            // El botón "atrás" no vale una pantalla en blanco: si SYSRoles no
+            // responde, se cae al inicio. La excepción sale del closure, así
+            // que Cache::remember no guarda nada y el próximo render reintenta.
+            Log::debug('No se pudo cargar el árbol de módulos', ['error' => $e->getMessage()]);
+
+            return [];
+        }
+    }
+
+    /**
+     * @return array<string, array{ruta: string, nivel: int, dependencia: ?string}>
+     */
+    private function cargarArbolRutas(): array
+    {
+        return Cache::remember("{$this->getCachePrefix()}_arbol_rutas", self::CACHE_TTL, function () {
+            return SYSRoles::query()
+                ->select('orden', 'modulo', 'Ruta', 'Nivel', 'Dependencia')
+                ->get()
+                ->mapWithKeys(fn (SYSRoles $modulo) => [(string) $modulo->orden => [
+                    'ruta' => $this->normalizarRuta($modulo->Ruta, $modulo),
+                    'nivel' => (int) $modulo->Nivel,
+                    'dependencia' => $modulo->Dependencia !== null ? (string) $modulo->Dependencia : null,
+                ]])
+                ->all();
+        });
     }
 
     /**
@@ -169,7 +252,7 @@ class ModuloService
 
             // 2. Buscar por ruta exacta (si el parámetro ya es una ruta como /planeacion)
             // Ruta está en INCLUDE del índice, acceso rápido sin lookup adicional
-            if (!$modulo && str_starts_with($moduloPrincipal, '/')) {
+            if (! $modulo && str_starts_with($moduloPrincipal, '/')) {
                 $modulo = (clone $baseQuery)
                     ->where('Ruta', $moduloPrincipal)
                     ->select('idrol', 'orden', 'modulo', 'imagen', 'Ruta', 'Nivel', 'Dependencia')
@@ -178,16 +261,16 @@ class ModuloService
 
             // 3. Si no encuentra, buscar por nombre que contenga el slug (insensible a mayusculas)
             // NOTA: LIKE '%texto%' no puede usar índices eficientemente, pero es necesario como fallback
-            if (!$modulo) {
+            if (! $modulo) {
                 $modulo = (clone $baseQuery)
-                    ->whereRaw('LOWER(modulo) LIKE ?', ['%' . strtolower($moduloPrincipal) . '%'])
+                    ->whereRaw('LOWER(modulo) LIKE ?', ['%'.strtolower($moduloPrincipal).'%'])
                     ->select('idrol', 'orden', 'modulo', 'imagen', 'Ruta', 'Nivel', 'Dependencia')
                     ->first();
             }
 
             // 4. Último intento: buscar por ruta que contenga el slug (sin acentos)
             // NOTA: LIKE '%texto%' no puede usar índices eficientemente, pero es necesario como fallback
-            if (!$modulo) {
+            if (! $modulo) {
                 $slug = strtolower(str_replace(['_', ' '], '-', $moduloPrincipal));
                 $modulo = (clone $baseQuery)
                     ->whereRaw('LOWER(Ruta) LIKE ?', ["%{$slug}%"])
@@ -207,6 +290,7 @@ class ModuloService
         $prefix = $this->getCachePrefix();
 
         Cache::forget("{$prefix}_principales_user_{$idusuario}");
+        Cache::forget("{$prefix}_arbol_rutas");
 
         // Los módulos nuevos se navegan normalmente con su orden (p. ej. /submodulos/1100).
         // No basta con olvidar una lista fija de módulos conocidos: si la página se visitó
@@ -217,8 +301,10 @@ class ModuloService
             ->get(['orden', 'modulo', 'Ruta']);
 
         foreach ($modulosPrincipales as $moduloPrincipal) {
+            Cache::forget("{$prefix}_submodulos_{$moduloPrincipal->orden}_user_{$idusuario}");
+
+            // `buscarModuloPrincipal` si se cachea por el texto recibido (nombre, ruta, orden).
             foreach ($this->identificadoresModuloPrincipal($moduloPrincipal) as $identificador) {
-                Cache::forget("{$prefix}_submodulos_{$identificador}_user_{$idusuario}");
                 Cache::forget("{$prefix}_modulo_principal_{$identificador}");
             }
         }
@@ -259,7 +345,7 @@ class ModuloService
         if ($modulo->Nivel == 1) {
             // Usar el `orden` (numérico) evita problemas de resolución por acentos o caracteres especiales
             // en el nombre del módulo (ej. "Planeación", "Programa Urd / Eng").
-            return '/submodulos/' . $modulo->orden;
+            return '/submodulos/'.$modulo->orden;
         }
 
         // Para nivel 2 y 3, intentar construir desde el padre
@@ -273,13 +359,15 @@ class ModuloService
                 if ($padre->Ruta) {
                     $slug = strtolower(str_replace(' ', '-', $modulo->modulo));
                     $slug = preg_replace('/[^a-z0-9-]/', '', $slug); // Limpiar caracteres especiales
-                    return $padre->Ruta . '/' . $slug;
+
+                    return $padre->Ruta.'/'.$slug;
                 }
                 // Si el padre no tiene ruta pero tiene orden, construir desde el orden del padre
                 if ($padre->Nivel == 1) {
                     $slug = strtolower(str_replace(' ', '-', $modulo->modulo));
                     $slug = preg_replace('/[^a-z0-9-]/', '', $slug);
-                    return '/submodulos/' . $padre->orden . '/' . $slug;
+
+                    return '/submodulos/'.$padre->orden.'/'.$slug;
                 }
             }
         }
@@ -287,7 +375,8 @@ class ModuloService
         // Fallback genérico (último recurso)
         $slug = strtolower(str_replace(' ', '-', $modulo->modulo));
         $slug = preg_replace('/[^a-z0-9-]/', '', $slug);
-        return '/modulo-' . $slug;
+
+        return '/modulo-'.$slug;
     }
 
     /**
@@ -311,7 +400,7 @@ class ModuloService
         // Normalizar slashes y asegurar slash inicial
         $ruta = str_replace('\\', '/', $ruta);
         if ($ruta[0] !== '/') {
-            $ruta = '/' . $ruta;
+            $ruta = '/'.$ruta;
         }
 
         return $ruta;
@@ -324,6 +413,7 @@ class ModuloService
     private function getCachePrefix(): string
     {
         $env = app()->environment();
-        return self::CACHE_PREFIX . '_' . $env;
+
+        return self::CACHE_PREFIX.'_'.$env;
     }
 }

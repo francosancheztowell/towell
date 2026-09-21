@@ -15,34 +15,43 @@
         return !$filterConfig || $modulo['nombre'] !== 'Configuración';
     });
 
-    $cantidadModulos = $modulosFiltrados->count();
-    $pocosModulos = $cantidadModulos <= 3;
+    // El href se calcula una sola vez: lo usan la tarjeta y las speculation rules.
+    $modulosFiltrados = $modulosFiltrados->map(function ($modulo) {
+        $modulo['href'] = ($modulo['ruta_tipo'] ?? null) === 'route'
+            ? route($modulo['ruta'], $modulo['params'] ?? [])
+            : url($modulo['ruta']);
 
-    // Determinar clases según la cantidad de módulos
-    if ($pocosModulos) {
-        // Para 3 o menos módulos: centrar y ajustar espaciado
-        if ($cantidadModulos === 1) {
-            // 1 módulo: centrado
-            $gridClasses = 'grid grid-cols-1 justify-items-center';
-            $itemClasses = '';
-            $gapClasses = '';
-        } elseif ($cantidadModulos === 2) {
-            // 2 módulos: grid de 2 columnas
-            $gridClasses = 'grid grid-cols-2 justify-items-center';
-            $itemClasses = '';
-            $gapClasses = 'gap-4 md:gap-6 lg:gap-8';
-        } else { // 3 módulos
-            // 3 módulos: 1 columna en móvil, 3 en desktop
-            $gridClasses = 'grid grid-cols-1 sm:grid-cols-3 justify-items-center';
-            $itemClasses = '';
-            $gapClasses = 'gap-4 md:gap-5 lg:gap-6';
-        }
-    } else {
-        // Para más de 3 módulos: grid normal
-        $gridClasses = 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 ' . $columns . ' justify-items-center';
-        $itemClasses = '';
-        $gapClasses = 'gap-2 md:gap-3 lg:gap-4';
-    }
+        return $modulo;
+    });
+
+    $cantidadModulos = $modulosFiltrados->count();
+
+    // Prefetch nativo del navegador: al tocar/pasar sobre una tarjeta, Chrome pide
+    // su HTML por adelantado, así el click ya no espera al servidor. Solo rutas
+    // propias; las externas y el login quedan fuera.
+    $origen = rtrim(url('/'), '/');
+    $rutasPrefetch = $modulosFiltrados
+        ->pluck('href')
+        ->filter(fn ($href) => is_string($href) && str_starts_with($href, $origen.'/'))
+        ->map(fn ($href) => substr($href, strlen($origen)))
+        ->reject(fn ($ruta) => str_starts_with($ruta, '/login'))
+        ->unique()
+        ->values();
+
+    // Con 3 o menos modulos se centran y se les da mas aire; con mas, grid normal.
+    $gridClasses = match (true) {
+        $cantidadModulos === 1 => 'grid grid-cols-1 justify-items-center',
+        $cantidadModulos === 2 => 'grid grid-cols-2 justify-items-center',
+        $cantidadModulos === 3 => 'grid grid-cols-1 sm:grid-cols-3 justify-items-center',
+        default => 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 ' . $columns . ' justify-items-center',
+    };
+
+    $gapClasses = match (true) {
+        $cantidadModulos === 1 => '',
+        $cantidadModulos === 2 => 'gap-4 md:gap-6 lg:gap-8',
+        $cantidadModulos === 3 => 'gap-4 md:gap-5 lg:gap-6',
+        default => 'gap-2 md:gap-3 lg:gap-4',
+    };
 @endphp
 
 <div class="w-full flex justify-center items-start px-3 py-4">
@@ -67,22 +76,10 @@
                 }
 
                 $isLcpImage = $index === 0;
-
-                // Verificar si es el módulo de Atado de Julio / Cortado de Rollo
-                $esNotificarMontado = in_array($modulo['nombre'], ['Atado de Julio', 'Atado de Julio (Tej.)', 'Notificar Montado de Julio', 'Notificar Montado de Julio (Tej.)']);
-                $esNotificarCortado = in_array($modulo['nombre'], ['Cortado de Rollo', 'Cortado de Rollo (Tej.)', 'Notificar Cortado de rollo', 'Notificar Cortado de Rollo', 'Notificar Cortado de Rollo (Tej.)']);
             @endphp
 
-            @if($esNotificarMontado)
-                <a href="javascript:void(0)" onclick="abrirModalTelares()"
-                   class="block group relative overflow-visible min-h-[48px] min-w-[48px] touch-manipulation ripple-effect {{ $itemClasses }}">
-            @elseif($esNotificarCortado)
-                <a href="{{ route('notificar.cortado.rollo') }}"
-                   class="block group relative overflow-visible min-h-[48px] min-w-[48px] touch-manipulation ripple-effect {{ $itemClasses }}">
-            @else
-                <a href="{{ isset($modulo['ruta_tipo']) && $modulo['ruta_tipo'] === 'route' ? route($modulo['ruta'], $modulo['params'] ?? []) : url($modulo['ruta']) }}"
-                   class="block group relative overflow-visible min-h-[48px] min-w-[48px] touch-manipulation ripple-effect {{ $itemClasses }}">
-            @endif
+            <a href="{{ $modulo['href'] }}"
+               class="block group relative overflow-visible min-h-[48px] min-w-[48px] touch-manipulation ripple-effect">
                 <div class="p-4 md:p-5 lg:p-6 flex flex-col items-center justify-center min-h-[10rem] md:min-h-[13rem] lg:min-h-[13rem] transition-all duration-300 transform hover:scale-105 active:scale-[0.98]">
 
                     <!-- Contenedor de imagen optimizado para tablet -->
@@ -118,3 +115,10 @@
     @endforeach
     </div>
 </div>
+
+@if ($rutasPrefetch->isNotEmpty())
+    {{-- "moderate" = solo al pasar el cursor o tocar, no las 12 de golpe al cargar. --}}
+    <script type="speculationrules">
+        {"prefetch": [{"urls": @json($rutasPrefetch), "eagerness": "moderate"}]}
+    </script>
+@endif

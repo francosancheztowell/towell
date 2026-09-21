@@ -26,13 +26,6 @@ class NotificarMontadoJulioController extends Controller
 
         // Si es una petición AJAX
         if ($request->ajax() || $request->wantsJson()) {
-            // Si se solicita solo el listado de telares: retornar TODOS los asignados al usuario
-            if ($request->has('listado')) {
-                $telares = collect($telaresOperador)->sort()->values();
-
-                return response()->json(['telares' => $telares]);
-            }
-
             // Si se solicita detalle de un telar específico con tipo
             if ($request->has('no_telar') && $request->has('tipo')) {
                 // 1) Buscar registro completo (con no_julio y no_orden)
@@ -112,12 +105,7 @@ class NotificarMontadoJulioController extends Controller
             return response()->json(['error' => 'Parámetros inválidos'], 400);
         }
 
-        // Si no es AJAX, devolver vista (por compatibilidad)
-        $telares = TejInventarioTelares::whereIn('no_telar', $telaresOperador)
-            ->select('no_telar', 'tipo')
-            ->distinct()
-            ->orderBy('no_telar')
-            ->get();
+        $telares = collect($telaresOperador)->sort()->values();
 
         return view('modulos.notificar-montado-julios.index', compact('telares'));
     }

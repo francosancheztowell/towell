@@ -8,5 +8,3 @@ Route::get('/produccionProceso', [UsuarioController::class, 'index'])->name('pro
 Route::get('/submodulos/{modulo}', [UsuarioController::class, 'showSubModulos'])->name('submodulos.show');
 Route::get('/submodulos-nivel3/{moduloPadre}', [UsuarioController::class, 'showSubModulosNivel3'])
     ->name('submodulos.nivel3');
-Route::get('/api/submodulos/{moduloPrincipal}', [UsuarioController::class, 'getSubModulosAPI'])->name('api.submodulos');
-Route::get('/api/modulo-padre', [UsuarioController::class, 'getModuloPadre'])->name('api.modulo.padre');

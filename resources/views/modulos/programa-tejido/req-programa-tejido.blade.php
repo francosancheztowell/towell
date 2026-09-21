@@ -345,7 +345,6 @@ document.addEventListener('DOMContentLoaded', function () {
 {{-- balanceo --}}
 @include('modulos.programa-tejido.balancear')
 
-@include('components.ui.toast-notification')
 @endsection
 
 @push('scripts')

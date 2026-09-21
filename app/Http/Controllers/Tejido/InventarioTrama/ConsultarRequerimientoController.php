@@ -3,75 +3,27 @@
 namespace App\Http\Controllers\Tejido\InventarioTrama;
 
 use App\Http\Controllers\Controller;
-use App\Models\Sistema\SYSMensaje;
 use App\Models\Tejido\TejTrama;
 use App\Models\Tejido\TejTramaConsumos;
+use App\Services\Tejido\InventarioTrama\RequerimientoStatusService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class ConsultarRequerimientoController extends Controller
 {
+    public function __construct(private readonly RequerimientoStatusService $statusService) {}
+
     /**
      * Muestra la vista de consultar requerimientos con datos de TejTrama y TejTramaConsumos
      */
-    public function index(Request $request)
+    /**
+     * Página contenedora; el listado y el detalle viven en el componente Livewire
+     * (consulta perezosa por folio, sin cargar todos los consumos).
+     */
+    public function index()
     {
-        // Obtener filtros del request
-        $folioFiltro = $request->input('folio');
-        $fechaInicio = $request->input('fecha_inicio');
-        $fechaFin = $request->input('fecha_fin');
-        $statusFiltro = $request->input('status');
-        $turnoFiltro = $request->input('turno');
-
-        // Query base para TejTrama
-        $query = TejTrama::query();
-
-        // Aplicar filtros si existen
-        if ($folioFiltro) {
-            $query->where('Folio', 'like', "%{$folioFiltro}%");
-        }
-
-        if ($fechaInicio) {
-            $query->whereDate('Fecha', '>=', $fechaInicio);
-        }
-
-        if ($fechaFin) {
-            $query->whereDate('Fecha', '<=', $fechaFin);
-        }
-
-        if ($statusFiltro) {
-            $query->where('Status', $statusFiltro);
-        }
-
-        if ($turnoFiltro) {
-            $query->where('Turno', $turnoFiltro);
-        }
-
-        // Obtener requerimientos ordenados por fecha descendente
-        $requerimientos = $query->orderBy('Fecha', 'desc')
-            ->orderBy('Folio', 'desc')
-            ->get();
-
-        // Para cada requerimiento, obtener sus consumos
-        $requerimientosConConsumos = $requerimientos->map(function ($req) {
-            $consumos = TejTramaConsumos::where('Folio', $req->Folio)->get();
-            // Agregar dinámicamente la propiedad consumos al objeto
-            $req->consumos = $consumos; // @phpstan-ignore-line
-
-            return $req;
-        });
-
-        return view('modulos.inventario-trama.consultar-requerimiento', [
-            'requerimientos' => $requerimientosConConsumos,
-            'filtros' => [
-                'folio' => $folioFiltro,
-                'fecha_inicio' => $fechaInicio,
-                'fecha_fin' => $fechaFin,
-                'status' => $statusFiltro,
-                'turno' => $turnoFiltro,
-            ],
-        ]);
+        return view('modulos.inventario-trama.consultar-requerimiento');
     }
 
     /**
@@ -103,59 +55,17 @@ class ConsultarRequerimientoController extends Controller
     public function updateStatus(Request $request, $folio)
     {
         try {
-
             $request->validate([
-                'status' => 'required|in:En Proceso,Solicitado,Surtido,Cancelado,Creado',
+                'status' => 'required|in:'.implode(',', RequerimientoStatusService::estatusValidos()),
             ]);
 
-            $requerimiento = TejTrama::where('Folio', $folio)->first();
-
-            if (! $requerimiento) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Requerimiento no encontrado',
-                ], 404);
-            }
-
-            $statusActual = $requerimiento->Status;
-            $nuevoStatus = $request->status;
-
-            // Validar transiciones de estado permitidas
-            $transicionesPermitidas = [
-                'En Proceso' => ['Solicitado', 'Cancelado'],
-                'Solicitado' => ['Surtido', 'Cancelado'],
-                'Surtido' => [], // No puede cambiar
-                'Cancelado' => [], // No puede cambiar
-                'Creado' => ['En Proceso', 'Cancelado'],
-            ];
-
-            if (! in_array($nuevoStatus, $transicionesPermitidas[$statusActual] ?? [])) {
-                Log::warning('UpdateStatus - Transición no permitida', [
-                    'folio' => $folio,
-                    'status_actual' => $statusActual,
-                    'nuevo_status' => $nuevoStatus,
-                ]);
-
-                return response()->json([
-                    'success' => false,
-                    'message' => "No se puede cambiar de '$statusActual' a '$nuevoStatus'",
-                ], 400);
-            }
-
-            $requerimiento->Status = $nuevoStatus;
-            $requerimiento->save();
-
-            // Enviar notificación a Telegram cuando pasa a "Solicitado"
-            if ($nuevoStatus === 'Solicitado') {
-                $this->enviarTelegram($requerimiento);
-            }
+            $resultado = $this->statusService->cambiar((string) $folio, (string) $request->status);
 
             return response()->json([
-                'success' => true,
-                'message' => "Status cambiado de '$statusActual' a '$nuevoStatus' correctamente",
-            ]);
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
+                'success' => $resultado['ok'],
+                'message' => $resultado['message'],
+            ], $resultado['code']);
+        } catch (ValidationException $e) {
             Log::error('UpdateStatus - Error de validación', [
                 'folio' => $folio,
                 'errors' => $e->errors(),
@@ -201,48 +111,5 @@ class ConsultarRequerimientoController extends Controller
             'consumosPorSalon' => $consumosPorSalon,
             'totalConsumos' => $consumos->count(),
         ]);
-    }
-
-    /**
-     * Enviar mensaje a Telegram al solicitar consumo.
-     * Destinatarios: registros de SYSMensajes con InvTrama=1 y Activo=1.
-     */
-    private function enviarTelegram(TejTrama $req): void
-    {
-        try {
-            $botToken = config('services.telegram.bot_token');
-            if (empty($botToken)) {
-                Log::warning('Telegram: TELEGRAM_BOT_TOKEN no configurado');
-
-                return;
-            }
-
-            $chatIds = SYSMensaje::getChatIdsPorModulo('InvTrama');
-            if (empty($chatIds)) {
-                Log::warning('Telegram: no hay destinatarios con InvTrama activo en SYSMensajes');
-
-                return;
-            }
-
-            $mensaje = "📦 *SOLICITAR CONSUMO TRAMA*\n";
-            $mensaje .= "Folio: {$req->Folio}\n";
-            $mensaje .= 'Fecha: '.now()->format('d/m/Y H:i')."\n";
-            $mensaje .= 'Turno: '.($req->Turno ?? 'N/A')."\n";
-            $mensaje .= 'Operador: '.($req->numero_empleado ?? 'N/A')."\n";
-
-            $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
-            foreach ($chatIds as $chatId) {
-                $resp = Http::post($url, [
-                    'chat_id' => $chatId,
-                    'text' => $mensaje,
-                    'parse_mode' => 'Markdown',
-                ]);
-                if ($resp->failed()) {
-                    Log::error('Telegram: fallo al enviar', ['folio' => $req->Folio, 'chat_id' => $chatId, 'status' => $resp->status(), 'body' => $resp->body()]);
-                }
-            }
-        } catch (\Throwable $e) {
-            Log::error('Telegram: excepción al enviar', ['folio' => $req->Folio, 'error' => $e->getMessage()]);
-        }
     }
 }

@@ -172,7 +172,7 @@ class MecReportesController extends Controller
         ]);
 
         try {
-            $reporte = $this->reporteOtDiarias->build($validated['fecha'], $this->inputsOtDiarias($request, true));
+            $reporte = $this->reporteOtDiarias->build($validated['fecha'], $this->inputsOtDiarias($request));
         } catch (InvalidArgumentException $exception) {
             return response()->json(['ok' => false, 'message' => $exception->getMessage()], 422);
         }
@@ -364,7 +364,7 @@ class MecReportesController extends Controller
         try {
             return $this->reporteOtDiarias->build(
                 (string) $request->input('fecha'),
-                $this->inputsOtDiarias($request, true),
+                $this->inputsOtDiarias($request),
             );
         } catch (InvalidArgumentException $exception) {
             abort(422, $exception->getMessage());
@@ -374,12 +374,8 @@ class MecReportesController extends Controller
     /**
      * @return array<string, array{ot_trama: float|int|string, cumplidas_trama: float|int|string, ocupacion_pct: float|int|string}>
      */
-    private function inputsOtDiarias(Request $request, bool $desdeBody): array
+    private function inputsOtDiarias(Request $request): array
     {
-        if (! $desdeBody) {
-            return [];
-        }
-
         $raw = $request->input('inputs', []);
         if (! is_array($raw)) {
             return [];

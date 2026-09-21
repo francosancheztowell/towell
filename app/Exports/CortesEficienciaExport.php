@@ -22,29 +22,19 @@ class CortesEficienciaExport implements FromCollection, WithColumnFormatting, Wi
 
     protected string $fecha;
 
-    protected bool $esRango;
 
-    public function __construct($info, string $fecha, bool $esRango = false)
+    public function __construct($info, string $fecha)
     {
-        $this->datos = $esRango ? $info : $info['datos'];
+        $this->datos = $info['datos'];
         $this->fecha = $fecha;
-        $this->esRango = $esRango;
     }
 
     public function collection()
     {
         $rows = collect();
 
-        if ($this->esRango) {
-            foreach ($this->datos as $infoDia) {
-                foreach ($infoDia['datos'] as $row) {
-                    $rows->push($this->mapFilaVisualizacion($row, $infoDia['fecha']));
-                }
-            }
-        } else {
-            foreach ($this->datos as $row) {
-                $rows->push($this->mapFilaVisualizacion($row, $this->fecha));
-            }
+        foreach ($this->datos as $row) {
+            $rows->push($this->mapFilaVisualizacion($row, $this->fecha));
         }
 
         return $rows;

@@ -47,7 +47,6 @@
     @include('modulos.urdido.produccion._modal-oficial')
 
     {{-- Selección de fecha (inline en tabla, punto de extensión) --}}
-    @include('modulos.urdido.produccion._modal-fecha')
 
     {{-- JavaScript: cálculos, AJAX, validaciones, finalización --}}
     @include('modulos.urdido.produccion._scripts')

@@ -170,7 +170,7 @@
                     type="button"
                     id="btn-cancelar"
                     class="px-4 py-2.5 md:px-6 md:py-3 bg-white hover:bg-gray-50 text-gray-700 text-sm md:text-base font-medium rounded-md transition-colors border-2 border-gray-300"
-                    onclick="window.location.href='{{ route('mantenimiento.solicitudes') }}'"
+                    onclick="window.location.href='{{ route('produccion.index') }}'"
                 >
                     Cancelar
                 </button>

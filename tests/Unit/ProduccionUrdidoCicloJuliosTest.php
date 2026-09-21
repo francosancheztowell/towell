@@ -3,12 +3,15 @@
 namespace Tests\Unit;
 
 use App\Http\Controllers\Urdido\Configuracion\ModuloProduccionUrdidoController;
-use App\Http\Controllers\Urdido\ProgramaUrdido\EditarOrdenesProgramadasController;
+use App\Livewire\UrdEng\EdicionOrden;
+use App\Models\Sistema\Usuario;
 use App\Models\Urdido\UrdProgramaUrdido;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Livewire\Features\SupportTesting\Testable;
+use Livewire\Livewire;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
@@ -54,6 +57,18 @@ class ProduccionUrdidoCicloJuliosTest extends TestCase
             $table->string('Folio')->nullable();
             $table->integer('Julios')->nullable();
             $table->integer('Hilos')->nullable();
+        });
+        $schema->create('URDCatalogoMaquinas', function (Blueprint $table) {
+            $table->increments('Id');
+            $table->string('MaquinaId')->nullable();
+            $table->string('Nombre')->nullable();
+            $table->string('Departamento')->nullable();
+        });
+
+        $schema->create('UrdConsumoHilo', function (Blueprint $table) {
+            $table->increments('Id');
+            $table->string('Folio')->nullable();
+            $table->dateTime('FechaRequerimiento')->nullable();
         });
 
         $schema->create('UrdProduccionUrdido', function (Blueprint $table) {
@@ -121,11 +136,45 @@ class ProduccionUrdidoCicloJuliosTest extends TestCase
     /** Editar el plan desde la pantalla de ordenes programadas. */
     private function editarPlan(?int $id, int $julios, int $hilos): array
     {
-        $controller = app(EditarOrdenesProgramadasController::class);
+        $editor = $this->editorDePlan();
+        $fila = $this->filaDePlan($editor, $id);
+        if ($fila === null) {
+            return [];
+        }
 
-        return $controller->actualizarJulios(Request::create('/aj', 'POST', [
-            'orden_id' => 1, 'id' => $id, 'no_julio' => $julios, 'hilos' => $hilos,
-        ]))->getData(true);
+        // Campo a campo, igual que el supervisor en pantalla.
+        $editor->set("julios.{$fila}.no_julio", (string) $julios)
+            ->set("julios.{$fila}.hilos", (string) $hilos);
+
+        return [];
+    }
+
+    /** La pantalla de edicion: ahora es el componente Livewire compartido. */
+    private function editorDePlan(): Testable
+    {
+        $supervisor = new Usuario([
+            'idusuario' => 77,
+            'numero_empleado' => '77',
+            'nombre' => 'Supervisor prueba',
+            'puesto' => 'Supervisor Urdido',
+        ]);
+        $supervisor->idusuario = 77;
+        $supervisor->exists = true;
+
+        return Livewire::actingAs($supervisor)
+            ->test(EdicionOrden::class, ['module' => 'urdido', 'ordenId' => 1]);
+    }
+
+    /** Fila del plan (0-3) que corresponde a un Id de UrdJuliosOrden; null = primera vacia. */
+    private function filaDePlan($editor, ?int $id): ?int
+    {
+        foreach ($editor->get('julios') as $i => $fila) {
+            if ($id === null ? $fila['id'] === null : (int) $fila['id'] === $id) {
+                return $i;
+            }
+        }
+
+        return null;
     }
 
     private function capturar(int $id, string $julio): void
@@ -614,24 +663,33 @@ class ProduccionUrdidoCicloJuliosTest extends TestCase
         return $this->editarPlan(null, $julios, $hilos);
     }
 
-    /** Borrar un grupo del plan: se manda no_julio e hilos vacios. */
+    /** Borrar un grupo del plan: se vacian No. Julio e Hilos. */
     private function borrarGrupo(int $idPlan): array
     {
-        $controller = app(EditarOrdenesProgramadasController::class);
+        $editor = $this->editorDePlan();
+        $fila = $this->filaDePlan($editor, $idPlan);
+        if ($fila === null) {
+            return [];
+        }
 
-        return $controller->actualizarJulios(Request::create('/aj', 'POST', [
-            'orden_id' => 1, 'id' => $idPlan, 'no_julio' => '', 'hilos' => '',
-        ]))->getData(true);
+        $editor->set("julios.{$fila}.no_julio", '')->set("julios.{$fila}.hilos", '');
+
+        return [];
     }
 
-    /** El OTRO endpoint que toca Hilos, por cantidad de julios en vez de por Id. */
+    /** Corregir Hilos del grupo que tiene esa cantidad de julios. */
     private function actualizarHilosPorCantidad(int $cantidadJulios, int $hilos): array
     {
-        $controller = app(EditarOrdenesProgramadasController::class);
+        $editor = $this->editorDePlan();
 
-        return $controller->actualizarHilosProduccion(Request::create('/ahp', 'POST', [
-            'orden_id' => 1, 'no_julio' => $cantidadJulios, 'hilos' => $hilos,
-        ]))->getData(true);
+        foreach ($editor->get('julios') as $i => $fila) {
+            if ((string) $fila['no_julio'] === (string) $cantidadJulios) {
+                $editor->set("julios.{$i}.hilos", (string) $hilos);
+                break;
+            }
+        }
+
+        return [];
     }
 
     private function ponerStatus(string $status): void

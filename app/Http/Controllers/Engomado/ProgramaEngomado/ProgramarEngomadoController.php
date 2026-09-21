@@ -10,7 +10,6 @@ use App\Services\Programas\ProgramaPrioridadService;
 use App\Services\Programas\ProgramBoardActionService;
 use App\Support\Programas\ProgramaConfig;
 use App\Support\Programas\ProgramaModulo;
-use App\Support\Programas\ProgramaRouteHelper;
 use DomainException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -46,70 +45,15 @@ class ProgramarEngomadoController extends Controller
      */
     public function index(): View
     {
-        return view('modulos.engomado.programar-engomado', [
-            'canEdit' => $this->usuarioPuedeEditar(),
-            'programaRoutes' => ProgramaRouteHelper::engomado(),
-            'observacionesMaxLength' => ProgramaConfig::OBSERVACIONES_MAX_LENGTH,
-        ]);
+        return view('modulos.engomado.programar-engomado-livewire');
     }
 
     /**
      * Mostrar ordenes para reimpresion y edicion (todos los status, con filtros)
      */
-    public function reimpresionFinalizadas(Request $request)
+    public function reimpresionFinalizadas(): View
     {
-        $busqueda = trim((string) $request->query('q', ''));
-        $folio = trim((string) $request->query('folio', ''));
-        $maquina = trim((string) $request->query('maquina', ''));
-        $tipo = trim((string) $request->query('tipo', ''));
-        $status = trim((string) $request->query('status', ''));
-
-        $query = EngProgramaEngomado::select([
-            'Id',
-            'Folio',
-            'RizoPie',
-            'Cuenta',
-            'Calibre',
-            'Metros',
-            'MaquinaEng',
-            'FechaProg',
-            'Status',
-            'Fibra',
-        ]);
-
-        if ($folio !== '') {
-            $query->where('Folio', 'like', "%{$folio}%");
-        }
-
-        if ($maquina !== '') {
-            $query->where('MaquinaEng', $maquina);
-        }
-
-        if ($tipo !== '') {
-            $query->where('RizoPie', $tipo);
-        }
-
-        if ($status !== '') {
-            $query->where('Status', $status);
-        }
-
-        if ($busqueda !== '' && $folio === '' && $maquina === '' && $tipo === '' && $status === '') {
-            $query->where(function ($sub) use ($busqueda) {
-                $sub->where('Folio', 'like', "%{$busqueda}%")
-                    ->orWhere('Cuenta', 'like', "%{$busqueda}%")
-                    ->orWhere('MaquinaEng', 'like', "%{$busqueda}%");
-            });
-        }
-
-        $ordenes = $query
-            ->orderBy('FechaProg', 'desc')
-            ->orderBy('Id', 'desc')
-            ->get();
-
-        return view('modulos.engomado.reimpresion-engomado', [
-            'ordenes' => $ordenes,
-            'busqueda' => $busqueda,
-        ]);
+        return view('modulos.engomado.reimpresion-engomado');
     }
 
     /**

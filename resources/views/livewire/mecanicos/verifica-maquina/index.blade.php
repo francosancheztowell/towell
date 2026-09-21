@@ -75,13 +75,13 @@
                                     <a href="{{ route('mecanicos.estado-maquina.show', ['folio' => $verificacion->Folio, 'modo' => 'ver']) }}" wire:navigate
                                         class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-100"
                                         title="Ver (solo lectura)">
-                                        <i class="fas fa-eye"></i> Ver
+                                        <i class="fas fa-eye"></i> <span class="hidden sm:inline">Ver</span>
                                     </a>
                                     @if ($puedeEditar)
                                         <a href="{{ route('mecanicos.estado-maquina.show', $verificacion->Folio) }}" wire:navigate
                                             class="inline-flex items-center gap-1.5 rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-black"
                                             title="Editar / capturar">
-                                            <i class="fas fa-pen"></i> Editar
+                                            <i class="fas fa-pen"></i> <span class="hidden sm:inline">Editar</span>
                                         </a>
                                     @endif
                                 </div>

@@ -16,6 +16,7 @@
         "resources/js/crudo/**/*.ts",
         "resources/js/urd-eng/**/*.ts",
         "resources/js/programa-tejido/**/*.ts",
+        "resources/js/programa-urd-eng/**/*.ts",
         "resources/js/utils/**/*.ts"
     ]
 }
