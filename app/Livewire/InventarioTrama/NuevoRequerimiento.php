@@ -215,7 +215,6 @@ class NuevoRequerimiento extends Component
 
         $this->telares[$telarIndex]['rows'][] = [
             'id' => null,
-            'barra' => null,
             'calibre' => (float) $calibreTransformado,
             'fibra' => $this->modalFibra,
             'cod_color' => $this->modalCodColor,

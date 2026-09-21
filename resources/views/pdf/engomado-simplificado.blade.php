@@ -4,26 +4,31 @@
     <meta charset="UTF-8">
     <title>ORDEN ENGOMADO {{ $orden->Folio ?? '' }}</title>
     {{--
-        Etiqueta simplificada: una etiqueta 4x6 in horizontal por julio. Logo + folio arriba, recuadro
-        con el lote de proveedor en grande y debajo orden/julio y cuenta/calibre
-        en dos columnas. Pie con clave de formato, versión y fecha.
+        Etiqueta simplificada: una hoja por julio. Sin tamaño fijo: @page size auto
+        deja que el diálogo de impresión use la hoja elegida (etiqueta o carta).
+        Logo + folio arriba, lote de proveedor en grande y orden/julio y
+        cuenta/calibre en dos columnas. Pie con clave de formato, versión y fecha.
     --}}
     <style>
-        @page { margin: 4mm; }
+        @page { size: auto; margin: 4mm; }
 
-        body {
+        html, body {
             margin: 0;
             padding: 0;
             color: #000;
             font-family: Arial, sans-serif;
         }
 
-        .hoja { width: 100%; page-break-after: always; }
-        .hoja:last-child { page-break-after: auto; }
+        .hoja {
+            width: 100%;
+            page-break-after: always;
+            break-after: page;
+        }
+        .hoja:last-child { page-break-after: auto; break-after: auto; }
 
         .encabezado { display: table; width: 100%; margin-bottom: 2mm; }
         .encabezado-logo { display: table-cell; width: 50%; vertical-align: middle; }
-        .encabezado-logo img { max-height: 26px; }
+        .encabezado-logo img { max-height: 14vh; max-width: 45%; }
         .encabezado-folio {
             display: table-cell;
             width: 50%;
@@ -44,13 +49,13 @@
             padding: 1mm;
         }
 
-        .rotulo { font-size: 9pt; font-weight: bold; letter-spacing: 1px; }
-        .dato { font-size: 11pt; }
+        .rotulo { font-size: clamp(8pt, 3.2vw, 16pt); font-weight: bold; letter-spacing: 1px; }
+        .dato { font-size: clamp(10pt, 4vw, 22pt); word-wrap: break-word; }
 
         .lote {
-            font-size: 30pt;
+            font-size: clamp(16pt, 10vw, 64pt);
             font-weight: bold;
-            line-height: 1;
+            line-height: 1.05;
             word-wrap: break-word;
             padding: 2mm 1mm;
         }
@@ -123,5 +128,10 @@
             </div>
         </div>
     @endforeach
+    <script>
+        window.addEventListener('load', function () {
+            window.print();
+        });
+    </script>
 </body>
 </html>

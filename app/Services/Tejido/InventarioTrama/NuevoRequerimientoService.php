@@ -18,8 +18,6 @@ class NuevoRequerimientoService
 {
     private const PROGRAMA_TABLE = 'ReqProgramaTejido';
 
-    private const SALON_KARL_MAYER = 'KARL MAYER';
-
     /**
      * View-model que consume el Blade.
      *
@@ -141,20 +139,17 @@ class NuevoRequerimientoService
         $porNumero = $this->cargarPrograma($telares);
 
         foreach ($telares as $telar) {
-            $esKm = TelarSalonResolver::esKarlMayer($telar['salon'], $telar['numero']);
             $pt = $this->resolverEnProceso($porNumero, $telar['salon'], $telar['numero']);
             $telarData = $this->mapTelarData($pt);
 
-            $rows = $esKm
-                ? $this->buildBarrasFromTelarData($telarData)
-                : $this->buildRowsFromTelarData($telarData);
+            $rows = $this->buildRowsFromTelarData($telarData);
 
             $ordenSig = null;
             if (! empty($telarData['Inicio_Tejido'])) {
                 $ordenSig = $this->resolverOrdenSiguiente($porNumero, $telar['salon'], $telar['numero'], $telarData['Inicio_Tejido']);
             }
 
-            $vm['telares'][] = $this->armarTelar($telar, $esKm, $telarData, $rows, $ordenSig);
+            $vm['telares'][] = $this->armarTelar($telar, $telarData, $rows, $ordenSig);
         }
     }
 
@@ -176,8 +171,11 @@ class NuevoRequerimientoService
         $consumosPorTelar = [];
         foreach ($detalles as $d) {
             $telar = trim((string) ($d->NoTelarId ?? ''));
+            $salon = TelarSalonResolver::normalizeSalon((string) ($d->SalonTejidoId ?? ''), $telar);
+            if (TelarSalonResolver::esKarlMayer($salon, $telar)) {
+                continue;
+            }
             if (! isset($consumosPorTelar[$telar])) {
-                $salon = TelarSalonResolver::normalizeSalon((string) ($d->SalonTejidoId ?? ''), $telar);
                 $consumosPorTelar[$telar] = [
                     'salon' => $salon ?: 'JACQUARD',
                     'orden' => (string) ($d->NoProduccion ?? ''),
@@ -187,7 +185,6 @@ class NuevoRequerimientoService
             }
             $consumosPorTelar[$telar]['items'][] = [
                 'id' => $d->Id,
-                'barra' => null,
                 'calibre' => $d->CalibreTrama,
                 'fibra' => $d->FibraTrama ?: null,
                 'cod_color' => $d->CodColorTrama ?: null,
@@ -207,7 +204,6 @@ class NuevoRequerimientoService
 
         foreach ($consumosPorTelar as $numero => $info) {
             $numero = (string) $numero;
-            $esKm = TelarSalonResolver::esKarlMayer($info['salon'], $numero);
 
             $telarData = $this->mapTelarData(null, [
                 'Orden_Prod' => $info['orden'],
@@ -222,32 +218,16 @@ class NuevoRequerimientoService
 
             $rows = $info['items'];
             $exist = [];
-            $existBarras = [];
-            if ($esKm) {
-                // ponytail: barra derivada del programa vigente (columnas Barra1-4), no persistida
-                $mapa = $this->mapaBarras($telarData);
-                foreach ($rows as &$r) {
-                    $r['barra'] = $mapa[$this->claveMaterial($r['calibre'] ?? null, $r['fibra'] ?? null, $r['cod_color'] ?? null, $r['color'] ?? null) ?? ''] ?? null;
-                    if ($r['barra'] !== null) {
-                        $existBarras['B'.$r['barra']] = true;
-                    }
-                }
-                unset($r);
-            } else {
-                foreach ($rows as $r) {
-                    if ($r['calibre'] !== null) {
-                        $exist[number_format((float) $r['calibre'], 2)] = true;
-                    }
+            foreach ($rows as $r) {
+                if ($r['calibre'] !== null) {
+                    $exist[number_format((float) $r['calibre'], 2)] = true;
                 }
             }
 
-            $faltantes = $esKm
-                ? $this->buildBarrasFromTelarData($telarData, $existBarras)
-                : $this->buildRowsFromTelarData($telarData, $exist);
+            $faltantes = $this->buildRowsFromTelarData($telarData, $exist);
 
             $vm['telares'][] = $this->armarTelar(
                 ['numero' => $numero, 'salon' => $info['salon']],
-                $esKm,
                 $telarData,
                 array_merge($rows, $faltantes),
                 null
@@ -260,13 +240,12 @@ class NuevoRequerimientoService
      * @param  array<int, array<string, mixed>>  $rows
      * @return array<string, mixed>
      */
-    private function armarTelar(array $telar, bool $esKm, array $telarData, array $rows, ?object $ordenSig): array
+    private function armarTelar(array $telar, array $telarData, array $rows, ?object $ordenSig): array
     {
         return [
             'numero' => $telar['numero'],
             'salon' => $telar['salon'],
             'tipo' => $this->tipoUi($telar['salon']),
-            'es_karl_mayer' => $esKm,
             'telarData' => $telarData,
             'ordenSig' => $ordenSig,
             'rows' => array_values($rows),
@@ -293,24 +272,14 @@ class NuevoRequerimientoService
             if ($numero === '') {
                 continue;
             }
-            $telares[$numero] = [
-                'numero' => $numero,
-                'salon' => TelarSalonResolver::normalizeSalon((string) $r->TipoTelar, $numero),
-            ];
-        }
-
-        $km = DB::table(self::PROGRAMA_TABLE)
-            ->whereIn('SalonTejidoId', TelarSalonResolver::salonAliases(self::SALON_KARL_MAYER))
-            ->distinct()
-            ->orderBy('NoTelarId')
-            ->pluck('NoTelarId');
-
-        foreach ($km as $raw) {
-            $numero = trim((string) $raw);
-            if ($numero === '' || isset($telares[$numero])) {
+            $salon = TelarSalonResolver::normalizeSalon((string) $r->TipoTelar, $numero);
+            if (TelarSalonResolver::esKarlMayer($salon, $numero)) {
                 continue;
             }
-            $telares[$numero] = ['numero' => $numero, 'salon' => self::SALON_KARL_MAYER];
+            $telares[$numero] = [
+                'numero' => $numero,
+                'salon' => $salon,
+            ];
         }
 
         return array_values($telares);
@@ -403,10 +372,6 @@ class NuevoRequerimientoService
             'CalibreComb3 as CALIBRE_C3', 'FibraComb3 as FIBRA_C3', 'CodColorComb3 as CODIGO_COLOR_C3', 'NombreCC3 as COLOR_C3',
             'CalibreComb4 as CALIBRE_C4', 'FibraComb4 as FIBRA_C4', 'CodColorComb4 as CODIGO_COLOR_C4', 'NombreCC4 as COLOR_C4',
             'CalibreComb5 as CALIBRE_C5', 'FibraComb5 as FIBRA_C5', 'CodColorComb5 as CODIGO_COLOR_C5', 'NombreCC5 as COLOR_C5',
-            'CalibreBarra1 as CALIBRE_B1', 'FibraBarra1 as FIBRA_B1', 'CodColorBarra1 as CODIGO_COLOR_B1', 'ColorBarra1 as COLOR_B1',
-            'CalibreBarra2 as CALIBRE_B2', 'FibraBarra2 as FIBRA_B2', 'CodColorBarra2 as CODIGO_COLOR_B2', 'ColorBarra2 as COLOR_B2',
-            'CalibreBarra3 as CALIBRE_B3', 'FibraBarra3 as FIBRA_B3', 'CodColorBarra3 as CODIGO_COLOR_B3', 'ColorBarra3 as COLOR_B3',
-            'CalibreBarra4 as CALIBRE_B4', 'FibraBarra4 as FIBRA_B4', 'CodColorBarra4 as CODIGO_COLOR_B4', 'ColorBarra4 as COLOR_B4',
         ];
     }
 
@@ -426,10 +391,6 @@ class NuevoRequerimientoService
             'CALIBRE_C3' => null, 'FIBRA_C3' => null, 'CODIGO_COLOR_C3' => null, 'COLOR_C3' => null,
             'CALIBRE_C4' => null, 'FIBRA_C4' => null, 'CODIGO_COLOR_C4' => null, 'COLOR_C4' => null,
             'CALIBRE_C5' => null, 'FIBRA_C5' => null, 'CODIGO_COLOR_C5' => null, 'COLOR_C5' => null,
-            'CALIBRE_B1' => null, 'FIBRA_B1' => null, 'CODIGO_COLOR_B1' => null, 'COLOR_B1' => null,
-            'CALIBRE_B2' => null, 'FIBRA_B2' => null, 'CODIGO_COLOR_B2' => null, 'COLOR_B2' => null,
-            'CALIBRE_B3' => null, 'FIBRA_B3' => null, 'CODIGO_COLOR_B3' => null, 'COLOR_B3' => null,
-            'CALIBRE_B4' => null, 'FIBRA_B4' => null, 'CODIGO_COLOR_B4' => null, 'COLOR_B4' => null,
         ];
 
         if ($pt) {
@@ -474,68 +435,6 @@ class NuevoRequerimientoService
     }
 
     /**
-     * Cuatro barras de Karl Mayer (no hay rizo/pie ni combinaciones).
-     *
-     * @param  array<string, mixed>  $td
-     * @param  array<string, bool>  $existKeys
-     * @return array<int, array<string, mixed>>
-     */
-    private function buildBarrasFromTelarData(array $td, array $existKeys = []): array
-    {
-        $candidatos = [];
-        for ($n = 1; $n <= 4; $n++) {
-            $candidatos[] = [
-                $td["CALIBRE_B{$n}"] ?? null,
-                $td["FIBRA_B{$n}"] ?? null,
-                $td["CODIGO_COLOR_B{$n}"] ?? null,
-                $td["COLOR_B{$n}"] ?? null,
-                $n,
-            ];
-        }
-
-        return $this->construirFilas($candidatos, $existKeys);
-    }
-
-    /**
-     * Mapa material => barra (1-4) del programa vigente.
-     * La barra se deriva, no se persiste.
-     *
-     * @param  array<string, mixed>  $td
-     * @return array<string, int>
-     */
-    private function mapaBarras(array $td): array
-    {
-        $mapa = [];
-        for ($n = 1; $n <= 4; $n++) {
-            $clave = $this->claveMaterial(
-                $td["CALIBRE_B{$n}"] ?? null,
-                $td["FIBRA_B{$n}"] ?? null,
-                $td["CODIGO_COLOR_B{$n}"] ?? null,
-                $td["COLOR_B{$n}"] ?? null
-            );
-            if ($clave !== null && ! isset($mapa[$clave])) {
-                $mapa[$clave] = $n;
-            }
-        }
-
-        return $mapa;
-    }
-
-    private function claveMaterial(mixed $calibre, mixed $fibra, mixed $codColor, mixed $color): ?string
-    {
-        if ($calibre === null || $calibre === '' || (float) $calibre == 0.0) {
-            return null;
-        }
-
-        return implode('|', [
-            number_format((float) $calibre, 2),
-            trim((string) ($fibra ?? '')),
-            trim((string) ($codColor ?? '')),
-            trim((string) ($color ?? '')),
-        ]);
-    }
-
-    /**
      * @param  array<int, array<int, mixed>>  $candidatos
      * @param  array<string, bool>  $existKeys
      * @return array<int, array<string, mixed>>
@@ -549,10 +448,8 @@ class NuevoRequerimientoService
                 continue;
             }
 
-            $barra = $c[4] ?? null;
             $calibre = (float) $cal;
-            // ponytail: en KM la identidad es la barra 1-4, no el calibre; sin esto 2 barras iguales colapsan a 1 fila
-            $clave = $barra !== null ? 'B'.$barra : number_format($calibre, 2);
+            $clave = number_format($calibre, 2);
             if (isset($existKeys[$clave])) {
                 continue;
             }
@@ -560,7 +457,6 @@ class NuevoRequerimientoService
 
             $rows[] = [
                 'id' => null,
-                'barra' => $barra,
                 'calibre' => $calibre,
                 'fibra' => ($c[1] ?? null) ?: null,
                 'cod_color' => ($c[2] ?? null) ?: null,
@@ -576,7 +472,6 @@ class NuevoRequerimientoService
     {
         return match (TelarSalonResolver::normalizeSalon($salon)) {
             'SMIT' => 'itema',
-            self::SALON_KARL_MAYER => 'karl-mayer',
             default => 'jacquard',
         };
     }
@@ -755,10 +650,10 @@ class NuevoRequerimientoService
             'NoTelarId' => StringTruncator::truncateToLength($telar, 10),
             'SalonTejidoId' => StringTruncator::truncateToLength(trim((string) ($consumo['salon'] ?? '')), 10),
             'NoProduccion' => StringTruncator::truncateToLength(trim((string) ($consumo['orden'] ?? '')), 15),
-            'NombreProducto' => StringTruncator::truncateToLength(trim((string) ($consumo['producto'] ?? '')), 100),
+            'NombreProducto' => StringTruncator::truncateToLength(trim((string) ($consumo['producto'] ?? '')), 20),
             'FibraTrama' => $this->limpiarTexto($consumo['fibra'] ?? null, 15),
             'CodColorTrama' => $this->limpiarTexto($consumo['cod_color'] ?? null, 10),
-            'ColorTrama' => $this->limpiarTexto($consumo['color'] ?? null, 80),
+            'ColorTrama' => $this->limpiarTexto($consumo['color'] ?? null, 60),
             'CalibreTrama' => $calibre,
             'Cantidad' => (float) ($consumo['cantidad'] ?? 0),
         ];

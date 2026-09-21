@@ -74,7 +74,7 @@ class NuevoRequerimientoServiceTest extends TestCase
         });
     }
 
-    public function test_construir_vm_resuelve_karl_mayer_con_cuatro_barras(): void
+    public function test_construir_vm_ignora_karl_mayer(): void
     {
         DB::table('InvSecuenciaTrama')->insert([
             ['NoTelar' => '201', 'TipoTelar' => 'JACQUARD', 'Secuencia' => 1],
@@ -101,24 +101,16 @@ class NuevoRequerimientoServiceTest extends TestCase
             'NoTelarId' => '401',
             'EnProceso' => 1,
             'CalibreBarra1' => 100.0,
-            'CalibreBarra2' => 200.0,
-            'CalibreBarra3' => 300.0,
-            'CalibreBarra4' => 400.0,
             'FibraBarra1' => 'FIL 100',
         ]);
 
         $vm = app(NuevoRequerimientoService::class)->construirVm(null);
 
-        $km = collect($vm['telares'])->firstWhere('numero', '401');
-        $this->assertNotNull($km);
-        $this->assertTrue($km['es_karl_mayer']);
-        $this->assertSame('karl-mayer', $km['tipo']);
-        $this->assertSame([1, 2, 3, 4], array_column($km['rows'], 'barra'));
-        $this->assertSame([100.0, 200.0, 300.0, 400.0], array_column($km['rows'], 'calibre'));
+        $this->assertNull(collect($vm['telares'])->firstWhere('numero', '401'));
+        $this->assertCount(2, $vm['telares']);
 
         $jac = collect($vm['telares'])->firstWhere('numero', '201');
         $this->assertNotNull($jac);
-        $this->assertFalse($jac['es_karl_mayer']);
         $this->assertContains(20.5, array_column($jac['rows'], 'calibre'));
     }
 

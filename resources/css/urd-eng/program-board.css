@@ -481,9 +481,15 @@ nav:has(#program-board-navbar-controls) h1 {
     justify-content: flex-end;
 }
 
-@media (max-width: 1399px) {
+/* ponytail: la rejilla 2x2 se mantiene en tablets; solo colapsa en telefonos (<700px). */
+@media (max-width: 699px) {
     .program-board-lanes {
         grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 1399px) {
+    .program-board-lanes {
         gap: .75rem;
     }
 
