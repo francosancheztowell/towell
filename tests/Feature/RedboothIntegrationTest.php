@@ -674,6 +674,21 @@ final class RedboothIntegrationTest extends TestCase
         ]);
         $usuario->idusuario = 7;
 
+        // programa-tejido.redbooth.destroy exige modificar en Programa Tejido. Se siembra la
+        // memoizacion de userPermissions() para no tocar SYSRoles/SYSUsuariosRoles.
+        app()->instance('permisos.roles', collect([
+            'programa tejido' => (object) ['idrol' => 2, 'modulo' => 'Programa Tejido'],
+        ]));
+        app()->instance('permisos.usuario.7', collect([
+            2 => (object) [
+                'acceso' => 1,
+                'crear' => 1,
+                'modificar' => 1,
+                'eliminar' => 1,
+                'registrar' => 1,
+            ],
+        ]));
+
         return $usuario;
     }
 }

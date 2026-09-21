@@ -21,7 +21,9 @@ Route::get('/tejedores/{moduloPrincipal?}', [UsuarioController::class, 'showSubM
     ->name('tejedores.index');
 
 Route::prefix('tejedores')->name('tejedores.')->group(function () {
-    Route::get('/configurar', [UsuarioController::class, 'showTejedoresConfiguracion'])->name('configurar');
+    Route::get('/configurar', [UsuarioController::class, 'showSubModulosNivel3'])
+        ->defaults('moduloPadre', '604')
+        ->name('configurar');
 
     Route::get('/configurar/telaresxoperador', [TelTelaresOperadorController::class, 'index'])->name('configurar.telares-operador');
     Route::get('/configurar/actividadestejedores', [TelActividadesBPMController::class, 'index'])->name('configurar.actividades');
@@ -53,22 +55,16 @@ Route::prefix('tejedores')->group(function () {
 
     // Redirects legacy
     Route::redirect('/notificarmontadodejulio', '/tejedores/atadodejulio', 301);
-    Route::redirect('/notificarmontadodejulio/notificar', '/tejedores/atadodejulio/notificar', 301);
     Route::redirect('/notificarcortadoderollo', '/tejedores/cortadoderollo', 301);
     Route::redirect('/notificarcortadoderollo/telares', '/tejedores/cortadoderollo/telares', 301);
     Route::redirect('/notificarcortadoderollo/detalle', '/tejedores/cortadoderollo/detalle', 301);
-    Route::redirect('/notificarcortadoderollo/notificar', '/tejedores/cortadoderollo/notificar', 301);
     Route::redirect('/notificarcortadoderollo/orden-produccion', '/tejedores/cortadoderollo/orden-produccion', 301);
     Route::redirect('/notificarcortadoderollo/datos-produccion', '/tejedores/cortadoderollo/datos-produccion', 301);
-    Route::redirect('/notificarcortadoderollo/insertar', '/tejedores/cortadoderollo/insertar', 301);
 
     Route::redirect('/notificar-montado-julios', '/tejedores/atadodejulio', 301);
-    Route::redirect('/notificar-montado-julios/notificar', '/tejedores/atadodejulio/notificar', 301);
     Route::redirect('/notificar-mont-rollos', '/tejedores/cortadoderollo', 301);
-    Route::redirect('/notificar-mont-rollos/notificar', '/tejedores/cortadoderollo/notificar', 301);
     Route::redirect('/notificar-mont-rollos/orden-produccion', '/tejedores/cortadoderollo/orden-produccion', 301);
     Route::redirect('/notificar-mont-rollos/datos-produccion', '/tejedores/cortadoderollo/datos-produccion', 301);
-    Route::redirect('/notificar-mont-rollos/insertar', '/tejedores/cortadoderollo/insertar', 301);
 });
 
 // Legacy URL: mantener rutas tel-bpm.* pero no mostrar el listado por /tel-bpm
@@ -79,11 +75,17 @@ Route::get('/tel-bpm', function () {
 });
 
 Route::resource('tel-actividades-bpm', TelActividadesBPMController::class)
+    ->middlewareFor('store', 'module.permission:crear,173') // Actividades Tejedores
+    ->middlewareFor('update', 'module.permission:modificar,173') // Actividades Tejedores
+    ->middlewareFor('destroy', 'module.permission:eliminar,173') // Actividades Tejedores
     ->only(['index', 'store', 'update', 'destroy'])
     ->parameters(['tel-actividades-bpm' => 'telActividadesBPM'])
     ->names('tel-actividades-bpm');
 
 Route::resource('tel-telares-operador', TelTelaresOperadorController::class)
+    ->middlewareFor('store', 'module.permission:crear,143') // Telares x Operador
+    ->middlewareFor('update', 'module.permission:modificar,143') // Telares x Operador
+    ->middlewareFor('destroy', 'module.permission:eliminar,143') // Telares x Operador
     ->only(['index', 'store', 'update', 'destroy'])
     ->parameters(['tel-telares-operador' => 'telTelaresOperador'])
     ->names('tel-telares-operador');
@@ -98,13 +100,18 @@ Route::get('/ActividadesBPM', [TelActividadesBPMController::class, 'index'])->na
 Route::get('tel-bpm/log-debug', [TelBpmController::class, 'logDebug'])->name('tel-bpm.log-debug');
 
 Route::resource('tel-bpm', TelBpmController::class)
+    ->middlewareFor('destroy', 'module.permission:eliminar,47') // BPM Tejedores
     ->only(['index', 'show', 'store', 'update', 'destroy'])
     ->parameters(['tel-bpm' => 'folio'])
     ->names('tel-bpm');
 
 Route::patch('tel-bpm/{folio}/terminar', [TelBpmLineController::class, 'finish'])->name('tel-bpm.finish');
-Route::patch('tel-bpm/{folio}/autorizar', [TelBpmLineController::class, 'authorizeDoc'])->name('tel-bpm.authorize');
-Route::patch('tel-bpm/{folio}/rechazar', [TelBpmLineController::class, 'reject'])->name('tel-bpm.reject');
+// Visto bueno de supervision: 'registrar' es la convencion del repo para autorizar
+// (ver app/Livewire/Mecanicos/VerificaMaquina/Show.php:177). TelBpmLineController no valida nada.
+Route::patch('tel-bpm/{folio}/autorizar', [TelBpmLineController::class, 'authorizeDoc'])
+    ->middleware('module.permission:registrar,47')->name('tel-bpm.authorize'); // BPM Tejedores
+Route::patch('tel-bpm/{folio}/rechazar', [TelBpmLineController::class, 'reject'])
+    ->middleware('module.permission:registrar,47')->name('tel-bpm.reject'); // BPM Tejedores
 
 Route::get('tel-bpm/{folio}/lineas', [TelBpmLineController::class, 'index'])->name('tel-bpm-line.index');
 Route::post('tel-bpm/{folio}/lineas/toggle', [TelBpmLineController::class, 'toggle'])->name('tel-bpm-line.toggle');
@@ -116,7 +123,9 @@ Route::controller(InventarioTelaresController::class)
         Route::get('/', 'index')->name('index');
         Route::post('/guardar', 'store')->name('store');
         Route::get('/verificar-estado', 'verificarEstado')->name('verificar.estado');
-        Route::delete('/eliminar', 'destroy')->name('destroy');
+        // Lo consume resources/js/tejido/inventario-telas.ts (pantalla Inv Telas).
+        Route::delete('/eliminar', 'destroy')
+            ->middleware('module.permission:eliminar,21')->name('destroy'); // Inv Telas
         Route::post('/actualizar-fecha', 'updateFecha')->name('actualizar.fecha');
         Route::get('/verificar-turnos-ocupados', 'verificarTurnosOcupados')->name('verificar.turnos.ocupados');
     });
@@ -127,7 +136,6 @@ Route::post('/desarrolladores', [TelDesarrolladoresController::class, 'store'])-
 
 // Desarrolladores Muestras
 Route::post('/desarrolladores-muestras', [TelDesarrolladoresMuestrasController::class, 'store'])->name('desarrolladores-muestras.store');
-
 
 // Reportes Desarrolladores
 Route::prefix('tejedores/reportes-desarrolladores')->name('tejedores.reportes-desarrolladores.')->group(function () {

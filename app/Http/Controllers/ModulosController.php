@@ -96,6 +96,10 @@ class ModulosController extends Controller
                 'imagen_archivo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
                 'Dependencia' => 'nullable|string|max:50',
                 'Nivel' => 'required|integer|min:1|max:3',
+                // Sin Ruta el modulo no se puede resolver con moduleNameForRoute() y los
+                // permisos quedan obligados a buscarse por nombre, que esta repetido en
+                // SYSRoles. Los 9 modulos creados desde ene-2026 nacieron sin ella.
+                'Ruta' => 'nullable|string|max:255',
             ]);
 
             if ($validator->fails()) {
@@ -232,6 +236,10 @@ class ModulosController extends Controller
                 'imagen_archivo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
                 'Dependencia' => 'nullable|string|max:50',
                 'Nivel' => 'required|integer|min:1|max:3',
+                // Sin Ruta el modulo no se puede resolver con moduleNameForRoute() y los
+                // permisos quedan obligados a buscarse por nombre, que esta repetido en
+                // SYSRoles. Los 9 modulos creados desde ene-2026 nacieron sin ella.
+                'Ruta' => 'nullable|string|max:255',
             ]);
 
             if ($validator->fails()) {

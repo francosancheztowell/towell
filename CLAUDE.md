@@ -90,7 +90,7 @@ Controllers follow the same subdirectory pattern under `app/Http/Controllers/`.
 ### Frontend
 - Tailwind CSS v4 via `@tailwindcss/vite` plugin
 - jQuery v4, Select2, SweetAlert2, Toastr, Chart.js, SortableJS, Font Awesome
-- Three JS entry points: `app.js` (main), `app-core.js`, `app-filters.js`. The layout component `<x-layout-scripts>` loads `app.js` (which imports `bootstrap.js`); `app.blade.php` additionally loads `app-core.js` + `app-filters.js`.
+- Two JS entry points: `app.js` (main) y `app-core.js`. El componente `<x-layout-scripts>` carga `app.js` (que importa `bootstrap.js`); `app.blade.php` además carga `app-core.js`. `app-filters.js` ya no existe: se desconectó a propósito porque `@vite` emite `<script type="module">` y los `onclick` inline no veían sus funciones (ver comentario en `app.blade.php`).
 - Blade layouts in `resources/views/layouts/`: `app.blade.php` (main), `simple.blade.php`, `globalLoader.blade.php`
 - Module images stored in `public/images/fotos_modulos/`; user photos in `public/images/fotos_usuarios/` (WebP preferred)
 

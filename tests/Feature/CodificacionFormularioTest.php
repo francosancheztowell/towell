@@ -8,11 +8,13 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
+use Tests\Concerns\SiembraPermisos;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
 class CodificacionFormularioTest extends TestCase
 {
+    use SiembraPermisos;
     use UsesSqlsrvSqlite;
 
     protected function setUp(): void
@@ -24,6 +26,10 @@ class CodificacionFormularioTest extends TestCase
         $this->createAuthTable();
         $this->createTablaDesdeModelo(ReqModelosCodificados::class);
         $this->actingAs($this->createUsuario(['area' => 'Planeacion']));
+        // POST/PUT de codificacion-modelos exigen module.permission; el tema de este test
+        // no son los permisos, asi que se le dan todos sobre su modulo.
+        // Se siembra despues de actingAs: la clave de memoizacion usa Auth::id().
+        $this->sembrarPermisos((int) auth()->id(), [16 => 'Codificación Modelos']);
     }
 
     public function test_el_formulario_de_karl_mayer_pinta_valores_y_las_cuatro_barras(): void

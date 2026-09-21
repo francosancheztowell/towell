@@ -26,10 +26,13 @@ Route::prefix('mecanicos/catalogos/actividades')
     ->as('mecanicos.catalogos.actividades.')
     ->group(function (): void {
         Route::get('/', [MecActividadesController::class, 'index'])->name('index');
-        Route::post('/', [MecActividadesController::class, 'store'])->name('store');
+        Route::post('/', [MecActividadesController::class, 'store'])
+            ->middleware('module.permission:crear,198')->name('store'); // Actividades Mecanicos
         Route::get('/{id}', [MecActividadesController::class, 'show'])->name('show')->whereNumber('id');
-        Route::put('/{id}', [MecActividadesController::class, 'update'])->name('update')->whereNumber('id');
-        Route::delete('/{id}', [MecActividadesController::class, 'destroy'])->name('destroy')->whereNumber('id');
+        Route::put('/{id}', [MecActividadesController::class, 'update'])->whereNumber('id')
+            ->middleware('module.permission:modificar,198')->name('update'); // Actividades Mecanicos
+        Route::delete('/{id}', [MecActividadesController::class, 'destroy'])->whereNumber('id')
+            ->middleware('module.permission:eliminar,198')->name('destroy'); // Actividades Mecanicos
     });
 
 // Catálogos nivel 3 (SYSRoles 1104 → Ruta=/mecanicos/catalogos)
@@ -71,12 +74,18 @@ Route::prefix('mecanicos/ordenes-trabajo')
         Route::get('/{folio}/refacciones', [OrdenesTrabajoMecaController::class, 'refacciones'])->name('refacciones');
         Route::get('/{folio}', [OrdenesTrabajoMecaController::class, 'show'])->name('show');
         Route::put('/{folio}', [OrdenesTrabajoMecaController::class, 'update'])->name('update');
-        Route::delete('/{folio}', [OrdenesTrabajoMecaController::class, 'destroy'])->name('destroy');
+        Route::delete('/{folio}', [OrdenesTrabajoMecaController::class, 'destroy'])
+            ->middleware('module.permission:eliminar,193')->name('destroy'); // Ordenes de Trabajo
         Route::post('/{folio}/lineas', [OrdenesTrabajoMecaController::class, 'storeLinea'])->name('lineas.store');
         Route::put('/{folio}/lineas/{linea}', [OrdenesTrabajoMecaController::class, 'updateLinea'])->name('lineas.update')->whereNumber('linea');
-        Route::delete('/{folio}/lineas/{linea}', [OrdenesTrabajoMecaController::class, 'destroyLinea'])->name('lineas.destroy')->whereNumber('linea');
-        Route::post('/{folio}/finalizar', [OrdenesTrabajoMecaController::class, 'finalizar'])->name('finalizar');
-        Route::post('/{folio}/autorizar', [OrdenesTrabajoMecaController::class, 'autorizar'])->name('autorizar');
+        Route::delete('/{folio}/lineas/{linea}', [OrdenesTrabajoMecaController::class, 'destroyLinea'])->whereNumber('linea')
+            ->middleware('module.permission:eliminar,193')->name('lineas.destroy'); // Ordenes de Trabajo
+        Route::post('/{folio}/finalizar', [OrdenesTrabajoMecaController::class, 'finalizar'])
+            ->middleware('module.permission:modificar,193')->name('finalizar'); // Ordenes de Trabajo
+        // OrdenesTrabajoMecaController::autorizar ya exige puedeRegistrar() (userCan registrar).
+        // La ruta decia 'modificar': se alinea con el controller.
+        Route::post('/{folio}/autorizar', [OrdenesTrabajoMecaController::class, 'autorizar'])
+            ->middleware('module.permission:registrar,193')->name('autorizar'); // Ordenes de Trabajo
     });
 
 Route::prefix('mecanicos/estado-maquina')

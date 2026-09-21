@@ -4,12 +4,15 @@ use App\Http\Controllers\Engomado\BPMEngomado\EngBpmController;
 use App\Http\Controllers\Engomado\BPMEngomado\EngBpmLineController;
 use App\Http\Controllers\Engomado\CapturaFormulas\EngProduccionFormulacionController;
 use App\Http\Controllers\Engomado\Configuracion\ActividadesBPMEngomado\EngActividadesBpmController;
+use App\Http\Controllers\Engomado\Configuracion\CatUbicacionesController;
 use App\Http\Controllers\Engomado\Produccion\CalificarJuliosController;
 use App\Http\Controllers\Engomado\Produccion\ModuloProduccionEngomadoController;
 use App\Http\Controllers\Engomado\ProgramaEngomado\EditarOrdenesEngomadoController;
 use App\Http\Controllers\Engomado\ProgramaEngomado\ProgramarEngomadoController;
 use App\Http\Controllers\Engomado\ReportesEngomadoController;
+use App\Http\Controllers\PDFController;
 use App\Http\Controllers\UrdEngomado\UrdEngNucleosController;
+use App\Http\Controllers\Urdido\Configuracion\CatalogosJulios\CatalogosUrdidoController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,23 +37,29 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
         ->name('configuracion.catalogos-nucleos.legacy');
 
     // Catálogo de Julios para Engomado
-    Route::get('/configuracion/catalogojulioseng', [\App\Http\Controllers\Urdido\Configuracion\CatalogosJulios\CatalogosUrdidoController::class, 'catalogosJulios'])
+    Route::get('/configuracion/catalogojulioseng', [CatalogosUrdidoController::class, 'catalogosJulios'])
         ->name('configuracion.catalogos.julios');
-    Route::post('/configuracion/catalogojulioseng', [\App\Http\Controllers\Urdido\Configuracion\CatalogosJulios\CatalogosUrdidoController::class, 'storeJulio'])
+    Route::post('/configuracion/catalogojulioseng', [CatalogosUrdidoController::class, 'storeJulio'])
+        ->middleware('module.permission:crear,171') // Catalogo Julios Eng
         ->name('configuracion.catalogos.julios.store');
-    Route::put('/configuracion/catalogojulioseng/{id}', [\App\Http\Controllers\Urdido\Configuracion\CatalogosJulios\CatalogosUrdidoController::class, 'updateJulio'])
+    Route::put('/configuracion/catalogojulioseng/{id}', [CatalogosUrdidoController::class, 'updateJulio'])
+        ->middleware('module.permission:modificar,171') // Catalogo Julios Eng
         ->name('configuracion.catalogos.julios.update');
-    Route::delete('/configuracion/catalogojulioseng/{id}', [\App\Http\Controllers\Urdido\Configuracion\CatalogosJulios\CatalogosUrdidoController::class, 'destroyJulio'])
+    Route::delete('/configuracion/catalogojulioseng/{id}', [CatalogosUrdidoController::class, 'destroyJulio'])
+        ->middleware('module.permission:eliminar,171') // Catalogo Julios Eng
         ->name('configuracion.catalogos.julios.destroy');
 
     // Catálogo de Ubicaciones
-    Route::get('/configuracion/catalogo-ubicaciones', [\App\Http\Controllers\Engomado\Configuracion\CatUbicacionesController::class, 'index'])
+    Route::get('/configuracion/catalogo-ubicaciones', [CatUbicacionesController::class, 'index'])
         ->name('configuracion.catalogo.ubicaciones');
-    Route::post('/configuracion/catalogo-ubicaciones', [\App\Http\Controllers\Engomado\Configuracion\CatUbicacionesController::class, 'store'])
+    Route::post('/configuracion/catalogo-ubicaciones', [CatUbicacionesController::class, 'store'])
+        ->middleware('module.permission:crear,178') // Catalogo Ubicaciones
         ->name('configuracion.catalogo.ubicaciones.store');
-    Route::put('/configuracion/catalogo-ubicaciones/{id}', [\App\Http\Controllers\Engomado\Configuracion\CatUbicacionesController::class, 'update'])
+    Route::put('/configuracion/catalogo-ubicaciones/{id}', [CatUbicacionesController::class, 'update'])
+        ->middleware('module.permission:modificar,178') // Catalogo Ubicaciones
         ->name('configuracion.catalogo.ubicaciones.update');
-    Route::delete('/configuracion/catalogo-ubicaciones/{id}', [\App\Http\Controllers\Engomado\Configuracion\CatUbicacionesController::class, 'destroy'])
+    Route::delete('/configuracion/catalogo-ubicaciones/{id}', [CatUbicacionesController::class, 'destroy'])
+        ->middleware('module.permission:eliminar,178') // Catalogo Ubicaciones
         ->name('configuracion.catalogo.ubicaciones.destroy');
 
     Route::get('/programaengomado', [ProgramarEngomadoController::class, 'index'])->name('programa.engomado');
@@ -84,7 +93,8 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
     Route::get('/modulo-produccion-engomado/catalogos-julios', [ModuloProduccionEngomadoController::class, 'getCatalogosJulios'])->name('modulo.produccion.engomado.catalogos.julios');
     Route::get('/modulo-produccion-engomado/usuarios-engomado', [ModuloProduccionEngomadoController::class, 'getUsuariosEngomado'])->name('modulo.produccion.engomado.usuarios.engomado');
     Route::post('/modulo-produccion-engomado/guardar-oficial', [ModuloProduccionEngomadoController::class, 'guardarOficial'])->name('modulo.produccion.engomado.guardar.oficial');
-    Route::post('/modulo-produccion-engomado/eliminar-oficial', [ModuloProduccionEngomadoController::class, 'eliminarOficial'])->name('modulo.produccion.engomado.eliminar.oficial');
+    Route::post('/modulo-produccion-engomado/eliminar-oficial', [ModuloProduccionEngomadoController::class, 'eliminarOficial'])
+        ->middleware('module.permission:eliminar,43')->name('modulo.produccion.engomado.eliminar.oficial'); // Producción Engomado
     Route::post('/modulo-produccion-engomado/actualizar-turno-oficial', [ModuloProduccionEngomadoController::class, 'actualizarTurnoOficial'])->name('modulo.produccion.engomado.actualizar.turno.oficial');
     Route::post('/modulo-produccion-engomado/actualizar-fecha', [ModuloProduccionEngomadoController::class, 'actualizarFecha'])->name('modulo.produccion.engomado.actualizar.fecha');
     Route::post('/modulo-produccion-engomado/actualizar-julio-tara', [ModuloProduccionEngomadoController::class, 'actualizarJulioTara'])->name('modulo.produccion.engomado.actualizar.julio.tara');
@@ -93,23 +103,28 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
     Route::post('/modulo-produccion-engomado/actualizar-campo-orden', [ModuloProduccionEngomadoController::class, 'actualizarCampoOrden'])->name('modulo.produccion.engomado.actualizar.campo.orden');
     Route::post('/modulo-produccion-engomado/actualizar-horas', [ModuloProduccionEngomadoController::class, 'actualizarHoras'])->name('modulo.produccion.engomado.actualizar.horas');
     Route::get('/modulo-produccion-engomado/verificar-formulaciones', [ModuloProduccionEngomadoController::class, 'verificarFormulaciones'])->name('modulo.produccion.engomado.verificar.formulaciones');
-    Route::post('/modulo-produccion-engomado/finalizar', [ModuloProduccionEngomadoController::class, 'finalizar'])->name('modulo.produccion.engomado.finalizar');
+    Route::post('/modulo-produccion-engomado/finalizar', [ModuloProduccionEngomadoController::class, 'finalizar'])
+        ->middleware('module.permission:modificar,43')->name('modulo.produccion.engomado.finalizar'); // Producción Engomado
     Route::post('/modulo-produccion-engomado/marcar-listo', [ModuloProduccionEngomadoController::class, 'marcarListo'])->name('modulo.produccion.engomado.marcar.listo');
     Route::get('/modulo-produccion-engomado/calificar-julios', [CalificarJuliosController::class, 'getJulios'])->name('modulo.produccion.engomado.calificar.julios.get');
     Route::post('/modulo-produccion-engomado/calificar-julios/calificar', [CalificarJuliosController::class, 'calificar'])->name('modulo.produccion.engomado.calificar.julios.save');
     Route::get('/modulo-produccion-engomado/calificar-julios-eng', [CalificarJuliosController::class, 'getJuliosEng'])->name('modulo.produccion.engomado.calificar.julios.eng.get');
     Route::post('/modulo-produccion-engomado/calificar-julios-eng/calificar', [CalificarJuliosController::class, 'calificarEng'])->name('modulo.produccion.engomado.calificar.julios.eng.save');
-    Route::get('/modulo-produccion-engomado/pdf', [\App\Http\Controllers\PDFController::class, 'generarPDFUrdidoEngomado'])->name('modulo.produccion.engomado.pdf');
+    Route::get('/modulo-produccion-engomado/pdf', [PDFController::class, 'generarPDFUrdidoEngomado'])->name('modulo.produccion.engomado.pdf');
 
     Route::get('/captura-formula', [EngProduccionFormulacionController::class, 'index'])->name('captura-formula.legacy');
 });
 
 Route::resource('eng-actividades-bpm', EngActividadesBpmController::class)
+    ->middlewareFor('store', 'module.permission:crear,164') // Actividades BPM Engomado
+    ->middlewareFor('update', 'module.permission:modificar,164') // Actividades BPM Engomado
+    ->middlewareFor('destroy', 'module.permission:eliminar,164') // Actividades BPM Engomado
     ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
     ->parameters(['eng-actividades-bpm' => 'engActividadesBpm'])
     ->names('eng-actividades-bpm');
 
 Route::resource('eng-bpm', EngBpmController::class)
+    ->middlewareFor('destroy', 'module.permission:eliminar,41') // BPM (Buenas Practicas Manufactura) Eng
     ->only(['index', 'store', 'update', 'destroy'])
     ->parameters(['eng-bpm' => 'id'])
     ->names('eng-bpm');
@@ -117,8 +132,12 @@ Route::resource('eng-bpm', EngBpmController::class)
 Route::get('eng-bpm-line/{folio}', [EngBpmLineController::class, 'index'])->name('eng-bpm-line.index');
 Route::post('eng-bpm-line/{folio}/toggle', [EngBpmLineController::class, 'toggleActividad'])->name('eng-bpm-line.toggle');
 Route::patch('eng-bpm-line/{folio}/terminar', [EngBpmLineController::class, 'terminar'])->name('eng-bpm-line.terminar');
-Route::patch('eng-bpm-line/{folio}/autorizar', [EngBpmLineController::class, 'autorizar'])->name('eng-bpm-line.autorizar');
-Route::patch('eng-bpm-line/{folio}/rechazar', [EngBpmLineController::class, 'rechazar'])->name('eng-bpm-line.rechazar');
+// Visto bueno de supervision: 'registrar' es la convencion del repo para autorizar
+// (ver app/Livewire/Mecanicos/VerificaMaquina/Show.php:177). EngBpmLineController no valida nada.
+Route::patch('eng-bpm-line/{folio}/autorizar', [EngBpmLineController::class, 'autorizar'])
+    ->middleware('module.permission:registrar,41')->name('eng-bpm-line.autorizar'); // BPM (Buenas Practicas Manufactura) Eng
+Route::patch('eng-bpm-line/{folio}/rechazar', [EngBpmLineController::class, 'rechazar'])
+    ->middleware('module.permission:registrar,41')->name('eng-bpm-line.rechazar'); // BPM (Buenas Practicas Manufactura) Eng
 // Rutas específicas ANTES del resource para evitar conflictos
 Route::get('eng-formulacion/validar-folio', [EngProduccionFormulacionController::class, 'validarFolio'])->name('eng-formulacion.validar-folio');
 Route::get('eng-formulacion/by-id', [EngProduccionFormulacionController::class, 'getFormulacionById'])->name('eng-formulacion.by-id');
@@ -130,11 +149,15 @@ Route::get('eng-formulacion/colores-formula', [EngProduccionFormulacionControlle
 Route::get('eng-formulacion/formulas-disponibles', [EngProduccionFormulacionController::class, 'getFormulasDisponibles'])->name('eng-formulacion.formulas-disponibles');
 
 Route::resource('eng-formulacion', EngProduccionFormulacionController::class)
+    ->middlewareFor('destroy', 'module.permission:eliminar,168') // Captura de Formula
     ->only(['index', 'store', 'update', 'destroy'])
     ->parameters(['eng-formulacion' => 'folio'])
     ->names('eng-formulacion');
 
 Route::resource('urd-eng-nucleos', UrdEngNucleosController::class)
+    ->middlewareFor('store', 'module.permission:crear,174') // Catálogo de Núcleos
+    ->middlewareFor('update', 'module.permission:modificar,174') // Catálogo de Núcleos
+    ->middlewareFor('destroy', 'module.permission:eliminar,174') // Catálogo de Núcleos
     ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
     ->parameters(['urd-eng-nucleos' => 'urdEngNucleo'])
     ->names('urd-eng-nucleos');

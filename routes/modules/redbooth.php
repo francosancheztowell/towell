@@ -16,5 +16,9 @@ Route::prefix('integraciones/redbooth')->name('redbooth.')->group(function (): v
     Route::get('/archivos/{fileId}/descargar', [RedboothController::class, 'download'])
         ->whereNumber('fileId')
         ->name('files.download');
-    Route::delete('/conexion', [RedboothController::class, 'disconnect'])->name('disconnect');
+    // Redbooth no tiene modulo propio en SYSRoles y ninguna vista llama a esta ruta:
+    // desconectar el OAuth es administracion, por eso va bajo Configuración (idrol 58,
+    // por id porque el nombre esta repetido 3 veces en SYSRoles).
+    Route::delete('/conexion', [RedboothController::class, 'disconnect'])
+        ->middleware('module.permission:modificar,58')->name('disconnect');
 });

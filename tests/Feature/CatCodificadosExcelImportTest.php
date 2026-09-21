@@ -2,11 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Sistema\Usuario;
-use App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController;
 use App\Services\Planeacion\CatCodificados\Excel\CatCodificadosExcelHeaderMapper;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -14,10 +15,13 @@ use Illuminate\Support\Facades\Schema;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Tests\Concerns\SiembraPermisos;
 use Tests\TestCase;
 
 class CatCodificadosExcelImportTest extends TestCase
 {
+    use SiembraPermisos;
+
     /**
      * @var array<int, string>
      */
@@ -26,7 +30,7 @@ class CatCodificadosExcelImportTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class);
+        $this->withoutMiddleware(VerifyCsrfToken::class);
 
         config()->set('database.default', 'sqlite');
         config()->set('database.connections.sqlite.database', ':memory:');
@@ -299,6 +303,7 @@ class CatCodificadosExcelImportTest extends TestCase
             'area' => 'Planeacion',
         ]);
         $usuario->idusuario = 1;
+        $this->sembrarPermisos(1, [169 => 'Codificación', 16 => 'Codificación Modelos']);
 
         return $usuario;
     }
@@ -310,17 +315,17 @@ class CatCodificadosExcelImportTest extends TestCase
      */
     private function buildWorkbook(array $dataRows, ?callable $mutateHeaders = null, ?callable $mutateSheet = null): UploadedFile
     {
-        $headerMapper = new CatCodificadosExcelHeaderMapper();
+        $headerMapper = new CatCodificadosExcelHeaderMapper;
         $headers = $headerMapper->expectedHeaders();
         $headers = $mutateHeaders ? $mutateHeaders($headers) : $headers;
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->fromArray($headers, null, 'A1');
 
         $rowNumber = 2;
         foreach ($dataRows as $row) {
-            $sheet->fromArray($row, null, 'A' . $rowNumber);
+            $sheet->fromArray($row, null, 'A'.$rowNumber);
             $rowNumber++;
         }
 
@@ -333,7 +338,7 @@ class CatCodificadosExcelImportTest extends TestCase
             throw new \RuntimeException('No fue posible crear un archivo temporal.');
         }
 
-        $xlsxPath = $path . '.xlsx';
+        $xlsxPath = $path.'.xlsx';
         (new Xlsx($spreadsheet))->save($xlsxPath);
         $spreadsheet->disconnectWorksheets();
 

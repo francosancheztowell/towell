@@ -30,6 +30,22 @@ class ReqProgramaTejidoObserver
     /** Cache en memoria para Schema::getColumnListing, por nombre de tabla */
     private static array $columnListingCache = [];
 
+    /**
+     * Vaciar los caches estaticos.
+     *
+     * Son static, asi que dentro de un mismo proceso PHP sobreviven a todo. En la suite eso
+     * es una trampa: un test que crea su propia 'CatCodificados' con menos columnas deja
+     * cacheada ESA lista y el siguiente test ve su UPDATE filtrado a cero por
+     * array_intersect_key(), sin error. Pasaba aislado y fallaba en suite.
+     * Tests\TestCase::setUp() llama a esto para que no le vuelva a pasar a nadie.
+     */
+    public static function flushCaches(): void
+    {
+        self::$aplicacionesCache = [];
+        self::$matrizHilosCache = [];
+        self::$columnListingCache = [];
+    }
+
     private const FACTOR_PESO = 1000.0;
 
     private const DENSIDAD_HILO = 0.59;

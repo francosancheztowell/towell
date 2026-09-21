@@ -16,7 +16,9 @@ use Tests\TestCase;
  * Nombres SYSRoles.modulo verificados en UI:
  * - Liberar: `Programa Tejido` + `crear` (botón Liberar en liberar-ordenes).
  * - L.Mat guardar: `Codificación` + `modificar` (modal L.Mat de Codificación).
- * - Mover / Finalizar: `Utilería` + `modificar` (página de utilería; no hay userCan en Blade).
+ * - Mover / Finalizar: idrol 188 (`Utilería` de Planeación) + `modificar`. Va por idrol y no
+ *   por nombre porque `Utilería` esta repetido en SYSRoles (188 Planeación / 67 Configuración)
+ *   y userPermissions() indexa por nombre, asi que por nombre gana una fila arbitraria.
  */
 class PlaneacionMutationAuthorizationTest extends TestCase
 {
@@ -28,23 +30,23 @@ class PlaneacionMutationAuthorizationTest extends TestCase
         return [
             'liberar programa tejido' => [
                 'programa-tejido.liberar-ordenes.procesar',
-                'module.permission:crear,Programa Tejido',
+                'module.permission:crear,2', // Programa Tejido
             ],
             'liberar muestras' => [
                 'muestras.liberar-ordenes.procesar',
-                'module.permission:crear,Programa Tejido',
+                'module.permission:crear,2', // Programa Tejido
             ],
             'lmat guardar' => [
                 'planeacion.lmat.guardar',
-                'module.permission:modificar,Codificación',
+                'module.permission:modificar,169', // Codificación
             ],
             'mover ordenes' => [
                 'planeacion.utileria.mover.procesar',
-                'module.permission:modificar,Utilería',
+                'module.permission:modificar,188',
             ],
             'finalizar ordenes' => [
                 'planeacion.utileria.finalizar.procesar',
-                'module.permission:modificar,Utilería',
+                'module.permission:modificar,188',
             ],
         ];
     }
@@ -107,9 +109,9 @@ class PlaneacionMutationAuthorizationTest extends TestCase
     public static function mutationsThatValidateBeforeDb(): array
     {
         return [
-            'liberar programa tejido' => ['programa-tejido.liberar-ordenes.procesar', 'Programa Tejido', 'crear'],
-            'lmat guardar' => ['planeacion.lmat.guardar', 'Codificación', 'modificar'],
-            'finalizar ordenes' => ['planeacion.utileria.finalizar.procesar', 'Utilería', 'modificar'],
+            'liberar programa tejido' => ['programa-tejido.liberar-ordenes.procesar', '2', 'crear'],
+            'lmat guardar' => ['planeacion.lmat.guardar', '169', 'modificar'],
+            'finalizar ordenes' => ['planeacion.utileria.finalizar.procesar', '188', 'modificar'],
         ];
     }
 
@@ -131,7 +133,8 @@ class PlaneacionMutationAuthorizationTest extends TestCase
         $usuario = new Usuario(['nombre' => 'Con permiso Planeación']);
         $usuario->idusuario = 999003;
 
-        $idrol = 31;
+        // Si la ruta referencia el modulo por idrol, userPermissions() lo usa tal cual.
+        $idrol = is_numeric($modulo) ? (int) $modulo : 31;
         app()->instance('permisos.roles', collect([
             mb_strtolower($modulo) => (object) ['idrol' => $idrol, 'modulo' => $modulo],
         ]));
@@ -160,6 +163,7 @@ class PlaneacionMutationAuthorizationTest extends TestCase
             'programa tejido' => (object) ['idrol' => 11, 'modulo' => 'Programa Tejido'],
             'codificación' => (object) ['idrol' => 12, 'modulo' => 'Codificación'],
             'utilería' => (object) ['idrol' => 13, 'modulo' => 'Utilería'],
+            '188' => (object) ['idrol' => 188, 'modulo' => 'Utilería'],
         ]));
         app()->instance('permisos.usuario.'.$usuario->idusuario, collect());
 

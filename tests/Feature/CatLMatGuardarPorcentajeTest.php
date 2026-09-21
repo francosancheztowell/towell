@@ -207,7 +207,8 @@ class CatLMatGuardarPorcentajeTest extends TestCase
         $usuario = new Usuario(['nombre' => 'Codificación L.Mat']);
         $usuario->idusuario = 999008;
 
-        $idrol = 31;
+        // La ruta lmat.guardar gatea por idrol (169 = Codificacion), no por nombre.
+        $idrol = 169;
         app()->instance('permisos.roles', collect([
             'codificación' => (object) ['idrol' => $idrol, 'modulo' => 'Codificación'],
         ]));

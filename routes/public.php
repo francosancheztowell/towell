@@ -31,8 +31,11 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('modulos-sin-auth')->name('modulos.gestion.')->group(function () {
         Route::get('/', [ModulosController::class, 'index'])->name('index');
-        Route::post('/', [ModulosController::class, 'store'])->name('store');
-        Route::put('/{id}', [ModulosController::class, 'update'])->whereNumber('id')->name('update');
-        Route::delete('/{id}', [ModulosController::class, 'destroy'])->whereNumber('id')->name('destroy');
+        Route::post('/', [ModulosController::class, 'store'])
+            ->middleware('module.permission:crear,101')->name('store'); // Modulos
+        Route::put('/{id}', [ModulosController::class, 'update'])->whereNumber('id')
+            ->middleware('module.permission:modificar,101')->name('update'); // Modulos
+        Route::delete('/{id}', [ModulosController::class, 'destroy'])->whereNumber('id')
+            ->middleware('module.permission:eliminar,101')->name('destroy'); // Modulos
     });
 });

@@ -58,6 +58,7 @@
                                     data-modulo="{{ e($m->modulo) }}"
                                     data-nivel="{{ e($m->Nivel) }}"
                                     data-dependencia="{{ e($m->Dependencia) }}"
+                                    data-ruta="{{ e($m->Ruta) }}"
                                     data-acceso="{{ (int) $m->acceso }}"
                                     data-crear="{{ (int) $m->crear }}"
                                     data-modificar="{{ (int) $m->modificar }}"
@@ -130,6 +131,14 @@
                                 </select>
                                 <p id="createDependenciaHelp" class="text-xs text-gray-500 mt-1">Selecciona primero el nivel</p>
                             </div>
+                            {{-- Sin Ruta, moduleNameForRoute() no puede resolver el modulo y los
+                                 permisos quedan obligados a buscarse por nombre, que esta repetido
+                                 en SYSRoles. Asi nacio el bug de Utileria (188 sin Ruta vs 67). --}}
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Ruta</label>
+                                <input type="text" name="Ruta" id="createRuta" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Ej: /tejido/invtelas">
+                                <p class="text-xs text-gray-500 mt-1">URL de la pantalla, empezando con <code>/</code>. Sin ella el módulo no se puede resolver por ruta y los permisos dependen del nombre.</p>
+                            </div>
                         </div>
 
                         <div class="mt-4 grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -198,6 +207,11 @@
                                     <option value="">Seleccionar dependencia</option>
                                 </select>
                                 <p id="editDependenciaHelp" class="text-xs text-gray-500 mt-1">Selecciona primero el nivel</p>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Ruta</label>
+                                <input type="text" id="editRuta" name="Ruta" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="Ej: /tejido/invtelas">
+                                <p class="text-xs text-gray-500 mt-1">URL de la pantalla, empezando con <code>/</code>. Los módulos sin ruta no se pueden resolver con <code>moduleNameForRoute()</code>.</p>
                             </div>
                         </div>
 
@@ -452,6 +466,7 @@
                 // Poblar dependencias según el nivel y luego establecer el valor
                 poblarDependencias('editDependencia', nivel, 'editDependenciaHelp');
                 document.getElementById('editDependencia').value = dependencia;
+                document.getElementById('editRuta').value = selectedRow.dataset.ruta || '';
 
                 document.getElementById('edit_acceso').checked = (selectedRow.dataset.acceso === '1');
                 document.getElementById('edit_crear').checked = (selectedRow.dataset.crear === '1');

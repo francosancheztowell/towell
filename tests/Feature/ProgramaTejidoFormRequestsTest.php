@@ -3,14 +3,19 @@
 namespace Tests\Feature;
 
 use App\Models\Sistema\Usuario;
+use Tests\Concerns\SiembraPermisos;
 use Tests\TestCase;
 
 class ProgramaTejidoFormRequestsTest extends TestCase
 {
+    use SiembraPermisos;
+
     private function usuario(): Usuario
     {
         $u = new Usuario(['idusuario' => 1, 'nombre' => 'T', 'contrasenia' => 'x', 'numero_empleado' => '1', 'area' => 'X']);
         $u->idusuario = 1;
+        $this->sembrarPermisos(1, [2 => 'Programa Tejido']);
+
         return $u;
     }
 
@@ -21,7 +26,7 @@ class ProgramaTejidoFormRequestsTest extends TestCase
         $res = $this->actingAs($this->usuario())
             ->postJson(route('programa-tejido.duplicar-telar'), [
                 'no_telar_id' => 'T01',
-                'destinos'    => [['telar' => 'T02']],
+                'destinos' => [['telar' => 'T02']],
             ]);
 
         $res->assertUnprocessable();
@@ -33,7 +38,7 @@ class ProgramaTejidoFormRequestsTest extends TestCase
         $res = $this->actingAs($this->usuario())
             ->postJson(route('programa-tejido.duplicar-telar'), [
                 'salon_tejido_id' => 'S01',
-                'destinos'        => [['telar' => 'T02']],
+                'destinos' => [['telar' => 'T02']],
             ]);
 
         $res->assertUnprocessable();
@@ -45,7 +50,7 @@ class ProgramaTejidoFormRequestsTest extends TestCase
         $res = $this->actingAs($this->usuario())
             ->postJson(route('programa-tejido.duplicar-telar'), [
                 'salon_tejido_id' => 'S01',
-                'no_telar_id'     => 'T01',
+                'no_telar_id' => 'T01',
             ]);
 
         $res->assertUnprocessable();
@@ -59,7 +64,7 @@ class ProgramaTejidoFormRequestsTest extends TestCase
         $res = $this->actingAs($this->usuario())
             ->postJson(route('programa-tejido.dividir-saldo'), [
                 'no_telar_id' => 'T01',
-                'destinos'    => [['telar' => 'T02']],
+                'destinos' => [['telar' => 'T02']],
             ]);
 
         $res->assertUnprocessable();
@@ -71,8 +76,8 @@ class ProgramaTejidoFormRequestsTest extends TestCase
         $res = $this->actingAs($this->usuario())
             ->postJson(route('programa-tejido.dividir-saldo'), [
                 'salon_tejido_id' => 'S01',
-                'no_telar_id'     => 'T01',
-                'destinos'        => [['salon_destino' => 'S01']], // sin 'telar'
+                'no_telar_id' => 'T01',
+                'destinos' => [['salon_destino' => 'S01']], // sin 'telar'
             ]);
 
         $res->assertUnprocessable();
@@ -86,8 +91,8 @@ class ProgramaTejidoFormRequestsTest extends TestCase
         $res = $this->actingAs($this->usuario())
             ->postJson(route('programa-tejido.dividir-telar'), [
                 'salon_tejido_id' => 'S01',
-                'no_telar_id'     => 'T01',
-                'nuevo_telar'     => 'T02',
+                'no_telar_id' => 'T01',
+                'nuevo_telar' => 'T02',
                 // sin posicion_division
             ]);
 

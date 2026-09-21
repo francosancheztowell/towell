@@ -75,36 +75,50 @@ Route::prefix('urdido')->name('urdido.')->group(function () {
     Route::post('/editar-ordenes-programadas/actualizar-hilos-produccion', [EditarOrdenesProgramadasController::class, 'actualizarHilosProduccion'])->name('editar.ordenes.programadas.actualizar.hilos.produccion');
 
     Route::get('/catalogos-julios', [CatalogosUrdidoController::class, 'catalogosJulios'])->name('catalogos.julios');
-    Route::post('/catalogos-julios', [CatalogosUrdidoController::class, 'storeJulio'])->name('catalogos.julios.store');
-    Route::put('/catalogos-julios/{id}', [CatalogosUrdidoController::class, 'updateJulio'])->name('catalogos.julios.update');
-    Route::delete('/catalogos-julios/{id}', [CatalogosUrdidoController::class, 'destroyJulio'])->name('catalogos.julios.destroy');
+    Route::post('/catalogos-julios', [CatalogosUrdidoController::class, 'storeJulio'])
+        ->middleware('module.permission:crear,37')->name('catalogos.julios.store'); // Catalogos Julios
+    Route::put('/catalogos-julios/{id}', [CatalogosUrdidoController::class, 'updateJulio'])
+        ->middleware('module.permission:modificar,37')->name('catalogos.julios.update'); // Catalogos Julios
+    Route::delete('/catalogos-julios/{id}', [CatalogosUrdidoController::class, 'destroyJulio'])
+        ->middleware('module.permission:eliminar,37')->name('catalogos.julios.destroy'); // Catalogos Julios
     Route::get('/catalogo-maquinas', [CatalogosUrdidoController::class, 'catalogoMaquinas'])->name('catalogo.maquinas');
-    Route::post('/catalogo-maquinas', [CatalogosUrdidoController::class, 'storeMaquina'])->name('catalogo.maquinas.store');
-    Route::put('/catalogo-maquinas/{maquinaId}', [CatalogosUrdidoController::class, 'updateMaquina'])->name('catalogo.maquinas.update');
-    Route::delete('/catalogo-maquinas/{maquinaId}', [CatalogosUrdidoController::class, 'destroyMaquina'])->name('catalogo.maquinas.destroy');
+    Route::post('/catalogo-maquinas', [CatalogosUrdidoController::class, 'storeMaquina'])
+        ->middleware('module.permission:crear,156')->name('catalogo.maquinas.store'); // Catalogos Maquinas
+    Route::put('/catalogo-maquinas/{maquinaId}', [CatalogosUrdidoController::class, 'updateMaquina'])
+        ->middleware('module.permission:modificar,156')->name('catalogo.maquinas.update'); // Catalogos Maquinas
+    Route::delete('/catalogo-maquinas/{maquinaId}', [CatalogosUrdidoController::class, 'destroyMaquina'])
+        ->middleware('module.permission:eliminar,156')->name('catalogo.maquinas.destroy'); // Catalogos Maquinas
 
     Route::get('/modulo-produccion-urdido', [ModuloProduccionUrdidoController::class, 'index'])->name('modulo.produccion.urdido');
     Route::get('/modulo-produccion-urdido/catalogos-julios', [ModuloProduccionUrdidoController::class, 'getCatalogosJulios'])->name('modulo.produccion.urdido.catalogos.julios');
     Route::get('/modulo-produccion-urdido/usuarios-urdido', [ModuloProduccionUrdidoController::class, 'getUsuariosUrdido'])->name('modulo.produccion.urdido.usuarios.urdido');
     Route::post('/modulo-produccion-urdido/guardar-oficial', [ModuloProduccionUrdidoController::class, 'guardarOficial'])->name('modulo.produccion.urdido.guardar.oficial');
-    Route::post('/modulo-produccion-urdido/eliminar-oficial', [ModuloProduccionUrdidoController::class, 'eliminarOficial'])->name('modulo.produccion.urdido.eliminar.oficial');
+    Route::post('/modulo-produccion-urdido/eliminar-oficial', [ModuloProduccionUrdidoController::class, 'eliminarOficial'])
+        ->middleware('module.permission:eliminar,154')->name('modulo.produccion.urdido.eliminar.oficial'); // Producción Urdido
     Route::post('/modulo-produccion-urdido/actualizar-turno-oficial', [ModuloProduccionUrdidoController::class, 'actualizarTurnoOficial'])->name('modulo.produccion.urdido.actualizar.turno.oficial');
     Route::post('/modulo-produccion-urdido/actualizar-fecha', [ModuloProduccionUrdidoController::class, 'actualizarFecha'])->name('modulo.produccion.urdido.actualizar.fecha');
     Route::post('/modulo-produccion-urdido/actualizar-julio-tara', [ModuloProduccionUrdidoController::class, 'actualizarJulioTara'])->name('modulo.produccion.urdido.actualizar.julio.tara');
     Route::post('/modulo-produccion-urdido/actualizar-kg-bruto', [ModuloProduccionUrdidoController::class, 'actualizarKgBruto'])->name('modulo.produccion.urdido.actualizar.kg.bruto');
     Route::post('/modulo-produccion-urdido/actualizar-campos-produccion', [ModuloProduccionUrdidoController::class, 'actualizarCamposProduccion'])->name('modulo.produccion.urdido.actualizar.campos.produccion');
     Route::post('/modulo-produccion-urdido/actualizar-horas', [ModuloProduccionUrdidoController::class, 'actualizarHoras'])->name('modulo.produccion.urdido.actualizar.horas');
-    Route::post('/modulo-produccion-urdido/finalizar', [ModuloProduccionUrdidoController::class, 'finalizar'])->name('modulo.produccion.urdido.finalizar');
+    Route::post('/modulo-produccion-urdido/finalizar', [ModuloProduccionUrdidoController::class, 'finalizar'])
+        ->middleware('module.permission:modificar,154')->name('modulo.produccion.urdido.finalizar'); // Producción Urdido
     Route::post('/modulo-produccion-urdido/marcar-listo', [ModuloProduccionUrdidoController::class, 'marcarListo'])->name('modulo.produccion.urdido.marcar.listo');
     Route::get('/modulo-produccion-urdido/pdf', [PDFController::class, 'generarPDFUrdidoEngomado'])->name('modulo.produccion.urdido.pdf');
 });
 
 Route::resource('urd-actividades-bpm', UrdActividadesBpmController::class)
+    ->middlewareFor('store', 'module.permission:crear,144') // Actividades BPM Urdido
+    ->middlewareFor('update', 'module.permission:modificar,144') // Actividades BPM Urdido
+    ->middlewareFor('destroy', 'module.permission:eliminar,144') // Actividades BPM Urdido
     ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
     ->parameters(['urd-actividades-bpm' => 'urdActividadesBpm'])
     ->names('urd-actividades-bpm');
 
+// Crear/editar el documento BPM es captura de turno: 12 personas tienen 'acceso' y no 'crear',
+// y la vista no esconde el boton. Solo se gatea el borrado, igual que eng-bpm y tel-bpm.
 Route::resource('urd-bpm', UrdBpmController::class)
+    ->middlewareFor('destroy', 'module.permission:eliminar,35') // BPM (Buenas Practicas Manufactura) Urd
     ->only(['index', 'store', 'update', 'destroy'])
     ->parameters(['urd-bpm' => 'id'])
     ->names('urd-bpm');
@@ -112,5 +126,9 @@ Route::resource('urd-bpm', UrdBpmController::class)
 Route::get('urd-bpm-line/{folio}', [UrdBpmLineController::class, 'index'])->name('urd-bpm-line.index');
 Route::post('urd-bpm-line/{folio}/toggle', [UrdBpmLineController::class, 'toggleActividad'])->name('urd-bpm-line.toggle');
 Route::patch('urd-bpm-line/{folio}/terminar', [UrdBpmLineController::class, 'terminar'])->name('urd-bpm-line.terminar');
-Route::patch('urd-bpm-line/{folio}/autorizar', [UrdBpmLineController::class, 'autorizar'])->name('urd-bpm-line.autorizar');
-Route::patch('urd-bpm-line/{folio}/rechazar', [UrdBpmLineController::class, 'rechazar'])->name('urd-bpm-line.rechazar');
+// Visto bueno de supervision: 'registrar' es la convencion del repo para autorizar
+// (ver app/Livewire/Mecanicos/VerificaMaquina/Show.php:177). UrdBpmLineController no valida nada.
+Route::patch('urd-bpm-line/{folio}/autorizar', [UrdBpmLineController::class, 'autorizar'])
+    ->middleware('module.permission:registrar,35')->name('urd-bpm-line.autorizar'); // BPM (Buenas Practicas Manufactura) Urd
+Route::patch('urd-bpm-line/{folio}/rechazar', [UrdBpmLineController::class, 'rechazar'])
+    ->middleware('module.permission:registrar,35')->name('urd-bpm-line.rechazar'); // BPM (Buenas Practicas Manufactura) Urd

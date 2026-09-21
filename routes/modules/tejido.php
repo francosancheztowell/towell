@@ -75,9 +75,9 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
     Route::get('/reportes/rpm-semanal', [ReporteRpmSemanalController::class, 'index'])->name('reportes.inv-trama');
     Route::get('/reportes/rpm-semanal/excel', [ReporteRpmSemanalController::class, 'exportarExcel'])->name('reportes.inv-trama.excel');
 
-    Route::get('/configurar/{serie?}', [UsuarioController::class, 'showSubModulosConfiguracion'])
-        ->defaults('serie', '205')
-        ->where('serie', '205')
+    Route::get('/configurar/{moduloPadre?}', [UsuarioController::class, 'showSubModulosNivel3'])
+        ->defaults('moduloPadre', '205')
+        ->where('moduloPadre', '205')
         ->name('configurar');
 
     Route::get('/marcasfinales/{moduloPadre?}', function () {
@@ -115,16 +115,18 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
     Route::redirect('/configurar/secuenciainvtrama', '/tejido/secuencia-inv-trama', 301);
 
     Route::get('/configurar/secuenciamarcasfinales', [SecuenciaMarcasFinalesController::class, 'index'])->name('secuencia-marcas-finales.index');
-    Route::post('/configurar/secuenciamarcasfinales', [SecuenciaMarcasFinalesController::class, 'store'])->name('secuencia-marcas-finales.store');
-    Route::post('/configurar/secuenciamarcasfinales/orden', [SecuenciaMarcasFinalesController::class, 'updateOrden'])->name('secuencia-marcas-finales.orden');
-    Route::put('/configurar/secuenciamarcasfinales/{id}', [SecuenciaMarcasFinalesController::class, 'update'])->name('secuencia-marcas-finales.update');
-    Route::delete('/configurar/secuenciamarcasfinales/{id}', [SecuenciaMarcasFinalesController::class, 'destroy'])->name('secuencia-marcas-finales.destroy');
+    Route::post('/configurar/secuenciamarcasfinales', [SecuenciaMarcasFinalesController::class, 'store'])->middleware('module.permission:crear,32')->name('secuencia-marcas-finales.store'); // Secuencia Marcas Finales
+    Route::post('/configurar/secuenciamarcasfinales/orden', [SecuenciaMarcasFinalesController::class, 'updateOrden'])->middleware('module.permission:modificar,32')->name('secuencia-marcas-finales.orden'); // Secuencia Marcas Finales
+    Route::put('/configurar/secuenciamarcasfinales/{id}', [SecuenciaMarcasFinalesController::class, 'update'])->middleware('module.permission:modificar,32')->name('secuencia-marcas-finales.update'); // Secuencia Marcas Finales
+    Route::delete('/configurar/secuenciamarcasfinales/{id}', [SecuenciaMarcasFinalesController::class, 'destroy'])
+        ->middleware('module.permission:eliminar,32')->name('secuencia-marcas-finales.destroy'); // Secuencia Marcas Finales
 
     Route::get('/configurar/secuenciacortedeeficiencia', [SecuenciaCorteEficienciaController::class, 'index'])->name('secuencia-corte-eficiencia.index');
-    Route::post('/configurar/secuenciacortedeeficiencia', [SecuenciaCorteEficienciaController::class, 'store'])->name('secuencia-corte-eficiencia.store');
-    Route::post('/configurar/secuenciacortedeeficiencia/orden', [SecuenciaCorteEficienciaController::class, 'updateOrden'])->name('secuencia-corte-eficiencia.orden');
-    Route::put('/configurar/secuenciacortedeeficiencia/{id}', [SecuenciaCorteEficienciaController::class, 'update'])->name('secuencia-corte-eficiencia.update');
-    Route::delete('/configurar/secuenciacortedeeficiencia/{id}', [SecuenciaCorteEficienciaController::class, 'destroy'])->name('secuencia-corte-eficiencia.destroy');
+    Route::post('/configurar/secuenciacortedeeficiencia', [SecuenciaCorteEficienciaController::class, 'store'])->middleware('module.permission:crear,30')->name('secuencia-corte-eficiencia.store'); // Secuencia Corte de Eficiencia
+    Route::post('/configurar/secuenciacortedeeficiencia/orden', [SecuenciaCorteEficienciaController::class, 'updateOrden'])->middleware('module.permission:modificar,30')->name('secuencia-corte-eficiencia.orden'); // Secuencia Corte de Eficiencia
+    Route::put('/configurar/secuenciacortedeeficiencia/{id}', [SecuenciaCorteEficienciaController::class, 'update'])->middleware('module.permission:modificar,30')->name('secuencia-corte-eficiencia.update'); // Secuencia Corte de Eficiencia
+    Route::delete('/configurar/secuenciacortedeeficiencia/{id}', [SecuenciaCorteEficienciaController::class, 'destroy'])
+        ->middleware('module.permission:eliminar,30')->name('secuencia-corte-eficiencia.destroy'); // Secuencia Corte de Eficiencia
 
     Route::get('/produccion-reenconado', [ProduccionReenconadoCabezuelaController::class, 'index'])
         ->name('produccion.reenconado');
@@ -141,21 +143,24 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
     Route::put('/produccion-reenconado/{folio}', [ProduccionReenconadoCabezuelaController::class, 'update'])
         ->name('produccion.reenconado.update');
     Route::delete('/produccion-reenconado/{folio}', [ProduccionReenconadoCabezuelaController::class, 'destroy'])
+        ->middleware('module.permission:eliminar,27') // Producción Reenconado Cabezuela
         ->name('produccion.reenconado.destroy');
     Route::patch('/produccion-reenconado/{folio}/cambiar-status', [ProduccionReenconadoCabezuelaController::class, 'cambiarStatus'])
         ->name('produccion.reenconado.cambiar-status');
 
     Route::get('/secuencia-inv-telas', [SecuenciaInvTelasController::class, 'index'])->name('secuencia-inv-telas.index');
-    Route::post('/secuencia-inv-telas', [SecuenciaInvTelasController::class, 'store'])->name('secuencia-inv-telas.store');
-    Route::post('/secuencia-inv-telas/orden', [SecuenciaInvTelasController::class, 'updateOrden'])->name('secuencia-inv-telas.orden');
-    Route::put('/secuencia-inv-telas/{id}', [SecuenciaInvTelasController::class, 'update'])->name('secuencia-inv-telas.update');
-    Route::delete('/secuencia-inv-telas/{id}', [SecuenciaInvTelasController::class, 'destroy'])->name('secuencia-inv-telas.destroy');
+    Route::post('/secuencia-inv-telas', [SecuenciaInvTelasController::class, 'store'])->middleware('module.permission:crear,29')->name('secuencia-inv-telas.store'); // Secuencia Inv Telas
+    Route::post('/secuencia-inv-telas/orden', [SecuenciaInvTelasController::class, 'updateOrden'])->middleware('module.permission:modificar,29')->name('secuencia-inv-telas.orden'); // Secuencia Inv Telas
+    Route::put('/secuencia-inv-telas/{id}', [SecuenciaInvTelasController::class, 'update'])->middleware('module.permission:modificar,29')->name('secuencia-inv-telas.update'); // Secuencia Inv Telas
+    Route::delete('/secuencia-inv-telas/{id}', [SecuenciaInvTelasController::class, 'destroy'])
+        ->middleware('module.permission:eliminar,29')->name('secuencia-inv-telas.destroy'); // Secuencia Inv Telas
 
     Route::get('/secuencia-inv-trama', [SecuenciaInvTramaController::class, 'index'])->name('secuencia-inv-trama.index');
-    Route::post('/secuencia-inv-trama', [SecuenciaInvTramaController::class, 'store'])->name('secuencia-inv-trama.store');
-    Route::post('/secuencia-inv-trama/orden', [SecuenciaInvTramaController::class, 'updateOrden'])->name('secuencia-inv-trama.orden');
-    Route::put('/secuencia-inv-trama/{id}', [SecuenciaInvTramaController::class, 'update'])->name('secuencia-inv-trama.update');
-    Route::delete('/secuencia-inv-trama/{id}', [SecuenciaInvTramaController::class, 'destroy'])->name('secuencia-inv-trama.destroy');
+    Route::post('/secuencia-inv-trama', [SecuenciaInvTramaController::class, 'store'])->middleware('module.permission:crear,31')->name('secuencia-inv-trama.store'); // Secuencia Inv Trama
+    Route::post('/secuencia-inv-trama/orden', [SecuenciaInvTramaController::class, 'updateOrden'])->middleware('module.permission:modificar,31')->name('secuencia-inv-trama.orden'); // Secuencia Inv Trama
+    Route::put('/secuencia-inv-trama/{id}', [SecuenciaInvTramaController::class, 'update'])->middleware('module.permission:modificar,31')->name('secuencia-inv-trama.update'); // Secuencia Inv Trama
+    Route::delete('/secuencia-inv-trama/{id}', [SecuenciaInvTramaController::class, 'destroy'])
+        ->middleware('module.permission:eliminar,31')->name('secuencia-inv-trama.destroy'); // Secuencia Inv Trama
 
     Route::view('/inventario-telas', 'modulos/tejido/inventario-telas')->name('inventario.telas');
     Route::get('/inventario-telas/jacquard', [TelaresController::class, 'inventarioJacquard'])->name('inventario.jacquard');
@@ -202,9 +207,11 @@ Route::put('/modulo-marcas/{folio}', [MarcasController::class, 'update'])
     ->name('marcas.update');
 Route::post('/modulo-marcas/{folio}/finalizar', [MarcasController::class, 'finalizar'])
     ->where('folio', '^(?!reporte$).+')
+    ->middleware('module.permission:modificar,177') // Marcas Finales
     ->name('marcas.finalizar');
 Route::post('/modulo-marcas/{folio}/reabrir', [MarcasController::class, 'reabrirFolio'])
     ->where('folio', '^(?!reporte$).+')
+    ->middleware('module.permission:modificar,177') // Marcas Finales
     ->name('marcas.reabrir');
 
 Route::get('/modulo-cortes-de-eficiencia', [CortesEficienciaController::class, 'index'])->name('cortes.eficiencia');
@@ -221,7 +228,8 @@ Route::get('/modulo-cortes-de-eficiencia/{id}/pdf', [CortesEficienciaController:
 Route::put('/modulo-cortes-de-eficiencia/{id}/actualizar-registro', [CortesEficienciaController::class, 'actualizarRegistro'])->name('cortes.eficiencia.actualizar.registro');
 Route::get('/modulo-cortes-de-eficiencia/{id}', [CortesEficienciaController::class, 'show'])->name('cortes.eficiencia.show');
 Route::put('/modulo-cortes-de-eficiencia/{id}', [CortesEficienciaController::class, 'update'])->name('cortes.eficiencia.update');
-Route::post('/modulo-cortes-de-eficiencia/{id}/finalizar', [CortesEficienciaController::class, 'finalizar'])->name('cortes.eficiencia.finalizar');
+Route::post('/modulo-cortes-de-eficiencia/{id}/finalizar', [CortesEficienciaController::class, 'finalizar'])
+    ->middleware('module.permission:modificar,105')->name('cortes.eficiencia.finalizar'); // Cortes de Eficiencia
 Route::get('/modulo-cortes-de-eficiencia/visualizar/{folio}', [CortesEficienciaController::class, 'visualizar'])->name('cortes.eficiencia.visualizar');
 Route::get('/modulo-cortes-de-eficiencia/visualizar-folio/{folio}', [CortesEficienciaController::class, 'visualizarFolio'])->name('cortes.eficiencia.visualizar.folio');
 Route::post('/modulo-cortes-de-eficiencia/visualizar/exportar-excel', [CortesEficienciaController::class, 'exportarVisualizacionExcel'])->name('cortes.eficiencia.visualizar.excel');

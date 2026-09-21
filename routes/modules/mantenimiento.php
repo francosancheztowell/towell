@@ -27,9 +27,12 @@ Route::get('/mantenimiento/catalogodefallas', [CatalogosFallasController::class,
 
 // CRUD Operadores de Mantenimiento
 Route::get('/mantenimiento/operadores-mantenimiento', [ManOperadoresMantenimientoController::class, 'index'])->name('mantenimiento.operadores-mantenimiento.index');
-Route::post('/mantenimiento/operadores-mantenimiento', [ManOperadoresMantenimientoController::class, 'store'])->name('mantenimiento.operadores-mantenimiento.store');
-Route::put('/mantenimiento/operadores-mantenimiento/{operador}', [ManOperadoresMantenimientoController::class, 'update'])->name('mantenimiento.operadores-mantenimiento.update');
-Route::delete('/mantenimiento/operadores-mantenimiento/{operador}', [ManOperadoresMantenimientoController::class, 'destroy'])->name('mantenimiento.operadores-mantenimiento.destroy');
+Route::post('/mantenimiento/operadores-mantenimiento', [ManOperadoresMantenimientoController::class, 'store'])
+    ->middleware('module.permission:crear,53')->name('mantenimiento.operadores-mantenimiento.store'); // Mantenimiento
+Route::put('/mantenimiento/operadores-mantenimiento/{operador}', [ManOperadoresMantenimientoController::class, 'update'])
+    ->middleware('module.permission:modificar,53')->name('mantenimiento.operadores-mantenimiento.update'); // Mantenimiento
+Route::delete('/mantenimiento/operadores-mantenimiento/{operador}', [ManOperadoresMantenimientoController::class, 'destroy'])
+    ->middleware('module.permission:eliminar,53')->name('mantenimiento.operadores-mantenimiento.destroy'); // Mantenimiento
 
 Route::get('/api/mantenimiento/departamentos', [MantenimientoParosController::class, 'departamentos'])
     ->name('api.mantenimiento.departamentos');

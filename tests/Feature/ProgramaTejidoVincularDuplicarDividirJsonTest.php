@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Sistema\Usuario;
+use Tests\Concerns\SiembraPermisos;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
 class ProgramaTejidoVincularDuplicarDividirJsonTest extends TestCase
 {
+    use SiembraPermisos;
     use UsesSqlsrvSqlite;
 
     protected function setUp(): void
@@ -16,6 +18,8 @@ class ProgramaTejidoVincularDuplicarDividirJsonTest extends TestCase
         // La regla exists:ReqProgramaTejido consulta la tabla; sin ella el
         // validador reventaba con PDOException y la ruta devolvia 500, no 422.
         $this->createProgramaTejidoTable();
+        // Las rutas de duplicar/dividir/vincular exigen module.permission.
+        $this->sembrarPermisos(1, [2 => 'Programa Tejido', 5 => 'Muestras']);
     }
 
     private function actingUsuario(): Usuario

@@ -20,7 +20,8 @@ use Tests\TestCase;
  */
 class ProgramaUrdEngAuthorizationTest extends TestCase
 {
-    private const MODULO = 'Programa Urd / Eng';
+    // Por idrol, no por nombre: userPermissions() indexa por nombre y hay repetidos en SYSRoles.
+    private const MODULO = '52'; // Programa Urd / Eng
 
     /** Toda ruta del modulo, sin excepcion, exige 'acceso'. */
     public function test_todas_las_rutas_del_modulo_exigen_acceso(): void
@@ -142,7 +143,7 @@ class ProgramaUrdEngAuthorizationTest extends TestCase
         $usuario = new Usuario(['nombre' => 'Programa Urd/Eng con permisos']);
         $usuario->idusuario = 999101;
 
-        $idrol = 77;
+        $idrol = 52;
         app()->instance('permisos.roles', collect([
             mb_strtolower(self::MODULO) => (object) ['idrol' => $idrol, 'modulo' => self::MODULO],
         ]));
@@ -165,7 +166,7 @@ class ProgramaUrdEngAuthorizationTest extends TestCase
         $usuario->idusuario = 999102;
 
         app()->instance('permisos.roles', collect([
-            mb_strtolower(self::MODULO) => (object) ['idrol' => 77, 'modulo' => self::MODULO],
+            mb_strtolower(self::MODULO) => (object) ['idrol' => 52, 'modulo' => self::MODULO],
         ]));
         app()->instance('permisos.usuario.'.$usuario->idusuario, collect());
 
