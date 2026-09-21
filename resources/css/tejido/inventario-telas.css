@@ -24,6 +24,7 @@
     max-width: 100%;
     min-width: 0;
     padding-inline: clamp(0.35rem, 1vw, 0.75rem);
+    padding-top: 0.75rem;
     padding-bottom: 1rem;
     text-size-adjust: 100%;
     -webkit-text-size-adjust: 100%;

@@ -10,6 +10,7 @@
 @php
     // Karl Mayer no teje rizo/pie: son cuatro barras. El tipo que se guarda es '1'..'4',
     // igual que UrdProgramaUrdido.RizoPie, y la etiqueta visible es "Barra N".
+    // La construccion viene de ReqProgramaTejido.{Cuenta,Calibre,Fibra}BarraN.
     $esKarlMayer = strtolower(str_replace('-', ' ', (string) $salon)) === 'karl mayer';
     $componentes = $esKarlMayer
         ? collect([1, 2, 3, 4])->map(fn ($n) => [

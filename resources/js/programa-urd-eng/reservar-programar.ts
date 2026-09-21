@@ -255,6 +255,12 @@ const hasNoOrden = (telar: Reservable | null | undefined): boolean =>
  * Ojo: el backend manda `Reservado`/`Programado` capitalizados y no siempre
  * vienen los flags en minúscula; julio+orden también implican reservado. */
 const rowNoJulio = (r: RawRow): string => s(r.no_julio).trim()
+/** Una barra de Karl Mayer se alimenta de hasta cuatro julios; rizo y pie, de uno. */
+const rowJulios = (r: RawRow): string[] =>
+  Array.isArray(r.julios)
+    ? (r.julios as unknown[]).map((j) => s(j).trim()).filter(Boolean)
+    : [rowNoJulio(r)].filter(Boolean)
+const rowMaxJulios = (r: RawRow): number => Number(r.max_julios) || 1
 const rowNoOrden = (r: RawRow): string => s(r.no_orden).trim()
 const rowReservado = (r: RawRow): boolean =>
   r.reservado === true ||
@@ -339,6 +345,8 @@ const quickFilters = {
     return [...seen].sort((a, b) => a.localeCompare(b, 'es'))
   },
   short(salon: string): string {
+    const key = salon.trim().toUpperCase()
+    if (key === 'ITEMA' || key === 'ITE') return 'SMI'
     const parts = salon.trim().split(/\s+/)
     if (parts.length > 1) return parts.map((p) => (p[0] ?? '').toUpperCase()).join('').slice(0, 3)
     return salon.trim().slice(0, 3).toUpperCase()
@@ -544,6 +552,8 @@ const render = {
       tr.dataset.hilo = s(r.hilo).trim()
       tr.dataset.salon = s(r.salon)
       tr.dataset.noJulio = noJulio
+      tr.dataset.julios = rowJulios(r).join(',')
+      tr.dataset.maxJulios = String(rowMaxJulios(r))
       tr.dataset.noOrden = noOrden
       tr.dataset.metros = s(r.metros)
       tr.dataset.hasBoth = hasBoth ? 'true' : 'false'
@@ -622,7 +632,12 @@ const render = {
                     ${fmt.num(r.metros, 0)}
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                    ${s(r.no_julio)}
+                    ${rowJulios(r).join(', ') || '-'}
+                    ${
+                      rowMaxJulios(r) > 1
+                        ? `<span class="ml-1 text-xs text-gray-500">(${rowJulios(r).length}/${rowMaxJulios(r)})</span>`
+                        : ''
+                    }
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                     ${s(r.no_orden)}
@@ -885,6 +900,8 @@ const selection = {
       fecha: s(row.dataset.fecha),
       turno: s(row.dataset.turno),
       no_julio: s(row.dataset.noJulio),
+      julios: s(row.dataset.julios).split(',').filter(Boolean),
+      max_julios: Number(row.dataset.maxJulios) || 1,
       no_orden: s(row.dataset.noOrden),
       reservado: row.dataset.isReservado === 'true',
       programado: row.dataset.isProgramado === 'true',
@@ -980,6 +997,8 @@ const selection = {
       calibre: s(row.dataset.calibre),
       hilo: s(row.dataset.hilo),
       no_julio: s(row.dataset.noJulio),
+      julios: s(row.dataset.julios).split(',').filter(Boolean),
+      max_julios: Number(row.dataset.maxJulios) || 1,
       no_orden: s(row.dataset.noOrden),
       fecha: s(row.dataset.fecha),
       turno: s(row.dataset.turno),
@@ -1056,21 +1075,23 @@ const selection = {
     const btnReservar = $('#btnReservar')
     const btnLiberarTelar = $('#btnLiberarTelar')
 
+    // Reservar: telar + inventario del mismo tipo (Rizo/Pie, o la barra 1..4 en KM)
+    const tiposMatch =
+      state.selectedTelar && state.selectedInventario
+        ? eq.str(state.selectedTelar.tipo, state.selectedInventario.tipo || state.selectedInventario.data?.Tipo)
+        : false
+
     // Liberar telar: sólo telar individual y reservado
     if (state.selectedTelar && isReservado(state.selectedTelar)) {
-      disable(btnReservar, true)
+      // Una barra de KM con columnas libres sigue admitiendo julio; rizo y pie no.
+      const quedanHuecos = state.selectedTelar.julios.length < (state.selectedTelar.max_julios || 1)
+      disable(btnReservar, !(quedanHuecos && !!state.selectedInventario && tiposMatch))
       disable(btnProgramar, true)
       disable(btnLiberarTelar, false)
       return
     }
 
     disable(btnLiberarTelar, true)
-
-    // Reservar: telar + inventario con misma cuenta
-    const tiposMatch =
-      state.selectedTelar && state.selectedInventario
-        ? eq.str(state.selectedTelar.tipo, state.selectedInventario.tipo || state.selectedInventario.data?.Tipo)
-        : false
 
     const canReservar = !!(state.selectedTelar && state.selectedInventario && tiposMatch)
     disable(btnReservar, !canReservar)
@@ -1741,10 +1762,13 @@ const actions = {
         render.telares(telRows)
 
         setTimeout(() => {
-          const found = $$('#telaresTable .selectable-row').find(
-            (r) =>
-              (r as HTMLTableRowElement).dataset.telar === tel.no_telar &&
-              s((r as HTMLTableRowElement).dataset.tipo).toUpperCase().trim() === tTipo,
+          // Por id: un mismo telar puede tener la misma barra dos veces, con fechas
+          // distintas (son dos requerimientos), y telar+tipo agarraba la otra fila.
+          const found = $$('#telaresTable .selectable-row').find((r) =>
+            tel.id
+              ? (r as HTMLTableRowElement).dataset.id === tel.id
+              : (r as HTMLTableRowElement).dataset.telar === tel.no_telar &&
+                s((r as HTMLTableRowElement).dataset.tipo).toUpperCase().trim() === tTipo,
           ) as HTMLTableRowElement | undefined
           if (found) selection.applyTelar(found)
         }, 100)
@@ -1811,8 +1835,9 @@ const editableCell = {
         await http.post(API.actualizarTelar, payload)
         td.textContent = field === 'calibre' ? (newVal !== '' ? fmt.num(parseFloat(newVal)) : '') : newVal
         const base = state.telaresDataOriginal.length ? state.telaresDataOriginal : state.telaresData
-        const idx = base.findIndex(
-          (t) => s(t.no_telar) === noTelar && s(t.tipo).toUpperCase().trim() === tipo,
+        // Por id cuando lo hay: la misma barra puede repetirse en el telar con otra fecha.
+        const idx = base.findIndex((t) =>
+          id ? Number(t.id) === id : s(t.no_telar) === noTelar && s(t.tipo).toUpperCase().trim() === tipo,
         )
         if (idx >= 0) {
           const target = base[idx] as RawRow
@@ -1829,7 +1854,10 @@ const editableCell = {
         if (Array.isArray(state.selectedTelares)) {
           const tTipo = tipo.toUpperCase().trim()
           state.selectedTelares.forEach((t) => {
-            if (s(t.no_telar) === noTelar && s(t.tipo).toUpperCase().trim() === tTipo) {
+            const esEste = id
+              ? Number(t.id) === id
+              : s(t.no_telar) === noTelar && s(t.tipo).toUpperCase().trim() === tTipo
+            if (esEste) {
               if (field === 'cuenta') t.cuenta = newVal
               if (field === 'calibre') t.calibre = newVal !== '' ? String(parseFloat(newVal)) : ''
             }

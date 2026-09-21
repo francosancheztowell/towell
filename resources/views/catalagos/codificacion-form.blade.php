@@ -1010,7 +1010,8 @@
     function syncClaves(force) {
         const item = (form.querySelector('[name="ItemId"]')?.value || '').trim();
         const size = (form.querySelector('[name="InventSizeId"]')?.value || '').trim();
-        const concat = item + size;
+        // Tamaño primero y luego la clave AX: FEL + 7897 = FEL7897.
+        const concat = size + item;
         const tamano = form.querySelector('[name="TamanoClave"]');
         const claveMod = form.querySelector('[name="ClaveModelo"]');
         const actual = tamano ? String(tamano.value || '').trim() : '';

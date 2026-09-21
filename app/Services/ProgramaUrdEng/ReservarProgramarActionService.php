@@ -154,11 +154,17 @@ final class ReservarProgramarActionService
         return DB::transaction(function () use ($telar, $noTelar, $noJulio, $noOrden, $tipoTelar): array {
             // Solo la reserva que coincide con No. Julio y Lote: un mismo telar
             // puede tener varias activas (Rizo 00043-455 + Pie 00044-454).
-            $eliminadas = InvTelasReservadas::where('NoTelarId', $noTelar)
-                ->where('Status', 'Reservado')
-                ->where('InventSerialId', $noJulio)
-                ->where('InventBatchId', $noOrden)
-                ->when($tipoTelar !== null && $tipoTelar !== '', fn ($q) => $q->where('Tipo', $tipoTelar))
+            // Una barra de Karl Mayer lleva hasta cuatro julios y se sueltan juntos:
+            // liberar uno solo dejaria los otros tres sin fila de telar que los explique.
+            $eliminadas = InvTelasReservadas::where('Status', 'Reservado')
+                ->when(
+                    self::esBarraKm($telar->tipo),
+                    fn ($q) => $q->where('TejInventarioTelaresId', $telar->id),
+                    fn ($q) => $q->where('NoTelarId', $noTelar)
+                        ->where('InventSerialId', $noJulio)
+                        ->where('InventBatchId', $noOrden)
+                        ->when($tipoTelar !== null && $tipoTelar !== '', fn ($q2) => $q2->where('Tipo', $tipoTelar))
+                )
                 ->get()
                 ->each(fn ($r) => $r->delete())
                 ->count();
@@ -181,6 +187,9 @@ final class ReservarProgramarActionService
                 'hilo' => null,
                 'metros' => null,
                 'no_julio' => null,
+                'no_julio2' => null,
+                'no_julio3' => null,
+                'no_julio4' => null,
                 'no_orden' => null,
                 'Reservado' => false,
                 'Programado' => false,
@@ -221,6 +230,62 @@ final class ReservarProgramarActionService
     /**
      * @return int registros actualizados, o -1 si no se encontro el telar
      */
+    /**
+     * Las cuatro columnas de julio. Una barra de Karl Mayer las usa todas; un rizo
+     * o un pie solo la primera, que es la que cruza Atadores contra AtaMontadoTelas.
+     */
+    public const COLUMNAS_JULIO = ['no_julio', 'no_julio2', 'no_julio3', 'no_julio4'];
+
+    /** El tipo de una barra de Karl Mayer es '1'..'4'; Rizo y Pie van por su nombre. */
+    public static function esBarraKm($tipo): bool
+    {
+        return (bool) preg_match('/^[1-4]$/', trim((string) ($tipo ?? '')));
+    }
+
+    /**
+     * Coloca el julio entrante en la primera columna libre de la barra.
+     *
+     * Sin esto, reservar el segundo julio pisaba el primero: el update trae
+     * siempre 'no_julio'. Para Rizo/Pie no cambia nada, sigue siendo esa columna.
+     *
+     * @param  array<string, mixed>  $update
+     * @return array<string, mixed>
+     *
+     * @throws DomainException si la barra ya tiene sus cuatro julios
+     */
+    private function acomodarJulio(TejInventarioTelares $telar, array $update): array
+    {
+        if (! isset($update['no_julio']) || ! self::esBarraKm($telar->tipo)) {
+            return $update;
+        }
+
+        $julio = trim((string) $update['no_julio']);
+        $ocupados = [];
+        foreach (self::COLUMNAS_JULIO as $columna) {
+            $ocupados[$columna] = trim((string) ($telar->{$columna} ?? ''));
+        }
+
+        // Reservar dos veces la misma pieza no gasta una columna.
+        if ($julio === '' || in_array($julio, $ocupados, true)) {
+            unset($update['no_julio']);
+
+            return $update;
+        }
+
+        foreach (self::COLUMNAS_JULIO as $columna) {
+            if ($ocupados[$columna] === '') {
+                unset($update['no_julio']);
+                $update[$columna] = $julio;
+
+                return $update;
+            }
+        }
+
+        throw new DomainException(
+            "La barra {$telar->tipo} del telar {$telar->no_telar} ya tiene sus cuatro julios."
+        );
+    }
+
     private function actualizarInventarioTelares(?int $id, string $noTelar, ?string $tipo, array $update, ?string $fecha = null, $turno = null): int
     {
         if ($id) {
@@ -228,7 +293,7 @@ final class ReservarProgramarActionService
             if (! $telar) {
                 return -1;
             }
-            $telar->update($update);
+            $telar->update($this->acomodarJulio($telar, $update));
 
             return 1;
         }
@@ -251,7 +316,7 @@ final class ReservarProgramarActionService
         }
 
         foreach ($telares as $telar) {
-            $telar->update($update);
+            $telar->update($this->acomodarJulio($telar, $update));
         }
 
         return $telares->count();

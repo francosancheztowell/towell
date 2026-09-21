@@ -933,7 +933,7 @@ class CodificacionController extends Controller
     }
 
     /**
-     * Tamaño Clave y Clave Modelo = Clave AX + Tamaño (InventSizeId).
+     * Tamaño Clave y Clave Modelo = Tamaño (InventSizeId) + Clave AX (ItemId): FEL7897.
      *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
@@ -942,7 +942,7 @@ class CodificacionController extends Controller
     {
         $item = trim((string) ($data['ItemId'] ?? ''));
         $size = trim((string) ($data['InventSizeId'] ?? ''));
-        $concat = $item.$size;
+        $concat = $size.$item;
         if ($concat === '') {
             return $data;
         }
@@ -1492,7 +1492,7 @@ class CodificacionController extends Controller
         );
         $itemId = trim((string) ($registro->ItemId ?? ''));
         $sizeId = trim((string) ($registro->InventSizeId ?? ''));
-        $concat = $itemId.$sizeId;
+        $concat = $sizeId.$itemId;
         if (trim((string) ($campos['TamanoClave'] ?? '')) === '' && $concat !== '') {
             $campos['TamanoClave'] = $concat;
         }
@@ -1567,7 +1567,7 @@ class CodificacionController extends Controller
             );
             $itemId = trim((string) ($registro->ItemId ?? ''));
             $sizeId = trim((string) ($registro->InventSizeId ?? ''));
-            $concat = $itemId.$sizeId;
+            $concat = $sizeId.$itemId;
             if (trim((string) ($campos['TamanoClave'] ?? '')) === '' && $concat !== '') {
                 $campos['TamanoClave'] = $concat;
             }

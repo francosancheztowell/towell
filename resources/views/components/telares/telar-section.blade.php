@@ -36,7 +36,9 @@
         'karl-mayer' => 'KARL MAYER',
     ];
 
-    // Karl Mayer no teje rizo/pie ni trama: son cuatro barras (UrdProgramaUrdido.RizoPie = 1..4).
+    // Karl Mayer no teje rizo/pie ni trama: son cuatro barras. La construccion sale de la
+    // orden (ReqProgramaTejido.{Cuenta,Calibre,Fibra}BarraN); el folio es el ultimo
+    // hasta 4 NoJulio de AtaMontadoTelas por barra.
     $esKarlMayer = $tipo === 'karl-mayer';
     $barras = $telar->barras ?? [];
 
@@ -97,6 +99,8 @@
     ], function ($value) {
         return !empty($value);
     });
+
+    $sinOrdenProgramada = $esKarlMayer && trim((string) ($telar->Orden_Prod ?? '')) === '';
 @endphp
 
 <div id="telar-{{ $telar->Telar }}" class="telar-section bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden" data-salon="{{ $esKarlMayer ? 'Karl Mayer' : ucfirst($tipo) }}">
@@ -106,7 +110,16 @@
             <div class="telar-number-label">{{ $telar->Telar }}</div>
         </div>
     @else
-        <div>Telar sin proceso activo</div>
+        @unless($sinOrdenProgramada)
+            <div>Telar sin proceso activo</div>
+        @endunless
+    @endif
+
+    @if($sinOrdenProgramada)
+        <div class="m-3 flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-3 text-amber-900" role="alert">
+            <i class="fas fa-exclamation-triangle mt-0.5 text-amber-600" aria-hidden="true"></i>
+            <p class="text-sm font-medium">Telar {{ $telar->Telar }}: este telar no tiene una orden programada en planeación.</p>
+        </div>
     @endif
 
     @if($isActive)
@@ -196,13 +209,17 @@
                 <!-- Último julio (AtaMontadoTelas) -->
                 <div class="space-y-2">
                     @if($esKarlMayer)
-                        @foreach([1, 2, 3, 4] as $noBarra)
-                            @php $barra = $barras[$noBarra] ?? null; @endphp
+                        @forelse($telar->juliosMontados ?? [] as $julio)
                             <div class="{{ $rowClass }}">
-                                <span class="{{ $labelClass }}">Folio B{{ $noBarra }}:</span>
-                                <span class="{{ $valueClass }}">{{ $barra->Folio ?? '-' }}</span>
+                                <span class="{{ $labelClass }}">Barra {{ $julio->Barra }}:</span>
+                                <span class="{{ $valueClass }}">{{ $julio->NoJulio }}</span>
                             </div>
-                        @endforeach
+                        @empty
+                            <div class="{{ $rowClass }}">
+                                <span class="{{ $labelClass }}">Julio:</span>
+                                <span class="{{ $valueClass }}">-</span>
+                            </div>
+                        @endforelse
                     @else
                         <div class="{{ $rowClass }}">
                             <span class="{{ $labelClass }}">J Rizo:</span>
@@ -315,6 +332,7 @@
         @endif
     @else
         <!-- Telar sin proceso activo -->
+        @unless($sinOrdenProgramada)
         <div class="p-4">
             <div class="flex items-center justify-center py-6">
                 <div class="text-center">
@@ -327,5 +345,6 @@
                 </div>
             </div>
         </div>
+        @endunless
     @endif
 </div>

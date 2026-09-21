@@ -34,6 +34,68 @@ class TejidoHelpers
     private static array $datosModeloArrayCache = [];
 
     /**
+     * Construccion de Jacquard/Smit: rizo, pie, trama y las cinco combinaciones.
+     * Karl Mayer no teje nada de esto.
+     */
+    private const CONSTRUCCION_STD = [
+        'CuentaRizo', 'CalibreRizo', 'CalibreRizo2', 'FibraRizo',
+        'CuentaPie', 'CalibrePie', 'CalibrePie2', 'FibraPie', 'CodColorCtaPie', 'NombreCPie',
+        'CalibreTrama', 'CalibreTrama2', 'FibraTrama', 'PasadasTrama', 'CodColorTrama', 'ColorTrama',
+        'PasadasComb1', 'CalibreComb1', 'CalibreComb12', 'FibraComb1', 'CodColorComb1', 'NombreCC1',
+        'PasadasComb2', 'CalibreComb2', 'CalibreComb22', 'FibraComb2', 'CodColorComb2', 'NombreCC2',
+        'PasadasComb3', 'CalibreComb3', 'CalibreComb32', 'FibraComb3', 'CodColorComb3', 'NombreCC3',
+        'PasadasComb4', 'CalibreComb4', 'CalibreComb42', 'FibraComb4', 'CodColorComb4', 'NombreCC4',
+        'PasadasComb5', 'CalibreComb5', 'CalibreComb52', 'FibraComb5', 'CodColorComb5', 'NombreCC5',
+    ];
+
+    /** Construccion de Karl Mayer: cuatro barras. Ningun otro salon las usa. */
+    private const CONSTRUCCION_KM = [
+        'CuentaBarra1',
+        'CalibreBarra1',
+        'CodColorBarra1',
+        'ColorBarra1',
+        'FibraBarra1',
+        'PasadasBarra1',
+        'CuentaBarra2',
+        'CalibreBarra2',
+        'CodColorBarra2',
+        'ColorBarra2',
+        'FibraBarra2',
+        'PasadasBarra2',
+        'CuentaBarra3',
+        'CalibreBarra3',
+        'CodColorBarra3',
+        'ColorBarra3',
+        'FibraBarra3',
+        'PasadasBarra3',
+        'CuentaBarra4',
+        'CalibreBarra4',
+        'CodColorBarra4',
+        'ColorBarra4',
+        'FibraBarra4',
+        'PasadasBarra4',
+    ];
+
+    /**
+     * Deja en null la construccion que no corresponde al salon del registro.
+     *
+     * Karl Mayer teje con cuatro barras: rizo, pie, trama y C1-C5 no aplican. Al reves,
+     * Jacquard/Smit no usan barras. Sin esto, cambiar la clave modelo arrastra la
+     * construccion del modelo anterior en las columnas que el nuevo salon no escribe.
+     */
+    public static function limpiarConstruccionSegunSalon(ReqProgramaTejido $registro): void
+    {
+        $km = TelarSalonResolver::esKarlMayer(
+            $registro->SalonTejidoId ?? null,
+            $registro->NoTelarId ?? null
+        );
+
+        foreach ($km ? self::CONSTRUCCION_STD : self::CONSTRUCCION_KM as $columna) {
+            $registro->{$columna} = null;
+        }
+    }
+
+    /**
      * Calcular la siguiente posición disponible para un telar específico
      * La posición es consecutiva por telar: 1, 2, 3, 4, etc.
      */
@@ -813,6 +875,11 @@ class TejidoHelpers
             'CalibreComb3', 'CalibreComb32', 'FibraComb3', 'CodColorC3', 'NomColorC3',
             'CalibreComb4', 'CalibreComb42', 'FibraComb4', 'CodColorC4', 'NomColorC4',
             'CalibreComb5', 'CalibreComb52', 'FibraComb5', 'CodColorC5', 'NomColorC5',
+            // Karl Mayer: cuatro barras en vez de rizo/pie/C1-C5.
+            'CuentaBarra1', 'CalibreBarra1', 'CodColorBarra1', 'ColorBarra1', 'FibraBarra1', 'PasadasBarra1',
+            'CuentaBarra2', 'CalibreBarra2', 'CodColorBarra2', 'ColorBarra2', 'FibraBarra2', 'PasadasBarra2',
+            'CuentaBarra3', 'CalibreBarra3', 'CodColorBarra3', 'ColorBarra3', 'FibraBarra3', 'PasadasBarra3',
+            'CuentaBarra4', 'CalibreBarra4', 'CodColorBarra4', 'ColorBarra4', 'FibraBarra4', 'PasadasBarra4',
         ];
 
         $tam = trim($tamanoClave);
