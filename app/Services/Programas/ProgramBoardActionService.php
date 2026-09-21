@@ -38,6 +38,34 @@ class ProgramBoardActionService
         $this->priorityService->bulkUpdatePriorities($module->programModel(), $priorities);
     }
 
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    public function saveUrdidoSalons(ProgramaModulo $module, array $rows): void
+    {
+        if ($module !== ProgramaModulo::Urdido) {
+            return;
+        }
+
+        if (! function_exists('userCan') || ! userCan('modificar', $module->permissionModule())) {
+            throw new DomainException('No tienes permiso para cambiar el salón.');
+        }
+
+        $permitidas = ['MC Coy 1', 'MC Coy 2', 'MC Coy 3', 'MC Coy 4'];
+        $modelClass = $module->programModel();
+
+        foreach ($rows as $row) {
+            if (! in_array((string) ($row['status'] ?? ''), ['En Proceso', 'Programado'], true)) {
+                continue;
+            }
+            $maquina = (string) ($row['machine'] ?? '');
+            if (! in_array($maquina, $permitidas, true)) {
+                continue;
+            }
+            $modelClass::query()->where('Id', (int) $row['id'])->update(['MaquinaId' => $maquina]);
+        }
+    }
+
     public function swapPriorities(ProgramaModulo $module, int $sourceId, int $targetId): void
     {
         if ($sourceId === $targetId) {

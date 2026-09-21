@@ -95,6 +95,8 @@ class EdicionOrden extends Component
     /** Cambio de Metros o No. de Telas esperando la confirmacion del usuario. */
     public ?string $pendiente = null;
 
+    public string $pendienteMensaje = '';
+
     private BomMaterialesService $bomMateriales;
 
     /** La orden se lee una vez por request, no una por cada regla que la consulta. */
@@ -148,6 +150,7 @@ class EdicionOrden extends Component
     public function confirmarNoTelas(): void
     {
         $this->pendiente = null;
+        $this->pendienteMensaje = '';
         $this->guardarCampo('NoTelas');
     }
 
@@ -156,6 +159,7 @@ class EdicionOrden extends Component
     {
         $campo = $this->pendiente;
         $this->pendiente = null;
+        $this->pendienteMensaje = '';
         if ($campo !== null) {
             $this->form[$campo] = $this->valorParaFormulario($this->orden(), $campo);
         }
@@ -622,9 +626,9 @@ class EdicionOrden extends Component
         }
 
         $this->pendiente = 'NoTelas';
-        $this->dispatch('edicion-orden-confirmar', mensaje: $nuevo > $anterior
+        $this->pendienteMensaje = $nuevo > $anterior
             ? 'Se agregarán '.($nuevo - $anterior).' registro(s) de producción. Esto puede impactar registros ya iniciados por un empleado.'
-            : 'Se eliminarán '.($anterior - $nuevo).' registro(s) de producción. Esto puede impactar registros ya iniciados por un empleado.');
+            : 'Se eliminarán '.($anterior - $nuevo).' registro(s) de producción. Esto puede impactar registros ya iniciados por un empleado.';
     }
 
     /**

@@ -331,7 +331,7 @@ const ETIQUETA_ACCION: Record<string, string> = {
 }
 
 const componente = (): { confirmarMetros: (a: string) => void; confirmarNoTelas: () => void; descartarPendiente: () => void } | undefined => {
-  const id = document.querySelector('[wire\\:id]')?.getAttribute('wire:id')
+  const id = document.querySelector('[data-edicion-orden]')?.getAttribute('wire:id')
   return id ? (ventana.Livewire?.find(id) as any) : undefined
 }
 

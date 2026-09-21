@@ -28,6 +28,19 @@
     };
 @endphp
 
+@if ($pendiente === 'NoTelas')
+    <div class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 p-4">
+        <div class="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" role="dialog" aria-modal="true">
+            <h2 class="text-base font-semibold text-gray-900">Confirmar cambio</h2>
+            <p class="mt-2 text-sm text-gray-700">{{ $pendienteMensaje }}</p>
+            <div class="mt-4 flex justify-end gap-2">
+                <button type="button" wire:click="descartarPendiente" class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm">Cancelar</button>
+                <button type="button" wire:click="confirmarNoTelas" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white">Confirmar</button>
+            </div>
+        </div>
+    </div>
+@endif
+
 <div class="w-full"
      data-edicion-orden
      data-modulo="{{ $module }}"

@@ -86,6 +86,7 @@ enum ProgramaModulo: string
                 ['key' => '1', 'label' => 'MC Coy 1', 'short' => 'MC1'],
                 ['key' => '2', 'label' => 'MC Coy 2', 'short' => 'MC2'],
                 ['key' => '3', 'label' => 'MC Coy 3', 'short' => 'MC3'],
+                ['key' => '5', 'label' => 'MC Coy 4', 'short' => 'MC4'],
                 ['key' => '4', 'label' => 'Karl Mayer', 'short' => 'KM'],
             ],
             self::Engomado => [
@@ -144,7 +145,11 @@ enum ProgramaModulo: string
 
         $number = (int) $matches[1];
 
-        return $number >= 1 && $number <= 3 ? (string) $number : null;
+        return match (true) {
+            $number >= 1 && $number <= 3 => (string) $number,
+            $number === 4 => '5',
+            default => null,
+        };
     }
 
     private function engomadoLaneKey(string $machine): ?string

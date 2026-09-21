@@ -59,6 +59,14 @@
     opacity: 0.45;
 }
 
+.program-board-salon {
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 0.35rem;
+    font-size: 0.85rem;
+    padding: 0.15rem 0.35rem;
+}
+
 .program-board-checklist {
     display: flex;
     flex-direction: column;

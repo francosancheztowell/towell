@@ -212,6 +212,25 @@ class ProgramBoard extends Component
         $this->priorityRows = $next;
     }
 
+    public function asignarSalon(int $id, string $maquina): void
+    {
+        abort_unless($this->canEdit, 403);
+        $permitidas = ['MC Coy 1', 'MC Coy 2', 'MC Coy 3', 'MC Coy 4'];
+        if (! in_array($maquina, $permitidas, true)) {
+            return;
+        }
+
+        foreach ($this->priorityRows as $index => $row) {
+            if ((int) $row['id'] !== $id) {
+                continue;
+            }
+            if (! in_array((string) $row['status'], ['En Proceso', 'Programado'], true)) {
+                return;
+            }
+            $this->priorityRows[$index]['machine'] = $maquina;
+        }
+    }
+
     public function savePriority(): void
     {
         abort_unless($this->canEdit, 403);
@@ -226,6 +245,7 @@ class ProgramBoard extends Component
                 $this->moduleEnum(),
                 array_map(fn (array $row): int => (int) $row['id'], $this->priorityRows)
             );
+            $this->actionService->saveUrdidoSalons($this->moduleEnum(), $this->priorityRows);
             $this->closeModal();
             $this->notify('success', 'Prioridad actualizada.');
             $this->dispatch('program-board-updated');
