@@ -481,7 +481,6 @@
             <details class="cod-details">
                 <summary>
                     <span>Métricas y cálculo</span>
-                    <span class="cod-details__hint">El programa de tejido recalcula la mayoría. Editarlas aquí no cambia el cálculo aguas abajo.</span>
                 </summary>
                 <div class="cod-grid mt-3">
                     @php
@@ -831,7 +830,6 @@
         list-style: none;
     }
     .cod-details summary::-webkit-details-marker { display: none; }
-    .cod-details__hint { font-size: 0.72rem; font-weight: 400; color: #6b7280; }
     .cod-id-resto { display: contents; }
     .cod-id-resto[hidden] { display: none !important; }
     .cod-modal {

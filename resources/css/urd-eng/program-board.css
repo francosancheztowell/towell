@@ -21,6 +21,90 @@
     width: 100%;
 }
 
+.program-board-modal.is-wide {
+    max-width: 72rem;
+}
+
+.program-board-priority-table-wrap {
+    max-height: 32rem;
+    overflow: auto;
+}
+
+.program-board-priority-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.program-board-priority-table th,
+.program-board-priority-table td {
+    border: 1px solid #d1d5db;
+    font-size: 0.85rem;
+    padding: 0.45rem 0.6rem;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.program-board-priority-table th {
+    background: #f3f4f6;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+}
+
+.program-board-priority-table tr[draggable="true"] {
+    cursor: move;
+}
+
+.program-board-priority-table tr.is-dragging {
+    opacity: 0.45;
+}
+
+.program-board-checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    margin: 0.6rem 0 0.9rem;
+}
+
+.program-board-checklist-row {
+    align-items: center;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+    padding: 0.45rem 0.7rem;
+}
+
+.program-board-checklist-row span {
+    color: #374151;
+    font-size: 0.875rem;
+}
+
+.program-board-checklist-row button {
+    background: #fff;
+    border: 2px solid #d1d5db;
+    border-radius: 0.5rem;
+    color: #9ca3af;
+    flex-shrink: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    height: 2.75rem;
+    width: 2.75rem;
+}
+
+.program-board-checklist-row button.is-good {
+    background: #ecfdf5;
+    border-color: #059669;
+    color: #047857;
+}
+
+.program-board-checklist-row button.is-bad {
+    background: #fef2f2;
+    border-color: #dc2626;
+    color: #b91c1c;
+}
+
 .program-board-modal > header {
     align-items: start;
     border-bottom: 1px solid #e2e8f0;

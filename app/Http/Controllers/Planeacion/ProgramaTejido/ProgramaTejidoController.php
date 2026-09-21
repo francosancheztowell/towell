@@ -132,6 +132,10 @@ class ProgramaTejidoController extends Controller
                 'EntregaPT',
                 'EntregaCte',
                 'PTvsCte',
+                'CuentaBarra1', 'CalibreBarra1', 'CodColorBarra1', 'ColorBarra1', 'FibraBarra1', 'PasadasBarra1',
+                'CuentaBarra2', 'CalibreBarra2', 'CodColorBarra2', 'ColorBarra2', 'FibraBarra2', 'PasadasBarra2',
+                'CuentaBarra3', 'CalibreBarra3', 'CodColorBarra3', 'ColorBarra3', 'FibraBarra3', 'PasadasBarra3',
+                'CuentaBarra4', 'CalibreBarra4', 'CodColorBarra4', 'ColorBarra4', 'FibraBarra4', 'PasadasBarra4',
             ])->ordenado()->get();
 
             $columns = UtilityHelpers::getTableColumns();

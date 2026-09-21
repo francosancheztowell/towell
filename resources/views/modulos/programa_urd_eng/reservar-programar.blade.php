@@ -136,10 +136,23 @@
                                         $baseBg       = $i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
                                         $metrosFloat  = isset($t['metros']) ? (float)$t['metros'] : 0;
                                         $noJulioTrim  = trim($t['no_julio'] ?? '');
-                                        // Una barra de Karl Mayer se alimenta de hasta cuatro julios.
+                                        // Una barra de Karl Mayer se alimenta de hasta cuatro julios,
+                                        // y cada uno puede traer su propia orden.
                                         $julios       = array_values(array_filter($t['julios'] ?? [$noJulioTrim]));
+                                        $ordenes      = array_values($t['ordenes'] ?? [trim($t['no_orden'] ?? '')]);
                                         $maxJulios    = (int)($t['max_julios'] ?? 1) ?: 1;
                                         $noOrdenTrim  = trim($t['no_orden'] ?? '');
+                                        $etiquetasJulio = [];
+                                        foreach ($julios as $idxJulio => $julioEtiqueta) {
+                                            $ordenEtiqueta = trim((string) ($ordenes[$idxJulio] ?? ''));
+                                            $etiquetasJulio[] = ($maxJulios > 1 && $ordenEtiqueta !== '')
+                                                ? $julioEtiqueta.' ('.$ordenEtiqueta.')'
+                                                : $julioEtiqueta;
+                                        }
+                                        $ordenesVisibles = array_values(array_filter(array_map(
+                                            fn ($orden) => trim((string) $orden),
+                                            $maxJulios > 1 ? $ordenes : [$noOrdenTrim]
+                                        )));
                                         $hasBoth      = $metrosFloat > 0 && $noJulioTrim !== '';
                                         $isReservado  = (bool)($t['reservado'] ?? false);
                                         $isProgramado = (bool)($t['programado'] ?? false);
@@ -170,6 +183,7 @@
                                         data-salon="{{ $salon }}"
                                         data-no-julio="{{ $noJulioTrim }}"
                                         data-julios="{{ implode(',', $julios) }}"
+                                        data-ordenes="{{ implode(',', $ordenes) }}"
                                         data-max-julios="{{ $maxJulios }}"
                                         data-no-orden="{{ $noOrdenTrim }}"
                                         data-metros="{{ $t['metros'] ?? '' }}"
@@ -223,13 +237,13 @@
                                             {{ number_format((float)($t['metros'] ?? 0), 0) }}
                                         </td>
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                                            {{ implode(', ', $julios) ?: '-' }}
+                                            {{ implode(', ', $etiquetasJulio) ?: '-' }}
                                             @if($maxJulios > 1)
                                                 <span class="ml-1 text-xs text-gray-500">({{ count($julios) }}/{{ $maxJulios }})</span>
                                             @endif
                                         </td>
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                                            {{ $t['no_orden'] ?? '' }}
+                                            {{ implode(', ', $ordenesVisibles) }}
                                         </td>
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                                             @if($isReservado)

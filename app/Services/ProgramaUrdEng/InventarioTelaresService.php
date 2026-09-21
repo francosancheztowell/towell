@@ -15,10 +15,24 @@ class InventarioTelaresService
     /** Julios que caben en una barra de Karl Mayer. */
     public const MAX_JULIOS_KM = 4;
 
+    /**
+     * Julio y su orden, en la misma posición. Una barra usa las cuatro;
+     * rizo y pie, solo la primera.
+     *
+     * @var array<string, string>
+     */
+    public const PARES_JULIO = [
+        'no_julio' => 'no_orden',
+        'no_julio2' => 'no_orden2',
+        'no_julio3' => 'no_orden3',
+        'no_julio4' => 'no_orden4',
+    ];
+
     public const COLS_TELARES = [
         'no_telar', 'tipo', 'cuenta', 'calibre', 'fecha', 'turno', 'hilo', 'metros',
         'no_julio', 'no_julio2', 'no_julio3', 'no_julio4',
-        'no_orden', 'tipo_atado', 'salon', 'Reservado', 'Programado',
+        'no_orden', 'no_orden2', 'no_orden3', 'no_orden4',
+        'tipo_atado', 'salon', 'Reservado', 'Programado',
     ];
 
     /**
@@ -53,6 +67,8 @@ class InventarioTelaresService
     public function normalizeTelares($rows)
     {
         return collect($rows)->values()->map(function ($r, int $i) {
+            $pares = $this->paresDe($r);
+
             return [
                 'id' => $r->id ?? null,
                 'no_telar' => $this->normalizeTelar($r->no_telar ?? null),
@@ -68,9 +84,13 @@ class InventarioTelaresService
                 'no_julio3' => $this->str($r->no_julio3 ?? null),
                 'no_julio4' => $this->str($r->no_julio4 ?? null),
                 // Una barra de Karl Mayer se alimenta de cuatro julios; rizo y pie, de uno.
-                'julios' => $this->juliosDe($r),
-                'max_julios' => $this->esBarraKm($r->tipo ?? null) ? self::MAX_JULIOS_KM : 1,
+                'julios' => $pares['julios'],
                 'no_orden' => $this->str($r->no_orden ?? null),
+                'no_orden2' => $this->str($r->no_orden2 ?? null),
+                'no_orden3' => $this->str($r->no_orden3 ?? null),
+                'no_orden4' => $this->str($r->no_orden4 ?? null),
+                'ordenes' => $pares['ordenes'],
+                'max_julios' => $this->esBarraKm($r->tipo ?? null) ? self::MAX_JULIOS_KM : 1,
                 'tipo_atado' => $this->str($r->tipo_atado ?? 'Normal'),
                 'salon' => $this->str($r->salon ?? null),
                 'reservado' => (bool) ($r->Reservado ?? false),
@@ -80,18 +100,25 @@ class InventarioTelaresService
         });
     }
 
-    /** Los julios asignados de una fila, sin huecos y en orden de columna. */
-    private function juliosDe($r): array
+    /**
+     * Julios asignados y la orden de cada uno, sin huecos y en el mismo orden.
+     *
+     * @return array{julios: array<int, string>, ordenes: array<int, string>}
+     */
+    private function paresDe($r): array
     {
         $julios = [];
-        foreach (['no_julio', 'no_julio2', 'no_julio3', 'no_julio4'] as $columna) {
-            $valor = trim((string) ($r->{$columna} ?? ''));
-            if ($valor !== '') {
-                $julios[] = $valor;
+        $ordenes = [];
+        foreach (self::PARES_JULIO as $columna => $columnaOrden) {
+            $julio = trim((string) ($r->{$columna} ?? ''));
+            if ($julio === '') {
+                continue;
             }
+            $julios[] = $julio;
+            $ordenes[] = trim((string) ($r->{$columnaOrden} ?? ''));
         }
 
-        return $julios;
+        return ['julios' => $julios, 'ordenes' => $ordenes];
     }
 
     private function esBarraKm($tipo): bool

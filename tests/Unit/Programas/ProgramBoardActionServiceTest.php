@@ -104,7 +104,7 @@ class ProgramBoardActionServiceTest extends TestCase
         app(ProgramBoardActionService::class)->saveQuality(
             ProgramaModulo::Urdido,
             1,
-            'A',
+            [],
             'Sin observaciones'
         );
     }

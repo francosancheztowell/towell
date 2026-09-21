@@ -46,6 +46,9 @@ class ReservarConTelarTransaccionTest extends TestCase
             $table->string('no_julio3')->nullable();
             $table->string('no_julio4')->nullable();
             $table->string('no_orden')->nullable();
+            $table->string('no_orden2')->nullable();
+            $table->string('no_orden3')->nullable();
+            $table->string('no_orden4')->nullable();
             $table->string('localidad')->nullable();
             $table->string('cuenta')->nullable();
             $table->float('calibre')->nullable();
@@ -116,19 +119,27 @@ class ReservarConTelarTransaccionTest extends TestCase
      */
     public function test_una_barra_km_reserva_cuatro_julios_en_columnas_distintas(): void
     {
-        $julios = ['01269-K6', '01269-K66', '01269-K29', '01269-K48'];
+        $pares = [
+            ['01269-K6', '01269'],
+            ['01310-K66', '01310'],
+            ['01269-K29', '01269'],
+            ['01400-K48', '01400'],
+        ];
 
-        foreach ($julios as $julio) {
+        foreach ($pares as [$julio, $orden]) {
             $this->acciones()->reservarConTelar(
-                ['InventSerialId' => $julio, 'InventBatchId' => '01269', 'Tipo' => '1', 'TejInventarioTelaresId' => 2] + $this->reserva(),
-                ['no_julio' => $julio, 'no_orden' => '01269']
+                ['InventSerialId' => $julio, 'InventBatchId' => $orden, 'Tipo' => '1', 'TejInventarioTelaresId' => 2] + $this->reserva(),
+                ['no_julio' => $julio, 'no_orden' => $orden]
             );
         }
 
         $barra = TejInventarioTelares::find(2);
 
-        $this->assertSame($julios, [
+        $this->assertSame(array_column($pares, 0), [
             $barra->no_julio, $barra->no_julio2, $barra->no_julio3, $barra->no_julio4,
+        ]);
+        $this->assertSame(array_column($pares, 1), [
+            $barra->no_orden, $barra->no_orden2, $barra->no_orden3, $barra->no_orden4,
         ]);
         $this->assertSame(4, InvTelasReservadas::where('TejInventarioTelaresId', 2)->count());
 
@@ -149,6 +160,8 @@ class ReservarConTelarTransaccionTest extends TestCase
         $barra = TejInventarioTelares::find(2);
         $this->assertNull($barra->no_julio);
         $this->assertNull($barra->no_julio4);
+        $this->assertNull($barra->no_orden);
+        $this->assertNull($barra->no_orden4);
         $this->assertSame(0, InvTelasReservadas::where('TejInventarioTelaresId', 2)->count());
     }
 
@@ -159,12 +172,14 @@ class ReservarConTelarTransaccionTest extends TestCase
 
         $this->acciones()->reservarConTelar(
             ['InventSerialId' => '00061-999'] + $this->reserva(),
-            ['no_julio' => '00061-999', 'no_orden' => '00061']
+            ['no_julio' => '00061-999', 'no_orden' => '00099']
         );
 
         $telar = TejInventarioTelares::find(1);
         $this->assertSame('00061-999', $telar->no_julio, 'Rizo conserva el comportamiento de una sola columna.');
+        $this->assertSame('00099', $telar->no_orden, 'Rizo sigue guardando la orden en la única columna.');
         $this->assertNull($telar->no_julio2);
+        $this->assertNull($telar->no_orden2);
     }
 
     public function test_la_reserva_marca_el_telar_y_crea_la_fila(): void

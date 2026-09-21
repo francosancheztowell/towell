@@ -260,7 +260,30 @@ const rowJulios = (r: RawRow): string[] =>
   Array.isArray(r.julios)
     ? (r.julios as unknown[]).map((j) => s(j).trim()).filter(Boolean)
     : [rowNoJulio(r)].filter(Boolean)
+const rowOrdenes = (r: RawRow): string[] => {
+  const julios = rowJulios(r)
+  const crudas = Array.isArray(r.ordenes)
+    ? (r.ordenes as unknown[]).map((o) => s(o).trim())
+    : [rowNoOrden(r)]
+  return julios.map((_, i) => crudas[i] ?? '')
+}
 const rowMaxJulios = (r: RawRow): number => Number(r.max_julios) || 1
+/** En una barra, cada julio se muestra con su orden: `K6 (01269), K4 (01310)`. */
+const etiquetaJulios = (r: RawRow): string => {
+  const julios = rowJulios(r)
+  const ordenes = rowOrdenes(r)
+  if (rowMaxJulios(r) <= 1) return julios.join(', ')
+  return julios
+    .map((julio, i) => {
+      const orden = s(ordenes[i]).trim()
+      return orden ? `${julio} (${orden})` : julio
+    })
+    .join(', ')
+}
+const etiquetaOrdenes = (r: RawRow): string => {
+  const ordenes = rowMaxJulios(r) > 1 ? rowOrdenes(r) : [rowNoOrden(r)]
+  return ordenes.map((o) => s(o).trim()).filter(Boolean).join(', ')
+}
 const rowNoOrden = (r: RawRow): string => s(r.no_orden).trim()
 const rowReservado = (r: RawRow): boolean =>
   r.reservado === true ||
@@ -553,6 +576,7 @@ const render = {
       tr.dataset.salon = s(r.salon)
       tr.dataset.noJulio = noJulio
       tr.dataset.julios = rowJulios(r).join(',')
+      tr.dataset.ordenes = rowOrdenes(r).join(',')
       tr.dataset.maxJulios = String(rowMaxJulios(r))
       tr.dataset.noOrden = noOrden
       tr.dataset.metros = s(r.metros)
@@ -632,7 +656,7 @@ const render = {
                     ${fmt.num(r.metros, 0)}
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                    ${rowJulios(r).join(', ') || '-'}
+                    ${etiquetaJulios(r) || '-'}
                     ${
                       rowMaxJulios(r) > 1
                         ? `<span class="ml-1 text-xs text-gray-500">(${rowJulios(r).length}/${rowMaxJulios(r)})</span>`
@@ -640,7 +664,7 @@ const render = {
                     }
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                    ${s(r.no_orden)}
+                    ${etiquetaOrdenes(r)}
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                     ${
@@ -691,6 +715,9 @@ const render = {
       const telNo = tel.no_telar ?? ''
       const telJulio = tel.no_julio
       const telNoOrden = s(tel.no_orden).trim()
+      const telJulios = tel.julios ?? []
+      const esBarra = (tel.max_julios || 1) > 1
+      const quedanHuecos = telJulios.length < (tel.max_julios || 1)
 
       data = data.filter((r) => {
         const noTelarAsignado = s(r.NoTelarId)
@@ -703,19 +730,24 @@ const render = {
         // Vincular julio ↔ no_julio: si la pieza está reservada para nuestro telar, mostrarla siempre
         if (asignadoAMiTelar) return true
 
-        // Si el telar tiene no_orden, el lote debe coincidir (InventBatchId o prefijo de InventSerialId)
-        if (telNoOrden && !matchLote(telNoOrden, inventBatchId, inventSerialId)) return false
+        // Una barra con hueco admite julios de otra orden. Rizo y Pie, y una
+        // barra ya llena, siguen amarrados al lote que ya tienen.
+        if (!(esBarra && quedanHuecos) && telNoOrden && !matchLote(telNoOrden, inventBatchId, inventSerialId)) {
+          return false
+        }
 
         // Misma cuenta (InventSizeId inicia con cuenta del telar)
         if (telCuenta && !matchCuenta(telCuenta, r.InventSizeId)) return false
 
-        // Si el telar ya tiene No. Julio, mostrar esa pieza concreta
-        if (telJulio) return inventSerialId === telJulio
+        // Si el telar ya tiene No. Julio, mostrar esa pieza concreta.
+        // En una barra llena, las cuatro; si aún cabe otra, no ocultar el resto.
+        if (esBarra && !quedanHuecos) return telJulios.includes(inventSerialId)
+        if (!esBarra && telJulio) return inventSerialId === telJulio
 
         // Ocultar piezas asignadas a otro telar
         if (hasTelar && noTelarAsignado !== telNo) return false
 
-        // Coincidencia por Tipo (Rizo/Pie)
+        // Coincidencia por Tipo (Rizo/Pie o la barra 1..4)
         if (telTipo && invTipo && invTipo !== telTipo) return false
 
         return true
@@ -901,6 +933,7 @@ const selection = {
       turno: s(row.dataset.turno),
       no_julio: s(row.dataset.noJulio),
       julios: s(row.dataset.julios).split(',').filter(Boolean),
+      ordenes: s(row.dataset.ordenes).split(','),
       max_julios: Number(row.dataset.maxJulios) || 1,
       no_orden: s(row.dataset.noOrden),
       reservado: row.dataset.isReservado === 'true',
@@ -998,6 +1031,7 @@ const selection = {
       hilo: s(row.dataset.hilo),
       no_julio: s(row.dataset.noJulio),
       julios: s(row.dataset.julios).split(',').filter(Boolean),
+      ordenes: s(row.dataset.ordenes).split(','),
       max_julios: Number(row.dataset.maxJulios) || 1,
       no_orden: s(row.dataset.noOrden),
       fecha: s(row.dataset.fecha),
@@ -1572,7 +1606,15 @@ const actions = {
         const row = base[ix] as RawRow
         row.metros = d?.metros ?? 0
         row.no_julio = s(d?.no_julio)
+        row.no_julio2 = ''
+        row.no_julio3 = ''
+        row.no_julio4 = ''
+        row.julios = []
         row.no_orden = s(d?.no_orden)
+        row.no_orden2 = ''
+        row.no_orden3 = ''
+        row.no_orden4 = ''
+        row.ordenes = []
         row.hilo = s(d?.hilo)
         row.reservado = false
         row.is_reservado = false
@@ -1645,8 +1687,14 @@ const actions = {
       return
     }
 
-    if (isReservado(tel)) {
+    const quedanHuecos = tel.julios.length < (tel.max_julios || 1)
+    if (isReservado(tel) && !quedanHuecos) {
       void Swal.fire('Aviso', 'Este telar ya está reservado', 'warning')
+      return
+    }
+
+    if (quedanHuecos && tel.julios.includes(s(state.selectedInventario?.inventSerialId))) {
+      void Swal.fire('Aviso', 'Ese julio ya está en esta barra', 'warning')
       return
     }
 
@@ -1690,27 +1738,42 @@ const actions = {
 
       // El telar se marca dentro de la misma transaccion que crea la reserva
       const tTipo = normalizeTipo(tel.tipo).toUpperCase()
+      const mismoRegistro = (x: RawRow): boolean =>
+        tel.id
+          ? s(x.id) === tel.id
+          : s(x.no_telar) === s(tel.no_telar) && s(x.tipo).toUpperCase().trim() === tTipo
 
-      const ix = state.telaresData.findIndex(
-        (x) => s(x.no_telar) === s(tel.no_telar) && s(x.tipo).toUpperCase().trim() === tTipo,
-      )
+      const aplicarReservaLocal = (row: RawRow): void => {
+        const serial = state.selectedInventario?.numJulio || ''
+        const esBarra = (Number(row.max_julios) || tel.max_julios || 1) > 1
+        row.metros = state.selectedInventario?.metros || 0
+        if (!esBarra) {
+          row.no_julio = serial
+          row.no_orden = lote
+          row.julios = serial ? [serial] : []
+          row.ordenes = lote ? [lote] : []
+          return
+        }
+        const julios = rowJulios(row)
+        const ordenes = rowOrdenes(row)
+        if (serial && !julios.includes(serial)) {
+          julios.push(serial)
+          ordenes.push(lote)
+        }
+        row.julios = julios
+        row.ordenes = ordenes
+        row.no_julio = julios[0] ?? ''
+        row.no_orden = ordenes[0] ?? ''
+        row.reservado = true
+      }
+
+      const ix = state.telaresData.findIndex(mismoRegistro)
 
       if (ix > -1) {
-        const row = state.telaresData[ix] as RawRow
-        row.metros = state.selectedInventario.metros || 0
-        row.no_julio = state.selectedInventario.numJulio || ''
-        row.no_orden = lote
+        aplicarReservaLocal(state.telaresData[ix] as RawRow)
 
-        const jx = state.telaresDataOriginal.findIndex(
-          (x) => s(x.no_telar) === s(tel.no_telar) && s(x.tipo).toUpperCase().trim() === tTipo,
-        )
-
-        if (jx > -1) {
-          const orig = state.telaresDataOriginal[jx] as RawRow
-          orig.metros = row.metros
-          orig.no_julio = row.no_julio
-          orig.no_orden = lote
-        }
+        const jx = state.telaresDataOriginal.findIndex(mismoRegistro)
+        if (jx > -1) aplicarReservaLocal(state.telaresDataOriginal[jx] as RawRow)
 
         render.telares(state.telaresData)
       }

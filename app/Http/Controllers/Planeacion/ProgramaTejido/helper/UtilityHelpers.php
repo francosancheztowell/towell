@@ -103,6 +103,33 @@ class UtilityHelpers
             ['field' => 'EntregaCte', 'label' => 'Entrega', 'dateType' => 'datetime'],
             ['field' => 'PTvsCte', 'label' => 'Dif vs Compromiso', 'dateType' => null],
 
+            // Karl Mayer. Jacquard y Smit no las usan: quedan vacías.
+            // Mismo orden que el formulario de codificación. No son editables aquí.
+            ['field' => 'CuentaBarra1', 'label' => 'Cuenta barra 1', 'dateType' => null],
+            ['field' => 'CalibreBarra1', 'label' => 'Calibre barra 1', 'dateType' => null],
+            ['field' => 'CodColorBarra1', 'label' => 'Cód. color barra 1', 'dateType' => null],
+            ['field' => 'ColorBarra1', 'label' => 'Color barra 1', 'dateType' => null],
+            ['field' => 'FibraBarra1', 'label' => 'Fibra barra 1', 'dateType' => null],
+            ['field' => 'PasadasBarra1', 'label' => 'Pasadas barra 1', 'dateType' => null],
+            ['field' => 'CuentaBarra2', 'label' => 'Cuenta barra 2', 'dateType' => null],
+            ['field' => 'CalibreBarra2', 'label' => 'Calibre barra 2', 'dateType' => null],
+            ['field' => 'CodColorBarra2', 'label' => 'Cód. color barra 2', 'dateType' => null],
+            ['field' => 'ColorBarra2', 'label' => 'Color barra 2', 'dateType' => null],
+            ['field' => 'FibraBarra2', 'label' => 'Fibra barra 2', 'dateType' => null],
+            ['field' => 'PasadasBarra2', 'label' => 'Pasadas barra 2', 'dateType' => null],
+            ['field' => 'CuentaBarra3', 'label' => 'Cuenta barra 3', 'dateType' => null],
+            ['field' => 'CalibreBarra3', 'label' => 'Calibre barra 3', 'dateType' => null],
+            ['field' => 'CodColorBarra3', 'label' => 'Cód. color barra 3', 'dateType' => null],
+            ['field' => 'ColorBarra3', 'label' => 'Color barra 3', 'dateType' => null],
+            ['field' => 'FibraBarra3', 'label' => 'Fibra barra 3', 'dateType' => null],
+            ['field' => 'PasadasBarra3', 'label' => 'Pasadas barra 3', 'dateType' => null],
+            ['field' => 'CuentaBarra4', 'label' => 'Cuenta barra 4', 'dateType' => null],
+            ['field' => 'CalibreBarra4', 'label' => 'Calibre barra 4', 'dateType' => null],
+            ['field' => 'CodColorBarra4', 'label' => 'Cód. color barra 4', 'dateType' => null],
+            ['field' => 'ColorBarra4', 'label' => 'Color barra 4', 'dateType' => null],
+            ['field' => 'FibraBarra4', 'label' => 'Fibra barra 4', 'dateType' => null],
+            ['field' => 'PasadasBarra4', 'label' => 'Pasadas barra 4', 'dateType' => null],
+
         ];
     }
 
