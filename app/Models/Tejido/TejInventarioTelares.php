@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class TejInventarioTelares extends Model
 {
     protected $table = 'tej_inventario_telares';
+
     protected $primaryKey = 'id';
 
     protected $fillable = [
@@ -20,6 +21,10 @@ class TejInventarioTelares extends Model
         'hilo',
         'metros',
         'no_julio',
+        // Karl Mayer: una barra se alimenta de cuatro julios.
+        'no_julio2',
+        'no_julio3',
+        'no_julio4',
         'no_orden',
         'tipo_atado',
         'salon',
@@ -41,11 +46,9 @@ class TejInventarioTelares extends Model
         'turno' => 'integer',
         'Reservado' => 'boolean',
         'Programado' => 'boolean',
-        'created_at'=> 'datetime',
-        'updated_at'=> 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
-
-
 
     // Accessors to map non-standard DB column names
     public function getLoteProveedorAttribute()
@@ -62,6 +65,7 @@ class TejInventarioTelares extends Model
         if (array_key_exists('lote_Proveedor', $this->attributes)) {
             return $this->attributes['lote_Proveedor'];
         }
+
         return null;
     }
 
@@ -77,6 +81,7 @@ class TejInventarioTelares extends Model
         if (array_key_exists('No. Proveedor', $this->attributes)) {
             return $this->attributes['No. Proveedor'];
         }
+
         return null;
     }
 }

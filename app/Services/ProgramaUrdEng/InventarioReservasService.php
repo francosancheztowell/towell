@@ -27,7 +27,14 @@ class InventarioReservasService
 
     private const DATAAREA = 'PRO';
 
-    private const LOC_TELA = 'A-JUL/TELA';
+    /** Almacenes de julios: engomados listos (TELA) y urdidos de Karl Mayer (URD). */
+    private const ALMACENES = ['A-JUL/TELA', 'A-JUL/URD'];
+
+    /**
+     * Localidades de maquina: el julio ya esta montado en la engomadora, no esta disponible.
+     * KM1 (Karl Mayer) si entra: ahi los julios estan en piso esperando telar.
+     */
+    private const LOCALIDADES_EN_MAQUINA = ['MC1', 'MC2', 'MC3'];
 
     private const LIMIT_TI = 2000;
 
@@ -35,6 +42,9 @@ class InventarioReservasService
     private const PATTERN_RIZO = '%JU-ENG-RI%';
 
     private const PATTERN_PIE = '%JU-ENG-PI%';
+
+    /** Julio de urdido (Karl Mayer): vive en A-JUL/URD y no es rizo ni pie, va sin Tipo. */
+    private const PATTERN_URDIDO = '%JULIO-URDIDO%';
 
     /** Columnas permitidas para filtrar en las peticiones del frontend */
     public const ALLOWED_FILTERS = [
@@ -104,6 +114,73 @@ class InventarioReservasService
      * @param  array|object  $obj  Objeto o array con los datos de la pieza.
      * @return string Clave concatenada con '|'.
      */
+    /**
+     * Folio de urdido de los julios que TI-PRO no clasifica, indexado por lote normalizado.
+     *
+     * Una sola consulta a UrdProgramaUrdido: el lote del ERP (InventBatchId) es el folio del
+     * programa, y su columna RizoPie trae 'Rizo'/'Pie' o la barra '1'..'4' de Karl Mayer.
+     *
+     * @param  array<int, object>  $rowsTi
+     * @return array<string, string>
+     */
+    private function tiposPorFolioUrdido(array $rowsTi): array
+    {
+        $lotes = [];
+        foreach ($rowsTi as $row) {
+            if (! $this->esJulioUrdido($row)) {
+                continue;
+            }
+            $lote = trim((string) ($row->InventBatchId ?? ''));
+            if ($lote !== '') {
+                // array_unique y no una llave: PHP convierte '4072' en int si va de indice.
+                $lotes[] = $lote;
+            }
+        }
+
+        $lotes = array_values(array_unique($lotes));
+
+        if ($lotes === []) {
+            return [];
+        }
+
+        $tipos = [];
+
+        // El folio se guarda con ceros a la izquierda ('01269') y el lote no siempre: se
+        // indexa por ambas formas para que crucen igual.
+        DB::table('UrdProgramaUrdido')
+            ->whereIn('Folio', array_values(array_unique(array_merge(
+                $lotes,
+                array_map(fn (string $l) => str_pad(ltrim($l, '0'), 5, '0', STR_PAD_LEFT), $lotes)
+            ))))
+            ->select('Folio', 'RizoPie')
+            ->orderBy('Id')
+            ->get()
+            ->each(function ($fila) use (&$tipos) {
+                $tipo = trim((string) ($fila->RizoPie ?? ''));
+                if ($tipo !== '') {
+                    // El ultimo gana: si un folio se recapturo, manda el renglon mas reciente.
+                    $tipos[$this->normalizeFolio($fila->Folio)] = $tipo;
+                }
+            });
+
+        return $tipos;
+    }
+
+    /**
+     * Solo el julio de urdido (Karl Mayer) necesita el cruce con el programa de urdido.
+     * Rizo y Pie ya vienen clasificados por el ItemId en TI-PRO y no se tocan.
+     */
+    private function esJulioUrdido(object $row): bool
+    {
+        return str_contains(mb_strtoupper(trim((string) ($row->ItemId ?? ''))), 'JULIO-URDIDO');
+    }
+
+    /** Lote y folio se comparan sin ceros a la izquierda: '01269' y '1269' son el mismo. */
+    private function normalizeFolio($folio): string
+    {
+        return ltrim(trim((string) ($folio ?? '')), '0');
+    }
+
     public function dimKey($obj): string
     {
         $fields = [
@@ -132,13 +209,28 @@ class InventarioReservasService
         $filtroNoTelarId = null;
         $filtrosTi = [];
 
-        // 1. Separar el filtro local de 'NoTelarId' de los filtros que se envían por query a TI-PRO
+        // 1. Separar los filtros locales de los que se envían por query a TI-PRO.
+        // 'NoTelarId' vive en las reservas locales; un 'Tipo' de barra ('1'..'4') sale del
+        // programa de urdido, no de TI-PRO, asi que tambien se resuelve aqui.
+        $filtroTipoBarra = null;
+
         foreach ($filtros as $f) {
-            if (($f['columna'] ?? '') === 'NoTelarId') {
-                $filtroNoTelarId = trim($f['valor'] ?? '');
-            } else {
-                $filtrosTi[] = $f;
+            $columna = $f['columna'] ?? '';
+            $valor = trim($f['valor'] ?? '');
+
+            if ($columna === 'NoTelarId') {
+                $filtroNoTelarId = $valor;
+
+                continue;
             }
+
+            if ($columna === 'Tipo' && preg_match('/^[1-4]$/', $valor)) {
+                $filtroTipoBarra = $valor;
+
+                continue;
+            }
+
+            $filtrosTi[] = $f;
         }
 
         // 2. Obtener reservas locales activas y armar un mapa de acceso rápido (por dimKey)
@@ -160,6 +252,11 @@ class InventarioReservasService
         // 3. Consultar a la base de datos externa (TI-PRO).
         // Esta es nuestra base principal: SI NO ESTÁ EN TI-PRO, NO SE MUESTRA.
         $rowsTi = $this->queryDisponibleFromTiPro($filtrosTi, self::LIMIT_TI);
+
+        // TI-PRO no sabe de barras: el tipo del julio de urdido sale del programa de urdido,
+        // cruzando el lote (InventBatchId) con su folio.
+        $tiposPorFolio = $this->tiposPorFolioUrdido($rowsTi);
+
         $resultados = [];
 
         // Determinar si el usuario pide ver "sólo los disponibles" (es decir, los que NO tienen reserva)
@@ -171,6 +268,14 @@ class InventarioReservasService
 
         // 4. Procesar resultados de TI-PRO: cruzar (left join lógico) con reservas locales
         foreach ($rowsTi as $row) {
+            if ($this->esJulioUrdido($row)) {
+                $row->Tipo = $tiposPorFolio[$this->normalizeFolio($row->InventBatchId)] ?? null;
+            }
+
+            if ($filtroTipoBarra !== null && (string) ($row->Tipo ?? '') !== $filtroTipoBarra) {
+                continue;
+            }
+
             $rowKey = $this->dimKey($row);
 
             // Si la pieza de TI-PRO está reservada localmente, le inyectamos los datos de la reserva
@@ -556,7 +661,7 @@ class InventarioReservasService
                 ->join(DB::raw('InventDim AS d WITH (NOLOCK)'), function ($join) {
                     $join->on('d.InventDimId', '=', 's.InventDimId')
                         ->where('d.DATAAREAID', '=', self::DATAAREA)
-                        ->where('d.InventLocationId', '=', self::LOC_TELA);
+                        ->whereIn(DB::raw('LTRIM(RTRIM(d.InventLocationId))'), self::ALMACENES);
                 })
                 ->leftJoin(DB::raw('InventSerial AS ser WITH (NOLOCK)'), function ($join) {
                     $join->on('ser.InventSerialId', '=', 'd.InventSerialId')
@@ -565,10 +670,16 @@ class InventarioReservasService
                 })
                 ->where('s.DATAAREAID', self::DATAAREA)
                 ->where('s.PhysicalInvent', '>', 0) // Solo inventario realmente disponible
+                // Un julio en MC1/MC2/MC3 ya esta en la engomadora: no se puede reservar.
+                ->whereNotIn(
+                    DB::raw("LTRIM(RTRIM(ISNULL(d.WMSLocationId, '')))"),
+                    self::LOCALIDADES_EN_MAQUINA
+                )
                 ->where(function ($q) {
-                    // Filtrar que al menos sean productos de la categoría requerida (Rizo o Pie)
+                    // Filtrar que al menos sean productos de la categoría requerida (Rizo, Pie o urdido de KM)
                     $q->where('s.ItemId', 'like', self::PATTERN_RIZO)
-                        ->orWhere('s.ItemId', 'like', self::PATTERN_PIE);
+                        ->orWhere('s.ItemId', 'like', self::PATTERN_PIE)
+                        ->orWhere('s.ItemId', 'like', self::PATTERN_URDIDO);
                 })
                 ->selectRaw("LTRIM(RTRIM(ISNULL(s.ItemId, ''))) AS ItemId")
                 ->selectRaw("LTRIM(RTRIM(ISNULL(d.ConfigId, ''))) AS ConfigId")

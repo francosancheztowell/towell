@@ -288,7 +288,7 @@ class CodificacionFormularioTest extends TestCase
         );
     }
 
-    public function test_crear_arma_tamano_clave_con_clave_ax_y_tamano(): void
+    public function test_crear_arma_tamano_clave_con_tamano_y_clave_ax(): void
     {
         $this->postJson('/planeacion/catalogos/codificacion-modelos', [
             'OrdenTejido' => '36440',
@@ -302,8 +302,9 @@ class CodificacionFormularioTest extends TestCase
             'OrdenTejido' => '36440',
             'ItemId' => '7576',
             'InventSizeId' => 'FEL',
-            'TamanoClave' => '7576FEL',
-            'ClaveModelo' => '7576FEL',
+            // Primero el tamaño y luego la clave AX: FEL + 7576.
+            'TamanoClave' => 'FEL7576',
+            'ClaveModelo' => 'FEL7576',
         ]);
     }
 

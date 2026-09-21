@@ -62,6 +62,9 @@ export interface SelectedTelar {
   calibre: string
   hilo: string
   no_julio: string
+  /** Julios asignados a la fila: hasta cuatro en una barra de Karl Mayer, uno en rizo/pie. */
+  julios: string[]
+  max_julios: number
   no_orden: string
   fecha: string
   turno: string

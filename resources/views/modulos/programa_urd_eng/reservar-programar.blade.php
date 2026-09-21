@@ -136,6 +136,9 @@
                                         $baseBg       = $i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
                                         $metrosFloat  = isset($t['metros']) ? (float)$t['metros'] : 0;
                                         $noJulioTrim  = trim($t['no_julio'] ?? '');
+                                        // Una barra de Karl Mayer se alimenta de hasta cuatro julios.
+                                        $julios       = array_values(array_filter($t['julios'] ?? [$noJulioTrim]));
+                                        $maxJulios    = (int)($t['max_julios'] ?? 1) ?: 1;
                                         $noOrdenTrim  = trim($t['no_orden'] ?? '');
                                         $hasBoth      = $metrosFloat > 0 && $noJulioTrim !== '';
                                         $isReservado  = (bool)($t['reservado'] ?? false);
@@ -166,6 +169,8 @@
                                         data-hilo="{{ trim($t['hilo'] ?? '') }}"
                                         data-salon="{{ $salon }}"
                                         data-no-julio="{{ $noJulioTrim }}"
+                                        data-julios="{{ implode(',', $julios) }}"
+                                        data-max-julios="{{ $maxJulios }}"
                                         data-no-orden="{{ $noOrdenTrim }}"
                                         data-metros="{{ $t['metros'] ?? '' }}"
                                         data-fecha="{{ (!empty($t['fecha']) && preg_match('/^\d{4}-\d{2}-\d{2}/', trim($t['fecha']))) ? substr(trim($t['fecha']), 0, 10) : '' }}"
@@ -218,7 +223,10 @@
                                             {{ number_format((float)($t['metros'] ?? 0), 0) }}
                                         </td>
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                                            {{ $t['no_julio'] ?? '' }}
+                                            {{ implode(', ', $julios) ?: '-' }}
+                                            @if($maxJulios > 1)
+                                                <span class="ml-1 text-xs text-gray-500">({{ count($julios) }}/{{ $maxJulios }})</span>
+                                            @endif
                                         </td>
                                         <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                                             {{ $t['no_orden'] ?? '' }}

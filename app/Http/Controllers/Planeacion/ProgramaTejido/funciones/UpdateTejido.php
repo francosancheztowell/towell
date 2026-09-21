@@ -321,6 +321,22 @@ class UpdateTejido
                         $registro->NombreCC5 = $valor !== null ? mb_substr((string) $valor, 0, 60) : null;
                     }
 
+                    // Karl Mayer: la construccion son cuatro barras, mismo nombre de columna
+                    // en ReqModelosCodificados y en ReqProgramaTejido.
+                    foreach ([1, 2, 3, 4] as $n) {
+                        foreach (['Cuenta' => 40, 'Calibre' => 40, 'CodColor' => 40, 'Color' => 40, 'Fibra' => 40] as $campo => $largo) {
+                            $col = $campo.'Barra'.$n;
+                            if (isset($datosModelo[$col])) {
+                                $valor = $datosModelo[$col] ?: null;
+                                $registro->{$col} = $valor !== null ? mb_substr((string) $valor, 0, $largo) : null;
+                            }
+                        }
+                        $pasadas = 'PasadasBarra'.$n;
+                        if (isset($datosModelo[$pasadas])) {
+                            $registro->{$pasadas} = $datosModelo[$pasadas] !== null ? (int) $datosModelo[$pasadas] : null;
+                        }
+                    }
+
                     // Otros campos
                     if (isset($datosModelo['MedidaPlano'])) {
                         $registro->MedidaPlano = $datosModelo['MedidaPlano'] !== null ? (float) $datosModelo['MedidaPlano'] : null;
@@ -338,6 +354,9 @@ class UpdateTejido
                     }
 
                     // FlogsId y NombreProyecto NO se actualizan desde el modelo - se preservan los valores existentes
+
+                    // Karl Mayer solo teje barras: rizo, pie, trama y C1-C5 se van en null (y al reves).
+                    TejidoHelpers::limpiarConstruccionSegunSalon($registro);
 
                     $afectaDuracion = true;
                     $afectaFormulas = true;
@@ -742,6 +761,11 @@ class UpdateTejido
             'CodColorC2', 'NomColorC2', 'CalibreComb3', 'CalibreComb32', 'FibraComb3', 'CodColorC3',
             'NomColorC3', 'CalibreComb4', 'CalibreComb42', 'FibraComb4', 'CodColorC4', 'NomColorC4',
             'CalibreComb5', 'CalibreComb52', 'FibraComb5', 'CodColorC5', 'NomColorC5', 'LargoToalla',
+            // Karl Mayer: cuatro barras en vez de rizo/pie/C1-C5.
+            'CuentaBarra1', 'CalibreBarra1', 'CodColorBarra1', 'ColorBarra1', 'FibraBarra1', 'PasadasBarra1',
+            'CuentaBarra2', 'CalibreBarra2', 'CodColorBarra2', 'ColorBarra2', 'FibraBarra2', 'PasadasBarra2',
+            'CuentaBarra3', 'CalibreBarra3', 'CodColorBarra3', 'ColorBarra3', 'FibraBarra3', 'PasadasBarra3',
+            'CuentaBarra4', 'CalibreBarra4', 'CodColorBarra4', 'ColorBarra4', 'FibraBarra4', 'PasadasBarra4',
         ];
 
         // Buscador canónico: resuelve alias de salón (KM = KARL MAYER, SMIT = ITEMA, ...)
@@ -818,6 +842,11 @@ class UpdateTejido
             'FibraComb5' => $datos->FibraComb5 ?? null,
             'CodColorComb5' => $datos->CodColorC5 ?? null,
             'NombreCC5' => $datos->NomColorC5 ?? null,
+            // Karl Mayer: las barras se llaman igual en las dos tablas, no hay que remapear.
+            ...collect([1, 2, 3, 4])
+                ->flatMap(fn ($n) => collect(['Cuenta', 'Calibre', 'CodColor', 'Color', 'Fibra', 'Pasadas'])
+                    ->mapWithKeys(fn ($c) => [$c.'Barra'.$n => $datos->{$c.'Barra'.$n} ?? null]))
+                ->all(),
         ];
     }
 

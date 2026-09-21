@@ -78,10 +78,18 @@ class TelaresController extends Controller
         $datos = $this->cargarTelares(['KARL MAYER'], $telares);
 
         // KM no teje rizo/pie: las cuatro barras reemplazan a los julios en la vista.
-        foreach ($this->barrasKarlMayerPorTelar($telares) as $telar => $barras) {
-            if (isset($datos[$telar])) {
-                $datos[$telar]['telarData']->barras = $barras;
+        $folios = $this->foliosBarrasPorTelar($telares);
+
+        foreach ($datos as $telar => $info) {
+            $porBarra = $folios[$telar] ?? [];
+            $datos[$telar]['telarData']->barras = $this->barrasDeOrden($info['telarData'], $porBarra);
+            $montados = [];
+            foreach ($porBarra as $noBarra => $numeros) {
+                foreach ($numeros as $noJulio) {
+                    $montados[] = (object) ['Barra' => $noBarra, 'NoJulio' => $noJulio];
+                }
             }
+            $datos[$telar]['telarData']->juliosMontados = $montados;
         }
 
         return view('modulos/tejido/inventario-telas/inventario-telas', [
@@ -241,12 +249,19 @@ class TelaresController extends Controller
                 'CuentaPie as Cuenta_Pie',
                 'CalibrePie as Calibre_Pie',
                 'FibraPie as Fibra_Pie',
+                'CuentaBarra1', 'CalibreBarra1', 'FibraBarra1',
+                'CuentaBarra2', 'CalibreBarra2', 'FibraBarra2',
+                'CuentaBarra3', 'CalibreBarra3', 'FibraBarra3',
+                'CuentaBarra4', 'CalibreBarra4', 'FibraBarra4',
             ])
             ->first();
 
         // Karl Mayer no teje rizo/pie: el modal de seleccion necesita las cuatro barras.
         if ($procesoActual && $tipoSalon === 'KARL MAYER') {
-            $procesoActual->barras = $this->barrasKarlMayerPorTelar([$telarId])[$telarId] ?? [];
+            $procesoActual->barras = $this->barrasDeOrden(
+                $procesoActual,
+                $this->foliosBarrasPorTelar([$telarId])[$telarId] ?? []
+            );
         }
 
         return response()->json($procesoActual ?: null);
@@ -387,6 +402,11 @@ class TelaresController extends Controller
             'FibraComb3 as FIBRA_C3',
             'FibraComb4 as FIBRA_C4',
             'FibraComb5 as FIBRA_C5',
+            // Karl Mayer: la construccion de las cuatro barras viaja en la misma orden.
+            'CuentaBarra1', 'CalibreBarra1', 'FibraBarra1',
+            'CuentaBarra2', 'CalibreBarra2', 'FibraBarra2',
+            'CuentaBarra3', 'CalibreBarra3', 'FibraBarra3',
+            'CuentaBarra4', 'CalibreBarra4', 'FibraBarra4',
         ];
     }
 
@@ -471,37 +491,83 @@ class TelaresController extends Controller
     }
 
     /**
-     * Barras 1-4 montadas en varios telares Karl Mayer, en una sola consulta.
+     * Barras 1-4 de Karl Mayer a partir de la orden que las teje.
      *
-     * KM no teje rizo/pie: son cuatro barras y UrdProgramaUrdido las guarda en la
-     * misma columna RizoPie ('1'..'4' en vez de 'Rizo'/'Pie').
+     * KM no teje rizo/pie: la construccion de las cuatro barras viene en la misma
+     * fila de ReqProgramaTejido ({Cuenta,Calibre,Fibra}Barra1..4). Cada barra
+     * puede llevar hasta 4 julios (AtaMontadoTelas.NoJulio).
      *
-     * @return array<mixed, array<int, object|null>>
+     * @param  array<int, array<int, string>>  $julios  NoJulio montados por barra
+     * @return array<int, object>
      */
-    private function barrasKarlMayerPorTelar(array $telares): array
+    private function barrasDeOrden(?object $orden, array $julios): array
+    {
+        $barras = [];
+
+        for ($n = 1; $n <= 4; $n++) {
+            $deLaBarra = array_values(array_filter($julios[$n] ?? [], fn ($julio) => $julio !== ''));
+            $barras[$n] = (object) [
+                'Cuenta' => $orden->{"CuentaBarra{$n}"} ?? null,
+                'Calibre' => $orden->{"CalibreBarra{$n}"} ?? null,
+                'Fibra' => $orden->{"FibraBarra{$n}"} ?? null,
+                'Julios' => $deLaBarra,
+            ];
+        }
+
+        return $barras;
+    }
+
+    /**
+     * Julios montados de cada barra, hasta 4 por barra.
+     *
+     * Misma tabla que J Rizo / J Pie: AtaMontadoTelas. En Jacquard hay un julio
+     * por Tipo. En Karl Mayer una barra (Tipo 1..4) puede tener hasta 4 NoJulio
+     * reservados a la vez; se toman los 4 mas recientes por fecha y luego por Id.
+     *
+     * @return array<mixed, array<int, array<int, string>>>
+     */
+    private function foliosBarrasPorTelar(array $telares): array
     {
         if ($telares === []) {
             return [];
         }
 
-        $ultimas = DB::table('UrdProgramaUrdido')
+        $barra = "CASE
+            WHEN UPPER(LTRIM(RTRIM(Tipo))) IN ('1', 'B1', 'BARRA 1', 'BARRA1') THEN '1'
+            WHEN UPPER(LTRIM(RTRIM(Tipo))) IN ('2', 'B2', 'BARRA 2', 'BARRA2') THEN '2'
+            WHEN UPPER(LTRIM(RTRIM(Tipo))) IN ('3', 'B3', 'BARRA 3', 'BARRA3') THEN '3'
+            WHEN UPPER(LTRIM(RTRIM(Tipo))) IN ('4', 'B4', 'BARRA 4', 'BARRA4') THEN '4'
+            ELSE NULL
+        END";
+
+        $ultimos = DB::table('AtaMontadoTelas')
             ->whereIn('NoTelarId', array_map('strval', $telares))
-            ->whereIn('RizoPie', ['1', '2', '3', '4'])
-            ->select('NoTelarId', 'RizoPie', 'Cuenta', 'Calibre', 'Fibra', 'Folio', 'Status', DB::raw(
-                'ROW_NUMBER() OVER (PARTITION BY NoTelarId, RizoPie ORDER BY Id DESC) AS rn'
+            ->whereRaw("{$barra} IS NOT NULL")
+            ->select('NoTelarId', 'Id', 'NoJulio', DB::raw("{$barra} AS Barra"), DB::raw(
+                "ROW_NUMBER() OVER (PARTITION BY NoTelarId, {$barra} ORDER BY CAST(Fecha AS DATE) DESC, Id DESC) AS rn"
             ));
 
-        $barras = array_fill_keys($telares, [1 => null, 2 => null, 3 => null, 4 => null]);
+        $julios = [];
+        foreach ($telares as $telar) {
+            $julios[$telar] = [1 => [], 2 => [], 3 => [], 4 => []];
+        }
 
-        foreach (DB::query()->fromSub($ultimas, 'u')->where('rn', 1)->get() as $fila) {
+        $filas = DB::query()->fromSub($ultimos, 'u')->where('rn', '<=', 4)->get()
+            ->sortBy('Id')
+            ->values();
+
+        foreach ($filas as $fila) {
+            if ($fila->NoJulio === null || $fila->NoJulio === '') {
+                continue;
+            }
             foreach ($telares as $telar) {
                 if ((string) $telar === (string) $fila->NoTelarId) {
-                    $barras[$telar][(int) $fila->RizoPie] = $fila;
+                    $julios[$telar][(int) $fila->Barra][] = (string) $fila->NoJulio;
                 }
             }
         }
 
-        return $barras;
+        return $julios;
     }
 
     /**

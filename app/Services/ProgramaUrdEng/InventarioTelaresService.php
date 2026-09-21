@@ -12,16 +12,23 @@ class InventarioTelaresService
 {
     public const STATUS_ACTIVO = 'Activo';
 
+    /** Julios que caben en una barra de Karl Mayer. */
+    public const MAX_JULIOS_KM = 4;
+
     public const COLS_TELARES = [
         'no_telar', 'tipo', 'cuenta', 'calibre', 'fecha', 'turno', 'hilo', 'metros',
-        'no_julio', 'no_orden', 'tipo_atado', 'salon', 'Reservado', 'Programado',
+        'no_julio', 'no_julio2', 'no_julio3', 'no_julio4',
+        'no_orden', 'tipo_atado', 'salon', 'Reservado', 'Programado',
     ];
 
     /**
      * Solo estas columnas se pueden filtrar desde el navegador. Sin la lista,
      * el querystring elegia cualquier columna de la tabla.
      */
-    public const ALLOWED_FILTERS = self::COLS_TELARES;
+    public const ALLOWED_FILTERS = [
+        'no_telar', 'tipo', 'cuenta', 'calibre', 'fecha', 'turno', 'hilo', 'metros',
+        'no_julio', 'no_orden', 'tipo_atado', 'salon', 'Reservado', 'Programado',
+    ];
 
     public function baseQuery()
     {
@@ -57,6 +64,12 @@ class InventarioTelaresService
                 'hilo' => $this->str($r->hilo ?? null),
                 'metros' => $this->num($r->metros ?? null),
                 'no_julio' => $this->str($r->no_julio ?? null),
+                'no_julio2' => $this->str($r->no_julio2 ?? null),
+                'no_julio3' => $this->str($r->no_julio3 ?? null),
+                'no_julio4' => $this->str($r->no_julio4 ?? null),
+                // Una barra de Karl Mayer se alimenta de cuatro julios; rizo y pie, de uno.
+                'julios' => $this->juliosDe($r),
+                'max_julios' => $this->esBarraKm($r->tipo ?? null) ? self::MAX_JULIOS_KM : 1,
                 'no_orden' => $this->str($r->no_orden ?? null),
                 'tipo_atado' => $this->str($r->tipo_atado ?? 'Normal'),
                 'salon' => $this->str($r->salon ?? null),
@@ -65,6 +78,25 @@ class InventarioTelaresService
                 '_index' => $i,
             ];
         });
+    }
+
+    /** Los julios asignados de una fila, sin huecos y en orden de columna. */
+    private function juliosDe($r): array
+    {
+        $julios = [];
+        foreach (['no_julio', 'no_julio2', 'no_julio3', 'no_julio4'] as $columna) {
+            $valor = trim((string) ($r->{$columna} ?? ''));
+            if ($valor !== '') {
+                $julios[] = $valor;
+            }
+        }
+
+        return $julios;
+    }
+
+    private function esBarraKm($tipo): bool
+    {
+        return (bool) preg_match('/^[1-4]$/', trim((string) ($tipo ?? '')));
     }
 
     /**
