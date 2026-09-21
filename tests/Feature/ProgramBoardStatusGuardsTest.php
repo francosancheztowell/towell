@@ -50,6 +50,8 @@ class ProgramBoardStatusGuardsTest extends TestCase
         $urdido->assertViewIs('modulos.urdido.programar-urdido-livewire');
         $urdido->assertSee('Karl Mayer');
         $urdido->assertSee('MC Coy 1');
+        $urdido->assertDontSee('MC Coy 4');
+        $urdido->assertDontSee('MC4');
     }
 
     public function test_legacy_boards_redirect_to_the_classic_default(): void

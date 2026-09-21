@@ -179,10 +179,10 @@
                                             <td>
                                                 @if (($moduleMeta['isUrdido'] ?? false) && in_array($row['status'], ['En Proceso', 'Programado'], true))
                                                     <select class="program-board-salon" wire:change="asignarSalon({{ $row['id'] }}, $event.target.value)">
-                                                        @foreach (['MC Coy 1' => 'MC1', 'MC Coy 2' => 'MC2', 'MC Coy 3' => 'MC3', 'MC Coy 4' => 'MC4'] as $valor => $etiqueta)
+                                                        @foreach (['MC Coy 1' => 'MC1', 'MC Coy 2' => 'MC2', 'MC Coy 3' => 'MC3'] as $valor => $etiqueta)
                                                             <option value="{{ $valor }}" @selected($row['machine'] === $valor)>{{ $etiqueta }}</option>
                                                         @endforeach
-                                                        @if (! in_array($row['machine'], ['MC Coy 1', 'MC Coy 2', 'MC Coy 3', 'MC Coy 4'], true))
+                                                        @if (! in_array($row['machine'], ['MC Coy 1', 'MC Coy 2', 'MC Coy 3'], true))
                                                             <option value="{{ $row['machine'] }}" selected>{{ $row['machine'] }}</option>
                                                         @endif
                                                     </select>

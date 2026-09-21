@@ -215,7 +215,7 @@ class ProgramBoard extends Component
     public function asignarSalon(int $id, string $maquina): void
     {
         abort_unless($this->canEdit, 403);
-        $permitidas = ['MC Coy 1', 'MC Coy 2', 'MC Coy 3', 'MC Coy 4'];
+        $permitidas = ['MC Coy 1', 'MC Coy 2', 'MC Coy 3'];
         if (! in_array($maquina, $permitidas, true)) {
             return;
         }

@@ -51,7 +51,7 @@ class ProgramBoardActionService
             throw new DomainException('No tienes permiso para cambiar el salón.');
         }
 
-        $permitidas = ['MC Coy 1', 'MC Coy 2', 'MC Coy 3', 'MC Coy 4'];
+        $permitidas = ['MC Coy 1', 'MC Coy 2', 'MC Coy 3'];
         $modelClass = $module->programModel();
 
         foreach ($rows as $row) {
