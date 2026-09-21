@@ -493,9 +493,14 @@ nav:has(#program-board-navbar-controls) h1 {
         gap: .75rem;
     }
 
-    .program-board-lane,
-    .program-board-lanes.is-engomado .program-board-lane {
+    .program-board-lane {
         height: clamp(18rem, 42dvh, 30rem);
+        min-height: 0;
+    }
+
+    /* ponytail: engomado tiene un solo carril, que use todo el alto tambien en tablets. */
+    .program-board-lanes.is-engomado .program-board-lane {
+        height: calc(100dvh - var(--program-board-header-height, 72px) - 1.5rem);
         min-height: 0;
     }
 
