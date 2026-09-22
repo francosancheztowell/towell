@@ -173,6 +173,10 @@ Detección de dispositivo, navegador y SO por User-Agent (usado típicamente en 
 - `getDeviceIdentifier(): string` — `device_helpers.php:668`: huella corta (8 chars en mayúsculas) md5 de UA+IP+Accept-Language.
 
 ### 4.8 `app/Services/ImportDataProcessor.php`
+
+> **BORRADO 2026-09-22** — esta seccion describe codigo que ya no existe (limpieza R0, auditoria de over-engineering). Se conserva el texto por historia; no lo uses como referencia.
+
+
 Parser/normalizador centralizado de datos de Excel (usado por las clases de `app/Imports/`). No toca BD; solo conversión y matching de columnas.
 - `normKey(string $s): string` — `ImportDataProcessor.php:17`: normaliza encabezados (minúsculas, sin tildes/signos, espacios colapsados) para matching robusto.
 - `getString(...)` / `getStringExact(...)` — `:37` / `:49`: extraen string con trim y `maxLen`; `getStringExact` prioriza coincidencia exacta antes que fuzzy.
@@ -183,6 +187,10 @@ Parser/normalizador centralizado de datos de Excel (usado por las clases de `app
 - Privadas: `pick()` (estrategia exacta → normalizada → "contiene" → posición), `isValidTotalValue()`, `convertToInt()`.
 
 ### 4.9 `app/Services/PronosticosService.php`
+
+> **BORRADO 2026-09-22** — esta seccion describe codigo que ya no existe (limpieza R0, auditoria de over-engineering). Se conserva el texto por historia; no lo uses como referencia.
+
+
 Obtiene pronósticos de demanda desde **`TI_PRO`** (conexión `sqlsrv_ti`). Ya **no persiste** en `ReqPronosticos` (líneas comentadas).
 - `obtenerPronosticos($meses): array` — `PronosticosService.php:18`: recibe meses (`['2025-08',...]` o `"2025-08,2025-09"`), construye rangos y devuelve `[batas, otros]`.
 - Privadas:
@@ -321,6 +329,10 @@ Trait compartido por `ModuloProduccionUrdidoController` y `ModuloProduccionEngom
 **Helpers protected del trait** (resumen): `maxKgNetoAllowed()`/`maxKgBrutoAllowed()` (límites por módulo), `jsonIfKgNetoExceedsLimit()`/`jsonIfKgBrutoExceedsLimit()` (422 si excede), `ensureUserCanEdit()` (403 si no `userCan('modificar', módulo)`), `traitHasNegativeKgNetoByFolio()`, `traitHasHoraInicialCaptured()`, `traitRefrescarFechaEnRegistrosVacios()` (refresca `Fecha`=`TurnoHelper::getFechaProduccion()` y `Turno1`=turno del usuario en registros aún vacíos y sin `HoraInicial`), `traitAutollenarOficial1EnRegistrosSinHoraInicial()`, `resolveMonthlyClosureDateContext()` (cierre mensual día 1 antes de 08:30), `updateProduccionFechaByFolio()`, `onRegistroDesmarcado()` (hook), `validarHorasRegistros()` (deshabilitado, retorna null).
 
 ### 9.4 `app/Mcp/Servers/WeatherServer.php` y `routes/ai.php`
+
+> **BORRADO 2026-09-22** — esta seccion describe codigo que ya no existe (limpieza R0, auditoria de over-engineering). Se conserva el texto por historia; no lo uses como referencia.
+
+
 - `WeatherServer` (`laravel/mcp`): servidor de andamiaje con atributos `#[Name('Weather Server')]`, `#[Version('0.0.1')]`, `#[Instructions(...)]`. Arrays `$tools`, `$resources`, `$prompts` **vacíos** — sin funcionalidad activa.
 - `routes/ai.php`: solo `use Laravel\Mcp\Facades\Mcp;` y un registro web **comentado** (`// Mcp::web('/mcp/demo', ...)`). No expone endpoints MCP activos.
 

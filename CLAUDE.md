@@ -78,8 +78,6 @@ Controllers follow the same subdirectory pattern under `app/Http/Controllers/`.
 - `TurnoHelper` — determine current production shift (Turno 1: 6:30–14:30, Turno 2: 14:30–22:30, Turno 3: 22:30–6:30, America/Mexico_City timezone)
 - `StringTruncator` — truncate string fields to their SQL Server column limits before insert/update
 - `UsuarioService` — user data operations
-- `PronosticosService` — production forecasting
-- `ImportDataProcessor` — Excel import data processing
 - `ProgramaUrdEng/` — 5 services for warping-sizing scheduling (InventarioTelaresService, ProgramasUrdidoEngomadoService, ResumenSemanasService, InventarioReservasService, BomMaterialesService)
 - `Engomado/ControlMermaReportService` — sizing waste control reports
 - `AuditoriaHelper` — audit trail logging
@@ -114,11 +112,10 @@ Uses `dompdf/dompdf` (v3.1). PDF controllers/views are in `app/Http/Controllers/
 - Routes in `routes/modules/telegram.php`: `POST /telegram/send`, `GET /telegram/bot-info`, `GET /telegram/get-chat-id`
 
 ### Additional Patterns
-- **Traits**: `HasUserPermissions`, `ProduccionTrait` in `app/Traits/`
-- **Observers**: `ReqProgramaTejidoObserver` (registered in AppServiceProvider), `SimulacionProgramaTejidoObserver`
+- **Traits**: `ProduccionTrait` in `app/Traits/`
+- **Observers**: `ReqProgramaTejidoObserver` and `AtaMontadoTelasObserver` (both registered in AppServiceProvider)
 - **Artisan Commands**: `OptimizeModuleImagesCommand`, `RecalcularFechasProduccionCommand`
-- **Middleware**: `ForceHttps`, `NoCacheHtmlResponses`, `ProgramaTejidoContext` (in addition to `SetSqlContextInfo`)
-- **MCP**: `laravel/mcp` v0.5.1 — server in `app/Mcp/Servers/`
+- **Middleware**: `NoCacheHtmlResponses`, `ProgramaTejidoContext` (in addition to `SetSqlContextInfo`). HTTPS is the web server's job, not the app's.
 - **Redis**: `predis/predis` v3.3 configured as cache/queue driver
 
 ## Important Conventions

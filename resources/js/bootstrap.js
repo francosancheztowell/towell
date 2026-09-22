@@ -65,10 +65,6 @@ select2();
 import toastr from 'toastr';
 window.toastr = toastr;
 
-// Chart.js (reportes con canvas en Blade, p. ej. engomado / promedio paros)
-import Chart from 'chart.js/auto';
-window.Chart = Chart;
-
 // Cliente HTTP unificado y notificaciones (expuestos para scripts inline de Blade).
 // Ver resources/js/utils/. Reemplazan los fetch() crudos y los showToast() duplicados.
 import http from './utils/http';

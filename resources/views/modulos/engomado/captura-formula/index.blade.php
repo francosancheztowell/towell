@@ -3004,7 +3004,7 @@
                         </div>
                         <div class="flex justify-between items-center mb-2">
                             <button type="button" id="swal-ctx-select-all" class="text-xs text-blue-600 hover:text-blue-800 font-medium"><i class="fa-solid fa-check-double mr-1"></i>Todos</button>
-                            <button type="button" id="swal-ctx-deselect-all" class="text-xs text-gray-500 hover:text-gray-700 font-medium"><i class="fa-regular fa-square mr-1"></i>Ninguno</button>
+                            <button type="button" id="swal-ctx-deselect-all" class="text-xs text-gray-500 hover:text-gray-700 font-medium"><i class="fa-solid fa-square mr-1"></i>Ninguno</button>
                             <span id="swal-ctx-count" class="text-xs text-gray-400 font-medium">${ctxCheckedValues.size} de ${ctxAllValues.length}</span>
                         </div>
                         <div id="swal-ctx-values" class="max-h-[220px] overflow-y-auto border border-gray-200 rounded-lg bg-gray-50/50">${buildCheckboxes('')}</div>

@@ -130,6 +130,7 @@
 @endsection
 
 @push('scripts')
+@vite('resources/js/charts.js')
 <script>
     function mostrarModalConsultarResumenUrdido() {
         document.getElementById('modalConsultarResumenUrdido').classList.remove('hidden');

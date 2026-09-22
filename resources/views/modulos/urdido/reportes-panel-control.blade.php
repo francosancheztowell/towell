@@ -267,6 +267,7 @@
 @endsection
 
 @push('scripts')
+@vite('resources/js/charts.js')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const NAVY = '#1F3864', AZUL = '#2E75B6', AMBAR = '#BF8F00', GRISNAVY = '#A6B8D4';

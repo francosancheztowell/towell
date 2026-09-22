@@ -130,6 +130,7 @@
 @endsection
 
 @push('scripts')
+@vite('resources/js/charts.js')
 <script>
     function mostrarModalConsultarResumenEngomado() {
         document.getElementById('modalConsultarResumenEngomado').classList.remove('hidden');

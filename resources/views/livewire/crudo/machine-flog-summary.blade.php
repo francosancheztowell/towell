@@ -81,7 +81,7 @@
 
                 @if (empty($summary['simulationSalesUrl']) && empty($summary['simulationDesignUrl']))
                     <div class="crudo-flog-empty-simulation">
-                        <i class="fa-regular fa-image" aria-hidden="true"></i>
+                        <i class="fa-solid fa-image" aria-hidden="true"></i>
                         <span>Sin simulación</span>
                     </div>
                 @endif

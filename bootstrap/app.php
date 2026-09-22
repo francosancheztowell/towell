@@ -1,9 +1,15 @@
 <?php
 
+use App\Http\Middleware\AuthenticateRedboothApiKey;
+use App\Http\Middleware\EnsureModulePermission;
+use App\Http\Middleware\NoCacheHtmlResponses;
+use App\Http\Middleware\ProgramaTejidoContext;
+use App\Http\Middleware\SetSqlContextInfo;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -17,12 +23,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'redbooth.api-key' => \App\Http\Middleware\AuthenticateRedboothApiKey::class,
-            'module.permission' => \App\Http\Middleware\EnsureModulePermission::class,
+            'redbooth.api-key' => AuthenticateRedboothApiKey::class,
+            'module.permission' => EnsureModulePermission::class,
         ]);
-
-        // Registrar middleware para forzar HTTPS - TEMPORALMENTE DESHABILITADO
-        // $middleware->append(\App\Http\Middleware\ForceHttps::class);
 
         // Trust all proxies to work behind any proxy or load balancer
         $middleware->trustProxies(at: '*');
@@ -34,12 +37,21 @@ return Application::configure(basePath: dirname(__DIR__))
         // Middleware para establecer contexto de SQL Server antes de queries
         // Esto permite que los triggers capturen informacion del usuario
         $middleware->web(append: [
-            \App\Http\Middleware\SetSqlContextInfo::class,
-            \App\Http\Middleware\ProgramaTejidoContext::class,
-            \App\Http\Middleware\NoCacheHtmlResponses::class,
+            SetSqlContextInfo::class,
+            ProgramaTejidoContext::class,
+            NoCacheHtmlResponses::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        // Si expira la sesion/CSRF, redirigir a login en vez de mostrar 419.
+        $exceptions->render(function (TokenMismatchException $_exception, Request $request): ?Response {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'La sesion expiro. Inicia sesion nuevamente.'], 419);
+            }
+
+            return redirect()->route('login')->with('error', 'Tu sesion expiro. Inicia sesion nuevamente.');
+        });
+
         $exceptions->render(function (NotFoundHttpException $_exception, Request $request): ?Response {
             if (! $request->hasHeader('X-Livewire')) {
                 return null;
