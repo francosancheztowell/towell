@@ -165,6 +165,51 @@ class ReservarConTelarTransaccionTest extends TestCase
         $this->assertSame(0, InvTelasReservadas::where('TejInventarioTelaresId', 2)->count());
     }
 
+    /**
+     * Liberar suelta la reserva, no el material del requerimiento: la fibra (hilo)
+     * tiene que seguir ahi. Reservar nunca la escribe, asi que borrarla la perdia.
+     */
+    public function test_liberar_conserva_la_fibra_del_telar(): void
+    {
+        DB::connection('sqlsrv')->table('tej_inventario_telares')
+            ->where('id', 1)->update(['hilo' => 'ALGODON 20/1', 'cuenta' => '3000', 'calibre' => 20.5]);
+
+        $this->acciones()->reservarConTelar($this->reserva(), [
+            'metros' => 1200.0, 'no_julio' => '00061-744', 'no_orden' => '00061',
+        ]);
+
+        $this->acciones()->liberar(1, '401', 'Rizo');
+
+        $telar = TejInventarioTelares::find(1);
+        $this->assertSame('ALGODON 20/1', $telar->hilo, 'La fibra no se borra al liberar.');
+        $this->assertSame('3000', $telar->cuenta);
+        $this->assertNull($telar->no_julio, 'La reserva si se suelta.');
+        $this->assertNull($telar->metros, 'Los metros si se limpian: vienen de la pieza.');
+    }
+
+    /**
+     * Un julio puede entrar sin lote (no_orden). En una barra eso dejaba
+     * Reservado=true y no_orden null, y liberar se negaba para siempre.
+     */
+    public function test_liberar_una_barra_sin_no_orden_no_se_traba(): void
+    {
+        $this->acciones()->reservarConTelar(
+            ['InventSerialId' => 'K6', 'InventBatchId' => '', 'Tipo' => '1', 'TejInventarioTelaresId' => 2] + $this->reserva(),
+            ['no_julio' => 'K6']
+        );
+
+        $barra = TejInventarioTelares::find(2);
+        $this->assertSame('K6', $barra->no_julio);
+        $this->assertNull($barra->no_orden, 'Sin lote, la columna de orden queda vacia.');
+
+        $this->acciones()->liberar(2, '401', '1');
+
+        $barra = TejInventarioTelares::find(2);
+        $this->assertNull($barra->no_julio);
+        $this->assertFalse((bool) $barra->Reservado);
+        $this->assertSame(0, InvTelasReservadas::where('TejInventarioTelaresId', 2)->count());
+    }
+
     /** Un rizo no gana columnas: el segundo julio no tiene donde ir. */
     public function test_un_rizo_sigue_con_un_solo_julio(): void
     {

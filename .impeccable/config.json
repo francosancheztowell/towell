@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "resources/js/programa-urd-eng/reservar-programar.ts"
+        ],
+        "createdAt": "2026-09-21T19:33:53.110Z",
+        "reason": "Existing table-row state marker (blue when the row already has meters and a warp, yellow when multi-selected), not a card side accent."
+      }
+    ]
+  }
+}

@@ -118,8 +118,8 @@ class EdicionOrden extends Component
         $this->ordenId = $ordenId;
         $this->fromReimpresion = $fromReimpresion;
 
-        $puesto = trim((string) (Auth::user()?->puesto ?? ''));
-        $this->puedeEditar = $puesto !== '' && stripos($puesto, 'supervisor') !== false;
+        // ponytail: gate de puesto/supervisor apagado hasta que haya otro permiso
+        $this->puedeEditar = true;
 
         $orden = $this->orden();
         foreach ($this->camposEditables() as $campo) {
@@ -177,8 +177,6 @@ class EdicionOrden extends Component
 
     public function guardarJulio(int $fila): void
     {
-        abort_unless($this->puedeEditar, 403, 'No tienes permisos para editar esta orden.');
-
         try {
             $this->escribirJulio($fila);
         } catch (Throwable $e) {
@@ -225,9 +223,6 @@ class EdicionOrden extends Component
 
     private function guardarCampo(string $campo, string $accionMetros = ProgramaConfig::ACCION_METROS_SOLO_CAMPO): void
     {
-        // El permiso corta con 403; las reglas de negocio se avisan y se deshace el cambio.
-        abort_unless($this->puedeEditar, 403, 'No tienes permisos para editar esta orden.');
-
         try {
             $orden = $this->orden();
             $this->verificarPuedeEscribir($orden, $campo);

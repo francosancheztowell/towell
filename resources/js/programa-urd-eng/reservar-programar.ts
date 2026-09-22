@@ -85,6 +85,13 @@ const setLoading = (v: boolean): void => {
 /* ---------- Lecturas seguras sobre filas crudas ---------- */
 const s = (v: unknown, d = ''): string =>
   v === null || v === undefined ? d : String(v)
+/**
+ * Texto que va a parar dentro de una plantilla HTML. 'cuenta' y 'calibre' se
+ * editan en esta misma pantalla y se guardan tal cual, asi que sin esto un
+ * `<img src=x onerror=...>` en cuenta se ejecutaba al repintar la tabla.
+ */
+const esc = (v: unknown): string =>
+  s(v).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 const num = (v: unknown): number => {
   const x = Number(v)
   return Number.isNaN(x) ? 0 : x
@@ -268,21 +275,29 @@ const rowOrdenes = (r: RawRow): string[] => {
   return julios.map((_, i) => crudas[i] ?? '')
 }
 const rowMaxJulios = (r: RawRow): number => Number(r.max_julios) || 1
-/** En una barra, cada julio se muestra con su orden: `K6 (01269), K4 (01310)`. */
-const etiquetaJulios = (r: RawRow): string => {
-  const julios = rowJulios(r)
-  const ordenes = rowOrdenes(r)
-  if (rowMaxJulios(r) <= 1) return julios.join(', ')
-  return julios
-    .map((julio, i) => {
-      const orden = s(ordenes[i]).trim()
-      return orden ? `${julio} (${orden})` : julio
-    })
-    .join(', ')
+/** En Karl Mayer el tipo es 1..4: sin el prefijo "Barra" se lee como un numero suelto. */
+const etiquetaTipo = (tel: SelectedTelar): string => {
+  const tipo = s(tel.tipo).trim()
+  if (!tipo) return 'N/A'
+  return (tel.max_julios || 1) > 1 ? `Barra ${tipo}` : tipo
 }
-const etiquetaOrdenes = (r: RawRow): string => {
+const etiquetasOrdenes = (r: RawRow): string[] => {
   const ordenes = rowMaxJulios(r) > 1 ? rowOrdenes(r) : [rowNoOrden(r)]
-  return ordenes.map((o) => s(o).trim()).filter(Boolean).join(', ')
+  return ordenes.map((o) => s(o).trim()).filter(Boolean)
+}
+/**
+ * Celda de una barra: solo el primer valor a la vista; los demas quedan apilados
+ * y ocultos hasta que la fila se expande (`data-expandido="1"`).
+ */
+const celdaApilada = (valores: string[]): string => {
+  const items = valores.map((v) => s(v).trim()).filter(Boolean)
+  if (!items.length) return '-'
+  if (items.length === 1) return esc(items[0])
+  return (
+    '<span class="pu-stack">' +
+    items.map((v, i) => `<span class="${i === 0 ? '' : 'pu-extra'}">${esc(v)}</span>`).join('') +
+    '</span>'
+  )
 }
 const rowNoOrden = (r: RawRow): string => s(r.no_orden).trim()
 const rowReservado = (r: RawRow): boolean =>
@@ -311,6 +326,8 @@ interface PuState {
   selectedTelar: SelectedTelar | null
   selectedTelares: SelectedTelar[]
   selectedInventario: SelectedInventario | null
+  /** Piezas elegidas para la reserva: una en rizo/pie, hasta cuatro en una barra de KM. */
+  selectedInventarios: SelectedInventario[]
   columns: Record<TableKey, ColumnOption[]>
   sort: Record<TableKey, SortRule[]>
   telaresData: RawRow[]
@@ -325,6 +342,7 @@ const state: PuState = {
   selectedTelar: null,
   selectedTelares: [],
   selectedInventario: null,
+  selectedInventarios: [],
   columns: { telares: COLUMN_OPTIONS.telares ?? [], inventario: COLUMN_OPTIONS.inventario ?? [] },
   sort: {
     telares: [{ column: 'no_telar', direction: 'asc' }],
@@ -566,6 +584,10 @@ const render = {
 
       const tr = document.createElement('tr')
       tr.className = `selectable-row hover:bg-blue-50 cursor-pointer ${baseBg} ${border}`
+      // Seleccionar es toda la funcion de la pantalla: tiene que poder hacerse
+      // con el teclado, no solo con el raton.
+      tr.tabIndex = 0
+      tr.setAttribute('aria-selected', 'false')
       tr.dataset.id = s(r.id)
       tr.dataset.baseBg = baseBg
       tr.dataset.telar = telarNo
@@ -597,13 +619,13 @@ const render = {
       const tipoAtadoCell = CAN_MODIFICAR
         ? `<select
                         class="tipo-atado-select w-full bg-white px-2 py-1 text-xs border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500"
-                        data-telar="${telarNo}"
-                        data-tipo="${tipoUpper}"
+                        data-telar="${esc(telarNo)}"
+                        data-tipo="${esc(tipoUpper)}"
                     >
                         <option value="Normal" ${tipoAtado === 'Normal' ? 'selected' : ''}>Normal</option>
                         <option value="Especial" ${tipoAtado === 'Especial' ? 'selected' : ''}>Especial</option>
                    </select>`
-        : `<span class="text-gray-800 text-xs font-medium">${tipoAtado}</span>`
+        : `<span class="text-gray-800 text-xs font-medium">${esc(tipoAtado)}</span>`
 
       const checkboxChecked = isInMultiple ? ' checked' : ''
       const checkboxDisabled = reservado || programado || tieneNoOrd ? ' disabled' : ''
@@ -614,57 +636,60 @@ const render = {
         ? `<td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                     <input type="checkbox"
                            class="telar-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 ${checkboxCursor}"
-                           data-telar="${telarNo}"
-                           data-tipo="${tipoUpper}"
+                           data-telar="${esc(telarNo)}"
+                           data-tipo="${esc(tipoUpper)}"
                            ${checkboxDisabled}${checkboxChecked}>
                 </td>`
         : ''
 
       tr.innerHTML = `
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center font-bold">
-                    ${telarNo}
+                    ${esc(telarNo)}
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                     <span class="px-2 py-0.5 rounded text-xs font-medium ${fmt.tipoBadge(r.tipo)}">
-                        ${s(r.tipo, '-')}
+                        ${esc(s(r.tipo, '-'))}
                     </span>
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center editable-cell cursor-context-menu"
                     data-editable-field="cuenta"
-                    data-id="${s(r.id)}"
-                    data-telar="${telarNo}"
-                    data-tipo="${tipoUpper}"
-                    title="Clic derecho para editar">${s(r.cuenta)}
+                    data-id="${esc(r.id)}"
+                    data-telar="${esc(telarNo)}"
+                    data-tipo="${esc(tipoUpper)}"
+                    title="Clic derecho para editar">${esc(r.cuenta)}
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center editable-cell cursor-context-menu"
                     data-editable-field="calibre"
-                    data-id="${s(r.id)}"
-                    data-telar="${telarNo}"
-                    data-tipo="${tipoUpper}"
+                    data-id="${esc(r.id)}"
+                    data-telar="${esc(telarNo)}"
+                    data-tipo="${esc(tipoUpper)}"
                     title="Clic derecho para editar">${fmt.num(r.calibre)}
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                     ${fmt.date(r.fecha)}
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                    ${s(r.turno)}
+                    ${esc(r.turno)}
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                    ${s(r.hilo)}
+                    ${esc(r.hilo)}
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                     ${fmt.num(r.metros, 0)}
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                    ${etiquetaJulios(r) || '-'}
+                    ${celdaApilada(rowJulios(r))}
                     ${
                       rowMaxJulios(r) > 1
-                        ? `<span class="ml-1 text-xs text-gray-500">(${rowJulios(r).length}/${rowMaxJulios(r)})</span>`
+                        ? `<button type="button" class="pu-toggle" aria-expanded="false" title="Ver todos los julios">
+                             <span>${rowJulios(r).length}/${rowMaxJulios(r)}</span>
+                             <i class="fa-solid fa-chevron-down"></i>
+                           </button>`
                         : ''
                     }
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                    ${etiquetaOrdenes(r)}
+                    ${celdaApilada(etiquetasOrdenes(r))}
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                     ${
@@ -680,7 +705,7 @@ const render = {
                 </td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                     <span class="px-2 py-0.5 rounded text-xs font-medium ${fmt.salonBadge(r.salon)}">
-                        ${s(r.salon, 'Jacquard')}
+                        ${esc(s(r.salon, 'Jacquard'))}
                     </span>
                 </td>
                 ${checkboxCell}
@@ -790,6 +815,10 @@ const render = {
         : 'hover:bg-orange-50 selectable-row-inventario cursor-pointer'
 
       tr.dataset.disabled = hasTelar ? 'true' : 'false'
+      if (!hasTelar) {
+        tr.tabIndex = 0
+        tr.setAttribute('aria-selected', 'false')
+      }
       tr.dataset.tipo = s(r.Tipo)
       tr.dataset.itemId = s(r.ItemId)
       tr.dataset.configId = s(r.ConfigId)
@@ -807,22 +836,22 @@ const render = {
       const metros = fmt.num(r.Metros, 0)
 
       tr.innerHTML = `
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${s(r.ItemId)}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${esc(r.ItemId)}</td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
                     <span class="px-2 py-0.5 rounded text-xs font-medium ${fmt.tipoBadge(r.Tipo)}">
-                        ${s(r.Tipo)}
+                        ${esc(r.Tipo)}
                     </span>
                 </td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${s(r.ConfigId)}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${s(r.InventSizeId)}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${s(r.InventColorId)}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${s(r.InventBatchId)}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${s(r.WMSLocationId)}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${s(r.InventSerialId)}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${esc(r.ConfigId)}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${esc(r.InventSizeId)}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${esc(r.InventColorId)}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${esc(r.InventBatchId)}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${esc(r.WMSLocationId)}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${esc(r.InventSerialId)}</td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${fmt.date(r.ProdDate)}</td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${metros}</td>
                 <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">${kilos}</td>
-                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center font-medium">${noTelarAsignado}</td>
+                <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center font-medium">${esc(noTelarAsignado)}</td>
             `
 
       frag.appendChild(tr)
@@ -830,6 +859,8 @@ const render = {
 
     tbody.appendChild(frag)
     selection.updateFiltroButton()
+    // El tbody se reconstruye entero: hay que volver a pintar las piezas elegidas.
+    selection.repaintInventario()
   },
 }
 
@@ -838,12 +869,13 @@ const selection = {
   clearVisualRow(row: HTMLTableRowElement | null): void {
     if (!row) return
 
-    row.classList.remove('is-selected', 'bg-blue-500', 'text-white', 'bg-green-500', 'bg-yellow-50')
+    row.classList.remove('is-selected', 'bg-blue-600', 'text-white', 'bg-green-700', 'bg-yellow-50')
 
     row.style.removeProperty('background-color')
     row.style.removeProperty('color')
     row.style.removeProperty('border-left')
 
+    row.setAttribute('aria-selected', 'false')
     row.querySelectorAll('td').forEach((td) => {
       td.classList.remove('text-white')
       td.style.removeProperty('color')
@@ -858,7 +890,9 @@ const selection = {
   clearVisualInventario(row: HTMLTableRowElement | null): void {
     if (!row) return
 
-    row.classList.remove('is-selected', 'bg-green-500', 'text-white')
+    row.querySelector('.pu-slot')?.remove()
+    row.setAttribute('aria-selected', 'false')
+    row.classList.remove('is-selected', 'bg-green-700', 'text-white')
     row.style.removeProperty('background-color')
     row.style.removeProperty('color')
 
@@ -875,11 +909,15 @@ const selection = {
 
   clear(rerenderInventario = true): void {
     this.clearVisualRow($('#telaresTable .selectable-row.is-selected') as HTMLTableRowElement | null)
-    this.clearVisualInventario($('#inventarioTable .selectable-row-inventario.is-selected') as HTMLTableRowElement | null)
+    $$('#inventarioTable .selectable-row-inventario.is-selected').forEach((r) =>
+      this.clearVisualInventario(r as HTMLTableRowElement),
+    )
 
     state.selectedTelar = null
     state.selectedInventario = null
+    state.selectedInventarios = []
     state.selectedTelares = []
+    this.updateContadorJulios()
     state.mostrarTodoInventario = false
 
     disable($('#btnProgramar'))
@@ -1010,8 +1048,10 @@ const selection = {
 
     row.className = `selectable-row is-selected cursor-pointer ${hasBoth ? 'border-l-4 border-blue-300' : ''}`
 
-    row.classList.add('bg-blue-500', 'text-white')
-    row.style.setProperty('background-color', '#3b82f6', 'important')
+    row.setAttribute('aria-selected', 'true')
+    // blue-600: con blanco encima da 5.1:1. El blue-500 anterior se quedaba en 3.7:1.
+    row.classList.add('bg-blue-600', 'text-white')
+    row.style.setProperty('background-color', '#2563eb', 'important')
     row.style.setProperty('color', '#fff', 'important')
 
     row.querySelectorAll('td').forEach((td) => {
@@ -1043,6 +1083,11 @@ const selection = {
       is_programado: row.dataset.isProgramado === 'true',
     }
 
+    // Cambiar de telar descarta las piezas elegidas para el anterior.
+    state.selectedInventario = null
+    state.selectedInventarios = []
+    this.updateContadorJulios()
+
     this.validateButtons()
     this.updateFiltroButton()
 
@@ -1050,7 +1095,9 @@ const selection = {
       state.mostrarTodoInventario = false
       render.inventario(state.inventarioDataOriginal)
 
-      if (state.selectedTelar.no_julio) {
+      // Solo rizo/pie preselecciona su pieza. En una barra, marcarla sola estorbaria
+      // al elegir los julios que faltan.
+      if (state.selectedTelar.no_julio && (state.selectedTelar.max_julios || 1) <= 1) {
         const noJulio = state.selectedTelar.no_julio
         setTimeout(() => {
           const match = $$('#inventarioTable .selectable-row-inventario').find(
@@ -1063,8 +1110,10 @@ const selection = {
   },
 
   applyInventario(row: HTMLTableRowElement): void {
-    if (state.selectedTelar?.tipo) {
-      const telTipo = s(state.selectedTelar.tipo).toUpperCase().trim()
+    const tel = state.selectedTelar
+
+    if (tel?.tipo) {
+      const telTipo = s(tel.tipo).toUpperCase().trim()
       const invTipo = s(row.dataset.tipo).toUpperCase().trim()
       if (telTipo && invTipo && telTipo !== invTipo) {
         toast('warning', 'Tipo distinto', 'El tipo de la pieza no coincide con el telar', 1800)
@@ -1072,19 +1121,40 @@ const selection = {
       }
     }
 
-    const prev = $('#inventarioTable .selectable-row-inventario.is-selected') as HTMLTableRowElement | null
-    if (prev && prev !== row) this.clearVisualInventario(prev)
+    const item = this.itemDeFila(row)
 
-    row.classList.add('is-selected', 'bg-green-500', 'text-white')
-    row.style.setProperty('background-color', '#10b981', 'important')
-    row.style.setProperty('color', '#fff', 'important')
+    const max = tel?.max_julios ?? 1
+    const huecos = max - (tel?.julios.length ?? 0)
 
-    row.querySelectorAll('td').forEach((td) => {
-      td.classList.add('text-white')
-      td.style.setProperty('color', '#fff', 'important')
-    })
+    if (max <= 1) {
+      // Rizo y pie toman un solo julio: la seleccion se reemplaza, como siempre.
+      state.selectedInventarios = [item]
+    } else {
+      // Una barra de Karl Mayer admite hasta cuatro: se acumulan y cada una se pinta distinto.
+      const ix = state.selectedInventarios.findIndex((i) => i.inventSerialId === item.inventSerialId)
+      if (ix > -1) {
+        state.selectedInventarios.splice(ix, 1)
+      } else if (huecos <= 0) {
+        toast('info', 'Barra llena', `La barra ${tel?.tipo} ya tiene sus ${max} julios`, 2500)
+        return
+      } else if (state.selectedInventarios.length >= huecos) {
+        toast('info', 'Limite de julios', `Solo quedan ${huecos} julio(s) libres en esta barra`, 2500)
+        return
+      } else {
+        state.selectedInventarios.push(item)
+      }
+    }
 
-    state.selectedInventario = {
+    // El resto del flujo sigue leyendo una sola pieza: se deja la ultima elegida.
+    state.selectedInventario = state.selectedInventarios.at(-1) ?? null
+
+    this.repaintInventario()
+    this.validateButtons()
+  },
+
+  /** Pieza de inventario a partir del dataset de su fila. */
+  itemDeFila(row: HTMLTableRowElement): SelectedInventario {
+    return {
       itemId: s(row.dataset.itemId),
       configId: s(row.dataset.configId),
       inventSizeId: s(row.dataset.inventSizeId),
@@ -1100,8 +1170,108 @@ const selection = {
         (i) => s(i.ItemId) === s(row.dataset.itemId) && s(i.InventSerialId) === s(row.dataset.inventSerialId),
       ),
     }
+  },
 
+  /**
+   * Marca de golpe los julios libres del mismo lote, hasta llenar la barra.
+   * El lote sale de la primera pieza elegida y, si no hay, del No. Orden del telar.
+   */
+  seleccionarLote(): void {
+    const tel = state.selectedTelar
+    if (!tel || (tel.max_julios || 1) <= 1) return
+
+    const lote = s(state.selectedInventarios[0]?.inventBatchId || tel.no_orden).trim()
+    if (!lote) {
+      toast('info', 'Sin lote', 'Selecciona primero un julio para saber de que lote', 2500)
+      return
+    }
+
+    const huecos = (tel.max_julios || 1) - tel.julios.length
+    if (huecos <= 0) {
+      toast('info', 'Barra llena', `La barra ${tel.tipo} ya tiene sus ${tel.max_julios} julios`, 2500)
+      return
+    }
+
+    // El tipo se valida aqui tambien: con "Quitar Filtro" activo la tabla muestra
+    // piezas de otras barras y el lote se las llevaria de corbata.
+    const telTipo = s(tel.tipo).toUpperCase().trim()
+    const candidatas = ($$('#inventarioTable .selectable-row-inventario') as HTMLTableRowElement[])
+      .filter(
+        (r) =>
+          r.dataset.disabled !== 'true' &&
+          s(r.dataset.inventBatchId).trim() === lote &&
+          (!telTipo || s(r.dataset.tipo).toUpperCase().trim() === telTipo),
+      )
+      .slice(0, huecos)
+
+    if (!candidatas.length) {
+      toast('info', 'Sin julios', `No hay julios libres del lote ${lote}`, 2500)
+      return
+    }
+
+    state.selectedInventarios = candidatas.map((r) => this.itemDeFila(r))
+    state.selectedInventario = state.selectedInventarios.at(-1) ?? null
+
+    this.repaintInventario()
     this.validateButtons()
+    toast('success', `${candidatas.length} julio(s) del lote ${lote}`, '', 2000)
+  },
+
+  /** Repinta la tabla de inventario segun `state.selectedInventarios`. */
+  repaintInventario(): void {
+    const rows = $$('#inventarioTable .selectable-row-inventario') as HTMLTableRowElement[]
+    rows.forEach((r) => this.clearVisualInventario(r))
+
+    const sel = state.selectedInventarios
+    sel.forEach((item, i) => {
+      const row = rows.find((r) => r.dataset.inventSerialId === item.inventSerialId)
+      if (!row) return
+
+      row.setAttribute('aria-selected', 'true')
+      // green-700: 5.6:1 con texto blanco. El emerald-500 anterior daba 2.6:1.
+      row.classList.add('is-selected', 'bg-green-700', 'text-white')
+      row.style.setProperty('background-color', '#047857', 'important')
+      row.style.setProperty('color', '#fff', 'important')
+      row.querySelectorAll('td').forEach((td) => {
+        td.classList.add('text-white')
+        td.style.setProperty('color', '#fff', 'important')
+      })
+
+      if (sel.length > 1) {
+        const first = row.querySelector('td')
+        if (first) {
+          const badge = document.createElement('span')
+          badge.className =
+            'pu-slot mr-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-black/25 text-[10px] font-bold align-middle'
+          badge.textContent = String(i + 1)
+          first.prepend(badge)
+        }
+      }
+    })
+
+    this.updateContadorJulios()
+  },
+
+  /** Contador de julios de la barra: los ya reservados y los que se van a reservar. */
+  updateContadorJulios(): void {
+    const box = $('#puJuliosContador')
+    const btnLote = $('#btnSeleccionarLote')
+
+    const tel = state.selectedTelar
+    const max = tel?.max_julios ?? 1
+    const esBarra = !!tel && max > 1
+
+    btnLote?.classList.toggle('hidden', !esBarra)
+
+    if (!box) return
+    if (!esBarra || !tel) {
+      box.classList.add('hidden')
+      return
+    }
+
+    const pendientes = state.selectedInventarios.length
+    box.classList.remove('hidden')
+    box.textContent = `Julios ${tel.julios.length}/${max}${pendientes ? ` (+${pendientes} por reservar)` : ''}`
   },
 
   validateButtons(): void {
@@ -1110,16 +1280,16 @@ const selection = {
     const btnLiberarTelar = $('#btnLiberarTelar')
 
     // Reservar: telar + inventario del mismo tipo (Rizo/Pie, o la barra 1..4 en KM)
+    const telSel = state.selectedTelar
+    const invSel = state.selectedInventarios
     const tiposMatch =
-      state.selectedTelar && state.selectedInventario
-        ? eq.str(state.selectedTelar.tipo, state.selectedInventario.tipo || state.selectedInventario.data?.Tipo)
-        : false
+      telSel && invSel.length > 0 ? invSel.every((i) => eq.str(telSel.tipo, i.tipo || i.data?.Tipo)) : false
 
     // Liberar telar: sólo telar individual y reservado
     if (state.selectedTelar && isReservado(state.selectedTelar)) {
       // Una barra de KM con columnas libres sigue admitiendo julio; rizo y pie no.
       const quedanHuecos = state.selectedTelar.julios.length < (state.selectedTelar.max_julios || 1)
-      disable(btnReservar, !(quedanHuecos && !!state.selectedInventario && tiposMatch))
+      disable(btnReservar, !(quedanHuecos && invSel.length > 0 && tiposMatch))
       disable(btnProgramar, true)
       disable(btnLiberarTelar, false)
       return
@@ -1127,7 +1297,7 @@ const selection = {
 
     disable(btnLiberarTelar, true)
 
-    const canReservar = !!(state.selectedTelar && state.selectedInventario && tiposMatch)
+    const canReservar = !!(state.selectedTelar && invSel.length > 0 && tiposMatch)
     disable(btnReservar, !canReservar)
 
     const hasMultiple = Array.isArray(state.selectedTelares) && state.selectedTelares.length > 0
@@ -1615,7 +1785,8 @@ const actions = {
         row.no_orden3 = ''
         row.no_orden4 = ''
         row.ordenes = []
-        row.hilo = s(d?.hilo)
+        // La fibra no se pierde al liberar: solo se refresca con lo que devuelve el servidor.
+        if (d) row.hilo = s(d.hilo)
         row.reservado = false
         row.is_reservado = false
         row.programado = false
@@ -1693,32 +1864,43 @@ const actions = {
       return
     }
 
-    if (quedanHuecos && tel.julios.includes(s(state.selectedInventario?.inventSerialId))) {
-      void Swal.fire('Aviso', 'Ese julio ya está en esta barra', 'warning')
-      return
-    }
-
-    if (!state.selectedInventario?.data) {
+    const piezas = state.selectedInventarios.filter((i) => i.data)
+    if (!piezas.length) {
       void Swal.fire('Aviso', 'Selecciona una fila de inventario', 'warning')
       return
     }
 
-    // Validar que el tipo coincida (Rizo/Pie)
-    const invTipo = s(state.selectedInventario.data?.Tipo ?? state.selectedInventario.tipo).trim()
+    if (tel.julios.some((j) => piezas.some((i) => i.inventSerialId === j))) {
+      void Swal.fire('Aviso', 'Ese julio ya está en esta barra', 'warning')
+      return
+    }
+
+    // Una barra no admite mas julios de los que le quedan libres.
+    const huecos = (tel.max_julios || 1) - tel.julios.length
+    if (piezas.length > huecos) {
+      void Swal.fire('Aviso', `Solo quedan ${huecos} julio(s) libres en esta barra`, 'warning')
+      return
+    }
+
+    // Validar que el tipo coincida (Rizo/Pie o la barra 1..4)
     const telTipo = s(tel.tipo).trim()
-    if (invTipo && telTipo && !eq.str(invTipo, telTipo)) {
+    const distinta = piezas.find((i) => {
+      const invTipo = s(i.data?.Tipo ?? i.tipo).trim()
+      return invTipo && telTipo && !eq.str(invTipo, telTipo)
+    })
+    if (distinta) {
       void Swal.fire('Advertencia', 'El tipo de la pieza no coincide con el telar.', 'warning')
       return
     }
 
-    if (state.selectedInventario.data.NoTelarId) {
+    if (piezas.some((i) => i.data?.NoTelarId)) {
       void Swal.fire('Aviso', 'Esa pieza ya tiene telar asignado', 'warning')
       return
     }
 
     const ok = await Swal.fire({
-      title: '¿Reservar pieza?',
-      text: `Reservar para telar ${tel.no_telar} (${tel.tipo || 'N/A'})`,
+      title: piezas.length > 1 ? `¿Reservar ${piezas.length} julios?` : '¿Reservar pieza?',
+      text: `Reservar para telar ${tel.no_telar} (${etiquetaTipo(tel)})`,
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: 'Si, reservar',
@@ -1731,11 +1913,10 @@ const actions = {
     // Snapshot para revertir la edición optimista si el POST falla.
     const prevData = structuredClone(state.telaresData) as RawRow[]
     const prevOriginal = structuredClone(state.telaresDataOriginal) as RawRow[]
+    // Julios ya escritos: si el lote falla a medias, el snapshot los borraria.
+    let confirmadas = 0
 
     try {
-      const lote = state.selectedInventario.inventBatchId || s(state.selectedInventario.data?.InventBatchId)
-      const localidad = state.selectedInventario.wmsLocationId || s(state.selectedInventario.data?.WMSLocationId)
-
       // El telar se marca dentro de la misma transaccion que crea la reserva
       const tTipo = normalizeTipo(tel.tipo).toUpperCase()
       const mismoRegistro = (x: RawRow): boolean =>
@@ -1743,10 +1924,10 @@ const actions = {
           ? s(x.id) === tel.id
           : s(x.no_telar) === s(tel.no_telar) && s(x.tipo).toUpperCase().trim() === tTipo
 
-      const aplicarReservaLocal = (row: RawRow): void => {
-        const serial = state.selectedInventario?.numJulio || ''
+      const aplicarReservaLocal = (row: RawRow, pieza: SelectedInventario, lote: string): void => {
+        const serial = pieza.numJulio || ''
         const esBarra = (Number(row.max_julios) || tel.max_julios || 1) > 1
-        row.metros = state.selectedInventario?.metros || 0
+        row.metros = pieza.metros || 0
         if (!esBarra) {
           row.no_julio = serial
           row.no_orden = lote
@@ -1767,47 +1948,55 @@ const actions = {
         row.reservado = true
       }
 
-      const ix = state.telaresData.findIndex(mismoRegistro)
+      // Un POST por julio: el backend (acomodarJulio) coloca cada uno en la
+      // primera columna libre de la barra, asi que van en serie, no en paralelo.
+      for (const pieza of piezas) {
+        const it = pieza.data as RawRow
+        const lote = pieza.inventBatchId || s(it.InventBatchId)
+        const localidad = pieza.wmsLocationId || s(it.WMSLocationId)
 
-      if (ix > -1) {
-        aplicarReservaLocal(state.telaresData[ix] as RawRow)
+        const ix = state.telaresData.findIndex(mismoRegistro)
+        if (ix > -1) {
+          aplicarReservaLocal(state.telaresData[ix] as RawRow, pieza, lote)
 
-        const jx = state.telaresDataOriginal.findIndex(mismoRegistro)
-        if (jx > -1) aplicarReservaLocal(state.telaresDataOriginal[jx] as RawRow)
+          const jx = state.telaresDataOriginal.findIndex(mismoRegistro)
+          if (jx > -1) aplicarReservaLocal(state.telaresDataOriginal[jx] as RawRow, pieza, lote)
 
-        render.telares(state.telaresData)
+          render.telares(state.telaresData)
+        }
+
+        const payload: Record<string, unknown> = {
+          NoTelarId: tel.no_telar,
+          SalonTejidoId: tel.salon || null,
+          ItemId: it.ItemId,
+          ConfigId: it.ConfigId ?? null,
+          InventSizeId: it.InventSizeId ?? null,
+          InventColorId: it.InventColorId ?? null,
+          InventLocationId: it.InventLocationId ?? null,
+          InventBatchId: it.InventBatchId ?? null,
+          WMSLocationId: it.WMSLocationId ?? null,
+          InventSerialId: it.InventSerialId ?? null,
+          Tipo: normalizeTipo(tel.tipo),
+          Metros: it.Metros ?? null,
+          InventQty: it.InventQty ?? null,
+          ProdDate: it.ProdDate ?? null,
+          fecha: tel.fecha || null,
+          turno: tel.turno || null,
+          tej_inventario_telares_id: parseInt(tel.id, 10),
+          telar: {
+            metros: pieza.metros || 0,
+            no_julio: pieza.numJulio || '',
+            no_orden: lote,
+            localidad,
+          },
+        }
+
+        await http.post(API.reservarInventario, payload)
+        confirmadas += 1
       }
 
-      // Reservar inventario
-      const it = state.selectedInventario.data
-
-      const payload: Record<string, unknown> = {
-        NoTelarId: tel.no_telar,
-        SalonTejidoId: tel.salon || null,
-        ItemId: it.ItemId,
-        ConfigId: it.ConfigId ?? null,
-        InventSizeId: it.InventSizeId ?? null,
-        InventColorId: it.InventColorId ?? null,
-        InventLocationId: it.InventLocationId ?? null,
-        InventBatchId: it.InventBatchId ?? null,
-        WMSLocationId: it.WMSLocationId ?? null,
-        InventSerialId: it.InventSerialId ?? null,
-        Tipo: normalizeTipo(tel.tipo),
-        Metros: it.Metros ?? null,
-        InventQty: it.InventQty ?? null,
-        ProdDate: it.ProdDate ?? null,
-        fecha: tel.fecha || null,
-        turno: tel.turno || null,
-        tej_inventario_telares_id: parseInt(tel.id, 10),
-        telar: {
-          metros: state.selectedInventario.metros || 0,
-          no_julio: state.selectedInventario.numJulio || '',
-          no_orden: lote,
-          localidad,
-        },
-      }
-
-      await http.post(API.reservarInventario, payload)
+      state.selectedInventario = null
+      state.selectedInventarios = []
 
       const [inv, telrs] = await Promise.all([http.get(API.inventarioDisponibleGet), http.get(API.inventarioTelares)])
 
@@ -1837,12 +2026,29 @@ const actions = {
         }, 100)
       }
 
-      toast('success', 'Pieza reservada', '', 2500)
+      toast('success', piezas.length > 1 ? `${piezas.length} julios reservados` : 'Pieza reservada', '', 2500)
     } catch (e) {
-      state.telaresData = prevData
-      state.telaresDataOriginal = prevOriginal
+      if (confirmadas > 0) {
+        // El lote fallo a medias: esos julios ya estan en la base, asi que volver
+        // al snapshot los borraria de la pantalla. Se recarga lo que haya guardado.
+        const telrs = await http.get(API.inventarioTelares).catch(() => null)
+        const rows = asRows(telrs?.data)
+        if (rows.length) {
+          state.telaresDataOriginal = JSON.parse(JSON.stringify(rows)) as RawRow[]
+          state.telaresData = rows
+        }
+        state.selectedInventario = null
+        state.selectedInventarios = []
+      } else {
+        state.telaresData = prevData
+        state.telaresDataOriginal = prevOriginal
+      }
       render.telares(state.telaresData)
-      void Swal.fire('Error', e instanceof Error ? e.message : 'Error al reservar', 'error')
+      void Swal.fire(
+        'Error',
+        `${e instanceof Error ? e.message : 'Error al reservar'}${confirmadas ? ` (se guardaron ${confirmadas} de ${piezas.length} julios)` : ''}`,
+        'error',
+      )
     } finally {
       setLoading(false)
     }
@@ -2151,6 +2357,20 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#telaresTable tbody')?.addEventListener('click', (e: MouseEvent) => {
       const target = e.target as HTMLElement | null
       if (!target) return
+
+      const toggle = target.closest('.pu-toggle') as HTMLElement | null
+      if (toggle) {
+        e.preventDefault()
+        e.stopPropagation()
+        // En el dataset y no en una clase: seleccionar la fila reescribe su className.
+        const tr = toggle.closest('tr') as HTMLTableRowElement | null
+        if (tr) {
+          tr.dataset.expandido = tr.dataset.expandido === '1' ? '' : '1'
+          toggle.setAttribute('aria-expanded', String(tr.dataset.expandido === '1'))
+        }
+        return
+      }
+
       if (
         target.closest('button,a') ||
         (target instanceof HTMLInputElement && target.type === 'checkbox') ||
@@ -2191,6 +2411,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
       selection.applyInventario(row)
     })
+
+    // Enter o Espacio sobre la fila enfocada equivale al clic. Sin esto la pantalla
+    // no se puede operar sin raton, y seleccionar es toda su funcion.
+    const teclaSelecciona = (
+      e: KeyboardEvent,
+      selector: string,
+      accion: (row: HTMLTableRowElement) => void,
+    ): void => {
+      if (e.key !== 'Enter' && e.key !== ' ') return
+      const target = e.target as HTMLElement | null
+      // Un checkbox o el select de atado se quedan con su propia tecla.
+      if (!target || target.closest('input,select,button,a')) return
+      const row = target.closest(selector) as HTMLTableRowElement | null
+      if (!row) return
+      e.preventDefault()
+      accion(row)
+    }
+
+    $('#telaresTable tbody')?.addEventListener('keydown', (e: KeyboardEvent) =>
+      teclaSelecciona(e, '.selectable-row', (row) => {
+        if (row.classList.contains('is-selected')) selection.clear()
+        else selection.applyTelar(row)
+      }),
+    )
+
+    $('#inventarioTable tbody')?.addEventListener('keydown', (e: KeyboardEvent) =>
+      teclaSelecciona(e, '.selectable-row-inventario', (row) => {
+        if (row.dataset.disabled === 'true') {
+          toast('info', 'Pieza ya reservada')
+          return
+        }
+        selection.applyInventario(row)
+      }),
+    )
+
+    $('#btnSeleccionarLote')?.addEventListener('click', () => selection.seleccionarLote())
 
     $('#btnReloadTelares')?.addEventListener('click', () => filters.reset())
 

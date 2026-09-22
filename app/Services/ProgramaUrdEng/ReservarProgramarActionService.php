@@ -147,7 +147,10 @@ final class ReservarProgramarActionService
         $noOrden = trim((string) ($telar->no_orden ?? ''));
         $tipoTelar = $this->telaresService->normalizeTipo($telar->tipo ?? $tipo);
 
-        if ($noJulio === '' || $noOrden === '') {
+        // Una barra se suelta por TejInventarioTelaresId, asi que su no_orden no hace
+        // falta. Exigirlo dejaba la barra trabada si un julio entro sin lote: Reservado
+        // en true, no_julio puesto, no_orden null, y liberar se negaba para siempre.
+        if ($noJulio === '' || (! self::esBarraKm($telar->tipo) && $noOrden === '')) {
             throw new DomainException('Este telar no esta reservado (no tiene no_julio y no_orden)');
         }
 
@@ -183,8 +186,10 @@ final class ReservarProgramarActionService
 
             $notifica?->update(['no_julio' => null, 'no_orden' => null, 'Reserva' => 0]);
 
+            // 'hilo' (la fibra) NO se limpia: viene del requerimiento, igual que cuenta
+            // y calibre, y reservar nunca lo escribe. Borrarlo al liberar lo perdia para
+            // siempre y descuadraba el resumen de semanas, que agrupa telares por hilo.
             $telar->update([
-                'hilo' => null,
                 'metros' => null,
                 'no_julio' => null,
                 'no_julio2' => null,
