@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -9,11 +8,8 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 | Nivel 1: Ventas → /ventas
 |
-| El contenido visible depende de los submódulos de Ventas asignados al
-| usuario en SYSRoles / SYSUsuariosRoles.
+| Pantalla de demostración Plan de Ventas vs Pedido (OC) vs Real.
+| Los datos son mock; no consulta las tablas de reportes.
 */
 
-Route::get('/ventas/{moduloPrincipal?}', [UsuarioController::class, 'showSubModulos'])
-    ->defaults('moduloPrincipal', 'ventas')
-    ->where('moduloPrincipal', 'ventas')
-    ->name('ventas.index');
+Route::view('/ventas', 'modulos.ventas.dashboard-pv-vs-oc.index')->name('ventas.index');
