@@ -147,7 +147,10 @@ final class ReservarProgramarActionService
         $noOrden = trim((string) ($telar->no_orden ?? ''));
         $tipoTelar = $this->telaresService->normalizeTipo($telar->tipo ?? $tipo);
 
-        if ($noJulio === '' || $noOrden === '') {
+        // Una barra se suelta por TejInventarioTelaresId, asi que su no_orden no hace
+        // falta. Exigirlo dejaba la barra trabada si un julio entro sin lote: Reservado
+        // en true, no_julio puesto, no_orden null, y liberar se negaba para siempre.
+        if ($noJulio === '' || (! self::esBarraKm($telar->tipo) && $noOrden === '')) {
             throw new DomainException('Este telar no esta reservado (no tiene no_julio y no_orden)');
         }
 
@@ -183,14 +186,19 @@ final class ReservarProgramarActionService
 
             $notifica?->update(['no_julio' => null, 'no_orden' => null, 'Reserva' => 0]);
 
+            // 'hilo' (la fibra) NO se limpia: viene del requerimiento, igual que cuenta
+            // y calibre, y reservar nunca lo escribe. Borrarlo al liberar lo perdia para
+            // siempre y descuadraba el resumen de semanas, que agrupa telares por hilo.
             $telar->update([
-                'hilo' => null,
                 'metros' => null,
                 'no_julio' => null,
                 'no_julio2' => null,
                 'no_julio3' => null,
                 'no_julio4' => null,
                 'no_orden' => null,
+                'no_orden2' => null,
+                'no_orden3' => null,
+                'no_orden4' => null,
                 'Reservado' => false,
                 'Programado' => false,
                 'ConfigId' => null,
@@ -231,10 +239,11 @@ final class ReservarProgramarActionService
      * @return int registros actualizados, o -1 si no se encontro el telar
      */
     /**
-     * Las cuatro columnas de julio. Una barra de Karl Mayer las usa todas; un rizo
-     * o un pie solo la primera, que es la que cruza Atadores contra AtaMontadoTelas.
+     * Julio y su orden, en la misma posición. Una barra de Karl Mayer usa las
+     * cuatro parejas porque cada julio puede venir de otra orden. Rizo y Pie
+     * solo usan la primera, que es la que cruza Atadores contra AtaMontadoTelas.
      */
-    public const COLUMNAS_JULIO = ['no_julio', 'no_julio2', 'no_julio3', 'no_julio4'];
+    public const PARES_JULIO = InventarioTelaresService::PARES_JULIO;
 
     /** El tipo de una barra de Karl Mayer es '1'..'4'; Rizo y Pie van por su nombre. */
     public static function esBarraKm($tipo): bool
@@ -260,22 +269,27 @@ final class ReservarProgramarActionService
         }
 
         $julio = trim((string) $update['no_julio']);
+        $orden = trim((string) ($update['no_orden'] ?? ''));
         $ocupados = [];
-        foreach (self::COLUMNAS_JULIO as $columna) {
+        foreach (self::PARES_JULIO as $columna => $columnaOrden) {
             $ocupados[$columna] = trim((string) ($telar->{$columna} ?? ''));
         }
 
+        // El update siempre trae no_julio y no_orden. Si se dejaran, el segundo
+        // julio pisaría la orden del primero.
+        unset($update['no_julio'], $update['no_orden']);
+
         // Reservar dos veces la misma pieza no gasta una columna.
         if ($julio === '' || in_array($julio, $ocupados, true)) {
-            unset($update['no_julio']);
-
             return $update;
         }
 
-        foreach (self::COLUMNAS_JULIO as $columna) {
+        foreach (self::PARES_JULIO as $columna => $columnaOrden) {
             if ($ocupados[$columna] === '') {
-                unset($update['no_julio']);
                 $update[$columna] = $julio;
+                if ($orden !== '') {
+                    $update[$columnaOrden] = $orden;
+                }
 
                 return $update;
             }

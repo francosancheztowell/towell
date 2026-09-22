@@ -329,26 +329,27 @@
                                     @error('form.Desarrollador') <p class="mt-1 text-sm font-medium text-rose-700">{{ $message }}</p> @enderror
                                 </div>
 
-                                {{-- Eficiencias: el selector se arma al abrirlo, no 101 botones por adelantado.
-                                     La rejilla envuelve en vez de desplazarse de lado: el 63 estaba a ocho
-                                     gestos de scroll y ahora esta a la vista. --}}
                                 @foreach (['EficienciaInicio' => 'Eficiencia de inicio', 'EficienciaFinal' => 'Eficiencia final'] as $campo => $etiqueta)
                                     @php($vacio = $form[$campo] === null || $form[$campo] === '')
                                     <div wire:key="efi-{{ $campo }}" x-data="{ abierto: false }" class="relative">
                                         <label class="{{ $claseEtiqueta }}">{{ $etiqueta }} <span class="text-rose-600" aria-hidden="true">*</span><span class="sr-only">(obligatorio)</span></label>
-                                        <button type="button" @click="abierto = !abierto" :aria-expanded="abierto"
+                                        <button type="button"
+                                                @click="abierto = !abierto; if (abierto) $nextTick(() => { const marca = $refs.pista.querySelector('[data-activo], [data-sugerido]'); marca?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }) })"
+                                                :aria-expanded="abierto"
                                                 class="flex h-11 w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 text-left shadow-xs transition hover:border-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 focus:outline-none">
                                             <span class="text-base font-semibold {{ $vacio ? 'text-slate-400' : 'text-slate-900' }}">{{ $vacio ? 'Selecciona' : $form[$campo].'%' }}</span>
                                             <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                                         </button>
-                                        <div x-show="abierto" x-cloak @click.outside="abierto = false" x-transition.opacity class="absolute inset-x-0 z-30 mt-2">
-                                            <div class="grid grid-cols-10 gap-1 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                                        <div x-show="abierto" x-cloak @click.outside="abierto = false" class="absolute inset-x-0 z-30 mt-2">
+                                            <div x-ref="pista" class="flex gap-2 overflow-x-auto rounded-lg border border-slate-200 bg-white px-2 py-2 shadow-lg">
                                                 @for ($v = 0; $v <= 100; $v++)
                                                     <button type="button" wire:click="$set('form.{{ $campo }}', {{ $v }})" @click="abierto = false"
                                                             wire:loading.attr="disabled" wire:target="form.{{ $campo }}"
-                                                            class="h-9 rounded-md border text-sm font-semibold transition
-                                                                   {{ (string) $form[$campo] === (string) $v ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-blue-300 hover:bg-blue-50' }}
-                                                                   {{ $v === 80 && (string) $form[$campo] !== (string) $v ? 'ring-2 ring-blue-300' : '' }}">
+                                                            @if((string) $form[$campo] === (string) $v) data-activo @endif
+                                                            @if($v === 80 && $vacio) data-sugerido @endif
+                                                            class="shrink-0 rounded-md border px-3 py-2 text-sm font-semibold
+                                                                   {{ (string) $form[$campo] === (string) $v ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:bg-blue-50' }}
+                                                                   {{ $v === 80 && $vacio ? 'ring-2 ring-yellow-400' : '' }}">
                                                         {{ $v }}
                                                     </button>
                                                 @endfor

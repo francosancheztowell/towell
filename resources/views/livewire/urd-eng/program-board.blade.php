@@ -147,52 +147,62 @@
     @teleport('body')
         <div>
             @if ($showPriority)
-                @php
-                    $priorityChoices = collect($board['lanes'])->flatMap(fn ($lane) => $lane['orders'])
-                        ->filter(fn ($order) => $selectedOrder && $order['lane'] === $selectedOrder['lane'] && $order['id'] !== $selectedOrder['id']);
-                    $priorityTarget = $priorityChoices->firstWhere('id', (int) $priorityTargetId);
-                @endphp
                 <div class="program-board-modal-backdrop" wire:click.self="closeModal">
-                    <section class="program-board-modal" role="dialog" aria-modal="true" aria-labelledby="priority-title">
+                    <section class="program-board-modal is-wide" role="dialog" aria-modal="true" aria-labelledby="priority-title" data-board-id="{{ $this->getId() }}">
                         <header>
-                            <h2 id="priority-title">Cambiar prioridad</h2>
+                            <h2 id="priority-title">Editar prioridad de órdenes</h2>
                             <button type="button" wire:click="closeModal" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
                         </header>
-                        <div class="program-board-priority-context">
-                            <span>{{ $selectedOrder['machine'] ?? '' }}</span>
-                            <strong>Orden {{ $selectedOrder['folio'] ?? '' }}</strong>
-                            <span>Prioridad actual: <b>{{ $selectedOrder['priority'] ?? '—' }}</b></span>
+                        <div class="program-board-priority-table-wrap">
+                            <table class="program-board-priority-table">
+                                <thead>
+                                    <tr>
+                                        <th>Prioridad</th>
+                                        <th>Folio</th>
+                                        <th>Tipo</th>
+                                        <th>Cuenta/Calibre</th>
+                                        <th>Configuración</th>
+                                        <th>Metros</th>
+                                        <th>Máquina</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="priority-sort-body">
+                                    @forelse ($priorityRows as $row)
+                                        <tr draggable="true" data-priority-id="{{ $row['id'] }}">
+                                            <td><i class="fa-solid fa-grip-vertical" aria-hidden="true"></i> {{ $row['priority'] }}</td>
+                                            <td>{{ $row['folio'] }}</td>
+                                            <td>{{ $row['type'] }}</td>
+                                            <td>{{ $row['size'] }}</td>
+                                            <td>{{ $row['configuration'] }}</td>
+                                            <td>{{ $row['meters'] !== null && $row['meters'] !== '' ? (int) round((float) $row['meters']) : '' }}</td>
+                                            <td>
+                                                @if (($moduleMeta['isUrdido'] ?? false) && in_array($row['status'], ['En Proceso', 'Programado'], true))
+                                                    <select class="program-board-salon" wire:change="asignarSalon({{ $row['id'] }}, $event.target.value)">
+                                                        @foreach (['MC Coy 1' => 'MC1', 'MC Coy 2' => 'MC2', 'MC Coy 3' => 'MC3'] as $valor => $etiqueta)
+                                                            <option value="{{ $valor }}" @selected($row['machine'] === $valor)>{{ $etiqueta }}</option>
+                                                        @endforeach
+                                                        @if (! in_array($row['machine'], ['MC Coy 1', 'MC Coy 2', 'MC Coy 3'], true))
+                                                            <option value="{{ $row['machine'] }}" selected>{{ $row['machine'] }}</option>
+                                                        @endif
+                                                    </select>
+                                                @else
+                                                    {{ $row['machine'] }}
+                                                @endif
+                                            </td>
+                                            <td>{{ $row['status'] }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr><td colspan="8">No hay órdenes disponibles</td></tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
                         </div>
-                        <form wire:submit="savePriority">
-                            @if ($priorityChoices->isEmpty())
-                                <p class="program-board-priority-help">No hay otra orden en esta máquina para intercambiar la prioridad.</p>
-                            @else
-                                <label>
-                                    <span>¿Qué prioridad quieres darle?</span>
-                                    <select wire:model.live="priorityTargetId" required>
-                                        <option value="">Selecciona la nueva prioridad</option>
-                                        @foreach ($priorityChoices as $priorityOrder)
-                                            <option value="{{ $priorityOrder['id'] }}">Prioridad {{ $priorityOrder['priority'] }} · Orden {{ $priorityOrder['folio'] }}</option>
-                                        @endforeach
-                                    </select>
-                                </label>
-                                <p class="program-board-priority-help">Las dos órdenes intercambiarán sus prioridades.</p>
-                            @endif
-                            @if ($priorityTarget)
-                                <div class="program-board-priority-preview" aria-live="polite">
-                                    <strong>Así quedarán al guardar</strong>
-                                    <table>
-                                        <thead><tr><th>Orden</th><th>Actual</th><th>Nueva</th></tr></thead>
-                                        <tbody>
-                                            <tr><td>{{ $selectedOrder['folio'] }}</td><td>{{ $selectedOrder['priority'] }}</td><td><b>{{ $priorityTarget['priority'] }}</b></td></tr>
-                                            <tr><td>{{ $priorityTarget['folio'] }}</td><td>{{ $priorityTarget['priority'] }}</td><td><b>{{ $selectedOrder['priority'] }}</b></td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            @endif
-                            @error('priorityTargetId')<p class="program-board-field-error">{{ $message }}</p>@enderror
-                            <footer><button type="submit" class="is-primary" wire:loading.attr="disabled" @disabled(! $priorityTarget)>Guardar prioridades</button></footer>
-                        </form>
+                        @error('priorityRows')<p class="program-board-field-error">{{ $message }}</p>@enderror
+                        <footer>
+                            <button type="button" class="is-secondary" wire:click="closeModal">Cancelar</button>
+                            <button type="button" class="is-primary" wire:click="savePriority" wire:loading.attr="disabled" @disabled($priorityRows === [])>Guardar cambios</button>
+                        </footer>
                     </section>
                 </div>
             @endif
@@ -241,33 +251,33 @@
                         <header>
                             <div>
                                 <p class="program-board-eyebrow">Evaluación de Urdido</p>
-                                <h2 id="quality-title">Calidad de la orden</h2>
+                                <h2 id="quality-title">Evaluación de calidad</h2>
                             </div>
                             <button type="button" wire:click="closeModal" aria-label="Cerrar">
                                 <i class="fa-solid fa-xmark"></i>
                             </button>
                         </header>
                         <form wire:submit="saveQuality">
-                            <fieldset class="program-board-quality-options">
-                                <legend>Resultado</legend>
-                                @foreach ([
-                                    'A' => ['Aprobado', 'fa-check', 'is-approved'],
-                                    'R' => ['Rechazado', 'fa-xmark', 'is-rejected'],
-                                    'O' => ['Con observaciones', 'fa-triangle-exclamation', 'is-observed'],
-                                ] as $value => [$label, $icon, $class])
-                                    <label class="{{ $class }}">
-                                        <input type="radio" wire:model="quality" value="{{ $value }}">
-                                        <i class="fa-solid {{ $icon }}"></i>
-                                        <span>{{ $label }}</span>
-                                    </label>
+                            <p class="program-board-eyebrow">Folio {{ $selectedOrder['folio'] ?? '' }}</p>
+                            <div class="program-board-checklist">
+                                @foreach (\App\Models\Urdido\UrdProgramaUrdido::CALIDAD_PUNTOS as $campo => $etiqueta)
+                                    @php $valor = $qualityPoints[$campo] ?? null; @endphp
+                                    <div class="program-board-checklist-row">
+                                        <span>{{ $etiqueta }}</span>
+                                        <button type="button" wire:click="toggleQualityPoint('{{ $campo }}')"
+                                            class="{{ $valor === true ? 'is-good' : ($valor === false ? 'is-bad' : '') }}"
+                                            title="Clic para alternar bueno / malo">
+                                            {{ $valor === true ? '✓' : ($valor === false ? '✕' : '—') }}
+                                        </button>
+                                    </div>
                                 @endforeach
-                            </fieldset>
+                            </div>
                             @error('quality')
                                 <p class="program-board-field-error">{{ $message }}</p>
                             @enderror
 
                             <label>
-                                <span>Comentario</span>
+                                <span>Observaciones</span>
                                 <textarea
                                     wire:model="qualityComment"
                                     rows="4"
@@ -331,3 +341,62 @@
         </div>
     @endteleport
 </div>
+
+<script>
+    (function () {
+        if (window.__prioritySortBound) {
+            return;
+        }
+        window.__prioritySortBound = true;
+
+        document.addEventListener('dragstart', function (event) {
+            if (event.target.closest('select, option')) {
+                return;
+            }
+            const row = event.target.closest('#priority-sort-body tr[data-priority-id]');
+            if (!row) {
+                return;
+            }
+            row.classList.add('is-dragging');
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', row.dataset.priorityId);
+        });
+
+        document.addEventListener('dragover', function (event) {
+            if (!event.target.closest('#priority-sort-body')) {
+                return;
+            }
+            event.preventDefault();
+        });
+
+        document.addEventListener('drop', function (event) {
+            const body = event.target.closest('#priority-sort-body');
+            if (!body) {
+                return;
+            }
+            event.preventDefault();
+            const dragging = body.querySelector('tr.is-dragging');
+            const target = event.target.closest('tr[data-priority-id]');
+            if (!dragging || !target || dragging === target) {
+                return;
+            }
+            const rect = target.getBoundingClientRect();
+            const after = event.clientY > rect.top + rect.height / 2;
+            body.insertBefore(dragging, after ? target.nextSibling : target);
+            const ids = Array.from(body.querySelectorAll('tr[data-priority-id]')).map(function (row) {
+                return row.dataset.priorityId;
+            });
+            const section = body.closest('[data-board-id]');
+            if (section && window.Livewire) {
+                window.Livewire.find(section.dataset.boardId).call('reorderPriorities', ids);
+            }
+        });
+
+        document.addEventListener('dragend', function (event) {
+            const row = event.target.closest('tr');
+            if (row) {
+                row.classList.remove('is-dragging');
+            }
+        });
+    })();
+</script>

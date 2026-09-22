@@ -172,7 +172,8 @@ class ProgramBoardReadService
                 'Calidad',
                 'CalidadComentario',
                 'AutorizaCalidad',
-                'FechaCalidad'
+                'FechaCalidad',
+                ...array_keys(\App\Models\Urdido\UrdProgramaUrdido::CALIDAD_PUNTOS),
             );
         } else {
             $columns[] = 'BomFormula';
@@ -229,6 +230,13 @@ class ProgramBoardReadService
             'quality_date' => $module === ProgramaModulo::Urdido
                 ? $order->FechaCalidad?->format('d/m/Y H:i')
                 : null,
+            'quality_points' => $module === ProgramaModulo::Urdido
+                ? collect(\App\Models\Urdido\UrdProgramaUrdido::CALIDAD_PUNTOS)
+                    ->mapWithKeys(fn (string $label, string $field): array => [
+                        $field => $order->{$field} === null ? null : (bool) $order->{$field},
+                    ])
+                    ->all()
+                : [],
             'urdido_finished' => $module === ProgramaModulo::Engomado
                 ? $urdidoStatus === 'Finalizado'
                 : true,

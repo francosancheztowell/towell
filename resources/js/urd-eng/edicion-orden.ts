@@ -25,8 +25,8 @@ const ventana = window as unknown as Ventana
 
 const raiz = (): HTMLElement | null => document.querySelector<HTMLElement>('[data-edicion-orden]')
 
-const aviso = (icon: 'success' | 'error', title: string): void => {
-  void ventana.Swal?.fire({ toast: true, position: 'top-end', icon, title, showConfirmButton: false, timer: 2200 })
+const aviso = (_icon: 'success' | 'error', title: string): void => {
+  window.alert(title)
 }
 
 const escapar = (valor: unknown): string =>
@@ -63,6 +63,7 @@ const CAMPOS_PRODUCCION: Record<string, string> = {
   solidos: 'Solidos',
   roturas: 'Roturas',
   ubicacion: 'Ubicacion',
+  metros: 'Metros',
 }
 
 const guardarCeldaProduccion = async (input: HTMLInputElement | HTMLSelectElement): Promise<void> => {
@@ -72,6 +73,14 @@ const guardarCeldaProduccion = async (input: HTMLInputElement | HTMLSelectElemen
   if (!contenedor || !campo || !Number.isInteger(registroId)) return
 
   const valor = input.value === '' ? null : input.value
+  // Valor al que volver si falla el guardado. La primera vez no hay ultimoGuardado,
+  // asi que se lee el que pinto el servidor: defaultValue en un input, y en un
+  // <select> la opcion con el atributo selected (defaultValue no existe ahi).
+  const anterior = input.dataset.ultimoGuardado ?? (
+    input instanceof HTMLSelectElement
+      ? input.querySelector<HTMLOptionElement>('option[selected]')?.value ?? input.value
+      : input.defaultValue
+  )
   if (valor === input.dataset.ultimoGuardado) return
   input.dataset.ultimoGuardado = input.value
 
@@ -96,7 +105,11 @@ const guardarCeldaProduccion = async (input: HTMLInputElement | HTMLSelectElemen
     }
     aviso('success', 'Actualizado')
   } catch (error) {
-    aviso('error', error instanceof Error ? error.message : 'No se pudo actualizar')
+    input.value = anterior
+    input.dataset.ultimoGuardado = anterior
+    const data = (error as { data?: { error?: string; message?: string } }).data
+    const texto = data?.error || data?.message || (error instanceof Error ? error.message : 'No se pudo actualizar')
+    window.alert(texto)
   }
 }
 
@@ -331,7 +344,7 @@ const ETIQUETA_ACCION: Record<string, string> = {
 }
 
 const componente = (): { confirmarMetros: (a: string) => void; confirmarNoTelas: () => void; descartarPendiente: () => void } | undefined => {
-  const id = document.querySelector('[wire\\:id]')?.getAttribute('wire:id')
+  const id = document.querySelector('[data-edicion-orden]')?.getAttribute('wire:id')
   return id ? (ventana.Livewire?.find(id) as any) : undefined
 }
 

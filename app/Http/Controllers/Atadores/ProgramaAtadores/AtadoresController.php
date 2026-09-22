@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\Atadores\ProgramaAtadores;
 
+use App\Exports\ProgramaAtadoresExport;
 use App\Http\Controllers\Controller;
 use App\Models\Atadores\AtaActividadesModel;
 use App\Models\Atadores\AtaComentariosModel;
 use App\Models\Atadores\AtaDevolucionesModel;
+use App\Models\Atadores\AtaKmEnhebradoModel;
+use App\Models\Atadores\AtaKmMontadoModel;
 use App\Models\Atadores\AtaMaquinasModel;
 use App\Models\Atadores\AtaMontadoActividadesModel;
 use App\Models\Atadores\AtaMontadoMaquinasModel;
@@ -14,6 +17,7 @@ use App\Models\Planeacion\ReqTelares;
 use App\Models\Sistema\SYSMensaje;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Tejido\TejInventarioTelares;
+use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,6 +25,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AtadoresController extends Controller
 {
@@ -249,8 +254,8 @@ class AtadoresController extends Controller
 
         $nombreArchivo = 'atadores_'.Carbon::parse($fechaInicioFormateada)->format('d-m-Y').'_a_'.Carbon::parse($fechaFinFormateada)->format('d-m-Y').'.xlsx';
 
-        return \Maatwebsite\Excel\Facades\Excel::download(
-            new \App\Exports\ProgramaAtadoresExport($fechaInicioFormateada, $fechaFinFormateada),
+        return Excel::download(
+            new ProgramaAtadoresExport($fechaInicioFormateada, $fechaFinFormateada),
             $nombreArchivo
         );
     }
@@ -378,14 +383,84 @@ class AtadoresController extends Controller
         $item->status = 'En Proceso';
         $item->save();
 
-        // Crear las filas base de máquinas y actividades del catálogo (sin duplicar si ya existían)
-        $this->sembrarMaquinasYActividades($item->no_julio, $item->no_orden, $item->turno);
+        // Karl Mayer no usa el checklist de atadoras. No se copian máquinas ni actividades.
+        if (! $this->esAtadoKarlMayer($item->tipo, $item->no_telar)) {
+            $this->sembrarMaquinasYActividades($item->no_julio, $item->no_orden, $item->turno);
+        }
 
         // Redirigir a la página de calificar atadores con los parámetros del registro seleccionado
         return redirect()->route('atadores.calificar', [
             'no_julio' => $item->no_julio,
             'no_orden' => $item->no_orden,
         ])->with('success', 'Atado iniciado correctamente');
+    }
+
+    /**
+     * Montado o enhebrado de una barra. Una fila por julio y orden, en su propia tabla.
+     */
+    private function guardarProcesoKm(Request $request, AtaMontadoTelasModel $montado, string $modelo)
+    {
+        if (! $this->esAtadoKarlMayer($montado->Tipo, $montado->NoTelarId)) {
+            return response()->json(['ok' => false, 'message' => 'Este atado no es de Karl Mayer'], 422);
+        }
+
+        if ($montado->Estatus !== 'En Proceso') {
+            return response()->json(['ok' => false, 'message' => 'Solo se puede capturar mientras el atado está en proceso'], 422);
+        }
+
+        $datos = [];
+        foreach ([1, 2, 3] as $n) {
+            $datos['CveEmpl'.$n] = $this->textoKm($request->input('cve'.$n), 30);
+            $datos['NomEmpl'.$n] = $this->textoKm($request->input('nombre'.$n), 150);
+        }
+
+        try {
+            $datos['FechaInicio'] = $this->fechaKm($request->input('fecha_inicio'));
+            $datos['FechaFin'] = $this->fechaKm($request->input('fecha_fin'));
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+        }
+
+        $modelo::updateOrCreate(
+            ['NoJulio' => $montado->NoJulio, 'NoProduccion' => $montado->NoProduccion],
+            $datos
+        );
+
+        return response()->json(['ok' => true, 'message' => 'Guardado']);
+    }
+
+    private function textoKm(mixed $valor, int $max): ?string
+    {
+        $texto = trim((string) $valor);
+
+        return $texto === '' ? null : mb_substr($texto, 0, $max);
+    }
+
+    private function fechaKm(mixed $valor): ?string
+    {
+        $texto = trim((string) $valor);
+        if ($texto === '') {
+            return null;
+        }
+
+        $fecha = \DateTime::createFromFormat('Y-m-d', $texto);
+        if (! $fecha || $fecha->format('Y-m-d') !== $texto) {
+            throw new \InvalidArgumentException('La fecha debe ir como aaaa-mm-dd');
+        }
+
+        return $texto;
+    }
+
+    /**
+     * Una barra de Karl Mayer es tipo 1-4. Si el tipo no viene, el telar 401-402 también lo es.
+     */
+    private function esAtadoKarlMayer($tipo, $noTelar): bool
+    {
+        if (preg_match('/^[1-4]$/', trim((string) $tipo))) {
+            return true;
+        }
+
+        return TelarSalonResolver::esKarlMayer(null, (string) $noTelar);
     }
 
     /**
@@ -462,16 +537,17 @@ class AtadoresController extends Controller
                 ->get();
         }
 
-        // Catálogos base
-        $maquinasCatalogo = AtaMaquinasModel::orderBy('MaquinaId')->get();
-        $actividadesCatalogo = AtaActividadesModel::orderBy('ActividadId')->get();
+        $actual = $montadoTelas->first();
+        $esKm = $actual && $this->esAtadoKarlMayer($actual->Tipo, $actual->NoTelarId);
 
-        // Estados para el atado actual (si existe)
+        // El checklist de atadoras es de Jacquard y SMIT. En una barra no se consulta.
+        $maquinasCatalogo = $esKm ? collect() : AtaMaquinasModel::orderBy('MaquinaId')->get();
+        $actividadesCatalogo = $esKm ? collect() : AtaActividadesModel::orderBy('ActividadId')->get();
+
         $maquinasMontado = collect();
         $actividadesMontado = collect();
         $devolucionActual = null;
-        if ($montadoTelas->isNotEmpty()) {
-            $actual = $montadoTelas->first();
+        if ($actual) {
 
             // Si tenemos parámetros, validar que el registro coincida
             if ($noJulio && $noOrden) {
@@ -482,23 +558,23 @@ class AtadoresController extends Controller
                 }
             }
 
-            // Cargar máquinas y actividades del proceso actual
-            $maquinasMontado = AtaMontadoMaquinasModel::where('NoJulio', $actual->NoJulio)
-                ->where('NoProduccion', $actual->NoProduccion)
-                ->get()
-                ->keyBy('MaquinaId');
+            if (! $esKm) {
+                $maquinasMontado = AtaMontadoMaquinasModel::where('NoJulio', $actual->NoJulio)
+                    ->where('NoProduccion', $actual->NoProduccion)
+                    ->get()
+                    ->keyBy('MaquinaId');
 
-            $actividadesMontado = AtaMontadoActividadesModel::where('NoJulio', $actual->NoJulio)
-                ->where('NoProduccion', $actual->NoProduccion)
-                ->get()
-                ->keyBy('ActividadId');
+                $actividadesMontado = AtaMontadoActividadesModel::where('NoJulio', $actual->NoJulio)
+                    ->where('NoProduccion', $actual->NoProduccion)
+                    ->get()
+                    ->keyBy('ActividadId');
+            }
 
             $devolucionActual = AtaDevolucionesModel::where('RefId', $actual->Id)
                 ->orderByDesc('Id')
                 ->first();
 
-            // Asegurar que existan filas base de actividades para el folio actual.
-            // Esto evita que el guardado falle cuando por datos históricos no se generaron al iniciar.
+            // En Jacquard/SMIT, si el inicio no sembró actividades, se crean al abrir.
             $faltantes = $actividadesCatalogo->filter(function ($act) use ($actividadesMontado) {
                 return ! $actividadesMontado->has((string) $act->ActividadId);
             });
@@ -525,8 +601,18 @@ class AtadoresController extends Controller
             }
         }
 
-        // Catálogo de notas/comentarios (para mostrar al final)
-        $comentarios = AtaComentariosModel::orderBy('Nota1')->get();
+        $kmMontado = null;
+        $kmEnhebrado = null;
+        if ($esKm && $actual) {
+            $kmMontado = AtaKmMontadoModel::where('NoJulio', $actual->NoJulio)
+                ->where('NoProduccion', $actual->NoProduccion)
+                ->first();
+            $kmEnhebrado = AtaKmEnhebradoModel::where('NoJulio', $actual->NoJulio)
+                ->where('NoProduccion', $actual->NoProduccion)
+                ->first();
+        }
+
+        $comentarios = $esKm ? collect() : AtaComentariosModel::orderBy('Nota1')->get();
 
         // Catálogo de telares de la planta, para el select "Telar" del panel de Devolución.
         $telaresCatalogo = ReqTelares::orderBy('NoTelarId')
@@ -545,8 +631,52 @@ class AtadoresController extends Controller
                 'actividadesMontado',
                 'comentarios',
                 'telaresCatalogo',
-                'devolucionActual'
+                'devolucionActual',
+                'esKm',
+                'kmMontado',
+                'kmEnhebrado'
             )
+        );
+    }
+
+    /**
+     * Pantalla propia de montado o de enhebrado. Cada una lee solo su tabla.
+     */
+    public function procesoKm(Request $request, string $proceso)
+    {
+        if (! in_array($proceso, ['montado', 'enhebrado'], true)) {
+            abort(404);
+        }
+
+        $noJulio = trim((string) $request->query('no_julio'));
+        $noOrden = trim((string) $request->query('no_orden'));
+        if ($noJulio === '' || $noOrden === '') {
+            return redirect()->route('atadores.programa')
+                ->with('error', 'Faltan el julio y la orden');
+        }
+
+        $item = AtaMontadoTelasModel::whereIn('Estatus', self::ESTATUS_ATADO_EXISTENTE)
+            ->where('NoJulio', $noJulio)
+            ->where('NoProduccion', $noOrden)
+            ->orderByDesc('Id')
+            ->first();
+
+        if (! $item || ! $this->esAtadoKarlMayer($item->Tipo, $item->NoTelarId)) {
+            return redirect()->route('atadores.programa')
+                ->with('error', 'Ese atado no es de una barra Karl Mayer');
+        }
+
+        $modelo = $proceso === 'montado' ? AtaKmMontadoModel::class : AtaKmEnhebradoModel::class;
+        $registro = $modelo::query()
+            ->where('NoJulio', $item->NoJulio)
+            ->where('NoProduccion', $item->NoProduccion)
+            ->first();
+
+        $titulo = $proceso === 'montado' ? 'Montado' : 'Enhebrado';
+
+        return view(
+            'modulos.atadores.calificar-atadores.proceso-km',
+            compact('item', 'registro', 'proceso', 'titulo')
         );
     }
 
@@ -1090,6 +1220,12 @@ class AtadoresController extends Controller
                 'cveEmpl' => $estado ? $user->numero_empleado : null,
                 'nomEmpl' => $estado ? $user->nombre : null,
             ]);
+        }
+
+        if ($action === 'km_montado' || $action === 'km_enhebrado') {
+            $modelo = $action === 'km_montado' ? AtaKmMontadoModel::class : AtaKmEnhebradoModel::class;
+
+            return $this->guardarProcesoKm($request, $montado, $modelo);
         }
 
         return response()->json(['ok' => false, 'message' => 'Acción no válida'], 422);

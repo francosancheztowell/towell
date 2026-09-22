@@ -126,11 +126,13 @@ class PDFController extends Controller
                 'esReimpresion' => $esReimpresion,
             ])->render();
 
-            // 6) Configurar DomPDF. La etiqueta simplificada se imprime en
-            // etiqueta de 4x6 in horizontal (432x288 pt), no en hoja carta.
-            $dompdf = $esSimplificado
-                ? $this->crearDompdf($html, 'portrait', [0, 0, 432, 288])
-                : $this->crearDompdf($html);
+            // La etiqueta simplificada no lleva tamaño de hoja: el navegador
+            // usa el papel que elija el supervisor (etiqueta, carta, etc.).
+            if ($esSimplificado) {
+                return response($html, 200)->header('Content-Type', 'text/html; charset=UTF-8');
+            }
+
+            $dompdf = $this->crearDompdf($html);
 
             // 6.1) Si es impresión parcial de engomado, marcar registros como impresos
             if ($esParcial && strtolower($tipo) === 'engomado' && $registrosProduccion && $registrosProduccion->count() > 0) {

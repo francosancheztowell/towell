@@ -92,8 +92,17 @@ class EdicionOrden extends Component
     /** @var array<int, array{id: ?int, no_julio: string, hilos: string}> */
     public array $julios = [];
 
+    /** Metros mostrados en cada fila de producción. La clave es el Id del registro. */
+    public array $metrosFila = [];
+
     /** Cambio de Metros o No. de Telas esperando la confirmacion del usuario. */
     public ?string $pendiente = null;
+
+    public string $pendienteMensaje = '';
+
+    public string $aviso = '';
+
+    public string $avisoTipo = 'success';
 
     private BomMaterialesService $bomMateriales;
 
@@ -112,8 +121,8 @@ class EdicionOrden extends Component
         $this->ordenId = $ordenId;
         $this->fromReimpresion = $fromReimpresion;
 
-        $puesto = trim((string) (Auth::user()?->puesto ?? ''));
-        $this->puedeEditar = $puesto !== '' && stripos($puesto, 'supervisor') !== false;
+        // ponytail: gate de puesto/supervisor apagado hasta que haya otro permiso
+        $this->puedeEditar = true;
 
         $orden = $this->orden();
         foreach ($this->camposEditables() as $campo) {
@@ -121,6 +130,7 @@ class EdicionOrden extends Component
         }
 
         $this->cargarJulios();
+        $this->cargarMetrosFila();
     }
 
     /**
@@ -138,6 +148,37 @@ class EdicionOrden extends Component
         $this->guardarCampo($campo);
     }
 
+    /** Metros de una fila de producción (columna de la tabla). */
+    public function guardarMetrosFila(int $registroId, mixed $valor): void
+    {
+        try {
+            $modelo = $this->moduloEnum()->productionModel();
+            $registro = $modelo::find($registroId);
+            if ($registro === null) {
+                $this->avisar('error', 'No se guardó: no existe esa fila de producción.');
+
+                return;
+            }
+            if ((int) ($registro->AX ?? 0) === 1) {
+                $this->avisar('error', 'No se guardó: esta fila ya está en AX.');
+
+                return;
+            }
+            $enOtros = (float) ($registro->Metros2 ?? 0) + (float) ($registro->Metros3 ?? 0);
+            if ($enOtros > 0) {
+                $this->avisar('error', 'No se guardó: esta fila tiene metros en más de un oficial. Cámbialos con el lápiz.');
+
+                return;
+            }
+
+            $registro->Metros1 = $valor === null || $valor === '' ? null : round((float) $valor, 2);
+            $registro->save();
+            $this->avisar('success', 'Metros de la fila guardados: '.$registro->Metros1);
+        } catch (Throwable $e) {
+            $this->avisar('error', 'No se guardó: '.$e->getMessage());
+        }
+    }
+
     /** Respuesta del dialogo de Metros: 'solo_campo' | 'actualizar_produccion_*'. */
     public function confirmarMetros(string $accion): void
     {
@@ -148,6 +189,7 @@ class EdicionOrden extends Component
     public function confirmarNoTelas(): void
     {
         $this->pendiente = null;
+        $this->pendienteMensaje = '';
         $this->guardarCampo('NoTelas');
     }
 
@@ -156,6 +198,7 @@ class EdicionOrden extends Component
     {
         $campo = $this->pendiente;
         $this->pendiente = null;
+        $this->pendienteMensaje = '';
         if ($campo !== null) {
             $this->form[$campo] = $this->valorParaFormulario($this->orden(), $campo);
         }
@@ -167,10 +210,13 @@ class EdicionOrden extends Component
         $this->guardarJulio((int) explode('.', $clave)[0]);
     }
 
+    public function updatedMetrosFila(mixed $valor, string $id): void
+    {
+        $this->guardarMetrosFila((int) $id, $valor);
+    }
+
     public function guardarJulio(int $fila): void
     {
-        abort_unless($this->puedeEditar, 403, 'No tienes permisos para editar esta orden.');
-
         try {
             $this->escribirJulio($fila);
         } catch (Throwable $e) {
@@ -217,9 +263,6 @@ class EdicionOrden extends Component
 
     private function guardarCampo(string $campo, string $accionMetros = ProgramaConfig::ACCION_METROS_SOLO_CAMPO): void
     {
-        // El permiso corta con 403; las reglas de negocio se avisan y se deshace el cambio.
-        abort_unless($this->puedeEditar, 403, 'No tienes permisos para editar esta orden.');
-
         try {
             $orden = $this->orden();
             $this->verificarPuedeEscribir($orden, $campo);
@@ -250,14 +293,25 @@ class EdicionOrden extends Component
             });
 
             $this->form[$campo] = $this->valorParaFormulario($orden->refresh(), $campo);
-            $this->notificar('success', 'Campo actualizado correctamente.'.$resumen);
+            if ($campo === 'Metros') {
+                $this->ordenCache = null;
+                $this->cargarMetrosFila();
+            }
+            $mensaje = 'Campo actualizado correctamente.'.$resumen;
+            $this->notificar('success', $mensaje);
+            if ($campo === 'Metros') {
+                $this->js('window.alert('.json_encode($mensaje).')');
+            }
 
             if ($campo === 'Cuenta' || $campo === 'Calibre') {
                 $this->autocompletarTamano($orden);
             }
         } catch (Throwable $e) {
+            $this->ordenCache = null;
             $this->form[$campo] = $this->valorParaFormulario($this->orden(), $campo);
-            $this->notificar('error', $e->getMessage());
+            $mensaje = 'No se guardó: '.$e->getMessage();
+            $this->notificar('error', $mensaje);
+            $this->js('window.alert('.json_encode($mensaje).')');
         }
     }
 
@@ -286,7 +340,7 @@ class EdicionOrden extends Component
 
         $camposPorStatus = $this->esUrdido()
             ? ['RizoPie', 'Cuenta', 'Calibre', 'Fibra', 'MaquinaId', 'BomId']
-            : ['RizoPie', 'Cuenta', 'Calibre', 'Fibra', 'MaquinaEng', 'BomEng', 'BomFormula', 'NoTelas'];
+            : ['RizoPie', 'Cuenta', 'Calibre', 'Fibra', 'MaquinaEng', 'BomEng', 'BomFormula'];
 
         abort_if(
             in_array($campo, $camposPorStatus, true) && ! in_array($status, $statusEditables, true),
@@ -524,6 +578,15 @@ class EdicionOrden extends Component
         UrdProduccionUrdido::whereIn('Id', $ids)->delete();
     }
 
+    private function cargarMetrosFila(): void
+    {
+        $this->metrosFila = [];
+        foreach ($this->produccion($this->orden()) as $reg) {
+            $metros = (float) ($reg->Metros1 ?? 0) + (float) ($reg->Metros2 ?? 0) + (float) ($reg->Metros3 ?? 0);
+            $this->metrosFila[(int) $reg->Id] = $metros > 0 ? (string) $metros : '';
+        }
+    }
+
     private function cargarJulios(): void
     {
         $this->julios = [];
@@ -600,15 +663,8 @@ class EdicionOrden extends Component
         $status = $this->status($orden);
 
         if ($campo === 'Metros') {
-            $acciones = ProgramaConfig::accionesMetrosPermitidas($status);
-            if (count($acciones) === 1) {
-                $this->guardarCampo('Metros');
-
-                return;
-            }
-
-            $this->pendiente = 'Metros';
-            $this->dispatch('edicion-orden-metros', acciones: $acciones);
+            // ponytail: sin dialogo. En Proceso el aviso no se veia y el valor no se guardaba.
+            $this->guardarCampo('Metros', ProgramaConfig::ACCION_METROS_ACTUALIZAR_TODA);
 
             return;
         }
@@ -622,9 +678,9 @@ class EdicionOrden extends Component
         }
 
         $this->pendiente = 'NoTelas';
-        $this->dispatch('edicion-orden-confirmar', mensaje: $nuevo > $anterior
+        $this->pendienteMensaje = $nuevo > $anterior
             ? 'Se agregarán '.($nuevo - $anterior).' registro(s) de producción. Esto puede impactar registros ya iniciados por un empleado.'
-            : 'Se eliminarán '.($anterior - $nuevo).' registro(s) de producción. Esto puede impactar registros ya iniciados por un empleado.');
+            : 'Se eliminarán '.($anterior - $nuevo).' registro(s) de producción. Esto puede impactar registros ya iniciados por un empleado.';
     }
 
     /**
@@ -745,8 +801,16 @@ class EdicionOrden extends Component
         return $this->esUrdido() ? self::CAMPOS_URDIDO : self::CAMPOS_ENGOMADO;
     }
 
+    private function avisar(string $tipo, string $mensaje): void
+    {
+        $this->notificar($tipo, $mensaje);
+        $this->js('window.alert('.json_encode($mensaje).')');
+    }
+
     private function notificar(string $tipo, string $mensaje): void
     {
+        $this->avisoTipo = $tipo;
+        $this->aviso = $mensaje;
         $this->dispatch('program-board-notify', type: $tipo, message: $mensaje);
     }
 }

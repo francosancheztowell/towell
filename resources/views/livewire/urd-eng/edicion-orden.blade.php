@@ -9,23 +9,8 @@
     $label = 'block text-sm font-semibold text-gray-700 mb-0.5';
     $inerte = 'w-full px-1.5 py-1 text-sm border border-gray-300 rounded bg-gray-100 text-gray-600 cursor-not-allowed';
 
-    // Un campo se bloquea por permiso, por AX o porque el estado no lo permite.
-    $bloqueado = function (string $campo) use ($soloLectura, $bloqueoAx, $editablePorStatus, $esUrdido, $status): bool {
-        if ($soloLectura) {
-            return true;
-        }
-        if ($bloqueoAx && $campo !== 'RizoPie') {
-            return true;
-        }
-        if ($esUrdido && $campo === 'InventSizeId' && $status === 'Parcial') {
-            return true;
-        }
-        $porStatus = $esUrdido
-            ? ['RizoPie', 'Cuenta', 'Calibre', 'Fibra', 'MaquinaId', 'BomId']
-            : ['RizoPie', 'Cuenta', 'Calibre', 'Fibra', 'MaquinaEng', 'BomEng', 'BomFormula', 'NoTelas'];
-
-        return in_array($campo, $porStatus, true) && ! $editablePorStatus;
-    };
+    // ponytail: sin disabled. Si AX o el estado rechazan el guardado, el servidor muestra el motivo.
+    $bloqueado = fn (string $campo): bool => false;
 @endphp
 
 <div class="w-full"
@@ -45,6 +30,18 @@
      @endif
      data-ruta-lote="{{ route('programa.urd.eng.buscar.lote.proveedor') }}"
 >
+    @if ($pendiente === 'NoTelas')
+        <div class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 p-4">
+            <div class="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" role="dialog" aria-modal="true">
+                <h2 class="text-base font-semibold text-gray-900">Confirmar cambio</h2>
+                <p class="mt-2 text-sm text-gray-700">{{ $pendienteMensaje }}</p>
+                <div class="mt-4 flex justify-end gap-2">
+                    <button type="button" wire:click="descartarPendiente" class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm">Cancelar</button>
+                    <button type="button" wire:click="confirmarNoTelas" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    @endif
 
     @unless($puedeEditar)
         <div class="mb-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
@@ -54,11 +51,29 @@
 
     @if($bloqueoAx)
         <div class="mb-2 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
-            Urdido ya está en AX: solo el campo <strong>Tipo</strong> sigue siendo editable.
+            Urdido ya está en AX. Si un campo no se guarda, aparece el motivo.
         </div>
     @elseif(! $editablePorStatus)
         <div class="mb-2 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-            Orden en estado <strong>{{ $status ?: '—' }}</strong>: cuenta, calibre, fibra, máquina y bom no se pueden cambiar.
+            Orden en estado <strong>{{ $status ?: '—' }}</strong>. Si cuenta, calibre, fibra, máquina o bom no se guardan, aparece el motivo.
+        </div>
+    @endif
+
+    @if ($avisoTipo === 'error' && $aviso !== '')
+        <div class="fixed inset-0 flex items-center justify-center bg-slate-900/40 p-4" style="z-index: 9999">
+            <div class="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" role="alertdialog" aria-modal="true">
+                <h2 class="text-base font-semibold text-gray-900">No se guardó</h2>
+                <p class="mt-2 text-sm text-gray-700">{{ $aviso }}</p>
+                <div class="mt-4 flex justify-end">
+                    <button type="button" wire:click="$set('aviso', '')" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($aviso !== '')
+        <div class="mb-2 rounded border px-3 py-2 text-sm {{ $avisoTipo === 'error' ? 'border-red-300 bg-red-50 text-red-800' : 'border-green-300 bg-green-50 text-green-800' }}">
+            {{ $aviso }}
         </div>
     @endif
 
@@ -73,7 +88,7 @@
             @if($esUrdido)
                 <div>
                     <label class="{{ $label }}">Folio Consumo</label>
-                    <input type="text" wire:model.blur="form.FolioConsumo" @disabled($bloqueado('FolioConsumo'))
+                    <input type="text" wire:model.lazy="form.FolioConsumo" @disabled($bloqueado('FolioConsumo'))
                         title="{{ $bloqueoAx ? $tituloAx : '' }}"
                         class="{{ $input }} {{ $bloqueado('FolioConsumo') ? $claseBloqueo : '' }}">
                 </div>
@@ -81,21 +96,21 @@
 
             <div>
                 <label class="{{ $label }}">No. Telar</label>
-                <input type="text" wire:model.blur="form.NoTelarId" @disabled($bloqueado('NoTelarId'))
+                <input type="text" wire:model.lazy="form.NoTelarId" @disabled($bloqueado('NoTelarId'))
                     class="{{ $input }} {{ $bloqueado('NoTelarId') ? $claseBloqueo : '' }}">
             </div>
 
             @unless($esUrdido)
                 <div>
                     <label class="{{ $label }}">No. de Telas</label>
-                    <input type="number" min="0" wire:model.blur="form.NoTelas" @disabled($bloqueado('NoTelas'))
+                    <input type="number" min="0" wire:model.live.debounce.400ms="form.NoTelas" @disabled($bloqueado('NoTelas'))
                         class="{{ $input }} {{ $bloqueado('NoTelas') ? $claseBloqueo : '' }}">
                 </div>
             @endunless
 
             <div>
                 <label class="{{ $label }}">{{ $isKarlMayer ? 'Barras' : 'Tipo' }}</label>
-                <select wire:model.blur="form.RizoPie" @disabled($bloqueado('RizoPie'))
+                <select wire:model.lazy="form.RizoPie" @disabled($bloqueado('RizoPie'))
                     class="{{ $input }} {{ $bloqueado('RizoPie') ? $claseBloqueo : '' }}">
                     <option value="">Seleccionar...</option>
                     @if($isKarlMayer)
@@ -111,19 +126,19 @@
 
             <div>
                 <label class="{{ $label }}">Cuenta</label>
-                <input type="number" wire:model.blur="form.Cuenta" @disabled($bloqueado('Cuenta'))
+                <input type="number" wire:model.lazy="form.Cuenta" @disabled($bloqueado('Cuenta'))
                     class="{{ $input }} {{ $bloqueado('Cuenta') ? $claseBloqueo : '' }}">
             </div>
 
             <div>
                 <label class="{{ $label }}">Calibre</label>
-                <input type="number" step="0.01" wire:model.blur="form.Calibre" @disabled($bloqueado('Calibre'))
+                <input type="number" step="0.01" wire:model.lazy="form.Calibre" @disabled($bloqueado('Calibre'))
                     class="{{ $input }} {{ $bloqueado('Calibre') ? $claseBloqueo : '' }}">
             </div>
 
             <div>
                 <label class="{{ $label }}">Metros</label>
-                <input type="number" step="0.01" wire:model.blur="form.Metros" @disabled($bloqueado('Metros'))
+                <input type="number" step="0.01" wire:model.lazy="form.Metros" @disabled($bloqueado('Metros'))
                     class="{{ $input }} {{ $bloqueado('Metros') ? $claseBloqueo : '' }}">
             </div>
 
@@ -136,7 +151,7 @@
 
             <div>
                 <label class="{{ $label }}">Fibra</label>
-                <select wire:model.blur="form.Fibra" @disabled($bloqueado('Fibra'))
+                <select wire:model.lazy="form.Fibra" @disabled($bloqueado('Fibra'))
                     class="{{ $input }} {{ $bloqueado('Fibra') ? $claseBloqueo : '' }}">
                     <option value="">Seleccionar...</option>
                     @foreach(array_unique(array_filter(array_merge([$orden->Fibra], $opcionesFibra))) as $fibra)
@@ -147,7 +162,7 @@
 
             <div>
                 <label class="{{ $label }}">Salón de Tejido</label>
-                <select wire:model.blur="form.SalonTejidoId" @disabled($bloqueado('SalonTejidoId'))
+                <select wire:model.lazy="form.SalonTejidoId" @disabled($bloqueado('SalonTejidoId'))
                     class="{{ $input }} {{ $bloqueado('SalonTejidoId') ? $claseBloqueo : '' }}">
                     <option value="">Seleccionar...</option>
                     <option value="JACQUARD">JACQUARD</option>
@@ -161,7 +176,7 @@
             <div>
                 <label class="{{ $label }}">Máquina</label>
                 @php $campoMaquina = $esUrdido ? 'MaquinaId' : 'MaquinaEng'; @endphp
-                <select wire:model.blur="form.{{ $campoMaquina }}" @disabled($bloqueado($campoMaquina))
+                <select wire:model.lazy="form.{{ $campoMaquina }}" @disabled($bloqueado($campoMaquina))
                     class="{{ $input }} {{ $bloqueado($campoMaquina) ? $claseBloqueo : '' }}">
                     <option value="">Seleccionar...</option>
                     @if($esUrdido && ! $maquinas->contains(fn ($m) => stripos(($m->MaquinaId ?? '').($m->Nombre ?? ''), 'karl') !== false))
@@ -176,14 +191,14 @@
             @if($esUrdido)
                 <div>
                     <label class="{{ $label }}">Fecha Programada</label>
-                    <input type="date" wire:model.blur="form.FechaProg" @disabled($bloqueado('FechaProg'))
+                    <input type="date" wire:model.lazy="form.FechaProg" @disabled($bloqueado('FechaProg'))
                         class="{{ $input }} {{ $bloqueado('FechaProg') ? $claseBloqueo : '' }}">
                 </div>
             @endif
 
             <div>
                 <label class="{{ $label }}">Tipo Atado</label>
-                <select wire:model.blur="form.TipoAtado" @disabled($bloqueado('TipoAtado'))
+                <select wire:model.lazy="form.TipoAtado" @disabled($bloqueado('TipoAtado'))
                     class="{{ $input }} {{ $bloqueado('TipoAtado') ? $claseBloqueo : '' }}">
                     <option value="">Seleccionar...</option>
                     <option value="Normal">Normal</option>
@@ -193,14 +208,14 @@
 
             <div>
                 <label class="{{ $label }}">Lote Proveedor</label>
-                <input type="text" autocomplete="off" wire:model.blur="form.LoteProveedor" data-autocomplete="lote"
+                <input type="text" autocomplete="off" wire:model.lazy="form.LoteProveedor" data-autocomplete="lote"
                     @disabled($bloqueado('LoteProveedor')) class="{{ $input }} {{ $bloqueado('LoteProveedor') ? $claseBloqueo : '' }}">
             </div>
 
             @if($esUrdido)
                 <div>
                     <label class="{{ $label }}">Bom Urdido</label>
-                    <input type="text" autocomplete="off" wire:model.blur="form.BomId" data-autocomplete="bom"
+                    <input type="text" autocomplete="off" wire:model.lazy="form.BomId" data-autocomplete="bom"
                         @disabled($bloqueado('BomId')) class="{{ $input }} {{ $bloqueado('BomId') ? $claseBloqueo : '' }}">
                 </div>
                 <div>
@@ -211,19 +226,19 @@
             @else
                 <div>
                     <label class="{{ $label }}">Bom Engomado</label>
-                    <input type="text" autocomplete="off" wire:model.blur="form.BomEng" data-autocomplete="bom"
+                    <input type="text" autocomplete="off" wire:model.lazy="form.BomEng" data-autocomplete="bom"
                         @disabled($bloqueado('BomEng')) class="{{ $input }} {{ $bloqueado('BomEng') ? $claseBloqueo : '' }}">
                 </div>
                 <div>
                     <label class="{{ $label }}">Bom Fórmula</label>
-                    <input type="text" autocomplete="off" wire:model.blur="form.BomFormula" data-autocomplete="bom-formula"
+                    <input type="text" autocomplete="off" wire:model.lazy="form.BomFormula" data-autocomplete="bom-formula"
                         @disabled($bloqueado('BomFormula')) class="{{ $input }} {{ $bloqueado('BomFormula') ? $claseBloqueo : '' }}">
                 </div>
             @endif
 
             <div>
                 <label class="{{ $label }}">Tamaño</label>
-                <input type="text" list="listaTamanos" wire:model.blur="form.InventSizeId" @disabled($bloqueado('InventSizeId'))
+                <input type="text" list="listaTamanos" wire:model.lazy="form.InventSizeId" @disabled($bloqueado('InventSizeId'))
                     title="{{ $esUrdido && $status === 'Parcial' ? 'No se puede editar el tamaño cuando el estado es Parcial' : '' }}"
                     class="{{ $input }} {{ $bloqueado('InventSizeId') ? $claseBloqueo : '' }}">
                 <datalist id="listaTamanos">
@@ -249,17 +264,17 @@
                             @foreach($julios as $i => $julio)
                                 @php
                                     // Con Finalizado solo se corrigen los Hilos de un julio que ya existe.
-                                    $julioBloqueado = $soloLectura || $bloqueoAx || (! $editablePorStatus && ! ($status === 'Finalizado'));
-                                    $noJulioBloqueado = $julioBloqueado || $status === 'Finalizado';
+                                    $julioBloqueado = false;
+                                    $noJulioBloqueado = false;
                                 @endphp
                                 <tr wire:key="julio-{{ $i }}">
                                     <td class="px-2 py-1 text-center">
-                                        <input type="number" min="1" step="1" wire:model.blur="julios.{{ $i }}.no_julio"
+                                        <input type="number" min="1" step="1" wire:model.lazy="julios.{{ $i }}.no_julio"
                                             @disabled($noJulioBloqueado)
                                             class="{{ $input }} {{ $noJulioBloqueado ? $claseBloqueo : '' }}">
                                     </td>
                                     <td class="px-2 py-1 text-center">
-                                        <input type="number" min="1" step="1" wire:model.blur="julios.{{ $i }}.hilos"
+                                        <input type="number" min="1" step="1" wire:model.lazy="julios.{{ $i }}.hilos"
                                             @disabled($julioBloqueado)
                                             class="{{ $input }} {{ $julioBloqueado ? $claseBloqueo : '' }}">
                                     </td>
@@ -272,7 +287,7 @@
 
             <div class="flex flex-col">
                 <label class="{{ $label }}">Observaciones</label>
-                <textarea rows="3" maxlength="{{ $observacionesMaxLength }}" wire:model.blur="form.Observaciones"
+                <textarea rows="3" maxlength="{{ $observacionesMaxLength }}" wire:model.lazy="form.Observaciones"
                     @disabled($bloqueado('Observaciones')) style="resize: none;"
                     class="{{ $input }} flex-1 {{ $bloqueado('Observaciones') ? $claseBloqueo : '' }}"></textarea>
             </div>
@@ -314,7 +329,7 @@
                         @foreach($produccion as $reg)
                             @php
                                 $axFila = (int) ($reg->AX ?? 0) === 1;
-                                $bloqueoFila = $axFila || $soloLectura;
+                                $bloqueoFila = false;
                                 $claseFila = $bloqueoFila ? $claseBloqueo : '';
                                 $tituloFila = $axFila ? 'Fila bloqueada (AX procesado)' : '';
                                 $metros = (float) ($reg->Metros1 ?? 0) + (float) ($reg->Metros2 ?? 0) + (float) ($reg->Metros3 ?? 0);
@@ -389,7 +404,16 @@
                                 <td class="px-1 py-1 text-center">{{ ($reg->KgBruto ?? '') !== '' ? number_format((float) $reg->KgBruto, 2) : '-' }}</td>
                                 <td class="px-1 py-1 text-center">{{ ($reg->Tara ?? '') !== '' ? number_format((float) $reg->Tara, 2) : '-' }}</td>
                                 <td class="px-1 py-1 text-center">{{ ($reg->KgNeto ?? '') !== '' ? number_format((float) $reg->KgNeto, 2) : '-' }}</td>
-                                <td class="px-1 py-1 text-center">{{ $metros > 0 ? number_format($metros, 0) : '-' }}</td>
+                                <td class="px-1 py-1 text-center">
+                                    @if($esUrdido)
+                                        <input type="number" min="0" step="0.01"
+                                            wire:model.lazy="metrosFila.{{ $reg->Id }}"
+                                            wire:key="metros-fila-{{ $reg->Id }}"
+                                            class="{{ $celda }} w-20">
+                                    @else
+                                        {{ $metros > 0 ? number_format($metros, 0) : '-' }}
+                                    @endif
+                                </td>
                                 @foreach(($esUrdido ? ['hilatura' => 'w-12', 'maquina' => 'w-12', 'operac' => 'w-12', 'transf' => 'w-12'] : ['canoa1' => 'w-12', 'canoa2' => 'w-12', 'solidos' => 'w-14', 'roturas' => 'w-12']) as $campo => $ancho)
                                     <td class="px-1 py-1 text-center bg-blue-50">
                                         <input type="number" min="0" @if($campo === 'solidos') step="0.01" @endif

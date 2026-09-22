@@ -69,15 +69,16 @@ class EditarOrdenPermisosTest extends TestCase
         ]);
     }
 
-    public function test_un_no_supervisor_no_puede_guardar_campos(): void
+    // ponytail: gate de supervisor apagado (temporal). Reponer el 403 cuando llegue el permiso nuevo.
+    public function test_un_no_supervisor_puede_guardar_campos(): void
     {
         foreach (['urdido' => 'UrdProgramaUrdido', 'engomado' => 'EngProgramaEngomado'] as $modulo => $tabla) {
             Livewire::actingAs($this->usuario('Auxiliar'))
                 ->test(EdicionOrden::class, ['module' => $modulo, 'ordenId' => 1])
                 ->set('form.NoTelarId', '999')
-                ->assertStatus(403);
+                ->assertOk();
 
-            $this->assertSame('101', DB::connection('sqlsrv')->table($tabla)->where('Id', 1)->value('NoTelarId'));
+            $this->assertSame('999', DB::connection('sqlsrv')->table($tabla)->where('Id', 1)->value('NoTelarId'));
         }
     }
 
@@ -122,12 +123,13 @@ class EditarOrdenPermisosTest extends TestCase
         $this->assertSame('Pie', DB::connection('sqlsrv')->table('UrdProgramaUrdido')->where('Id', 1)->value('RizoPie'));
     }
 
-    public function test_los_julios_no_se_pueden_tocar_sin_permiso(): void
+    // ponytail: gate de supervisor apagado (temporal). Reponer el 403 cuando llegue el permiso nuevo.
+    public function test_los_julios_se_pueden_tocar_sin_ser_supervisor(): void
     {
         Livewire::actingAs($this->usuario('Auxiliar'))
             ->test(EdicionOrden::class, ['module' => 'urdido', 'ordenId' => 1])
             ->call('guardarJulio', 0)
-            ->assertStatus(403);
+            ->assertOk();
     }
 
     private function usuario(string $puesto): Usuario

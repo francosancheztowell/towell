@@ -13,6 +13,12 @@ document.addEventListener('click', async (event: MouseEvent) => {
   const url = button?.dataset.engomadoPdf
   if (!button || !url || button.disabled) return
   const popup = window.open('', 'imprimir-engomado', 'width=720,height=560,scrollbars=yes,resizable=yes')
+  // El simplificado es HTML de impresión: el tamaño lo pone el papel elegido.
+  if (url.includes('simplificado=1')) {
+    if (popup && !popup.closed) popup.location.href = url
+    else window.open(url, '_blank', 'noopener')
+    return
+  }
   button.disabled = true
   try {
     const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/pdf, application/json' } })

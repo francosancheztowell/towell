@@ -289,6 +289,10 @@ Auto-cargado por Composer. Funciones globales:
 
 ### 4.5 Trait `HasUserPermissions` — `app/Traits/HasUserPermissions.php`
 
+> **BORRADO 2026-09-22** — esta seccion describe codigo que ya no existe (limpieza R0, auditoria de over-engineering). Se conserva el texto por historia; no lo uses como referencia.
+
+
+
 Versión orientada a controllers, con **caché estático en memoria** (`$permissionsCache`).
 
 - **`userCan(string $action, $module, ?int $userId = null): bool`** — Como el helper pero cacheado por clave `perm_{userId}_{action}_{module}` y con `$userId` opcional.

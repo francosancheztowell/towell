@@ -26,6 +26,10 @@ class TejInventarioTelares extends Model
         'no_julio3',
         'no_julio4',
         'no_orden',
+        // Misma posición que no_julio2..4: cada julio de la barra puede traer otra orden.
+        'no_orden2',
+        'no_orden3',
+        'no_orden4',
         'tipo_atado',
         'salon',
         'localidad',

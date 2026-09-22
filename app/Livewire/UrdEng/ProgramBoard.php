@@ -38,6 +38,12 @@ class ProgramBoard extends Component
 
     public string $qualityComment = '';
 
+    /** @var array<string, bool|null> */
+    public array $qualityPoints = [];
+
+    /** @var array<int, array<string, mixed>> */
+    public array $priorityRows = [];
+
     public bool $showPriority = false;
 
     public string $priorityTargetId = '';
@@ -176,33 +182,78 @@ class ProgramBoard extends Component
     {
         abort_unless($this->canEdit, 403);
         $this->selectedOrder();
-        $this->priorityTargetId = '';
+        $board = $this->readService->board($this->moduleEnum(), $this->search, $this->status);
+        $this->priorityRows = collect($board['lanes'])
+            ->flatMap(fn (array $lane): array => $lane['orders'])
+            ->sortBy('priority')
+            ->values()
+            ->all();
         $this->showPriority = true;
         $this->pauseForModal();
+    }
+
+    /**
+     * @param  array<int, int|string>  $orderedIds
+     */
+    public function reorderPriorities(array $orderedIds): void
+    {
+        abort_unless($this->canEdit, 403);
+        $byId = collect($this->priorityRows)->keyBy(fn (array $row): int => (int) $row['id']);
+        $next = [];
+        foreach ($orderedIds as $id) {
+            $row = $byId->get((int) $id);
+            if ($row !== null) {
+                $next[] = $row;
+            }
+        }
+        foreach ($next as $index => $row) {
+            $next[$index]['priority'] = $index + 1;
+        }
+        $this->priorityRows = $next;
+    }
+
+    public function asignarSalon(int $id, string $maquina): void
+    {
+        abort_unless($this->canEdit, 403);
+        $permitidas = ['MC Coy 1', 'MC Coy 2', 'MC Coy 3'];
+        if (! in_array($maquina, $permitidas, true)) {
+            return;
+        }
+
+        foreach ($this->priorityRows as $index => $row) {
+            if ((int) $row['id'] !== $id) {
+                continue;
+            }
+            if (! in_array((string) $row['status'], ['En Proceso', 'Programado'], true)) {
+                return;
+            }
+            $this->priorityRows[$index]['machine'] = $maquina;
+        }
     }
 
     public function savePriority(): void
     {
         abort_unless($this->canEdit, 403);
-        $this->validate([
-            'priorityTargetId' => ['required', 'integer', 'different:selectedOrderId'],
-        ]);
-        $source = $this->selectedOrder();
+        if ($this->priorityRows === []) {
+            $this->addError('priorityRows', 'No hay órdenes para reordenar.');
+
+            return;
+        }
 
         try {
-            $this->actionService->swapPriorities(
+            $this->actionService->saveOrderedPriorities(
                 $this->moduleEnum(),
-                (int) $source['id'],
-                (int) $this->priorityTargetId
+                array_map(fn (array $row): int => (int) $row['id'], $this->priorityRows)
             );
+            $this->actionService->saveUrdidoSalons($this->moduleEnum(), $this->priorityRows);
             $this->closeModal();
             $this->notify('success', 'Prioridad actualizada.');
             $this->dispatch('program-board-updated');
         } catch (DomainException $exception) {
-            $this->addError('priorityTargetId', $exception->getMessage());
+            $this->addError('priorityRows', $exception->getMessage());
         } catch (Throwable $exception) {
             report($exception);
-            $this->addError('priorityTargetId', 'No fue posible actualizar la prioridad.');
+            $this->addError('priorityRows', 'No fue posible actualizar la prioridad.');
         }
     }
 
@@ -273,8 +324,20 @@ class ProgramBoard extends Component
 
         $this->quality = (string) $order['quality'];
         $this->qualityComment = (string) $order['quality_comment'];
+        $this->qualityPoints = $order['quality_points'] ?? [];
         $this->showQuality = true;
         $this->pauseForModal();
+    }
+
+    public function toggleQualityPoint(string $field): void
+    {
+        abort_unless($this->canEvaluateQuality, 403);
+        if (! array_key_exists($field, \App\Models\Urdido\UrdProgramaUrdido::CALIDAD_PUNTOS)) {
+            return;
+        }
+
+        $actual = $this->qualityPoints[$field] ?? null;
+        $this->qualityPoints[$field] = $actual !== true;
     }
 
     public function saveQuality(): void
@@ -282,7 +345,6 @@ class ProgramBoard extends Component
         abort_unless($this->canEvaluateQuality, 403);
         $validated = $this->validate([
             'selectedOrderId' => ['required', 'integer'],
-            'quality' => ['required', 'string', 'in:A,R,O'],
             'qualityComment' => [
                 'nullable',
                 'string',
@@ -290,11 +352,25 @@ class ProgramBoard extends Component
             ],
         ]);
 
+        $puntos = [];
+        foreach (array_keys(\App\Models\Urdido\UrdProgramaUrdido::CALIDAD_PUNTOS) as $campo) {
+            $valor = $this->qualityPoints[$campo] ?? null;
+            if ($valor === true || $valor === 1 || $valor === '1') {
+                $puntos[$campo] = true;
+            } elseif ($valor === false || $valor === 0 || $valor === '0') {
+                $puntos[$campo] = false;
+            } else {
+                $this->addError('quality', 'Revisa todos los puntos del checklist.');
+
+                return;
+            }
+        }
+
         try {
             $this->actionService->saveQuality(
                 $this->moduleEnum(),
                 (int) $validated['selectedOrderId'],
-                (string) $validated['quality'],
+                $puntos,
                 trim((string) $validated['qualityComment'])
             );
             $this->closeModal();

@@ -114,164 +114,10 @@
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-100">
-                                @foreach($inventarioTelares as $i => $t)
-                                    @php
-                                        $tipo     = strtoupper($t['tipo'] ?? '-');
-                                        $tipoCls  = $tipo === 'RIZO'
-                                            ? 'bg-rose-100 text-rose-700'
-                                            : ($tipo === 'PIE'
-                                                ? 'bg-teal-100 text-teal-700'
-                                                : 'bg-gray-100 text-gray-700');
-
-                                        $salon    = trim($t['salon'] ?? 'Jacquard');
-                                        $salonMap = [
-                                            'Jacquard'=>'bg-pink-100 text-pink-700','JACQUARD'=>'bg-pink-100 text-pink-700',
-                                            'Itema'=>'bg-purple-100 text-purple-700','ITEMA'=>'bg-purple-100 text-purple-700',
-                                            'Smith'=>'bg-cyan-100 text-cyan-700','SMITH'=>'bg-cyan-100 text-cyan-700',
-                                            'Karl Mayer'=>'bg-amber-100 text-amber-700','KARL MAYER'=>'bg-amber-100 text-amber-700',
-                                            'Sulzer'=>'bg-lime-100 text-lime-700','SULZER'=>'bg-lime-100 text-lime-700',
-                                        ];
-                                        $salonCls     = $salonMap[$salon] ?? 'bg-indigo-100 text-indigo-700';
-
-                                        $baseBg       = $i % 2 === 0 ? 'bg-white' : 'bg-gray-50';
-                                        $metrosFloat  = isset($t['metros']) ? (float)$t['metros'] : 0;
-                                        $noJulioTrim  = trim($t['no_julio'] ?? '');
-                                        // Una barra de Karl Mayer se alimenta de hasta cuatro julios.
-                                        $julios       = array_values(array_filter($t['julios'] ?? [$noJulioTrim]));
-                                        $maxJulios    = (int)($t['max_julios'] ?? 1) ?: 1;
-                                        $noOrdenTrim  = trim($t['no_orden'] ?? '');
-                                        $hasBoth      = $metrosFloat > 0 && $noJulioTrim !== '';
-                                        $isReservado  = (bool)($t['reservado'] ?? false);
-                                        $isProgramado = (bool)($t['programado'] ?? false);
-                                        $tieneNoOrden = $noOrdenTrim !== '';
-
-                                        $finalBg      = $hasBoth ? 'bg-blue-100' : $baseBg;
-                                        $blueBorder   = $hasBoth ? 'border-l-4 border-blue-400' : '';
-
-                                        $checkboxDisabled = ($isReservado || $tieneNoOrden) ? 'disabled' : '';
-                                        $checkboxCursor   = ($isReservado || $tieneNoOrden)
-                                            ? 'cursor-not-allowed opacity-50'
-                                            : 'cursor-pointer';
-
-                                        $checkboxTitle = $isReservado
-                                            ? 'Telar reservado - no se puede seleccionar'
-                                            : ($tieneNoOrden
-                                                ? 'Telar con orden - no se puede seleccionar'
-                                                : 'Selección multiple (misma cuenta/atributos)');
-                                    @endphp
-                                    <tr class="selectable-row hover:bg-blue-50 cursor-pointer {{ $finalBg }} {{ $blueBorder }}"
-                                        data-base-bg="{{ $baseBg }}"
-                                        data-id="{{ $t['id'] ?? '' }}"
-                                        data-telar="{{ $t['no_telar'] ?? '' }}"
-                                        data-tipo="{{ strtoupper(trim($t['tipo'] ?? '')) }}"
-                                        data-cuenta="{{ $t['cuenta'] ?? '' }}"
-                                        data-calibre="{{ $t['calibre'] ?? '' }}"
-                                        data-hilo="{{ trim($t['hilo'] ?? '') }}"
-                                        data-salon="{{ $salon }}"
-                                        data-no-julio="{{ $noJulioTrim }}"
-                                        data-julios="{{ implode(',', $julios) }}"
-                                        data-max-julios="{{ $maxJulios }}"
-                                        data-no-orden="{{ $noOrdenTrim }}"
-                                        data-metros="{{ $t['metros'] ?? '' }}"
-                                        data-fecha="{{ (!empty($t['fecha']) && preg_match('/^\d{4}-\d{2}-\d{2}/', trim($t['fecha']))) ? substr(trim($t['fecha']), 0, 10) : '' }}"
-                                        data-turno="{{ $t['turno'] ?? '' }}"
-                                        data-has-both="{{ $hasBoth ? 'true' : 'false' }}"
-                                        data-is-reservado="{{ $isReservado ? 'true' : 'false' }}"
-                                        data-is-programado="{{ $isProgramado ? 'true' : 'false' }}">
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center font-bold">
-                                            {{ $t['no_telar'] ?? '' }}
-                                        </td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                                            <span class="px-2 py-0.5 rounded text-xs font-medium {{ $tipoCls }}">
-                                                {{ $t['tipo'] ?? '-' }}
-                                            </span>
-                                        </td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center editable-cell cursor-context-menu"
-                                            data-editable-field="cuenta"
-                                            data-id="{{ $t['id'] ?? '' }}"
-                                            data-telar="{{ $t['no_telar'] ?? '' }}"
-                                            data-tipo="{{ strtoupper(trim($t['tipo'] ?? '')) }}"
-                                            title="Clic derecho para editar">
-                                            {{ $t['cuenta'] ?? '' }}
-                                        </td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center editable-cell cursor-context-menu"
-                                            data-editable-field="calibre"
-                                            data-id="{{ $t['id'] ?? '' }}"
-                                            data-telar="{{ $t['no_telar'] ?? '' }}"
-                                            data-tipo="{{ strtoupper(trim($t['tipo'] ?? '')) }}"
-                                            title="Clic derecho para editar">
-                                            {{ number_format((float)($t['calibre'] ?? 0), 2) }}
-                                        </td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                                            @php
-                                                $fechaVal = $t['fecha'] ?? '';
-                                                if (!empty($fechaVal) && preg_match('/^(\d{4})-(\d{2})-(\d{2})/', trim($fechaVal), $mFecha)) {
-                                                    $fechaDisplay = \Carbon\Carbon::createFromFormat('Y-m-d', $mFecha[1].'-'.$mFecha[2].'-'.$mFecha[3])->format('d-M-Y');
-                                                } else {
-                                                    $fechaDisplay = $fechaVal ? \Carbon\Carbon::parse($fechaVal)->format('d-M-Y') : '';
-                                                }
-                                            @endphp
-                                            {{ $fechaDisplay }}
-                                        </td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                                            {{ $t['turno'] ?? '' }}
-                                        </td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                                            {{ $t['hilo'] ?? '' }}
-                                        </td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                                            {{ number_format((float)($t['metros'] ?? 0), 0) }}
-                                        </td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                                            {{ implode(', ', $julios) ?: '-' }}
-                                            @if($maxJulios > 1)
-                                                <span class="ml-1 text-xs text-gray-500">({{ count($julios) }}/{{ $maxJulios }})</span>
-                                            @endif
-                                        </td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                                            {{ $t['no_orden'] ?? '' }}
-                                        </td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                                            @if($isReservado)
-                                                <span class="px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-700">Reservado</span>
-                                            @elseif($isProgramado)
-                                                <span class="px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-700">Programado</span>
-                                            @else
-                                                <span class="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-700">Libre</span>
-                                            @endif
-                                        </td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                                            @php $tipoAtado = $t['tipo_atado'] ?? 'Normal'; @endphp
-                                            @if($canModificar ?? false)
-                                                <select
-                                                    class="tipo-atado-select w-full bg-white px-2 py-1 text-xs border border-gray-300 rounded-md text-gray-900 focus:ring-2 focus:ring-blue-500"
-                                                    data-telar="{{ $t['no_telar'] ?? '' }}"
-                                                    data-tipo="{{ strtoupper(trim($t['tipo'] ?? '')) }}"
-                                                >
-                                                    <option value="Normal" {{ $tipoAtado === 'Normal' ? 'selected' : '' }}>Normal</option>
-                                                    <option value="Especial" {{ $tipoAtado === 'Especial' ? 'selected' : '' }}>Especial</option>
-                                                </select>
-                                            @else
-                                                <span class="text-gray-800 text-xs font-medium">{{ $tipoAtado }}</span>
-                                            @endif
-                                        </td>
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                                            <span class="px-2 py-0.5 rounded text-xs font-medium {{ $salonCls }}">
-                                                {{ $salon }}
-                                            </span>
-                                        </td>
-                                        @if($canCrear ?? false)
-                                        <td class="px-3 py-1.5 text-sm text-gray-700 whitespace-nowrap text-center">
-                                            <input type="checkbox"
-                                                class="telar-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 {{ $checkboxCursor }}"
-                                                data-telar="{{ $t['no_telar'] ?? '' }}"
-                                                data-tipo="{{ strtoupper(trim($t['tipo'] ?? '')) }}"
-                                                {{ $checkboxDisabled }}
-                                                title="{{ $checkboxTitle }}">
-                                        </td>
-                                        @endif
-                                    </tr>
-                                @endforeach
+                                {{-- Las filas las pinta render.telares() desde el island pu-config
+                                     en cuanto carga el DOM. Tenerlas tambien aqui era renderizarlas
+                                     en PHP para tirarlas milisegundos despues, y obligaba a escribir
+                                     cada cambio de celda dos veces. --}}
                             </tbody>
                         </table>
                 </div>
@@ -297,9 +143,19 @@
     <div class="pu-panel">
         <div class="bg-blue-500 px-4 py-2 flex justify-between items-center gap-2">
             <h2 class="text-sm font-bold tracking-wide text-white text-center flex-1">Inventario Disponible</h2>
+            {{-- Contador y selección por lote: solo con una barra de Karl Mayer seleccionada. --}}
+            <span id="puJuliosContador"
+                  class="hidden rounded-lg bg-white/20 px-3 py-1.5 text-sm font-semibold text-white whitespace-nowrap"></span>
+            <button type="button"
+                    id="btnSeleccionarLote"
+                    class="hidden flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white hover:bg-blue-50 text-blue-700 text-sm font-semibold shadow-sm transition-colors whitespace-nowrap"
+                    title="Seleccionar los julios libres de este lote hasta llenar la barra">
+                <i class="fa-solid fa-layer-group"></i>
+                <span>Seleccionar todos los julios de este lote</span>
+            </button>
             <button type="button"
                     id="btnQuitarFiltroInventario"
-                    class="hidden flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-sm font-medium transition-colors"
+                    class="hidden flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white hover:bg-blue-50 text-blue-700 text-sm font-semibold shadow-sm transition-colors"
                     title="Quitar filtro y mostrar todos los registros">
                 <i class="fa-solid fa-filter-circle-xmark"></i>
                 <span>Quitar Filtro</span>
@@ -383,6 +239,15 @@
     .pu-scroll::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:8px;}
     .pu-scroll::-webkit-scrollbar-track{background:transparent;}
 
+    /* Barras de Karl Mayer: la celda muestra un julio y se abre hacia arriba y abajo. */
+    .pu-stack{display:inline-flex;flex-direction:column;align-items:center;gap:.1rem;line-height:1.25;vertical-align:middle;}
+    .pu-stack .pu-extra{display:none;}
+    #telaresTable tbody tr[data-expandido="1"] .pu-extra{display:block;}
+    .pu-toggle{margin-left:.25rem;display:inline-flex;align-items:center;gap:.2rem;border-radius:.375rem;background:#f1f5f9;color:#475569;font-size:.65rem;font-weight:700;padding:.05rem .3rem;vertical-align:middle;}
+    .pu-toggle:hover{background:#e2e8f0;}
+    #telaresTable tbody tr[data-expandido="1"] .pu-toggle i{transform:rotate(180deg);}
+    #telaresTable tbody tr.is-selected .pu-toggle{background:rgba(255,255,255,.25);color:#fff;}
+
     #telaresTable, #inventarioTable { width:100%; }
     #telaresTable thead, #inventarioTable thead { box-shadow:0 2px 4px rgba(15,23,42,.08); }
     #telaresTable td, #inventarioTable td { font-variant-numeric:tabular-nums; }
@@ -423,6 +288,9 @@
     }
     #telaresTable tbody tr.bg-blue-100:hover{ background-color:#bfdbfe !important; }
     button:focus-visible, select:focus-visible, input:focus-visible{outline:2px solid #2563eb;outline-offset:1px;}
+    /* Las filas son seleccionables con el teclado: sin anillo visible no sirve de nada. */
+    #telaresTable tbody tr:focus-visible,
+    #inventarioTable tbody tr:focus-visible{outline:2px solid #2563eb;outline-offset:-2px;}
 
     /* Tablet: celdas compactas para que quepan más columnas sin apretar. */
     @media (max-width:1279.98px){

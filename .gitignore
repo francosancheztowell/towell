@@ -51,3 +51,7 @@ gha-creds-*.json
 /public/test.php
 /check_cols.php
 /.tmp_route_list.json
+
+# Python bytecode de scripts/
+__pycache__/
+*.pyc

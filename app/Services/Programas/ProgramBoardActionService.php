@@ -21,6 +21,51 @@ class ProgramBoardActionService
         private readonly ProgramaPrioridadService $priorityService,
     ) {}
 
+    /**
+     * @param  array<int, int>  $orderedIds
+     */
+    public function saveOrderedPriorities(ProgramaModulo $module, array $orderedIds): void
+    {
+        if (! function_exists('userCan') || ! userCan('modificar', $module->permissionModule())) {
+            throw new DomainException('No tienes permiso para cambiar la prioridad.');
+        }
+
+        $priorities = [];
+        foreach (array_values($orderedIds) as $index => $id) {
+            $priorities[] = ['id' => (int) $id, 'prioridad' => $index + 1];
+        }
+
+        $this->priorityService->bulkUpdatePriorities($module->programModel(), $priorities);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    public function saveUrdidoSalons(ProgramaModulo $module, array $rows): void
+    {
+        if ($module !== ProgramaModulo::Urdido) {
+            return;
+        }
+
+        if (! function_exists('userCan') || ! userCan('modificar', $module->permissionModule())) {
+            throw new DomainException('No tienes permiso para cambiar el salón.');
+        }
+
+        $permitidas = ['MC Coy 1', 'MC Coy 2', 'MC Coy 3'];
+        $modelClass = $module->programModel();
+
+        foreach ($rows as $row) {
+            if (! in_array((string) ($row['status'] ?? ''), ['En Proceso', 'Programado'], true)) {
+                continue;
+            }
+            $maquina = (string) ($row['machine'] ?? '');
+            if (! in_array($maquina, $permitidas, true)) {
+                continue;
+            }
+            $modelClass::query()->where('Id', (int) $row['id'])->update(['MaquinaId' => $maquina]);
+        }
+    }
+
     public function swapPriorities(ProgramaModulo $module, int $sourceId, int $targetId): void
     {
         if ($sourceId === $targetId) {
@@ -130,10 +175,13 @@ class ProgramBoardActionService
         });
     }
 
+    /**
+     * @param  array<string, bool>  $points
+     */
     public function saveQuality(
         ProgramaModulo $module,
         int $orderId,
-        string $quality,
+        array $points,
         string $comment,
     ): void {
         if ($module !== ProgramaModulo::Urdido) {
@@ -144,8 +192,11 @@ class ProgramBoardActionService
             throw new DomainException('Solo el área de Calidad puede evaluar una orden.');
         }
 
-        if (! in_array($quality, ['A', 'R', 'O'], true)) {
-            throw new DomainException('Selecciona un estado de calidad válido.');
+        $campos = array_keys(UrdProgramaUrdido::CALIDAD_PUNTOS);
+        foreach ($campos as $campo) {
+            if (! array_key_exists($campo, $points) || ! is_bool($points[$campo])) {
+                throw new DomainException('Revisa todos los puntos del checklist.');
+            }
         }
 
         $user = Auth::user();
@@ -157,9 +208,14 @@ class ProgramBoardActionService
         $connection = (new $modelClass)->getConnectionName();
 
         $payload = DB::connection($connection)->transaction(
-            function () use ($modelClass, $orderId, $quality, $comment, $user): array {
+            function () use ($modelClass, $orderId, $campos, $points, $comment, $user): array {
                 $order = $modelClass::query()->lockForUpdate()->findOrFail($orderId);
-                $order->Calidad = $quality;
+                $algunoMalo = false;
+                foreach ($campos as $campo) {
+                    $order->{$campo} = $points[$campo];
+                    $algunoMalo = $algunoMalo || ! $points[$campo];
+                }
+                $order->Calidad = $algunoMalo ? '0' : '1';
                 $order->CalidadComentario = $comment;
                 $order->AutorizaCalidad = (string) ($user->nombre ?? '');
                 $order->FechaCalidad = now();
@@ -175,6 +231,9 @@ class ProgramBoardActionService
                     'size' => (string) ($order->InventSizeId ?? ''),
                     'quality' => (string) ($order->Calidad ?? ''),
                     'comment' => (string) ($order->CalidadComentario ?? ''),
+                    'points' => collect($campos)
+                        ->mapWithKeys(fn (string $campo): array => [$campo => (bool) $order->{$campo}])
+                        ->all(),
                 ];
             }
         );

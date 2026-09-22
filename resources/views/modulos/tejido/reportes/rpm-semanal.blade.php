@@ -111,6 +111,7 @@
 @endsection
 
 @push('scripts')
+@vite('resources/js/charts.js')
 <script>
     function mostrarModalSemanaRpm() {
         const hoy = new Date();

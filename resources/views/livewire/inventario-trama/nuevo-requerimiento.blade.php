@@ -2,12 +2,9 @@
     @forelse($telares as $idx => $telar)
         @php
             $d = $telar['telarData'] ?? [];
-            $esKm = (bool) ($telar['es_karl_mayer'] ?? false);
-            $rail = $esKm
-                ? 'bg-gradient-to-b from-amber-500 to-amber-600'
-                : (($telar['tipo'] ?? '') === 'itema'
-                    ? 'bg-gradient-to-b from-gray-400 to-gray-500'
-                    : 'bg-gradient-to-b from-blue-600 to-blue-700');
+            $rail = (($telar['tipo'] ?? '') === 'itema'
+                ? 'bg-gradient-to-b from-gray-400 to-gray-500'
+                : 'bg-gradient-to-b from-blue-600 to-blue-700');
         @endphp
         <div id="telar-{{ $telar['numero'] }}"
             class="relative bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden"
@@ -18,9 +15,6 @@
                 <div class="text-center w-full mt-1">
                     <h2 class="text-[2rem] sm:text-[2.25rem] md:text-[2.5rem] font-extrabold text-white leading-none py-3 text-center drop-shadow-sm">
                         {{ $telar['numero'] }}</h2>
-                    @if($esKm)
-                        <span class="inline-block text-[10px] font-bold uppercase tracking-wide text-white/90">KARL MAYER</span>
-                    @endif
                 </div>
                 <div class="w-full mt-auto">
                     <button type="button" wire:click="abrirModal('{{ $telar['numero'] }}')"
@@ -99,7 +93,7 @@
                     <table class="w-full min-w-[640px] mt-2.5">
                         <thead class="relative z-10">
                             <tr class="bg-gray-100">
-                                <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">{{ $esKm ? 'Barra' : 'Artículo' }}</th>
+                                <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Artículo</th>
                                 <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Fibra</th>
                                 <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Cod Color</th>
                                 <th class="px-4 py-1 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">Nombre Color</th>
@@ -110,14 +104,7 @@
                             @forelse($telar['rows'] ?? [] as $rIdx => $row)
                                 <tr class="{{ $loop->even ? 'bg-gray-50' : 'bg-white' }} hover:bg-blue-50">
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">
-                                        @if($esKm && !empty($row['barra']))
-                                            <span class="font-semibold">Barra {{ $row['barra'] }}</span>
-                                            @if($row['calibre'] !== null)
-                                                <span class="text-xs text-gray-500 ml-1">{{ number_format((float) $row['calibre'], 2) }}</span>
-                                            @endif
-                                        @else
-                                            {{ $row['calibre'] !== null ? number_format((float) $row['calibre'], 2) : '-' }}
-                                        @endif
+                                        {{ $row['calibre'] !== null ? number_format((float) $row['calibre'], 2) : '-' }}
                                     </td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $row['fibra'] ?? '-' }}</td>
                                     <td class="px-4 py-1 text-sm text-gray-900 border-r border-gray-200">{{ $row['cod_color'] ?? '-' }}</td>

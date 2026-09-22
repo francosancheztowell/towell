@@ -86,8 +86,6 @@ class AppServiceProvider extends ServiceProvider
             static fn (array $handle): RoutingRoute => Route::post('/livewire/update', $handle),
         );
 
-        require_once app_path('Helpers/permission-helpers.php');
-
         ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
         AtaMontadoTelasModel::observe(AtaMontadoTelasObserver::class);
     }

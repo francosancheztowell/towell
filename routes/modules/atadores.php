@@ -25,6 +25,8 @@ Route::prefix('atadores')->name('atadores.')->group(function () {
     Route::redirect('/programa', '/atadores/programaatadores', 301);
 
     Route::get('/iniciar', [AtadoresController::class, 'iniciarAtado'])->name('iniciar');
+    Route::get('/calificar/montado', [AtadoresController::class, 'procesoKm'])->defaults('proceso', 'montado')->name('calificar.montado');
+    Route::get('/calificar/enhebrado', [AtadoresController::class, 'procesoKm'])->defaults('proceso', 'enhebrado')->name('calificar.enhebrado');
     Route::get('/calificar', [AtadoresController::class, 'calificarAtadores'])->name('calificar');
     Route::post('/save', [AtadoresController::class, 'save'])->name('save');
 
