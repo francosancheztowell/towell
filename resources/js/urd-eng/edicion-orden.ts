@@ -73,7 +73,14 @@ const guardarCeldaProduccion = async (input: HTMLInputElement | HTMLSelectElemen
   if (!contenedor || !campo || !Number.isInteger(registroId)) return
 
   const valor = input.value === '' ? null : input.value
-  const anterior = input.dataset.ultimoGuardado ?? input.defaultValue
+  // Valor al que volver si falla el guardado. La primera vez no hay ultimoGuardado,
+  // asi que se lee el que pinto el servidor: defaultValue en un input, y en un
+  // <select> la opcion con el atributo selected (defaultValue no existe ahi).
+  const anterior = input.dataset.ultimoGuardado ?? (
+    input instanceof HTMLSelectElement
+      ? input.querySelector<HTMLOptionElement>('option[selected]')?.value ?? input.value
+      : input.defaultValue
+  )
   if (valor === input.dataset.ultimoGuardado) return
   input.dataset.ultimoGuardado = input.value
 
@@ -96,7 +103,6 @@ const guardarCeldaProduccion = async (input: HTMLInputElement | HTMLSelectElemen
         valor: numerico ? Number(valor) : valor,
       })
     }
-    input.defaultValue = input.value
     aviso('success', 'Actualizado')
   } catch (error) {
     input.value = anterior
