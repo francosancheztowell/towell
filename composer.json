@@ -48,6 +48,9 @@
         }
     },
     "scripts": {
+        "pre-autoload-dump": [
+            "@php -r \"@unlink('bootstrap/cache/packages.php'); @unlink('bootstrap/cache/services.php');\""
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
