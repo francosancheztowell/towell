@@ -32,7 +32,7 @@ class AtaKmMontadoModel extends Model
     ];
 
     protected $casts = [
-        'FechaInicio' => 'date',
-        'FechaFin' => 'date',
+        'FechaInicio' => 'datetime',
+        'FechaFin' => 'datetime',
     ];
 }

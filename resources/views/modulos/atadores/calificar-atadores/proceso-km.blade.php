@@ -79,6 +79,9 @@
                     estado.classList.remove('hidden');
                     setTimeout(() => estado.classList.add('hidden'), 2000);
                 }
+                if (window.Swal) {
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Guardado', showConfirmButton: false, timer: 1600, timerProgressBar: true });
+                }
             })
             .catch(() => {
                 Swal.fire({ icon: 'error', title: 'Error de red', text: 'No se pudo guardar' });

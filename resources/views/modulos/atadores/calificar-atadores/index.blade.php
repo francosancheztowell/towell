@@ -57,7 +57,7 @@
 
             <!-- Resumen del Atado (4 bloques combinados + comentarios) -->
             <div class="bg-white rounded-lg shadow-md p-4 mb-6">
-                <h3 class="text-base font-semibold text-gray-700 mb-4">{{ $esKm ? 'Atado de barra' : 'Resumen del Atado' }}</h3>
+                <h3 class="mb-4 font-semibold text-gray-700 {{ ($esKm ?? false) ? 'text-xl font-bold text-center' : 'text-base' }}">{{ $esKm ? 'Atado de barra' : 'Resumen del Atado' }}</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <!-- Columna 1 -->
                     <div class="space-y-4">
@@ -354,36 +354,18 @@
             @endunless
 
             @if($esKm)
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                <button type="button" onclick="abrirProcesoKm('montado')"
-                    class="text-left bg-white rounded-lg shadow-md p-6 border-2 border-blue-200 hover:border-blue-500">
-                    <span class="block text-lg font-semibold text-gray-800">Montado</span>
-                    <span class="block mt-1 text-sm text-gray-500">Claves, nombres y fechas de montado</span>
-                </button>
-                <button type="button" onclick="abrirProcesoKm('enhebrado')"
-                    class="text-left bg-white rounded-lg shadow-md p-6 border-2 border-emerald-200 hover:border-emerald-500">
-                    <span class="block text-lg font-semibold text-gray-800">Enhebrado</span>
-                    <span class="block mt-1 text-sm text-gray-500">Claves, nombres y fechas de enhebrado</span>
-                </button>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6 items-start">
+                @include('modulos.atadores.calificar-atadores._proceso-km', [
+                    'titulo' => 'Montado',
+                    'prefijo' => 'montado',
+                    'registro' => $kmMontado,
+                ])
+                @include('modulos.atadores.calificar-atadores._proceso-km', [
+                    'titulo' => 'Enhebrado',
+                    'prefijo' => 'enhebrado',
+                    'registro' => $kmEnhebrado,
+                ])
             </div>
-
-            @foreach (['montado' => $kmMontado, 'enhebrado' => $kmEnhebrado] as $prefijoModal => $registroModal)
-                <div id="modal-{{ $prefijoModal }}" class="hidden fixed inset-0 z-[80] bg-black/40 flex items-start justify-center p-4 overflow-y-auto"
-                    onclick="if (event.target === this) cerrarProcesoKm('{{ $prefijoModal }}')">
-                    <div class="w-full max-w-lg mt-10">
-                        <div class="flex justify-end mb-2">
-                            <button type="button" onclick="cerrarProcesoKm('{{ $prefijoModal }}')"
-                                class="h-9 w-9 rounded-full bg-white text-gray-700 text-xl leading-none shadow"
-                                aria-label="Cerrar">&times;</button>
-                        </div>
-                        @include('modulos.atadores.calificar-atadores._proceso-km', [
-                            'titulo' => $prefijoModal === 'montado' ? 'Montado' : 'Enhebrado',
-                            'prefijo' => $prefijoModal,
-                            'registro' => $registroModal,
-                        ])
-                    </div>
-                </div>
-            @endforeach
             @endif
 
             <!-- Devolución -->
@@ -626,6 +608,9 @@
                     if (estado) {
                         estado.classList.remove('hidden');
                         setTimeout(() => estado.classList.add('hidden'), 2000);
+                    }
+                    if (window.Swal) {
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Guardado', showConfirmButton: false, timer: 1600, timerProgressBar: true });
                     }
                 })
                 .catch(() => {

@@ -122,8 +122,8 @@ class CalificarAtadoKarlMayerTest extends TestCase
                 $table->string('NomEmpl2')->nullable();
                 $table->string('CveEmpl3')->nullable();
                 $table->string('NomEmpl3')->nullable();
-                $table->date('FechaInicio')->nullable();
-                $table->date('FechaFin')->nullable();
+                $table->dateTime('FechaInicio')->nullable();
+                $table->dateTime('FechaFin')->nullable();
             });
         }
 
@@ -168,10 +168,11 @@ class CalificarAtadoKarlMayerTest extends TestCase
 
         $this->assertStringContainsString('Atado de barra', $html);
         $this->assertStringContainsString('Barra 3', $html);
-        $this->assertStringContainsString('id="modal-montado"', $html);
-        $this->assertStringContainsString('id="modal-enhebrado"', $html);
-        $this->assertStringContainsString('abrirProcesoKm(\'montado\')', $html);
-        $this->assertStringContainsString('abrirProcesoKm(\'enhebrado\')', $html);
+        // Montado y Enhebrado se muestran directo en sus tarjetas (sin modal).
+        $this->assertStringNotContainsString('id="modal-montado"', $html);
+        $this->assertStringNotContainsString('id="modal-enhebrado"', $html);
+        $this->assertStringNotContainsString('abrirProcesoKm(\'montado\')', $html);
+        $this->assertStringNotContainsString('abrirProcesoKm(\'enhebrado\')', $html);
         $this->assertStringContainsString('id="montado_cve1"', $html);
         $this->assertStringContainsString('id="enhebrado_cve1"', $html);
         $this->assertStringNotContainsString('/atadores/calificar/montado', $html);
@@ -269,7 +270,7 @@ class CalificarAtadoKarlMayerTest extends TestCase
             'nombre1' => 'Franco Sanchez',
             'cve2' => '1002',
             'nombre2' => 'Ana',
-            'fecha_inicio' => '2026-09-24',
+            'fecha_inicio' => '2026-09-24T08:15',
             'fecha_fin' => '2026-09-25',
         ])->assertOk()->assertJsonPath('ok', true);
 
@@ -279,7 +280,7 @@ class CalificarAtadoKarlMayerTest extends TestCase
         $this->assertSame('1002', $fila->CveEmpl2);
         $this->assertSame('Ana', $fila->NomEmpl2);
         $this->assertNull($fila->CveEmpl3);
-        $this->assertStringStartsWith('2026-09-24', (string) $fila->FechaInicio);
+        $this->assertStringStartsWith('2026-09-24 08:15', (string) $fila->FechaInicio);
         $this->assertStringStartsWith('2026-09-25', (string) $fila->FechaFin);
         $this->assertSame(0, DB::connection('sqlsrv')->table('AtaKmEnhebrado')->count());
         $this->assertSame(0, DB::connection('sqlsrv')->table('AtaMontadoActividades')->count());

@@ -443,12 +443,14 @@ class AtadoresController extends Controller
             return null;
         }
 
-        $fecha = \DateTime::createFromFormat('Y-m-d', $texto);
-        if (! $fecha || $fecha->format('Y-m-d') !== $texto) {
-            throw new \InvalidArgumentException('La fecha debe ir como aaaa-mm-dd');
+        foreach (['Y-m-d\TH:i', 'Y-m-d'] as $formato) {
+            $fecha = \DateTime::createFromFormat($formato, $texto);
+            if ($fecha && $fecha->format($formato) === $texto) {
+                return $fecha->format('Y-m-d H:i:s');
+            }
         }
 
-        return $texto;
+        throw new \InvalidArgumentException('La fecha debe ir como aaaa-mm-dd hh:mm');
     }
 
     /**
