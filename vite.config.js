@@ -27,6 +27,8 @@ export default defineConfig({
         'resources/js/trazabilidad/index.ts',
         'resources/css/crudo/dashboard.css',
         'resources/js/crudo/dashboard.ts',
+        'resources/css/ventas/dashboard.css',
+        'resources/js/ventas/dashboard.js',
         'resources/css/urd-eng/edicion-ordenes.css',
         'resources/js/urd-eng/edicion-ordenes.ts',
         'resources/js/urd-eng/edicion-orden.ts',
