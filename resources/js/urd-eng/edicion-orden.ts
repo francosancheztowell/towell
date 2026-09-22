@@ -63,6 +63,7 @@ const CAMPOS_PRODUCCION: Record<string, string> = {
   solidos: 'Solidos',
   roturas: 'Roturas',
   ubicacion: 'Ubicacion',
+  metros: 'Metros',
 }
 
 const guardarCeldaProduccion = async (input: HTMLInputElement | HTMLSelectElement): Promise<void> => {
@@ -72,6 +73,7 @@ const guardarCeldaProduccion = async (input: HTMLInputElement | HTMLSelectElemen
   if (!contenedor || !campo || !Number.isInteger(registroId)) return
 
   const valor = input.value === '' ? null : input.value
+  const anterior = input.dataset.ultimoGuardado ?? input.defaultValue
   if (valor === input.dataset.ultimoGuardado) return
   input.dataset.ultimoGuardado = input.value
 
@@ -94,8 +96,11 @@ const guardarCeldaProduccion = async (input: HTMLInputElement | HTMLSelectElemen
         valor: numerico ? Number(valor) : valor,
       })
     }
+    input.defaultValue = input.value
     aviso('success', 'Actualizado')
   } catch (error) {
+    input.value = anterior
+    input.dataset.ultimoGuardado = anterior
     const data = (error as { data?: { error?: string; message?: string } }).data
     const texto = data?.error || data?.message || (error instanceof Error ? error.message : 'No se pudo actualizar')
     window.alert(texto)

@@ -60,7 +60,8 @@
     @endif
 
     @if ($pendiente === 'Metros')
-        <div class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 p-4">
+        @teleport('body')
+        <div class="fixed inset-0 flex items-center justify-center bg-slate-900/40 p-4" style="z-index: 9999">
             <div class="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" role="dialog" aria-modal="true">
                 <h2 class="text-base font-semibold text-gray-900">Metros aún no se guardan</h2>
                 <p class="mt-2 text-sm text-gray-700">{{ $pendienteMensaje }}</p>
@@ -76,10 +77,12 @@
                 </div>
             </div>
         </div>
+        @endteleport
     @endif
 
     @if ($avisoTipo === 'error' && $aviso !== '')
-        <div class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/40 p-4">
+        @teleport('body')
+        <div class="fixed inset-0 flex items-center justify-center bg-slate-900/40 p-4" style="z-index: 9999">
             <div class="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" role="alertdialog" aria-modal="true">
                 <h2 class="text-base font-semibold text-gray-900">No se guardó</h2>
                 <p class="mt-2 text-sm text-gray-700">{{ $aviso }}</p>
@@ -88,6 +91,7 @@
                 </div>
             </div>
         </div>
+        @endteleport
     @endif
 
     @if ($aviso !== '')
@@ -423,7 +427,15 @@
                                 <td class="px-1 py-1 text-center">{{ ($reg->KgBruto ?? '') !== '' ? number_format((float) $reg->KgBruto, 2) : '-' }}</td>
                                 <td class="px-1 py-1 text-center">{{ ($reg->Tara ?? '') !== '' ? number_format((float) $reg->Tara, 2) : '-' }}</td>
                                 <td class="px-1 py-1 text-center">{{ ($reg->KgNeto ?? '') !== '' ? number_format((float) $reg->KgNeto, 2) : '-' }}</td>
-                                <td class="px-1 py-1 text-center">{{ $metros > 0 ? number_format($metros, 0) : '-' }}</td>
+                                <td class="px-1 py-1 text-center">
+                                    @if($esUrdido)
+                                        <input type="number" min="0" step="0.01" data-field="metros" data-registro-id="{{ $reg->Id }}"
+                                            value="{{ $metros > 0 ? $metros : '' }}"
+                                            class="{{ $celda }} w-20">
+                                    @else
+                                        {{ $metros > 0 ? number_format($metros, 0) : '-' }}
+                                    @endif
+                                </td>
                                 @foreach(($esUrdido ? ['hilatura' => 'w-12', 'maquina' => 'w-12', 'operac' => 'w-12', 'transf' => 'w-12'] : ['canoa1' => 'w-12', 'canoa2' => 'w-12', 'solidos' => 'w-14', 'roturas' => 'w-12']) as $campo => $ancho)
                                     <td class="px-1 py-1 text-center bg-blue-50">
                                         <input type="number" min="0" @if($campo === 'solidos') step="0.01" @endif

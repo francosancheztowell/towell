@@ -563,7 +563,7 @@ class ModuloProduccionUrdidoController extends Controller
                 'registro_id' => 'required|integer',
                 // Hilos no se edita aquí: es la llave que usa ensureProductionRecordsExist()
                 // para decidir cuántas filas crear/eliminar por folio.
-                'campo' => 'required|string|in:Hilatura,Maquina,Operac,Transf,Vueltas,Diametro',
+                'campo' => 'required|string|in:Hilatura,Maquina,Operac,Transf,Vueltas,Diametro,Metros',
                 'valor' => 'nullable|numeric|min:0|max:99999',
             ]);
 
@@ -578,6 +578,25 @@ class ModuloProduccionUrdidoController extends Controller
             }
 
             $campo = $request->campo;
+            if ($campo === 'Metros') {
+                $enOtrosOficiales = (float) ($registro->Metros2 ?? 0) + (float) ($registro->Metros3 ?? 0);
+                if ($enOtrosOficiales > 0) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => 'Esta fila tiene metros en más de un oficial. Cámbialos con el lápiz.',
+                    ], 422);
+                }
+
+                $registro->Metros1 = $request->valor !== null ? round((float) $request->valor, 2) : null;
+                $registro->save();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Metros actualizados',
+                    'data' => ['campo' => 'Metros', 'valor' => $registro->Metros1],
+                ]);
+            }
+
             $floatCampos = ['Vueltas', 'Diametro'];
             $registro->$campo = $request->valor !== null
                 ? (in_array($campo, $floatCampos) ? (float) $request->valor : (int) $request->valor)
