@@ -25,8 +25,8 @@ const ventana = window as unknown as Ventana
 
 const raiz = (): HTMLElement | null => document.querySelector<HTMLElement>('[data-edicion-orden]')
 
-const aviso = (icon: 'success' | 'error', title: string): void => {
-  void ventana.Swal?.fire({ toast: true, position: 'top-end', icon, title, showConfirmButton: false, timer: 2200 })
+const aviso = (_icon: 'success' | 'error', title: string): void => {
+  window.alert(title)
 }
 
 const escapar = (valor: unknown): string =>
