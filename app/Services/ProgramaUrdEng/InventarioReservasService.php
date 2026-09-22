@@ -485,9 +485,15 @@ class InventarioReservasService
                 $telar->save();
             }
 
-            // A la notificación se le adjuntan los datos del julio y orden involucrados
-            $pendiente->no_julio = $telar->no_julio;
-            $pendiente->no_orden = $telar->no_orden;
+            // El julio de esta reserva. En una barra puede ser el 2, 3 o 4;
+            // copiar siempre la primera columna le pegaba el julio anterior.
+            [$julio, $orden] = $this->parDeLaReserva($telar, $data);
+            if ($julio !== '') {
+                $pendiente->no_julio = $julio;
+            }
+            if ($orden !== '') {
+                $pendiente->no_orden = $orden;
+            }
         } else {
             Log::warning('ReservaInventario: notificación pendiente encontrada, pero sin telar objetivo válido', [
                 'notifica_id' => $pendiente->id ?? null,
@@ -529,6 +535,30 @@ class InventarioReservasService
         }
 
         return $query->orderByDesc('id')->first();
+    }
+
+    /**
+     * Julio y orden de la pieza que se está reservando.
+     * Rizo y pie viven en la primera columna. Una barra de Karl Mayer usa
+     * la columna cuyo julio coincide con el serial de la reserva.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function parDeLaReserva(TejInventarioTelares $telar, array $data): array
+    {
+        $serial = trim((string) ($data['InventSerialId'] ?? ''));
+
+        foreach (InventarioTelaresService::PARES_JULIO as $columnaJulio => $columnaOrden) {
+            $julio = trim((string) ($telar->{$columnaJulio} ?? ''));
+            if ($julio === '') {
+                continue;
+            }
+            if ($serial === '' || strcasecmp($julio, $serial) === 0) {
+                return [$julio, trim((string) ($telar->{$columnaOrden} ?? ''))];
+            }
+        }
+
+        return [$serial, ''];
     }
 
     /**

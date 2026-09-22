@@ -63,6 +63,7 @@ class ReservarConTelarTransaccionTest extends TestCase
             $table->string('salon')->nullable();
             $table->date('fecha')->nullable();
             $table->string('turno')->nullable();
+            $table->string('horaParo')->nullable();
             $table->timestamps();
         });
 
@@ -247,6 +248,36 @@ class ReservarConTelarTransaccionTest extends TestCase
     /**
      * El telar que se quiere marcar no existe: no debe quedar la reserva suelta.
      */
+    public function test_al_cerrar_el_aviso_guarda_el_julio_de_esta_reserva(): void
+    {
+        DB::connection('sqlsrv')->table('tej_inventario_telares')->where('id', 2)->update([
+            'no_julio' => '01269-K6',
+            'no_orden' => '01269',
+            'Reservado' => true,
+        ]);
+        DB::connection('sqlsrv')->table('TejNotificaTejedor')->insert([
+            'telar' => '401',
+            'tipo' => '1',
+            'hora' => '08:15:00',
+            'Reserva' => 0,
+            'Fecha' => now()->toDateString(),
+        ]);
+
+        $this->acciones()->reservarConTelar(
+            ['InventSerialId' => '01310-K66', 'InventBatchId' => '01310', 'Tipo' => '1', 'TejInventarioTelaresId' => 2] + $this->reserva(),
+            ['no_julio' => '01310-K66', 'no_orden' => '01310']
+        );
+
+        $aviso = DB::connection('sqlsrv')->table('TejNotificaTejedor')->first();
+        $this->assertSame('01310-K66', $aviso->no_julio);
+        $this->assertSame('01310', $aviso->no_orden);
+
+        $barra = TejInventarioTelares::find(2);
+        $this->assertSame('01269-K6', $barra->no_julio);
+        $this->assertSame('01310-K66', $barra->no_julio2);
+        $this->assertSame('08:15:00', $barra->horaParo);
+    }
+
     public function test_si_el_telar_no_existe_no_queda_reserva_huerfana(): void
     {
         $reserva = $this->reserva();

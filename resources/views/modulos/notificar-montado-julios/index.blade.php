@@ -14,14 +14,14 @@
                     <select id="selectTelar" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         <option value="">-- Seleccione un telar --</option>
                         @foreach ($telares as $telar)
-                            <option value="{{ $telar }}">{{ $telar }}</option>
+                            <option value="{{ $telar['id'] }}"{!! $telar['km'] ? ' data-km="1"' : '' !!}>{{ $telar['id'] }}</option>
                         @endforeach
                     </select>
                 </div>
 
                 <div>
                     <label class="block text-base font-semibold text-gray-700 mb-2">Tipo</label>
-                    <div class="flex gap-6 items-center h-12">
+                    <div id="tiposRizoPie" class="flex gap-6 items-center h-12">
                         <label class="inline-flex items-center cursor-pointer">
                             <input type="radio" name="tipoTelar" id="radioRizo" value="rizo" class="form-radio h-6 w-6 text-blue-600">
                             <span class="ml-2 text-lg text-gray-700 font-medium">Rizo</span>
@@ -30,6 +30,14 @@
                             <input type="radio" name="tipoTelar" id="radioPie" value="pie" class="form-radio h-6 w-6 text-blue-600">
                             <span class="ml-2 text-lg text-gray-700 font-medium">Pie</span>
                         </label>
+                    </div>
+                    <div id="tiposBarras" class="hidden flex flex-wrap gap-x-4 gap-y-2 items-center min-h-12">
+                        @foreach ([1, 2, 3, 4] as $barra)
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="radio" name="tipoTelar" value="{{ $barra }}" class="form-radio h-6 w-6 text-blue-600">
+                                <span class="ml-2 text-lg text-gray-700 font-medium">Barra {{ $barra }}</span>
+                            </label>
+                        @endforeach
                     </div>
                 </div>
             </div>
@@ -93,9 +101,22 @@
         const sinDatos = document.getElementById('mensajeNoData');
         const btnNotificar = document.getElementById('btnNotificar');
         const etiquetaBoton = btnNotificar.querySelector('[data-label]');
+        const tiposRizoPie = document.getElementById('tiposRizoPie');
+        const tiposBarras = document.getElementById('tiposBarras');
         const campos = ['no_telar', 'cuenta', 'calibre', 'tipo', 'tipo_atado', 'no_orden', 'no_julio', 'metros'];
 
         let registroActual = null;
+
+        const esKm = () => selectTelar.selectedOptions[0]?.dataset.km === '1';
+
+        const aplicarTipos = () => {
+            const km = selectTelar.value !== '' && esKm();
+            tiposRizoPie.classList.toggle('hidden', km);
+            tiposBarras.classList.toggle('hidden', !km);
+            document.querySelectorAll('input[name="tipoTelar"]').forEach((radio) => { radio.checked = false; });
+        };
+
+        const textoTipo = (valor) => /^[1-4]$/.test(String(valor).trim()) ? `Barra ${valor}` : (valor ?? '');
 
         const limpiar = () => {
             detalles.classList.add('hidden');
@@ -125,7 +146,8 @@
                 sinDatos.classList.add('hidden');
 
                 for (const campo of campos) {
-                    document.getElementById('detalle_' + campo).value = data.detalles[campo] ?? '';
+                    const valor = data.detalles[campo] ?? '';
+                    document.getElementById('detalle_' + campo).value = campo === 'tipo' ? textoTipo(valor) : valor;
                 }
                 document.getElementById('detalle_hora_paro').value =
                     new Date().toLocaleTimeString('es-MX', { hour12: false });
@@ -140,7 +162,7 @@
             }
         }
 
-        selectTelar.addEventListener('change', () => { limpiar(); buscarDetalles(); });
+        selectTelar.addEventListener('change', () => { limpiar(); aplicarTipos(); buscarDetalles(); });
         document.querySelectorAll('input[name="tipoTelar"]').forEach((radio) => {
             radio.addEventListener('change', () => { limpiar(); buscarDetalles(); });
         });
@@ -169,7 +191,7 @@
 
                 window.notify.success(data.message || 'Telar notificado');
                 selectTelar.value = '';
-                document.querySelectorAll('input[name="tipoTelar"]').forEach((r) => { r.checked = false; });
+                aplicarTipos();
                 limpiar();
             } catch (error) {
                 window.notify.error(error.data?.error || error.message || 'Ocurrió un error al notificar el telar');
