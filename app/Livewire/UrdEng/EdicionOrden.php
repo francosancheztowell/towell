@@ -612,7 +612,7 @@ class EdicionOrden extends Component
             }
 
             $this->pendiente = 'Metros';
-            $this->dispatch('edicion-orden-metros', acciones: $acciones);
+            $this->pendienteMensaje = 'Elige cómo aplicar el cambio. Si cancelas, Metros vuelve al valor guardado.';
 
             return;
         }

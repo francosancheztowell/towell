@@ -9,23 +9,8 @@
     $label = 'block text-sm font-semibold text-gray-700 mb-0.5';
     $inerte = 'w-full px-1.5 py-1 text-sm border border-gray-300 rounded bg-gray-100 text-gray-600 cursor-not-allowed';
 
-    // Un campo se bloquea por permiso, por AX o porque el estado no lo permite.
-    $bloqueado = function (string $campo) use ($soloLectura, $bloqueoAx, $editablePorStatus, $esUrdido, $status): bool {
-        if ($soloLectura) {
-            return true;
-        }
-        if ($bloqueoAx && $campo !== 'RizoPie') {
-            return true;
-        }
-        if ($esUrdido && $campo === 'InventSizeId' && $status === 'Parcial') {
-            return true;
-        }
-        $porStatus = $esUrdido
-            ? ['RizoPie', 'Cuenta', 'Calibre', 'Fibra', 'MaquinaId', 'BomId']
-            : ['RizoPie', 'Cuenta', 'Calibre', 'Fibra', 'MaquinaEng', 'BomEng', 'BomFormula'];
-
-        return in_array($campo, $porStatus, true) && ! $editablePorStatus;
-    };
+    // ponytail: sin disabled. Si AX o el estado rechazan el guardado, el servidor muestra el motivo.
+    $bloqueado = fn (string $campo): bool => false;
 @endphp
 
 <div class="w-full"
@@ -66,11 +51,42 @@
 
     @if($bloqueoAx)
         <div class="mb-2 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
-            Urdido ya está en AX: solo el campo <strong>Tipo</strong> sigue siendo editable.
+            Urdido ya está en AX. Si un campo no se guarda, aparece el motivo.
         </div>
     @elseif(! $editablePorStatus)
         <div class="mb-2 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-            Orden en estado <strong>{{ $status ?: '—' }}</strong>: cuenta, calibre, fibra, máquina y bom no se pueden cambiar.
+            Orden en estado <strong>{{ $status ?: '—' }}</strong>. Si cuenta, calibre, fibra, máquina o bom no se guardan, aparece el motivo.
+        </div>
+    @endif
+
+    @if ($pendiente === 'Metros')
+        <div class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 p-4">
+            <div class="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" role="dialog" aria-modal="true">
+                <h2 class="text-base font-semibold text-gray-900">Metros aún no se guardan</h2>
+                <p class="mt-2 text-sm text-gray-700">{{ $pendienteMensaje }}</p>
+                <div class="mt-4 flex flex-col gap-2">
+                    <button type="button" wire:click="confirmarMetros('solo_campo')" class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-left">Solo el campo Metros de la orden</button>
+                    @if(in_array($status, ['Finalizado', 'En Proceso'], true))
+                        <button type="button" wire:click="confirmarMetros('actualizar_produccion_toda')" class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-left">Actualizar toda la producción</button>
+                    @endif
+                    @if($status === 'En Proceso')
+                        <button type="button" wire:click="confirmarMetros('actualizar_produccion_sin_hora_inicio')" class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-left">Solo los registros sin hora de inicio</button>
+                    @endif
+                    <button type="button" wire:click="descartarPendiente" class="rounded-lg bg-gray-800 px-3 py-1.5 text-sm text-white">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    @if ($avisoTipo === 'error' && $aviso !== '')
+        <div class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/40 p-4">
+            <div class="w-full max-w-md rounded-xl bg-white p-4 shadow-xl" role="alertdialog" aria-modal="true">
+                <h2 class="text-base font-semibold text-gray-900">No se guardó</h2>
+                <p class="mt-2 text-sm text-gray-700">{{ $aviso }}</p>
+                <div class="mt-4 flex justify-end">
+                    <button type="button" wire:click="$set('aviso', '')" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white">Cerrar</button>
+                </div>
+            </div>
         </div>
     @endif
 
@@ -267,8 +283,8 @@
                             @foreach($julios as $i => $julio)
                                 @php
                                     // Con Finalizado solo se corrigen los Hilos de un julio que ya existe.
-                                    $julioBloqueado = $soloLectura || $bloqueoAx || (! $editablePorStatus && ! ($status === 'Finalizado'));
-                                    $noJulioBloqueado = $julioBloqueado || $status === 'Finalizado';
+                                    $julioBloqueado = false;
+                                    $noJulioBloqueado = false;
                                 @endphp
                                 <tr wire:key="julio-{{ $i }}">
                                     <td class="px-2 py-1 text-center">
@@ -332,7 +348,7 @@
                         @foreach($produccion as $reg)
                             @php
                                 $axFila = (int) ($reg->AX ?? 0) === 1;
-                                $bloqueoFila = $axFila || $soloLectura;
+                                $bloqueoFila = false;
                                 $claseFila = $bloqueoFila ? $claseBloqueo : '';
                                 $tituloFila = $axFila ? 'Fila bloqueada (AX procesado)' : '';
                                 $metros = (float) ($reg->Metros1 ?? 0) + (float) ($reg->Metros2 ?? 0) + (float) ($reg->Metros3 ?? 0);

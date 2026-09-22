@@ -96,7 +96,9 @@ const guardarCeldaProduccion = async (input: HTMLInputElement | HTMLSelectElemen
     }
     aviso('success', 'Actualizado')
   } catch (error) {
-    aviso('error', error instanceof Error ? error.message : 'No se pudo actualizar')
+    const data = (error as { data?: { error?: string; message?: string } }).data
+    const texto = data?.error || data?.message || (error instanceof Error ? error.message : 'No se pudo actualizar')
+    window.alert(texto)
   }
 }
 
