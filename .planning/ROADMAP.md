@@ -13,6 +13,7 @@ Reestructurar Programa Tejido (`ReqProgramaTejido` y superficies vinculadas: Mue
 - [ ] **Phase 5: Mutaciones** — Extraer mutaciones en slices por caso de uso, incluye deduplicación PT-DUP-01..04.
 - [ ] **Phase 6: Límites operacionales** — Secuencia, grupos, balanceo e integraciones con gates propios.
 - [ ] **Phase 7: Adopción y limpieza** — Adopción, retiro legacy, limpieza de rutas/assets muertos.
+- [ ] **Phase 8: ERP quick wins** — Fase 0 de `auditoria_erp_2026-09.md` (seguridad Livewire, bugs, SQL, perf, muertos) con tests de edición. Independiente de 1-7.
 
 ## Phase Details
 
@@ -109,6 +110,24 @@ Plans:
 Plans:
 - [ ] 07-adoption-cleanup: Adopción, retiro legacy, limpieza.
 
+### Phase 8: ERP quick wins
+**Goal**: Cerrar la Fase 0 de `.planning/auditoria_erp_2026-09.md` (S, riesgo bajo) dejando un test por cada ruta de edición tocada.
+**Depends on**: Nada (fuera de Programa Tejido; no toca fases 1-7)
+**Requirements**: ERP-F0-01..11
+**Success Criteria**:
+  1. Acciones Livewire re-ejecutan `module.permission`; `guardarMetrosFila` rechaza registros de otro folio (test).
+  2. Inventario disponible sin `%` inicial y con la misma salida que antes.
+  3. 0 `bg-opacity-*` en vistas; Tailwind se descarga una vez por página.
+  4. Código muerto confirmado borrado; `php artisan test` y `npm run build` verdes.
+  5. 0 `route()` a nombres inexistentes, con test de contrato.
+**Plans**: 4 plans (wave 1: 08-01, 08-02, 08-03; wave 2: 08-04)
+
+Plans:
+- [ ] 08-01-PLAN.md — Seguridad: middleware persistente Livewire + gates por idrol en 4 pantallas, IDOR guardarMetrosFila, sin @@VERSION (ERP-F0-01, 02, 06)
+- [ ] 08-02-PLAN.md — Front/perf: bg-opacity → /NN, Tailwind una vez, BPM-Line http.post, polling Atadores, VerificaMaquina PaginacionCompat (ERP-F0-04, 05, 09, 10)
+- [ ] 08-03-PLAN.md — Rutas rotas + contrato de nombres (checkpoint cargar-catalogos) y LIKE sargable en InventarioReservas (checkpoint sqlsrv_ti) (ERP-F0-11, 03)
+- [ ] 08-04-PLAN.md — Código muerto confirmado + R1.1 + 5 POST sin consumidor (ERP-F0-07, 08)
+
 ## Progress
 
 **Execution Order:**
@@ -123,6 +142,7 @@ Fases ejecutan en orden numérico: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 5. Mutaciones | 0/1 | Planned (ampliar con PT-DUP-*) | - |
 | 6. Límites operacionales | 0/1 | Planned | - |
 | 7. Adopción y limpieza | 0/1 | Planned | - |
+| 8. ERP quick wins | 0/4 | Planned | - |
 
 ## Gate global para avanzar
 
