@@ -34,6 +34,15 @@ class VistasTailwindV4Test extends TestCase
         $this->assertSame([], $hallazgos, "Vistas con la clase inexistente max-md:\n".implode("\n", $hallazgos));
     }
 
+    public function test_app_js_no_importa_app_css(): void
+    {
+        $this->assertStringNotContainsString(
+            'css/app.css',
+            file_get_contents(resource_path('js/app.js')),
+            'app.css ya lo carga x-layout-styles con @vite; importarlo en app.js descarga Tailwind dos veces.'
+        );
+    }
+
     /**
      * @return array<int, string> archivo:linea
      */
