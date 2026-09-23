@@ -39,7 +39,7 @@
     </div>
 
 <!-- Modal Ver Máquina -->
-<div id="viewModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+<div id="viewModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
         <div class="flex justify-between items-center border-b p-4">
             <h2 class="text-xl font-bold text-gray-800">Detalles de la Máquina</h2>
@@ -64,7 +64,7 @@
 </div>
 
 <!-- Modal Crear/Editar Máquina -->
-<div id="formModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+<div id="formModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
         <div class="flex justify-between items-center border-b p-4">
             <h2 class="text-xl font-bold text-gray-800" id="formModalTitle">Nueva Máquina</h2>
@@ -103,7 +103,7 @@
 </div>
 
 <!-- Modal Confirmar Eliminación -->
-<div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+<div id="deleteModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         <div class="flex justify-between items-center border-b p-4 bg-red-50">
             <h2 class="text-xl font-bold text-red-700">Confirmar Eliminación</h2>

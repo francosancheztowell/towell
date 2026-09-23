@@ -95,7 +95,7 @@
 
             <!-- Modal Crear -->
                     <!-- Modal Crear -->
-        <div id="createModal" class="fixed inset-0 bg-gray-400 bg-opacity-10 hidden z-50 items-center justify-center">
+        <div id="createModal" class="fixed inset-0 bg-gray-400/10 hidden z-50 items-center justify-center">
                 <div class="bg-white rounded-lg shadow-2xl w-full max-w-3xl mx-4 transform transition-all">
                     <div class="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-4 rounded-t-lg">
                         <h2 class="text-xl font-bold flex items-center gap-2">
@@ -172,7 +172,7 @@
             <!-- Modal Editar -->
                     <!-- Modal Editar -->
                 <!-- Modal Editar -->
-        <div id="editModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden z-50 items-center justify-center">
+        <div id="editModal" class="fixed inset-0 bg-gray-900/50 hidden z-50 items-center justify-center">
                 <div class="bg-white rounded-lg shadow-2xl w-full max-w-3xl mx-4 transform transition-all">
                     <div class="bg-gradient-to-r from-yellow-600 to-yellow-500 text-white px-6 py-4 rounded-t-lg">
                         <h2 class="text-xl font-bold flex items-center gap-2">
