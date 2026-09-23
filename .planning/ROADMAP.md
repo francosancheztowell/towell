@@ -120,13 +120,15 @@ Plans:
   3. 0 `bg-opacity-*` en vistas; Tailwind se descarga una vez por página.
   4. Código muerto confirmado borrado; `php artisan test` y `npm run build` verdes.
   5. 0 `route()` a nombres inexistentes, con test de contrato.
-**Plans**: 4 plans (wave 1: 08-01, 08-02, 08-03; wave 2: 08-04)
+**Plans**: 6 plans (wave 1: 08-01, 08-02, 08-03, 08-06; wave 2: 08-04, 08-05)
 
 Plans:
-- [ ] 08-01-PLAN.md — Seguridad: middleware persistente Livewire + gates por idrol en 4 pantallas, IDOR guardarMetrosFila, sin @@VERSION (ERP-F0-01, 02, 06)
+- [ ] 08-01-PLAN.md — Seguridad Livewire: middleware persistente que aborta en X-Livewire + gates por idrol (sin bloqueo) en 4 pantallas; IDOR guardarMetrosFila (ERP-F0-01, 02)
 - [ ] 08-02-PLAN.md — Front/perf: bg-opacity → /NN, Tailwind una vez, BPM-Line http.post, polling Atadores, VerificaMaquina PaginacionCompat (ERP-F0-04, 05, 09, 10)
 - [ ] 08-03-PLAN.md — Rutas rotas + contrato de nombres (checkpoint cargar-catalogos) y LIKE sargable en InventarioReservas (checkpoint sqlsrv_ti) (ERP-F0-11, 03)
-- [ ] 08-04-PLAN.md — Código muerto confirmado + R1.1 + 5 POST sin consumidor (ERP-F0-07, 08)
+- [ ] 08-04-PLAN.md — Código muerto confirmado: privados, duplicados, públicos sin llamador, internalToast, openViewModal (ERP-F0-07)
+- [ ] 08-05-PLAN.md — R1.1 + 5 endpoints POST sin consumidor (ERP-F0-08)
+- [ ] 08-06-PLAN.md — getOrdenProduccion sin SELECT @@VERSION ni debug (ERP-F0-06)
 
 ## Progress
 
@@ -142,7 +144,7 @@ Fases ejecutan en orden numérico: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 5. Mutaciones | 0/1 | Planned (ampliar con PT-DUP-*) | - |
 | 6. Límites operacionales | 0/1 | Planned | - |
 | 7. Adopción y limpieza | 0/1 | Planned | - |
-| 8. ERP quick wins | 0/4 | Planned | - |
+| 8. ERP quick wins | 0/6 | Planned | - |
 
 ## Gate global para avanzar
 
