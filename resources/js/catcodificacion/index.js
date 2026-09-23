@@ -128,52 +128,15 @@ import { openLMatModal } from './lmat-modal';
         }
     }
 
-    // =========================
-    //   TOAST SIMPLE (fallback)
-    // =========================
-    function internalToast(message, type = 'info') {
-        const colors = {
-            success: 'bg-green-600',
-            error: 'bg-red-600',
-            warning: 'bg-yellow-500',
-            info: 'bg-blue-600',
-        };
-
-        let container = $('#toast-notification');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'toast-notification';
-            container.className = 'fixed top-4 right-4 z-[9999] max-w-sm w-full';
-            document.body.appendChild(container);
-        }
-
-        container.innerHTML =
-            '<div class="rounded-lg shadow-lg text-white px-4 py-3 ' + (colors[type] || colors.info) + '">' +
-                '<div class="flex items-center justify-between gap-3">' +
-                    '<span class="text-sm">' + message + '</span>' +
-                    '<button type="button" class="text-sm font-bold hover:opacity-80" onclick="this.closest(\'#toast-notification\').remove()">' +
-                        '&times;' +
-                    '</button>' +
-                '</div>' +
-            '</div>';
-
-        setTimeout(() => {
-            container?.remove();
-        }, 3500);
-    }
-
-    // Si ya existe showToast global, úsalo; si no, define el nuestro
-    const showToast = window.showToast || internalToast;
-    if (!window.showToast) {
-        window.showToast = showToast;
-    }
+    // showToast global de bootstrap.js (siempre definido: app.js corre antes que este @vite).
+    const showToast = window.showToast;
 
     /**
      * Muestra el modal de formulario de codificación al hacer clic en el botón de la navbar.
      */
     function mostrarAlertaNavbar() {
         if (typeof Swal === 'undefined') {
-            internalToast('SweetAlert2 no está cargado.', 'warning');
+            showToast('SweetAlert2 no está cargado.', 'warning');
             return;
         }
 
@@ -457,7 +420,7 @@ import { openLMatModal } from './lmat-modal';
                     if (!selectOrden) return;
                     if (usarFila) {
                         if (!ordenDesdeFila) {
-                            internalToast('Selecciona primero una fila en la tabla que tenga Orden Tejido.', 'warning');
+                            showToast('Selecciona primero una fila en la tabla que tenga Orden Tejido.', 'warning');
                             if (chkUsarFila) chkUsarFila.checked = false;
                             return;
                         }
@@ -664,7 +627,7 @@ import { openLMatModal } from './lmat-modal';
 
     function mostrarModalLMat() {
         return openLMatModal({
-            fallbackToast: internalToast,
+            fallbackToast: showToast,
             getSelectedRecord: () => (
                 state.selectedRowIndex !== null && state.selectedRowIndex !== undefined
                     ? state.filtered[state.selectedRowIndex]
