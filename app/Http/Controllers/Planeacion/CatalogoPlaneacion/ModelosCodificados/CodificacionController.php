@@ -625,7 +625,7 @@ class CodificacionController extends Controller
             $original = ReqModelosCodificados::find($duplicateId);
 
             if (! $original) {
-                return redirect()->route('codificacion.index')
+                return redirect()->route('planeacion.catalogos.codificacion-modelos')
                     ->with('error', 'Registro no encontrado para duplicar');
             }
 
