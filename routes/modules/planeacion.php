@@ -94,7 +94,6 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
         Route::post('/codificacion-modelos/excel', [CodificacionController::class, 'procesarExcel'])
             ->middleware('module.permission:crear,16')->name('codificacion.excel'); // Codificación Modelos
         Route::get('/codificacion-modelos/excel-progress/{id}', [CodificacionController::class, 'importProgress'])->name('codificacion.excel.progress');
-        Route::post('/codificacion-modelos/buscar', [CodificacionController::class, 'buscar'])->name('codificacion.buscar');
     });
 
     Route::get('/codificacion', [CatCodificacionController::class, 'index'])->name('codificacion.index');
@@ -102,8 +101,6 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
     Route::get('/codificacion/api/ordenes-en-proceso', [CatCodificacionController::class, 'ordenesEnProceso'])->name('codificacion.ordenes-en-proceso');
     Route::post('/codificacion/api/revivir-programa', [CatCodificacionController::class, 'revivirProgramaDesdeCat'])
         ->middleware('module.permission:modificar,169')->name('codificacion.revivir-programa'); // Codificación
-    Route::post('/codificacion/api/recalcular-marbetes', [CatCodificacionController::class, 'recalcularMarbete'])
-        ->middleware('module.permission:modificar,169')->name('codificacion.recalcular-marbetes'); // Codificación
     Route::get('/codificacion/api/catcodificados-por-orden/{ordenTejido}', [CatCodificacionController::class, 'getCatCodificadosPorOrden'])->name('codificacion.catcodificados-por-orden');
     Route::post('/codificacion/api/actualizar-peso-muestra-lmat', [CatCodificacionController::class, 'actualizarPesoMuestraLmat'])
         ->middleware('module.permission:modificar,169')->name('codificacion.actualizar-peso-muestra-lmat'); // Codificación

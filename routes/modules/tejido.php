@@ -145,8 +145,6 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
     Route::delete('/produccion-reenconado/{folio}', [ProduccionReenconadoCabezuelaController::class, 'destroy'])
         ->middleware('module.permission:eliminar,27') // Producción Reenconado Cabezuela
         ->name('produccion.reenconado.destroy');
-    Route::patch('/produccion-reenconado/{folio}/cambiar-status', [ProduccionReenconadoCabezuelaController::class, 'cambiarStatus'])
-        ->name('produccion.reenconado.cambiar-status');
 
     Route::get('/secuencia-inv-telas', [SecuenciaInvTelasController::class, 'index'])->name('secuencia-inv-telas.index');
     Route::post('/secuencia-inv-telas', [SecuenciaInvTelasController::class, 'store'])->middleware('module.permission:crear,29')->name('secuencia-inv-telas.store'); // Secuencia Inv Telas
@@ -214,7 +212,6 @@ Route::get('/modulo-cortes-de-eficiencia/datos-telares', [CortesEficienciaContro
 Route::get('/modulo-cortes-de-eficiencia/fallas', [CortesEficienciaController::class, 'getFallasCe'])->name('cortes.eficiencia.fallas');
 Route::get('/modulo-cortes-de-eficiencia/generar-folio', [CortesEficienciaController::class, 'generarFolio'])->name('cortes.eficiencia.generar.folio');
 Route::post('/modulo-cortes-de-eficiencia/guardar-hora', [CortesEficienciaController::class, 'guardarHora'])->name('cortes.eficiencia.guardar.hora');
-Route::post('/modulo-cortes-de-eficiencia/guardar-tabla', [CortesEficienciaController::class, 'guardarTabla'])->name('cortes.eficiencia.guardar.tabla');
 Route::post('/modulo-cortes-de-eficiencia', [CortesEficienciaController::class, 'store'])->name('cortes.eficiencia.store');
 Route::get('/modulo-cortes-de-eficiencia/{id}/pdf', [CortesEficienciaController::class, 'pdf'])->name('cortes.eficiencia.pdf');
 Route::put('/modulo-cortes-de-eficiencia/{id}/actualizar-registro', [CortesEficienciaController::class, 'actualizarRegistro'])->name('cortes.eficiencia.actualizar.registro');
