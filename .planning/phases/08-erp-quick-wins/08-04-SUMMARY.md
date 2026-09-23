@@ -123,6 +123,12 @@ Se usó `grep -rnw "<símbolo>" app resources routes tests config database publi
 
 **Total: −1,189 / +5** (554 + 412 + 223).
 
+## Huérfanos de segundo orden (NO borrados)
+
+Estos métodos quedaron sin llamador porque su único llamador se borró aquí. No estaban en la lista del plan y la regla es "nada de paso", así que siguen en el código. Son candidatos para el próximo barrido:
+
+- `app/Imports/ReqModelosCodificadosImport.php`: `isValidTotalValue` (:845) y `convertToInt` (:859). Solo los llamaba `getTotalValue`. `grep -rnw` en app, resources, routes y tests solo encuentra la definición.
+
 ## Excluido por CONTEXT (intacto)
 
 TelegramController, getOrdenProduccion (`/orden-produccion`), el tablero clásico Urd/Eng, OrdenKarlMayerService, NuevoRequerimiento (§2.1 fila 11), `resources/js/programa-tejido/` y `resources/views/modulos/programa-tejido/`.
