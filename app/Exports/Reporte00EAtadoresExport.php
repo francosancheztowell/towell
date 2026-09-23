@@ -699,16 +699,6 @@ class Reporte00EAtadoresExport implements FromArray, WithEvents, WithTitle
         $sheet->setCellValue("CI{$footerRow}", '='.implode('+', $footerColumns));
     }
 
-    private function copyRowStyles(
-        Worksheet $sheet,
-        int $sourceRow,
-        int $targetRow,
-        int $startColumnIndex,
-        int $endColumnIndex
-    ): void {
-        $this->copyRowStylesToRange($sheet, $sourceRow, $targetRow, $targetRow, $startColumnIndex, $endColumnIndex);
-    }
-
     private function applyPrototypeStyles(
         Worksheet $sheet,
         array $prototype,
