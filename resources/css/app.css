@@ -6,6 +6,9 @@
 @source '../**/*.blade.php';
 @source '../**/*.js';
 
+/* Small landscape tablets (e.g. 1006x427): short viewports. Current tablets are 1280x665 and stay unaffected. */
+@custom-variant short (@media (max-height: 540px));
+
 /* Alpine oculta con x-cloak hasta que arranca, pero solo si el CSS lo define.
    Se usa en 13 sitios del repo y no existia la regla: los paneles se pintaban
    visibles durante el primer render. */

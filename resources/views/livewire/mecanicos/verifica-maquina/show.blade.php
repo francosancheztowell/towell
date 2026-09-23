@@ -8,7 +8,7 @@
 @endphp
 
 <div
-    class="flex h-full min-h-0 flex-col gap-3 sm:gap-4 lg:flex-row lg:items-start"
+    class="flex h-full min-h-0 flex-col gap-3 sm:gap-4 lg:flex-row lg:items-start min-[56.25rem]:flex-row min-[56.25rem]:items-start short:gap-2"
     wire:key="verifica-maquina-show-{{ $folio }}"
     x-data="{
         estatus: @js($estatus),
@@ -211,16 +211,26 @@
         .vm-locked .vm-view{opacity:.45}
         .vm-locked .vm-mini{cursor:not-allowed;opacity:.45}
         .vm-locked .vm-mini:hover{border-color:inherit;transform:none}
+
+        /* Short viewports (small landscape tablets): denser grid; tappable cells stay >= 40px tall. */
+        @media (max-height: 540px){
+            .vm-td{padding:.375rem .25rem}
+            .vm-th{min-width:3.25rem;padding:.5rem .375rem;font-size:1.125rem}
+            .vm-view{height:2.25rem;width:2.75rem;border-radius:.5rem;font-size:1rem}
+            .vm-triple{gap:.5rem}
+            .vm-mini{height:2.5rem;width:3rem;border-radius:.625rem;font-size:1.25rem}
+            .vm-modo-editar .vm-td{padding:.5rem}
+        }
     </style>
     <style x-ref="colStyle"></style>
 
     {{-- Barra lateral: selección de máquina y sus telares --}}
-    <aside class="z-20 flex min-h-0 w-full shrink-0 flex-col lg:h-full lg:w-72 lg:overflow-y-auto">
-        <div class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
+    <aside class="z-20 flex min-h-0 w-full shrink-0 flex-col lg:h-full lg:w-72 lg:overflow-y-auto min-[56.25rem]:h-full min-[56.25rem]:w-72 min-[56.25rem]:overflow-y-auto short:min-[56.25rem]:w-56">
+        <div class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4 short:p-2">
             <h2 class="text-sm font-bold text-gray-900">Máquina</h2>
-            <p class="mt-0.5 text-[11px] text-gray-500">Selecciona una máquina para elegir sus telares.</p>
+            <p class="mt-0.5 text-[11px] text-gray-500 short:hidden">Selecciona una máquina para elegir sus telares.</p>
 
-            <div class="mt-3 space-y-2">
+            <div class="mt-3 space-y-2 short:mt-2 short:space-y-1.5">
                 @php
                     $opcionesMaquina = [
                         '' => ['label' => 'Todas', 'count' => $totalTelares],
@@ -232,7 +242,7 @@
                 @foreach ($opcionesMaquina as $valor => $opcion)
                     <div class="overflow-hidden rounded-lg border transition" :class="maquinaAbierta === @js($valor) ? 'border-gray-900' : 'border-gray-200'">
                         <button type="button" @click="seleccionarMaquina(@js($valor))"
-                            class="flex w-full items-center justify-between px-3 py-2.5 text-sm font-semibold transition"
+                            class="flex w-full items-center justify-between px-3 py-2.5 text-sm font-semibold transition short:py-2"
                             :class="maquinaAbierta === @js($valor) ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'">
                             <span class="inline-flex items-center gap-2">
                                 @if ($valor !== '')
@@ -255,7 +265,7 @@
                                     </span>
                                     <button type="button" x-show="telarSeleccionado" x-cloak @click="telarSeleccionado = null" class="font-semibold text-gray-500 hover:underline">Quitar</button>
                                 </div>
-                                <div class="max-h-64 space-y-1 overflow-y-auto pr-1 lg:max-h-[28rem]">
+                                <div class="max-h-64 space-y-1 overflow-y-auto pr-1 lg:max-h-[28rem] short:max-h-48">
                                     <template x-for="telar in telaresDeMaquina" :key="telar.id">
                                         <button type="button" @click="seleccionarTelar(telar.id)"
                                             class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition"
@@ -271,15 +281,15 @@
                 @endforeach
             </div>
 
-            <div class="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-2.5 py-2 text-center text-xs text-gray-600">
+            <div class="mt-3 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-2.5 py-2 text-center text-xs text-gray-600 short:mt-2 short:py-1">
                 Mostrando <span class="font-bold text-gray-900" x-text="visibles.length"></span> telar(es)
             </div>
         </div>
     </aside>
 
     {{-- Contenido principal --}}
-    <div class="flex h-full min-h-0 min-w-0 flex-1 flex-col space-y-4">
-        <section class="shrink-0 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm sm:px-4">
+    <div class="flex h-full min-h-0 min-w-0 flex-1 flex-col space-y-4 short:space-y-2">
+        <section class="shrink-0 rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm sm:px-4 short:py-1.5">
             <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <h1 class="shrink-0 text-base font-bold text-gray-900">Verificación</h1>
                 <span class="inline-flex shrink-0 rounded bg-gray-900 px-2 py-0.5 text-xs font-bold text-white">{{ $folio }}</span>
@@ -315,7 +325,7 @@
                 </div>
             </div>
 
-            <p x-show="!esSoloLectura && maquinaAbierta === ''" x-cloak class="mt-2 text-[11px] text-gray-500">
+            <p x-show="!esSoloLectura && maquinaAbierta === ''" x-cloak class="mt-2 text-[11px] text-gray-500 short:mt-1">
                 <i class="fas fa-circle-info"></i> "Todas" es solo de consulta. Selecciona una máquina en el panel izquierdo para capturar sus telares.
             </p>
         </section>
@@ -347,20 +357,20 @@
                 <table class="divide-y divide-gray-200 text-sm">
                     <thead class="bg-gray-50 font-semibold uppercase tracking-wide text-gray-600">
                         <tr>
-                            <th scope="col" class="sticky left-0 top-0 z-40 min-w-44 max-w-md bg-gray-50 px-4 py-3.5 text-left text-sm sm:min-w-80">Actividad</th>
+                            <th scope="col" class="sticky left-0 top-0 z-40 min-w-44 max-w-md bg-gray-50 px-4 py-3.5 text-left text-sm sm:min-w-80 short:min-w-56 short:px-3 short:py-2">Actividad</th>
                             @foreach ($telares as $telar)<th scope="col" class="vm-col-{{ $telar['NoTelarId'] }} vm-th sticky top-0 z-30 bg-gray-50" title="{{ $telar['Nombre'] }} ({{ $telar['SalonTejidoId'] }})">{{ $telar['NoTelarId'] }}</th>@endforeach
-                            <th scope="col" class="sticky top-0 z-30 whitespace-nowrap bg-gray-100 px-4 py-3.5 text-center text-sm">Todos los telares</th>
+                            <th scope="col" class="sticky top-0 z-30 whitespace-nowrap bg-gray-100 px-4 py-3.5 text-center text-sm short:px-3 short:py-2">Todos los telares</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 bg-white" @click="onCeldaClick($event)">
                         @forelse ($actividades as $actividad)
                             @php $nombreActividad = $actividad['Actividad']; @endphp
                             <tr class="hover:bg-gray-50">
-                                <th scope="row" class="sticky left-0 z-20 min-w-44 max-w-md bg-white px-4 py-4 text-left sm:min-w-80">
-                                    <span class="line-clamp-2 text-base font-bold leading-snug text-gray-900 sm:text-lg" title="{{ $nombreActividad }}">{{ $nombreActividad }}</span>
+                                <th scope="row" class="sticky left-0 z-20 min-w-44 max-w-md bg-white px-4 py-4 text-left sm:min-w-80 short:min-w-56 short:px-3 short:py-2">
+                                    <span class="line-clamp-2 text-base font-bold leading-snug text-gray-900 sm:text-lg short:text-sm" title="{{ $nombreActividad }}">{{ $nombreActividad }}</span>
                                 </th>
                                 @foreach ($telares as $telar)@php $v = $valores[$telar['NoTelarId'].'|'.$nombreActividad] ?? ''; @endphp<td class="vm-col-{{ $telar['NoTelarId'] }} vm-td"><span class="vm-view {{ $v !== '' ? 'vm-view-on' : 'vm-view-off' }}">{{ $v !== '' ? $v : '—' }}</span><div class="vm-triple" role="group" aria-label="Telar {{ $telar['NoTelarId'] }}, {{ $nombreActividad }}" data-t="{{ $telar['NoTelarId'] }}" data-a="{{ $actividad['Id'] }}"@if ($v !== '') data-v="{{ $v }}"@endif><button type="button" class="vm-mini {{ $v === '1' ? 'vm-mini-on' : '' }}" data-val="1">1</button><button type="button" class="vm-mini {{ $v === '2' ? 'vm-mini-on' : '' }}" data-val="2">2</button><button type="button" class="vm-mini {{ $v === '3' ? 'vm-mini-on' : '' }}" data-val="3">3</button></div></td>@endforeach
-                                <td data-prom="{{ $actividad['Id'] }}" class="whitespace-nowrap bg-gray-50 px-4 py-3 text-center text-base font-bold text-gray-800">{{ $promedios[$nombreActividad] ?? '—' }}</td>
+                                <td data-prom="{{ $actividad['Id'] }}" class="whitespace-nowrap bg-gray-50 px-4 py-3 text-center text-base font-bold text-gray-800 short:py-1.5 short:text-sm">{{ $promedios[$nombreActividad] ?? '—' }}</td>
                             </tr>
                         @empty
                             <tr>

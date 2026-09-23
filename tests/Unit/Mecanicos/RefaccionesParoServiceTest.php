@@ -118,6 +118,31 @@ class RefaccionesParoServiceTest extends TestCase
         $this->assertSame(['R191400'], array_column($resultado['filas'], 'folio'));
     }
 
+    public function test_consulta_el_folio_de_paro_pf10010(): void
+    {
+        DB::connection('sqlsrv_tow_tow')->table('TwRefacionesTable')->insert([
+            'Folio' => 'R191410',
+            'date' => '2026-09-15',
+            'Status' => 'Registrado',
+            'OrdenEasyMaint' => 'PF10010',
+        ]);
+        DB::connection('sqlsrv_tow_tow')->table('TwRefaccionesLine')->insert([
+            'Folio' => 'R191410',
+            'ItemID' => 'U0900',
+            'ItemName' => 'RODAMIENTO 6205',
+            'InventQty' => 1,
+            'CostAmount' => 12.50,
+        ]);
+
+        $resultado = (new RefaccionesParoService)->porFolioParo('PF10010');
+
+        $this->assertSame(RefaccionesParoService::ESTADO_OK, $resultado['estado']);
+        $this->assertSame('PF10010', $resultado['folioParo']);
+        $this->assertSame(['R191410'], array_column($resultado['filas'], 'folio'));
+        $this->assertSame('U0900', $resultado['filas'][0]['articulo']);
+        $this->assertSame('RODAMIENTO 6205', $resultado['filas'][0]['nombre']);
+    }
+
     public function test_paro_sin_partidas_queda_vacio(): void
     {
         $this->insertarPartidasEjemplo();
