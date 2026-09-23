@@ -53,14 +53,14 @@
 - [ ] **ERP-F0-01**: Acciones Livewire (`/livewire/update`) re-ejecutan `EnsureModulePermission`; las 4 páginas Livewire sin chequeo propio lo tienen.
 - [ ] **ERP-F0-02**: `EdicionOrden::guardarMetrosFila` solo acepta registros del folio abierto (fix IDOR + test).
 - [ ] **ERP-F0-03**: Patrones LIKE de `InventarioReservasService` sin `%` inicial; salida idéntica a la actual.
-- [ ] **ERP-F0-04**: 0 `bg-opacity-*` en vistas (Tailwind v4); `max-md` → `max-w-md`.
-- [ ] **ERP-F0-05**: Tailwind cargado una sola vez por página (quitar import de `app.js`).
-- [ ] **ERP-F0-06**: `getOrdenProduccion` no expone `SELECT @@VERSION` ni bloque debug.
-- [ ] **ERP-F0-07**: Barrido de código muerto confirmado (métodos privados, `buildReporteResumenData` x2, `MecActividadesController` duplicado, CRUD sin ruta, `internalToast`).
-- [ ] **ERP-F0-08**: R1.1 aplicado: rutas a métodos inexistentes (500) y 5 endpoints POST sin consumidor retirados.
-- [ ] **ERP-F0-09**: Urdido-BPM-Line usa `http.post` (fix 419, igual que Engomado).
-- [ ] **ERP-F0-10**: Polling de Programa Atadores se pausa con `document.hidden`; VerificaMaquina pagina con `PaginacionCompat` (los otros 4 `paginate()` de §2.5 quedan para Fase 1).
-- [ ] **ERP-F0-11**: 0 `route()` a nombres inexistentes (3 hoy) y un test de contrato que lo impide.
+- [x] **ERP-F0-04**: 0 `bg-opacity-*` en vistas (Tailwind v4); `max-md` → `max-w-md`.
+- [x] **ERP-F0-05**: Tailwind cargado una sola vez por página (quitar import de `app.js`).
+- [x] **ERP-F0-06**: `getOrdenProduccion` no expone `SELECT @@VERSION` ni bloque debug.
+- [x] **ERP-F0-07**: Barrido de código muerto confirmado (métodos privados, `buildReporteResumenData` x2, `MecActividadesController` duplicado, CRUD sin ruta, `internalToast`).
+- [x] **ERP-F0-08**: R1.1 aplicado: rutas a métodos inexistentes (500) y 5 endpoints POST sin consumidor retirados.
+- [x] **ERP-F0-09**: Urdido-BPM-Line usa `http.post` (fix 419, igual que Engomado).
+- [x] **ERP-F0-10**: Polling de Programa Atadores se pausa con `document.hidden`; VerificaMaquina pagina con `PaginacionCompat` (los otros 4 `paginate()` de §2.5 quedan para Fase 1).
+- [x] **ERP-F0-11**: 0 `route()` a nombres inexistentes (3 hoy) y un test de contrato que lo impide.
 
 ## v2 Requirements
 

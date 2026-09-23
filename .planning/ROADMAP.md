@@ -124,11 +124,11 @@ Plans:
 
 Plans:
 - [ ] 08-01-PLAN.md — Seguridad Livewire: middleware persistente que aborta en X-Livewire + gates por idrol (sin bloqueo) en 4 pantallas; IDOR guardarMetrosFila (ERP-F0-01, 02)
-- [ ] 08-02-PLAN.md — Front/perf: bg-opacity → /NN, Tailwind una vez, BPM-Line http.post, polling Atadores, VerificaMaquina PaginacionCompat (ERP-F0-04, 05, 09, 10)
-- [ ] 08-03-PLAN.md — Rutas rotas + contrato de nombres (checkpoint cargar-catalogos) y LIKE sargable en InventarioReservas (checkpoint sqlsrv_ti) (ERP-F0-11, 03)
-- [ ] 08-04-PLAN.md — Código muerto confirmado: privados, duplicados, públicos sin llamador, internalToast, openViewModal (ERP-F0-07)
-- [ ] 08-05-PLAN.md — R1.1 + 5 endpoints POST sin consumidor (ERP-F0-08)
-- [ ] 08-06-PLAN.md — getOrdenProduccion sin SELECT @@VERSION ni debug (ERP-F0-06)
+- [x] 08-02-PLAN.md — Front/perf: bg-opacity → /NN, Tailwind una vez, BPM-Line http.post, polling Atadores, VerificaMaquina PaginacionCompat (ERP-F0-04, 05, 09, 10)
+- [~] 08-03-PLAN.md — Rutas rotas + contrato de nombres (checkpoint cargar-catalogos) y LIKE sargable en InventarioReservas (checkpoint sqlsrv_ti) (ERP-F0-11, 03)
+- [x] 08-04-PLAN.md — Código muerto confirmado: privados, duplicados, públicos sin llamador, internalToast, openViewModal (ERP-F0-07)
+- [x] 08-05-PLAN.md — R1.1 + 5 endpoints POST sin consumidor (ERP-F0-08)
+- [x] 08-06-PLAN.md — getOrdenProduccion sin SELECT @@VERSION ni debug (ERP-F0-06)
 
 ## Progress
 
@@ -144,7 +144,7 @@ Fases ejecutan en orden numérico: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 5. Mutaciones | 0/1 | Planned (ampliar con PT-DUP-*) | - |
 | 6. Límites operacionales | 0/1 | Planned | - |
 | 7. Adopción y limpieza | 0/1 | Planned | - |
-| 8. ERP quick wins | 0/6 | Planned | - |
+| 8. ERP quick wins | 4/6 | 08-01 excluido por el usuario; 08-03 F0-03 pendiente de consultas A/B |  - |
 
 ## Gate global para avanzar
 
