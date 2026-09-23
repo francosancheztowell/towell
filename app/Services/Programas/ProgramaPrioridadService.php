@@ -144,19 +144,6 @@ class ProgramaPrioridadService
         return (int) ($query->whereNotNull('Prioridad')->max('Prioridad') ?? 0) + 1;
     }
 
-    public function recalculatePriorities(Builder $query, callable $fallbackResolver): void
-    {
-        $ordered = $this->sortRecords($query->get(), $fallbackResolver);
-        $connection = $query->getModel()->getConnectionName();
-
-        DB::connection($connection)->transaction(function () use ($ordered) {
-            foreach ($ordered as $index => $record) {
-                $record->Prioridad = $index + 1;
-                $record->save();
-            }
-        });
-    }
-
     private function hasPriority(mixed $priority): bool
     {
         return $priority !== null && $priority !== '' && (int) $priority > 0;

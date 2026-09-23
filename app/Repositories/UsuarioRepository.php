@@ -115,14 +115,6 @@ class UsuarioRepository
 
         return $usuario->delete();
     }
-
-    /**
-     * Obtener usuarios por área
-     */
-    public function getByArea(string $area): Collection
-    {
-        return Usuario::porArea($area)->get();
-    }
 }
 
 

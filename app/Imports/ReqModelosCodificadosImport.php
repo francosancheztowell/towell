@@ -839,30 +839,6 @@ class ReqModelosCodificadosImport implements ShouldQueue, SkipsEmptyRows, ToColl
         $this->errors[] = ['fila' => $filaExcel, 'error' => $msg, 'datos' => $datos];
     }
 
-    public function getRowCount()
-    {
-        return $this->rowCount;
-    }
-
-    public function getCreatedCount()
-    {
-        return $this->createdCount;
-    }
-
-    public function getUpdatedCount()
-    {
-        return $this->updatedCount;
-    }
-
-    public function getErrors()
-    {
-        return [
-            'total_errores' => count($this->errors),
-            'primeros' => array_slice($this->errors, 0, 10),
-            'todos' => $this->errors,
-        ];
-    }
-
     /**
      * Valida si el valor es un Total válido (no de marbetes)
      */
