@@ -18,10 +18,6 @@ class PublicSensitiveRoutesAuthTest extends TestCase
     {
         return [
             'obtener empleados GET' => ['GET', '/obtener-empleados/Tejedores'],
-            'modulos index GET' => ['GET', '/modulos-sin-auth'],
-            'modulos store POST' => ['POST', '/modulos-sin-auth'],
-            'modulos update PUT' => ['PUT', '/modulos-sin-auth/1'],
-            'modulos destroy DELETE' => ['DELETE', '/modulos-sin-auth/1'],
         ];
     }
 
@@ -55,15 +51,14 @@ class PublicSensitiveRoutesAuthTest extends TestCase
     public function test_sensitive_named_routes_require_auth_middleware(): void
     {
         $this->assertRouteHasAuth('usuarios.obtener-empleados');
-        $this->assertRouteHasAuth('modulos.gestion.index');
-        $this->assertRouteHasAuth('modulos.gestion.store');
-        $this->assertRouteHasAuth('modulos.gestion.update');
-        $this->assertRouteHasAuth('modulos.gestion.destroy');
 
-        $this->assertNull(
-            Route::getRoutes()->getByName('modulos.sin.auth.index'),
-            'Legacy public name modulos.sin.auth.index must not remain registered.'
-        );
+        // /modulos-sin-auth se retiro (ERP-F0-08): la gestion vive solo en configuracion/utileria/modulos.
+        foreach (['modulos.sin.auth.index', 'modulos.gestion.index'] as $legacy) {
+            $this->assertNull(
+                Route::getRoutes()->getByName($legacy),
+                "Legacy name {$legacy} must not remain registered."
+            );
+        }
     }
 
     private function assertRouteHasAuth(string $routeName): void

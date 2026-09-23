@@ -73,22 +73,9 @@ Route::prefix('configuracion')->name('configuracion.')->group(function () use (
                     ->middleware("module.permission:modificar,{$modulos}")->name('update');
                 Route::delete('/{id}', 'destroy')->whereNumber('id')
                     ->middleware("module.permission:eliminar,{$modulos}")->name('destroy');
-                Route::post('/{id}/toggle-acceso', 'toggleAcceso')->whereNumber('id')
-                    ->middleware("module.permission:modificar,{$modulos}")->name('toggle.acceso');
-                Route::post('/{id}/toggle-permiso', 'togglePermiso')->whereNumber('id')
-                    ->middleware("module.permission:modificar,{$modulos}")->name('toggle.permiso');
                 Route::post('/{id}/sincronizar-permisos', 'sincronizarPermisos')->whereNumber('id')
                     ->middleware("module.permission:modificar,{$modulos}")->name('sincronizar.permisos');
-                Route::get('/{modulo}/duplicar', 'duplicar')->whereNumber('modulo')
-                    ->middleware("module.permission:crear,{$modulos}")->name('duplicar');
             });
-
-        Route::middleware("module.permission:acceso,{$modulos}")->group(function () {
-            Route::get('/api/modulos/nivel/{nivel}', [ModulosController::class, 'getModulosPorNivel'])
-                ->whereNumber('nivel')->name('api.modulos.nivel');
-            Route::get('/api/modulos/submodulos/{dependencia}', [ModulosController::class, 'getSubmodulos'])
-                ->whereNumber('dependencia')->name('api.modulos.submodulos');
-        });
 
         Route::get('/cargarplaneacion', [ConfiguracionController::class, 'cargarPlaneacion'])
             ->middleware("module.permission:acceso,{$cargarPlaneacion}")->name('cargar-planeacion');

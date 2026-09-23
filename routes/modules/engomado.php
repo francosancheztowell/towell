@@ -73,8 +73,6 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
     Route::redirect('/programar-engomado/legacy', '/engomado/programar-engomado', 301)->name('programar.engomado.legacy');
     Route::get('/reimpresion-engomado', [ProgramarEngomadoController::class, 'reimpresionFinalizadas'])->name('reimpresion.finalizadas');
     Route::get('/editar-ordenes-programadas', [EditarOrdenesEngomadoController::class, 'index'])->name('editar.ordenes.programadas');
-    Route::post('/editar-ordenes-programadas/actualizar', [EditarOrdenesEngomadoController::class, 'actualizar'])->name('editar.ordenes.programadas.actualizar');
-    Route::get('/editar-ordenes-programadas/obtener-orden', [EditarOrdenesEngomadoController::class, 'obtenerOrden'])->name('editar.ordenes.programadas.obtener.orden');
     Route::get('/reportesengomado', [ReportesEngomadoController::class, 'index'])->name('reportes.engomado');
     Route::get('/reportesengomado/bpm-engomado', [ReportesEngomadoController::class, 'reporteBpm'])->name('reportes.bpm');
     Route::get('/reportesengomado/bpm-engomado/excel', [ReportesEngomadoController::class, 'exportarBpmExcel'])->name('reportes.bpm.excel');

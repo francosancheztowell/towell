@@ -1,8 +1,6 @@
 <?php
 
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ModulosController;
-use App\Http\Controllers\SystemController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,7 +14,6 @@ Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
 
-Route::get('/test-404', [SystemController::class, 'test404'])->name('test-404');
 Route::view('/offline', 'offline')->name('offline');
 
 /*
@@ -28,14 +25,4 @@ Route::view('/offline', 'offline')->name('offline');
 Route::middleware('auth')->group(function () {
     Route::get('/obtener-empleados/{area}', [UsuarioController::class, 'obtenerEmpleados'])
         ->name('usuarios.obtener-empleados');
-
-    Route::prefix('modulos-sin-auth')->name('modulos.gestion.')->group(function () {
-        Route::get('/', [ModulosController::class, 'index'])->name('index');
-        Route::post('/', [ModulosController::class, 'store'])
-            ->middleware('module.permission:crear,101')->name('store'); // Modulos
-        Route::put('/{id}', [ModulosController::class, 'update'])->whereNumber('id')
-            ->middleware('module.permission:modificar,101')->name('update'); // Modulos
-        Route::delete('/{id}', [ModulosController::class, 'destroy'])->whereNumber('id')
-            ->middleware('module.permission:eliminar,101')->name('destroy'); // Modulos
-    });
 });
