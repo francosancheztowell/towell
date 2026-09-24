@@ -68,6 +68,7 @@ class AlertasTelegramTest extends TestCase
 
         Http::assertSentCount(4);
         Http::assertSent(fn (ClientRequest $r) => str_contains($r['text'], 'REGRESIÓN'));
+        Http::assertSent(fn (ClientRequest $r) => str_contains($r['text'], 'ERROR NUEVO'));
     }
 
     public function test_respeta_el_tope_por_hora(): void
@@ -82,6 +83,17 @@ class AlertasTelegramTest extends TestCase
         // 2 alertas × 2 chats; los errores 3 y 4 quedan registrados sin alerta.
         Http::assertSentCount(4);
         $this->assertSame(4, DB::connection(Monitoreo::CONEXION_ERRORES)->table('SYSMonError')->count());
+    }
+
+    public function test_error_nuevo_con_varias_ocurrencias_no_se_anuncia_como_regresion(): void
+    {
+        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true])]);
+
+        $this->get('/_prueba/falla/1');
+        $this->get('/_prueba/falla/1');
+        $this->get('/_prueba/falla/1');
+
+        Http::assertNotSent(fn (ClientRequest $r) => str_contains($r['text'], 'REGRESIÓN'));
     }
 
     public function test_fallo_de_telegram_no_afecta_la_request(): void

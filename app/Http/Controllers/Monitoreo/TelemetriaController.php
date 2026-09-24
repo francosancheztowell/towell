@@ -23,6 +23,9 @@ use Illuminate\Support\Str;
  */
 class TelemetriaController extends Controller
 {
+    /** Tiempo visible de una pantalla: hasta 24 h (un andón pasa el turno completo abierto). */
+    private const VISIBLE_MS_MAX = 86400000;
+
     public function __construct(
         private readonly DispositivoService $dispositivos,
         private readonly CierreRemotoService $cierres,
@@ -133,7 +136,7 @@ class TelemetriaController extends Controller
                 ->where('Uuid', strtolower($uuid))
                 ->where('UsuarioId', (int) Auth::id())
                 ->whereNull('Fin')
-                ->update(['Fin' => now(), 'VisibleMs' => $request->entero('visibleMs')]);
+                ->update(['Fin' => now(), 'VisibleMs' => $request->entero('visibleMs', 0, self::VISIBLE_MS_MAX)]);
         });
 
         return response()->noContent();

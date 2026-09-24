@@ -33,8 +33,10 @@ final class ErrorTelegramNotifier
 
     /**
      * Programa el envío para después de la respuesta, respetando el tope global por hora.
+     * En consola (queue:work, schedule) no hay "después de la respuesta" y el worker
+     * nunca termina entre jobs: ahí se envía en el momento.
      */
-    public function programar(int $errorId): void
+    public function programar(int $errorId, bool $regresion = false): void
     {
         if (! $this->dentroDelTopePorHora()) {
             Log::info('Monitoreo: alerta Telegram omitida por el tope por hora.', ['error_id' => $errorId]);
@@ -42,18 +44,24 @@ final class ErrorTelegramNotifier
             return;
         }
 
+        if (app()->runningInConsole() && ! app()->runningUnitTests()) {
+            $this->notificar($errorId, $regresion);
+
+            return;
+        }
+
         $marca = $errorId.':'.bin2hex(random_bytes(8));
 
-        dispatch(function () use ($errorId, $marca): void {
+        dispatch(function () use ($errorId, $regresion, $marca): void {
             if (isset(self::$ejecutados[$marca])) {
                 return;
             }
             self::$ejecutados[$marca] = true;
-            app(self::class)->notificar($errorId);
+            app(self::class)->notificar($errorId, $regresion);
         })->afterResponse();
     }
 
-    public function notificar(int $errorId): void
+    public function notificar(int $errorId, bool $regresion = false): void
     {
         try {
             $botToken = trim((string) config('services.telegram.bot_token'));
@@ -77,7 +85,7 @@ final class ErrorTelegramNotifier
             }
 
             $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
-            $texto = $this->mensaje($error);
+            $texto = $this->mensaje($error, $regresion);
 
             foreach ($chatIds as $chatId) {
                 $response = Http::timeout(5)->post($url, ['chat_id' => $chatId, 'text' => $texto]);
@@ -101,10 +109,8 @@ final class ErrorTelegramNotifier
         }
     }
 
-    public function mensaje(object $error): string
+    public function mensaje(object $error, bool $regresion = false): string
     {
-        $regresion = (int) $error->Ocurrencias > 1;
-
         return implode("\n", [
             $regresion ? '🔁 REGRESIÓN DE ERROR EN TOWELL' : '🔴 ERROR NUEVO EN TOWELL',
             '',

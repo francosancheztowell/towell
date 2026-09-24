@@ -117,11 +117,12 @@ class TelemetriaTest extends TestCase
         $vista = (string) Str::uuid();
         $this->comoTablet()->postJson('/telemetria/vista', ['uuid' => $vista, 'ruta' => 'r', 'url' => '/r'])->assertNoContent();
 
-        $this->comoTablet()->post('/telemetria/vista/'.$vista.'/fin', ['visibleMs' => '15000', '_token' => 'x'])
+        // Dos horas visible: el tope de 600 000 ms es para tiempos de carga, no para permanencia.
+        $this->comoTablet()->post('/telemetria/vista/'.$vista.'/fin', ['visibleMs' => '7200000', '_token' => 'x'])
             ->assertNoContent();
 
         $v = $this->mon('SYSMonVista')->first();
-        $this->assertSame(15000, (int) $v->VisibleMs);
+        $this->assertSame(7200000, (int) $v->VisibleMs);
         $this->assertNotNull($v->Fin);
     }
 

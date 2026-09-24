@@ -196,7 +196,7 @@ class ErrorRecorder
         $db = DB::connection(Monitoreo::conexionErrores());
         $ahora = now();
 
-        [$errorId, $alertar] = $this->upsert($db, $huella, $error + [
+        [$errorId, $alertar, $regresion] = $this->upsert($db, $huella, $error + [
             'Ruta' => Monitoreo::texto($ruta, 150),
             'Estado' => 'nuevo',
             'Ocurrencias' => 1,
@@ -224,16 +224,16 @@ class ErrorRecorder
         }
 
         if ($alertar) {
-            $this->notificador->programar($errorId);
+            $this->notificador->programar($errorId, $regresion);
         }
 
         return $eventoId;
     }
 
     /**
-     * Inserta o suma una ocurrencia. Devuelve [id, alertar]; alertar = huella nueva o regresión.
+     * Inserta o suma una ocurrencia. Devuelve [id, alertar, regresión]; alertar = huella nueva o regresión.
      *
-     * @return array{0: int, 1: bool}
+     * @return array{0: int, 1: bool, 2: bool}
      */
     private function upsert($db, string $huella, array $fila): array
     {
@@ -241,7 +241,7 @@ class ErrorRecorder
 
         if ($existente === null) {
             try {
-                return [(int) $db->table('SYSMonError')->insertGetId(['Huella' => $huella] + $fila, 'Id'), true];
+                return [(int) $db->table('SYSMonError')->insertGetId(['Huella' => $huella] + $fila, 'Id'), true, false];
             } catch (UniqueConstraintViolationException) {
                 // Otra request insertó la misma huella al mismo tiempo.
                 $existente = $db->table('SYSMonError')->where('Huella', $huella)->first(['Id', 'Estado']);
@@ -256,7 +256,7 @@ class ErrorRecorder
 
         $db->table('SYSMonError')->where('Id', $existente->Id)->update($cambios);
 
-        return [(int) $existente->Id, $regresion];
+        return [(int) $existente->Id, $regresion, $regresion];
     }
 
     /** Máximo max_eventos_dia eventos por huella y día; Ocurrencias siempre suma. */

@@ -51,24 +51,31 @@
    - `red`: queda `HTTP <status>`, y su mensaje se guarda normalizado.
    - `fuente` se guarda solo como path (sin host ni `?v=`).
 3. **`EstadoRequest` se reinicia al inicio de `IdentificarDispositivo`.** El kernel HTTP no limpia los `scoped` entre requests del mismo proceso (tests, Octane). En FPM no cambia nada.
-4. **Alerta de un solo uso.** `Application::terminate()` no limpia sus callbacks, así que cada alerta programada lleva una marca para no repetirse en procesos que atienden varias requests. En workers de cola, Laravel ejecuta `afterResponse` en síncrono.
-5. **Página 500.** Muestra el Id de `SYSMonErrorEvento`. Si ese día ya se alcanzó el tope de eventos de la huella, no hay código y solo se ve el mensaje genérico.
-6. **Mensajes.** La columna nueva va después de «Andon» y la de «Correo» pasa a ser la celda 19 en el JS de actualización.
+4. **`VisibleMs` se acota a 24 h, no a 600 000 ms.** El contrato §4 acota los enteros a 0–600 000 ms. Ese tope tiene sentido para tiempos de carga, pero un andón queda visible todo el turno, así que el tiempo de permanencia usa su propio tope.
+5. **Alertas en consola.** En `queue:work` o el scheduler, la alerta se envía en el momento. Con `afterResponse` nunca saldría, porque el worker no termina entre jobs. Además, «REGRESIÓN» vs «ERROR NUEVO» se decide al registrar el error, no con `Ocurrencias` leído después.
+6. **Alerta de un solo uso.** `Application::terminate()` no limpia sus callbacks, así que cada alerta programada lleva una marca para no repetirse en procesos que atienden varias requests.
+7. **Página 500.** Muestra el Id de `SYSMonErrorEvento`. Si ese día ya se alcanzó el tope de eventos de la huella, no hay código y solo se ve el mensaje genérico.
+8. **Mensajes.** La columna nueva va después de «Andon» y la de «Correo» pasa a ser la celda 19 en el JS de actualización.
 
 ## Evidencia
 
 ```
 php artisan test tests/Feature/Monitoreo
-  Tests:    54 passed (385 assertions)      # 22 de 11-01 + 32 de 11-02
+  Tests:    55 passed (389 assertions)      # 22 de 11-01 + 33 de 11-02
 
 php artisan test
-  Tests:    6 failed, 49 skipped, 1200 passed
+  Tests:    6 failed, 49 skipped, 1201 passed
   # Los 6 fallos son los mismos de la línea base previa a la fase 11:
   # ProgramBoardLivewireTest ×2, ProgramBoardStructureTest ×1, NuevoRequerimientoLivewireTest ×3
 
 npm run build   ✓ built
 vendor/bin/pint (archivos tocados)   pass
 ```
+
+La skill `code-review` (nivel medium) encontró tres problemas y los tres se corrigieron:
+- el tope de `VisibleMs`;
+- las alertas que no salían desde los workers de cola;
+- las alertas nuevas que se anunciaban como regresión cuando la huella ya tenía varias ocurrencias.
 
 La skill `security-review` sobre el diff completo no encontró vulnerabilidades de confianza alta o media. Quedó una nota de diseño: con `logoutCurrentDevice()` el `remember_token` no rota. Es la decisión del owner; si algún día se necesita, se puede agregar un «cerrar en todos los equipos» que lo rote.
 
