@@ -17,7 +17,7 @@
 - [ ] **BASE-06**: Página QR de usuarios funcional (librería por npm/Vite).
 - [ ] **BASE-07**: Conexión de Ventas (`sqlsrv_Reportes_Towell`) restaurada por el flujo `scripts/db-config.ps1` + `.env.example`.
 - [ ] **BASE-08**: Jobs fallidos persistidos (`database-uuids`) y log diario con rotación.
-- [ ] **BASE-09**: Tabla `cache` solo si prod usa store `database` (decisión documentada).
+- [x] **BASE-09**: Tabla `cache` solo si prod usa store `database` (decisión documentada). → Prod usa `file` (2026-09-24): no aplica.
 - [ ] **BASE-10**: `tsconfig` incluye todo `resources/js/**/*.ts` (exclude temporal documentado).
 - [ ] **BASE-11**: `CLAUDE.md` sin datos falsos (`modulos_v3`, `routes/ai.php`).
 - [ ] **BASE-12**: SessionStart hook que instala dependencias para sesiones web.
@@ -119,7 +119,7 @@
 
 ### Arquitectura y seguridad (fases 10, 20)
 
-- [ ] **SEC-01**: SQL interpolado parametrizado. **SEC-02**: `trustProxies` acotado a la topología real.
+- [x] **SEC-01**: SQL interpolado parametrizado (auditado: 0 interpolaciones de input; ratchet vigila 8 expresiones internas). **SEC-02**: `trustProxies` acotado a la topología real → sin proxy: se quita (sesión 14→13).
 - [ ] **ARQ-01**: Services fuera de `app/Http/Controllers`. **ARQ-02**: folios solo por `FolioHelper`.
 - [ ] **ARQ-03**: turnos solo por `TurnoHelper`. **ARQ-04**: modelo `UrdEngNucleos` único. **ARQ-05**: Form Requests en mutaciones tocadas.
 - [ ] **SEC-04**: Respuesta JSON 5xx central (mensaje genérico + `trace_id`).

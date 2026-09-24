@@ -72,6 +72,9 @@ Core Value del track PT (sin cambios): el planeador opera Programa Tejido más r
 | 2026-09-24 | PT 01.3: Muestras se liberan con **"M"** en `OrdenTejido`/`NoProduccion`; capacidades Muestras: Redbooth B, Marbetes A, Producción A, Descarga TXT B, Finalización B, Longitudes A | Decisión del owner sobre `phases/01-guardrails/01-DECISION-PROGRAMA-MUESTRAS.md` |
 | 2026-09-24 | Liberar Muestras exige permiso del módulo Muestras (idrol 5), no el de Programa (idrol 2) | Decisión del owner |
 | 2026-09-24 | Alertas de errores del sistema **solo por correo a un destinatario fijo** (`francost15@gmail.com`), no por Telegram | Decisión del owner; se reusa el mailer Resend ya configurado |
+| 2026-09-24 | No hay proxy delante de Laragon → se quita `trustProxies(at: '*')` (SEC-02) | Confirmado por el owner; la IP del monitoreo y del rate limit debe ser la real |
+| 2026-09-24 | Formato de órdenes de Muestras: **`M` + número** (ej. `M12345`) en `CatCodificados.OrdenTejido` y `MuestrasPrograma.NoProduccion` | Confirmado por el owner |
+| 2026-09-24 | Producción usa `file` para cache y sesión → no se crea tabla `cache` (BASE-09 cerrado) | Confirmado por el owner |
 
 ## Working Agreements
 

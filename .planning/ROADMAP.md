@@ -43,14 +43,14 @@ Gates G0–G4: ver `PROTOCOLO-SESIONES.md` §8.
 
 ### Track BASE
 
-- [ ] **Phase 10: Base y guardarraíles** — CI con PHP, larastan, ratchet, línea base, higiene, SEC-01/02.
+- [x] **Phase 10: Base y guardarraíles** — CI con PHP, larastan, ratchet, línea base, higiene, SEC-01/02.
   **Requirements:** BASE-01..12, SEC-01, SEC-02 · **Plan:** `phases/10-base/10-01-PLAN.md`
   **Success:** CI PHP+JS verde y obligatorio sin tests saltados; ratchet commiteado; `10-BASELINE.md` con runbook; higiene aplicada.
 
 ### Track MON (pieza central)
 
 - [x] **Phase 11: Monitoreo — esquema y captura servidor** — tablas `SYSMon*`, identidad de dispositivo, eventos de acceso, rate limit de login, errores PHP, endpoints de telemetría, cierre remoto, alertas Telegram, gate `admin` (área Sistemas).
-  **Requirements:** MON-01..14 · **Contrato:** `phases/11-mon-servidor/11-CONTRACT.md` · **Plans:** `11-01-PLAN.md` (esquema + identidad + accesos), `11-02-PLAN.md` (errores + telemetría + cierre remoto + alertas)
+  **Requirements:** MON-01..14 · **Contrato:** `phases/11-mon-servidor/11-CONTRACT.md` · **Plans:** `11-01-PLAN.md` (esquema + identidad + accesos), `11-02-PLAN.md` (errores + telemetría + cierre remoto + alertas), 11-03 (alertas por correo fijo, ver `11-03-SUMMARY.md`)
 - [ ] **Phase 12: Monitoreo — captura cliente (TS)** — latido, vistas con Navigation Timing, errores JS/Livewire/red, nombre de dispositivo.
   **Requirements:** MON-15..20 · **Context:** `phases/12-mon-cliente/12-CONTEXT.md`
 - [ ] **Phase 13: Monitoreo — panel `/admin`** — En línea (wire:poll), sesiones, navegación, rendimiento, errores, accesos, cierre remoto.
@@ -106,8 +106,8 @@ Gate PT (sin cambios): tests de contrato y dominio pasan; invariantes SQL se man
 
 | Phase | Track | Ola | Plans | Status | Completed |
 |---|---|---|---|---|---|
-| 10. Base | BASE | 0 | 0/1 | En ejecución (sesión `claude/10-base`) | - |
-| 11. Mon servidor | MON | 0 | 2/2 | Completa, integrada (despliegue pendiente del owner) | 2026-09-24 |
+| 10. Base | BASE | 0 | 1/1 | Completa, integrada (CI PHP+JS, larastan, ratchet, baseline, higiene) | 2026-09-24 |
+| 11. Mon servidor | MON | 0 | 3/3 | Completa, integrada (11-03: alertas por correo fijo); despliegue pendiente del owner | 2026-09-24 |
 | 12. Mon cliente | MON | 1 | 0/TBD | Context listo | - |
 | 13. Mon panel | MON | 1–2 | 0/TBD | Context listo | - |
 | 14. Mon Pulse | MON | 1 | 0/TBD | Context listo | - |
