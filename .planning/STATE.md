@@ -11,7 +11,10 @@ See: .planning/PROJECT.md (updated 2026-09-24)
 ## Current Position
 
 Ola: 0 de 4
-Sesiones activas: `claude/10-base`, `claude/11-mon-servidor`, `claude/pt-01-guardrails`
+Sesiones activas (abiertas 2026-09-24 en modo plan; cada una espera aprobación del owner):
+- `claude/10-base` — session_017VenBHhK6jcvQXfSynxW4b
+- `claude/11-mon-servidor` — session_01J7vgKbD5zVc6quHX9zzWw9
+- `claude/pt-01-guardrails` — session_01DY3pXuDNb3Zk9eV7TXBoxg
 Status: En ejecución
 Last activity: 2026-09-24 — Proyecto ampliado a "Refactor integral 2026". Roadmap con tracks BASE/MON/FE/DS/UX/PERF/MIG/ARQ-SEC/ADOP + track PT. Fases 10–21 creadas (10 y 11 con PLAN; 12–21 con CONTEXT). Contrato de monitoreo en `phases/11-mon-servidor/11-CONTRACT.md`.
 
@@ -59,5 +62,5 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 ## Session Continuity
 
 Last session: 2026-09-24
-Stopped at: Docs GSD escritos; abriendo sesiones de Ola 0.
+Stopped at: Ola 0 abierta (3 sesiones). Integrador revisa SUMMARY/HANDOFF de cada rama y abre Ola 1 al cumplir G0.
 Resume file: None
