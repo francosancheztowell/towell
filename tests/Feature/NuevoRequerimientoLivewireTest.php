@@ -86,6 +86,51 @@ class NuevoRequerimientoLivewireTest extends TestCase
             'NombreProducto' => 'Toalla Rizo',
         ]);
 
+        // El modal lee los catalogos de hilo de TI_PRO (CatalogoTramaService).
+        config()->set('database.connections.sqlsrv_ti', [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+        ]);
+        DB::purge('sqlsrv_ti');
+        $ti = Schema::connection('sqlsrv_ti');
+        $ti->create('InventTable', function (Blueprint $table) {
+            $table->string('ItemId');
+            $table->string('ItemGroupId')->nullable();
+            $table->string('DATAAREAID');
+        });
+        $ti->create('InventSum', function (Blueprint $table) {
+            $table->string('ItemId');
+            $table->string('InventDimId');
+            $table->float('PhysicalInvent')->default(0);
+            $table->string('DATAAREAID');
+        });
+        $ti->create('InventDim', function (Blueprint $table) {
+            $table->string('InventDimId');
+            $table->string('ConfigId')->nullable();
+            $table->string('InventColorId')->nullable();
+            $table->string('DATAAREAID');
+        });
+        $ti->create('InventColor', function (Blueprint $table) {
+            $table->string('ItemId');
+            $table->string('InventColorId');
+            $table->string('Name')->nullable();
+            $table->string('DATAAREAID');
+        });
+        DB::connection('sqlsrv_ti')->table('InventTable')->insert([
+            ['ItemId' => '600/1T', 'ItemGroupId' => 'HILO DIREC', 'DATAAREAID' => 'PRO'],
+            ['ItemId' => 'OTRO', 'ItemGroupId' => 'OTRO GRUPO', 'DATAAREAID' => 'PRO'],
+        ]);
+        DB::connection('sqlsrv_ti')->table('InventSum')->insert([
+            'ItemId' => '600/1T', 'InventDimId' => 'D1', 'PhysicalInvent' => 10, 'DATAAREAID' => 'PRO',
+        ]);
+        DB::connection('sqlsrv_ti')->table('InventDim')->insert([
+            'InventDimId' => 'D1', 'ConfigId' => 'FIL', 'InventColorId' => 'C1', 'DATAAREAID' => 'PRO',
+        ]);
+        DB::connection('sqlsrv_ti')->table('InventColor')->insert([
+            'ItemId' => '600/1T', 'InventColorId' => 'C1', 'Name' => 'Rojo', 'DATAAREAID' => 'PRO',
+        ]);
+
         $this->actingAs($this->createUsuario(), 'web');
     }
 
@@ -108,6 +153,7 @@ class NuevoRequerimientoLivewireTest extends TestCase
             ->call('abrirModal', '201')
             ->assertSet('modalAbierto', true)
             ->assertSet('telarModal', '201')
+            ->assertSet('calibres', [['value' => '600/1T', 'label' => '600/1T']])
             ->call('cerrarModal')
             ->assertSet('modalAbierto', false)
             ->assertSet('telarModal', null);

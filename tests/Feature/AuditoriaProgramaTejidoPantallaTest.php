@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Sistema\Usuario;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 /**
@@ -12,6 +13,7 @@ use Tests\TestCase;
  * Siembra sus propias filas en SYSAuditoria con un marcador reconocible y las borra al
  * terminar. No dispara el trigger: aquí solo se prueban el guard de acceso y los filtros.
  */
+#[Group('sqlserver')]
 class AuditoriaProgramaTejidoPantallaTest extends TestCase
 {
     /** Va dentro de PK y Detalle para poder borrar solo lo sembrado por esta prueba. */

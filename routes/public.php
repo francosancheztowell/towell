@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ModulosController;
-use App\Http\Controllers\SystemController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,7 +15,6 @@ Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
 
-Route::get('/test-404', [SystemController::class, 'test404'])->name('test-404');
 Route::view('/offline', 'offline')->name('offline');
 
 /*

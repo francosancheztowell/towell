@@ -27,9 +27,9 @@ class ProgramBoardStructureTest extends TestCase
             $this->assertStringNotContainsString('<script>', $view);
         }
 
-        // Blade clásico queda en disco como archivo; ya no se sirve (GET /legacy → 301).
-        $this->assertFileExists(resource_path('views/modulos/urdido/programar-urdido.blade.php'));
-        $this->assertFileExists(resource_path('views/modulos/engomado/programar-engomado.blade.php'));
+        // El Blade clásico ya no se servía (GET /legacy → 301) y se borró en la fase 10.
+        $this->assertFileDoesNotExist(resource_path('views/modulos/urdido/programar-urdido.blade.php'));
+        $this->assertFileDoesNotExist(resource_path('views/modulos/engomado/programar-engomado.blade.php'));
     }
 
     public function test_livewire_view_has_no_inline_script_and_typescript_is_modular(): void

@@ -1,5 +1,6 @@
 import { initializeFeedback } from './feedback'
 import { initializeFullscreen } from './fullscreen'
+import { initializePrioritySort } from './priority-sort'
 import { initializeResponsiveBoard } from './responsive'
 import {
   destroySortableBoard,
@@ -19,6 +20,7 @@ const bootstrap = (): void => {
     listenersInitialized = true
     initializeFeedback()
     initializeFullscreen()
+    initializePrioritySort()
 
     window.addEventListener('program-board-updated', scheduleSortableBoard)
     document.addEventListener('livewire:navigated', () => {

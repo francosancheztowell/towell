@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Sistema\Usuario;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
+#[Group('sqlserver')]
 class ProgramaTejidoIndexSmokeTest extends TestCase
 {
     public function test_ruta_programa_tejido_devuelve_200_con_usuario_autenticado(): void
