@@ -93,7 +93,11 @@ jobs:
           else
             base="HEAD~1"
           fi
-          files=$(git diff --name-only --diff-filter=AM "$base"...HEAD -- '*.php' | grep -v '\.blade\.php$' || true)
+          # Tras un force-push "before" puede no existir en el checkout.
+          git cat-file -e "$base^{commit}" 2>/dev/null || base="HEAD~1"
+          # Sin tuberia: si git diff falla, el paso falla (bash -e) en vez de pasar vacio.
+          changed=$(git diff --name-only --diff-filter=AMR "$base"...HEAD -- '*.php')
+          files=$(printf '%s\n' "$changed" | grep -v '\.blade\.php$' || true)
           if [ -z "$files" ]; then
             echo "Sin PHP cambiado"
             exit 0
