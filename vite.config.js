@@ -40,6 +40,7 @@ export default defineConfig({
         'resources/js/lmat-lista/index.js',
         'resources/js/programa-tejido/index.js',
         'resources/js/programa-urd-eng/reservar-programar.ts',
+        'resources/js/usuarios/qr.ts',
       ],
       refresh: true,
     }),

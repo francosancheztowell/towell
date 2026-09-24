@@ -2,10 +2,10 @@
   "fetch(": 300,
   "Swal.fire": 818,
   "toastr.": 29,
-  "onclick=": 414,
+  "onclick=": 413,
   "innerHTML =": 394,
   "X-CSRF-TOKEN": 193,
   "bg-opacity-": 28,
-  "<script> inline en blade": 171,
+  "<script> inline en blade": 170,
   "getMessage() en response()->json": 284
 }

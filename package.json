@@ -11,16 +11,18 @@
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
+        "@types/qrcode": "^1.5.6",
         "esbuild": "^0.28.1",
         "laravel-vite-plugin": "^1.0",
         "typescript": "^7.0.2",
         "vite": "^6.0"
     },
     "dependencies": {
-        "axios": "^1.7.9",
         "@fortawesome/fontawesome-free": "^7.2.0",
+        "axios": "^1.7.9",
         "chart.js": "^4.5.1",
         "jquery": "^4.0.0",
+        "qrcode": "^1.5.4",
         "select2": "^4.1.0-rc.0",
         "sortablejs": "^1.15.6",
         "sweetalert2": "^11.26.17",
