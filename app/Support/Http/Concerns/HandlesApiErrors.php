@@ -20,6 +20,10 @@ trait HandlesApiErrors
     ): JsonResponse {
         $traceId = (string) Str::uuid();
 
+        // Monitoreo (MON-07): que el error quede agrupado en SYSMonError aunque el
+        // controller lo haya atrapado. No cambia la respuesta.
+        report($e);
+
         Log::error($logMessage, array_merge($context, [
             'trace_id' => $traceId,
             'exception_class' => get_class($e),

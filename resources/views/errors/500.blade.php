@@ -35,8 +35,15 @@
                 Error del servidor
             </h2>
             <p class="text-gray-500 text-sm leading-relaxed">
-                Algo salió mal en nuestro servidor. Nuestro equipo técnico ha sido notificado.
+                Algo salió mal en nuestro servidor.
             </p>
+            @php($codigoReferencia = rescue(fn () => app(\App\Services\Monitoreo\EstadoRequest::class)->eventoId, null, false))
+            @if($codigoReferencia)
+                <p class="text-gray-500 text-sm leading-relaxed mt-2">
+                    Código de referencia: <strong class="text-gray-700">#{{ $codigoReferencia }}</strong><br>
+                    Si el problema continúa, comparte este código con Sistemas.
+                </p>
+            @endif
         </div>
 
         <!-- Botones de acción -->

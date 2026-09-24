@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\LoginRequest;
 use App\Models\Sistema\Usuario;
+use App\Services\Monitoreo\AccesoService;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 
 class AuthController extends Controller
 {
@@ -19,9 +22,23 @@ class AuthController extends Controller
         return view('login');
     }
 
-    public function login(LoginRequest $request)
+    public function login(LoginRequest $request, AccesoService $accesos)
     {
         $request->validated();
+
+        // Rate limit ANTES de revisar la contraseña (MON-04). Límites en MonitoreoServiceProvider.
+        $limites = $this->limitesLogin($request);
+        foreach ($limites as $limite) {
+            if (RateLimiter::tooManyAttempts($limite->key, $limite->maxAttempts)) {
+                $segundos = RateLimiter::availableIn($limite->key);
+                $accesos->registrar('bloqueo', [
+                    'NumeroEmpleado' => $request->numero_empleado,
+                    'Motivo' => 'rate_limit',
+                ]);
+
+                return back()->with('error', "Demasiados intentos, espera {$segundos} segundos.");
+            }
+        }
 
         $empleado = Usuario::query()
             ->select(['idusuario', 'numero_empleado', 'nombre', 'contrasenia'])
@@ -53,6 +70,8 @@ class AuthController extends Controller
                 $empleado->save();
             }
 
+            RateLimiter::clear($limites[0]->key);
+
             // ponytail: "recordar" siempre activo. Las pantallas de andón corren
             // sin nadie que las atienda; si la sesión muere, la cookie de
             // remember las reautentica sola en vez de dejar un login en pantalla.
@@ -64,15 +83,42 @@ class AuthController extends Controller
             return redirect()->intended('/produccionProceso');
         }
 
+        foreach ($limites as $limite) {
+            RateLimiter::hit($limite->key, $limite->decaySeconds);
+        }
+        $accesos->registrar('login_fallido', [
+            'NumeroEmpleado' => $request->numero_empleado,
+            'UsuarioId' => $empleado?->idusuario,
+            'Motivo' => $empleado ? 'contrasena' : 'usuario_inexistente',
+        ]);
+
         return back()->with('error', 'Credenciales incorrectas. Verifica tu numero de empleado y contrasenia.');
     }
 
     public function logout(Request $request)
     {
-        Auth::logout();
+        // Solo este dispositivo: Auth::logout() rotaría el remember_token y sacaría
+        // a todas las tablets del mismo usuario (decisión 2026-09-24).
+        Auth::logoutCurrentDevice();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
         return redirect()->route('login');
+    }
+
+    /**
+     * Límites del limiter `login` con llave propia (el primero es empleado+IP).
+     *
+     * @return list<Limit>
+     */
+    private function limitesLogin(Request $request): array
+    {
+        $limites = RateLimiter::limiter('login')($request);
+
+        return array_map(static function (Limit $limite): Limit {
+            $limite->key = 'login|'.$limite->key;
+
+            return $limite;
+        }, array_values(is_array($limites) ? $limites : [$limites]));
     }
 }
