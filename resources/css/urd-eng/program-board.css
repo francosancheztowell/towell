@@ -371,7 +371,8 @@ body.program-board-modal-open main.app-main {
 }
 
 .program-board-lanes.is-engomado .program-board-lane {
-    height: calc(100dvh - var(--program-board-header-height, 72px) - 1.5rem);
+    /* 4rem = padding de la pagina + la franja de la leyenda "Urdido finalizado". */
+    height: calc(100dvh - var(--program-board-header-height, 72px) - 4rem);
     min-height: 25rem;
 }
 
@@ -451,6 +452,8 @@ body.program-board-modal-open main.app-main {
 }
 
 .program-board-legend {
+    /* Es hijo de la rejilla de carriles: sin esto ocupa la primera celda y empuja WP3 a otra fila. */
+    grid-column: 1 / -1;
     display: flex;
     align-items: center;
     gap: .5rem;
@@ -630,7 +633,7 @@ nav:has(#program-board-navbar-controls) h1 {
 
     /* ponytail: engomado tiene un solo carril, que use todo el alto tambien en tablets. */
     .program-board-lanes.is-engomado .program-board-lane {
-        height: calc(100dvh - var(--program-board-header-height, 72px) - 1.5rem);
+        height: calc(100dvh - var(--program-board-header-height, 72px) - 4rem);
         min-height: 0;
     }
 
