@@ -1,0 +1,20 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - phpstan-baseline.neon
+
+parameters:
+    level: 5
+    paths:
+        - app
+    tmpDir: storage/phpstan
+    # La deuda existente vive en phpstan-baseline.neon; solo se reportan errores nuevos.
+    # Regenerar (solo para bajar, nunca para esconder uno nuevo):
+    #   vendor/bin/phpstan analyse --generate-baseline --memory-limit=1G
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        # Los errores de traits dependen de la clase que los usa y la cache de resultados
+        # de phpstan los reporta distinto en frio (CI) que en caliente (local). Este solo
+        # aparece en caliente; se fija aqui para que ambos modos den el mismo resultado.
+        -
+            identifier: notIdentical.alwaysTrue
+            path: app/Traits/ProduccionTrait.php

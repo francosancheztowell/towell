@@ -56,3 +56,6 @@ gha-creds-*.json
 # Python bytecode de scripts/
 __pycache__/
 *.pyc
+
+# Cache de phpstan (phpstan.neon: tmpDir)
+/storage/phpstan
