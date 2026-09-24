@@ -17,6 +17,13 @@ use Illuminate\View\View;
 
 final class MatrizCalibresController extends Controller
 {
+    /** Tipos cuya clave incluye la cuenta: Rizo, Pie y las barras de Karl Mayer. */
+    private const TIPOS_CON_CUENTA = [
+        MatrizCalibreClave::TIPO_RIZO,
+        MatrizCalibreClave::TIPO_PIE,
+        ...MatrizCalibreClave::TIPOS_BARRA,
+    ];
+
     public function __construct(
         private readonly MatrizCalibresService $matrizCalibres,
     ) {}
@@ -56,7 +63,7 @@ final class MatrizCalibresController extends Controller
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error de validación',
+                'message' => collect($e->errors())->flatten()->first() ?? 'Error de validación',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
@@ -111,7 +118,7 @@ final class MatrizCalibresController extends Controller
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error de validación',
+                'message' => collect($e->errors())->flatten()->first() ?? 'Error de validación',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
@@ -185,17 +192,16 @@ final class MatrizCalibresController extends Controller
 
         $clave = MatrizCalibreClave::tryFromArray($validated);
         if ($clave === null) {
-            if (in_array($tipo, [MatrizCalibreClave::TIPO_RIZO, MatrizCalibreClave::TIPO_PIE], true)
-                && blank($validated['cuenta'] ?? null)) {
+            if (in_array($tipo, self::TIPOS_CON_CUENTA, true) && blank($validated['cuenta'] ?? null)) {
                 throw ValidationException::withMessages([
-                    'cuenta' => 'Cuenta es obligatoria para las equivalencias de Rizo y Pie.',
+                    'cuenta' => 'Cuenta es obligatoria para las equivalencias de '.$tipo.'.',
                 ]);
             }
 
             throw ValidationException::withMessages([
                 'fibraId' => $tipo === MatrizCalibreClave::TIPO_PIE
                     ? 'Para Pie debe existir al menos Fibra o Calibre.'
-                    : 'Fibra y Calibre son obligatorios para Rizo y Trama.',
+                    : 'Fibra y Calibre son obligatorios para '.$tipo.'.',
             ]);
         }
 
@@ -265,7 +271,7 @@ final class MatrizCalibresController extends Controller
                 'max:60',
             ],
             'Cuenta' => [
-                Rule::requiredIf(in_array($tipo, [MatrizCalibreClave::TIPO_RIZO, MatrizCalibreClave::TIPO_PIE], true)),
+                Rule::requiredIf(in_array($tipo, self::TIPOS_CON_CUENTA, true)),
                 Rule::prohibitedIf($tipo === MatrizCalibreClave::TIPO_TRAMA),
                 'nullable',
                 'string',
@@ -279,7 +285,9 @@ final class MatrizCalibresController extends Controller
 
         if (MatrizCalibreClave::tryFromArray($validated) === null) {
             throw ValidationException::withMessages([
-                'FibraId' => 'Para Pie debe existir al menos Fibra o Calibre.',
+                'FibraId' => $tipo === MatrizCalibreClave::TIPO_PIE
+                    ? 'Para Pie debe existir al menos Fibra o Calibre.'
+                    : 'Fibra, Calibre y Cuenta son obligatorios para '.$tipo.'.',
             ]);
         }
 

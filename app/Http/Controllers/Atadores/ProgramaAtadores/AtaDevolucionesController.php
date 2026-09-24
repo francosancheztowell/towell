@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Atadores\AtaDevolucionesModel;
 use App\Models\Atadores\AtaMontadoTelasModel;
 use App\Models\Inventario\InvTelasReservadas;
+use App\Models\Tejido\TejInventarioTelares;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -23,6 +25,9 @@ class AtaDevolucionesController extends Controller
     private const UBICACION_INVENT_LOCATION_ID = 'A-JUL/TELA';
 
     private const UBICACION_DATA_AREA_ID = 'PRO';
+
+    /** Ubicación de las devoluciones de una barra Karl Mayer. No sale del catálogo WMS. */
+    public const UBICACION_KM = 'KM1';
 
     /**
      * Catálogo de ubicaciones (WMSLocationId) para el combo de Ubicación del
@@ -235,6 +240,10 @@ class AtaDevolucionesController extends Controller
             return response()->json(['ok' => false, 'message' => 'No se encontró el atado asociado a la devolución'], 404);
         }
 
+        if ($this->esKarlMayer($montado->Tipo, $montado->NoTelarId)) {
+            return $this->guardarDevolucionesKm($request, $montado);
+        }
+
         $kilos = $data['kilos'] ?? 0;
         $metros = $data['metros'] ?? 0;
 
@@ -383,25 +392,19 @@ class AtaDevolucionesController extends Controller
         ]);
 
         try {
-            $eliminada = DB::connection('sqlsrv')->transaction(function () use ($data) {
-                $devolucion = AtaDevolucionesModel::where('RefId', $data['ref_id'])
-                    ->orderByDesc('Id')
+            DB::connection('sqlsrv')->transaction(function () use ($data) {
+                $devoluciones = AtaDevolucionesModel::where('RefId', $data['ref_id'])
                     ->lockForUpdate()
-                    ->first();
+                    ->get();
 
-                if (! $devolucion) {
-                    return false;
-                }
-
-                if ($this->estaBloqueadaPorAx($devolucion)) {
+                // Sin filas ya es "sin devolución" (KM sin julios capturados): no es error.
+                if ($devoluciones->contains(fn (AtaDevolucionesModel $fila) => $this->estaBloqueadaPorAx($fila))) {
                     throw ValidationException::withMessages([
                         'devolucion' => ['Esta devolución ya fue procesada en AX y no se puede eliminar.'],
                     ]);
                 }
 
-                $devolucion->delete();
-
-                return true;
+                $devoluciones->each->delete();
             });
         } catch (ValidationException $e) {
             return response()->json([
@@ -419,13 +422,6 @@ class AtaDevolucionesController extends Controller
                 'ok' => false,
                 'message' => 'No se pudo eliminar la devolución.',
             ], 500);
-        }
-
-        if (! $eliminada) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'No se encontró la devolución para eliminar.',
-            ], 404);
         }
 
         return response()->json([
@@ -573,5 +569,447 @@ class AtaDevolucionesController extends Controller
     private function estaBloqueadaPorAx(?AtaDevolucionesModel $devolucion): bool
     {
         return (int) ($devolucion?->AX ?? 0) === 1;
+    }
+
+    /**
+     * Los cuatro julios de la barra, con cuenta, calibre e hilo del inventario
+     * y los metros o kilos ya guardados en cada devolución.
+     *
+     * @param  Collection<int, AtaDevolucionesModel>  $guardadas
+     * @return array<int, array<string, mixed>>
+     */
+    public function filasParaCalificar(?AtaMontadoTelasModel $anterior, Collection $guardadas): array
+    {
+        $porJulio = $guardadas->keyBy(fn (AtaDevolucionesModel $fila) => trim((string) $fila->NoJulio));
+
+        return collect($this->juliosDeBarra($anterior))
+            ->map(function (array $fila) use ($porJulio) {
+                $guardada = $porJulio->get($fila['julio']);
+
+                return [
+                    'julio' => $fila['julio'],
+                    'orden' => $fila['orden'],
+                    'folio_dev' => $guardada->NoProduccion ?? $this->formatearLoteDevolucion($fila['orden']),
+                    'ubicacion' => self::UBICACION_KM,
+                    'cuenta' => $this->textoDevolucion($guardada->Cuenta ?? $fila['cuenta'], 10),
+                    'calibre' => $this->textoDevolucion($guardada->Calibre ?? $fila['calibre'], 10),
+                    'hilo' => $this->textoDevolucion($guardada->Hilo ?? $fila['hilo'], 20),
+                    'hilo_completo' => trim((string) ($guardada->Hilo ?? $fila['hilo'])),
+                    'metros' => $guardada->Metros ?? '',
+                    'kilos' => $guardada->Kilos ?? '',
+                    'obs' => $guardada->Obs ?? '',
+                ];
+            })
+            ->all();
+    }
+
+    /**
+     * Atados anteriores de la barra: mismo telar y tipo, ya finalizados, de los últimos
+     * 30 días, del más reciente al más antiguo (misma regla que el select de Jacquard/Smit).
+     *
+     * @return Collection<int, AtaMontadoTelasModel>
+     */
+    public function atadosAnterioresKm(AtaMontadoTelasModel $montado): Collection
+    {
+        $fechaMinima = Carbon::now('America/Mexico_City')->subDays(30)->startOfDay();
+
+        return AtaMontadoTelasModel::query()
+            ->where('NoTelarId', $montado->NoTelarId)
+            ->where('Tipo', $montado->Tipo)
+            ->whereIn('Estatus', self::JULIO_ESTATUS_FINALIZADOS)
+            ->where('Fecha', '>=', $fechaMinima->toDateString())
+            ->where('Id', '!=', $montado->Id)
+            ->orderByDesc('Fecha')
+            ->orderByDesc('Turno')
+            ->orderByDesc('Id')
+            ->get();
+    }
+
+    /**
+     * Atado anterior del que salen los julios a devolver: el elegido en el select, el que ya
+     * tiene devoluciones guardadas (por su orden) o, si no, el más reciente.
+     *
+     * @param  Collection<int, AtaDevolucionesModel>  $guardadas
+     * @param  Collection<int, AtaMontadoTelasModel>|null  $candidatos
+     */
+    public function atadoAnteriorKm(
+        AtaMontadoTelasModel $montado,
+        ?int $anteriorId,
+        Collection $guardadas,
+        ?Collection $candidatos = null,
+    ): ?AtaMontadoTelasModel {
+        $candidatos ??= $this->atadosAnterioresKm($montado);
+
+        if ($anteriorId) {
+            return $candidatos->first(fn (AtaMontadoTelasModel $atado) => (int) $atado->Id === $anteriorId);
+        }
+
+        $loteGuardado = trim((string) ($guardadas->first()?->LoteOriginal ?? ''));
+        $conDevolucion = $loteGuardado === ''
+            ? null
+            : $candidatos->first(fn (AtaMontadoTelasModel $atado) => trim((string) $atado->NoProduccion) === $loteGuardado);
+
+        return $conDevolucion ?? $candidatos->first();
+    }
+
+    /**
+     * Julios a devolver: siempre los del atado anterior (los que se quitan del telar),
+     * igual que Jacquard y Smit. Primero del inventario; si ya se autorizó, del historial.
+     *
+     * @return array<int, array{julio: string, orden: string, cuenta: string, calibre: string, hilo: string}>
+     */
+    private function juliosDeBarra(?AtaMontadoTelasModel $anterior): array
+    {
+        if ($anterior === null) {
+            return [];
+        }
+
+        $enInventario = $this->juliosDelInventarioAnterior($anterior);
+        if ($enInventario !== []) {
+            return $enInventario;
+        }
+
+        $julio = trim((string) $anterior->NoJulio);
+        if ($julio === '') {
+            return [];
+        }
+
+        // Al autorizar se borra el inventario, pero las reservas de la barra siguen ligadas
+        // a esa fila (TejInventarioTelaresId): de ahí salen los 4 julios, también en atados
+        // autorizados antes de que el historial guardara uno por julio.
+        $deReservas = $this->juliosDeReservas($anterior);
+        if ($deReservas !== []) {
+            return $deReservas;
+        }
+
+        $delHistorial = $this->juliosDelHistorial($anterior);
+        if ($delHistorial !== []) {
+            return $delHistorial;
+        }
+
+        [$cuenta, $calibre, $hilo] = $this->cuentaDelHistorial($anterior);
+
+        return [[
+            'julio' => $julio,
+            'orden' => trim((string) $anterior->NoProduccion),
+            'cuenta' => $cuenta,
+            'calibre' => $calibre,
+            'hilo' => $hilo !== '' ? $hilo : trim((string) ($anterior->ConfigId ?? '')),
+        ]];
+    }
+
+    /**
+     * Julios de la barra del atado anterior según sus reservas (InvTelasReservadas):
+     * la reserva del julio del atado apunta a la fila de inventario, y las demás reservas
+     * de esa misma fila son los otros julios de la barra.
+     *
+     * @return array<int, array{julio: string, orden: string, cuenta: string, calibre: string, hilo: string}>
+     */
+    private function juliosDeReservas(AtaMontadoTelasModel $anterior): array
+    {
+        try {
+            $inventarioId = InvTelasReservadas::query()
+                ->where('NoTelarId', (string) $anterior->NoTelarId)
+                ->where('InventSerialId', trim((string) $anterior->NoJulio))
+                ->where('InventBatchId', trim((string) $anterior->NoProduccion))
+                ->whereNotNull('TejInventarioTelaresId')
+                ->orderByDesc('Id')
+                ->value('TejInventarioTelaresId');
+            if (! $inventarioId) {
+                return [];
+            }
+
+            $reservas = InvTelasReservadas::query()
+                ->where('TejInventarioTelaresId', $inventarioId)
+                ->where('NoTelarId', (string) $anterior->NoTelarId)
+                ->orderBy('Id')
+                ->get(['InventSerialId', 'InventBatchId']);
+        } catch (\Throwable) {
+            return [];
+        }
+
+        [$cuenta, $calibre, $hilo] = $this->cuentaDelHistorial($anterior);
+
+        return $reservas
+            ->unique(fn ($reserva) => trim((string) $reserva->InventSerialId))
+            ->map(fn ($reserva) => [
+                'julio' => trim((string) $reserva->InventSerialId),
+                'orden' => trim((string) $reserva->InventBatchId),
+                'cuenta' => $cuenta,
+                'calibre' => $calibre,
+                'hilo' => $hilo !== '' ? $hilo : trim((string) ($anterior->ConfigId ?? '')),
+            ])
+            ->filter(fn (array $fila) => $fila['julio'] !== '')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Julios de un atado KM ya autorizado, desde TejHistorialInventarioTelares.
+     *
+     * @return array<int, array{julio: string, orden: string, cuenta: string, calibre: string, hilo: string}>
+     */
+    private function juliosDelHistorial(AtaMontadoTelasModel $anterior): array
+    {
+        try {
+            $historial = DB::connection('sqlsrv')->table('TejHistorialInventarioTelares');
+            $ancla = (clone $historial)
+                ->where('NoTelarId', $anterior->NoTelarId)
+                ->where('NoJulio', $anterior->NoJulio)
+                ->where('Status', 'Completado')
+                ->orderByDesc('FechaAtado')
+                ->first(['FechaAtado']);
+            if ($ancla === null) {
+                return [];
+            }
+
+            $filas = (clone $historial)
+                ->where('NoTelarId', $anterior->NoTelarId)
+                ->where('Tipo', $anterior->Tipo)
+                ->where('Status', 'Completado')
+                // FechaAtado es DATE: la orden separa dos atados de la barra en el mismo día.
+                ->where('FechaAtado', $ancla->FechaAtado)
+                ->where('NoProduccion', $anterior->NoProduccion)
+                ->get(['NoJulio', 'NoProduccion', 'Cuenta', 'Calibre', 'Fibra']);
+        } catch (\Throwable) {
+            return [];
+        }
+
+        return $filas
+            ->unique(fn ($fila) => trim((string) $fila->NoJulio))
+            ->map(fn ($fila) => [
+                'julio' => trim((string) $fila->NoJulio),
+                'orden' => trim((string) $fila->NoProduccion),
+                'cuenta' => trim((string) ($fila->Cuenta ?? '')),
+                'calibre' => trim((string) ($fila->Calibre ?? '')),
+                'hilo' => trim((string) ($fila->Fibra ?? '')),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{julio: string, orden: string, cuenta: string, calibre: string, hilo: string}>
+     */
+    private function juliosDelInventarioAnterior(AtaMontadoTelasModel $anterior): array
+    {
+        $julio = trim((string) $anterior->NoJulio);
+        if ($julio === '') {
+            return [];
+        }
+
+        $inventario = TejInventarioTelares::query()
+            ->where('no_telar', (string) $anterior->NoTelarId)
+            ->where('no_julio', $julio)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($inventario === null) {
+            return [];
+        }
+
+        return $this->filasDeColumnasJulio($inventario, trim((string) $anterior->NoProduccion));
+    }
+
+    /**
+     * @return array<int, array{julio: string, orden: string, cuenta: string, calibre: string, hilo: string}>
+     */
+    private function filasDeColumnasJulio(object $inventario, string $ordenPorDefecto): array
+    {
+        $filas = [];
+        foreach ([
+            ['no_julio', 'no_orden'],
+            ['no_julio2', 'no_orden2'],
+            ['no_julio3', 'no_orden3'],
+            ['no_julio4', 'no_orden4'],
+        ] as [$columnaJulio, $columnaOrden]) {
+            $numero = trim((string) ($inventario->{$columnaJulio} ?? ''));
+            if ($numero === '') {
+                continue;
+            }
+            $filas[] = [
+                'julio' => $numero,
+                'orden' => trim((string) ($inventario->{$columnaOrden} ?? $ordenPorDefecto)),
+                'cuenta' => trim((string) ($inventario->cuenta ?? '')),
+                'calibre' => trim((string) ($inventario->calibre ?? '')),
+                'hilo' => trim((string) ($inventario->hilo ?? '')),
+            ];
+        }
+
+        return $filas;
+    }
+
+    /**
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function cuentaDelHistorial(AtaMontadoTelasModel $anterior): array
+    {
+        try {
+            $historial = DB::connection('sqlsrv')
+                ->table('TejHistorialInventarioTelares')
+                ->where('NoTelarId', $anterior->NoTelarId)
+                ->where('NoJulio', $anterior->NoJulio)
+                ->where('Status', 'Completado')
+                ->orderByDesc('FechaAtado')
+                ->first();
+        } catch (\Throwable) {
+            return ['', '', ''];
+        }
+
+        if ($historial === null) {
+            return ['', '', ''];
+        }
+
+        return [
+            trim((string) ($historial->Cuenta ?? '')),
+            trim((string) ($historial->Calibre ?? '')),
+            trim((string) ($historial->Fibra ?? '')),
+        ];
+    }
+
+    private function guardarDevolucionesKm(Request $request, AtaMontadoTelasModel $montado): JsonResponse
+    {
+        $data = $request->validate([
+            'fecha_devol' => ['nullable', 'date'],
+            'anterior_id' => ['nullable', 'integer'],
+            'filas' => ['required', 'array', 'min:1', 'max:4'],
+            'filas.*.no_julio' => ['required', 'string', 'max:20'],
+            'filas.*.no_produccion' => ['nullable', 'string', 'max:20'],
+            'filas.*.kilos' => ['nullable', 'numeric', 'min:0'],
+            'filas.*.metros' => ['nullable', 'numeric', 'min:0'],
+            'filas.*.cuenta' => ['nullable', 'string', 'max:10'],
+            'filas.*.calibre' => ['nullable', 'string', 'max:10'],
+            'filas.*.hilo' => ['nullable', 'string', 'max:20'],
+            'filas.*.obs' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $anterior = $this->atadoAnteriorKm(
+            $montado,
+            isset($data['anterior_id']) ? (int) $data['anterior_id'] : null,
+            AtaDevolucionesModel::where('RefId', $montado->Id)->get(),
+        );
+        $permitidos = collect($this->juliosDeBarra($anterior))
+            ->pluck('julio')
+            ->map(fn ($julio) => (string) $julio)
+            ->all();
+
+        foreach ($data['filas'] as $fila) {
+            if (! in_array(trim((string) $fila['no_julio']), $permitidos, true)) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'El julio '.$fila['no_julio'].' no pertenece a esta barra.',
+                ], 422);
+            }
+        }
+
+        $cveOperador = Auth::user()->numero_empleado ?? null;
+        $fecha = $data['fecha_devol'] ?? Carbon::now('America/Mexico_City')->toDateString();
+
+        try {
+            $guardadas = DB::connection('sqlsrv')->transaction(function () use ($data, $montado, $cveOperador, $fecha) {
+                $existentes = AtaDevolucionesModel::where('RefId', $montado->Id)
+                    ->lockForUpdate()
+                    ->get();
+
+                if ($existentes->contains(fn (AtaDevolucionesModel $fila) => $this->estaBloqueadaPorAx($fila))) {
+                    throw ValidationException::withMessages([
+                        'devolucion' => ['Esta devolución ya fue procesada en AX y no se puede modificar.'],
+                    ]);
+                }
+
+                // Si se cambió de atado anterior, las devoluciones del otro ya no aplican.
+                $juliosEnviados = collect($data['filas'])->map(fn ($fila) => trim((string) $fila['no_julio']))->all();
+                $existentes
+                    ->reject(fn (AtaDevolucionesModel $fila) => in_array(trim((string) $fila->NoJulio), $juliosEnviados, true))
+                    ->each->delete();
+
+                $porJulio = $existentes->keyBy(fn (AtaDevolucionesModel $fila) => trim((string) $fila->NoJulio));
+                $resultado = collect();
+
+                foreach ($data['filas'] as $fila) {
+                    $julio = trim((string) $fila['no_julio']);
+                    $ordenBase = trim((string) ($fila['no_produccion'] ?? ''));
+                    $loteOriginal = $this->extraerLoteOriginal($ordenBase);
+                    $loteDev = $this->formatearLoteDevolucion($ordenBase);
+                    $actual = $porJulio->get($julio);
+
+                    // Julio sin metros ni kilos no se devolvió: no se guarda ni sale a AX.
+                    if ((float) ($fila['metros'] ?? 0) <= 0 && (float) ($fila['kilos'] ?? 0) <= 0) {
+                        $actual?->delete();
+
+                        continue;
+                    }
+
+                    $payload = [
+                        'RefId' => $montado->Id,
+                        'InvTelasReservadaId' => $actual?->InvTelasReservadaId,
+                        'NoTelarId' => $montado->NoTelarId,
+                        'NoJulio' => $julio,
+                        'NoProduccion' => $loteDev,
+                        'LoteOriginal' => $loteOriginal,
+                        'Kilos' => $fila['kilos'] ?? 0,
+                        'Metros' => $fila['metros'] ?? 0,
+                        'Ubicacion' => self::UBICACION_KM,
+                        'FechaDevol' => $fecha,
+                        'Cuenta' => $fila['cuenta'] ?? null,
+                        'Calibre' => $fila['calibre'] ?? null,
+                        'Hilo' => $fila['hilo'] ?? null,
+                        'Tipo' => $montado->Tipo,
+                        'Obs' => $fila['obs'] ?? null,
+                        'ConfigId' => $montado->ConfigId,
+                        'InventSizeId' => $montado->InventSizeId,
+                        'InventColorId' => $montado->InventColorId,
+                        'Estatus' => $montado->Estatus ?: 'Activo',
+                        'CveOperador' => $cveOperador,
+                    ];
+
+                    if ($actual) {
+                        $actual->fill($payload);
+                        $actual->save();
+                        $resultado->push($actual);
+                    } else {
+                        $resultado->push(AtaDevolucionesModel::create([...$payload, 'AX' => 0]));
+                    }
+                }
+
+                return $resultado;
+            });
+        } catch (ValidationException $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => collect($e->errors())->flatten()->first() ?? 'No se pudo validar la devolución.',
+                'bloqueado_ax' => true,
+            ], 423);
+        } catch (\Throwable $e) {
+            Log::error('Error al registrar devoluciones Karl Mayer', [
+                'ref_id' => $montado->Id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'No se pudo registrar la devolución: '.$e->getMessage(),
+            ], 500);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Devolución actualizada correctamente',
+            'ids' => $guardadas->pluck('Id')->values(),
+        ]);
+    }
+
+    private function esKarlMayer(mixed $tipo, mixed $noTelar): bool
+    {
+        if (preg_match('/^[1-4]$/', trim((string) $tipo))) {
+            return true;
+        }
+
+        return in_array(trim((string) $noTelar), ['401', '402'], true);
+    }
+
+    private function textoDevolucion(mixed $valor, int $max): string
+    {
+        return mb_substr(trim((string) $valor), 0, $max);
     }
 }

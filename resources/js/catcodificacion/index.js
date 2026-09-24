@@ -558,12 +558,13 @@ import { openLMatModal } from './lmat-modal';
     }
 
     // El módulo L.Mat recibe únicamente el contexto necesario de esta pantalla.
-    function actualizarFilaTrasGuardarLMat({ bomId, bomName, updatedBom, actualizaLmat, pasadas = {}, formula = {}, fibras = {}, combinacionesVacias = [] }) {
+    function actualizarFilaTrasGuardarLMat({ bomId, bomName, updatedBom, actualizaLmat, pasadas = {}, formula = {}, fibras = {}, combinacionesVacias = [], luchaje = null }) {
         if (state.selectedRowIndex === null || state.selectedRowIndex === undefined) return;
         const registro = state.filtered[state.selectedRowIndex];
         if (!registro) return;
 
         registro.TieneLMat = 1;
+        if (luchaje !== null && luchaje !== undefined) registro.Luchaje = luchaje;
         if (actualizaLmat !== undefined && actualizaLmat !== null) {
             registro.ActualizaLmat = actualizaLmat ? 1 : 0;
         }
@@ -573,7 +574,7 @@ import { openLMatModal } from './lmat-modal';
             registro.BomName = bomName;
         }
         Object.entries(pasadas).forEach(([campo, valor]) => {
-            if (campo === 'PasadasTramaFondoC1' || /^PasadasComb[1-5]$/.test(campo)) {
+            if (campo === 'PasadasTramaFondoC1' || /^Pasadas(Comb[1-5]|Barra[1-4])$/.test(campo)) {
                 registro[campo] = valor;
             }
         });
@@ -584,6 +585,7 @@ import { openLMatModal } from './lmat-modal';
                 || campo === 'CalibrePie2'
                 || campo === 'CalTramaFondoC1'
                 || /^CalibreComb[1-5]2$/.test(campo)
+                || /^CalibreBarra[1-4]2$/.test(campo)
             ) {
                 registro[campo] = valor;
             }

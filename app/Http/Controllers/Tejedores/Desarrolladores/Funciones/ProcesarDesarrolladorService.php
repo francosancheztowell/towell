@@ -68,9 +68,30 @@ class ProcesarDesarrolladorService
                     ->limit(1)
                     ->get();
 
-                $ordenData = ReqProgramaTejido::query()
-                    ->where('NoProduccion', $validated['NoProduccion'])
-                    ->first();
+                // El renglon de ESTE telar, ya bloqueado. Buscar solo por NoProduccion traia
+                // el de otro telar cuando el numero de orden esta repetido.
+                $ordenData = $contextoOrigen['programa'];
+
+                // Se lee antes de escribir: despues de guardar, el modelo y CatCodificados
+                // ya tienen el codigo nuevo y el aviso diria que el anterior es el nuevo.
+                $codigoDibujoAnterior = null;
+                if ($contextoDestino['esCambioTelar']) {
+                    $codigoDibujoAnterior = ReqModelosCodificados::query()
+                        ->where('SalonTejidoId', $contextoOrigen['salonOrigen'])
+                        ->where('TamanoClave', $contextoOrigen['programa']->TamanoClave)
+                        ->whereNotNull('CodigoDibujo')
+                        ->orderByDesc('Id')
+                        ->value('CodigoDibujo');
+
+                    if (! $codigoDibujoAnterior) {
+                        $codigoDibujoAnterior = $this->catCodificadosService->resolveCodigoDibujo(
+                            (string) $validated['NoProduccion'],
+                            (string) $contextoOrigen['telarOrigen']
+                        );
+                    }
+
+                    $codigoDibujoAnterior = $this->normalizeCodigoDibujo($codigoDibujoAnterior, $contextoOrigen['telarOrigen']);
+                }
 
                 $detallePayload = $this->buildDetallePayloadFromOrden($ordenData);
                 $detallePayload = $this->aplicarDetalleDesdeRequest($detallePayload, $validated);
@@ -99,24 +120,30 @@ class ProcesarDesarrolladorService
                     $ordenData
                 );
 
-                $claveModelo = $registroCodificado
-                    ? $registroCodificado->getAttribute('ClaveModelo')
-                    : data_get($ordenData, 'TamanoClave');
+                // La misma llave con la que se busco $modeloDestino. CatCodificados.ClaveModelo
+                // llega vacia o como "(MODELO NUEVO)" en ~6% de las capturas y entonces el
+                // modelo no se actualizaba, sin avisar.
+                $claveModelo = $contextoOrigen['programa']->TamanoClave
+                    ?: $registroCodificado?->getAttribute('ClaveModelo');
 
-                if (! $contextoDestino['esCambioTelar']) {
-                    $this->actualizarModeloDestinoSiCorresponde(
-                        $claveModelo,
-                        $contextoDestino['salonDestino'],
-                        $contextoDestino['telarDestino'],
-                        $validated,
-                        $detallePayload,
-                        $pasadasPayload,
-                        $codigoDibujo,
-                        $longitudLuchaTot
-                    );
-                }
+                // Tambien con cambio de telar: el modelo del salon destino es el que describe
+                // el montaje que se acaba de hacer. Antes se saltaba y la copia recien creada
+                // se quedaba con CodigoDibujo NULL.
+                $this->actualizarModeloDestinoSiCorresponde(
+                    $claveModelo,
+                    $contextoDestino['salonDestino'],
+                    $contextoDestino['telarDestino'],
+                    $validated,
+                    $detallePayload,
+                    $pasadasPayload,
+                    $codigoDibujo,
+                    $longitudLuchaTot
+                );
 
-                $fuenteDatos = $modeloDestino ?? $registroCodificado ?? $ordenData;
+                // Lo recien capturado manda. $modeloDestino se leyo ANTES de actualizar el
+                // modelo (otra instancia), asi que el programa recibia las pasadas y
+                // calibres de antes de la captura.
+                $fuenteDatos = $registroCodificado ?? $modeloDestino ?? $ordenData;
                 $programas = $this->actualizarProgramasRelacionados(
                     $contextoOrigen['programa'],
                     $fuenteDatos,
@@ -125,25 +152,6 @@ class ProcesarDesarrolladorService
 
                 $programaObjetivo = $programas->firstWhere('Id', $contextoOrigen['programa']->Id)
                     ?: $contextoOrigen['programa'];
-
-                $codigoDibujoAnterior = null;
-                if ($contextoDestino['esCambioTelar']) {
-                    $codigoDibujoAnterior = ReqModelosCodificados::query()
-                        ->where('SalonTejidoId', $contextoOrigen['salonOrigen'])
-                        ->where('TamanoClave', $programaObjetivo->TamanoClave)
-                        ->whereNotNull('CodigoDibujo')
-                        ->orderByDesc('Id')
-                        ->value('CodigoDibujo');
-
-                    if (! $codigoDibujoAnterior) {
-                        $codigoDibujoAnterior = $this->catCodificadosService->resolveCodigoDibujo(
-                            (string) $validated['NoProduccion'],
-                            (string) $contextoOrigen['telarOrigen']
-                        );
-                    }
-
-                    $codigoDibujoAnterior = $this->normalizeCodigoDibujo($codigoDibujoAnterior, $contextoOrigen['telarOrigen']);
-                }
 
                 $programaFinal = $this->ejecutarMovimientoYPonerEnProceso(
                     $programaObjetivo,
@@ -393,7 +401,7 @@ class ProcesarDesarrolladorService
             $payload['Razurada'] = $ordenData->Rasurado;
         }
 
-        $this->catCodificadosService->applyPayload($registro, $payload);
+        $this->catCodificadosService->applyPayload($registro, $this->sinCamposNoCapturados($payload, $validated));
         $registro->save();
 
         return $registro;
@@ -494,7 +502,7 @@ class ProcesarDesarrolladorService
         ], $detallePayload, $pasadasPayload);
 
         $columnasModelo = Schema::getColumnListing($registroModelo->getTable());
-        foreach ($payloadModelo as $column => $value) {
+        foreach ($this->sinCamposNoCapturados($payloadModelo, $validated) as $column => $value) {
             if (! in_array($column, $columnasModelo, true)) {
                 continue;
             }

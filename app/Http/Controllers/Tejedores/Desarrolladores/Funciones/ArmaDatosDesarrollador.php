@@ -551,6 +551,27 @@ trait ArmaDatosDesarrollador
         return trim((string) $valor);
     }
 
+    /**
+     * Ancho de peine y longitud de lucha no estan en la pantalla (tampoco en la de antes
+     * de Livewire): si no vienen en la peticion no se tocan. Escribirlos siempre los
+     * dejaba en NULL en CatCodificados y en ReqModelosCodificados en cada captura.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function sinCamposNoCapturados(array $payload, array $validated): array
+    {
+        if (! array_key_exists('TramaAnchoPeine', $validated)) {
+            unset($payload['TramaAnchoPeine'], $payload['AnchoPeineTrama']);
+        }
+
+        if (! array_key_exists('LongitudLuchaTot', $validated)) {
+            unset($payload['LogLuchaTotal'], $payload['LongitudLuchaTot']);
+        }
+
+        return $payload;
+    }
+
     private function normalizarEntero($value)
     {
         if ($value === null || $value === '') {
@@ -594,7 +615,10 @@ trait ArmaDatosDesarrollador
         $colorTrama = data_get($ordenData, 'ColorTrama') ?: data_get($ordenData, 'FibraTrama');
 
         $payload = [
+            // Tra es el nombre en CatCodificados; ReqModelosCodificados lo llama CalibreTrama
+            // y Planeacion lo lee de ahi. Cada tabla ignora la llave que no tiene.
             'Tra' => data_get($ordenData, 'CalibreTrama'),
+            'CalibreTrama' => data_get($ordenData, 'CalibreTrama'),
             'CalibreTrama2' => data_get($ordenData, 'CalibreTrama2'),
             'CodColorTrama' => data_get($ordenData, 'CodColorTrama'),
             'ColorTrama' => $colorTrama,
@@ -720,6 +744,7 @@ trait ArmaDatosDesarrollador
             if ($key === 'PasadasTramaFondoC1' || $key === 'PasadasTrama') {
                 if ($calibre !== null) {
                     $detallePayload['Tra'] = $calibre;
+                    $detallePayload['CalibreTrama'] = $calibre;
                     $detallePayload['CalTramaFondoC1'] = $calibre;
                 }
                 if ($fibra !== null) {
@@ -732,8 +757,9 @@ trait ArmaDatosDesarrollador
                 if ($nombreColor !== null) {
                     $detallePayload['ColorTrama'] = $nombreColor;
                 }
+                // El hilo es el divisor del calibre. No va a HiloAX: esa columna es el tipo
+                // de hilo de AX (TwTipoHiloId) que pone Liberar ordenes, y se perdia.
                 if ($hilo !== null) {
-                    $detallePayload['HiloAX'] = $hilo;
                     $detallePayload['CalibreTrama2'] = $hilo;
                     $detallePayload['CalTramaFondoC12'] = $hilo;
                 }

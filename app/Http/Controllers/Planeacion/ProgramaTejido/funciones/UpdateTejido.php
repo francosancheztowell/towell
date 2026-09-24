@@ -762,10 +762,10 @@ class UpdateTejido
             'NomColorC3', 'CalibreComb4', 'CalibreComb42', 'FibraComb4', 'CodColorC4', 'NomColorC4',
             'CalibreComb5', 'CalibreComb52', 'FibraComb5', 'CodColorC5', 'NomColorC5', 'LargoToalla',
             // Karl Mayer: cuatro barras en vez de rizo/pie/C1-C5.
-            'CuentaBarra1', 'CalibreBarra1', 'CodColorBarra1', 'ColorBarra1', 'FibraBarra1', 'PasadasBarra1',
-            'CuentaBarra2', 'CalibreBarra2', 'CodColorBarra2', 'ColorBarra2', 'FibraBarra2', 'PasadasBarra2',
-            'CuentaBarra3', 'CalibreBarra3', 'CodColorBarra3', 'ColorBarra3', 'FibraBarra3', 'PasadasBarra3',
-            'CuentaBarra4', 'CalibreBarra4', 'CodColorBarra4', 'ColorBarra4', 'FibraBarra4', 'PasadasBarra4',
+            'CuentaBarra1', 'CalibreBarra1', 'CalibreBarra12', 'CodColorBarra1', 'ColorBarra1', 'FibraBarra1', 'PasadasBarra1',
+            'CuentaBarra2', 'CalibreBarra2', 'CalibreBarra22', 'CodColorBarra2', 'ColorBarra2', 'FibraBarra2', 'PasadasBarra2',
+            'CuentaBarra3', 'CalibreBarra3', 'CalibreBarra32', 'CodColorBarra3', 'ColorBarra3', 'FibraBarra3', 'PasadasBarra3',
+            'CuentaBarra4', 'CalibreBarra4', 'CalibreBarra42', 'CodColorBarra4', 'ColorBarra4', 'FibraBarra4', 'PasadasBarra4',
         ];
 
         // Buscador canónico: resuelve alias de salón (KM = KARL MAYER, SMIT = ITEMA, ...)
