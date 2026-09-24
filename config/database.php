@@ -149,6 +149,18 @@ return [
             'prefix_indexes' => true,
             'trust_server_certificate' => true,
         ],
+        'sqlsrv_Reportes_Towell' => [
+            'driver' => 'sqlsrv',
+            'host' => env('DB_HOST_REPORTES_TOWELL'),
+            'port' => env('DB_PORT_REPORTES_TOWELL'),
+            'database' => env('DB_DATABASE_REPORTES_TOWELL'),
+            'username' => env('DB_USERNAME_REPORTES_TOWELL'),
+            'password' => env('DB_PASSWORD_REPORTES_TOWELL'),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'trust_server_certificate' => true,
+        ],
     ],
 
     /*
