@@ -5,6 +5,9 @@
 **Evidencia:** auditoría `docs/auditoria` / PR #32 + checkout LA-GTECLAVE `C:\xampp\htdocs\Towell` + `main` GitHub `francosancheztowell/towell`.  
 **Regla dura:** no inventar bugs; no reescribir `LiberarOrdenes` a Livewire como primer paso.
 
+
+> **Actualización 2026-09-24 (decisión del owner):** **Programa Tejido sí migra a Livewire**, con el **mismo diseño visual**, y solo se da por buena si **mejora rendimiento/velocidad medidos** contra `.planning/phases/04-ux-grid/04-PERF-MEDIDO.md` (TTFB, KB de HTML, tiempo de interacción). Orden del track PT en `.planning/ROADMAP.md`: `01 → 01.1 AuthZ → 02 lectura → 04-perf → 03 shell Livewire → 05 mutaciones → 04-ux → 06 → 07` (services/tests antes que UI, como pide esta guía). **Liberar órdenes, Excel one-shot y reportes siguen en "No migrar ahora".** Roadmap global: `.planning/ROADMAP.md` (refactor integral 2026).
+
 ---
 
 ## Árbol de decisión (corto)
@@ -185,7 +188,7 @@
 
 | Módulo | Decisión |
 |--------|----------|
-| Planeación | **No migrar ahora** |
+| Planeación | **No migrar ahora** (excepto Programa Tejido: migra a Livewire sin cambiar diseño, ver actualización 2026-09-24) |
 | Tejido | **No migrar ahora** |
 | Urdido (tablero) | **Congelar legacy / forzar Livewire** |
 | Engomado (tablero) | **Congelar legacy / forzar Livewire** (P1) |

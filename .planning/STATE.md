@@ -2,17 +2,18 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-08-05)
+See: .planning/PROJECT.md (updated 2026-09-24)
 
-**Core value:** El planeador opera Programa Tejido más rápido, sin fricción y sin romper invariantes de dominio.
-**Current focus:** Phase 1 — Guardrails
+**Core value:** Planta y planeación trabajan más rápido y sin fricción, y Sistemas ve qué pasa en producción, sin romper invariantes de dominio.
+**Current focus:** Ola 0 — fases 10 (base), 11 (monitoreo servidor) y PT 01 (guardrails), en sesiones paralelas.
+**Protocolo:** `.planning/PROTOCOLO-SESIONES.md` (propiedad de archivos, orden de merge, gates).
 
 ## Current Position
 
-Phase: 1 of 7 (Guardrails)
-Plan: 1 of 1 in current phase
-Status: Ready to execute
-Last activity: 2026-08-05 — Replaneada Fase 3 (Shell Livewire) para Livewire: `03-shell-livewire-PLAN.md` creado (componente `ProgramaTejidoBoard`, canary allowlist por `numero_empleado`, wrappers delgados Programa/Muestras). Depende de Fase 2 (`ProgramaTejidoSurface`/`ProgramaTejidoContextResolver`/`ProgramaTejidoReadService`), que todavía no ha ejecutado — Task 03.1 debe releer esos archivos reales antes de implementar. Fase 4 sigue pendiente de replanear.
+Ola: 0 de 4
+Sesiones activas: `claude/10-base`, `claude/11-mon-servidor`, `claude/pt-01-guardrails`
+Status: En ejecución
+Last activity: 2026-09-24 — Proyecto ampliado a "Refactor integral 2026". Roadmap con tracks BASE/MON/FE/DS/UX/PERF/MIG/ARQ-SEC/ADOP + track PT. Fases 10–21 creadas (10 y 11 con PLAN; 12–21 con CONTEXT). Contrato de monitoreo en `phases/11-mon-servidor/11-CONTRACT.md`.
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -23,41 +24,40 @@ Progress: [░░░░░░░░░░] 0%
 - Average duration: - min
 - Total execution time: 0 hours
 
-**By Phase:**
-
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | - | - | - | - |
-
-**Recent Trend:**
-- Last 5 plans: -
-- Trend: -
-
-*Updated after each plan completion*
 
 ## Accumulated Context
 
 ### Decisions
 
-Ver PROJECT.md → Key Decisions. Recientes:
+Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 
-- 2026-07-22: Migración incremental con feature flag, sin big-bang.
-- 2026-08-05: UI v2 = Livewire (reemplaza Blade+Vite modules).
-- 2026-08-05: Los 28 controladores de negocio no se reescriben, solo se deduplican (PT-DUP-*).
+- Roadmap completo ejecutado con sesiones Claude paralelas; esta rama (`claude/friendly-hopper-506bg9`) es la integradora.
+- Tiempo real del panel: `wire:poll.visible` (sin Reverb).
+- Errores/rendimiento: Laravel Pulse (SQLite dedicado, porque Pulse no soporta sqlsrv) + tablas propias `SYSMon*`.
+- Monitoreo: sesión + dispositivo, navegación con tiempos, rendimiento servidor/cliente, acciones admin (cierre remoto, fallidos).
+- PT sí migra a Livewire **sin cambiar el diseño**, solo si mejora rendimiento medido. Orden PT: 01 → 01.1 → 02 → 04-perf → 03 → 05 → 04-ux → 06 → 07.
+- Logout normal y remoto = solo ese dispositivo (`logoutCurrentDevice`).
+- Panel solo área Sistemas, en `/admin`.
 
-### Pending Todos
+### Pending Todos (owner)
 
-None yet.
+- Confirmar en prod (192.168.2.15): `SESSION_DRIVER`, `CACHE_STORE`, `QUEUE_CONNECTION`, `pdo_sqlite` habilitado, si hay proxy inverso, si la LAN sirve HTTPS.
+- `SELECT DISTINCT area FROM SYSUsuario` para confirmar el valor exacto de "Sistemas".
+- Aviso de privacidad del monitoreo (propuesta: leyenda discreta en login).
+- Worker de colas en Windows (propuesta: `queue:work --stop-when-empty --max-time=50` desde `scheduler.bat`).
+- PT 01 tiene el checkpoint bloqueante 01.3 (decisión Programa vs Muestras).
 
 ### Blockers/Concerns
 
-- Fase 4 (ux-grid) todavía tiene PLAN.md `.superseded` — asumía Blade+Vite modules, no Livewire. Necesita `/gsd:plan-phase 4` antes de poder ejecutarse. Fase 3 ya fue replaneada (`03-shell-livewire-PLAN.md`).
-- Fase 3 no puede ejecutarse hasta que Fase 2 aterrice `ProgramaTejidoSurface`/`ProgramaTejidoContextResolver`/`ProgramaTejidoReadService`/`ProgramaTejidoRowResource` — el plan de Fase 3 depende de esos contratos y los referencia como "planeados, no verificados" en su sección `<interfaces>`.
-- Task 01.3 (fase 1) es un checkpoint bloqueante: requiere que el owner apruebe la decisión Programa vs Muestras (paridad aditiva vs. capacidades exclusivas) antes de continuar.
-- Índices `IX_ReqProgramaTejido_Telar_EnProceso_Pos` / `IX_ReqProgramaTejido_Telar_Posicion` referenciados en docblocks del modelo no existen en ninguna migración — verificar contra `sys.indexes` en fase 01 (task 01.2).
+- Las sesiones en la nube no alcanzan SQL Server: lo que requiera datos reales (schema físico, baseline de tiempos, valores de `area`) vuelve como script/runbook para correr en Laragon.
+- PT fase 4-ux sigue con PLAN `.superseded`; se replanea cuando toque (Ola 3).
+- Índices `IX_ReqProgramaTejido_*` citados en el modelo no existen en migraciones — verificar en PT 01.2.
 
 ## Session Continuity
 
-Last session: 2026-08-05
-Stopped at: Roadmap y requirements formalizados a nivel global; próximo paso es ejecutar fase 1 (guardrails) o replanear fases 3/4 para Livewire.
+Last session: 2026-09-24
+Stopped at: Docs GSD escritos; abriendo sesiones de Ola 0.
 Resume file: None

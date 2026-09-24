@@ -1,129 +1,129 @@
-# Roadmap: Programa Tejido — Migración Livewire + Refactor
+# Roadmap: Towell — Refactor integral 2026
 
 ## Overview
 
-Reestructurar Programa Tejido (`ReqProgramaTejido` y superficies vinculadas: Muestras, Redbooth, liberación, balanceo) de forma incremental: primero congelar contratos e invariantes, luego separar lectura, después construir la UI v2 en Livewire, migrar mutaciones por caso de uso, tratar operaciones de alto riesgo con sus propios gates, y finalmente retirar el legacy con evidencia de adopción. Los 28 controladores de negocio (16,444 líneas) no se reescriben — Livewire los invoca igual que hoy lo hace Blade+fetch, salvo la deduplicación puntual de PT-DUP-*.
+Llevar Towell a mejor rendimiento, estructura y UX sin romper planta: monitoreo real de dispositivos/sesiones/errores/rendimiento (panel `/admin`), fundación frontend en TypeScript sin librerías viejas, sistema de componentes unificado, migración del JS inline a módulos TS y a Livewire donde aplique, performance backend medida, arquitectura/seguridad y retiro de legado con evidencia.
+
+El milestone previo **Programa Tejido (PT)** sigue vivo como un **track** de este roadmap (fases 01–07 + 01.1, sin renumerar). Las fases nuevas son 10–21.
+
+Reglas transversales:
+- **Ponytail:** nada nuevo si ya existe un helper/scope/componente que lo resuelve; los duplicados apuntan al original.
+- **Medir antes de optimizar:** ninguna optimización sin número antes/después (fase 10 baseline + telemetría de fase 11–14 + `phases/04-ux-grid/04-PERF-MEDIDO.md`).
+- **Livewire donde la guía dice sí** (`docs/cerebro-towell/Arquitectura/livewire-cuando-si-cuando-no.md`) **+ Programa Tejido** (decisión 2026-09-24: migra sin cambiar el diseño, solo si mejora rendimiento).
+- Ejecución en **sesiones paralelas** según `.planning/PROTOCOLO-SESIONES.md` (propiedad de archivos, orden de merge, gates).
+
+## Tracks
+
+| Track | Fases | Qué resuelve |
+|---|---|---|
+| BASE | 10 | CI PHP+JS, ratchet de deuda, línea base medida, higiene |
+| MON | 11, 12, 13, 14 | Monitoreo: dispositivos, sesiones, navegación, rendimiento, errores, accesos, cierre remoto, Pulse |
+| FE | 15 | Utils TS, quitar jQuery/Select2/Toastr, Vite, regresiones Tailwind v4 |
+| DS | 16 | Sistema de componentes Blade/Livewire |
+| UX | 17 | Auditoría UX exhaustiva + correcciones globales |
+| PERF | 18 | Drivers, OPcache, N+1, queries, índices |
+| MIG | 19 | JS inline → TS por módulo (+ Livewire donde aplica) |
+| ARQ/SEC | 20 | Services fuera de controllers, folios, errores JSON, AuthZ |
+| ADOP | 21 | Retiro de legado con telemetría, docs |
+| PT | 01–07, 01.1 | Programa Tejido (milestone previo) |
+
+## Olas
+
+| Ola | Sesiones paralelas | Gate de entrada |
+|---|---|---|
+| 0 | `10-base` · `pt-01-guardrails` · `11-mon-servidor` | — |
+| 1 | `12-mon-cliente` · `14-mon-pulse` → `13-mon-panel` · `15-01-utils-ts` · PT `01.1` → `02` | G0 |
+| 2 | `13-mon-panel` (si falta) · `15-02-librerias` · `16-componentes` · `20-01` → `20-02` → `20-03` · `18-01-perf-infra` · `17-01-auditoria-ux` · PT `04-perf` (cortes 4–7) → `03` | G1 |
+| 3 | `19-01`…`19-10` (3–5 activas, priorizadas por telemetría) · `17-02-ux-global` · PT `05` → `04-ux` → `06` | G2 |
+| 4 | `21-adopcion` · PT `07` | G3 + ≥ 30 días de telemetría |
+
+Gates G0–G4: ver `PROTOCOLO-SESIONES.md` §8.
 
 ## Phases
 
+### Track BASE
+
+- [ ] **Phase 10: Base y guardarraíles** — CI con PHP, larastan, ratchet, línea base, higiene, SEC-01/02.
+  **Requirements:** BASE-01..12, SEC-01, SEC-02 · **Plan:** `phases/10-base/10-01-PLAN.md`
+  **Success:** CI PHP+JS verde y obligatorio sin tests saltados; ratchet commiteado; `10-BASELINE.md` con runbook; higiene aplicada.
+
+### Track MON (pieza central)
+
+- [ ] **Phase 11: Monitoreo — esquema y captura servidor** — tablas `SYSMon*`, identidad de dispositivo, eventos de acceso, rate limit de login, errores PHP, endpoints de telemetría, cierre remoto, alertas Telegram, gate `admin` (área Sistemas).
+  **Requirements:** MON-01..14 · **Contrato:** `phases/11-mon-servidor/11-CONTRACT.md` · **Plans:** `11-01-PLAN.md` (esquema + identidad + accesos), `11-02-PLAN.md` (errores + telemetría + cierre remoto + alertas)
+- [ ] **Phase 12: Monitoreo — captura cliente (TS)** — latido, vistas con Navigation Timing, errores JS/Livewire/red, nombre de dispositivo.
+  **Requirements:** MON-15..20 · **Context:** `phases/12-mon-cliente/12-CONTEXT.md`
+- [ ] **Phase 13: Monitoreo — panel `/admin`** — En línea (wire:poll), sesiones, navegación, rendimiento, errores, accesos, cierre remoto.
+  **Requirements:** MON-21..28 · **Context:** `phases/13-mon-panel/13-CONTEXT.md`
+- [ ] **Phase 14: Monitoreo — Pulse** — Pulse en conexión SQLite dedicada bajo `/admin/pulse`.
+  **Requirements:** MON-29..32 · **Context:** `phases/14-mon-pulse/14-CONTEXT.md`
+
+**Success F1 (11–14):** overhead p95 < 5 ms/request; kill switch probado; error PHP → `SYSMonError` + Telegram; error JS → fila; cierre remoto saca solo esa tablet; logins fallidos y bloqueos visibles; usuario fuera de Sistemas → 403 en `/admin/*`.
+
+### Track FE / DS / UX
+
+- [ ] **Phase 15: Fundación frontend** — 15-01 utils TS (http, notifications con toast nativo, format, dom, tipos globales); 15-02 Tom Select en lugar de Select2, quitar jQuery/Toastr, Vite sin vendor global + inputs por glob, CDN → npm, regresiones Tailwind v4.
+  **Requirements:** FE-01..12 · **Context:** `phases/15-fe-fundacion/15-CONTEXT.md`
+- [ ] **Phase 16: Sistema de componentes** — evolucionar `components/ui/*`: `<dialog>`, tabla, field, botón, badge, loader, empty, flash, filter-bar; galería `/dev/ui-kit`; piloto catálogos atadores.
+  **Requirements:** DS-01..12 · **Context:** `phases/16-componentes/16-CONTEXT.md`
+- [ ] **Phase 17: UX** — 17-01 auditoría exhaustiva (top 25 pantallas por telemetría); 17-02 correcciones globales (flash, títulos, h1, zoom, clic derecho, lang/es, páginas de error, contraseña, 419, offline, a11y).
+  **Requirements:** UX-01..18 · **Context:** `phases/17-ux/17-CONTEXT.md`
+
+### Track PERF / MIG / ARQ-SEC
+
+- [ ] **Phase 18: Performance backend** — 18-01 drivers, OPcache, `moduleNameForRoute`, lazy loading, queries lentas; 18-02 N+1/no-sargables/índices dentro de cada 19-xx.
+  **Requirements:** PERF-01..12 · **Context:** `phases/18-perf/18-CONTEXT.md`
+- [ ] **Phase 19: Módulos — JS inline → TS** — receta única, 10 sesiones verticales (19-01 Urd/Eng … 19-10 Trazabilidad/Crudo/Ventas).
+  **Requirements:** MIG-<MOD>-* · **Context:** `phases/19-modulos/19-CONTEXT.md`
+- [ ] **Phase 20: Arquitectura y seguridad** — movimientos de services, folios, turnos, JSON 5xx central, AuthZ auditar → enforce, quitar `getMessage()`.
+  **Requirements:** ARQ-01..05, SEC-04..07 · **Context:** `phases/20-arq-sec/20-CONTEXT.md`
+
+### Track ADOP
+
+- [ ] **Phase 21: Adopción y limpieza** — retiro de legado con 0 hits, dependencias muertas, docs.
+  **Requirements:** ADOP-01..06 · **Context:** `phases/21-adopcion/21-CONTEXT.md`
+
+### Track PT — Programa Tejido (milestone previo, sin renumerar)
+
+**Orden aprobado 2026-09-24 (decisión D-E):** `01 → 01.1 → 02 → 04-perf (cortes 4–7) → 03 → 05 → 04-ux → 06 → 07`.
+PT **sí** migra a Livewire, **sin cambiar el diseño visual**; la migración (03/04) solo se da por buena si **mejora** TTFB, KB de HTML y tiempo de interacción contra `phases/04-ux-grid/04-PERF-MEDIDO.md`, con paridad visual (capturas lado a lado). La telemetría de PT-ROL-01 la aporta `SYSMonVista` (fase 11).
+
 - [ ] **Phase 1: Guardrails** — Congelar contratos, esquema, capacidades e invariantes antes de tocar código.
-- [ ] **Phase 2: Contexto + lectura** — Contener P0 y crear contexto/read seam sin cambiar mutaciones.
-- [ ] **Phase 3: Shell Livewire** — UI v2 canary en Livewire (reemplaza la decisión previa de Blade+Vite modules).
-- [ ] **Phase 4: UX/grid** — Tabla usable, paginada, accesible, una sola fuente de estado (Livewire).
-- [ ] **Phase 5: Mutaciones** — Extraer mutaciones en slices por caso de uso, incluye deduplicación PT-DUP-01..04.
-- [ ] **Phase 6: Límites operacionales** — Secuencia, grupos, balanceo e integraciones con gates propios.
-- [ ] **Phase 7: Adopción y limpieza** — Adopción, retiro legacy, limpieza de rutas/assets muertos.
+  **Requirements:** PT-CON-01, PT-CON-02, PT-DOM-01, PT-DOM-02, PT-ROL-01 · **Plan:** `phases/01-guardrails/01-guardrails-PLAN.md`
+  **Success:** suite de caracterización verde; command read-only de salud; decisión aprobada sobre las 6 columnas y 11 longitudes divergentes de Muestras (checkpoint 01.3 bloqueante).
+- [ ] **Phase 1.1: Autorización en servidor (Programa Tejido)** — `module.permission` en las ~10 rutas de escritura de Planeación que faltan. Carpeta `phases/01.1-autorizaci-n-en-servidor-programa-tejido/` (plan por escribir).
+- [ ] **Phase 2: Contexto + lectura** — read-seam (Request/ReadService/Resource) paginado y proyectado sin tocar mutaciones. **Plan:** `phases/02-containment-read/02-containment-read-PLAN.md`
+- [ ] **Phase 4-perf: cortes medidos** — cortes 4–7 de `04-PERF-MEDIDO.md` (1–3 ya aplicados). Independientes de Livewire.
+- [ ] **Phase 3: Shell Livewire** — UI v2 en Livewire con el **mismo diseño**, canary por `numero_empleado`, rollback inmediato. Patrón `Crudo/MachineDetail.php` (`#[Computed]`). **Plan:** `phases/03-frontend-shell/03-shell-livewire-PLAN.md`
+- [ ] **Phase 5: Mutaciones** — FormRequests + servicios por caso de uso; PT-DUP-01..04; N+1 de `store()`. **Plan:** `phases/05-mutations/05-mutations-PLAN.md`
+- [ ] **Phase 4-ux: UX/grid** — tabla accesible con estados explícitos, reorder con patrón `UrdEng/ProgramBoard.php`; **sin rediseño**. Plan por replanear (`.superseded` asumía Blade+Vite).
+- [ ] **Phase 6: Límites operacionales** — secuencia, grupos, balanceo, integraciones, cada uno su PR y gate. **Plan:** `phases/06-operational-boundaries/06-operational-boundaries-PLAN.md`
+- [ ] **Phase 7: Adopción y limpieza PT** — retiro de legacy con telemetría de cero uso. **Plan:** `phases/07-adoption-cleanup/07-adoption-cleanup-PLAN.md`
 
-## Phase Details
-
-### Phase 1: Guardrails
-**Goal**: Ningún refactor parte de "Programa y Muestras son iguales" sin evidencia. Rutas, schema, derivados, invariantes tienen tests automatizados y la decisión de capacidades Programa/Muestras está aprobada.
-**Depends on**: Nothing (first phase)
-**Requirements**: PT-CON-01, PT-CON-02, PT-DOM-01, PT-DOM-02, PT-ROL-01
-**Success Criteria**:
-  1. Suite de caracterización (rutas, schema, aislamiento, invariantes, fórmulas) pasa en verde.
-  2. Command read-only de salud reporta posición/EnProceso/líneas/grupos/CatCodificados.
-  3. Decisión aprobada sobre las 6 columnas y 11 longitudes divergentes de Muestras.
-**Plans**: 1 plan (ya escrito)
-
-Plans:
-- [ ] 01-guardrails: Snapshot de rutas, matriz física de schema, checkpoint de decisión Programa/Muestras, fixtures de aislamiento, caracterización de invariantes.
-
-### Phase 2: Contexto + lectura
-**Goal**: Existe un read-seam (Request/ReadService/Resource) paginado y proyectado sin tocar mutaciones legacy.
-**Depends on**: Phase 1
-**Requirements**: PT-CON-01, PT-READ-01
-**Success Criteria**:
-  1. Lectura v2 usa Request/ReadService/Resource con paginación real (no todo en memoria).
-  2. Mutaciones legacy siguen intactas — cero regresión funcional.
-**Plans**: 1 plan (ya escrito)
-
-Plans:
-- [ ] 02-containment-read: Contexto Programa/Muestras explícito + read seam.
-
-### Phase 3: Shell Livewire
-**Goal**: UI v2 en Livewire, activable por usuario con rollback inmediato a Blade legacy. Reemplaza la decisión original de "Blade delgado + módulos ES/Vite" (superada 2026-08-05).
-**Depends on**: Phase 2
-**Requirements**: PT-UI-01, PT-ROL-01
-**Success Criteria**:
-  1. Componente Livewire principal (patrón `Crudo/MachineDetail.php`: dataset grande como `#[Computed]`, no propiedad pública) reemplaza el fetch/store JS a mano.
-  2. Feature flag apagado = cero requests/assets v2 cargados.
-  3. Programa y Muestras abren sin monkey-patch ni reemplazo de texto en rutas.
-**Plans**: 1 plan (replaneado 2026-08-05 para Livewire, ver `.superseded` para contexto histórico)
-
-Plans:
-- [ ] 03-shell-livewire-PLAN.md — Shell `ProgramaTejidoBoard` (Livewire) + canary allowlist por `numero_empleado` + wrappers delgados Programa/Muestras con rollback inmediato.
-
-### Phase 4: UX/grid
-**Goal**: Tabla usable, paginada, accesible, con presets/filtros claros y una sola fuente de estado — en Livewire.
-**Depends on**: Phase 3
-**Requirements**: PT-UI-02, PT-PERF-01
-**Success Criteria**:
-  1. Tabla pagina server-side (aprovecha índices de PT-PERF-01), no carga todo el dataset al DOM.
-  2. Reorder/drag-drop de posición reusa el patrón `UrdEng/ProgramBoard.php` (SortableJS) en vez de inventar uno nuevo.
-  3. Estados loading/error/empty explícitos y accesibles (landmarks, foco, labels).
-**Plans**: TBD — replanear con `/gsd:plan-phase 4` (el plan anterior asumía Blade+Vite modules, ver `.superseded`)
-
-> ⚠️ El criterio de éxito 1 (paginar server-side) se midió y **no es el cuello de botella**:
-> son 85 filas / 7 820 celdas, y el 79 % del HTML se va en atributos repetidos y en las
-> 59 columnas que el usuario pesado oculta. Ver `04-PERF-MEDIDO.md` antes de planear.
-
-Plans:
-- [ ] 04-XX: TBD
-- [ ] 04-perf: cortes 1–3 de `04-PERF-MEDIDO.md` (selección en CSS, ocultas antes del paint, clases utilitarias). Independientes de Livewire.
-
-### Phase 5: Mutaciones
-**Goal**: Mutaciones extraídas verticalmente a FormRequests + servicios por caso de uso; deduplicación de backend resuelta.
-**Depends on**: Phase 4
-**Requirements**: PT-MUT-01, PT-DUP-01, PT-DUP-02, PT-DUP-03, PT-DUP-04, PT-PERF-02
-**Success Criteria**:
-  1. Cada mutación simple tiene FormRequest + servicio propio, sin lógica duplicada entre controladores.
-  2. Observer suppress/restore, cálculo de FechaFinal, chequeo "Ultimo" y scopes Salon/Telar usan una sola implementación cada uno.
-  3. N+1 confirmados (`store()`, `obtenerDatosVisualizacionPorFecha()`) eliminados.
-**Plans**: 1 plan existente (mutaciones) + ampliar con tareas de deduplicación
-
-Plans:
-- [ ] 05-mutations: Extracción de mutaciones simples a slices (plan ya escrito, ampliar con PT-DUP-*).
-
-### Phase 6: Límites operacionales
-**Goal**: Secuencia, grupos (OrdCompartida), balanceo e integraciones (Redbooth, imports) migrados como planes independientes con gates propios — muy alto riesgo, nunca en un solo PR.
-**Depends on**: Phase 5
-**Requirements**: PT-OPS-01, PT-DOM-01, PT-DOM-02
-**Success Criteria**:
-  1. Cada subfamilia (secuencia / grupos / balanceo / liberar-finalizar-imports-integraciones) es su propio PR y gate.
-  2. Invariantes de dominio (posición única, EnProceso único, OrdCompartida) verificadas antes/después de cada corte.
-**Plans**: 1 plan (ya escrito)
-
-Plans:
-- [ ] 06-operational-boundaries: Secuencia, grupos, balanceo, integraciones.
-
-### Phase 7: Adopción y limpieza
-**Goal**: Legacy se retira solo con telemetría de cero uso; sin fetch global parcheado ni estado duplicado en v2.
-**Depends on**: Phase 6
-**Requirements**: PT-ROL-01
-**Success Criteria**:
-  1. UI v2 estable durante el ciclo operativo acordado.
-  2. Retiro de legacy respaldado por evidencia de adopción, no por calendario.
-**Plans**: 1 plan (ya escrito)
-
-Plans:
-- [ ] 07-adoption-cleanup: Adopción, retiro legacy, limpieza.
+Gate PT (sin cambios): tests de contrato y dominio pasan; invariantes SQL se mantienen; build pasa; rollback del flag probado; Programa y Muestras evaluados explícitamente; sin tocar consumidores fuera del alcance; evidencia de UAT.
 
 ## Progress
 
-**Execution Order:**
-Fases ejecutan en orden numérico: 1 → 2 → 3 → 4 → 5 → 6 → 7
-
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Guardrails | 0/1 | Planned, ready to execute | - |
-| 2. Contexto + lectura | 0/1 | Planned | - |
-| 3. Shell Livewire | 0/1 | Planned | - |
-| 4. UX/grid | 0/TBD | Needs replanning (Livewire) | - |
-| 5. Mutaciones | 0/1 | Planned (ampliar con PT-DUP-*) | - |
-| 6. Límites operacionales | 0/1 | Planned | - |
-| 7. Adopción y limpieza | 0/1 | Planned | - |
-
-## Gate global para avanzar
-
-Una wave termina únicamente si: sus tests de contrato y dominio pasan; los invariantes SQL se mantienen; el build pasa cuando aplica; el rollback del flag fue probado; Programa y Muestras fueron evaluados explícitamente; no se tocaron consumidores fuera del alcance documentado; existe evidencia de UAT para la superficie afectada.
+| Phase | Track | Ola | Plans | Status | Completed |
+|---|---|---|---|---|---|
+| 10. Base | BASE | 0 | 0/1 | En ejecución (sesión `claude/10-base`) | - |
+| 11. Mon servidor | MON | 0 | 0/2 | En ejecución (sesión `claude/11-mon-servidor`) | - |
+| 12. Mon cliente | MON | 1 | 0/TBD | Context listo | - |
+| 13. Mon panel | MON | 1–2 | 0/TBD | Context listo | - |
+| 14. Mon Pulse | MON | 1 | 0/TBD | Context listo | - |
+| 15. FE fundación | FE | 1–2 | 0/2 | Context listo | - |
+| 16. Componentes | DS | 2 | 0/TBD | Context listo | - |
+| 17. UX | UX | 2–3 | 0/2 | Context listo | - |
+| 18. Perf | PERF | 2–3 | 0/2 | Context listo | - |
+| 19. Módulos TS | MIG | 3 | 0/10 | Context listo | - |
+| 20. Arq/Sec | ARQ/SEC | 2–3 | 0/3 | Context listo | - |
+| 21. Adopción | ADOP | 4 | 0/1 | Context listo | - |
+| PT 1. Guardrails | PT | 0 | 0/1 | En ejecución (sesión `claude/pt-01-guardrails`) | - |
+| PT 1.1 AuthZ | PT | 1 | 0/TBD | Por planear | - |
+| PT 2. Lectura | PT | 1 | 0/1 | Planned | - |
+| PT 4-perf | PT | 2 | 0/1 | Medido, cortes 4–7 pendientes | - |
+| PT 3. Shell Livewire | PT | 2 | 0/1 | Planned (mismo diseño) | - |
+| PT 5. Mutaciones | PT | 3 | 0/1 | Planned (ampliar con PT-DUP-*) | - |
+| PT 4-ux | PT | 3 | 0/TBD | Por replanear | - |
+| PT 6. Límites | PT | 3 | 0/1 | Planned | - |
+| PT 7. Adopción PT | PT | 4 | 0/1 | Planned | - |
