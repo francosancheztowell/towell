@@ -6,6 +6,7 @@ use App\Helpers\AuditoriaHelper;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 /**
@@ -17,6 +18,7 @@ use Tests\TestCase;
  *
  * El acceso a la pantalla se prueba aparte, en AuditoriaProgramaTejidoPantallaTest.
  */
+#[Group('sqlserver')]
 class AuditoriaProgramaTejidoTest extends TestCase
 {
     /** Prefijo de los registros desechables; el tearDown borra todo lo que empiece así. */

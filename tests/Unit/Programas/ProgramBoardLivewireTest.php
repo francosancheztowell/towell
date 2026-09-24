@@ -92,32 +92,37 @@ class ProgramBoardLivewireTest extends TestCase
             ->assertSet('interactionPaused', true);
     }
 
-    public function test_priority_dialog_saves_through_the_shared_service(): void
+    public function test_priority_dialog_saves_the_dragged_order_through_the_shared_service(): void
     {
+        // El dialogo ya no intercambia contra un destino (priorityTargetId): desde 434fee0
+        // se arrastra la lista completa y se guarda el orden resultante mas el salon.
         Livewire::test(TestableProgramBoard::class, ['module' => 'urdido'])
             ->call('selectOrder', 100)
             ->call('openPriority')
             ->assertSet('showPriority', true)
             ->assertSet('interactionPaused', true)
-            ->set('priorityTargetId', '101')
+            ->call('reorderPriorities', ['101', '100'])
             ->call('savePriority')
             ->assertHasNoErrors()
             ->assertSet('showPriority', false)
-            ->assertSet('interactionPaused', false);
+            ->assertSet('interactionPaused', false)
+            ->assertDispatched('program-board-updated');
 
-        $this->assertSame([100, 101], $this->actionService->swapped);
+        $this->assertSame([101, 100], $this->actionService->orderedIds);
+        $this->assertSame([101, 100], array_map(fn (array $row): int => (int) $row['id'], $this->actionService->salonRows ?? []));
+        $this->assertNull($this->actionService->swapped);
     }
 
-    public function test_priority_dialog_does_not_swap_without_a_target(): void
+    public function test_priority_dialog_does_not_save_without_rows(): void
     {
         Livewire::test(TestableProgramBoard::class, ['module' => 'urdido'])
             ->call('selectOrder', 100)
-            ->call('openPriority')
             ->call('savePriority')
-            ->assertHasErrors(['priorityTargetId' => 'required'])
-            ->assertSet('showPriority', true);
+            ->assertHasErrors(['priorityRows'])
+            ->assertSet('showPriority', false);
 
-        $this->assertNull($this->actionService->swapped);
+        $this->assertNull($this->actionService->orderedIds);
+        $this->assertNull($this->actionService->salonRows);
     }
 
     public function test_engomado_renders_without_the_pending_urdido_lock(): void
@@ -146,11 +151,14 @@ class FakeProgramBoardReadService extends ProgramBoardReadService
 {
     public function board(ProgramaModulo $module, string $search = '', string $status = 'todos'): array
     {
-        $order = $this->order($module, $module === ProgramaModulo::Urdido ? 100 : 200);
-        $lanes = collect($module->lanes())->map(function (array $lane) use ($order): array {
+        // Urdido lleva dos ordenes en el mismo salon para poder reordenar prioridades.
+        $orders = array_values(array_filter($module === ProgramaModulo::Urdido
+            ? [$this->order($module, 100), $this->order($module, 101)]
+            : [$this->order($module, 200)]));
+        $lanes = collect($module->lanes())->map(function (array $lane) use ($orders): array {
             return [
                 ...$lane,
-                'orders' => $lane['key'] === '1' && $order !== null ? [$order] : [],
+                'orders' => $lane['key'] === '1' ? $orders : [],
             ];
         })->all();
 
@@ -225,7 +233,23 @@ class FakeProgramBoardActionService extends ProgramBoardActionService
 
     public ?string $changedStatus = null;
 
+    /** @var list<int>|null */
+    public ?array $orderedIds = null;
+
+    /** @var array<int, array<string, mixed>>|null */
+    public ?array $salonRows = null;
+
     public function __construct() {}
+
+    public function saveOrderedPriorities(ProgramaModulo $module, array $orderedIds): void
+    {
+        $this->orderedIds = $orderedIds;
+    }
+
+    public function saveUrdidoSalons(ProgramaModulo $module, array $rows): void
+    {
+        $this->salonRows = $rows;
+    }
 
     public function swapPriorities(ProgramaModulo $module, int $sourceId, int $targetId): void
     {

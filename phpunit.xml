@@ -12,6 +12,13 @@
             <directory>tests/Feature</directory>
         </testsuite>
     </testsuites>
+    <!-- Grupo sqlserver: prueban triggers/pantallas que solo existen en SQL Server real.
+         En sqlite no ejercitan nada; se corren a mano en Laragon (tests/README-sqlserver.md). -->
+    <groups>
+        <exclude>
+            <group>sqlserver</group>
+        </exclude>
+    </groups>
     <source>
         <include>
             <directory>app</directory>
