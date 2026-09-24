@@ -2,6 +2,8 @@
 
 use App\Http\Middleware\AuthenticateRedboothApiKey;
 use App\Http\Middleware\EnsureModulePermission;
+use App\Http\Middleware\Monitoreo\AplicarCierreRemoto;
+use App\Http\Middleware\Monitoreo\IdentificarDispositivo;
 use App\Http\Middleware\NoCacheHtmlResponses;
 use App\Http\Middleware\ProgramaTejidoContext;
 use App\Http\Middleware\SetSqlContextInfo;
@@ -40,6 +42,9 @@ return Application::configure(basePath: dirname(__DIR__))
             SetSqlContextInfo::class,
             ProgramaTejidoContext::class,
             NoCacheHtmlResponses::class,
+            // Monitoreo (fase 11): identidad del dispositivo y cierre remoto por dispositivo.
+            IdentificarDispositivo::class,
+            AplicarCierreRemoto::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

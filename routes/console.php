@@ -23,3 +23,18 @@ foreach (['06:00', '14:00', '22:00'] as $hora) {
         ->withoutOverlapping(10)
         ->runInBackground();
 }
+
+// Monitoreo (fase 11): poda por retención (config monitoreo.retencion) y cierre
+// de sesiones de monitoreo sin actividad (config monitoreo.sesion_expira_min).
+Schedule::command('model:prune', ['--model' => [
+    App\Models\Sistema\Monitoreo\MonVista::class,
+    App\Models\Sistema\Monitoreo\MonErrorEvento::class,
+    App\Models\Sistema\Monitoreo\MonSesion::class,
+    App\Models\Sistema\Monitoreo\MonAcceso::class,
+    App\Models\Sistema\Monitoreo\MonError::class,
+]])->dailyAt('02:00')->withoutOverlapping(60)->runInBackground();
+
+Schedule::call(fn () => app(App\Services\Monitoreo\SesionService::class)->cerrarExpiradas())
+    ->name('monitoreo:cerrar-sesiones-expiradas')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping(10);

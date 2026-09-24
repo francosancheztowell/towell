@@ -23,4 +23,5 @@ Route::middleware(['auth'])->group(function () {
     require __DIR__ . '/modules/ventas.php';
     require __DIR__ . '/modules/telegram.php';
     require __DIR__ . '/modules/redbooth.php';
+    require __DIR__ . '/modules/admin.php';
 });
