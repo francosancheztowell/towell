@@ -32,6 +32,9 @@ class ProgramaTejidoSurfaceTest extends TestCase
             'ambigua: planeacion/muestrasx' => ['planeacion/muestrasx', ProgramaTejidoSurface::Programa],
             'ambigua: muestras-line fuera de planeacion' => ['muestras-line', ProgramaTejidoSurface::Programa],
             'desarrolladores-muestras' => ['desarrolladores-muestras', ProgramaTejidoSurface::Programa],
+            // Revisión de seguridad: el router decodifica antes de enrutar; la superficie también.
+            'codificada %6D' => ['planeacion/%6Duestras/1', ProgramaTejidoSurface::Muestras],
+            'codificada %61' => ['muestr%61s/telares-all', ProgramaTejidoSurface::Muestras],
         ];
     }
 

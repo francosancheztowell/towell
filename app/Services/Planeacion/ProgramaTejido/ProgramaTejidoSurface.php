@@ -28,7 +28,10 @@ enum ProgramaTejidoSurface: string
 
     public static function fromPath(string $path): self
     {
-        $path = trim($path, '/');
+        // Decodificado, como lo compara el router (UriValidator hace rawurldecode): si no,
+        // '/planeacion/%6Duestras/1' enruta a muestras.* (permiso de Muestras) pero caería en
+        // las tablas de Programa. Revisión de seguridad de PT-02.
+        $path = trim(rawurldecode($path), '/');
         foreach (self::PREFIJOS_MUESTRAS as $prefijo) {
             if ($path === $prefijo || str_starts_with($path, $prefijo.'/')) {
                 return self::Muestras;
@@ -40,7 +43,7 @@ enum ProgramaTejidoSurface: string
 
     public static function fromRequest(Request $request): self
     {
-        return self::fromPath($request->path());
+        return self::fromPath($request->decodedPath());
     }
 
     /**

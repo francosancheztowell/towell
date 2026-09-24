@@ -51,6 +51,10 @@ class ProgramaTejidoIsolationTest extends TestCase
             'prefijo ambiguo' => ['/muestrasx/cualquier-cosa', false],
             'prefijo ambiguo bajo planeacion' => ['/planeacion/muestrasx', false],
             'utileria nunca es muestras (finalizacion B)' => ['/planeacion/utileria/finalizar/ordenes', false],
+            // Revisión de seguridad PT-02: una letra codificada enruta a muestras.* y debe caer
+            // en las tablas de Muestras, no en las de Programa.
+            'muestras con letra codificada' => ['/planeacion/%6Duestras/1', true],
+            'catalogo muestras codificado' => ['/muestr%61s/telares-all', true],
             'desarrolladores-muestras NO cambia tabla' => ['/desarrolladores-muestras', false],
         ];
     }
