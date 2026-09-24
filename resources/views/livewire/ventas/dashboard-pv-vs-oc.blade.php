@@ -13,6 +13,16 @@
     @endif
 
     <div class="pvoc-content">
+        <div class="pvoc-anio-selector">
+            <label class="pvoc-select-label" for="pvoc-anio">Año
+                <select id="pvoc-anio" wire:model.live="anio">
+                    @foreach ($anios ?? [] as $anioOption)
+                        <option value="{{ $anioOption }}">{{ $anioOption }}</option>
+                    @endforeach
+                </select>
+            </label>
+        </div>
+
         <section class="pvoc-filters" aria-label="Filtros del dashboard">
             <button type="button" class="pvoc-filter-heading" data-pvoc-filter-toggle aria-expanded="true">
                 <i class="fa-solid fa-filter" aria-hidden="true"></i> Filtros

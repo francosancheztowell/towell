@@ -33,10 +33,10 @@
         fn ($linea) => trim((string) ($linea->NomOperador ?? '')) !== ''
     )?->NomOperador) ?: '—';
 @endphp
-<div class="w-full p-3 sm:p-4 lg:p-5">
-    <div class="mx-auto max-w-7xl space-y-3 lg:max-w-[100rem] lg:space-y-4">
+<div class="w-full p-3 sm:p-4 lg:p-5 short:p-2">
+    <div class="mx-auto max-w-7xl space-y-3 lg:max-w-[100rem] lg:space-y-4 short:space-y-2">
         {{-- Resumen de la orden --}}
-        <section class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
+        <section class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:p-4 short:px-3 short:py-2">
             <div class="flex flex-col gap-2">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <div class="flex flex-wrap items-center gap-2">
@@ -77,34 +77,34 @@
                     </div>
                 </div>
 
-                <dl class="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-gray-100 pt-2 sm:grid-cols-4 lg:grid-cols-7">
+                <dl class="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-gray-100 pt-2 sm:grid-cols-4 lg:grid-cols-7 min-[56.25rem]:grid-cols-7 short:gap-y-1">
                     <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Fecha</dt>
-                        <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ optional($orden->Fecha)->format('d/m/Y') ?? '—' }}</dd>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm short:text-xs">Fecha</dt>
+                        <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg short:text-base">{{ optional($orden->Fecha)->format('d/m/Y') ?? '—' }}</dd>
                     </div>
                     <div class="min-w-0">
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Mecánico</dt>
-                        <dd class="mt-0.5 truncate text-base font-bold text-gray-900 sm:text-lg" title="{{ $nombrePrimerMecanico }}">{{ $nombrePrimerMecanico }}</dd>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm short:text-xs">Mecánico</dt>
+                        <dd class="mt-0.5 truncate text-base font-bold text-gray-900 sm:text-lg short:text-base" title="{{ $nombrePrimerMecanico }}">{{ $nombrePrimerMecanico }}</dd>
                     </div>
                     <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Turno</dt>
-                        <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ $orden->Turno ?: '—' }}</dd>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm short:text-xs">Turno</dt>
+                        <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg short:text-base">{{ $orden->Turno ?: '—' }}</dd>
                     </div>
                     <div class="min-w-0">
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Folio de paro</dt>
-                        <dd class="mt-0.5 break-words text-base font-bold text-gray-900 sm:text-lg">{{ $orden->FolioParo ?: 'Sin folio de paro' }}</dd>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm short:text-xs">Folio de paro</dt>
+                        <dd class="mt-0.5 break-words text-base font-bold text-gray-900 sm:text-lg short:text-base">{{ $orden->FolioParo ?: 'Sin folio de paro' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Telar</dt>
-                        <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ $orden->TelarId ?: '—' }}</dd>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm short:text-xs">Telar</dt>
+                        <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg short:text-base">{{ $orden->TelarId ?: '—' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Orden</dt>
-                        <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg">{{ $orden->Orden ?: '—' }}</dd>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm short:text-xs">Orden</dt>
+                        <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg short:text-base">{{ $orden->Orden ?: '—' }}</dd>
                     </div>
                     <div class="min-w-0">
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm">Falla</dt>
-                        <dd class="mt-0.5 line-clamp-2 text-base font-bold text-gray-900 sm:text-lg" title="{{ $fallaTexto }}">{{ $fallaTexto }}</dd>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm short:text-xs">Falla</dt>
+                        <dd class="mt-0.5 line-clamp-2 text-base font-bold text-gray-900 sm:text-lg short:text-base" title="{{ $fallaTexto }}">{{ $fallaTexto }}</dd>
                     </div>
                 </dl>
             </div>
@@ -112,13 +112,13 @@
 
         @if (! $bloqueadaEdicion && ! ($modoTejedor ?? false) && ($puedeEditar || $puedeCrear))
         {{-- Formulario de captura (mecánico / supervisor) --}}
-        <section id="seccion-captura" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
-            <form id="form-linea" class="space-y-3">
+        <section id="seccion-captura" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm short:p-2">
+            <form id="form-linea" class="space-y-3 short:space-y-2">
                 <input id="linea-id" type="hidden">
 
-                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-12 lg:gap-3">
-                    <div class="lg:col-span-6">
-                        <label for="linea-operador" class="mb-1 block text-sm font-medium text-gray-700">Mecánico <span class="font-normal text-gray-500">(capturando)</span></label>
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-12 lg:gap-3 min-[56.25rem]:grid-cols-12 min-[56.25rem]:gap-3">
+                    <div class="lg:col-span-6 min-[56.25rem]:col-span-6">
+                        <label for="linea-operador" class="mb-1 block text-sm font-medium text-gray-700 short:mb-0.5">Mecánico <span class="font-normal text-gray-500">(capturando)</span></label>
                         <select id="linea-operador" name="CveOperador"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                             <option value="">Seleccione</option>
@@ -129,8 +129,8 @@
                         {{-- El nombre viaja junto con la clave: el select ya muestra ambos. --}}
                         <input id="linea-nom-operador" name="NomOperador" type="hidden" maxlength="150">
                     </div>
-                    <div class="lg:col-span-3">
-                        <label for="linea-turno" class="mb-1 block text-sm font-medium text-gray-700">Turno <span class="font-normal text-gray-500">(registro)</span></label>
+                    <div class="lg:col-span-3 min-[56.25rem]:col-span-3">
+                        <label for="linea-turno" class="mb-1 block text-sm font-medium text-gray-700 short:mb-0.5">Turno <span class="font-normal text-gray-500">(registro)</span></label>
                         <select id="linea-turno" name="Turno"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                             @foreach ([1, 2, 3, 4] as $turno)
@@ -138,8 +138,8 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="lg:col-span-3">
-                        <label for="linea-fecha" class="mb-1 block text-sm font-medium text-gray-700">Fecha <span class="font-normal text-gray-500">(registro)</span></label>
+                    <div class="lg:col-span-3 min-[56.25rem]:col-span-3">
+                        <label for="linea-fecha" class="mb-1 block text-sm font-medium text-gray-700 short:mb-0.5">Fecha <span class="font-normal text-gray-500">(registro)</span></label>
                         <input id="linea-fecha" name="Fecha" type="date" value="{{ $fechaSugerida }}"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                     </div>
@@ -156,24 +156,24 @@
                     </div>
                 </fieldset>
 
-                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-12 lg:gap-3">
-                    <div class="lg:col-span-2">
-                        <label for="linea-hora-inicial" class="mb-1 block text-sm font-medium text-gray-700">Hora inicial</label>
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-12 lg:gap-3 min-[56.25rem]:grid-cols-12 min-[56.25rem]:gap-3">
+                    <div class="lg:col-span-2 min-[56.25rem]:col-span-2">
+                        <label for="linea-hora-inicial" class="mb-1 block text-sm font-medium text-gray-700 short:mb-0.5">Hora inicial</label>
                         <input id="linea-hora-inicial" name="HoraInicial" type="time"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                     </div>
-                    <div class="lg:col-span-2">
-                        <label for="linea-hora-final" class="mb-1 block text-sm font-medium text-gray-700">Hora final</label>
+                    <div class="lg:col-span-2 min-[56.25rem]:col-span-2">
+                        <label for="linea-hora-final" class="mb-1 block text-sm font-medium text-gray-700 short:mb-0.5">Hora final</label>
                         <input id="linea-hora-final" name="HoraFinal" type="time"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                     </div>
-                    <div class="lg:col-span-2">
-                        <label for="linea-total-minutos" class="mb-1 block text-sm font-medium text-gray-700">Tiempo total</label>
+                    <div class="lg:col-span-2 min-[56.25rem]:col-span-2">
+                        <label for="linea-total-minutos" class="mb-1 block text-sm font-medium text-gray-700 short:mb-0.5">Tiempo total</label>
                         <input id="linea-total-minutos" type="text" readonly placeholder="—"
                             class="min-h-11 w-full cursor-not-allowed rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-base text-gray-600">
                     </div>
-                    <div class="sm:col-span-2 lg:col-span-6">
-                        <label for="linea-comentarios" class="mb-1 block text-sm font-medium text-gray-700">Comentarios</label>
+                    <div class="sm:col-span-2 lg:col-span-6 min-[56.25rem]:col-span-6">
+                        <label for="linea-comentarios" class="mb-1 block text-sm font-medium text-gray-700 short:mb-0.5">Comentarios</label>
                         <textarea id="linea-comentarios" name="comentarios" rows="2" maxlength="500"
                             placeholder="Detalle de la intervención, refacciones pendientes, observaciones para el siguiente turno…"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"></textarea>
@@ -203,10 +203,10 @@
                             <th class="truncate px-0.5 py-1 text-center sm:px-1 md:px-1.5 md:py-1.5"><span class="lg:hidden">Fin</span><span class="hidden lg:inline">H. final</span></th>
                             <th class="truncate px-0.5 py-1 text-center sm:px-1 md:px-1.5 md:py-1.5">Min</th>
                             <th class="truncate px-0.5 py-1 text-left sm:px-1 md:px-1.5 md:py-1.5">Comentarios</th>
-                            <th class="px-0.5 py-1 text-center sm:px-1 md:py-1.5"><span class="lg:hidden">Cal</span><span class="hidden lg:inline">Calif.</span></th>
+                            <th class="px-0.5 py-1 text-center sm:px-1 md:py-1.5 min-[56.25rem]:max-lg:w-20"><span class="lg:hidden">Cal</span><span class="hidden lg:inline">Calif.</span></th>
                             <th class="hidden truncate px-0.5 py-1 text-left md:table-cell md:px-1.5 md:py-1.5">Cve.tej</th>
                             <th class="truncate px-0.5 py-1 text-left sm:px-1 md:px-1.5 md:py-1.5">Tejedor</th>
-                            <th class="sticky right-0 truncate bg-gray-50 px-0.5 py-1 text-right sm:px-1 md:px-1.5 md:py-1.5">Acciones</th>
+                            <th class="sticky right-0 truncate bg-gray-50 px-0.5 py-1 text-right sm:px-1 md:px-1.5 md:py-1.5 min-[56.25rem]:max-lg:w-32">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="lineas-body" class="divide-y divide-gray-100 bg-white"></tbody>

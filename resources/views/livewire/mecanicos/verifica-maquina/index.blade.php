@@ -19,29 +19,29 @@
             tabindex="0"
             aria-label="Tabla de verificaciones de máquina"
         >
-            <table class="w-full min-w-[1100px] divide-y divide-gray-200 text-sm">
+            <table class="w-full min-w-[1100px] short:min-w-[960px] divide-y divide-gray-200 text-sm">
                 <thead class="sticky top-0 z-10 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600 shadow-sm">
                     <tr>
-                        <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Folio</th>
-                        <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Status</th>
-                        <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Fecha y Hr</th>
-                        <th class="whitespace-nowrap bg-gray-50 px-5 py-4 text-center">Turno</th>
-                        <th class="whitespace-nowrap bg-gray-50 px-5 py-4">Clave</th>
-                        <th class="min-w-52 bg-gray-50 px-5 py-4">Nombre</th>
-                        <th class="whitespace-nowrap bg-gray-50 px-5 py-4 text-center">Hr Inicio</th>
-                        <th class="whitespace-nowrap bg-gray-50 px-5 py-4 text-center">Hr Fin</th>
-                        <th class="whitespace-nowrap bg-gray-50 px-5 py-4 text-right">Acciones</th>
+                        <th class="whitespace-nowrap bg-gray-50 px-5 py-4 short:px-3 short:py-2">Folio</th>
+                        <th class="whitespace-nowrap bg-gray-50 px-5 py-4 short:px-3 short:py-2">Status</th>
+                        <th class="whitespace-nowrap bg-gray-50 px-5 py-4 short:px-3 short:py-2">Fecha y Hr</th>
+                        <th class="whitespace-nowrap bg-gray-50 px-5 py-4 short:px-3 short:py-2 text-center">Turno</th>
+                        <th class="whitespace-nowrap bg-gray-50 px-5 py-4 short:px-3 short:py-2">Clave</th>
+                        <th class="min-w-52 bg-gray-50 px-5 py-4 short:px-3 short:py-2">Nombre</th>
+                        <th class="whitespace-nowrap bg-gray-50 px-5 py-4 short:px-3 short:py-2 text-center">Hr Inicio</th>
+                        <th class="whitespace-nowrap bg-gray-50 px-5 py-4 short:px-3 short:py-2 text-center">Hr Fin</th>
+                        <th class="whitespace-nowrap bg-gray-50 px-5 py-4 short:px-3 short:py-2 text-right">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 bg-white">
                     @forelse ($verificaciones as $verificacion)
                         <tr class="transition hover:bg-gray-50">
-                            <td class="whitespace-nowrap px-5 py-4">
+                            <td class="whitespace-nowrap px-5 py-4 short:px-3 short:py-2">
                                 <span class="inline-flex items-center rounded-md bg-gray-900 px-2.5 py-1 text-sm font-bold text-white">
                                     {{ $verificacion->Folio }}
                                 </span>
                             </td>
-                            <td class="whitespace-nowrap px-5 py-4">
+                            <td class="whitespace-nowrap px-5 py-4 short:px-3 short:py-2">
                                 @php $estatusFila = $verificacion->Estatus ?: 'Activo'; @endphp
                                 <span @class([
                                     'inline-flex rounded-full px-3 py-1.5 text-xs font-bold',
@@ -51,26 +51,26 @@
                                     'bg-gray-100 text-gray-700' => ! in_array($estatusFila, ['Activo', 'Terminado', 'Autorizado'], true),
                                 ])>{{ $estatusFila === 'Terminado' ? 'Finalizado' : $estatusFila }}</span>
                             </td>
-                            <td class="whitespace-nowrap px-5 py-4 text-gray-700">
+                            <td class="whitespace-nowrap px-5 py-4 short:px-3 short:py-2 text-gray-700">
                                 <div class="font-semibold text-gray-900">{{ optional($verificacion->Fecha)->format('d/m/Y') ?? '—' }}</div>
                                 @if ($verificacion->HoraInicio)
                                     <div class="text-xs text-gray-500">{{ \Illuminate\Support\Str::of((string) $verificacion->HoraInicio)->substr(0, 5) }}</div>
                                 @endif
                             </td>
-                            <td class="px-5 py-4 text-center">
+                            <td class="px-5 py-4 short:px-3 short:py-2 text-center">
                                 <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm font-bold text-gray-700">
                                     {{ $verificacion->TurnoRecibe ?: '—' }}
                                 </span>
                             </td>
-                            <td class="whitespace-nowrap px-5 py-4 text-gray-700">{{ $verificacion->CveOperador ?: '—' }}</td>
-                            <td class="px-5 py-4 font-semibold text-gray-900">{{ $verificacion->NomOperador ?: '—' }}</td>
-                            <td class="whitespace-nowrap px-5 py-4 text-center text-gray-700">
+                            <td class="whitespace-nowrap px-5 py-4 short:px-3 short:py-2 text-gray-700">{{ $verificacion->CveOperador ?: '—' }}</td>
+                            <td class="px-5 py-4 short:px-3 short:py-2 font-semibold text-gray-900">{{ $verificacion->NomOperador ?: '—' }}</td>
+                            <td class="whitespace-nowrap px-5 py-4 short:px-3 short:py-2 text-center text-gray-700">
                                 {{ $verificacion->HoraInicio ? \Illuminate\Support\Str::of((string) $verificacion->HoraInicio)->substr(0, 5) : '—' }}
                             </td>
-                            <td class="whitespace-nowrap px-5 py-4 text-center text-gray-700">
+                            <td class="whitespace-nowrap px-5 py-4 short:px-3 short:py-2 text-center text-gray-700">
                                 {{ $verificacion->HoraFin ? \Illuminate\Support\Str::of((string) $verificacion->HoraFin)->substr(0, 5) : '—' }}
                             </td>
-                            <td class="whitespace-nowrap px-5 py-4 text-right">
+                            <td class="whitespace-nowrap px-5 py-4 short:px-3 short:py-2 text-right">
                                 <div class="flex items-center justify-end gap-2">
                                     <a href="{{ route('mecanicos.estado-maquina.show', ['folio' => $verificacion->Folio, 'modo' => 'ver']) }}" wire:navigate
                                         class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-100"
@@ -89,7 +89,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="px-5 py-12 text-center text-sm text-gray-500">No hay verificaciones con los filtros seleccionados.</td>
+                            <td colspan="9" class="px-5 py-12 short:py-6 text-center text-sm text-gray-500">No hay verificaciones con los filtros seleccionados.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -97,7 +97,7 @@
         </div>
 
         @if ($verificaciones->hasPages())
-            <div class="shrink-0 border-t border-gray-100 px-4 py-3">
+            <div class="shrink-0 border-t border-gray-100 px-4 py-3 short:py-1.5">
                 {{ $verificaciones->links() }}
             </div>
         @endif
@@ -114,13 +114,13 @@
         @keydown.escape.window="if (filtrosOpen) cerrarFiltros()"
         @click.self="cerrarFiltros()"
     >
-        <div class="w-full max-w-md rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl" @click.stop>
-            <div class="flex items-center justify-between border-b border-gray-200 px-4 py-4 sm:px-5">
+        <div class="w-full max-w-md rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl short:max-h-[calc(100dvh-1rem)] short:overflow-y-auto" @click.stop>
+            <div class="flex items-center justify-between border-b border-gray-200 px-4 py-4 sm:px-5 short:py-2">
                 <h2 id="titulo-modal-filtros-verifica" class="text-lg font-bold text-gray-900">Filtrar por estatus</h2>
                 <button type="button" @click="cerrarFiltros()" class="flex h-10 w-10 items-center justify-center rounded-full text-2xl leading-none text-gray-500 transition hover:bg-gray-100 hover:text-gray-900" aria-label="Cerrar">&times;</button>
             </div>
 
-            <div class="grid grid-cols-2 gap-3 p-4 sm:p-5">
+            <div class="grid grid-cols-2 gap-3 p-4 sm:p-5 short:gap-2 short:p-3">
                 <button
                     type="button"
                     wire:click="filtrarEstatus('')"
@@ -184,14 +184,14 @@
         @keydown.escape.window="if (open) cerrar()"
         @click.self="cerrar()"
     >
-        <div class="w-full max-w-md rounded-lg bg-white shadow-2xl" @click.stop>
-            <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3 sm:px-5 sm:py-4">
+        <div class="w-full max-w-md rounded-lg bg-white shadow-2xl short:max-h-[calc(100dvh-1rem)] short:overflow-y-auto" @click.stop>
+            <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3 sm:px-5 sm:py-4 short:py-2">
                 <h2 id="titulo-modal-verifica-maquina" class="text-lg font-bold text-gray-900">Nueva verificación</h2>
                 <button type="button" @click="cerrar()" class="rounded p-1 text-xl leading-none text-gray-500 transition hover:bg-gray-100 hover:text-gray-900" aria-label="Cerrar">&times;</button>
             </div>
 
-            <form wire:submit="crear" class="p-4 sm:p-5">
-                <dl class="mb-4 grid grid-cols-2 gap-3 rounded-md border border-gray-100 bg-gray-50 p-3 text-sm">
+            <form wire:submit="crear" class="p-4 sm:p-5 short:p-3">
+                <dl class="mb-4 grid grid-cols-2 gap-3 rounded-md border border-gray-100 bg-gray-50 p-3 text-sm short:mb-2 short:gap-2 short:p-2">
                     <div>
                         <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Fecha</dt>
                         <dd class="mt-1 font-semibold text-gray-900">{{ now('America/Mexico_City')->format('d/m/Y') }}</dd>
@@ -219,7 +219,7 @@
                     <p class="mt-1 text-xs text-red-600" x-init="open = true">{{ $message }}</p>
                 @enderror
 
-                <div class="mt-6 flex flex-col-reverse gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">
+                <div class="mt-6 flex flex-col-reverse gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end short:mt-3 short:pt-3">
                     <button type="button" @click="cerrar()" class="w-full rounded-md border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto">Cancelar</button>
                     <button type="submit" wire:loading.attr="disabled" wire:target="crear"
                         class="w-full rounded-md bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">

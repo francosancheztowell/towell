@@ -15,20 +15,122 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (character
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;',
 }[character]));
 
-document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach((root) => {
-    let payload;
+/**
+ * PvVsOcPayloadBuilder devuelve 'GZ:' + base64(gzip(json)). El navegador ya
+ * trae DecompressionStream nativo, así que no hace falta ninguna librería.
+ */
+const inflateGzipBase64 = async (base64) => {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    const buffer = await new Response(stream).arrayBuffer();
+    return new TextDecoder('utf-8').decode(buffer);
+};
+
+/** raw puede ser el objeto plano de siempre (mock) o el string comprimido del builder real. */
+const decodePayload = async (raw) => {
+    if (typeof raw !== 'string' || !raw.startsWith('GZ:')) return raw;
+    const json = await inflateGzipBase64(raw.slice(3));
+    return JSON.parse(json);
+};
+
+/** TOWEL/TEXTIL → Towel/Textil. Solo para mostrar, no cambia el valor de filtrado. */
+const normalizeEmpresa = (value) => {
+    const text = String(value ?? '');
+    return text.length ? text.charAt(0) + text.slice(1).toLowerCase() : text;
+};
+
+const decodeCompactRow = (row, dict, sf, nf) => {
+    const record = {};
+    sf.forEach((name, index) => { record[name] = dict[row[index]]; });
+    nf.forEach((name, index) => { record[name] = row[sf.length + index]; });
+    return record;
+};
+
+const DIMENSION_FIELDS = ['empresa', 'tipo', 'cve', 'nombreCte', 'artCode', 'artName', 'config', 'tamano', 'colorCode', 'colorName', 'anio', 'mes', 'semana'];
+const dimensionKey = (row) => DIMENSION_FIELDS.map((field) => row[field]).join('␟');
+const emptyMetrics = () => ({ piezas: 0, kilos: 0, vn: 0 });
+const addMetrics = (target, row) => {
+    target.piezas += row.piezas || 0;
+    target.kilos += row.kilos || 0;
+    target.vn += row.vn || 0;
+};
+
+/** OC trae status por línea; al combinar varias líneas en un mismo combo, gana el peor estatus. */
+const ESTADO_PRIORIDAD = { Pendiente: 3, Parcial: 2, Entregado: 1 };
+
+/**
+ * plan/oc/real llegan como líneas de factura/pedido/pronóstico sueltas, sin cruzar entre sí.
+ * Acá se agrupan por la combinación de dimensiones (empresa, tipo, cliente, artículo, color,
+ * tamaño, año/mes/semana) y se arma un registro "ancho" por combo, igual al shape que ya
+ * entienden buildTree()/sum() más abajo.
+ */
+const expandCompactPayload = (payload) => {
+    const { sf, nf, dict, plan = [], oc = [], real = [] } = payload;
+    const combos = new Map();
+
+    const merge = (rows, series) => {
+        rows.forEach((raw) => {
+            const row = decodeCompactRow(raw, dict, sf, nf);
+            const key = dimensionKey(row);
+            let combo = combos.get(key);
+            if (!combo) {
+                combo = {
+                    anio: row.anio, mes: row.mes, semana: row.semana,
+                    empresa: normalizeEmpresa(row.empresa), tipo: row.tipo,
+                    clienteCodigo: row.cve, cliente: row.nombreCte,
+                    articuloCodigo: row.artCode, articulo: row.artName,
+                    linea: row.config, tamano: row.tamano, color: row.colorName,
+                    estatus: '',
+                    plan: emptyMetrics(), pedido: emptyMetrics(), real: emptyMetrics(),
+                };
+                combos.set(key, combo);
+            }
+            addMetrics(combo[series], row);
+            if (series === 'pedido' && row.status) {
+                const actual = ESTADO_PRIORIDAD[combo.estatus] || 0;
+                const nuevo = ESTADO_PRIORIDAD[row.status] || 0;
+                if (nuevo > actual) combo.estatus = row.status;
+            }
+        });
+    };
+
+    merge(plan, 'plan');
+    merge(oc, 'pedido');
+    merge(real, 'real');
+
+    return [...combos.values()];
+};
+
+document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) => {
+    let raw;
     try {
-        payload = JSON.parse(root.dataset.dashboard || '{}');
+        raw = JSON.parse(root.dataset.dashboard || 'null');
     } catch {
         return;
     }
+
+    let payload;
+    try {
+        payload = await decodePayload(raw);
+    } catch (error) {
+        console.error('No se pudo decodificar el payload del dashboard de Ventas.', error);
+        return;
+    }
+
+    // Sin payload (p.ej. error del servidor): el componente Livewire ya muestra su propio aviso.
+    if (!payload) return;
+
+    const records = Array.isArray(payload.records)
+        ? payload.records
+        : (Array.isArray(payload.sf) ? expandCompactPayload(payload) : []);
 
     const state = {
         activeTab: 'summary', comparison: 'plan-pedido', grouping: 'origin',
         filters: Object.fromEntries(FILTERS.map(([key]) => [key, ''])),
         expanded: { summary: new Set(), history: new Set() },
     };
-    const records = Array.isArray(payload.records) ? payload.records : [];
     const elements = {
         filters: root.querySelector('[data-pvoc-filters]'),
         toast: root.querySelector('[data-pvoc-toast]'),

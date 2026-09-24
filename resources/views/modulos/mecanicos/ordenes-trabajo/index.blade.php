@@ -26,9 +26,9 @@
 
 @section('content')
 @php
-    $th = 'group/th relative border border-gray-300 bg-gray-100 px-0.5 py-1 text-center font-semibold text-gray-700 sm:px-1 sm:py-1.5 md:px-1.5 md:py-2 lg:px-2';
+    $th = 'group/th relative border border-gray-300 bg-gray-100 px-0.5 py-1 text-center font-semibold text-gray-700 sm:px-1 sm:py-1.5 md:px-1.5 md:py-2 lg:px-2 short:py-1';
 @endphp
-<div class="flex h-[calc(100vh-64px)] w-full flex-col overflow-hidden p-1 sm:p-2 md:p-3">
+<div class="flex h-[calc(100vh-64px)] w-full flex-col overflow-hidden p-1 sm:p-2 md:p-3 short:h-[calc(100dvh-64px)] short:p-1.5">
     <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
         <div
             class="min-h-0 flex-1 overflow-auto overscroll-contain select-text"
@@ -74,12 +74,12 @@
     </section>
 </div>
 
-<div id="panel-filtros" class="fixed right-2 z-40 mt-1 hidden w-[min(calc(100%-1rem),24rem)] rounded-lg border border-gray-200 bg-white p-3 shadow-xl sm:right-4 sm:p-4" style="top: 64px;" role="dialog" aria-labelledby="titulo-panel-filtros">
-    <div class="mb-3 flex items-center justify-between">
+<div id="panel-filtros" class="fixed right-2 z-40 mt-1 hidden w-[min(calc(100%-1rem),24rem)] rounded-lg border border-gray-200 bg-white p-3 shadow-xl sm:right-4 sm:p-4 short:max-h-[calc(100dvh-72px)] short:overflow-y-auto short:overscroll-contain short:p-3" style="top: 64px;" role="dialog" aria-labelledby="titulo-panel-filtros">
+    <div class="mb-3 flex items-center justify-between short:mb-2">
         <h2 id="titulo-panel-filtros" class="text-sm font-bold text-gray-900 sm:text-base">Filtrar órdenes</h2>
         <button type="button" id="btn-cerrar-filtros" class="flex h-8 w-8 items-center justify-center rounded-full text-xl leading-none text-gray-500 hover:bg-gray-100" aria-label="Cerrar">&times;</button>
     </div>
-    <div class="space-y-3">
+    <div class="space-y-3 short:space-y-2">
         <div>
             <label for="filtro-buscar" class="mb-1 block text-xs font-medium text-gray-700">Buscar</label>
             <input id="filtro-buscar" type="search" maxlength="100" placeholder="Folio, telar, paro, falla, orden o mecánico…"
@@ -89,7 +89,7 @@
             <label for="filtro-fecha" class="mb-1 block text-xs font-medium text-gray-700">Fecha</label>
             <input id="filtro-fecha" type="date"
                 class="min-h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
-            <p class="mt-1 text-xs text-gray-500">Vacío = todos los registros.</p>
+            <p class="mt-1 text-xs text-gray-500 short:hidden">Vacío = todos los registros.</p>
         </div>
         <div>
             <p class="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">Estatus</p>
@@ -124,9 +124,9 @@
     </div>
 </div>
 
-<div id="modal-cabecera" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-2 sm:p-4 md:p-6" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-cabecera">
-    <div class="flex max-h-[calc(100vh-1rem)] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl sm:max-h-[calc(100vh-2rem)] md:max-w-4xl">
-        <div class="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3 sm:px-5 sm:py-4">
+<div id="modal-cabecera" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-2 sm:p-4 md:p-6 short:p-2" role="dialog" aria-modal="true" aria-labelledby="titulo-modal-cabecera">
+    <div class="flex max-h-[calc(100vh-1rem)] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl sm:max-h-[calc(100vh-2rem)] md:max-w-4xl short:max-h-[calc(100dvh-1rem)]">
+        <div class="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3 sm:px-5 sm:py-4 short:py-2">
             <div>
                 <h2 id="titulo-modal-cabecera" class="text-lg font-bold text-gray-900">Nueva orden de trabajo</h2>
                 <p id="subtitulo-modal-cabecera" class="mt-0.5 text-xs text-gray-500">El folio se asigna al guardar.</p>
@@ -134,9 +134,9 @@
             <button type="button" data-close-modal="modal-cabecera" class="rounded p-1 text-xl leading-none text-gray-500 transition hover:bg-gray-100 hover:text-gray-900" aria-label="Cerrar">&times;</button>
         </div>
 
-        <form id="form-cabecera" class="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5">
-            <div id="bloque-seleccion-paro" class="mb-4 rounded-md border border-blue-100 bg-blue-50 p-3">
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <form id="form-cabecera" class="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 short:px-4 short:py-3">
+            <div id="bloque-seleccion-paro" class="mb-4 rounded-md border border-blue-100 bg-blue-50 p-3 short:mb-3 short:p-2">
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 short:gap-2">
                     <div>
                         <label for="select-telar-paro" class="mb-1 block text-xs font-semibold text-blue-900">Máquina <span class="font-normal">(opcional)</span></label>
                         <select id="select-telar-paro"
@@ -152,7 +152,7 @@
                         </select>
                     </div>
                 </div>
-                <label class="mt-3 flex items-center gap-2 text-sm font-medium text-blue-900">
+                <label class="mt-3 flex items-center gap-2 text-sm font-medium text-blue-900 short:mt-2">
                     <input id="check-captura-manual" name="CapturaManual" type="checkbox" value="1" disabled
                         class="size-4 rounded border-blue-300 text-blue-600 focus:ring-blue-600">
                     Captura manual
@@ -163,7 +163,7 @@
             <input id="cabecera-folio" type="hidden">
             <input id="cabecera-folio-paro-valor" name="FolioParo" type="hidden">
 
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 short:gap-x-4 short:gap-y-2">
                 <div>
                     <label for="cabecera-telar" class="mb-1 block text-xs font-medium text-gray-700">Máquina <span class="text-red-600">*</span></label>
                     <input id="cabecera-telar" name="TelarId" maxlength="50" required placeholder="Ej. 201"
@@ -213,7 +213,7 @@
                 </div>
             </div>
 
-            <div class="sticky bottom-0 -mx-4 mt-6 flex justify-end border-t border-gray-200 bg-white px-4 pt-4 sm:-mx-5 sm:px-5">
+            <div class="sticky bottom-0 -mx-4 mt-6 flex justify-end border-t border-gray-200 bg-white px-4 pt-4 sm:-mx-5 sm:px-5 short:-mx-4 short:mt-3 short:px-4 short:pt-2">
                 <button id="btn-guardar-cabecera" type="submit" class="w-full rounded-md bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-black sm:w-auto">
                     Guardar orden
                 </button>
@@ -251,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
         filtros: { estatus: '', fecha: '', buscar: '', folio: '', telar: '', folio_paro: '', orden: '', falla: '', turno: '', mecanico: '' },
         columnaMenu: null,
     };
-    const cell = 'truncate border border-gray-200 px-0.5 py-1 text-center sm:px-1 sm:py-1.5 md:px-1.5 md:py-2 lg:px-2';
+    const cell = 'truncate border border-gray-200 px-0.5 py-1 text-center sm:px-1 sm:py-1.5 md:px-1.5 md:py-2 lg:px-2 short:py-1';
 
     const $ = (selector) => document.querySelector(selector);
     const ordenesBody = $('#ordenes-body');
@@ -447,7 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const estatus = orden.Estatus || 'Activo';
             const folioCerrado = ['Terminado', 'Calificado', 'Autorizado', 'Cancelado'].includes(estatus);
             let accionPrincipal = '';
-            const btnBase = 'inline-flex min-h-9 min-w-20 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold sm:min-h-10 sm:min-w-24 sm:px-3 sm:py-2 sm:text-sm md:min-h-11 md:px-4';
+            const btnBase = 'inline-flex min-h-9 min-w-20 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold sm:min-h-10 sm:min-w-24 sm:px-3 sm:py-2 sm:text-sm md:min-h-11 md:px-4 md:max-lg:px-3 short:min-h-10 short:py-1';
             if (modoTejedor) {
                 accionPrincipal = estatus === 'Terminado'
                     ? `<a href="${capturaUrl}" class="${btnBase} bg-indigo-600 text-white hover:bg-indigo-700" title="Calificar renglones"><i class="fas fa-star"></i> Calificar</a>`
