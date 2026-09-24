@@ -3,6 +3,8 @@
 **Rama:** `claude/11-mon-servidor` · **IDs:** MON-05, MON-06, MON-07, MON-08, MON-10, MON-11, MON-13
 **Contrato:** `11-CONTRACT.md`. Sin cambios en tablas, rutas ni cuerpos; hay dos precisiones en «Decisiones».
 
+> **Superado por 11-03:** las alertas de errores ya no van por Telegram sino por correo a un destinatario fijo. La columna `SYSMensajes.ErroresSistema` (migración y `.sql`) se eliminó antes de desplegarse y los cambios en Mensajes se revirtieron. Ver `11-03-SUMMARY.md`. Los pasos 2 y 3 de «Cómo desplegar» ya no aplican.
+
 ## Qué se hizo
 
 | Pieza | Archivo(s) |

@@ -21,7 +21,9 @@ return [
 
     'errores' => [
         'max_eventos_dia' => 50,
-        'telegram_max_hora' => 10,
+        'alertas_max_hora' => 10,
+        // Destinatario fijo de las alertas de errores nuevos o regresiones (decisión del owner, 11-03).
+        'correo_alertas' => env('MONITOREO_ALERTA_CORREO', 'francost15@gmail.com'),
         'throttle_cliente_min' => 30,
         // Excepciones que no se registran (además del dontReport interno de Laravel).
         'ignorar' => [

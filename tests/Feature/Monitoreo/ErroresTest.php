@@ -21,7 +21,7 @@ class ErroresTest extends TestCase
         parent::setUp();
         $this->prepararMonitoreo();
         config()->set('app.debug', false);
-        config()->set('services.telegram.bot_token', '');
+        config()->set('monitoreo.errores.correo_alertas', '');
 
         Route::middleware('web')->group(function () {
             Route::any('/_prueba/explota', fn () => throw new RuntimeException('Fallo del telar 1234 en "Salon A"'))->name('prueba.explota');
