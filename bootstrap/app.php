@@ -2,9 +2,14 @@
 
 use App\Http\Middleware\AuthenticateRedboothApiKey;
 use App\Http\Middleware\EnsureModulePermission;
+use App\Http\Middleware\Monitoreo\AplicarCierreRemoto;
+use App\Http\Middleware\Monitoreo\CapturarRespuesta5xx;
+use App\Http\Middleware\Monitoreo\IdentificarDispositivo;
+use App\Http\Middleware\Monitoreo\ServerTiming;
 use App\Http\Middleware\NoCacheHtmlResponses;
 use App\Http\Middleware\ProgramaTejidoContext;
 use App\Http\Middleware\SetSqlContextInfo;
+use App\Services\Monitoreo\ErrorRecorder;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -40,9 +45,25 @@ return Application::configure(basePath: dirname(__DIR__))
             SetSqlContextInfo::class,
             ProgramaTejidoContext::class,
             NoCacheHtmlResponses::class,
+            // Monitoreo (fase 11): identidad del dispositivo, cierre remoto por dispositivo,
+            // header Server-Timing y 5xx que los catch devuelven sin pasar por el handler.
+            IdentificarDispositivo::class,
+            AplicarCierreRemoto::class,
+            ServerTiming::class,
+            CapturarRespuesta5xx::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        // Monitoreo (fase 11): agrupa por huella en SYSMonError. No detiene el log normal
+        // (no ->stop()) y nunca lanza; ver App\Services\Monitoreo\ErrorRecorder.
+        $exceptions->report(function (Throwable $e): void {
+            try {
+                app(ErrorRecorder::class)->capturar($e);
+            } catch (Throwable) {
+                // El monitoreo nunca debe impedir el reporte normal.
+            }
+        });
+
         // Si expira la sesion/CSRF, redirigir a login en vez de mostrar 419.
         $exceptions->render(function (TokenMismatchException $_exception, Request $request): ?Response {
             if ($request->expectsJson()) {
