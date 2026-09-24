@@ -1,11 +1,11 @@
 {
-  "fetch(": 302,
-  "Swal.fire": 827,
+  "fetch(": 300,
+  "Swal.fire": 818,
   "toastr.": 29,
-  "onclick=": 438,
-  "innerHTML =": 407,
-  "X-CSRF-TOKEN": 195,
-  "bg-opacity-": 32,
-  "<script> inline en blade": 173,
+  "onclick=": 414,
+  "innerHTML =": 394,
+  "X-CSRF-TOKEN": 193,
+  "bg-opacity-": 28,
+  "<script> inline en blade": 171,
   "getMessage() en response()->json": 284
 }
