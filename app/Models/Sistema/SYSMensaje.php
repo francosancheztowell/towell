@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
  * Modelo para dbo.SYSMensajes
  * Campos: Id, DepartamentoId, Telefono, Token, Activo, FechaRegistro, Nombre,
  * Desarrolladores, DesarrolladoresPrue, NotificarAtadoJulio, CorteSEF, MarcasFinales, ReporteElectrico,
- * ReporteMecanico, ReporteTiempoMuerto, Atadores, ErroresSistema (alertas de monitoreo)
+ * ReporteMecanico, ReporteTiempoMuerto, Atadores
  */
 class SYSMensaje extends Model
 {
@@ -44,7 +44,6 @@ class SYSMensaje extends Model
         'UrdidoCalidad',
         'Calidad',
         'Andon',
-        'ErroresSistema',
     ];
 
     protected $casts = [
@@ -69,7 +68,6 @@ class SYSMensaje extends Model
         'UrdidoCalidad' => 'boolean',
         'Calidad' => 'boolean',
         'Andon' => 'boolean',
-        'ErroresSistema' => 'boolean',
     ];
 
     public function departamento()
@@ -101,7 +99,6 @@ class SYSMensaje extends Model
             'UrdidoCalidad',
             'Calidad',
             'Andon',
-            'ErroresSistema',
         ];
     }
 

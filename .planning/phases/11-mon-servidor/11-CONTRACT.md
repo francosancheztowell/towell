@@ -133,12 +133,14 @@ Fase 11 crea el archivo con la ruta `/admin` apuntando a una vista mínima (plac
 'sesion_expira_min' => 120,
 'umbrales' => ['servidor_ms' => 800, 'carga_ms' => 3000],
 'poll_seconds' => 15,
-'errores' => ['max_eventos_dia' => 50, 'telegram_max_hora' => 10, 'throttle_cliente_min' => 30],
+'errores' => ['max_eventos_dia' => 50, 'alertas_max_hora' => 10, 'correo_alertas' => env('MONITOREO_ALERTA_CORREO', 'francost15@gmail.com'), 'throttle_cliente_min' => 30],
 'retencion' => ['vista_dias' => 90, 'evento_dias' => 90, 'sesion_dias' => 180, 'acceso_dias' => 365, 'error_resuelto_dias' => 180],
 ```
 
-## 9. Alertas Telegram
+## 9. Alertas por correo (ajustado en 11-03)
 
-- Nueva columna booleana `ErroresSistema` en `dbo.SYSMensajes`; se agrega a `SYSMensaje::columnasModuloPermitidas()` y a la pantalla de Mensajes.
-- `ErrorTelegramNotifier` copia el patrón de `app/Services/Mantenimiento/ParoTelegramNotifier.php` (timeout 5 s, nunca lanza, texto plano sin `parse_mode`, loguea resultado). Destinatarios: `SYSMensaje::getChatIdsPorModulo('ErroresSistema')`.
-- Se dispara con `dispatch(...)->afterResponse()` solo en huella **nueva** o **regresión**, máximo `telegram_max_hora` por hora (global). Mensaje: origen, clase, mensaje corto, ruta, ocurrencias, link a `/admin/errores/{id}`.
+- **Canal: correo a un destinatario fijo.** Decisión del owner (2026-09-24): «esto es fijo, solo quiero que me lleguen a mí». Sin Telegram y sin suscriptores de `SYSMensajes`.
+- Destinatario: `config('monitoreo.errores.correo_alertas')`, por defecto `francost15@gmail.com`, sobreescribible con `MONITOREO_ALERTA_CORREO`. Si queda vacío o no es un correo válido, no se envía y se deja un warning en el log.
+- `ErrorAlertaNotifier` copia el patrón de `CrudoAlineacionNotifier` (`Mail::to()->send`, nunca lanza, loguea resultado) con el mailer por defecto (Resend, `MAIL_*`). Mailable: `App\Mail\Monitoreo\ErrorSistemaMail`.
+- Se dispara con `dispatch(...)->afterResponse()` (en consola, en el momento) solo en huella **nueva** o **regresión**, máximo `alertas_max_hora` por hora (global). `AlertadoEn` solo se marca si el envío no falló.
+- Correo: asunto `[Towell] ERROR NUEVO: <Clase>` o `[Towell] REGRESIÓN: <Clase>`; cuerpo con origen, clase, mensaje corto (300), ruta, ocurrencias, primera/última vez y link a `/admin/errores/{id}`.

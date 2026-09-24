@@ -31,7 +31,7 @@ class ErrorRecorder
 
     public function __construct(
         private readonly EstadoRequest $estado,
-        private readonly ErrorTelegramNotifier $notificador,
+        private readonly ErrorAlertaNotifier $notificador,
     ) {}
 
     /** Excepción PHP reportada por el handler. Devuelve el Id del evento (o null). */
