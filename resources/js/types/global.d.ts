@@ -40,18 +40,18 @@ interface ToastrClient {
     options: Record<string, unknown>;
 }
 
+// `var` (no `interface Window`): así sirven tanto `window.http` como `http` a secas,
+// igual que en los <script> inline de Blade.
 declare global {
-    interface Window {
-        axios: AxiosStatic;
-        http: Http;
-        notify: Notify;
-        showToast: (message: unknown, type?: string) => void;
-        Swal: typeof SwalStatic;
-        toastr: ToastrClient;
-        $?: JQueryBridge;
-        jQuery?: JQueryBridge;
-        Livewire?: LivewireClient;
-    }
+    var axios: AxiosStatic;
+    var http: Http;
+    var notify: Notify;
+    var showToast: (message: unknown, type?: string) => void;
+    var Swal: typeof SwalStatic;
+    var toastr: ToastrClient;
+    var $: JQueryBridge | undefined;
+    var jQuery: JQueryBridge | undefined;
+    var Livewire: LivewireClient | undefined;
 }
 
 export {};
