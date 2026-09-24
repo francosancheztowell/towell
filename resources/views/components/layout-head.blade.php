@@ -7,6 +7,12 @@
 <meta charset="UTF-8">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <meta name="description" content="@yield('meta_description', $description)">
+{{-- Monitoreo (fase 11, contrato §4): señales para el cliente de telemetría. --}}
+<meta name="towell-ruta" content="{{ request()->route()?->getName() ?? '' }}">
+<meta name="towell-version" content="{{ \App\Services\Monitoreo\Monitoreo::versionFront() }}">
+@if(\App\Services\Monitoreo\Monitoreo::activo() && auth()->check())
+<meta name="towell-telemetria" content="1">
+@endif
 
 @if(!$simple)
     @if(config('app.pwa_enabled', true) && !config('app.service_worker_cleanup', false))

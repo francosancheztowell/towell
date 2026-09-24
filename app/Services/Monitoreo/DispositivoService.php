@@ -65,6 +65,21 @@ class DispositivoService
     }
 
     /**
+     * Id del dispositivo solo si ya está en cache. Lo usa el registro de errores,
+     * que no debe consultar `sqlsrv` (puede estar dentro de una transacción rota).
+     */
+    public static function idEnCache(?string $uuid): ?int
+    {
+        if ($uuid === null) {
+            return null;
+        }
+
+        $id = Monitoreo::seguro('leer id de dispositivo en cache', fn () => Cache::get('mon:disp:id:'.$uuid));
+
+        return is_int($id) ? $id : null;
+    }
+
+    /**
      * Id del dispositivo; lo crea si no existe y $crear. Cacheado por uuid.
      */
     public function idPorUuid(?string $uuid, Request $request, bool $crear = true): ?int

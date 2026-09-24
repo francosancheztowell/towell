@@ -3,6 +3,7 @@
 namespace App\Http\Middleware\Monitoreo;
 
 use App\Services\Monitoreo\DispositivoService;
+use App\Services\Monitoreo\EstadoRequest;
 use App\Services\Monitoreo\Monitoreo;
 use Closure;
 use Illuminate\Http\Request;
@@ -20,6 +21,10 @@ class IdentificarDispositivo
 
     public function handle(Request $request, Closure $next): Response
     {
+        // EstadoRequest es scoped, pero el kernel HTTP no limpia los scoped entre
+        // requests del mismo proceso (tests, Octane): empezar de cero aquí.
+        app()->forgetInstance(EstadoRequest::class);
+
         if (! Monitoreo::activo()) {
             return $next($request);
         }

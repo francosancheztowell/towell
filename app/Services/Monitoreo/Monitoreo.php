@@ -63,6 +63,21 @@ final class Monitoreo
         }
     }
 
+    /**
+     * Versión del front: 12 caracteres del md5 del manifest de Vite ('' si no hay build).
+     * El panel la compara con la VersionFront de cada dispositivo (contrato §6).
+     */
+    public static function versionFront(): string
+    {
+        static $version = null;
+
+        return $version ??= self::seguro('leer manifest de Vite', function (): string {
+            $manifest = public_path('build/manifest.json');
+
+            return is_file($manifest) ? substr((string) md5_file($manifest), 0, 12) : '';
+        }, '');
+    }
+
     /** Recorta a $max caracteres (null si queda vacío). */
     public static function texto(mixed $valor, int $max): ?string
     {

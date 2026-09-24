@@ -6,7 +6,9 @@ use App\Services\Monitoreo\AccesoAdmin;
 use App\Services\Monitoreo\DispositivoService;
 use App\Services\Monitoreo\EstadoRequest;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -38,6 +40,13 @@ class MonitoreoServiceProvider extends ServiceProvider
             Limit::perMinute(10)->by('emp|'.Str::lower(trim((string) $request->input('numero_empleado'))).'|'.$request->ip()),
             Limit::perMinute(30)->by('ip|'.$request->ip()),
         ]);
+
+        // Conteo de consultas de la request para el header Server-Timing.
+        Event::listen(QueryExecuted::class, function (QueryExecuted $query): void {
+            $estado = $this->app->make(EstadoRequest::class);
+            $estado->consultasN++;
+            $estado->consultasMs += (float) $query->time;
+        });
 
         RateLimiter::for('telemetria', fn (Request $request): Limit => Limit::perMinute(120)
             ->by('disp|'.(DispositivoService::uuid($request) ?? $request->ip())));

@@ -112,6 +112,7 @@ class MensajesController extends Controller
             'UrdidoCalidad' => ['nullable', 'boolean'],
             'Calidad' => ['nullable', 'boolean'],
             'Andon' => ['nullable', 'boolean'],
+            'ErroresSistema' => ['nullable', 'boolean'],
         ]);
 
         $validated['Activo'] = (bool) ($request->boolean('Activo') ?? true);
@@ -129,6 +130,7 @@ class MensajesController extends Controller
         $validated['UrdidoCalidad'] = (bool) ($request->boolean('UrdidoCalidad') ?? false);
         $validated['Calidad'] = (bool) ($request->boolean('Calidad') ?? false);
         $validated['Andon'] = (bool) ($request->boolean('Andon') ?? false);
+        $validated['ErroresSistema'] = (bool) ($request->boolean('ErroresSistema') ?? false);
         $validated['UsuarioId'] = $request->filled('UsuarioId') ? (int) $request->input('UsuarioId') : null;
 
         $mensaje = SYSMensaje::create($validated);
@@ -180,6 +182,7 @@ class MensajesController extends Controller
             'UrdidoCalidad' => ['nullable', 'boolean'],
             'Calidad' => ['nullable', 'boolean'],
             'Andon' => ['nullable', 'boolean'],
+            'ErroresSistema' => ['nullable', 'boolean'],
         ]);
 
         $validated['Activo'] = (bool) ($request->boolean('Activo') ?? true);
@@ -197,6 +200,7 @@ class MensajesController extends Controller
         $validated['UrdidoCalidad'] = (bool) ($request->boolean('UrdidoCalidad') ?? false);
         $validated['Calidad'] = (bool) ($request->boolean('Calidad') ?? false);
         $validated['Andon'] = (bool) ($request->boolean('Andon') ?? false);
+        $validated['ErroresSistema'] = (bool) ($request->boolean('ErroresSistema') ?? false);
         $validated['UsuarioId'] = $request->filled('UsuarioId') ? (int) $request->input('UsuarioId') : null;
 
         $mensaje->update($validated);
@@ -299,6 +303,7 @@ class MensajesController extends Controller
             'UrdidoCalidad' => (bool) $mensaje->UrdidoCalidad,
             'Calidad' => (bool) $mensaje->Calidad,
             'Andon' => (bool) $mensaje->Andon,
+            'ErroresSistema' => (bool) $mensaje->ErroresSistema,
         ];
     }
 }
