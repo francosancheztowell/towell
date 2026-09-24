@@ -59,6 +59,9 @@ jobs:
           key: composer-${{ hashFiles('composer.lock') }}
           restore-keys: composer-
 
+      # bootstrap/cache y storage/framework/* estan ignorados: no vienen en el checkout.
+      - run: mkdir -p bootstrap/cache storage/framework/cache storage/framework/sessions storage/framework/views storage/logs
+
       - run: composer install --no-interaction --no-progress --prefer-dist
 
       # Las vistas que usan @vite necesitan public/build/manifest.json.

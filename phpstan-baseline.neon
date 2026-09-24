@@ -1465,12 +1465,6 @@ parameters:
 			path: app/Http/Controllers/Engomado/Produccion/ModuloProduccionEngomadoController.php
 
 		-
-			message: '#^Strict comparison using \!\=\= between mixed and null will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: app/Http/Controllers/Engomado/Produccion/ModuloProduccionEngomadoController.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Urdido\\UrdProgramaUrdido\:\:\$Status\.$#'
 			identifier: property.notFound
 			count: 1
@@ -13385,12 +13379,6 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: app/Services/ProgramaUrdEng/InventarioReservasService.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Urdido\\UrdProgramaUrdido\:\:\$Folio\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/ProgramaUrdEng/OrdenKarlMayerService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Engomado\\EngProgramaEngomado\:\:\$Folio\.$#'
