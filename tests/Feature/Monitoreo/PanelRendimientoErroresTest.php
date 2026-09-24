@@ -130,6 +130,15 @@ class PanelRendimientoErroresTest extends TestCase
         $this->assertSame('error_estado: #'.$id.' nuevo → resuelto', $acceso->Motivo);
         $this->assertSame((int) $this->admin->idusuario, (int) $acceso->ActorId);
 
+        // Editar la nota de uno ya resuelto conserva quién y cuándo lo resolvió.
+        $otroAdmin = $this->crearUsuario(['numero_empleado' => '9002', 'area' => 'Sistemas']);
+        $resueltoEn = $error->ResueltoEn;
+        Livewire::actingAs($otroAdmin)->test(ErrorDetalle::class, ['errorId' => $id])->set('nota', 'Más contexto')->call('guardar');
+        $error = $this->mon('SYSMonError')->where('Id', $id)->first();
+        $this->assertSame((int) $this->admin->idusuario, (int) $error->ResueltoPor);
+        $this->assertSame($resueltoEn, $error->ResueltoEn);
+        $this->assertSame('error_nota: #'.$id.' (resuelto)', $this->mon('SYSMonAcceso')->orderByDesc('Id')->value('Motivo'));
+
         // Reabrir limpia quién lo resolvió.
         $componente->set('estado', 'visto')->call('guardar');
         $this->assertNull($this->mon('SYSMonError')->where('Id', $id)->value('ResueltoPor'));

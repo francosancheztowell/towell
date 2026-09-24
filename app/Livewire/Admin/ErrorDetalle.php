@@ -50,16 +50,21 @@ class ErrorDetalle extends Component
 
         $error = MonError::findOrFail($this->errorId);
         $anterior = (string) $error->Estado;
-        $cerrado = in_array($this->estado, ['resuelto', 'ignorado'], true);
+        $cerrados = ['resuelto', 'ignorado'];
+        $cierra = in_array($this->estado, $cerrados, true);
 
-        $error->forceFill([
-            'Estado' => $this->estado,
-            'Nota' => $this->nota === '' ? null : $this->nota,
-            'ResueltoPor' => $cerrado ? (int) Auth::id() : null,
-            'ResueltoEn' => $cerrado ? now() : null,
-        ])->save();
+        $cambios = ['Estado' => $this->estado, 'Nota' => $this->nota === '' ? null : $this->nota];
+        if (! $cierra) {
+            $cambios += ['ResueltoPor' => null, 'ResueltoEn' => null];
+        } elseif (! in_array($anterior, $cerrados, true) || $error->ResueltoEn === null) {
+            // Solo al cerrar: editar la nota de uno ya cerrado conserva quién y cuándo.
+            $cambios += ['ResueltoPor' => (int) Auth::id(), 'ResueltoEn' => now()];
+        }
+        $error->forceFill($cambios)->save();
 
-        $auditoria->registrar('error_estado: #'.$error->Id.' '.$anterior.' → '.$this->estado);
+        $auditoria->registrar($anterior === $this->estado
+            ? 'error_nota: #'.$error->Id.' ('.$this->estado.')'
+            : 'error_estado: #'.$error->Id.' '.$anterior.' → '.$this->estado);
 
         $this->dispatch('aviso', tipo: 'success', texto: 'Estado del error actualizado.');
     }
