@@ -3,7 +3,10 @@ import { eventElement, queryElement } from './dom';
 export class FlogDetail {
     private activeFilter = 'todos';
 
-    public constructor(private readonly result: HTMLElement) {
+    private readonly result: HTMLElement;
+
+    public constructor(result: HTMLElement) {
+        this.result = result;
         this.result.addEventListener('click', (event) => this.handleClick(event));
     }
 

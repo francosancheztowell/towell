@@ -30,11 +30,18 @@ export class FlogImageViewer {
         panStartY: 0,
     };
 
+    private readonly result: HTMLElement;
+    private readonly modal: HTMLElement;
+    private readonly scroll: ScrollManager;
+
     public constructor(
-        private readonly result: HTMLElement,
-        private readonly modal: HTMLElement,
-        private readonly scroll: ScrollManager,
+        result: HTMLElement,
+        modal: HTMLElement,
+        scroll: ScrollManager,
     ) {
+        this.result = result;
+        this.modal = modal;
+        this.scroll = scroll;
         this.bind();
     }
 

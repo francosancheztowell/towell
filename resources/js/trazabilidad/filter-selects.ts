@@ -1,7 +1,11 @@
 export class FilterSelects {
     private readonly namespace = '.trazabilidadLivewire';
 
-    public constructor(private readonly root: HTMLElement) {}
+    private readonly root: HTMLElement;
+
+    public constructor(root: HTMLElement) {
+        this.root = root;
+    }
 
     public init(): void {
         const jquery = window.jQuery;

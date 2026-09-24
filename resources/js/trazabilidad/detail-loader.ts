@@ -35,13 +35,24 @@ export class DetailLoader {
     private activeController: AbortController | null = null;
     private sequence = 0;
 
+    private readonly page: HTMLElement;
+    private readonly result: HTMLElement;
+    private readonly routes: Partial<Record<DetailType, string>>;
+    private readonly hooks: DetailHooks;
+    private readonly scroll: ScrollManager;
+
     public constructor(
-        private readonly page: HTMLElement,
-        private readonly result: HTMLElement,
-        private readonly routes: Partial<Record<DetailType, string>>,
-        private readonly hooks: DetailHooks,
-        private readonly scroll: ScrollManager,
+        page: HTMLElement,
+        result: HTMLElement,
+        routes: Partial<Record<DetailType, string>>,
+        hooks: DetailHooks,
+        scroll: ScrollManager,
     ) {
+        this.page = page;
+        this.result = result;
+        this.routes = routes;
+        this.hooks = hooks;
+        this.scroll = scroll;
         this.bind();
     }
 
