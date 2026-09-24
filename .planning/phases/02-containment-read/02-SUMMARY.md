@@ -46,7 +46,7 @@
 ## 2. Evidencia
 
 ```
-php artisan test                       base: 1254 passed  →  rama: 1317 passed (antes del fix de seguridad)
+php artisan test                       base: 1254 passed  →  rama: 1323 passed (19491 assertions), tras merge y fix
 php artisan test tests/Feature/Planeacion tests/Unit/Planeacion   116 passed (875 assertions), tras el fix
 vendor/bin/phpstan analyse             [OK] No errors
 npm run typecheck && npm run test:js && npm run build   ok
@@ -56,7 +56,7 @@ planeacion:programa-tejido-health      sobre el fixture PT en sqlite: "Invariant
                                        (el entorno no tiene database/sqlite: el comando suelto dice "No se pudo consultar")
 ```
 
-La suite completa se volvió a correr después del merge y del fix. El resultado está en el mensaje de cierre de la sesión.
+La suite completa se volvió a correr después del merge, del fix y de los docs: 1323 passed.
 
 **Snapshot de rutas.** El diff se revisó (ver `01.1-SUMMARY.md` §2). Solo cambian 3 middlewares y se agregan 2 rutas v2.
 
