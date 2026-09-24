@@ -1,16 +1,18 @@
 name: Frontend checks
 
-# Red minima para el refactor de JS a TypeScript. Corre lo unico que hoy esta verde
-# y es fiable: tipos, tests de JS y build.
+# CI del refactor 2026 (fase 10). El nombre del archivo se conserva porque el
+# .gitignore solo deja versionar este workflow.
 #
-# php artisan test NO se corre aqui a proposito: la suite tiene 41 fallos por tablas
-# que faltan en sqlite (ver phpunit.xml). Meterla ahora deja el CI en rojo permanente
-# y nadie lo mira. Se anade cuando esos tests tengan el trait UsesSqlsrvSqlite.
+# - checks: tipos, tests de JS, build y ratchet de deuda (ningun conteo sube).
+# - php:    php artisan test en sqlite (phpunit.xml; el grupo sqlserver se corre a
+#           mano, ver tests/README-sqlserver.md), phpstan con baseline y Pint
+#           solo sobre los PHP que cambian (el repo no esta formateado entero).
 
 on:
   pull_request:
   push:
-    branches: [main]
+    # claude/**: las sesiones no abren PR; asi su rama tambien tiene CI.
+    branches: [main, 'claude/**']
 
 jobs:
   checks:
@@ -33,3 +35,65 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Ratchet de deuda
+        run: npm run ratchet
+
+  php:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, sqlite3, gd, zip, intl, bcmath
+          coverage: none
+
+      - name: Cache de composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - run: composer install --no-interaction --no-progress --prefer-dist
+
+      # Las vistas que usan @vite necesitan public/build/manifest.json.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci && npm run build
+
+      - name: Entorno
+        run: |
+          cp .env.example .env
+          php artisan key:generate --no-interaction
+
+      - name: Tests PHP
+        run: php artisan test
+
+      - name: PHPStan (baseline)
+        run: vendor/bin/phpstan analyse --memory-limit=2G --no-progress
+
+      - name: Pint (solo archivos cambiados)
+        run: |
+          # PR: contra su base. Push: lo que trae el push (rama nueva: el ultimo commit).
+          before="${{ github.event.before }}"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="origin/${{ github.base_ref }}"
+          elif [ -n "$before" ] && [ "$before" != "0000000000000000000000000000000000000000" ]; then
+            base="$before"
+          else
+            base="HEAD~1"
+          fi
+          files=$(git diff --name-only --diff-filter=AM "$base"...HEAD -- '*.php' | grep -v '\.blade\.php$' || true)
+          if [ -z "$files" ]; then
+            echo "Sin PHP cambiado"
+            exit 0
+          fi
+          echo "$files"
+          vendor/bin/pint --test $files

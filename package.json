@@ -6,6 +6,7 @@
         "build": "vite build",
         "typecheck": "tsc --noEmit",
         "test:js": "node --test tests/Js/*.test.mjs tests/Js/*.cjs",
+        "ratchet": "node scripts/ratchet.mjs",
         "update": "git pull && php artisan optimize:clear && php artisan optimize && npm run build"
     },
     "devDependencies": {

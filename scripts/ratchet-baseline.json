@@ -1,0 +1,11 @@
+{
+  "fetch(": 302,
+  "Swal.fire": 827,
+  "toastr.": 29,
+  "onclick=": 438,
+  "innerHTML =": 407,
+  "X-CSRF-TOKEN": 195,
+  "bg-opacity-": 32,
+  "<script> inline en blade": 173,
+  "getMessage() en response()->json": 284
+}
