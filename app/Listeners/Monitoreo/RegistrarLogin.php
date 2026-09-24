@@ -39,7 +39,7 @@ class RegistrarLogin
             [$uuid] = $this->dispositivos->asegurarUuid($request);
             $dispositivoId = $this->dispositivos->idPorUuid($uuid, $request);
 
-            $sesionId = $this->sesiones->abrir($usuarioId, $dispositivoId, $origen, getClientIpv4());
+            $sesionId = $this->sesiones->abrir($usuarioId, $dispositivoId, $origen, Monitoreo::ip($request));
             if ($sesionId !== null && $request->hasSession()) {
                 $request->session()->put(SesionService::LLAVE_SESION, $sesionId);
             }

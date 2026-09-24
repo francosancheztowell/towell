@@ -133,7 +133,7 @@ class DispositivoService
 
             $datos = [
                 'UltimaActividad' => $ahora,
-                'UltimaIp' => mb_substr(getClientIpv4(), 0, 45),
+                'UltimaIp' => Monitoreo::ip($request),
                 'UltimoUsuarioId' => $usuarioId,
             ];
             if ($ruta !== null) {
@@ -187,7 +187,7 @@ class DispositivoService
                 'SO' => Monitoreo::texto(trim(($so['nombre'] ?? '').' '.($so['version'] ?? '')), 60),
                 'Navegador' => Monitoreo::texto(trim(($navegador['nombre'] ?? '').' '.($navegador['version'] ?? '')), 60),
                 'UaHash' => sha1($ua),
-                'UltimaIp' => mb_substr(getClientIpv4(), 0, 45),
+                'UltimaIp' => Monitoreo::ip($request),
                 'PrimeraVez' => $ahora,
                 'UltimaActividad' => $ahora,
                 'Visible' => true,
