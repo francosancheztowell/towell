@@ -5,14 +5,18 @@ namespace App\Providers;
 use App\Services\Monitoreo\AccesoAdmin;
 use App\Services\Monitoreo\DispositivoService;
 use App\Services\Monitoreo\EstadoRequest;
+use App\Services\Monitoreo\PulseConexion;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Lottery;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Laravel\Pulse\Entry;
+use Laravel\Pulse\Facades\Pulse;
 
 /**
  * Monitoreo (fase 11, contrato 11-CONTRACT.md).
@@ -23,12 +27,17 @@ use Illuminate\Support\Str;
  *
  * La conexión `sqlsrv_monitoreo` se registra de forma perezosa en
  * Monitoreo::conexionErrores() (ver ahí por qué no en boot()).
+ *
+ * Laravel Pulse (fase 14): conexión SQLite `pulse` en register(), Gate `viewPulse`
+ * = `admin` y usuario de Towell en las tarjetas. Configuración en config/pulse.php.
  */
 class MonitoreoServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
         $this->app->scoped(EstadoRequest::class);
+
+        PulseConexion::registrar();
     }
 
     public function boot(): void
@@ -50,5 +59,37 @@ class MonitoreoServiceProvider extends ServiceProvider
 
         RateLimiter::for('telemetria', fn (Request $request): Limit => Limit::perMinute(120)
             ->by('disp|'.(DispositivoService::uuid($request) ?? $request->ip())));
+
+        $this->configurarPulse();
+    }
+
+    private function configurarPulse(): void
+    {
+        // Pulse define `viewPulse` (solo en local) al resolverse el Gate, en su propio boot.
+        // En booted() ya arrancaron todos los providers: esta definición gana sin depender del orden.
+        $this->app->booted(function (): void {
+            Gate::define('viewPulse', fn ($usuario = null): bool => AccesoAdmin::permite($usuario));
+        });
+
+        Pulse::user(fn ($usuario): array => [
+            'name' => (string) ($usuario->nombre ?? $usuario->getAuthIdentifier()),
+            'extra' => filled($usuario->numero_empleado ?? null) ? '#'.$usuario->numero_empleado : '',
+            'avatar' => getFotoUsuarioUrl($usuario->foto ?? null),
+        ]);
+
+        // Las tablets hacen wire:poll: en UserRequests solo cuenta 1 de cada N llamadas
+        // de Livewire para no inflar el uso ni el archivo SQLite.
+        Pulse::filter(function ($entrada): bool {
+            if (! $entrada instanceof Entry || $entrada->type !== 'user_request') {
+                return true;
+            }
+
+            $muestreo = (float) config('pulse.livewire_sample_rate', 0.1);
+            if ($muestreo >= 1 || ! request()->is('livewire*/update')) {
+                return true;
+            }
+
+            return Lottery::odds($muestreo)->choose();
+        });
     }
 }
