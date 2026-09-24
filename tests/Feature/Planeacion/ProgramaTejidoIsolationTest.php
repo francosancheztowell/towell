@@ -46,9 +46,11 @@ class ProgramaTejidoIsolationTest extends TestCase
             'update muestras' => ['/planeacion/muestras/1', true],
             'lineas muestras' => ['/planeacion/muestras-line', true],
             'catalogo muestras' => ['/muestras/telares-all', true],
-            // Caracterización: el patrón 'muestras*' también atrapa cualquier URI que
-            // solo empiece igual. Hoy no hay rutas así; si aparece una, cae en Muestras.
-            'prefijo ambiguo' => ['/muestrasx/cualquier-cosa', true],
+            // Invertido en PT-02 (hallazgo 8): antes 'muestras*' atrapaba cualquier URI que
+            // solo empezara igual. Ahora cuenta el segmento completo.
+            'prefijo ambiguo' => ['/muestrasx/cualquier-cosa', false],
+            'prefijo ambiguo bajo planeacion' => ['/planeacion/muestrasx', false],
+            'utileria nunca es muestras (finalizacion B)' => ['/planeacion/utileria/finalizar/ordenes', false],
             'desarrolladores-muestras NO cambia tabla' => ['/desarrolladores-muestras', false],
         ];
     }

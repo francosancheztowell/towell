@@ -80,6 +80,10 @@ class ProgramaTejidoUpdateTest extends TestCase
             $table->string('HoraModificacion')->nullable();
             $table->string('UsuarioModifica')->nullable();
         });
+
+        // PT-02: el observer ya no se traga los fallos (hallazgos 4 y 5 de PT-01); estas tablas
+        // existen en live y el fixture las necesita para no depender del catch silencioso.
+        $this->createTablaDesdeModelo(\App\Models\Planeacion\ReqProgramaTejidoLine::class);
     }
 
     protected function tearDown(): void

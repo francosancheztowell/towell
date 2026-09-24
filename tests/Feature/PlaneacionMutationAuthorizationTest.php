@@ -14,7 +14,8 @@ use Tests\TestCase;
  * BUG-003 (esqueleto Planeación): un login no basta para mutar.
  *
  * Nombres SYSRoles.modulo verificados en UI:
- * - Liberar: `Programa Tejido` + `crear` (botón Liberar en liberar-ordenes).
+ * - Liberar: `Programa Tejido` + `crear` (botón Liberar en liberar-ordenes); en Muestras,
+ *   `crear` del módulo Muestras (idrol 5, decisión del owner en PT-01.1).
  * - L.Mat guardar: `Codificación` + `modificar` (modal L.Mat de Codificación).
  * - Mover / Finalizar: idrol 188 (`Utilería` de Planeación) + `modificar`. Va por idrol y no
  *   por nombre porque `Utilería` esta repetido en SYSRoles (188 Planeación / 67 Configuración)
@@ -34,7 +35,7 @@ class PlaneacionMutationAuthorizationTest extends TestCase
             ],
             'liberar muestras' => [
                 'muestras.liberar-ordenes.procesar',
-                'module.permission:crear,2', // Programa Tejido
+                'module.permission:crear,5', // Muestras (decisión del owner, PT-01.1)
             ],
             'lmat guardar' => [
                 'planeacion.lmat.guardar',

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
 use App\Http\Controllers\Controller;
 use App\Models\Planeacion\ReqProgramaTejidoLine;
+use App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -46,12 +47,16 @@ class DescargarProgramaController extends Controller
      */
     public function descargar(Request $request)
     {
-        try {
-            // Validar fecha inicial
-            $request->validate([
-                'fecha_inicial' => 'required|date',
-            ]);
+        // Muestras no descarga (decisión 01.3 B): antes escribía el mismo ProgramaTejido.txt
+        // de Programa y lo pisaba. Va antes del try: el catch genérico lo convertiría en 500.
+        ProgramaTejidoSurface::fromRequest($request)->exigir('descarga');
 
+        // Fuera del try por lo mismo: sin fecha es 422, no "Error al procesar la solicitud" 500.
+        $request->validate([
+            'fecha_inicial' => 'required|date',
+        ]);
+
+        try {
             $fechaInicial = $request->input('fecha_inicial');
 
             // Ruta donde se guardará el archivo

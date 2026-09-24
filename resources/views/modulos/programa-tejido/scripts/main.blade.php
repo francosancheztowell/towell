@@ -15,6 +15,8 @@
     linePath: @json($linePath ?? '/planeacion/req-programa-tejido-line'),
     columns: @json($columns ?? []),
     hiddenFields: @json($hiddenFields ?? []),
+    // Capacidades de la superficie (config planeacion.superficies): false = acción B oculta.
+    capacidades: @json((object) ($capacidades ?? [])),
     routes: {
       codificacion: @json(route('planeacion.codificacion.index')),
       codificacionModelos: @json(route('planeacion.catalogos.codificacion-modelos')),

@@ -23,7 +23,7 @@ use Tests\TestCase;
  */
 class ProgramaTejidoSchemaCapabilityTest extends TestCase
 {
-    private const CAPACIDADES = ['redbooth', 'marbetes', 'produccion', 'descarga', 'finalizacion'];
+    private const CAPACIDADES = ['redbooth', 'marbetes', 'produccion', 'descarga', 'finalizacion', 'longitudes'];
 
     /**
      * Archivos de app/ que mencionan alguna columna ausente en Muestras.
@@ -39,6 +39,7 @@ class ProgramaTejidoSchemaCapabilityTest extends TestCase
         'app/Http/Controllers/Planeacion/ProgramaTejido/LiberarOrdenesController.php' => [['NoMarbete', 'RollosProgramados'], 'superficie', 'marbetes: liberar en Muestras falla; editor sin ruta en Muestras'],
         'app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php' => [['NoMarbete', 'RollosProgramados'], 'superficie', 'marbetes: solo lectura (null en Muestras)'],
         'app/Http/Controllers/Planeacion/ProgramaTejido/RedboothProgramaTejidoController.php' => [['IdRedbooth', 'NombreRedbooth'], 'superficie', 'redbooth: sin ruta en Muestras'],
+        'app/Services/Planeacion/ProgramaTejido/ProgramaTejidoSurface.php' => [['IdRedbooth', 'NoMarbete', 'NombreRedbooth', 'ProdId', 'ProduccionMarbetes', 'RollosProgramados'], 'superficie', 'metadata: capacidad → columnas físicas que exige (no lee ni escribe)'],
         'app/Services/Trazabilidad/TrazabilidadRedboothService.php' => [['IdRedbooth', 'NombreRedbooth'], 'programa', 'redbooth: Trazabilidad no cambia de tabla'],
         'app/Http/Controllers/Tejedores/NotificarMontadoRollo/NotificarMontRollosController.php' => [['ProdId'], 'programa', 'produccion: DB::table(ReqProgramaTejido) fijo'],
         'app/Models/Planeacion/Catalogos/CatCodificados.php' => [['IdRedbooth', 'NoMarbete', 'NombreRedbooth'], 'otra', 'CatCodificados'],
@@ -77,6 +78,44 @@ class ProgramaTejidoSchemaCapabilityTest extends TestCase
         $this->assertSame(array_fill_keys(self::CAPACIDADES, true), $superficies['programa']['capacidades']);
         $this->assertSame(ReqProgramaTejido::tableName(), $superficies['programa']['tabla']);
         $this->assertSame(Muestras::tableName(), $superficies['muestras']['tabla']);
+    }
+
+    public function test_muestras_declara_la_decision_01_3_del_owner(): void
+    {
+        // 01-DECISION-PROGRAMA-MUESTRAS.md §5: A = true (paridad física), B = false (exclusiva de Programa).
+        $this->assertSame([
+            'redbooth' => false,
+            'marbetes' => true,
+            'produccion' => true,
+            'descarga' => false,
+            'finalizacion' => false,
+            'longitudes' => true,
+        ], config('planeacion.superficies.muestras.capacidades'));
+        $this->assertNotContains(null, config('planeacion.superficies.muestras.capacidades'), 'Ya no hay capacidades sin decidir');
+    }
+
+    public function test_cada_capacidad_a_de_muestras_tiene_su_sql_aditivo(): void
+    {
+        // Alternativa A = DDL aditivo versionado, nunca migración (el historial no coincide con live).
+        foreach (['marbetes', 'produccion', 'longitudes'] as $capacidad) {
+            $ruta = database_path("sql/pt_muestras_{$capacidad}.sql");
+            $this->assertFileExists($ruta);
+            $sql = (string) file_get_contents($ruta);
+            $this->assertStringContainsString('ROLLBACK', mb_strtoupper($sql), "{$capacidad}: falta el rollback");
+            $this->assertStringContainsString('NOTA PARA EL DBA', mb_strtoupper($sql), "{$capacidad}: falta la nota para el DBA");
+            $this->assertDoesNotMatchRegularExpression('/\bDROP\s+TABLE\b|\bDELETE\s+FROM\b|\bUPDATE\s+dbo\./i', $sql, "{$capacidad}: el script debe ser aditivo");
+        }
+
+        // Cada columna que Muestras no tiene por marbetes/producción entra con preflight.
+        $aditivos = file_get_contents(database_path('sql/pt_muestras_marbetes.sql')).file_get_contents(database_path('sql/pt_muestras_produccion.sql'));
+        foreach (['NoMarbete', 'RollosProgramados', 'ProduccionMarbetes', 'ProdId'] as $columna) {
+            $this->assertStringContainsString("COL_LENGTH('dbo.MuestrasPrograma', '{$columna}') IS NULL", $aditivos, $columna);
+        }
+        // Las 11 longitudes se igualan contra la de Programa, leída de sys.columns (no a ojo).
+        $longitudes = (string) file_get_contents(database_path('sql/pt_muestras_longitudes.sql'));
+        foreach (array_keys(config('planeacion.superficies.muestras.longitudes')) as $columna) {
+            $this->assertStringContainsString("'{$columna}'", $longitudes, $columna);
+        }
     }
 
     public function test_el_modelo_compartido_acepta_columnas_que_muestras_no_tiene(): void

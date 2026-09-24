@@ -14,10 +14,9 @@ use Tests\TestCase;
 /**
  * PT-01 · 01.5 — Efectos derivados del observer y catches silenciosos.
  *
- * Congela lo que pasa HOY, incluidos los fallos que el observer se traga
- * (Log::warning + éxito aparente). Los tests "..._en_silencio" documentan
- * los huecos que la fase 02 debe contener; cuando se contengan, se invierten
- * a propósito, no se borran.
+ * PT-01 congeló los fallos que el observer se tragaba (Log::warning + éxito aparente).
+ * PT-02 los contuvo y los tests se INVIRTIERON (no se borraron): hallazgos 1, 4, 5 y 6
+ * de 01-SUMMARY.md. Cada test nombra el hallazgo que cubre.
  */
 class ProgramaTejidoInvariantTest extends TestCase
 {
@@ -25,6 +24,9 @@ class ProgramaTejidoInvariantTest extends TestCase
 
     /** @var list<string> Log::warning emitidos durante el test */
     private array $avisos = [];
+
+    /** @var list<string> Log::error emitidos durante el test */
+    private array $errores = [];
 
     protected function setUp(): void
     {
@@ -35,6 +37,9 @@ class ProgramaTejidoInvariantTest extends TestCase
         Log::listen(function ($evento) {
             if ($evento->level === 'warning') {
                 $this->avisos[] = $evento->message;
+            }
+            if ($evento->level === 'error') {
+                $this->errores[] = $evento->message;
             }
         });
     }
@@ -92,7 +97,9 @@ class ProgramaTejidoInvariantTest extends TestCase
         $registro->save();
 
         // Sin PesoRollo capturado ni maestro ReqPesosRollosTejido (la tabla ni existe en el
-        // fixture: el catch devuelve null) → 41.5 kg. Repeticiones = TRUNC(41.5/450/2*1000) = 46.
+        // fixture) → respaldo de 41.5 kg. Repeticiones = TRUNC(41.5/450/2*1000) = 46.
+        // Hallazgo 6 (invertido en PT-02): el respaldo ya no es silencioso.
+        $this->assertContains('ReqProgramaTejidoObserver::obtenerPesoRolloMaestro error', $this->errores);
         $fila = DB::table('ReqProgramaTejido')->where('Id', 3)->first();
         $this->assertEquals(46, $fila->Repeticiones);
         $this->assertEquals(92, $fila->PzasRollo);
@@ -109,41 +116,57 @@ class ProgramaTejidoInvariantTest extends TestCase
         $this->assertNull($cat203->TotalRollos);
     }
 
-    public function test_en_muestras_el_recalculo_de_produccion_falla_en_silencio(): void
+    public function test_en_muestras_el_recalculo_de_produccion_persiste_las_formulas(): void
     {
+        // Hallazgo 1, invertido en PT-02 (antes: ..._falla_en_silencio). El UPDATE se filtra a
+        // las columnas físicas de MuestrasPrograma, que todavía no tiene RollosProgramados.
         $this->usarSuperficie('muestras');
 
         $registro = ReqProgramaTejido::find(1);
         $registro->TotalPedido = 1100;
-        $this->assertTrue($registro->save(), 'El save reporta éxito');
+        $this->assertTrue($registro->save());
 
-        // El UPDATE incluye RollosProgramados, que Muestras no tiene: se pierden las 5 fórmulas.
         $fila = DB::table('MuestrasPrograma')->where('Id', 1)->first();
         $this->assertEquals(1100, $fila->TotalPedido);
-        $this->assertNull($fila->Repeticiones);
-        $this->assertNull($fila->TotalRollos);
-        $this->assertContains('ReqProgramaTejidoObserver::recalcularFormulasProduccion error', $this->avisos);
+        $this->assertEquals(46, $fila->Repeticiones);
+        $this->assertEquals(92, $fila->PzasRollo);
+        $this->assertEquals(12, $fila->TotalRollos);
+        $this->assertEquals(1104, $fila->TotalPzas);
+        $this->assertObjectNotHasProperty('RollosProgramados', $fila);
+        $this->assertNotContains('ReqProgramaTejidoObserver::recalcularFormulasProduccion error', $this->errores);
+        // Programa no se tocó (mismos Id en ambas tablas).
+        $this->assertNull(DB::table('ReqProgramaTejido')->where('Id', 1)->value('Repeticiones'));
     }
 
-    public function test_si_falla_insertar_lineas_se_conservan_las_previas_y_el_save_reporta_exito(): void
+    public function test_si_falla_insertar_lineas_se_conservan_las_previas_y_el_save_reporta_el_fallo(): void
     {
+        // Hallazgo 4, invertido en PT-02 (antes: ..._y_el_save_reporta_exito).
         $this->usarSuperficie('programa');
         Schema::table('ReqProgramaTejidoLine', fn (Blueprint $t) => $t->dropColumn('MtsPie'));
 
         $registro = ReqProgramaTejido::find(1);
         $registro->SaldoPedido = 700;
-        $this->assertTrue($registro->save());
 
-        // DELETE + INSERT van en transacción: la línea previa sobrevive...
+        $fallo = null;
+        try {
+            // Como lo hacen los controllers: la edición va en una transacción.
+            DB::transaction(fn () => $registro->save());
+        } catch (\Throwable $e) {
+            $fallo = $e;
+        }
+
+        $this->assertNotNull($fallo, 'El save debe reportar el fallo de las líneas');
+        // La línea previa sobrevive (DELETE + INSERT atómicos) y la cabecera tampoco cambió:
+        // ya no queda "cabecera nueva con líneas viejas".
         $this->assertSame(1, DB::table('ReqProgramaTejidoLine')->where('ProgramaId', 1)->count());
         $this->assertEquals(10, DB::table('ReqProgramaTejidoLine')->where('ProgramaId', 1)->value('Cantidad'));
-        // ...pero la cabecera quedó con el saldo nuevo y líneas viejas: inconsistencia silenciosa.
-        $this->assertEquals(700, DB::table('ReqProgramaTejido')->where('Id', 1)->value('SaldoPedido'));
-        $this->assertContains('ReqProgramaTejidoObserver::generarLineasDiarias error', $this->avisos);
+        $this->assertEquals(800, DB::table('ReqProgramaTejido')->where('Id', 1)->value('SaldoPedido'));
+        $this->assertContains('ReqProgramaTejidoObserver::generarLineasDiarias error', $this->errores);
     }
 
-    public function test_si_falta_cat_codificados_la_cabecera_queda_recalculada_y_cat_sin_sincronizar(): void
+    public function test_si_falta_cat_codificados_la_cabecera_no_queda_recalculada_y_se_registra(): void
     {
+        // Hallazgo 5, invertido en PT-02 (antes: ..._la_cabecera_queda_recalculada_y_cat_sin_sincronizar).
         $this->usarSuperficie('programa');
         Schema::drop('CatCodificados');
 
@@ -151,10 +174,11 @@ class ProgramaTejidoInvariantTest extends TestCase
         $registro->TotalPedido = 1100;
         $this->assertTrue($registro->save());
 
-        // recalcularFormulasProduccion escribe la cabecera ANTES de CatCodificados y sin transacción.
-        $this->assertEquals(46, DB::table('ReqProgramaTejido')->where('Id', 1)->value('Repeticiones'));
-        // Sin la tabla, getColumnListing() devuelve [] y el sync se salta SIN registrar nada.
-        $this->assertNotContains('ReqProgramaTejidoObserver::sincronizarCatCodificados error', $this->avisos);
-        $this->assertContains('ReqProgramaTejidoObserver::recalcularFormulasProduccion error', $this->avisos);
+        // Cabecera y CatCodificados van en una transacción: si CatCodificados falla, la cabecera
+        // conserva sus fórmulas previas en vez de quedar desalineada.
+        $this->assertNull(DB::table('ReqProgramaTejido')->where('Id', 1)->value('Repeticiones'));
+        // Sin la tabla, el sync ya no se salta en silencio.
+        $this->assertContains('ReqProgramaTejidoObserver::sincronizarCatCodificados error', $this->errores);
+        $this->assertContains('ReqProgramaTejidoObserver::recalcularFormulasProduccion error', $this->errores);
     }
 }

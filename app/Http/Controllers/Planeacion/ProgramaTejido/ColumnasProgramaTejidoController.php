@@ -19,7 +19,10 @@ class ColumnasProgramaTejidoController extends Controller
      */
     public function index(Request $request)
     {
-        $userId = $request->input('usuario_id') ?? Auth::id();
+        if ($this->pideOtroUsuario($request)) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso para esta acción.'], 403);
+        }
+        $userId = Auth::id();
         if (! $userId) {
             return response()->json([
                 'success' => false,
@@ -57,7 +60,10 @@ class ColumnasProgramaTejidoController extends Controller
      */
     public function getColumnasVisibles(Request $request)
     {
-        $userId = $request->input('usuario_id') ?? Auth::id();
+        if ($this->pideOtroUsuario($request)) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso para esta acción.'], 403);
+        }
+        $userId = Auth::id();
         if (! $userId) {
             return response()->json([
                 'success' => false,
@@ -83,7 +89,7 @@ class ColumnasProgramaTejidoController extends Controller
     /**
      * Guarda el estado de columnas ocultas/visibles por usuario.
      * POST /programa-tejido/columnas
-     * payload: { usuario_id?, columnas: { "NombreColumna": true/false, ... } }
+     * payload: { usuario_id? (solo el propio), columnas: { "NombreColumna": true/false, ... } }
      *
      * Optimizado: aprovecha índice único UX_OrdColProgramaTejido_Usuario_Columna
      * El índice único acelera las operaciones de INSERT/UPDATE en upsert
@@ -94,7 +100,10 @@ class ColumnasProgramaTejidoController extends Controller
             'columnas' => 'array',
         ]);
 
-        $userId = $request->input('usuario_id') ?? Auth::id();
+        if ($this->pideOtroUsuario($request)) {
+            return response()->json(['success' => false, 'message' => 'No tienes permiso para esta acción.'], 403);
+        }
+        $userId = Auth::id();
         if (! $userId) {
             return response()->json([
                 'success' => false,
@@ -132,5 +141,16 @@ class ColumnasProgramaTejidoController extends Controller
             'success' => true,
             'message' => 'Estados de columnas guardados',
         ])->header('Content-Type', 'application/json; charset=utf-8');
+    }
+
+    /**
+     * Las preferencias son por usuario: un usuario_id ajeno en el request es un intento
+     * de leer o pisar las columnas de otro (antes se aceptaba tal cual).
+     */
+    private function pideOtroUsuario(Request $request): bool
+    {
+        $pedido = $request->input('usuario_id');
+
+        return $pedido !== null && $pedido !== '' && (string) $pedido !== (string) Auth::id();
     }
 }

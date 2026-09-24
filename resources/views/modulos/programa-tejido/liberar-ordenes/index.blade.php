@@ -11,12 +11,16 @@
     <button onclick="toggleFilters()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2">
         <i class="fas fa-filter"></i>
     </button>
+    {{-- En Muestras el servidor exige crear del módulo Muestras (idrol 5, decisión del owner):
+         el botón usa el mismo permiso para no ofrecer una acción que termina en 403. --}}
+    @php($superficieLiberar = \App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface::actual())
     <x-navbar.button-create
         id="btn-liberar"
         onclick="liberarOrdenes()"
         title="Liberar"
         text="Liberar"
         module="Programa Tejido"
+        :moduleId="$superficieLiberar->esMuestras() ? $superficieLiberar->moduloPermiso() : null"
         icon="fa-unlock"
         bg="bg-green-500"
         iconColor="text-white"
