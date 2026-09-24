@@ -11143,12 +11143,6 @@ parameters:
 			path: app/Imports/ReqVelocidadStdImport.php
 
 		-
-			message: '#^Strict comparison using \=\=\= between Illuminate\\Contracts\\Auth\\Authenticatable and null will always evaluate to false\.$#'
-			identifier: identical.alwaysFalse
-			count: 1
-			path: app/Listeners/Monitoreo/RegistrarLogout.php
-
-		-
 			message: '#^Offset ''1'' on non\-empty\-array\<string, mixed\> on left side of \?\? does not exist\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
@@ -12593,30 +12587,6 @@ parameters:
 			identifier: argument.unresolvableType
 			count: 1
 			path: app/Services/ModuloService.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>area" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Services/Monitoreo/AccesoAdmin.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Sistema\\Monitoreo\\MonDispositivo\:\:\$UltimoUsuarioId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Monitoreo/CierreRemotoService.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Sistema\\Monitoreo\\MonDispositivo\:\:\$Uuid\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Monitoreo/CierreRemotoService.php
-
-		-
-			message: '#^Offset ''function'' on array\{function\: string, line\?\: int, file\?\: string, class\?\: class\-string, type\?\: ''\-\>''\|''\:\:'', args\?\: list\<mixed\>, object\?\: object\} on left side of \?\? always exists and is not nullable\.$#'
-			identifier: nullCoalesce.offset
-			count: 1
-			path: app/Services/Monitoreo/ErrorRecorder.php
 
 		-
 			message: '#^Call to function is_array\(\) with App\\Models\\Atadores\\AtaMontadoTelasModel will always evaluate to false\.$#'

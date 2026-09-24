@@ -7,6 +7,7 @@ use App\Services\Monitoreo\Monitoreo;
 use App\Services\Monitoreo\SesionService;
 use Illuminate\Auth\Events\CurrentDeviceLogout;
 use Illuminate\Auth\Events\Logout;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 /**
  * Cierra la SYSMonSesion en Logout y CurrentDeviceLogout.
@@ -25,11 +26,15 @@ class RegistrarLogout
 
     public function handle(Logout|CurrentDeviceLogout $event): void
     {
-        if (! Monitoreo::activo() || $event->user === null) {
+        // El tipo dice Authenticatable, pero SessionGuard::logout() despacha el evento
+        // aunque no haya usuario (sesión ya expirada): ahí llega null.
+        /** @var Authenticatable|null $usuario */
+        $usuario = $event->user;
+        if (! Monitoreo::activo() || $usuario === null) {
             return;
         }
 
-        Monitoreo::seguro('listener Logout', function () use ($event): void {
+        Monitoreo::seguro('listener Logout', function () use ($usuario): void {
             $request = request();
             $remoto = $request->attributes->get(self::MOTIVO) === 'remoto';
             $sesionId = $request->hasSession() ? $request->session()->pull(SesionService::LLAVE_SESION) : null;
@@ -37,8 +42,8 @@ class RegistrarLogout
             $this->sesiones->cerrar($sesionId, $remoto ? 'remoto' : 'logout');
 
             $this->accesos->registrar($remoto ? 'logout_remoto' : 'logout', [
-                'UsuarioId' => (int) $event->user->getAuthIdentifier(),
-                'NumeroEmpleado' => $event->user->numero_empleado ?? null,
+                'UsuarioId' => (int) $usuario->getAuthIdentifier(),
+                'NumeroEmpleado' => $usuario->numero_empleado ?? null,
             ], $request);
         });
     }

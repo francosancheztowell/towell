@@ -11,7 +11,7 @@ final class AccesoAdmin
 {
     public static function permite(mixed $usuario): bool
     {
-        $area = self::normalizar($usuario?->area ?? null);
+        $area = self::normalizar(is_object($usuario) ? ($usuario->area ?? null) : null);
 
         if ($area === '') {
             return false;

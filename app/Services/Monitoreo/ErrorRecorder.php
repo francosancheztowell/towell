@@ -308,7 +308,7 @@ class ErrorRecorder
                 $frame['line'] ?? '?',
                 $frame['class'] ?? '',
                 $frame['type'] ?? '',
-                $frame['function'] ?? '',
+                $frame['function'],
             );
         }
 
