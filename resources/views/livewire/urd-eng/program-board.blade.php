@@ -55,9 +55,6 @@
     @endif
 
     <div class="program-board-lanes {{ $moduleMeta['isUrdido'] ? 'is-urdido' : 'is-engomado' }}" aria-label="Órdenes por máquina">
-        @if (! $moduleMeta['isUrdido'])
-            <p class="program-board-legend"><span class="program-board-legend-swatch is-urdido-finished" aria-hidden="true"></span> Urdido finalizado</p>
-        @endif
         @foreach ($board['lanes'] as $lane)
             <section class="program-board-lane" wire:key="lane-{{ $moduleMeta['value'] }}-{{ $lane['key'] }}">
                 <h2>{{ $lane['label'] }}</h2>
