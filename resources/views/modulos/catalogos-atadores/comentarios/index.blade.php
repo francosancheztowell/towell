@@ -41,37 +41,8 @@
         </div>
     </div>
 
-<!-- Modal Ver Actividad -->
-<div id="viewModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
-        <div class="flex justify-between items-center border-b p-4">
-            <h2 class="text-xl font-bold text-gray-800">Detalles del comentario</h2>
-            <button onclick="closeViewModal()" class="text-gray-500 hover:text-gray-700">
-                <i class="fas fa-times text-2xl"></i>
-            </button>
-        </div>
-        <div class="p-6">
-            <div class="grid grid-cols-2 gap-4">
-                <div class="col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Nota 1</label>
-                    <p class="text-gray-900 bg-gray-50 p-2 rounded" id="view_nota1">-</p>
-                </div>
-                <div class="col-span-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Nota 2</label>
-                    <p class="text-gray-900 bg-gray-50 p-2 rounded" id="view_nota2">-</p>
-                </div>
-            </div>
-        </div>
-        <div class="border-t p-4 flex justify-end">
-            <button onclick="closeViewModal()" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg">
-                Cerrar
-            </button>
-        </div>
-    </div>
-</div>
-
 <!-- Modal Crear/Editar Actividad -->
-<div id="formModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+<div id="formModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
         <div class="flex justify-between items-center border-b p-4">
             <h2 class="text-xl font-bold text-gray-800" id="formModalTitle">Nuevo Comentario</h2>
@@ -119,7 +90,7 @@
 </div>
 
 <!-- Modal Confirmar Eliminación -->
-<div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+<div id="deleteModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         <div class="flex justify-between items-center border-b p-4 bg-red-50">
             <h2 class="text-xl font-bold text-red-700">Confirmar Eliminación</h2>
@@ -277,39 +248,10 @@
             });
     }
 
-    // Abrir modal de vista
-    function openViewModal(nota1) {
-        // Cargar datos desde el backend
-        axios.get(`/atadores/catalogos/comentarios/${encodeURIComponent(nota1)}`)
-            .then(response => {
-                if (response.data.success) {
-                    const data = response.data.data;
-                    document.getElementById('view_nota1').textContent = data.Nota1;
-                    document.getElementById('view_nota2').textContent = data.Nota2 || '-';
-
-                    document.getElementById('viewModal').classList.remove('hidden');
-                    document.getElementById('viewModal').classList.add('flex');
-                }
-            })
-            .catch(error => {
-                console.error('Error al cargar comentario:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'No se pudo cargar el comentario'
-                });
-            });
-    }
-
     // Cerrar modales
     function closeFormModal() {
         document.getElementById('formModal').classList.add('hidden');
         document.getElementById('formModal').classList.remove('flex');
-    }
-
-    function closeViewModal() {
-        document.getElementById('viewModal').classList.add('hidden');
-        document.getElementById('viewModal').classList.remove('flex');
     }
 
     function closeDeleteModal() {
@@ -408,14 +350,10 @@
     // Cerrar modales al hacer clic fuera
     window.onclick = function(event) {
         const formModal = document.getElementById('formModal');
-        const viewModal = document.getElementById('viewModal');
         const deleteModal = document.getElementById('deleteModal');
 
         if (event.target === formModal) {
             closeFormModal();
-        }
-        if (event.target === viewModal) {
-            closeViewModal();
         }
         if (event.target === deleteModal) {
             closeDeleteModal();

@@ -1194,13 +1194,14 @@ const selection = {
 
     // El tipo se valida aqui tambien: con "Quitar Filtro" activo la tabla muestra
     // piezas de otras barras y el lote se las llevaria de corbata.
+    // Un julio KM sin tipo entra en cualquier barra.
     const telTipo = s(tel.tipo).toUpperCase().trim()
     const candidatas = ($$('#inventarioTable .selectable-row-inventario') as HTMLTableRowElement[])
       .filter(
         (r) =>
           r.dataset.disabled !== 'true' &&
           s(r.dataset.inventBatchId).trim() === lote &&
-          (!telTipo || s(r.dataset.tipo).toUpperCase().trim() === telTipo),
+          (!telTipo || s(r.dataset.tipo).trim() === '' || s(r.dataset.tipo).toUpperCase().trim() === telTipo),
       )
       .slice(0, huecos)
 
@@ -1279,11 +1280,18 @@ const selection = {
     const btnReservar = $('#btnReservar')
     const btnLiberarTelar = $('#btnLiberarTelar')
 
-    // Reservar: telar + inventario del mismo tipo (Rizo/Pie, o la barra 1..4 en KM)
+    // Reservar: telar + inventario del mismo tipo (Rizo/Pie, o la barra 1..4 en KM).
+    // Un julio KM sin tipo se puede reservar en cualquier barra.
     const telSel = state.selectedTelar
     const invSel = state.selectedInventarios
     const tiposMatch =
-      telSel && invSel.length > 0 ? invSel.every((i) => eq.str(telSel.tipo, i.tipo || i.data?.Tipo)) : false
+      telSel && invSel.length > 0
+        ? invSel.every((i) => {
+            const invTipo = s(i.tipo || i.data?.Tipo).trim()
+            if (!invTipo) return true
+            return eq.str(telSel.tipo, invTipo)
+          })
+        : false
 
     // Liberar telar: sólo telar individual y reservado
     if (state.selectedTelar && isReservado(state.selectedTelar)) {

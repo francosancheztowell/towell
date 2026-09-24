@@ -21,10 +21,11 @@ Route::prefix('atadores')->name('atadores.')->group(function () {
         ->name('catalogos');
 
     Route::get('/programaatadores', [AtadoresController::class, 'index'])->name('programa');
-    Route::post('/programaatadores/exportar-excel', [AtadoresController::class, 'exportarExcel'])->name('exportar.excel');
+    Route::get('/programaatadores/estatus', [AtadoresController::class, 'estatus'])->name('programa.estatus');
     Route::redirect('/programa', '/atadores/programaatadores', 301);
 
-    Route::get('/iniciar', [AtadoresController::class, 'iniciarAtado'])->name('iniciar');
+    Route::get('/iniciar', [AtadoresController::class, 'iniciarAtado'])
+        ->middleware('module.permission:crear,45')->name('iniciar'); // Programa Atadores
     Route::get('/calificar/montado', [AtadoresController::class, 'procesoKm'])->defaults('proceso', 'montado')->name('calificar.montado');
     Route::get('/calificar/enhebrado', [AtadoresController::class, 'procesoKm'])->defaults('proceso', 'enhebrado')->name('calificar.enhebrado');
     Route::get('/calificar', [AtadoresController::class, 'calificarAtadores'])->name('calificar');
@@ -76,6 +77,7 @@ Route::prefix('atadores/reportes-atadores')->name('atadores.reportes.')->group(f
     Route::get('/programa', [ReportesAtadoresController::class, 'reportePrograma'])->name('programa');
     Route::get('/programa/excel', [ReportesAtadoresController::class, 'exportarExcel'])->name('programa.excel');
     Route::get('/atadores', [ReportesAtadoresController::class, 'reporteAtadores'])->name('atadores');
+    Route::get('/km', [ReportesAtadoresController::class, 'reporteKm'])->name('km');
     Route::get('/atadores/descargar', [ReportesAtadoresController::class, 'descargarExcelRango'])->name('atadores.descargar');
     Route::get('/oee/verificar', [ReportesAtadoresController::class, 'verificarOeeAtadores'])->name('oee.verificar');
     Route::post('/oee/despachar', [ReportesAtadoresController::class, 'despacharOeeAtadores'])->name('oee.despachar');

@@ -1,6 +1,10 @@
 /**
  * MatrizCalibresCatalog - Catálogo de matriz de calibres
  */
+// Mismos tipos que MatrizCalibreClave::TIPOS (BARRA1..4 = Karl Mayer, una clave por barra).
+const TIPOS_MATRIZ_CALIBRES = ['RIZO', 'PIE', 'TRAMA', 'BARRA1', 'BARRA2', 'BARRA3', 'BARRA4'];
+const TIPOS_CON_CUENTA = ['RIZO', 'PIE', 'BARRA1', 'BARRA2', 'BARRA3', 'BARRA4'];
+
 class MatrizCalibresCatalog extends CatalogBase {
     constructor(config) {
         super({
@@ -176,6 +180,10 @@ class MatrizCalibresCatalog extends CatalogBase {
     getFormHTML(prefix, data = {}) {
         const val = (key) => this.escapeAttr(data[key] ?? '');
         const tipoActual = (data.Tipo || '').toString().trim().toUpperCase();
+        // Un tipo desconocido se conserva: si no, al editar la fila quedaba en "Seleccione...".
+        const tipos = tipoActual && !TIPOS_MATRIZ_CALIBRES.includes(tipoActual)
+            ? [...TIPOS_MATRIZ_CALIBRES, tipoActual]
+            : TIPOS_MATRIZ_CALIBRES;
 
         return `
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left text-sm">
@@ -184,7 +192,7 @@ class MatrizCalibresCatalog extends CatalogBase {
                     <select id="${prefix}Tipo"
                         class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500">
                         <option value="">Seleccione...</option>
-                        ${['RIZO', 'PIE', 'TRAMA'].map((tipo) => `<option value="${tipo}"${tipo === tipoActual ? ' selected' : ''}>${tipo}</option>`).join('')}
+                        ${tipos.map((tipo) => `<option value="${tipo}"${tipo === tipoActual ? ' selected' : ''}>${tipo}</option>`).join('')}
                     </select>
                 </div>
                 <div>
@@ -269,10 +277,10 @@ class MatrizCalibresCatalog extends CatalogBase {
             return { valid: false, message: 'Para Pie debe existir al menos Fibra o Calibre' };
         }
         if (data.Tipo !== 'PIE' && (!tieneCalibre || !tieneFibra)) {
-            return { valid: false, message: 'Fibra y Calibre son obligatorios para Rizo y Trama' };
+            return { valid: false, message: `Fibra y Calibre son obligatorios para ${data.Tipo}` };
         }
-        if ((data.Tipo === 'RIZO' || data.Tipo === 'PIE') && !String(data.Cuenta ?? '').trim()) {
-            return { valid: false, message: 'Cuenta es obligatoria para Rizo y Pie' };
+        if (TIPOS_CON_CUENTA.includes(data.Tipo) && !String(data.Cuenta ?? '').trim()) {
+            return { valid: false, message: `Cuenta es obligatoria para ${data.Tipo}` };
         }
         return { valid: true };
     }

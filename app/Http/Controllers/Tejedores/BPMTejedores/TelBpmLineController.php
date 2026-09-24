@@ -167,69 +167,6 @@ class TelBpmLineController extends Controller
         }
     }
 
-    /** Guardado en lote (para cuando envíes todo el grid) */
-    public function bulkSave(Request $request, string $folio)
-    {
-        $header = TelBpmModel::findOrFail($folio);
-
-        if ($header->Status !== self::EST_CREADO) {
-            return response()->json(['ok' => false, 'msg' => 'Edición sólo en estado Creado'], 422);
-        }
-
-        $rows = $request->validate([
-            'rows' => ['required', 'array', 'min:1'],
-            'rows.*.Orden' => ['required', 'integer', 'min:1'],
-            'rows.*.NoTelarId' => ['required', 'string', 'max:10'],
-            'rows.*.Actividad' => ['nullable', 'string', 'max:100'],
-            'rows.*.SalonTejidoId' => ['nullable', 'string', 'max:10'],
-            'rows.*.TurnoRecibe' => ['nullable', 'string', 'max:10'],
-            'rows.*.Valor' => ['nullable', 'string', 'max:50'], // 'OK' | 'X' | 'M' | null
-        ])['rows'];
-
-        DB::transaction(function () use ($rows, $folio) {
-            foreach ($rows as $r) {
-                $orden = (int) ($r['Orden'] ?? 0);
-                $telar = (string) ($r['NoTelarId'] ?? '');
-                if ($orden <= 0 || $telar === '') {
-                    continue;
-                }
-
-                $actividad = $r['Actividad'] ?? TelActividadesBPM::where('Orden', $orden)->value('Actividad');
-                $valor = $r['Valor'] ?? null;
-                if ($valor === '') {
-                    $valor = null;
-                }
-                if ($valor !== null && ! in_array($valor, ['OK', 'X', 'M'], true)) {
-                    if ($valor === '1') {
-                        $valor = 'OK';
-                    } elseif ($valor === '-1') {
-                        $valor = 'X';
-                    } elseif (strtoupper($valor) === 'M' || $valor === 'Mantenimiento') {
-                        $valor = 'M';
-                    } else {
-                        $valor = null;
-                    }
-                }
-
-                DB::table('TelBPMLine')->updateOrInsert(
-                    [
-                        'Folio' => $folio,
-                        'Orden' => $orden,
-                        'NoTelarId' => $telar,
-                    ],
-                    [
-                        'Actividad' => $actividad,
-                        'SalonTejidoId' => $r['SalonTejidoId'] ?? null,
-                        'TurnoRecibe' => $r['TurnoRecibe'] ?? null,
-                        'Valor' => $valor,
-                    ]
-                );
-            }
-        });
-
-        return response()->json(['ok' => true]);
-    }
-
     /** Actualizar comentarios del folio (guardados en TelBPM.Comentarios) */
     public function updateComentarios(Request $request, string $folio)
     {

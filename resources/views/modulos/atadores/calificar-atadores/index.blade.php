@@ -34,11 +34,24 @@
             @php
                 $item = $montadoTelas->first();
                 $esAutorizado = $item->Estatus === 'Autorizado';
-                $hayDevolucion = !empty($devolucionActual);
-                $devolucionBloqueadaPorAx = $hayDevolucion && (int) ($devolucionActual->AX ?? 0) === 1;
-                $fechaDevolucion = $hayDevolucion && $devolucionActual->FechaDevol
-                    ? \Carbon\Carbon::parse($devolucionActual->FechaDevol)->format('Y-m-d')
-                    : '';
+                $devolucionesKm = $devolucionesKm ?? collect();
+                $juliosKm = $juliosKm ?? [];
+                if ($esKm ?? false) {
+                    $hayDevolucion = $devolucionesKm->isNotEmpty();
+                    $devolucionBloqueadaPorAx = $devolucionesKm->contains(fn ($fila) => (int) ($fila->AX ?? 0) === 1);
+                    $primeraDevolucion = $devolucionesKm->first();
+                    $fechaDevolucion = $primeraDevolucion && $primeraDevolucion->FechaDevol
+                        ? \Carbon\Carbon::parse($primeraDevolucion->FechaDevol)->format('Y-m-d')
+                        : now('America/Mexico_City')->format('Y-m-d');
+                    $tipoBarra = trim((string) ($item->Tipo ?? ''));
+                    $barraKm = preg_match('/^[1-4]$/', $tipoBarra) ? 'Barra '.$tipoBarra : ($tipoBarra !== '' ? $tipoBarra : '-');
+                } else {
+                    $hayDevolucion = !empty($devolucionActual);
+                    $devolucionBloqueadaPorAx = $hayDevolucion && (int) ($devolucionActual->AX ?? 0) === 1;
+                    $fechaDevolucion = $hayDevolucion && $devolucionActual->FechaDevol
+                        ? \Carbon\Carbon::parse($devolucionActual->FechaDevol)->format('Y-m-d')
+                        : '';
+                }
             @endphp
 
             @if($esAutorizado)
@@ -386,6 +399,108 @@
                     @endif -->
 
                     <fieldset class="m-0 min-w-0 border-0 p-0" @disabled($devolucionBloqueadaPorAx)>
+                    @if($esKm ?? false)
+                    <div class="mb-3 flex flex-wrap items-center gap-2">
+                        <span class="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-900">{{ $barraKm }}</span>
+                        <span class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-800">KM1</span>
+                        <span class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
+                            Ubicación
+                            <span class="rounded-full bg-white px-2 py-0.5 text-sm font-semibold text-blue-800">KM1</span>
+                        </span>
+                        <span class="text-sm text-gray-600">Telar {{ $item->NoTelarId ?? '-' }}</span>
+                        @php $anterioresKm = $anterioresKm ?? collect(); @endphp
+                        <input type="hidden" id="dev_anterior_km" value="{{ $anteriorKm->Id ?? '' }}">
+                        @if($anterioresKm->isNotEmpty())
+                            {{-- Atado anterior de la barra del que salen los julios a devolver (como el select de julio en Jacquard/Smit). --}}
+                            <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                Atado anterior
+                                <select id="dev_anterior_km_select"
+                                    onchange="const u = new URL(window.location.href); u.searchParams.set('anterior', this.value); window.location.assign(u.toString());"
+                                    class="min-h-9 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    @foreach($anterioresKm as $atadoAnt)
+                                        <option value="{{ $atadoAnt->Id }}" @selected((int) ($anteriorKm->Id ?? 0) === (int) $atadoAnt->Id)>
+                                            Orden {{ $atadoAnt->NoProduccion }} · {{ $atadoAnt->NoJulio }} · {{ \Carbon\Carbon::parse($atadoAnt->Fecha)->format('d/m/Y') }} T{{ $atadoAnt->Turno }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </label>
+                        @endif
+                        @php $cuentasKm = collect($juliosKm)->pluck('cuenta')->filter()->unique()->values(); @endphp
+                        @if($cuentasKm->count() > 1)
+                            {{-- ponytail: filtro solo visual; se guardan todas las filas --}}
+                            <label class="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                Cuenta
+                                <select id="dev_cuenta_km" onchange="document.querySelectorAll('#devKmBody tr[data-julio]').forEach(tr => tr.hidden = this.value !== '' && tr.dataset.cuenta !== this.value)"
+                                    class="min-h-9 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Todas</option>
+                                    @foreach($cuentasKm as $cuentaKm)
+                                        <option value="{{ $cuentaKm }}">{{ $cuentaKm }}</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                        @endif
+                        <label class="ml-auto flex items-center gap-2 text-sm font-medium text-gray-700">
+                            Fecha
+                            <input type="date" id="dev_fecha_km" required value="{{ $fechaDevolucion }}"
+                                class="dev-km-input min-h-9 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </label>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-blue-500 text-white">
+                                <tr>
+                                    <th class="px-2 py-2 text-left font-medium">Julio</th>
+                                    <th class="px-2 py-2 text-left font-medium">Orden</th>
+                                    <th class="px-2 py-2 text-left font-medium">Folio Dev</th>
+                                    <th class="px-2 py-2 text-left font-medium">Cuenta</th>
+                                    <th class="px-2 py-2 text-left font-medium">Calibre</th>
+                                    <th class="px-2 py-2 text-left font-medium">Hilo</th>
+                                    <th class="px-2 py-2 text-left font-medium">Metros</th>
+                                    <th class="px-2 py-2 text-left font-medium">Kilos</th>
+                                    <th class="px-2 py-2 text-left font-medium">Obs</th>
+                                </tr>
+                            </thead>
+                            <tbody id="devKmBody">
+                                @forelse($juliosKm as $filaKm)
+                                    <tr data-julio="{{ $filaKm['julio'] }}" data-orden="{{ $filaKm['orden'] }}" data-cuenta="{{ $filaKm['cuenta'] }}">
+                                        <td class="px-2 py-2 whitespace-nowrap font-medium text-gray-800">{{ $filaKm['julio'] }}</td>
+                                        <td class="px-2 py-2 whitespace-nowrap text-gray-700">{{ $filaKm['orden'] !== '' ? $filaKm['orden'] : '-' }}</td>
+                                        <td class="px-2 py-2 whitespace-nowrap font-medium text-blue-800">{{ $filaKm['folio_dev'] ?? '-' }}</td>
+                                        <td class="px-2 py-2">
+                                            <input data-campo="cuenta" maxlength="10" value="{{ $filaKm['cuenta'] }}"
+                                                class="dev-km-input w-24 px-2 py-1 border border-gray-300 rounded" />
+                                        </td>
+                                        <td class="px-2 py-2">
+                                            <input data-campo="calibre" maxlength="10" value="{{ $filaKm['calibre'] }}"
+                                                class="dev-km-input w-20 px-2 py-1 border border-gray-300 rounded" />
+                                        </td>
+                                        <td class="px-2 py-2">
+                                            <input data-campo="hilo" maxlength="20" value="{{ $filaKm['hilo'] }}" title="{{ $filaKm['hilo_completo'] }}"
+                                                class="dev-km-input w-36 px-2 py-1 border border-gray-300 rounded" />
+                                        </td>
+                                        <td class="px-2 py-2">
+                                            <input data-campo="metros" type="number" step="any" min="0" value="{{ $filaKm['metros'] }}"
+                                                class="dev-km-input w-24 px-2 py-1 border border-gray-300 rounded" />
+                                        </td>
+                                        <td class="px-2 py-2">
+                                            <input data-campo="kilos" type="number" step="any" min="0" value="{{ $filaKm['kilos'] }}"
+                                                class="dev-km-input w-24 px-2 py-1 border border-gray-300 rounded" />
+                                        </td>
+                                        <td class="px-2 py-2" style="width: 36rem; min-width: 36rem;">
+                                            <input data-campo="obs" maxlength="255" value="{{ $filaKm['obs'] }}"
+                                                class="dev-km-input box-border px-2 py-1 border border-gray-300 rounded"
+                                                style="width: 100%; min-width: 34rem;" />
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="9" class="px-3 py-4 text-center text-gray-500">No hay un atado anterior de esta barra. Desmarca Devolución para terminar sin devolver.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                    @else
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4">
                         {{-- Fila 1: Telar | Ubicación | Cuenta | Lote --}}
                         <div>
@@ -504,6 +619,7 @@
                     </div>
 
                     {{-- Validación temporalmente pausada: <div id="dev_disponibilidad" class="hidden mt-4 rounded border px-3 py-2 text-sm" aria-live="polite"></div> --}}
+                    @endif
 
                     <div id="estadoAutoguardadoDevolucion" class="mt-4 text-right text-xs text-gray-500" aria-live="polite"></div>
                     </fieldset>
@@ -1045,6 +1161,26 @@
             return el ? el.value.trim() : '';
         }
 
+        function payloadDevolucionKm() {
+            const filas = Array.from(document.querySelectorAll('#devKmBody tr[data-julio]')).map(tr => ({
+                no_julio: tr.dataset.julio || '',
+                no_produccion: tr.dataset.orden || '',
+                cuenta: tr.querySelector('[data-campo="cuenta"]')?.value || '',
+                calibre: tr.querySelector('[data-campo="calibre"]')?.value || '',
+                hilo: tr.querySelector('[data-campo="hilo"]')?.value || '',
+                metros: tr.querySelector('[data-campo="metros"]')?.value || '',
+                kilos: tr.querySelector('[data-campo="kilos"]')?.value || '',
+                obs: tr.querySelector('[data-campo="obs"]')?.value || '',
+            }));
+
+            return {
+                ref_id: currentRefId,
+                fecha_devol: document.getElementById('dev_fecha_km')?.value || null,
+                anterior_id: document.getElementById('dev_anterior_km')?.value || null,
+                filas,
+            };
+        }
+
         function payloadDevolucion() {
             const kilos = valorDevolucion('dev_kilos');
             const metros = valorDevolucion('dev_metros');
@@ -1086,7 +1222,7 @@
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                     },
-                    body: JSON.stringify(payloadDevolucion())
+                    body: JSON.stringify(esKarlMayer ? payloadDevolucionKm() : payloadDevolucion())
                 });
                 const res = await response.json();
 
@@ -1266,6 +1402,19 @@
             }
 
             panel.classList.remove('hidden');
+            if (esKarlMayer) {
+                const hayAnterior = document.querySelector('#devKmBody tr[data-julio]');
+                if (!hayAnterior || devolucionRegistrada) {
+                    return;
+                }
+                const creada = await sincronizarDevolucion({ permitirCrear: true });
+                if (!creada) {
+                    if (checkbox) checkbox.checked = false;
+                    panel.classList.add('hidden');
+                }
+                return;
+            }
+
             prepararFormularioDevolucion();
 
             // Primero cargar julios y sugerir el penúltimo; luego crear/actualizar
@@ -1285,6 +1434,14 @@
         }
 
         function inicializarAutoguardadoDevolucion() {
+            if (esKarlMayer) {
+                document.querySelectorAll('.dev-km-input').forEach(campo => {
+                    campo.addEventListener('input', () => programarAutoguardadoDevolucion());
+                    campo.addEventListener('change', () => programarAutoguardadoDevolucion());
+                });
+                return;
+            }
+
             const campos = [
                 'dev_telar', 'dev_ubicacion', 'dev_cuenta', 'dev_no_julio', 'dev_metros',
                 'dev_calibre', 'dev_tipo', 'dev_kilos', 'dev_fecha', 'dev_hilo', 'dev_obs',
@@ -1501,7 +1658,33 @@
 
             // Si hay una devolución registrada, debe tener Julio, ubicación, metros y kilos
             const chkDevolucion = document.getElementById('chkDevolucion');
-            if (chkDevolucion && chkDevolucion.checked) {
+            if (chkDevolucion && chkDevolucion.checked && esKarlMayer) {
+                const filasKm = Array.from(document.querySelectorAll('#devKmBody tr[data-julio]'));
+                if (filasKm.length === 0) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Sin atado anterior',
+                        text: 'No hay un atado anterior de esta barra. Desmarca Devolución para terminar sin devolver.',
+                        confirmButtonText: 'Entendido'
+                    });
+                    return;
+                }
+                const incompleta = filasKm.some(tr => {
+                    const julio = (tr.dataset.julio || '').trim();
+                    const metros = parseFloat(tr.querySelector('[data-campo="metros"]')?.value);
+                    const kilos = parseFloat(tr.querySelector('[data-campo="kilos"]')?.value);
+                    return julio === '' || !(metros > 0) || !(kilos > 0);
+                });
+                if (incompleta) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Devolución incompleta',
+                        text: 'Cada julio del atado anterior debe tener Metros y Kilos antes de terminar el atado.',
+                        confirmButtonText: 'Entendido'
+                    });
+                    return;
+                }
+            } else if (chkDevolucion && chkDevolucion.checked) {
                 const devJulio = valorDevolucion('dev_no_julio');
                 if (devJulio === '') {
                     Swal.fire({

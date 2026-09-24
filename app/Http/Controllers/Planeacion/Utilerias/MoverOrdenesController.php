@@ -270,14 +270,6 @@ class MoverOrdenesController extends Controller
     }
 
     /**
-     * Normaliza un valor a string sin espacios extremos.
-     */
-    private function normalizar(mixed $value): string
-    {
-        return trim((string) ($value ?? ''));
-    }
-
-    /**
      * Registra la FechaInicio del primer registro del telar como ancla para el recálculo.
      *
      * @param  array<string, Carbon|null>  &$inicioBasePorTelar

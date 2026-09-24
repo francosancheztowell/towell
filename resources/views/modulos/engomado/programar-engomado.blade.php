@@ -81,7 +81,7 @@
     </div>
 
     <!-- Modal Editar Prioridad -->
-    <div id="modalEditarPrioridad" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
+    <div id="modalEditarPrioridad" class="fixed inset-0 bg-gray-600/50 overflow-y-auto h-full w-full z-50 flex items-center justify-center" style="display: none;">
         <div class="relative bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 my-8">
             <!-- Header del Modal -->
             <div class="flex items-center justify-between p-6 border-b border-gray-200">

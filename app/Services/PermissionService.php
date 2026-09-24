@@ -55,16 +55,6 @@ class PermissionService
     }
 
     /**
-     * Obtener permisos de un usuario para un módulo
-     */
-    public function getPermisosUsuario(int $idusuario, int $idrol): ?SYSUsuariosRoles
-    {
-        return SYSUsuariosRoles::porUsuario($idusuario)
-            ->porRol($idrol)
-            ->first();
-    }
-
-    /**
      * Obtener todos los permisos de un usuario
      */
     public function getAllPermisosUsuario(int $idusuario)

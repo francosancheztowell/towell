@@ -69,10 +69,6 @@ Route::prefix('urdido')->name('urdido.')->group(function () {
     Route::get('/reimpresion-urdido/ventana-imprimir', [ProgramarUrdidoController::class, 'reimpresionVentanaImprimir'])->name('reimpresion.urdido.ventana.imprimir');
 
     Route::get('/editar-ordenes-programadas', [EditarOrdenesProgramadasController::class, 'index'])->name('editar.ordenes.programadas');
-    Route::post('/editar-ordenes-programadas/actualizar', [EditarOrdenesProgramadasController::class, 'actualizar'])->name('editar.ordenes.programadas.actualizar');
-    Route::get('/editar-ordenes-programadas/obtener-orden', [EditarOrdenesProgramadasController::class, 'obtenerOrden'])->name('editar.ordenes.programadas.obtener.orden');
-    Route::post('/editar-ordenes-programadas/actualizar-julios', [EditarOrdenesProgramadasController::class, 'actualizarJulios'])->name('editar.ordenes.programadas.actualizar.julios');
-    Route::post('/editar-ordenes-programadas/actualizar-hilos-produccion', [EditarOrdenesProgramadasController::class, 'actualizarHilosProduccion'])->name('editar.ordenes.programadas.actualizar.hilos.produccion');
 
     Route::get('/catalogos-julios', [CatalogosUrdidoController::class, 'catalogosJulios'])->name('catalogos.julios');
     Route::post('/catalogos-julios', [CatalogosUrdidoController::class, 'storeJulio'])

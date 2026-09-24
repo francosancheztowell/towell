@@ -14,8 +14,11 @@ final readonly class MatrizCalibreClave
 
     public const TIPO_TRAMA = 'TRAMA';
 
+    /** Karl Mayer: una clave por barra para que cada posición aprenda su propia equivalencia. */
+    public const TIPOS_BARRA = ['BARRA1', 'BARRA2', 'BARRA3', 'BARRA4'];
+
     /** @var list<string> */
-    public const TIPOS = [self::TIPO_RIZO, self::TIPO_PIE, self::TIPO_TRAMA];
+    public const TIPOS = [self::TIPO_RIZO, self::TIPO_PIE, self::TIPO_TRAMA, ...self::TIPOS_BARRA];
 
     public function __construct(
         public string $tipo,

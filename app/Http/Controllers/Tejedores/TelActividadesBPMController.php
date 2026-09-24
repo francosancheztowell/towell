@@ -26,14 +26,6 @@ class TelActividadesBPMController extends Controller
     }
 
     /**
-     * Form crear
-     */
-    public function create()
-    {
-        return view('modulos.tel-actividades-bpm.create');
-    }
-
-    /**
      * Guardar
      */
     public function store(Request $request)
@@ -47,17 +39,6 @@ class TelActividadesBPMController extends Controller
         return redirect()
             ->route('tel-actividades-bpm.index')
             ->with('success', 'Actividad creada correctamente.');
-    }
-
-    /**
-     * Form editar
-     */
-    public function edit(TelActividadesBPM $telActividadesBPM)
-    {
-        // $telActividadesBPM se resuelve por Orden (PK)
-        return view('modulos.tel-actividades-bpm.edit', [
-            'item' => $telActividadesBPM,
-        ]);
     }
 
     /**

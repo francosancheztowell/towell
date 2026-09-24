@@ -89,7 +89,9 @@ class ProcesarDesarrolladorDetalleTest extends TestCase
 
         $this->assertSame('20', $resultado['Tra']);
         $this->assertSame('20', $resultado['CalTramaFondoC1']);
-        $this->assertSame('20.5', $resultado['HiloAX']);
+        $this->assertSame('20.5', $resultado['CalibreTrama2']);
+        $this->assertSame('20.5', $resultado['CalTramaFondoC12']);
+        $this->assertNull($resultado['HiloAX'], 'HiloAX es el tipo de hilo de AX, no el divisor: no se toca.');
         $this->assertSame('ANILLO', $resultado['FibraId']);
         $this->assertSame('05', $resultado['CodColorTrama']);
         $this->assertSame('AZUL', $resultado['ColorTrama']);

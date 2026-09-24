@@ -163,7 +163,7 @@
     </div>
 
     <!-- Modal Crear Usuario -->
-    <div id="modalCrearUsuario" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div id="modalCrearUsuario" class="hidden fixed inset-0 bg-gray-600/50 overflow-y-auto h-full w-full z-50">
         <div class="relative top-10 mx-auto p-5 border w-11/12 max-w-2xl shadow-lg rounded-lg bg-white">
             <div class="flex items-center justify-between p-4 border-b">
                 <h3 class="text-xl font-semibold text-gray-900">

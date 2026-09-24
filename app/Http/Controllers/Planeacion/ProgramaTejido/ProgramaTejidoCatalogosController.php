@@ -72,25 +72,6 @@ class ProgramaTejidoCatalogosController extends Controller
         return response()->json($op);
     }
 
-    public function getFlogsIdOptions()
-    {
-        $a = ReqProgramaTejido::query()
-            ->select('FlogsId')
-            ->whereNotNull('FlogsId')
-            ->distinct()
-            ->pluck('FlogsId');
-
-        $b = ReqModelosCodificados::query()
-            ->select('FlogsId')
-            ->whereNotNull('FlogsId')
-            ->distinct()
-            ->pluck('FlogsId');
-
-        return response()->json(
-            $a->merge($b)->filter()->unique()->sort()->values()
-        );
-    }
-
     public function getFlogsIdFromTwFlogsTable()
     {
         try {
@@ -219,108 +200,6 @@ class ProgramaTejidoCatalogosController extends Controller
             ]);
         } catch (\Throwable $e) {
             return response()->json(['idflog' => null, 'nombreProyecto' => '', 'custName' => ''], 500);
-        }
-    }
-
-    public function getFlogsByTamanoClave(Request $request)
-    {
-        $request->validate([
-            'tamano_clave' => 'required|string',
-        ]);
-
-        $tamanoClave = trim((string) $request->input('tamano_clave'));
-        $salonTejidoId = $request->input('salon_tejido_id');
-
-        try {
-            $query = ReqModelosCodificados::whereRaw("REPLACE(UPPER(LTRIM(RTRIM(TamanoClave))), '  ', ' ') = ?", [strtoupper($tamanoClave)])
-                ->select('ItemId', 'InventSizeId', 'SalonTejidoId')
-                ->whereNotNull('ItemId')
-                ->whereNotNull('InventSizeId')
-                ->where('ItemId', '!=', '')
-                ->where('InventSizeId', '!=', '');
-
-            if ($salonTejidoId) {
-                $aliases = TelarSalonResolver::salonAliases(trim((string) $salonTejidoId));
-                if (! empty($aliases)) {
-                    $query->whereRaw('LTRIM(RTRIM([SalonTejidoId])) IN ('.implode(',', array_fill(0, count($aliases), '?')).')', $aliases);
-                } else {
-                    $query->where('SalonTejidoId', trim((string) $salonTejidoId));
-                }
-            }
-
-            $modelos = $query->get();
-
-            if ($modelos->isEmpty()) {
-                $queryLike = ReqModelosCodificados::whereRaw('UPPER(TamanoClave) like ?', [strtoupper($tamanoClave).'%'])
-                    ->select('ItemId', 'InventSizeId', 'SalonTejidoId')
-                    ->whereNotNull('ItemId')
-                    ->whereNotNull('InventSizeId')
-                    ->where('ItemId', '!=', '')
-                    ->where('InventSizeId', '!=', '');
-
-                if ($salonTejidoId) {
-                    $aliases = TelarSalonResolver::salonAliases(trim((string) $salonTejidoId));
-                    if (! empty($aliases)) {
-                        $queryLike->whereRaw('LTRIM(RTRIM([SalonTejidoId])) IN ('.implode(',', array_fill(0, count($aliases), '?')).')', $aliases);
-                    } else {
-                        $queryLike->where('SalonTejidoId', trim((string) $salonTejidoId));
-                    }
-                }
-
-                $modelos = $queryLike->get();
-            }
-
-            if ($modelos->isEmpty()) {
-                return response()->json([]);
-            }
-
-            $items = $modelos->map(function ($m) {
-                return [
-                    'itemId' => trim((string) $m->ItemId),
-                    'inventSizeId' => trim((string) $m->InventSizeId),
-                ];
-            })->unique(function ($item) {
-                return $item['itemId'].'|'.$item['inventSizeId'];
-            })->values();
-
-            $allFlogs = collect();
-            foreach ($items as $item) {
-                $flogs = DBFacade::connection('sqlsrv_ti')
-                    ->table('dbo.TwFlogsItemLine as il')
-                    ->join('dbo.TwFlogsTable as ft', 'ft.IDFLOG', '=', 'il.IDFLOG')
-                    ->select('il.IDFLOG as IdFlog', 'ft.NAMEPROYECT as NombreProyecto', 'ft.CUSTNAME as CustName')
-                    ->whereRaw('LTRIM(RTRIM(il.ITEMID)) = ?', [$item['itemId']])
-                    ->whereRaw('LTRIM(RTRIM(il.INVENTSIZEID)) = ?', [$item['inventSizeId']])
-                    ->whereIn('ft.ESTADOFLOG', [3, 4, 5, 21])
-                    ->orderByDesc('ft.IDFLOG')
-                    ->get();
-
-                $allFlogs = $allFlogs->merge($flogs);
-            }
-
-            $result = $allFlogs->unique('IdFlog')
-                ->map(function ($row) {
-                    return [
-                        'idflog' => $row->IdFlog ?? null,
-                        'nombreProyecto' => $row->NombreProyecto ?? '',
-                        'custName' => $row->CustName ?? '',
-                    ];
-                })
-                ->filter(function ($item) {
-                    return ! empty($item['idflog']);
-                })
-                ->sortByDesc('idflog')
-                ->values();
-
-            return response()->json($result);
-        } catch (\Throwable $e) {
-            LogFacade::error('getFlogsByTamanoClave', [
-                'tamano_clave' => $tamanoClave,
-                'salon_tejido_id' => $salonTejidoId,
-                'msg' => $e->getMessage(),
-            ]);
-
-            return response()->json([], 500);
         }
     }
 
@@ -569,11 +448,6 @@ class ProgramaTejidoCatalogosController extends Controller
         }
     }
 
-    public function getEficienciaStd(Request $request)
-    {
-        return QueryHelpers::getStdValue('ReqEficienciaStd', 'Eficiencia', 'eficiencia', $request);
-    }
-
     public function getVelocidadStd(Request $request)
     {
         return QueryHelpers::getStdValue('ReqVelocidadStd', 'Velocidad', 'velocidad', $request);
@@ -661,34 +535,6 @@ class ProgramaTejidoCatalogosController extends Controller
             return response()->json($result);
         } catch (\Throwable $e) {
             return response()->json(['error' => 'Error al obtener telares: '.$e->getMessage()], 500);
-        }
-    }
-
-    public function getUltimaFechaFinalTelar(Request $request)
-    {
-        try {
-            $salon = $request->input('salon_tejido_id');
-            $telar = $request->input('no_telar_id');
-            if (! $salon || ! $telar) {
-                return response()->json(['error' => 'SalonTejidoId y NoTelarId son requeridos'], 400);
-            }
-
-            $ultimo = ReqProgramaTejido::query()
-                ->salon($salon)
-                ->telar($telar)
-                ->whereNotNull('FechaFinal')
-                ->orderByDesc('FechaFinal')
-                ->select('Id', 'FechaFinal', 'FibraRizo', 'Maquina', 'Ancho')
-                ->first();
-
-            return response()->json([
-                'ultima_fecha_final' => $ultimo->FechaFinal ?? null,
-                'hilo' => $ultimo->FibraRizo ?? null,
-                'maquina' => $ultimo->Maquina ?? null,
-                'ancho' => $ultimo->Ancho ?? null,
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json(['error' => 'Error al obtener última fecha final: '.$e->getMessage()], 500);
         }
     }
 

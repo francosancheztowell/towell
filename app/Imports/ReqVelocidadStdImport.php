@@ -188,19 +188,6 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
         return $formula;
     }
 
-    private function parseInteger($value)
-    {
-        if (is_null($value) || $value === '') {
-            return null;
-        }
-
-        $value = (string)$value;
-        $value = trim(str_replace([' RPM', 'RPM'], '', $value));
-        $intValue = intval($value);
-
-        return $intValue > 0 ? $intValue : null;
-    }
-
     private function parseFloat($value)
     {
         if (is_null($value) || $value === '') {

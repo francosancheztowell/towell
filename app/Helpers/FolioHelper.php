@@ -61,47 +61,4 @@ class FolioHelper
             return '';
         }
     }
-
-    /**
-     * Obtiene información de la secuencia de un módulo
-     *
-     * @param  string  $modulo  Nombre del módulo
-     * @return array|null ['Id', 'Modulo', 'Prefijo', 'Consecutivo']
-     */
-    public static function obtenerInfoSecuencia(string $modulo): ?array
-    {
-        $row = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', $modulo)->first();
-        if (! $row) {
-            return null;
-        }
-
-        return [
-            'Id' => $row->Id ?? null,
-            'Modulo' => $row->Modulo ?? ($row->modulo ?? null),
-            'Prefijo' => $row->Prefijo ?? ($row->prefijo ?? null),
-            'Consecutivo' => $row->Consecutivo ?? ($row->consecutivo ?? null),
-        ];
-    }
-
-    /**
-     * Reinicia el consecutivo de un módulo (útil para pruebas o reset)
-     *
-     * @param  string  $modulo  Nombre del módulo
-     * @param  int  $nuevoConsecutivo  Nuevo valor del consecutivo
-     */
-    public static function reiniciarConsecutivo(string $modulo, int $nuevoConsecutivo = 1): bool
-    {
-        try {
-            DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', $modulo)->update(['consecutivo' => $nuevoConsecutivo]);
-
-            return true;
-        } catch (\Throwable $e) {
-            Log::error('Error al reiniciar consecutivo', [
-                'modulo' => $modulo,
-                'error' => $e->getMessage(),
-            ]);
-
-            return false;
-        }
-    }
 }

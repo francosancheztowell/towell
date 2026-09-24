@@ -20,7 +20,7 @@ use Livewire\WithPagination;
  *       use ConTabla;
  *       public function columnas(): array { return [['campo'=>'NomEmpl','titulo'=>'Nombre']]; }
  *       public function render() {
- *           return view('...', ['filas' => $this->aplicarTabla(Modelo::query(), ['NomEmpl'])->paginate($this->porPagina)]);
+ *           return view('...', ['filas' => $this->paginar($this->aplicarTabla(Modelo::query(), ['NomEmpl']))]);
  *       }
  *   }
  */

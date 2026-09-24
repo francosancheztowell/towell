@@ -7,6 +7,7 @@ namespace App\Livewire\Mecanicos\VerificaMaquina;
 use App\Helpers\FolioHelper;
 use App\Models\Mecanicos\MecVerificaMaquinaModel;
 use App\Models\Sistema\SSYSFoliosSecuencia;
+use App\Support\PaginacionCompat;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -100,12 +101,8 @@ class Index extends Component
 
     public function render(): View
     {
-        $verificaciones = MecVerificaMaquinaModel::query()
-            ->when($this->estatus !== '', fn ($query) => $query->where('Estatus', $this->estatus))
-            ->orderByDesc('Fecha')
-            ->orderByDesc('HoraInicio')
-            ->orderByDesc('Folio')
-            ->paginate(15, [
+        $query = MecVerificaMaquinaModel::query()
+            ->select([
                 'Folio',
                 'Fecha',
                 'TurnoRecibe',
@@ -114,7 +111,14 @@ class Index extends Component
                 'Estatus',
                 'HoraInicio',
                 'HoraFin',
-            ]);
+            ])
+            ->when($this->estatus !== '', fn ($query) => $query->where('Estatus', $this->estatus))
+            ->orderByDesc('Fecha')
+            ->orderByDesc('HoraInicio')
+            ->orderByDesc('Folio');
+
+        // ponytail: paginate() de Laravel emite OFFSET/FETCH desde la pagina 2 y produccion es SQL Server 2008 R2.
+        $verificaciones = PaginacionCompat::paginar($query, 15, $this->getPage());
 
         $usuario = Auth::user();
 

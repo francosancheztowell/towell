@@ -1556,6 +1556,15 @@ class OrdenDeCambioFelpaController extends Controller
             $catCodificado->NomColorC5 = $registro->NombreCC5;
             $catCodificado->PasadasComb5 = $registro->PasadasComb5 ?? null;
 
+            // Karl Mayer: las 4 barras se llaman igual en las dos tablas. Sin esto la
+            // codificación KM quedaba sin construcción y la L.Mat de barras salía vacía.
+            foreach ([1, 2, 3, 4] as $n) {
+                foreach (['CuentaBarra', 'CalibreBarra', 'CodColorBarra', 'ColorBarra', 'FibraBarra', 'PasadasBarra'] as $campo) {
+                    $catCodificado->{"{$campo}{$n}"} = $registro->{"{$campo}{$n}"} ?? null;
+                }
+                $catCodificado->{"CalibreBarra{$n}2"} = $registro->{"CalibreBarra{$n}2"} ?? null;
+            }
+
             $catCodificado->Total = null; // No disponible en ReqProgramaTejido
             $catCodificado->Pedido = $registro->TotalPedido ?? null;
             $catCodificado->Produccion = $registro->Produccion ?? null;

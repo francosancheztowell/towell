@@ -96,19 +96,6 @@ class TelTelaresOperadorController extends Controller
     }
 
     /**
-     * Form crear
-     */
-    public function create()
-    {
-        $telares = ReqTelares::obtenerTodos();
-        $usuarios = SYSUsuario::select('numero_empleado', 'nombre', 'turno')
-            ->orderByRaw('CASE WHEN ISNUMERIC(numero_empleado) = 1 THEN CAST(numero_empleado AS INT) ELSE 999999 END ASC')
-            ->get();
-
-        return view('modulos.tel-telares-operador.create', compact('telares', 'usuarios'));
-    }
-
-    /**
      * Guardar (usando Id como PK - IDENTITY)
      * Soporta múltiples telares: crear un registro por cada telar seleccionado
      */
@@ -209,24 +196,6 @@ class TelTelaresOperadorController extends Controller
                 ->withErrors('Error al crear los registros: '.$e->getMessage())
                 ->withInput();
         }
-    }
-
-    /**
-     * Form editar
-     * Route Model Binding por Id (PK)
-     */
-    public function edit(TelTelaresOperador $telTelaresOperador)
-    {
-        $telares = ReqTelares::obtenerTodos();
-        $usuarios = SYSUsuario::select('numero_empleado', 'nombre', 'turno')
-            ->orderByRaw('CASE WHEN ISNUMERIC(numero_empleado) = 1 THEN CAST(numero_empleado AS INT) ELSE 999999 END ASC')
-            ->get();
-
-        return view('modulos.tel-telares-operador.edit', [
-            'item' => $telTelaresOperador,
-            'telares' => $telares,
-            'usuarios' => $usuarios,
-        ]);
     }
 
     /**

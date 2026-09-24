@@ -1450,14 +1450,6 @@ class OrdenesTrabajoMecaController extends Controller
             && empty($linea->HoraFinal);
     }
 
-    /**
-     * Ruta restringida a calificación: tejedor (con o sin registrar).
-     */
-    private function debeUsarRutaSoloCalificacion(): bool
-    {
-        return $this->esTejedor();
-    }
-
     private function respuestaSinPermiso(string $accion, string $mensaje): ?JsonResponse
     {
         if (userCan($accion, self::MODULO_PERMISO)) {

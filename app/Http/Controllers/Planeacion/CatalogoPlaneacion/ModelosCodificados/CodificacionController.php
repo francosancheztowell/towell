@@ -168,24 +168,28 @@ class CodificacionController extends Controller
         // en silencio, que es lo que ya les pasa a los 12 campos de color.
         'CuentaBarra1' => null,
         'CalibreBarra1' => null,
+        'CalibreBarra12' => null,
         'CodColorBarra1' => null,
         'ColorBarra1' => null,
         'FibraBarra1' => null,
         'PasadasBarra1' => 'zero',
         'CuentaBarra2' => null,
         'CalibreBarra2' => null,
+        'CalibreBarra22' => null,
         'CodColorBarra2' => null,
         'ColorBarra2' => null,
         'FibraBarra2' => null,
         'PasadasBarra2' => 'zero',
         'CuentaBarra3' => null,
         'CalibreBarra3' => null,
+        'CalibreBarra32' => null,
         'CodColorBarra3' => null,
         'ColorBarra3' => null,
         'FibraBarra3' => null,
         'PasadasBarra3' => 'zero',
         'CuentaBarra4' => null,
         'CalibreBarra4' => null,
+        'CalibreBarra42' => null,
         'CodColorBarra4' => null,
         'ColorBarra4' => null,
         'FibraBarra4' => null,
@@ -194,10 +198,10 @@ class CodificacionController extends Controller
 
     /** Karl Mayer: cuatro barras (no hay Barra5 en BD). */
     private const CAMPOS_KM = [
-        'CuentaBarra1', 'CalibreBarra1', 'CodColorBarra1', 'ColorBarra1', 'FibraBarra1', 'PasadasBarra1',
-        'CuentaBarra2', 'CalibreBarra2', 'CodColorBarra2', 'ColorBarra2', 'FibraBarra2', 'PasadasBarra2',
-        'CuentaBarra3', 'CalibreBarra3', 'CodColorBarra3', 'ColorBarra3', 'FibraBarra3', 'PasadasBarra3',
-        'CuentaBarra4', 'CalibreBarra4', 'CodColorBarra4', 'ColorBarra4', 'FibraBarra4', 'PasadasBarra4',
+        'CuentaBarra1', 'CalibreBarra1', 'CalibreBarra12', 'CodColorBarra1', 'ColorBarra1', 'FibraBarra1', 'PasadasBarra1',
+        'CuentaBarra2', 'CalibreBarra2', 'CalibreBarra22', 'CodColorBarra2', 'ColorBarra2', 'FibraBarra2', 'PasadasBarra2',
+        'CuentaBarra3', 'CalibreBarra3', 'CalibreBarra32', 'CodColorBarra3', 'ColorBarra3', 'FibraBarra3', 'PasadasBarra3',
+        'CuentaBarra4', 'CalibreBarra4', 'CalibreBarra42', 'CodColorBarra4', 'ColorBarra4', 'FibraBarra4', 'PasadasBarra4',
     ];
 
     /** Jacquard / Smit: rizo, pie, trama y C1–C5. Karl Mayer no los guarda. */
@@ -535,24 +539,28 @@ class CodificacionController extends Controller
             'Saldos' => $cat->Saldos ?? null,
             'CuentaBarra1' => $cat->CuentaBarra1 ?? null,
             'CalibreBarra1' => $cat->CalibreBarra1 ?? null,
+            'CalibreBarra12' => $cat->CalibreBarra12 ?? null,
             'CodColorBarra1' => $cat->CodColorBarra1 ?? null,
             'ColorBarra1' => $cat->ColorBarra1 ?? null,
             'FibraBarra1' => $cat->FibraBarra1 ?? null,
             'PasadasBarra1' => $cat->PasadasBarra1 ?? null,
             'CuentaBarra2' => $cat->CuentaBarra2 ?? null,
             'CalibreBarra2' => $cat->CalibreBarra2 ?? null,
+            'CalibreBarra22' => $cat->CalibreBarra22 ?? null,
             'CodColorBarra2' => $cat->CodColorBarra2 ?? null,
             'ColorBarra2' => $cat->ColorBarra2 ?? null,
             'FibraBarra2' => $cat->FibraBarra2 ?? null,
             'PasadasBarra2' => $cat->PasadasBarra2 ?? null,
             'CuentaBarra3' => $cat->CuentaBarra3 ?? null,
             'CalibreBarra3' => $cat->CalibreBarra3 ?? null,
+            'CalibreBarra32' => $cat->CalibreBarra32 ?? null,
             'CodColorBarra3' => $cat->CodColorBarra3 ?? null,
             'ColorBarra3' => $cat->ColorBarra3 ?? null,
             'FibraBarra3' => $cat->FibraBarra3 ?? null,
             'PasadasBarra3' => $cat->PasadasBarra3 ?? null,
             'CuentaBarra4' => $cat->CuentaBarra4 ?? null,
             'CalibreBarra4' => $cat->CalibreBarra4 ?? null,
+            'CalibreBarra42' => $cat->CalibreBarra42 ?? null,
             'CodColorBarra4' => $cat->CodColorBarra4 ?? null,
             'ColorBarra4' => $cat->ColorBarra4 ?? null,
             'FibraBarra4' => $cat->FibraBarra4 ?? null,
@@ -625,7 +633,7 @@ class CodificacionController extends Controller
             $original = ReqModelosCodificados::find($duplicateId);
 
             if (! $original) {
-                return redirect()->route('codificacion.index')
+                return redirect()->route('planeacion.catalogos.codificacion-modelos')
                     ->with('error', 'Registro no encontrado para duplicar');
             }
 
@@ -1155,84 +1163,6 @@ class CodificacionController extends Controller
             'errors' => $errors,
             'has_errors' => ! empty($errors),
         ]);
-    }
-
-    /** Búsqueda con filtros - Optimizado para usar índices */
-    public function buscar(Request $request): JsonResponse
-    {
-        $q = ReqModelosCodificados::query();
-
-        // ⚡ OPTIMIZACIÓN: Priorizar filtros que usan índices compuestos
-        // Primero filtrar por TamanoClave + SalonTejidoId (usa IX_RMC_Tamano_Salon)
-        $tamanoClave = $request->get('tamano_clave');
-        $salonTejido = $request->get('salon_tejido');
-
-        if ($tamanoClave && $salonTejido) {
-            // ⚡ Usar índice compuesto IX_RMC_Tamano_Salon
-            $q->where('TamanoClave', 'like', "%{$tamanoClave}%")
-                ->where('SalonTejidoId', $salonTejido);
-        } elseif ($tamanoClave) {
-            // Si solo hay TamanoClave, usar índice simple
-            $q->where('TamanoClave', 'like', "%{$tamanoClave}%");
-        } elseif ($salonTejido) {
-            // Si solo hay SalonTejidoId, usar índice IX_RMC_Salon_FechaTejido
-            $q->where('SalonTejidoId', $salonTejido);
-        }
-
-        // ⚡ OPTIMIZACIÓN: Si hay filtro por fecha y salón, usar índice IX_RMC_Salon_FechaTejido
-        $fechaDesde = $request->get('fecha_desde');
-        $fechaHasta = $request->get('fecha_hasta');
-
-        if ($salonTejido && ($fechaDesde || $fechaHasta)) {
-            // Ya tenemos el filtro de salón, agregar fechas (aprovecha índice compuesto)
-            if ($fechaDesde) {
-                $q->where('FechaTejido', '>=', $fechaDesde);
-            }
-            if ($fechaHasta) {
-                $q->where('FechaTejido', '<=', $fechaHasta);
-            }
-            // Ordenar por FechaTejido DESC para aprovechar el índice completamente
-            $q->orderByDesc('FechaTejido');
-        } else {
-            // Otros filtros que no usan índices compuestos
-            $otherFilters = [
-                'orden_tejido' => ['OrdenTejido', 'like'],
-                'nombre' => ['Nombre', 'like'],
-                'no_telar' => ['NoTelarId', '='],
-            ];
-
-            foreach ($otherFilters as $param => [$field, $op]) {
-                if ($v = $request->get($param)) {
-                    $q->where($field, $op, $op === 'like' ? "%$v%" : $v);
-                }
-            }
-
-            // Si hay fechas sin salón, agregarlas
-            if ($fechaDesde && ! $salonTejido) {
-                $q->where('FechaTejido', '>=', $fechaDesde);
-            }
-            if ($fechaHasta && ! $salonTejido) {
-                $q->where('FechaTejido', '<=', $fechaHasta);
-            }
-
-            // Ordenar por Id DESC (usa índice clustered)
-            $q->orderByDesc('Id');
-        }
-
-        try {
-            // ⚡ OPTIMIZACIÓN: Seleccionar solo campos necesarios para reducir transferencia
-            $campos = array_merge(['Id'], array_keys(self::CAMPOS_MODELO));
-            $data = $q->select($campos)->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => $data,
-                'total' => $data->count(),
-                'mensaje' => $data->isEmpty() ? 'Sin resultados' : null,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'error' => $e->getMessage()]);
-        }
     }
 
     /** Obtener salones y números de telar */
