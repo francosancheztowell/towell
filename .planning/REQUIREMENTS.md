@@ -33,8 +33,8 @@
 - [ ] **MON-07**: Respuestas ≥ 500 que no pasan por el handler (catch que tragan) también quedan registradas.
 - [ ] **MON-08**: Endpoints de telemetría del contrato (`11-CONTRACT.md`) con kill switch.
 - [ ] **MON-09**: Cierre remoto de sesión por dispositivo (solo esa tablet) y logout normal por dispositivo.
-- [ ] **MON-10**: Destinatarios Telegram de errores configurables en Mensajes (`SYSMensajes.ErroresSistema`).
-- [ ] **MON-11**: Alerta Telegram en error nuevo o regresión, con tope por hora, sin bloquear la respuesta.
+- [ ] **MON-10**: (2026-09-24, owner: destinatario fijo) Alertas de errores solo por **correo** a `francost15@gmail.com` (`config('monitoreo.errores.correo_alertas')`, env `MONITOREO_ALERTA_CORREO`); sin Telegram ni suscriptores de SYSMensajes.
+- [ ] **MON-11**: Alerta por correo (Resend) en error nuevo o regresión, con tope por hora, sin bloquear la respuesta.
 - [ ] **MON-12**: Retención/poda programada de los datos de monitoreo.
 - [ ] **MON-13**: Página 500 muestra un código de referencia rastreable.
 - [ ] **MON-14**: `config/monitoreo.php` con intervalos, umbrales, retención, kill switch y áreas admin; Gate `admin` por área (Sistemas).

@@ -15,6 +15,7 @@ Sesiones:
 - `claude/10-base` — session_017VenBHhK6jcvQXfSynxW4b — **en curso**
 - `claude/11-mon-servidor` — session_01J7vgKbD5zVc6quHX9zzWw9 — **terminada**, integrada (merge `76f0e59`)
 - `claude/pt-01-guardrails` — session_01DY3pXuDNb3Zk9eV7TXBoxg — **terminada** (parte sqlite), integrada (merge `870a586`); runbook de Laragon pendiente del owner
+- `claude/11-03-alertas-correo` — session_01VtFtyJvrs2cRtAomxTz4DM — **abierta** (alertas de errores por correo fijo a francost15@gmail.com en vez de Telegram; quita la columna `SYSMensajes.ErroresSistema`, aún no desplegada)
 Status: Esperando fase 10 para cerrar G0 y abrir Ola 1
 Last activity: 2026-09-24 — Check-in del integrador: fases 11 y PT-01 integradas en la rama integradora; decisión 01.3 (Programa vs Muestras) aprobada por el owner y registrada en `phases/01-guardrails/01-DECISION-PROGRAMA-MUESTRAS.md` §5.
 
@@ -53,7 +54,7 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 - `SELECT DISTINCT area FROM SYSUsuario` para confirmar el valor exacto de "Sistemas".
 - Aviso de privacidad del monitoreo (propuesta: leyenda discreta en login).
 - Worker de colas en Windows (propuesta: `queue:work --stop-when-empty --max-time=50` desde `scheduler.bat`).
-- Desplegar fase 11 en Laragon: `php artisan migrate` (o `database/sql/sysmon_tablas.sql` + `sysmon_sysmensajes.sql` por DBA), `SELECT area, COUNT(*) FROM dbo.SYSUsuario GROUP BY area` y ajustar `MONITOREO_AREAS_ADMIN`, marcar "Errores del sistema" en Configuración › Mensajes, `php artisan optimize:clear && php artisan optimize`. Ver `phases/11-mon-servidor/11-01-SUMMARY.md` y `11-02-SUMMARY.md`.
+- Desplegar fase 11 en Laragon: `php artisan migrate` (o `database/sql/sysmon_tablas.sql` + `sysmon_sysmensajes.sql` por DBA), `SELECT area, COUNT(*) FROM dbo.SYSUsuario GROUP BY area` y ajustar `MONITOREO_AREAS_ADMIN`, `php artisan optimize:clear && php artisan optimize`. Ver `phases/11-mon-servidor/11-01-SUMMARY.md` y `11-02-SUMMARY.md`.
 - Correr `phases/01-guardrails/RUNBOOK-LARAGON.md` (tests Planeacion, `planeacion:programa-tejido-health --json`, `sql/01-schema-fisico.sql` → llenar las 11 longitudes de Muestras).
 - Confirmar el formato exacto de la "M" en órdenes de Muestras (antes de PT-02).
 
