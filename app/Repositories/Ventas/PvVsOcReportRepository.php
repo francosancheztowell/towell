@@ -19,6 +19,7 @@ final class PvVsOcReportRepository
         return TwHistPronosModel::query()
             ->where('ANIO', $anio)
             ->select($this->columnasBase())
+            ->toBase()
             ->get();
     }
 
@@ -30,6 +31,7 @@ final class PvVsOcReportRepository
         return TwHistPedidosModel::query()
             ->where('ANIO', $anio)
             ->select([...$this->columnasBase(), 'ENTREGADOQTY', 'PENDIENTEQTY'])
+            ->toBase()
             ->get();
     }
 
@@ -41,6 +43,7 @@ final class PvVsOcReportRepository
         return TwHistVtasModel::query()
             ->where('ANIO', $anio)
             ->select($this->columnasBase())
+            ->toBase()
             ->get();
     }
 
