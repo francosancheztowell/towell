@@ -20,6 +20,7 @@ class InvTelasReservadas extends Model
         'Fecha','Turno', // Columnas para referencia (fecha y turno del registro reservado)
         'TejInventarioTelaresId', // ID del registro específico en tej_inventario_telares (identificación única)
         'Status','NumeroEmpleado','NombreEmpl',
+        'JulioPrincipal','OrdenPrincipal', // Solo barras Karl Mayer: no_julio / no_orden del telar
     ];
 
     protected $casts = [
