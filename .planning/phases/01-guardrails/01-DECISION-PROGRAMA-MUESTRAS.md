@@ -1,6 +1,6 @@
 # 01.3 — Decisión Programa / Muestras (checkpoint BLOQUEANTE)
 
-**Estado:** PENDIENTE DE APROBACIÓN DEL OWNER. Nada que dependa de este documento se ejecutó en la fase 01.
+**Estado:** APROBADO por el owner el 2026-09-24 (check-in del integrador). Se aplica en la fase PT-02; nada se ejecutó en la fase 01.
 **Fecha:** 2026-09-24 · **Track:** PT · **IDs:** PT-DOM-01, PT-DOM-02, PT-ROL-01
 **Cómo responder:** marcar A o B en la tabla de la §5 (una casilla por capacidad) y devolver el archivo o contestar en la sesión. Se puede elegir distinto para cada capacidad.
 
@@ -94,12 +94,14 @@ Independiente de las 5 capacidades. Opciones: **A** ensanchar las 11 columnas de
 
 | Capacidad | A | B | Nota del owner |
 |---|---|---|---|
-| Redbooth | ☐ | ☐ | |
-| Marbetes (y ¿Muestras se libera?) | ☐ | ☐ | |
-| Producción | ☐ | ☐ | |
-| Descarga UNC | ☐ | ☐ | |
-| Finalización | ☐ | ☐ | |
-| Longitudes (transversal) | ☐ | ☐ | |
+| Redbooth | ☐ | ☑ | Aprobada la recomendación. |
+| Marbetes (y ¿Muestras se libera?) | ☑ | ☐ | **Sí se liberan**, con una **"M"** en `CatCodificados.OrdenTejido` y en `MuestrasPrograma.NoProduccion` para distinguirlas de las órdenes de Programa. El formato exacto (p. ej. prefijo `M` + número de orden) se confirma con el owner al planear PT-02. |
+| Producción | ☑ | ☐ | Aprobada la recomendación. |
+| Descarga UNC | ☐ | ☑ | Aprobada la recomendación (bloquear; Muestras no pisa el TXT de Programa). |
+| Finalización | ☐ | ☑ | Aprobada la recomendación (queda como hoy, explícito). |
+| Longitudes (transversal) | ☑ | ☐ | Aprobada la recomendación (igualar las 11 columnas tras RS2). |
+
+**Permiso de liberar Muestras:** la ruta `muestras.liberar-ordenes.procesar` debe exigir **`crear` del módulo Muestras (idrol 5)**, no el de Programa (idrol 2). Aprobado por el owner.
 
 ## 6. Qué pasa después de la respuesta (fase 02, no esta)
 

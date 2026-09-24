@@ -49,7 +49,7 @@ Gates G0–G4: ver `PROTOCOLO-SESIONES.md` §8.
 
 ### Track MON (pieza central)
 
-- [ ] **Phase 11: Monitoreo — esquema y captura servidor** — tablas `SYSMon*`, identidad de dispositivo, eventos de acceso, rate limit de login, errores PHP, endpoints de telemetría, cierre remoto, alertas Telegram, gate `admin` (área Sistemas).
+- [x] **Phase 11: Monitoreo — esquema y captura servidor** — tablas `SYSMon*`, identidad de dispositivo, eventos de acceso, rate limit de login, errores PHP, endpoints de telemetría, cierre remoto, alertas Telegram, gate `admin` (área Sistemas).
   **Requirements:** MON-01..14 · **Contrato:** `phases/11-mon-servidor/11-CONTRACT.md` · **Plans:** `11-01-PLAN.md` (esquema + identidad + accesos), `11-02-PLAN.md` (errores + telemetría + cierre remoto + alertas)
 - [ ] **Phase 12: Monitoreo — captura cliente (TS)** — latido, vistas con Navigation Timing, errores JS/Livewire/red, nombre de dispositivo.
   **Requirements:** MON-15..20 · **Context:** `phases/12-mon-cliente/12-CONTEXT.md`
@@ -88,7 +88,7 @@ Gates G0–G4: ver `PROTOCOLO-SESIONES.md` §8.
 **Orden aprobado 2026-09-24 (decisión D-E):** `01 → 01.1 → 02 → 04-perf (cortes 4–7) → 03 → 05 → 04-ux → 06 → 07`.
 PT **sí** migra a Livewire, **sin cambiar el diseño visual**; la migración (03/04) solo se da por buena si **mejora** TTFB, KB de HTML y tiempo de interacción contra `phases/04-ux-grid/04-PERF-MEDIDO.md`, con paridad visual (capturas lado a lado). La telemetría de PT-ROL-01 la aporta `SYSMonVista` (fase 11).
 
-- [ ] **Phase 1: Guardrails** — Congelar contratos, esquema, capacidades e invariantes antes de tocar código.
+- [x] **Phase 1: Guardrails** (sqlite; live pendiente) — Congelar contratos, esquema, capacidades e invariantes antes de tocar código.
   **Requirements:** PT-CON-01, PT-CON-02, PT-DOM-01, PT-DOM-02, PT-ROL-01 · **Plan:** `phases/01-guardrails/01-guardrails-PLAN.md`
   **Success:** suite de caracterización verde; command read-only de salud; decisión aprobada sobre las 6 columnas y 11 longitudes divergentes de Muestras (checkpoint 01.3 bloqueante).
 - [ ] **Phase 1.1: Autorización en servidor (Programa Tejido)** — `module.permission` en las ~10 rutas de escritura de Planeación que faltan. Carpeta `phases/01.1-autorizaci-n-en-servidor-programa-tejido/` (plan por escribir).
@@ -107,7 +107,7 @@ Gate PT (sin cambios): tests de contrato y dominio pasan; invariantes SQL se man
 | Phase | Track | Ola | Plans | Status | Completed |
 |---|---|---|---|---|---|
 | 10. Base | BASE | 0 | 0/1 | En ejecución (sesión `claude/10-base`) | - |
-| 11. Mon servidor | MON | 0 | 0/2 | En ejecución (sesión `claude/11-mon-servidor`) | - |
+| 11. Mon servidor | MON | 0 | 2/2 | Completa, integrada (despliegue pendiente del owner) | 2026-09-24 |
 | 12. Mon cliente | MON | 1 | 0/TBD | Context listo | - |
 | 13. Mon panel | MON | 1–2 | 0/TBD | Context listo | - |
 | 14. Mon Pulse | MON | 1 | 0/TBD | Context listo | - |
@@ -118,7 +118,7 @@ Gate PT (sin cambios): tests de contrato y dominio pasan; invariantes SQL se man
 | 19. Módulos TS | MIG | 3 | 0/10 | Context listo | - |
 | 20. Arq/Sec | ARQ/SEC | 2–3 | 0/3 | Context listo | - |
 | 21. Adopción | ADOP | 4 | 0/1 | Context listo | - |
-| PT 1. Guardrails | PT | 0 | 0/1 | En ejecución (sesión `claude/pt-01-guardrails`) | - |
+| PT 1. Guardrails | PT | 0 | 1/1 | Completa en sqlite, integrada; runbook Laragon pendiente; decisión 01.3 aprobada | 2026-09-24 |
 | PT 1.1 AuthZ | PT | 1 | 0/TBD | Por planear | - |
 | PT 2. Lectura | PT | 1 | 0/1 | Planned | - |
 | PT 4-perf | PT | 2 | 0/1 | Medido, cortes 4–7 pendientes | - |

@@ -69,6 +69,8 @@ Core Value del track PT (sin cambios): el planeador opera Programa Tejido más r
 | 2026-09-24 | PT sí migra a Livewire **sin cambiar el diseño**, solo si mejora rendimiento medido | Pedido del owner; resuelve contradicción con la guía Livewire |
 | 2026-09-24 | Logout normal y remoto = solo ese dispositivo (`logoutCurrentDevice`) | Hoy un logout invalida el remember de todas las tablets del usuario |
 | 2026-09-24 | Panel de monitoreo solo para **área Sistemas**, en `/admin` (Gate por `area`) | Pedido del owner; datos sensibles (IPs, actividad) |
+| 2026-09-24 | PT 01.3: Muestras se liberan con **"M"** en `OrdenTejido`/`NoProduccion`; capacidades Muestras: Redbooth B, Marbetes A, Producción A, Descarga TXT B, Finalización B, Longitudes A | Decisión del owner sobre `phases/01-guardrails/01-DECISION-PROGRAMA-MUESTRAS.md` |
+| 2026-09-24 | Liberar Muestras exige permiso del módulo Muestras (idrol 5), no el de Programa (idrol 2) | Decisión del owner |
 
 ## Working Agreements
 

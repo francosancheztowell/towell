@@ -5,20 +5,20 @@
 See: .planning/PROJECT.md (updated 2026-09-24)
 
 **Core value:** Planta y planeación trabajan más rápido y sin fricción, y Sistemas ve qué pasa en producción, sin romper invariantes de dominio.
-**Current focus:** Ola 0 — fases 10 (base), 11 (monitoreo servidor) y PT 01 (guardrails), en sesiones paralelas.
+**Current focus:** Cerrar Ola 0 (falta fase 10) y preparar Ola 1.
 **Protocolo:** `.planning/PROTOCOLO-SESIONES.md` (propiedad de archivos, orden de merge, gates).
 
 ## Current Position
 
-Ola: 0 de 4
-Sesiones activas (abiertas 2026-09-24 en modo plan; cada una espera aprobación del owner):
-- `claude/10-base` — session_017VenBHhK6jcvQXfSynxW4b
-- `claude/11-mon-servidor` — session_01J7vgKbD5zVc6quHX9zzWw9
-- `claude/pt-01-guardrails` — session_01DY3pXuDNb3Zk9eV7TXBoxg
-Status: En ejecución
-Last activity: 2026-09-24 — Proyecto ampliado a "Refactor integral 2026". Roadmap con tracks BASE/MON/FE/DS/UX/PERF/MIG/ARQ-SEC/ADOP + track PT. Fases 10–21 creadas (10 y 11 con PLAN; 12–21 con CONTEXT). Contrato de monitoreo en `phases/11-mon-servidor/11-CONTRACT.md`.
+Ola: 0 de 4 (cerrando)
+Sesiones:
+- `claude/10-base` — session_017VenBHhK6jcvQXfSynxW4b — **en curso**
+- `claude/11-mon-servidor` — session_01J7vgKbD5zVc6quHX9zzWw9 — **terminada**, integrada (merge `76f0e59`)
+- `claude/pt-01-guardrails` — session_01DY3pXuDNb3Zk9eV7TXBoxg — **terminada** (parte sqlite), integrada (merge `870a586`); runbook de Laragon pendiente del owner
+Status: Esperando fase 10 para cerrar G0 y abrir Ola 1
+Last activity: 2026-09-24 — Check-in del integrador: fases 11 y PT-01 integradas en la rama integradora; decisión 01.3 (Programa vs Muestras) aprobada por el owner y registrada en `phases/01-guardrails/01-DECISION-PROGRAMA-MUESTRAS.md` §5.
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] ~12% (2 de 16 fases con entregables; fase 10 en curso)
 
 ## Performance Metrics
 
@@ -45,13 +45,17 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 - Logout normal y remoto = solo ese dispositivo (`logoutCurrentDevice`).
 - Panel solo área Sistemas, en `/admin`.
 
+- 2026-09-24 (01.3): Muestras **sí se liberan**, con **"M"** en `CatCodificados.OrdenTejido` y en `MuestrasPrograma.NoProduccion` (formato exacto a confirmar al planear PT-02) → Marbetes A. Redbooth B, Producción A, Descarga TXT B, Finalización B, Longitudes A. Liberar Muestras exige `crear` del módulo Muestras (idrol 5).
+
 ### Pending Todos (owner)
 
 - Confirmar en prod (192.168.2.15): `SESSION_DRIVER`, `CACHE_STORE`, `QUEUE_CONNECTION`, `pdo_sqlite` habilitado, si hay proxy inverso, si la LAN sirve HTTPS.
 - `SELECT DISTINCT area FROM SYSUsuario` para confirmar el valor exacto de "Sistemas".
 - Aviso de privacidad del monitoreo (propuesta: leyenda discreta en login).
 - Worker de colas en Windows (propuesta: `queue:work --stop-when-empty --max-time=50` desde `scheduler.bat`).
-- PT 01 tiene el checkpoint bloqueante 01.3 (decisión Programa vs Muestras).
+- Desplegar fase 11 en Laragon: `php artisan migrate` (o `database/sql/sysmon_tablas.sql` + `sysmon_sysmensajes.sql` por DBA), `SELECT area, COUNT(*) FROM dbo.SYSUsuario GROUP BY area` y ajustar `MONITOREO_AREAS_ADMIN`, marcar "Errores del sistema" en Configuración › Mensajes, `php artisan optimize:clear && php artisan optimize`. Ver `phases/11-mon-servidor/11-01-SUMMARY.md` y `11-02-SUMMARY.md`.
+- Correr `phases/01-guardrails/RUNBOOK-LARAGON.md` (tests Planeacion, `planeacion:programa-tejido-health --json`, `sql/01-schema-fisico.sql` → llenar las 11 longitudes de Muestras).
+- Confirmar el formato exacto de la "M" en órdenes de Muestras (antes de PT-02).
 
 ### Blockers/Concerns
 
@@ -62,5 +66,5 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 ## Session Continuity
 
 Last session: 2026-09-24
-Stopped at: Ola 0 abierta (3 sesiones). Integrador revisa SUMMARY/HANDOFF de cada rama y abre Ola 1 al cumplir G0.
+Stopped at: 11 y PT-01 integradas; falta fase 10 (CI) para G0. Siguiente: integrar 10, validar CI verde y abrir Ola 1 (12, 14→13, 15-01, PT 01.1→02).
 Resume file: None
