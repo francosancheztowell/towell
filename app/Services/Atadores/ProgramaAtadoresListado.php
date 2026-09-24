@@ -184,10 +184,10 @@ class ProgramaAtadoresListado
             return $filas;
         }
 
-        $inventario = TejInventarioTelares::query()
-            ->whereIn('no_julio', $filas->pluck('NoJulio')->map(fn ($v) => (string) $v)->unique()->all())
-            ->whereIn('no_orden', $filas->pluck('NoProduccion')->map(fn ($v) => (string) $v)->unique()->all())
-            ->get()
+        // SQL Server acepta 2100 parametros por consulta y los autorizados ya pasan
+        // de 1400 julios: se consulta por bloques y el par julio|orden se cruza abajo.
+        $inventario = $filas->pluck('NoJulio')->map(fn ($v) => (string) $v)->unique()->chunk(2000)
+            ->flatMap(fn ($julios) => TejInventarioTelares::query()->whereIn('no_julio', $julios->values()->all())->get())
             ->keyBy(fn ($inv) => (string) $inv->no_julio.'|'.(string) $inv->no_orden);
 
         return $filas->map(function ($ata) use ($inventario) {

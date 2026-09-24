@@ -87,6 +87,8 @@ class ReservarConTelarTransaccionTest extends TestCase
             $table->integer('Turno')->nullable();
             $table->string('Status')->nullable();
             $table->integer('TejInventarioTelaresId')->nullable();
+            $table->string('JulioPrincipal')->nullable();
+            $table->string('OrdenPrincipal')->nullable();
             $table->string('NumeroEmpleado')->nullable();
             $table->string('NombreEmpl')->nullable();
             $table->timestamps();
@@ -143,6 +145,13 @@ class ReservarConTelarTransaccionTest extends TestCase
             $barra->no_orden, $barra->no_orden2, $barra->no_orden3, $barra->no_orden4,
         ]);
         $this->assertSame(4, InvTelasReservadas::where('TejInventarioTelaresId', 2)->count());
+
+        // Las 4 filas de la barra apuntan al julio 1 del telar (no_julio / no_orden).
+        $this->assertSame(
+            array_fill(0, 4, '01269-K6|01269'),
+            InvTelasReservadas::where('TejInventarioTelaresId', 2)->orderBy('Id')->get()
+                ->map(fn ($r) => "{$r->JulioPrincipal}|{$r->OrdenPrincipal}")->all()
+        );
 
         // El quinto ya no cabe.
         try {
@@ -243,6 +252,7 @@ class ReservarConTelarTransaccionTest extends TestCase
         $this->assertTrue((bool) $telar->Reservado);
         $this->assertSame('00061-744', $telar->no_julio);
         $this->assertSame(1, InvTelasReservadas::count());
+        $this->assertNull(InvTelasReservadas::first()->JulioPrincipal, 'Rizo/pie no llenan JulioPrincipal.');
     }
 
     /**

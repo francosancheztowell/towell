@@ -380,6 +380,8 @@ class InventarioReservasService
             // Regla de negocio: consumir notificaciones (avisos de los tejedores) previas a la reserva
             $this->aplicarReglaNotificaTejedorAntesDeReservar($data);
 
+            $data = $this->conJulioPrincipal($data);
+
             try {
                 InvTelasReservadas::create($data);
                 $created = true;
@@ -398,6 +400,29 @@ class InventarioReservasService
 
             return ['created' => $created, 'message' => $msg];
         });
+    }
+
+    /**
+     * Solo barras Karl Mayer: las 4 filas de la barra apuntan al julio y orden
+     * de la posicion 1 del telar (no_julio / no_orden), para filtrar la barra
+     * completa desde otros programas. Rizo y pie quedan en NULL.
+     */
+    private function conJulioPrincipal(array $data): array
+    {
+        $telarId = $data['TejInventarioTelaresId'] ?? null;
+        if (! is_numeric($telarId)) {
+            return $data;
+        }
+
+        $telar = TejInventarioTelares::find((int) $telarId, ['tipo', 'no_julio', 'no_orden']);
+        if (! $telar || ! ReservarProgramarActionService::esBarraKm($telar->tipo)) {
+            return $data;
+        }
+
+        $data['JulioPrincipal'] = trim((string) $telar->no_julio) ?: null;
+        $data['OrdenPrincipal'] = trim((string) $telar->no_orden) ?: null;
+
+        return $data;
     }
 
     /**

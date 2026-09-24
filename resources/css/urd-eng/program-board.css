@@ -450,27 +450,6 @@ body.program-board-modal-open main.app-main {
     background: #dbeafe;
 }
 
-.program-board-legend {
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-    margin: 0 0 .5rem;
-    font-size: .8rem;
-    color: #374151;
-}
-
-.program-board-legend-swatch {
-    display: inline-block;
-    width: 1.1rem;
-    height: 1.1rem;
-    border-radius: .25rem;
-    border: 1px solid #93c5fd;
-}
-
-.program-board-legend-swatch.is-urdido-finished {
-    background: #dbeafe;
-}
-
 .program-board-order:focus-visible {
     outline: 2px solid #2563eb;
     outline-offset: -2px;
