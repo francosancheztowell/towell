@@ -26,6 +26,14 @@
     ];
     $deviceId = function_exists('getDeviceIdentifier') ? getDeviceIdentifier() : 'N/A';
     $deviceModel = $deviceInfo['tipo']['modelo'] ?? '';
+
+    // Nombre del dispositivo (MON-19): vive en SYSMonDispositivo, por la cookie towell_disp.
+    // Una lectura por índice único; si falla o el monitoreo está apagado, se usa el nombre detectado.
+    $monitoreoActivo = \App\Services\Monitoreo\Monitoreo::activo();
+    $dispUuid = \App\Services\Monitoreo\DispositivoService::uuid(request());
+    $nombreDispositivo = $monitoreoActivo && $dispUuid
+        ? (string) \App\Services\Monitoreo\Monitoreo::seguro('leer nombre de dispositivo', fn () => \App\Models\Sistema\Monitoreo\MonDispositivo::where('Uuid', $dispUuid)->value('Nombre'), '')
+        : '';
 @endphp
 
 <div id="user-modal"
@@ -77,6 +85,14 @@
             @endif
         </div>
 
+        @can('admin')
+            <a href="{{ route('admin.index') }}"
+               class="mt-3 flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+                <i class="fas fa-shield-halved w-4 text-center"></i>
+                <span>Admin</span>
+            </a>
+        @endcan
+
         <!-- Información del dispositivo -->
         <div class="mt-3 pt-3 border-t border-gray-100">
             <!-- Header con nombre editable -->
@@ -85,15 +101,23 @@
                 <div class="flex-1 min-w-0">
                     <!-- Nombre del dispositivo (editable) -->
                     <div class="flex items-center gap-1 group">
-                        <span id="device-name" class="text-xs font-semibold text-gray-700 truncate cursor-pointer hover:text-blue-600"
-                              title="Clic para editar nombre">
-                            {{ $deviceInfo['tipo']['nombre'] }}
+                        {{-- resources/js/monitoreo/dispositivo.ts: edición y migración del nombre viejo de localStorage. --}}
+                        <span id="device-name"
+                              @class(['text-xs font-semibold text-gray-700 truncate', 'cursor-pointer hover:text-blue-600' => $monitoreoActivo])
+                              data-default="{{ $deviceInfo['tipo']['nombre'] }}"
+                              data-nombre="{{ $nombreDispositivo }}"
+                              data-llave-local="device_name_{{ $deviceId }}"
+                              @if($monitoreoActivo) title="Clic para editar nombre" @endif>
+                            {{ $nombreDispositivo !== '' ? $nombreDispositivo : $deviceInfo['tipo']['nombre'] }}
                         </span>
-                        <button id="edit-device-name"
-                                class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-500 transition-opacity"
-                                title="Editar nombre">
-                            <i class="fas fa-pencil text-[10px]"></i>
-                        </button>
+                        @if($monitoreoActivo)
+                            <button id="edit-device-name"
+                                    type="button"
+                                    class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-500 transition-opacity"
+                                    title="Editar nombre">
+                                <i class="fas fa-pencil text-[10px]"></i>
+                            </button>
+                        @endif
                     </div>
                     <!-- Modelo detectado -->
                     @if($deviceModel)
@@ -122,6 +146,7 @@
     </div>
 </div>
 
+@if($monitoreoActivo)
 <!-- Input oculto para editar nombre -->
 <div id="device-name-editor" class="hidden fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center">
     <div class="bg-white rounded-lg shadow-xl p-4 w-72 mx-4">
@@ -130,8 +155,8 @@
                id="device-name-input"
                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                placeholder="Ej: Tablet Producción 1"
-               maxlength="30">
-        <p class="text-[10px] text-gray-500 mt-1">Este nombre se guardará en este navegador</p>
+               maxlength="80">
+        <p class="text-[10px] text-gray-500 mt-1">Este nombre identifica a este equipo en el monitoreo</p>
         <div class="flex gap-2 mt-3">
             <button id="cancel-device-name"
                     class="flex-1 px-3 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
@@ -144,121 +169,4 @@
         </div>
     </div>
 </div>
-
-@push('scripts')
-<script>
-(function() {
-    const DEVICE_ID = '{{ $deviceId }}';
-    const STORAGE_KEY = 'device_name_' + DEVICE_ID;
-    const DEFAULT_NAME = '{{ $deviceInfo['tipo']['nombre'] }}';
-
-    // Elementos
-    const deviceNameEl = document.getElementById('device-name');
-    const editBtn = document.getElementById('edit-device-name');
-    const editor = document.getElementById('device-name-editor');
-    const input = document.getElementById('device-name-input');
-    const saveBtn = document.getElementById('save-device-name');
-    const cancelBtn = document.getElementById('cancel-device-name');
-
-    // Cargar nombre guardado
-    function loadDeviceName() {
-        const savedName = localStorage.getItem(STORAGE_KEY);
-        if (savedName && deviceNameEl) {
-            deviceNameEl.textContent = savedName;
-        }
-    }
-
-    // Guardar nombre
-    function saveDeviceName() {
-        const name = input.value.trim();
-        if (name) {
-            localStorage.setItem(STORAGE_KEY, name);
-            if (deviceNameEl) deviceNameEl.textContent = name;
-        } else {
-            localStorage.removeItem(STORAGE_KEY);
-            if (deviceNameEl) deviceNameEl.textContent = DEFAULT_NAME;
-        }
-        closeEditor();
-    }
-
-    // Abrir editor
-    function openEditor() {
-        if (editor && input) {
-            input.value = localStorage.getItem(STORAGE_KEY) || '';
-            editor.classList.remove('hidden');
-            input.focus();
-            input.select();
-        }
-    }
-
-    // Cerrar editor
-    function closeEditor() {
-        if (editor) editor.classList.add('hidden');
-    }
-
-    // Event listeners
-    if (deviceNameEl) deviceNameEl.addEventListener('click', openEditor);
-    if (editBtn) editBtn.addEventListener('click', openEditor);
-    if (saveBtn) saveBtn.addEventListener('click', saveDeviceName);
-    if (cancelBtn) cancelBtn.addEventListener('click', closeEditor);
-
-    if (input) {
-        input.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') saveDeviceName();
-            if (e.key === 'Escape') closeEditor();
-        });
-    }
-
-    if (editor) {
-        editor.addEventListener('click', function(e) {
-            if (e.target === editor) closeEditor();
-        });
-    }
-
-    // Obtener IP real: primero IP local (LAN) por WebRTC; si el servidor ya dio IP válida no localhost, no cambiar
-    function updateDeviceIpDisplay() {
-        const ipEl = document.getElementById('device-ip-display');
-        if (!ipEl) return;
-        const serverIp = (ipEl.getAttribute('data-server-ip') || '').trim();
-        var isLocalhost = serverIp === '127.0.0.1' || serverIp === '::1' || serverIp === '';
-
-        function setIp(ip, title) {
-            if (ip && ipEl) {
-                ipEl.textContent = ip;
-                ipEl.setAttribute('title', title || 'Dirección IPv4: ' + ip);
-            }
-        }
-
-        if (!isLocalhost) return;
-
-        // 1) Intentar IP local (LAN) vía WebRTC: 192.168.x.x, 10.x.x.x
-        try {
-            var pc = new RTCPeerConnection({ iceServers: [] });
-            pc.createDataChannel('');
-            pc.createOffer().then(function(offer) { pc.setLocalDescription(offer); });
-            pc.onicecandidate = function(ice) {
-                if (!ice || !ice.candidate || !ice.candidate.candidate) return;
-                var m = ice.candidate.candidate.match(/([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})/);
-                if (m) {
-                    var ip = m[1];
-                    if (ip !== '0.0.0.0' && (ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.'))) {
-                        setIp(ip, 'IPv4 (red local): ' + ip);
-                        pc.close();
-                        pc = null;
-                    }
-                }
-            };
-            setTimeout(function() {
-                if (pc) pc.close();
-            }, 3000);
-        } catch (e) {}
-    }
-
-    // Inicializar
-    document.addEventListener('DOMContentLoaded', function() {
-        loadDeviceName();
-        updateDeviceIpDisplay();
-    });
-})();
-</script>
-@endpush
+@endif

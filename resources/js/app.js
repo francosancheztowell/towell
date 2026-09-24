@@ -1,4 +1,5 @@
 import './bootstrap';
+import './monitoreo/telemetria';
 import '../css/app.css';
 
 // Importar estilos CSS de librerías
