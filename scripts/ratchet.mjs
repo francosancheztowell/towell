@@ -59,6 +59,15 @@ export const METRICS = {
     only: '.blade.php',
     count: countRegex(/<script\b(?![^>]*\bsrc\s*=)[^>]*>/gi),
   },
+  // SEC-01: string SQL con comillas dobles que interpola una variable PHP. Hoy todos
+  // los hits son constantes/whitelists (ver 10-01-SUMMARY.md); uno nuevo se revisa.
+  'SQL crudo con $interpolado': {
+    dirs: ['app'],
+    only: '.php',
+    count: countRegex(
+      /(?:Raw|DB::(?:select|statement|update|insert|delete|unprepared)|->(?:select|statement|update|insert|delete|unprepared))\(\s*"[^"]*\$/g,
+    ),
+  },
   'getMessage() en response()->json': {
     dirs: ['app'],
     only: '.php',

@@ -40,3 +40,16 @@ test('innerHTML cuenta asignaciones, no comparaciones', () => {
   const count = METRICS['innerHTML ='].count
   assert.equal(count('el.innerHTML = x; el.innerHTML += y; if (el.innerHTML === z) {}'), 2)
 })
+
+test('SQL crudo con $interpolado cuenta comillas dobles con variable, no bindings', () => {
+  const count = METRICS['SQL crudo con $interpolado'].count
+  const php = `
+    DB::select("SELECT * FROM T WHERE Id = $id");
+    $q->whereRaw("{$expr} IS NOT NULL");
+    $q->whereRaw('Id = ?', [$id]);
+    $q->selectRaw("
+        SUM($columna) as total
+    ");
+    DB::select("SELECT 1");`
+  assert.equal(count(php), 3)
+})
