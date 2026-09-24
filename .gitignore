@@ -40,8 +40,9 @@ ISSUES.md
 .gemini/
 gha-creds-*.json
 
-# Claude worktrees
-.claude/
+# Claude: worktrees y estado local ignorados; settings.json (hook SessionStart) si se versiona.
+.claude/*
+!.claude/settings.json
 
 # Descomprimidos accidentales de plantillas .xlsx
 /resources/templates/_saldos_unzip/
