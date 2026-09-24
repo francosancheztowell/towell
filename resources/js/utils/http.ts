@@ -8,7 +8,8 @@
  *  - Normalizar los errores: siempre lanza un HttpError con .status, .data y .errors (422 de Laravel).
  *  - Avisar a quien escuche: todo fallo emite `towell:http-error` en window con
  *    detail { status, url, method } (contrato .planning/phases/11-mon-servidor/11-CONTRACT.md §4).
- *  - Sesión expirada (419): un solo aviso por página y recarga (el middleware auth lleva al login).
+ *  - Sesión expirada (419 CSRF o 401 del middleware auth): un solo aviso por página y
+ *    recarga (el middleware auth lleva al login).
  *
  * Reemplaza el patrón disperso `fetch(url, { headers: { 'X-CSRF-TOKEN': getCsrfToken() } }).then(r => r.json())`.
  *
@@ -42,7 +43,10 @@ export class HttpError extends Error {
 
 export const HTTP_ERROR_EVENT = 'towell:http-error';
 
-export const SESSION_EXPIRED_MESSAGE = 'Tu sesión expiró. Vuelve a iniciar sesión para continuar.';
+export const SESSION_EXPIRED_MESSAGE = 'Tu sesión expiró. Recargando para volver a iniciar sesión…';
+
+/** Tiempo para leer el aviso antes de recargar. */
+export const SESSION_EXPIRED_RELOAD_MS = 2500;
 
 let sessionExpiredHandled = false;
 
@@ -97,13 +101,16 @@ function emitError(detail: HttpErrorDetail): void {
     window.dispatchEvent(new CustomEvent<HttpErrorDetail>(HTTP_ERROR_EVENT, { detail }));
 }
 
+/**
+ * Toast nativo + recarga temporizada, no un modal de SweetAlert2: el catch del caller
+ * suele cerrar o abrir otro modal de Swal, lo que cerraría el aviso y recargaría al instante.
+ */
 function handleSessionExpired(): void {
     if (sessionExpiredHandled) return;
     sessionExpiredHandled = true;
 
-    void notify
-        .alert(SESSION_EXPIRED_MESSAGE, 'Sesión expirada', 'warning')
-        .finally(() => window.location.reload());
+    notify.warning(SESSION_EXPIRED_MESSAGE);
+    setTimeout(() => window.location.reload(), SESSION_EXPIRED_RELOAD_MS);
 }
 
 async function request<T>(method: string, url: string, run: () => Promise<AxiosResponse<T>>): Promise<T> {
@@ -116,7 +123,7 @@ async function request<T>(method: string, url: string, run: () => Promise<AxiosR
         // Una cancelación (AbortController) es intencional: no es un fallo que reportar.
         if (axios.isCancel(err)) throw error;
         emitError({ status: error.status, url: stripQuery(url), method: method.toUpperCase() });
-        if (error.status === 419) handleSessionExpired();
+        if (error.status === 419 || error.status === 401) handleSessionExpired();
         throw error;
     }
 }

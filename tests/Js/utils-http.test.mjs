@@ -2,26 +2,29 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import axios, { AxiosError } from 'axios'
-import Swal from 'sweetalert2'
+// sweetalert2 inyecta su CSS al importarse si hay document: se carga antes del DOM falso.
+import 'sweetalert2'
 
-// Entorno de navegador mínimo: meta CSRF, window con eventos y location.reload.
+import { installFakeDom } from './utils-fake-dom.mjs'
+
+// Entorno de navegador mínimo: DOM falso con meta CSRF, window con eventos y location.reload.
 let reloads = 0
-globalThis.document = {
-  querySelector: (selector) =>
-    selector === 'meta[name="csrf-token"]' ? { getAttribute: () => 'token-fresco' } : null,
-}
+const document = installFakeDom()
+const querySelector = document.querySelector.bind(document)
+document.querySelector = (selector) =>
+  selector === 'meta[name="csrf-token"]' ? { getAttribute: () => 'token-fresco' } : querySelector(selector)
 globalThis.window = Object.assign(new EventTarget(), {
   location: { reload: () => reloads++ },
 })
 
-let alerts = []
-Swal.fire = async (options) => {
-  alerts.push(options)
+const { http, HttpError, HTTP_ERROR_EVENT, SESSION_EXPIRED_MESSAGE, SESSION_EXPIRED_RELOAD_MS } = await import(
+  '../../resources/js/utils/http.ts'
+)
 
-  return { isConfirmed: true }
-}
-
-const { http, HttpError, HTTP_ERROR_EVENT } = await import('../../resources/js/utils/http.ts')
+const toastsDeSesion = () =>
+  document.body
+    .querySelectorAll('.towell-toast__msg')
+    .filter((el) => el.textContent === SESSION_EXPIRED_MESSAGE).length
 
 /** Adapter de axios que responde `status` con `data` y guarda la config enviada. */
 function adapter(status, data, sent = []) {
@@ -112,18 +115,19 @@ test('una petición cancelada no se reporta como error', async () => {
   assert.deepEqual(events, [])
 })
 
-test('419 avisa y recarga una sola vez por página, y el error llega al caller', async () => {
-  alerts = []
+test('419 y 401 avisan con un toast y recargan una sola vez por página; el error llega al caller', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
   reloads = 0
   const { events, stop } = captureErrors()
 
   await assert.rejects(http.post('/a', {}, { adapter: adapter(419, { message: 'CSRF token mismatch.' }) }), (err) => err.status === 419)
-  await assert.rejects(http.post('/b', {}, { adapter: adapter(419, { message: 'CSRF token mismatch.' }) }), (err) => err.status === 419)
-  await new Promise((resolve) => setImmediate(resolve))
+  await assert.rejects(http.get('/b', { adapter: adapter(401, { message: 'Unauthenticated.' }) }), (err) => err.status === 401)
+  await assert.rejects(http.post('/c', {}, { adapter: adapter(419, { message: 'CSRF token mismatch.' }) }), (err) => err.status === 419)
   stop()
 
-  assert.equal(alerts.length, 1)
-  assert.equal(alerts[0].title, 'Sesión expirada')
+  assert.equal(toastsDeSesion(), 1, 'un solo aviso aunque fallen varias peticiones')
+  assert.equal(reloads, 0, 'da tiempo de leer el aviso')
+  t.mock.timers.tick(SESSION_EXPIRED_RELOAD_MS)
   assert.equal(reloads, 1)
-  assert.equal(events.length, 2, 'cada 419 sigue emitiendo su evento')
+  assert.equal(events.length, 3, 'cada fallo sigue emitiendo su evento')
 })

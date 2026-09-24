@@ -59,6 +59,12 @@ test('formatDate y formatDateTime interpretan instantes en hora de Ciudad de Mé
   assert.match(formatDateTime('2026-01-06T03:30:00Z'), /^05\/01\/2026,? 21:30$/)
 })
 
+test('fecha-hora sin zona (formato SQL Server) es hora de pared: no se corre con la zona del equipo', () => {
+  assert.equal(formatDateTime('2026-09-24 10:00:00.000'), '24/09/2026, 10:00')
+  assert.equal(formatDate('2026-09-24 00:00:00.000'), '24/09/2026')
+  assert.equal(formatDateTime('2026-09-24T23:59'), '24/09/2026, 23:59')
+})
+
 test('formatDate devuelve vacío para valores inválidos', () => {
   assert.equal(formatDate(null), '')
   assert.equal(formatDate(''), '')

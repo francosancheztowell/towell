@@ -78,5 +78,5 @@ window.showToast = showToast;
 // Puente Livewire → toast. Cualquier componente puede avisar sin JS propio:
 //   $this->dispatch('aviso', tipo: 'success', texto: 'Guardado.');
 document.addEventListener('livewire:init', () => {
-    window.Livewire?.on('aviso', ({ tipo, texto }) => (notify[tipo] ?? notify.info)(texto));
+    window.Livewire?.on('aviso', ({ tipo, texto }) => showToast(texto, tipo));
 });

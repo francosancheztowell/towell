@@ -50,6 +50,26 @@ function toNumber(value: unknown): number | null {
     return Number.isFinite(n) ? n : null;
 }
 
+// Crear un Intl.*Format es caro: uno por combinación de opciones y se reutiliza.
+const numberFormats = new Map<string, Intl.NumberFormat>();
+const dateFormats = new Map<string, Intl.DateTimeFormat>();
+
+function numberFormat(options: Intl.NumberFormatOptions): Intl.NumberFormat {
+    const key = JSON.stringify(options);
+    let format = numberFormats.get(key);
+    if (!format) numberFormats.set(key, (format = new Intl.NumberFormat(LOCALE, options)));
+
+    return format;
+}
+
+function dateFormat(options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+    const key = JSON.stringify(options);
+    let format = dateFormats.get(key);
+    if (!format) dateFormats.set(key, (format = new Intl.DateTimeFormat(LOCALE, options)));
+
+    return format;
+}
+
 /**
  * Número con separador de miles es-MX. Con `decimals` fija los decimales; sin él
  * muestra hasta 2. Vacío, null o no numérico → ''.
@@ -58,34 +78,36 @@ export function formatNumber(value: unknown, decimals?: number): string {
     const n = toNumber(value);
     if (n === null) return '';
 
-    return n.toLocaleString(
-        LOCALE,
+    return numberFormat(
         decimals === undefined
             ? { maximumFractionDigits: 2 }
             : { minimumFractionDigits: decimals, maximumFractionDigits: decimals },
-    );
+    ).format(n);
 }
 
 /**
- * Las fechas "YYYY-MM-DD" (sin hora) son fechas de calendario: se muestran tal cual,
- * sin corrimiento de zona. Todo lo demás se interpreta como instante y se muestra
- * en hora de Ciudad de México.
+ * - "YYYY-MM-DD" y "YYYY-MM-DD HH:mm[:ss[.fff]]" sin zona (como los devuelve SQL Server)
+ *   son hora de pared de la planta: se muestran tal cual, sin corrimiento, en cualquier
+ *   zona del equipo (`wall`).
+ * - Con zona ("…Z", "…-06:00"), números y Date son instantes: se muestran en hora de
+ *   Ciudad de México.
  */
-function toDate(value: unknown): { date: Date; calendar: boolean } | null {
+function toDate(value: unknown): { date: Date; wall: boolean } | null {
     if (value == null || value === '') return null;
-    if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : { date: value, calendar: false };
+    if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : { date: value, wall: false };
 
     const text = String(value).trim();
-    const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
-    if (day) {
-        const date = new Date(Date.UTC(Number(day[1]), Number(day[2]) - 1, Number(day[3])));
+    const local = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?)?$/.exec(text);
+    if (local) {
+        const [, y, mo, d, h = '0', mi = '0', se = '0'] = local;
+        const date = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(se)));
 
-        return Number.isNaN(date.getTime()) ? null : { date, calendar: true };
+        return Number.isNaN(date.getTime()) ? null : { date, wall: true };
     }
 
     const date = new Date(typeof value === 'number' ? value : text);
 
-    return Number.isNaN(date.getTime()) ? null : { date, calendar: false };
+    return Number.isNaN(date.getTime()) ? null : { date, wall: false };
 }
 
 /** Fecha dd/mm/aaaa (o el formato de `options`) en es-MX. Inválida o vacía → ''. */
@@ -93,13 +115,13 @@ export function formatDate(value: unknown, options: Intl.DateTimeFormatOptions =
     const parsed = toDate(value);
     if (!parsed) return '';
 
-    return parsed.date.toLocaleDateString(LOCALE, {
+    return dateFormat({
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
         ...options,
-        timeZone: parsed.calendar ? 'UTC' : TIME_ZONE,
-    });
+        timeZone: parsed.wall ? 'UTC' : TIME_ZONE,
+    }).format(parsed.date);
 }
 
 /** Fecha y hora dd/mm/aaaa, HH:mm (24 h) en hora de Ciudad de México. Inválida o vacía → ''. */
@@ -107,7 +129,7 @@ export function formatDateTime(value: unknown, options: Intl.DateTimeFormatOptio
     const parsed = toDate(value);
     if (!parsed) return '';
 
-    return parsed.date.toLocaleString(LOCALE, {
+    return dateFormat({
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -115,6 +137,6 @@ export function formatDateTime(value: unknown, options: Intl.DateTimeFormatOptio
         minute: '2-digit',
         hourCycle: 'h23',
         ...options,
-        timeZone: parsed.calendar ? 'UTC' : TIME_ZONE,
-    });
+        timeZone: parsed.wall ? 'UTC' : TIME_ZONE,
+    }).format(parsed.date);
 }
