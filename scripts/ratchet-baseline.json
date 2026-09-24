@@ -8,5 +8,5 @@
   "bg-opacity-": 28,
   "<script> inline en blade": 170,
   "SQL crudo con $interpolado": 8,
-  "getMessage() en response()->json": 284
+  "getMessage() en response()->json": 285
 }
