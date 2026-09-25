@@ -107,8 +107,9 @@
     @if($disabled) disabled @endif
     {{-- Deja pasar wire:click y demás atributos (la clase la arma el componente). --}}
     {{ $attributes->except('class') }}
+    @if(!$finalText) aria-label="{{ $title }}" @endif
     title="{{ $title }}">
-    <i class="fa-solid {{ $iconNormalized }} {{ $finalIconColor }} {{ $finalText ? 'text-base' : 'text-sm' }}"></i>
+    <i aria-hidden="true" class="fa-solid {{ $iconNormalized }} {{ $finalIconColor }} {{ $finalText ? 'text-base' : 'text-sm' }}"></i>
     @if($finalText)
         <span class="text-sm font-medium {{ $finalIconColor }}">{{ $finalText }}</span>
     @endif

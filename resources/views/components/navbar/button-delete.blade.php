@@ -107,13 +107,14 @@
 <button
     type="button"
     @if($id) id="{{ $id }}" @endif
-    onclick="{{ $onclick }}"
+    @if($onclick) onclick="{{ $onclick }}" @endif
     class="{{ $paddingClass }} {{ $finalText ? 'rounded-lg' : 'rounded-full' }} transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 {{ $finalBg }} {{ $finalHoverBg }} {{ !$finalText ? 'w-9 h-9' : '' }} {{ $class }}"
     @if($disabled) disabled @endif
     {{-- Deja pasar wire:click y demás atributos (la clase la arma el componente). --}}
     {{ $attributes->except('class') }}
+    @if(!$finalText) aria-label="{{ $title }}" @endif
     title="{{ $title }}">
-    <i class="fa-solid {{ $iconNormalized }} {{ $finalIconColor }} {{ $finalText ? 'text-base' : 'text-sm' }}"></i>
+    <i aria-hidden="true" class="fa-solid {{ $iconNormalized }} {{ $finalIconColor }} {{ $finalText ? 'text-base' : 'text-sm' }}"></i>
     @if($finalText)
         <span class="text-sm font-medium {{ $finalIconColor }}">{{ $finalText }}</span>
     @endif

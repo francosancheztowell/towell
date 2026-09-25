@@ -1,5 +1,6 @@
 import './bootstrap';
 import './monitoreo/telemetria';
+import './componentes/index.ts'; // runtime de los componentes Blade (fase 16)
 
 // Importar estilos CSS de librerías
 // Solo el core + la familia `solid`. `all.css` arrastraba tambien regular, brands

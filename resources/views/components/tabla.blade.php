@@ -1,6 +1,7 @@
 {{--
     Tabla reutilizable para los CRUD de la app. Se usa dentro de un componente
-    Livewire que aplique el trait App\Livewire\Concerns\ConTabla.
+    Livewire que aplique el trait App\Livewire\Concerns\ConTabla. Compone x-ui.table
+    (el shell) y x-ui.table-empty; aquí queda lo propio de Livewire (orden, selección, paginado).
 
     @prop array   $columnas   [['campo','titulo','orden'=>bool,'clase'=>string,'valor'=>Closure], ...]
     @prop mixed   $filas      LengthAwarePaginator con los registros
@@ -73,8 +74,8 @@
 
     <div class="relative overflow-x-auto">
         <div wire:loading.delay.class="opacity-50" wire:target="{{ $objetivosCarga }}">
-            <table class="min-w-full text-sm">
-                <thead class="sticky top-0 z-10 bg-blue-600 text-white">
+            <x-ui.table>
+                <x-slot:head>
                     <tr>
                         @foreach ($columnas as $columna)
                             @php
@@ -102,7 +103,7 @@
                             </th>
                         @endforeach
                     </tr>
-                </thead>
+                </x-slot:head>
 
                 <tbody x-data="{
                     visual: @js($seleccionado),
@@ -160,15 +161,10 @@
                             @endforeach
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="{{ max(count($columnas), 1) }}" class="px-4 py-14 text-center">
-                                <i class="fa-solid {{ $vacioIcono }} text-3xl text-slate-300"></i>
-                                <p class="mt-3 font-semibold text-slate-600">{{ $vacio }}</p>
-                            </td>
-                        </tr>
+                        <x-ui.table-empty :colspan="count($columnas)" :message="$vacio" :icon="$vacioIcono" />
                     @endforelse
                 </tbody>
-            </table>
+            </x-ui.table>
         </div>
     </div>
 
