@@ -73,9 +73,6 @@ export function accionesTactiles(
     };
 
     const alPresionar = (event: Event): void => {
-        // Un gesto nuevo: lo que se descartaba del long-press anterior ya no aplica (si el
-        // navegador no mandó click al soltar, el siguiente toque no debe perderse).
-        suprimirHasta = 0;
         const e = event as PointerEvent;
         if (e.pointerType === 'mouse' || (e.button ?? 0) !== 0) return;
         const el = objetivo(e, selector, root);
@@ -117,21 +114,29 @@ export function accionesTactiles(
         abrir(el, { x: e.clientX, y: e.clientY }, 'contextmenu');
     };
 
-    // El click que el navegador manda al soltar el dedo no debe activar la fila.
+    // El click que el navegador manda al soltar el dedo no debe activar nada: ni la fila ni
+    // el primer ítem del menú que el long-press acaba de abrir bajo el dedo. Por eso se escucha
+    // en el documento y sin mirar el destino.
+    const doc: Document = (root as Element).ownerDocument ?? (root as Document);
     const alClick = (event: Event): void => {
         if (Date.now() >= suprimirHasta) return;
-        if (!objetivo(event, selector, root)) return;
         event.preventDefault();
         event.stopPropagation();
         suprimirHasta = 0;
     };
+    // Un gesto nuevo (en cualquier parte): lo que se descartaba del long-press anterior ya no
+    // aplica. Si el navegador no mandó click al soltar, el siguiente toque no debe perderse.
+    const alGestoNuevo = (): void => {
+        suprimirHasta = 0;
+    };
 
+    doc.addEventListener('pointerdown', alGestoNuevo, true);
+    doc.addEventListener('click', alClick, true);
     root.addEventListener('pointerdown', alPresionar);
     root.addEventListener('pointermove', alMover);
     root.addEventListener('pointerup', cancelar);
     root.addEventListener('pointercancel', cancelar);
     root.addEventListener('contextmenu', alMenuContextual);
-    root.addEventListener('click', alClick, true);
 
     return () => {
         cancelar();
@@ -140,7 +145,8 @@ export function accionesTactiles(
         root.removeEventListener('pointerup', cancelar);
         root.removeEventListener('pointercancel', cancelar);
         root.removeEventListener('contextmenu', alMenuContextual);
-        root.removeEventListener('click', alClick, true);
+        doc.removeEventListener('pointerdown', alGestoNuevo, true);
+        doc.removeEventListener('click', alClick, true);
     };
 }
 

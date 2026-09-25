@@ -131,17 +131,20 @@
 
 /* ============ UX global (fase 17-02) ============ */
 
-/* UX-05: el <body> ya no bloquea la selección. Solo el "chrome" (navbar, botones, avisos)
-   no se selecciona ni abre el menú de iOS al mantener el dedo; folios, celdas e inputs sí
-   se pueden copiar. Una vista que necesite bloquearlo en una zona usa `select-none`. */
+/* UX-05: el <body> ya no bloquea la selección. Solo el "chrome" (navbar, botones,
+   encabezados de tabla, avisos) no se selecciona; folios, celdas e inputs sí se pueden copiar.
+   Los encabezados quedan fuera porque varias tablas los usan con long-press y Shift+clic
+   (menú de columnas, orden múltiple). Una vista que necesite bloquear otra zona usa `select-none`.
+   El body conserva -webkit-touch-callout:none (solo quita el menú de iOS de enlaces/imágenes,
+   no la selección), del que dependen los long-press que ya existen. */
 @layer base {
     nav,
     button,
+    th,
     [role='button'],
     .towell-conexion {
         -webkit-user-select: none;
         user-select: none;
-        -webkit-touch-callout: none;
     }
 }
 
@@ -181,7 +184,7 @@
 }
 
 /* UX-06: zona con long-press (acciones-tactiles.ts): sin el menú nativo de iOS al mantener
-   el dedo; el texto se sigue pudiendo seleccionar. */
+   el dedo (el body ya lo quita; esto lo asegura si una vista lo reactiva). */
 .towell-acciones-zona {
     -webkit-touch-callout: none;
 }

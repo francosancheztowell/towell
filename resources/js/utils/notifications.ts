@@ -42,7 +42,7 @@ const STYLE_ID = 'towell-toasts-style';
 const ICONS: Record<ToastType, string> = { success: '✓', info: 'i', warning: '!', error: '✕' };
 
 const STYLES = `
-.towell-toasts{position:fixed;top:calc(var(--pt-navbar-height,64px) + .75rem);right:1rem;z-index:1000000;display:flex;flex-direction:column;gap:.5rem;width:min(22rem,calc(100vw - 2rem));pointer-events:none}
+.towell-toasts{position:fixed;top:calc(var(--pt-navbar-height,72px) + .75rem);right:1rem;z-index:1000000;display:flex;flex-direction:column;gap:.5rem;width:min(22rem,calc(100vw - 2rem));pointer-events:none}
 .towell-toast{pointer-events:auto;display:flex;align-items:flex-start;gap:.625rem;padding:.75rem .75rem .75rem .875rem;border-radius:.5rem;border-left:4px solid;background:#fff;color:#1f2937;box-shadow:0 10px 15px -3px rgb(0 0 0/.15),0 4px 6px -4px rgb(0 0 0/.1);font:500 .875rem/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;animation:towell-toast-in .18s ease-out}
 .towell-toast__icon{flex:none;display:inline-flex;align-items:center;justify-content:center;width:1.25rem;height:1.25rem;border-radius:9999px;color:#fff;font-size:.75rem;font-weight:700}
 .towell-toast__msg{flex:1;min-width:0;overflow-wrap:anywhere;white-space:pre-line}

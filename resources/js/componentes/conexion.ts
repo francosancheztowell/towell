@@ -10,6 +10,11 @@
 export const ID_BANNER = 'towell-conexion';
 export const MENSAJE_SIN_CONEXION = 'Sin conexión con el servidor. Lo que guardes ahora podría no llegar; revisa la red.';
 
+// Dos fuentes: el navegador (hay red) y el latido de telemetría (el servidor responde). El
+// banner se ve si cualquiera dice que no: que vuelva el Wi-Fi no quita el aviso mientras el
+// servidor siga sin responder (la telemetría solo avisa cuando su estado cambia).
+let navegadorEnLinea = true;
+let servidorEnLinea = true;
 let enLinea = true;
 
 function banner(doc: Document): HTMLElement | null {
@@ -39,8 +44,10 @@ export function pintarConexion(doc: Document = document): void {
     }
 }
 
-export function actualizarConexion(online: boolean, doc: Document = document): void {
-    enLinea = online;
+export function actualizarConexion(online: boolean, doc: Document = document, fuente: 'servidor' | 'navegador' = 'servidor'): void {
+    if (fuente === 'navegador') navegadorEnLinea = online;
+    else servidorEnLinea = online;
+    enLinea = navegadorEnLinea && servidorEnLinea;
     pintarConexion(doc);
 }
 
@@ -53,8 +60,8 @@ export function iniciarConexion(win: Window = window, doc: Document = document):
         const online = (event as CustomEvent<{ online?: boolean }>).detail?.online;
         if (typeof online === 'boolean') actualizarConexion(online, doc);
     });
-    win.addEventListener('offline', () => actualizarConexion(false, doc));
-    win.addEventListener('online', () => actualizarConexion(true, doc));
+    win.addEventListener('offline', () => actualizarConexion(false, doc, 'navegador'));
+    win.addEventListener('online', () => actualizarConexion(true, doc, 'navegador'));
 
-    if (win.navigator && win.navigator.onLine === false) actualizarConexion(false, doc);
+    if (win.navigator && win.navigator.onLine === false) actualizarConexion(false, doc, 'navegador');
 }

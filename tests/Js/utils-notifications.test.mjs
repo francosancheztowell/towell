@@ -79,7 +79,7 @@ test('todos los tipos duran lo mismo (UX-13) y el puntero encima pausa el cierre
 test('la pila va debajo del navbar (no tapa Crear/Editar/Eliminar)', () => {
   notify.info('x')
   const css = document.getElementById('towell-toasts-style').textContent
-  assert.match(css, /\.towell-toasts\{position:fixed;top:calc\(var\(--pt-navbar-height,64px\) \+ \.75rem\)/)
+  assert.match(css, /\.towell-toasts\{position:fixed;top:calc\(var\(--pt-navbar-height,72px\) \+ \.75rem\)/)
 })
 
 test('los toasts no usan SweetAlert2 (no cierran un modal abierto)', () => {

@@ -112,6 +112,8 @@ class LayoutGlobalTest extends TestCase
         olvidarModulosPorRuta();
 
         $this->assertSame('Pantalla de Prueba · Towell', $this->titulo($this->pagina('/ux-prueba/sin-titulo')));
+        // Con IDs en la URL no se busca el módulo (LIKE sobre el path; una llave de caché por ID).
+        $this->assertSame('Producción Towell', $this->titulo($this->pagina('/ux-prueba/sin-titulo/123')));
     }
 
     public function test_pinch_zoom_habilitado_salvo_andon(): void
@@ -129,7 +131,6 @@ class LayoutGlobalTest extends TestCase
 
         preg_match('/<body[^>]*>/', $html, $body);
         $this->assertStringNotContainsString('user-select', $body[0]);
-        $this->assertStringNotContainsString('touch-callout', $body[0]);
         $this->assertStringContainsString('F-00123', $html);
     }
 

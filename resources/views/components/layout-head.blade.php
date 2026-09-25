@@ -14,7 +14,9 @@
     if ($tituloPagina === '') {
         $tituloPagina = $textoPlano($__env->yieldContent('page-title'));
     }
-    if ($tituloPagina === '' && ! $simple && auth()->check()) {
+    // El módulo solo en rutas sin parámetros: con IDs en la URL, la búsqueda por LIKE de
+    // moduleNameForRoute() puede dar otro módulo y crearía una entrada de caché por ID.
+    if ($tituloPagina === '' && ! $simple && auth()->check() && request()->route()?->parameters() === []) {
         $tituloPagina = (string) rescue(fn () => moduleNameForRoute(), '', false);
     }
     $tituloCompleto = $tituloPagina !== '' && $tituloPagina !== $title ? $tituloPagina.' · Towell' : $title;

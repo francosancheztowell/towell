@@ -71,6 +71,17 @@ test('banner sin conexión: aparece con towell:conexion {online:false} y se ocul
   assert.equal(banner.hidden, true)
 })
 
+test('volver a tener red no quita el aviso si el servidor sigue sin responder', () => {
+  window.dispatchEvent(new CustomEvent('towell:conexion', { detail: { online: false } }))
+  window.dispatchEvent(new Event('offline'))
+  window.dispatchEvent(new Event('online'))
+  const banner = document.getElementById(conexion.ID_BANNER)
+  assert.equal(banner.hidden, false, 'el latido todavía no respondió')
+
+  window.dispatchEvent(new CustomEvent('towell:conexion', { detail: { online: true } }))
+  assert.equal(banner.hidden, true)
+})
+
 test('tras wire:navigate (body nuevo) el banner se vuelve a pintar si sigue sin conexión', () => {
   conexion.actualizarConexion(false, document)
   document.getElementById(conexion.ID_BANNER).remove()
@@ -86,6 +97,7 @@ test('días para liberar: misma validación que tenía el navbar', () => {
   assert.equal(dias.validarDias('-1'), 'Por favor ingrese un número válido')
   assert.equal(dias.validarDias('abc'), 'Por favor ingrese un número válido')
   assert.equal(dias.validarDias('1.2345'), 'Máximo 3 decimales permitidos')
+  assert.equal(dias.validarDias('5000'), 'Por favor ingrese un número válido', 'el max del input no corre dentro de Swal')
   assert.equal(dias.urlLiberar('/planeacion/muestras', '5.5'), '/planeacion/muestras/liberar-ordenes?dias=5.5')
 })
 

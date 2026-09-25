@@ -137,3 +137,24 @@ test('si el navegador no manda click al soltar, el siguiente toque no se pierde'
   assert.equal(click.defaultPrevented, false)
   root.remove()
 })
+
+test('el click de soltar tampoco activa el menú que se abrió bajo el dedo', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] })
+  const { tabla: root, celda } = tabla()
+  let menu = null
+  accionesTactiles(root, '.fila', () => {
+    menu = document.body.appendChild(document.createElement('button'))
+  })
+
+  celda.dispatchEvent(evento('pointerdown', { pointerType: 'touch', button: 0, clientX: 0, clientY: 0 }))
+  t.mock.timers.tick(DEMORA_LARGO_MS)
+  const click = evento('click')
+  menu.dispatchEvent(click)
+  assert.ok(click.defaultPrevented && click.propagationStopped, '"Eliminar" no se ejecuta solo')
+
+  const siguiente = evento('click')
+  menu.dispatchEvent(siguiente)
+  assert.equal(siguiente.defaultPrevented, false, 'el toque siguiente sí cuenta')
+  menu.remove()
+  root.remove()
+})

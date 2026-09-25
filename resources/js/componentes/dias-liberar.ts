@@ -8,12 +8,14 @@
 import Swal from 'sweetalert2';
 
 export const ID_DATOS = 'navbar-dias-liberar';
+/** Mismo tope que el max del input: dentro de Swal la validación nativa no corre. */
+export const DIAS_MAX = 999.999;
 
-/** Mensaje de error o null si el valor sirve (número >= 0 con hasta 3 decimales). */
+/** Mensaje de error o null si el valor sirve (0 a 999.999, hasta 3 decimales). */
 export function validarDias(valor: string | null | undefined): string | null {
     const texto = (valor ?? '').toString().trim();
     const numero = Number(texto);
-    if (texto === '' || Number.isNaN(numero) || numero < 0) return 'Por favor ingrese un número válido';
+    if (texto === '' || Number.isNaN(numero) || numero < 0 || numero > DIAS_MAX) return 'Por favor ingrese un número válido';
 
     const partes = texto.split('.');
     if (partes.length > 1 && (partes[1] ?? '').length > 3) return 'Máximo 3 decimales permitidos';
@@ -28,8 +30,8 @@ export function urlLiberar(base: string, dias: string): string {
 export async function mostrarModalDiasLiberar(): Promise<void> {
     const datos = document.getElementById(ID_DATOS);
     if (!datos) return;
-    const diasActual = datos.dataset.dias ?? '10.999';
-    const base = datos.dataset.base ?? '/planeacion/programa-tejido';
+    const diasActual = datos.dataset.dias || '10.999';
+    const base = datos.dataset.base || '/planeacion/programa-tejido';
 
     const contenido = document.createElement('div');
     contenido.className = 'text-left';
