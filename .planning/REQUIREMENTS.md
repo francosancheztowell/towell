@@ -9,62 +9,62 @@
 
 ### Base (fase 10)
 
-- [ ] **BASE-01**: CI corre `php artisan test` (sqlite) además de typecheck/test:js/build; los 41 fallos actuales se corrigen sin saltar tests (lo que dependa de SQL Server real va a una suite `SqlServer` local documentada).
-- [ ] **BASE-02**: Larastan nivel 5 con baseline y Pint `--test` solo sobre archivos cambiados, en CI.
-- [ ] **BASE-03**: `scripts/ratchet.mjs` + baseline: los conteos de deuda (`fetch(`, `Swal.fire`, `toastr.`, `onclick=`, `innerHTML=`, `X-CSRF-TOKEN`, `<script>` inline, `getMessage()` en JSON, `bg-opacity-`) no pueden subir.
-- [ ] **BASE-04**: Línea base de rendimiento de 15 pantallas top (TTFB, queries, KB HTML/JS, chunks) con runbook repetible.
-- [ ] **BASE-05**: Higiene: vistas/servicios muertos, rutas debug, certificados públicos y archivos sin referencia fuera.
-- [ ] **BASE-06**: Página QR de usuarios funcional (librería por npm/Vite).
-- [ ] **BASE-07**: Conexión de Ventas (`sqlsrv_Reportes_Towell`) restaurada por el flujo `scripts/db-config.ps1` + `.env.example`.
-- [ ] **BASE-08**: Jobs fallidos persistidos (`database-uuids`) y log diario con rotación.
+- [x] **BASE-01**: CI corre `php artisan test` (sqlite) además de typecheck/test:js/build; los 41 fallos actuales se corrigen sin saltar tests (lo que dependa de SQL Server real va a una suite `SqlServer` local documentada).
+- [x] **BASE-02**: Larastan nivel 5 con baseline y Pint `--test` solo sobre archivos cambiados, en CI.
+- [x] **BASE-03**: `scripts/ratchet.mjs` + baseline: los conteos de deuda (`fetch(`, `Swal.fire`, `toastr.`, `onclick=`, `innerHTML=`, `X-CSRF-TOKEN`, `<script>` inline, `getMessage()` en JSON, `bg-opacity-`) no pueden subir.
+- [x] **BASE-04**: Línea base de rendimiento de 15 pantallas top (TTFB, queries, KB HTML/JS, chunks) con runbook repetible.
+- [x] **BASE-05**: Higiene: vistas/servicios muertos, rutas debug, certificados públicos y archivos sin referencia fuera.
+- [x] **BASE-06**: Página QR de usuarios funcional (librería por npm/Vite).
+- [ ] **BASE-07**: Conexión de Ventas (`sqlsrv_Reportes_Towell`) restaurada por el flujo `scripts/db-config.ps1` + `.env.example`. → código y `.env.example` listos (fase 10); falta que el owner agregue la conexión con `scripts/db-config.ps1`.
+- [x] **BASE-08**: Jobs fallidos persistidos (`database-uuids`) y log diario con rotación.
 - [x] **BASE-09**: Tabla `cache` solo si prod usa store `database` (decisión documentada). → Prod usa `file` (2026-09-24): no aplica.
-- [ ] **BASE-10**: `tsconfig` incluye todo `resources/js/**/*.ts` (exclude temporal documentado).
-- [ ] **BASE-11**: `CLAUDE.md` sin datos falsos (`modulos_v3`, `routes/ai.php`).
-- [ ] **BASE-12**: SessionStart hook que instala dependencias para sesiones web.
+- [x] **BASE-10**: `tsconfig` incluye todo `resources/js/**/*.ts` (exclude temporal documentado).
+- [x] **BASE-11**: `CLAUDE.md` sin datos falsos (`modulos_v3`, `routes/ai.php`).
+- [x] **BASE-12**: SessionStart hook que instala dependencias para sesiones web.
 
 ### Monitoreo (fases 11–14)
 
-- [ ] **MON-01**: Tablas `SYSMonDispositivo`, `SYSMonSesion`, `SYSMonVista`, `SYSMonError`, `SYSMonErrorEvento`, `SYSMonAcceso` (migración + `.sql` espejo) y modelos.
-- [ ] **MON-02**: Identidad estable de dispositivo por cookie UUID servidor; "touch" de actividad cacheado en cada request autenticado.
-- [ ] **MON-03**: Registro de login, restauración por remember, logout y logout de dispositivo como eventos de acceso + sesión.
-- [ ] **MON-04**: Login fallido registrado y rate limit de login con registro de bloqueo.
-- [ ] **MON-05**: Tiempo de servidor y consultas por request HTML (header `Server-Timing`).
-- [ ] **MON-06**: Excepciones PHP agrupadas por huella en conexión separada, sin recursión y sin lanzar nunca.
-- [ ] **MON-07**: Respuestas ≥ 500 que no pasan por el handler (catch que tragan) también quedan registradas.
-- [ ] **MON-08**: Endpoints de telemetría del contrato (`11-CONTRACT.md`) con kill switch.
-- [ ] **MON-09**: Cierre remoto de sesión por dispositivo (solo esa tablet) y logout normal por dispositivo.
-- [ ] **MON-10**: (2026-09-24, owner: destinatario fijo) Alertas de errores solo por **correo** a `francost15@gmail.com` (`config('monitoreo.errores.correo_alertas')`, env `MONITOREO_ALERTA_CORREO`); sin Telegram ni suscriptores de SYSMensajes.
-- [ ] **MON-11**: Alerta por correo (Resend) en error nuevo o regresión, con tope por hora, sin bloquear la respuesta.
-- [ ] **MON-12**: Retención/poda programada de los datos de monitoreo.
-- [ ] **MON-13**: Página 500 muestra un código de referencia rastreable.
-- [ ] **MON-14**: `config/monitoreo.php` con intervalos, umbrales, retención, kill switch y áreas admin; Gate `admin` por área (Sistemas).
-- [ ] **MON-15**: Latido del cliente (visibilidad, inactividad, página actual) y fin de vista con `sendBeacon`.
-- [ ] **MON-16**: Métricas de carga por vista (Navigation Timing + Server-Timing), incluida navegación suave de Livewire.
-- [ ] **MON-17**: Captura de errores JS, promesas rechazadas, errores HTTP y fallos de requests Livewire, deduplicados.
-- [ ] **MON-18**: Señal de conectividad (`towell:conexion`) para UX.
-- [ ] **MON-19**: Nombre de dispositivo persistido en servidor (migra el de localStorage).
-- [ ] **MON-20**: Tests JS del cliente y presupuesto ≤ 5 KB gz.
-- [ ] **MON-21**: Rutas `/admin/*` protegidas por Gate `admin`; enlace visible solo para Sistemas.
-- [ ] **MON-22**: Vista "En línea" en tiempo casi real con acciones de cierre remoto y renombrar.
-- [ ] **MON-23**: Historial de sesiones con duración.
-- [ ] **MON-24**: Navegación por dispositivo con tiempo por página.
-- [ ] **MON-25**: Errores agrupados con detalle, eventos y flujo de estado.
-- [ ] **MON-26**: Rendimiento p50/p95 por ruta (servidor y cliente) con comparación semanal.
-- [ ] **MON-27**: Accesos, fallidos y bloqueos.
-- [ ] **MON-28**: Auditoría de acciones admin (`ActorId`).
-- [ ] **MON-29**: Laravel Pulse instalado sobre conexión SQLite dedicada.
-- [ ] **MON-30**: Pulse en `/admin/pulse` con el mismo Gate y resolución de usuario Towell.
-- [ ] **MON-31**: Recorders de Pulse seleccionados (lentos, usuarios) sin duplicar errores.
-- [ ] **MON-32**: Fallback documentado si prod no tiene `pdo_sqlite`.
+- [x] **MON-01**: Tablas `SYSMonDispositivo`, `SYSMonSesion`, `SYSMonVista`, `SYSMonError`, `SYSMonErrorEvento`, `SYSMonAcceso` (migración + `.sql` espejo) y modelos.
+- [x] **MON-02**: Identidad estable de dispositivo por cookie UUID servidor; "touch" de actividad cacheado en cada request autenticado.
+- [x] **MON-03**: Registro de login, restauración por remember, logout y logout de dispositivo como eventos de acceso + sesión.
+- [x] **MON-04**: Login fallido registrado y rate limit de login con registro de bloqueo.
+- [x] **MON-05**: Tiempo de servidor y consultas por request HTML (header `Server-Timing`).
+- [x] **MON-06**: Excepciones PHP agrupadas por huella en conexión separada, sin recursión y sin lanzar nunca.
+- [x] **MON-07**: Respuestas ≥ 500 que no pasan por el handler (catch que tragan) también quedan registradas.
+- [x] **MON-08**: Endpoints de telemetría del contrato (`11-CONTRACT.md`) con kill switch.
+- [x] **MON-09**: Cierre remoto de sesión por dispositivo (solo esa tablet) y logout normal por dispositivo.
+- [x] **MON-10**: (2026-09-24, owner: destinatario fijo) Alertas de errores solo por **correo** a `francost15@gmail.com` (`config('monitoreo.errores.correo_alertas')`, env `MONITOREO_ALERTA_CORREO`); sin Telegram ni suscriptores de SYSMensajes.
+- [x] **MON-11**: Alerta por correo (Resend) en error nuevo o regresión, con tope por hora, sin bloquear la respuesta.
+- [x] **MON-12**: Retención/poda programada de los datos de monitoreo.
+- [x] **MON-13**: Página 500 muestra un código de referencia rastreable.
+- [x] **MON-14**: `config/monitoreo.php` con intervalos, umbrales, retención, kill switch y áreas admin; Gate `admin` por área (Sistemas).
+- [x] **MON-15**: Latido del cliente (visibilidad, inactividad, página actual) y fin de vista con `sendBeacon`.
+- [x] **MON-16**: Métricas de carga por vista (Navigation Timing + Server-Timing), incluida navegación suave de Livewire.
+- [x] **MON-17**: Captura de errores JS, promesas rechazadas, errores HTTP y fallos de requests Livewire, deduplicados.
+- [x] **MON-18**: Señal de conectividad (`towell:conexion`) para UX.
+- [x] **MON-19**: Nombre de dispositivo persistido en servidor (migra el de localStorage).
+- [x] **MON-20**: Tests JS del cliente y presupuesto ≤ 5 KB gz.
+- [x] **MON-21**: Rutas `/admin/*` protegidas por Gate `admin`; enlace visible solo para Sistemas.
+- [x] **MON-22**: Vista "En línea" en tiempo casi real con acciones de cierre remoto y renombrar.
+- [x] **MON-23**: Historial de sesiones con duración.
+- [x] **MON-24**: Navegación por dispositivo con tiempo por página.
+- [x] **MON-25**: Errores agrupados con detalle, eventos y flujo de estado.
+- [x] **MON-26**: Rendimiento p50/p95 por ruta (servidor y cliente) con comparación semanal.
+- [x] **MON-27**: Accesos, fallidos y bloqueos.
+- [x] **MON-28**: Auditoría de acciones admin (`ActorId`).
+- [x] **MON-29**: Laravel Pulse instalado sobre conexión SQLite dedicada.
+- [x] **MON-30**: Pulse en `/admin/pulse` con el mismo Gate y resolución de usuario Towell.
+- [x] **MON-31**: Recorders de Pulse seleccionados (lentos, usuarios) sin duplicar errores.
+- [x] **MON-32**: Fallback documentado si prod no tiene `pdo_sqlite`.
 
 ### Frontend (fase 15)
 
-- [ ] **FE-01**: `utils/http.ts` con Accept JSON, manejo único de 419 y evento `towell:http-error`.
-- [ ] **FE-02**: `utils/notifications.ts` con toast nativo accesible; Swal solo para modales.
-- [ ] **FE-03**: `utils/format.ts` único (`escapeHtml`, `debounce`, formateadores es-MX).
-- [ ] **FE-04**: `utils/dom.ts` (`qs`, `qsa`, `delegate`).
-- [ ] **FE-05**: Tipos globales (`window.http`, `notify`, `Swal`, `Livewire`).
-- [ ] **FE-06**: `tsconfig` con `erasableSyntaxOnly` + `verbatimModuleSyntax`; `tejido/inventario-telas.ts` tipado.
+- [x] **FE-01**: `utils/http.ts` con Accept JSON, manejo único de 419 y evento `towell:http-error`.
+- [x] **FE-02**: `utils/notifications.ts` con toast nativo accesible; Swal solo para modales.
+- [x] **FE-03**: `utils/format.ts` único (`escapeHtml`, `debounce`, formateadores es-MX).
+- [x] **FE-04**: `utils/dom.ts` (`qs`, `qsa`, `delegate`).
+- [x] **FE-05**: Tipos globales (`window.http`, `notify`, `Swal`, `Livewire`).
+- [x] **FE-06**: `tsconfig` con `erasableSyntaxOnly` + `verbatimModuleSyntax`; `tejido/inventario-telas.ts` tipado.
 - [ ] **FE-07**: Tom Select reemplaza Select2 (wrapper `utils/combobox.ts`).
 - [ ] **FE-08**: Toastr reemplazado por `notify`.
 - [ ] **FE-09**: jQuery, Select2, Toastr y el shim de `bootstrap.js` eliminados.
@@ -136,17 +136,17 @@
 
 ### Contexto y contratos
 
-- [ ] **PT-CON-01**: Programa y Muestras tienen contexto, tablas, rutas, preferencias y capacidades explícitas.
-- [ ] **PT-CON-02**: Rutas/payloads/respuestas legacy están caracterizados antes de refactorizar.
+- [x] **PT-CON-01**: Programa y Muestras tienen contexto, tablas, rutas, preferencias y capacidades explícitas. → `ProgramaTejidoSurface` + capacidades 01.3 en `config/planeacion.php` (PT 02).
+- [x] **PT-CON-02**: Rutas/payloads/respuestas legacy están caracterizados antes de refactorizar. → tests de caracterización de PT-01 (sqlite; runbook Laragon pendiente).
 
 ### Dominio
 
 - [ ] **PT-DOM-01**: Posición, `EnProceso`, `Ultimo`, fechas, líneas y grupos conservan sus invariantes.
-- [ ] **PT-DOM-02**: Fórmulas y sincronización CatCodificados conservan semántica y son observables ante fallo.
+- [ ] **PT-DOM-02**: Fórmulas y sincronización CatCodificados conservan semántica y son observables ante fallo. → catches silenciosos 1/4/5/6 contenidos y observables (PT 02); resto en PT-05.
 
 ### Lectura
 
-- [ ] **PT-READ-01**: La lectura v2 usa Request, ReadService y Resource con paginación/proyección.
+- [ ] **PT-READ-01**: La lectura v2 usa Request, ReadService y Resource con paginación/proyección. → lectura v2 detrás de flag + comparación shadow (PT 02); falta canary 02.5 en prod.
 
 ### UI (Livewire)
 

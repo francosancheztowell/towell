@@ -85,7 +85,7 @@ Archivo `routes/modules/telemetria.php`, requerido desde `routes/web.php` dentro
 | POST `/telemetria/latido` | `telemetria.latido` | `{ vista?: uuid, ruta: string, visible: bool, inactivoSeg: int, version?: string, pantalla?: "WxH" }` | `200 { cerrar: bool, intervalo: int }` (`intervalo` en segundos: 60 visible / 300 oculta, configurable) |
 | POST `/telemetria/vista` | `telemetria.vista` | `{ uuid, tipo: "carga"\|"suave", ruta, url, nav: { ttfb?, dom?, carga?, kb? }, st?: { app?, db?, q? } }` | `204` |
 | POST `/telemetria/vista/{uuid}/fin` | `telemetria.vista.fin` | `{ visibleMs: int }` | `204` |
-| POST `/telemetria/error` | `telemetria.error` | `{ origen: "js"\|"livewire"\|"red", mensaje, fuente?, linea?, col?, stack?, url, vista?, status?, metodo? }` | `204` (throttle 30/min por dispositivo; excedente se descarta en silencio) |
+| POST `/telemetria/error` | `telemetria.error` | `{ origen: "js"\|"livewire"\|"red", mensaje, fuente?, linea?, col?, stack?, url, vista?, status?, metodo?, version?, ruta? }` — `ruta` (nombre de ruta de la página donde ocurrió, del meta `towell-ruta`) es para que `SYSMonError.Ruta` no quede como `telemetria.error` (HANDOFF 12 §1; pendiente de implementar en servidor y cliente) | `204` (throttle 30/min por dispositivo; excedente se descarta en silencio) |
 | POST `/telemetria/dispositivo/nombre` | `telemetria.dispositivo.nombre` | `{ nombre: string ≤ 80 }` | `204` |
 
 Validación: longitudes truncadas (no rechazar), enteros acotados (0 – 600 000 ms), `ruta`/`url` sin query string.

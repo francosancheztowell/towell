@@ -49,6 +49,7 @@ Core Value del track PT (sin cambios): el planeador opera Programa Tejido más r
 
 - **Planta primero:** ningún cambio rompe invariantes de dominio ni flujos de piso; convivencia legacy/v2 con rollback donde aplique.
 - **SQL Server es la fuente física:** no inferir schema solo desde migrations; lo que requiera datos reales se entrega como script para correr en Laragon.
+- **Producción = SQL Server 2008 R2** (descubierto en fase 13): nada de funciones 2012+ (`PERCENTILE_CONT`, `OFFSET/FETCH`, `STRING_AGG`, `TRY_CONVERT`, `IIF`, `CONCAT`, `FORMAT`, `THROW`); paginación con `app/Support/PaginacionCompat.php` / `ROW_NUMBER()`.
 - **Windows/Laragon:** sin Redis ni daemons extra obligatorios; colas vía `afterResponse` o scheduler.
 - **Tablets compartidas + remember-me siempre activo** (decisión de negocio para andón).
 - **Sesiones paralelas:** propiedad de archivos y orden de merge en `.planning/PROTOCOLO-SESIONES.md`.

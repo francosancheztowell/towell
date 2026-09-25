@@ -108,10 +108,10 @@ Gate PT (sin cambios): tests de contrato y dominio pasan; invariantes SQL se man
 |---|---|---|---|---|---|
 | 10. Base | BASE | 0 | 1/1 | Completa, integrada (CI PHP+JS, larastan, ratchet, baseline, higiene) | 2026-09-24 |
 | 11. Mon servidor | MON | 0 | 3/3 | Completa, integrada (11-03: alertas por correo fijo); despliegue pendiente del owner | 2026-09-24 |
-| 12. Mon cliente | MON | 1 | 0/1 | En ejecución (`claude/12-mon-cliente`) | - |
-| 13. Mon panel | MON | 1–2 | 0/1 | En ejecución (`claude/13-14-mon-pulse-panel`) | - |
-| 14. Mon Pulse | MON | 1 | 0/1 | En ejecución (`claude/13-14-mon-pulse-panel`) | - |
-| 15. FE fundación | FE | 1–2 | 0/2 | 15-01 en ejecución (`claude/15-01-utils-ts`) | - |
+| 12. Mon cliente | MON | 1 | 1/1 | Completa, integrada (`8c2ce54`; cliente 3.1 KB gz). Pendiente: `ruta` en `/telemetria/error` (HANDOFF 12) | 2026-09-24 |
+| 13. Mon panel | MON | 1 | 1/1 | Completa, integrada (`8290129`; `/admin` con 6 vistas + cierre remoto). Compatible con SQL Server 2008 R2 | 2026-09-24 |
+| 14. Mon Pulse | MON | 1 | 1/1 | Completa, integrada (`8290129`; SQLite, `/admin/pulse`, overhead p95 1.4 ms local) | 2026-09-24 |
+| 15. FE fundación | FE | 1–2 | 1/2 | 15-01 completa, integrada (`1e3c525`); 15-02 en Ola 2 | - |
 | 16. Componentes | DS | 2 | 0/TBD | Context listo | - |
 | 17. UX | UX | 2–3 | 0/2 | Context listo | - |
 | 18. Perf | PERF | 2–3 | 0/2 | Context listo | - |
@@ -119,8 +119,8 @@ Gate PT (sin cambios): tests de contrato y dominio pasan; invariantes SQL se man
 | 20. Arq/Sec | ARQ/SEC | 2–3 | 0/3 | Context listo | - |
 | 21. Adopción | ADOP | 4 | 0/1 | Context listo | - |
 | PT 1. Guardrails | PT | 0 | 1/1 | Completa en sqlite, integrada; runbook Laragon pendiente; decisión 01.3 aprobada | 2026-09-24 |
-| PT 1.1 AuthZ | PT | 1 | 0/1 | En ejecución (`claude/pt-01.1-02`) | - |
-| PT 2. Lectura | PT | 1 | 0/1 | En ejecución (`claude/pt-01.1-02`) | - |
+| PT 1.1 AuthZ | PT | 1 | 1/1 | Completa, integrada (`0e55e84`; liberar Muestras → idrol 5) | 2026-09-24 |
+| PT 2. Lectura | PT | 1 | 1/1 | Completa, integrada (`0e55e84`); canary 02.5 y `.sql` de Muestras pendientes del owner | 2026-09-24 |
 | PT 4-perf | PT | 2 | 0/1 | Medido, cortes 4–7 pendientes | - |
 | PT 3. Shell Livewire | PT | 2 | 0/1 | Planned (mismo diseño) | - |
 | PT 5. Mutaciones | PT | 3 | 0/1 | Planned (ampliar con PT-DUP-*) | - |

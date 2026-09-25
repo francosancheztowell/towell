@@ -49,7 +49,7 @@ Cloud sessions get `vendor/`, `node_modules/`, `.env` and `public/build` from th
 ## Architecture
 
 ### Database
-- Primary DB: SQL Server (`sqlsrv`) via `pdo_sqlsrv` / `sqlsrv` PHP extensions
+- Primary DB: SQL Server (`sqlsrv`) via `pdo_sqlsrv` / `sqlsrv` PHP extensions. **Production runs SQL Server 2008 R2**: no `PERCENTILE_CONT`, `OFFSET/FETCH`, `STRING_AGG`, `TRY_CONVERT`, `IIF`, `CONCAT`, `FORMAT` or `THROW` (all 2012+). Use `ROW_NUMBER()` and the existing `PaginacionCompat` for paging.
 - Two additional SQL Server connections configured:
   - `sqlsrv_ti` → `TI_PRO` database (production data source)
   - `sqlsrv_tow_pro` → `TOW_PRO` database (production data source)
@@ -102,17 +102,25 @@ Controllers follow the same subdirectory pattern under `app/Http/Controllers/`.
 
 ### Frontend
 - Tailwind CSS v4 via `@tailwindcss/vite` plugin
-- jQuery v4, Select2, SweetAlert2, Toastr, Chart.js, SortableJS, Font Awesome
+- jQuery v4 + Select2 (to be replaced by Tom Select in phase 15-02), SweetAlert2 (modals only), Chart.js, SortableJS, Font Awesome. Toastr is no longer used by `notify`.
 - Two JS entry points: `app.js` (main) y `app-core.js`. El componente `<x-layout-scripts>` carga `app.js` (que importa `bootstrap.js`); `app.blade.php` además carga `app-core.js`. `app-filters.js` ya no existe: se desconectó a propósito porque `@vite` emite `<script type="module">` y los `onclick` inline no veían sus funciones (ver comentario en `app.blade.php`).
 - Blade layouts in `resources/views/layouts/`: `app.blade.php` (main), `simple.blade.php`, `globalLoader.blade.php`
 - Module images stored in `public/images/fotos_modulos/`; user photos in `public/images/fotos_usuarios/` (WebP preferred)
 
-#### HTTP & notificaciones (preferir sobre `fetch` crudo)
-`bootstrap.js` expone dos utilidades globales (también importables como ESM desde `resources/js/utils/`), disponibles en cualquier `<script>` de Blade:
-- **`window.http`** (`resources/js/utils/http.js`) — cliente HTTP único sobre axios. Métodos `http.get/post/put/patch/delete(url, data?, config?)` y `http.upload(url, formData)`. Devuelve directamente el JSON (`response.data`), añade el CSRF automáticamente, y **lanza** en errores HTTP con un `Error` normalizado (`err.status`, `err.data`, `err.errors` para validación 422). No escribir `fetch(...).then(r => r.json())` nuevo.
-- **`window.notify`** (`resources/js/utils/notifications.js`) — `notify.success/error/warning/info(msg)`, `notify.confirm({...}) → Promise<boolean>`, `notify.validation(err.errors)`, `notify.loading()/close()`. Escapa HTML para evitar XSS.
+#### HTTP, notificaciones y utilidades (preferir sobre `fetch` crudo)
+`bootstrap.js` expone utilidades globales (también importables como ESM desde `resources/js/utils/*.ts`), disponibles en cualquier `<script>` de Blade:
+- **`window.http`** (`resources/js/utils/http.ts`) — cliente HTTP único sobre axios. Firmas: `http.get(url, config?)`, `http.delete(url, config?)` (el body de un DELETE va en `config.data`), `http.post/put/patch(url, data?, config?)`, `http.upload(url, formData)`. Devuelve el JSON (`response.data`), manda siempre `Accept: application/json` y el CSRF, y **lanza** `HttpError` (`err.status`, `err.data`, `err.errors` en 422). En todo fallo emite `towell:http-error` en `window` (`{status, url, method}`). Sesión expirada (419/401): un aviso y recarga sola. No escribir `fetch(...).then(r => r.json())` nuevo.
+- **`window.notify`** (`resources/js/utils/notifications.ts`) — `notify.success/error/warning/info(msg)` son **toasts nativos** accesibles (`aria-live`, máx. 4, sin Toastr); `notify.confirm({...}) → Promise<boolean>`, `notify.validation(err.errors)`, `notify.loading()/close()` siguen con SweetAlert2. `window.showToast(msg, tipo)` apunta aquí. Escapa HTML.
+- **`resources/js/utils/format.ts`** — `escapeHtml`, `debounce`, `formatNumber`, `formatDate`, `formatDateTime` (es-MX, America/Mexico_City). No redefinirlos en vistas.
+- **`resources/js/utils/dom.ts`** — `qs`, `qsa`, `delegate`, `onReady`.
 
-Migración en curso (ver plan de auditoría): los `fetch` inline y los `showToast()` duplicados se reemplazan módulo por módulo. Módulo piloto migrado: `resources/views/catalagos/calendarios/`.
+Migración en curso (`.planning/ROADMAP.md`, fases 15/16/19): los `fetch` inline, `showToast()` duplicados y `onclick=` se reemplazan módulo por módulo; el ratchet (`npm run ratchet`) impide que crezcan.
+
+### Monitoreo y panel `/admin`
+- Tablas `dbo.SYSMon*` (dispositivos, sesiones, vistas, errores, accesos). Contrato en `.planning/phases/11-mon-servidor/11-CONTRACT.md`; kill switch `MONITOREO_ENABLED`.
+- Panel Livewire en `/admin` (solo área Sistemas, Gate `admin`, `MONITOREO_AREAS_ADMIN`) y Laravel Pulse en `/admin/pulse` sobre una conexión **SQLite** propia (Pulse no soporta SQL Server).
+- Errores PHP/JS agrupados por huella en `SYSMonError`; alertas por correo a `MONITOREO_ALERTA_CORREO` (default francost15@gmail.com).
+- Cliente de telemetría: `resources/js/monitoreo/*.ts` (no parchear `window.fetch`).
 
 ### Excel Import/Export
 Uses `maatwebsite/excel` (v3.1). Import classes are in `app/Imports/` (11 files). Export classes in `app/Exports/` (17 files) for generating downloadable reports per module.

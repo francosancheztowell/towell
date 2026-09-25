@@ -39,6 +39,8 @@ vendor/bin/pint --test $(git diff --name-only --diff-filter=AM origin/<base>...H
 
 Además: skill `code-review` sobre el diff; `security-review` en fases 11, 13, 20 y SEC-01.
 
+**SQL:** producción es **SQL Server 2008 R2**: todo SQL crudo debe ser compatible (sin `PERCENTILE_CONT`, `OFFSET/FETCH`, `STRING_AGG`, `TRY_CONVERT`, `IIF`, `CONCAT`, `FORMAT`, `THROW`); paginar con `app/Support/PaginacionCompat.php`. sqlite de tests no lo detecta: revisarlo a mano.
+
 **Nunca:** saltar, desactivar o marcar como incompleto un test para ponerlo en verde; formatear el repo completo con Pint; editar `public/build`; tocar `config/database.php` (gitignored + skip-worktree, se administra con `scripts/db-config.ps1`).
 
 ## 4. Orden de merge por ola
