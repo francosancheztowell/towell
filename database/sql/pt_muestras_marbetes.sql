@@ -21,7 +21,7 @@ SET XACT_ABORT ON;
 SET NOCOUNT ON;
 
 IF OBJECT_ID('dbo.MuestrasPrograma') IS NULL OR OBJECT_ID('dbo.ReqProgramaTejido') IS NULL
-    THROW 50000, N'Falta dbo.MuestrasPrograma o dbo.ReqProgramaTejido: base equivocada. Abortado.', 1;
+    BEGIN RAISERROR(N'Falta dbo.MuestrasPrograma o dbo.ReqProgramaTejido: base equivocada. Abortado.', 16, 1); IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION; RETURN; END
 
 BEGIN TRANSACTION;
 
@@ -50,7 +50,7 @@ WHERE c.object_id = OBJECT_ID('dbo.ReqProgramaTejido')
 IF COL_LENGTH('dbo.MuestrasPrograma', 'NoMarbete') IS NULL
 BEGIN
     SET @tipo = (SELECT tipo FROM @tipos WHERE col = N'NoMarbete');
-    IF @tipo IS NULL THROW 50001, N'ReqProgramaTejido.NoMarbete no existe: no se puede copiar su tipo. Abortado sin cambios.', 1;
+    IF @tipo IS NULL BEGIN RAISERROR(N'ReqProgramaTejido.NoMarbete no existe: no se puede copiar su tipo. Abortado sin cambios.', 16, 1); IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION; RETURN; END
     SET @sql = N'ALTER TABLE dbo.MuestrasPrograma ADD NoMarbete ' + @tipo + N' NULL;';
     EXEC sys.sp_executesql @sql;
     PRINT N'Agregada MuestrasPrograma.NoMarbete ' + @tipo + N' NULL';
@@ -61,7 +61,7 @@ ELSE
 IF COL_LENGTH('dbo.MuestrasPrograma', 'RollosProgramados') IS NULL
 BEGIN
     SET @tipo = (SELECT tipo FROM @tipos WHERE col = N'RollosProgramados');
-    IF @tipo IS NULL THROW 50001, N'ReqProgramaTejido.RollosProgramados no existe: no se puede copiar su tipo. Abortado sin cambios.', 1;
+    IF @tipo IS NULL BEGIN RAISERROR(N'ReqProgramaTejido.RollosProgramados no existe: no se puede copiar su tipo. Abortado sin cambios.', 16, 1); IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION; RETURN; END
     SET @sql = N'ALTER TABLE dbo.MuestrasPrograma ADD RollosProgramados ' + @tipo + N' NULL;';
     EXEC sys.sp_executesql @sql;
     PRINT N'Agregada MuestrasPrograma.RollosProgramados ' + @tipo + N' NULL';
@@ -72,7 +72,7 @@ ELSE
 IF COL_LENGTH('dbo.MuestrasPrograma', 'ProduccionMarbetes') IS NULL
 BEGIN
     SET @tipo = (SELECT tipo FROM @tipos WHERE col = N'ProduccionMarbetes');
-    IF @tipo IS NULL THROW 50001, N'ReqProgramaTejido.ProduccionMarbetes no existe: no se puede copiar su tipo. Abortado sin cambios.', 1;
+    IF @tipo IS NULL BEGIN RAISERROR(N'ReqProgramaTejido.ProduccionMarbetes no existe: no se puede copiar su tipo. Abortado sin cambios.', 16, 1); IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION; RETURN; END
     SET @sql = N'ALTER TABLE dbo.MuestrasPrograma ADD ProduccionMarbetes ' + @tipo + N' NULL;';
     EXEC sys.sp_executesql @sql;
     PRINT N'Agregada MuestrasPrograma.ProduccionMarbetes ' + @tipo + N' NULL';

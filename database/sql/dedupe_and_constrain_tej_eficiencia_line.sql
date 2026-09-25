@@ -48,7 +48,7 @@ JOIN Grupos g
    AND g.NoTelarId = t.NoTelarId AND g.created_at = t.created_at
 WHERE g.rn = 1 AND g.total > 1;
 
-PRINT CONCAT('Filas fusionadas (titulares actualizadas): ', @@ROWCOUNT);
+PRINT 'Filas fusionadas (titulares actualizadas): ' + CAST(@@ROWCOUNT AS varchar(20));
 
 -- 2) Borrar las filas duplicadas sobrantes (todas menos la mas antigua de cada grupo).
 ;WITH Grupos2 AS (
@@ -64,7 +64,7 @@ JOIN Grupos2 g
    AND g.NoTelarId = t.NoTelarId AND g.created_at = t.created_at
 WHERE g.rn > 1;
 
-PRINT CONCAT('Filas duplicadas eliminadas: ', @@ROWCOUNT);
+PRINT 'Filas duplicadas eliminadas: ' + CAST(@@ROWCOUNT AS varchar(20));
 
 -- 3) Indice unico para impedir que se vuelvan a crear duplicados a futuro.
 IF NOT EXISTS (

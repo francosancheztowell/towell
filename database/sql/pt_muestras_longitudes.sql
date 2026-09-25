@@ -21,7 +21,7 @@ SET XACT_ABORT ON;
 SET NOCOUNT ON;
 
 IF OBJECT_ID('dbo.MuestrasPrograma') IS NULL OR OBJECT_ID('dbo.ReqProgramaTejido') IS NULL
-    THROW 50000, N'Falta dbo.MuestrasPrograma o dbo.ReqProgramaTejido: base equivocada. Abortado.', 1;
+    BEGIN RAISERROR(N'Falta dbo.MuestrasPrograma o dbo.ReqProgramaTejido: base equivocada. Abortado.', 16, 1); IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION; RETURN; END
 
 DECLARE @columnas TABLE (col sysname PRIMARY KEY);
 INSERT INTO @columnas (col) VALUES (N'CalendarioId'), (N'FlogsId'), (N'NombreProyecto'), (N'CustName'), (N'AplicacionId'), (N'Observaciones'), (N'ColorTrama'), (N'Prioridad'), (N'CombinaTram'), (N'BomId'), (N'BomName');

@@ -8,8 +8,11 @@
  *   a) php artisan migrate  y después solo la sección "ÍNDICES EXTRA" de abajo.
  *   b) Correr este script completo en lugar de la migración y registrar la migración
  *      como ejecutada:
- *        INSERT INTO dbo.migrations (migration, batch)
- *        VALUES ('2026_09_24_000001_create_sysmon_tables', (SELECT ISNULL(MAX(batch),0)+1 FROM dbo.migrations));
+ *        IF NOT EXISTS (SELECT 1 FROM dbo.migrations WHERE migration = '2026_09_24_000001_create_sysmon_tables')
+ *            INSERT INTO dbo.migrations (migration, batch)
+ *            SELECT '2026_09_24_000001_create_sysmon_tables', ISNULL(MAX(batch), 0) + 1 FROM dbo.migrations;
+ *      No usar `php artisan migrate` a secas en producción: dbo.migrations no coincide con
+ *      live y podría intentar correr migraciones viejas.
  *
  * Idempotente: cada objeto se crea solo si no existe.
  * Fechas en hora local de planta (America/Mexico_City), igual que el resto del ERP.
