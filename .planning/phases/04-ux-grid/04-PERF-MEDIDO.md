@@ -3,7 +3,7 @@ phase: 04-ux-grid
 tipo: medicion
 fecha: 2026-09-15
 entorno: ProdTowel @ 192.168.2.28 (datos reales), render via artisan tinker
-status: cortes_1_3_aplicados
+status: cortes_1_6_aplicados_7_descartado
 ---
 
 # Fase 04 — Qué cuesta realmente la grilla de Programa Tejido
@@ -113,8 +113,17 @@ El corte 1 terminó siendo **borrado puro**: `main.css` ya forzaba el color con
 `.selectable-row.bg-blue-700 td`), así que los ~15 600 `classList.toggle` por clic
 no pintaban nada. Cero CSS nuevo, cero cambio visual.
 
-Sigue pendiente lo que no se tocó: los cortes 4–7 (Promise.all en el modal, sacar
-los 539 KB de JS inline, click delegado, no emitir las columnas ocultas).
+## Cortes 4–7 (actualización 2026-09-25, PT 04-perf)
+
+- **4 y 6 (click delegado)** ya los había aplicado `165dc37` sin actualizar este documento.
+- **5**: el cuerpo de 539 KB salió a `resources/js/programa-tejido/index.js` en `165dc37`; PT 04-perf
+  sacó los 6 bloques inline de PT que quedaban (balancear 73 KB, PT_BOOT → JSON, 3 modales,
+  recalcular): JS inline de la página 144 KB → 40 KB, gzip −16 %.
+- **6 (bug de `selectedRowIndex`)**: ahora sigue a la fila, no al índice (`seleccion.ts`).
+- **7**: no se hizo; números y criterio en `04-perf-SUMMARY.md`.
+
+El método de medición ahora es un script: `.planning/phases/04-ux-grid/medir-grilla.php`
+(`--sintetico` aquí, `--usuario=N [--muestras]` en Laragon), que también simula el corte 7.
 
 ## Cómo repetir la medición
 
