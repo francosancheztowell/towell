@@ -1999,11 +1999,7 @@
                                 // Avisos de turno duplicado (no bloquean, solo informan)
                                 if (warningsTurno.length > 0) {
                                     const msg = [...new Set(warningsTurno)].join(' ');
-                                    if (typeof toastr !== 'undefined') {
-                                        toastr.warning(msg);
-                                    } else {
-                                        mostrarToast('warning', msg, 4000);
-                                    }
+                                    notify.warning(msg);
                                 }
 
                                 // Propagación hacia abajo (excepto si tienen H. Inicio)

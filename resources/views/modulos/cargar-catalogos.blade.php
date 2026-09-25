@@ -89,7 +89,7 @@
 
 @push('scripts')
 <script>
-// showToast(message, type) es global (resources/js/utils/notifications.js → toastr).
+// showToast(message, type) es global (resources/js/utils/notifications.ts → toasts nativos).
 
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('uploadForm');
