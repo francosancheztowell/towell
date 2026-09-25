@@ -10,18 +10,8 @@ import type { AxiosStatic } from 'axios';
 import type SwalStatic from 'sweetalert2';
 import type { Http } from '../utils/http.ts';
 import type { Notify } from '../utils/notifications.ts';
-
-/** Lo mínimo de jQuery + Select2 que usa el código TS (trazabilidad). Se va con 15-02. */
-interface Select2Bridge {
-    data(key: string): unknown;
-    select2(command: 'close' | 'destroy' | Record<string, unknown>): void;
-    off(events: string): Select2Bridge;
-    on(events: string, handler: (event: Event) => void): Select2Bridge;
-}
-
-interface JQueryBridge {
-    (element: Element): Select2Bridge;
-}
+import type { Combobox, OpcionesCombobox } from '../utils/combobox.ts';
+import type { Librerias } from '../utils/librerias.ts';
 
 interface LivewireClient {
     dispatch(event: string, params?: Record<string, unknown>): void;
@@ -29,7 +19,7 @@ interface LivewireClient {
     hook(name: string, callback: (...args: any[]) => void): void;
 }
 
-/** Métodos de toastr que existen en vistas; lo reemplaza notify en 15-02. */
+/** Adaptador temporal window.toastr → notify (bootstrap.js); se retira en la fase 21. */
 type ToastrMethod = (message: string, title?: string, options?: Record<string, unknown>) => unknown;
 interface ToastrClient {
     success: ToastrMethod;
@@ -49,8 +39,8 @@ declare global {
     var showToast: (message: unknown, type?: string) => void;
     var Swal: typeof SwalStatic;
     var toastr: ToastrClient;
-    var $: JQueryBridge | undefined;
-    var jQuery: JQueryBridge | undefined;
+    var combobox: (select: HTMLSelectElement, opciones?: OpcionesCombobox) => Promise<Combobox>;
+    var librerias: Librerias;
     var Livewire: LivewireClient | undefined;
 }
 

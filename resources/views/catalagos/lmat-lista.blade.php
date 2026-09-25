@@ -115,67 +115,6 @@
             background-color: #3b82f6 !important;
             color: #fff !important;
         }
-
-        /* === Estilo de los selects (select2), igual que en Trazabilidad === */
-        #lmat-filtros .select2-container--default .select2-selection--single {
-            height: 34px;
-            display: flex;
-            align-items: center;
-            border: 1px solid #cbd5e1;
-            border-radius: 0.6rem;
-            background-color: #fff;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
-            transition: border-color .15s ease, box-shadow .15s ease;
-        }
-        #lmat-filtros .select2-container--default .select2-selection--single .select2-selection__rendered {
-            line-height: 32px;
-            padding-left: 0.7rem;
-            padding-right: 1.6rem;
-            color: #334155;
-            font-size: 0.8125rem;
-        }
-        #lmat-filtros .select2-container--default .select2-selection--single .select2-selection__placeholder {
-            color: #94a3b8;
-        }
-        #lmat-filtros .select2-container--default .select2-selection--single .select2-selection__arrow {
-            height: 32px;
-            right: 8px;
-        }
-        #lmat-filtros .select2-container--default .select2-selection--single .select2-selection__clear {
-            margin-right: 26px;
-            padding: 0 4px;
-            color: #94a3b8;
-            font-weight: 700;
-            cursor: pointer;
-        }
-        #lmat-filtros .select2-container--default .select2-selection--single .select2-selection__clear:hover {
-            color: #ef4444;
-        }
-        #lmat-filtros .select2-container--default.select2-container--focus .select2-selection--single,
-        #lmat-filtros .select2-container--default.select2-container--open .select2-selection--single {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, .25);
-            outline: none;
-        }
-        .lmat-select2-dd.select2-dropdown {
-            border: 1px solid #3b82f6;
-            border-radius: 0.6rem;
-            overflow: hidden;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, .12);
-            margin-top: 4px;
-        }
-        .lmat-select2-dd .select2-search__field {
-            border: 1px solid #cbd5e1;
-            border-radius: 0.45rem;
-            padding: 0.35rem 0.5rem;
-        }
-        .lmat-select2-dd .select2-results__option--highlighted[aria-selected] {
-            background-color: #3b82f6;
-        }
-        .lmat-select2-dd .select2-results__option[aria-selected="true"] {
-            background-color: #dbeafe;
-            color: #1e40af;
-        }
     </style>
 
     @vite('resources/js/lmat-lista/index.js')

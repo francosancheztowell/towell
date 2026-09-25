@@ -5,6 +5,7 @@
  * renderizado del modal y persistencia. El Blade solo proporciona la fila
  * seleccionada y la función para refrescar la tabla.
  */
+import { combobox, destruirCombobox, refrescarCombobox } from '../utils/combobox.ts';
 
 function escapeHtml(value) {
     return String(value ?? '')
@@ -1790,25 +1791,15 @@ async function openLMatModal(context = {}) {
                 if (input && nombre) input.value = nombre;
             };
 
-            const inicializarColorBuscableLMat = (fila, colorSelect) => {
-                const jq = window.jQuery;
-                if (!jq?.fn?.select2 || !colorSelect) return;
-
-                const $select = jq(colorSelect);
-                if ($select.hasClass('select2-hidden-accessible')) {
-                    $select.select2('destroy');
-                }
-
-                $select.select2({
-                    dropdownParent: jq(Swal.getPopup()),
-                    width: '100%',
+            // Al elegir color, el `change` nativo lo atienden el delegado del tbody
+            // (Nombre color) y conectarSelectsSalidaMatrizLMat (filas de la matriz).
+            const inicializarColorBuscableLMat = (colorSelect) => {
+                if (!colorSelect) return;
+                destruirCombobox(colorSelect);
+                combobox(colorSelect, {
                     placeholder: 'Escribe código o nombre',
-                    allowClear: true,
-                    minimumResultsForSearch: 0,
-                });
-                $select.off('change.lmatColor').on('change.lmatColor', () => {
-                    actualizarNombreColorPorSeleccionLMat(fila);
-                    sincronizarSalidaMatrizLMat(fila, 'color[]', colorSelect.value);
+                    permitirVacio: true,
+                    flotante: true,
                 });
             };
 
@@ -1817,11 +1808,7 @@ async function openLMatModal(context = {}) {
                 const colorSelect = fila?.querySelector('select[name="color[]"]');
                 if (!colorSelect) return;
 
-                const jq = window.jQuery;
-                const $colorSelect = jq ? jq(colorSelect) : null;
-                if ($colorSelect?.hasClass('select2-hidden-accessible')) {
-                    $colorSelect.select2('destroy');
-                }
+                destruirCombobox(colorSelect);
 
                 const ids = LMatMateriales.idsColores(coloresLista);
                 let preferido = colorPreferido !== null && colorPreferido !== undefined
@@ -1849,7 +1836,7 @@ async function openLMatModal(context = {}) {
                 }
 
                 actualizarNombreColorFilaLMat(fila, coloresLista, colorSelect.value);
-                inicializarColorBuscableLMat(fila, colorSelect);
+                inicializarColorBuscableLMat(colorSelect);
                 actualizarNombreColorPorSeleccionLMat(fila);
             };
 
@@ -1900,10 +1887,7 @@ async function openLMatModal(context = {}) {
                     select.add(new Option(normalizado, normalizado));
                 }
                 select.value = normalizado;
-                const jq = window.jQuery;
-                if (jq && jq(select).hasClass('select2-hidden-accessible')) {
-                    jq(select).trigger('change.select2');
-                }
+                refrescarCombobox(select);
             };
 
             const sincronizarSalidaMatrizLMat = (filaOrigen, nombreCampo, valor) => {
@@ -1936,20 +1920,12 @@ async function openLMatModal(context = {}) {
                         cargarTamanoYColorLMat(sel);
                     };
 
-                    const jq = window.jQuery;
-                    if (jq?.fn?.select2) {
-                        const $select = jq(sel);
-                        $select.select2({
-                            dropdownParent: jq(Swal.getPopup()),
-                            width: '100%',
-                            placeholder: 'Escribe para buscar artículo',
-                            allowClear: true,
-                            minimumResultsForSearch: 0,
-                        });
-                        $select.off('change.lmatArticulo').on('change.lmatArticulo', manejarCambioArticulo);
-                    } else {
-                        sel.addEventListener('change', manejarCambioArticulo);
-                    }
+                    combobox(sel, {
+                        placeholder: 'Escribe para buscar artículo',
+                        permitirVacio: true,
+                        flotante: true,
+                    });
+                    sel.addEventListener('change', manejarCambioArticulo);
                 });
             };
 
