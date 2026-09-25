@@ -1,27 +1,30 @@
 {{--
   Bootstrap del JS de Programa Tejido.
 
-  El cuerpo vivia aqui inline (527 KB que el navegador re-descargaba y
-  re-compilaba en cada recarga, el 48 % de la pagina). Ahora esta en
-  resources/js/programa-tejido/index.js y lo sirve Vite con hash: sale de
-  cache y V8 reusa el bytecode compilado.
-
-  Lo unico que sigue inline son los valores que solo conoce el servidor.
+  El código vive en resources/js/programa-tejido/ (bundle de Vite con hash: sale de
+  cache y V8 reusa el bytecode). Aquí solo quedan los valores que conoce el servidor,
+  como datos: resources/js/programa-tejido/boot.ts los lee de #pt-boot. `capacidades`
+  (config planeacion.superficies): false = acción B oculta.
 --}}
-<script>
-  window.PT_BOOT = {
-    basePath: @json($basePath ?? '/planeacion/programa-tejido'),
-    apiPath: @json($apiPath ?? '/programa-tejido'),
-    linePath: @json($linePath ?? '/planeacion/req-programa-tejido-line'),
-    columns: @json($columns ?? []),
-    hiddenFields: @json($hiddenFields ?? []),
-    // Capacidades de la superficie (config planeacion.superficies): false = acción B oculta.
-    capacidades: @json((object) ($capacidades ?? [])),
-    routes: {
-      codificacion: @json(route('planeacion.codificacion.index')),
-      codificacionModelos: @json(route('planeacion.catalogos.codificacion-modelos')),
-      vincularRegistros: @json(route('programa-tejido.vincular-registros-existentes')),
-    },
-  };
-</script>
+@php
+  $ptBoot = [
+    'basePath' => $basePath ?? '/planeacion/programa-tejido',
+    'apiPath' => $apiPath ?? '/programa-tejido',
+    'linePath' => $linePath ?? '/planeacion/req-programa-tejido-line',
+    'columns' => $columns ?? [],
+    'hiddenFields' => $hiddenFields ?? [],
+    'capacidades' => (object) ($capacidades ?? []),
+    'routes' => [
+        'codificacion' => route('planeacion.codificacion.index'),
+        'codificacionModelos' => route('planeacion.catalogos.codificacion-modelos'),
+        'vincularRegistros' => route('programa-tejido.vincular-registros-existentes'),
+        'marbetes' => route('programa-tejido.marbetes'),
+        'marbetesGuardar' => route('programa-tejido.marbetes.guardar'),
+        'recalcularFechas' => ($isMuestras ?? false)
+            ? route('muestras.recalcular-fechas')
+            : route('programa-tejido.recalcular-fechas'),
+    ],
+];
+@endphp
+<script type="application/json" id="pt-boot">@json($ptBoot)</script>
 @vite('resources/js/programa-tejido/index.js')

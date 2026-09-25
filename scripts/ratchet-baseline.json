@@ -1,12 +1,12 @@
 {
-  "fetch(": 300,
+  "fetch(": 299,
   "Swal.fire": 818,
-  "toastr.": 25,
+  "toastr.": 22,
   "onclick=": 413,
   "innerHTML =": 394,
-  "X-CSRF-TOKEN": 193,
+  "X-CSRF-TOKEN": 192,
   "bg-opacity-": 28,
-  "<script> inline en blade": 169,
+  "<script> inline en blade": 165,
   "SQL crudo con $interpolado": 8,
   "getMessage() en response()->json": 285
 }

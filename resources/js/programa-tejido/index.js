@@ -1,9 +1,18 @@
+// Primero boot: los módulos de abajo leen PT_BOOT al evaluarse.
+import { PT_BOOT } from './boot.ts';
 import {
     checkFilterMatch as ptCheckFilterMatch,
     dateInRange as ptDateInRange,
     groupFiltersByColumn as ptGroupFiltersByColumn,
     rowMatchesCustomFilters as ptRowMatchesCustomFilters,
 } from './filter-engine.ts';
+// Scripts que vivían inline en la vista (04-perf, corte 5). Se evalúan antes que este
+// archivo y solo publican funciones en window, como hacían sus <script>.
+import './balancear.js';
+import './recalcular-fechas.js';
+import './modales/act-calendarios.js';
+import './modales/repaso.js';
+import './modales/marbetes.js';
 
 // Bundle JS de Programa Tejido. Antes iba inline en el HTML (527 KB que el
 // navegador volvia a descargar y a recompilar en cada recarga); ahora lo sirve
@@ -13,9 +22,8 @@ import {
 // convertir esto en modulos con import/export sin repasar las dependencias
 // cruzadas (p. ej. selection usa $$ de state).
 //
-// Los valores que dependian de Blade llegan por window.PT_BOOT, que la vista
-// imprime en un <script> inline antes de cargar este archivo.
-const PT_BOOT = window.PT_BOOT || {};
+// Los valores que dependian de Blade llegan en PT_BOOT (boot.ts), que la vista
+// imprime como <script type="application/json" id="pt-boot">.
 
 
   const PT_BASE_PATH = PT_BOOT.basePath || '/planeacion/programa-tejido';
