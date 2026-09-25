@@ -2,11 +2,11 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\CatCodificadosDesarrolladorService;
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\MovimientoDesarrolladorService;
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\NotificacionTelegramDesarrolladorService;
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ProcesarDesarrolladorService;
 use App\Models\Planeacion\Catalogos\CatCodificados;
+use App\Services\Tejedores\Desarrolladores\CatCodificadosDesarrolladorService;
+use App\Services\Tejedores\Desarrolladores\MovimientoDesarrolladorService;
+use App\Services\Tejedores\Desarrolladores\NotificacionTelegramDesarrolladorService;
+use App\Services\Tejedores\Desarrolladores\ProcesarDesarrolladorService;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
@@ -68,7 +68,7 @@ class CatCodificadosDesarrolladorServiceTest extends TestCase
             $table->dateTime('FechaFinaliza')->nullable();
         });
 
-        $this->catCodificadosService = new CatCodificadosDesarrolladorService();
+        $this->catCodificadosService = new CatCodificadosDesarrolladorService;
     }
 
     protected function tearDown(): void

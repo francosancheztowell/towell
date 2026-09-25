@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ProcesarMuestrasDesarrolladorService;
+use App\Services\Tejedores\Desarrolladores\ProcesarMuestrasDesarrolladorService;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 

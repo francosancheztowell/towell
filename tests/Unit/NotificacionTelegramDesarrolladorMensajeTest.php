@@ -2,8 +2,8 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\NotificacionTelegramDesarrolladorService;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Tejedores\Desarrolladores\NotificacionTelegramDesarrolladorService;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 

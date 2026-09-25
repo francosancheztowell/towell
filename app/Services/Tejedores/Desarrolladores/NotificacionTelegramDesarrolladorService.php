@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Tejedores\Desarrolladores\Funciones;
+namespace App\Services\Tejedores\Desarrolladores;
 
 use App\Models\Sistema\SYSMensaje;
 use Carbon\Carbon;

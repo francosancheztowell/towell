@@ -2,11 +2,11 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\CatCodificadosDesarrolladorService;
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\MovimientoDesarrolladorService;
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\NotificacionTelegramDesarrolladorService;
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ProcesarDesarrolladorService;
 use App\Models\Planeacion\ReqModelosCodificados;
+use App\Services\Tejedores\Desarrolladores\CatCodificadosDesarrolladorService;
+use App\Services\Tejedores\Desarrolladores\MovimientoDesarrolladorService;
+use App\Services\Tejedores\Desarrolladores\NotificacionTelegramDesarrolladorService;
+use App\Services\Tejedores\Desarrolladores\ProcesarDesarrolladorService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -47,7 +47,7 @@ class ProcesarDesarrolladorDetalleTest extends TestCase
 
     private function service(): ProcesarDesarrolladorService
     {
-        $catCodificadosService = new CatCodificadosDesarrolladorService();
+        $catCodificadosService = new CatCodificadosDesarrolladorService;
         $movimientoService = new MovimientoDesarrolladorService($catCodificadosService);
         $telegramService = $this->createMock(NotificacionTelegramDesarrolladorService::class);
 

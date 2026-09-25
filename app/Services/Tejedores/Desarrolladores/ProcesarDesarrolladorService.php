@@ -1,11 +1,13 @@
 <?php
 
-namespace App\Http\Controllers\Tejedores\Desarrolladores\Funciones;
+namespace App\Services\Tejedores\Desarrolladores;
 
+use App\Helpers\AuditoriaHelper;
+use App\Helpers\TelDesarrolladoresHelper;
 use App\Models\Planeacion\Catalogos\CatCodificados;
-use App\Models\Planeacion\Muestras;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use Carbon\Carbon;
 use DomainException;
 use Exception;
 use Illuminate\Http\Request;
@@ -14,17 +16,18 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
-class ProcesarMuestrasDesarrolladorService
+class ProcesarDesarrolladorService
 {
     use ArmaDatosDesarrollador;
 
     /** @return class-string<ReqProgramaTejido> */
     protected function modeloPrograma(): string
     {
-        return Muestras::class;
+        return ReqProgramaTejido::class;
     }
 
     public function __construct(
+        protected MovimientoDesarrolladorService $movimientoService,
         protected NotificacionTelegramDesarrolladorService $telegramService,
         protected CatCodificadosDesarrolladorService $catCodificadosService,
     ) {}
@@ -37,6 +40,12 @@ class ProcesarMuestrasDesarrolladorService
             $minutosCambio = $this->calcularMinutosCambio($validated['HoraInicio'] ?? null, $validated['HoraFinal'] ?? null);
             $fechaInicioProgramada = $this->construirFechaInicioProgramada($validated['HoraFinal'] ?? null);
             $longitudLuchaTot = $this->normalizarLongitudLucha($validated['LongitudLuchaTot'] ?? null);
+
+            AuditoriaHelper::contexto(
+                ($validated['accion'] ?? 'finalizar') === 'finalizar'
+                    ? 'FINALIZA_DESARROLLADORES'
+                    : 'MOVER_DESARROLLADORES'
+            );
 
             $resultado = DB::transaction(function () use (
                 $validated,
@@ -51,15 +60,15 @@ class ProcesarMuestrasDesarrolladorService
                     $contextoDestino['telarDestino'] ?? null
                 );
 
-                // Bloqueo liviano del telar destino
-                Muestras::query()
+                // Bloqueo liviano del telar destino para minimizar condiciones de carrera.
+                ReqProgramaTejido::query()
                     ->where('SalonTejidoId', $contextoDestino['salonDestino'])
                     ->where('NoTelarId', $contextoDestino['telarDestino'])
                     ->lockForUpdate()
                     ->limit(1)
                     ->get();
 
-                $ordenData = Muestras::query()
+                $ordenData = ReqProgramaTejido::query()
                     ->where('NoProduccion', $validated['NoProduccion'])
                     ->first();
 
@@ -86,7 +95,8 @@ class ProcesarMuestrasDesarrolladorService
                     $codigoDibujo,
                     $minutosCambio,
                     $longitudLuchaTot,
-                    $modeloDestino
+                    $modeloDestino,
+                    $ordenData
                 );
 
                 $claveModelo = $registroCodificado
@@ -135,14 +145,19 @@ class ProcesarMuestrasDesarrolladorService
                     $codigoDibujoAnterior = $this->normalizeCodigoDibujo($codigoDibujoAnterior, $contextoOrigen['telarOrigen']);
                 }
 
-                // Post-procesamiento MUESTRAS: eliminar registro en lugar de poner EnProceso.
-                // delete() no vacia los atributos en memoria, asi que el propio modelo
-                // sirve para la notificacion, que solo lee dos fechas.
-                $this->eliminarRegistroMuestra($programaObjetivo);
+                $programaFinal = $this->ejecutarMovimientoYPonerEnProceso(
+                    $programaObjetivo,
+                    $contextoDestino,
+                    $validated['accion'] ?? 'finalizar'
+                );
 
                 return [
-                    'programa' => $programaObjetivo,
+                    'programa' => $programaFinal ?: ReqProgramaTejido::query()->where('Id', $programaObjetivo->Id)->first(),
                     'contexto' => $contextoDestino,
+                    'contextoOrigenInicial' => [
+                        'salonOrigen' => $contextoOrigen['salonOrigen'],
+                        'telarOrigen' => $contextoOrigen['telarOrigen'],
+                    ],
                     'codigoDibujo' => $codigoDibujo,
                     'codigoDibujoAnterior' => $codigoDibujoAnterior,
                 ];
@@ -165,13 +180,16 @@ class ProcesarMuestrasDesarrolladorService
                 ]);
             }
 
-            return redirect()->route('tejedores.desarrolladores-muestras')->with('success', 'Datos guardados correctamente');
+            return redirect()->route('tejedores.desarrolladores')->with('success', 'Datos guardados correctamente');
         } catch (ValidationException $e) {
             if ($request->ajax()) {
+                $errors = $e->errors();
+                $firstError = collect($errors)->flatten()->filter()->first();
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error de validacion',
-                    'errors' => $e->errors(),
+                    'message' => $firstError ?: 'Error de validacion',
+                    'errors' => $errors,
                 ], 422);
             }
 
@@ -207,32 +225,30 @@ class ProcesarMuestrasDesarrolladorService
         }
     }
 
-    /**
-     * La muestra procesada se consume: se elimina por identidad.
-     *
-     * Antes se buscaba "el que tenga EnProceso=1 en ese salon+telar y si no, el de
-     * FechaInicio mas antigua", sin recibir el registro que se acababa de procesar.
-     * Si el operador procesaba la orden B mientras A estaba en proceso, se borraba A
-     * y B sobrevivia intacta. Sin identidad no hay forma de acertar, asi que ahora se
-     * borra exactamente la fila procesada o ninguna.
-     */
-    private function eliminarRegistroMuestra(Muestras $procesada): void
-    {
-        $registro = Muestras::query()
-            ->whereKey($procesada->getKey())
-            ->lockForUpdate()
-            ->first();
-
-        $registro?->delete();
-    }
-
     private function resolverContextoOrigen(array $validated): array
     {
-        $programa = Muestras::query()
+        $programa = ReqProgramaTejido::query()
             ->where('NoProduccion', $validated['NoProduccion'])
             ->where('NoTelarId', $validated['NoTelarId'])
             ->lockForUpdate()
             ->first();
+
+        // Fila sin orden: buscar por registroId y asignar la orden nueva
+        if (! $programa && ! empty($validated['registroId'])) {
+            $programa = ReqProgramaTejido::query()
+                ->where('Id', $validated['registroId'])
+                ->where('NoTelarId', $validated['NoTelarId'])
+                ->where(function ($q) {
+                    $q->whereNull('NoProduccion')->orWhere('NoProduccion', '');
+                })
+                ->lockForUpdate()
+                ->first();
+
+            if ($programa) {
+                $programa->NoProduccion = $validated['NoProduccion'];
+                $programa->save();
+            }
+        }
 
         if (! $programa) {
             throw ValidationException::withMessages([
@@ -255,18 +271,83 @@ class ProcesarMuestrasDesarrolladorService
         string $codigoDibujo,
         ?int $minutosCambio,
         ?int $longitudLuchaTot,
-        ?ReqModelosCodificados $modeloDestino
+        ?ReqModelosCodificados $modeloDestino,
+        ?ReqProgramaTejido $ordenData = null
     ): ?CatCodificados {
+        // Por telarOrigen, no por destino: el renglon esta donde estaba antes del movimiento
+        // y es el payload de abajo el que lo mueve al telar destino.
         $registro = $this->catCodificadosService->resolveCanonical(
             (string) $validated['NoProduccion'],
             (string) ($contextoDestino['telarOrigen'] ?? '')
         );
-
-        if (! $registro) {
-            return null;
+        $fechasArranqueFinaliza = $this->buildFechasArranqueFinalizaPayload(
+            $validated['HoraInicio'] ?? null,
+            $validated['HoraFinal'] ?? null
+        );
+        if (($validated['accion'] ?? 'finalizar') !== 'finalizar') {
+            $fechasArranqueFinaliza['FechaFinaliza'] = null;
         }
 
-        $payload = array_merge([
+        $esNuevo = false;
+        if (! $registro) {
+            $registro = new CatCodificados;
+            $esNuevo = true;
+        }
+
+        // Cuando es un registro nuevo, usar los datos de ReqProgramaTejido como base
+        $programaPayload = [];
+        if ($esNuevo && $ordenData) {
+            $programaPayload = [
+                'Nombre' => $ordenData->NombreProducto,
+                'ClaveModelo' => $ordenData->TamanoClave,
+                'ItemId' => $ordenData->ItemId,
+                'InventSizeId' => $ordenData->InventSizeId,
+                'FlogsId' => $ordenData->FlogsId,
+                'NombreProyecto' => $ordenData->NombreProyecto,
+                'CustName' => $ordenData->CustName,
+                'Peine' => $ordenData->Peine,
+                'Ancho' => $ordenData->Ancho,
+                'Luchaje' => $ordenData->Luchaje,
+                'P_crudo' => $ordenData->PesoCrudo,
+                'DobladilloId' => $ordenData->DobladilloId,
+                'MedidaPlano' => $ordenData->MedidaPlano,
+                'CalibreRizo' => $ordenData->CalibreRizo,
+                'CalibreRizo2' => $ordenData->CalibreRizo2,
+                'CuentaRizo' => $ordenData->CuentaRizo,
+                'FibraRizo' => $ordenData->FibraRizo,
+                'CalibrePie' => $ordenData->CalibrePie,
+                'CalibrePie2' => $ordenData->CalibrePie2,
+                'CuentaPie' => $ordenData->CuentaPie,
+                'FibraPie' => $ordenData->FibraPie,
+                'VelocidadSTD' => $ordenData->VelocidadSTD,
+                'EficienciaSTD' => $ordenData->EficienciaSTD,
+                'NoTiras' => $ordenData->NoTiras,
+                'Repeticiones' => $ordenData->Repeticiones,
+                'Prioridad' => $ordenData->Prioridad,
+                'MtsRollo' => $ordenData->MtsRollo,
+                'PzasRollo' => $ordenData->PzasRollo,
+                'TotalRollos' => $ordenData->TotalRollos,
+                'TotalPzas' => $ordenData->TotalPzas,
+                'CombinaTram' => $ordenData->CombinaTram,
+                'BomId' => $ordenData->BomId,
+                'BomName' => $ordenData->BomName,
+                'CreaProd' => $ordenData->CreaProd,
+                'Densidad' => $ordenData->Densidad,
+                'HiloAX' => $ordenData->HiloAX,
+                'ActualizaLmat' => $ordenData->ActualizaLmat,
+                'PesoMuestra' => $ordenData->PesoMuestra,
+                'OrdCompartida' => $ordenData->OrdCompartida,
+                'OrdCompartidaLider' => $ordenData->OrdCompartidaLider,
+                'CategoriaCalidad' => $ordenData->CategoriaCalidad,
+                'FechaTejido' => $ordenData->FechaInicio?->format('Y-m-d'),
+                'OrdPrincipal' => $ordenData->OrdPrincipal,
+                'FechaArranque' => null,
+                'FechaFinaliza' => null,
+                'Cantidad' => $ordenData->TotalPedido,
+            ];
+        }
+
+        $payload = array_merge($programaPayload, [
             'TelarId' => $contextoDestino['telarDestino'],
             'NoTelarId' => $contextoDestino['telarDestino'],
             'Departamento' => $contextoDestino['salonDestino'],
@@ -295,17 +376,81 @@ class ProcesarMuestrasDesarrolladorService
             // Columna de texto en SQL Server: se guarda tal cual se capturo.
             'AlturaRizo' => $this->normalizarAlturaRizo($validated['AlturaRizo'] ?? null),
             'FechaCumplimiento' => now()->format('Y-m-d H:i:s'),
-        ], $detallePayload, $pasadasPayload);
+        ], $fechasArranqueFinaliza, $detallePayload, $pasadasPayload);
 
         if ($modeloDestino) {
             $payload['CuentaRizo'] = $modeloDestino->CuentaRizo ?? null;
             $payload['CuentaPie'] = $modeloDestino->CuentaPie ?? null;
+            $payload['TipoRizo'] = $modeloDestino->TipoRizo ?? null;
+            $payload['Tolerancia'] = $modeloDestino->Tolerancia ?? null;
+            $payload['Clave'] = $modeloDestino->Clave ?? null;
+            $payload['Vendedor'] = $modeloDestino->Vendedor ?? null;
+            $payload['FlogsId'] = $modeloDestino->FlogsId ?? ($ordenData->FlogsId ?? null);
+        }
+
+        // Rasurado viene de ReqProgramaTejido
+        if ($ordenData && $ordenData->Rasurado !== null) {
+            $payload['Razurada'] = $ordenData->Rasurado;
         }
 
         $this->catCodificadosService->applyPayload($registro, $payload);
         $registro->save();
 
         return $registro;
+    }
+
+    private function buildFechasArranqueFinalizaPayload(?string $horaInicio, ?string $horaFinal): array
+    {
+        $fechaBase = Carbon::today();
+        $fechaArranque = $this->anclarAlDiaMasCercano($this->combinarFechaYHora($horaInicio, $fechaBase));
+        $fechaFinalizaBase = $fechaArranque ? $fechaArranque->copy() : $fechaBase;
+
+        if ($fechaArranque && $horaFinal) {
+            try {
+                $horaFinalCarbon = Carbon::createFromFormat('H:i', $horaFinal);
+                $fechaFinalizaBase = $fechaArranque->copy();
+
+                if ($horaFinalCarbon->format('H:i') < $fechaArranque->format('H:i')) {
+                    $fechaFinalizaBase->addDay();
+                }
+            } catch (Exception $e) {
+                $fechaFinalizaBase = $fechaBase;
+            }
+        }
+
+        $fechaFinaliza = $this->combinarFechaYHora($horaFinal, $fechaFinalizaBase);
+
+        return [
+            'FechaArranque' => $fechaArranque?->format('Y-m-d H:i:s'),
+            'FechaFinaliza' => $fechaFinaliza?->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    /**
+     * Ancla una hora capturada al dia al que realmente pertenece.
+     *
+     * Con Carbon::today() la hora se pegaba siempre al dia del servidor: el turno 3
+     * captura 23:50 y si envia pasada la medianoche el registro quedaba sellado al dia
+     * siguiente. Se elige la ocurrencia de esa hora mas cercana a ahora, que para una
+     * jornada de 8 horas es siempre la correcta.
+     */
+    private function combinarFechaYHora(?string $hora, Carbon $fechaBase): ?Carbon
+    {
+        if (empty($hora)) {
+            return null;
+        }
+
+        try {
+            $horaCarbon = Carbon::createFromFormat('H:i', $hora);
+
+            return $fechaBase->copy()->setTime(
+                (int) $horaCarbon->format('H'),
+                (int) $horaCarbon->format('i'),
+                0
+            );
+        } catch (Exception $e) {
+            return null;
+        }
     }
 
     private function actualizarModeloDestinoSiCorresponde(
@@ -330,11 +475,6 @@ class ProcesarMuestrasDesarrolladorService
             ->first();
 
         if (! $registroModelo) {
-            return;
-        }
-
-        $codigoPrevioModelo = trim((string) ($registroModelo->CodigoDibujo ?? $registroModelo->CodificacionModelo ?? ''));
-        if ($codigoPrevioModelo !== '') {
             return;
         }
 
@@ -363,23 +503,80 @@ class ProcesarMuestrasDesarrolladorService
         $registroModelo->save();
     }
 
+    private function ejecutarMovimientoYPonerEnProceso(
+        ReqProgramaTejido $programaObjetivo,
+        array $contextoDestino,
+        string $accion = 'finalizar'
+    ): ?ReqProgramaTejido {
+        $reprogramarValor = match ($accion) {
+            'reprogramar_siguiente' => '1',
+            'reprogramar_final' => '2',
+            default => null,
+        };
+
+        if ($contextoDestino['esCambioTelar']) {
+            return $this->movimientoService->moverRegistroConCambioTelarEnProceso(
+                $programaObjetivo,
+                $contextoDestino['salonDestino'],
+                $contextoDestino['telarDestino'],
+                $reprogramarValor
+            );
+        }
+
+        if ($reprogramarValor !== null) {
+            // La actual en proceso se debe MOVER (no eliminar), por eso se le setea Reprogramar.
+            // El seleccionado ($programaObjetivo) es el que quedará en proceso.
+            $actualEnProceso = ReqProgramaTejido::query()
+                ->where('SalonTejidoId', $programaObjetivo->SalonTejidoId)
+                ->where('NoTelarId', $programaObjetivo->NoTelarId)
+                ->where('EnProceso', 1)
+                ->where('Id', '!=', $programaObjetivo->Id)
+                ->first();
+
+            if ($actualEnProceso) {
+                $actualEnProceso->Reprogramar = $reprogramarValor;
+                $actualEnProceso->saveQuietly();
+            }
+        }
+
+        $this->movimientoService->moverRegistroEnProceso($programaObjetivo, true);
+
+        return ReqProgramaTejido::query()->where('Id', $programaObjetivo->Id)->first();
+    }
+
     private function buildPasadasPayload(array $pasadasFromRequest, $ordenData): array
     {
-        // Las claves vienen del request y terminan en setAttribute(), que se salta $fillable:
-        // sin esta lista blanca un POST puede escribir cualquier columna numerica de CatCodificados.
-        $permitidas = ['PasadasTrama', 'PasadasTramaFondoC1', 'PasadasComb1', 'PasadasComb2', 'PasadasComb3', 'PasadasComb4', 'PasadasComb5'];
+        // Karl Mayer: las pasadas van por barra y las cuatro columnas se reescriben
+        // siempre, para que quitar una barra no deje sus pasadas viejas colgando.
+        $barras = array_filter(
+            $pasadasFromRequest,
+            static fn ($key): bool => preg_match('/^PasadasBarra[1-4]$/', (string) $key) === 1,
+            ARRAY_FILTER_USE_KEY
+        );
+
+        if ($barras !== []) {
+            $payload = [];
+            foreach (TelDesarrolladoresHelper::BARRAS as $n) {
+                $valor = $barras["PasadasBarra{$n}"] ?? null;
+                $payload["PasadasBarra{$n}"] = ($valor === null || $valor === '') ? null : (int) $valor;
+            }
+
+            return $payload;
+        }
 
         $pasadasPayload = [];
         if (count($pasadasFromRequest) > 0) {
-            foreach ($pasadasFromRequest as $key => $value) {
-                if ($value === null || $value === '' || ! in_array($key, $permitidas, true)) {
-                    continue;
-                }
-                if ($key === 'PasadasTrama') {
-                    $pasadasPayload['PasadasTramaFondoC1'] = (int) $value;
-                } else {
-                    $pasadasPayload[$key] = (int) $value;
-                }
+            $pasadasTrama = $pasadasFromRequest['PasadasTrama']
+                ?? $pasadasFromRequest['PasadasTramaFondoC1']
+                ?? null;
+            if ($pasadasTrama !== null && $pasadasTrama !== '') {
+                $pasadasPayload['PasadasTramaFondoC1'] = (int) $pasadasTrama;
+            }
+
+            for ($i = 1; $i <= 5; $i++) {
+                $campo = "PasadasComb{$i}";
+                $valor = $pasadasFromRequest[$campo] ?? null;
+                $pasadasPayload[$campo] = ($valor === null || $valor === '') ? null : (int) $valor;
             }
         } elseif ($ordenData) {
             $tramaValue = data_get($ordenData, 'PasadasTrama');
