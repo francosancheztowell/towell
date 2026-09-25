@@ -34,7 +34,7 @@ class AccesoService
                 'NumeroEmpleado' => Monitoreo::texto($datos['NumeroEmpleado'] ?? null, 20),
                 'UsuarioId' => $datos['UsuarioId'] ?? null,
                 'DispositivoId' => $dispositivoId,
-                'Ip' => mb_substr(getClientIpv4(), 0, 45),
+                'Ip' => Monitoreo::ip($request),
                 'Motivo' => Monitoreo::texto($datos['Motivo'] ?? null, 200),
                 'ActorId' => $datos['ActorId'] ?? null,
             ]);

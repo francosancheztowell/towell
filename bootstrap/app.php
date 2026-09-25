@@ -32,8 +32,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'module.permission' => EnsureModulePermission::class,
         ]);
 
-        // Trust all proxies to work behind any proxy or load balancer
-        $middleware->trustProxies(at: '*');
+        // Sin trustProxies (SEC-02): no hay proxy delante de Laragon, así que
+        // request()->ip() es REMOTE_ADDR y un X-Forwarded-For del cliente no cuenta.
+        // Si algún día se pone uno, confiar solo en su IP: trustProxies(at: ['IP']).
 
         // Redirecciones consistentes para guest/auth
         $middleware->redirectUsersTo('/produccionProceso');

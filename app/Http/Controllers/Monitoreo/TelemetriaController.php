@@ -48,7 +48,7 @@ class TelemetriaController extends Controller
             $pantalla = $request->texto('pantalla', 20);
             $datos = [
                 'UltimaActividad' => now(),
-                'UltimaIp' => mb_substr(getClientIpv4(), 0, 45),
+                'UltimaIp' => Monitoreo::ip($request),
                 'UltimoUsuarioId' => (int) Auth::id(),
                 'Visible' => $visible,
                 'InactivoSeg' => $request->entero('inactivoSeg', 0, 86400) ?? 0,

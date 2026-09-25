@@ -2,6 +2,7 @@
 
 namespace App\Services\Monitoreo;
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -76,6 +77,17 @@ final class Monitoreo
 
             return is_file($manifest) ? substr((string) md5_file($manifest), 0, 12) : '';
         }, '');
+    }
+
+    /**
+     * IP real de la request (REMOTE_ADDR; sin proxies de confianza, SEC-02).
+     *
+     * No usa getClientIpv4(): ese helper cae al X-Forwarded-For crudo cuando
+     * REMOTE_ADDR no es IPv4, y ese header lo manda el cliente.
+     */
+    public static function ip(?Request $request = null): string
+    {
+        return mb_substr((string) (($request ?? request())->ip() ?? ''), 0, 45) ?: '0.0.0.0';
     }
 
     /** Recorta a $max caracteres (null si queda vacío). */

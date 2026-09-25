@@ -6,6 +6,27 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * dbo.SYSMonDispositivo: un renglón por navegador (cookie towell_disp).
+ *
+ * @property int $Id
+ * @property string $Uuid
+ * @property string|null $Nombre
+ * @property string $Tipo
+ * @property string|null $Modelo
+ * @property string|null $SO
+ * @property string|null $Navegador
+ * @property string $UaHash
+ * @property string $UltimaIp
+ * @property int|null $UltimoUsuarioId
+ * @property int|null $UltimaSesionId
+ * @property \Illuminate\Support\Carbon $PrimeraVez
+ * @property \Illuminate\Support\Carbon $UltimaActividad
+ * @property string|null $UltimaRuta
+ * @property bool $Visible
+ * @property int $InactivoSeg
+ * @property string|null $VersionFront
+ * @property string|null $Pantalla
+ * @property \Illuminate\Support\Carbon|null $CierreSolicitadoEn
+ * @property int|null $CierreSolicitadoPor
  */
 class MonDispositivo extends Model
 {
