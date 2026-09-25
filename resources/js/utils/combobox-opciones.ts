@@ -46,24 +46,32 @@ export function opcionesRemotas(respuesta: unknown): OpcionCombobox[] {
 }
 
 export interface CargadorRemoto {
+    /**
+     * `callback(opciones)` con la respuesta; `callback()` sin nada si falló o si ya
+     * la superó una búsqueda más nueva (hay que llamarlo igual: Tom Select cuenta
+     * las cargas pendientes).
+     */
     (consulta: string, callback: (opciones?: OpcionCombobox[]) => void): void;
     /** true si la última búsqueda falló (para mostrar el texto de error). */
     fallo(): boolean;
 }
 
-/** `load` de Tom Select: GET con `q` + params extra; en error devuelve vacío y marca `fallo()`. */
+/** `load` de Tom Select: GET con `q` + params extra. Gana la última búsqueda, como en Select2. */
 export function cargadorRemoto(remoto: RemotoCombobox, get: GetJson): CargadorRemoto {
     let fallo = false;
+    let ultima = 0;
 
     const cargar = (consulta: string, callback: (opciones?: OpcionCombobox[]) => void): void => {
+        const turno = ++ultima;
         const params = { q: consulta, ...(remoto.params?.() ?? {}) };
         get(remoto.url, { params })
             .then((respuesta) => {
+                if (turno !== ultima) return callback();
                 fallo = false;
                 callback(opcionesRemotas(respuesta));
             })
             .catch(() => {
-                fallo = true;
+                if (turno === ultima) fallo = true;
                 callback();
             });
     };

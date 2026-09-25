@@ -80,3 +80,36 @@ test('plantillas: sin resultados, buscando y error de carga en español (y perso
   fallo = true
   assert.equal(p.no_results({}), '<div class="no-results">No se pudieron cargar las opciones</div>')
 })
+
+test('cargadorRemoto: una respuesta vieja que llega tarde se descarta (gana la última búsqueda)', async () => {
+  const pendientes = {}
+  const get = (url, { params }) => new Promise((resolve) => { pendientes[params.q] = resolve })
+  const cargar = cargadorRemoto({ url: '/x' }, get)
+  const recibidas = {}
+
+  cargar('F', (opciones) => { recibidas.F = opciones })
+  cargar('F-1', (opciones) => { recibidas['F-1'] = opciones })
+
+  pendientes['F-1']([{ id: 'F-1', text: 'F-1' }])
+  await new Promise(setImmediate)
+  pendientes.F([{ id: 'F-9', text: 'F-9' }])
+  await new Promise(setImmediate)
+
+  assert.deepEqual(recibidas['F-1'], [{ value: 'F-1', text: 'F-1' }])
+  assert.ok('F' in recibidas, 'la vieja también llama al callback (Tom Select cuenta cargas pendientes)')
+  assert.equal(recibidas.F, undefined)
+})
+
+test('cargadorRemoto: el error de una búsqueda vieja no marca fallo()', async () => {
+  const pendientes = {}
+  const get = (url, { params }) => new Promise((resolve, reject) => { pendientes[params.q] = { resolve, reject } })
+  const cargar = cargadorRemoto({ url: '/x' }, get)
+
+  cargar('a', () => {})
+  cargar('ab', () => {})
+  pendientes.ab.resolve([])
+  pendientes.a.reject(new Error('timeout'))
+  await new Promise(setImmediate)
+
+  assert.equal(cargar.fallo(), false)
+})

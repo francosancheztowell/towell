@@ -272,13 +272,13 @@
       placeholder:'Selecciona una tarea', permitirVacio:true,
       remoto:{url:@json(route('programa-tejido.redbooth.proyectos'))},
       textos:{sinResultados:'No se encontraron tareas',buscando:'Buscando…',errorCarga:'No se pudieron cargar las tareas'},
-    });
+    }).catch((error) => { comboboxProyecto = null; throw error; });
   };
   const selectValue = (id, name) => {
     comboboxProyecto?.then((ts) => {
-      ts.clear(true); ts.clearOptions();
+      ts.clear(); ts.clearOptions();
       if (id) { ts.addOption({value:String(id),text:`${id} — ${name}`}); ts.setValue(String(id), true); }
-    });
+    }).catch(() => {});
   };
 
   const renderCommentFiles = (files) => {

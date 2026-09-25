@@ -81,8 +81,13 @@ export function combobox(select: HTMLSelectElement, opciones: OpcionesCombobox =
 
     if (cargar) {
         Object.assign(ajustes, {
-            load: cargar,
-            preload: 'focus',
+            // Cada respuesta reemplaza a la anterior (conserva lo seleccionado): con
+            // `score` constante, las opciones de búsquedas viejas se quedarían en la lista.
+            load: (consulta: string, callback: (opciones?: unknown[]) => void) =>
+                cargar(consulta, (opciones) => {
+                    if (opciones) instancia.clearOptions();
+                    callback(opciones);
+                }),
             loadThrottle: 250,
             // Buscar también con la caja vacía (minimumInputLength: 0 de Select2).
             shouldLoad: () => true,
@@ -96,7 +101,10 @@ export function combobox(select: HTMLSelectElement, opciones: OpcionesCombobox =
     ajustes.dropdownParent = 'body';
     ajustes.dropdownClass = 'ts-dropdown combobox-flotante';
 
-    const instancia = new TomSelect(select, ajustes as ConstructorParameters<typeof TomSelect>[1]);
+    const instancia: TomSelect = new TomSelect(select, ajustes as ConstructorParameters<typeof TomSelect>[1]);
+
+    // Remoto: consultar al abrir, siempre (Select2 volvía a pedir en cada apertura).
+    if (cargar) instancia.on('dropdown_open', () => instancia.load(instancia.inputValue()));
 
     // Tom Select copia las clases del select al contenedor. Aquí el aspecto lo da
     // combobox.css; con las clases de Tailwind del select saldría un doble borde, y
@@ -111,9 +119,12 @@ export function combobox(select: HTMLSelectElement, opciones: OpcionesCombobox =
 
 const flotantes = new Set<TomSelect>();
 
+let vigilante: MutationObserver | null = null;
+
 /**
- * La lista flotante vive en <body>: si el modal que tenía el select se cerró
- * (Swal quita su DOM), la lista quedaría huérfana. Se barren al crear otra.
+ * La lista vive en <body>: si el modal que tenía el select se cerró (Swal quita
+ * su contenedor de <body>) o Livewire reemplazó el nodo, la lista y la instancia
+ * quedarían huérfanas. Se barren al cambiar los hijos de <body> y al crear otra.
  */
 function barrerFlotantesHuerfanos(): void {
     flotantes.forEach((instancia) => {
@@ -123,9 +134,18 @@ function barrerFlotantesHuerfanos(): void {
     });
 }
 
+function vigilarHuerfanos(): void {
+    if (vigilante || typeof MutationObserver === 'undefined') return;
+    vigilante = new MutationObserver((cambios) => {
+        if (flotantes.size && cambios.some((cambio) => cambio.removedNodes.length)) barrerFlotantesHuerfanos();
+    });
+    vigilante.observe(document.body, { childList: true });
+}
+
 /** Tom Select solo reubica la lista flotante al hacer scroll en window; aquí, en cualquier contenedor. */
 function reposicionarAlDesplazar(instancia: TomSelect): void {
     barrerFlotantesHuerfanos();
+    vigilarHuerfanos();
     flotantes.add(instancia);
     instancia.on('destroy', () => flotantes.delete(instancia));
     const reubicar = (): void => instancia.positionDropdown();

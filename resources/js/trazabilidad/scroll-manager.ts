@@ -20,7 +20,8 @@ export class ScrollManager {
         });
 
         const active = document.activeElement;
-        if (active instanceof HTMLElement && active.closest('.ts-wrapper')) {
+        // La caja de búsqueda vive en la lista (.ts-dropdown, en <body>), no en el control.
+        if (active instanceof HTMLElement && active.closest('.ts-wrapper, .ts-dropdown')) {
             active.blur();
         }
 
