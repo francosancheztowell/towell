@@ -7,10 +7,15 @@ use Illuminate\Database\Eloquent\Model;
 class AtaMontadoTelasModel extends Model
 {
     protected $table = 'AtaMontadoTelas';
+
     protected $connection = 'sqlsrv';
+
     public $timestamps = false;
+
     protected $primaryKey = 'Id';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
 
     protected $fillable = [

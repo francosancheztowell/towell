@@ -13,8 +13,8 @@ BEGIN
         NomEmpl2 NVARCHAR(150) NULL,
         CveEmpl3 NVARCHAR(30) NULL,
         NomEmpl3 NVARCHAR(150) NULL,
-        FechaInicio DATE NULL,
-        FechaFin DATE NULL,
+        FechaInicio DATETIME NULL,
+        FechaFin DATETIME NULL,
         CONSTRAINT UQ_AtaKmMontado_JulioOrden UNIQUE (NoJulio, NoProduccion)
     );
 END;
@@ -31,8 +31,8 @@ BEGIN
         NomEmpl2 NVARCHAR(150) NULL,
         CveEmpl3 NVARCHAR(30) NULL,
         NomEmpl3 NVARCHAR(150) NULL,
-        FechaInicio DATE NULL,
-        FechaFin DATE NULL,
+        FechaInicio DATETIME NULL,
+        FechaFin DATETIME NULL,
         CONSTRAINT UQ_AtaKmEnhebrado_JulioOrden UNIQUE (NoJulio, NoProduccion)
     );
 END;
