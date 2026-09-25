@@ -7,7 +7,7 @@
         "typecheck": "tsc --noEmit",
         "test:js": "node --test tests/Js/*.test.mjs tests/Js/*.cjs",
         "ratchet": "node scripts/ratchet.mjs",
-        "update": "git pull && php artisan optimize:clear && php artisan optimize && npm run build"
+        "update": "git pull && composer install --no-interaction && php artisan optimize:clear && php artisan optimize && npm install && npm run build"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
