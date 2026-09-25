@@ -211,3 +211,43 @@ Acuerdos: docs y commits en español ("seguridad: <cambio>"); modo ponytail; NUN
 Antes de push: hook SessionStart (o CLAUDE_CODE_REMOTE=true bash scripts/session-start.sh); php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run build && npm run ratchet; vendor/bin/pint --test en archivos tocados; skills security-review y code-review (obligatorios).
 Entregables: código + tests + 20-02-SUMMARY.md, 20-03-SUMMARY.md y 20-03-MAPA-AUTHZ.md (+ HANDOFF.md si aplica). Push a claude/20-02-03-errores-authz. NO abras PR.
 ```
+
+## 7. Telegram sin bloquear + avisos de modelo (aprobada por el owner 2026-09-25)
+
+| Sesión | Rama | Contexto |
+|---|---|---|
+| Telegram sin bloquear | `claude/telegram-no-bloquear` | Este bloque; patrón de `app/Services/Mantenimiento/ParoTelegramNotifier.php` |
+
+Corre en paralelo con 20-02 → 20-03: no comparten archivos (esa sesión toca rutas, `bootstrap/app.php` y middleware; esta, 6 archivos de envío a Telegram + `boot` de `AppServiceProvider`).
+
+```
+(Esta sesión arranca en modo plan: lee el protocolo y el contexto, presenta tu plan para aprobación del owner y, una vez aprobado, ejecútalo completo.)
+
+Proyecto Towell (Laravel 12 + Livewire 4 + Vite/TS; producción: Windows/Laragon, SQL Server 2008 R2, sin Redis, cache/sesión file). Refactor integral 2026. Lee primero .planning/PROTOCOLO-SESIONES.md, .planning/SESIONES-OLA-2.md (bloque 7) y CLAUDE.md.
+
+Tarea — "Telegram sin bloquear + avisos de modelo". Sin ID previo: regístralo como PERF-13 (Telegram) y PERF-14 (avisos de modelo) en tu SUMMARY.
+Escribe primero .planning/phases/18-perf/18-03-PLAN.md y luego ejecútalo.
+Rama: claude/telegram-no-bloquear (base claude/friendly-hopper-506bg9).
+
+Problema medido en código: 6 acciones mandan Telegram DENTRO de la petición, secuencialmente a cada chat_id, con timeouts de 20–30 s; el resultado solo va al log. Peor caso: N destinatarios × 30 s con la tablet en el loader.
+- AtadoresController::enviarNotificacionTelegramAtadoTerminado (al terminar atado, 20 s)
+- NotificarMontadoJulioController::enviarNotificacionTelegram (20 s)
+- RequerimientoStatusService::enviarTelegram (sin timeout propio = 30 s por defecto)
+- CortesEficienciaController: envío al finalizar corte (línea ~621, PDF) y los botones notificarTelegram / notificarTelegramImagen (30 s)
+- MarcasController::notificarTelegram → enviarReporteMarcasPdfTelegram (30 s)
+
+Alcance:
+1. En todos: connectTimeout 3 s, timeout 8 s para texto y 15 s para PDF/imagen; envío EN PARALELO a todos los chat_id con Http::pool; mismo contenido, mismos destinatarios (SYSMensaje::getChatIdsPorModulo), mismos logs. Ponytail: reusa el patrón de app/Services/Mantenimiento/ParoTelegramNotifier.php; si varias rutas repiten "mandar texto/documento a N chats", extrae UN helper pequeño y úsalo en las 6 (no un framework).
+2. Donde Telegram es efecto secundario (terminar atado, montado de julio, requerimiento de trama, finalizar corte): enviar después de responder con defer(), como ya hacen Mantenimiento paros y Crudo. OJO: producción es Windows (no hay PHP-FPM ni fastcgi_finish_request); mide si defer() libera la respuesta antes en Apache/mod_php y php-cgi. Si no la libera, usa la cola `database` (migración de jobs ya existe) con un job y documenta en docs/cerebro-towell/Runbooks/deploy.md el worker cada minuto desde el Programador de tareas (`php artisan queue:work --stop-when-empty --max-time=50`) y el SQL de la tabla jobs si falta (compatible 2008 R2, idempotente, en database/sql/). Deja la decisión con evidencia en el SUMMARY y un paso de verificación para el owner (phpinfo → "Server API").
+3. Botones explícitos "Enviar a Telegram" (Cortes PDF/imagen, Marcas): siguen síncronos para poder confirmar, con el punto 1, y ahora responden al usuario el resultado real ("enviado a N de M" / "no se pudo enviar") en el JSON que ya devuelven, sin romper el contrato del front (mismos campos + mensaje).
+4. Avisos de modelo en app/Providers/AppServiceProvider.php (solo en boot, fuera de producción, solo log, sin throw), como el de lazy loading de 18-01: Model::preventSilentlyDiscardingAttributes + handleDiscardedAttributeViolationUsing y Model::preventAccessingMissingAttributes + handleMissingAttributeViolationUsing → Log::warning una vez por modelo+atributo por request. Verifica que la suite completa siga verde y reporta cuántos avisos salen al correrla.
+5. Tests con Http::fake: paralelo (todos los chats reciben), timeouts, que la respuesta de las acciones diferidas no espera al envío, que los botones explícitos reportan éxito/fallo; y medición antes/después (tiempo de respuesta con Telegram lento simulado).
+
+ERES DUEÑO DE: los 6 métodos/archivos listados (solo el código de envío a Telegram y la respuesta de los botones explícitos), app/Services/Mantenimiento/ParoTelegramNotifier.php (solo si extraes el helper común), un helper nuevo pequeño si hace falta (app/Services/Telegram/**), app/Jobs/** nuevos si usas cola, app/Providers/AppServiceProvider.php (solo boot, avisos de modelo), database/sql/ (solo tabla jobs si hace falta), docs/cerebro-towell/Runbooks/deploy.md (sección del worker), tests nuevos en tests/Feature/Telegram/** y tests/Unit/Telegram/**, .planning/phases/18-perf/18-03-*.
+SOLO LECTURA: todo lo demás.
+PROHIBIDO: routes/**, bootstrap/**, app/Http/Middleware/** (sesión claude/20-02-03-errores-authz en paralelo), vistas y resources/js/** (salvo que el mensaje de resultado de los botones necesite 1 línea en su vista: entonces HANDOFF), Programa Tejido, composer.*, package.json, config/database.php.
+
+Acuerdos: docs y commits en español ("rendimiento: <cambio>"); modo ponytail; ninguna optimización sin número antes/después; NUNCA saltar/desactivar tests; no editar .planning/ROADMAP.md, STATE.md, REQUIREMENTS.md ni PROJECT.md; el ratchet no sube; SQL compatible con 2008 R2 (hay test que lo vigila).
+Antes de push: hook SessionStart (o CLAUDE_CODE_REMOTE=true bash scripts/session-start.sh); php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run build && npm run ratchet; vendor/bin/pint --test en archivos tocados; skill code-review.
+Entregables: código + tests + 18-03-SUMMARY.md (+ HANDOFF.md si aplica). Push a claude/telegram-no-bloquear. NO abras PR.
+```
