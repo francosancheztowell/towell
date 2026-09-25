@@ -218,9 +218,9 @@
   @include('modulos.programa-tejido.modal.redbooth')
 @endunless
 
-{{-- Permisos del módulo para menú contextual --}}
+{{-- Permisos del módulo de la superficie para el menú contextual (Muestras = idrol 5). --}}
 @php
-  $moduloPT = 'Programa Tejido';
+  $moduloPT = ($superficie ?? \App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface::actual())->moduloPermiso();
   $canCrear = function_exists('userCan') ? userCan('crear', $moduloPT) : true;
   $canModificar = function_exists('userCan') ? userCan('modificar', $moduloPT) : true;
   $canEliminar = function_exists('userCan') ? userCan('eliminar', $moduloPT) : true;

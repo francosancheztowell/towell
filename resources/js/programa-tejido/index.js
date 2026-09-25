@@ -11339,12 +11339,6 @@ const uiInlineEditableFields = {
 
     window.descargarPrograma = PT.actions.descargarPrograma;
 
-    // Descarga es exclusiva de Programa (decisión 01.3 B; el backend responde 422 en Muestras).
-    // El botón vive en el navbar, que no es de PT: se oculta aquí hasta que el navbar lo
-    // condicione por superficie (HANDOFF de PT-02).
-    if (PT_BOOT.capacidades && PT_BOOT.capacidades.descarga === false) {
-      document.querySelectorAll('button[title="Descargar programa"]').forEach((b) => { b.style.display = 'none'; });
-    }
     window.abrirNuevo = PT.actions.abrirNuevo;
     window.eliminarRegistro = PT.actions.eliminarRegistro;
 
