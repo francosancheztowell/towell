@@ -13,7 +13,10 @@
     </button>
     {{-- En Muestras el servidor exige crear del módulo Muestras (idrol 5, decisión del owner):
          el botón usa el mismo permiso para no ofrecer una acción que termina en 403. --}}
-    @php($superficieLiberar = \App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface::actual())
+    {{-- Bloque, no @php(...): Blade empareja un @php( en línea con el siguiente @endphp y se come la vista hasta ahí. --}}
+    @php
+        $superficieLiberar = \App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface::actual();
+    @endphp
     <x-navbar.button-create
         id="btn-liberar"
         onclick="liberarOrdenes()"
