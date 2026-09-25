@@ -9,10 +9,14 @@
         "noEmit": true,
         "noUncheckedIndexedAccess": true,
         "exactOptionalPropertyTypes": true,
-        "skipLibCheck": true
+        "skipLibCheck": true,
+        // Solo sintaxis que se borra sin transformar: los tests de node importan .ts
+        // con type-stripping y Vite/esbuild no necesitan emitir nada extra.
+        "erasableSyntaxOnly": true,
+        "verbatimModuleSyntax": true,
+        // Los imports relativos llevan .ts para que node los resuelva en los tests.
+        "allowImportingTsExtensions": true
     },
     // Todo .ts nuevo queda tipado sin tener que registrarlo aqui.
-    "include": ["resources/js/**/*.ts"],
-    // tejido/inventario-telas.ts aun no pasa strict: lo tipa FE-06 (fase 15).
-    "exclude": ["resources/js/tejido/**"]
+    "include": ["resources/js/**/*.ts"]
 }

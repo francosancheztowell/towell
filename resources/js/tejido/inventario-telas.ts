@@ -5,18 +5,126 @@
 // de HTML), las funciones globales sobrescribiendose entre si y 14 modales con
 // el mismo id. Aqui hay una sola copia y el telar entra por parametro.
 //
-// ponytail: portado tal cual desde el Blade, por eso no esta en
-// tsconfig.include todavia (Vite lo transpila, tsc aun no lo revisa). Se va
-// tipando por partes; cuando compile en strict, agregar "resources/js/tejido"
-// al include.
+// Portado tal cual desde el Blade y tipado sin cambiar comportamiento (FE-06).
+// Los datos del servidor (telar, inventario) llegan con forma abierta y nombres
+// de campo variables, por eso se tipan como `Crudo`/`Registro`.
 
-import { http } from '../utils/http'
+import { http } from '../utils/http.ts'
+import type { HttpError } from '../utils/http.ts'
+
+/** Valor tal como llega del servidor: string, número o null. */
+type Crudo = any
+
+/** Fila de tej_inventario_telares o datos de un telar (campos variables por fuente). */
+type Registro = Record<string, Crudo>
+
+type TelarId = number | string
 
 type TelarConfig = {
   telarId: number
-  telarData: Record<string, unknown>
-  ordenSigData: Record<string, unknown> | null
+  telarData: Registro
+  ordenSigData: Registro | null
   salonTelar: string
+}
+
+/** Lo que pinta la tabla del modal de seleccion. */
+interface DatosModal {
+  cuenta: Crudo
+  calibre: Crudo
+  fibra: Crudo
+  ordenProd: Crudo
+}
+
+interface SeleccionGuardada {
+  seleccion: string
+  datos: DatosModal
+  ordenProd: Crudo
+}
+
+interface ModalData {
+  telarId: TelarId | null
+  tipo: string | null
+  datosProceso: DatosModal | null
+  datosSiguiente: DatosModal | null
+  salonTelar?: string
+  /** Por telar y tipo. */
+  seleccionGuardada?: Record<string, Record<string, SeleccionGuardada>>
+}
+
+interface FiltrosInventario {
+  hilo?: string
+  no_telar?: string
+  tipo?: string
+  salon?: string
+}
+
+/** Cache del inventario: campos fijos + llaves dinamicas `inventario_*`, `loading_*`, `promises_*`. */
+interface InventarioCache {
+  data: Registro[] | null
+  timestamp: number | null
+  loading: boolean
+  promises: unknown[]
+  maxAge: number
+  [key: string]: any
+}
+
+interface DatosEliminar {
+  no_telar: string
+  tipo: string
+  fecha: string
+  turno: number
+}
+
+interface TelarPendiente {
+  salon: string
+  telarId: TelarId
+}
+
+/** Respuesta de /inventario-telares/verificar-estado. */
+interface EstadoTelar {
+  success?: boolean
+  reservado?: boolean | number | string
+  programado?: boolean | number | string
+  status_urdido?: string | null
+  puede_eliminar?: boolean
+  registro_id?: number | string
+  message?: string
+}
+
+/**
+ * Estado compartido entre las tarjetas de telar y los onclick inline de los
+ * modales. Vive en window porque el HTML lo lee; es de este modulo, no de utils.
+ */
+declare global {
+  interface Window {
+    _scrollToTelarDone?: boolean
+    inventarioCargado?: boolean
+    cargandoRequerimientosPorTelar: Record<string, boolean>
+    inventarioCache: InventarioCache
+    modalData: ModalData
+    datosEliminacionPendiente: DatosEliminar | null
+    checkboxEliminacionPendiente: HTMLInputElement | null
+    checkboxPendienteCalendario: HTMLInputElement | null
+    telarIdPendienteCalendario: TelarId | null
+    tipoPendienteCalendario: string | null
+    turnoPendienteCalendario: number | null
+    fechaOriginalPendienteCalendario: string | null
+    registroIdPendienteCalendario: number | string | null
+    fechaSeleccionadaCalendario: string | null
+    telarDataPendiente: TelarPendiente | null
+    telarDataCompleto: Registro | null
+    estadoModalTela?: string
+    statusUrdido?: string | null
+    puedeEliminar?: boolean
+    salonTelar?: string
+    mostrarModalTelaReservada: () => void
+    mostrarModalCalendarioSemanal: () => void
+    cerrarModalCalendarioSemanal: () => void
+    mostrarSeleccionTurnos: (fechaISO: string, diaElement?: HTMLElement | null) => Promise<void>
+    manejarCancelarModal2: () => void
+    seleccionarTurno: (turno: number, btnElement?: HTMLButtonElement) => void
+    cerrarModalTelaReservada: () => void
+  }
 }
 
 // Scroll al telar después de reload (se ejecuta una sola vez, fuera del scope del telar)
@@ -48,12 +156,12 @@ if (!window._scrollToTelarDone) {
  * esBarra() distingue; tipoServidor() es lo que se guarda en tej_inventario_telares,
  * con el mismo canon que UrdProgramaUrdido.RizoPie.
  */
-const esBarra = (tipo) => /^[1-4]$/.test(String(tipo))
+const esBarra = (tipo: unknown): boolean => /^[1-4]$/.test(String(tipo))
 
-const tipoServidor = (tipo) => (esBarra(tipo) ? String(tipo) : (tipo === 'rizo' ? 'Rizo' : 'Pie'))
+const tipoServidor = (tipo: unknown): string => (esBarra(tipo) ? String(tipo) : (tipo === 'rizo' ? 'Rizo' : 'Pie'))
 
 /** Cuenta, calibre y fibra del componente (barra N, rizo o pie) de un registro de telar. */
-function datosComponente(datos, tipo) {
+function datosComponente(datos: Registro | null | undefined, tipo: unknown) {
     if (esBarra(tipo)) {
         const barra = datos?.barras?.[String(tipo)]
         return { cuenta: barra?.Cuenta ?? '', calibre: barra?.Calibre ?? '', fibra: barra?.Fibra ?? '' }
@@ -66,9 +174,9 @@ function datosComponente(datos, tipo) {
 
 
 /** Lo que pinta la tabla del modal de seleccion: guion cuando el dato no viene. */
-function datosParaModal(datos, tipo) {
+function datosParaModal(datos: Registro | null | undefined, tipo: unknown): DatosModal {
     const { cuenta, calibre, fibra } = datosComponente(datos, tipo)
-    const oGuion = (v) => (String(v ?? '').trim() !== '' ? v : '-')
+    const oGuion = (v: Crudo) => (String(v ?? '').trim() !== '' ? v : '-')
 
     return {
         cuenta: oGuion(cuenta),
@@ -161,17 +269,17 @@ function initTelar(cfg: TelarConfig): void {
     setTimeout(inicializarTelar, 50)
 }
 
-function setupRequerimientoCheckboxes(telarId, telarData, ordenSigData, salon) {
-    const checkboxes = document.querySelectorAll(`input[data-telar="${telarId}"]`);
+function setupRequerimientoCheckboxes(telarId: TelarId, telarData: Registro, ordenSigData: Registro | null, salon: string) {
+    const checkboxes = document.querySelectorAll<HTMLInputElement>(`input[data-telar="${telarId}"]`);
 
     checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', function() {
+        checkbox.addEventListener('change', function(this: HTMLInputElement) {
             handleRequerimientoChange(this, telarId, telarData, ordenSigData, salon);
         });
     });
 }
 
-function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, salon) {
+function handleRequerimientoChange(checkbox: HTMLInputElement, telarId: TelarId, telarData: Registro, ordenSigData: Registro | null, salon: string) {
     // Evitar procesar cambios mientras se están cargando requerimientos para este telar
     const key = `${telarId}_${salon}`;
     if (window.cargandoRequerimientosPorTelar && window.cargandoRequerimientosPorTelar[key]) {
@@ -181,12 +289,12 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
     }
 
     const fila = checkbox.closest('tr');
-    const tabla = fila.closest('table');
-    const fechaElement = tabla.querySelector('th');
+    const tabla = fila!.closest('table');
+    const fechaElement = tabla!.querySelector('th');
 
     // Verificar si el header tiene una fecha modificada (fecha antigua)
     let fecha = '';
-    let fechaISO = null;
+    let fechaISO: string | null = null;
 
     if (fechaElement) {
         // Si el header tiene una fecha original (modificada), usar esa fecha
@@ -220,10 +328,10 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
     // El turno lo declara el propio checkbox. Antes se sacaba quitandole las letras
     // al value ("rizo1" -> 1), y en Karl Mayer el tipo tambien es un numero, asi que
     // la barra 2 del turno 1 ("21") mandaba turno 21 y el guardado fallaba con 422.
-    const numeroTurno = parseInt(checkbox.dataset.turno, 10);
+    const numeroTurno = parseInt(checkbox.dataset.turno as string, 10);
 
     // Convertir fecha del formato dd/mm a formato ISO (YYYY-MM-DD)
-    function convertirFecha(fechaTexto, fechaISOExistente) {
+    function convertirFecha(fechaTexto: string, fechaISOExistente: string | null) {
         // Si ya tenemos una fecha ISO (del header modificado), usarla directamente
         if (fechaISOExistente) {
             return fechaISOExistente;
@@ -232,8 +340,8 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
         // Extraer solo la fecha dd/mm del texto (puede incluir día de la semana)
         const fechaMatch = fechaTexto.match(/(\d{1,2})\/(\d{1,2})/);
         if (fechaMatch) {
-            const dia = fechaMatch[1].padStart(2, '0');
-            const mes = fechaMatch[2].padStart(2, '0');
+            const dia = fechaMatch[1]!.padStart(2, '0');
+            const mes = fechaMatch[2]!.padStart(2, '0');
             const año = new Date().getFullYear();
             return `${año}-${mes}-${dia}`;
         }
@@ -271,7 +379,7 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
             no_telar: String(telarId),
             tipo: tipoServidor(tipo),
             fecha: fechaParaEliminar,
-            turno: parseInt(numeroTurno)
+            turno: parseInt(String(numeroTurno))
         };
 
         // Verificar estado del telar antes de eliminar
@@ -292,7 +400,7 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
     }
 
     // Verificar si hay una selección guardada en el modal para este tipo
-    const seleccionGuardada = window.modalData?.seleccionGuardada?.[telarId]?.[tipo];
+    const seleccionGuardada = window.modalData?.seleccionGuardada?.[telarId]?.[tipo as string];
 
     // Determinar TODOS los datos según la selección del modal
     let cuentaFinal, calibreFinal, hiloSeleccionado, noOrden;
@@ -316,7 +424,7 @@ function handleRequerimientoChange(checkbox, telarId, telarData, ordenSigData, s
         cuenta: String(cuentaFinal),
         calibre: calibreFinal ? parseFloat(calibreFinal) : null,
         fecha: fechaConvertida,
-        turno: parseInt(numeroTurno),
+        turno: parseInt(String(numeroTurno)),
         salon: salon, // Usar el salón correcto del componente
         hilo: hiloSeleccionado || '',
         no_orden: noOrden || ''
@@ -399,7 +507,7 @@ if (typeof window.inventarioCache === 'undefined') {
 }
 
 // Función para obtener inventario con caché y evitar múltiples peticiones simultáneas
-async function obtenerInventarioConCache(filtros = {}) {
+async function obtenerInventarioConCache(filtros: FiltrosInventario = {}): Promise<Registro[]> {
     const ahora = Date.now();
 
     // Crear clave de caché basada en los filtros
@@ -414,7 +522,7 @@ async function obtenerInventarioConCache(filtros = {}) {
 
     // Si ya hay una petición en curso para estos filtros, esperar a que termine
     if (window.inventarioCache[`loading_${cacheKey}`]) {
-        return new Promise((resolve) => {
+        return new Promise<Registro[]>((resolve) => {
             if (!window.inventarioCache[`promises_${cacheKey}`]) {
                 window.inventarioCache[`promises_${cacheKey}`] = [];
             }
@@ -463,7 +571,7 @@ async function obtenerInventarioConCache(filtros = {}) {
 
             // Resolver todas las promesas pendientes para estos filtros
             if (window.inventarioCache[`promises_${cacheKey}`]) {
-                window.inventarioCache[`promises_${cacheKey}`].forEach(resolve => resolve(registros));
+                window.inventarioCache[`promises_${cacheKey}`].forEach((resolve: (r: Registro[]) => void) => resolve(registros));
                 window.inventarioCache[`promises_${cacheKey}`] = [];
             }
             window.inventarioCache[`loading_${cacheKey}`] = false;
@@ -473,7 +581,7 @@ async function obtenerInventarioConCache(filtros = {}) {
     } catch (error) {
         // Resolver todas las promesas pendientes con error
         if (window.inventarioCache[`promises_${cacheKey}`]) {
-            window.inventarioCache[`promises_${cacheKey}`].forEach(resolve => resolve([]));
+            window.inventarioCache[`promises_${cacheKey}`].forEach((resolve: (r: Registro[]) => void) => resolve([]));
             window.inventarioCache[`promises_${cacheKey}`] = [];
         }
         window.inventarioCache[`loading_${cacheKey}`] = false;
@@ -501,7 +609,7 @@ function invalidarCacheInventario() {
     });
 }
 
-function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
+function loadRequerimientos(telarId: TelarId, salon: string, tipo: string | null = null, fibraFiltro: string | null = null): void {
     // Si se proporciona tipo y fibra, usar la función con filtro
     if (tipo && fibraFiltro) {
         return loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro);
@@ -516,7 +624,7 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
     window.cargandoRequerimientosPorTelar[key] = true;
 
     // El servidor filtra por telar y salon (InventarioTelaresController::getInventarioTelares)
-    const filtrosTelar = { no_telar: String(telarId) }
+    const filtrosTelar: FiltrosInventario = { no_telar: String(telarId) }
     if (salon && salon !== '') filtrosTelar.salon = String(salon).trim()
 
     obtenerInventarioConCache(filtrosTelar)
@@ -562,7 +670,7 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
             const checkboxesEliminados = new Set();
 
             todasLasTablasDelTelar.forEach(table => {
-                table.querySelectorAll(`input[data-telar="${telarId}"]`).forEach(checkbox => {
+                table.querySelectorAll<HTMLInputElement>(`input[data-telar="${telarId}"]`).forEach(checkbox => {
                     // Si el checkbox fue eliminado, preservarlo como desmarcado permanentemente
                     if (checkbox.getAttribute('data-eliminado') === 'true') {
                         checkboxesEliminados.add(checkbox.id);
@@ -598,7 +706,7 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
             // Limpiar todos los checkboxes de este telar en todas las tablas
             // EXCEPTO los que tienen cambios recientes del usuario o fueron eliminados
             todasLasTablasDelTelar.forEach(table => {
-                table.querySelectorAll(`input[data-telar="${telarId}"]`).forEach(checkbox => {
+                table.querySelectorAll<HTMLInputElement>(`input[data-telar="${telarId}"]`).forEach(checkbox => {
                     // Si este checkbox fue eliminado, mantenerlo desmarcado
                     if (checkboxesEliminados.has(checkbox.id)) {
                         checkbox.checked = false;
@@ -626,7 +734,7 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
             ultimoDia.setHours(23, 59, 59, 999);
 
             // Función para convertir fecha ISO (YYYY-MM-DD o YYYY-MM-DDTHH:mm:ss.fffZ) a objeto Date
-            function parseFechaISO(fechaISO) {
+            function parseFechaISO(fechaISO: Crudo): Date | null {
                 if (!fechaISO) return null;
 
                 // Extraer solo la parte de la fecha (antes de la T si existe)
@@ -703,7 +811,7 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
                 return coincide;
             });
 
-            function formatearFechaHeader(fechaObj) {
+            function formatearFechaHeader(fechaObj: Date) {
                 const dia = fechaObj.getDate();
                 const mes = fechaObj.getMonth() + 1;
                 const año = fechaObj.getFullYear();
@@ -718,7 +826,7 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
             limiteAtras.setDate(hoy.getDate() - 30); // 30 días de lookback para capturar registros antiguos
             limiteAtras.setHours(0, 0, 0, 0);
 
-            const fechasPasadasSet = new Set();
+            const fechasPasadasSet = new Set<string>();
             registrosTelar.forEach(reg => {
                 const f = parseFechaISO(reg.fecha);
                 if (!f) return;
@@ -729,7 +837,7 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
 
             const fechasPasadasOrdenadas = Array.from(fechasPasadasSet).sort().map(s => {
                 const [y, m, d] = s.split('-').map(Number);
-                const dt = new Date(y, m - 1, d); dt.setHours(0,0,0,0); return dt;
+                const dt = new Date(y!, m! - 1, d); dt.setHours(0,0,0,0); return dt;
             });
 
             const numColumnas = todasLasTablasDelTelar.length;
@@ -755,7 +863,7 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
                 tabla.style.display = '';
                 const thHeader = tabla.querySelector('th');
                 if (thHeader && index < fechasCalendario.length) {
-                    const fechaColumna = fechasCalendario[index];
+                    const fechaColumna = fechasCalendario[index]!;
                     const fechaFormateada = formatearFechaHeader(fechaColumna);
                     const fechaCompletaEsperada = `${fechaFormateada.año}-${String(fechaFormateada.mes).padStart(2, '0')}-${String(fechaFormateada.dia).padStart(2, '0')}`;
                     thHeader.setAttribute('data-fecha-completa', fechaCompletaEsperada);
@@ -796,7 +904,7 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
 
                 // Marcar checkbox
                 const turnoEsperado = String(reg.turno);
-                const checkboxes = tablaDestino.querySelectorAll(`input[data-telar="${telarId}"][data-tipo="${tipo}"]`);
+                const checkboxes = tablaDestino!.querySelectorAll<HTMLInputElement>(`input[data-telar="${telarId}"][data-tipo="${tipo}"]`);
 
                 if (checkboxes.length === 0) {
                     return;
@@ -843,7 +951,7 @@ function loadRequerimientos(telarId, salon, tipo = null, fibraFiltro = null) {
 }
 
 // Función para cargar requerimientos filtrando por fibra específica
-function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
+function loadRequerimientosConFiltro(telarId: TelarId, salon: string, tipo: string, fibraFiltro: string): void {
     // Evitar múltiples llamadas simultáneas para el mismo telar
     const key = `${telarId}_${salon}_${tipo}_${fibraFiltro}`;
     if (window.cargandoRequerimientosPorTelar[key]) {
@@ -853,7 +961,7 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
     window.cargandoRequerimientosPorTelar[key] = true;
 
     // Preparar filtros para el GET
-    const filtros = {
+    const filtros: FiltrosInventario = {
         no_telar: String(telarId),
         tipo: tipoServidor(tipo)
     };
@@ -892,7 +1000,7 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
             // Limpiar TODOS los checkboxes de este telar y tipo primero
             // EXCEPTO los que fueron eliminados (mantenerlos desmarcados)
             todasLasTablasDelTelar.forEach(table => {
-                table.querySelectorAll(`input[data-telar="${telarId}"][data-tipo="${tipo}"]`).forEach(checkbox => {
+                table.querySelectorAll<HTMLInputElement>(`input[data-telar="${telarId}"][data-tipo="${tipo}"]`).forEach(checkbox => {
                     // Si fue eliminado, mantenerlo desmarcado pero no remover el atributo
                     if (checkbox.getAttribute('data-eliminado') === 'true') {
                         checkbox.checked = false;
@@ -912,7 +1020,7 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
             ultimoDia.setHours(23, 59, 59, 999);
 
             // Función para convertir fecha ISO (YYYY-MM-DD o YYYY-MM-DDTHH:mm:ss.fffZ) a objeto Date
-            function parseFechaISO(fechaISO) {
+            function parseFechaISO(fechaISO: Crudo): Date | null {
                 if (!fechaISO) return null;
                 let fechaStr = fechaISO;
                 if (fechaISO.includes('T')) fechaStr = fechaISO.split('T')[0];
@@ -931,7 +1039,7 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
                 return null;
             }
 
-            function formatearFechaHeader(fechaObj) {
+            function formatearFechaHeader(fechaObj: Date) {
                 const dia = fechaObj.getDate();
                 const mes = fechaObj.getMonth() + 1;
                 const año = fechaObj.getFullYear();
@@ -946,7 +1054,7 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
             limiteAtras.setDate(hoy.getDate() - 30); // 30 días de lookback para capturar registros antiguos
             limiteAtras.setHours(0, 0, 0, 0);
 
-            const fechasPasadasSet = new Set();
+            const fechasPasadasSet = new Set<string>();
             registrosFiltrados.forEach(reg => {
                 const f = parseFechaISO(reg.fecha);
                 if (!f) return;
@@ -957,7 +1065,7 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
 
             const fechasPasadasOrdenadas = Array.from(fechasPasadasSet).sort().map(s => {
                 const [y, m, d] = s.split('-').map(Number);
-                const dt = new Date(y, m - 1, d); dt.setHours(0,0,0,0); return dt;
+                const dt = new Date(y!, m! - 1, d); dt.setHours(0,0,0,0); return dt;
             });
 
             const numColumnas = todasLasTablasDelTelar.length;
@@ -983,7 +1091,7 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
                 tabla.style.display = '';
                 const thHeader = tabla.querySelector('th');
                 if (thHeader && index < fechasCalendario.length) {
-                    const fechaColumna = fechasCalendario[index];
+                    const fechaColumna = fechasCalendario[index]!;
                     const fechaFormateada = formatearFechaHeader(fechaColumna);
                     const fechaCompletaEsperada = `${fechaFormateada.año}-${String(fechaFormateada.mes).padStart(2, '0')}-${String(fechaFormateada.dia).padStart(2, '0')}`;
                     thHeader.setAttribute('data-fecha-completa', fechaCompletaEsperada);
@@ -1024,7 +1132,7 @@ function loadRequerimientosConFiltro(telarId, salon, tipo, fibraFiltro) {
 
                 // Marcar checkbox
                 const turnoEsperado = String(reg.turno);
-                const checkboxes = tablaDestino.querySelectorAll(`input[data-telar="${telarId}"][data-tipo="${tipo}"]`);
+                const checkboxes = tablaDestino!.querySelectorAll<HTMLInputElement>(`input[data-telar="${telarId}"][data-tipo="${tipo}"]`);
 
                 checkboxes.forEach(cb => {
                     if (cb.dataset.turno === turnoEsperado) {
@@ -1061,18 +1169,18 @@ if (typeof window.modalData === 'undefined') {
 }
 
 // Función para abrir el modal de selección
-function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
+function abrirModalSeleccion(telarId: TelarId, tipo: string, cuenta?: Crudo, calibre?: Crudo, fibra?: Crudo) {
     window.modalData.telarId = telarId;
     window.modalData.tipo = tipo;
 
     // Guardar el salón del telar para usarlo después
     // Buscar el salón desde el contexto del componente
-    const salonTelar = document.querySelector(`input[data-telar="${telarId}"]`)?.closest('.telar-section')?.dataset?.salon ||
+    const salonTelar = document.querySelector(`input[data-telar="${telarId}"]`)?.closest<HTMLElement>('.telar-section')?.dataset?.salon ||
                        (esBarra(tipo) ? 'Karl Mayer' : (tipo === 'rizo' ? 'Jacquard' : 'Itema')); // Fallback
     window.modalData.salonTelar = salonTelar;
 
     // Actualizar título del modal
-    document.getElementById('modalTelarNumero').textContent = telarId;
+    document.getElementById('modalTelarNumero')!.textContent = String(telarId);
 
     // Verificar si hay una selección guardada previa de "Siguiente Orden" para este telar y tipo
     const seleccionPrevia = window.modalData?.seleccionGuardada?.[telarId]?.[tipo];
@@ -1082,7 +1190,7 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
     // Si hay una selección previa de "Siguiente Orden", usar esa fibra para el GET
     const promesas = [
         obtenerDatosProcesoActual(telarId),
-        obtenerDatosSiguienteOrden(telarId, usarFibraPrevia ? seleccionPrevia.datos.fibra : null)
+        obtenerDatosSiguienteOrden(telarId, usarFibraPrevia ? seleccionPrevia!.datos.fibra : null)
     ];
 
     Promise.all(promesas).then(([datosProceso, datosSiguiente]) => {
@@ -1093,28 +1201,28 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
         window.modalData.datosSiguiente = datosParaModal(datosSiguiente, tipo);
 
         // Actualizar tabla del modal
-        document.getElementById('cuentaProceso').textContent = window.modalData.datosProceso.cuenta;
-        document.getElementById('calibreProceso').textContent = window.modalData.datosProceso.calibre;
-        document.getElementById('fibraProceso').textContent = window.modalData.datosProceso.fibra;
+        document.getElementById('cuentaProceso')!.textContent = window.modalData.datosProceso!.cuenta;
+        document.getElementById('calibreProceso')!.textContent = window.modalData.datosProceso!.calibre;
+        document.getElementById('fibraProceso')!.textContent = window.modalData.datosProceso!.fibra;
 
-        document.getElementById('cuentaSiguiente').textContent = window.modalData.datosSiguiente.cuenta;
-        document.getElementById('calibreSiguiente').textContent = window.modalData.datosSiguiente.calibre;
-        document.getElementById('fibraSiguiente').textContent = window.modalData.datosSiguiente.fibra;
+        document.getElementById('cuentaSiguiente')!.textContent = window.modalData.datosSiguiente!.cuenta;
+        document.getElementById('calibreSiguiente')!.textContent = window.modalData.datosSiguiente!.calibre;
+        document.getElementById('fibraSiguiente')!.textContent = window.modalData.datosSiguiente!.fibra;
 
         // Mostrar modal
-        const modal = document.getElementById('modalSeleccion');
+        const modal = document.getElementById('modalSeleccion')!;
         modal.classList.remove('hidden');
         modal.classList.add('flex', 'items-center', 'justify-center');
 
         // Agregar event listeners a los radio buttons para actualizar datos cuando cambien
-        const radioProceso = document.getElementById('radioProceso');
-        const radioSiguiente = document.getElementById('radioSiguiente');
+        const radioProceso = document.getElementById('radioProceso') as HTMLInputElement;
+        const radioSiguiente = document.getElementById('radioSiguiente') as HTMLInputElement;
 
         // Remover listeners anteriores si existen (clonar y reemplazar para limpiar listeners)
-        const nuevoRadioProceso = radioProceso.cloneNode(true);
-        radioProceso.parentNode.replaceChild(nuevoRadioProceso, radioProceso);
-        const nuevoRadioSiguiente = radioSiguiente.cloneNode(true);
-        radioSiguiente.parentNode.replaceChild(nuevoRadioSiguiente, radioSiguiente);
+        const nuevoRadioProceso = radioProceso.cloneNode(true) as HTMLInputElement;
+        radioProceso.parentNode!.replaceChild(nuevoRadioProceso, radioProceso);
+        const nuevoRadioSiguiente = radioSiguiente.cloneNode(true) as HTMLInputElement;
+        radioSiguiente.parentNode!.replaceChild(nuevoRadioSiguiente, radioSiguiente);
 
         // Limpiar selección anterior
         nuevoRadioProceso.checked = false;
@@ -1124,7 +1232,7 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
         const seleccionPrevia = window.modalData?.seleccionGuardada?.[telarId]?.[tipo];
 
         // Agregar listener para "Producción en Proceso"
-        nuevoRadioProceso.addEventListener('change', function() {
+        nuevoRadioProceso.addEventListener('change', function(this: HTMLInputElement) {
             if (this.checked) {
                 // Hacer GET del proceso actual
                 obtenerDatosProcesoActual(telarId).then(datosProceso => {
@@ -1132,9 +1240,9 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
                         window.modalData.datosProceso = datosParaModal(datosProceso, tipo);
 
                         // Actualizar tabla del modal
-                        document.getElementById('cuentaProceso').textContent = window.modalData.datosProceso.cuenta;
-                        document.getElementById('calibreProceso').textContent = window.modalData.datosProceso.calibre;
-                        document.getElementById('fibraProceso').textContent = window.modalData.datosProceso.fibra;
+                        document.getElementById('cuentaProceso')!.textContent = window.modalData.datosProceso!.cuenta;
+                        document.getElementById('calibreProceso')!.textContent = window.modalData.datosProceso!.calibre;
+                        document.getElementById('fibraProceso')!.textContent = window.modalData.datosProceso!.fibra;
 
                         // Actualizar checkboxes por la fibra del proceso actual (opcional: preview en tiempo real)
                         // Esto se puede hacer aquí o solo cuando se confirme la selección
@@ -1144,7 +1252,7 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
         });
 
         // Agregar listener para "Siguiente Orden"
-        nuevoRadioSiguiente.addEventListener('change', function() {
+        nuevoRadioSiguiente.addEventListener('change', function(this: HTMLInputElement) {
             if (this.checked) {
                 // Verificar si hay una selección guardada previa para obtener la fibra
                 const seleccionPreviaActual = window.modalData?.seleccionGuardada?.[telarId]?.[tipo];
@@ -1156,9 +1264,9 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
                         window.modalData.datosSiguiente = datosParaModal(datosSiguiente, tipo);
 
                         // Actualizar tabla del modal
-                        document.getElementById('cuentaSiguiente').textContent = window.modalData.datosSiguiente.cuenta;
-                        document.getElementById('calibreSiguiente').textContent = window.modalData.datosSiguiente.calibre;
-                        document.getElementById('fibraSiguiente').textContent = window.modalData.datosSiguiente.fibra;
+                        document.getElementById('cuentaSiguiente')!.textContent = window.modalData.datosSiguiente!.cuenta;
+                        document.getElementById('calibreSiguiente')!.textContent = window.modalData.datosSiguiente!.calibre;
+                        document.getElementById('fibraSiguiente')!.textContent = window.modalData.datosSiguiente!.fibra;
                     }
                 });
             }
@@ -1189,7 +1297,7 @@ function abrirModalSeleccion(telarId, tipo, cuenta, calibre, fibra) {
 
 // Función para cerrar el modal
 function cerrarModalSeleccion() {
-    const modal = document.getElementById('modalSeleccion');
+    const modal = document.getElementById('modalSeleccion')!;
     modal.classList.add('hidden');
     modal.classList.remove('flex', 'items-center', 'justify-center');
     window.modalData = {
@@ -1218,7 +1326,7 @@ function confirmarSeleccion() {
         window.modalData.seleccionGuardada = {};
     }
 
-    const seleccionado = document.querySelector('input[name="seleccion"]:checked');
+    const seleccionado = document.querySelector<HTMLInputElement>('input[name="seleccion"]:checked');
 
     if (!seleccionado) {
         alert('Por favor seleccione una opción.');
@@ -1286,7 +1394,7 @@ function confirmarSeleccion() {
     });
 
     todasLasTablasDelTelar.forEach(table => {
-        table.querySelectorAll(`input[data-telar="${telarIdParaFiltro}"][data-tipo="${tipoParaFiltro}"]`).forEach(checkbox => {
+        table.querySelectorAll<HTMLInputElement>(`input[data-telar="${telarIdParaFiltro}"][data-tipo="${tipoParaFiltro}"]`).forEach(checkbox => {
             checkbox.checked = false;
             // Limpiar también el atributo de cambio reciente
             checkbox.removeAttribute('data-cambio-reciente');
@@ -1373,7 +1481,7 @@ function confirmarSeleccion() {
 }
 
 // Función para obtener datos del proceso actual
-async function obtenerDatosProcesoActual(telarId) {
+async function obtenerDatosProcesoActual(telarId: TelarId): Promise<Registro | null> {
     try {
         return await http.get(`/api/telares/proceso-actual/${telarId}`)
     } catch (error) {
@@ -1382,7 +1490,7 @@ async function obtenerDatosProcesoActual(telarId) {
 }
 
 // Función para obtener datos de la siguiente orden
-async function obtenerDatosSiguienteOrden(telarId, fibra = null) {
+async function obtenerDatosSiguienteOrden(telarId: TelarId, fibra: Crudo = null): Promise<Registro | null> {
     try {
         let url = `/api/telares/siguiente-orden/${telarId}`;
         // Si se proporciona una fibra, agregarla como parámetro de consulta
@@ -1423,7 +1531,7 @@ if (typeof window.checkboxPendienteCalendario === 'undefined') {
 }
 
 // Función para verificar estado del telar antes de eliminar
-async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar, checkbox, telarData = null) {
+async function verificarEstadoTelarAntesDeEliminar(telarId: TelarId, tipo: string, datosEliminar: DatosEliminar, checkbox: HTMLInputElement, telarData: Registro | null = null) {
     try {
         // Validar que tenemos los datos necesarios para la verificación
         if (!datosEliminar || !datosEliminar.fecha || datosEliminar.turno === undefined) {
@@ -1438,7 +1546,7 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
             if (telarData) {
                 window.telarDataCompleto = telarData;
             }
-            const telarSection = checkbox.closest('.telar-section') || checkbox.closest('[data-telar]');
+            const telarSection = checkbox.closest<HTMLElement>('.telar-section') || checkbox.closest<HTMLElement>('[data-telar]');
             const salon = telarSection?.dataset?.salon || window.salonTelar || 'Jacquard';
             window.telarDataPendiente = {
                 salon: salon,
@@ -1473,12 +1581,12 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
             turno: String(datosEliminar.turno)
         });
 
-        let result
+        let result: EstadoTelar
         try {
             result = await http.get(`/inventario-telares/verificar-estado?${params.toString()}`)
         } catch (err) {
             // 404: el registro ya no existe, o sea que ya fue eliminado.
-            if (err.status === 404) {
+            if ((err as HttpError).status === 404) {
                 eliminarRegistro(datosEliminar, checkbox);
                 return;
             }
@@ -1515,7 +1623,7 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
                     window.telarDataCompleto = telarData;
                 }
                 // Guardar datos del telar para usar en actualización
-                const telarSection = checkbox.closest('.telar-section') || checkbox.closest('[data-telar]');
+                const telarSection = checkbox.closest<HTMLElement>('.telar-section') || checkbox.closest<HTMLElement>('[data-telar]');
                 const salon = telarSection?.dataset?.salon || window.salonTelar || 'Jacquard';
                 window.telarDataPendiente = {
                     salon: salon,
@@ -1543,7 +1651,7 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
                     window.telarDataCompleto = telarData;
                 }
                 // Guardar datos del telar para usar en actualización
-                const telarSection = checkbox.closest('.telar-section') || checkbox.closest('[data-telar]');
+                const telarSection = checkbox.closest<HTMLElement>('.telar-section') || checkbox.closest<HTMLElement>('[data-telar]');
                 const salon = telarSection?.dataset?.salon || window.salonTelar || 'Jacquard';
                 window.telarDataPendiente = {
                     salon: salon,
@@ -1572,7 +1680,7 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
                 if (telarData) {
                     window.telarDataCompleto = telarData;
                 }
-                const telarSection = checkbox.closest('.telar-section') || checkbox.closest('[data-telar]');
+                const telarSection = checkbox.closest<HTMLElement>('.telar-section') || checkbox.closest<HTMLElement>('[data-telar]');
                 const salon = telarSection?.dataset?.salon || window.salonTelar || 'Jacquard';
                 window.telarDataPendiente = {
                     salon: salon,
@@ -1593,7 +1701,7 @@ async function verificarEstadoTelarAntesDeEliminar(telarId, tipo, datosEliminar,
         if (telarData) {
             window.telarDataCompleto = telarData;
         }
-        const telarSection = checkbox.closest('.telar-section') || checkbox.closest('[data-telar]');
+        const telarSection = checkbox.closest<HTMLElement>('.telar-section') || checkbox.closest<HTMLElement>('[data-telar]');
         const salon = telarSection?.dataset?.salon || window.salonTelar || 'Jacquard';
         window.telarDataPendiente = {
             salon: salon,
@@ -1611,7 +1719,7 @@ window.mostrarModalTelaReservada = function() {
     // Si no se encuentra, puede que haya sido removido, buscar en el body o crear uno nuevo
     if (!modal) {
         // Buscar en todo el documento
-        modal = document.querySelector('#modalTelaReservada');
+        modal = document.querySelector<HTMLElement>('#modalTelaReservada');
 
         // Si aún no se encuentra, puede que haya sido removido del DOM
         // En este caso, necesitamos recrearlo o buscarlo de otra manera
@@ -1636,8 +1744,8 @@ window.mostrarModalTelaReservada = function() {
     // Debug: verificar si los elementos se encuentran
 
     // Obtener los botones de eliminar y actualizar
-    const btnEliminar = modal.querySelector('#btnEliminarReservado');
-    const btnActualizar = modal.querySelector('#btnActualizarReservado');
+    const btnEliminar = modal.querySelector<HTMLButtonElement>('#btnEliminarReservado');
+    const btnActualizar = modal.querySelector<HTMLButtonElement>('#btnActualizarReservado');
     // Obtener valores de las variables globales - convertir explícitamente a booleano
     const puedeEliminar = window.puedeEliminar === false ? false : (window.puedeEliminar === true ? true : true);
     const statusUrdido = window.statusUrdido || null;
@@ -1768,7 +1876,7 @@ window.mostrarModalTelaReservada = function() {
     modal.classList.add('flex');
 
     // Asegurar que el contenido interno también tenga z-index alto
-    const modalContent = modal.querySelector('div > div');
+    const modalContent = modal.querySelector<HTMLElement>('div > div');
     if (modalContent) {
         modalContent.style.position = 'relative';
         modalContent.style.zIndex = '100002';
@@ -1790,7 +1898,7 @@ window.mostrarModalCalendarioSemanal = function() {
     }
 
     // Ocultar todos los contenedores de turnos
-    const todosLosContenedores = modalCalendarioMostrar ? modalCalendarioMostrar.querySelectorAll('.turnos-container') : document.querySelectorAll('.turnos-container');
+    const todosLosContenedores = modalCalendarioMostrar ? modalCalendarioMostrar.querySelectorAll<HTMLElement>('.turnos-container') : document.querySelectorAll<HTMLElement>('.turnos-container');
     todosLosContenedores.forEach(cont => {
         cont.style.display = 'none';
         cont.innerHTML = '';
@@ -1892,7 +2000,7 @@ window.mostrarModalCalendarioSemanal = function() {
     }
 
     // Asegurar que el modal 1 esté completamente oculto
-    const modales1 = document.querySelectorAll('#modalTelaReservada');
+    const modales1 = document.querySelectorAll<HTMLElement>('#modalTelaReservada');
     modales1.forEach(m => {
         m.classList.add('hidden');
         m.classList.remove('flex');
@@ -1927,7 +2035,7 @@ window.cerrarModalCalendarioSemanal = function() {
     }
 
     // Ocultar todos los contenedores de turnos
-    const todosLosContenedores = modalCalendarioCerrar ? modalCalendarioCerrar.querySelectorAll('.turnos-container') : document.querySelectorAll('.turnos-container');
+    const todosLosContenedores = modalCalendarioCerrar ? modalCalendarioCerrar.querySelectorAll<HTMLElement>('.turnos-container') : document.querySelectorAll<HTMLElement>('.turnos-container');
     todosLosContenedores.forEach(cont => {
         cont.style.display = 'none';
         cont.innerHTML = '';
@@ -1938,7 +2046,7 @@ window.cerrarModalCalendarioSemanal = function() {
 
     // Cerrar completamente TODOS los modales 2 INMEDIATAMENTE - MÉTODO AGRESIVO
     // Buscar TODOS los modales 2 porque puede haber múltiples instancias (una por telar)
-    const todosLosModales2 = document.querySelectorAll('#modalCalendarioSemanal');
+    const todosLosModales2 = document.querySelectorAll<HTMLElement>('#modalCalendarioSemanal');
 
     todosLosModales2.forEach((modalItem, index) => {
 
@@ -1995,7 +2103,7 @@ window.cerrarModalCalendarioSemanal = function() {
 
         // Ocultar todos los contenedores de turnos
         const modalCalendario2 = document.getElementById('modalCalendarioSemanal');
-        const todosLosContenedores = modalCalendario2 ? modalCalendario2.querySelectorAll('.turnos-container') : document.querySelectorAll('.turnos-container');
+        const todosLosContenedores = modalCalendario2 ? modalCalendario2.querySelectorAll<HTMLElement>('.turnos-container') : document.querySelectorAll<HTMLElement>('.turnos-container');
         todosLosContenedores.forEach(cont => {
             cont.style.display = 'none';
             cont.innerHTML = '';
@@ -2046,7 +2154,7 @@ window.cerrarModalCalendarioSemanal = function() {
         // Delay más largo para asegurar que el modal 2 se cierre completamente
         setTimeout(() => {
             // Verificar y forzar cierre de TODOS los modales 2 - MÉTODO AGRESIVO
-            const todosLosModales2 = document.querySelectorAll('#modalCalendarioSemanal');
+            const todosLosModales2 = document.querySelectorAll<HTMLElement>('#modalCalendarioSemanal');
 
             todosLosModales2.forEach((modal2, index) => {
                 // Usar setAttribute con !important para sobrescribir estilos inline
@@ -2097,7 +2205,7 @@ window.cerrarModalCalendarioSemanal = function() {
 };
 
 // Función para mostrar selección de turnos después de seleccionar fecha (debe ser global)
-window.mostrarSeleccionTurnos = async function(fechaISO, diaElement) {
+window.mostrarSeleccionTurnos = async function(fechaISO: string, diaElement?: HTMLElement | null) {
 
     if (!window.checkboxPendienteCalendario || !window.telarIdPendienteCalendario) {
         console.error('Faltan datos necesarios:', {
@@ -2123,7 +2231,7 @@ window.mostrarSeleccionTurnos = async function(fechaISO, diaElement) {
             return;
         }
         // Buscar el contenedor del día (que tiene data-fecha-container)
-        diaElement = modalCalendario4.querySelector(`[data-fecha-container="${fechaISO}"]`);
+        diaElement = modalCalendario4.querySelector<HTMLElement>(`[data-fecha-container="${fechaISO}"]`);
         if (!diaElement) {
             // Si no se encuentra por data-fecha-container, buscar el botón con data-fecha y obtener su padre
             const btnDia = modalCalendario4.querySelector(`[data-fecha="${fechaISO}"]`);
@@ -2139,7 +2247,7 @@ window.mostrarSeleccionTurnos = async function(fechaISO, diaElement) {
     // Ocultar todos los contenedores de turnos de otros días ANTES de mostrar los nuevos
     const modalCalendario3 = document.getElementById('modalCalendarioSemanal');
     if (modalCalendario3) {
-        const todosLosContenedores = modalCalendario3.querySelectorAll('.turnos-container');
+        const todosLosContenedores = modalCalendario3.querySelectorAll<HTMLElement>('.turnos-container');
         todosLosContenedores.forEach(cont => {
             const contFecha = cont.getAttribute('data-fecha-turnos');
             if (contFecha && contFecha !== fechaISO) {
@@ -2152,7 +2260,7 @@ window.mostrarSeleccionTurnos = async function(fechaISO, diaElement) {
     }
 
     // Buscar el contenedor de turnos dentro del contenedor del día
-    let turnosContainer = diaElement.querySelector('.turnos-container');
+    let turnosContainer = diaElement.querySelector<HTMLElement>('.turnos-container');
     if (!turnosContainer) {
         // Si no existe, crearlo
         turnosContainer = document.createElement('div');
@@ -2180,12 +2288,12 @@ window.mostrarSeleccionTurnos = async function(fechaISO, diaElement) {
     try {
         const params = new URLSearchParams({
             no_telar: String(telarId),
-            tipo: tipo,
+            tipo: tipo as string,
             fecha: fechaISO
         });
 
         if (registroId) {
-            params.append('registro_id_excluir', registroId);
+            params.append('registro_id_excluir', String(registroId));
         }
 
         const result = await http.get(`/inventario-telares/verificar-turnos-ocupados?${params.toString()}`)
@@ -2205,10 +2313,10 @@ window.mostrarSeleccionTurnos = async function(fechaISO, diaElement) {
             [1, 2, 3].forEach(turno => {
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.setAttribute('data-turno', turno);
+                btn.setAttribute('data-turno', String(turno));
 
                 // Verificar si el turno está ocupado (comparar como número)
-                const turnoOcupado = turnosOcupados.includes(parseInt(turno, 10)) || turnosOcupados.includes(turno);
+                const turnoOcupado = turnosOcupados.includes(parseInt(String(turno), 10)) || turnosOcupados.includes(turno);
 
 
                 if (turnoOcupado) {
@@ -2225,7 +2333,7 @@ window.mostrarSeleccionTurnos = async function(fechaISO, diaElement) {
                     btn.title = '';
                 }
 
-                btn.textContent = turno;
+                btn.textContent = String(turno);
                 btn.onclick = function(e) {
                     e.preventDefault();
                     e.stopPropagation();
@@ -2259,10 +2367,10 @@ window.mostrarSeleccionTurnos = async function(fechaISO, diaElement) {
         [1, 2, 3].forEach(turno => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.setAttribute('data-turno', turno);
+            btn.setAttribute('data-turno', String(turno));
             btn.className = 'flex-1 py-2 text-sm font-bold rounded transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-500 text-white border border-blue-600 hover:bg-blue-600';
             btn.style.cssText = 'flex: 1 1 0%; min-width: 0; width: 100%;';
-            btn.textContent = turno;
+            btn.textContent = String(turno);
             btn.onclick = function(e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -2287,7 +2395,7 @@ window.manejarCancelarModal2 = function() {
     // Ocultar todos los contenedores de turnos
     const modalCalendario5 = document.getElementById('modalCalendarioSemanal');
     if (modalCalendario5) {
-        const todosLosContenedores = modalCalendario5.querySelectorAll('.turnos-container');
+        const todosLosContenedores = modalCalendario5.querySelectorAll<HTMLElement>('.turnos-container');
         todosLosContenedores.forEach(cont => {
             cont.style.display = 'none';
             cont.innerHTML = '';
@@ -2301,9 +2409,9 @@ window.manejarCancelarModal2 = function() {
 }
 
 // Función para seleccionar turno y actualizar (debe ser global)
-window.seleccionarTurno = function(turno, btnElement) {
+window.seleccionarTurno = function(turno: number, btnElement?: HTMLButtonElement) {
     // Si se pasa el elemento del botón, usarlo; si no, buscarlo
-    const btn = btnElement || document.querySelector(`[data-turno="${turno}"]`);
+    const btn = btnElement || document.querySelector<HTMLButtonElement>(`[data-turno="${turno}"]`);
 
     if (!btn) {
         console.error('Botón de turno no encontrado');
@@ -2374,7 +2482,7 @@ window.seleccionarTurno = function(turno, btnElement) {
         // Usar hash para que al recargar se posicione en el telar
         const anchorId = 'telar-' + telarId;
         // Guardar el telar en sessionStorage para hacer scroll después del reload
-        sessionStorage.setItem('scrollToTelar', telarId);
+        sessionStorage.setItem('scrollToTelar', String(telarId));
         window.location.reload();
     })
     .catch(error => {
@@ -2390,17 +2498,17 @@ window.seleccionarTurno = function(turno, btnElement) {
 }
 
 // Función para actualizar el registro con la nueva fecha
-async function actualizarRegistroConNuevaFecha(checkbox, telarId, tipo, turno, fechaOriginal, fechaNueva) {
+async function actualizarRegistroConNuevaFecha(checkbox: HTMLInputElement, telarId: TelarId, tipo: string, turno: number, fechaOriginal: string, fechaNueva: string) {
     // Obtener el salón del contexto guardado o del elemento
     const salon = window.telarDataPendiente?.salon ||
-                 checkbox.closest('.telar-section')?.dataset?.salon ||
-                 checkbox.closest('[data-telar]')?.dataset?.salon ||
+                 checkbox.closest<HTMLElement>('.telar-section')?.dataset?.salon ||
+                 checkbox.closest<HTMLElement>('[data-telar]')?.dataset?.salon ||
                  window.salonTelar ||
                  'Jacquard';
 
     try {
         // Primero intentar usar los datos completos del telar guardados desde handleRequerimientoChange
-        let telarData = window.telarDataCompleto;
+        let telarData: Registro | null | undefined = window.telarDataCompleto;
 
         // Si no están disponibles, intentar obtener desde el caché
         if (!telarData) {
@@ -2482,7 +2590,7 @@ async function actualizarRegistroConNuevaFecha(checkbox, telarId, tipo, turno, f
             }
         } catch (errorActualizar) {
             console.error('Error al actualizar fecha del registro:', errorActualizar);
-            throw new Error(errorActualizar.response?.data?.message || 'No se pudo actualizar la fecha del registro. El registro original se mantiene.');
+            throw new Error((errorActualizar as { response?: { data?: { message?: string } } }).response?.data?.message || 'No se pudo actualizar la fecha del registro. El registro original se mantiene.');
         }
 
         // Invalidar caché para forzar recarga
@@ -2538,7 +2646,7 @@ async function actualizarRegistroConNuevaFecha(checkbox, telarId, tipo, turno, f
             Swal.fire({
                 icon: 'error',
                 title: 'Error al actualizar',
-                text: error.message || 'No se pudo actualizar el registro. El registro original se mantiene.',
+                text: (error as Error).message || 'No se pudo actualizar el registro. El registro original se mantiene.',
                 showConfirmButton: false,
                 timer: 3000,
                 position: 'top-end',
@@ -2559,7 +2667,7 @@ window.cerrarModalTelaReservada = function() {
 
     // FORZAR cierre completo de TODOS los modales 2 (calendario) - PRIMERO
     // Buscar TODOS los modales 2 porque puede haber múltiples instancias (una por telar)
-    const todosLosModales2 = document.querySelectorAll('#modalCalendarioSemanal');
+    const todosLosModales2 = document.querySelectorAll<HTMLElement>('#modalCalendarioSemanal');
 
     todosLosModales2.forEach((modal2, index) => {
         // Usar setAttribute con !important para sobrescribir estilos inline
@@ -2588,7 +2696,7 @@ window.cerrarModalTelaReservada = function() {
     });
 
     // FORZAR cierre completo de TODOS los modales 1 - SEGUNDO
-    const modales = document.querySelectorAll('#modalTelaReservada');
+    const modales = document.querySelectorAll<HTMLElement>('#modalTelaReservada');
     modales.forEach((modal, index) => {
         // Usar setAttribute con !important para sobrescribir estilos inline
         modal.setAttribute('style', `
@@ -2644,7 +2752,7 @@ function confirmarEliminarConReserva() {
         window.checkboxEliminacionPendiente = null;
 
         // Cerrar el modal inmediatamente
-        cerrarModalTelaReservada();
+        window.cerrarModalTelaReservada();
 
         // Luego ejecutar la eliminación con las referencias guardadas
         eliminarRegistro(datosEliminar, checkbox);
@@ -2671,7 +2779,7 @@ function mostrarCalendarioParaActualizar() {
         };
 
         // Cerrar completamente el modal de confirmación (modal 1)
-        const modales = document.querySelectorAll('#modalTelaReservada');
+        const modales = document.querySelectorAll<HTMLElement>('#modalTelaReservada');
         modales.forEach(modal => {
             modal.classList.add('hidden');
             modal.classList.remove('flex');
@@ -2689,7 +2797,7 @@ function mostrarCalendarioParaActualizar() {
 }
 
 // Función para eliminar el registro
-function eliminarRegistro(datosEliminar, checkbox) {
+function eliminarRegistro(datosEliminar: DatosEliminar, checkbox: HTMLInputElement | null) {
     // Validar que el checkbox existe
     if (!checkbox) {
         console.error('Error: checkbox es null en eliminarRegistro');

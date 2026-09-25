@@ -5,11 +5,18 @@ import type { RollosRow } from './types';
 export class ProductionDetail {
     private activeFilter = 'todos';
 
+    private readonly result: HTMLElement;
+    private readonly rollosModal: HTMLElement;
+    private readonly scroll: ScrollManager;
+
     public constructor(
-        private readonly result: HTMLElement,
-        private readonly rollosModal: HTMLElement,
-        private readonly scroll: ScrollManager,
+        result: HTMLElement,
+        rollosModal: HTMLElement,
+        scroll: ScrollManager,
     ) {
+        this.result = result;
+        this.rollosModal = rollosModal;
+        this.scroll = scroll;
         this.bind();
     }
 

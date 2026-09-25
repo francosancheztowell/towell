@@ -6,7 +6,10 @@ export class MatrixDetail {
     private periods: MatrixPeriod[] = [];
     private decimals = 0;
 
-    public constructor(private readonly result: HTMLElement) {
+    private readonly result: HTMLElement;
+
+    public constructor(result: HTMLElement) {
+        this.result = result;
         this.result.addEventListener('click', (event) => this.handleClick(event));
     }
 

@@ -58,45 +58,9 @@ export interface RedboothResponse {
     primerVinculo?: RedboothOrder | null;
 }
 
-interface HttpOptions {
-    params?: object;
-    signal?: AbortSignal;
-}
-
-interface HttpClient {
-    get<T>(url: string, options?: HttpOptions): Promise<T>;
-}
-
-interface NotificationClient {
-    success(message: string): void;
-    warning(message: string): void;
-    error(message: string): void;
-}
-
-interface LivewireClient {
-    dispatch(event: string, params?: Record<string, unknown>): void;
-}
-
-interface Select2Bridge {
-    data(key: string): unknown;
-    select2(command: 'close' | 'destroy' | Record<string, unknown>): void;
-    off(events: string): Select2Bridge;
-    on(events: string, handler: (event: Event) => void): Select2Bridge;
-}
-
-interface JQueryBridge {
-    (element: Element): Select2Bridge;
-}
-
+// http, notify, Swal, Livewire y jQuery se tipan en resources/js/types/global.d.ts.
 declare global {
     interface Window {
-        http: HttpClient;
-        notify?: NotificationClient;
-        Livewire?: LivewireClient;
-        jQuery?: JQueryBridge;
         abrirModalRedboothProgramaTejido?: (order: RedboothOrder) => void;
-        Swal?: {
-            fire(options: Record<string, unknown>): Promise<unknown>;
-        };
     }
 }

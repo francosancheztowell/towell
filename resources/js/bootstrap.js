@@ -66,16 +66,17 @@ import toastr from 'toastr';
 window.toastr = toastr;
 
 // Cliente HTTP unificado y notificaciones (expuestos para scripts inline de Blade).
-// Ver resources/js/utils/. Reemplazan los fetch() crudos y los showToast() duplicados.
-import http from './utils/http';
-import notify, { showToast } from './utils/notifications';
+// Ver resources/js/utils/ (tipos en resources/js/types/global.d.ts). Reemplazan los
+// fetch() crudos y los showToast() duplicados.
+import http from './utils/http.ts';
+import notify, { showToast } from './utils/notifications.ts';
 window.http = http;
 window.notify = notify;
-// showToast global unificado (firma estándar message, type) → toastr vía notify.
+// showToast global unificado (firma estándar message, type) → toasts nativos vía notify.
 window.showToast = showToast;
 
 // Puente Livewire → toast. Cualquier componente puede avisar sin JS propio:
 //   $this->dispatch('aviso', tipo: 'success', texto: 'Guardado.');
 document.addEventListener('livewire:init', () => {
-    window.Livewire?.on('aviso', ({ tipo, texto }) => (notify[tipo] ?? notify.info)(texto));
+    window.Livewire?.on('aviso', ({ tipo, texto }) => showToast(texto, tipo));
 });

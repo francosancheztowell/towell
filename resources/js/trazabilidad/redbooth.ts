@@ -2,10 +2,15 @@ import { errorMessage, queryElement } from './dom';
 import type { RedboothOrder, RedboothResponse } from './types';
 
 export class RedboothLauncher {
+    private readonly button: HTMLButtonElement;
+    private readonly route: string;
+
     public constructor(
-        private readonly button: HTMLButtonElement,
-        private readonly route: string,
+        button: HTMLButtonElement,
+        route: string,
     ) {
+        this.button = button;
+        this.route = route;
         this.button.addEventListener('click', () => void this.openForSelectedFlog());
     }
 
