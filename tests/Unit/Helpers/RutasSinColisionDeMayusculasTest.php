@@ -41,9 +41,10 @@ class RutasSinColisionDeMayusculasTest extends TestCase
     {
         $archivo = (string) (new \ReflectionClass(UrdEngNucleos::class))->getFileName();
 
+        // Separadores normalizados: en Windows Reflection devuelve '\'.
         $this->assertSame(
-            base_path('app/Models/UrdEngomado/UrdEngNucleos.php'),
-            $archivo
+            str_replace('\\', '/', base_path('app/Models/UrdEngomado/UrdEngNucleos.php')),
+            str_replace('\\', '/', $archivo)
         );
     }
 }

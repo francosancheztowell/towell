@@ -79,7 +79,7 @@ class EscrituraFueraDePlaneacionTest extends TestCase
         $uses = $ruta->getAction('uses');
 
         if ($uses instanceof Closure) {
-            return str_starts_with((string) (new ReflectionFunction($uses)->getFileName()), base_path('routes'));
+            return str_starts_with((string) (new ReflectionFunction($uses))->getFileName(), base_path('routes'));
         }
 
         return is_string($uses) && str_starts_with($uses, 'App\\');

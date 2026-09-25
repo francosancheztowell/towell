@@ -4,6 +4,16 @@ namespace App\Models\Tejido;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Barra Karl Mayer: julios 2-4 y su orden (sin migracion en el repo, Larastan no los infiere).
+ *
+ * @property string|null $no_julio2
+ * @property string|null $no_julio3
+ * @property string|null $no_julio4
+ * @property string|null $no_orden2
+ * @property string|null $no_orden3
+ * @property string|null $no_orden4
+ */
 class TejInventarioTelares extends Model
 {
     protected $table = 'tej_inventario_telares';
