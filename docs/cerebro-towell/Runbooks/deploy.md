@@ -11,7 +11,7 @@ Laragon, sin Redis ni proxy; base de datos SQL Server 2008 R2.
 |---|---|---|
 | `CACHE_STORE` | `file` | Un solo servidor web. No hay migración de la tabla `cache`; el default del código también es `file` desde 18-01. |
 | `SESSION_DRIVER` | `file` | Igual. Las sesiones viven en `storage/framework/sessions`. |
-| `QUEUE_CONNECTION` | `database` (sin cambio) | Fuera de alcance de 18-01; worker pendiente (ver STATE, "Worker de colas"). |
+| `QUEUE_CONNECTION` | `database` | Desde 18-03 la usan los avisos de Telegram de atado terminado, montado de julio y solicitud de trama. Necesita la tabla `jobs` y el worker de §8. `sync` es la válvula mientras no haya worker (§8). |
 
 Revisar esta decisión solo si se agrega un segundo servidor web (entonces cache y sesión compartidas: Redis o `database` con su migración).
 
@@ -95,6 +95,8 @@ Tomado de `.planning/STATE.md` ("Pending Todos", 2026-09-25) más lo de 18-01. H
 9. Probar: `/admin` con usuario de Sistemas (200) y de otra área (403); cierre remoto de una tablet de prueba; en DevTools → Network, el header `Server-Timing` de una pantalla trae `app`, `db` y `ctx` (§6).
 10. 18-01: provocar un error de JS en una pantalla (consola: `setTimeout(() => { throw new Error('prueba ruta') })`) y verificar en `/admin` → Errores que la ruta es la de esa pantalla, no `telemetria.error`. Los errores de navegador viejos con `telemetria.error` se corrigen solos en su siguiente ocurrencia.
 
+11. 18-03: tabla `jobs` y worker de la cola según §8 (antes de este paso, `QUEUE_CONNECTION=sync`).
+
 ## 6. Medir `SetSqlContextInfo` (PERF-07) — una semana después del despliegue
 
 `SetSqlContextInfo` ejecuta `EXEC dbo.sp_SetAppContext` en cada request web (incluidos los polls de Livewire) para que los triggers de `SYSAuditoria` sepan quién escribió. No se cambia sin estos números.
@@ -136,3 +138,48 @@ Mandar la salida de las dos consultas y el p95 de `app;dur` por tipo (`/admin/re
 ```bat
 findstr /C:"Rendimiento:" storage\logs\laravel-*.log
 ```
+
+## 8. Worker de la cola (18-03, PERF-13)
+
+**Por qué:** los avisos de Telegram que acompañan una acción (terminar atado, notificar montado de julio,
+solicitar trama) ya no se mandan dentro de la petición. `defer()` no sirve en este servidor: sin PHP-FPM no
+existe `fastcgi_finish_request` y el navegador espera a que termine el callback diferido (medición en
+`.planning/phases/18-perf/18-03-SUMMARY.md`). Van a la cola `database` y un worker los manda.
+
+**1. Confirmar el SAPI** (una vez): crear `public\info-tmp.php` con `<?php phpinfo();`, abrirlo, buscar
+**Server API** y **borrar el archivo**. `Apache 2.0 Handler` (mod_php) o `CGI/FastCGI` (php-cgi) confirman
+que `defer()` no libera la respuesta. Si dijera `FPM/FastCGI`, avisar a la sesión de rendimiento.
+
+**2. Tabla `jobs`** (una vez): el DBA corre `database/sql/queue_jobs_tablas.sql` (idempotente, crea `jobs` y
+`failed_jobs` si faltan y registra sus migraciones). Sin la tabla la app no se cae: manda el aviso en línea y
+deja `Telegram: no se pudo encolar el aviso` en el log.
+
+**3. Tarea programada** (una vez), en una consola como administrador, con las mismas rutas que `scheduler.bat`:
+
+```bat
+schtasks /Create /TN "Towell cola" /SC MINUTE /MO 1 /RU SYSTEM /F ^
+  /TR "\"C:\laragon\bin\php\php-8.3.28-Win32-vs16-x64\php.exe\" C:\laragon\www\towell\artisan queue:work --stop-when-empty --max-time=50"
+```
+
+Cada minuto arranca un worker que procesa lo pendiente y sale solo (`--stop-when-empty`) o a los 50 s
+(`--max-time=50`), así nunca hay dos a la vez por mucho tiempo ni un proceso colgado días. Tras cada
+`git pull` no hace falta reiniciarlo: el siguiente minuto arranca con el código nuevo.
+
+**4. Verificar:**
+
+```bat
+REM la tarea corre cada minuto y termina con 0
+schtasks /Query /TN "Towell cola" /V /FO LIST | findstr /C:"Último resultado" /C:"Last Result"
+```
+
+```sql
+SELECT COUNT(*) AS pendientes, MIN(DATEADD(s, created_at, '19700101')) AS mas_viejo_utc FROM dbo.jobs;  -- ~0 en operación normal
+SELECT TOP 20 failed_at, queue, LEFT(exception, 300) AS error FROM dbo.failed_jobs ORDER BY id DESC;
+```
+
+Prueba de punta a punta: terminar un atado de prueba → la tablet responde al instante → el mensaje llega al
+grupo de Atadores en menos de un minuto. Fallos de envío: `findstr /C:"Telegram" storage\logs\laravel-*.log`.
+
+**Válvula:** si el worker no está listo, `QUEUE_CONNECTION=sync` en `.env` + `php artisan config:cache`. Los
+avisos vuelven a salir en línea (como antes de 18-03, pero en paralelo y con timeouts de 3/8 s: peor caso
+~16 s, un envío y un reintento, en vez de N × 20 s).
