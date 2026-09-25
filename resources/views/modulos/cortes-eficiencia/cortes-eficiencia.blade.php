@@ -966,23 +966,9 @@
                 showToast({ title: 'Observación guardada', text: `Telar ${telar} - Horario ${horario}` });
             }
 
-            /** Carga pdf.js dinámicamente (singleton) */
-            let _pdfJsLoader = null;
+            /** pdf.js por npm, bajo demanda (resources/js/utils/librerias.ts). */
             function cargarPdfJs() {
-                if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
-                if (_pdfJsLoader) return _pdfJsLoader;
-                _pdfJsLoader = new Promise((resolve, reject) => {
-                    const s = document.createElement('script');
-                    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
-                    s.onload = () => {
-                        if (!window.pdfjsLib) { reject(new Error('No se pudo inicializar pdf.js')); return; }
-                        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-                        resolve(window.pdfjsLib);
-                    };
-                    s.onerror = () => reject(new Error('No se pudo cargar pdf.js'));
-                    document.head.appendChild(s);
-                });
-                return _pdfJsLoader;
+                return window.librerias.pdfjs();
             }
 
             /** Genera y descarga imagen del corte actual (vía PDF del servidor → pdf.js → JPEG) */

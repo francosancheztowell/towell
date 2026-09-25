@@ -2916,8 +2916,8 @@
                                             timer: 5000,
                                             showConfirmButton: false
                                         });
-                                    } else if (typeof toastr !== 'undefined') {
-                                        toastr.warning(msg);
+                                    } else {
+                                        notify.warning(msg);
                                     }
                                 }
                                 setTimeout(() => propagarOficialesHaciaAbajo(registroId, oficialesGuardados), 500);

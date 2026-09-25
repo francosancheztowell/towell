@@ -1,3 +1,4 @@
+import { comboboxDe } from '../utils/combobox.ts';
 import { isOpen, queryElement } from './dom';
 
 export class ScrollManager {
@@ -10,32 +11,17 @@ export class ScrollManager {
     }
 
     public restoreInteraction(): void {
-        const jquery = window.jQuery;
-
-        document.querySelectorAll<HTMLElement>('.filtro-select').forEach((select) => {
-            if (!jquery) return;
-
-            const bridge = jquery(select);
-            if (!bridge.data('select2')) return;
-
+        document.querySelectorAll<HTMLSelectElement>('select.filtro-select').forEach((select) => {
             try {
-                bridge.select2('close');
+                comboboxDe(select)?.close();
             } catch {
                 // El componente Livewire puede estar reemplazando el select.
             }
         });
 
-        document.querySelectorAll('.select2-container--open')
-            .forEach((container) => container.classList.remove('select2-container--open'));
-
         const active = document.activeElement;
-        if (
-            active instanceof HTMLElement
-            && (
-                active.classList.contains('select2-search__field')
-                || active.closest('.select2-container')
-            )
-        ) {
+        // La caja de búsqueda vive en la lista (.ts-dropdown, en <body>), no en el control.
+        if (active instanceof HTMLElement && active.closest('.ts-wrapper, .ts-dropdown')) {
             active.blur();
         }
 

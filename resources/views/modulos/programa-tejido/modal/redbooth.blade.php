@@ -6,9 +6,6 @@
   #modalRedboothProgramaTejido .rb-shell.rb-compact #redboothEditor { flex:none; }
   #modalRedboothProgramaTejido .rb-scroll { scrollbar-color:#cbd5e1 transparent; scrollbar-width:thin; }
   #modalRedboothProgramaTejido .rb-comment:last-child { border-bottom:0; }
-  #modalRedboothProgramaTejido > .select2-container,
-  #modalRedboothProgramaTejido .select2-container--open,
-  #modalRedboothProgramaTejido .select2-dropdown { z-index:2147483050 !important; }
   #modalRedboothProgramaTejido .rb-rich { color:#4b5563; font-size:.875rem; line-height:1.55; overflow-wrap:anywhere; }
   #modalRedboothProgramaTejido .rb-rich > * + * { margin-top:.75rem; }
   #modalRedboothProgramaTejido .rb-rich strong { color:#374151; font-weight:700; }
@@ -156,7 +153,7 @@
   const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
   let programaId = null;
   let currentData = null;
-  let selectInicializado = false;
+  let comboboxProyecto = null;
   let flogAsignacion = '';
   let cantidadOrdenesAsignacion = 0;
 
@@ -271,22 +268,17 @@
   };
 
   const inicializarSelect = () => {
-    const jq = window.jQuery || window.$;
-    if (selectInicializado || !jq?.fn?.select2) return;
-    jq(proyecto).select2({
-      width:'100%', dropdownParent:jq(modal), placeholder:'Selecciona una tarea', allowClear:true,
-      ajax:{url:@json(route('programa-tejido.redbooth.proyectos')),dataType:'json',delay:250,data:(p)=>({q:p.term||''}),processResults:(d)=>({results:Array.isArray(d?.results)?d.results:[]}),cache:true},
-      language:{noResults:()=> 'No se encontraron tareas',searching:()=> 'Buscando…',loadingError:()=> 'No se pudieron cargar las tareas'},
-    });
-    selectInicializado = true;
+    comboboxProyecto ??= window.combobox(proyecto, {
+      placeholder:'Selecciona una tarea', permitirVacio:true,
+      remoto:{url:@json(route('programa-tejido.redbooth.proyectos'))},
+      textos:{sinResultados:'No se encontraron tareas',buscando:'Buscando…',errorCarga:'No se pudieron cargar las tareas'},
+    }).catch((error) => { comboboxProyecto = null; throw error; });
   };
   const selectValue = (id, name) => {
-    const jq = window.jQuery || window.$;
-    if (!jq || !selectInicializado) return;
-    jq(proyecto).empty();
-    if (id) jq(proyecto).append(new Option(`${id} — ${name}`, id, true, true));
-    else jq(proyecto).append(new Option('', '', true, true));
-    jq(proyecto).trigger('change');
+    comboboxProyecto?.then((ts) => {
+      ts.clear(); ts.clearOptions();
+      if (id) { ts.addOption({value:String(id),text:`${id} — ${name}`}); ts.setValue(String(id), true); }
+    }).catch(() => {});
   };
 
   const renderCommentFiles = (files) => {
@@ -383,7 +375,7 @@
   editar.addEventListener('click', () => { selectValue(currentData?.idRedbooth, currentData?.nombreRedbooth); setMode('editor'); });
   cancelar.addEventListener('click', () => currentData?.linked ? renderViewer(currentData) : close());
   guardar.addEventListener('click', async () => {
-    const jq = window.jQuery || window.$; const taskId = Number(jq?.(proyecto).val()||0);
+    const taskId = Number(proyecto.value||0);
     if (!taskId) { window.Swal?.fire({icon:'warning',title:'Selecciona una tarea'}); return; }
     guardar.disabled=true;
     try {

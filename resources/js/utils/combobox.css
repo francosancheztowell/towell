@@ -1,0 +1,82 @@
+/*
+ * Tema del combobox (Tom Select): el mismo aspecto que tenían los filtros de
+ * Trazabilidad y L.Mat con Select2 (34 px, borde slate, foco azul).
+ * Se importa desde combobox.ts; no va en app.css.
+ */
+.ts-wrapper.combobox {
+    width: 100%;
+    font-size: 0.8125rem;
+}
+
+.ts-wrapper.combobox .ts-control {
+    min-height: 34px;
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+    padding-left: 0.7rem;
+    align-items: center;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.6rem;
+    background: #fff;
+    color: #334155;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.ts-wrapper.combobox.single .ts-control {
+    flex-wrap: nowrap;
+}
+
+.ts-wrapper.combobox .ts-control > input::placeholder {
+    color: #94a3b8;
+}
+
+.ts-wrapper.combobox.focus .ts-control,
+.ts-wrapper.combobox.dropdown-active .ts-control {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, .25);
+}
+
+.ts-wrapper.combobox .clear-button {
+    color: #94a3b8;
+    font-weight: 700;
+}
+
+.ts-wrapper.combobox .clear-button:hover {
+    color: #ef4444;
+}
+
+.ts-dropdown.combobox-flotante {
+    border: 1px solid #3b82f6;
+    border-radius: 0.6rem;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, .12);
+    font-size: 0.8125rem;
+}
+
+.ts-dropdown .active {
+    background-color: #3b82f6;
+    color: #fff;
+}
+
+.ts-dropdown .selected:not(.active) {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.ts-dropdown.combobox-flotante .dropdown-input {
+    margin: 6px;
+    width: calc(100% - 12px);
+    border: 1px solid #cbd5e1;
+    border-radius: 0.45rem;
+    padding: 0.35rem 0.5rem;
+}
+
+.ts-dropdown .combobox-cargando {
+    padding: 5px 8px;
+    color: #64748b;
+}
+
+/* La lista vive en <body>: por encima de modales (Swal 1060, Redbooth 2147483000; mismo valor que tenía Select2 ahí). */
+.ts-dropdown.combobox-flotante {
+    z-index: 2147483050;
+}

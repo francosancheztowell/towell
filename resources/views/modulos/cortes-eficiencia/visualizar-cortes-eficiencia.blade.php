@@ -270,8 +270,6 @@
 
 @push('scripts')
 <script>
-    let pdfJsLoader = null;
-
     function descargarBlob(blob, filename) {
         const blobUrl = window.URL.createObjectURL(blob);
         const enlace = document.createElement('a');
@@ -283,28 +281,9 @@
         window.URL.revokeObjectURL(blobUrl);
     }
 
+    // pdf.js por npm, bajo demanda (resources/js/utils/librerias.ts).
     function cargarPdfJs() {
-        if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
-        if (pdfJsLoader) return pdfJsLoader;
-
-        pdfJsLoader = new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
-            script.async = true;
-            script.onload = () => {
-                if (!window.pdfjsLib) {
-                    reject(new Error('No se pudo inicializar pdf.js.'));
-                    return;
-                }
-
-                window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-                resolve(window.pdfjsLib);
-            };
-            script.onerror = () => reject(new Error('No se pudo cargar pdf.js.'));
-            document.head.appendChild(script);
-        });
-
-        return pdfJsLoader;
+        return window.librerias.pdfjs();
     }
 
     async function solicitarPdfReporte(fecha) {
