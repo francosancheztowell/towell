@@ -269,7 +269,7 @@
 
   const inicializarSelect = () => {
     comboboxProyecto ??= window.combobox(proyecto, {
-      placeholder:'Selecciona una tarea', permitirVacio:true, flotante:true,
+      placeholder:'Selecciona una tarea', permitirVacio:true,
       remoto:{url:@json(route('programa-tejido.redbooth.proyectos'))},
       textos:{sinResultados:'No se encontraron tareas',buscando:'Buscando…',errorCarga:'No se pudieron cargar las tareas'},
     });

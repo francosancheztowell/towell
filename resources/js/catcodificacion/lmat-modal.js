@@ -1799,7 +1799,6 @@ async function openLMatModal(context = {}) {
                 combobox(colorSelect, {
                     placeholder: 'Escribe código o nombre',
                     permitirVacio: true,
-                    flotante: true,
                 });
             };
 
@@ -1923,7 +1922,6 @@ async function openLMatModal(context = {}) {
                     combobox(sel, {
                         placeholder: 'Escribe para buscar artículo',
                         permitirVacio: true,
-                        flotante: true,
                     });
                     sel.addEventListener('change', manejarCambioArticulo);
                 });

@@ -21,7 +21,7 @@
         "@fortawesome/fontawesome-free": "^7.2.0",
         "axios": "^1.7.9",
         "chart.js": "^4.5.1",
-        "html2canvas": "^1.4.1",
+        "html2canvas-pro": "^2.4.5",
         "pdfjs-dist": "^6.3.289",
         "qrcode": "^1.5.4",
         "sortablejs": "^1.15.6",

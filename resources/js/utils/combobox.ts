@@ -18,6 +18,7 @@
  */
 import TomSelect from 'tom-select/base';
 import clearButton from 'tom-select/plugins/clear_button/plugin.js';
+import dropdownInput from 'tom-select/plugins/dropdown_input/plugin.js';
 import removeButton from 'tom-select/plugins/remove_button/plugin.js';
 import 'tom-select/dist/css/tom-select.default.css';
 import './combobox.css';
@@ -32,6 +33,7 @@ import {
 } from './combobox-opciones.ts';
 
 TomSelect.define('clear_button', clearButton);
+TomSelect.define('dropdown_input', dropdownInput);
 TomSelect.define('remove_button', removeButton);
 
 export type { RemotoCombobox, TextosCombobox };
@@ -44,11 +46,6 @@ export interface OpcionesCombobox {
     multiple?: boolean;
     /** Cargar las opciones del servidor al buscar (y al abrir). */
     remoto?: RemotoCombobox;
-    /**
-     * Monta la lista en <body> por encima de todo. Úsalo dentro de modales o
-     * contenedores con overflow que la recortarían (popup de Swal, Redbooth).
-     */
-    flotante?: boolean;
     textos?: Partial<TextosCombobox>;
 }
 
@@ -64,6 +61,8 @@ export function combobox(select: HTMLSelectElement, opciones: OpcionesCombobox =
     const textos = { ...TEXTOS_COMBOBOX, ...opciones.textos };
     const multiple = opciones.multiple ?? select.multiple;
     const plugins = [
+        // Búsqueda dentro de la lista, como Select2: el control solo muestra la selección.
+        ...(!multiple ? ['dropdown_input'] : []),
         ...(opciones.permitirVacio && !multiple ? ['clear_button'] : []),
         ...(multiple ? ['remove_button'] : []),
     ];
@@ -76,7 +75,6 @@ export function combobox(select: HTMLSelectElement, opciones: OpcionesCombobox =
         maxItems: multiple ? null : 1,
         maxOptions: null,
         placeholder: opciones.placeholder ?? select.dataset.placeholder ?? '',
-        hidePlaceholder: false,
         allowEmptyOption: false,
         render: plantillas(textos, cargar?.fallo),
     };
@@ -93,10 +91,10 @@ export function combobox(select: HTMLSelectElement, opciones: OpcionesCombobox =
         });
     }
 
-    if (opciones.flotante) {
-        ajustes.dropdownParent = 'body';
-        ajustes.dropdownClass = 'ts-dropdown combobox-flotante';
-    }
+    // La lista va en <body>, como en Select2: dentro del contenedor la tapaban
+    // encabezados sticky y la recortaban modales/tablas con overflow.
+    ajustes.dropdownParent = 'body';
+    ajustes.dropdownClass = 'ts-dropdown combobox-flotante';
 
     const instancia = new TomSelect(select, ajustes as ConstructorParameters<typeof TomSelect>[1]);
 
@@ -106,7 +104,7 @@ export function combobox(select: HTMLSelectElement, opciones: OpcionesCombobox =
     instancia.wrapper.classList.remove(...clasesDelSelect);
     instancia.wrapper.classList.add('combobox');
 
-    if (opciones.flotante) reposicionarAlDesplazar(instancia);
+    reposicionarAlDesplazar(instancia);
 
     return instancia;
 }

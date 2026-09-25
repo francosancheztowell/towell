@@ -3,10 +3,13 @@
  * que se piden (import() dinámico, chunk aparte) y no entran al JS del layout.
  * Antes venían de cdnjs con <script>.
  *
+ * html2canvas-pro y no html2canvas: la 1.4.1 (la del CDN) truena con los colores
+ * oklch() de Tailwind v4 ("unsupported color function"). Misma API.
+ *
  *   const html2canvas = await window.librerias.html2canvas();
  *   const pdfjsLib = await window.librerias.pdfjs();
  */
-import type Html2Canvas from 'html2canvas';
+import type Html2Canvas from 'html2canvas-pro';
 
 type Html2CanvasFn = typeof Html2Canvas;
 type PdfJs = typeof import('pdfjs-dist/legacy/build/pdf.mjs');
@@ -27,7 +30,7 @@ export function unaVez<T>(cargar: () => Promise<T>): () => Promise<T> {
     };
 }
 
-const html2canvas = unaVez<Html2CanvasFn>(async () => (await import('html2canvas')).default);
+const html2canvas = unaVez<Html2CanvasFn>(async () => (await import('html2canvas-pro')).default);
 
 // Build `legacy` de pdf.js: la moderna exige navegadores recientes y en planta hay tablets viejas.
 const pdfjs = unaVez<PdfJs>(async () => {

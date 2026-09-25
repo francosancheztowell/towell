@@ -22,6 +22,10 @@
     transition: border-color .15s ease, box-shadow .15s ease;
 }
 
+.ts-wrapper.combobox.single .ts-control {
+    flex-wrap: nowrap;
+}
+
 .ts-wrapper.combobox .ts-control > input::placeholder {
     color: #94a3b8;
 }
@@ -41,8 +45,6 @@
     color: #ef4444;
 }
 
-.ts-wrapper.combobox + .ts-dropdown,
-.ts-wrapper.combobox .ts-dropdown,
 .ts-dropdown.combobox-flotante {
     border: 1px solid #3b82f6;
     border-radius: 0.6rem;
@@ -61,12 +63,20 @@
     color: #1e40af;
 }
 
+.ts-dropdown.combobox-flotante .dropdown-input {
+    margin: 6px;
+    width: calc(100% - 12px);
+    border: 1px solid #cbd5e1;
+    border-radius: 0.45rem;
+    padding: 0.35rem 0.5rem;
+}
+
 .ts-dropdown .combobox-cargando {
     padding: 5px 8px;
     color: #64748b;
 }
 
-/* En <body>: por encima de modales (Swal 1060, Redbooth 2147483000; mismo valor que tenía Select2 ahí). */
+/* La lista vive en <body>: por encima de modales (Swal 1060, Redbooth 2147483000; mismo valor que tenía Select2 ahí). */
 .ts-dropdown.combobox-flotante {
     z-index: 2147483050;
 }
