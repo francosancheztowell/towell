@@ -232,6 +232,8 @@ export function iniciar(op: Opciones): Telemetria | null {
       ...datos,
       stack: datos.stack?.slice(0, STACK_MAX),
       url: win.location.pathname,
+      // Se lee al reportar: la navegación suave de Livewire cambia los <meta> antes de livewire:navigated.
+      ruta: meta('towell-ruta') || undefined,
       vista: vista || undefined,
       version: meta('towell-version') || undefined,
     }).catch(() => {})
