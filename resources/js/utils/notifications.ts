@@ -3,7 +3,8 @@
  *
  * - Toasts (success/error/warning/info): nativos, sin Toastr ni jQuery. Contenedor
  *   único con aria-live="polite", pila de máximo 4, cierre manual accesible y pausa
- *   al pasar el puntero o enfocar. No usan el toast de SweetAlert2 porque comparte
+ *   al pasar el puntero o enfocar. Van debajo del navbar (no tapan Crear/Editar/Eliminar,
+ *   HANDOFF 16 A4), en el mismo lugar que x-ui.flash, y duran lo mismo todos (UX-13). No usan el toast de SweetAlert2 porque comparte
  *   singleton con los modales y cerraba el que estuviera abierto.
  * - Modales (alert/validation/confirm/loading/close): SweetAlert2.
  *
@@ -19,11 +20,18 @@ import { escapeHtml } from './format.ts';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
+/**
+ * UX-13: una sola duración para todos los toasts (antes iba de 1.3 a 6 s según el tipo y el
+ * módulo). 5 s alcanza para leer una línea; pasar el puntero o enfocar el toast lo pausa, y
+ * el botón × lo cierra antes. TOAST_DURATIONS se conserva para quien lo consulte por tipo.
+ */
+export const TOAST_DURATION = 5000;
+
 export const TOAST_DURATIONS: Readonly<Record<ToastType, number>> = {
-    success: 2500,
-    info: 3000,
-    warning: 5000,
-    error: 6000,
+    success: TOAST_DURATION,
+    info: TOAST_DURATION,
+    warning: TOAST_DURATION,
+    error: TOAST_DURATION,
 };
 
 export const MAX_TOASTS = 4;
@@ -34,7 +42,7 @@ const STYLE_ID = 'towell-toasts-style';
 const ICONS: Record<ToastType, string> = { success: '✓', info: 'i', warning: '!', error: '✕' };
 
 const STYLES = `
-.towell-toasts{position:fixed;top:1rem;right:1rem;z-index:1000000;display:flex;flex-direction:column;gap:.5rem;width:min(22rem,calc(100vw - 2rem));pointer-events:none}
+.towell-toasts{position:fixed;top:calc(var(--pt-navbar-height,64px) + .75rem);right:1rem;z-index:1000000;display:flex;flex-direction:column;gap:.5rem;width:min(22rem,calc(100vw - 2rem));pointer-events:none}
 .towell-toast{pointer-events:auto;display:flex;align-items:flex-start;gap:.625rem;padding:.75rem .75rem .75rem .875rem;border-radius:.5rem;border-left:4px solid;background:#fff;color:#1f2937;box-shadow:0 10px 15px -3px rgb(0 0 0/.15),0 4px 6px -4px rgb(0 0 0/.1);font:500 .875rem/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;animation:towell-toast-in .18s ease-out}
 .towell-toast__icon{flex:none;display:inline-flex;align-items:center;justify-content:center;width:1.25rem;height:1.25rem;border-radius:9999px;color:#fff;font-size:.75rem;font-weight:700}
 .towell-toast__msg{flex:1;min-width:0;overflow-wrap:anywhere;white-space:pre-line}
