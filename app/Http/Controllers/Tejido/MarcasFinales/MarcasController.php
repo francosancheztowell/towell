@@ -2,20 +2,20 @@
 
 namespace App\Http\Controllers\Tejido\MarcasFinales;
 
-use App\Helpers\TurnoHelper;
 use App\Exports\MarcasFinalesExport;
+use App\Helpers\TurnoHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Sistema\SYSMensaje;
 use App\Models\Tejido\TejMarcas;
 use App\Models\Tejido\TejMarcasLine;
+use App\Services\Telegram\TelegramEnvio;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -785,13 +785,16 @@ class MarcasController extends Controller
                 return response()->json(['success' => false, 'message' => 'Error: PDF generado está vacío'], 500);
             }
 
-            // Enviar por Telegram
-            $this->enviarReporteMarcasPdfTelegram($pdfContent, $filename, $fechaNorm, Auth::user());
+            // Enviar por Telegram. PERF-13: el usuario ve a cuántos destinatarios llegó.
+            $resultado = $this->enviarReporteMarcasPdfTelegram($pdfContent, $filename, $fechaNorm, Auth::user());
+            $enviado = $resultado['enviados'] > 0;
 
             return response()->json([
-                'success' => true,
-                'message' => 'Reporte enviado por Telegram exitosamente',
-            ]);
+                'success' => $enviado,
+                'message' => TelegramEnvio::resumen('Reporte', $resultado['enviados'], $resultado['total']),
+                'enviados' => $resultado['enviados'],
+                'destinatarios' => $resultado['total'],
+            ], $enviado ? 200 : 500);
         } catch (\Throwable $th) {
             Log::error('Error al notificar por Telegram marcas finales', [
                 'mensaje' => $th->getMessage(),
@@ -808,22 +811,26 @@ class MarcasController extends Controller
     /**
      * Enviar el PDF del reporte de marcas finales a Telegram.
      * Destinatarios: SYSMensajes con MarcasFinales=1 y Activo=1.
+     *
+     * @return array{enviados: int, total: int}
      */
-    private function enviarReporteMarcasPdfTelegram(string $pdfContent, string $filename, string $fecha, $usuario = null): void
+    private function enviarReporteMarcasPdfTelegram(string $pdfContent, string $filename, string $fecha, $usuario = null): array
     {
+        $sinEnvio = ['enviados' => 0, 'total' => 0];
+
         try {
             $botToken = config('services.telegram.bot_token');
             if (empty($botToken)) {
                 Log::warning('No se pudo enviar PDF a Telegram: TELEGRAM_BOT_TOKEN no configurado');
 
-                return;
+                return $sinEnvio;
             }
 
             $chatIds = SYSMensaje::getChatIdsPorModulo('MarcasFinales');
             if (empty($chatIds)) {
                 Log::warning('No hay destinatarios con MarcasFinales activo en SYSMensajes');
 
-                return;
+                return $sinEnvio;
             }
 
             if (empty($pdfContent)) {
@@ -832,7 +839,7 @@ class MarcasController extends Controller
                     'filename' => $filename,
                 ]);
 
-                return;
+                return ['enviados' => 0, 'total' => count($chatIds)];
             }
 
             $pdfSizeMB = strlen($pdfContent) / 1024 / 1024;
@@ -843,7 +850,7 @@ class MarcasController extends Controller
                     'size_mb' => round($pdfSizeMB, 2),
                 ]);
 
-                return;
+                return ['enviados' => 0, 'total' => count($chatIds)];
             }
 
             $nombreUsuario = $usuario->nombre ?? $usuario->name ?? null;
@@ -858,36 +865,10 @@ class MarcasController extends Controller
                 }
             }
 
-            $url = "https://api.telegram.org/bot{$botToken}/sendDocument";
+            $resultados = app(TelegramEnvio::class)->archivo('sendDocument', $chatIds, $pdfContent, $filename, $caption);
+            TelegramEnvio::registrarFallos($resultados, 'marcas finales', ['fecha' => $fecha, 'filename' => $filename]);
 
-            foreach ($chatIds as $chatId) {
-                $response = Http::timeout(30)
-                    ->attach('document', $pdfContent, $filename)
-                    ->post($url, [
-                        'chat_id' => $chatId,
-                        'caption' => $caption,
-                    ]);
-
-                if ($response->successful()) {
-                    $data = $response->json();
-                    if (! ($data['ok'] ?? false)) {
-                        Log::error('Telegram respondió ok=false para marcas finales', [
-                            'response' => $data,
-                            'fecha' => $fecha,
-                            'filename' => $filename,
-                            'chat_id' => $chatId,
-                        ]);
-                    }
-                } else {
-                    Log::error('Error HTTP al enviar marcas finales a Telegram', [
-                        'status' => $response->status(),
-                        'body' => $response->body(),
-                        'fecha' => $fecha,
-                        'filename' => $filename,
-                        'chat_id' => $chatId,
-                    ]);
-                }
-            }
+            return ['enviados' => TelegramEnvio::enviados($resultados), 'total' => count($resultados)];
         } catch (\Throwable $e) {
             Log::error('Excepción al enviar PDF de marcas finales a Telegram', [
                 'error' => $e->getMessage(),
@@ -895,6 +876,8 @@ class MarcasController extends Controller
                 'fecha' => $fecha,
                 'filename' => $filename ?? null,
             ]);
+
+            return ['enviados' => 0, 'total' => count($chatIds ?? [])];
         }
     }
 

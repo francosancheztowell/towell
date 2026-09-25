@@ -6,8 +6,8 @@ namespace App\Services\Mantenimiento;
 
 use App\Models\Mantenimiento\ManFallasParos;
 use App\Models\Sistema\SYSMensaje;
+use App\Services\Telegram\TelegramEnvio;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -20,6 +20,8 @@ use Throwable;
  */
 final class ParoTelegramNotifier
 {
+    public function __construct(private readonly TelegramEnvio $telegram = new TelegramEnvio) {}
+
     public function notifyCreated(ManFallasParos $stop): void
     {
         $this->dispatch($stop, $this->buildCreatedMessage($stop), 'alta');
@@ -117,20 +119,13 @@ final class ParoTelegramNotifier
                 return;
             }
 
-            $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
-
-            foreach ($chatIds as $chatId) {
-                $response = Http::timeout(5)->post($url, [
-                    'chat_id' => $chatId,
-                    'text' => $message,
-                ]);
-
-                if (! $response->successful() || ! ($response->json('ok') ?? false)) {
+            foreach ($this->telegram->mensaje($chatIds, $message) as $chatId => $resultado) {
+                if (! TelegramEnvio::exitoso($resultado)) {
                     Log::warning('Telegram rechazó una notificación de paro.', [
                         'paro_id' => $stop->Id,
                         'evento' => $evento,
-                        'chat_id' => $chatId,
-                        'status' => $response->status(),
+                        'chat_id' => (string) $chatId,
+                        'status' => TelegramEnvio::detalle($resultado)['status'],
                     ]);
                 }
             }

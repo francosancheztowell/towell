@@ -2,9 +2,9 @@
 
 namespace App\Services\Tejido\InventarioTrama;
 
+use App\Jobs\Telegram\EnviarMensajeTelegram;
 use App\Models\Sistema\SYSMensaje;
 use App\Models\Tejido\TejTrama;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class RequerimientoStatusService
@@ -96,17 +96,15 @@ class RequerimientoStatusService
             $mensaje .= 'Turno: '.($req->Turno ?? 'N/A')."\n";
             $mensaje .= 'Operador: '.($req->numero_empleado ?? 'N/A')."\n";
 
-            $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
-            foreach ($chatIds as $chatId) {
-                $resp = Http::post($url, [
-                    'chat_id' => $chatId,
-                    'text' => $mensaje,
-                    'parse_mode' => 'Markdown',
-                ]);
-                if ($resp->failed()) {
-                    Log::error('Telegram: fallo al enviar', ['folio' => $req->Folio, 'chat_id' => $chatId, 'status' => $resp->status(), 'body' => $resp->body()]);
-                }
-            }
+            // En la cola: quien solicita no espera a Telegram (PERF-13).
+            EnviarMensajeTelegram::encolar(new EnviarMensajeTelegram(
+                chatIds: $chatIds,
+                texto: $mensaje,
+                extra: ['parse_mode' => 'Markdown'],
+                mensajeLog: 'Telegram: fallo al enviar',
+                contextoLog: ['folio' => $req->Folio],
+                nivelLog: 'error',
+            ));
         } catch (\Throwable $e) {
             Log::error('Telegram: excepción al enviar', ['folio' => $req->Folio, 'error' => $e->getMessage()]);
         }

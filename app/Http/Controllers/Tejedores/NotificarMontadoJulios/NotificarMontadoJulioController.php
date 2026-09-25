@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Tejedores\NotificarMontadoJulios;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\Telegram\EnviarMensajeTelegram;
 use App\Models\Sistema\SYSMensaje;
 use App\Models\Tejedores\TejNotificaTejedorModel;
 use App\Models\Tejedores\TelTelaresOperador;
@@ -11,7 +12,6 @@ use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class NotificarMontadoJulioController extends Controller
@@ -298,22 +298,14 @@ class NotificarMontadoJulioController extends Controller
             $mensaje .= "\n";
         }
 
-        $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
-        foreach ($chatIds as $chatId) {
-            $response = Http::timeout(20)->post($url, [
-                'chat_id' => $chatId,
-                'text' => $mensaje,
-                'parse_mode' => 'Markdown',
-            ]);
-
-            if (! $response->successful()) {
-                Log::error('Error al enviar notificacion de atado de julio a Telegram', [
-                    'status' => $response->status(),
-                    'response' => $response->json(),
-                    'telar' => $registro->no_telar ?? null,
-                    'chat_id' => $chatId,
-                ]);
-            }
-        }
+        // En la cola: el tejedor no espera a Telegram (PERF-13).
+        EnviarMensajeTelegram::encolar(new EnviarMensajeTelegram(
+            chatIds: $chatIds,
+            texto: $mensaje,
+            extra: ['parse_mode' => 'Markdown'],
+            mensajeLog: 'Error al enviar notificacion de atado de julio a Telegram',
+            contextoLog: ['telar' => $registro->no_telar ?? null],
+            nivelLog: 'error',
+        ));
     }
 }
