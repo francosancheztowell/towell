@@ -10,13 +10,18 @@ use App\Http\Middleware\NoCacheHtmlResponses;
 use App\Http\Middleware\ProgramaTejidoContext;
 use App\Http\Middleware\SetSqlContextInfo;
 use App\Services\Monitoreo\ErrorRecorder;
+use App\Support\Http\Concerns\HandlesApiErrors;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -95,5 +100,36 @@ return Application::configure(basePath: dirname(__DIR__))
                 'message' => 'No fue posible sincronizar la pantalla. Recarga la página.',
                 'code' => 'livewire_endpoint_not_found',
             ], 404);
+        });
+
+        // SEC-04: 5xx en JSON (window.http, axios, fetch con Accept JSON) sin detalle interno y
+        // con trace_id = Id del evento de SYSMonErrorEvento (el report() ya corrió). Con
+        // APP_DEBUG=true queda el detalle de Laravel. Livewire no manda Accept JSON: sigue con
+        // la página 500 (sin detalle y con el mismo código de referencia).
+        $exceptions->render(function (Throwable $e, Request $request): ?Response {
+            if (config('app.debug') || ! $request->expectsJson()
+                || $e instanceof HttpResponseException
+                || $e instanceof AuthenticationException
+                || $e instanceof ValidationException) {
+                return null;
+            }
+
+            $status = $e instanceof HttpExceptionInterface ? $e->getStatusCode() : 500;
+            if ($status < 500) {
+                return null;
+            }
+
+            $headers = $e instanceof HttpExceptionInterface ? $e->getHeaders() : [];
+
+            return (new class
+            {
+                use HandlesApiErrors;
+
+                /** @param  array<string, string>  $headers */
+                public function responder(Throwable $e, int $status, array $headers): Response
+                {
+                    return $this->serverErrorResponse($e, $status, $headers);
+                }
+            })->responder($e, $status, $headers);
         });
     })->create();
