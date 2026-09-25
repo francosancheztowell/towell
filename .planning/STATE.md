@@ -43,7 +43,11 @@ Ola 2, primera tanda — **integrada** en `claude/friendly-hopper-506bg9` el 202
 - Validación: **1 572 tests PHP**, phpstan OK, typecheck, **134 tests JS**, build, ratchet (toastr. 0, bg-opacity- 0, Swal.fire 800, onclick= 372, `<script>` inline 161), Pint.
 - Integrador: `CLAUDE.md` (sin jQuery/Select2/Toastr, combobox, librerías, Vite por glob, componentes, `UrdEngomado/`, servicios de Desarrolladores), BUG-022 resuelto en `inventario-bugs.md` (ambas copias), `ModuloService::limpiarCacheUsuario()` también olvida `moduleNameForRoute` (HANDOFF 18-01 #2).
 
-Status: Ola 2 — primera tanda integrada; 20-02/20-03 por abrir
+Ola 2, segunda tanda — abierta 2026-09-25 04:35 UTC (modo plan: espera aprobación del owner en la web):
+- `claude/20-02-03-errores-authz` — session_01GVBoCEjewocT2J3nmFFtNj (SEC-04 JSON 5xx con trace_id, SEC-05 AuthZ en modo auditar).
+17-01 (auditoría UX por uso real) sigue esperando ≥ 7 días de telemetría de producción.
+
+Status: Ola 2 — primera tanda integrada; segunda tanda (20-02 → 20-03) en curso
 Last activity: 2026-09-25 — Integración de la Ola 1 (4 ramas) + docs del integrador (CLAUDE.md, contrato §4, SQL Server 2008 R2).
 
 Progress: [█████░░░░░] ~35% (fases 10–14 completas, 15-01, PT 01, 01.1 y 02 completas)
@@ -78,6 +82,9 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 - 2026-09-24: sin proxy delante de Laragon → quitar `trustProxies` (sesión 13-14); órdenes de Muestras `M12345`; prod usa `file` para cache y sesión; alertas de errores solo por correo a francost15@gmail.com.
 
 ### Pending Todos (owner)
+
+- Aprobar en claude.ai/code el plan de la sesión 20-02 → 20-03.
+- Correr el SQL de despliegue (enviado 2026-09-25: `sysmon_tablas.sql` + registro en `dbo.migrations` + `failed_jobs` + barras de `main`), luego Pulse con `migrate --path` y `optimize`.
 
 
 **Despliegue en Laragon (192.168.2.15) de todo lo integrado** (fases 10, 11, 12, 13, 14, 15-01, PT 01.1/02):
@@ -128,5 +135,5 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 ## Session Continuity
 
 Last session: 2026-09-25
-Stopped at: Ola 2 primera tanda integrada y validada (sin push a main). Siguiente: proponer al owner abrir 20-02 (JSON 5xx) y 20-03 (AuthZ auditar); desplegar Olas 0–2.
+Stopped at: Ola 2 primera tanda integrada (rama, no main); 20-02 → 20-03 abierta. Siguiente: integrarla y evaluar G2 (sin jQuery ✅, vendor fuera del global ✅, galería DS ✅, AuthZ auditar ⏳, drivers/OPcache ✅ documentado, auditoría UX ⏳).
 Resume file: None
