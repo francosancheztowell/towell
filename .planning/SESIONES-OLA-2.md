@@ -176,3 +176,38 @@ Acuerdos: docs y commits en español ("programa tejido: <cambio>"); modo ponytai
 Antes de push: hook SessionStart (o CLAUDE_CODE_REMOTE=true bash scripts/session-start.sh); php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run typecheck && npm run test:js && npm run build; npm run ratchet; php artisan planeacion:programa-tejido-health en sqlite; skill code-review.
 Entregables: código + tests + 04-perf-SUMMARY.md (tabla antes/después como la de 04-PERF-MEDIDO.md) (+ HANDOFF.md si aplica). Push a claude/pt-04-perf. NO abras PR.
 ```
+
+---
+
+## Segunda tanda (abierta 2026-09-25, tras integrar la primera en `claude/friendly-hopper-506bg9`)
+
+| Sesión | Rama | Contexto |
+|---|---|---|
+| 20-02 → 20-03 — Errores JSON y AuthZ en modo auditar | `claude/20-02-03-errores-authz` | `phases/20-arq-sec/20-CONTEXT.md` (20-02 y 20-03), `20-01-SUMMARY.md` |
+
+Única sesión activa: es dueña de `bootstrap/app.php` (archivo caliente de ARQ en la Ola 2) y de las rutas de módulos fuera de Planeación.
+
+## 6. Fases 20-02 → 20-03 — Errores JSON y AuthZ en modo auditar
+
+```
+(Esta sesión arranca en modo plan: lee el protocolo y el contexto, presenta tu plan para aprobación del owner y, una vez aprobado, ejecútalo completo.)
+
+Proyecto Towell (Laravel 12 + Livewire 4 + Vite/TS, SQL Server 2008 R2 en producción). Refactor integral 2026. Lee primero .planning/PROTOCOLO-SESIONES.md, .planning/SESIONES-OLA-2.md (sección "Segunda tanda") y CLAUDE.md.
+
+Fases 20-02 y 20-03 — Arquitectura y seguridad. IDs: SEC-04, SEC-05 (SEC-06/SEC-07/ARQ-05 NO: van en cada 19-xx).
+Contexto: .planning/phases/20-arq-sec/20-CONTEXT.md (secciones 20-02 y 20-03) y 20-01-SUMMARY.md. Monitoreo ya integrado: ErrorRecorder (fase 11) y App\Services\Monitoreo\AccesoService::registrar('authz_denegaria', …) — consúmelos, no los cambies (si hace falta, HANDOFF).
+Escribe primero .planning/phases/20-arq-sec/20-02-PLAN.md y 20-03-PLAN.md, y ejecútalos en ese orden con commits separados.
+Rama: claude/20-02-03-errores-authz (base claude/friendly-hopper-506bg9).
+
+20-02 (SEC-04): render central en bootstrap/app.php para respuestas JSON 5xx (requests que esperan JSON, incluidas las de window.http y Livewire): mensaje genérico en español + trace_id = Id del evento de SYSMonErrorEvento que expone ErrorRecorder (si no hay evento, un id de referencia igual al de la página 500). Nunca exponer getMessage(), clase, archivo ni SQL con APP_DEBUG=false; con APP_DEBUG=true se conserva el detalle actual. Reusar app/Support/Http/Concerns/HandlesApiErrors.php. No cambies los catch de los controllers (eso es SEC-07 en cada 19-xx). Tests: 500 en JSON sin detalle y con trace_id; 422/403/404/419 intactos; HTML 500 intacto.
+
+20-03 (SEC-05): EnsureModulePermission (module.permission:<accion>,<idrol>) acepta un tercer parámetro `auditar` (module.permission:crear,123,auditar): si el usuario NO tendría permiso, registra SYSMonAcceso tipo authz_denegaria (ruta, acción, idrol, usuario) y DEJA PASAR; con permiso no registra nada. Sin el parámetro, el comportamiento actual no cambia. Aplicar el modo auditar a las rutas de escritura (POST/PUT/PATCH/DELETE) SIN module.permission de routes/modules/*.php excepto planeacion.php (Planeación ya la cerró PT 01.1). Mapa acción ↔ idrol por módulo documentado en .planning/phases/20-arq-sec/20-03-MAPA-AUTHZ.md, con la fuente de cada idrol (SYSRoles / vistas que ya usan userCan). Excepción aprobada por el owner: alta de paros de mantenimiento queda abierta a cualquier usuario autenticado (sin auditar). Test que falle si aparece una ruta de escritura nueva fuera de Planeación sin module.permission (ni enforce ni auditar), al estilo de tests/Feature/Planeacion/PlaneacionEscrituraAutorizacionTest.php. Deduplicar el registro: una fila por usuario+ruta+acción por hora como máximo (cache), para no llenar SYSMonAcceso.
+
+ERES DUEÑO DE: bootstrap/app.php, app/Http/Middleware/EnsureModulePermission.php, app/Support/Http/Concerns/HandlesApiErrors.php, routes/modules/*.php EXCEPTO routes/modules/planeacion.php (solo agregar middleware; no mover ni renombrar rutas), tests nuevos en tests/Feature/Seguridad/**, .planning/phases/20-arq-sec/**.
+SOLO LECTURA: app/Services/Monitoreo/** (consumir ErrorRecorder y AccesoService), app/Helpers/permission-helpers.php, controllers.
+PROHIBIDO: routes/modules/planeacion.php y todo Programa Tejido, controllers de negocio (los catch con getMessage() son SEC-07 de cada 19-xx), resources/js/**, vistas, composer.*, package.json, config/database.php. Si necesitas algo ahí: .planning/phases/20-arq-sec/HANDOFF.md.
+
+Acuerdos: docs y commits en español ("seguridad: <cambio>"); modo ponytail; NUNCA saltar/desactivar tests; no editar .planning/ROADMAP.md, STATE.md, REQUIREMENTS.md ni PROJECT.md; el ratchet no sube; SQL compatible con 2008 R2 (hay test que lo vigila en database/sql); el snapshot de rutas de PT no debe cambiar.
+Antes de push: hook SessionStart (o CLAUDE_CODE_REMOTE=true bash scripts/session-start.sh); php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run build && npm run ratchet; vendor/bin/pint --test en archivos tocados; skills security-review y code-review (obligatorios).
+Entregables: código + tests + 20-02-SUMMARY.md, 20-03-SUMMARY.md y 20-03-MAPA-AUTHZ.md (+ HANDOFF.md si aplica). Push a claude/20-02-03-errores-authz. NO abras PR.
+```
