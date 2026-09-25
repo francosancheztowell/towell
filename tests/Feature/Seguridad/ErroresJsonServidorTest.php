@@ -36,6 +36,10 @@ class ErroresJsonServidorTest extends TestCase
             Route::post('/_seg/validacion', fn () => request()->validate(['x' => 'required']));
             Route::get('/_seg/prohibido', fn () => abort(403, 'Sin permiso de prueba'));
             Route::get('/_seg/csrf', fn () => throw new TokenMismatchException('CSRF token mismatch.'));
+            Route::get('/_seg/dos-errores', function () {
+                report(new RuntimeException('Primer error, registrado'));
+                throw new \LogicException('Segundo error, ignorado por monitoreo');
+            });
             Route::get('/_seg/api-error', function () {
                 $controller = new class
                 {
@@ -111,6 +115,17 @@ class ErroresJsonServidorTest extends TestCase
             ->json('trace_id');
 
         $this->assertMatchesRegularExpression('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $traceId);
+    }
+
+    public function test_el_trace_id_es_el_de_esta_excepcion_y_no_el_ultimo_de_la_request(): void
+    {
+        config()->set('monitoreo.errores.ignorar', [\LogicException::class]);
+
+        $traceId = $this->getJson('/_seg/dos-errores')->assertStatus(500)->json('trace_id');
+
+        $this->assertSame(1, $this->ultimoEventoId(), 'el primer error sí se registró');
+        $this->assertNotSame('1', $traceId);
+        $this->assertMatchesRegularExpression('/^[0-9a-f-]{36}$/', $traceId);
     }
 
     public function test_con_app_debug_se_conserva_el_detalle_de_laravel(): void

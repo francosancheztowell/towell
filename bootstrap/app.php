@@ -64,7 +64,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // (no ->stop()) y nunca lanza; ver App\Services\Monitoreo\ErrorRecorder.
         $exceptions->report(function (Throwable $e): void {
             try {
-                app(ErrorRecorder::class)->capturar($e);
+                $eventoId = app(ErrorRecorder::class)->capturar($e);
+                // SEC-04: el trace_id de ESTA excepción (EstadoRequest::eventoId es el último de la request).
+                if ($eventoId !== null) {
+                    if (! app()->bound('monitoreo.eventos_por_excepcion')) {
+                        app()->instance('monitoreo.eventos_por_excepcion', new WeakMap);
+                    }
+                    app('monitoreo.eventos_por_excepcion')[$e] = $eventoId;
+                }
             } catch (Throwable) {
                 // El monitoreo nunca debe impedir el reporte normal.
             }

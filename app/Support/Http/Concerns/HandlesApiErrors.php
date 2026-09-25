@@ -2,10 +2,10 @@
 
 namespace App\Support\Http\Concerns;
 
-use App\Services\Monitoreo\EstadoRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use WeakMap;
 
 trait HandlesApiErrors
 {
@@ -26,7 +26,7 @@ trait HandlesApiErrors
         // controller lo haya atrapado. No cambia la respuesta.
         report($e);
 
-        $traceId = $this->traceIdDeError();
+        $traceId = $this->traceIdDeError($e);
 
         Log::error($logMessage, array_merge($context, [
             'trace_id' => $traceId,
@@ -51,7 +51,7 @@ trait HandlesApiErrors
      */
     protected function serverErrorResponse(\Throwable $e, int $status = 500, array $headers = []): JsonResponse
     {
-        $eventoId = $this->eventoIdDeError();
+        $eventoId = $this->eventoIdDeError($e);
         $traceId = $eventoId ?? (string) Str::uuid();
 
         if ($eventoId === null) {
@@ -74,19 +74,32 @@ trait HandlesApiErrors
     }
 
     /**
-     * Id del evento de SYSMonErrorEvento de esta request (el código de referencia de la
-     * página 500); si no hay, un uuid.
+     * Id del evento de SYSMonErrorEvento que registró el report() de ESTA excepción (el código
+     * de referencia de la página 500); si no se registró, un uuid.
      */
-    protected function traceIdDeError(): string
+    protected function traceIdDeError(\Throwable $e): string
     {
-        return $this->eventoIdDeError() ?? (string) Str::uuid();
+        return $this->eventoIdDeError($e) ?? (string) Str::uuid();
     }
 
-    private function eventoIdDeError(): ?string
+    private function eventoIdDeError(\Throwable $e): ?string
     {
-        $eventoId = rescue(fn () => app(EstadoRequest::class)->eventoId, null, false);
+        // Excepción => Id de evento, lo llena el callback de report() de bootstrap/app.php. No se
+        // usa EstadoRequest::eventoId porque es el ÚLTIMO error de la request: si otro se
+        // registró antes y este no (tope diario, clase ignorada), daría el código equivocado.
+        if (! app()->bound('monitoreo.eventos_por_excepcion')) {
+            return null;
+        }
+        /** @var WeakMap<\Throwable, int> $eventos */
+        $eventos = app('monitoreo.eventos_por_excepcion');
 
-        return $eventoId ? (string) $eventoId : null;
+        for ($actual = $e; $actual !== null; $actual = $actual->getPrevious()) {
+            if (isset($eventos[$actual])) {
+                return (string) $eventos[$actual];
+            }
+        }
+
+        return null;
     }
 
     /**
