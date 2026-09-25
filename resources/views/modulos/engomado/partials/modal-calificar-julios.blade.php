@@ -217,7 +217,6 @@
             renderTabla(json.julios || []);
         } catch (e) {
             notify.error(e.message);
-            else alert(e.message);
         } finally {
             document.getElementById('calificarJuliosLoading').classList.add('hidden');
         }
@@ -257,7 +256,6 @@
             }
         } catch (e) {
             notify.error(e.message);
-            else alert(e.message);
         } finally {
             selectEl.disabled = false;
         }
