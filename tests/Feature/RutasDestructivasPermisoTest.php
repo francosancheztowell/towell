@@ -131,7 +131,8 @@ class RutasDestructivasPermisoTest extends TestCase
                 continue;
             }
             [, $args] = explode(':', $mw, 2);
-            [$accion, $modulo] = array_pad(explode(',', $args, 2), 2, '');
+            // El tercer parámetro opcional es el modo (`auditar`, SEC-05).
+            [$accion, $modulo] = array_pad(explode(',', $args), 2, '');
             $gates[] = [trim($accion), trim($modulo)];
         }
 

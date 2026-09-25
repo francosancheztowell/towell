@@ -69,15 +69,15 @@ Route::prefix('mecanicos/ordenes-trabajo')
         Route::get('/registros', [OrdenesTrabajoMecaController::class, 'registros'])->name('registros');
         Route::get('/paros-activos', [OrdenesTrabajoMecaController::class, 'parosActivos'])->name('paros-activos');
         Route::get('/paros-historial', [OrdenesTrabajoMecaController::class, 'parosHistorial'])->name('paros-historial');
-        Route::post('/', [OrdenesTrabajoMecaController::class, 'store'])->name('store');
+        Route::post('/', [OrdenesTrabajoMecaController::class, 'store'])->middleware('module.permission:crear,193,auditar')->name('store'); // Ordenes de Trabajo
         Route::get('/{folio}/captura', [OrdenesTrabajoMecaController::class, 'captura'])->name('captura');
         Route::get('/{folio}/refacciones', [OrdenesTrabajoMecaController::class, 'refacciones'])->name('refacciones');
         Route::get('/{folio}', [OrdenesTrabajoMecaController::class, 'show'])->name('show');
-        Route::put('/{folio}', [OrdenesTrabajoMecaController::class, 'update'])->name('update');
+        Route::put('/{folio}', [OrdenesTrabajoMecaController::class, 'update'])->middleware('module.permission:modificar,193,auditar')->name('update'); // Ordenes de Trabajo
         Route::delete('/{folio}', [OrdenesTrabajoMecaController::class, 'destroy'])
             ->middleware('module.permission:eliminar,193')->name('destroy'); // Ordenes de Trabajo
-        Route::post('/{folio}/lineas', [OrdenesTrabajoMecaController::class, 'storeLinea'])->name('lineas.store');
-        Route::put('/{folio}/lineas/{linea}', [OrdenesTrabajoMecaController::class, 'updateLinea'])->name('lineas.update')->whereNumber('linea');
+        Route::post('/{folio}/lineas', [OrdenesTrabajoMecaController::class, 'storeLinea'])->middleware('module.permission:crear,193,auditar')->name('lineas.store'); // Ordenes de Trabajo
+        Route::put('/{folio}/lineas/{linea}', [OrdenesTrabajoMecaController::class, 'updateLinea'])->middleware('module.permission:acceso,193,auditar')->name('lineas.update')->whereNumber('linea'); // Ordenes de Trabajo; tejedores califican sin modificar
         Route::delete('/{folio}/lineas/{linea}', [OrdenesTrabajoMecaController::class, 'destroyLinea'])->whereNumber('linea')
             ->middleware('module.permission:eliminar,193')->name('lineas.destroy'); // Ordenes de Trabajo
         Route::post('/{folio}/finalizar', [OrdenesTrabajoMecaController::class, 'finalizar'])
