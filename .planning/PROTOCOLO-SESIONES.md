@@ -47,7 +47,7 @@ Además: skill `code-review` sobre el diff; `security-review` en fases 11, 13, 2
 
 - **Ola 0:** `10-base` (CI) → `11-mon-servidor` p1 (esquema) → `11` p2 → PT-01 cuando quiera (no comparte archivos).
 - **Ola 1:** `15-01-utils-ts` → `12-mon-cliente` → `14-mon-pulse` → `13-mon-panel`.
-- **Ola 2:** `20-01` movimientos puros → `18-01` → PT (usos select2) → `15-02` → `16` → `20-02` / `20-03`.
+- **Ola 2:** `20-01` movimientos puros → `18-01` → PT 04-perf → `15-02` → `16`; después `20-02` / `20-03` (segunda tanda). Propiedad de la ola en `SESIONES-OLA-2.md` (el bloque select2 de `redbooth` lo migra 15-02).
 - **Ola 3:** sesiones `19-xx` en cualquier orden (propiedad vertical); `17-02` antes que las 19-xx que toquen layout (ninguna debería).
 
 ## 5. Propiedad de archivos

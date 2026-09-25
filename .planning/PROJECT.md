@@ -76,6 +76,7 @@ Core Value del track PT (sin cambios): el planeador opera Programa Tejido más r
 | 2026-09-24 | No hay proxy delante de Laragon → se quita `trustProxies(at: '*')` (SEC-02) | Confirmado por el owner; la IP del monitoreo y del rate limit debe ser la real |
 | 2026-09-24 | Formato de órdenes de Muestras: **`M` + número** (ej. `M12345`) en `CatCodificados.OrdenTejido` y `MuestrasPrograma.NoProduccion` | Confirmado por el owner |
 | 2026-09-24 | Producción usa `file` para cache y sesión → no se crea tabla `cache` (BASE-09 cerrado) | Confirmado por el owner |
+| 2026-09-25 | Ola 2 se abre **sin esperar G1** para lo que no depende de telemetría (15-02, 16, 20-01, 18-01 + fix MON, PT 04-perf); 17-01 y 20-02/20-03 esperan | Decisión del owner; el monitoreo aún no está desplegado |
 
 ## Working Agreements
 

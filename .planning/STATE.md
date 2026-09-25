@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-09-25)
 
 **Core value:** Planta y planeación trabajan más rápido y sin fricción, y Sistemas ve qué pasa en producción, sin romper invariantes de dominio.
-**Current focus:** Ola 1 terminada e integrada; siguiente: apertura de la Ola 2 (librerías, componentes, arquitectura, perf infra, PT 04-perf).
+**Current focus:** Ola 2 — librerías (15-02), componentes (16), movimientos/folios (20-01), perf infra + fix MON (18-01), PT 04-perf.
 **Protocolo:** `.planning/PROTOCOLO-SESIONES.md` (propiedad de archivos, orden de merge, gates).
 
 ## Current Position
@@ -26,7 +26,15 @@ Validación de la rama integrada: **1 365 tests PHP verdes** (19 811 aserciones)
 
 G1 (entrada a Ola 2): utils TS mergeados ✅; monitoreo en producción ≥ 7 días ⏳ (falta desplegar); cierre remoto probado en prod ⏳; overhead p95 < 5 ms ✅ en local (1.4 ms), falta medir en prod.
 
-Status: Ola 1 cerrada; Ola 2 por abrir (decisión del owner sobre qué abrir antes de tener telemetría de prod)
+Ola 2 — abierta 2026-09-25 sin esperar G1 (decisión del owner). Prompts y propiedad en `SESIONES-OLA-2.md`; orden de merge 20-01 → 18-01 → PT 04-perf → 15-02 → 16:
+- `claude/15-02-librerias` — (sesión por crear)
+- `claude/16-componentes` — (sesión por crear)
+- `claude/20-01-arq` — (sesión por crear)
+- `claude/18-01-perf-infra` — (sesión por crear)
+- `claude/pt-04-perf` — (sesión por crear)
+Después: 20-02 / 20-03 al integrar 20-01; 17-01 cuando haya ≥ 7 días de telemetría.
+
+Status: Ola 2 en curso
 Last activity: 2026-09-25 — Integración de la Ola 1 (4 ramas) + docs del integrador (CLAUDE.md, contrato §4, SQL Server 2008 R2).
 
 Progress: [█████░░░░░] ~35% (fases 10–14 completas, 15-01, PT 01, 01.1 y 02 completas)
@@ -101,5 +109,5 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 ## Session Continuity
 
 Last session: 2026-09-25
-Stopped at: Ola 1 integrada y validada. Siguiente: decidir con el owner la apertura de la Ola 2 (G1 pide ≥ 7 días de monitoreo en prod) y escribir `SESIONES-OLA-2.md`.
+Stopped at: Ola 2 abierta (5 sesiones). Siguiente: revisar SUMMARY/HANDOFF de cada rama e integrar en el orden de `SESIONES-OLA-2.md`.
 Resume file: None
