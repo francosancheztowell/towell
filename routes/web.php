@@ -25,4 +25,5 @@ Route::middleware(['auth'])->group(function () {
     require __DIR__ . '/modules/redbooth.php';
     require __DIR__ . '/modules/admin.php';
     require __DIR__ . '/modules/telemetria.php';
+    require __DIR__ . '/modules/dev.php';
 });

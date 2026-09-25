@@ -97,7 +97,10 @@ function hayAlertaEncima(): boolean {
 
 let escuchando = false;
 
-/** Listeners de documento: Esc, Tab atrapado, [data-ui-modal-open] y clic en el fondo. Una sola vez. */
+/**
+ * Listeners de documento (una sola vez): Esc, Tab atrapado, clic en el fondo y botones
+ * declarativos [data-ui-modal-open="id"] / [data-ui-modal-close-target="id"] (sin id: el modal que lo contiene).
+ */
 export function escucharDocumento(): void {
     if (escuchando) return;
     escuchando = true;
@@ -137,6 +140,15 @@ export function escucharDocumento(): void {
         const abridor = objetivo.closest<HTMLElement>('[data-ui-modal-open]');
         if (abridor?.dataset.uiModalOpen) {
             abrir(abridor.dataset.uiModalOpen);
+            return;
+        }
+
+        // Botones propios de cierre (p. ej. "Cancelar" del footer): mismo camino que la ×.
+        const cerrador = objetivo.closest<HTMLElement>('[data-ui-modal-close-target]');
+        if (cerrador) {
+            const id = cerrador.dataset.uiModalCloseTarget;
+            const destino = id ? document.getElementById(id) : cerrador.closest(SELECTOR);
+            if (destino instanceof HTMLDialogElement) cerrar(destino);
             return;
         }
 
