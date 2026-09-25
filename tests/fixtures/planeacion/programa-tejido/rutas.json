@@ -1,5 +1,5 @@
 {
-  "totales": {"muestras":54,"planeacion":109,"programa":69,"total":232},
+  "totales": {"muestras":54,"planeacion":110,"programa":69,"total":233},
   "rutas": [
     {"metodos":"GET","uri":"modulo-codificación","nombre":"modulo.codificacion","middleware":["web","auth"],"accion":"Planeacion\\CatCodificados\\CatCodificacionController@index","superficie":"planeacion","capacidad":"modulo-codificación"},
     {"metodos":"GET","uri":"muestras/aplicacion-id-options","nombre":null,"middleware":["web","auth"],"accion":"Planeacion\\ProgramaTejido\\ProgramaTejidoCatalogosController@getAplicacionIdOptions","superficie":"muestras","capacidad":"catalogos"},
@@ -47,6 +47,7 @@
     {"metodos":"GET","uri":"planeacion/catalogos/aplicaciones","nombre":"planeacion.catalogos.aplicaciones","middleware":["web","auth"],"accion":"Planeacion\\CatalogoPlaneacion\\CatAplicaciones\\AplicacionesController@index","superficie":"planeacion","capacidad":"catalogos"},
     {"metodos":"GET|POST|PUT|PATCH|DELETE|OPTIONS","uri":"planeacion/catalogos/aplicacionescat","nombre":"planeacion.catalogos.","middleware":["web","auth"],"accion":"\\Illuminate\\Routing\\RedirectController","superficie":"planeacion","capacidad":"catalogos"},
     {"metodos":"GET","uri":"planeacion/catalogos/calendarios","nombre":"planeacion.catalogos.calendarios","middleware":["web","auth"],"accion":"Planeacion\\CatalogoPlaneacion\\CatCalendarios\\CalendarioController@index","superficie":"planeacion","capacidad":"catalogos"},
+    {"metodos":"GET|POST|PUT|PATCH|DELETE|OPTIONS","uri":"planeacion/catalogos/catalogoCodificacion","nombre":"planeacion.catalogos.","middleware":["web","auth"],"accion":"\\Illuminate\\Routing\\RedirectController","superficie":"planeacion","capacidad":"catalogos"},
     {"metodos":"GET","uri":"planeacion/catalogos/codificacion-modelos","nombre":"planeacion.catalogos.codificacion-modelos","middleware":["web","auth"],"accion":"Planeacion\\CatalogoPlaneacion\\ModelosCodificados\\CodificacionController@index","superficie":"planeacion","capacidad":"catalogos"},
     {"metodos":"POST","uri":"planeacion/catalogos/codificacion-modelos","nombre":"planeacion.catalogos.codificacion.store","middleware":["web","auth","module.permission:crear,16"],"accion":"Planeacion\\CatalogoPlaneacion\\ModelosCodificados\\CodificacionController@store","superficie":"planeacion","capacidad":"catalogos"},
     {"metodos":"GET","uri":"planeacion/catalogos/codificacion-modelos/api/all-fast","nombre":"planeacion.catalogos.codificacion.all-fast","middleware":["web","auth"],"accion":"Planeacion\\CatalogoPlaneacion\\ModelosCodificados\\CodificacionController@getAllFast","superficie":"planeacion","capacidad":"catalogos"},

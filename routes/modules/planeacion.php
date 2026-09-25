@@ -47,6 +47,8 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
         Route::redirect('/matrizhilos', '/planeacion/catalogos/matriz-hilos', 301);
         Route::redirect('/pesosporrollos', '/planeacion/catalogos/pesos-rollos', 301);
         Route::redirect('/codificacionmodelos', '/planeacion/catalogos/codificacion-modelos', 301);
+        // El menú (SYSRoles.Ruta) y marcadores viejos apuntan al nombre de la vista; la pantalla vive en codificacion-modelos.
+        Route::redirect('/catalogoCodificacion', '/planeacion/catalogos/codificacion-modelos', 301);
 
         Route::get('/lista-de-materiales', [CatLMatController::class, 'listaMateriales'])->name('lmat.lista');
         Route::get('/telares', [CatalagoTelarController::class, 'index'])->name('telares');

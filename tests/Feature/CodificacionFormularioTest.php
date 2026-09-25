@@ -32,6 +32,14 @@ class CodificacionFormularioTest extends TestCase
         $this->sembrarPermisos((int) auth()->id(), [16 => 'Codificación Modelos']);
     }
 
+    public function test_la_url_con_el_nombre_de_la_vista_redirige_a_la_pantalla(): void
+    {
+        // El menú (SYSRoles.Ruta) apuntaba a /catalogoCodificacion, que nunca fue ruta: 404 en producción.
+        $this->get('/planeacion/catalogos/catalogoCodificacion')
+            ->assertStatus(301)
+            ->assertRedirect('/planeacion/catalogos/codificacion-modelos');
+    }
+
     public function test_el_formulario_de_karl_mayer_pinta_valores_y_las_cuatro_barras(): void
     {
         $modelo = ReqModelosCodificados::create([

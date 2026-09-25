@@ -86,7 +86,8 @@ class ProgramaTejidoRouteSurfaceTest extends TestCase
         // Línea base del research (artisan route:list --path=planeacion, 2026-07-22): 195.
         // PT-02 suma 2: lectura v2 de Programa y de Muestras (planeacion/*/v2/registros).
         // ERP-F0-08 (fase 08, main) quita 2 sin consumidor: codificacion-modelos/buscar y codificacion/api/recalcular-marbetes.
-        $this->assertCount(195, $bajoPlaneacion);
+        // + 1: redirect /planeacion/catalogos/catalogoCodificacion (404 del menú, 2026-09-25).
+        $this->assertCount(196, $bajoPlaneacion);
         foreach ($bajoPlaneacion as $r) {
             $this->assertNotSame('', $r['capacidad'], "Sin capacidad: {$r['metodos']} {$r['uri']}");
         }
