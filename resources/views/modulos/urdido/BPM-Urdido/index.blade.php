@@ -293,7 +293,7 @@
     </div>
 
     <!-- Modal Editar -->
-    <div id="editModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
+    <div id="editModal" class="hidden fixed inset-0 bg-gray-900/50 z-50 flex items-center justify-center">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 px-4 py-3 rounded-t-lg">
                 <h3 class="text-lg font-semibold text-white">Editar Registro</h3>
@@ -379,7 +379,7 @@
     </div>
 
     <!-- Modal Eliminar -->
-    <div id="deleteModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
+    <div id="deleteModal" class="hidden fixed inset-0 bg-gray-900/50 z-50 flex items-center justify-center">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div class="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 rounded-t-lg">
                 <h3 class="text-xl font-semibold text-white">Eliminar Registro</h3>

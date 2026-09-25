@@ -10,7 +10,7 @@
     <!-- Modal para agregar oficial -->
     <div
         id="modal-oficial"
-        class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center"
+        class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center"
         style="display: none;"
     >
         <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-3 max-h-[65vh] overflow-y-auto">

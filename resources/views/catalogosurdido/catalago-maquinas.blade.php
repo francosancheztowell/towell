@@ -70,7 +70,7 @@
     </div>
 
     <!-- Modal Crear/Editar Máquina -->
-    <div id="formModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div id="formModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
             <div class="flex justify-between items-center border-b p-4 bg-blue-500 rounded-t-lg">
                 <h2 class="text-xl font-bold text-white" id="formModalTitle">Nueva Máquina</h2>
@@ -130,7 +130,7 @@
     </div>
 
     <!-- Modal Confirmar Eliminación -->
-    <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div id="deleteModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div class="flex justify-between items-center border-b p-4 bg-red-500 rounded-t-lg">
                 <h2 class="text-xl font-bold text-white">Confirmar Eliminación</h2>

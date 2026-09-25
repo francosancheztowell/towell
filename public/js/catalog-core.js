@@ -114,44 +114,12 @@
         },
 
         /**
-         * Toast notificaciones reutilizable
+         * Toast: delega en el global de resources/js/utils/notifications.ts (toasts nativos).
          * @param {string} message - Mensaje a mostrar
          * @param {string} type - Tipo: success, error, warning, info
-         * @param {number} duration - Duración en ms
          */
-        showToast: function(message, type = 'info', duration = 3500) {
-            const colors = {
-                success: 'bg-green-600',
-                error: 'bg-red-600',
-                warning: 'bg-yellow-600',
-                info: 'bg-blue-600'
-            };
-
-            let toast = document.getElementById('toast-notification');
-            if (!toast) {
-                toast = document.createElement('div');
-                toast.id = 'toast-notification';
-                toast.className = 'fixed top-4 right-4 z-50 max-w-sm w-full';
-                document.body.appendChild(toast);
-            }
-
-            toast.innerHTML = `
-                <div class="${colors[type] || colors.info} text-white px-4 py-3 rounded-md shadow-lg transition-all" id="toast-content">
-                    <div class="flex items-center justify-between gap-4">
-                        <div class="text-sm">${message}</div>
-                        <button onclick="document.getElementById('toast-notification').remove()" class="opacity-80 hover:opacity-100">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            `;
-
-            setTimeout(() => {
-                const t = document.getElementById('toast-notification');
-                if (t) t.remove();
-            }, duration);
+        showToast: function(message, type = 'info') {
+            window.showToast(message, type);
         },
 
         /**
@@ -259,8 +227,7 @@
         }
     };
 
-    // Helper global para compatibilidad
-    window.showToast = window.CatalogCore.showToast.bind(window.CatalogCore);
+    // Helpers globales para compatibilidad. window.showToast ya no se pisa: es el de notify.
     window.enableButtons = window.CatalogCore.enableButtons.bind(window.CatalogCore);
     window.disableButtons = window.CatalogCore.disableButtons.bind(window.CatalogCore);
 
