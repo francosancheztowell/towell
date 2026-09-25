@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Tejedores\Desarrolladores\Funciones;
+namespace App\Services\Tejedores\Desarrolladores;
 
 use App\Helpers\AuditoriaHelper;
 use App\Helpers\TelDesarrolladoresHelper;

@@ -96,6 +96,22 @@ class TurnoHelper
     }
 
     /**
+     * Turno actual con sus dos textos, para los endpoints /turno-info.
+     *
+     * @return array{turno: string, horario: string, formato: string}
+     */
+    public static function info(): array
+    {
+        $turno = self::getTurnoActual();
+
+        return [
+            'turno' => $turno,
+            'horario' => self::getDescripcionTurno($turno),
+            'formato' => self::getTurnoFormato($turno),
+        ];
+    }
+
+    /**
      * Obtiene la descripción del turno
      */
     public static function getDescripcionTurno(string $turno): string
@@ -158,17 +174,5 @@ class TurnoHelper
         }
 
         return $ahora->toDateString();
-    }
-
-    /**
-     * Genera un folio único basado en fecha y turno
-     */
-    public static function generarFolio(): string
-    {
-        $fecha = Carbon::now('America/Mexico_City');
-        $turno = self::getTurnoActual();
-
-        // Formato: TRAMA-YYYYMMDD-T
-        return 'TRAMA-'.$fecha->format('Ymd').'-'.$turno;
     }
 }

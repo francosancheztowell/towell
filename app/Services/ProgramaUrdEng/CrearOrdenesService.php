@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\ProgramaUrdEng;
 
+use App\Helpers\FolioHelper;
 use App\Models\Engomado\EngProgramaEngomado;
-use App\Models\Sistema\SSYSFoliosSecuencia;
 use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Urdido\AuditoriaUrdEng;
 use App\Models\Urdido\UrdConsumoHilo;
@@ -71,8 +71,8 @@ final class CrearOrdenesService
             $numeroEmpleado,
             $nombreEmpleado
         ): array {
-            $folioConsumo = SSYSFoliosSecuencia::nextFolio('CambioHilo', 5)['folio'];
-            $folio = $this->obtenerFolioUrdEng();
+            $folioConsumo = FolioHelper::obtenerSiguienteFolio('CambioHilo', 5);
+            $folio = FolioHelper::obtenerSiguienteFolio('URD/ENG', 5, idRespaldo: 14);
 
             $telaresStr = $grupo['telaresStr'] ?? $grupo['noTelarId'] ?? null;
             $tipo = $this->telaresService->normalizeTipo($grupo['tipo'] ?? null);
@@ -194,15 +194,6 @@ final class CrearOrdenesService
                 'telares_actualizados' => $this->marcarTelaresProgramados($telaresStr, $tipo, $folio),
             ];
         });
-    }
-
-    private function obtenerFolioUrdEng(): string
-    {
-        try {
-            return SSYSFoliosSecuencia::nextFolio('URD/ENG', 5)['folio'];
-        } catch (\Exception $e) {
-            return SSYSFoliosSecuencia::nextFolioById(14, 5)['folio'];
-        }
     }
 
     private function obtenerBomFormula(?string $bomEngId): ?string

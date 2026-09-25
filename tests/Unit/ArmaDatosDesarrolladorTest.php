@@ -2,8 +2,8 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ArmaDatosDesarrollador;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Tejedores\Desarrolladores\ArmaDatosDesarrollador;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Tejedores\Desarrolladores\Funciones;
+namespace App\Services\Tejedores\Desarrolladores;
 
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\VincularTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;

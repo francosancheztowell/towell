@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Tejedores\Desarrolladores\Funciones;
+namespace App\Services\Tejedores\Desarrolladores;
 
 use App\Models\Planeacion\Muestras;
 use App\Models\Planeacion\ReqProgramaTejido;

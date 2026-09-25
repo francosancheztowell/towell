@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Tejedores\Desarrolladores;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ProcesarDesarrolladorService;
+use App\Services\Tejedores\Desarrolladores\ProcesarDesarrolladorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 

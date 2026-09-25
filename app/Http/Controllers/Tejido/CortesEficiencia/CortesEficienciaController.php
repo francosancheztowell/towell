@@ -97,13 +97,12 @@ class CortesEficienciaController extends Controller
     public function getTurnoInfo()
     {
         try {
-            $turno = TurnoHelper::getTurnoActual();
-            $descripcion = TurnoHelper::getDescripcionTurno($turno);
+            $info = TurnoHelper::info();
 
             return response()->json([
                 'success' => true,
-                'turno' => $turno,
-                'descripcion' => $descripcion,
+                'turno' => $info['turno'],
+                'descripcion' => $info['horario'],
             ]);
 
         } catch (\Exception $e) {
