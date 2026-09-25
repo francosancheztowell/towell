@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-09-25)
 
 **Core value:** Planta y planeación trabajan más rápido y sin fricción, y Sistemas ve qué pasa en producción, sin romper invariantes de dominio.
-**Current focus:** Ola 2 — librerías (15-02), componentes (16), movimientos/folios (20-01), perf infra + fix MON (18-01), PT 04-perf.
+**Current focus:** Ola 2 — primera tanda integrada (15-02, 16, 18-01, 20-01, PT 04-perf); siguiente: 20-02/20-03 y, con telemetría de prod, 17-01.
 **Protocolo:** `.planning/PROTOCOLO-SESIONES.md` (propiedad de archivos, orden de merge, gates).
 
 ## Current Position
@@ -37,7 +37,13 @@ Ola 2 — abierta 2026-09-25 sin esperar G1 (decisión del owner). Prompts y pro
 - `claude/pt-04-perf` — session_01TLqGpEASNx9XneZUVaF3JE
 Después: 20-02 / 20-03 al integrar 20-01; 17-01 cuando haya ≥ 7 días de telemetría.
 
-Status: Ola 2 en curso
+Ola 2, primera tanda — **integrada** en `claude/friendly-hopper-506bg9` el 2026-09-25 (no en `main`), orden 20-01 → 18-01 → PT → 15-02 → 16:
+- 20-01 `e5f2c08d` · 18-01 `5974e47e` · PT 04-perf `56f83f4f` · 15-02 `9c40d1bf` · 16 `043883d6`.
+- Conflictos con lo que `main` ya había hecho (ERP-F0-07/08/11): se conservó lo de `main` (endpoints/vistas sin consumidor siguen borrados, `app.js` sin `app.css`, `max-w-md`); el test del `/turno-info` de Trama se quitó porque `main` borró el endpoint; `ProcesarDesarrolladorStoreTest` (nuevo en `main`) apunta al namespace movido; ejemplo `route('x')` del docblock de `x-ui.button` → `url('/')`.
+- Validación: **1 572 tests PHP**, phpstan OK, typecheck, **134 tests JS**, build, ratchet (toastr. 0, bg-opacity- 0, Swal.fire 800, onclick= 372, `<script>` inline 161), Pint.
+- Integrador: `CLAUDE.md` (sin jQuery/Select2/Toastr, combobox, librerías, Vite por glob, componentes, `UrdEngomado/`, servicios de Desarrolladores), BUG-022 resuelto en `inventario-bugs.md` (ambas copias), `ModuloService::limpiarCacheUsuario()` también olvida `moduleNameForRoute` (HANDOFF 18-01 #2).
+
+Status: Ola 2 — primera tanda integrada; 20-02/20-03 por abrir
 Last activity: 2026-09-25 — Integración de la Ola 1 (4 ramas) + docs del integrador (CLAUDE.md, contrato §4, SQL Server 2008 R2).
 
 Progress: [█████░░░░░] ~35% (fases 10–14 completas, 15-01, PT 01, 01.1 y 02 completas)
@@ -73,7 +79,6 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 
 ### Pending Todos (owner)
 
-- Aprobar en claude.ai/code los planes de las 5 sesiones de la Ola 2 (arrancan en modo plan).
 
 **Despliegue en Laragon (192.168.2.15) de todo lo integrado** (fases 10, 11, 12, 13, 14, 15-01, PT 01.1/02):
 1. `git pull` de la rama; `composer install --no-dev -o` (nuevo: `laravel/pulse`); `npm ci && npm run build` (nuevo: `qrcode`).
@@ -99,6 +104,14 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 - Aviso de privacidad del monitoreo (propuesta: leyenda discreta en login).
 - Worker de colas en Windows (propuesta: `queue:work --stop-when-empty --max-time=50` desde `scheduler.bat`).
 
+### HANDOFFs ruteados (Ola 2)
+
+- 18-01 #1 `towell-ruta` vacío en rutas sin nombre (1 línea en `layout-head`) → 17-02 UX-global.
+- 16 A3 loader de `app-core.js` → `window.loader`, A4 toasts bajo el navbar, A5 top layer → FE (próxima sesión que toque utils/app-core) / 21. C1 catálogos de Planeación a `catalog-base.ts`, C2 duplicados BPM/julios/secuencias, C3 llave `Nota1` de Comentarios → 19-xx.
+- 15-02 #6 CSS select2 muerto en Trazabilidad, #7 comentario jQuery, #8 `<br>` en calendarios → 19-xx.
+- PT B1 `req-programa-tejido-line-table.blade.php` a la fila PT, B2 `mostrarModalDiasLiberar` del navbar → 17-02, B3 `redbooth.blade.php` vuelve a PT (mover su `<script>` al bundle) → próxima sesión PT.
+- 20-01: sin pendientes (CLAUDE.md y BUG-022 hechos).
+
 ### HANDOFFs ruteados (Ola 1)
 
 - 12 §1/§3 → mini-fix MON en Ola 2: aceptar `ruta` (y `version`) del cliente en `/telemetria/error` para que `SYSMonError.Ruta` no quede `telemetria.error`. Contrato §4 ya actualizado.
@@ -115,5 +128,5 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 ## Session Continuity
 
 Last session: 2026-09-25
-Stopped at: Ola 2 abierta (5 sesiones). Siguiente: revisar SUMMARY/HANDOFF de cada rama e integrar en el orden de `SESIONES-OLA-2.md`.
+Stopped at: Ola 2 primera tanda integrada y validada (sin push a main). Siguiente: proponer al owner abrir 20-02 (JSON 5xx) y 20-03 (AuthZ auditar); desplegar Olas 0–2.
 Resume file: None

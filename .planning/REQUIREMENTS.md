@@ -65,27 +65,27 @@
 - [x] **FE-04**: `utils/dom.ts` (`qs`, `qsa`, `delegate`).
 - [x] **FE-05**: Tipos globales (`window.http`, `notify`, `Swal`, `Livewire`).
 - [x] **FE-06**: `tsconfig` con `erasableSyntaxOnly` + `verbatimModuleSyntax`; `tejido/inventario-telas.ts` tipado.
-- [ ] **FE-07**: Tom Select reemplaza Select2 (wrapper `utils/combobox.ts`).
-- [ ] **FE-08**: Toastr reemplazado por `notify`.
-- [ ] **FE-09**: jQuery, Select2, Toastr y el shim de `bootstrap.js` eliminados.
-- [ ] **FE-10**: Vite sin chunk vendor global; entradas por glob para módulos.
-- [ ] **FE-11**: Librerías CDN (html2canvas, pdf.js) por npm con import dinámico.
-- [ ] **FE-12**: Regresiones Tailwind v4 corregidas (`bg-opacity-*`, keyframes `spin`, fuente FA7, `showToast` pisado).
+- [x] **FE-07**: Tom Select reemplaza Select2 (wrapper `utils/combobox.ts`).
+- [x] **FE-08**: Toastr reemplazado por `notify`.
+- [x] **FE-09**: jQuery, Select2, Toastr y el shim de `bootstrap.js` eliminados.
+- [x] **FE-10**: Vite sin chunk vendor global; entradas por glob para módulos.
+- [x] **FE-11**: Librerías CDN (html2canvas, pdf.js) por npm con import dinámico.
+- [x] **FE-12**: Regresiones Tailwind v4 corregidas (`bg-opacity-*`, keyframes `spin`, fuente FA7, `showToast` pisado).
 
 ### Sistema de componentes (fase 16)
 
-- [ ] **DS-01**: Tokens de diseño en `@theme` (texto ≥ 12 px, targets ≥ 44 px).
-- [ ] **DS-02**: Modal único sobre `<dialog>` nativo.
-- [ ] **DS-03**: Tabla base (`x-ui.table`) compuesta por `x-tabla`.
-- [ ] **DS-04**: Campo de formulario con label/error/hint.
-- [ ] **DS-05**: Botón unificado con `x-navbar.button-*`.
-- [ ] **DS-06**: Badge.
-- [ ] **DS-07**: Spinner/skeleton y loader global único.
-- [ ] **DS-08**: Empty state adoptado.
-- [ ] **DS-09**: Flash messages.
-- [ ] **DS-10**: Barra de filtros reutilizable.
-- [ ] **DS-11**: Galería `/dev/ui-kit` + receta de componentes.
-- [ ] **DS-12**: Piloto: catálogos de atadores consolidados + `CatalogBase` en TS.
+- [x] **DS-01**: Tokens de diseño en `@theme` (texto ≥ 12 px, targets ≥ 44 px).
+- [x] **DS-02**: Modal único sobre `<dialog>` nativo.
+- [x] **DS-03**: Tabla base (`x-ui.table`) compuesta por `x-tabla`.
+- [x] **DS-04**: Campo de formulario con label/error/hint.
+- [x] **DS-05**: Botón unificado con `x-navbar.button-*`.
+- [x] **DS-06**: Badge.
+- [x] **DS-07**: Spinner/skeleton y loader global único.
+- [x] **DS-08**: Empty state adoptado.
+- [x] **DS-09**: Flash messages.
+- [x] **DS-10**: Barra de filtros reutilizable.
+- [x] **DS-11**: Galería `/dev/ui-kit` + receta de componentes.
+- [x] **DS-12**: Piloto: catálogos de atadores consolidados + `CatalogBase` en TS.
 
 ### UX (fase 17)
 
@@ -101,11 +101,11 @@
 
 ### Performance (fase 18)
 
-- [ ] **PERF-01**: Drivers de sesión/cache decididos con el `.env` real de prod.
-- [ ] **PERF-02**: OPcache y realpath cache verificados. **PERF-03**: `optimize` en cada deploy.
-- [ ] **PERF-04**: `moduleNameForRoute` memoizado/cacheado.
-- [ ] **PERF-05**: Lazy loading detectado fuera de prod (log). **PERF-06**: queries lentas registradas.
-- [ ] **PERF-07**: `SetSqlContextInfo` medido y excluido de telemetría sin cambiar su semántica.
+- [x] **PERF-01**: Drivers de sesión/cache decididos con el `.env` real de prod.
+- [x] **PERF-02**: OPcache y realpath cache verificados. **PERF-03**: `optimize` en cada deploy.
+- [x] **PERF-04**: `moduleNameForRoute` memoizado/cacheado.
+- [x] **PERF-05**: Lazy loading detectado fuera de prod (log). **PERF-06**: queries lentas registradas.
+- [ ] **PERF-07**: `SetSqlContextInfo` medido y excluido de telemetría sin cambiar su semántica. → medición lista (Server-Timing `ctx` + Pulse `contexto_sql`, 18-01); la decisión espera 1 semana de datos de prod (runbook `deploy.md` §6).
 - [ ] **PERF-08**: N+1 fuera de PT eliminados. **PERF-09**: predicados no-sargables y LIKE con comodín inicial corregidos con plan de ejecución.
 - [ ] **PERF-10**: Índices por `.sql` revisado. **PERF-11**: `CodificacionController@getAll` proyectado/paginado.
 - [ ] **PERF-12**: Costo del observer de `ReqProgramaTejido` atendido en PT 05/06.
@@ -120,8 +120,8 @@
 ### Arquitectura y seguridad (fases 10, 20)
 
 - [x] **SEC-01**: SQL interpolado parametrizado (auditado: 0 interpolaciones de input; ratchet vigila 8 expresiones internas). **SEC-02**: `trustProxies` acotado a la topología real → sin proxy: se quita (sesión 14→13).
-- [ ] **ARQ-01**: Services fuera de `app/Http/Controllers`. **ARQ-02**: folios solo por `FolioHelper`.
-- [ ] **ARQ-03**: turnos solo por `TurnoHelper`. **ARQ-04**: modelo `UrdEngNucleos` único. **ARQ-05**: Form Requests en mutaciones tocadas.
+- [x] **ARQ-01**: Services fuera de `app/Http/Controllers`. **ARQ-02**: folios solo por `FolioHelper`.
+- [ ] **ARQ-03**: turnos solo por `TurnoHelper`. **ARQ-04**: modelo `UrdEngNucleos` único. **ARQ-05**: Form Requests en mutaciones tocadas. → ARQ-03 y ARQ-04 hechas (20-01); ARQ-05 va en cada 19-xx.
 - [ ] **SEC-04**: Respuesta JSON 5xx central (mensaje genérico + `trace_id`).
 - [ ] **SEC-05**: `module.permission` con modo `auditar`. **SEC-06**: enforce por módulo con tests.
 - [ ] **SEC-07**: Sin `getMessage()` crudo hacia el usuario.

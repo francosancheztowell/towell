@@ -82,7 +82,7 @@ Routes are split into `routes/web.php` (dispatcher) and individual files in `rou
 ### Model Organization
 Models are in `app/Models/` organized by subdirectory:
 - `Sistema/` — `Usuario`, `SYSRoles`, `SYSUsuariosRoles`, `SSYSFoliosSecuencia`, etc.
-- `Planeacion/` (with `Catalogos/`), `Tejido/`, `Urdido/`, `Engomado/`, `Atadores/`, `Tejedores/`, `Inventario/`, `Mantenimiento/`, `urdengomado/`
+- `Planeacion/` (with `Catalogos/`), `Tejido/`, `Urdido/`, `Engomado/`, `Atadores/`, `Tejedores/`, `Inventario/`, `Mantenimiento/`, `UrdEngomado/`
 
 Controllers follow the same subdirectory pattern under `app/Http/Controllers/`.
 
@@ -98,11 +98,14 @@ Controllers follow the same subdirectory pattern under `app/Http/Controllers/`.
 - `AuditoriaHelper` — audit trail logging
 - `ImageOptimizer` — image optimization (WebP conversion)
 - `TelDesarrolladoresHelper` — weaver developer operations
+- Weaver-developer services (`ProcesarDesarrolladorService`, `MovimientoDesarrolladorService`, …) live in `app/Services/Tejedores/Desarrolladores/` (moved out of `Controllers/.../Funciones` in phase 20-01)
 - Global helpers auto-loaded via Composer: `format_helpers.php` (`decimales()`, `formatearFecha()`), `permission-helpers.php`, `device_helpers.php`
 
 ### Frontend
 - Tailwind CSS v4 via `@tailwindcss/vite` plugin
-- jQuery v4 + Select2 (to be replaced by Tom Select in phase 15-02), SweetAlert2 (modals only), Chart.js, SortableJS, Font Awesome. Toastr is no longer used by `notify`.
+- No jQuery, Select2 or Toastr (removed in phase 15-02). Searchable selects: Tom Select through `resources/js/utils/combobox.ts` (`combobox(select, opts)`; in inline Blade `await window.combobox(select, opts)`). SweetAlert2 (modals only), Chart.js, SortableJS, Font Awesome 7. `html2canvas-pro` and `pdfjs-dist` load on demand via `window.librerias.html2canvas()` / `.pdfjs()`. `window.toastr` is a temporary adapter to `notify` (removed in phase 21).
+- Vite entries: the fixed list in `vite.config.js` plus every `resources/js/modulos/**/index.ts` (glob) — new module bundles don't need to touch Vite.
+- Blade components: `resources/views/components/ui/*` (modal-base as `<dialog>`, button, table, table-empty, field, badge, spinner, skeleton, alert, flash, filter-bar) and `x-empty.empty-state`; runtime in `resources/js/componentes/` (imported by `app.js`). Tokens in the `@theme` block of `resources/css/app.css` (`text-caption` ≥ 12 px, `min-h-touch`/`size-touch` 44 px, `bg-primary`, `bg-danger`…). The layout mounts `x-ui.flash`, so `redirect()->with('error'|'success', …)` shows without view code. Recipe: `docs/cerebro-towell/Arquitectura/receta-componentes.md`; gallery `/dev/ui-kit` (local only).
 - Two JS entry points: `app.js` (main) y `app-core.js`. El componente `<x-layout-scripts>` carga `app.js` (que importa `bootstrap.js`); `app.blade.php` además carga `app-core.js`. `app-filters.js` ya no existe: se desconectó a propósito porque `@vite` emite `<script type="module">` y los `onclick` inline no veían sus funciones (ver comentario en `app.blade.php`).
 - Blade layouts in `resources/views/layouts/`: `app.blade.php` (main), `simple.blade.php`, `globalLoader.blade.php`
 - Module images stored in `public/images/fotos_modulos/`; user photos in `public/images/fotos_usuarios/` (WebP preferred)
