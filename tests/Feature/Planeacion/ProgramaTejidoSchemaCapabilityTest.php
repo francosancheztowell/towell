@@ -43,7 +43,6 @@ class ProgramaTejidoSchemaCapabilityTest extends TestCase
         'app/Services/Trazabilidad/TrazabilidadRedboothService.php' => [['IdRedbooth', 'NombreRedbooth'], 'programa', 'redbooth: Trazabilidad no cambia de tabla'],
         'app/Http/Controllers/Tejedores/NotificarMontadoRollo/NotificarMontRollosController.php' => [['ProdId'], 'programa', 'produccion: DB::table(ReqProgramaTejido) fijo'],
         'app/Models/Planeacion/Catalogos/CatCodificados.php' => [['IdRedbooth', 'NoMarbete', 'NombreRedbooth'], 'otra', 'CatCodificados'],
-        'app/Http/Controllers/Planeacion/CatCodificados/CatCodificacionController.php' => [['NoMarbete'], 'otra', 'CatCodificados'],
         'app/Http/Controllers/Planeacion/CatalogoPlaneacion/ModelosCodificados/CodificacionController.php' => [['NoMarbete'], 'otra', 'CatCodificados'],
         'app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php' => [['NoMarbete'], 'otra', 'CatCodificados'],
         'app/Http/Controllers/Tejido/Reportes/SaldosController.php' => [['NoMarbete'], 'otra', 'CatCodificados'],

@@ -115,7 +115,6 @@ Route::patch('tel-bpm/{folio}/rechazar', [TelBpmLineController::class, 'reject']
 
 Route::get('tel-bpm/{folio}/lineas', [TelBpmLineController::class, 'index'])->name('tel-bpm-line.index');
 Route::post('tel-bpm/{folio}/lineas/toggle', [TelBpmLineController::class, 'toggle'])->name('tel-bpm-line.toggle');
-Route::post('tel-bpm/{folio}/lineas/bulk-save', [TelBpmLineController::class, 'bulkSave'])->name('tel-bpm-line.bulk');
 Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 'updateComentarios'])->name('tel-bpm-line.comentarios');
 
 Route::controller(InventarioTelaresController::class)

@@ -148,11 +148,6 @@ final class ReporteEstadoMaquinaService
         ];
     }
 
-    public function colorCelda(int $valor): ?string
-    {
-        return self::COLOR_CELDA[$valor] ?? null;
-    }
-
     public function colorSalon(string $salon): string
     {
         return self::COLOR_SALON[$salon] ?? self::COLOR_SALON_DEFAULT;

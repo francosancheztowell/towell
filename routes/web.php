@@ -2,27 +2,26 @@
 
 use Illuminate\Support\Facades\Route;
 
-
-require __DIR__ . '/public.php';
+require __DIR__.'/public.php';
 
 Route::middleware(['auth'])->group(function () {
-    require __DIR__ . '/modules/navigation.php';
-    require __DIR__ . '/modules/planeacion.php';
-    require __DIR__ . '/modules/tejido.php';
-    require __DIR__ . '/modules/tejedores.php';
-    require __DIR__ . '/modules/urdido.php';
-    require __DIR__ . '/modules/engomado.php';
-    require __DIR__ . '/modules/atadores.php';
-    require __DIR__ . '/modules/programa-urd-eng.php';
-    require __DIR__ . '/modules/configuracion.php';
-    require __DIR__ . '/modules/mantenimiento.php';
-    require __DIR__ . '/modules/mecanicos.php';
-    require __DIR__ . '/modules/trazabilidad.php';
-    require __DIR__ . '/modules/crudo.php';
-    require __DIR__ . '/modules/producto-terminado.php';
-    require __DIR__ . '/modules/ventas.php';
-    require __DIR__ . '/modules/telegram.php';
-    require __DIR__ . '/modules/redbooth.php';
-    require __DIR__ . '/modules/admin.php';
-    require __DIR__ . '/modules/telemetria.php';
+    require __DIR__.'/modules/navigation.php';
+    require __DIR__.'/modules/planeacion.php';
+    require __DIR__.'/modules/tejido.php';
+    require __DIR__.'/modules/tejedores.php';
+    require __DIR__.'/modules/urdido.php';
+    require __DIR__.'/modules/engomado.php';
+    require __DIR__.'/modules/atadores.php';
+    require __DIR__.'/modules/programa-urd-eng.php';
+    require __DIR__.'/modules/configuracion.php';
+    require __DIR__.'/modules/mantenimiento.php';
+    require __DIR__.'/modules/mecanicos.php';
+    require __DIR__.'/modules/trazabilidad.php';
+    require __DIR__.'/modules/crudo.php';
+    require __DIR__.'/modules/producto-terminado.php';
+    require __DIR__.'/modules/ventas.php';
+    require __DIR__.'/modules/telegram.php';
+    require __DIR__.'/modules/redbooth.php';
+    require __DIR__.'/modules/admin.php';
+    require __DIR__.'/modules/telemetria.php';
 });

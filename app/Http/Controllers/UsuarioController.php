@@ -207,7 +207,7 @@ class UsuarioController extends Controller
             $usuario = $this->usuarioRepository->findById($id);
 
             if (! $usuario) {
-                return redirect()->route('usuarios.select')
+                return redirect()->route('configuracion.usuarios.select')
                     ->with('error', 'Usuario no encontrado');
             }
 

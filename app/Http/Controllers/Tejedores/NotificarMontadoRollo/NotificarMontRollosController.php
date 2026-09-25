@@ -225,14 +225,6 @@ class NotificarMontRollosController extends Controller
                 return response()->json(['error' => 'No se proporcionó el número de telar'], 400);
             }
 
-            // Probar conexión a TOW_PRO
-            try {
-                $testConexion = DB::connection('sqlsrv_ti')->select('SELECT @@VERSION as version');
-                $conexionTowPro = 'OK - '.($testConexion[0]->version ?? 'Conectado');
-            } catch (\Exception $e) {
-                $conexionTowPro = 'ERROR: '.$e->getMessage();
-            }
-
             // Buscar orden activa en ReqProgramaTejido para el telar
             $ordenActiva = DB::table('ReqProgramaTejido')
                 ->where('NoTelarId', $noTelar)
@@ -243,19 +235,12 @@ class NotificarMontRollosController extends Controller
             if (! $ordenActiva) {
                 return response()->json([
                     'error' => 'No se encontró orden de producción activa para este telar',
-                    'debug' => [
-                        'telar_buscado' => $noTelar,
-                        'conexion_tow_pro' => $conexionTowPro,
-                    ],
                 ], 404);
             }
 
             return response()->json([
                 'success' => true,
                 'orden' => $ordenActiva,
-                'debug' => [
-                    'conexion_tow_pro' => $conexionTowPro,
-                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([

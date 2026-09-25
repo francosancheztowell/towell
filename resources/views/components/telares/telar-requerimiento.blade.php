@@ -115,7 +115,7 @@
 
 <!-- Modal de Selección -->
 @once
-<div id="modalSeleccion" class="fixed inset-0 bg-black/40 bg-opacity-60 overflow-y-auto h-full w-full hidden z-50">
+<div id="modalSeleccion" class="fixed inset-0 bg-black/40 overflow-y-auto h-full w-full hidden z-50">
     <div class="relative mx-auto p-0 w-full max-w-2xl shadow-2xl rounded-xl bg-white transform transition-all">
         <!-- Header del Modal con gradiente -->
         <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-t-xl">

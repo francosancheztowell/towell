@@ -68,8 +68,6 @@ class NuevoRequerimientoService
             'turnoDesc' => $folioEditar ? null : TurnoHelper::getTurnoFormato($turno),
             'enProcesoExists' => (bool) $enProceso,
             'consultaUrl' => route('tejido.inventario.trama.consultar.requerimiento'),
-            'actualizarCantidadUrl' => route('modulo.nuevo.requerimiento.actualizar.cantidad'),
-            'guardarUrl' => route('modulo.nuevo.requerimiento.store'),
             'listaTelares' => [],
             'telares' => [],
         ];

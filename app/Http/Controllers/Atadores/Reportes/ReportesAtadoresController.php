@@ -13,12 +13,17 @@ use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportesAtadoresController extends Controller
 {
     private const OEE_QUEUE = 'oee-atadores';
+
+    // ponytail: ideal fijo por barra en minutos, tomado del Excel de producción (sep-2026).
+    // Si llega a depender del modelo o del telar, pasarlo a catálogo.
+    private const IDEAL_KM_MIN = ['1' => 60, '2' => 120, '3' => 180, '4' => 210];
 
     /**
      * Selector de reportes: muestra los reportes disponibles
@@ -36,6 +41,12 @@ class ReportesAtadoresController extends Controller
                 'nombre' => 'OEE Atadores',
                 'accion' => 'Seleccionar Fechas',
                 'url' => route('atadores.reportes.atadores'),
+                'disponible' => true,
+            ],
+            [
+                'nombre' => 'Atadores KM (Karl Mayer)',
+                'accion' => 'Montado, enhebrado y efectividad por barra',
+                'url' => route('atadores.reportes.km'),
                 'disponible' => true,
             ],
         ];
@@ -106,6 +117,112 @@ class ReportesAtadoresController extends Controller
             'lunesIni' => $lunesInicio?->toDateString(),
             'domingoFin' => $domingoFin?->toDateString(),
         ]);
+    }
+
+    /**
+     * GET /atadores/reportes-atadores/km
+     * Montado y enhebrado de cada barra Karl Mayer. Efectividad = ideal de la barra / tiempo real de enhebrado.
+     */
+    public function reporteKm(Request $request)
+    {
+        $fechaIni = $this->resolverFecha($request->query('fecha_ini'));
+        $fechaFin = $this->resolverFecha($request->query('fecha_fin'));
+
+        if (! $fechaIni || ! $fechaFin || $fechaIni->greaterThan($fechaFin)) {
+            return view('modulos.atadores.reportes.km', ['fechaIni' => null, 'fechaFin' => null, 'filas' => [], 'total' => null]);
+        }
+
+        $desde = $fechaIni->toDateTimeString();
+        $hasta = $fechaFin->addDay()->toDateTimeString();
+
+        // La fecha del atado es el inicio del montado; si aún no se captura, la fecha del programa.
+        $registros = DB::connection('sqlsrv')->table('AtaMontadoTelas as t')
+            ->leftJoin('AtaKmMontado as m', fn ($j) => $j->on('m.NoJulio', '=', 't.NoJulio')->on('m.NoProduccion', '=', 't.NoProduccion'))
+            ->leftJoin('AtaKmEnhebrado as e', fn ($j) => $j->on('e.NoJulio', '=', 't.NoJulio')->on('e.NoProduccion', '=', 't.NoProduccion'))
+            ->whereIn('t.Tipo', array_map('strval', array_keys(self::IDEAL_KM_MIN))) // llaves int: SQL Server convertiría 'Rizo' a int y truena
+            ->where(fn ($q) => $q
+                ->where(fn ($q) => $q->where('m.FechaInicio', '>=', $desde)->where('m.FechaInicio', '<', $hasta))
+                ->orWhere(fn ($q) => $q->whereNull('m.FechaInicio')->where('t.Fecha', '>=', $fechaIni->toDateString())->where('t.Fecha', '<=', $fechaFin->toDateString())))
+            ->select([
+                't.Turno', 't.NoTelarId', 't.Tipo', 't.NoJulio', 't.MergaKg', 't.Fecha',
+                'm.CveEmpl1', 'm.CveEmpl2', 'm.CveEmpl3', 'm.FechaInicio as MontadoIni', 'm.FechaFin as MontadoFin',
+                'e.FechaInicio as EnhebradoIni', 'e.FechaFin as EnhebradoFin',
+            ])
+            ->get();
+
+        $filas = $registros->map(function ($r) {
+            $fecha = Carbon::parse($r->MontadoIni ?? $r->Fecha);
+            $enhebrado = $this->minutosEntre($r->EnhebradoIni, $r->EnhebradoFin);
+            $ideal = self::IDEAL_KM_MIN[trim((string) $r->Tipo)];
+
+            return [
+                'orden' => $fecha,
+                'fecha' => $fecha->format('d/m/Y'),
+                'turno' => $r->Turno,
+                'montador' => implode('-', array_filter([$r->CveEmpl1, $r->CveEmpl2, $r->CveEmpl3])),
+                'km' => $r->NoTelarId,
+                'barra' => trim((string) $r->Tipo),
+                'julio' => $r->NoJulio,
+                'montado_ini' => $this->horaKm($r->MontadoIni),
+                'montado_fin' => $this->horaKm($r->MontadoFin),
+                'montado_total' => $this->hhmm($this->minutosEntre($r->MontadoIni, $r->MontadoFin)),
+                'enhebrado_ini' => $this->horaKm($r->EnhebradoIni),
+                'enhebrado_fin' => $this->horaKm($r->EnhebradoFin),
+                'enhebrado_total' => $this->hhmm($enhebrado),
+                'enhebrado_min' => $enhebrado,
+                'ideal_min' => $ideal,
+                'merma' => $r->MergaKg,
+                'efectividad' => $enhebrado ? round($ideal / $enhebrado * 100, 2) : null,
+            ];
+        })->sortBy('orden')->values();
+
+        // Etiqueta de la gráfica: la fecha, y "(n)" cuando el mismo día tuvo varios atados.
+        $vistas = [];
+        $filas = $filas->map(function ($f) use (&$vistas) {
+            $dia = substr($f['fecha'], 0, 5);
+            $vistas[$dia] = ($vistas[$dia] ?? 0) + 1;
+            $f['etiqueta'] = $vistas[$dia] > 1 ? "{$dia} ({$vistas[$dia]})" : $dia;
+
+            return $f;
+        })->all();
+
+        $medidas = array_filter($filas, fn ($f) => $f['efectividad'] !== null);
+        $sumaReal = array_sum(array_column($medidas, 'enhebrado_min'));
+        $total = [
+            'atados' => count($medidas),
+            'real' => $sumaReal,
+            'ideal' => array_sum(array_column($medidas, 'ideal_min')),
+        ];
+        // Efectividad global ponderada por tiempo (Σideal / Σreal), no promedio de porcentajes.
+        $total['efectividad'] = $sumaReal ? round($total['ideal'] / $sumaReal * 100, 2) : null;
+
+        return view('modulos.atadores.reportes.km', [
+            'fechaIni' => $fechaIni->toDateString(),
+            'fechaFin' => $fechaFin->toDateString(),
+            'filas' => $filas,
+            'total' => $total,
+        ]);
+    }
+
+    private function minutosEntre($inicio, $fin): ?int
+    {
+        if (! $inicio || ! $fin) {
+            return null;
+        }
+
+        $minutos = (int) round(Carbon::parse($inicio)->diffInMinutes(Carbon::parse($fin), false));
+
+        return $minutos > 0 ? $minutos : null;
+    }
+
+    private function horaKm($valor): ?string
+    {
+        return $valor ? Carbon::parse($valor)->format('H:i') : null;
+    }
+
+    private function hhmm(?int $minutos): ?string
+    {
+        return $minutos === null ? null : sprintf('%02d:%02d', intdiv($minutos, 60), $minutos % 60);
     }
 
     /**

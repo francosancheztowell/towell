@@ -10,6 +10,7 @@ use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\Catalogos\CatLMat;
 use App\Services\Planeacion\CatalogosMaterialesLMatService;
 use App\Services\Planeacion\MatrizCalibresService;
+use App\Support\Planeacion\TelarSalonResolver;
 use App\ValueObjects\Planeacion\MatrizCalibreClave;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -106,7 +107,7 @@ class CatLMatController extends Controller
             'pesoCrudo' => 'nullable|string|max:60',
             'itemIdCrudo' => 'nullable|string|max:60',
             'inventSizeCrudo' => 'nullable|string|max:60',
-            'luchaje' => 'nullable|integer',
+            'luchaje' => 'nullable|integer|min:0',
             'codigoDibujo' => 'nullable|string|max:30',
             'actualizaLmat' => 'sometimes|boolean',
             'pasadas' => 'sometimes|array',
@@ -116,6 +117,10 @@ class CatLMatController extends Controller
             'pasadas.PasadasComb3' => 'sometimes|integer|min:0',
             'pasadas.PasadasComb4' => 'sometimes|integer|min:0',
             'pasadas.PasadasComb5' => 'sometimes|integer|min:0',
+            'pasadas.PasadasBarra1' => 'sometimes|integer|min:0',
+            'pasadas.PasadasBarra2' => 'sometimes|integer|min:0',
+            'pasadas.PasadasBarra3' => 'sometimes|integer|min:0',
+            'pasadas.PasadasBarra4' => 'sometimes|integer|min:0',
             'formula' => 'sometimes|array',
             'formula.Largo' => 'sometimes|numeric|gt:0',
             'formula.TramaAnchoPeine' => 'sometimes|numeric|gt:0',
@@ -126,6 +131,10 @@ class CatLMatController extends Controller
             'formula.CalibreComb32' => 'sometimes|numeric|gt:0',
             'formula.CalibreComb42' => 'sometimes|numeric|gt:0',
             'formula.CalibreComb52' => 'sometimes|numeric|gt:0',
+            'formula.CalibreBarra12' => 'sometimes|numeric|gt:0',
+            'formula.CalibreBarra22' => 'sometimes|numeric|gt:0',
+            'formula.CalibreBarra32' => 'sometimes|numeric|gt:0',
+            'formula.CalibreBarra42' => 'sometimes|numeric|gt:0',
             'fibras' => 'sometimes|array',
             'fibras.FibraComb1' => 'sometimes|nullable|string|max:50',
             'fibras.FibraComb2' => 'sometimes|nullable|string|max:50',
@@ -218,7 +227,10 @@ class CatLMatController extends Controller
                     'PasadasComb5',
                 ]);
                 $bomIdActual = strtoupper(trim((string) ($catCodificado?->BomId ?? '')));
-                $esEstand = str_starts_with($bomIdActual, 'ESTAND');
+                // KM no tiene L.Mat ESTAND: al liberar se le pone una genérica KM (…GEN…-K, …EST…-K)
+                // o ninguna, así que en KM siempre se puede reemplazar por la L.Mat propia de la orden.
+                $esEstand = str_starts_with($bomIdActual, 'ESTAND')
+                    || TelarSalonResolver::esKarlMayer($salon, $telarId);
                 $bomIdResultado = $catCodificado?->BomId;
                 $bomNameResultado = $catCodificado?->BomName;
                 $actualizaLmatResultado = $catCodificado?->ActualizaLmat;
@@ -277,6 +289,18 @@ class CatLMatController extends Controller
                     $q->update($pasadasPayload);
                 }
 
+                // Karl Mayer: las pasadas de barra son el consumo de la barra. Solo reparten el
+                // peso entre las 4 barras, así que no aplica el rango ±30% contra Total.
+                $pasadasBarraPayload = [];
+                foreach (['PasadasBarra1', 'PasadasBarra2', 'PasadasBarra3', 'PasadasBarra4'] as $campoBarra) {
+                    if (array_key_exists($campoBarra, $data['pasadas'] ?? [])) {
+                        $pasadasBarraPayload[$campoBarra] = (int) $data['pasadas'][$campoBarra];
+                    }
+                }
+                if ($pasadasBarraPayload !== []) {
+                    $q->update($pasadasBarraPayload);
+                }
+
                 // Parámetros editables que alimentan las fórmulas del modal L.Mat.
                 // Se actualizan parcialmente para no borrar calibres de combinaciones ausentes.
                 $camposFormulaPermitidos = [
@@ -289,6 +313,11 @@ class CatLMatController extends Controller
                     'CalibreComb32',
                     'CalibreComb42',
                     'CalibreComb52',
+                    // Karl Mayer: calibre de fórmula por barra (el de catálogo CalibreBarraN no se toca).
+                    'CalibreBarra12',
+                    'CalibreBarra22',
+                    'CalibreBarra32',
+                    'CalibreBarra42',
                 ];
                 $formulaPayload = [];
                 foreach ($camposFormulaPermitidos as $campoFormula) {
@@ -333,7 +362,12 @@ class CatLMatController extends Controller
                     $q->update($limpiezaPayload);
                 }
 
-                // Luchaje / CodigoDibujo: del request o, si no vienen, de CatCodificados (aunque no se muestren en el modal).
+                // Luchaje es editable en el modal (cambia la curva del pie): se guarda también en la codificación.
+                if (array_key_exists('luchaje', $data) && $data['luchaje'] !== null) {
+                    $q->update(['Luchaje' => (int) $data['luchaje']]);
+                }
+
+                // Luchaje / CodigoDibujo: del request o, si no vienen, de CatCodificados.
                 $luchaje = array_key_exists('luchaje', $data) && $data['luchaje'] !== null
                     ? (int) $data['luchaje']
                     : ($catCodificado?->Luchaje !== null ? (int) $catCodificado->Luchaje : null);

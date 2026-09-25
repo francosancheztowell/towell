@@ -145,8 +145,6 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
     Route::delete('/produccion-reenconado/{folio}', [ProduccionReenconadoCabezuelaController::class, 'destroy'])
         ->middleware('module.permission:eliminar,27') // Producción Reenconado Cabezuela
         ->name('produccion.reenconado.destroy');
-    Route::patch('/produccion-reenconado/{folio}/cambiar-status', [ProduccionReenconadoCabezuelaController::class, 'cambiarStatus'])
-        ->name('produccion.reenconado.cambiar-status');
 
     Route::get('/secuencia-inv-telas', [SecuenciaInvTelasController::class, 'index'])->name('secuencia-inv-telas.index');
     Route::post('/secuencia-inv-telas', [SecuenciaInvTelasController::class, 'store'])->middleware('module.permission:crear,29')->name('secuencia-inv-telas.store'); // Secuencia Inv Telas
@@ -168,16 +166,8 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
     Route::get('/inventario-telas/karl-mayer', [TelaresController::class, 'inventarioKarlMayer'])->name('inventario.karl_mayer');
 
     Route::get('/inventario/trama/nuevo-requerimiento', [NuevoRequerimientoController::class, 'index'])->name('inventario.trama.nuevo.requerimiento');
-    Route::post('/inventario/trama/nuevo-requerimiento', [NuevoRequerimientoController::class, 'guardarRequerimientos'])->name('inventario.trama.nuevo.requerimiento.store');
-    Route::get('/inventario/trama/nuevo-requerimiento/turno-info', [NuevoRequerimientoController::class, 'getTurnoInfo'])->name('inventario.trama.nuevo.requerimiento.turno.info');
     Route::get('/inventario/trama/consultar-requerimiento', [ConsultarRequerimientoController::class, 'index'])->name('inventario.trama.consultar.requerimiento');
     Route::get('/inventario/trama/consultar-requerimiento/{folio}/resumen', [ConsultarRequerimientoController::class, 'resumen'])->name('inventario.trama.consultar.requerimiento.resumen');
-    Route::get('/inventario/trama/nuevo-requerimiento/en-proceso', [NuevoRequerimientoController::class, 'enProcesoInfo'])->name('inventario.trama.nuevo.requerimiento.enproceso');
-    Route::post('/inventario/trama/nuevo-requerimiento/actualizar-cantidad', [NuevoRequerimientoController::class, 'actualizarCantidad'])->name('inventario.trama.nuevo.requerimiento.actualizar.cantidad');
-    Route::get('/inventario/trama/nuevo-requerimiento/buscar-articulos', [NuevoRequerimientoController::class, 'buscarArticulos'])->name('inventario.trama.nuevo.requerimiento.buscar.articulos');
-    Route::get('/inventario/trama/nuevo-requerimiento/buscar-fibras', [NuevoRequerimientoController::class, 'buscarFibras'])->name('inventario.trama.nuevo.requerimiento.buscar.fibras');
-    Route::get('/inventario/trama/nuevo-requerimiento/buscar-codigos-color', [NuevoRequerimientoController::class, 'buscarCodigosColor'])->name('inventario.trama.nuevo.requerimiento.buscar.codigos.color');
-    Route::get('/inventario/trama/nuevo-requerimiento/buscar-nombres-color', [NuevoRequerimientoController::class, 'buscarNombresColor'])->name('inventario.trama.nuevo.requerimiento.buscar.nombres.color');
 });
 
 Route::get('/produccion/reenconado-cabezuela', [ProduccionReenconadoCabezuelaController::class, 'index'])
@@ -222,7 +212,6 @@ Route::get('/modulo-cortes-de-eficiencia/datos-telares', [CortesEficienciaContro
 Route::get('/modulo-cortes-de-eficiencia/fallas', [CortesEficienciaController::class, 'getFallasCe'])->name('cortes.eficiencia.fallas');
 Route::get('/modulo-cortes-de-eficiencia/generar-folio', [CortesEficienciaController::class, 'generarFolio'])->name('cortes.eficiencia.generar.folio');
 Route::post('/modulo-cortes-de-eficiencia/guardar-hora', [CortesEficienciaController::class, 'guardarHora'])->name('cortes.eficiencia.guardar.hora');
-Route::post('/modulo-cortes-de-eficiencia/guardar-tabla', [CortesEficienciaController::class, 'guardarTabla'])->name('cortes.eficiencia.guardar.tabla');
 Route::post('/modulo-cortes-de-eficiencia', [CortesEficienciaController::class, 'store'])->name('cortes.eficiencia.store');
 Route::get('/modulo-cortes-de-eficiencia/{id}/pdf', [CortesEficienciaController::class, 'pdf'])->name('cortes.eficiencia.pdf');
 Route::put('/modulo-cortes-de-eficiencia/{id}/actualizar-registro', [CortesEficienciaController::class, 'actualizarRegistro'])->name('cortes.eficiencia.actualizar.registro');
@@ -238,21 +227,8 @@ Route::post('/modulo-cortes-de-eficiencia/visualizar/notificar-telegram', [Corte
 Route::post('/modulo-cortes-de-eficiencia/visualizar/notificar-telegram-imagen', [CortesEficienciaController::class, 'notificarTelegramImagen'])->name('cortes.eficiencia.visualizar.telegram.imagen');
 
 Route::get('/modulo-nuevo-requerimiento', [NuevoRequerimientoController::class, 'index'])->name('modulo.nuevo.requerimiento');
-Route::post('/modulo-nuevo-requerimiento/guardar', [NuevoRequerimientoController::class, 'guardarRequerimientos'])->name('modulo.nuevo.requerimiento.store');
-Route::get('/modulo-nuevo-requerimiento/turno-info', [NuevoRequerimientoController::class, 'getTurnoInfo'])->name('modulo.nuevo.requerimiento.turno.info');
-Route::get('/modulo-nuevo-requerimiento/en-proceso', [NuevoRequerimientoController::class, 'enProcesoInfo'])->name('modulo.nuevo.requerimiento.enproceso');
-Route::post('/modulo-nuevo-requerimiento/actualizar-cantidad', [NuevoRequerimientoController::class, 'actualizarCantidad'])->name('modulo.nuevo.requerimiento.actualizar.cantidad');
-Route::get('/modulo-nuevo-requerimiento/calibres', [NuevoRequerimientoController::class, 'getCalibres'])->name('modulo.nuevo.requerimiento.calibres');
-Route::get('/modulo-nuevo-requerimiento/fibras', [NuevoRequerimientoController::class, 'getFibras'])->name('modulo.nuevo.requerimiento.fibras');
-Route::get('/modulo-nuevo-requerimiento/colores', [NuevoRequerimientoController::class, 'getColores'])->name('modulo.nuevo.requerimiento.colores');
-Route::get('/modulo-nuevo-requerimiento/buscar-articulos', [NuevoRequerimientoController::class, 'buscarArticulos'])->name('modulo.nuevo.requerimiento.buscar.articulos');
-Route::get('/modulo-nuevo-requerimiento/buscar-fibras', [NuevoRequerimientoController::class, 'buscarFibras'])->name('modulo.nuevo.requerimiento.buscar.fibras');
-Route::get('/modulo-nuevo-requerimiento/buscar-codigos-color', [NuevoRequerimientoController::class, 'buscarCodigosColor'])->name('modulo.nuevo.requerimiento.buscar.codigos.color');
-Route::get('/modulo-nuevo-requerimiento/buscar-nombres-color', [NuevoRequerimientoController::class, 'buscarNombresColor'])->name('modulo.nuevo.requerimiento.buscar.nombres.color');
 
 Route::get('/modulo-consultar-requerimiento', [ConsultarRequerimientoController::class, 'index'])->name('modulo.consultar.requerimiento');
-Route::get('/modulo-consultar-requerimiento/{folio}', [ConsultarRequerimientoController::class, 'show'])->name('modulo.consultar.requerimiento.show');
-Route::post('/modulo-consultar-requerimiento/{folio}/status', [ConsultarRequerimientoController::class, 'updateStatus'])->name('modulo.consultar.requerimiento.status');
 Route::get('/modulo-consultar-requerimiento/{folio}/resumen', [ConsultarRequerimientoController::class, 'resumen'])->name('modulo.consultar.requerimiento.resumen');
 
 Route::prefix('api/telares')->controller(TelaresController::class)->group(function () {

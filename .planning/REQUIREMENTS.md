@@ -15,7 +15,7 @@
 - [x] **BASE-04**: Línea base de rendimiento de 15 pantallas top (TTFB, queries, KB HTML/JS, chunks) con runbook repetible.
 - [x] **BASE-05**: Higiene: vistas/servicios muertos, rutas debug, certificados públicos y archivos sin referencia fuera.
 - [x] **BASE-06**: Página QR de usuarios funcional (librería por npm/Vite).
-- [ ] **BASE-07**: Conexión de Ventas (`sqlsrv_Reportes_Towell`) restaurada por el flujo `scripts/db-config.ps1` + `.env.example`. → código y `.env.example` listos (fase 10); falta que el owner agregue la conexión con `scripts/db-config.ps1`.
+- [x] **BASE-07**: Conexión de Ventas (`sqlsrv_Reportes_Towell`) restaurada por el flujo `scripts/db-config.ps1` + `.env.example`. → resuelto en `main` (63781bf4: `sqlsrv_Reportes_Towell` en `config/database.php`), integrado el 2026-09-25; en prod solo faltan las llaves `DB_*_REPORTES_TOWELL` del `.env` si no están.
 - [x] **BASE-08**: Jobs fallidos persistidos (`database-uuids`) y log diario con rotación.
 - [x] **BASE-09**: Tabla `cache` solo si prod usa store `database` (decisión documentada). → Prod usa `file` (2026-09-24): no aplica.
 - [x] **BASE-10**: `tsconfig` incluye todo `resources/js/**/*.ts` (exclude temporal documentado).
@@ -176,6 +176,20 @@
 
 - [ ] **PT-PERF-01**: Índices faltantes creados — `ReqProgramaTejidoLine` no tiene ningún índice sobre `ProgramaId`/`Fecha`; `ReqProgramaTejido` sin índice directo sobre `(NoTelarId, Posicion)`.
 - [ ] **PT-PERF-02**: Eliminar N+1 confirmados en `ProgramaTejidoController::store()` (query de posición por telar en loop) y `CortesEficienciaController::obtenerDatosVisualizacionPorFecha()` (3 queries por fecha en rango).
+
+### ERP quick wins (auditoría 2026-09-22, Fase 0)
+
+- [ ] **ERP-F0-01**: Acciones Livewire (`/livewire/update`) re-ejecutan `EnsureModulePermission`; las 4 páginas Livewire sin chequeo propio lo tienen.
+- [ ] **ERP-F0-02**: `EdicionOrden::guardarMetrosFila` solo acepta registros del folio abierto (fix IDOR + test).
+- [ ] **ERP-F0-03**: Patrones LIKE de `InventarioReservasService` sin `%` inicial; salida idéntica a la actual.
+- [x] **ERP-F0-04**: 0 `bg-opacity-*` en vistas (Tailwind v4); `max-md` → `max-w-md`.
+- [x] **ERP-F0-05**: Tailwind cargado una sola vez por página (quitar import de `app.js`).
+- [x] **ERP-F0-06**: `getOrdenProduccion` no expone `SELECT @@VERSION` ni bloque debug.
+- [x] **ERP-F0-07**: Barrido de código muerto confirmado (métodos privados, `buildReporteResumenData` x2, `MecActividadesController` duplicado, CRUD sin ruta, `internalToast`).
+- [x] **ERP-F0-08**: R1.1 aplicado: rutas a métodos inexistentes (500) y 5 endpoints POST sin consumidor retirados.
+- [x] **ERP-F0-09**: Urdido-BPM-Line usa `http.post` (fix 419, igual que Engomado).
+- [x] **ERP-F0-10**: Polling de Programa Atadores se pausa con `document.hidden`; VerificaMaquina pagina con `PaginacionCompat` (los otros 4 `paginate()` de §2.5 quedan para Fase 1).
+- [x] **ERP-F0-11**: 0 `route()` a nombres inexistentes (3 hoy) y un test de contrato que lo impide.
 
 ## v2 Requirements
 

@@ -3,20 +3,23 @@
 namespace App\Imports;
 
 use App\Models\Planeacion\ReqVelocidadStd;
-use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToModel;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithBatchInserts;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
-use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts, WithChunkReading
+class ReqVelocidadStdImport implements ToModel, WithBatchInserts, WithChunkReading, WithHeadingRow
 {
     private $rowCounter = 0;
+
     private $processedRows = 0;
+
     private $skippedRows = 0;
+
     private $createdRows = 0;
+
     private $updatedRows = 0;
+
     private $errores = [];
 
     public function model(array $row)
@@ -30,6 +33,7 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
             // Saltar encabezados repetidos
             if ($this->looksLikeHeaderRow($row)) {
                 $this->skippedRows++;
+
                 return null;
             }
 
@@ -44,6 +48,7 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
             if (empty($telar) || empty($fibra) || is_null($velocidad)) {
                 $this->errores[] = "Fila {$this->rowCounter}: Faltan datos requeridos (Telar: '{$telar}', Fibra: '{$fibra}', Velocidad: '{$velocidad}')";
                 $this->skippedRows++;
+
                 return null;
             }
 
@@ -53,16 +58,18 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
                 'NoTelarId' => $telar,
                 'FibraId' => $fibra,
                 'Velocidad' => $velocidad,
-                'Densidad' => $densidad ?? 'Normal'
+                'Densidad' => $densidad ?? 'Normal',
             ]);
 
             $this->processedRows++;
             $this->createdRows++;
+
             return $modelo;
 
         } catch (\Exception $e) {
             $this->errores[] = "Fila {$this->rowCounter}: {$e->getMessage()}";
             $this->skippedRows++;
+
             return null;
         }
     }
@@ -81,6 +88,7 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
         foreach ($row as $key => $value) {
             $normalized[$this->normalizeKey($key)] = $value;
         }
+
         return $normalized;
     }
 
@@ -95,18 +103,17 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
                 return $row[$normalizedKey];
             }
         }
+
         return null;
     }
-
-
 
     private function looksLikeHeaderRow($row)
     {
         $headerValues = ['notelar', 'no telar', 'fibra', 'rpm', 'velocidad', 'densidad'];
         $rowValues = array_values($row);
 
-        $normalizedValues = array_map(function($val) {
-            return $this->normalizeKey((string)$val);
+        $normalizedValues = array_map(function ($val) {
+            return $this->normalizeKey((string) $val);
         }, $rowValues);
 
         $matches = 0;
@@ -125,7 +132,7 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
             return null;
         }
 
-        $value = (string)$value;
+        $value = (string) $value;
         $value = trim($value);
 
         // Manejar fórmulas de Excel
@@ -188,32 +195,18 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
         return $formula;
     }
 
-    private function parseInteger($value)
-    {
-        if (is_null($value) || $value === '') {
-            return null;
-        }
-
-        $value = (string)$value;
-        $value = trim(str_replace([' RPM', 'RPM'], '', $value));
-        $intValue = intval($value);
-
-        return $intValue > 0 ? $intValue : null;
-    }
-
     private function parseFloat($value)
     {
         if (is_null($value) || $value === '') {
             return null;
         }
 
-        $value = (string)$value;
+        $value = (string) $value;
         $value = trim(str_replace([' RPM', 'RPM'], '', $value));
         $floatValue = floatval($value);
 
         return $floatValue > 0 ? $floatValue : null;
     }
-
 
     public function batchSize(): int
     {
@@ -233,8 +226,7 @@ class ReqVelocidadStdImport implements ToModel, WithHeadingRow, WithBatchInserts
             'updated_rows' => $this->updatedRows,
             'skipped_rows' => $this->skippedRows,
             'total_rows' => $this->rowCounter,
-            'errores' => $this->errores
+            'errores' => $this->errores,
         ];
     }
-
 }

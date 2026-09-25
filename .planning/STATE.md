@@ -26,6 +26,9 @@ Validación de la rama integrada: **1 365 tests PHP verdes** (19 811 aserciones)
 
 G1 (entrada a Ola 2): utils TS mergeados ✅; monitoreo en producción ≥ 7 días ⏳ (falta desplegar); cierre remoto probado en prod ⏳; overhead p95 < 5 ms ✅ en local (1.4 ms), falta medir en prod.
 
+**`main` integrado (2026-09-25):** a pedido del owner, las Olas 0 y 1 se llevaron a `main`. Antes se trajeron a esta rama los 39 commits propios de `main` (fase 08 ERP quick wins, Ventas históricas, fixes de Engomado/Atadores/Crudo, conexión de Ventas). Resolución: vistas `programar-{urdido,engomado}` siguen borradas (muertas; solo tenían el cambio mecánico de 08-02); `NuevoRequerimientoLivewireTest` toma el mock de `main`; ROADMAP conserva el nuestro + fase 8. Arreglados 2 tests que ya fallaban en `main` (guard de SQL Server sin la conexión de Ventas; Crudo con el % de 2das) y 3 snapshots de PT por las rutas que 08-05 quitó a propósito. Baselines: phpstan regenerado con la deuda de `main` (3 441), ratchet con `innerHTML` 394→401 por `resources/js/ventas/ventas-historicas.js` (→ 19-10). Pint aplicado a 9 PHP que el CI revisa.
+**Ojo Ola 2:** las 5 sesiones partieron de la base anterior; `main` ya dejó 0 `bg-opacity-*` (parte de FE-12) y borró código muerto que 15-02/16 podrían tocar → esperar conflictos al integrarlas.
+
 Ola 2 — abierta 2026-09-25 sin esperar G1 (decisión del owner). Prompts y propiedad en `SESIONES-OLA-2.md`; orden de merge 20-01 → 18-01 → PT 04-perf → 15-02 → 16:
 - `claude/15-02-librerias` — session_01TQbwRo1Nnv926TpbrZsQuU
 - `claude/16-componentes` — session_01BXY25bxEvFRvn9zFQDDuXp
@@ -90,7 +93,7 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 
 **Otros:**
 - Marcar como *required* en la protección de `main` los checks `checks` y `php` del workflow *Frontend checks*.
-- Ventas: conexión `sqlsrv_Reportes_Towell` con `scripts/db-config.ps1` (pasos en `phases/10-base/10-01-SUMMARY.md` §Decisiones 1) y las 5 llaves `DB_*_REPORTES_TOWELL` en `.env`.
+- Ventas: la conexión `sqlsrv_Reportes_Towell` ya está en `config/database.php` (commit de `main`); confirmar las 5 llaves `DB_*_REPORTES_TOWELL` en el `.env` de prod.
 - Certificado de tablets: `public/towell-ca.crt` ya no se sirve; distribuirlo por otro medio si las tablets lo bajaban de ahí.
 - Aviso de privacidad del monitoreo (propuesta: leyenda discreta en login).
 - Worker de colas en Windows (propuesta: `queue:work --stop-when-empty --max-time=50` desde `scheduler.bat`).

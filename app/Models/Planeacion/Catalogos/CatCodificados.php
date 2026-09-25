@@ -45,10 +45,10 @@ class CatCodificados extends Model
         // Karl Mayer (telares 401/402): no teje con rizo/pie/C1-C5, sino con cuatro barras.
         // Al final de la lista a proposito: el orden alimenta los SELECT y las preferencias
         // de columnas de la grilla se guardan por indice, asi que insertar en medio las corrompe.
-        'CuentaBarra1', 'CalibreBarra1', 'CodColorBarra1', 'ColorBarra1', 'FibraBarra1', 'PasadasBarra1',
-        'CuentaBarra2', 'CalibreBarra2', 'CodColorBarra2', 'ColorBarra2', 'FibraBarra2', 'PasadasBarra2',
-        'CuentaBarra3', 'CalibreBarra3', 'CodColorBarra3', 'ColorBarra3', 'FibraBarra3', 'PasadasBarra3',
-        'CuentaBarra4', 'CalibreBarra4', 'CodColorBarra4', 'ColorBarra4', 'FibraBarra4', 'PasadasBarra4',
+        'CuentaBarra1', 'CalibreBarra1', 'CalibreBarra12', 'CodColorBarra1', 'ColorBarra1', 'FibraBarra1', 'PasadasBarra1',
+        'CuentaBarra2', 'CalibreBarra2', 'CalibreBarra22', 'CodColorBarra2', 'ColorBarra2', 'FibraBarra2', 'PasadasBarra2',
+        'CuentaBarra3', 'CalibreBarra3', 'CalibreBarra32', 'CodColorBarra3', 'ColorBarra3', 'FibraBarra3', 'PasadasBarra3',
+        'CuentaBarra4', 'CalibreBarra4', 'CalibreBarra42', 'CodColorBarra4', 'ColorBarra4', 'FibraBarra4', 'PasadasBarra4',
     ];
 
     protected $fillable = self::COLUMNS;

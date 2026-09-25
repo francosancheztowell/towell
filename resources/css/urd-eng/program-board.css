@@ -433,6 +433,23 @@ body.program-board-modal-open main.app-main {
     background: #dbeafe;
 }
 
+/* Engomado: orden cuyo folio ya está Finalizado en urdido */
+.program-board-lanes.is-engomado .program-board-order.is-urdido-finished {
+    background: #dbeafe;
+}
+
+.program-board-lanes.is-engomado .program-board-order.is-urdido-finished:hover {
+    background: #bfdbfe;
+}
+
+.program-board-lanes.is-engomado .program-board-order.is-urdido-finished.is-selected {
+    background: #bfdbfe;
+}
+
+#priority-sort-body tr.is-urdido-finished {
+    background: #dbeafe;
+}
+
 .program-board-order:focus-visible {
     outline: 2px solid #2563eb;
     outline-offset: -2px;

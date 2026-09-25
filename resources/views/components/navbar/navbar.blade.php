@@ -29,9 +29,9 @@
         && !request()->routeIs('planeacion.alineacion.index')
         && !request()->routeIs('trazabilidad.*')
         && !request()->routeIs('crudo.*')
-        && !request()->routeIs('mecanicos.*')
         && !request()->is('simulacion*')
-        && !request()->is('mecanicos*');
+        && !request()->routeIs('ventas.*')
+        && !request()->is('ventas*');
 
     // Días para liberar órdenes
     $diasLiberarOrdenes = session('liberar_ordenes_dias', 10.999);

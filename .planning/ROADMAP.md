@@ -83,6 +83,12 @@ Gates G0–G4: ver `PROTOCOLO-SESIONES.md` §8.
 - [ ] **Phase 21: Adopción y limpieza** — retiro de legado con 0 hits, dependencias muertas, docs.
   **Requirements:** ADOP-01..06 · **Context:** `phases/21-adopcion/21-CONTEXT.md`
 
+### Track ERP — quick wins (fase 8, trabajada directo en `main`)
+
+- [ ] **Phase 8: ERP quick wins** — Fase 0 de `auditoria_erp_2026-09.md` (seguridad Livewire, bugs, SQL, perf, código muerto) con tests de edición. Independiente del resto. Integrada a esta rama desde `main` el 2026-09-25.
+  **Requirements:** ERP-F0-01..11 · **Plans:** `phases/08-erp-quick-wins/` — 08-02, 08-04, 08-05, 08-06 hechos; 08-03 parcial (F0-03 espera consultas A/B); 08-01 excluido por el owner.
+  **Solapes con el refactor:** 08-02 ya dejó 0 `bg-opacity-*` y Tailwind una vez por página (parte de FE-12); 08-05 quitó `/test-404` y `/modulos-sin-auth` (como BASE-05).
+
 ### Track PT — Programa Tejido (milestone previo, sin renumerar)
 
 **Orden aprobado 2026-09-24 (decisión D-E):** `01 → 01.1 → 02 → 04-perf (cortes 4–7) → 03 → 05 → 04-ux → 06 → 07`.
@@ -118,6 +124,7 @@ Gate PT (sin cambios): tests de contrato y dominio pasan; invariantes SQL se man
 | 19. Módulos TS | MIG | 3 | 0/10 | Context listo | - |
 | 20. Arq/Sec | ARQ/SEC | 2–3 | 0/3 | Context listo | - |
 | 21. Adopción | ADOP | 4 | 0/1 | Context listo | - |
+| 8. ERP quick wins | ERP | — | 4/6 | 08-01 excluido por el owner; 08-03 F0-03 pendiente de consultas A/B (trabajada en `main`) | - |
 | PT 1. Guardrails | PT | 0 | 1/1 | Completa en sqlite, integrada; runbook Laragon pendiente; decisión 01.3 aprobada | 2026-09-24 |
 | PT 1.1 AuthZ | PT | 1 | 1/1 | Completa, integrada (`0e55e84`; liberar Muestras → idrol 5) | 2026-09-24 |
 | PT 2. Lectura | PT | 1 | 1/1 | Completa, integrada (`0e55e84`); canary 02.5 y `.sql` de Muestras pendientes del owner | 2026-09-24 |

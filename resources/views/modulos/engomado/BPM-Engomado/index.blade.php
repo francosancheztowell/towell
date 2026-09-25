@@ -180,7 +180,7 @@
     </div>
 
     <!-- Modal Crear -->
-    <div id="createModal" class="fixed inset-0 bg-gray-900 bg-opacity-10 z-50 flex items-center justify-center hidden">
+    <div id="createModal" class="fixed inset-0 bg-gray-900/10 z-50 flex items-center justify-center hidden">
         <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3 rounded-t-lg flex justify-between items-center">
                 <h3 class="text-lg font-semibold">Crear Nuevo Folio BPM Engomado</h3>
@@ -290,7 +290,7 @@
     </div>
 
     <!-- Modal Editar -->
-    <div id="editModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center">
+    <div id="editModal" class="hidden fixed inset-0 bg-gray-900/50 z-50 flex items-center justify-center">
         <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-4 py-3 rounded-t-lg flex justify-between items-center">
                 <h3 class="text-lg font-semibold">Editar Folio BPM</h3>

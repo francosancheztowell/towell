@@ -121,7 +121,7 @@ final class CrudoMachineDetailTest extends TestCase
         $this->assertSame(0, $this->flogProvider->calls);
     }
 
-    public function test_defect_headers_show_quality_percent_per_turn(): void
+    public function test_defect_headers_show_seconds_percent_per_turn(): void
     {
         $machine = $this->machineData();
         $machine['pieces'] = 100.0;
@@ -158,9 +158,9 @@ final class CrudoMachineDetailTest extends TestCase
 
         $this->assertMatchesRegularExpression('/T1\s*<span class="crudo-defect-turn-share">\(0%\)<\/span>/', $html);
         $this->assertMatchesRegularExpression('/T2\s*<span class="crudo-defect-turn-share">\(0%\)<\/span>/', $html);
-        $this->assertMatchesRegularExpression('/T3\s*<span class="crudo-defect-turn-share">\(90%\)<\/span>/', $html);
+        $this->assertMatchesRegularExpression('/T3\s*<span class="crudo-defect-turn-share">\(10%\)<\/span>/', $html);
         $this->assertMatchesRegularExpression('/T4\s*<span class="crudo-defect-turn-share">\(0%\)<\/span>/', $html);
-        $this->assertStringContainsString('90% de calidad en T3', $html);
+        $this->assertStringContainsString('10% de 2das en T3', $html);
     }
 
     public function test_orders_table_shows_capture_turns_joined_with_comma(): void

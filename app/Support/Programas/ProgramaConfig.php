@@ -34,20 +34,6 @@ final class ProgramaConfig
         return "No se puede poner Cancelado, Programado ni En Proceso: este folio ya tiene producción en AX (AX = 1) en {$tablaProduccion}.";
     }
 
-    /**
-     * Que puede hacer el cambio de Metros con la produccion, segun el estado de la orden.
-     *
-     * @return array<int, string>
-     */
-    public static function accionesMetrosPermitidas(string $status): array
-    {
-        return match ($status) {
-            'Finalizado' => [self::ACCION_METROS_SOLO_CAMPO, self::ACCION_METROS_ACTUALIZAR_TODA],
-            'En Proceso' => self::ACCIONES_METROS,
-            default => [self::ACCION_METROS_SOLO_CAMPO],
-        };
-    }
-
     public static function estatusBloqueadoPorAxProduccion(string $status): bool
     {
         return in_array($status, self::STATUS_BLOQUEADOS_CON_AX_PRODUCCION, true);

@@ -406,39 +406,4 @@ class ProduccionReenconadoCabezuelaController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
-
-    public function cambiarStatus(Request $request, string $folio)
-    {
-        try {
-            $registro = TejProduccionReenconado::findOrFail($folio);
-            $statusActual = $registro->status;
-
-            // Ciclo de estados: null/Creado -> En Proceso -> Terminado -> Creado
-            if (empty($statusActual) || $statusActual === 'Creado') {
-                $nuevoStatus = 'En Proceso';
-            } elseif ($statusActual === 'En Proceso') {
-                $nuevoStatus = 'Terminado';
-            } elseif ($statusActual === 'Terminado') {
-                $nuevoStatus = 'Creado';
-            } else {
-                $nuevoStatus = 'Creado';
-            }
-
-            $registro->status = $nuevoStatus;
-            $registro->save();
-
-            return response()->json([
-                'success' => true,
-                'status' => $nuevoStatus,
-                'message' => "Status cambiado a: {$nuevoStatus}",
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('Cambiar status fallo', ['folio' => $folio, 'exception' => $e]);
-
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 500);
-        }
-    }
 }

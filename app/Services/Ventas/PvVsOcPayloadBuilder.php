@@ -54,7 +54,7 @@ final class PvVsOcPayloadBuilder
         ];
 
         $json = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-        $gzip = gzencode($json, 9, ZLIB_ENCODING_GZIP);
+        $gzip = gzencode($json, 6, ZLIB_ENCODING_GZIP);
 
         return 'GZ:'.base64_encode((string) $gzip);
     }

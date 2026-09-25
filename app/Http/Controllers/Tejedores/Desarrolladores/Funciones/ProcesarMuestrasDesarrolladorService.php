@@ -89,9 +89,9 @@ class ProcesarMuestrasDesarrolladorService
                     $modeloDestino
                 );
 
-                $claveModelo = $registroCodificado
-                    ? $registroCodificado->getAttribute('ClaveModelo')
-                    : data_get($ordenData, 'TamanoClave');
+                // Misma llave con la que se busco $modeloDestino (ver ProcesarDesarrolladorService).
+                $claveModelo = $contextoOrigen['programa']->TamanoClave
+                    ?: $registroCodificado?->getAttribute('ClaveModelo');
 
                 if (! $contextoDestino['esCambioTelar']) {
                     $this->actualizarModeloDestinoSiCorresponde(
@@ -106,7 +106,8 @@ class ProcesarMuestrasDesarrolladorService
                     );
                 }
 
-                $fuenteDatos = $modeloDestino ?? $registroCodificado ?? $ordenData;
+                // Mismo criterio que ProcesarDesarrolladorService: lo capturado, no el modelo leido antes.
+                $fuenteDatos = $registroCodificado ?? $modeloDestino ?? $ordenData;
                 $programas = $this->actualizarProgramasRelacionados(
                     $contextoOrigen['programa'],
                     $fuenteDatos,
@@ -302,7 +303,7 @@ class ProcesarMuestrasDesarrolladorService
             $payload['CuentaPie'] = $modeloDestino->CuentaPie ?? null;
         }
 
-        $this->catCodificadosService->applyPayload($registro, $payload);
+        $this->catCodificadosService->applyPayload($registro, $this->sinCamposNoCapturados($payload, $validated));
         $registro->save();
 
         return $registro;
@@ -354,7 +355,7 @@ class ProcesarMuestrasDesarrolladorService
         ], $detallePayload, $pasadasPayload);
 
         $columnasModelo = Schema::getColumnListing($registroModelo->getTable());
-        foreach ($payloadModelo as $column => $value) {
+        foreach ($this->sinCamposNoCapturados($payloadModelo, $validated) as $column => $value) {
             if (! in_array($column, $columnasModelo, true)) {
                 continue;
             }

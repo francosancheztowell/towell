@@ -33,23 +33,6 @@ if (! function_exists('formatearFecha')) {
     }
 }
 
-if (! function_exists('formatearFechaInputLocal')) {
-    function formatearFechaInputLocal($fecha)
-    {
-        if (empty($fecha)) {
-            return '';
-        }
-
-        try {
-            $carbon = \Carbon\Carbon::parse($fecha);
-
-            return $carbon->format('Y-m-d\\TH:i');
-        } catch (\Exception $e) {
-            return '';
-        }
-    }
-}
-
 if (! function_exists('getFotoUsuarioUrl')) {
     function getFotoUsuarioUrl($foto)
     {

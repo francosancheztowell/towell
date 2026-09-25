@@ -1,3 +1,5 @@
+import { mountVentasHistoricas } from './ventas-historicas';
+
 const FILTERS = [
     ['anio', 'Año'], ['mes', 'Mes'], ['empresa', 'Empresa'], ['tipo', 'Tipo'],
     ['cliente', 'Cliente'], ['tamano', 'Tamaño'], ['articulo', 'Artículo'], ['estatus', 'Estatus OC'],
@@ -103,7 +105,26 @@ const expandCompactPayload = (payload) => {
     return [...combos.values()];
 };
 
+const bindTabs = (root) => {
+    const globalFilters = root.querySelector('.pvoc-filters');
+    root.querySelectorAll('[data-pvoc-tab]').forEach((button) => button.addEventListener('click', () => {
+        const activeTab = button.dataset.pvocTab;
+        root.querySelectorAll('[data-pvoc-tab]').forEach((tab) => {
+            const active = tab === button;
+            tab.classList.toggle('is-active', active);
+            tab.setAttribute('aria-selected', String(active));
+        });
+        root.querySelectorAll('[data-pvoc-panel]').forEach((panel) => panel.classList.toggle('is-hidden', panel.dataset.pvocPanel !== activeTab));
+        // Ventas históricas trae sus propios segmentadores; los filtros globales son del resumen PV vs OC.
+        globalFilters?.classList.toggle('is-hidden', activeTab !== 'summary');
+    }));
+};
+
 document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) => {
+    // Pestañas y ventas históricas no dependen del payload PV vs OC: funcionan aunque éste falle.
+    bindTabs(root);
+    mountVentasHistoricas(root);
+
     let raw;
     try {
         raw = JSON.parse(root.dataset.dashboard || 'null');
@@ -127,9 +148,9 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
         : (Array.isArray(payload.sf) ? expandCompactPayload(payload) : []);
 
     const state = {
-        activeTab: 'summary', comparison: 'plan-pedido', grouping: 'origin',
+        comparison: 'plan-pedido', grouping: 'origin',
         filters: Object.fromEntries(FILTERS.map(([key]) => [key, ''])),
-        expanded: { summary: new Set(), history: new Set() },
+        expanded: { summary: new Set() },
     };
     const elements = {
         filters: root.querySelector('[data-pvoc-filters]'),
@@ -262,16 +283,10 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
     const renderTable = (panel) => {
         const container = root.querySelector(`[data-pvoc-table="${panel}"]`);
         const filtered = filteredRecords();
-        const levels = panel === 'summary'
-            ? [
-                ['empresa'], ['tipo'], [(item) => `${item.clienteCodigo} ${item.cliente}`],
-                [(item) => `${item.articuloCodigo} ${item.articulo} · ${item.linea} · ${item.tamano} · ${item.color}`],
-            ]
-            : [
-                ['anio', (value) => `Año ${value}`],
-                [(item) => String(item.mes).padStart(2, '0'), (value) => `Mes ${value}`],
-                ['semana', (value) => `Semana ${String(value).padStart(2, '0')}`],
-            ];
+        const levels = [
+            ['empresa'], ['tipo'], [(item) => `${item.clienteCodigo} ${item.cliente}`],
+            [(item) => `${item.articuloCodigo} ${item.articulo} · ${item.linea} · ${item.tamano} · ${item.color}`],
+        ];
         const rows = buildTree(filtered, levels).map((node) => renderNode(node, 0, panel)).join('');
         container.innerHTML = `${tableHeader()}${rows || '<tr><td colspan="15" class="pvoc-empty">No hay datos para los filtros seleccionados.</td></tr>'}
             <tr class="pvoc-row-total"><td class="pvoc-label">Total general</td>${numberCells(sum(filtered))}</tr></tbody></table>`;
@@ -287,17 +302,8 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
             .forEach((node) => state.expanded[panel].add(node.dataset.pvocNode));
         expandPass(); renderTable(panel); expandPass(); renderTable(panel); expandPass(); renderTable(panel);
     };
-    const renderTables = () => { renderTable('summary'); renderTable('history'); };
+    const renderTables = () => { renderTable('summary'); };
 
-    root.querySelectorAll('[data-pvoc-tab]').forEach((button) => button.addEventListener('click', () => {
-        state.activeTab = button.dataset.pvocTab;
-        root.querySelectorAll('[data-pvoc-tab]').forEach((tab) => {
-            const active = tab === button;
-            tab.classList.toggle('is-active', active);
-            tab.setAttribute('aria-selected', String(active));
-        });
-        root.querySelectorAll('[data-pvoc-panel]').forEach((panel) => panel.classList.toggle('is-hidden', panel.dataset.pvocPanel !== state.activeTab));
-    }));
     root.querySelector('[data-pvoc-clear]').addEventListener('click', () => {
         state.filters = Object.fromEntries(FILTERS.map(([key]) => [key, ''])); renderFilters(); renderTables();
     });

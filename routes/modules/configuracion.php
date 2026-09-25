@@ -18,7 +18,6 @@ $config = 58;           // Configuración (x3 en SYSRoles: 58 / 155 Urdido / 159
 $usuarios = 59;         // Usuarios
 $utileria = 67;         // Utilería (x2: 67 Configuración / 188 Planeación)
 $modulos = 101;         // Modulos
-$cargarCatalogos = 68;  // Cargar Catálogos
 $cargarPlaneacion = 69;  // Cargar Planeación
 $departamentos = 179;   // Departamentos
 $folios = 180;          // Secuencia de Folios
@@ -30,7 +29,7 @@ Route::get('/configuracion', [UsuarioController::class, 'showConfiguracion'])
 Route::redirect('/modulo-configuracion', '/configuracion', 301);
 
 Route::prefix('configuracion')->name('configuracion.')->group(function () use (
-    $config, $usuarios, $utileria, $modulos, $cargarCatalogos, $cargarPlaneacion,
+    $config, $usuarios, $utileria, $modulos, $cargarPlaneacion,
     $departamentos, $folios, $mensajes
 ) {
     Route::prefix('usuarios')->name('usuarios.')->group(function () use ($usuarios) {
@@ -56,7 +55,7 @@ Route::prefix('configuracion')->name('configuracion.')->group(function () use (
     });
 
     Route::prefix('utileria')->name('utileria.')->group(function () use (
-        $utileria, $modulos, $cargarCatalogos, $cargarPlaneacion
+        $utileria, $modulos, $cargarPlaneacion
     ) {
         Route::get('/', [UsuarioController::class, 'showSubModulosNivel3'])
             ->defaults('moduloPadre', '909')
@@ -74,25 +73,10 @@ Route::prefix('configuracion')->name('configuracion.')->group(function () use (
                     ->middleware("module.permission:modificar,{$modulos}")->name('update');
                 Route::delete('/{id}', 'destroy')->whereNumber('id')
                     ->middleware("module.permission:eliminar,{$modulos}")->name('destroy');
-                Route::post('/{id}/toggle-acceso', 'toggleAcceso')->whereNumber('id')
-                    ->middleware("module.permission:modificar,{$modulos}")->name('toggle.acceso');
-                Route::post('/{id}/toggle-permiso', 'togglePermiso')->whereNumber('id')
-                    ->middleware("module.permission:modificar,{$modulos}")->name('toggle.permiso');
                 Route::post('/{id}/sincronizar-permisos', 'sincronizarPermisos')->whereNumber('id')
                     ->middleware("module.permission:modificar,{$modulos}")->name('sincronizar.permisos');
-                Route::get('/{modulo}/duplicar', 'duplicar')->whereNumber('modulo')
-                    ->middleware("module.permission:crear,{$modulos}")->name('duplicar');
             });
 
-        Route::middleware("module.permission:acceso,{$modulos}")->group(function () {
-            Route::get('/api/modulos/nivel/{nivel}', [ModulosController::class, 'getModulosPorNivel'])
-                ->whereNumber('nivel')->name('api.modulos.nivel');
-            Route::get('/api/modulos/submodulos/{dependencia}', [ModulosController::class, 'getSubmodulos'])
-                ->whereNumber('dependencia')->name('api.modulos.submodulos');
-        });
-
-        Route::view('/cargarcatalogos', 'modulos/cargar-catalogos')
-            ->middleware("module.permission:acceso,{$cargarCatalogos}")->name('cargar-catalogos');
         Route::get('/cargarplaneacion', [ConfiguracionController::class, 'cargarPlaneacion'])
             ->middleware("module.permission:acceso,{$cargarPlaneacion}")->name('cargar-planeacion');
         Route::post('/cargarplaneacion/upload', [ConfiguracionController::class, 'procesarExcel'])

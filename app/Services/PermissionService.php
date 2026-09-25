@@ -26,11 +26,11 @@ class PermissionService
                 $prefijo = "modulo_{$modulo->idrol}_";
 
                 // Verificar si el checkbox fue marcado (has() retorna true si existe en el request)
-                $acceso = isset($permisos[$prefijo . 'acceso']) ? 1 : 0;
-                $crear = isset($permisos[$prefijo . 'crear']) ? 1 : 0;
-                $modificar = isset($permisos[$prefijo . 'modificar']) ? 1 : 0;
-                $eliminar = isset($permisos[$prefijo . 'eliminar']) ? 1 : 0;
-                $registrar = isset($permisos[$prefijo . 'registrar']) ? 1 : 0;
+                $acceso = isset($permisos[$prefijo.'acceso']) ? 1 : 0;
+                $crear = isset($permisos[$prefijo.'crear']) ? 1 : 0;
+                $modificar = isset($permisos[$prefijo.'modificar']) ? 1 : 0;
+                $eliminar = isset($permisos[$prefijo.'eliminar']) ? 1 : 0;
+                $registrar = isset($permisos[$prefijo.'registrar']) ? 1 : 0;
 
                 $permiso = SYSUsuariosRoles::create([
                     'idusuario' => $idusuario,
@@ -55,16 +55,6 @@ class PermissionService
     }
 
     /**
-     * Obtener permisos de un usuario para un módulo
-     */
-    public function getPermisosUsuario(int $idusuario, int $idrol): ?SYSUsuariosRoles
-    {
-        return SYSUsuariosRoles::porUsuario($idusuario)
-            ->porRol($idrol)
-            ->first();
-    }
-
-    /**
      * Obtener todos los permisos de un usuario
      */
     public function getAllPermisosUsuario(int $idusuario)
@@ -75,4 +65,3 @@ class PermissionService
             ->keyBy('idrol');
     }
 }
-

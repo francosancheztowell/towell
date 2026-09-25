@@ -38,13 +38,16 @@ class InventarioReservasService
 
     private const LIMIT_TI = 2000;
 
-    /** Patrones de búsqueda de Items para distinguir entre tipo Rizo y Pie */
-    private const PATTERN_RIZO = '%JU-ENG-RI%';
+    /**
+     * Patrones de búsqueda de Items para distinguir entre tipo Rizo y Pie.
+     * Sin comodín inicial para que el índice de ItemId se use (auditoría §2.6: 2147 ms → 130 ms).
+     */
+    private const PATTERN_RIZO = 'JU-ENG-RI%';
 
-    private const PATTERN_PIE = '%JU-ENG-PI%';
+    private const PATTERN_PIE = 'JU-ENG-PI%';
 
-    /** Julio de urdido (Karl Mayer): vive en A-JUL/URD y no es rizo ni pie, va sin Tipo. */
-    private const PATTERN_URDIDO = '%JULIO-URDIDO%';
+    /** Julio de urdido (Karl Mayer): vive en A-JUL/URD y no es rizo ni pie, va sin Tipo. Sin comodín inicial (ver arriba). */
+    private const PATTERN_URDIDO = 'JULIO-URDIDO%';
 
     /** Columnas permitidas para filtrar en las peticiones del frontend */
     public const ALLOWED_FILTERS = [
@@ -377,6 +380,8 @@ class InventarioReservasService
             // Regla de negocio: consumir notificaciones (avisos de los tejedores) previas a la reserva
             $this->aplicarReglaNotificaTejedorAntesDeReservar($data);
 
+            $data = $this->conJulioPrincipal($data);
+
             try {
                 InvTelasReservadas::create($data);
                 $created = true;
@@ -395,6 +400,29 @@ class InventarioReservasService
 
             return ['created' => $created, 'message' => $msg];
         });
+    }
+
+    /**
+     * Solo barras Karl Mayer: las 4 filas de la barra apuntan al julio y orden
+     * de la posicion 1 del telar (no_julio / no_orden), para filtrar la barra
+     * completa desde otros programas. Rizo y pie quedan en NULL.
+     */
+    private function conJulioPrincipal(array $data): array
+    {
+        $telarId = $data['TejInventarioTelaresId'] ?? null;
+        if (! is_numeric($telarId)) {
+            return $data;
+        }
+
+        $telar = TejInventarioTelares::find((int) $telarId, ['tipo', 'no_julio', 'no_orden']);
+        if (! $telar || ! ReservarProgramarActionService::esBarraKm($telar->tipo)) {
+            return $data;
+        }
+
+        $data['JulioPrincipal'] = trim((string) $telar->no_julio) ?: null;
+        $data['OrdenPrincipal'] = trim((string) $telar->no_orden) ?: null;
+
+        return $data;
     }
 
     /**
@@ -691,7 +719,7 @@ class InventarioReservasService
                 ->join(DB::raw('InventDim AS d WITH (NOLOCK)'), function ($join) {
                     $join->on('d.InventDimId', '=', 's.InventDimId')
                         ->where('d.DATAAREAID', '=', self::DATAAREA)
-                        ->whereIn(DB::raw('LTRIM(RTRIM(d.InventLocationId))'), self::ALMACENES);
+                        ->whereIn('d.InventLocationId', self::ALMACENES);
                 })
                 ->leftJoin(DB::raw('InventSerial AS ser WITH (NOLOCK)'), function ($join) {
                     $join->on('ser.InventSerialId', '=', 'd.InventSerialId')

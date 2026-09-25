@@ -16,20 +16,20 @@ class UsuarioRepository
         $perPage = min($perPage, 100); // Máximo 100 por página
 
         $query = Usuario::select([
-            'idusuario', 'numero_empleado', 'nombre', 'area', 
-            'turno', 'telefono', 'foto', 'puesto', 'correo', 'enviarMensaje'
+            'idusuario', 'numero_empleado', 'nombre', 'area',
+            'turno', 'telefono', 'foto', 'puesto', 'correo', 'enviarMensaje',
         ]);
 
         // Aplicar filtros
-        if (!empty($filtros['numero_empleado'])) {
-            $query->where('numero_empleado', 'like', '%' . $filtros['numero_empleado'] . '%');
+        if (! empty($filtros['numero_empleado'])) {
+            $query->where('numero_empleado', 'like', '%'.$filtros['numero_empleado'].'%');
         }
 
-        if (!empty($filtros['area'])) {
+        if (! empty($filtros['area'])) {
             $query->where('area', $filtros['area']);
         }
 
-        if (!empty($filtros['turno'])) {
+        if (! empty($filtros['turno'])) {
             $query->where('turno', $filtros['turno']);
         }
 
@@ -56,16 +56,16 @@ class UsuarioRepository
     {
         $query = Usuario::select([
             'idusuario', 'numero_empleado', 'nombre', 'area',
-            'turno', 'telefono', 'foto', 'puesto', 'correo', 'enviarMensaje'
+            'turno', 'telefono', 'foto', 'puesto', 'correo', 'enviarMensaje',
         ]);
 
-        if (!empty($filtros['numero_empleado'])) {
-            $query->where('numero_empleado', 'like', '%' . $filtros['numero_empleado'] . '%');
+        if (! empty($filtros['numero_empleado'])) {
+            $query->where('numero_empleado', 'like', '%'.$filtros['numero_empleado'].'%');
         }
-        if (!empty($filtros['area'])) {
+        if (! empty($filtros['area'])) {
             $query->where('area', $filtros['area']);
         }
-        if (!empty($filtros['turno'])) {
+        if (! empty($filtros['turno'])) {
             $query->where('turno', $filtros['turno']);
         }
 
@@ -94,8 +94,8 @@ class UsuarioRepository
     public function update(int $id, array $data): bool
     {
         $usuario = $this->findById($id);
-        
-        if (!$usuario) {
+
+        if (! $usuario) {
             return false;
         }
 
@@ -108,37 +108,11 @@ class UsuarioRepository
     public function delete(int $id): bool
     {
         $usuario = $this->findById($id);
-        
-        if (!$usuario) {
+
+        if (! $usuario) {
             return false;
         }
 
         return $usuario->delete();
     }
-
-    /**
-     * Obtener usuarios por área
-     */
-    public function getByArea(string $area): Collection
-    {
-        return Usuario::porArea($area)->get();
-    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

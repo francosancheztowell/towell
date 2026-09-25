@@ -7,8 +7,8 @@ namespace App\Support\Crudo;
 final class CrudoDefectTurnShare
 {
     /**
-     * Calidad por turno, misma regla que el gauge del modal:
-     * 100 − (2das del turno / piezas del turno). Sin piezas, 0.
+     * % de 2das por turno: 2das del turno / piezas del turno
+     * (el inverso de la calidad del gauge). Sin piezas, 0.
      *
      * @param  list<array{turns?: array<string, float|int>}>  $defects
      * @param  array<string, float|int>  $piecesByTurn
@@ -34,7 +34,7 @@ final class CrudoDefectTurnShare
         foreach ($seconds as $turn => $quantity) {
             $pieces = is_numeric($piecesByTurn[$turn] ?? null) ? (float) $piecesByTurn[$turn] : 0.0;
             $percents[$turn] = $pieces > 0
-                ? (int) round(max(0, 100 - (($quantity / $pieces) * 100)))
+                ? (int) round(min(100, ($quantity / $pieces) * 100))
                 : 0;
         }
 

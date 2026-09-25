@@ -24,7 +24,6 @@ class PlaneacionEscrituraAutorizacionTest extends TestCase
      * usuario, o son redirects 301 legacy. Clave = métodos + URI del snapshot.
      */
     private const SIN_PERMISO_DE_MODULO = [
-        'POST planeacion/catalogos/codificacion-modelos/buscar' => 'búsqueda (SELECT)',
         'POST planeacion/lmat/api/matriz-calibre/lote' => 'lookup en lote (SELECT)',
         'GET|POST programa-tejido/datos-relacionados' => 'catálogo (SELECT)',
         'GET|POST muestras/datos-relacionados' => 'catálogo (SELECT)',

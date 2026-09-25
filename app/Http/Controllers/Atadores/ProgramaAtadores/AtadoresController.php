@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Atadores\ProgramaAtadores;
 
-use App\Exports\ProgramaAtadoresExport;
 use App\Http\Controllers\Controller;
 use App\Models\Atadores\AtaActividadesModel;
 use App\Models\Atadores\AtaComentariosModel;
@@ -15,8 +14,8 @@ use App\Models\Atadores\AtaMontadoMaquinasModel;
 use App\Models\Atadores\AtaMontadoTelasModel;
 use App\Models\Planeacion\ReqTelares;
 use App\Models\Sistema\SYSMensaje;
-use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Tejido\TejInventarioTelares;
+use App\Services\Atadores\ProgramaAtadoresListado;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -25,7 +24,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use Maatwebsite\Excel\Facades\Excel;
 
 class AtadoresController extends Controller
 {
@@ -41,223 +39,37 @@ class AtadoresController extends Controller
     private const ESTATUS_ATADO_ACTIVO = ['En Proceso', 'Terminado', 'Calificado'];
 
     //
-    public function index(Request $request)
+    public function index(Request $request, ProgramaAtadoresListado $listado)
     {
         $user = Auth::user();
-        $area = $user->area ?? '';
-        $puesto = $user->puesto ?? '';
+        $filtro = $request->get('filtro');
+        $inventarioTelares = $listado->filas($user, $filtro);
+        $contexto = $listado->contexto($user, $filtro);
+        $vista = $request->get('vista');
 
-        // Obtener filtro personalizado del request, si existe
-        $filtroPersonalizado = $request->get('filtro', null);
-
-        // Construir la consulta base
-        $query = TejInventarioTelares::select(
-            'tej_inventario_telares.id',
-            'tej_inventario_telares.fecha',
-            'tej_inventario_telares.turno',
-            'tej_inventario_telares.no_telar',
-            'tej_inventario_telares.tipo',
-            'tej_inventario_telares.no_julio',
-            'tej_inventario_telares.localidad',
-            'tej_inventario_telares.metros',
-            'tej_inventario_telares.no_orden',
-            'tej_inventario_telares.tipo_atado',
-            'tej_inventario_telares.cuenta',
-            'tej_inventario_telares.calibre',
-            'tej_inventario_telares.hilo',
-            'tej_inventario_telares.ConfigId',
-            'tej_inventario_telares.InventSizeId',
-            'tej_inventario_telares.InventColorId',
-            // Map column names from MySQL (camelCase) to expected aliases
-            DB::raw('tej_inventario_telares.loteProveedor as LoteProveedor'),
-            DB::raw('tej_inventario_telares.noProveedor as NoProveedor'),
-            'tej_inventario_telares.horaParo',
-            // Dynamic status based on AtaMontadoTelas.Estatus
-            DB::raw("CASE
-                WHEN AtaMontadoTelas.Estatus = 'Autorizado' THEN 'Autorizado'
-                WHEN AtaMontadoTelas.Estatus = 'Calificado' THEN 'Calificado'
-                WHEN AtaMontadoTelas.Estatus = 'Terminado' THEN 'Terminado'
-                WHEN AtaMontadoTelas.Estatus = 'En Proceso' THEN 'En Proceso'
-                ELSE 'Activo'
-            END as status_proceso")
-        )
-            ->leftJoin('AtaMontadoTelas', function ($join) {
-                $join->on('tej_inventario_telares.no_julio', '=', 'AtaMontadoTelas.NoJulio')
-                    ->on('tej_inventario_telares.no_orden', '=', 'AtaMontadoTelas.NoProduccion');
-            })
-            ->whereNotNull('tej_inventario_telares.no_julio')
-            ->where('tej_inventario_telares.no_julio', '!=', ''); // No_julio debe estar lleno
-
-        // Verificar rol/área para visibilidad y filtros
-        $areaUpper = strtoupper(trim($area));
-        $areaNorm = strtolower(trim((string) $area));
-        $puestoNorm = strtolower(trim((string) $puesto));
-        $tienePermisosAtadores = userCan('acceso', 'Programa Atadores') && userCan('crear', 'Programa Atadores');
-
-        // Detectar si es tejedor (puede ser "Tejedores", "TEJEDORES", "tejedores", etc.)
-        $esTejedor = in_array($areaUpper, ['TEJEDORES', 'TEJEDOR']);
-        $esAreaAtadores = in_array($areaNorm, ['atador', 'atadores'], true);
-        $esSupervisor = (strtolower(trim($puesto)) === 'supervisor');
-        $esPuestoAtador = in_array($puestoNorm, ['atador', 'atadores'], true);
-        $restringirAtador = $esPuestoAtador && $tienePermisosAtadores;
-
-        $telaresUsuario = [];
-        if ($esTejedor) {
-            $telaresUsuario = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
-                ->pluck('NoTelarId')
-                ->toArray();
-        }
-
-        // Filtro por defecto según área/puesto (frontend)
-        // IMPORTANTE: El backend ya filtra los datos por rol, así que 'todos' aquí significa
-        // "mostrar todos los registros que el backend ya filtró por rol"
-        $filtroAplicado = 'todos';
-        if ($filtroPersonalizado) {
-            $filtroAplicado = $filtroPersonalizado;
-        }
-        // Si no hay filtro personalizado, el backend ya filtró por rol:
-        // - Tejedores: solo sus telares con Terminado
-        // - Atadores: todos los telares con Activo/En Proceso
-        // - Supervisor: todos los telares con Calificado (no Autorizado)
-        // En estos casos, filtroAplicado = 'todos' para que el frontend muestre todo lo que el backend trajo
-
-        // Aplicar filtros según rol/área ANTES de ejecutar la consulta
-        // Si el usuario usó el botón de filtrar (filtro personalizado presente), mostrar TODOS sin restricción por área/cargo
-        if ($restringirAtador) {
-            $query->where(function ($q) {
-                $q->whereNull('AtaMontadoTelas.Estatus')
-                    ->orWhere('AtaMontadoTelas.Estatus', 'En Proceso');
-            });
-
-            $inventarioTelares = $query->orderBy('tej_inventario_telares.fecha', 'asc')
-                ->orderBy('tej_inventario_telares.turno', 'asc')
-                ->get();
-        } elseif ($filtroPersonalizado === 'autorizados') {
-            $inventarioTelares = $this->getAutorizadosParaVista();
-        } elseif ($filtroPersonalizado !== null) {
-            // Cualquier otro filtro elegido en el modal: traer todos los registros sin filtrar por área/cargo
-            $inventarioTelares = $query->orderBy('tej_inventario_telares.fecha', 'asc')
-                ->orderBy('tej_inventario_telares.turno', 'asc')
-                ->get();
-        } else {
-            // Sin filtro personalizado: aplicar restricción por rol/área
-            // Tejedores: filtrar por sus telares y solo status Terminado
-            if ($esTejedor) {
-                if (empty($telaresUsuario)) {
-                    $query->whereRaw('0 = 1'); // Sin telares asignados: no mostrar registros
-                } else {
-                    $query->whereIn('tej_inventario_telares.no_telar', $telaresUsuario)
-                        ->where('AtaMontadoTelas.Estatus', 'Terminado');
-                }
-            }
-            // Atador: todos los telares, solo Activo y En Proceso (sin filtrar por operador)
-            elseif ($esAreaAtadores || $esPuestoAtador) {
-                if ($restringirAtador) {
-                    // Solo Activo (sin registro en AtaMontadoTelas) o En Proceso
-                    $query->where(function ($q) {
-                        $q->whereNull('AtaMontadoTelas.Estatus')
-                            ->orWhere('AtaMontadoTelas.Estatus', 'En Proceso');
-                    });
-                } else {
-                    $query->whereRaw('0 = 1');
-                }
-            }
-            // Supervisor: Calificados, Activos y En Proceso por defecto
-            elseif ($esSupervisor) {
-                $query->where(function ($q) {
-                    $q->whereNull('AtaMontadoTelas.Estatus')
-                        ->orWhereIn('AtaMontadoTelas.Estatus', ['En Proceso', 'Calificado']);
-                });
-            }
-            // Si no es ninguno de los roles anteriores, no mostrar registros
-            else {
-                $query->whereRaw('0 = 1'); // No mostrar registros si no tiene rol válido
-            }
-
-            $inventarioTelares = $query->orderBy('tej_inventario_telares.fecha', 'asc')
-                ->orderBy('tej_inventario_telares.turno', 'asc')
-                ->get();
-        }
-
-        $vista = $request->get('vista'); // filtros cliente separados por coma cuando filtro=todos
-        $filtroGlobalActivo = $filtroPersonalizado !== null; // true = se usó el botón filtrar, backend devolvió todos
-
-        return view('modulos.atadores.programaAtadores.index', compact('inventarioTelares', 'filtroAplicado', 'telaresUsuario', 'esTejedor', 'esSupervisor', 'vista', 'filtroGlobalActivo'));
+        return view('modulos.atadores.programaAtadores.index', [
+            'inventarioTelares' => $inventarioTelares,
+            'filtroAplicado' => $contexto['filtroAplicado'],
+            'telaresUsuario' => $contexto['telaresUsuario'],
+            'esTejedor' => $contexto['esTejedor'],
+            'esSupervisor' => $contexto['esSupervisor'],
+            'vista' => $vista,
+            'filtroGlobalActivo' => $contexto['filtroGlobalActivo'],
+        ]);
     }
 
     /**
-     * Obtiene todos los registros con Estatus = 'Autorizado' desde AtaMontadoTelas
-     * y los combina con tej_inventario_telares cuando exista coincidencia (NoJulio + NoProduccion).
-     * Así se muestran todos los autorizados aunque no tengan fila en inventario.
+     * Estatus actual de las mismas filas que ve el tablero, para refrescar badges
+     * sin volver a bajar el HTML.
      */
-    protected function getAutorizadosParaVista()
+    public function estatus(Request $request, ProgramaAtadoresListado $listado)
     {
-        $autorizados = AtaMontadoTelasModel::where('Estatus', 'Autorizado')
-            ->orderBy('Fecha', 'asc')
-            ->orderBy('Turno', 'asc')
-            ->get();
+        $filas = $listado->filas(Auth::user(), $request->get('filtro'));
 
-        return $autorizados->map(function ($ata) {
-            $inv = TejInventarioTelares::where('no_julio', (string) $ata->NoJulio)
-                ->where('no_orden', (string) $ata->NoProduccion)
-                ->first();
-
-            if ($inv) {
-                $inv->setAttribute('status_proceso', 'Autorizado');
-
-                return $inv;
-            }
-
-            return (object) [
-                'id' => $ata->Id,
-                'fecha' => Carbon::parse($ata->Fecha),
-                'status_proceso' => 'Autorizado',
-                'turno' => $ata->Turno,
-                'no_telar' => $ata->NoTelarId,
-                'tipo' => $ata->Tipo,
-                'no_julio' => $ata->NoJulio,
-                'localidad' => null,
-                'metros' => $ata->Metros,
-                'no_orden' => $ata->NoProduccion,
-                'tipo_atado' => null,
-                'cuenta' => null,
-                'calibre' => null,
-                'hilo' => null,
-                'LoteProveedor' => $ata->LoteProveedor,
-                'NoProveedor' => $ata->NoProveedor,
-                'horaParo' => $ata->HoraParo,
-                'ConfigId' => $ata->ConfigId,
-                'InventSizeId' => $ata->InventSizeId,
-                'InventColorId' => $ata->InventColorId,
-            ];
-        });
-    }
-
-    /**
-     * Exporta a Excel los registros de atadores para un rango de fechas.
-     */
-    public function exportarExcel(Request $request)
-    {
-        $fechaInicio = $request->input('fecha_inicio');
-        $fechaFin = $request->input('fecha_fin');
-
-        if (! $fechaInicio || ! $fechaFin) {
-            return redirect()->back()->with('error', 'Debe seleccionar fecha inicio y fecha fin para exportar.');
-        }
-
-        $fechaInicioFormateada = Carbon::parse($fechaInicio)->format('Y-m-d');
-        $fechaFinFormateada = Carbon::parse($fechaFin)->format('Y-m-d');
-
-        if ($fechaInicioFormateada > $fechaFinFormateada) {
-            return redirect()->back()->with('error', 'La fecha inicio no puede ser mayor que la fecha fin.');
-        }
-
-        $nombreArchivo = 'atadores_'.Carbon::parse($fechaInicioFormateada)->format('d-m-Y').'_a_'.Carbon::parse($fechaFinFormateada)->format('d-m-Y').'.xlsx';
-
-        return Excel::download(
-            new ProgramaAtadoresExport($fechaInicioFormateada, $fechaFinFormateada),
-            $nombreArchivo
-        );
+        return response()->json($filas->map(fn ($item) => [
+            'id' => $item->id,
+            'status' => $item->status_proceso ?? 'Activo',
+        ])->values());
     }
 
     public function iniciarAtado(Request $request)
@@ -549,6 +361,10 @@ class AtadoresController extends Controller
         $maquinasMontado = collect();
         $actividadesMontado = collect();
         $devolucionActual = null;
+        $devolucionesKm = collect();
+        $juliosKm = [];
+        $anterioresKm = collect();
+        $anteriorKm = null;
         if ($actual) {
 
             // Si tenemos parámetros, validar que el registro coincida
@@ -572,9 +388,26 @@ class AtadoresController extends Controller
                     ->keyBy('ActividadId');
             }
 
-            $devolucionActual = AtaDevolucionesModel::where('RefId', $actual->Id)
-                ->orderByDesc('Id')
-                ->first();
+            if ($esKm) {
+                $devolucionesKm = AtaDevolucionesModel::where('RefId', $actual->Id)
+                    ->orderBy('Id')
+                    ->get();
+                $devolucionActual = $devolucionesKm->first();
+                // Si la barra tuvo varios atados (órdenes) antes, el select elige de cuál se devuelve.
+                $devoluciones = app(AtaDevolucionesController::class);
+                $anterioresKm = $devoluciones->atadosAnterioresKm($actual);
+                $anteriorKm = $devoluciones->atadoAnteriorKm(
+                    $actual,
+                    $request->integer('anterior') ?: null,
+                    $devolucionesKm,
+                    $anterioresKm,
+                );
+                $juliosKm = $devoluciones->filasParaCalificar($anteriorKm, $devolucionesKm);
+            } else {
+                $devolucionActual = AtaDevolucionesModel::where('RefId', $actual->Id)
+                    ->orderByDesc('Id')
+                    ->first();
+            }
 
             // En Jacquard/SMIT, si el inicio no sembró actividades, se crean al abrir.
             $faltantes = $actividadesCatalogo->filter(function ($act) use ($actividadesMontado) {
@@ -634,6 +467,10 @@ class AtadoresController extends Controller
                 'comentarios',
                 'telaresCatalogo',
                 'devolucionActual',
+                'devolucionesKm',
+                'juliosKm',
+                'anterioresKm',
+                'anteriorKm',
                 'esKm',
                 'kmMontado',
                 'kmEnhebrado'
@@ -816,55 +653,76 @@ class AtadoresController extends Controller
                     $datosHistorial['HoraParo'] = $horaParo;
                 }
 
-                // Insertar usando query builder para mejor control
-                DB::connection('sqlsrv')
-                    ->table('TejHistorialInventarioTelares')
-                    ->insert($datosHistorial);
-
-                // 3. Guardar datos de máquinas y actividades del proceso actual
-                // Obtener datos actuales de máquinas
-                $maquinasActuales = AtaMontadoMaquinasModel::where('NoJulio', $montado->NoJulio)
-                    ->where('NoProduccion', $montado->NoProduccion)
-                    ->get();
-
-                // Obtener datos actuales de actividades
-                $actividadesActuales = AtaMontadoActividadesModel::where('NoJulio', $montado->NoJulio)
-                    ->where('NoProduccion', $montado->NoProduccion)
-                    ->get();
-
-                // También asegurar que se guarden las máquinas y actividades con estado activo
-                // (En caso de que no se hayan marcado manualmente en la interfaz)
-                $maquinasCatalogo = AtaMaquinasModel::all();
-                foreach ($maquinasCatalogo as $maq) {
-                    $existe = $maquinasActuales->where('MaquinaId', $maq->MaquinaId)->first();
-                    if (! $existe) {
-                        // Crear registro por defecto
-                        AtaMontadoMaquinasModel::create([
-                            'NoJulio' => $montado->NoJulio,
-                            'NoProduccion' => $montado->NoProduccion,
-                            'MaquinaId' => $maq->MaquinaId,
-                            'Estado' => 0, // Por defecto inactivo
-                            'NomEmpleado' => null,
-                            'NomEmpl' => null,
-                        ]);
+                // Karl Mayer: una barra lleva hasta 4 julios (no_julio..no_julio4) y la fila de
+                // inventario se borra abajo. Sin una fila de historial por julio, la devolución
+                // del siguiente atado de la barra solo encontraba el primero.
+                $filasHistorial = [$datosHistorial];
+                if ($registroOriginal && $this->esAtadoKarlMayer($montado->Tipo, $montado->NoTelarId)) {
+                    foreach ([['no_julio2', 'no_orden2'], ['no_julio3', 'no_orden3'], ['no_julio4', 'no_orden4']] as [$colJulio, $colOrden]) {
+                        $julioExtra = trim((string) ($registroOriginal->{$colJulio} ?? ''));
+                        if ($julioExtra === '') {
+                            continue;
+                        }
+                        $filasHistorial[] = [
+                            ...$datosHistorial,
+                            'NoJulio' => $julioExtra,
+                            'NoProduccion' => trim((string) ($registroOriginal->{$colOrden} ?? '')) ?: $montado->NoProduccion,
+                        ];
                     }
                 }
 
-                $actividadesCatalogo = AtaActividadesModel::all();
-                foreach ($actividadesCatalogo as $act) {
-                    $existe = $actividadesActuales->where('ActividadId', $act->ActividadId)->first();
-                    if (! $existe) {
-                        // Crear registro por defecto
-                        AtaMontadoActividadesModel::create([
-                            'NoJulio' => $montado->NoJulio,
-                            'NoProduccion' => $montado->NoProduccion,
-                            'ActividadId' => $act->ActividadId,
-                            'Porcentaje' => $act->Porcentaje,
-                            'Estado' => 0, // Por defecto inactivo
-                            'CveEmpl' => null,
-                            'NomEmpl' => null,
-                            'Turno' => $montado->Turno,
-                        ]);
+                // Insertar usando query builder para mejor control
+                DB::connection('sqlsrv')
+                    ->table('TejHistorialInventarioTelares')
+                    ->insert($filasHistorial);
+
+                // 3. Guardar datos de máquinas y actividades del proceso actual.
+                // Karl Mayer no usa el checklist (tiene Montado/Enhebrado): no se siembra.
+                if (! $this->esAtadoKarlMayer($montado->Tipo, $montado->NoTelarId)) {
+                    // Obtener datos actuales de máquinas
+                    $maquinasActuales = AtaMontadoMaquinasModel::where('NoJulio', $montado->NoJulio)
+                        ->where('NoProduccion', $montado->NoProduccion)
+                        ->get();
+
+                    // Obtener datos actuales de actividades
+                    $actividadesActuales = AtaMontadoActividadesModel::where('NoJulio', $montado->NoJulio)
+                        ->where('NoProduccion', $montado->NoProduccion)
+                        ->get();
+
+                    // También asegurar que se guarden las máquinas y actividades con estado activo
+                    // (En caso de que no se hayan marcado manualmente en la interfaz)
+                    $maquinasCatalogo = AtaMaquinasModel::all();
+                    foreach ($maquinasCatalogo as $maq) {
+                        $existe = $maquinasActuales->where('MaquinaId', $maq->MaquinaId)->first();
+                        if (! $existe) {
+                            // Crear registro por defecto
+                            AtaMontadoMaquinasModel::create([
+                                'NoJulio' => $montado->NoJulio,
+                                'NoProduccion' => $montado->NoProduccion,
+                                'MaquinaId' => $maq->MaquinaId,
+                                'Estado' => 0, // Por defecto inactivo
+                                'NomEmpleado' => null,
+                                'NomEmpl' => null,
+                            ]);
+                        }
+                    }
+
+                    $actividadesCatalogo = AtaActividadesModel::all();
+                    foreach ($actividadesCatalogo as $act) {
+                        $existe = $actividadesActuales->where('ActividadId', $act->ActividadId)->first();
+                        if (! $existe) {
+                            // Crear registro por defecto
+                            AtaMontadoActividadesModel::create([
+                                'NoJulio' => $montado->NoJulio,
+                                'NoProduccion' => $montado->NoProduccion,
+                                'ActividadId' => $act->ActividadId,
+                                'Porcentaje' => $act->Porcentaje,
+                                'Estado' => 0, // Por defecto inactivo
+                                'CveEmpl' => null,
+                                'NomEmpl' => null,
+                                'Turno' => $montado->Turno,
+                            ]);
+                        }
                     }
                 }
 
@@ -1109,10 +967,10 @@ class AtadoresController extends Controller
             }
 
             // Si existe devolución asociada, el Julio es obligatorio (no puede ir NULL).
-            $devolucion = AtaDevolucionesModel::where('RefId', $montado->Id)
-                ->orderByDesc('Id')
-                ->first();
-            if ($devolucion && trim((string) ($devolucion->NoJulio ?? '')) === '') {
+            $devolucionSinJulio = AtaDevolucionesModel::where('RefId', $montado->Id)
+                ->get()
+                ->contains(fn ($fila) => trim((string) ($fila->NoJulio ?? '')) === '');
+            if ($devolucionSinJulio) {
                 return response()->json([
                     'ok' => false,
                     'message' => 'La devolución debe tener un Julio seleccionado antes de terminar el atado.',
@@ -1288,7 +1146,9 @@ class AtadoresController extends Controller
 
         $mensaje = "ATADO TERMINADO\n\n";
         $mensaje .= 'Telar: '.($montado->NoTelarId ?? 'N/A')."\n";
-        $mensaje .= 'Tipo: '.($montado->Tipo ?? 'N/A')."\n";
+        $mensaje .= $this->esAtadoKarlMayer($montado->Tipo, $montado->NoTelarId)
+            ? 'Barra: '.($montado->Tipo ?? 'N/A')."\n"
+            : 'Tipo: '.($montado->Tipo ?? 'N/A')."\n";
         $mensaje .= 'No. Julio: '.($montado->NoJulio ?? 'N/A')."\n";
         $mensaje .= 'No. Orden: '.($montado->NoProduccion ?? 'N/A')."\n";
         if (! empty($montado->Metros)) {

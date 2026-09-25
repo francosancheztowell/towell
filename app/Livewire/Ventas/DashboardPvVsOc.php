@@ -7,11 +7,14 @@ namespace App\Livewire\Ventas;
 use App\Models\Ventas\TwHistVtasModel;
 use App\Services\Ventas\PvVsOcPayloadBuilder;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 use Throwable;
 
 class DashboardPvVsOc extends Component
 {
+    private const CACHE_MINUTOS = 15;
+
     public int $anio;
 
     /** @var list<int> */
@@ -36,7 +39,12 @@ class DashboardPvVsOc extends Component
         $dashboard = null;
 
         try {
-            $dashboard = $builder->build($this->anio);
+            // Son ~40k filas históricas por año: reconstruirlas en cada visita tardaba varios segundos.
+            $dashboard = Cache::remember(
+                "ventas:pvoc:payload:{$this->anio}",
+                now()->addMinutes(self::CACHE_MINUTOS),
+                fn (): string => $builder->build($this->anio),
+            );
         } catch (Throwable $e) {
             report($e);
             $this->dataError = "No se pudo cargar la información de Ventas para {$this->anio}. Intenta nuevamente en unos minutos.";
@@ -55,12 +63,12 @@ class DashboardPvVsOc extends Component
      */
     private function cargarAniosDisponibles(): array
     {
-        return TwHistVtasModel::query()
+        return Cache::remember('ventas:pvoc:anios', now()->addMinutes(self::CACHE_MINUTOS), static fn (): array => TwHistVtasModel::query()
             ->select('ANIO')
             ->distinct()
             ->orderBy('ANIO')
             ->pluck('ANIO')
             ->map(static fn ($anio) => (int) $anio)
-            ->all();
+            ->all());
     }
 }

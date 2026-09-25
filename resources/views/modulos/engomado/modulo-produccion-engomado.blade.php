@@ -658,7 +658,7 @@
     </div>
 
     <!-- Modal Crear Formulación -->
-    <div id="createModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div id="createModal" class="hidden fixed inset-0 bg-gray-900/50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <div class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">
                 <h3 class="text-xl font-semibold">Nueva Formulación de Engomado</h3>
@@ -769,7 +769,7 @@
     <!-- Modal para agregar oficial -->
     <div
         id="modal-oficial"
-        class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center"
+        class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center"
         style="display: none;"
     >
         <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-3 max-h-[65vh] overflow-y-auto">

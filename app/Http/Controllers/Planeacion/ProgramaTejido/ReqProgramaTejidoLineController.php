@@ -5,55 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
 use App\Http\Controllers\Controller;
-use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqProgramaTejidoLine;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class ReqProgramaTejidoLineController extends Controller
 {
-    /* -------------------- Reglas compartidas -------------------- */
-    private function rules(bool $isUpdate = false): array
-    {
-        $base = [
-            'Fecha' => ['nullable', 'date'],
-            'Cantidad' => ['nullable', 'numeric'],
-            'Kilos' => ['nullable', 'numeric'],
-            'Aplicacion' => ['nullable', 'numeric'],
-            'Trama' => ['nullable', 'numeric'],
-            'Combina1' => ['nullable', 'numeric'],
-            'Combina2' => ['nullable', 'numeric'],
-            'Combina3' => ['nullable', 'numeric'],
-            'Combina4' => ['nullable', 'numeric'],
-            'Combina5' => ['nullable', 'numeric'],
-            'Pie' => ['nullable', 'numeric'],
-            'Rizo' => ['nullable', 'numeric'],
-            'MtsRizo' => ['nullable', 'numeric'],
-            'MtsPie' => ['nullable', 'numeric'],
-        ];
-
-        $progRule = ['integer', Rule::exists(ReqProgramaTejido::tableName(), 'Id')];
-        $base['ProgramaId'] = $isUpdate ? array_merge(['sometimes'], $progRule) : array_merge(['required'], $progRule);
-
-        return $base;
-    }
-
-    private function sanitize(array $data): array
-    {
-        foreach ([
-            'Cantidad', 'Kilos', 'Aplicacion', 'Trama',
-            'Combina1', 'Combina2', 'Combina3', 'Combina4', 'Combina5',
-            'Pie', 'Rizo', 'MtsRizo', 'MtsPie',
-        ] as $k) {
-            if (array_key_exists($k, $data) && $data[$k] === '') {
-                $data[$k] = null;
-            }
-        }
-
-        return $data;
-    }
-
     /* -------------------- Index (con filtros) -------------------- */
     public function index(Request $request): JsonResponse
     {
@@ -88,48 +45,5 @@ class ReqProgramaTejidoLineController extends Controller
             'success' => true,
             'data' => $q->paginate($perPage),
         ])->header('Content-Type', 'application/json; charset=utf-8');
-    }
-
-    /* -------------------- Store -------------------- */
-    public function store(Request $request): JsonResponse
-    {
-        $data = $this->sanitize($request->validate($this->rules(false)));
-        $created = ReqProgramaTejidoLine::create($data);
-
-        return response()->json([
-            'success' => true,
-            'data' => $created,
-        ], 201)->header('Content-Type', 'application/json; charset=utf-8');
-    }
-
-    /* -------------------- Show -------------------- */
-    public function show(int $id): JsonResponse
-    {
-        $row = ReqProgramaTejidoLine::findOrFail($id);
-
-        return response()->json(['success' => true, 'data' => $row])
-            ->header('Content-Type', 'application/json; charset=utf-8');
-    }
-
-    /* -------------------- Update -------------------- */
-    public function update(Request $request, int $id): JsonResponse
-    {
-        $row = ReqProgramaTejidoLine::findOrFail($id);
-        $data = $this->sanitize($request->validate($this->rules(true)));
-
-        $row->fill($data)->save();
-
-        return response()->json(['success' => true, 'data' => $row])
-            ->header('Content-Type', 'application/json; charset=utf-8');
-    }
-
-    /* -------------------- Destroy -------------------- */
-    public function destroy(int $id): JsonResponse
-    {
-        $row = ReqProgramaTejidoLine::findOrFail($id);
-        $row->delete();
-
-        return response()->json(['success' => true])
-            ->header('Content-Type', 'application/json; charset=utf-8');
     }
 }

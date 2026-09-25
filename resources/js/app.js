@@ -1,6 +1,5 @@
 import './bootstrap';
 import './monitoreo/telemetria';
-import '../css/app.css';
 
 // Importar estilos CSS de librerías
 // Solo el core + la familia `solid`. `all.css` arrastraba tambien regular, brands

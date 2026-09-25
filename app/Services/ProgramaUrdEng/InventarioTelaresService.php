@@ -126,15 +126,6 @@ class InventarioTelaresService
         return (bool) preg_match('/^[1-4]$/', trim((string) ($tipo ?? '')));
     }
 
-    /**
-     * Ya no actualiza InvTelasReservadas. Los registros de esa tabla solo se crean al reservar
-     * y se cancelan/eliminan al liberar; no deben modificarse al cargar la pantalla.
-     */
-    public function validarYActualizarNoOrden($telares): void
-    {
-        // Intencionalmente no-op: InvTelasReservadas no se actualiza al cargar.
-    }
-
     public function applyFiltros($query, array $filtros)
     {
         foreach ($filtros as $f) {

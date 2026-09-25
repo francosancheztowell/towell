@@ -597,28 +597,6 @@ class ReqModelosCodificadosImport implements ShouldQueue, SkipsEmptyRows, ToColl
         return is_numeric($s) ? (int) $s : null;
     }
 
-    private function F(array $assoc, array $vals, array $cands, ?int $posIdx1Based): ?float
-    {
-        $v = $this->pick($assoc, $vals, $cands, $posIdx1Based);
-        if ($v === null || $v === '') {
-            return null;
-        }
-
-        // Conversión a float - ser flexible con formatos
-        if (is_numeric($v)) {
-            return (float) $v;
-        }
-
-        // Intentar normalizar formato (reemplazar coma por punto)
-        $vv = str_replace([' ', ','], ['', '.'], (string) $v);
-        if (is_numeric($vv)) {
-            return (float) $vv;
-        }
-
-        // Si todo falla, retornar null (no rechazar la fila)
-        return null;
-    }
-
     /**
      * SF(): String que puede contener fracciones (5/3) -> convierte a decimal
      * Si no es fracción, devuelve el string original truncado
@@ -859,67 +837,6 @@ class ReqModelosCodificadosImport implements ShouldQueue, SkipsEmptyRows, ToColl
     private function pushError($filaExcel, $msg, $datos)
     {
         $this->errors[] = ['fila' => $filaExcel, 'error' => $msg, 'datos' => $datos];
-    }
-
-    public function getRowCount()
-    {
-        return $this->rowCount;
-    }
-
-    public function getCreatedCount()
-    {
-        return $this->createdCount;
-    }
-
-    public function getUpdatedCount()
-    {
-        return $this->updatedCount;
-    }
-
-    public function getErrors()
-    {
-        return [
-            'total_errores' => count($this->errors),
-            'primeros' => array_slice($this->errors, 0, 10),
-            'todos' => $this->errors,
-        ];
-    }
-
-    /**
-     * Función personalizada para obtener el valor de Total sin conflictos
-     */
-    private function getTotalValue(array $assoc, array $vals, ?int $posIdx1Based): ?int
-    {
-        // 1. Buscar por nombres específicos de Total (no TotalMarbetes)
-        $totalCandidates = ['Pasadas TOTAL', 'Pasadas|TOTAL', 'TOTAL', 'Total'];
-
-        foreach ($totalCandidates as $candidate) {
-            if (array_key_exists($candidate, $assoc)) {
-                $value = $assoc[$candidate];
-                if ($value !== null && $value !== '') {
-                    $intValue = $this->convertToInt($value);
-                    if ($intValue !== null && $this->isValidTotalValue($intValue)) {
-                        return $intValue;
-                    }
-                }
-            }
-        }
-
-        // 2. Buscar por posición específica
-        if ($posIdx1Based !== null) {
-            $idx = $posIdx1Based - 1;
-            if ($idx >= 0 && $idx < count($vals)) {
-                $value = $vals[$idx] ?? null;
-                if ($value !== null && $value !== '') {
-                    $intValue = $this->convertToInt($value);
-                    if ($intValue !== null && $this->isValidTotalValue($intValue)) {
-                        return $intValue;
-                    }
-                }
-            }
-        }
-
-        return null;
     }
 
     /**

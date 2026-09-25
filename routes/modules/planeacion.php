@@ -95,7 +95,6 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
         Route::post('/codificacion-modelos/excel', [CodificacionController::class, 'procesarExcel'])
             ->middleware('module.permission:crear,16')->name('codificacion.excel'); // Codificación Modelos
         Route::get('/codificacion-modelos/excel-progress/{id}', [CodificacionController::class, 'importProgress'])->name('codificacion.excel.progress');
-        Route::post('/codificacion-modelos/buscar', [CodificacionController::class, 'buscar'])->name('codificacion.buscar');
     });
 
     Route::get('/codificacion', [CatCodificacionController::class, 'index'])->name('codificacion.index');
@@ -103,8 +102,6 @@ Route::prefix('planeacion')->name('planeacion.')->group(function () {
     Route::get('/codificacion/api/ordenes-en-proceso', [CatCodificacionController::class, 'ordenesEnProceso'])->name('codificacion.ordenes-en-proceso');
     Route::post('/codificacion/api/revivir-programa', [CatCodificacionController::class, 'revivirProgramaDesdeCat'])
         ->middleware('module.permission:modificar,169')->name('codificacion.revivir-programa'); // Codificación
-    Route::post('/codificacion/api/recalcular-marbetes', [CatCodificacionController::class, 'recalcularMarbete'])
-        ->middleware('module.permission:modificar,169')->name('codificacion.recalcular-marbetes'); // Codificación
     Route::get('/codificacion/api/catcodificados-por-orden/{ordenTejido}', [CatCodificacionController::class, 'getCatCodificadosPorOrden'])->name('codificacion.catcodificados-por-orden');
     Route::post('/codificacion/api/actualizar-peso-muestra-lmat', [CatCodificacionController::class, 'actualizarPesoMuestraLmat'])
         ->middleware('module.permission:modificar,169')->name('codificacion.actualizar-peso-muestra-lmat'); // Codificación
@@ -329,20 +326,16 @@ Route::get('/planeacion/req-programa-tejido-line', [ReqProgramaTejidoLineControl
 Route::get('/programa-tejido/salon-options', [ProgramaTejidoCatalogosController::class, 'getSalonTejidoOptions']);
 Route::get('/programa-tejido/salon-tejido-options', [ProgramaTejidoCatalogosController::class, 'getSalonTejidoOptions'])->name('programa-tejido.salon-tejido-options');
 Route::get('/programa-tejido/tamano-clave-by-salon', [ProgramaTejidoCatalogosController::class, 'getTamanoClaveBySalon']);
-Route::get('/programa-tejido/flogs-id-options', [ProgramaTejidoCatalogosController::class, 'getFlogsIdOptions']);
 Route::get('/programa-tejido/flogs-id-from-twflogs', [ProgramaTejidoCatalogosController::class, 'getFlogsIdFromTwFlogsTable']);
 Route::get('/programa-tejido/descripcion-by-idflog/{idflog}', [ProgramaTejidoCatalogosController::class, 'getDescripcionByIdFlog']);
 Route::get('/programa-tejido/flog-by-item', [ProgramaTejidoCatalogosController::class, 'getFlogByItem']);
-Route::get('/programa-tejido/flogs-by-tamano-clave', [ProgramaTejidoCatalogosController::class, 'getFlogsByTamanoClave']);
 Route::get('/programa-tejido/calendario-id-options', [ProgramaTejidoCatalogosController::class, 'getCalendarioIdOptions']);
 Route::get('/programa-tejido/calendario-lineas/{calendarioId}', [ProgramaTejidoCatalogosController::class, 'getCalendarioLineas'])->name('programa-tejido.calendario-lineas');
 Route::get('/programa-tejido/aplicacion-id-options', [ProgramaTejidoCatalogosController::class, 'getAplicacionIdOptions']);
 Route::match(['get', 'post'], '/programa-tejido/datos-relacionados', [ProgramaTejidoCatalogosController::class, 'getDatosRelacionados']);
 Route::get('/programa-tejido/telares-by-salon', [ProgramaTejidoCatalogosController::class, 'getTelaresBySalon']);
 Route::get('/programa-tejido/telares-all', [ProgramaTejidoCatalogosController::class, 'getTelaresAll']);
-Route::get('/programa-tejido/ultima-fecha-final-telar', [ProgramaTejidoCatalogosController::class, 'getUltimaFechaFinalTelar']);
 Route::get('/programa-tejido/hilos-options', [ProgramaTejidoCatalogosController::class, 'getHilosOptions']);
-Route::get('/programa-tejido/eficiencia-std', [ProgramaTejidoCatalogosController::class, 'getEficienciaStd']);
 Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoCatalogosController::class, 'getVelocidadStd']);
 Route::get('/programa-tejido/eficiencia-velocidad-std', [ProgramaTejidoCatalogosController::class, 'getEficienciaVelocidadStd']);
 Route::get('/programa-tejido/columnas', [ColumnasProgramaTejidoController::class, 'index']);
@@ -413,20 +406,16 @@ Route::get('/planeacion/muestras-line', [ReqProgramaTejidoLineController::class,
 Route::get('/muestras/salon-options', [ProgramaTejidoCatalogosController::class, 'getSalonTejidoOptions']);
 Route::get('/muestras/salon-tejido-options', [ProgramaTejidoCatalogosController::class, 'getSalonTejidoOptions'])->name('muestras.salon-tejido-options');
 Route::get('/muestras/tamano-clave-by-salon', [ProgramaTejidoCatalogosController::class, 'getTamanoClaveBySalon']);
-Route::get('/muestras/flogs-id-options', [ProgramaTejidoCatalogosController::class, 'getFlogsIdOptions']);
 Route::get('/muestras/flogs-id-from-twflogs', [ProgramaTejidoCatalogosController::class, 'getFlogsIdFromTwFlogsTable']);
 Route::get('/muestras/descripcion-by-idflog/{idflog}', [ProgramaTejidoCatalogosController::class, 'getDescripcionByIdFlog']);
 Route::get('/muestras/flog-by-item', [ProgramaTejidoCatalogosController::class, 'getFlogByItem']);
-Route::get('/muestras/flogs-by-tamano-clave', [ProgramaTejidoCatalogosController::class, 'getFlogsByTamanoClave']);
 Route::get('/muestras/calendario-id-options', [ProgramaTejidoCatalogosController::class, 'getCalendarioIdOptions']);
 Route::get('/muestras/calendario-lineas/{calendarioId}', [ProgramaTejidoCatalogosController::class, 'getCalendarioLineas'])->name('muestras.calendario-lineas');
 Route::get('/muestras/aplicacion-id-options', [ProgramaTejidoCatalogosController::class, 'getAplicacionIdOptions']);
 Route::match(['get', 'post'], '/muestras/datos-relacionados', [ProgramaTejidoCatalogosController::class, 'getDatosRelacionados']);
 Route::get('/muestras/telares-by-salon', [ProgramaTejidoCatalogosController::class, 'getTelaresBySalon']);
 Route::get('/muestras/telares-all', [ProgramaTejidoCatalogosController::class, 'getTelaresAll']);
-Route::get('/muestras/ultima-fecha-final-telar', [ProgramaTejidoCatalogosController::class, 'getUltimaFechaFinalTelar']);
 Route::get('/muestras/hilos-options', [ProgramaTejidoCatalogosController::class, 'getHilosOptions']);
-Route::get('/muestras/eficiencia-std', [ProgramaTejidoCatalogosController::class, 'getEficienciaStd']);
 Route::get('/muestras/velocidad-std', [ProgramaTejidoCatalogosController::class, 'getVelocidadStd']);
 Route::get('/muestras/eficiencia-velocidad-std', [ProgramaTejidoCatalogosController::class, 'getEficienciaVelocidadStd']);
 Route::get('/muestras/columnas', [ColumnasProgramaTejidoController::class, 'index']);

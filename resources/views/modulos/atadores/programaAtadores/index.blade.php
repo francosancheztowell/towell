@@ -22,10 +22,10 @@
             <div class="flex items-center justify-between mb-2">
                 <p class="text-sm text-slate-500">Puedes elegir uno o varios filtros. Clic de nuevo para quitar.</p>
                 <button type="button" onclick="cerrarModalFiltros()"
-                    class="text-slate-500 hover:text-slate-700 text-5xl leading-none">&times;</button>
+                    class="text-slate-500 hover:text-slate-700 text-2xl leading-none">&times;</button>
             </div>
 
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {{-- Fila 1: Ver Todos, Activo --}}
                 <button type="button" id="btn-filter-todos" onclick="aplicarFiltro('todos')"
                     class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
@@ -65,72 +65,72 @@
 
     <div class="container mx-auto px-4 py-4">
 
-        <div class="overflow-x-auto overflow-y-auto rounded-lg shadow-md bg-white">
-            <table class="min-w-full divide-y divide-gray-200 text-md">
+        <div class="overflow-auto rounded-lg shadow-md bg-white" style="max-height: calc(100vh - 7rem);">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
                 <thead id="atadoresTableHead" class="bg-blue-500 sticky top-0 z-10">
                     <tr>
                         <th data-sort="fecha" data-column="fecha"
-                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
                             role="button" title="Clic para ordenar | Clic derecho para filtrar"> Fecha <span
                                 class="sort-icon ml-1 opacity-80">▲</span> </th>
                         <th data-sort="estatus" data-column="estatus"
-                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
                             role="button" title="Clic para ordenar | Clic derecho para filtrar"> Estatus <span
                                 class="sort-icon ml-1 opacity-80"></span> </th>
                         <th data-sort="turno" data-column="turno"
-                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
                             role="button" title="Clic para ordenar | Clic derecho para filtrar"> Turno <span
                                 class="sort-icon ml-1 opacity-80"></span> </th>
                         <th data-sort="telar" data-column="telar"
-                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
                             role="button" title="Clic para ordenar | Clic derecho para filtrar"> Telar <span
                                 class="sort-icon ml-1 opacity-80"></span> </th>
                         <th data-sort="tipo" data-column="tipo"
-                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
                             role="button" title="Clic para ordenar | Clic derecho para filtrar"> Tipo <span
                                 class="sort-icon ml-1 opacity-80"></span> </th>
                         <th data-sort="julio" data-column="no-julio"
-                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
                             role="button" title="Clic para ordenar | Clic derecho para filtrar"> Julio <span
                                 class="sort-icon ml-1 opacity-80"></span> </th>
                         <th data-sort="ubicacion" data-column="ubicacion"
-                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
                             role="button" title="Clic para ordenar | Clic derecho para filtrar"> Ubicación <span
                                 class="sort-icon ml-1 opacity-80"></span> </th>
                         <th data-sort="metros" data-column="metros"
-                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
                             role="button" title="Clic para ordenar | Clic derecho para filtrar"> Metros <span
                                 class="sort-icon ml-1 opacity-80"></span> </th>
                         <th data-sort="orden" data-column="no-orden"
-                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
                             role="button" title="Clic para ordenar | Clic derecho para filtrar"> Orden <span
                                 class="sort-icon ml-1 opacity-80"></span> </th>
                         <th data-sort="tipo-atado" data-column="tipo-atado"
-                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
-                            role="button" title="Clic para ordenar | Clic derecho para filtrar"> Tipo <span
+                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            role="button" title="Clic para ordenar | Clic derecho para filtrar"> Tipo atado <span
                                 class="sort-icon ml-1 opacity-80"></span> </th>
                         <th data-sort="cuenta" data-column="cuenta"
-                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
                             role="button" title="Clic para ordenar | Clic derecho para filtrar"> Cuenta <span
                                 class="sort-icon ml-1 opacity-80"></span> </th>
                         <th data-sort="calibre" data-column="calibre"
-                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            class="th-sortable hidden md:table-cell px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
                             role="button" title="Clic para ordenar | Clic derecho para filtrar"> Calibre <span
                                 class="sort-icon ml-1 opacity-80"></span> </th>
                         <th data-sort="hilo" data-column="hilo"
-                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            class="th-sortable hidden md:table-cell px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
                             role="button" title="Clic para ordenar | Clic derecho para filtrar"> Hilo <span
                                 class="sort-icon ml-1 opacity-80"></span> </th>
                         <th data-sort="lote" data-column="lote"
-                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            class="th-sortable hidden md:table-cell px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
                             role="button" title="Clic para ordenar | Clic derecho para filtrar"> Lote <span
                                 class="sort-icon ml-1 opacity-80"></span> </th>
                         <th data-sort="no-prov" data-column="no-prov"
-                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            class="th-sortable hidden md:table-cell px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
                             role="button" title="Clic para ordenar | Clic derecho para filtrar"> No. Prov. <span
                                 class="sort-icon ml-1 opacity-80"></span> </th>
                         <th data-sort="hr-paro" data-column="hora-paro"
-                            class="th-sortable px-2 py-2 text-left text-md font-medium text-white uppercase tracking-wider sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
+                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
                             role="button" title="Clic para ordenar | Clic derecho para filtrar"> Hr. Paro <span
                                 class="sort-icon ml-1 opacity-80"></span> </th>
                     </tr>
@@ -152,11 +152,11 @@
                             data-hilo="{{ $item->hilo ?? '' }}" data-lote="{{ $item->LoteProveedor ?? '' }}"
                             data-no-prov="{{ $item->NoProveedor ?? '' }}" data-hora-paro="{{ $item->horaParo ?? '' }}"
                             data-status="{{ $item->status_proceso ?? 'Activo' }}">
-                            <td class="px-2 py-2 whitespace-nowrap text-md">
+                            <td class="px-2 py-2 whitespace-nowrap text-sm">
                                 {{ $item->fecha ? $item->fecha->format('d/m/Y') : '-' }}
                             </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-md" data-status="{{ $item->status_proceso }}">
-                                <span class="px-1.5 py-0.5 rounded-full text-md font-semibold
+                            <td class="px-2 py-2 whitespace-nowrap text-sm" data-status="{{ $item->status_proceso }}">
+                                <span class="px-1.5 py-0.5 rounded-full text-sm font-semibold
                                             @if($item->status_proceso === 'Activo') bg-gray-200 text-gray-800
                                             @elseif($item->status_proceso === 'En Proceso') bg-blue-200 text-blue-800
                                             @elseif($item->status_proceso === 'Terminado') bg-purple-200 text-purple-800
@@ -166,54 +166,56 @@
                                     {{ $item->status_proceso }}
                                 </span>
                             </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-md">
+                            <td class="px-2 py-2 whitespace-nowrap text-sm">
                                 {{ $item->turno ?? '-' }}
                             </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-md">
+                            <td class="px-2 py-2 whitespace-nowrap text-sm">
                                 {{ $item->no_telar ?? '-' }}
                             </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-md">
+                            <td class="px-2 py-2 whitespace-nowrap text-sm">
                                 @php
                                     $tipo = $item->tipo ?? '-';
                                     if ($tipo === 'Rizo') {
                                         $tipo = 'R';
                                     } elseif ($tipo === 'Pie') {
                                         $tipo = 'P';
+                                    } elseif (preg_match('/^[1-4]$/', (string) $tipo)) {
+                                        $tipo = 'B'.$tipo; // Barra Karl Mayer
                                     }
                                 @endphp
                                 {{ $tipo }}
                             </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-md">
-                                {{ $item->no_julio ?? '-' }}
+                            <td class="px-2 py-2 whitespace-nowrap text-sm">
+                                {{ collect([$item->no_julio ?? null, $item->no_julio2 ?? null, $item->no_julio3 ?? null, $item->no_julio4 ?? null])->filter()->implode(', ') ?: '-' }}
                             </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-md">
+                            <td class="px-2 py-2 whitespace-nowrap text-sm">
                                 {{ $item->localidad ?? '-' }}
                             </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-md">
-                                {{ $item->metros ? number_format($item->metros, 2) : '-' }}
+                            <td class="px-2 py-2 whitespace-nowrap text-sm">
+                                {{ ($item->metros === null || $item->metros === '') ? '-' : number_format((float) $item->metros, 2) }}
                             </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-md">
+                            <td class="px-2 py-2 whitespace-nowrap text-sm">
                                 {{ $item->no_orden ?? '-' }}
                             </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-md">
+                            <td class="px-2 py-2 whitespace-nowrap text-sm">
                                 {{ $item->tipo_atado ?? '-' }}
                             </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-md">de J
+                            <td class="px-2 py-2 whitespace-nowrap text-sm">
                                 {{ $item->cuenta ?? '-' }}
                             </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-md">
-                                {{ $item->calibre ? number_format($item->calibre, 2) : '-' }}
+                            <td class="hidden md:table-cell px-2 py-2 whitespace-nowrap text-sm">
+                                {{ ($item->calibre === null || $item->calibre === '') ? '-' : number_format((float) $item->calibre, 2) }}
                             </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-md">
+                            <td class="hidden md:table-cell px-2 py-2 whitespace-nowrap text-sm">
                                 {{ $item->hilo ?? '-' }}
                             </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-md">
+                            <td class="hidden md:table-cell px-2 py-2 whitespace-nowrap text-sm">
                                 {{ $item->LoteProveedor ?? '-' }}
                             </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-md">
+                            <td class="hidden md:table-cell px-2 py-2 whitespace-nowrap text-sm">
                                 {{ $item->NoProveedor ?? '-' }}
                             </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-md">
+                            <td class="px-2 py-2 whitespace-nowrap text-sm">
                                 {{ $item->horaParo ?? '-' }}
                             </td>
                         </tr>
@@ -226,49 +228,6 @@
                     @endforelse
                 </tbody>
             </table>
-        </div>
-    </div>
-
-    {{-- Modal Reporte por Fecha --}}
-    <div id="modalReporteFecha" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-        <div class="bg-white max-w-md w-full rounded-xl shadow-xl m-4">
-            <div class="px-4 py-3 border-b flex items-center justify-between">
-                <h3 class="text-lg font-semibold text-gray-800">
-                    <i class="fa-solid fa-file-excel text-green-600 mr-2"></i>
-                    Exportar Reporte a Excel
-                </h3>
-                <button type="button" onclick="cerrarModalReporte()"
-                    class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
-            </div>
-            <div class="p-4">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                        <label for="input-fecha-inicio-reporte" class="block text-sm font-medium text-gray-700 mb-1">Fecha
-                            inicio</label>
-                        <input type="date" id="input-fecha-inicio-reporte"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                            value="{{ now()->format('Y-m-d') }}" />
-                    </div>
-                    <div>
-                        <label for="input-fecha-fin-reporte" class="block text-sm font-medium text-gray-700 mb-1">Fecha
-                            fin</label>
-                        <input type="date" id="input-fecha-fin-reporte"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                            value="{{ now()->format('Y-m-d') }}" />
-                    </div>
-                </div>
-                <p class="text-xs text-gray-500 mt-2">Se exportarán todos los registros de atadores dentro del rango
-                    seleccionado.</p>
-            </div>
-            <div class="px-4 py-3 border-t flex justify-end gap-2">
-                <button type="button" onclick="cerrarModalReporte()"
-                    class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">Cancelar</button>
-                <button type="button" onclick="exportarReporteExcel()"
-                    class="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 flex items-center gap-2">
-                    <i class="fa-solid fa-download"></i>
-                    Descargar Excel
-                </button>
-            </div>
         </div>
     </div>
 
@@ -366,7 +325,7 @@
                         window.location.href = baseUrl + (window.filtroGlobalActivo ? '?filtro=todos' : '');
                     } else {
                         updateFilterButtons();
-                        applyFilters();
+                        applyRowFilters();
                     }
                 } else {
                     cerrarModalFiltros();
@@ -398,17 +357,15 @@
             }
             cerrarModalFiltros();
             updateFilterButtons();
-            applyFilters();
+            applyRowFilters();
         }
 
         // Qué status(es) incluye cada clave de filtro
         function statusMatchesFilter(status, noTelar, filterKey) {
             switch (filterKey) {
                 case 'creados':
-                    return status === 'Activo'; // legacy: creados = Activo (botón ya no se muestra)
-                case 'activo':
+                case 'activo': return status === 'Activo';
                 case 'activo-proceso':
-                    // El área de atadores puede ver tanto Activo como En Proceso
                     return status === 'Activo' || status === 'En Proceso';
                 case 'en-proceso':
                     return status === 'En Proceso';
@@ -428,43 +385,34 @@
             }
         }
 
-        // Función para aplicar filtros a las filas (varios filtros = unión: se muestra si coincide con alguno)
-        // NOTA: El backend ya filtra por rol/área, así que estos filtros son adicionales del usuario
-        function applyFilters() {
+        // Estatus (unión) y columnas (intersección) en un solo recorrido.
+        function applyRowFilters() {
             const rows = document.querySelectorAll('.table-row');
             const tbody = document.getElementById('tb-body');
-            let visibleCount = 0;
             const filtros = filterState.filtros || [];
+            const columnFilters = filterState.columnFilters || {};
+            const columnKeys = Object.keys(columnFilters);
+            let visibleCount = 0;
 
             rows.forEach(row => {
                 const status = row.getAttribute('data-status') || 'Activo';
                 const noTelar = row.getAttribute('data-telar') || '';
-                let show = true;
-
-                // Solo aplicar filtros si el usuario los ha seleccionado explícitamente
-                // Si filtros está vacío, mostrar todos los registros que el backend ya filtró
-                if (filtros.length > 0) {
-                    show = filtros.some(f => statusMatchesFilter(status, noTelar, f));
-                }
-                // Si no hay filtros seleccionados, mostrar todas las filas (el backend ya filtró por rol)
+                let show = filtros.length === 0 || filtros.some(f => statusMatchesFilter(status, noTelar, f));
 
                 if (show) {
-                    row.style.display = '';
-                    visibleCount++;
-                } else {
-                    row.style.display = 'none';
+                    for (const col of columnKeys) {
+                        const cellValue = (row.getAttribute('data-' + col) || '').toLowerCase();
+                        if (!cellValue.includes(String(columnFilters[col]).toLowerCase())) {
+                            show = false;
+                            break;
+                        }
+                    }
                 }
+
+                row.style.display = show ? '' : 'none';
+                if (show) visibleCount++;
             });
 
-            const filterBadge = document.getElementById('filter-badge');
-            if (filtros.length > 0 && filterBadge) {
-                filterBadge.textContent = filtros.length;
-                filterBadge.classList.remove('hidden');
-            } else if (filterBadge) {
-                filterBadge.classList.add('hidden');
-            }
-
-            // Mostrar mensaje si no hay resultados
             let emptyRow = tbody?.querySelector('tr.no-results');
             if (visibleCount === 0) {
                 if (!emptyRow) {
@@ -572,8 +520,8 @@
                 let vb = b.getAttribute(key) ?? '';
                 let cmp;
                 if (isNumeric) {
-                    const na = parseFloat(va) || -999999;
-                    const nb = parseFloat(vb) || -999999;
+                    const na = numeroOrden(va);
+                    const nb = numeroOrden(vb);
                     cmp = na - nb;
                 } else {
                     cmp = String(va).localeCompare(String(vb), undefined, { numeric: true });
@@ -582,8 +530,8 @@
             });
 
             rows.forEach(tr => tbody.appendChild(tr));
-            if (noResults) tbody.appendChild(noResults);
             updateSortIcons();
+            applyRowFilters();
         }
 
         // Clic en cualquier columna ordenable
@@ -629,15 +577,14 @@
             // Posicionar el menú
             const menuWidth = 220;
             const menuHeight = 130;
-            let x = e.pageX;
-            let y = e.pageY;
+            let x = e.clientX;
+            let y = e.clientY;
 
-            // Ajustar si se sale de la pantalla
             if (x + menuWidth > window.innerWidth) {
                 x = window.innerWidth - menuWidth - 10;
             }
-            if (y + menuHeight > window.innerHeight + window.scrollY) {
-                y = e.pageY - menuHeight;
+            if (y + menuHeight > window.innerHeight) {
+                y = e.clientY - menuHeight;
             }
 
             contextMenu.style.left = `${x}px`;
@@ -691,7 +638,7 @@
                     } else {
                         delete filterState.columnFilters[column];
                     }
-                    applyColumnFilters();
+                    applyRowFilters();
                     updateColumnFilterBadge();
                 }
             }
@@ -699,7 +646,7 @@
             if (action === 'clear-column-filter' && column) {
                 if (filterState.columnFilters[column]) {
                     delete filterState.columnFilters[column];
-                    applyColumnFilters();
+                    applyRowFilters();
                     updateColumnFilterBadge();
                     Swal.fire({
                         toast: true,
@@ -716,7 +663,7 @@
                 const filterCount = Object.keys(filterState.columnFilters).length;
                 if (filterCount > 0) {
                     filterState.columnFilters = {};
-                    applyColumnFilters();
+                    applyRowFilters();
                     updateColumnFilterBadge();
                     Swal.fire({
                         toast: true,
@@ -732,67 +679,29 @@
             closeContextMenu();
         });
 
-        // Aplicar filtros por columna
-        function applyColumnFilters() {
-            const rows = document.querySelectorAll('.table-row');
-            const filters = filterState.columnFilters;
-            const hasColumnFilters = Object.keys(filters).length > 0;
-
-            rows.forEach(row => {
-                let matchesColumnFilter = true;
-
-                if (hasColumnFilters) {
-                    for (const [col, val] of Object.entries(filters)) {
-                        const dataAttr = `data-${col}`;
-                        const cellValue = (row.getAttribute(dataAttr) || '').toLowerCase();
-                        const searchValue = val.toLowerCase();
-
-                        if (!cellValue.includes(searchValue)) {
-                            matchesColumnFilter = false;
-                            break;
-                        }
-                    }
-                }
-
-                // Si tiene filtros de columna y no coincide, ocultar
-                if (!matchesColumnFilter) {
-                    row.style.display = 'none';
-                } else {
-                    // Verificar también los filtros de status existentes
-                    const status = row.getAttribute('data-status') || 'Activo';
-                    const noTelar = row.getAttribute('data-telar') || '';
-                    const statusFilters = filterState.filtros || [];
-
-                    let matchesStatusFilter = true;
-                    if (statusFilters.length > 0) {
-                        matchesStatusFilter = statusFilters.some(f => statusMatchesFilter(status, noTelar, f));
-                    }
-
-                    row.style.display = matchesStatusFilter ? '' : 'none';
-                }
-            });
-
-            // Verificar si hay filas visibles
-            const tbody = document.getElementById('tb-body');
-            const visibleRows = Array.from(rows).filter(r => r.style.display !== 'none');
-            let emptyRow = tbody?.querySelector('tr.no-results');
-
-            if (visibleRows.length === 0) {
-                if (!emptyRow) {
-                    emptyRow = document.createElement('tr');
-                    emptyRow.className = 'no-results';
-                    emptyRow.innerHTML = '<td colspan="16" class="px-6 py-4 text-center text-sm text-gray-500">No hay registros que coincidan con los filtros aplicados</td>';
-                    tbody?.appendChild(emptyRow);
-                }
-            } else if (emptyRow) {
-                emptyRow.remove();
-            }
+        function numeroOrden(valor) {
+            if (valor === '' || valor === null || valor === undefined) return -999999;
+            const n = parseFloat(valor);
+            return Number.isNaN(n) ? -999999 : n;
         }
 
-        // Actualizar badge de filtros por columna
+        function badgeEstatus(status) {
+            const clases = {
+                'Activo': 'bg-gray-200 text-gray-800',
+                'En Proceso': 'bg-blue-200 text-blue-800',
+                'Terminado': 'bg-purple-200 text-purple-800',
+                'Calificado': 'bg-yellow-200 text-yellow-800',
+                'Autorizado': 'bg-green-200 text-green-800'
+            };
+            const texto = String(status)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+            return `<span class="px-1.5 py-0.5 rounded-full text-sm font-semibold ${clases[status] || ''}">${texto}</span>`;
+        }
+
         function updateColumnFilterBadge() {
             const filterCount = Object.keys(filterState.columnFilters).length;
-            let badge = document.getElementById('column-filter-badge');
 
             if (filterCount > 0) {
                 // Resaltar columnas con filtro activo
@@ -818,89 +727,47 @@
         // Inicializar filtros y orden al cargar la página
         document.addEventListener('DOMContentLoaded', function () {
             updateFilterButtons();
-            // El backend ya filtró los datos por rol, así que solo aplicar filtros si el usuario los cambió
-            // Si filtroAplicado es 'todos', mostrar todos los registros que el backend trajo
-            if (filterState.filtros.length > 0) {
-                applyFilters();
-            }
-            // Si no hay filtros, todas las filas ya están visibles (el backend ya filtró por rol)
+            applyRowFilters();
             updateSortIcons();
         });
 
-        setInterval(refreshStatus, 5000);
+        let refrescoEnVuelo = false;
+
+        setInterval(refreshStatus, 15000);
 
         async function refreshStatus() {
+            if (document.hidden || refrescoEnVuelo) return;
+            refrescoEnVuelo = true;
             try {
-                // Preservar la selección actual antes de actualizar
-                const currentSelectedId = selectedRowId;
+                const url = new URL(@json(route('atadores.programa.estatus')), window.location.origin);
+                const filtro = new URLSearchParams(window.location.search).get('filtro');
+                if (filtro) url.searchParams.set('filtro', filtro);
 
-                // Obtener todos los registros sin filtro
-                const url = '{{ route("atadores.programa") }}';
+                const data = window.http
+                    ? await window.http.get(url.toString())
+                    : await (await fetch(url, { headers: { 'Accept': 'application/json' } })).json();
 
-                const response = await fetch(url);
-                const html = await response.text();
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
+                const porId = new Map((data || []).map(fila => [String(fila.id), fila.status || 'Activo']));
+                let cambio = false;
 
                 document.querySelectorAll('tbody tr[data-id]').forEach(row => {
-                    const id = row.getAttribute('data-id');
-                    const newRow = doc.querySelector(`tr[data-id="${id}"]`);
-                    if (newRow) {
-                        // Actualizar status
-                        const currentStatusCell = row.querySelector('td[data-status]');
-                        const newStatusCell = newRow.querySelector('td[data-status]');
-                        if (currentStatusCell && newStatusCell &&
-                            currentStatusCell.getAttribute('data-status') !== newStatusCell.getAttribute('data-status')) {
-                            currentStatusCell.innerHTML = newStatusCell.innerHTML;
-                            currentStatusCell.setAttribute('data-status', newStatusCell.getAttribute('data-status'));
-
-                            // Actualizar el atributo data-status y data-estatus de la fila
-                            const newStatus = newStatusCell.getAttribute('data-status');
-                            row.setAttribute('data-status', newStatus || 'Activo');
-                            row.setAttribute('data-estatus', newStatus || 'Activo');
-                        }
-
-                        // Actualizar telar si cambió
-                        const newTelar = newRow.getAttribute('data-telar');
-                        if (newTelar) {
-                            row.setAttribute('data-telar', newTelar);
-                        }
+                    const status = porId.get(row.getAttribute('data-id'));
+                    if (!status || row.getAttribute('data-status') === status) return;
+                    row.setAttribute('data-status', status);
+                    row.setAttribute('data-estatus', status);
+                    const cell = row.querySelector('td[data-status]');
+                    if (cell) {
+                        cell.setAttribute('data-status', status);
+                        cell.innerHTML = badgeEstatus(status);
                     }
+                    cambio = true;
                 });
 
-                // Reaplicar filtros y orden después de actualizar
-                applyFilters();
-                sortTable();
-
-                // Restaurar la selección después de actualizar solo si todavía existe
-                if (currentSelectedId) {
-                    const restoredRow = document.querySelector(`tr[data-id="${currentSelectedId}"]`);
-                    if (restoredRow) {
-                        // Limpiar todas las selecciones primero para evitar duplicados
-                        document.querySelectorAll('tbody tr').forEach(tr => {
-                            tr.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-700');
-                            tr.querySelectorAll('td').forEach(td => {
-                                td.classList.remove('text-white');
-                            });
-                        });
-
-                        // Aplicar selección solo a la fila correcta
-                        selectedRow = restoredRow;
-                        selectedRowId = currentSelectedId;
-                        restoredRow.classList.add('bg-blue-500', 'text-white', 'hover:bg-blue-700');
-                        restoredRow.querySelectorAll('td').forEach(td => {
-                            td.classList.add('text-white');
-                        });
-                        enableIniciarButton();
-                    } else {
-                        // Si la fila ya no existe, limpiar la selección
-                        selectedRow = null;
-                        selectedRowId = null;
-                        disableIniciarButton();
-                    }
-                }
+                if (cambio) applyRowFilters();
             } catch (error) {
                 console.error('Error refreshing status:', error);
+            } finally {
+                refrescoEnVuelo = false;
             }
         }
 
@@ -914,14 +781,14 @@
             // Obtener datos de la fila para validación
             const noJulio = row.getAttribute('data-no-julio');
             const noOrden = row.getAttribute('data-no-orden');
+            const status = row.getAttribute('data-status') || 'Activo';
             const horaParo = row.getAttribute('data-hora-paro') || '';
-            if (!horaParo.trim()) {
+            if (status !== 'Autorizado' && !horaParo.trim()) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Atención',
                     text: 'El telar debe registrar la hora de paro antes de iniciar el atado'
                 });
-                disableIniciarButton();
                 return;
             }
 
@@ -1032,27 +899,7 @@
             }
 
             // Enviar con datos adicionales para validación en el servidor
-            const url = `{{ route("atadores.iniciar") }}?id=${encodeURIComponent(selectedRowId)}&no_julio=${encodeURIComponent(noJulio)}&no_orden=${encodeURIComponent(noOrden)}`;
-
-            // Verificar que la URL sea válida
-            if (!url || url.includes('undefined') || url.includes('null')) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'No se pudo construir la URL de redirección. Por favor, intente nuevamente.'
-                });
-                return;
-            }
-
-            // Redirigir inmediatamente - FORZAR navegación de múltiples formas (similar a engomado)
-            window.location.replace(url);
-            window.location.href = url;
-
-            setTimeout(() => {
-                if (window.location.href !== url && !window.location.href.includes('calificar-atadores')) {
-                    window.open(url, '_self');
-                }
-            }, 50);
+            window.location.assign(`{{ route("atadores.iniciar") }}?id=${encodeURIComponent(selectedRowId)}&no_julio=${encodeURIComponent(noJulio)}&no_orden=${encodeURIComponent(noOrden)}`);
         }
     </script>
 @endpush

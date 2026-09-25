@@ -88,7 +88,7 @@
     </div>
 
     {{-- Modal no ha cambiado --}}
-    <div id="modalConsultarResumenUrdido" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div id="modalConsultarResumenUrdido" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div class="bg-blue-600 text-white px-6 py-4 rounded-t-lg flex items-center justify-between">
                 <h3 class="text-lg font-semibold">Consultar Resumen Urdido</h3>

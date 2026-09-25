@@ -73,8 +73,10 @@
                                 @php
                                     $selected = $selectedOrderId === (int) $order['id'];
                                     $qualityInfo = $qualityMeta[$order['quality']] ?? null;
+                                    $urdidoFinished = ! $moduleMeta['isUrdido'] && ($order['urdido_finished'] ?? false);
                                 @endphp
-                                <tr class="program-board-order"
+                                <tr class="program-board-order{{ $urdidoFinished ? ' is-urdido-finished' : '' }}"
+                                    @if ($urdidoFinished) title="Urdido finalizado" @endif
                                     x-bind:class="{ 'is-selected': Number(visualSelection) === {{ $order['id'] }} }"
                                     x-on:click="visualSelection = {{ $order['id'] }}"
                                     x-on:keydown.enter.self="visualSelection = {{ $order['id'] }}"
@@ -169,7 +171,7 @@
                                 </thead>
                                 <tbody id="priority-sort-body">
                                     @forelse ($priorityRows as $row)
-                                        <tr draggable="true" data-priority-id="{{ $row['id'] }}">
+                                        <tr draggable="true" data-priority-id="{{ $row['id'] }}" class="{{ ! ($moduleMeta['isUrdido'] ?? false) && ($row['urdido_finished'] ?? false) ? 'is-urdido-finished' : '' }}">
                                             <td><i class="fa-solid fa-grip-vertical" aria-hidden="true"></i> {{ $row['priority'] }}</td>
                                             <td>{{ $row['folio'] }}</td>
                                             <td>{{ $row['type'] }}</td>

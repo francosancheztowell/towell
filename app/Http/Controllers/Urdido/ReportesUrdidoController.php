@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 
- // New import
+// New import
 
 class ReportesUrdidoController extends Controller
 {
@@ -1570,83 +1570,5 @@ class ReportesUrdidoController extends Controller
         }
 
         return array_values($porSemana);
-    }
-
-    private function buildReporteResumenData(string $fechaIni, string $fechaFin): array
-    {
-        $fechaIniCarbon = $this->parseReportDate($fechaIni);
-        $fechaFinCarbon = $this->parseReportDate($fechaFin);
-
-        $producciones = UrdProduccionUrdido::query()
-            ->with('programa') // Cargar la relación
-            ->whereBetween('Fecha', [$fechaIniCarbon, $fechaFinCarbon])
-            ->where('Finalizar', 1)
-            ->orderBy('Fecha')
-            ->orderBy('Folio')
-            ->get();
-
-        $porFecha = [];
-
-        foreach ($producciones as $prod) {
-            $fecha = $prod->Fecha instanceof Carbon ? $prod->Fecha->format('Y-m-d') : Carbon::parse($prod->Fecha)->format('Y-m-d');
-
-            if (! isset($porFecha[$fecha])) {
-                $porFecha[$fecha] = [
-                    'totalKg' => 0,
-                    'porMaquina' => [
-                        'MC1' => ['label' => 'MC1', 'filas' => []],
-                        'MC2' => ['label' => 'MC2', 'filas' => []],
-                        'MC3' => ['label' => 'MC3', 'filas' => []],
-                        'KM' => ['label' => 'KM', 'filas' => []],
-                    ],
-                ];
-            }
-
-            // Obtener máquina del programa si existe
-            $maquina = 'MC1'; // valor por defecto
-            if ($prod->programa) {
-                $mc = $this->extractMcCoyNumber($prod->programa->MaquinaId);
-                $maquina = $mc !== null ? $this->maquinaLabel($mc) : 'MC1';
-            }
-
-            $metros = 0;
-            if ($prod->Metros1) {
-                $metros += (float) $prod->Metros1;
-            }
-            if ($prod->Metros2) {
-                $metros += (float) $prod->Metros2;
-            }
-            if ($prod->Metros3) {
-                $metros += (float) $prod->Metros3;
-            }
-
-            $operadores = [];
-            if ($prod->CveEmpl1) {
-                $operadores[] = (string) $prod->CveEmpl1;
-            }
-            if ($prod->CveEmpl2) {
-                $operadores[] = (string) $prod->CveEmpl2;
-            }
-            if ($prod->CveEmpl3) {
-                $operadores[] = (string) $prod->CveEmpl3;
-            }
-
-            $fila = [
-                'orden' => $prod->Folio,
-                'julio' => $prod->NoJulio ?? '',
-                'p_neto' => $prod->KgNeto ?? 0,
-                'metros' => $metros,
-                'ope' => implode(', ', $operadores),
-            ];
-
-            $porFecha[$fecha]['porMaquina'][$maquina]['filas'][] = $fila;
-            $porFecha[$fecha]['totalKg'] += (float) ($prod->KgNeto ?? 0);
-        }
-
-        foreach ($porFecha as &$dia) {
-            $dia['porMaquina'] = array_values($dia['porMaquina']);
-        }
-
-        return $porFecha;
     }
 }
