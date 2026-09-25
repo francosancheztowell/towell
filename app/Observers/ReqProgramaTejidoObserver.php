@@ -394,7 +394,7 @@ class ReqProgramaTejidoObserver
 
         $buscarPorInventSize = function (string $key) use ($connection): ?float {
             try {
-                $valor = $connection->table('ReqPesosRollosTejido')
+                $valor = $connection->table('ReqPesosRolloTejido')
                     ->where('InventSizeId', trim($key))
                     ->whereNotNull('PesoRollo')
                     ->orderByDesc('FechaModificacion')
@@ -406,8 +406,8 @@ class ReqProgramaTejidoObserver
                 // PT-02, hallazgo 6: antes "tabla ilegible" y "sin fila" daban null por igual y se
                 // caía a 41.5 kg sin aviso. Se conserva el respaldo (no cambia ningún número en
                 // planta) pero ya no en silencio: error + report(), una vez por proceso para no
-                // inundar el log del cron. Ojo: el modelo usa 'ReqPesosRolloTejido' (singular);
-                // ver 02-SUMMARY.md, decisión pendiente del owner.
+                // inundar el log del cron. Tabla singular 'ReqPesosRolloTejido', igual que el modelo
+                // (D-1 resuelto: el plural no existe en ProdTowel).
                 self::avisarMaestroPesosIlegible($e);
 
                 return null;

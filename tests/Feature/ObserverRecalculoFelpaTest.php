@@ -52,7 +52,7 @@ class ObserverRecalculoFelpaTest extends TestCase
             $table->dateTime('UpdatedAt')->nullable();
         });
 
-        $schema->create('ReqPesosRollosTejido', function (Blueprint $table) {
+        $schema->create('ReqPesosRolloTejido', function (Blueprint $table) {
             $table->increments('Id');
             $table->string('InventSizeId')->nullable();
             $table->float('PesoRollo')->nullable();
@@ -87,7 +87,7 @@ class ObserverRecalculoFelpaTest extends TestCase
     public function test_felpa_por_nombre_usa_peso_90_y_divide_pzas_y_mts(): void
     {
         // Maestro con otro peso para el tamaño: NO debe usarse porque el producto es FELPA nominal.
-        DB::connection('sqlsrv')->table('ReqPesosRollosTejido')->insert([
+        DB::connection('sqlsrv')->table('ReqPesosRolloTejido')->insert([
             'InventSizeId' => 'STD', 'PesoRollo' => 50.0, 'FechaModificacion' => '2026-01-01',
         ]);
 
@@ -109,7 +109,7 @@ class ObserverRecalculoFelpaTest extends TestCase
 
     public function test_no_felpa_usa_peso_maestro_sin_ajuste(): void
     {
-        DB::connection('sqlsrv')->table('ReqPesosRollosTejido')->insert([
+        DB::connection('sqlsrv')->table('ReqPesosRolloTejido')->insert([
             'InventSizeId' => 'STD', 'PesoRollo' => 50.0, 'FechaModificacion' => '2026-01-01',
         ]);
 
@@ -126,7 +126,7 @@ class ObserverRecalculoFelpaTest extends TestCase
     public function test_tamano_fel_usa_peso_maestro_fel_y_divide(): void
     {
         // Sin fila exacta para FEL80: debe caer al maestro "FEL" (no al 90 fijo de felpa nominal).
-        DB::connection('sqlsrv')->table('ReqPesosRollosTejido')->insert([
+        DB::connection('sqlsrv')->table('ReqPesosRolloTejido')->insert([
             'InventSizeId' => 'FEL', 'PesoRollo' => 60.0, 'FechaModificacion' => '2026-01-01',
         ]);
 

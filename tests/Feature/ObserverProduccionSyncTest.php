@@ -55,7 +55,7 @@ class ObserverProduccionSyncTest extends TestCase
             $table->dateTime('UpdatedAt')->nullable();
         });
 
-        $schema->create('ReqPesosRollosTejido', function (Blueprint $table) {
+        $schema->create('ReqPesosRolloTejido', function (Blueprint $table) {
             $table->increments('Id');
             $table->string('InventSizeId')->nullable();
             $table->float('PesoRollo')->nullable();
@@ -157,7 +157,7 @@ class ObserverProduccionSyncTest extends TestCase
 
     public function test_editar_produccion_dispara_recalculo_de_marbetes(): void
     {
-        DB::connection('sqlsrv')->table('ReqPesosRollosTejido')->insert([
+        DB::connection('sqlsrv')->table('ReqPesosRolloTejido')->insert([
             'InventSizeId' => 'STD', 'PesoRollo' => 50.0, 'FechaModificacion' => '2026-01-01',
         ]);
 
@@ -189,7 +189,7 @@ class ObserverProduccionSyncTest extends TestCase
 
     public function test_total_rollos_se_basa_en_total_pedido_no_en_saldo(): void
     {
-        DB::connection('sqlsrv')->table('ReqPesosRollosTejido')->insert([
+        DB::connection('sqlsrv')->table('ReqPesosRolloTejido')->insert([
             'InventSizeId' => 'STD', 'PesoRollo' => 50.0, 'FechaModificacion' => '2026-01-01',
         ]);
 
@@ -221,7 +221,7 @@ class ObserverProduccionSyncTest extends TestCase
      */
     public function test_observer_no_toca_saldo_marbete_ni_no_marbete(): void
     {
-        DB::connection('sqlsrv')->table('ReqPesosRollosTejido')->insert([
+        DB::connection('sqlsrv')->table('ReqPesosRolloTejido')->insert([
             'InventSizeId' => 'STD', 'PesoRollo' => 50.0, 'FechaModificacion' => '2026-01-01',
         ]);
 
@@ -264,7 +264,7 @@ class ObserverProduccionSyncTest extends TestCase
      */
     public function test_karl_mayer_ignora_las_reglas_de_felpa(): void
     {
-        DB::connection('sqlsrv')->table('ReqPesosRollosTejido')->insert([
+        DB::connection('sqlsrv')->table('ReqPesosRolloTejido')->insert([
             'InventSizeId' => 'FEL', 'PesoRollo' => 50.0, 'FechaModificacion' => '2026-01-01',
         ]);
 
