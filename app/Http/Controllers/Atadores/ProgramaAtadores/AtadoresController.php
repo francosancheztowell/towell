@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Atadores\ProgramaAtadores;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\Telegram\EnviarMensajeTelegram;
 use App\Models\Atadores\AtaActividadesModel;
 use App\Models\Atadores\AtaComentariosModel;
 use App\Models\Atadores\AtaDevolucionesModel;
@@ -21,7 +22,6 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
@@ -1175,24 +1175,16 @@ class AtadoresController extends Controller
             $mensaje .= "\n";
         }
 
-        $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
-        foreach ($chatIds as $chatId) {
-            $response = Http::timeout(20)
-                ->retry(2, 200)
-                ->post($url, [
-                    'chat_id' => $chatId,
-                    'text' => $mensaje,
-                ]);
-
-            if (! $response->successful() || ! ($response->json()['ok'] ?? false)) {
-                Log::warning('Error al enviar notificacion de atado terminado a Telegram', [
-                    'chat_id' => $chatId,
-                    'no_julio' => $montado->NoJulio ?? null,
-                    'no_orden' => $montado->NoProduccion ?? null,
-                    'status' => $response->status(),
-                    'response' => $response->json(),
-                ]);
-            }
-        }
+        // En la cola: el atador no espera a Telegram (PERF-13).
+        EnviarMensajeTelegram::encolar(new EnviarMensajeTelegram(
+            chatIds: $chatIds,
+            texto: $mensaje,
+            extra: [],
+            mensajeLog: 'Error al enviar notificacion de atado terminado a Telegram',
+            contextoLog: [
+                'no_julio' => $montado->NoJulio ?? null,
+                'no_orden' => $montado->NoProduccion ?? null,
+            ],
+        ));
     }
 }

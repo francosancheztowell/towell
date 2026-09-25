@@ -13,13 +13,13 @@ use App\Models\Sistema\SYSMensaje;
 use App\Models\Tejido\TejeFallasCeModel;
 use App\Models\Tejido\TejEficiencia;
 use App\Models\Tejido\TejEficienciaLine;
+use App\Services\Telegram\TelegramEnvio;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -1181,16 +1181,20 @@ class CortesEficienciaController extends Controller
 
     /**
      * Destinatarios: SYSMensajes con CorteSEF=1 y Activo=1.
+     *
+     * @return array{enviados: int, total: int}
      */
-    private function enviarReporteCortesPdfTelegram(string $pdfContent, string $filename, string $fecha, $usuario = null): void
+    private function enviarReporteCortesPdfTelegram(string $pdfContent, string $filename, string $fecha, $usuario = null): array
     {
+        $sinEnvio = ['enviados' => 0, 'total' => 0];
+
         try {
             Log::info('Iniciando enviarReporteCortesPdfTelegram');
             $botToken = config('services.telegram.bot_token');
             if (empty($botToken)) {
                 Log::warning('No se pudo enviar PDF de cortes: TELEGRAM_BOT_TOKEN no configurado');
 
-                return;
+                return $sinEnvio;
             }
 
             $chatIds = SYSMensaje::getChatIdsPorModulo('CorteSEF');
@@ -1199,7 +1203,7 @@ class CortesEficienciaController extends Controller
             if (empty($chatIds)) {
                 Log::warning('No hay destinatarios con CorteSEF activo en SYSMensajes');
 
-                return;
+                return $sinEnvio;
             }
 
             if (empty($pdfContent)) {
@@ -1208,7 +1212,7 @@ class CortesEficienciaController extends Controller
                     'filename' => $filename,
                 ]);
 
-                return;
+                return ['enviados' => 0, 'total' => count($chatIds)];
             }
 
             $pdfSizeMB = strlen($pdfContent) / 1024 / 1024;
@@ -1219,7 +1223,7 @@ class CortesEficienciaController extends Controller
                     'size_mb' => round($pdfSizeMB, 2),
                 ]);
 
-                return;
+                return ['enviados' => 0, 'total' => count($chatIds)];
             }
 
             $nombreUsuario = $usuario->nombre ?? $usuario->name ?? null;
@@ -1234,36 +1238,10 @@ class CortesEficienciaController extends Controller
                 }
             }
 
-            $url = "https://api.telegram.org/bot{$botToken}/sendDocument";
+            $resultados = app(TelegramEnvio::class)->archivo('sendDocument', $chatIds, $pdfContent, $filename, $caption);
+            TelegramEnvio::registrarFallos($resultados, 'cortes', ['fecha' => $fecha, 'filename' => $filename]);
 
-            foreach ($chatIds as $chatId) {
-                $response = Http::timeout(30)
-                    ->attach('document', $pdfContent, $filename)
-                    ->post($url, [
-                        'chat_id' => $chatId,
-                        'caption' => $caption,
-                    ]);
-
-                if ($response->successful()) {
-                    $data = $response->json();
-                    if (! ($data['ok'] ?? false)) {
-                        Log::error('Telegram respondió ok=false para cortes', [
-                            'response' => $data,
-                            'fecha' => $fecha,
-                            'filename' => $filename,
-                            'chat_id' => $chatId,
-                        ]);
-                    }
-                } else {
-                    Log::error('Error HTTP al enviar cortes a Telegram', [
-                        'status' => $response->status(),
-                        'body' => $response->body(),
-                        'fecha' => $fecha,
-                        'filename' => $filename,
-                        'chat_id' => $chatId,
-                    ]);
-                }
-            }
+            return ['enviados' => TelegramEnvio::enviados($resultados), 'total' => count($resultados)];
         } catch (\Throwable $e) {
             Log::error('Excepción al enviar PDF de cortes a Telegram', [
                 'error' => $e->getMessage(),
@@ -1271,6 +1249,8 @@ class CortesEficienciaController extends Controller
                 'fecha' => $fecha,
                 'filename' => $filename,
             ]);
+
+            return ['enviados' => 0, 'total' => count($chatIds ?? [])];
         }
     }
 
@@ -1303,21 +1283,25 @@ class CortesEficienciaController extends Controller
                 return response()->json(['success' => false, 'message' => 'Fecha o folio requerido'], 400);
             }
 
-            $success = $this->enviarReporteTelegramInternal($fecha, $maxTurno, Auth::user());
+            $resultado = $this->enviarReporteTelegramInternal($fecha, $maxTurno, Auth::user());
 
-            if ($success) {
-                return response()->json([
-                    'success' => true,
-                    'message' => $folio !== ''
-                        ? 'Reporte enviado por Telegram exitosamente para el folio '.$folio
-                        : 'Reporte enviado por Telegram exitosamente',
-                ]);
-            } else {
+            if ($resultado === null) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No se pudo enviar el reporte por Telegram',
                 ], 500);
             }
+
+            // PERF-13: el usuario ve a cuántos destinatarios llegó, no un "exitosamente" fijo.
+            $enviado = $resultado['enviados'] > 0;
+
+            return response()->json([
+                'success' => $enviado,
+                'message' => TelegramEnvio::resumen('Reporte', $resultado['enviados'], $resultado['total'])
+                    .($enviado && $folio !== '' ? ' para el folio '.$folio : ''),
+                'enviados' => $resultado['enviados'],
+                'destinatarios' => $resultado['total'],
+            ], $enviado ? 200 : 500);
         } catch (\Throwable $th) {
             Log::error('Error al notificar por Telegram cortes de eficiencia', [
                 'mensaje' => $th->getMessage(),
@@ -1356,19 +1340,15 @@ class CortesEficienciaController extends Controller
             $filename = 'cortes_eficiencia_'.$fechaNorm.'.'.$extension;
             $imageContent = file_get_contents($imagen->getRealPath());
 
-            $success = $this->enviarReporteCortesImagenTelegram($imageContent, $filename, $fechaNorm, Auth::user());
-
-            if (! $success) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No se pudo enviar la imagen por Telegram',
-                ], 500);
-            }
+            $resultado = $this->enviarReporteCortesImagenTelegram($imageContent, $filename, $fechaNorm, Auth::user());
+            $enviado = $resultado['enviados'] > 0;
 
             return response()->json([
-                'success' => true,
-                'message' => 'Imagen enviada por Telegram exitosamente',
-            ]);
+                'success' => $enviado,
+                'message' => TelegramEnvio::resumen('Imagen', $resultado['enviados'], $resultado['total'], femenino: true),
+                'enviados' => $resultado['enviados'],
+                'destinatarios' => $resultado['total'],
+            ], $enviado ? 200 : 500);
         } catch (\Throwable $th) {
             Log::error('Error al notificar imagen por Telegram cortes de eficiencia', [
                 'mensaje' => $th->getMessage(),
@@ -1384,22 +1364,26 @@ class CortesEficienciaController extends Controller
 
     /**
      * Destinatarios: SYSMensajes con CorteSEF=1 y Activo=1.
+     *
+     * @return array{enviados: int, total: int}
      */
-    private function enviarReporteCortesImagenTelegram(string $imageContent, string $filename, string $fecha, $usuario = null): bool
+    private function enviarReporteCortesImagenTelegram(string $imageContent, string $filename, string $fecha, $usuario = null): array
     {
+        $sinEnvio = ['enviados' => 0, 'total' => 0];
+
         try {
             $botToken = config('services.telegram.bot_token');
             if (empty($botToken)) {
                 Log::warning('No se pudo enviar imagen de cortes: TELEGRAM_BOT_TOKEN no configurado');
 
-                return false;
+                return $sinEnvio;
             }
 
             $chatIds = SYSMensaje::getChatIdsPorModulo('CorteSEF');
             if (empty($chatIds)) {
                 Log::warning('No hay destinatarios con CorteSEF activo en SYSMensajes (imagen)');
 
-                return false;
+                return $sinEnvio;
             }
 
             if (empty($imageContent)) {
@@ -1408,7 +1392,7 @@ class CortesEficienciaController extends Controller
                     'filename' => $filename,
                 ]);
 
-                return false;
+                return ['enviados' => 0, 'total' => count($chatIds)];
             }
 
             $imageSizeMB = strlen($imageContent) / 1024 / 1024;
@@ -1419,7 +1403,7 @@ class CortesEficienciaController extends Controller
                     'size_mb' => round($imageSizeMB, 2),
                 ]);
 
-                return false;
+                return ['enviados' => 0, 'total' => count($chatIds)];
             }
 
             $nombreUsuario = $usuario->nombre ?? $usuario->name ?? null;
@@ -1434,41 +1418,10 @@ class CortesEficienciaController extends Controller
                 }
             }
 
-            $url = "https://api.telegram.org/bot{$botToken}/sendPhoto";
-            $sentAny = false;
+            $resultados = app(TelegramEnvio::class)->archivo('sendPhoto', $chatIds, $imageContent, $filename, $caption);
+            TelegramEnvio::registrarFallos($resultados, 'imagen de cortes', ['fecha' => $fecha, 'filename' => $filename]);
 
-            foreach ($chatIds as $chatId) {
-                $response = Http::timeout(30)
-                    ->attach('photo', $imageContent, $filename)
-                    ->post($url, [
-                        'chat_id' => $chatId,
-                        'caption' => $caption,
-                    ]);
-
-                if ($response->successful()) {
-                    $data = $response->json();
-                    if (($data['ok'] ?? false)) {
-                        $sentAny = true;
-                    } else {
-                        Log::error('Telegram respondió ok=false para imagen de cortes', [
-                            'response' => $data,
-                            'fecha' => $fecha,
-                            'filename' => $filename,
-                            'chat_id' => $chatId,
-                        ]);
-                    }
-                } else {
-                    Log::error('Error HTTP al enviar imagen de cortes a Telegram', [
-                        'status' => $response->status(),
-                        'body' => $response->body(),
-                        'fecha' => $fecha,
-                        'filename' => $filename,
-                        'chat_id' => $chatId,
-                    ]);
-                }
-            }
-
-            return $sentAny;
+            return ['enviados' => TelegramEnvio::enviados($resultados), 'total' => count($resultados)];
         } catch (\Throwable $e) {
             Log::error('Excepción al enviar imagen de cortes a Telegram', [
                 'error' => $e->getMessage(),
@@ -1477,14 +1430,16 @@ class CortesEficienciaController extends Controller
                 'filename' => $filename,
             ]);
 
-            return false;
+            return ['enviados' => 0, 'total' => count($chatIds ?? [])];
         }
     }
 
     /**
      * Lógica interna para generar el PDF y enviar a Telegram.
+     *
+     * @return array{enviados: int, total: int}|null null si no hay datos o el PDF salió vacío.
      */
-    private function enviarReporteTelegramInternal($fecha, $maxTurno = null, $usuario = null): bool
+    private function enviarReporteTelegramInternal($fecha, $maxTurno = null, $usuario = null): ?array
     {
         Log::info('Ejecutando enviarReporteTelegramInternal', ['fecha' => $fecha, 'maxTurno' => $maxTurno]);
 
@@ -1494,7 +1449,7 @@ class CortesEficienciaController extends Controller
         if ($info['datos']->isEmpty()) {
             Log::warning('No se encontraron datos para la visualización en enviarReporteTelegramInternal', ['fecha' => $fechaNorm, 'maxTurno' => $maxTurno]);
 
-            return false;
+            return null;
         }
 
         Log::info('Datos encontrados para reporte', ['total_datos' => count($info['datos'])]);
@@ -1528,15 +1483,13 @@ class CortesEficienciaController extends Controller
         if (empty($pdfContent)) {
             Log::error('PDF de cortes de eficiencia generado vacío', ['fecha' => $fechaNorm]);
 
-            return false;
+            return null;
         }
 
         Log::info('PDF generado exitosamente, procediendo a enviar por Telegram', ['filename' => $filename, 'size' => strlen($pdfContent)]);
 
         // Enviar por Telegram
-        $this->enviarReporteCortesPdfTelegram($pdfContent, $filename, $fechaNorm, $usuario);
-
-        return true;
+        return $this->enviarReporteCortesPdfTelegram($pdfContent, $filename, $fechaNorm, $usuario);
     }
 
     private function normalizarFecha($fecha)

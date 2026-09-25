@@ -76,6 +76,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->avisarLazyLoading();
+        $this->avisarAtributosDeModelo();
 
         // PERF-04: moduleNameForRoute() cachea por ruta; una alta/cambio/baja de módulo la invalida.
         SYSRoles::saved(static fn () => olvidarModulosPorRuta());
@@ -129,6 +130,46 @@ class AppServiceProvider extends ServiceProvider
                 'ruta' => $this->rutaActual(),
             ]);
         });
+    }
+
+    /**
+     * PERF-14: fuera de producción, un atributo que fill() descarta (no está en $fillable) o
+     * que se lee sin haberse cargado (select parcial, columna mal escrita) deja una línea en
+     * el log, una vez por modelo y atributo en la request. Nunca lanza: el atributo ausente
+     * sigue devolviendo null, igual que en producción.
+     */
+    private function avisarAtributosDeModelo(): void
+    {
+        $activo = ! $this->app->isProduction();
+        Model::preventSilentlyDiscardingAttributes($activo);
+        Model::preventAccessingMissingAttributes($activo);
+
+        Model::handleDiscardedAttributeViolationUsing(function (Model $modelo, array $atributos): void {
+            foreach ($atributos as $atributo) {
+                $this->avisarAtributo('Modelo: fill() descartó un atributo que no está en $fillable.', $modelo, (string) $atributo);
+            }
+        });
+
+        Model::handleMissingAttributeViolationUsing(function (Model $modelo, string $atributo): mixed {
+            $this->avisarAtributo('Modelo: se leyó un atributo que no se cargó (select parcial o columna inexistente).', $modelo, $atributo);
+
+            return null;
+        });
+    }
+
+    private function avisarAtributo(string $mensaje, Model $modelo, string $atributo): void
+    {
+        $clave = $mensaje.$modelo::class.'::'.$atributo;
+        $vistos = $this->app->bound('rendimiento.atributos') ? $this->app->make('rendimiento.atributos') : [];
+        if (isset($vistos[$clave])) {
+            return;
+        }
+        $this->app->instance('rendimiento.atributos', $vistos + [$clave => true]);
+
+        Log::warning($mensaje, [
+            'atributo' => $modelo::class.'::'.$atributo,
+            'ruta' => $this->rutaActual(),
+        ]);
     }
 
     /**
