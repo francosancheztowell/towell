@@ -70,6 +70,7 @@ function entorno({ metas = {}, readyState = 'complete', onLine = true, respuesta
   const env = {
     win,
     doc,
+    valores,
     posts,
     beacons,
     eventos,
@@ -318,6 +319,33 @@ test('window error se reporta con fuente, línea, stack, vista y versión', asyn
   assert.equal(e.body.url, '/tejido/inventario')
   assert.equal(e.body.vista, activa.vista())
   assert.equal(e.body.version, 'v123')
+  assert.equal(e.body.ruta, 'tejido.index')
+})
+
+test('el error lleva la ruta de la página actual también tras la navegación suave de Livewire', async () => {
+  const env = entorno()
+  await arrancar(env)
+
+  // wire:navigate reemplaza los <meta> del head (mergeNewHead) antes de livewire:navigated.
+  env.valores['towell-ruta'] = 'urdido.produccion'
+  env.win.location.pathname = '/urdido/produccion'
+  env.doc.dispatchEvent(new Event('livewire:navigated'))
+  await flush()
+
+  env.win.dispatchEvent(errorEvento({ message: 'boom', error: new Error('boom') }))
+  await flush()
+  const [e] = env.de('/error')
+  assert.equal(e.body.ruta, 'urdido.produccion')
+  assert.equal(e.body.url, '/urdido/produccion')
+  assert.equal(e.body.vista, activa.vista())
+})
+
+test('sin meta towell-ruta el error no manda ruta (el servidor la toma de la vista)', async () => {
+  const env = entorno({ metas: { 'towell-ruta': '' } })
+  await arrancar(env)
+  env.win.dispatchEvent(errorEvento({ message: 'boom', error: new Error('boom') }))
+  await flush()
+  assert.equal(env.de('/error')[0].body.ruta, undefined)
 })
 
 test('ignora Script error., extensiones y ResizeObserver loop', async () => {

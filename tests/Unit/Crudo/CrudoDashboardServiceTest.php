@@ -24,6 +24,11 @@ final class CrudoDashboardServiceTest extends TestCase
     {
         parent::setUp();
 
+        // El día de producción corre de 06:30 a 06:30 (CrudoProductionDay): entre las 00:00 y
+        // las 06:30 "hoy" todavía es el día anterior y los paros de hoy no aplican. Mediodía
+        // fijo hace que la suite no dependa de la hora a la que corre.
+        Carbon::setTestNow(Carbon::parse('today 12:00', 'America/Mexico_City'));
+
         config()->set('crudo.bad_quality_percent', 7);
         config()->set('crudo.salons', [
             'JACQUARD' => 'Jacquard',

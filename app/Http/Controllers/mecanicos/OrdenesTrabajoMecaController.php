@@ -9,7 +9,6 @@ use App\Models\Mantenimiento\ManFallasParos;
 use App\Models\Mecanicos\MecOrdenTrabajoLineModel;
 use App\Models\Mecanicos\MecOrdenTrabajoModel;
 use App\Models\Planeacion\ReqTelares;
-use App\Models\Sistema\SSYSFoliosSecuencia;
 use App\Models\Sistema\SYSRoles;
 use App\Models\Sistema\Usuario;
 use App\Models\Tejedores\TelTelaresOperador;
@@ -1074,29 +1073,7 @@ class OrdenesTrabajoMecaController extends Controller
      */
     private function asegurarSecuenciaFolios(): void
     {
-        DB::transaction(function (): void {
-            $secuencia = SSYSFoliosSecuencia::query()
-                ->where('modulo', self::MODULO_FOLIOS)
-                ->lockForUpdate()
-                ->first();
-
-            if ($secuencia !== null) {
-                return;
-            }
-
-            $ultimoFolio = (string) MecOrdenTrabajoModel::query()
-                ->where('Folio', 'like', self::PREFIJO_FOLIOS.'%')
-                ->orderByDesc('Folio')
-                ->value('Folio');
-
-            $consecutivoInicial = (int) substr($ultimoFolio, strlen(self::PREFIJO_FOLIOS));
-
-            SSYSFoliosSecuencia::create([
-                'modulo' => self::MODULO_FOLIOS,
-                'prefijo' => self::PREFIJO_FOLIOS,
-                'consecutivo' => $consecutivoInicial,
-            ]);
-        });
+        FolioHelper::asegurarSecuencia(self::MODULO_FOLIOS, self::PREFIJO_FOLIOS, MecOrdenTrabajoModel::query());
     }
 
     /**

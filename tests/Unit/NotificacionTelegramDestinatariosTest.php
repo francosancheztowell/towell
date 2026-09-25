@@ -2,9 +2,9 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\NotificacionTelegramDesarrolladorService;
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ProcesarMuestrasDesarrolladorService;
 use App\Models\Sistema\SYSMensaje;
+use App\Services\Tejedores\Desarrolladores\NotificacionTelegramDesarrolladorService;
+use App\Services\Tejedores\Desarrolladores\ProcesarMuestrasDesarrolladorService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;

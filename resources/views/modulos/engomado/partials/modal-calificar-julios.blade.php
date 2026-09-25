@@ -216,8 +216,7 @@
             CACHE_DEFECTOS = json.defectos || [];
             renderTabla(json.julios || []);
         } catch (e) {
-            if (typeof toastr !== 'undefined') toastr.error(e.message);
-            else alert(e.message);
+            notify.error(e.message);
         } finally {
             document.getElementById('calificarJuliosLoading').classList.add('hidden');
         }
@@ -245,7 +244,7 @@
             });
             const json = await res.json();
             if (!json.success) throw new Error(json.error || 'Error al guardar');
-            if (typeof toastr !== 'undefined') toastr.success('Julio calificado');
+            notify.success('Julio calificado');
             // Actualizar info de operador/fecha en el DOM sin recargar
             const td = selectEl.closest('td');
             if (td) {
@@ -256,8 +255,7 @@
                 if (infoHtml) td.insertAdjacentHTML('afterbegin', infoHtml);
             }
         } catch (e) {
-            if (typeof toastr !== 'undefined') toastr.error(e.message);
-            else alert(e.message);
+            notify.error(e.message);
         } finally {
             selectEl.disabled = false;
         }

@@ -37,14 +37,9 @@ class NuevoRequerimientoService
             // en una transacción, sin sugerido+increment por separado que duplica
             // folios con doble clic).
             $folioInicial = DB::transaction(function () use ($hoyMx, $turno, $usuario) {
-                $sec = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', 'Trama')->lockForUpdate()->first();
-                $folio = $sec
-                    ? ($sec->prefijo ?? $sec->Prefijo ?? 'TR').str_pad((string) ($sec->consecutivo ?? $sec->Consecutivo ?? 0), 5, '0', STR_PAD_LEFT)
-                    : '';
+                $folio = FolioHelper::consumirFolioSugerido('Trama', 5, prefijoSiNulo: 'TR');
                 if ($folio === '') {
                     $folio = 'TR'.str_pad((string) random_int(1, 99999), 5, '0', STR_PAD_LEFT);
-                } else {
-                    DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', 'Trama')->increment('consecutivo');
                 }
                 TejTrama::create([
                     'Folio' => $folio,

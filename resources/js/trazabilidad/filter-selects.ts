@@ -1,85 +1,78 @@
-export class FilterSelects {
-    private readonly namespace = '.trazabilidadLivewire';
+import { combobox, comboboxDe, destruirCombobox } from '../utils/combobox.ts';
+import type { RemotoCombobox } from '../utils/combobox.ts';
 
+export class FilterSelects {
     private readonly root: HTMLElement;
+
+    private readonly onChange = (event: Event): void => {
+        const select = event.currentTarget as HTMLSelectElement;
+        const field = select.dataset.livewireFilter || '';
+        if (!field) return;
+
+        const value = select.value || '';
+        // Fuera del evento: Tom Select sigue usando su DOM después de emitir `change`.
+        window.setTimeout(() => {
+            this.destroy();
+            window.Livewire?.dispatch('trazabilidad-actualizar-filtro', {
+                campo: field,
+                valor: value,
+            });
+        });
+    };
 
     public constructor(root: HTMLElement) {
         this.root = root;
     }
 
     public init(): void {
-        const jquery = window.jQuery;
-        if (!jquery) return;
-
-        this.root.querySelectorAll<HTMLSelectElement>('.filtro-select').forEach((select) => {
-            const bridge = jquery(select);
-            if (!bridge.data('select2')) {
-                bridge.select2({
-                    width: '100%',
+        this.selects().forEach((select) => {
+            if (!comboboxDe(select)) {
+                const remoto = this.remoteSource(select);
+                combobox(select, {
                     placeholder: 'Todos',
-                    allowClear: true,
-                    dropdownCssClass: 'traza-select2-dd',
-                    ...this.remoteSource(select),
+                    permitirVacio: true,
+                    ...(remoto ? { remoto } : {}),
                 });
             }
 
-            bridge.off(this.namespace).on(`change${this.namespace}`, () => {
-                const field = select.dataset.livewireFilter || '';
-                if (!field) return;
-
-                const value = select.value || '';
-                this.destroy();
-                window.Livewire?.dispatch('trazabilidad-actualizar-filtro', {
-                    campo: field,
-                    valor: value,
-                });
-            });
+            select.removeEventListener('change', this.onChange);
+            select.addEventListener('change', this.onChange);
         });
     }
 
     /**
      * Los selectores con data-remote-url no llevan sus opciones en el HTML:
-     * select2 las pide al servidor filtradas por los demás filtros activos.
+     * el combobox las pide al servidor filtradas por los demás filtros activos.
      */
-    private remoteSource(select: HTMLSelectElement): Record<string, unknown> {
+    private remoteSource(select: HTMLSelectElement): RemotoCombobox | null {
         const url = select.dataset.remoteUrl;
-        if (!url) return {};
+        if (!url) return null;
 
         const otherValue = (selector: string): string =>
             document.querySelector<HTMLInputElement | HTMLSelectElement>(selector)?.value?.trim() || '';
 
         return {
-            minimumInputLength: 0,
-            ajax: {
-                url,
-                dataType: 'json',
-                delay: 250,
-                cache: true,
-                data: (params: { term?: string }) => ({
-                    q: params.term || '',
-                    articulo: otherValue('#filtro-articulo'),
-                    tamano: otherValue('#filtro-tamano'),
-                    mes: otherValue('#filtro-mes'),
-                }),
-            },
+            url,
+            params: () => ({
+                articulo: otherValue('#filtro-articulo'),
+                tamano: otherValue('#filtro-tamano'),
+                mes: otherValue('#filtro-mes'),
+            }),
         };
     }
 
     public destroy(): void {
-        const jquery = window.jQuery;
-        if (!jquery) return;
-
-        this.root.querySelectorAll<HTMLSelectElement>('.filtro-select').forEach((select) => {
-            const bridge = jquery(select);
-            bridge.off(this.namespace);
-            if (!bridge.data('select2')) return;
-
+        this.selects().forEach((select) => {
+            select.removeEventListener('change', this.onChange);
             try {
-                bridge.select2('destroy');
+                destruirCombobox(select);
             } catch {
                 // Livewire puede haber retirado ya el nodo durante el morph.
             }
         });
     }
-}
 
+    private selects(): HTMLSelectElement[] {
+        return [...this.root.querySelectorAll<HTMLSelectElement>('select.filtro-select')];
+    }
+}

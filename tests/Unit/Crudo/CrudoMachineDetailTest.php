@@ -8,6 +8,7 @@ use App\Contracts\Crudo\CrudoDashboardProvider;
 use App\Contracts\Crudo\CrudoFlogProvider;
 use App\Livewire\Crudo\MachineDetail;
 use App\Livewire\Crudo\MachineFlogSummary;
+use Carbon\Carbon;
 use DateTimeImmutable;
 use Livewire\Attributes\Computed;
 use Livewire\Livewire;
@@ -23,11 +24,22 @@ final class CrudoMachineDetailTest extends TestCase
     {
         parent::setUp();
 
+        // El día de producción corre de 06:30 a 06:30: entre las 00:00 y las 06:30 el contexto
+        // "de hoy" sería el día anterior. Mediodía fijo evita que la suite dependa de la hora.
+        Carbon::setTestNow(Carbon::parse('today 12:00', 'America/Mexico_City'));
+
         config()->set('crudo.bad_quality_percent', 7);
         $this->provider = new FakeCrudoDashboardProviderForDetail($this->machineData());
         $this->flogProvider = new FakeCrudoFlogProviderForDetail;
         $this->app->instance(CrudoDashboardProvider::class, $this->provider);
         $this->app->instance(CrudoFlogProvider::class, $this->flogProvider);
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     public function test_it_opens_and_loads_machine_detail(): void

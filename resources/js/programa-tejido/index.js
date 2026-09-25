@@ -1,9 +1,19 @@
+// Primero boot: los módulos de abajo leen PT_BOOT al evaluarse.
+import { PT_BOOT } from './boot.ts';
 import {
     checkFilterMatch as ptCheckFilterMatch,
     dateInRange as ptDateInRange,
     groupFiltersByColumn as ptGroupFiltersByColumn,
     rowMatchesCustomFilters as ptRowMatchesCustomFilters,
 } from './filter-engine.ts';
+import { instalarIndiceSeleccion as ptInstalarIndiceSeleccion } from './seleccion.ts';
+// Scripts que vivían inline en la vista (04-perf, corte 5). Se evalúan antes que este
+// archivo y solo publican funciones en window, como hacían sus <script>.
+import './balancear.js';
+import './recalcular-fechas.js';
+import './modales/act-calendarios.js';
+import './modales/repaso.js';
+import './modales/marbetes.js';
 
 // Bundle JS de Programa Tejido. Antes iba inline en el HTML (527 KB que el
 // navegador volvia a descargar y a recompilar en cada recarga); ahora lo sirve
@@ -13,9 +23,8 @@ import {
 // convertir esto en modulos con import/export sin repasar las dependencias
 // cruzadas (p. ej. selection usa $$ de state).
 //
-// Los valores que dependian de Blade llegan por window.PT_BOOT, que la vista
-// imprime en un <script> inline antes de cargar este archivo.
-const PT_BOOT = window.PT_BOOT || {};
+// Los valores que dependian de Blade llegan en PT_BOOT (boot.ts), que la vista
+// imprime como <script type="application/json" id="pt-boot">.
 
 
   const PT_BASE_PATH = PT_BOOT.basePath || '/planeacion/programa-tejido';
@@ -6634,7 +6643,8 @@ let pinnedColumns = [];
 // tras filtrar+borrar la seleccion operaba sobre filas ya desconectadas del DOM
 // y revertia valores de un registro que el usuario no habia tocado.
 window.allRows = [];
-window.selectedRowIndex = -1;
+// Accesor sobre la fila, no un número congelado (seleccion.ts).
+ptInstalarIndiceSeleccion(window, () => (window.allRows.length > 0 ? window.allRows : document.querySelectorAll('.selectable-row')));
 window.inlineEditMode = false;
 
 const normalizeInputValue = (value) => {
@@ -11329,12 +11339,6 @@ const uiInlineEditableFields = {
 
     window.descargarPrograma = PT.actions.descargarPrograma;
 
-    // Descarga es exclusiva de Programa (decisión 01.3 B; el backend responde 422 en Muestras).
-    // El botón vive en el navbar, que no es de PT: se oculta aquí hasta que el navbar lo
-    // condicione por superficie (HANDOFF de PT-02).
-    if (PT_BOOT.capacidades && PT_BOOT.capacidades.descarga === false) {
-      document.querySelectorAll('button[title="Descargar programa"]').forEach((b) => { b.style.display = 'none'; });
-    }
     window.abrirNuevo = PT.actions.abrirNuevo;
     window.eliminarRegistro = PT.actions.eliminarRegistro;
 

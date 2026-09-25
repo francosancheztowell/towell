@@ -168,9 +168,6 @@
         @endif
     </div>
 
-    @if ($reporte)
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    @endif
     <script>
         const semanasUrl = @json(route('mecanicos.reportes.estado-maquina.semanas'));
         const excelUrl = @json(route('mecanicos.reportes.estado-maquina.excel'));
@@ -248,7 +245,7 @@
         }
 
         async function descargarImagenEstadoMaquina() {
-            if (!hayReporte || typeof html2canvas !== 'function') {
+            if (!hayReporte) {
                 window.notify.error('No se puede generar la imagen todavía.');
                 return;
             }
@@ -256,6 +253,7 @@
             const hoja = document.getElementById('hoja-verificacion');
             window.notify.loading('Generando imagen...');
             try {
+                const html2canvas = await window.librerias.html2canvas();
                 const canvas = await html2canvas(hoja, {
                     backgroundColor: '#ffffff',
                     scale: 2,

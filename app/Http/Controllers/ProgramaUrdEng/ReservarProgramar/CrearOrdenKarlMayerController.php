@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
+use App\Helpers\FolioHelper;
 use App\Http\Controllers\Controller;
-use App\Models\Sistema\SSYSFoliosSecuencia;
 use App\Models\Urdido\AuditoriaUrdEng;
 use App\Models\Urdido\UrdConsumoHilo;
 use App\Models\Urdido\UrdJuliosOrden;
@@ -70,8 +70,8 @@ class CrearOrdenKarlMayerController extends Controller
         try {
             DB::beginTransaction();
 
-            $folioConsumo = SSYSFoliosSecuencia::nextFolio('CambioHilo', 5)['folio'];
-            $folio = $this->obtenerFolioUrdEng();
+            $folioConsumo = FolioHelper::obtenerSiguienteFolio('CambioHilo', 5);
+            $folio = FolioHelper::obtenerSiguienteFolio('URD/ENG', 5, idRespaldo: 14);
 
             $observaciones = $this->emptyToNull($validated['observaciones'] ?? '');
 
@@ -184,15 +184,6 @@ class CrearOrdenKarlMayerController extends Controller
                 'success' => false,
                 'error' => 'Error al crear la orden: '.$e->getMessage(),
             ], 500);
-        }
-    }
-
-    private function obtenerFolioUrdEng(): string
-    {
-        try {
-            return SSYSFoliosSecuencia::nextFolio('URD/ENG', 5)['folio'];
-        } catch (\Exception $e) {
-            return SSYSFoliosSecuencia::nextFolioById(14, 5)['folio'];
         }
     }
 

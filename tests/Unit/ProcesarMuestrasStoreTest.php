@@ -2,10 +2,10 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\CatCodificadosDesarrolladorService;
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\NotificacionTelegramDesarrolladorService;
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ProcesarMuestrasDesarrolladorService;
 use App\Models\Planeacion\Muestras;
+use App\Services\Tejedores\Desarrolladores\CatCodificadosDesarrolladorService;
+use App\Services\Tejedores\Desarrolladores\NotificacionTelegramDesarrolladorService;
+use App\Services\Tejedores\Desarrolladores\ProcesarMuestrasDesarrolladorService;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;

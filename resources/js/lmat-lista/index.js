@@ -1,4 +1,5 @@
 import { openLMatModal } from '../catcodificacion/lmat-modal';
+import { combobox } from '../utils/combobox.ts';
 
 (function () {
     let ordenSeleccionada = null;
@@ -74,15 +75,8 @@ import { openLMatModal } from '../catcodificacion/lmat-modal';
         if (contador) contador.textContent = visibles + ' lista(s)';
     }
 
-    const jq = window.jQuery;
-    if (jq?.fn?.select2) {
-        jq('.lmat-filtro-select').each(function () {
-            jq(this).select2({
-                width: '100%',
-                allowClear: true,
-                placeholder: jq(this).data('placeholder'),
-                dropdownCssClass: 'lmat-select2-dd',
-            });
-        }).on('select2:select select2:clear', aplicarFiltros);
-    }
+    document.querySelectorAll('select.lmat-filtro-select').forEach((select) => {
+        combobox(select, { permitirVacio: true });
+        select.addEventListener('change', aplicarFiltros);
+    });
 })();

@@ -9088,613 +9088,613 @@ parameters:
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ConsultasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ConsultasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ConsultasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ConsultasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ConsultasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ConsultasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ConsultasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ConsultasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC5\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ConsultasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ConsultasDesarrolladorService.php
 
 		-
-			message: '#^Method App\\Http\\Controllers\\Tejedores\\Desarrolladores\\Funciones\\ConsultasDesarrolladorService\:\:obtenerTelares\(\) should return Illuminate\\Support\\Collection\<int, array\{NoTelarId\: string\}\> but returns Illuminate\\Support\\Collection\<int, array\{NoTelarId\: string, tieneSiguientes\: bool\}\>\.$#'
+			message: '#^Method App\\Services\\Tejedores\\Desarrolladores\\ConsultasDesarrolladorService\:\:obtenerTelares\(\) should return Illuminate\\Support\\Collection\<int, array\{NoTelarId\: string\}\> but returns Illuminate\\Support\\Collection\<int, array\{NoTelarId\: string, tieneSiguientes\: bool\}\>\.$#'
 			identifier: return.type
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ConsultasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ConsultasDesarrolladorService.php
 
 		-
-			message: '#^Method App\\Http\\Controllers\\Tejedores\\Desarrolladores\\Funciones\\ConsultasDesarrolladorService\:\:obtenerTelaresDestino\(\) should return Illuminate\\Support\\Collection\<int, array\{value\: string, label\: string\}\> but returns Illuminate\\Support\\Collection\<int, array\{value\: non\-falsy\-string, label\: string\}\>\.$#'
+			message: '#^Method App\\Services\\Tejedores\\Desarrolladores\\ConsultasDesarrolladorService\:\:obtenerTelaresDestino\(\) should return Illuminate\\Support\\Collection\<int, array\{value\: string, label\: string\}\> but returns Illuminate\\Support\\Collection\<int, array\{value\: non\-falsy\-string, label\: string\}\>\.$#'
 			identifier: return.type
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ConsultasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ConsultasDesarrolladorService.php
 
 		-
-			message: '#^Method App\\Http\\Controllers\\Tejedores\\Desarrolladores\\Funciones\\ConsultasDesarrolladorService\:\:telaresConOrdenesPendientes\(\) should return array\<string, true\> but returns array\<non\-falsy\-string, bool\>\.$#'
+			message: '#^Method App\\Services\\Tejedores\\Desarrolladores\\ConsultasDesarrolladorService\:\:telaresConOrdenesPendientes\(\) should return array\<string, true\> but returns array\<non\-falsy\-string, bool\>\.$#'
 			identifier: return.type
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ConsultasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ConsultasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FechaArranque\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/MovimientoDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\Catalogos\\CatCodificados\:\:\$FechaFinaliza\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/MovimientoDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EnProceso\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/MovimientoDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaArranque\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/MovimientoDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaFinaliza\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/MovimientoDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/MovimientoDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/MovimientoDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$OrdCompartida\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/MovimientoDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$OrdCompartidaLider\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/MovimientoDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Produccion\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/MovimientoDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Reprogramar\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/MovimientoDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SaldoPedido\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/MovimientoDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/MovimientoDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TotalPedido\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/MovimientoDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Static method App\\Http\\Controllers\\Planeacion\\ProgramaTejido\\helper\\DateHelpers\:\:recalcularFechasSecuencia\(\) invoked with 3 parameters, 2 required\.$#'
 			identifier: arguments.count
 			count: 3
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/MovimientoDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Strict comparison using \!\=\= between mixed and null will always evaluate to true\.$#'
 			identifier: notIdentical.alwaysTrue
 			count: 2
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/NotificacionTelegramDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/NotificacionTelegramDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CodificacionModelo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CodigoDibujo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CuentaPie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CuentaRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$NoTelarId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$OrdenTejido\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$SalonTejidoId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ActualizaLmat\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Ancho\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$BomId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$BomName\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibrePie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibrePie2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreRizo2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CategoriaCalidad\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CombinaTram\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CreaProd\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaPie\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaRizo\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CustName\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Densidad\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$DobladilloId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EficienciaSTD\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraPie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FlogsId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$HiloAX\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$InventSizeId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ItemId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Luchaje\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Maquina\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$MedidaPlano\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$MtsRollo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoProduccion\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTiras\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreProducto\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreProyecto\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$OrdCompartida\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$OrdCompartidaLider\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$OrdPrincipal\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Peine\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PesoCrudo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PesoMuestra\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Prioridad\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PzasRollo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Rasurado\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Repeticiones\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Reprogramar\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TamanoClave\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TotalPedido\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TotalPzas\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TotalRollos\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$VelocidadSTD\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
-			message: '#^Method App\\Http\\Controllers\\Tejedores\\Desarrolladores\\Funciones\\ProcesarDesarrolladorService\:\:actualizarCatCodificados\(\) never returns null so it can be removed from the return type\.$#'
+			message: '#^Method App\\Services\\Tejedores\\Desarrolladores\\ProcesarDesarrolladorService\:\:actualizarCatCodificados\(\) never returns null so it can be removed from the return type\.$#'
 			identifier: return.unusedType
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Offset ''codigoDibujo'' on array\{programa\: App\\Models\\Planeacion\\ReqProgramaTejido, contexto\: non\-empty\-array, contextoOrigenInicial\: array\{salonOrigen\: mixed, telarOrigen\: mixed\}, codigoDibujo\: string, codigoDibujoAnterior\: string\|null\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Offset 0 on array\{string, string\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Offset 1 on array\{string, string\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CodificacionModelo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarMuestrasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CodigoDibujo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarMuestrasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CuentaPie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarMuestrasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CuentaRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarMuestrasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$NoTelarId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarMuestrasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$OrdenTejido\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarMuestrasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$SalonTejidoId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarMuestrasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaPie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarMuestrasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarMuestrasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EficienciaSTD\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarMuestrasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Maquina\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarMuestrasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoProduccion\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarMuestrasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarMuestrasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$VelocidadSTD\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarMuestrasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
 		-
 			message: '#^Offset ''codigoDibujo'' on array\{programa\: mixed, contexto\: non\-empty\-array, codigoDibujo\: string, codigoDibujoAnterior\: string\|null\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarMuestrasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
 		-
 			message: '#^Offset 0 on array\{string, string\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarMuestrasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
 		-
 			message: '#^Offset 1 on array\{string, string\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
-			path: app/Http/Controllers/Tejedores/Desarrolladores/Funciones/ProcesarMuestrasDesarrolladorService.php
+			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Inventario\\InvTelasReservadas\:\:\$Fecha\.$#'

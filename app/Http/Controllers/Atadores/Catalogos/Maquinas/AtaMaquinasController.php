@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Atadores\Catalogos\Maquinas;
 
+use App\Http\Controllers\Atadores\Catalogos\CatalogosAtadoresVista;
 use App\Http\Controllers\Controller;
 use App\Models\Atadores\AtaMaquinasModel;
 use Illuminate\Http\Request;
@@ -13,9 +14,11 @@ class AtaMaquinasController extends Controller
      */
     public function index()
     {
-        $maquinas = AtaMaquinasModel::all();
-
-        return view('modulos.catalogos-atadores.maquinas.index', compact('maquinas'));
+        // Vista única de los tres catálogos de atadores (piloto DS-12).
+        return view('modulos.catalogos-atadores.index', [
+            'catalogo' => CatalogosAtadoresVista::maquinas(),
+            'filas' => AtaMaquinasModel::all(),
+        ]);
     }
 
     /**

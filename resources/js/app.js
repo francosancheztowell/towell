@@ -1,5 +1,6 @@
 import './bootstrap';
 import './monitoreo/telemetria';
+import './componentes/index.ts'; // runtime de los componentes Blade (fase 16)
 
 // Importar estilos CSS de librerías
 // Solo el core + la familia `solid`. `all.css` arrastraba tambien regular, brands
@@ -7,9 +8,3 @@ import './monitoreo/telemetria';
 import '@fortawesome/fontawesome-free/css/fontawesome.css';
 import '@fortawesome/fontawesome-free/css/solid.css';
 import '../css/fontawesome-display.css';
-import 'select2/dist/css/select2.css';
-import 'toastr/build/toastr.css';
-
-// SweetAlert2 — expuesto globalmente para vistas Blade
-import Swal from 'sweetalert2';
-window.Swal = Swal;

@@ -158,6 +158,59 @@ class TelemetriaTest extends TestCase
         $this->assertSame('/tejido', $errores->table('SYSMonErrorEvento')->value('Url'));
     }
 
+    public function test_error_de_cliente_guarda_la_ruta_de_la_pagina_y_nunca_la_del_endpoint(): void
+    {
+        $errores = DB::connection(Monitoreo::CONEXION_ERRORES);
+
+        $this->comoTablet()->postJson('/telemetria/error', [
+            'origen' => 'js', 'mensaje' => 'boom', 'url' => '/tejido/inventario',
+            'ruta' => 'tejido.inventario?x=1', 'version' => 'abc123def456',
+        ])->assertNoContent();
+
+        $error = $errores->table('SYSMonError')->first();
+        $this->assertSame('tejido.inventario', $error->Ruta);
+        $this->assertSame('abc123def456', $errores->table('SYSMonErrorEvento')->value('VersionFront'));
+    }
+
+    public function test_sin_ruta_del_cliente_toma_la_de_su_vista_y_si_no_desconocida(): void
+    {
+        $errores = DB::connection(Monitoreo::CONEXION_ERRORES);
+        $vista = (string) Str::uuid();
+        $this->comoTablet()->postJson('/telemetria/vista', ['uuid' => $vista, 'ruta' => 'urdido.produccion', 'url' => '/urdido'])
+            ->assertNoContent();
+
+        $this->comoTablet()->postJson('/telemetria/error', ['mensaje' => 'con vista', 'vista' => strtoupper($vista)])->assertNoContent();
+        $this->comoTablet()->postJson('/telemetria/error', ['mensaje' => 'sin nada', 'ruta' => ''])->assertNoContent();
+
+        // La vista de otro usuario no presta su ruta.
+        $otro = $this->crearUsuario(['numero_empleado' => '2']);
+        $this->actingAs($otro)->postJson('/telemetria/error', ['mensaje' => 'vista ajena', 'vista' => $vista])->assertNoContent();
+
+        $rutas = $errores->table('SYSMonError')->pluck('Ruta', 'Mensaje')->all();
+        $this->assertSame([
+            'con vista' => 'urdido.produccion',
+            'sin nada' => 'desconocida',
+            'vista ajena' => 'desconocida',
+        ], $rutas);
+    }
+
+    public function test_la_ruta_no_entra_en_la_huella_y_corrige_filas_viejas_con_telemetria_error(): void
+    {
+        $errores = DB::connection(Monitoreo::CONEXION_ERRORES);
+        $cuerpo = ['origen' => 'js', 'mensaje' => 'TypeError: x', 'fuente' => '/build/app.js', 'linea' => 3];
+
+        $this->comoTablet()->postJson('/telemetria/error', $cuerpo + ['ruta' => 'tejido.index'])->assertNoContent();
+        // Fila registrada antes del fix.
+        $errores->table('SYSMonError')->update(['Ruta' => 'telemetria.error']);
+        $this->comoTablet()->postJson('/telemetria/error', $cuerpo + ['ruta' => 'urdido.index'])->assertNoContent();
+
+        $this->assertSame(1, $errores->table('SYSMonError')->count(), 'Mismo defecto en otra página: una sola huella.');
+        $error = $errores->table('SYSMonError')->first();
+        $this->assertSame(2, (int) $error->Ocurrencias);
+        $this->assertSame('urdido.index', $error->Ruta);
+        $this->assertSame(0, $errores->table('SYSMonError')->where('Ruta', 'telemetria.error')->count());
+    }
+
     public function test_nombre_del_dispositivo(): void
     {
         $this->comoTablet()->postJson('/telemetria/dispositivo/nombre', ['nombre' => str_repeat('T', 100)])->assertNoContent();

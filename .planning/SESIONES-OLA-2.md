@@ -176,3 +176,78 @@ Acuerdos: docs y commits en español ("programa tejido: <cambio>"); modo ponytai
 Antes de push: hook SessionStart (o CLAUDE_CODE_REMOTE=true bash scripts/session-start.sh); php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run typecheck && npm run test:js && npm run build; npm run ratchet; php artisan planeacion:programa-tejido-health en sqlite; skill code-review.
 Entregables: código + tests + 04-perf-SUMMARY.md (tabla antes/después como la de 04-PERF-MEDIDO.md) (+ HANDOFF.md si aplica). Push a claude/pt-04-perf. NO abras PR.
 ```
+
+---
+
+## Segunda tanda (abierta 2026-09-25, tras integrar la primera en `claude/friendly-hopper-506bg9`)
+
+| Sesión | Rama | Contexto |
+|---|---|---|
+| 20-02 → 20-03 — Errores JSON y AuthZ en modo auditar | `claude/20-02-03-errores-authz` | `phases/20-arq-sec/20-CONTEXT.md` (20-02 y 20-03), `20-01-SUMMARY.md` |
+
+Única sesión activa: es dueña de `bootstrap/app.php` (archivo caliente de ARQ en la Ola 2) y de las rutas de módulos fuera de Planeación.
+
+## 6. Fases 20-02 → 20-03 — Errores JSON y AuthZ en modo auditar
+
+```
+(Esta sesión arranca en modo plan: lee el protocolo y el contexto, presenta tu plan para aprobación del owner y, una vez aprobado, ejecútalo completo.)
+
+Proyecto Towell (Laravel 12 + Livewire 4 + Vite/TS, SQL Server 2008 R2 en producción). Refactor integral 2026. Lee primero .planning/PROTOCOLO-SESIONES.md, .planning/SESIONES-OLA-2.md (sección "Segunda tanda") y CLAUDE.md.
+
+Fases 20-02 y 20-03 — Arquitectura y seguridad. IDs: SEC-04, SEC-05 (SEC-06/SEC-07/ARQ-05 NO: van en cada 19-xx).
+Contexto: .planning/phases/20-arq-sec/20-CONTEXT.md (secciones 20-02 y 20-03) y 20-01-SUMMARY.md. Monitoreo ya integrado: ErrorRecorder (fase 11) y App\Services\Monitoreo\AccesoService::registrar('authz_denegaria', …) — consúmelos, no los cambies (si hace falta, HANDOFF).
+Escribe primero .planning/phases/20-arq-sec/20-02-PLAN.md y 20-03-PLAN.md, y ejecútalos en ese orden con commits separados.
+Rama: claude/20-02-03-errores-authz (base claude/friendly-hopper-506bg9).
+
+20-02 (SEC-04): render central en bootstrap/app.php para respuestas JSON 5xx (requests que esperan JSON, incluidas las de window.http y Livewire): mensaje genérico en español + trace_id = Id del evento de SYSMonErrorEvento que expone ErrorRecorder (si no hay evento, un id de referencia igual al de la página 500). Nunca exponer getMessage(), clase, archivo ni SQL con APP_DEBUG=false; con APP_DEBUG=true se conserva el detalle actual. Reusar app/Support/Http/Concerns/HandlesApiErrors.php. No cambies los catch de los controllers (eso es SEC-07 en cada 19-xx). Tests: 500 en JSON sin detalle y con trace_id; 422/403/404/419 intactos; HTML 500 intacto.
+
+20-03 (SEC-05): EnsureModulePermission (module.permission:<accion>,<idrol>) acepta un tercer parámetro `auditar` (module.permission:crear,123,auditar): si el usuario NO tendría permiso, registra SYSMonAcceso tipo authz_denegaria (ruta, acción, idrol, usuario) y DEJA PASAR; con permiso no registra nada. Sin el parámetro, el comportamiento actual no cambia. Aplicar el modo auditar a las rutas de escritura (POST/PUT/PATCH/DELETE) SIN module.permission de routes/modules/*.php excepto planeacion.php (Planeación ya la cerró PT 01.1). Mapa acción ↔ idrol por módulo documentado en .planning/phases/20-arq-sec/20-03-MAPA-AUTHZ.md, con la fuente de cada idrol (SYSRoles / vistas que ya usan userCan). Excepción aprobada por el owner: alta de paros de mantenimiento queda abierta a cualquier usuario autenticado (sin auditar). Test que falle si aparece una ruta de escritura nueva fuera de Planeación sin module.permission (ni enforce ni auditar), al estilo de tests/Feature/Planeacion/PlaneacionEscrituraAutorizacionTest.php. Deduplicar el registro: una fila por usuario+ruta+acción por hora como máximo (cache), para no llenar SYSMonAcceso.
+
+ERES DUEÑO DE: bootstrap/app.php, app/Http/Middleware/EnsureModulePermission.php, app/Support/Http/Concerns/HandlesApiErrors.php, routes/modules/*.php EXCEPTO routes/modules/planeacion.php (solo agregar middleware; no mover ni renombrar rutas), tests nuevos en tests/Feature/Seguridad/**, .planning/phases/20-arq-sec/**.
+SOLO LECTURA: app/Services/Monitoreo/** (consumir ErrorRecorder y AccesoService), app/Helpers/permission-helpers.php, controllers.
+PROHIBIDO: routes/modules/planeacion.php y todo Programa Tejido, controllers de negocio (los catch con getMessage() son SEC-07 de cada 19-xx), resources/js/**, vistas, composer.*, package.json, config/database.php. Si necesitas algo ahí: .planning/phases/20-arq-sec/HANDOFF.md.
+
+Acuerdos: docs y commits en español ("seguridad: <cambio>"); modo ponytail; NUNCA saltar/desactivar tests; no editar .planning/ROADMAP.md, STATE.md, REQUIREMENTS.md ni PROJECT.md; el ratchet no sube; SQL compatible con 2008 R2 (hay test que lo vigila en database/sql); el snapshot de rutas de PT no debe cambiar.
+Antes de push: hook SessionStart (o CLAUDE_CODE_REMOTE=true bash scripts/session-start.sh); php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run build && npm run ratchet; vendor/bin/pint --test en archivos tocados; skills security-review y code-review (obligatorios).
+Entregables: código + tests + 20-02-SUMMARY.md, 20-03-SUMMARY.md y 20-03-MAPA-AUTHZ.md (+ HANDOFF.md si aplica). Push a claude/20-02-03-errores-authz. NO abras PR.
+```
+
+## 7. Telegram sin bloquear + avisos de modelo (aprobada por el owner 2026-09-25)
+
+| Sesión | Rama | Contexto |
+|---|---|---|
+| Telegram sin bloquear | `claude/telegram-no-bloquear` | Este bloque; patrón de `app/Services/Mantenimiento/ParoTelegramNotifier.php` |
+
+Corre en paralelo con 20-02 → 20-03: no comparten archivos (esa sesión toca rutas, `bootstrap/app.php` y middleware; esta, 6 archivos de envío a Telegram + `boot` de `AppServiceProvider`).
+
+```
+(Esta sesión arranca en modo plan: lee el protocolo y el contexto, presenta tu plan para aprobación del owner y, una vez aprobado, ejecútalo completo.)
+
+Proyecto Towell (Laravel 12 + Livewire 4 + Vite/TS; producción: Windows/Laragon, SQL Server 2008 R2, sin Redis, cache/sesión file). Refactor integral 2026. Lee primero .planning/PROTOCOLO-SESIONES.md, .planning/SESIONES-OLA-2.md (bloque 7) y CLAUDE.md.
+
+Tarea — "Telegram sin bloquear + avisos de modelo". Sin ID previo: regístralo como PERF-13 (Telegram) y PERF-14 (avisos de modelo) en tu SUMMARY.
+Escribe primero .planning/phases/18-perf/18-03-PLAN.md y luego ejecútalo.
+Rama: claude/telegram-no-bloquear (base claude/friendly-hopper-506bg9).
+
+Problema medido en código: 6 acciones mandan Telegram DENTRO de la petición, secuencialmente a cada chat_id, con timeouts de 20–30 s; el resultado solo va al log. Peor caso: N destinatarios × 30 s con la tablet en el loader.
+- AtadoresController::enviarNotificacionTelegramAtadoTerminado (al terminar atado, 20 s)
+- NotificarMontadoJulioController::enviarNotificacionTelegram (20 s)
+- RequerimientoStatusService::enviarTelegram (sin timeout propio = 30 s por defecto)
+- CortesEficienciaController: envío al finalizar corte (línea ~621, PDF) y los botones notificarTelegram / notificarTelegramImagen (30 s)
+- MarcasController::notificarTelegram → enviarReporteMarcasPdfTelegram (30 s)
+
+Alcance:
+1. En todos: connectTimeout 3 s, timeout 8 s para texto y 15 s para PDF/imagen; envío EN PARALELO a todos los chat_id con Http::pool; mismo contenido, mismos destinatarios (SYSMensaje::getChatIdsPorModulo), mismos logs. Ponytail: reusa el patrón de app/Services/Mantenimiento/ParoTelegramNotifier.php; si varias rutas repiten "mandar texto/documento a N chats", extrae UN helper pequeño y úsalo en las 6 (no un framework).
+2. Donde Telegram es efecto secundario (terminar atado, montado de julio, requerimiento de trama, finalizar corte): enviar después de responder con defer(), como ya hacen Mantenimiento paros y Crudo. OJO: producción es Windows (no hay PHP-FPM ni fastcgi_finish_request); mide si defer() libera la respuesta antes en Apache/mod_php y php-cgi. Si no la libera, usa la cola `database` (migración de jobs ya existe) con un job y documenta en docs/cerebro-towell/Runbooks/deploy.md el worker cada minuto desde el Programador de tareas (`php artisan queue:work --stop-when-empty --max-time=50`) y el SQL de la tabla jobs si falta (compatible 2008 R2, idempotente, en database/sql/). Deja la decisión con evidencia en el SUMMARY y un paso de verificación para el owner (phpinfo → "Server API").
+3. Botones explícitos "Enviar a Telegram" (Cortes PDF/imagen, Marcas): siguen síncronos para poder confirmar, con el punto 1, y ahora responden al usuario el resultado real ("enviado a N de M" / "no se pudo enviar") en el JSON que ya devuelven, sin romper el contrato del front (mismos campos + mensaje).
+4. Avisos de modelo en app/Providers/AppServiceProvider.php (solo en boot, fuera de producción, solo log, sin throw), como el de lazy loading de 18-01: Model::preventSilentlyDiscardingAttributes + handleDiscardedAttributeViolationUsing y Model::preventAccessingMissingAttributes + handleMissingAttributeViolationUsing → Log::warning una vez por modelo+atributo por request. Verifica que la suite completa siga verde y reporta cuántos avisos salen al correrla.
+5. Tests con Http::fake: paralelo (todos los chats reciben), timeouts, que la respuesta de las acciones diferidas no espera al envío, que los botones explícitos reportan éxito/fallo; y medición antes/después (tiempo de respuesta con Telegram lento simulado).
+
+ERES DUEÑO DE: los 6 métodos/archivos listados (solo el código de envío a Telegram y la respuesta de los botones explícitos), app/Services/Mantenimiento/ParoTelegramNotifier.php (solo si extraes el helper común), un helper nuevo pequeño si hace falta (app/Services/Telegram/**), app/Jobs/** nuevos si usas cola, app/Providers/AppServiceProvider.php (solo boot, avisos de modelo), database/sql/ (solo tabla jobs si hace falta), docs/cerebro-towell/Runbooks/deploy.md (sección del worker), tests nuevos en tests/Feature/Telegram/** y tests/Unit/Telegram/**, .planning/phases/18-perf/18-03-*.
+SOLO LECTURA: todo lo demás.
+PROHIBIDO: routes/**, bootstrap/**, app/Http/Middleware/** (sesión claude/20-02-03-errores-authz en paralelo), vistas y resources/js/** (salvo que el mensaje de resultado de los botones necesite 1 línea en su vista: entonces HANDOFF), Programa Tejido, composer.*, package.json, config/database.php.
+
+Acuerdos: docs y commits en español ("rendimiento: <cambio>"); modo ponytail; ninguna optimización sin número antes/después; NUNCA saltar/desactivar tests; no editar .planning/ROADMAP.md, STATE.md, REQUIREMENTS.md ni PROJECT.md; el ratchet no sube; SQL compatible con 2008 R2 (hay test que lo vigila).
+Antes de push: hook SessionStart (o CLAUDE_CODE_REMOTE=true bash scripts/session-start.sh); php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run build && npm run ratchet; vendor/bin/pint --test en archivos tocados; skill code-review.
+Entregables: código + tests + 18-03-SUMMARY.md (+ HANDOFF.md si aplica). Push a claude/telegram-no-bloquear. NO abras PR.
+```

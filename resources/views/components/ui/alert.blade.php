@@ -10,7 +10,7 @@
         @param string $title - Título de la alerta (opcional)
         @param string $message - Mensaje principal de la alerta (opcional)
         @param array $items - Lista de mensajes para mostrar como bullets (opcional)
-        @param bool $dismissible - Si la alerta puede cerrarse (default: true)
+        @param bool $dismissible - Si la alerta puede cerrarse (default: true; se cierra solo con CSS)
 
     Uso:
         <!-- Alerta simple -->
@@ -71,11 +71,12 @@
     $currentConfig = $config[$type] ?? $config['info'];
 @endphp
 
-<div {{ $attributes->merge(['class' => "{$currentConfig['bg']} border {$currentConfig['border']} {$currentConfig['text']} px-4 py-3 rounded relative mb-4 shadow-sm"]) }} role="alert">
+<div {{ $attributes->merge(['class' => "{$currentConfig['bg']} border {$currentConfig['border']} {$currentConfig['text']} px-4 py-3 rounded relative mb-4 shadow-sm has-[.ui-dismiss:checked]:hidden"]) }}
+     role="{{ $type === 'error' || $type === 'warning' ? 'alert' : 'status' }}">
     <div class="flex items-start">
         <!-- Icono -->
         <div class="flex-shrink-0">
-            <svg class="w-5 h-5 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 mr-3 mt-0.5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 {!! $currentConfig['icon'] !!}
             </svg>
         </div>
@@ -107,65 +108,14 @@
 
         <!-- Botón de cerrar (opcional) -->
         @if($dismissible)
-            <button type="button" class="ml-3 flex-shrink-0 inline-flex text-current opacity-75 hover:opacity-100 transition-opacity"
-                    onclick="this.parentElement.parentElement.remove()">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {{-- Cierre solo con CSS (checkbox + has-checked): funciona también en páginas que no
+                 cargan app.js, como el login. Sin onclick inline. --}}
+            <label class="ml-3 flex-shrink-0 inline-flex cursor-pointer rounded text-current opacity-75 hover:opacity-100 transition-opacity has-focus-visible:ring-2 has-focus-visible:ring-current">
+                <input type="checkbox" class="ui-dismiss sr-only" aria-label="Cerrar aviso">
+                <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
-            </button>
+            </label>
         @endif
     </div>
 </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

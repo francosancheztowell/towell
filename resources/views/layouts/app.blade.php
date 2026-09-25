@@ -5,14 +5,8 @@
     <x-layout-styles />
     <x-layout-scripts />
     <style>
-        /* Animación de spin para iconos */
-        .fa-spin {
-            animation: fa-spin 1s linear infinite;
-        }
-        @keyframes fa-spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        /* .fa-spin ya no se redefine aquí: Font Awesome 7 (app.js) trae el suyo con sus
+           variables --fa-animation-*; la copia local las ignoraba. */
         /* Fondo compatible con iPad/Safari: rellena viewport y gradiente con prefijo WebKit */
         html {
             min-height: 100vh;
@@ -39,6 +33,12 @@
     <x-layout.global-loader />
 
     <x-navbar.navbar />
+
+    {{-- DS-09: flash de sesión (antes "No tienes acceso…" se perdía). No repite lo que la vista ya pinta;
+         el HTML de la vista solo se junta si de verdad hay algo que mostrar. --}}
+    @if (session()->hasAny(['error', 'warning', 'success', 'info', 'status']) || (isset($errors) && $errors->any()))
+        <x-ui.flash :contenido="$__env->yieldContent('content').$__env->yieldPushContent('scripts')" />
+    @endif
 
   <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display:none;">@csrf</form>
 

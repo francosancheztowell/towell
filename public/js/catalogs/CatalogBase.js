@@ -1,6 +1,11 @@
 /**
  * CatalogBase - Clase base para manejo de catálogos
  * Implementa patrón Template Method para operaciones CRUD
+ *
+ * LEGADO (fase 16): la versión que evoluciona es resources/js/catalogos/catalog-base.ts
+ * (URL base configurable, window.http/notify, formularios en <dialog>). Esta copia queda
+ * solo para aplicaciones, catalagoTelares, matriz-calibres y matriz-hilos (catalagos/*),
+ * hasta que su sesión 19-xx los migre; entonces se borra. No agregar usos nuevos.
  */
 class CatalogBase {
     constructor(config) {

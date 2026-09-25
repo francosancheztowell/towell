@@ -1,3 +1,9 @@
+/*
+ * FA 7 declara fa-solid-900 con `font-display: block` (iconos invisibles hasta
+ * que baja la fuente). Esta segunda declaración de la misma familia y peso gana por
+ * orden y pone `swap`. La familia debe ser la de FA 7: con 'Font Awesome 6 Free'
+ * (lo que había) la regla no aplicaba a ningún icono.
+ */
 @font-face {
     font-family: 'Font Awesome 7 Free';
     font-style: normal;

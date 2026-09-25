@@ -509,7 +509,7 @@
             cache.calibres = items;
             return items;
         } catch (e) {
-            toastr.error('No se pudieron cargar calibres');
+            notify.error('No se pudieron cargar calibres');
             return [];
         }
     };
@@ -522,7 +522,7 @@
             cache.fibras.set(itemId, items);
             return items;
         } catch (e) {
-            toastr.error('No se pudieron cargar fibras');
+            notify.error('No se pudieron cargar fibras');
             return [];
         }
     };
@@ -539,7 +539,7 @@
             cache.colores.set(itemId, items);
             return items;
         } catch (e) {
-            toastr.error('No se pudieron cargar colores');
+            notify.error('No se pudieron cargar colores');
             return [];
         }
     };
@@ -608,7 +608,7 @@
 
         for (const [key, msg] of requiredFields) {
             if (!record[key] && record[key] !== 0) {
-                toastr.warning(msg);
+                notify.warning(msg);
                 return false;
             }
         }
@@ -635,9 +635,9 @@
                 if (data?.success) {
                     if (state.selectedRow) updateRowFromData(state.selectedRow, data.data);
                     hideModal();
-                    toastr.success('Registro actualizado');
+                    notify.success('Registro actualizado');
                 } else {
-                    toastr.error('No se pudo actualizar');
+                    notify.error('No se pudo actualizar');
                 }
             } else {
                 const url = `{{ route('tejido.produccion.reenconado.store') }}`;
@@ -646,14 +646,14 @@
                     DOM.tbody.insertAdjacentHTML('afterbegin', rowHtml(data.data));
                     bindRowClicks();
                     hideModal();
-                    toastr.success('Registro guardado exitosamente');
+                    notify.success('Registro guardado exitosamente');
                 } else {
-                    toastr.error('No se pudo guardar el registro');
+                    notify.error('No se pudo guardar el registro');
                 }
             }
         } catch (e) {
             const msg = e?.response?.data?.message || 'Error al guardar el registro';
-            toastr.error(msg);
+            notify.error(msg);
         } finally {
             setButtonLoading(false);
         }
@@ -723,7 +723,7 @@
 
     const initEditar = async () => {
         if (!state.selectedRow) {
-            toastr.info('Selecciona un registro');
+            notify.info('Selecciona un registro');
             return;
         }
         state.mode = 'edit';
@@ -740,12 +740,12 @@
 
     const initEliminar = async () => {
         if (!state.selectedRow) {
-            toastr.info('Selecciona un registro');
+            notify.info('Selecciona un registro');
             return;
         }
         const folio = state.selectedRow.dataset.folio;
         if (!folio) {
-            toastr.error('Folio inválido');
+            notify.error('Folio inválido');
             return;
         }
 

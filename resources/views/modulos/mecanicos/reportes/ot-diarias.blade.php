@@ -70,9 +70,6 @@
         @endif
     </div>
 
-    @if ($reporte)
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    @endif
     <script>
         const excelUrl = @json(route('mecanicos.reportes.ot-diarias.excel'));
         const pdfUrl = @json(route('mecanicos.reportes.ot-diarias.pdf'));
@@ -182,7 +179,7 @@
         }
 
         async function descargarImagenOtDiarias() {
-            if (!hayReporte || typeof html2canvas !== 'function') {
+            if (!hayReporte) {
                 window.notify.error('No se puede generar la imagen todavía.');
                 return;
             }
@@ -190,6 +187,7 @@
             const hoja = document.getElementById('hoja-ot-diarias');
             window.notify.loading('Generando imagen...');
             try {
+                const html2canvas = await window.librerias.html2canvas();
                 const canvas = await html2canvas(hoja, {
                     backgroundColor: '#ffffff',
                     scale: 2,

@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Livewire\Desarrolladores;
 
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ConsultasDesarrolladorService;
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ConsultasMuestrasDesarrolladorService;
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ProcesarDesarrolladorService;
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ProcesarMuestrasDesarrolladorService;
 use App\Models\Planeacion\Muestras;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Tejedores\TejCatMatrizDesarrolladores;
 use App\Services\Planeacion\CatalogosMaterialesLMatService;
+use App\Services\Tejedores\Desarrolladores\ConsultasDesarrolladorService;
+use App\Services\Tejedores\Desarrolladores\ConsultasMuestrasDesarrolladorService;
+use App\Services\Tejedores\Desarrolladores\ProcesarDesarrolladorService;
+use App\Services\Tejedores\Desarrolladores\ProcesarMuestrasDesarrolladorService;
 use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\Monitoreo\ContextoSql;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -43,13 +44,22 @@ class SetSqlContextInfo
 
             // Sin @Accion: cada peticion arranca sin contexto de negocio, y es
             // AuditoriaHelper::contexto() quien lo sella antes de cada operacion.
+            // PERF-07: solo se mide (incluye abrir la conexion fisica si es la primera consulta).
+            $inicio = hrtime(true);
             $connection->statement('EXEC dbo.sp_SetAppContext ?, ?, ?', [$uid, $user, $ip]);
+            $ms = (hrtime(true) - $inicio) / 1e6;
         } catch (\Throwable $e) {
             Log::warning('SetSqlContextInfo: No se pudo establecer contexto', [
                 'error' => $e->getMessage(),
             ]);
         }
 
-        return $next($request);
+        $response = $next($request);
+
+        if (isset($ms)) {
+            ContextoSql::registrar($request, $response, $ms);
+        }
+
+        return $response;
     }
 }

@@ -26,7 +26,8 @@
 
 
 
-            <!-- Descargar programa -->
+            <!-- Descargar programa: exclusiva de Programa (decisión 01.3 B; el backend responde 422 en Muestras) -->
+            @if(\App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface::actual()->soporta('descarga'))
             <x-navbar.button-report
                 onclick="descargarPrograma()"
                 title="Descargar programa"
@@ -37,6 +38,7 @@
                 hoverBg="hover:bg-blue-600"
                 module="{{ $modulePermission ?? 'Programa Tejido' }}"
                 class="text-sm" />
+            @endif
 
             <!-- Liberar órdenes -->
             <x-navbar.button-report

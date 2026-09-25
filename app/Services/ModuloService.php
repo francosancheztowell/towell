@@ -314,6 +314,10 @@ class ModuloService
             ->where('Nivel', 2)
             ->pluck('orden')
             ->each(fn (string $orden) => Cache::forget("{$prefix}_nivel3_user_{$idusuario}_dep{$orden}"));
+
+        // moduleNameForRoute() se invalida con los eventos de SYSRoles; esto cubre
+        // además los cambios hechos por SQL directo (sin eventos Eloquent).
+        olvidarModulosPorRuta();
     }
 
     /**

@@ -6,7 +6,7 @@
     $isMuestras = request()->routeIs('muestras.index') || request()->is('planeacion/muestras');
     $isProgramaTejido = request()->routeIs('catalogos.req-programa-tejido') || request()->is('planeacion/programa-tejido') || $isMuestras;
     $programaTejidoModuleLabel = $isMuestras ? 'Muestras' : 'Programa';
-    $programaTejidoModulePermission = 'Programa Tejido';
+    $programaTejidoModulePermission = $isMuestras ? 'Muestras' : 'Programa Tejido';
     $liberarOrdenesBase = $isMuestras ? '/planeacion/muestras' : '/planeacion/programa-tejido';
     // Información del usuario
     $usuario = Auth::user();

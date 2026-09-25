@@ -3,13 +3,13 @@
 namespace Tests\Unit;
 
 use App\Helpers\StringTruncator;
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\CatCodificadosDesarrolladorService;
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\MovimientoDesarrolladorService;
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\NotificacionTelegramDesarrolladorService;
-use App\Http\Controllers\Tejedores\Desarrolladores\Funciones\ProcesarDesarrolladorService;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Tejedores\Desarrolladores\CatCodificadosDesarrolladorService;
+use App\Services\Tejedores\Desarrolladores\MovimientoDesarrolladorService;
+use App\Services\Tejedores\Desarrolladores\NotificacionTelegramDesarrolladorService;
+use App\Services\Tejedores\Desarrolladores\ProcesarDesarrolladorService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;

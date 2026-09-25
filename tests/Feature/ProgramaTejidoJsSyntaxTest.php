@@ -40,8 +40,8 @@ class ProgramaTejidoJsSyntaxTest extends TestCase
             'hiddenFields' => ['Observaciones'],
         ])->render();
 
-        // Los valores que solo conoce el servidor viajan por PT_BOOT...
-        $this->assertStringContainsString('window.PT_BOOT', $html);
+        // Los valores que solo conoce el servidor viajan como datos en #pt-boot (04-perf)...
+        $this->assertStringContainsString('<script type="application/json" id="pt-boot">', $html);
         $this->assertStringContainsString('"NoTelarId"', $html);
         $this->assertStringContainsString('"Observaciones"', $html);
         // ...y el resto lo sirve Vite, no un <script> inline de 527 KB.

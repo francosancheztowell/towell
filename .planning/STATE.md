@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-09-25)
 
 **Core value:** Planta y planeación trabajan más rápido y sin fricción, y Sistemas ve qué pasa en producción, sin romper invariantes de dominio.
-**Current focus:** Ola 2 — librerías (15-02), componentes (16), movimientos/folios (20-01), perf infra + fix MON (18-01), PT 04-perf.
+**Current focus:** Ola 2 — primera tanda integrada (15-02, 16, 18-01, 20-01, PT 04-perf); siguiente: 20-02/20-03 y, con telemetría de prod, 17-01.
 **Protocolo:** `.planning/PROTOCOLO-SESIONES.md` (propiedad de archivos, orden de merge, gates).
 
 ## Current Position
@@ -37,7 +37,18 @@ Ola 2 — abierta 2026-09-25 sin esperar G1 (decisión del owner). Prompts y pro
 - `claude/pt-04-perf` — session_01TLqGpEASNx9XneZUVaF3JE
 Después: 20-02 / 20-03 al integrar 20-01; 17-01 cuando haya ≥ 7 días de telemetría.
 
-Status: Ola 2 en curso
+Ola 2, primera tanda — **integrada** en `claude/friendly-hopper-506bg9` el 2026-09-25 (no en `main`), orden 20-01 → 18-01 → PT → 15-02 → 16:
+- 20-01 `e5f2c08d` · 18-01 `5974e47e` · PT 04-perf `56f83f4f` · 15-02 `9c40d1bf` · 16 `043883d6`.
+- Conflictos con lo que `main` ya había hecho (ERP-F0-07/08/11): se conservó lo de `main` (endpoints/vistas sin consumidor siguen borrados, `app.js` sin `app.css`, `max-w-md`); el test del `/turno-info` de Trama se quitó porque `main` borró el endpoint; `ProcesarDesarrolladorStoreTest` (nuevo en `main`) apunta al namespace movido; ejemplo `route('x')` del docblock de `x-ui.button` → `url('/')`.
+- Validación: **1 572 tests PHP**, phpstan OK, typecheck, **134 tests JS**, build, ratchet (toastr. 0, bg-opacity- 0, Swal.fire 800, onclick= 372, `<script>` inline 161), Pint.
+- Integrador: `CLAUDE.md` (sin jQuery/Select2/Toastr, combobox, librerías, Vite por glob, componentes, `UrdEngomado/`, servicios de Desarrolladores), BUG-022 resuelto en `inventario-bugs.md` (ambas copias), `ModuloService::limpiarCacheUsuario()` también olvida `moduleNameForRoute` (HANDOFF 18-01 #2).
+
+Ola 2, segunda tanda — abierta 2026-09-25 04:35 UTC (modo plan: espera aprobación del owner en la web):
+- `claude/20-02-03-errores-authz` — session_01GVBoCEjewocT2J3nmFFtNj — **integrada** `15227b6b` (SEC-04 JSON 5xx con trace_id; SEC-05 63 escrituras en auditar, 22 esperan idrol). En el mismo merge: tests de Crudo con reloj fijo a mediodía (fallaban entre 00:00 y 06:30 CDMX; `main` también los tiene). Validación: 1 594 tests PHP, phpstan, build, ratchet, Pint.
+- `claude/telegram-no-bloquear` — session_012vz2HxjrvDh7HaQuB5rPh7 (PERF-13 Telegram en paralelo, con límites cortos y sin bloquear la respuesta; PERF-14 avisos de modelo solo en log). Aprobada por el owner 2026-09-25 tras revisar su lista de paquetes: Octane, Horizon, Reverb, Sentry, Telescope y paquetes Spatie descartados por ahora (Windows/SQL Server 2008 R2/sin Redis/datos en planta); Pennant se reevalúa en PT 03.
+17-01 (auditoría UX por uso real) sigue esperando ≥ 7 días de telemetría de producción.
+
+Status: Ola 2 — primera tanda integrada; segunda tanda (20-02 → 20-03) en curso
 Last activity: 2026-09-25 — Integración de la Ola 1 (4 ramas) + docs del integrador (CLAUDE.md, contrato §4, SQL Server 2008 R2).
 
 Progress: [█████░░░░░] ~35% (fases 10–14 completas, 15-01, PT 01, 01.1 y 02 completas)
@@ -73,14 +84,17 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 
 ### Pending Todos (owner)
 
-- Aprobar en claude.ai/code los planes de las 5 sesiones de la Ola 2 (arrancan en modo plan).
+- Aprobar en claude.ai/code el plan de la sesión Telegram sin bloquear (si aún no).
+- Correr en ProdTowel la consulta de solo lectura de `phases/20-arq-sec/20-03-MAPA-AUTHZ.md` §Pendientes y mandar el resultado (idrol de 22 rutas).
+- Correr el SQL de despliegue (área de `/admin` confirmada: solo Sistemas; enviado 2026-09-25: `sysmon_tablas.sql` + registro en `dbo.migrations` + `failed_jobs` + barras de `main`), luego Pulse con `migrate --path` y `optimize`.
+
 
 **Despliegue en Laragon (192.168.2.15) de todo lo integrado** (fases 10, 11, 12, 13, 14, 15-01, PT 01.1/02):
 1. `git pull` de la rama; `composer install --no-dev -o` (nuevo: `laravel/pulse`); `npm ci && npm run build` (nuevo: `qrcode`).
 2. Confirmar `pdo_sqlite` y `sqlite3` (`php -m | findstr sqlite`); `storage\pulse` con permiso de escritura. Sin `pdo_sqlite`: `PULSE_ENABLED=false` (el panel sigue con tablas propias). Ver `phases/14-mon-pulse/14-01-SUMMARY.md`.
 3. **SQL (lo único obligatorio en SQL Server):** en SSMS contra ProdTowel correr `database/sql/sysmon_tablas.sql` completo y luego el `IF NOT EXISTS … INSERT INTO dbo.migrations` de su encabezado. **No** usar `php artisan migrate` a secas (`dbo.migrations` no coincide con live). Pulse va aparte en SQLite: `php artisan migrate --path=database/migrations/2026_09_24_000010_create_pulse_tables.php`. Hasta que existan las tablas, `/admin` da `Invalid object name 'SYSMonDispositivo'` (visto el 2026-09-25); el resto de la app sigue funcionando (las escrituras de monitoreo solo dejan `Log::warning`).
    Consulta de diagnóstico (solo lectura) antes y después: `OBJECT_ID('dbo.SYSMonDispositivo')`, `OBJECT_ID('dbo.failed_jobs')` (si es NULL: `migrate --path=…create_failed_jobs_table.php`), `COL_LENGTH('dbo.MuestrasPrograma','CuentaBarra1')` y `COL_LENGTH('dbo.ReqProgramaTejido','CalibreBarra12')` (si NULL: correr los scripts de `main` `alter_barras_muestras_programa.sql` / `alter_calibre_barra2_karl_mayer.sql`).
-4. `SELECT area, COUNT(*) FROM dbo.SYSUsuario GROUP BY area` → ajustar `MONITOREO_AREAS_ADMIN` si el valor no es "Sistemas".
+4. ~~Área de admin~~ → confirmado por el owner (2026-09-25): solo **Sistemas**. Es el default; no hace falta `MONITOREO_AREAS_ADMIN` en `.env`.
 5. `.env`: `MAIL_*` de Resend ya existentes (alertas a francost15@gmail.com); si fija `LOG_STACK=single`, pasar a `daily` + `LOG_DAILY_DAYS=30`; `QUEUE_FAILED_DRIVER` no en `null`.
 6. `php artisan optimize:clear && php artisan optimize && php artisan view:clear && php artisan route:clear`.
 7. Probar: `/admin` con usuario de Sistemas (200) y de otra área (403); cierre remoto de una tablet de prueba.
@@ -99,6 +113,16 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 - Aviso de privacidad del monitoreo (propuesta: leyenda discreta en login).
 - Worker de colas en Windows (propuesta: `queue:work --stop-when-empty --max-time=50` desde `scheduler.bat`).
 
+### HANDOFFs ruteados (Ola 2)
+
+- 20-02/03 #4 parser de `RutasDestructivasPermisoTest` → aceptado. #5 código de referencia de `errors/500.blade.php` por excepción → 17-02. Huecos (supervisor en `atadores/save`, `actualizar-campo-orden`, `actualizar-prioridades`, `telegram/send` sin llamadores, stub de cortes, reenconado legacy) → 19-xx.
+
+- 18-01 #1 `towell-ruta` vacío en rutas sin nombre (1 línea en `layout-head`) → 17-02 UX-global.
+- 16 A3 loader de `app-core.js` → `window.loader`, A4 toasts bajo el navbar, A5 top layer → FE (próxima sesión que toque utils/app-core) / 21. C1 catálogos de Planeación a `catalog-base.ts`, C2 duplicados BPM/julios/secuencias, C3 llave `Nota1` de Comentarios → 19-xx.
+- 15-02 #6 CSS select2 muerto en Trazabilidad, #7 comentario jQuery, #8 `<br>` en calendarios → 19-xx.
+- PT B1 `req-programa-tejido-line-table.blade.php` a la fila PT, B2 `mostrarModalDiasLiberar` del navbar → 17-02, B3 `redbooth.blade.php` vuelve a PT (mover su `<script>` al bundle) → próxima sesión PT.
+- 20-01: sin pendientes (CLAUDE.md y BUG-022 hechos).
+
 ### HANDOFFs ruteados (Ola 1)
 
 - 12 §1/§3 → mini-fix MON en Ola 2: aceptar `ruta` (y `version`) del cliente en `/telemetria/error` para que `SYSMonError.Ruta` no quede `telemetria.error`. Contrato §4 ya actualizado.
@@ -115,5 +139,5 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 ## Session Continuity
 
 Last session: 2026-09-25
-Stopped at: Ola 2 abierta (5 sesiones). Siguiente: revisar SUMMARY/HANDOFF de cada rama e integrar en el orden de `SESIONES-OLA-2.md`.
+Stopped at: Ola 2 primera tanda integrada (rama, no main); 20-02 → 20-03 abierta. Siguiente: integrarla y evaluar G2 (sin jQuery ✅, vendor fuera del global ✅, galería DS ✅, AuthZ auditar ⏳, drivers/OPcache ✅ documentado, auditoría UX ⏳).
 Resume file: None
