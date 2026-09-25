@@ -45,16 +45,17 @@ class FolioHelper
      * usado"). Bloquea la fila: llamarlo dentro de la transacción que guarda el
      * registro para que el folio y su dueño se confirmen juntos.
      *
+     * @param  string  $prefijoSiNulo  prefijo a usar si la fila tiene prefijo NULL (Trama usaba 'TR')
      * @return string Folio consumido, o '' si el módulo no tiene secuencia (no incrementa nada)
      */
-    public static function consumirFolioSugerido(string $modulo, int $longitudConsecutivo = 5): string
+    public static function consumirFolioSugerido(string $modulo, int $longitudConsecutivo = 5, string $prefijoSiNulo = ''): string
     {
-        return DB::transaction(function () use ($modulo, $longitudConsecutivo) {
+        return DB::transaction(function () use ($modulo, $longitudConsecutivo, $prefijoSiNulo) {
             $row = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', $modulo)->lockForUpdate()->first();
             if (! $row) {
                 return '';
             }
-            $pref = $row->prefijo ?? ($row->Prefijo ?? '');
+            $pref = $row->prefijo ?? ($row->Prefijo ?? $prefijoSiNulo);
             $con = (int) ($row->consecutivo ?? ($row->Consecutivo ?? 0));
             DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', $modulo)->increment('consecutivo');
 

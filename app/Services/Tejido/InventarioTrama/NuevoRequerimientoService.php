@@ -37,7 +37,7 @@ class NuevoRequerimientoService
             // en una transacción, sin sugerido+increment por separado que duplica
             // folios con doble clic).
             $folioInicial = DB::transaction(function () use ($hoyMx, $turno, $usuario) {
-                $folio = FolioHelper::consumirFolioSugerido('Trama', 5);
+                $folio = FolioHelper::consumirFolioSugerido('Trama', 5, prefijoSiNulo: 'TR');
                 if ($folio === '') {
                     $folio = 'TR'.str_pad((string) random_int(1, 99999), 5, '0', STR_PAD_LEFT);
                 }

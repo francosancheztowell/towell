@@ -189,6 +189,17 @@ class FoliosCaracterizacionTest extends TestCase
         $this->assertSame('En Proceso', DB::table('TejTrama')->where('Folio', 'TR00007')->value('Status'));
     }
 
+    public function test_trama_con_prefijo_nulo_usa_tr(): void
+    {
+        $this->crearTablasTrama();
+        DB::table('dbo.SSYSFoliosSecuencias')->insert(['modulo' => 'Trama', 'prefijo' => null, 'consecutivo' => 3]);
+
+        $vm = app(NuevoRequerimientoService::class)->construirVm(null);
+
+        $this->assertSame('TR00003', $vm['folio']);
+        $this->assertSame(4, $this->consecutivo('Trama'));
+    }
+
     public function test_trama_sin_secuencia_inventa_un_folio_tr_y_no_crea_secuencia(): void
     {
         $this->crearTablasTrama();
