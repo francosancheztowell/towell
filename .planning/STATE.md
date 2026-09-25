@@ -21,10 +21,14 @@ Historial de sesiones (todas integradas):
 Gates: G1 ⏳ (monitoreo en prod ≥ 7 días: depende del despliegue); G2 ✅ salvo 17-01 (auditoría UX por uso real) e idrol de 22 rutas. Ola 3 se abre ya por decisión del owner (2026-09-25).
 
 Ola 3 — primera tanda (abierta 2026-09-25; prompts y propiedad en `SESIONES-OLA-3.md`):
-- (sesiones por crear)
+- 17-02 UX global → `claude/17-02-ux-global` · `session_01E9rbKp3ViiDqqUhJv8TffK`
+- 19-01 Urdido + Engomado → `claude/19-01-urdido-engomado` · `session_012UxJt1eZW7jHx3ZeaLDUTa`
+- 19-03 Atadores → `claude/19-03-atadores` · `session_015jawMebtV2XyHgiiwvQzHJ`
+- PT 05 Mutaciones → `claude/pt-05-mutaciones` · `session_01PkCzW1QDBcCLZoC6uG3dnW`
+- Las 4 esperan la aprobación de su plan en la web. Orden de integración: 17-02 → 19-01 → 19-03 → PT 05.
 
 Status: Ola 3 en curso
-Last activity: 2026-09-25 — Olas 0–2 en `main`; redirect de Codificación; apertura de la Ola 3.
+Last activity: 2026-09-25 — Olas 0–2 en `main`; redirect de Codificación; Ola 3 abierta (4 sesiones).
 
 Progress: [██████░░░░] ~60% (fases 10–16, 18-01/03, 20 y PT 01–04-perf completas)
 
@@ -117,5 +121,5 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 ## Session Continuity
 
 Last session: 2026-09-25
-Stopped at: Ola 3 abriéndose (17-02, 19-01, 19-03, PT 05). Integrar cada rama al terminar; no push a `main` sin pedido del owner.
+Stopped at: Ola 3 abierta (17-02, 19-01, 19-03, PT 05; esperan aprobación de plan). Integrar cada rama al terminar; no push a `main` sin pedido del owner.
 Resume file: None
