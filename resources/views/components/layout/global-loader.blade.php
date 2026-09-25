@@ -1,33 +1,12 @@
-<div id="globalLoader" class="fixed inset-0 z-50 bg-black/40 hidden">
-    <div class="loader absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
+{{--
+    Loader global único (DS-07). Lo muestra app-core.js al navegar (quitando `hidden`) y las
+    vistas con window.loader.show()/hide() (resources/js/componentes/loader.ts).
+    El giro usa `animate-loader` (keyframes `loader-giro` en app.css): el `@keyframes spin`
+    que vivía aquí pisaba el de Tailwind y desplazaba todo `animate-spin` de la app.
+--}}
+<div id="globalLoader" class="fixed inset-0 z-50 bg-black/40 hidden" role="status" aria-live="polite">
+    <div class="absolute inset-0 flex items-center justify-center">
+        <div class="size-[50px] rounded-full border-4 border-white border-t-blue-600 animate-loader"></div>
+        <span class="sr-only">Cargando…</span>
+    </div>
 </div>
-
-<style>
-    .loader {
-        width: 50px;
-        height: 50px;
-        border: 4px solid #fff;
-        border-top: 4px solid #2563eb;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        0% { transform: translate(-50%, -50%) rotate(0deg); }
-        100% { transform: translate(-50%, -50%) rotate(360deg); }
-    }
-
-    #globalLoader.hidden {
-        display: none;
-    }
-</style>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const loader = document.getElementById('globalLoader');
-        if (loader) {
-            loader.classList.add('hidden');
-        }
-    });
-</script>
-

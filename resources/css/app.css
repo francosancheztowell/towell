@@ -9,6 +9,86 @@
 /* Small landscape tablets (e.g. 1006x427): short viewports. Current tablets are 1280x665 and stay unaffected. */
 @custom-variant short (@media (max-height: 540px));
 
+/* ============ Tokens del sistema de componentes (fase 16, DS-01) ============
+   Receta: docs/cerebro-towell/Arquitectura/receta-componentes.md
+   - Texto: nada por debajo de 12 px (text-caption = text-xs). No usar text-[10px]/[11px].
+   - Táctil: todo control de los componentes nuevos mide >= 44 px (min-h-touch / size-touch).
+   - Color: los componentes usan los semánticos; mapean a la paleta que ya usa la app
+     (blue-500 de los botones del navbar, etc.), así que adoptarlos no cambia el aspecto. */
+@theme {
+    --text-caption: 0.75rem;
+    --text-caption--line-height: 1rem;
+
+    --spacing-touch: 2.75rem;
+
+    --color-primary: var(--color-blue-500);
+    --color-primary-hover: var(--color-blue-600);
+    --color-primary-soft: var(--color-blue-50);
+    --color-success: var(--color-green-600);
+    --color-success-soft: var(--color-green-50);
+    --color-danger: var(--color-red-500);
+    --color-danger-hover: var(--color-red-600);
+    --color-danger-soft: var(--color-red-50);
+    --color-warning: var(--color-amber-500);
+    --color-warning-soft: var(--color-amber-50);
+    --color-info: var(--color-sky-600);
+    --color-info-soft: var(--color-sky-50);
+    --color-accent: var(--color-purple-500);
+    --color-accent-hover: var(--color-purple-600);
+    --color-surface: var(--color-white);
+    --color-surface-muted: var(--color-slate-50);
+    --color-line: var(--color-slate-200);
+    --color-ink: var(--color-slate-800);
+    --color-ink-muted: var(--color-slate-500);
+
+    --animate-loader: loader-giro 1s linear infinite;
+}
+
+/* Loader global (components/layout/global-loader). Keyframes con nombre propio: el
+   `@keyframes spin` que vivía en el componente pisaba el de Tailwind y hacía que todo
+   `animate-spin` de la app se desplazara con translate(-50%, -50%). */
+@keyframes loader-giro {
+    to { transform: rotate(360deg); }
+}
+
+/* x-ui.modal-base es un <dialog> NO modal (sin showModal): SweetAlert2 y los toasts de
+   notify viven fuera del top layer y quedarían debajo e inertes. La clase `hidden` sigue
+   siendo la fuente de verdad (el JS de Programa Tejido la alterna) y basta para mostrarlo
+   aunque el runtime no haya cargado; resources/js/componentes/dialog.ts sincroniza `open`,
+   el foco y Esc. Overlay bajo el navbar, igual que el <div> anterior. */
+@layer components {
+    dialog.ui-modal {
+        position: fixed;
+        inset: var(--pt-navbar-height, 64px) 0 0 0;
+        z-index: 50;
+        width: auto;
+        max-width: none;
+        height: auto;
+        max-height: none;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        color: inherit;
+        background-color: rgb(0 0 0 / 0.4);
+        overflow-y: auto;
+    }
+
+    dialog.ui-modal:not(.hidden) {
+        display: block;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        dialog.ui-modal:not(.hidden) .ui-modal-panel {
+            animation: ui-modal-entrada 120ms ease-out;
+        }
+    }
+}
+
+@keyframes ui-modal-entrada {
+    from { opacity: 0; transform: translateY(0.5rem); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 /* Alpine oculta con x-cloak hasta que arranca, pero solo si el CSS lo define.
    Se usa en 13 sitios del repo y no existia la regla: los paneles se pintaban
    visibles durante el primer render. */
@@ -28,4 +108,23 @@
 @keyframes barra {
     0%   { transform: translateX(-100%); }
     100% { transform: translateX(400%); }
+}
+
+/* x-ui.table (DS-03). Los estilos de th/td van con especificidad baja (capa components +
+   :where) para que cualquier clase en la celda gane: x-tabla trae las suyas. */
+@layer components {
+    .ui-table--primary > thead { background-color: var(--color-blue-600); color: var(--color-white); }
+    .ui-table--primary :where(th) { padding: 0.625rem 1rem; text-align: left; font-weight: 600; white-space: nowrap; }
+    .ui-table--primary :where(td) { padding: 0.625rem 1rem; color: var(--color-slate-700); vertical-align: middle; }
+
+    .ui-table--subtle > thead { background-color: var(--color-gray-50); }
+    .ui-table--subtle :where(th) {
+        padding: 0.75rem 1.5rem; text-align: left; font-size: var(--text-caption); line-height: var(--text-caption--line-height);
+        font-weight: 500; color: var(--color-gray-500); text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .ui-table--subtle :where(td) { padding: 1rem 1.5rem; font-size: var(--text-sm); color: var(--color-gray-900); }
+    .ui-table--subtle > tbody { background-color: var(--color-white); }
+    .ui-table--subtle > tbody > tr + tr { border-top: 1px solid var(--color-gray-200); }
+
+    .ui-table--zebra > tbody > tr:nth-child(even) { background-color: rgb(248 250 252 / 0.6); }
 }

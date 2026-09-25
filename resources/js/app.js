@@ -1,5 +1,6 @@
 import './bootstrap';
 import './monitoreo/telemetria';
+import './componentes/index.ts'; // runtime de los componentes Blade (fase 16, línea ancla)
 import '../css/app.css';
 
 // Importar estilos CSS de librerías
