@@ -13,9 +13,14 @@ return [
     | framework. This connection is utilized if another isn't explicitly
     | specified when running a cache operation inside the application.
     |
+    | Towell (PERF-01, decisión del owner 2026-09-25): producción es un solo
+    | servidor Windows sin Redis ni proxy, así que cache y sesión van en `file`.
+    | No existe migración de la tabla `cache`: un `.env` sin CACHE_STORE no
+    | debe caer en `database`. Revisar si algún día hay un segundo servidor web.
+    |
     */
 
-    'default' => env('CACHE_STORE', 'database'),
+    'default' => env('CACHE_STORE', 'file'),
 
     /*
     |--------------------------------------------------------------------------
