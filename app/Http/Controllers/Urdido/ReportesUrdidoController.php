@@ -735,12 +735,10 @@ class ReportesUrdidoController extends Controller
 
         $fechaIniCarbon = $this->parseReportDate($fechaIni);
         $fechaFinCarbon = $this->parseReportDate($fechaFin);
-        $filenameRed = 'Roturas x Millon '.$fechaFinCarbon->format('Y').'.xlsx';
         $filenameDownload = 'roturas-millon-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
-        $export = new RoturasMillonExport($filas);
-
-        return $this->guardarReporteEnRed($export, $filenameRed, $filenameDownload, 'Roturas x Millón');
+        // Solo descarga: Roturas x Millón no se guarda en la carpeta de red.
+        return Excel::download(new RoturasMillonExport($filas), $filenameDownload);
     }
 
     /**
