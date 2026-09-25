@@ -81,7 +81,12 @@ class ErrorRecorder
     /**
      * Error reportado por el cliente (telemetría). $datos ya viene recortado.
      *
-     * @param  array{origen: string, mensaje: string, fuente: ?string, linea: ?int, stack: ?string, status: ?int, metodo: ?string, url: ?string, version: ?string}  $datos
+     * `ruta` es la de la página donde ocurrió (no la del endpoint de telemetría) y NO entra
+     * en la huella: el mismo defecto de un bundle compartido en N páginas es un solo error, y
+     * las huellas ya registradas no se parten. La página de cada ocurrencia queda en
+     * SYSMonErrorEvento.Url; SYSMonError.Ruta es la de la primera.
+     *
+     * @param  array{origen: string, mensaje: string, fuente: ?string, linea: ?int, stack: ?string, status: ?int, metodo: ?string, url: ?string, version: ?string, ruta?: ?string}  $datos
      */
     public function capturarCliente(array $datos): ?int
     {
@@ -103,7 +108,7 @@ class ErrorRecorder
                 'Url' => $datos['url'],
                 'Metodo' => $datos['metodo'],
                 'VersionFront' => $datos['version'],
-            ]);
+            ], $datos['ruta'] ?? 'desconocida');
         });
     }
 
@@ -175,11 +180,12 @@ class ErrorRecorder
     /**
      * @param  array{Origen: string, Clase: string, Mensaje: string, Archivo: ?string, Linea: ?int}  $error
      * @param  array{Url?: ?string, Metodo?: ?string, VersionFront?: ?string}  $eventoExtra
+     * @param  string|null  $ruta  Para errores de cliente; si no, la ruta de la request actual.
      */
-    private function registrar(array $error, ?int $status, string $traza, array $eventoExtra = []): ?int
+    private function registrar(array $error, ?int $status, string $traza, array $eventoExtra = [], ?string $ruta = null): ?int
     {
         $request = app()->bound('request') ? request() : null;
-        $ruta = $this->rutaDe($request);
+        $ruta ??= $this->rutaDe($request);
 
         $error['Clase'] = mb_substr($error['Clase'], 0, 200);
         $error['Mensaje'] = mb_substr($error['Mensaje'], 0, 1000);
@@ -237,14 +243,14 @@ class ErrorRecorder
      */
     private function upsert($db, string $huella, array $fila): array
     {
-        $existente = $db->table('SYSMonError')->where('Huella', $huella)->first(['Id', 'Estado']);
+        $existente = $db->table('SYSMonError')->where('Huella', $huella)->first(['Id', 'Estado', 'Ruta']);
 
         if ($existente === null) {
             try {
                 return [(int) $db->table('SYSMonError')->insertGetId(['Huella' => $huella] + $fila, 'Id'), true, false];
             } catch (UniqueConstraintViolationException) {
                 // Otra request insertó la misma huella al mismo tiempo.
-                $existente = $db->table('SYSMonError')->where('Huella', $huella)->first(['Id', 'Estado']);
+                $existente = $db->table('SYSMonError')->where('Huella', $huella)->first(['Id', 'Estado', 'Ruta']);
             }
         }
 
@@ -252,6 +258,10 @@ class ErrorRecorder
         $cambios = ['Ocurrencias' => $db->raw('Ocurrencias + 1'), 'UltimaVez' => $fila['UltimaVez']];
         if ($regresion) {
             $cambios['Estado'] = 'nuevo';
+        }
+        // Errores de cliente registrados antes de HANDOFF 12 §1 quedaron con la ruta del endpoint.
+        if ($existente->Ruta === 'telemetria.error' && $fila['Ruta'] !== 'telemetria.error') {
+            $cambios['Ruta'] = $fila['Ruta'];
         }
 
         $db->table('SYSMonError')->where('Id', $existente->Id)->update($cambios);

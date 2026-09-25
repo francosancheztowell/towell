@@ -170,10 +170,30 @@ class TelemetriaController extends Controller
                 'metodo' => $request->texto('metodo', 8),
                 'url' => $request->soloPath('url', 300),
                 'version' => $request->texto('version', 40),
+                'ruta' => $this->rutaDelError($request),
             ]);
         });
 
         return response()->noContent();
+    }
+
+    /**
+     * Ruta de la PÁGINA donde ocurrió el error (HANDOFF 12 §1), nunca la de este endpoint:
+     * la que manda el cliente (meta `towell-ruta`); si no, la de su vista; si no, 'desconocida'.
+     */
+    private function rutaDelError(TelemetriaRequest $request): string
+    {
+        $ruta = $request->ruta();
+        $vista = $request->input('vista');
+
+        if ($ruta === null && is_string($vista) && Str::isUuid($vista)) {
+            $ruta = Monitoreo::texto(DB::connection('sqlsrv')->table('SYSMonVista')
+                ->where('Uuid', strtolower($vista))
+                ->where('UsuarioId', (int) Auth::id())
+                ->value('Ruta'), 150);
+        }
+
+        return $ruta ?? 'desconocida';
     }
 
     public function nombre(TelemetriaRequest $request): Response

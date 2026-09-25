@@ -3,7 +3,9 @@
 use App\Models\Sistema\SYSRoles;
 use App\Models\Sistema\SYSUsuariosRoles;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 if (! function_exists('userCan')) {
     /**
@@ -67,9 +69,51 @@ if (! function_exists('moduleNameForRoute')) {
      */
     function moduleNameForRoute(?string $path = null): ?string
     {
-        $ruta = $path ?? request()->path();
-        $rutaNormalizada = '/'.ltrim($ruta, '/');
+        $rutaNormalizada = '/'.ltrim($path ?? request()->path(), '/');
 
+        // PERF-04: hasta 3 queries a SYSRoles (una con LIKE '%x%') por llamada. Se memoiza por
+        // request en el contenedor (como userPermissions) y entre requests en la cache con el
+        // prefijo y TTL de ModuloService. El "no encontrado" también se guarda (como ''). La
+        // versión la rota cualquier escritura de SYSRoles (AppServiceProvider::boot).
+        $memo = app()->bound('permisos.modulo_ruta') ? app('permisos.modulo_ruta') : [];
+        if (! array_key_exists($rutaNormalizada, $memo)) {
+            $prefijo = moduleNameForRouteCachePrefix();
+            $version = Cache::rememberForever($prefijo.'_version', fn (): string => Str::random(8));
+            $llave = $prefijo.'_'.$version.'_'.sha1($rutaNormalizada);
+
+            $memo[$rutaNormalizada] = Cache::remember(
+                $llave,
+                3600, // ModuloService::CACHE_TTL
+                fn (): string => buscarModuloPorRuta($rutaNormalizada) ?? '',
+            );
+            app()->instance('permisos.modulo_ruta', $memo);
+        }
+
+        return $memo[$rutaNormalizada] === '' ? null : $memo[$rutaNormalizada];
+    }
+}
+
+if (! function_exists('moduleNameForRouteCachePrefix')) {
+    /** Mismo prefijo que ModuloService::getCachePrefix() (modulos_v3_<APP_ENV>). */
+    function moduleNameForRouteCachePrefix(): string
+    {
+        return 'modulos_v3_'.app()->environment().'_modulo_ruta';
+    }
+}
+
+if (! function_exists('olvidarModulosPorRuta')) {
+    /** Invalida lo que cacheó moduleNameForRoute(): se llama al escribir SYSRoles. */
+    function olvidarModulosPorRuta(): void
+    {
+        Cache::forget(moduleNameForRouteCachePrefix().'_version');
+        app()->forgetInstance('permisos.modulo_ruta');
+    }
+}
+
+if (! function_exists('buscarModuloPorRuta')) {
+    /** Las 3 búsquedas originales de moduleNameForRoute(), sin caché. */
+    function buscarModuloPorRuta(string $rutaNormalizada): ?string
+    {
         // 1. Buscar coincidencia exacta
         $modulo = SYSRoles::where('Ruta', $rutaNormalizada)->select('modulo')->first();
         if ($modulo) {
