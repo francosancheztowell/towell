@@ -10,6 +10,7 @@ use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Sistema\Usuario;
 use App\Services\Integraciones\RedboothService;
+use App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface;
 use App\Services\Trazabilidad\TrazabilidadRedboothService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,9 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Consulta tareas y vincula registros de Programa Tejido con Redbooth.
+ *
+ * Redbooth es exclusiva de Programa (decisión 01.3 B): Muestras no tiene IdRedbooth/NombreRedbooth.
+ * Hoy no hay rutas muestras/redbooth*; el guard 422 evita que una ruta nueva llegue a un 500.
  */
 final class RedboothProgramaTejidoController extends Controller
 {
@@ -34,6 +38,7 @@ final class RedboothProgramaTejidoController extends Controller
 
     public function projectOptions(Request $request): JsonResponse
     {
+        ProgramaTejidoSurface::fromRequest($request)->exigir('redbooth');
         $validated = $request->validate([
             'q' => ['nullable', 'string', 'max:100'],
         ]);
@@ -80,6 +85,7 @@ final class RedboothProgramaTejidoController extends Controller
 
     public function store(SaveRedboothProgramaTejidoRequest $request): JsonResponse
     {
+        ProgramaTejidoSurface::fromRequest($request)->exigir('redbooth');
         $usuario = $request->user();
         abort_unless($usuario instanceof Usuario, 401);
         $validated = $request->validated();
@@ -185,6 +191,7 @@ final class RedboothProgramaTejidoController extends Controller
 
     public function show(Request $request, int $programa): JsonResponse
     {
+        ProgramaTejidoSurface::fromRequest($request)->exigir('redbooth');
         $usuario = $request->user();
         abort_unless($usuario instanceof Usuario, 401);
 
@@ -327,6 +334,7 @@ final class RedboothProgramaTejidoController extends Controller
 
     public function destroy(Request $request, int $programa): JsonResponse
     {
+        ProgramaTejidoSurface::fromRequest($request)->exigir('redbooth');
         $usuario = $request->user();
         abort_unless($usuario instanceof Usuario, 401);
 

@@ -28,17 +28,16 @@ class ProgramaTejidoRouteSurfaceTest extends TestCase
      * clasificar rompe el test.
      */
     private const DIFERENCIAS = [
-        // Redbooth: Muestras no tiene IdRedbooth/NombreRedbooth. El front reescribe la URL a
-        // planeacion/muestras/redbooth* y da 404 (decisión 01.3 §4.1).
-        'GET planeacion/programa-tejido/redbooth/proyectos' => ['gap', 'redbooth sin ruta en Muestras'],
-        'POST planeacion/programa-tejido/redbooth' => ['gap', 'redbooth sin ruta en Muestras'],
-        'GET planeacion/programa-tejido/redbooth/{programa}' => ['gap', 'redbooth sin ruta en Muestras'],
-        'DELETE planeacion/programa-tejido/redbooth/{programa}' => ['gap', 'redbooth sin ruta en Muestras'],
-        // Editor de marbetes: escribe NoMarbete/RollosProgramados, que Muestras no tiene (§4.2).
-        'GET planeacion/programa-tejido/marbetes' => ['gap', 'editor de marbetes sin ruta en Muestras'],
-        'POST planeacion/programa-tejido/marbetes' => ['gap', 'editor de marbetes sin ruta en Muestras'],
-        // Liberar en Muestras valida con el módulo de Programa (crear,2) en vez de Muestras (5).
-        'POST planeacion/programa-tejido/liberar-ordenes/procesar' => ['gap', 'permiso de Programa en la ruta de Muestras'],
+        // Redbooth: exclusiva de Programa (decisión 01.3 B, PT-02). La UI de Muestras la oculta y
+        // el controller responde 422 si alguna vez se enruta desde Muestras.
+        'GET planeacion/programa-tejido/redbooth/proyectos' => ['intencional', 'redbooth exclusiva de Programa (01.3 B)'],
+        'POST planeacion/programa-tejido/redbooth' => ['intencional', 'redbooth exclusiva de Programa (01.3 B)'],
+        'GET planeacion/programa-tejido/redbooth/{programa}' => ['intencional', 'redbooth exclusiva de Programa (01.3 B)'],
+        'DELETE planeacion/programa-tejido/redbooth/{programa}' => ['intencional', 'redbooth exclusiva de Programa (01.3 B)'],
+        // Editor de marbetes: marbetes es A (01.3), pero Muestras no tiene NoMarbete/RollosProgramados
+        // hasta aplicar database/sql/pt_muestras_marbetes.sql. Se abre en PT-05/06 (02-MUESTRAS-LIBERAR.md).
+        'GET planeacion/programa-tejido/marbetes' => ['gap', 'editor de marbetes sin ruta en Muestras (espera DDL 01.3 A)'],
+        'POST planeacion/programa-tejido/marbetes' => ['gap', 'editor de marbetes sin ruta en Muestras (espera DDL 01.3 A)'],
         // Auditoría lee solo el historial de Programa; sin requerimiento para Muestras.
         'GET planeacion/programa-tejido/auditoria' => ['intencional', 'auditoría solo de Programa'],
     ];
@@ -80,12 +79,13 @@ class ProgramaTejidoRouteSurfaceTest extends TestCase
         $this->assertSame($esperado['totales'], $actual['totales']);
     }
 
-    public function test_las_195_rutas_bajo_planeacion_tienen_superficie_y_capacidad(): void
+    public function test_las_197_rutas_bajo_planeacion_tienen_superficie_y_capacidad(): void
     {
         $bajoPlaneacion = array_filter($this->inventario()['rutas'], fn ($r) => str_starts_with($r['uri'], 'planeacion'));
 
-        // Línea base del research (artisan route:list --path=planeacion, 2026-07-22).
-        $this->assertCount(195, $bajoPlaneacion);
+        // Línea base del research (artisan route:list --path=planeacion, 2026-07-22): 195.
+        // PT-02 suma 2: lectura v2 de Programa y de Muestras (planeacion/*/v2/registros).
+        $this->assertCount(197, $bajoPlaneacion);
         foreach ($bajoPlaneacion as $r) {
             $this->assertNotSame('', $r['capacidad'], "Sin capacidad: {$r['metodos']} {$r['uri']}");
         }
@@ -122,8 +122,9 @@ class ProgramaTejidoRouteSurfaceTest extends TestCase
             }
         }
 
-        // Caracterización: hoy hay exactamente un gap (liberar). Si se corrige, actualizar aquí.
-        $this->assertSame(['POST planeacion/muestras/liberar-ordenes/procesar → module.permission:crear,2'], $ajenas);
+        // PT-01.1 corrigió el único gap (liberar exigía crear,2): ninguna ruta de Muestras
+        // valida con el módulo de Programa.
+        $this->assertSame([], $ajenas);
     }
 
     /**

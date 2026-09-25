@@ -681,11 +681,10 @@ class UpdateTejido
             $necesitaLineas = $afectaCalendario || $afectaDuracion || $fechaFinalCambiada || $fechaFinalManual;
 
             if ($necesitaLineas) {
-                try {
-                    ReqProgramaTejido::regenerarLineas([$registro]);
-                } catch (\Throwable $e) {
-                    LogFacade::warning('UpdateTejido: observer saved error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
-                }
+                // PT-02 (hallazgo 4): sin try y relanzando. Si las líneas no se regeneran, la
+                // transacción revierte la edición; antes se registraba un warning y la cabecera
+                // quedaba con líneas viejas.
+                (new ReqProgramaTejidoObserver)->regenerateLinesFor($registro, relanzar: true);
             }
 
             // ===== 8) Actualizar Aplicacion en líneas existentes (solo si cambió aplicación y NO se regeneraron líneas) =====

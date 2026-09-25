@@ -8,6 +8,8 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\UpdateTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UtilityHelpers;
 use App\Models\Planeacion\OrdColProgramaTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\ProgramaTejidoReadComparison;
+use App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log as LogFacade;
@@ -26,13 +28,20 @@ class ProgramaTejidoController extends Controller
 {
     public function index()
     {
-        try {
-            $isMuestras = request()->is('planeacion/muestras');
-            $basePath = $isMuestras ? '/planeacion/muestras' : '/planeacion/programa-tejido';
-            $apiPath = $isMuestras ? '/muestras' : '/programa-tejido';
-            $linePath = $isMuestras ? '/planeacion/muestras-line' : '/planeacion/req-programa-tejido-line';
-            $pageTitle = $isMuestras ? 'Muestras' : 'Programa Tejido';
+        // La superficie llega explícita a la vista (PT-02): antes $isMuestras se calculaba y
+        // no se pasaba, así que Muestras mostraba Redbooth y acciones que no soporta.
+        $superficie = ProgramaTejidoSurface::actual();
+        $contexto = [
+            'superficie' => $superficie,
+            'isMuestras' => $superficie->esMuestras(),
+            'capacidades' => $superficie->capacidades(),
+            'basePath' => $superficie->basePath(),
+            'apiPath' => $superficie->apiPath(),
+            'linePath' => $superficie->linePath(),
+            'pageTitle' => $superficie->titulo(),
+        ];
 
+        try {
             $registros = ReqProgramaTejido::select([
                 'Id',
                 'EnProceso',
@@ -141,30 +150,29 @@ class ProgramaTejidoController extends Controller
             $columns = UtilityHelpers::getTableColumns();
             $hiddenFields = self::columnasOcultasDelUsuario();
 
-            return view('modulos.programa-tejido.req-programa-tejido', compact(
-                'registros',
-                'columns',
-                'hiddenFields',
-                'basePath',
-                'apiPath',
-                'linePath',
-                'pageTitle'
-            ));
+            ProgramaTejidoReadComparison::programar($superficie, $registros);
+
+            return view('modulos.programa-tejido.req-programa-tejido', [
+                ...$contexto,
+                'registros' => $registros,
+                'columns' => $columns,
+                'hiddenFields' => $hiddenFields,
+            ]);
         } catch (\Throwable $e) {
             LogFacade::error('Error al cargar programa de tejido', [
+                'superficie' => $superficie->value,
                 'msg' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
+            // Error ≠ vacío: la vista pinta un estado de error, no "No hay registros / carga un
+            // Excel". El detalle técnico se queda en el log, no en el HTML.
             return view('modulos.programa-tejido.req-programa-tejido', [
+                ...$contexto,
                 'registros' => collect(),
                 'columns' => UtilityHelpers::getTableColumns(),
                 'hiddenFields' => [],
-                'error' => 'Error al cargar los datos: '.$e->getMessage(),
-                'basePath' => $basePath ?? '/planeacion/programa-tejido',
-                'apiPath' => $apiPath ?? '/programa-tejido',
-                'linePath' => $linePath ?? '/planeacion/req-programa-tejido-line',
-                'pageTitle' => $pageTitle ?? 'Programa de Tejido',
+                'error' => 'No se pudieron cargar los registros. Intenta de nuevo; si persiste, avisa a Sistemas.',
             ]);
         }
     }

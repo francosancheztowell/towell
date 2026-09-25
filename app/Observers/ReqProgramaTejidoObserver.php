@@ -14,6 +14,7 @@ use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use DateTimeInterface;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -30,6 +31,9 @@ class ReqProgramaTejidoObserver
     /** Cache en memoria para Schema::getColumnListing, por nombre de tabla */
     private static array $columnListingCache = [];
 
+    /** Ya se reportó en este proceso que el maestro de pesos no se puede leer */
+    private static bool $maestroPesosIlegibleAvisado = false;
+
     /**
      * Vaciar los caches estaticos.
      *
@@ -44,6 +48,23 @@ class ReqProgramaTejidoObserver
         self::$aplicacionesCache = [];
         self::$matrizHilosCache = [];
         self::$columnListingCache = [];
+        self::$maestroPesosIlegibleAvisado = false;
+    }
+
+    private static function avisarMaestroPesosIlegible(Throwable $e): void
+    {
+        // Una vez por proceso y a lo más una por hora entre procesos (cron cada 30 min, workers).
+        if (self::$maestroPesosIlegibleAvisado || ! Cache::add('pt:observer:maestro_pesos_ilegible', 1, 3600)) {
+            self::$maestroPesosIlegibleAvisado = true;
+
+            return;
+        }
+        self::$maestroPesosIlegibleAvisado = true;
+
+        Log::error('ReqProgramaTejidoObserver::obtenerPesoRolloMaestro error', [
+            'message' => 'Maestro ReqPesosRollosTejido no legible: se usa el respaldo de 41.5 kg. '.$e->getMessage(),
+        ]);
+        report($e);
     }
 
     private const FACTOR_PESO = 1000.0;
@@ -116,7 +137,9 @@ class ReqProgramaTejidoObserver
     public function saved(ReqProgramaTejido $programa): void
     {
         if ($this->shouldRegenerateLines($programa)) {
-            $this->generarLineasDiarias($programa);
+            // Dentro de una transacción el fallo se relanza y quien llama revierte todo; fuera,
+            // la cabecera ya está confirmada y relanzar solo daría un 500 después del commit.
+            $this->generarLineasDiarias($programa, $programa->getConnection()->transactionLevel() > 0);
         }
 
         $this->sincronizarCatCodificados($programa);
@@ -218,59 +241,77 @@ class ReqProgramaTejidoObserver
             // === UPDATE directo (evita recursión del observer) ===
             $tabla = $programa->getTable();
             $connection = $programa->getConnection();
-            $afectadasRpt = $connection->table($tabla)
-                ->where('Id', $programa->Id)
-                ->update([
-                    'Repeticiones' => $repeticiones,
-                    'PzasRollo' => $pzasRollo,
-                    'MtsRollo' => $mtsRollo,
-                    'TotalRollos' => $totalRollos,
-                    'TotalPzas' => $totalPzas,
-                    'RollosProgramados' => $totalRollos,
-                    'UpdatedAt' => Carbon::now(),
-                ]);
-
-            // SQL Server puede devolver una cantidad de filas afectadas poco confiable cuando hay
-            // triggers. Confirmar el valor realmente persistido antes de copiarlo a CatCodificados.
-            $totalRollosPersistido = $connection->table($tabla)
-                ->where('Id', $programa->Id)
-                ->value('TotalRollos');
-
-            $totalRollosCoincide = $totalRollos === null
-                ? $totalRollosPersistido === null
-                : $totalRollosPersistido !== null
-                    && abs((float) $totalRollosPersistido - $totalRollos) < 0.001;
-
-            if (! $totalRollosCoincide) {
-                throw new \RuntimeException('No se confirmó TotalRollos en ReqProgramaTejido.');
+            $updateRpt = [
+                'Repeticiones' => $repeticiones,
+                'PzasRollo' => $pzasRollo,
+                'MtsRollo' => $mtsRollo,
+                'TotalRollos' => $totalRollos,
+                'TotalPzas' => $totalPzas,
+                'RollosProgramados' => $totalRollos,
+                'UpdatedAt' => Carbon::now(),
+            ];
+            // Solo columnas físicas de la superficie (PT-02, hallazgo 1): MuestrasPrograma no tiene
+            // RollosProgramados hasta que se aplique database/sql/pt_muestras_produccion.sql, y
+            // antes el UPDATE entero fallaba y se perdían las 5 fórmulas. Si el listado sale vacío
+            // se manda completo: que falle ruidoso, no que se filtre a nada.
+            $columnasRpt = self::columnasDeTabla($tabla);
+            if ($columnasRpt !== []) {
+                $updateRpt = array_intersect_key($updateRpt, array_flip($columnasRpt));
             }
 
-            // Sincronizar las mismas fórmulas a CatCodificados (si existe la fila)
-            // Mismo criterio que LiberarOrdenesController: OrdenTejido + TelarId. Solo por OrdenTejido
-            // se pisaban filas de otros telares cuando un folio se reparte entre varios.
-            $noProduccion = trim((string) ($programa->NoProduccion ?? ''));
-            $afectadasCat = 0;
-            if ($noProduccion !== '') {
-                $queryCat = $connection->table((new CatCodificados)->getTable())->where('OrdenTejido', $noProduccion);
-                $telar = trim((string) ($programa->NoTelarId ?? ''));
-                if ($telar !== '') {
-                    $queryCat->where('TelarId', $telar);
+            // Cabecera y CatCodificados en una sola transacción (PT-02, hallazgo 5): antes la
+            // cabecera quedaba recalculada aunque CatCodificados fallara.
+            [$afectadasRpt, $afectadasCat, $noProduccion] = $connection->transaction(function () use (
+                $connection, $tabla, $programa, $updateRpt, $repeticiones, $pzasRollo, $mtsRollo, $totalRollos, $totalPzas
+            ): array {
+                $afectadasRpt = $connection->table($tabla)
+                    ->where('Id', $programa->Id)
+                    ->update($updateRpt);
+
+                // SQL Server puede devolver una cantidad de filas afectadas poco confiable cuando hay
+                // triggers. Confirmar el valor realmente persistido antes de copiarlo a CatCodificados.
+                $totalRollosPersistido = $connection->table($tabla)
+                    ->where('Id', $programa->Id)
+                    ->value('TotalRollos');
+
+                $totalRollosCoincide = $totalRollos === null
+                    ? $totalRollosPersistido === null
+                    : $totalRollosPersistido !== null
+                        && abs((float) $totalRollosPersistido - $totalRollos) < 0.001;
+
+                if (! $totalRollosCoincide) {
+                    throw new \RuntimeException('No se confirmó TotalRollos en ReqProgramaTejido.');
                 }
-                $updateCat = [
-                    'Repeticiones' => $repeticiones,
-                    'PzasRollo' => $pzasRollo,
-                    'MtsRollo' => $mtsRollo,
-                    'TotalRollos' => $totalRollos,
-                    'TotalPzas' => $totalPzas,
-                    'FechaModificacion' => Carbon::now()->format('Y-m-d'),
-                    'HoraModificacion' => Carbon::now()->format('H:i:s'),
-                ];
-                $usuario = AuditoriaHelper::obtenerUsuarioActual();
-                if (! empty($usuario)) {
-                    $updateCat['UsuarioModifica'] = $usuario;
+
+                // Sincronizar las mismas fórmulas a CatCodificados (si existe la fila)
+                // Mismo criterio que LiberarOrdenesController: OrdenTejido + TelarId. Solo por OrdenTejido
+                // se pisaban filas de otros telares cuando un folio se reparte entre varios.
+                $noProduccion = trim((string) ($programa->NoProduccion ?? ''));
+                $afectadasCat = 0;
+                if ($noProduccion !== '') {
+                    $queryCat = $connection->table((new CatCodificados)->getTable())->where('OrdenTejido', $noProduccion);
+                    $telar = trim((string) ($programa->NoTelarId ?? ''));
+                    if ($telar !== '') {
+                        $queryCat->where('TelarId', $telar);
+                    }
+                    $updateCat = [
+                        'Repeticiones' => $repeticiones,
+                        'PzasRollo' => $pzasRollo,
+                        'MtsRollo' => $mtsRollo,
+                        'TotalRollos' => $totalRollos,
+                        'TotalPzas' => $totalPzas,
+                        'FechaModificacion' => Carbon::now()->format('Y-m-d'),
+                        'HoraModificacion' => Carbon::now()->format('H:i:s'),
+                    ];
+                    $usuario = AuditoriaHelper::obtenerUsuarioActual();
+                    if (! empty($usuario)) {
+                        $updateCat['UsuarioModifica'] = $usuario;
+                    }
+                    $afectadasCat = $queryCat->update($updateCat);
                 }
-                $afectadasCat = $queryCat->update($updateCat);
-            }
+
+                return [$afectadasRpt, $afectadasCat, $noProduccion];
+            });
 
             Log::info('ReqProgramaTejidoObserver: fórmulas recalculadas', [
                 'id' => $programa->Id,
@@ -286,10 +327,14 @@ class ReqProgramaTejidoObserver
 
             return true;
         } catch (Throwable $e) {
-            Log::warning('ReqProgramaTejidoObserver::recalcularFormulasProduccion error', [
+            // Contenido en PT-02: nivel error + report() (monitoreo/alertas), ya no un warning
+            // perdido. Se sigue devolviendo false: UpdateTejido lo convierte en rollback.
+            Log::error('ReqProgramaTejidoObserver::recalcularFormulasProduccion error', [
                 'id' => $programa->Id ?? null,
+                'tabla' => $programa->getTable(),
                 'message' => $e->getMessage(),
             ]);
+            report($e);
 
             return false;
         }
@@ -357,7 +402,14 @@ class ReqProgramaTejidoObserver
                     ->value('PesoRollo');
 
                 return ($valor !== null && is_numeric($valor)) ? (float) $valor : null;
-            } catch (Throwable) {
+            } catch (Throwable $e) {
+                // PT-02, hallazgo 6: antes "tabla ilegible" y "sin fila" daban null por igual y se
+                // caía a 41.5 kg sin aviso. Se conserva el respaldo (no cambia ningún número en
+                // planta) pero ya no en silencio: error + report(), una vez por proceso para no
+                // inundar el log del cron. Ojo: el modelo usa 'ReqPesosRolloTejido' (singular);
+                // ver 02-SUMMARY.md, decisión pendiente del owner.
+                self::avisarMaestroPesosIlegible($e);
+
                 return null;
             }
         };
@@ -428,6 +480,15 @@ class ReqProgramaTejidoObserver
             // Filtrar cambios a solo columnas que existen en la tabla CatCodificados
             // (defensa por si una columna se renombró en SQL Server).
             $columnasExistentes = self::columnasDeTabla($tabla);
+            if ($columnasExistentes === []) {
+                // PT-02, hallazgo 5: tabla ilegible ≠ "nada que sincronizar". Antes se saltaba sin log.
+                Log::error('ReqProgramaTejidoObserver::sincronizarCatCodificados error', [
+                    'programa_id' => $programa->Id ?? null,
+                    'message' => "Sin columnas legibles en {$tabla}: CatCodificados no se sincronizó.",
+                ]);
+
+                return;
+            }
             $cambiosFiltrados = array_intersect_key($cambios, array_flip($columnasExistentes));
 
             if (empty(array_diff_key($cambiosFiltrados, ['FechaModificacion' => 1, 'HoraModificacion' => 1, 'UsuarioModifica' => 1]))) {
@@ -457,10 +518,11 @@ class ReqProgramaTejidoObserver
                 'campos_actualizados' => array_keys($cambiosFiltrados),
             ]);
         } catch (Throwable $e) {
-            Log::warning('ReqProgramaTejidoObserver::sincronizarCatCodificados error', [
+            Log::error('ReqProgramaTejidoObserver::sincronizarCatCodificados error', [
                 'programa_id' => $programa->Id ?? null,
                 'message' => $e->getMessage(),
             ]);
+            report($e);
         }
     }
 
@@ -485,9 +547,12 @@ class ReqProgramaTejidoObserver
      * wasChanged()/isDirty() no reflejan el cambio real). Para saves normales de
      * Eloquent, el event dispatcher sigue llamando a saved() con el guard intacto.
      */
-    public function regenerateLinesFor(ReqProgramaTejido $programa): void
+    public function regenerateLinesFor(ReqProgramaTejido $programa, bool $relanzar = false): void
     {
-        $this->generarLineasDiarias($programa);
+        // Por default no relanza: la mayoría de los callers regenera DESPUÉS de confirmar
+        // (dividir, finalizar, eliminar, lotes de calendario) y no tiene nada que revertir.
+        // Quien corre dentro de su transacción (UpdateTejido) pide $relanzar = true.
+        $this->generarLineasDiarias($programa, $relanzar);
     }
 
     private function shouldRegenerateLines(ReqProgramaTejido $programa): bool
@@ -505,7 +570,7 @@ class ReqProgramaTejidoObserver
         return false;
     }
 
-    private function generarLineasDiarias(ReqProgramaTejido $programa)
+    private function generarLineasDiarias(ReqProgramaTejido $programa, bool $relanzar = false)
     {
         try {
             if (! $programa->Id || $programa->Id <= 0) {
@@ -528,6 +593,13 @@ class ReqProgramaTejidoObserver
                             $formulasParaGuardar[$key] = is_numeric($value) ? (float) $value : $value;
                         }
                     }
+                }
+                // Mismo criterio que recalcularFormulasProduccion: solo columnas físicas de la
+                // superficie. Ahora que un fallo aquí se relanza (hallazgo 4), una columna que la
+                // tabla no tiene no debe tumbar la regeneración de líneas.
+                $columnasFormulas = self::columnasDeTabla(ReqProgramaTejido::tableName());
+                if ($columnasFormulas !== []) {
+                    $formulasParaGuardar = array_intersect_key($formulasParaGuardar, array_flip($columnasFormulas));
                 }
                 if (! empty($formulasParaGuardar)) {
                     $programa->getConnection()->table(ReqProgramaTejido::tableName())
@@ -767,10 +839,20 @@ class ReqProgramaTejidoObserver
             });
 
         } catch (Throwable $e) {
-            Log::warning('ReqProgramaTejidoObserver::generarLineasDiarias error', [
+            // PT-02, hallazgo 4: ya no es un warning perdido. Con $relanzar (hay transacción que
+            // revertir) el save reporta el fallo y la cabecera vuelve atrás; sin él, error +
+            // report() (monitoreo/alertas): el DELETE+INSERT es atómico y las líneas previas quedan.
+            Log::error('ReqProgramaTejidoObserver::generarLineasDiarias error', [
                 'programa_id' => $programa->Id ?? null,
+                'tabla' => $programa->getTable(),
+                'relanza' => $relanzar,
                 'message' => $e->getMessage(),
             ]);
+
+            if ($relanzar) {
+                throw $e;
+            }
+            report($e);
         }
     }
 

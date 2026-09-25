@@ -22,6 +22,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\ProgramaTejidoCalendariosCont
 use App\Http\Controllers\Planeacion\ProgramaTejido\ProgramaTejidoCatalogosController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ProgramaTejidoController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ProgramaTejidoOperacionesController;
+use App\Http\Controllers\Planeacion\ProgramaTejido\ProgramaTejidoReadController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\RedboothProgramaTejidoController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\ReimprimirOrdenesController;
 use App\Http\Controllers\Planeacion\ProgramaTejido\RepasoController;
@@ -241,6 +242,9 @@ Route::get('/modulo-codificación', [CatCodificacionController::class, 'index'])
 
 // Ruta GET para el index de programa-tejido (debe ir ANTES de las rutas con {id})
 Route::get('/planeacion/programa-tejido', [ProgramaTejidoController::class, 'index'])->name('catalogos.req-programa-tejido');
+// Lectura v2 (PT-02): apagada por flag (planeacion.read_v2.*), responde 404 hasta el canary.
+Route::get('/planeacion/programa-tejido/v2/registros', [ProgramaTejidoReadController::class, 'registros'])
+    ->middleware('module.permission:acceso,2')->name('programa-tejido.v2.registros'); // Programa Tejido
 Route::get('/planeacion/programa-tejido/redbooth/proyectos', [RedboothProgramaTejidoController::class, 'projectOptions'])
     ->name('programa-tejido.redbooth.proyectos');
 Route::post('/planeacion/programa-tejido/redbooth', [RedboothProgramaTejidoController::class, 'store'])
@@ -276,7 +280,9 @@ Route::post('/planeacion/programa-tejido/marbetes', [LiberarOrdenesController::c
 
 Route::get('/planeacion/programa-tejido/reimprimir-ordenes/{id}', [ReimprimirOrdenesController::class, 'reimprimir'])->name('planeacion.programa-tejido.reimprimir-ordenes');
 
-Route::post('/planeacion/programa-tejido/descargar-programa', [DescargarProgramaController::class, 'descargar'])->name('programa-tejido.descargar-programa');
+// Escribe el TXT UNC de planta: mismo permiso con el que la UI muestra el botón (x-navbar.button-report).
+Route::post('/planeacion/programa-tejido/descargar-programa', [DescargarProgramaController::class, 'descargar'])
+    ->middleware('module.permission:registrar,2')->name('programa-tejido.descargar-programa'); // Programa Tejido
 Route::post('/planeacion/programa-tejido/{id}/prioridad/mover', [ProgramaTejidoOperacionesController::class, 'moveToPosition'])
     ->middleware('module.permission:modificar,2')->name('programa-tejido.prioridad.mover'); // Programa Tejido
 Route::post('/planeacion/programa-tejido/{id}/verificar-cambio-telar', [ProgramaTejidoOperacionesController::class, 'verificarCambioTelar'])->name('programa-tejido.verificar-cambio-telar');
@@ -345,10 +351,12 @@ Route::post('/programa-tejido/columnas', [ColumnasProgramaTejidoController::clas
 
 // ====== RUTAS DE MUESTRAS (reusa ProgramaTejido) ======
 Route::get('/planeacion/muestras', [ProgramaTejidoController::class, 'index'])->name('muestras.index');
+Route::get('/planeacion/muestras/v2/registros', [ProgramaTejidoReadController::class, 'registros'])
+    ->middleware('module.permission:acceso,5')->name('muestras.v2.registros'); // Muestras
 
 Route::get('/planeacion/muestras/liberar-ordenes', [LiberarOrdenesController::class, 'index'])->name('muestras.liberar-ordenes');
 Route::post('/planeacion/muestras/liberar-ordenes/procesar', [LiberarOrdenesController::class, 'liberar'])
-    ->middleware('module.permission:crear,2') // Programa Tejido
+    ->middleware('module.permission:crear,5') // Muestras (decisión del owner PT-01.3)
     ->name('muestras.liberar-ordenes.procesar');
 Route::get('/planeacion/muestras/liberar-ordenes/bom-sugerencias', [LiberarOrdenesController::class, 'obtenerBomYNombre'])->name('muestras.liberar-ordenes.bom');
 Route::get('/planeacion/muestras/liberar-ordenes/tipo-hilo', [LiberarOrdenesController::class, 'obtenerTipoHilo'])->name('muestras.liberar-ordenes.tipo-hilo');
@@ -360,7 +368,9 @@ Route::post('/planeacion/muestras/liberar-ordenes/guardar-campos', [LiberarOrden
 
 Route::get('/planeacion/muestras/reimprimir-ordenes/{id}', [ReimprimirOrdenesController::class, 'reimprimir'])->name('planeacion.muestras.reimprimir-ordenes');
 
-Route::post('/planeacion/muestras/descargar-programa', [DescargarProgramaController::class, 'descargar'])->name('muestras.descargar-programa');
+// Descarga es exclusiva de Programa (decisión 01.3 B): el controller responde 422 en Muestras.
+Route::post('/planeacion/muestras/descargar-programa', [DescargarProgramaController::class, 'descargar'])
+    ->middleware('module.permission:registrar,5')->name('muestras.descargar-programa'); // Muestras
 Route::post('/planeacion/muestras/{id}/prioridad/mover', [ProgramaTejidoOperacionesController::class, 'moveToPosition'])
     ->middleware('module.permission:modificar,5')->name('muestras.prioridad.mover'); // Muestras
 Route::post('/planeacion/muestras/{id}/verificar-cambio-telar', [ProgramaTejidoOperacionesController::class, 'verificarCambioTelar'])->name('muestras.verificar-cambio-telar');

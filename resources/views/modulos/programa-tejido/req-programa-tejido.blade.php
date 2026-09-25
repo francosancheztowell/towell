@@ -228,6 +228,13 @@ document.addEventListener('DOMContentLoaded', function () {
           </table>
         </div>
       </div>
+    @elseif(!empty($error))
+      {{-- Error ≠ vacío (PT-02): mismo marcado que el estado vacío, sin invitar a reimportar. --}}
+      <div class="px-6 py-12 text-center" role="alert" data-estado="error">
+        <i class="fas fa-triangle-exclamation text-red-500 text-4xl mb-4"></i>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">No se pudieron cargar los registros</h3>
+        <p class="mt-1 text-sm text-gray-500">{{ $error }}</p>
+      </div>
     @else
       @include('components.programa-tejido.empty-state')
     @endif
@@ -354,5 +361,6 @@ document.addEventListener('DOMContentLoaded', function () {
     'basePath' => $basePath ?? null,
     'apiPath' => $apiPath ?? null,
     'linePath' => $linePath ?? null,
+    'capacidades' => $capacidades ?? [],
   ])->render() !!}
 @endpush
