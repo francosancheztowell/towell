@@ -47,9 +47,12 @@
             <!-- Sección Centro: Título + Menú planeación -->
             <div class="flex-1 flex items-center justify-center gap-4 min-w-0">
                 @hasSection('page-title')
-                    <h1 class="text-lg md:text-xl lg:text-2xl font-bold text-blue-600 animate-fade-in">
-                        @yield('page-title')
-                    </h1>
+                    {{-- UX-03: un solo <h1>. x-layout.page-title ya trae el suyo; texto plano no. --}}
+                    @php($tituloNavbar = $__env->yieldContent('page-title'))
+                    @php($etiquetaTitulo = stripos($tituloNavbar, '<h1') === false ? 'h1' : 'div')
+                    <{{ $etiquetaTitulo }} class="text-lg md:text-xl lg:text-2xl font-bold text-blue-600 animate-fade-in">
+                        {!! $tituloNavbar !!}
+                    </{{ $etiquetaTitulo }}>
                 @endif
                 @yield('menu-planeacion')
             </div>
@@ -60,8 +63,9 @@
                 @if($tieneConfiguracion)
                     <a href="{{ route('configuracion.index') }}"
                        class="w-10 h-10 bg-blue-100 hover:bg-blue-200 rounded-full flex items-center justify-center text-blue-800 hover:text-blue-900 transition-all duration-200 shadow-sm hover:shadow-md"
-                       title="Configuración">
-                        <i class="fas fa-cog"></i>
+                       title="Configuración"
+                       aria-label="Configuración">
+                        <i class="fas fa-cog" aria-hidden="true"></i>
                     </a>
                 @endif
 
@@ -79,7 +83,7 @@
                 @if($showParoButton)
                     <a href="{{ url('mantenimiento/nuevo-paro') }}"
                        class="bg-yellow-500 hover:bg-yellow-600 flex items-center gap-2 px-4 py-3 text-md font-bold rounded-lg transition-colors">
-                        <i class="fas fa-exclamation-triangle"></i>
+                        <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
                         Paro
                     </a>
                 @endif
@@ -88,7 +92,7 @@
                 @if($isProduccionIndex)
                     <button id="logout-btn"
                             class="flex items-center gap-1 px-4 py-3 text-md font-bold text-white bg-red-700 hover:bg-red-800 rounded-lg transition-colors">
-                        <i class="fas fa-sign-out-alt"></i>
+                        <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
                         Salir
                     </button>
                 @endif
@@ -103,69 +107,10 @@
 <!-- Modal Usuario -->
 @include('components.navbar.sections.user-modal')
 
-<!-- Scripts -->
+{{-- Días para liberar órdenes (Programa Tejido / Muestras): el modal vive en
+     resources/js/componentes/dias-liberar.ts (HANDOFF PT B2); aquí solo sus datos. --}}
 @if($isProgramaTejido)
-@push('scripts')
-    <script>
-        function mostrarModalDiasLiberar() {
-            const diasActual = {{ $diasLiberarOrdenes }};
-
-            Swal.fire({
-                title: 'Rango de días a considerar',
-                html: `
-                    <div class="text-left">
-                        <label for="rangoDias" class="block text-sm font-medium text-gray-700 mb-2">
-                            Ingrese el número de días (decimales permitidos, máx. 3)
-                        </label>
-                        <input
-                            type="number"
-                            id="rangoDias"
-                            step="0.001"
-                            min="0"
-                            max="999.999"
-                            value="${diasActual}"
-                            class="swal2-input w-full"
-                            placeholder="10.999"
-                            style="margin: 0; width: 100%;"
-                        >
-                    </div>
-                `,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Aceptar',
-                cancelButtonText: 'Cancelar',
-                confirmButtonColor: '#22c55e',
-                cancelButtonColor: '#6b7280',
-                focusConfirm: false,
-                didOpen: () => {
-                    const input = document.getElementById('rangoDias');
-                    if (input) {
-                        input.focus();
-                        input.select();
-                    }
-                },
-                preConfirm: () => {
-                    const dias = document.getElementById('rangoDias')?.value;
-
-                    if (!dias || isNaN(dias) || dias < 0) {
-                        Swal.showValidationMessage('Por favor ingrese un número válido');
-                        return false;
-                    }
-
-                    const partes = dias.toString().split('.');
-                    if (partes.length > 1 && partes[1].length > 3) {
-                        Swal.showValidationMessage('Máximo 3 decimales permitidos');
-                        return false;
-                    }
-
-                    return dias;
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.href = '{{ $liberarOrdenesBase }}' + '/liberar-ordenes?dias=' + result.value;
-                }
-            });
-        }
-    </script>
-@endpush
+    <div id="navbar-dias-liberar" hidden
+         data-dias="{{ $diasLiberarOrdenes }}"
+         data-base="{{ $liberarOrdenesBase }}"></div>
 @endif
