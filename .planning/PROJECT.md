@@ -77,6 +77,10 @@ Core Value del track PT (sin cambios): el planeador opera Programa Tejido más r
 | 2026-09-24 | Formato de órdenes de Muestras: **`M` + número** (ej. `M12345`) en `CatCodificados.OrdenTejido` y `MuestrasPrograma.NoProduccion` | Confirmado por el owner |
 | 2026-09-24 | Producción usa `file` para cache y sesión → no se crea tabla `cache` (BASE-09 cerrado) | Confirmado por el owner |
 | 2026-09-25 | Ola 2 se abre **sin esperar G1** para lo que no depende de telemetría (15-02, 16, 20-01, 18-01 + fix MON, PT 04-perf); 17-01 y 20-02/20-03 esperan | Decisión del owner; el monitoreo aún no está desplegado |
+| 2026-09-25 | Contraseñas: **no se tocan** (UX-10 fuera de 17-02) | Decisión del owner |
+| 2026-09-25 | Codificación **no es duplicado** (BUG-012 reclasificado): catálogos = `ReqModelosCodificados` (modelos), codificación = `CatCodificados` (órdenes); se quedan las dos | Aclaración del owner |
+| 2026-09-25 | Ola 3 se abre ya con 4 sesiones (17-02, 19-01, 19-03, PT 05); AuthZ sigue en auditar hasta tener datos de prod | Decisión del owner |
+| 2026-09-25 | Avisos de Telegram secundarios por cola `database` + worker cada minuto (no `defer()`: sin PHP-FPM en Windows no libera la respuesta) | 18-03, medido |
 
 ## Working Agreements
 

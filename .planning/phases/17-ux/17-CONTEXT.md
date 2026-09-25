@@ -17,7 +17,7 @@ Análisis exhaustivo de UX basado en uso real y corrección de los problemas glo
 - UX-07 33 vistas con texto de 9–11 px.
 - UX-08 Sin `lang/`, locale `en` → validaciones en inglés; faltan acentos ("contrasenia", "sesion", "conexion").
 - UX-09 `errors/{403,404,500}` usan Tailwind sin cargar CSS; destinos de "volver" inconsistentes.
-- UX-10 Contraseñas contradictorias: login solo acepta dígitos, alta pide ≥ 8, servidor ≥ 4.
+- ~~UX-10 Contraseñas contradictorias~~ → **fuera de alcance**: el owner decidió no tocar contraseñas (2026-09-25).
 - UX-11 419: solo 5 fetch lo manejan; Livewire aparte. UX-12 Sin banner sin conexión (usar `towell:conexion`).
 - UX-13 Toasts de 1.3 s a 5 s según módulo. UX-14 botones de ícono sin `aria-label`; "×" sin label en Atadores/Departamentos. UX-15 foco visible.
 - UX-16 Mojibake en `ModulosController` ("Ãºnico"). (El de `programa-tejido/index.js` lo corrige PT.)

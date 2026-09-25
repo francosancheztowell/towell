@@ -5,53 +5,28 @@
 See: .planning/PROJECT.md (updated 2026-09-25)
 
 **Core value:** Planta y planeación trabajan más rápido y sin fricción, y Sistemas ve qué pasa en producción, sin romper invariantes de dominio.
-**Current focus:** Ola 2 — primera tanda integrada (15-02, 16, 18-01, 20-01, PT 04-perf); siguiente: 20-02/20-03 y, con telemetría de prod, 17-01.
+**Current focus:** Ola 3 — primera tanda (17-02 UX global, 19-01 Urdido+Engomado, 19-03 Atadores, PT 05). Olas 0–2 completas y en `main`.
 **Protocolo:** `.planning/PROTOCOLO-SESIONES.md` (propiedad de archivos, orden de merge, gates).
 
 ## Current Position
 
-Ola: 1 de 4 — **terminada e integrada** en `claude/friendly-hopper-506bg9` (2026-09-25)
-Ola 0 — terminada e integrada:
-- `claude/10-base` — session_017VenBHhK6jcvQXfSynxW4b — merge `080d764`
-- `claude/11-mon-servidor` — session_01J7vgKbD5zVc6quHX9zzWw9 — merge `76f0e59`
-- `claude/11-03-alertas-correo` — session_01VtFtyJvrs2cRtAomxTz4DM — merge `95069ff`
-- `claude/pt-01-guardrails` — session_01DY3pXuDNb3Zk9eV7TXBoxg — merge `870a586` (runbook de Laragon pendiente del owner)
+**`main` = `42837fa1` (2026-09-25):** contiene las Olas 0, 1 y 2 completas. El owner integró por su cuenta la Ola 2 (`c814d1a8`), 18-03 Telegram (`456f2257`), los arreglos post-merge (`53a5a89d`), scripts Karl Mayer (`93a7e786`), D-1 resuelto (`82966c96`: el observer lee `ReqPesosRolloTejido`, singular) y borró las ramas `claude/*`. La rama integradora se recreó avanzando (`--ff-only`) hasta `main`; `42837fa1` agrega el redirect de `/planeacion/catalogos/catalogoCodificacion` (404 del menú).
+Validación sobre `main` + redirect: **1 623 tests PHP**, phpstan OK, build, ratchet OK.
 
-Ola 1 — terminada e integrada (orden 15-01 → 12 → 13-14 → PT):
-- `claude/15-01-utils-ts` — session_01Bv6QphZHsjRbXrHuFfDsoi — merge `1e3c525`
-- `claude/12-mon-cliente` — session_01LejJmkBirENzZcEke8uQ2c — merge `8c2ce54`
-- `claude/13-14-mon-pulse-panel` — session_016rh12MpSHLTuXoSDd2cpxv — merge `8290129`
-- `claude/pt-01.1-02` — session_01TD1ADfUv5GXAjt5eJ7q9Yb — merge `0e55e84`
-Validación de la rama integrada: **1 365 tests PHP verdes** (19 811 aserciones), phpstan `[OK] No errors`, typecheck OK, 95/95 tests JS, build OK, ratchet OK.
+Historial de sesiones (todas integradas):
+- Ola 0: 10-base, 11-mon-servidor, 11-03 alertas, PT-01.
+- Ola 1: 15-01 utils TS, 12 monitoreo cliente, 13-14 Pulse + panel, PT 01.1-02.
+- Ola 2: 20-01, 18-01, PT 04-perf, 15-02, 16, 20-02/03 (22 rutas esperan idrol), 18-03 Telegram (cola `database`).
 
-G1 (entrada a Ola 2): utils TS mergeados ✅; monitoreo en producción ≥ 7 días ⏳ (falta desplegar); cierre remoto probado en prod ⏳; overhead p95 < 5 ms ✅ en local (1.4 ms), falta medir en prod.
+Gates: G1 ⏳ (monitoreo en prod ≥ 7 días: depende del despliegue); G2 ✅ salvo 17-01 (auditoría UX por uso real) e idrol de 22 rutas. Ola 3 se abre ya por decisión del owner (2026-09-25).
 
-**`main` integrado (2026-09-25):** a pedido del owner, las Olas 0 y 1 se llevaron a `main`. Antes se trajeron a esta rama los 39 commits propios de `main` (fase 08 ERP quick wins, Ventas históricas, fixes de Engomado/Atadores/Crudo, conexión de Ventas). Resolución: vistas `programar-{urdido,engomado}` siguen borradas (muertas; solo tenían el cambio mecánico de 08-02); `NuevoRequerimientoLivewireTest` toma el mock de `main`; ROADMAP conserva el nuestro + fase 8. Arreglados 2 tests que ya fallaban en `main` (guard de SQL Server sin la conexión de Ventas; Crudo con el % de 2das) y 3 snapshots de PT por las rutas que 08-05 quitó a propósito. Baselines: phpstan regenerado con la deuda de `main` (3 441), ratchet con `innerHTML` 394→401 por `resources/js/ventas/ventas-historicas.js` (→ 19-10). Pint aplicado a 9 PHP que el CI revisa.
-**Ojo Ola 2:** las 5 sesiones partieron de la base anterior; `main` ya dejó 0 `bg-opacity-*` (parte de FE-12) y borró código muerto que 15-02/16 podrían tocar → esperar conflictos al integrarlas.
+Ola 3 — primera tanda (abierta 2026-09-25; prompts y propiedad en `SESIONES-OLA-3.md`):
+- (sesiones por crear)
 
-Ola 2 — abierta 2026-09-25 sin esperar G1 (decisión del owner). Prompts y propiedad en `SESIONES-OLA-2.md`; orden de merge 20-01 → 18-01 → PT 04-perf → 15-02 → 16:
-- `claude/15-02-librerias` — session_01TQbwRo1Nnv926TpbrZsQuU
-- `claude/16-componentes` — session_01BXY25bxEvFRvn9zFQDDuXp
-- `claude/20-01-arq` — session_012Qzr95nR9m7DXJx4mMpnwT
-- `claude/18-01-perf-infra` — session_01UhtrkSte6Z8jWPKmZEners
-- `claude/pt-04-perf` — session_01TLqGpEASNx9XneZUVaF3JE
-Después: 20-02 / 20-03 al integrar 20-01; 17-01 cuando haya ≥ 7 días de telemetría.
+Status: Ola 3 en curso
+Last activity: 2026-09-25 — Olas 0–2 en `main`; redirect de Codificación; apertura de la Ola 3.
 
-Ola 2, primera tanda — **integrada** en `claude/friendly-hopper-506bg9` el 2026-09-25 (no en `main`), orden 20-01 → 18-01 → PT → 15-02 → 16:
-- 20-01 `e5f2c08d` · 18-01 `5974e47e` · PT 04-perf `56f83f4f` · 15-02 `9c40d1bf` · 16 `043883d6`.
-- Conflictos con lo que `main` ya había hecho (ERP-F0-07/08/11): se conservó lo de `main` (endpoints/vistas sin consumidor siguen borrados, `app.js` sin `app.css`, `max-w-md`); el test del `/turno-info` de Trama se quitó porque `main` borró el endpoint; `ProcesarDesarrolladorStoreTest` (nuevo en `main`) apunta al namespace movido; ejemplo `route('x')` del docblock de `x-ui.button` → `url('/')`.
-- Validación: **1 572 tests PHP**, phpstan OK, typecheck, **134 tests JS**, build, ratchet (toastr. 0, bg-opacity- 0, Swal.fire 800, onclick= 372, `<script>` inline 161), Pint.
-- Integrador: `CLAUDE.md` (sin jQuery/Select2/Toastr, combobox, librerías, Vite por glob, componentes, `UrdEngomado/`, servicios de Desarrolladores), BUG-022 resuelto en `inventario-bugs.md` (ambas copias), `ModuloService::limpiarCacheUsuario()` también olvida `moduleNameForRoute` (HANDOFF 18-01 #2).
-
-Ola 2, segunda tanda — abierta 2026-09-25 04:35 UTC (modo plan: espera aprobación del owner en la web):
-- `claude/20-02-03-errores-authz` — session_01GVBoCEjewocT2J3nmFFtNj — **integrada** `15227b6b` (SEC-04 JSON 5xx con trace_id; SEC-05 63 escrituras en auditar, 22 esperan idrol). En el mismo merge: tests de Crudo con reloj fijo a mediodía (fallaban entre 00:00 y 06:30 CDMX; `main` también los tiene). Validación: 1 594 tests PHP, phpstan, build, ratchet, Pint.
-- `claude/telegram-no-bloquear` — session_012vz2HxjrvDh7HaQuB5rPh7 (PERF-13 Telegram en paralelo, con límites cortos y sin bloquear la respuesta; PERF-14 avisos de modelo solo en log). Aprobada por el owner 2026-09-25 tras revisar su lista de paquetes: Octane, Horizon, Reverb, Sentry, Telescope y paquetes Spatie descartados por ahora (Windows/SQL Server 2008 R2/sin Redis/datos en planta); Pennant se reevalúa en PT 03.
-17-01 (auditoría UX por uso real) sigue esperando ≥ 7 días de telemetría de producción.
-
-Status: Ola 2 — primera tanda integrada; segunda tanda (20-02 → 20-03) en curso
-Last activity: 2026-09-25 — Integración de la Ola 1 (4 ramas) + docs del integrador (CLAUDE.md, contrato §4, SQL Server 2008 R2).
-
-Progress: [█████░░░░░] ~35% (fases 10–14 completas, 15-01, PT 01, 01.1 y 02 completas)
+Progress: [██████░░░░] ~60% (fases 10–16, 18-01/03, 20 y PT 01–04-perf completas)
 
 ## Performance Metrics
 
@@ -84,7 +59,10 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 
 ### Pending Todos (owner)
 
-- Aprobar en claude.ai/code el plan de la sesión Telegram sin bloquear (si aún no).
+- **Cola de avisos (18-03), antes de desplegar `main`:** correr `database/sql/queue_jobs_tablas.sql` **y** crear la tarea programada del worker (`docs/cerebro-towell/Runbooks/deploy.md` §8). Las dos juntas o ninguna: con la tabla `jobs` y sin worker, los avisos de terminar atado, montado de julio y solicitud de trama se quedan atorados. Sin la tabla, la app manda en línea como antes. Alternativa: `QUEUE_CONNECTION=sync`.
+- Confirmar el SAPI con `phpinfo()` → "Server API" (runbook §8 paso 1).
+- `SELECT idrol, modulo, Ruta FROM dbo.SYSRoles WHERE Ruta LIKE '%odific%'` → corregir la `Ruta` del menú si apunta a `catalogoCodificacion` (el redirect ya cubre el 404).
+
 - Correr en ProdTowel la consulta de solo lectura de `phases/20-arq-sec/20-03-MAPA-AUTHZ.md` §Pendientes y mandar el resultado (idrol de 22 rutas).
 - Correr el SQL de despliegue (área de `/admin` confirmada: solo Sistemas; enviado 2026-09-25: `sysmon_tablas.sql` + registro en `dbo.migrations` + `failed_jobs` + barras de `main`), luego Pulse con `migrate --path` y `optimize`.
 
@@ -102,7 +80,7 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 **PT:**
 - Avisar a los usuarios de Muestras: liberar ahora exige `crear` del módulo Muestras (idrol 5), no el de Programa.
 - `database/sql/pt_muestras_{marbetes,produccion,longitudes}.sql`: **no urgente** (habilitan capacidades A de Muestras para PT-05/06). Corregidos el 2026-09-25: usaban `THROW` (2012+) y en 2008 R2 fallaban sin hacer nada. Correr primero en staging.
-- D-1: `SELECT OBJECT_ID('dbo.ReqPesosRollosTejido') AS plural, OBJECT_ID('dbo.ReqPesosRolloTejido') AS singular;` y decir cuál existe.
+- ~~D-1 tabla de pesos~~ → resuelto por el owner en `82966c96` (singular `ReqPesosRolloTejido`).
 - Aprobar canary 02.5: `PLANEACION_READ_V2_SHADOW_SAMPLE=0.05` una semana, luego revisar diferencias en el log.
 - Correr `phases/01-guardrails/RUNBOOK-LARAGON.md`.
 
@@ -139,5 +117,5 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 ## Session Continuity
 
 Last session: 2026-09-25
-Stopped at: Ola 2 primera tanda integrada (rama, no main); 20-02 → 20-03 abierta. Siguiente: integrarla y evaluar G2 (sin jQuery ✅, vendor fuera del global ✅, galería DS ✅, AuthZ auditar ⏳, drivers/OPcache ✅ documentado, auditoría UX ⏳).
+Stopped at: Ola 3 abriéndose (17-02, 19-01, 19-03, PT 05). Integrar cada rama al terminar; no push a `main` sin pedido del owner.
 Resume file: None

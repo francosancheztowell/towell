@@ -27,7 +27,7 @@ Por telemetría: vistas/semana × KB de JS inline × errores (consulta en `/admi
 | 19-03 | Atadores | calificar-atadores, programa atadores (hoy re-descarga el HTML completo cada 5 s aunque la pestaña esté oculta → Livewire `wire:poll.visible` o fetch JSON), N+1 `exists()` |
 | 19-04 | Tejedores / Desarrolladores | actividades-bpm, tel-telares-operador, N+1 `MovimientoDesarrolladorService` |
 | 19-05 | Programa Urd-Eng | programacion-requerimientos, `public/js/modulos/programa_urd_eng/creacion-ordenes.js` (1 460) a Vite (BUG-033), karl-mayer |
-| 19-06 | Codificación | **primero** decidir superficie canónica (BUG-012: `CodificacionController`/`catalagos/` vs `CatCodificacionController`/`catcodificacion/`), luego catalogoCodificacion, `resources/js/catcodificacion/*`, `lmat-lista` |
+| 19-06 | Codificación | Dos pantallas distintas que se quedan (owner 2026-09-25): catálogos (`CodificacionController`, `ReqModelosCodificados`, `catalagos/catalogoCodificacion`) y codificación (`CatCodificacionController`, `CatCodificados`, `catcodificacion/`); migrar ambas + `lmat-lista` |
 | 19-07 | Mecánicos | reportes (html2canvas por npm), OT (1 592 LOC controller), BUG-021 |
 | 19-08 | Mantenimiento | catálogos a Livewire (`ConTabla`); paros tras AuthZ + quitar `userId === 6` (BUG-025); alta de paros sigue abierta a todos |
 | 19-09 | Configuración / Usuarios | usuarios (permisos en botones, alta sin descargar página), mensajes, gestión de módulos |
