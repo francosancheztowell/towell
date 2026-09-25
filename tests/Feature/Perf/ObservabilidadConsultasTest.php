@@ -71,6 +71,7 @@ final class ObservabilidadConsultasTest extends TestCase
     {
         Log::spy();
         $conexion = DB::connection();
+        DB::reconnect(); // vuelve a disparar ConnectionEstablished: no debe duplicar el aviso
 
         $conexion->logQuery('select 1', [], 300);
         Log::shouldNotHaveReceived('warning');

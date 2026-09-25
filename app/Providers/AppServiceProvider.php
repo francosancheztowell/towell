@@ -27,9 +27,13 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
+use WeakMap;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /** @var WeakMap<Connection, true>|null */
+    private ?WeakMap $conexionesConUmbral = null;
+
     /**
      * Register any application services.
      */
@@ -134,6 +138,13 @@ class AppServiceProvider extends ServiceProvider
      */
     private function avisarConsultasLentas(Connection $conexion): void
     {
+        // DB::reconnect() vuelve a disparar ConnectionEstablished con el mismo objeto: un solo aviso por conexión.
+        $this->conexionesConUmbral ??= new WeakMap;
+        if (isset($this->conexionesConUmbral[$conexion])) {
+            return;
+        }
+        $this->conexionesConUmbral[$conexion] = true;
+
         $conexion->whenQueryingForLongerThan(500, function (Connection $conexion, QueryExecuted $consulta): void {
             // Laravel escucha QueryExecuted de todas las conexiones: la que cruzó el umbral
             // puede venir de otra, y entonces su SQL no es de esta.
