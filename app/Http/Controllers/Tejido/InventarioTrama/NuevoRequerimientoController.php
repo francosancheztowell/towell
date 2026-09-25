@@ -64,11 +64,11 @@ class NuevoRequerimientoController extends Controller
     /** API: Información del turno y un folio sugerido. */
     public function getTurnoInfo()
     {
-        $turno = TurnoHelper::getTurnoActual();
+        $info = TurnoHelper::info();
 
         return response()->json([
-            'turno' => $turno,
-            'descripcion' => TurnoHelper::getTurnoFormato($turno),
+            'turno' => $info['turno'],
+            'descripcion' => $info['formato'],
             'folio' => FolioHelper::obtenerFolioSugerido('Trama', 5),
         ]);
     }
