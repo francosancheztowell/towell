@@ -122,8 +122,8 @@
 - [x] **SEC-01**: SQL interpolado parametrizado (auditado: 0 interpolaciones de input; ratchet vigila 8 expresiones internas). **SEC-02**: `trustProxies` acotado a la topología real → sin proxy: se quita (sesión 14→13).
 - [x] **ARQ-01**: Services fuera de `app/Http/Controllers`. **ARQ-02**: folios solo por `FolioHelper`.
 - [ ] **ARQ-03**: turnos solo por `TurnoHelper`. **ARQ-04**: modelo `UrdEngNucleos` único. **ARQ-05**: Form Requests en mutaciones tocadas. → ARQ-03 y ARQ-04 hechas (20-01); ARQ-05 va en cada 19-xx.
-- [ ] **SEC-04**: Respuesta JSON 5xx central (mensaje genérico + `trace_id`).
-- [ ] **SEC-05**: `module.permission` con modo `auditar`. **SEC-06**: enforce por módulo con tests.
+- [x] **SEC-04**: Respuesta JSON 5xx central (mensaje genérico + `trace_id`). → 20-02 (`15227b6b`).
+- [ ] **SEC-05**: `module.permission` con modo `auditar`. **SEC-06**: enforce por módulo con tests. → SEC-05 hecho (20-03, `15227b6b`): 63 escrituras en auditar; faltan 22 rutas por idrol del owner. SEC-06 va en cada 19-xx tras ~2 semanas de datos en `/admin/accesos`.
 - [ ] **SEC-07**: Sin `getMessage()` crudo hacia el usuario.
 
 ### Adopción (fase 21)

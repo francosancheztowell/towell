@@ -122,7 +122,7 @@ Gate PT (sin cambios): tests de contrato y dominio pasan; invariantes SQL se man
 | 17. UX | UX | 2–3 | 0/2 | Context listo | - |
 | 18. Perf | PERF | 2–3 | 1/2 | 18-01 integrada (`5974e47e`); PERF-07 espera datos de prod; 18-02 dentro de cada 19-xx | - |
 | 19. Módulos TS | MIG | 3 | 0/10 | Context listo | - |
-| 20. Arq/Sec | ARQ/SEC | 2–3 | 1/3 | 20-01 integrada (`e5f2c08d`); 20-02 y 20-03 por abrir | - |
+| 20. Arq/Sec | ARQ/SEC | 2–3 | 3/3 | 20-01 (`e5f2c08d`), 20-02 y 20-03 (`15227b6b`) integradas; 22 rutas esperan idrol del owner; SEC-06/07 y ARQ-05 en cada 19-xx | - |
 | 21. Adopción | ADOP | 4 | 0/1 | Context listo | - |
 | 8. ERP quick wins | ERP | — | 4/6 | 08-01 excluido por el owner; 08-03 F0-03 pendiente de consultas A/B (trabajada en `main`) | - |
 | PT 1. Guardrails | PT | 0 | 1/1 | Completa en sqlite, integrada; runbook Laragon pendiente; decisión 01.3 aprobada | 2026-09-24 |

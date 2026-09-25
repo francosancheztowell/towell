@@ -44,7 +44,7 @@ Ola 2, primera tanda — **integrada** en `claude/friendly-hopper-506bg9` el 202
 - Integrador: `CLAUDE.md` (sin jQuery/Select2/Toastr, combobox, librerías, Vite por glob, componentes, `UrdEngomado/`, servicios de Desarrolladores), BUG-022 resuelto en `inventario-bugs.md` (ambas copias), `ModuloService::limpiarCacheUsuario()` también olvida `moduleNameForRoute` (HANDOFF 18-01 #2).
 
 Ola 2, segunda tanda — abierta 2026-09-25 04:35 UTC (modo plan: espera aprobación del owner en la web):
-- `claude/20-02-03-errores-authz` — session_01GVBoCEjewocT2J3nmFFtNj (SEC-04 JSON 5xx con trace_id, SEC-05 AuthZ en modo auditar).
+- `claude/20-02-03-errores-authz` — session_01GVBoCEjewocT2J3nmFFtNj — **integrada** `15227b6b` (SEC-04 JSON 5xx con trace_id; SEC-05 63 escrituras en auditar, 22 esperan idrol). En el mismo merge: tests de Crudo con reloj fijo a mediodía (fallaban entre 00:00 y 06:30 CDMX; `main` también los tiene). Validación: 1 594 tests PHP, phpstan, build, ratchet, Pint.
 - `claude/telegram-no-bloquear` — session_012vz2HxjrvDh7HaQuB5rPh7 (PERF-13 Telegram en paralelo, con límites cortos y sin bloquear la respuesta; PERF-14 avisos de modelo solo en log). Aprobada por el owner 2026-09-25 tras revisar su lista de paquetes: Octane, Horizon, Reverb, Sentry, Telescope y paquetes Spatie descartados por ahora (Windows/SQL Server 2008 R2/sin Redis/datos en planta); Pennant se reevalúa en PT 03.
 17-01 (auditoría UX por uso real) sigue esperando ≥ 7 días de telemetría de producción.
 
@@ -84,7 +84,8 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 
 ### Pending Todos (owner)
 
-- Aprobar en claude.ai/code los planes de las sesiones 20-02 → 20-03 y Telegram sin bloquear.
+- Aprobar en claude.ai/code el plan de la sesión Telegram sin bloquear (si aún no).
+- Correr en ProdTowel la consulta de solo lectura de `phases/20-arq-sec/20-03-MAPA-AUTHZ.md` §Pendientes y mandar el resultado (idrol de 22 rutas).
 - Correr el SQL de despliegue (área de `/admin` confirmada: solo Sistemas; enviado 2026-09-25: `sysmon_tablas.sql` + registro en `dbo.migrations` + `failed_jobs` + barras de `main`), luego Pulse con `migrate --path` y `optimize`.
 
 
@@ -113,6 +114,8 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 - Worker de colas en Windows (propuesta: `queue:work --stop-when-empty --max-time=50` desde `scheduler.bat`).
 
 ### HANDOFFs ruteados (Ola 2)
+
+- 20-02/03 #4 parser de `RutasDestructivasPermisoTest` → aceptado. #5 código de referencia de `errors/500.blade.php` por excepción → 17-02. Huecos (supervisor en `atadores/save`, `actualizar-campo-orden`, `actualizar-prioridades`, `telegram/send` sin llamadores, stub de cortes, reenconado legacy) → 19-xx.
 
 - 18-01 #1 `towell-ruta` vacío en rutas sin nombre (1 línea en `layout-head`) → 17-02 UX-global.
 - 16 A3 loader de `app-core.js` → `window.loader`, A4 toasts bajo el navbar, A5 top layer → FE (próxima sesión que toque utils/app-core) / 21. C1 catálogos de Planeación a `catalog-base.ts`, C2 duplicados BPM/julios/secuencias, C3 llave `Nota1` de Comentarios → 19-xx.
