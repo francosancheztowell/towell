@@ -11,6 +11,13 @@ use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class PDFController extends Controller
 {
@@ -105,15 +112,14 @@ class PDFController extends Controller
                 }
             }
 
+            // El formato simplificado (solo engomado) sale en Excel: una etiqueta
+            // por julio con orden, julio, cuenta, calibre y lote de proveedor en grande.
+            if (strtolower($tipo) === 'engomado' && $request->boolean('simplificado')) {
+                return $this->excelSimplificado($orden, $registrosPorJulio);
+            }
+
             // 6) Renderizar vista Blade a HTML.
-            // El formato simplificado (solo engomado) imprime una hoja por julio
-            // con orden, julio, cuenta, calibre y lote de proveedor en grande.
-            $esSimplificado = strtolower($tipo) === 'engomado' && $request->boolean('simplificado');
-            $vistaPdf = match (true) {
-                $esSimplificado => 'pdf.engomado-simplificado',
-                strtolower($tipo) === 'engomado' => 'pdf.engomadopdf',
-                default => 'pdf.orden-urdido-engomado',
-            };
+            $vistaPdf = strtolower($tipo) === 'engomado' ? 'pdf.engomadopdf' : 'pdf.orden-urdido-engomado';
 
             $html = view($vistaPdf, [
                 'orden' => $orden,
@@ -125,12 +131,6 @@ class PDFController extends Controller
                 'logoBase64' => $logoBase64,
                 'esReimpresion' => $esReimpresion,
             ])->render();
-
-            // La etiqueta simplificada no lleva tamaño de hoja: el navegador
-            // usa el papel que elija el supervisor (etiqueta, carta, etc.).
-            if ($esSimplificado) {
-                return response($html, 200)->header('Content-Type', 'text/html; charset=UTF-8');
-            }
 
             $dompdf = $this->crearDompdf($html);
 
@@ -147,7 +147,7 @@ class PDFController extends Controller
             }
 
             // 7) Devolver PDF: descarga (attachment) en reimpresión; inline en el resto
-            $nombreArchivo = $this->construirNombreArchivo($orden, $tipo, $esParcial, $esSimplificado);
+            $nombreArchivo = $this->construirNombreArchivo($orden, $tipo, $esParcial);
             $disposition = $esReimpresion ? 'attachment' : 'inline';
 
             return response($dompdf->output(), 200)
@@ -165,6 +165,94 @@ class PDFController extends Controller
                 'error' => 'Error al generar PDF: '.$e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Etiqueta simplificada de engomado en Excel: un bloque por julio separado
+     * por salto de página. Logo + folio arriba, lote de proveedor en grande,
+     * orden/julio y cuenta/calibre en dos columnas, pie F-PR-70 / versión / fecha.
+     */
+    protected function excelSimplificado($orden, $registrosPorJulio)
+    {
+        $valor = fn ($v) => trim((string) ($v ?? '')) ?: '—';
+        $ordenNo = $valor($orden->NoTelarId ?? $orden->Folio);
+        $folio = $valor($orden->Folio);
+
+        // Sin julios registrados se emite una sola etiqueta.
+        $julios = collect($registrosPorJulio)->keys()->map(fn ($j) => trim((string) $j))->filter()->values();
+        if ($julios->isEmpty()) {
+            $julios = collect(['—']);
+        }
+
+        $libro = new Spreadsheet;
+        $hoja = $libro->getActiveSheet()->setTitle('Etiquetas');
+        foreach (['A', 'B', 'C', 'D'] as $col) {
+            $hoja->getColumnDimension($col)->setWidth(18);
+        }
+        $hoja->getParent()->getDefaultStyle()->getFont()->setName('Arial');
+        $hoja->getPageSetup()->setFitToWidth(1)->setFitToHeight(0);
+        $hoja->getPageMargins()->setTop(0.16)->setBottom(0.16)->setLeft(0.16)->setRight(0.16);
+
+        $logo = public_path('images/fondosTowell/logo.png');
+        $fila = 1;
+
+        foreach ($julios as $i => $julio) {
+            if ($i > 0) {
+                $hoja->setBreak('A'.($fila - 1), Worksheet::BREAK_ROW);
+            }
+
+            // Encabezado: logo a la izquierda, folio a la derecha.
+            $hoja->getRowDimension($fila)->setRowHeight(45);
+            if (is_readable($logo)) {
+                (new Drawing)->setPath($logo)->setHeight(50)->setCoordinates('A'.$fila)->setOffsetY(4)->setWorksheet($hoja);
+            }
+            $hoja->mergeCells("C{$fila}:D{$fila}")->setCellValue("C{$fila}", 'Folio: '.$folio);
+            $hoja->getStyle("C{$fila}")->getFont()->setSize(9);
+            $hoja->getStyle("C{$fila}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT)->setVertical(Alignment::VERTICAL_CENTER);
+
+            // [rótulo izq, rótulo der|null], [dato izq, dato der|null], tamaño del dato.
+            $bloques = [
+                [['LOTE PROVEEDOR', null], [$valor($orden->LoteProveedor), null], 48],
+                [['ORDEN', 'JULIO'], [$ordenNo, $julio], 22],
+                [['CUENTA', 'CALIBRE'], [$valor($orden->Cuenta), $valor($orden->Calibre)], 22],
+            ];
+            $inicio = $fila + 1;
+            $r = $inicio;
+            foreach ($bloques as [$rotulos, $datos, $tam]) {
+                foreach ([[$rotulos, 16, true, 24], [$datos, $tam, $tam > 22, $tam * 1.6]] as [$textos, $size, $bold, $alto]) {
+                    if ($textos[1] === null) {
+                        $hoja->mergeCells("A{$r}:D{$r}")->setCellValueExplicit("A{$r}", $textos[0], DataType::TYPE_STRING);
+                    } else {
+                        $hoja->mergeCells("A{$r}:B{$r}")->setCellValueExplicit("A{$r}", $textos[0], DataType::TYPE_STRING);
+                        $hoja->mergeCells("C{$r}:D{$r}")->setCellValueExplicit("C{$r}", $textos[1], DataType::TYPE_STRING);
+                    }
+                    $hoja->getStyle("A{$r}:D{$r}")->getFont()->setSize($size)->setBold($bold);
+                    $hoja->getRowDimension($r)->setRowHeight($alto);
+                    $r++;
+                }
+            }
+            $estilo = $hoja->getStyle('A'.$inicio.':D'.($r - 1));
+            $estilo->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN);
+            $estilo->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
+
+            // Pie: clave de formato, versión y fecha.
+            $hoja->setCellValue("A{$r}", 'F-PR-70');
+            $hoja->mergeCells("B{$r}:C{$r}")->setCellValue("B{$r}", 'Versión: 0');
+            $hoja->setCellValue("D{$r}", now()->format('d/m/Y'));
+            $hoja->getStyle("A{$r}:D{$r}")->getFont()->setSize(6);
+            $hoja->getStyle("B{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $hoja->getStyle("D{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+            $fila = $r + 2;
+        }
+
+        $nombre = 'ORDEN_ENGOMADO_'.($orden->Folio ?? 'ORDEN').'_SIMPLE.xlsx';
+
+        return response()->streamDownload(
+            fn () => (new Xlsx($libro))->save('php://output'),
+            $nombre,
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+        );
     }
 
     /**
@@ -287,15 +375,11 @@ class PDFController extends Controller
     /**
      * Construir nombre de archivo para el PDF.
      */
-    protected function construirNombreArchivo($orden, string $tipo, bool $esParcial = false, bool $esSimplificado = false): string
+    protected function construirNombreArchivo($orden, string $tipo, bool $esParcial = false): string
     {
         $folio = $orden->Folio ?? 'ORDEN';
         $tipo = strtoupper($tipo);
-        $sufijo = match (true) {
-            $esSimplificado => '_SIMPLE',
-            $esParcial => '_PARCIAL',
-            default => '',
-        };
+        $sufijo = $esParcial ? '_PARCIAL' : '';
 
         if ($tipo === 'ENGOMADO') {
             return "ORDEN_ENGOMADO_{$folio}{$sufijo}.pdf";

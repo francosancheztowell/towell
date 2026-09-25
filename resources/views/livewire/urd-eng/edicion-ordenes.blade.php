@@ -19,10 +19,10 @@
                         <i class="fa-solid fa-file-pdf"></i><span>PDF</span>
                     </a>
                 @else
-                @foreach ([false => 'PDF', true => 'PDF simplificado'] as $simplificado => $titulo)
+                @foreach ([false => ['PDF', 'fa-file-pdf'], true => ['Excel simplificado', 'fa-file-excel']] as $simplificado => [$titulo, $icono])
                     <button type="button" wire:loading.attr="disabled" class="edicion-action bg-slate-700 text-white" title="{{ $titulo }}"
                         data-engomado-pdf="{{ route('engomado.modulo.produccion.engomado.pdf', ['orden_id' => $ordenSeleccionada->Id, 'tipo' => 'engomado', 'reimpresion' => 1, 'simplificado' => $simplificado]) }}">
-                        <i class="fa-solid fa-file-pdf"></i><span>{{ $titulo }}</span>
+                        <i class="fa-solid {{ $icono }}"></i><span>{{ $titulo }}</span>
                     </button>
                 @endforeach
                 @endif

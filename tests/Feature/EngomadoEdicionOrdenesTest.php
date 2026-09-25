@@ -111,7 +111,7 @@ class EngomadoEdicionOrdenesTest extends TestCase
     public function test_finalized_order_opens_existing_qualification_modal_and_pdf_links(): void
     {
         Livewire::test(EdicionOrdenes::class)->call('seleccionar', '2')
-            ->assertSee('PDF simplificado')->call('calificar')
+            ->assertSee('Excel simplificado')->call('calificar')
             ->assertDispatched('engomado-calificar-julios', folio: 'ENG-002');
     }
 
@@ -165,7 +165,7 @@ class EngomadoEdicionOrdenesTest extends TestCase
             ->assertViewHas('boards', fn ($boards) => count($boards) === 4)
             ->assertSee('Karl Mayer')->call('seleccionar', '1')
             ->assertSee(route('urdido.reimpresion.urdido.ventana.imprimir', ['orden_id' => 1]), false)
-            ->assertDontSee('Calificar julios')->assertDontSee('PDF simplificado')
+            ->assertDontSee('Calificar julios')->assertDontSee('Excel simplificado')
             ->call('editar')->assertRedirect(route('urdido.editar.ordenes.programadas', ['orden_id' => 1, 'from' => 'reimpresion']));
     }
 
