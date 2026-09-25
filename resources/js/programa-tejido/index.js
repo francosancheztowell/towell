@@ -6,6 +6,7 @@ import {
     groupFiltersByColumn as ptGroupFiltersByColumn,
     rowMatchesCustomFilters as ptRowMatchesCustomFilters,
 } from './filter-engine.ts';
+import { instalarIndiceSeleccion as ptInstalarIndiceSeleccion } from './seleccion.ts';
 // Scripts que vivían inline en la vista (04-perf, corte 5). Se evalúan antes que este
 // archivo y solo publican funciones en window, como hacían sus <script>.
 import './balancear.js';
@@ -6642,7 +6643,8 @@ let pinnedColumns = [];
 // tras filtrar+borrar la seleccion operaba sobre filas ya desconectadas del DOM
 // y revertia valores de un registro que el usuario no habia tocado.
 window.allRows = [];
-window.selectedRowIndex = -1;
+// Accesor sobre la fila, no un número congelado (seleccion.ts).
+ptInstalarIndiceSeleccion(window, () => (window.allRows.length > 0 ? window.allRows : document.querySelectorAll('.selectable-row')));
 window.inlineEditMode = false;
 
 const normalizeInputValue = (value) => {
