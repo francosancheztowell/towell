@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Atadores\Catalogos\Comentarios;
 
+use App\Http\Controllers\Atadores\Catalogos\CatalogosAtadoresVista;
 use App\Http\Controllers\Controller;
 use App\Models\Atadores\AtaComentariosModel;
 use Illuminate\Http\Request;
@@ -13,9 +14,11 @@ class AtaComentariosController extends Controller
      */
     public function index()
     {
-        $comentarios = AtaComentariosModel::all();
-
-        return view('modulos.catalogos-atadores.comentarios.index', compact('comentarios'));
+        // Vista única de los tres catálogos de atadores (piloto DS-12).
+        return view('modulos.catalogos-atadores.index', [
+            'catalogo' => CatalogosAtadoresVista::comentarios(),
+            'filas' => AtaComentariosModel::all(),
+        ]);
     }
 
     /**

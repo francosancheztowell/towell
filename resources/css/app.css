@@ -123,7 +123,7 @@
         font-weight: 500; color: var(--color-gray-500); text-transform: uppercase; letter-spacing: 0.05em;
     }
     .ui-table--subtle :where(td) { padding: 1rem 1.5rem; font-size: var(--text-sm); color: var(--color-gray-900); }
-    .ui-table--subtle > tbody { background-color: var(--color-white); }
+    .ui-table--subtle > tbody { background-color: var(--color-white); border-top: 1px solid var(--color-gray-200); }
     .ui-table--subtle > tbody > tr + tr { border-top: 1px solid var(--color-gray-200); }
 
     .ui-table--zebra > tbody > tr:nth-child(even) { background-color: rgb(248 250 252 / 0.6); }

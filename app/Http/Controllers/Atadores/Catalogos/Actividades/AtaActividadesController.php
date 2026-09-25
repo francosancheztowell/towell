@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Atadores\Catalogos\Actividades;
 
+use App\Http\Controllers\Atadores\Catalogos\CatalogosAtadoresVista;
 use App\Http\Controllers\Controller;
 use App\Models\Atadores\AtaActividadesModel;
 use Illuminate\Http\Request;
@@ -13,9 +14,11 @@ class AtaActividadesController extends Controller
      */
     public function index()
     {
-        $actividades = AtaActividadesModel::all();
-
-        return view('modulos.catalogos-atadores.actividades.index', compact('actividades'));
+        // Vista única de los tres catálogos de atadores (piloto DS-12).
+        return view('modulos.catalogos-atadores.index', [
+            'catalogo' => CatalogosAtadoresVista::actividades(),
+            'filas' => AtaActividadesModel::all(),
+        ]);
     }
 
     /**

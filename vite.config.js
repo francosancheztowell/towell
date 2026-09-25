@@ -41,6 +41,7 @@ export default defineConfig({
         'resources/js/programa-tejido/index.js',
         'resources/js/programa-urd-eng/reservar-programar.ts',
         'resources/js/usuarios/qr.ts',
+        'resources/js/modulos/catalogos-atadores/index.ts', // fase 16: línea ancla hasta el glob de 15-02
       ],
       refresh: true,
     }),
