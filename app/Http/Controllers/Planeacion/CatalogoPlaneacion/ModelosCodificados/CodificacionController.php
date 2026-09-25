@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Imports\ReqModelosCodificadosImport;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
+use App\Support\Planeacion\ReqModelosCodificadosLongitudes;
 use App\Support\Planeacion\TelarSalonResolver;
+use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -814,7 +816,13 @@ class CodificacionController extends Controller
             : response()->json(['success' => false, 'message' => 'No encontrado'], 404);
     }
 
-    /** Generar reglas de validación */
+    /**
+     * Reglas de alta y edición. El max de cada texto sale de
+     * ReqModelosCodificadosLongitudes (no de INFORMATION_SCHEMA en caliente:
+     * los tests no tienen SQL Server). No trunca.
+     *
+     * @return array<string, mixed>
+     */
     private function getValidationRules(bool $isCreate = true): array
     {
         $rules = [];
@@ -828,6 +836,26 @@ class CodificacionController extends Controller
             $rules[$field] = 'required';
         }
         $rules['OrdenTejido'] = 'required|regex:/^\d+$/';
+
+        foreach (ReqModelosCodificadosLongitudes::LONGITUDES as $campo => $max) {
+            if (! isset($rules[$campo])) {
+                continue;
+            }
+            $actual = $rules[$campo];
+            $lista = is_array($actual) ? $actual : explode('|', (string) $actual);
+            $etiqueta = ReqModelosCodificadosLongitudes::etiqueta($campo);
+            $lista[] = function (string $attribute, mixed $value, Closure $fail) use ($max, $etiqueta): void {
+                if ($value === null || $value === '') {
+                    return;
+                }
+                $texto = (string) $value;
+                $largo = function_exists('mb_strlen') ? mb_strlen($texto) : strlen($texto);
+                if ($largo > $max) {
+                    $fail("El campo {$etiqueta} no debe exceder {$max} caracteres.");
+                }
+            };
+            $rules[$campo] = $lista;
+        }
 
         return $rules;
     }
@@ -965,11 +993,32 @@ class CodificacionController extends Controller
     }
 
     /**
+     * Recorta texto antes de armar claves y de volcar barras.
+     * Vacío después del trim queda null (los campos siguen siendo nullable).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function recortarTexto(array $data): array
+    {
+        foreach ($data as $campo => $valor) {
+            if (! is_string($valor)) {
+                continue;
+            }
+            $valor = trim($valor);
+            $data[$campo] = $valor === '' ? null : $valor;
+        }
+
+        return $data;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function datosDeRequest(Request $request): array
     {
-        $data = $this->completarClaves($request->only(array_keys(self::CAMPOS_MODELO)));
+        $data = $this->recortarTexto($request->only(array_keys(self::CAMPOS_MODELO)));
+        $data = $this->completarClaves($data);
 
         return $this->payloadSegunSalon($data);
     }
