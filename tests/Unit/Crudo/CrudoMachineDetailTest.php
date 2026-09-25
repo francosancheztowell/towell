@@ -25,8 +25,8 @@ final class CrudoMachineDetailTest extends TestCase
         parent::setUp();
 
         // El día de producción corre de 06:30 a 06:30: entre las 00:00 y las 06:30 el contexto
-        // "de hoy" sería el día anterior. Mediodía fijo evita que la suite dependa de la hora.
-        Carbon::setTestNow(Carbon::parse('today 12:00', 'America/Mexico_City'));
+        // "de hoy" sería el día anterior. Instante fijo: la suite no depende ni de la hora ni del día.
+        Carbon::setTestNow(Carbon::parse('2026-08-04 12:00', 'America/Mexico_City'));
 
         config()->set('crudo.bad_quality_percent', 7);
         $this->provider = new FakeCrudoDashboardProviderForDetail($this->machineData());

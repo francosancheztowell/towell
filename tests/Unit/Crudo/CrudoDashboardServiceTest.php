@@ -9,6 +9,7 @@ use App\Services\Crudo\CrudoDashboardService;
 use App\Services\Crudo\CrudoProductionTargetService;
 use App\Services\Crudo\CrudoStatusResolver;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Support\Facades\Cache;
@@ -26,8 +27,9 @@ final class CrudoDashboardServiceTest extends TestCase
 
         // El día de producción corre de 06:30 a 06:30 (CrudoProductionDay): entre las 00:00 y
         // las 06:30 "hoy" todavía es el día anterior y los paros de hoy no aplican. Mediodía
-        // fijo hace que la suite no dependa de la hora a la que corre.
-        Carbon::setTestNow(Carbon::parse('today 12:00', 'America/Mexico_City'));
+        // fijo hace que la suite no dependa de la hora a la que corre. Fecha fija (la de los
+        // paros del fixture) para que tampoco dependa del día: "hoy" en los tests sale de Carbon.
+        Carbon::setTestNow(Carbon::parse('2026-07-29 12:00', 'America/Mexico_City'));
 
         config()->set('crudo.bad_quality_percent', 7);
         config()->set('crudo.salons', [
@@ -201,7 +203,7 @@ final class CrudoDashboardServiceTest extends TestCase
         config()->set('crudo.production_cache_seconds', 180);
         Cache::flush();
         // Los paros solo aplican al periodo en curso, así que el pulso es de hoy.
-        $today = new DateTimeImmutable('today', new DateTimeZone('America/Mexico_City'));
+        $today = CarbonImmutable::today('America/Mexico_City');
 
         $this->service->build($today);
         $this->service->build($today);
@@ -281,7 +283,7 @@ final class CrudoDashboardServiceTest extends TestCase
             ],
         ];
 
-        $today = new DateTimeImmutable('today', new DateTimeZone('America/Mexico_City'));
+        $today = CarbonImmutable::today('America/Mexico_City');
         $data = $this->service->build($today)->toArray();
 
         $this->assertSame([
@@ -312,7 +314,7 @@ final class CrudoDashboardServiceTest extends TestCase
             ],
         ];
 
-        $today = new DateTimeImmutable('today', new DateTimeZone('America/Mexico_City'));
+        $today = CarbonImmutable::today('America/Mexico_City');
         $machine = $this->service->build($today)->toArray()['machines'][0];
 
         $this->assertSame('62', $machine['paro']['faultCode']);
@@ -345,7 +347,7 @@ final class CrudoDashboardServiceTest extends TestCase
             ],
         ];
 
-        $today = new DateTimeImmutable('today', new DateTimeZone('America/Mexico_City'));
+        $today = CarbonImmutable::today('America/Mexico_City');
         $paro = $this->service->build($today)->toArray()['machines'][0]['paro'];
 
         $this->assertSame(2, $paro['count']);
