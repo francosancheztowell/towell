@@ -20,7 +20,7 @@ class CatLMat extends Model
     public const COLUMNS = [
         'Id', 'Orden', 'Salon', 'Nombre', 'Descrip', 'PesoCrudo', 'ItemId', 'ConfigId',
         'InventSizeId', 'InventColorId', 'NombreColor', 'InventLocationId', 'Qty', 'Porcentaje',
-        'ItemIdCrudo', 'InventSizeCrudo', 'Luchaje', 'CodigoDibujo',
+        'ItemIdCrudo', 'InventSizeCrudo', 'Luchaje', 'CodigoDibujo', 'Tipo',
         'FechaRegistro', 'HoraRegistro', 'UsuarioRegistro',
     ];
 
@@ -31,6 +31,8 @@ class CatLMat extends Model
         'Qty' => 'float',
         'Porcentaje' => 'float',
         'Luchaje' => 'integer',
+        // Karl Mayer: barra de la fila (1 = Barra 1 … 4 = Barra 4). NULL en Jacquard/Smit.
+        'Tipo' => 'integer',
         'FechaRegistro' => 'date',
         'HoraRegistro' => 'string',
         'UsuarioRegistro' => 'string',
