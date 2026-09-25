@@ -60,6 +60,70 @@ class ProgramaAtadoresListadoTest extends TestCase
         $this->assertSame(['JUL-AUT'], $julios);
     }
 
+    /**
+     * Produccion tronaba con 1647 autorizados: whereIn de julios + whereIn de ordenes
+     * pasaba los 2100 parametros de SQL Server. SQLite aguanta mas, asi que se mide
+     * cada consulta en lugar de esperar el error.
+     */
+    public function test_autorizados_con_mas_de_2100_julios_no_pasa_el_limite_de_parametros(): void
+    {
+        $this->entrarComoAtador();
+
+        $total = 2600;
+        $montados = [];
+        $inventario = [];
+        for ($i = 1; $i <= $total; $i++) {
+            $montados[] = [
+                'Estatus' => 'Autorizado', 'Fecha' => '2026-08-17', 'Turno' => '1',
+                'NoJulio' => "J{$i}", 'NoProduccion' => "O{$i}", 'NoTelarId' => '401', 'Tipo' => 'Rizo',
+            ];
+            // Solo los pares tienen fila en inventario: los nones salen del fallback.
+            if ($i % 2 === 0) {
+                $inventario[] = ['no_julio' => "J{$i}", 'no_orden' => "O{$i}", 'no_telar' => '401', 'cuenta' => "C{$i}"];
+            }
+        }
+        foreach (array_chunk($montados, 100) as $bloque) {
+            DB::connection('sqlsrv')->table('AtaMontadoTelas')->insert($bloque);
+        }
+        foreach (array_chunk($inventario, 100) as $bloque) {
+            DB::connection('sqlsrv')->table('tej_inventario_telares')->insert($bloque);
+        }
+
+        $maxParametros = 0;
+        DB::connection('sqlsrv')->listen(function ($q) use (&$maxParametros) {
+            $maxParametros = max($maxParametros, count($q->bindings));
+        });
+
+        $filas = app(ProgramaAtadoresListado::class)->filas(auth()->user(), 'autorizados');
+
+        $this->assertLessThanOrEqual(2100, $maxParametros, 'Ninguna consulta puede pasar el limite de SQL Server.');
+        $this->assertCount($total, $filas);
+
+        $porJulio = $filas->keyBy(fn ($f) => (string) $f->no_julio);
+        $this->assertSame('C2600', $porJulio['J2600']->cuenta, 'El ultimo bloque tambien cruza con inventario.');
+        $this->assertSame('C2', $porJulio['J2']->cuenta);
+        $this->assertNull($porJulio['J2599']->cuenta, 'Sin inventario sale del fallback.');
+    }
+
+    /** El cruce es por el par julio|orden: el mismo julio con otra orden no es la misma pieza. */
+    public function test_autorizado_no_toma_inventario_de_otra_orden_con_el_mismo_julio(): void
+    {
+        $this->entrarComoAtador();
+
+        DB::connection('sqlsrv')->table('AtaMontadoTelas')->insert([
+            'Estatus' => 'Autorizado', 'Fecha' => '2026-08-17', 'Turno' => '1',
+            'NoJulio' => 'J-REUSADO', 'NoProduccion' => 'O-VIEJA', 'NoTelarId' => '401', 'Tipo' => 'Rizo',
+        ]);
+        DB::connection('sqlsrv')->table('tej_inventario_telares')->insert([
+            'no_julio' => 'J-REUSADO', 'no_orden' => 'O-NUEVA', 'no_telar' => '401', 'cuenta' => 'NO-DEBE-SALIR',
+        ]);
+
+        $fila = app(ProgramaAtadoresListado::class)->filas(auth()->user(), 'autorizados')->sole();
+
+        $this->assertSame('O-VIEJA', $fila->no_orden);
+        $this->assertNull($fila->cuenta);
+    }
+
     public function test_tejedor_sin_filtro_solo_ve_sus_telares_terminados(): void
     {
         $usuario = $this->createUsuario([

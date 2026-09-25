@@ -19,6 +19,8 @@ class AtaMontadoTelasModel extends Model
         'Turno',
         'NoJulio',
         'NoProduccion',
+        'no_julio2', 'no_julio3', 'no_julio4',
+        'no_orden2', 'no_orden3', 'no_orden4',
         'Tipo',
         'Metros',
         'NoTelarId',

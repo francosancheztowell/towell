@@ -153,6 +153,13 @@ class AtadoresController extends Controller
                     'Turno' => $item->turno,
                     'NoJulio' => $item->no_julio,
                     'NoProduccion' => $item->no_orden,
+                    // Barra Karl Mayer: julios 2-4 y su orden. Rizo/pie los traen vacíos.
+                    'no_julio2' => $item->no_julio2,
+                    'no_julio3' => $item->no_julio3,
+                    'no_julio4' => $item->no_julio4,
+                    'no_orden2' => $item->no_orden2,
+                    'no_orden3' => $item->no_orden3,
+                    'no_orden4' => $item->no_orden4,
                     'Tipo' => $item->tipo,
                     'Metros' => $item->metros,
                     'NoTelarId' => $item->no_telar,

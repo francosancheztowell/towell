@@ -176,6 +176,43 @@ class ReservarConTelarTransaccionTest extends TestCase
     }
 
     /**
+     * Tras liberar, la barra se vuelve a llenar: el principal es el primer julio
+     * de la nueva tanda, no el de la anterior.
+     */
+    public function test_rereservar_una_barra_toma_el_nuevo_julio_principal(): void
+    {
+        $reservar = fn (string $julio, string $orden) => $this->acciones()->reservarConTelar(
+            ['InventSerialId' => $julio, 'InventBatchId' => $orden, 'Tipo' => '1', 'TejInventarioTelaresId' => 2] + $this->reserva(),
+            ['no_julio' => $julio, 'no_orden' => $orden]
+        );
+
+        $reservar('00667-63', '00667');
+        $reservar('00667-60', '00667');
+        $this->acciones()->liberar(2, '401', '1');
+
+        $reservar('K12', '4072');
+        $reservar('K38', '4072');
+
+        $this->assertSame(
+            ['K12|4072', 'K12|4072'],
+            InvTelasReservadas::orderBy('Id')->get()->map(fn ($r) => "{$r->JulioPrincipal}|{$r->OrdenPrincipal}")->all()
+        );
+    }
+
+    /** Barra con julio sin lote: JulioPrincipal se llena, OrdenPrincipal queda NULL (no ''). */
+    public function test_barra_sin_orden_deja_orden_principal_en_null(): void
+    {
+        $this->acciones()->reservarConTelar(
+            ['InventSerialId' => 'K6', 'InventBatchId' => '', 'Tipo' => '1', 'TejInventarioTelaresId' => 2] + $this->reserva(),
+            ['no_julio' => 'K6']
+        );
+
+        $r = InvTelasReservadas::sole();
+        $this->assertSame('K6', $r->JulioPrincipal);
+        $this->assertNull($r->OrdenPrincipal);
+    }
+
+    /**
      * Liberar suelta la reserva, no el material del requerimiento: la fibra (hilo)
      * tiene que seguir ahi. Reservar nunca la escribe, asi que borrarla la perdia.
      */

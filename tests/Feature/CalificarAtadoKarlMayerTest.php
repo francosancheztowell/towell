@@ -42,6 +42,9 @@ class CalificarAtadoKarlMayerTest extends TestCase
             $table->string('Turno')->nullable();
             $table->string('NoJulio')->nullable();
             $table->string('NoProduccion')->nullable();
+            foreach (['no_julio2', 'no_julio3', 'no_julio4', 'no_orden2', 'no_orden3', 'no_orden4'] as $col) {
+                $table->string($col)->nullable();
+            }
             $table->string('Tipo')->nullable();
             $table->float('Metros')->nullable();
             $table->string('NoTelarId')->nullable();
@@ -117,6 +120,8 @@ class CalificarAtadoKarlMayerTest extends TestCase
             $table->string('NoProduccion')->nullable();
             $table->string('MaquinaId')->nullable();
             $table->integer('Estado')->nullable();
+            $table->string('NomEmpleado')->nullable();
+            $table->string('NomEmpl')->nullable();
         });
 
         $schema->create('AtaMontadoActividades', function (Blueprint $table) {
@@ -245,7 +250,13 @@ class CalificarAtadoKarlMayerTest extends TestCase
             'tipo' => '3',
             'status' => 'Activo',
             'no_julio' => '00667-63',
+            'no_julio2' => '00667-60',
+            'no_julio3' => '00667-70',
+            'no_julio4' => '00668-31',
             'no_orden' => '00667',
+            'no_orden2' => '00667',
+            'no_orden3' => '00667',
+            'no_orden4' => '00668',
             'fecha' => '2026-09-24',
             'turno' => '3',
             'horaParo' => '10:18:33',
@@ -257,6 +268,52 @@ class CalificarAtadoKarlMayerTest extends TestCase
         $this->assertSame(0, DB::connection('sqlsrv')->table('AtaMontadoMaquinas')->count());
         $this->assertSame(0, DB::connection('sqlsrv')->table('AtaMontadoActividades')->count());
         $this->assertSame(1, DB::connection('sqlsrv')->table('AtaMontadoTelas')->count());
+
+        // Los julios 2-4 de la barra pasan tal cual del inventario al montado.
+        $montado = DB::connection('sqlsrv')->table('AtaMontadoTelas')->first();
+        $this->assertSame(
+            ['00667-60', '00667-70', '00668-31', '00667', '00667', '00668'],
+            [$montado->no_julio2, $montado->no_julio3, $montado->no_julio4, $montado->no_orden2, $montado->no_orden3, $montado->no_orden4]
+        );
+    }
+
+    /** Barra con solo 2 julios: el 3 y el 4 quedan vacios, no se inventan. */
+    public function test_iniciar_barra_incompleta_deja_vacios_los_julios_que_no_trae(): void
+    {
+        DB::connection('sqlsrv')->table('tej_inventario_telares')->insert([
+            'id' => 1, 'no_telar' => '402', 'tipo' => '2', 'status' => 'Activo',
+            'no_julio' => 'K12', 'no_orden' => '4072',
+            'no_julio2' => 'K38', 'no_orden2' => '4073',
+            'fecha' => '2026-09-24', 'turno' => '1',
+        ]);
+
+        $this->get('/atadores/iniciar?id=1&no_julio=K12&no_orden=4072')->assertRedirect();
+
+        $montado = DB::connection('sqlsrv')->table('AtaMontadoTelas')->sole();
+        $this->assertSame(['K12', '4072'], [$montado->NoJulio, $montado->NoProduccion]);
+        $this->assertSame(['K38', '4073'], [$montado->no_julio2, $montado->no_orden2]);
+        $this->assertNull($montado->no_julio3);
+        $this->assertNull($montado->no_julio4);
+        $this->assertNull($montado->no_orden3);
+        $this->assertNull($montado->no_orden4);
+    }
+
+    /** Rizo y pie no tienen julios 2-4: las columnas nuevas quedan en NULL. */
+    public function test_iniciar_rizo_deja_en_null_las_columnas_de_barra(): void
+    {
+        DB::connection('sqlsrv')->table('tej_inventario_telares')->insert([
+            'id' => 1, 'no_telar' => '300', 'tipo' => 'Rizo', 'status' => 'Activo',
+            'no_julio' => '00010-1', 'no_orden' => '00010',
+            'fecha' => '2026-09-24', 'turno' => '1',
+        ]);
+
+        $this->get('/atadores/iniciar?id=1&no_julio=00010-1&no_orden=00010')->assertRedirect();
+
+        $montado = DB::connection('sqlsrv')->table('AtaMontadoTelas')->sole();
+        $this->assertSame('00010-1', $montado->NoJulio);
+        foreach (['no_julio2', 'no_julio3', 'no_julio4', 'no_orden2', 'no_orden3', 'no_orden4'] as $col) {
+            $this->assertNull($montado->{$col}, "{$col} debe quedar NULL en rizo.");
+        }
     }
 
     public function test_devolucion_km_sin_atado_anterior_no_lista_los_julios_actuales(): void
