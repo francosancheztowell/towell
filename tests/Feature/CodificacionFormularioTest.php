@@ -143,8 +143,36 @@ class CodificacionFormularioTest extends TestCase
         $this->assertStringNotContainsString('<h2>Identificación</h2>', $html);
         $this->assertStringNotContainsString('href="#sec-fechas"', $html);
         $this->assertDoesNotMatchRegularExpression('/<label[^>]*>Item ID</', $html);
-        $this->assertMatchesRegularExpression('/name="TamanoClave"[^>]*type="hidden"|type="hidden"[^>]*name="TamanoClave"/', $html);
-        $this->assertMatchesRegularExpression('/name="ClaveModelo"[^>]*type="hidden"|type="hidden"[^>]*name="ClaveModelo"/', $html);
+        // Se ven, pero no se teclean: las arma Tamaño + Clave AX.
+        $this->assertMatchesRegularExpression('/<input[^>]*readonly[^>]*name="TamanoClave"/', $html);
+        $this->assertMatchesRegularExpression('/<input[^>]*readonly[^>]*name="ClaveModelo"/', $html);
+    }
+
+    public function test_sin_fechas_cat_calidad_es_select_y_velocidad_viene_del_catalogo(): void
+    {
+        $modelo = ReqModelosCodificados::create([
+            'TamanoClave' => 'ALB7577',
+            'OrdenTejido' => '36441',
+            'SalonTejidoId' => 'SMIT',
+            'CatCalidad' => 'NAC-1', // captura vieja fuera de la lista: se conserva
+        ]);
+
+        $html = $this->get('/planeacion/catalogos/codificacion-modelos/'.$modelo->Id.'/edit')
+            ->assertOk()
+            ->getContent();
+
+        foreach (['FechaTejido', 'FechaCompromiso', 'FechaCumplimiento', 'OrdenTejido'] as $campo) {
+            $this->assertDoesNotMatchRegularExpression('/<input[^>]*name="'.$campo.'"/', $html);
+        }
+        $this->assertMatchesRegularExpression('/<select[^>]*name="CatCalidad"/', $html);
+        $this->assertStringContainsString('<option value="NAC - 2">NAC - 2</option>', $html);
+        $this->assertStringContainsString('<option value="NAC-1" selected>NAC-1</option>', $html);
+        $this->assertMatchesRegularExpression('/name="VelocidadSTD"[^>]*readonly|readonly[^>]*name="VelocidadSTD"/', $html);
+
+        // Orden Tejido ya no es obligatorio.
+        $this->postJson('/planeacion/catalogos/codificacion-modelos', [
+            'SalonTejidoId' => 'SMIT', 'ItemId' => '9001', 'InventSizeId' => 'FEL',
+        ])->assertCreated();
     }
 
     public function test_duplicar_marca_los_campos_que_hay_que_cambiar(): void
