@@ -27,11 +27,11 @@ Validación de la rama integrada: **1 365 tests PHP verdes** (19 811 aserciones)
 G1 (entrada a Ola 2): utils TS mergeados ✅; monitoreo en producción ≥ 7 días ⏳ (falta desplegar); cierre remoto probado en prod ⏳; overhead p95 < 5 ms ✅ en local (1.4 ms), falta medir en prod.
 
 Ola 2 — abierta 2026-09-25 sin esperar G1 (decisión del owner). Prompts y propiedad en `SESIONES-OLA-2.md`; orden de merge 20-01 → 18-01 → PT 04-perf → 15-02 → 16:
-- `claude/15-02-librerias` — (sesión por crear)
-- `claude/16-componentes` — (sesión por crear)
-- `claude/20-01-arq` — (sesión por crear)
-- `claude/18-01-perf-infra` — (sesión por crear)
-- `claude/pt-04-perf` — (sesión por crear)
+- `claude/15-02-librerias` — session_01TQbwRo1Nnv926TpbrZsQuU
+- `claude/16-componentes` — session_01BXY25bxEvFRvn9zFQDDuXp
+- `claude/20-01-arq` — session_012Qzr95nR9m7DXJx4mMpnwT
+- `claude/18-01-perf-infra` — session_01UhtrkSte6Z8jWPKmZEners
+- `claude/pt-04-perf` — session_01TLqGpEASNx9XneZUVaF3JE
 Después: 20-02 / 20-03 al integrar 20-01; 17-01 cuando haya ≥ 7 días de telemetría.
 
 Status: Ola 2 en curso
@@ -69,6 +69,8 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 - 2026-09-24: sin proxy delante de Laragon → quitar `trustProxies` (sesión 13-14); órdenes de Muestras `M12345`; prod usa `file` para cache y sesión; alertas de errores solo por correo a francost15@gmail.com.
 
 ### Pending Todos (owner)
+
+- Aprobar en claude.ai/code los planes de las 5 sesiones de la Ola 2 (arrancan en modo plan).
 
 **Despliegue en Laragon (192.168.2.15) de todo lo integrado** (fases 10, 11, 12, 13, 14, 15-01, PT 01.1/02):
 1. `git pull` de la rama; `composer install --no-dev -o` (nuevo: `laravel/pulse`); `npm ci && npm run build` (nuevo: `qrcode`).
