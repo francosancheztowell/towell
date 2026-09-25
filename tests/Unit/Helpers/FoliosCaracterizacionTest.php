@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Helpers;
 
+use App\Helpers\FolioHelper;
 use App\Http\Controllers\mecanicos\OrdenesTrabajoMecaController;
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\CrearOrdenKarlMayerController;
 use App\Http\Controllers\Tejedores\BPMTejedores\TelBpmController;
@@ -95,13 +96,20 @@ class FoliosCaracterizacionTest extends TestCase
         ];
     }
 
+    /**
+     * Antes de 20-01 cada origen tenia su obtenerFolioUrdEng() privado; ahora ambos
+     * llaman a FolioHelper con los mismos argumentos. Se verifica que el llamador
+     * sigue usando esa llamada y se ejecuta la llamada misma.
+     */
     private function folioUrdEng(string $origen): string
     {
-        $objeto = $origen === 'servicio'
-            ? app(CrearOrdenesService::class)
-            : new CrearOrdenKarlMayerController;
+        $clase = $origen === 'servicio' ? CrearOrdenesService::class : CrearOrdenKarlMayerController::class;
+        $fuente = (string) file_get_contents((string) (new \ReflectionClass($clase))->getFileName());
 
-        return $this->invocarPrivado($objeto, 'obtenerFolioUrdEng');
+        $this->assertStringContainsString("FolioHelper::obtenerSiguienteFolio('URD/ENG', 5, idRespaldo: 14)", $fuente);
+        $this->assertStringNotContainsString('SSYSFoliosSecuencia', $fuente);
+
+        return FolioHelper::obtenerSiguienteFolio('URD/ENG', 5, idRespaldo: 14);
     }
 
     #[DataProvider('origenesUrdEng')]
@@ -309,5 +317,38 @@ class FoliosCaracterizacionTest extends TestCase
 
         $this->assertSame(3, $this->consecutivo($modulo));
         $this->assertSame(1, DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', $modulo)->count());
+    }
+
+    // ---------------------------------------------------------------
+    // FolioHelper directo
+    // ---------------------------------------------------------------
+
+    public function test_siguiente_folio_sin_respaldo_lanza_si_no_hay_modulo(): void
+    {
+        $this->secuencia('OtroNombre', 'X', 9, 14);
+
+        try {
+            FolioHelper::obtenerSiguienteFolio('URD/ENG', 5);
+            $this->fail('Sin idRespaldo debe lanzar como antes.');
+        } catch (\RuntimeException) {
+            $this->assertSame(9, $this->consecutivo('OtroNombre'));
+        }
+    }
+
+    public function test_consumir_sugerido_devuelve_lo_que_muestra_la_ui_y_avanza(): void
+    {
+        $this->secuencia('Trama', 'TR', 7);
+
+        $sugerido = FolioHelper::obtenerFolioSugerido('Trama', 5);
+        $consumido = FolioHelper::consumirFolioSugerido('Trama', 5);
+
+        $this->assertSame('TR00007', $sugerido);
+        $this->assertSame($sugerido, $consumido);
+        $this->assertSame('TR00008', FolioHelper::obtenerFolioSugerido('Trama', 5));
+    }
+
+    public function test_consumir_sugerido_sin_secuencia_devuelve_vacio(): void
+    {
+        $this->assertSame('', FolioHelper::consumirFolioSugerido('Trama', 5));
     }
 }

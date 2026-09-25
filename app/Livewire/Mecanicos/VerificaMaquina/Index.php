@@ -6,7 +6,6 @@ namespace App\Livewire\Mecanicos\VerificaMaquina;
 
 use App\Helpers\FolioHelper;
 use App\Models\Mecanicos\MecVerificaMaquinaModel;
-use App\Models\Sistema\SSYSFoliosSecuencia;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -137,28 +136,6 @@ class Index extends Component
      */
     private function asegurarSecuenciaFolios(): void
     {
-        DB::transaction(function (): void {
-            $secuencia = SSYSFoliosSecuencia::query()
-                ->where('modulo', self::MODULO_FOLIOS)
-                ->lockForUpdate()
-                ->first();
-
-            if ($secuencia !== null) {
-                return;
-            }
-
-            $ultimoFolio = (string) MecVerificaMaquinaModel::query()
-                ->where('Folio', 'like', self::PREFIJO_FOLIOS.'%')
-                ->orderByDesc('Folio')
-                ->value('Folio');
-
-            $consecutivoInicial = (int) substr($ultimoFolio, strlen(self::PREFIJO_FOLIOS));
-
-            SSYSFoliosSecuencia::create([
-                'modulo' => self::MODULO_FOLIOS,
-                'prefijo' => self::PREFIJO_FOLIOS,
-                'consecutivo' => $consecutivoInicial,
-            ]);
-        });
+        FolioHelper::asegurarSecuencia(self::MODULO_FOLIOS, self::PREFIJO_FOLIOS, MecVerificaMaquinaModel::query());
     }
 }

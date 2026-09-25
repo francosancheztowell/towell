@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Tejedores\BPMTejedores;
 
+use App\Helpers\FolioHelper;
 use App\Helpers\TurnoHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Sistema\SSYSFoliosSecuencia;
@@ -235,17 +236,11 @@ class TelBpmController extends Controller
     private function generarFolio(): string
     {
         return DB::transaction(function () {
+            FolioHelper::asegurarSecuencia(self::FOLIO_KEY, 'BT', DB::table('TelBPM'));
             $row = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', self::FOLIO_KEY)->lockForUpdate()->first();
 
             if (! $row) {
-                $maxFolio = DB::table('TelBPM')->where('Folio', 'like', 'BT%')->orderBy('Folio', 'desc')->value('Folio');
-                $start = $maxFolio ? (int) substr($maxFolio, strlen('BT')) : 0;
-                SSYSFoliosSecuencia::create(['modulo' => self::FOLIO_KEY, 'prefijo' => 'BT', 'consecutivo' => $start]);
-                $row = DB::table('dbo.SSYSFoliosSecuencias')->where('modulo', self::FOLIO_KEY)->lockForUpdate()->first();
-
-                if (! $row) {
-                    throw new \RuntimeException('No existe configuración de folio para BPM Tejedores en SSYSFoliosSecuencias y no se pudo crear.');
-                }
+                throw new \RuntimeException('No existe configuración de folio para BPM Tejedores en SSYSFoliosSecuencias y no se pudo crear.');
             }
 
             $prefijo = $row->prefijo ?? ($row->Prefijo ?? 'BT');
@@ -262,11 +257,10 @@ class TelBpmController extends Controller
             }
 
             try {
-                $f = SSYSFoliosSecuencia::nextFolio(self::FOLIO_KEY, self::PAD_LENGTH);
+                $folio = FolioHelper::obtenerSiguienteFolio(self::FOLIO_KEY, self::PAD_LENGTH);
             } catch (\Throwable $e) {
-                $f = SSYSFoliosSecuencia::nextFolioByPrefijo($prefijo, self::PAD_LENGTH);
+                $folio = SSYSFoliosSecuencia::nextFolioByPrefijo($prefijo, self::PAD_LENGTH)['folio'];
             }
-            $folio = $f['folio'];
 
             // Si por alguna razón sigue duplicado, incrementar hasta encontrar libre
             $guard = 0;
