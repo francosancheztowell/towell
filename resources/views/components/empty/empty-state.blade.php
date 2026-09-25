@@ -12,7 +12,7 @@
 
 <div {{ $attributes->class(['text-center py-12']) }}>
     <div class="bg-gray-100 rounded-2xl p-8 max-w-md mx-auto">
-        @if(str_starts_with($icon, 'fa-') || str_starts_with($icon, 'fa-solid'))
+        @if(str_starts_with($icon, 'fa-'))
             <i class="{{ str_starts_with($icon, 'fa-solid') ? $icon : 'fa-solid '.$icon }} block text-5xl text-gray-400 mx-auto mb-4" aria-hidden="true"></i>
         @elseif($icon === 'config')
             <!-- Icono de configuración -->

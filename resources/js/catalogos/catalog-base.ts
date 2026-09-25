@@ -78,6 +78,9 @@ export interface Elementos {
 export const MODAL_FORMULARIO = 'formModal';
 export const MODAL_ELIMINAR = 'deleteModal';
 
+/** Filas de datos del catálogo (la de "sin registros" no lleva data-fila). */
+const FILA = 'tr[data-fila]';
+
 /** URL del recurso: el id va codificado (las llaves de Comentarios son texto libre). */
 export function urlRecurso(endpoint: string, id?: string): string {
     const base = endpoint.replace(/\/+$/, '');
@@ -198,7 +201,7 @@ export class CatalogBase {
             // el botón queda deshabilitado sin selección y el foco se perdería en <body>.
             cerrarPorId(MODAL_ELIMINAR);
             const vecina = [fila.nextElementSibling, fila.previousElementSibling].find(
-                (f): f is HTMLTableRowElement => f instanceof HTMLElement && f.matches('tr[data-fila]'),
+                (f): f is HTMLTableRowElement => f instanceof HTMLElement && f.matches(FILA),
             );
             this.seleccionar(null);
             fila.remove();
@@ -276,13 +279,13 @@ export class CatalogBase {
 
     filaPorId(id: string): HTMLTableRowElement | null {
         return (
-            [...this.el.cuerpo.querySelectorAll<HTMLTableRowElement>('tr[data-fila]')].find((f) => this.idDe(f) === id) ?? null
+            [...this.el.cuerpo.querySelectorAll<HTMLTableRowElement>(FILA)].find((f) => this.idDe(f) === id) ?? null
         );
     }
 
     /** Crea (o reemplaza) la fila con los valores guardados, clonando la plantilla de Blade. */
     pintarFila(valores: Registro, existente: HTMLTableRowElement | null): HTMLTableRowElement | null {
-        const molde = this.el.plantilla.content.querySelector<HTMLTableRowElement>('tr[data-fila]');
+        const molde = this.el.plantilla.content.querySelector<HTMLTableRowElement>(FILA);
         if (!molde) return null;
         const fila = molde.cloneNode(true) as HTMLTableRowElement;
         fila.dataset.id = String(valores[this.config.llave] ?? '');
@@ -306,7 +309,7 @@ export class CatalogBase {
     }
 
     actualizarVacio(): void {
-        if (this.el.vacio) this.el.vacio.hidden = this.el.cuerpo.querySelector('tr[data-fila]') !== null;
+        if (this.el.vacio) this.el.vacio.hidden = this.el.cuerpo.querySelector(FILA) !== null;
     }
 
     private control(nombre: string): HTMLInputElement | HTMLTextAreaElement | null {
@@ -329,11 +332,11 @@ export class CatalogBase {
         const { cuerpo, formulario } = this.el;
 
         cuerpo.addEventListener('click', (e) => {
-            const fila = (e.target as Element | null)?.closest<HTMLTableRowElement>('tr[data-fila]');
+            const fila = (e.target as Element | null)?.closest<HTMLTableRowElement>(FILA);
             if (fila) this.seleccionar(fila);
         });
         cuerpo.addEventListener('keydown', (e) => {
-            const fila = (e.target as Element | null)?.closest<HTMLTableRowElement>('tr[data-fila]');
+            const fila = (e.target as Element | null)?.closest<HTMLTableRowElement>(FILA);
             if (!fila) return;
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -341,7 +344,7 @@ export class CatalogBase {
             } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                 e.preventDefault();
                 const hermana = e.key === 'ArrowDown' ? fila.nextElementSibling : fila.previousElementSibling;
-                if (hermana instanceof HTMLElement && hermana.matches('tr[data-fila]')) hermana.focus();
+                if (hermana instanceof HTMLElement && hermana.matches(FILA)) hermana.focus();
             }
         });
 
