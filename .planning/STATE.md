@@ -45,6 +45,7 @@ Ola 2, primera tanda — **integrada** en `claude/friendly-hopper-506bg9` el 202
 
 Ola 2, segunda tanda — abierta 2026-09-25 04:35 UTC (modo plan: espera aprobación del owner en la web):
 - `claude/20-02-03-errores-authz` — session_01GVBoCEjewocT2J3nmFFtNj (SEC-04 JSON 5xx con trace_id, SEC-05 AuthZ en modo auditar).
+- `claude/telegram-no-bloquear` — session_012vz2HxjrvDh7HaQuB5rPh7 (PERF-13 Telegram en paralelo, con límites cortos y sin bloquear la respuesta; PERF-14 avisos de modelo solo en log). Aprobada por el owner 2026-09-25 tras revisar su lista de paquetes: Octane, Horizon, Reverb, Sentry, Telescope y paquetes Spatie descartados por ahora (Windows/SQL Server 2008 R2/sin Redis/datos en planta); Pennant se reevalúa en PT 03.
 17-01 (auditoría UX por uso real) sigue esperando ≥ 7 días de telemetría de producción.
 
 Status: Ola 2 — primera tanda integrada; segunda tanda (20-02 → 20-03) en curso
@@ -83,7 +84,7 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 
 ### Pending Todos (owner)
 
-- Aprobar en claude.ai/code el plan de la sesión 20-02 → 20-03.
+- Aprobar en claude.ai/code los planes de las sesiones 20-02 → 20-03 y Telegram sin bloquear.
 - Correr el SQL de despliegue (área de `/admin` confirmada: solo Sistemas; enviado 2026-09-25: `sysmon_tablas.sql` + registro en `dbo.migrations` + `failed_jobs` + barras de `main`), luego Pulse con `migrate --path` y `optimize`.
 
 
