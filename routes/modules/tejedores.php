@@ -100,12 +100,14 @@ Route::get('/ActividadesBPM', [TelActividadesBPMController::class, 'index'])->na
 Route::get('tel-bpm/log-debug', [TelBpmController::class, 'logDebug'])->name('tel-bpm.log-debug');
 
 Route::resource('tel-bpm', TelBpmController::class)
+    ->middlewareFor('store', 'module.permission:crear,47,auditar') // BPM Tejedores
+    ->middlewareFor('update', 'module.permission:modificar,47,auditar') // BPM Tejedores
     ->middlewareFor('destroy', 'module.permission:eliminar,47') // BPM Tejedores
     ->only(['index', 'show', 'store', 'update', 'destroy'])
     ->parameters(['tel-bpm' => 'folio'])
     ->names('tel-bpm');
 
-Route::patch('tel-bpm/{folio}/terminar', [TelBpmLineController::class, 'finish'])->name('tel-bpm.finish');
+Route::patch('tel-bpm/{folio}/terminar', [TelBpmLineController::class, 'finish'])->middleware('module.permission:modificar,47,auditar')->name('tel-bpm.finish'); // BPM Tejedores
 // Visto bueno de supervision: 'registrar' es la convencion del repo para autorizar
 // (ver app/Livewire/Mecanicos/VerificaMaquina/Show.php:177). TelBpmLineController no valida nada.
 Route::patch('tel-bpm/{folio}/autorizar', [TelBpmLineController::class, 'authorizeDoc'])
@@ -114,27 +116,27 @@ Route::patch('tel-bpm/{folio}/rechazar', [TelBpmLineController::class, 'reject']
     ->middleware('module.permission:registrar,47')->name('tel-bpm.reject'); // BPM Tejedores
 
 Route::get('tel-bpm/{folio}/lineas', [TelBpmLineController::class, 'index'])->name('tel-bpm-line.index');
-Route::post('tel-bpm/{folio}/lineas/toggle', [TelBpmLineController::class, 'toggle'])->name('tel-bpm-line.toggle');
-Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 'updateComentarios'])->name('tel-bpm-line.comentarios');
+Route::post('tel-bpm/{folio}/lineas/toggle', [TelBpmLineController::class, 'toggle'])->middleware('module.permission:modificar,47,auditar')->name('tel-bpm-line.toggle'); // BPM Tejedores
+Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 'updateComentarios'])->middleware('module.permission:modificar,47,auditar')->name('tel-bpm-line.comentarios'); // BPM Tejedores
 
 Route::controller(InventarioTelaresController::class)
     ->prefix('inventario-telares')->name('inventario.telares.modulo.')->group(function () {
         Route::get('/', 'index')->name('index');
-        Route::post('/guardar', 'store')->name('store');
+        Route::post('/guardar', 'store')->middleware('module.permission:crear,21,auditar')->name('store'); // Inv Telas
         Route::get('/verificar-estado', 'verificarEstado')->name('verificar.estado');
         // Lo consume resources/js/tejido/inventario-telas.ts (pantalla Inv Telas).
         Route::delete('/eliminar', 'destroy')
             ->middleware('module.permission:eliminar,21')->name('destroy'); // Inv Telas
-        Route::post('/actualizar-fecha', 'updateFecha')->name('actualizar.fecha');
+        Route::post('/actualizar-fecha', 'updateFecha')->middleware('module.permission:crear,21,auditar')->name('actualizar.fecha'); // Inv Telas
         Route::get('/verificar-turnos-ocupados', 'verificarTurnosOcupados')->name('verificar.turnos.ocupados');
     });
 
 // Enlace historico: el menu (SYSRoles.Ruta) apunta a /tejedores/desarrolladores.
 Route::redirect('/desarrolladores', '/tejedores/desarrolladores', 301);
-Route::post('/desarrolladores', [TelDesarrolladoresController::class, 'store'])->name('desarrolladores.store');
+Route::post('/desarrolladores', [TelDesarrolladoresController::class, 'store'])->middleware('module.permission:acceso,48,auditar')->name('desarrolladores.store'); // Desarrolladores
 
 // Desarrolladores Muestras
-Route::post('/desarrolladores-muestras', [TelDesarrolladoresMuestrasController::class, 'store'])->name('desarrolladores-muestras.store');
+Route::post('/desarrolladores-muestras', [TelDesarrolladoresMuestrasController::class, 'store'])->middleware('module.permission:acceso,189,auditar')->name('desarrolladores-muestras.store'); // Desarrolladores Muestras
 
 // Reportes Desarrolladores
 Route::prefix('tejedores/reportes-desarrolladores')->name('tejedores.reportes-desarrolladores.')->group(function () {

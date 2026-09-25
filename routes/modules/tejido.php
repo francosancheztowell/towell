@@ -131,9 +131,9 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
     Route::get('/produccion-reenconado', [ProduccionReenconadoCabezuelaController::class, 'index'])
         ->name('produccion.reenconado');
     Route::post('/produccion-reenconado', [ProduccionReenconadoCabezuelaController::class, 'store'])
-        ->name('produccion.reenconado.store');
+        ->middleware('module.permission:crear,27,auditar')->name('produccion.reenconado.store'); // Producción Reenconado Cabezuela
     Route::post('/produccion-reenconado/generar-folio', [ProduccionReenconadoCabezuelaController::class, 'generarFolio'])
-        ->name('produccion.reenconado.generar-folio');
+        ->middleware('module.permission:crear,27,auditar')->name('produccion.reenconado.generar-folio'); // Producción Reenconado Cabezuela
     Route::get('/produccion-reenconado/calibres', [ProduccionReenconadoCabezuelaController::class, 'getCalibres'])
         ->name('produccion.reenconado.calibres');
     Route::get('/produccion-reenconado/fibras', [ProduccionReenconadoCabezuelaController::class, 'getFibras'])
@@ -141,7 +141,7 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
     Route::get('/produccion-reenconado/colores', [ProduccionReenconadoCabezuelaController::class, 'getColores'])
         ->name('produccion.reenconado.colores');
     Route::put('/produccion-reenconado/{folio}', [ProduccionReenconadoCabezuelaController::class, 'update'])
-        ->name('produccion.reenconado.update');
+        ->middleware('module.permission:modificar,27,auditar')->name('produccion.reenconado.update'); // Producción Reenconado Cabezuela
     Route::delete('/produccion-reenconado/{folio}', [ProduccionReenconadoCabezuelaController::class, 'destroy'])
         ->middleware('module.permission:eliminar,27') // Producción Reenconado Cabezuela
         ->name('produccion.reenconado.destroy');
@@ -173,28 +173,28 @@ Route::prefix('tejido')->name('tejido.')->group(function () {
 Route::get('/produccion/reenconado-cabezuela', [ProduccionReenconadoCabezuelaController::class, 'index'])
     ->name('produccion.reenconado_cabezuela');
 Route::post('/produccion/reenconado-cabezuela', [ProduccionReenconadoCabezuelaController::class, 'store'])
-    ->name('produccion.reenconado_cabezuela.store');
+    ->middleware('module.permission:crear,27,auditar')->name('produccion.reenconado_cabezuela.store'); // Producción Reenconado Cabezuela
 
 // Rutas para módulo de marcas finales
 Route::get('/modulo-marcas', [MarcasController::class, 'index'])->name('marcas.nuevo');
 Route::get('/modulo-marcas/consultar', [MarcasController::class, 'consultar'])->name('marcas.consultar');
-Route::post('/modulo-marcas/generar-folio', [MarcasController::class, 'generarFolio'])->name('marcas.generar.folio');
+Route::post('/modulo-marcas/generar-folio', [MarcasController::class, 'generarFolio'])->middleware('module.permission:crear,177,auditar')->name('marcas.generar.folio'); // Marcas Finales
 Route::get('/modulo-marcas/obtener-datos-std', [MarcasController::class, 'obtenerDatosSTD'])->name('marcas.datos.std');
-Route::post('/modulo-marcas/store', [MarcasController::class, 'store'])->name('marcas.store');
+Route::post('/modulo-marcas/store', [MarcasController::class, 'store'])->middleware('module.permission:crear,177,auditar')->name('marcas.store'); // Marcas Finales
 Route::get('/modulo-marcas/visualizar/{folio}', [MarcasController::class, 'visualizarFolio'])->name('marcas.visualizar');
 Route::get('/modulo-marcas/reporte', [MarcasController::class, 'reporte'])->name('marcas.reporte');
-Route::post('/modulo-marcas/reporte/exportar-excel', [MarcasController::class, 'exportarExcel'])->name('marcas.reporte.excel');
-Route::post('/modulo-marcas/reporte/descargar-pdf', [MarcasController::class, 'descargarPDF'])->name('marcas.reporte.pdf');
-Route::post('/modulo-marcas/reporte/notificar-telegram', [MarcasController::class, 'notificarTelegram'])->name('marcas.reporte.telegram');
+Route::post('/modulo-marcas/reporte/exportar-excel', [MarcasController::class, 'exportarExcel'])->middleware('module.permission:acceso,177,auditar')->name('marcas.reporte.excel'); // Marcas Finales
+Route::post('/modulo-marcas/reporte/descargar-pdf', [MarcasController::class, 'descargarPDF'])->middleware('module.permission:acceso,177,auditar')->name('marcas.reporte.pdf'); // Marcas Finales
+Route::post('/modulo-marcas/reporte/notificar-telegram', [MarcasController::class, 'notificarTelegram'])->middleware('module.permission:acceso,177,auditar')->name('marcas.reporte.telegram'); // Marcas Finales
 Route::get('/modulo-marcas/{folio}', [MarcasController::class, 'show'])
     ->where('folio', '^(?!reporte$).+')
     ->name('marcas.show');
 Route::put('/modulo-marcas/{folio}/actualizar-registro', [MarcasController::class, 'actualizarRegistro'])
     ->where('folio', '^(?!reporte$).+')
-    ->name('marcas.actualizar.registro');
+    ->middleware('module.permission:registrar,177,auditar')->name('marcas.actualizar.registro'); // Marcas Finales
 Route::put('/modulo-marcas/{folio}', [MarcasController::class, 'update'])
     ->where('folio', '^(?!reporte$).+')
-    ->name('marcas.update');
+    ->middleware('module.permission:modificar,177,auditar')->name('marcas.update'); // Marcas Finales
 Route::post('/modulo-marcas/{folio}/finalizar', [MarcasController::class, 'finalizar'])
     ->where('folio', '^(?!reporte$).+')
     ->middleware('module.permission:modificar,177') // Marcas Finales
@@ -211,20 +211,20 @@ Route::get('/modulo-cortes-de-eficiencia/datos-programa-tejido', [CortesEficienc
 Route::get('/modulo-cortes-de-eficiencia/datos-telares', [CortesEficienciaController::class, 'getDatosTelares'])->name('cortes.eficiencia.datos.telares');
 Route::get('/modulo-cortes-de-eficiencia/fallas', [CortesEficienciaController::class, 'getFallasCe'])->name('cortes.eficiencia.fallas');
 Route::get('/modulo-cortes-de-eficiencia/generar-folio', [CortesEficienciaController::class, 'generarFolio'])->name('cortes.eficiencia.generar.folio');
-Route::post('/modulo-cortes-de-eficiencia/guardar-hora', [CortesEficienciaController::class, 'guardarHora'])->name('cortes.eficiencia.guardar.hora');
-Route::post('/modulo-cortes-de-eficiencia', [CortesEficienciaController::class, 'store'])->name('cortes.eficiencia.store');
+Route::post('/modulo-cortes-de-eficiencia/guardar-hora', [CortesEficienciaController::class, 'guardarHora'])->middleware('module.permission:modificar,105,auditar')->name('cortes.eficiencia.guardar.hora'); // Cortes de Eficiencia
+Route::post('/modulo-cortes-de-eficiencia', [CortesEficienciaController::class, 'store'])->middleware('module.permission:crear,105,auditar')->name('cortes.eficiencia.store'); // Cortes de Eficiencia
 Route::get('/modulo-cortes-de-eficiencia/{id}/pdf', [CortesEficienciaController::class, 'pdf'])->name('cortes.eficiencia.pdf');
-Route::put('/modulo-cortes-de-eficiencia/{id}/actualizar-registro', [CortesEficienciaController::class, 'actualizarRegistro'])->name('cortes.eficiencia.actualizar.registro');
+Route::put('/modulo-cortes-de-eficiencia/{id}/actualizar-registro', [CortesEficienciaController::class, 'actualizarRegistro'])->middleware('module.permission:registrar,105,auditar')->name('cortes.eficiencia.actualizar.registro'); // Cortes de Eficiencia
 Route::get('/modulo-cortes-de-eficiencia/{id}', [CortesEficienciaController::class, 'show'])->name('cortes.eficiencia.show');
-Route::put('/modulo-cortes-de-eficiencia/{id}', [CortesEficienciaController::class, 'update'])->name('cortes.eficiencia.update');
+Route::put('/modulo-cortes-de-eficiencia/{id}', [CortesEficienciaController::class, 'update'])->middleware('module.permission:modificar,105,auditar')->name('cortes.eficiencia.update'); // Cortes de Eficiencia
 Route::post('/modulo-cortes-de-eficiencia/{id}/finalizar', [CortesEficienciaController::class, 'finalizar'])
     ->middleware('module.permission:modificar,105')->name('cortes.eficiencia.finalizar'); // Cortes de Eficiencia
 Route::get('/modulo-cortes-de-eficiencia/visualizar/{folio}', [CortesEficienciaController::class, 'visualizar'])->name('cortes.eficiencia.visualizar');
 Route::get('/modulo-cortes-de-eficiencia/visualizar-folio/{folio}', [CortesEficienciaController::class, 'visualizarFolio'])->name('cortes.eficiencia.visualizar.folio');
-Route::post('/modulo-cortes-de-eficiencia/visualizar/exportar-excel', [CortesEficienciaController::class, 'exportarVisualizacionExcel'])->name('cortes.eficiencia.visualizar.excel');
-Route::post('/modulo-cortes-de-eficiencia/visualizar/descargar-pdf', [CortesEficienciaController::class, 'descargarVisualizacionPDF'])->name('cortes.eficiencia.visualizar.pdf');
-Route::post('/modulo-cortes-de-eficiencia/visualizar/notificar-telegram', [CortesEficienciaController::class, 'notificarTelegram'])->name('cortes.eficiencia.visualizar.telegram');
-Route::post('/modulo-cortes-de-eficiencia/visualizar/notificar-telegram-imagen', [CortesEficienciaController::class, 'notificarTelegramImagen'])->name('cortes.eficiencia.visualizar.telegram.imagen');
+Route::post('/modulo-cortes-de-eficiencia/visualizar/exportar-excel', [CortesEficienciaController::class, 'exportarVisualizacionExcel'])->middleware('module.permission:acceso,105,auditar')->name('cortes.eficiencia.visualizar.excel'); // Cortes de Eficiencia
+Route::post('/modulo-cortes-de-eficiencia/visualizar/descargar-pdf', [CortesEficienciaController::class, 'descargarVisualizacionPDF'])->middleware('module.permission:acceso,105,auditar')->name('cortes.eficiencia.visualizar.pdf'); // Cortes de Eficiencia
+Route::post('/modulo-cortes-de-eficiencia/visualizar/notificar-telegram', [CortesEficienciaController::class, 'notificarTelegram'])->middleware('module.permission:acceso,105,auditar')->name('cortes.eficiencia.visualizar.telegram'); // Cortes de Eficiencia
+Route::post('/modulo-cortes-de-eficiencia/visualizar/notificar-telegram-imagen', [CortesEficienciaController::class, 'notificarTelegramImagen'])->middleware('module.permission:acceso,105,auditar')->name('cortes.eficiencia.visualizar.telegram.imagen'); // Cortes de Eficiencia
 
 Route::get('/modulo-nuevo-requerimiento', [NuevoRequerimientoController::class, 'index'])->name('modulo.nuevo.requerimiento');
 

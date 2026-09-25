@@ -90,24 +90,24 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
     Route::get('/modulo-produccion-engomado', [ModuloProduccionEngomadoController::class, 'index'])->name('modulo.produccion.engomado');
     Route::get('/modulo-produccion-engomado/catalogos-julios', [ModuloProduccionEngomadoController::class, 'getCatalogosJulios'])->name('modulo.produccion.engomado.catalogos.julios');
     Route::get('/modulo-produccion-engomado/usuarios-engomado', [ModuloProduccionEngomadoController::class, 'getUsuariosEngomado'])->name('modulo.produccion.engomado.usuarios.engomado');
-    Route::post('/modulo-produccion-engomado/guardar-oficial', [ModuloProduccionEngomadoController::class, 'guardarOficial'])->name('modulo.produccion.engomado.guardar.oficial');
+    Route::post('/modulo-produccion-engomado/guardar-oficial', [ModuloProduccionEngomadoController::class, 'guardarOficial'])->middleware('module.permission:modificar,43,auditar')->name('modulo.produccion.engomado.guardar.oficial'); // Producción Engomado
     Route::post('/modulo-produccion-engomado/eliminar-oficial', [ModuloProduccionEngomadoController::class, 'eliminarOficial'])
         ->middleware('module.permission:eliminar,43')->name('modulo.produccion.engomado.eliminar.oficial'); // Producción Engomado
-    Route::post('/modulo-produccion-engomado/actualizar-turno-oficial', [ModuloProduccionEngomadoController::class, 'actualizarTurnoOficial'])->name('modulo.produccion.engomado.actualizar.turno.oficial');
-    Route::post('/modulo-produccion-engomado/actualizar-fecha', [ModuloProduccionEngomadoController::class, 'actualizarFecha'])->name('modulo.produccion.engomado.actualizar.fecha');
-    Route::post('/modulo-produccion-engomado/actualizar-julio-tara', [ModuloProduccionEngomadoController::class, 'actualizarJulioTara'])->name('modulo.produccion.engomado.actualizar.julio.tara');
-    Route::post('/modulo-produccion-engomado/actualizar-kg-bruto', [ModuloProduccionEngomadoController::class, 'actualizarKgBruto'])->name('modulo.produccion.engomado.actualizar.kg.bruto');
-    Route::post('/modulo-produccion-engomado/actualizar-campos-produccion', [ModuloProduccionEngomadoController::class, 'actualizarCamposProduccion'])->name('modulo.produccion.engomado.actualizar.campos.produccion');
-    Route::post('/modulo-produccion-engomado/actualizar-campo-orden', [ModuloProduccionEngomadoController::class, 'actualizarCampoOrden'])->name('modulo.produccion.engomado.actualizar.campo.orden');
-    Route::post('/modulo-produccion-engomado/actualizar-horas', [ModuloProduccionEngomadoController::class, 'actualizarHoras'])->name('modulo.produccion.engomado.actualizar.horas');
+    Route::post('/modulo-produccion-engomado/actualizar-turno-oficial', [ModuloProduccionEngomadoController::class, 'actualizarTurnoOficial'])->middleware('module.permission:modificar,43,auditar')->name('modulo.produccion.engomado.actualizar.turno.oficial'); // Producción Engomado
+    Route::post('/modulo-produccion-engomado/actualizar-fecha', [ModuloProduccionEngomadoController::class, 'actualizarFecha'])->middleware('module.permission:modificar,43,auditar')->name('modulo.produccion.engomado.actualizar.fecha'); // Producción Engomado
+    Route::post('/modulo-produccion-engomado/actualizar-julio-tara', [ModuloProduccionEngomadoController::class, 'actualizarJulioTara'])->middleware('module.permission:modificar,43,auditar')->name('modulo.produccion.engomado.actualizar.julio.tara'); // Producción Engomado
+    Route::post('/modulo-produccion-engomado/actualizar-kg-bruto', [ModuloProduccionEngomadoController::class, 'actualizarKgBruto'])->middleware('module.permission:modificar,43,auditar')->name('modulo.produccion.engomado.actualizar.kg.bruto'); // Producción Engomado
+    Route::post('/modulo-produccion-engomado/actualizar-campos-produccion', [ModuloProduccionEngomadoController::class, 'actualizarCamposProduccion'])->middleware('module.permission:modificar,43,auditar')->name('modulo.produccion.engomado.actualizar.campos.produccion'); // Producción Engomado
+    Route::post('/modulo-produccion-engomado/actualizar-campo-orden', [ModuloProduccionEngomadoController::class, 'actualizarCampoOrden'])->middleware('module.permission:modificar,43,auditar')->name('modulo.produccion.engomado.actualizar.campo.orden'); // Producción Engomado
+    Route::post('/modulo-produccion-engomado/actualizar-horas', [ModuloProduccionEngomadoController::class, 'actualizarHoras'])->middleware('module.permission:modificar,43,auditar')->name('modulo.produccion.engomado.actualizar.horas'); // Producción Engomado
     Route::get('/modulo-produccion-engomado/verificar-formulaciones', [ModuloProduccionEngomadoController::class, 'verificarFormulaciones'])->name('modulo.produccion.engomado.verificar.formulaciones');
     Route::post('/modulo-produccion-engomado/finalizar', [ModuloProduccionEngomadoController::class, 'finalizar'])
         ->middleware('module.permission:modificar,43')->name('modulo.produccion.engomado.finalizar'); // Producción Engomado
-    Route::post('/modulo-produccion-engomado/marcar-listo', [ModuloProduccionEngomadoController::class, 'marcarListo'])->name('modulo.produccion.engomado.marcar.listo');
+    Route::post('/modulo-produccion-engomado/marcar-listo', [ModuloProduccionEngomadoController::class, 'marcarListo'])->middleware('module.permission:modificar,43,auditar')->name('modulo.produccion.engomado.marcar.listo'); // Producción Engomado
     Route::get('/modulo-produccion-engomado/calificar-julios', [CalificarJuliosController::class, 'getJulios'])->name('modulo.produccion.engomado.calificar.julios.get');
-    Route::post('/modulo-produccion-engomado/calificar-julios/calificar', [CalificarJuliosController::class, 'calificar'])->name('modulo.produccion.engomado.calificar.julios.save');
+    Route::post('/modulo-produccion-engomado/calificar-julios/calificar', [CalificarJuliosController::class, 'calificar'])->middleware('module.permission:modificar,43,auditar')->name('modulo.produccion.engomado.calificar.julios.save'); // Producción Engomado
     Route::get('/modulo-produccion-engomado/calificar-julios-eng', [CalificarJuliosController::class, 'getJuliosEng'])->name('modulo.produccion.engomado.calificar.julios.eng.get');
-    Route::post('/modulo-produccion-engomado/calificar-julios-eng/calificar', [CalificarJuliosController::class, 'calificarEng'])->name('modulo.produccion.engomado.calificar.julios.eng.save');
+    Route::post('/modulo-produccion-engomado/calificar-julios-eng/calificar', [CalificarJuliosController::class, 'calificarEng'])->middleware('module.permission:modificar,43,auditar')->name('modulo.produccion.engomado.calificar.julios.eng.save'); // Producción Engomado
     Route::get('/modulo-produccion-engomado/pdf', [PDFController::class, 'generarPDFUrdidoEngomado'])->name('modulo.produccion.engomado.pdf');
 
     Route::get('/captura-formula', [EngProduccionFormulacionController::class, 'index'])->name('captura-formula.legacy');
@@ -122,14 +122,16 @@ Route::resource('eng-actividades-bpm', EngActividadesBpmController::class)
     ->names('eng-actividades-bpm');
 
 Route::resource('eng-bpm', EngBpmController::class)
+    ->middlewareFor('store', 'module.permission:crear,41,auditar') // BPM (Buenas Practicas Manufactura) Eng
+    ->middlewareFor('update', 'module.permission:modificar,41,auditar') // BPM (Buenas Practicas Manufactura) Eng
     ->middlewareFor('destroy', 'module.permission:eliminar,41') // BPM (Buenas Practicas Manufactura) Eng
     ->only(['index', 'store', 'update', 'destroy'])
     ->parameters(['eng-bpm' => 'id'])
     ->names('eng-bpm');
 
 Route::get('eng-bpm-line/{folio}', [EngBpmLineController::class, 'index'])->name('eng-bpm-line.index');
-Route::post('eng-bpm-line/{folio}/toggle', [EngBpmLineController::class, 'toggleActividad'])->name('eng-bpm-line.toggle');
-Route::patch('eng-bpm-line/{folio}/terminar', [EngBpmLineController::class, 'terminar'])->name('eng-bpm-line.terminar');
+Route::post('eng-bpm-line/{folio}/toggle', [EngBpmLineController::class, 'toggleActividad'])->middleware('module.permission:modificar,41,auditar')->name('eng-bpm-line.toggle'); // BPM (Buenas Practicas Manufactura) Eng
+Route::patch('eng-bpm-line/{folio}/terminar', [EngBpmLineController::class, 'terminar'])->middleware('module.permission:modificar,41,auditar')->name('eng-bpm-line.terminar'); // BPM (Buenas Practicas Manufactura) Eng
 // Visto bueno de supervision: 'registrar' es la convencion del repo para autorizar
 // (ver app/Livewire/Mecanicos/VerificaMaquina/Show.php:177). EngBpmLineController no valida nada.
 Route::patch('eng-bpm-line/{folio}/autorizar', [EngBpmLineController::class, 'autorizar'])
@@ -147,6 +149,8 @@ Route::get('eng-formulacion/colores-formula', [EngProduccionFormulacionControlle
 Route::get('eng-formulacion/formulas-disponibles', [EngProduccionFormulacionController::class, 'getFormulasDisponibles'])->name('eng-formulacion.formulas-disponibles');
 
 Route::resource('eng-formulacion', EngProduccionFormulacionController::class)
+    ->middlewareFor('store', 'module.permission:crear,168,auditar') // Captura de Formula
+    ->middlewareFor('update', 'module.permission:modificar,168,auditar') // Captura de Formula
     ->middlewareFor('destroy', 'module.permission:eliminar,168') // Captura de Formula
     ->only(['index', 'store', 'update', 'destroy'])
     ->parameters(['eng-formulacion' => 'folio'])
