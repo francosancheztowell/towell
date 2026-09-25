@@ -42,6 +42,16 @@ class FlashTest extends TestCase
             ->assertDontSee('data-ui-flash', false);
     }
 
+    public function test_un_texto_que_solo_contiene_el_mensaje_no_lo_descarta(): void
+    {
+        session()->flash('success', 'Guardado');
+
+        // "Guardado" aparece dentro de otro texto de la página, pero no como mensaje propio.
+        $this->blade('<x-ui.flash :contenido="$contenido" />', ['contenido' => "<p>Guardado correctamente</p><script>notify.success('Guardado con éxito')</script>"])
+            ->assertSee('data-ui-flash', false)
+            ->assertSee('Guardado');
+    }
+
     public function test_sin_flash_no_pinta_nada(): void
     {
         $this->assertSame('', trim((string) $this->blade('<x-ui.flash />')));

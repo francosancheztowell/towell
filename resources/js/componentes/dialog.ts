@@ -26,8 +26,9 @@ export function modalActivo(root: ParentNode = document): HTMLDialogElement | nu
     return visibles.at(-1) ?? null;
 }
 
+/** Controles enfocables y visibles (uno dentro de una sección oculta no recibe foco). */
 function enfocables(dialog: HTMLDialogElement): HTMLElement[] {
-    return [...dialog.querySelectorAll<HTMLElement>(ENFOCABLES)];
+    return [...dialog.querySelectorAll<HTMLElement>(ENFOCABLES)].filter((el) => el.getClientRects().length > 0);
 }
 
 /** Lleva `open`, `hidden` y el foco al mismo estado. Idempotente. */
@@ -116,7 +117,7 @@ export function escucharDocumento(): void {
             return;
         }
 
-        if (e.key === 'Tab') {
+        if (e.key === 'Tab' && !hayAlertaEncima()) {
             const controles = enfocables(dialog);
             const primero = controles[0];
             const ultimo = controles.at(-1);

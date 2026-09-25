@@ -47,7 +47,7 @@
     </template>
 </div>
 
-<x-ui.modal-base id="formModal" :title="$catalogo['textos']['nuevo']" size="lg">
+<x-ui.modal-base id="formModal" :title="$catalogo['textos']['nuevo']" size="lg" :close-on-backdrop="true">
     <form id="catalogoForm" class="space-y-4">
         <input type="hidden" name="__original" value="">
         @foreach ($catalogo['campos'] as $campo)
@@ -63,7 +63,7 @@
     </x-slot:footer>
 </x-ui.modal-base>
 
-<x-ui.modal-base id="deleteModal" title="Confirmar eliminación" size="sm" tone="danger">
+<x-ui.modal-base id="deleteModal" title="Confirmar eliminación" size="sm" tone="danger" :close-on-backdrop="true">
     <div class="flex items-center gap-4">
         <i class="fas fa-exclamation-triangle text-red-500 text-4xl" aria-hidden="true"></i>
         <div>

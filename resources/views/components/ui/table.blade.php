@@ -20,7 +20,8 @@
 
 @php
     $cuerpo = $slot->toHtml();
-    $traeTbody = str_starts_with(ltrim($cuerpo), '<tbody');
+    // Se ignoran espacios y comentarios HTML (p. ej. marcadores de Livewire) antes del tag.
+    $traeTbody = str_starts_with((string) preg_replace('/^(?:\s+|<!--.*?-->)+/s', '', $cuerpo), '<tbody');
 @endphp
 
 <table {{ $attributes->class([

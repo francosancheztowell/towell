@@ -92,7 +92,10 @@ export function textoCelda(valor: unknown, sufijo = ''): string {
     return `${String(valor)}${sufijo}`;
 }
 
-/** Mensaje de error a mostrar: el del servidor si lo hay. */
+/**
+ * Mensaje de error a mostrar: el del servidor si lo hay. Sirve igual para un HttpError
+ * (4xx/5xx) que para un 2xx con { success: false } (se lanza como { data: respuesta }).
+ */
 export function mensajeDeError(err: unknown, porDefecto: string): string {
     const data = (err as { data?: { message?: unknown } } | null)?.data;
     const mensaje = typeof data?.message === 'string' ? data.message.trim() : '';
@@ -166,7 +169,7 @@ export class CatalogBase {
         const id = this.idDe(this.seleccionada);
         try {
             const res = (await this.deps.http.get(urlRecurso(this.config.endpoint, id))) as Respuesta;
-            if (!res?.success || !res.data) throw new Error('sin datos');
+            if (!res?.success || !res.data) throw { data: res };
             this.el.formulario.reset();
             this.valorOculto(id);
             for (const campo of this.config.campos) {
@@ -190,11 +193,17 @@ export class CatalogBase {
         this.ocupado = true;
         try {
             const res = (await this.deps.http.delete(urlRecurso(this.config.endpoint, this.idDe(fila)))) as Respuesta;
-            if (!res?.success) throw new Error(res?.message ?? 'sin éxito');
+            if (!res?.success) throw { data: res };
+            // Cerrar primero (el foco vuelve a "Eliminar") y después llevarlo a la fila vecina:
+            // el botón queda deshabilitado sin selección y el foco se perdería en <body>.
+            cerrarPorId(MODAL_ELIMINAR);
+            const vecina = [fila.nextElementSibling, fila.previousElementSibling].find(
+                (f): f is HTMLTableRowElement => f instanceof HTMLElement && f.matches('tr[data-fila]'),
+            );
             this.seleccionar(null);
             fila.remove();
             this.actualizarVacio();
-            cerrarPorId(MODAL_ELIMINAR);
+            (vecina ?? this.el.botonCrear)?.focus();
             this.deps.notify.success(res.message ?? 'Eliminado');
         } catch (err) {
             cerrarPorId(MODAL_ELIMINAR);
@@ -231,8 +240,8 @@ export class CatalogBase {
         if (this.el.botonGuardar) this.el.botonGuardar.disabled = true;
         try {
             const res = (await (esEdicion ? this.deps.http.put(url, cuerpo) : this.deps.http.post(url, cuerpo))) as Respuesta;
-            if (!res?.success) throw new Error(res?.message ?? 'sin éxito');
-            this.pintarFila(cuerpo, esEdicion ? this.filaPorId(original) : null);
+            if (!res?.success) throw { data: res };
+            this.pintarFila(await this.leerGuardado(cuerpo), esEdicion ? this.filaPorId(original) : null);
             cerrarPorId(MODAL_FORMULARIO);
             this.deps.notify.success(res.message ?? 'Guardado');
         } catch (err) {
@@ -241,6 +250,26 @@ export class CatalogBase {
             this.ocupado = false;
             if (this.el.botonGuardar) this.el.botonGuardar.disabled = false;
         }
+    }
+
+    /**
+     * Lo que quedó en la base, no lo que se tecleó: el servidor recorta espacios (TrimStrings)
+     * y normaliza números, y la llave de la fila debe ser la real para editar/eliminar después.
+     * Si la relectura falla, se usan los valores enviados ya recortados.
+     */
+    async leerGuardado(enviado: Registro): Promise<Registro> {
+        const recortado: Registro = {};
+        for (const [k, v] of Object.entries(enviado)) recortado[k] = typeof v === 'string' ? v.trim() : v;
+        const llave = String(recortado[this.config.llave] ?? '');
+        if (llave === '') return recortado;
+        try {
+            const res = (await this.deps.http.get(urlRecurso(this.config.endpoint, llave))) as Respuesta;
+            if (res?.success && res.data) return res.data;
+        } catch {
+            // se pinta lo enviado
+        }
+
+        return recortado;
     }
 
     // ============ DOM ============

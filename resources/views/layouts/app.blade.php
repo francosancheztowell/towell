@@ -34,8 +34,11 @@
 
     <x-navbar.navbar />
 
-    {{-- DS-09: flash de sesión (antes "No tienes acceso…" se perdía). No repite lo que la vista ya pinta. --}}
-    <x-ui.flash :contenido="$__env->yieldContent('content').$__env->yieldPushContent('scripts')" />
+    {{-- DS-09: flash de sesión (antes "No tienes acceso…" se perdía). No repite lo que la vista ya pinta;
+         el HTML de la vista solo se junta si de verdad hay algo que mostrar. --}}
+    @if (session()->hasAny(['error', 'warning', 'success', 'info', 'status']) || (isset($errors) && $errors->any()))
+        <x-ui.flash :contenido="$__env->yieldContent('content').$__env->yieldPushContent('scripts')" />
+    @endif
 
   <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display:none;">@csrf</form>
 

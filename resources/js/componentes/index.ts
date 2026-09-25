@@ -6,6 +6,7 @@ import { abrir, cerrarPorId, escucharDocumento, iniciarModales } from './dialog.
 import { iniciarAutocierre } from './dismiss.ts';
 import { iniciarFiltros, refrescarFiltros } from './filter-bar.ts';
 import { loader } from './loader.ts';
+import { onReady } from '../utils/dom.ts';
 
 declare global {
     interface Window {
@@ -27,9 +28,5 @@ function iniciar(): void {
 
 escucharDocumento();
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', iniciar, { once: true });
-} else {
-    iniciar();
-}
+onReady(iniciar);
 document.addEventListener('livewire:navigated', iniciar);

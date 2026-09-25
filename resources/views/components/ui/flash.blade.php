@@ -15,19 +15,27 @@
     $claves = ['error' => 'error', 'warning' => 'warning', 'success' => 'success', 'info' => 'info', 'status' => 'success'];
     $avisos = [];
 
+    // "Ya pintado" = el mensaje completo aparece como texto de un nodo (>msg<) o como literal
+    // de JS/JSON ('msg', "msg", `msg`), en cualquiera de las formas en que Blade lo escapa.
+    // Así "Guardado" no se descarta porque la página contenga "Guardado correctamente".
     $yaPintado = function (string $mensaje) use ($contenido): bool {
         if ($contenido === '') {
             return false;
         }
-        $formas = [
+        $formas = array_unique([
             $mensaje,
             e($mensaje),
-            trim((string) json_encode($mensaje), '"'),
-            trim((string) json_encode($mensaje, JSON_UNESCAPED_UNICODE), '"'),
-            trim((string) json_encode($mensaje, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT), '"'),
-        ];
+            substr((string) json_encode($mensaje), 1, -1),
+            substr((string) json_encode($mensaje, JSON_UNESCAPED_UNICODE), 1, -1),
+            substr((string) json_encode($mensaje, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT), 1, -1),
+            substr((string) json_encode($mensaje, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE), 1, -1),
+        ]);
         foreach ($formas as $forma) {
-            if ($forma !== '' && str_contains($contenido, $forma)) {
+            if ($forma === '') {
+                continue;
+            }
+            $patron = '/(?:>\s*|[\'"`])'.preg_quote($forma, '/').'(?:\s*<|[\'"`])/u';
+            if (preg_match($patron, $contenido) === 1) {
                 return true;
             }
         }

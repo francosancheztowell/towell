@@ -55,6 +55,6 @@ class UiKitRouteTest extends TestCase
     {
         $web = file_get_contents(base_path('routes/web.php'));
 
-        $this->assertMatchesRegularExpression("/middleware\\(\\['auth'\\]\\)->group\\(function \\(\\) \\{.*require __DIR__ \\. '\\/modules\\/dev\\.php';.*\\}\\);/s", $web);
+        $this->assertMatchesRegularExpression("/middleware\\(\\['auth'\\]\\)->group\\(function \\(\\) \\{.*require __DIR__ ?\\. ?'\\/modules\\/dev\\.php';.*\\}\\);/s", $web);
     }
 }

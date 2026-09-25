@@ -21,6 +21,10 @@ class El {
     if (n.startsWith('data-')) this.dataset[n.slice(5).replace(/-(\w)/g, (_, c) => c.toUpperCase())] = String(v)
   }
   getAttribute(n) { return this.attrs[n] ?? null }
+  focus() { globalThis.enfocado = this }
+  get nextElementSibling() { const s = this.parentNode?.children ?? []; return s[s.indexOf(this) + 1] ?? null }
+  get previousElementSibling() { const s = this.parentNode?.children ?? []; return s[s.indexOf(this) - 1] ?? null }
+  matches(sel) { return this.coincide(sel) }
   hasAttribute(n) { return n in this.attrs }
   addEventListener(t, fn) { (this.listeners[t] ??= []).push(fn) }
   emit(t, extra = {}) { for (const fn of this.listeners[t] ?? []) fn({ target: this, preventDefault() {}, ...extra }) }
@@ -139,13 +143,21 @@ test('seleccionar alterna aria-selected y habilita/deshabilita editar y eliminar
 test('guardar nuevo: POST al endpoint y agrega la fila desde la plantilla', async () => {
   const llamadas = []
   const { catalogo, cuerpo, id, pct, notas } = montar({
-    http: { post: async (url, data) => { llamadas.push(['post', url, data]); return { success: true, message: 'Actividad creada exitosamente' } } },
+    http: {
+      post: async (url, data) => { llamadas.push(['post', url, data]); return { success: true, message: 'Actividad creada exitosamente' } },
+      // Relectura: lo que guardó el servidor (recortado y normalizado).
+      get: async (url) => { llamadas.push(['get', url]); return { success: true, data: { ActividadId: 'ENHEBRADO', Porcentaje: 35 } } },
+    },
   })
-  id.value = 'ENHEBRADO'; pct.value = '35'
+  id.value = 'ENHEBRADO '; pct.value = '035'
   await catalogo.guardar()
 
-  assert.deepEqual(llamadas, [['post', '/atadores/catalogos/actividades', { ActividadId: 'ENHEBRADO', Porcentaje: '35' }]])
+  assert.deepEqual(llamadas, [
+    ['post', '/atadores/catalogos/actividades', { ActividadId: 'ENHEBRADO ', Porcentaje: '035' }],
+    ['get', '/atadores/catalogos/actividades/ENHEBRADO'],
+  ])
   assert.deepEqual(filas(cuerpo), ['MONTAJE40%', 'LIMPIEZA25%', 'ENHEBRADO35%'])
+  assert.equal(cuerpo.querySelectorAll('tr[data-fila]').at(-1).dataset.id, 'ENHEBRADO')
   assert.deepEqual(notas, [['ok', 'Actividad creada exitosamente']])
 })
 
@@ -176,6 +188,15 @@ test('guardar con error del servidor avisa con su mensaje y no toca la tabla', a
   assert.equal(catalogo.el.botonGuardar.disabled, false)
 })
 
+test('un 2xx con success:false muestra el mensaje del servidor', async () => {
+  const { catalogo, cuerpo, notas } = montar({ http: { delete: async () => ({ success: false, message: 'La máquina está en uso' }) } })
+  cuerpo.emit('click', { target: cuerpo.querySelectorAll('tr[data-fila]')[0] })
+  await catalogo.eliminar()
+
+  assert.deepEqual(notas, [['error', 'La máquina está en uso']])
+  assert.equal(filas(cuerpo).length, 2)
+})
+
 test('validar() de base exige los campos requeridos antes de llamar al servidor', async () => {
   let llamado = false
   const { catalogo, notas } = montar({ http: { post: async () => { llamado = true } } })
@@ -187,14 +208,17 @@ test('validar() de base exige los campos requeridos antes de llamar al servidor'
 
 test('eliminar: DELETE de la seleccionada, quita la fila y muestra el vacío al quedar sin filas', async () => {
   const urls = []
-  const { catalogo, cuerpo, vacio } = montar({ http: { delete: async (url) => { urls.push(url); return { success: true, message: 'Eliminada' } } } })
+  const { catalogo, cuerpo, vacio, notas } = montar({ http: { delete: async (url) => { urls.push(url); return { success: true, message: 'Eliminada' } } } })
 
-  for (const f of cuerpo.querySelectorAll('tr[data-fila]')) {
-    cuerpo.emit('click', { target: f })
-    await catalogo.eliminar()
-  }
+  cuerpo.emit('click', { target: cuerpo.querySelectorAll('tr[data-fila]')[0] })
+  await catalogo.eliminar()
+  assert.equal(globalThis.enfocado.dataset.id, 'LIMPIEZA', 'el foco pasa a la fila vecina')
+
+  cuerpo.emit('click', { target: cuerpo.querySelectorAll('tr[data-fila]')[0] })
+  await catalogo.eliminar()
 
   assert.deepEqual(urls, ['/atadores/catalogos/actividades/MONTAJE', '/atadores/catalogos/actividades/LIMPIEZA'])
+  assert.deepEqual(notas, [['ok', 'Eliminada'], ['ok', 'Eliminada']])
   assert.equal(filas(cuerpo).length, 0)
   assert.equal(vacio.hidden, false)
   assert.equal(catalogo.el.botonEliminar.disabled, true)

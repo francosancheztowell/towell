@@ -22,6 +22,7 @@ class El {
   setAttribute(n, v) { this.attrs[n] = String(v) }
   removeAttribute(n) { delete this.attrs[n] }
   focus() { globalThis.document.activeElement = this }
+  getClientRects() { return this.hasAttribute('data-oculto') ? [] : [{}] }
   click() { this.onclick?.() }
   *todos() { for (const c of this.children) { yield c; yield* c.todos() } }
   coincide(sel) {
@@ -79,6 +80,18 @@ test('quitar hidden abre el dialog y enfoca el primer control del cuerpo, no la 
 
   sincronizar(d) // idempotente
   assert.equal(document.activeElement, input)
+})
+
+test('un control oculto no recibe el foco inicial', () => {
+  const { d, input } = modal('m5')
+  input.setAttribute('data-oculto', '')
+  const visible = new El('input', {})
+  d.children[0].append(visible)
+  d.classList.remove('hidden')
+  sincronizar(d)
+  assert.equal(document.activeElement, visible)
+  d.classList.add('hidden')
+  sincronizar(d)
 })
 
 test('poner hidden cierra el dialog y devuelve el foco a quien lo abrió', () => {
