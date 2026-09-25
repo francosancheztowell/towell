@@ -2,46 +2,6 @@
 
 @section('page-title', $pageTitle ?? 'Programa de Tejido')
 
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const btn = document.getElementById('btn-recalcular-fechas');
-    if (!btn) return;
-
-    const url = @json($isMuestras ?? false
-        ? route('muestras.recalcular-fechas')
-        : route('programa-tejido.recalcular-fechas'));
-
-    btn.addEventListener('click', function () {
-        btn.disabled = true;
-        btn.querySelector('i').classList.add('fa-spin');
-
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json',
-            },
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.ok) {
-                Swal.fire({ icon: 'success', title: 'Listo', text: data.message, timer: 2000, showConfirmButton: false })
-                    .then(() => window.location.reload());
-            } else {
-                Swal.fire({ icon: 'error', title: 'Error', text: data.message });
-            }
-        })
-        .catch(() => Swal.fire({ icon: 'error', title: 'Error de conexión' }))
-        .finally(() => {
-            btn.disabled = false;
-            btn.querySelector('i').classList.remove('fa-spin');
-        });
-    });
-});
-</script>
-@endpush
-
 @section('content')
 <div class="w-full pt-page">
   <div class="bg-white overflow-hidden w-full pt-page-card">
@@ -258,9 +218,9 @@ document.addEventListener('DOMContentLoaded', function () {
   @include('modulos.programa-tejido.modal.redbooth')
 @endunless
 
-{{-- Permisos del módulo para menú contextual --}}
+{{-- Permisos del módulo de la superficie para el menú contextual (Muestras = idrol 5). --}}
 @php
-  $moduloPT = 'Programa Tejido';
+  $moduloPT = ($superficie ?? \App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface::actual())->moduloPermiso();
   $canCrear = function_exists('userCan') ? userCan('crear', $moduloPT) : true;
   $canModificar = function_exists('userCan') ? userCan('modificar', $moduloPT) : true;
   $canEliminar = function_exists('userCan') ? userCan('eliminar', $moduloPT) : true;
@@ -349,9 +309,6 @@ document.addEventListener('DOMContentLoaded', function () {
 <link rel="stylesheet" href="{{ asset('css/programa-tejido/main.css') }}?v={{ filemtime(public_path('css/programa-tejido/main.css')) }}">
 <link rel="stylesheet" href="{{ asset('css/programa-tejido/modals.css') }}?v={{ filemtime(public_path('css/programa-tejido/modals.css')) }}">
 
-{{-- balanceo --}}
-@include('modulos.programa-tejido.balancear')
-
 @endsection
 
 @push('scripts')
@@ -362,5 +319,6 @@ document.addEventListener('DOMContentLoaded', function () {
     'apiPath' => $apiPath ?? null,
     'linePath' => $linePath ?? null,
     'capacidades' => $capacidades ?? [],
+    'isMuestras' => $isMuestras ?? false,
   ])->render() !!}
 @endpush

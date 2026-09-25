@@ -18,3 +18,5 @@ Cambios que la sesión PT **necesita en archivos que no son suyos**. Se separan 
 | 3 | `resources/views/modulos/programa-tejido/req-programa-tejido.blade.php` (**PT**, fase PT-04 de UI) | `$moduloPT = 'Programa Tejido'` fijo en el menú contextual debe pasar a `$superficie->moduloPermiso()` | Mismo desfase del punto 2 en el menú contextual. No se hizo en PT-02 por la regla "no tocar UI salvo ocultar acciones B" |
 | 4 | Owner / DBA | Correr `database/sql/pt_muestras_{marbetes,produccion,longitudes}.sql` en staging y luego en live, con los pasos de la "NOTA PARA EL DBA" de cada script | Alternativas A de la decisión 01.3. Después, PT actualiza `columnas_ausentes` y `longitudes` en `config/planeacion.php` |
 | 5 | Owner | Decidir si el observer debe leer el maestro real de pesos (ver `02-SUMMARY.md` §4, D-1) | Posible cambio de números en planta |
+
+**Estado (2026-09-25):** B1, B2 y B3 hechos en PT 04-perf (`claude/pt-04-perf`), con `tests/Feature/Planeacion/ProgramaTejidoPermisosUiTest.php`.

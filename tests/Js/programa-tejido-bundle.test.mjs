@@ -39,6 +39,8 @@ function instalarDomDeMentira() {
 	globalThis.sessionStorage = store
 	globalThis.Swal = { fire: noop, close: noop, isVisible: () => false }
 	globalThis.showToast = noop
+	globalThis.notify = { success: noop, error: noop, warning: noop, info: noop }
+	globalThis.http = { get: noop, post: noop }
 	globalThis.toast = noop
 	globalThis.$ = () => ({ on: noop, off: noop, val: noop, each: noop, length: 0, select2: noop })
 	globalThis.jQuery = globalThis.$
@@ -58,14 +60,17 @@ function instalarDomDeMentira() {
 		},
 	})
 
-	// Lo que el Blade imprime antes de cargar el bundle.
+	// Lo que el Blade imprime en #pt-boot (aqui no hay nodo: boot.ts cae a window.PT_BOOT).
 	globalThis.PT_BOOT = {
 		basePath: '/planeacion/programa-tejido',
 		apiPath: '/programa-tejido',
 		linePath: '/planeacion/req-programa-tejido-line',
 		columns: [{ field: 'NoTelarId', label: 'Telar' }],
 		hiddenFields: [],
-		routes: { codificacion: '/a', codificacionModelos: '/b', vincularRegistros: '/c' },
+		routes: {
+			codificacion: '/a', codificacionModelos: '/b', vincularRegistros: '/c',
+			marbetes: '/d', marbetesGuardar: '/e', recalcularFechas: '/f',
+		},
 	}
 
 	globalThis.window = globalThis
@@ -87,6 +92,16 @@ test('el bundle se evalua sin errores y publica su superficie', async () => {
 		'updatePinnedColumnsPositions',
 		'openProgramaTejidoFilterModal',
 		'toggleInlineEditMode',
+		// Los que vivian en <script> inline de la vista (04-perf, corte 5).
+		'abrirBalancearDesdeSeleccion',
+		'verDetallesGrupoBalanceo',
+		'aplicarBalanceoAutomatico',
+		'abrirModalActCalendarios',
+		'guardarCalendariosSeleccionados',
+		'abrirModalRepaso',
+		'crearRepasoEnviar',
+		'abrirModalMarbetes',
+		'guardarMarbetesEnviar',
 	]) {
 		assert.equal(typeof globalThis[nombre], 'function', `window.${nombre} no quedo publicado`)
 	}

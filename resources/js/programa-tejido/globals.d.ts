@@ -15,7 +15,7 @@ declare global {
         /**
          * Valores que solo conoce el servidor. Los imprime
          * resources/views/modulos/programa-tejido/scripts/main.blade.php
-         * en un <script> inline, antes de cargar el bundle.
+         * como <script type="application/json" id="pt-boot">; lo lee boot.ts.
          */
         PT_BOOT?: {
             basePath: string;
@@ -25,10 +25,15 @@ declare global {
             columns: Array<{ field: string; label: string; dateType?: 'date' | 'datetime' | null }>;
             /** Campos que el usuario tiene ocultos (OrdColProgramaTejido). */
             hiddenFields: string[];
+            /** Capacidades de la superficie (config planeacion.superficies): false = acción B oculta. */
+            capacidades?: Record<string, boolean>;
             routes: {
                 codificacion: string;
                 codificacionModelos: string;
                 vincularRegistros: string;
+                marbetes: string;
+                marbetesGuardar: string;
+                recalcularFechas: string;
             };
         };
 
@@ -50,3 +55,6 @@ declare global {
 
     }
 }
+
+// Hace de este archivo un módulo: sin esto el `declare global` no aplica (y skipLibCheck lo calla).
+export {};
