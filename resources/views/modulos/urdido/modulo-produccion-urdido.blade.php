@@ -17,7 +17,7 @@
             </span>
         @else
             <x-navbar.button-create
-                onclick="finalizar()"
+                data-accion="finalizar"
                 title="Finalizar"
                 icon="fa-check-circle"
                 iconColor="text-white"
@@ -48,7 +48,7 @@
 
     {{-- Selección de fecha (inline en tabla, punto de extensión) --}}
 
-    {{-- JavaScript: cálculos, AJAX, validaciones, finalización --}}
+    {{-- Config del servidor (data-*) + bundle resources/js/modulos/urdido/produccion/index.ts --}}
     @include('modulos.urdido.produccion._scripts')
 
 @endsection

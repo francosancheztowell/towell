@@ -9,6 +9,7 @@ use App\Models\Sistema\SYSUsuario;
 use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
+use App\Support\Http\Concerns\HandlesApiErrors;
 use App\Traits\ProduccionTrait;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -21,6 +22,7 @@ use Illuminate\Validation\ValidationException;
 
 class ModuloProduccionUrdidoController extends Controller
 {
+    use HandlesApiErrors;
     use ProduccionTrait;
 
     protected function getProduccionModelClass(): string
@@ -107,6 +109,8 @@ class ModuloProduccionUrdidoController extends Controller
 
         $realineadas = 0;
         $intocables = [];
+        /** @var array<string, array{hilos: int|null, ids: array<int, int>}> $idsPorHilos */
+        $idsPorHilos = [];
 
         foreach ($existentes->values() as $pos => $registro) {
             if (! array_key_exists($pos, $plan)) {
@@ -126,9 +130,22 @@ class ModuloProduccionUrdidoController extends Controller
                 continue;
             }
 
+            // En memoria también: el conteo por Hilos de sincronizarRenglonesDelPlan() lee esta colección.
             $registro->Hilos = $esperado;
-            $registro->save();
+            $registro->syncOriginalAttribute('Hilos');
+            $clave = $esperado === null ? 'null' : (string) $esperado;
+            $idsPorHilos[$clave] ??= ['hilos' => $esperado, 'ids' => []];
+            $idsPorHilos[$clave]['ids'][] = (int) $registro->Id;
             $realineadas++;
+        }
+
+        // PERF 19-01: un UPDATE por valor de Hilos en vez de uno por fila. Mismo resultado: el
+        // modelo no tiene timestamps ni eventos, y save() solo mandaba la columna Hilos.
+        // Bloques de 2000 ids por el límite de 2100 parámetros de SQL Server.
+        foreach ($idsPorHilos as $grupo) {
+            foreach (array_chunk($grupo['ids'], 2000) as $ids) {
+                UrdProduccionUrdido::whereIn('Id', $ids)->update(['Hilos' => $grupo['hilos']]);
+            }
         }
 
         if ($realineadas > 0 || ! empty($intocables)) {
@@ -383,6 +400,8 @@ class ModuloProduccionUrdidoController extends Controller
         $registrosACrear = [];
         $idsAEliminar = [];
 
+        $vaciosPorHilos = $this->renglonesVaciosPorHilos($orden->Folio, $expectedPorHilos, $existentesPorHilos);
+
         foreach ($expectedPorHilos as $hilos => $expected) {
             $actual = $existentesPorHilos[$hilos] ?? 0;
             $diff = $actual - $expected;
@@ -391,24 +410,8 @@ class ModuloProduccionUrdidoController extends Controller
                 // Solo se eliminan filas VACIAS: sin captura iniciada, sin julio,
                 // sin peso y no enviadas a AX. Si no alcanzan, se deja el sobrante
                 // y se registra: nunca se borra trabajo real para cuadrar el conteo.
-                $sobrantes = UrdProduccionUrdido::where('Folio', $orden->Folio)
-                    ->where('Hilos', $hilos === 'null' ? null : $hilos)
-                    ->where(function ($q) {
-                        $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
-                    })
-                    ->where(function ($q) {
-                        $q->whereNull('NoJulio')->orWhere('NoJulio', '');
-                    })
-                    ->where(function ($q) {
-                        $q->whereNull('KgBruto')->orWhere('KgBruto', 0);
-                    })
-                    ->where(function ($q) {
-                        $q->whereNull('AX')->orWhere('AX', '!=', 1);
-                    })
-                    ->orderBy('Id', 'desc')  // los mas nuevos primero
-                    ->limit($diff)
-                    ->pluck('Id')
-                    ->toArray();
+                // Los mas nuevos primero (ids ya vienen en orden descendente).
+                $sobrantes = array_slice($vaciosPorHilos[$hilos] ?? [], 0, $diff);
 
                 if (count($sobrantes) < $diff) {
                     Log::warning('Sobran registros de produccion con captura; no se eliminan', [
@@ -521,6 +524,62 @@ class ModuloProduccionUrdidoController extends Controller
 
     }
 
+    /**
+     * PERF 19-01: ids de renglones VACIOS (sin hora inicial, julio ni peso, fuera de AX) de
+     * cada grupo de Hilos con sobrante, en UNA consulta (antes una por grupo). Ids de mayor a
+     * menor dentro de cada grupo, como el orderBy('Id', 'desc') + limit de la versión anterior.
+     *
+     * @param  array<string, int>  $expectedPorHilos
+     * @param  array<string, int>  $existentesPorHilos
+     * @return array<string, array<int, int>>
+     */
+    private function renglonesVaciosPorHilos(string $folio, array $expectedPorHilos, array $existentesPorHilos): array
+    {
+        $conSobrante = array_keys(array_filter(
+            $expectedPorHilos,
+            fn (int $expected, string|int $hilos) => ($existentesPorHilos[(string) $hilos] ?? 0) > $expected,
+            ARRAY_FILTER_USE_BOTH
+        ));
+        if ($conSobrante === []) {
+            return [];
+        }
+
+        $valores = array_values(array_filter($conSobrante, fn ($h) => (string) $h !== 'null'));
+        $incluyeNull = count($valores) !== count($conSobrante);
+
+        $filas = UrdProduccionUrdido::where('Folio', $folio)
+            ->where(function ($q) use ($valores, $incluyeNull) {
+                if ($valores !== []) {
+                    $q->whereIn('Hilos', $valores);
+                }
+                if ($incluyeNull) {
+                    $q->orWhereNull('Hilos');
+                }
+            })
+            ->where(function ($q) {
+                $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
+            })
+            ->where(function ($q) {
+                $q->whereNull('NoJulio')->orWhere('NoJulio', '');
+            })
+            ->where(function ($q) {
+                $q->whereNull('KgBruto')->orWhere('KgBruto', 0);
+            })
+            ->where(function ($q) {
+                $q->whereNull('AX')->orWhere('AX', '!=', 1);
+            })
+            ->orderBy('Id', 'desc')
+            ->toBase()
+            ->get(['Id', 'Hilos']);
+
+        $porHilos = [];
+        foreach ($filas as $fila) {
+            $porHilos[$fila->Hilos === null ? 'null' : (string) $fila->Hilos][] = (int) $fila->Id;
+        }
+
+        return $porHilos;
+    }
+
     private function prepareViewData(UrdProgramaUrdido $orden, Collection $julios, Collection $registrosProduccion, int $totalRegistros): array
     {
         $engomado = EngProgramaEngomado::where('Folio', $orden->Folio)->first();
@@ -612,9 +671,7 @@ class ModuloProduccionUrdidoController extends Controller
         } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar campos de producción', ['error' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'error' => 'Error al actualizar campo: '.$e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'Error al actualizar campos de producción', 'Error al actualizar el campo.');
         }
     }
 
@@ -647,9 +704,7 @@ class ModuloProduccionUrdidoController extends Controller
 
             return response()->json(['success' => true, 'data' => $usuarios]);
         } catch (\Throwable $e) {
-            Log::error('Error al obtener usuarios de Urdido', ['error' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'error' => 'Error al obtener usuarios: '.$e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'Error al obtener usuarios de Urdido', 'Error al obtener los usuarios de Urdido.');
         }
     }
 
@@ -797,9 +852,9 @@ class ModuloProduccionUrdidoController extends Controller
         } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al finalizar orden de urdido', ['error' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'error' => 'Error al finalizar la orden: '.$e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'Error al finalizar orden de urdido', 'Error al finalizar la orden.', 500, [
+                'orden_id' => $request->input('orden_id'),
+            ]);
         }
     }
 }
