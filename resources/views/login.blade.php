@@ -3,9 +3,9 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="description" content="Accede al sistema de gestion de produccion y planeacion empresarial Towell.">
-  <title>Login - Towell</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Accede al sistema de gestión de producción y planeación empresarial Towell.">
+  <title>Iniciar sesión · Towell</title>
 
   {{-- PWA: el login es la pantalla de entrada, sin esto Chrome nunca ofrece instalar. --}}
   @if(config('app.pwa_enabled', true) && !config('app.service_worker_cleanup', false))
@@ -46,7 +46,7 @@
           <div class="flex justify-center">
             <picture>
               <source srcset="{{ asset('images/fotos_usuarios/TOWELLIN.webp') }}" type="image/webp">
-              <img src="{{ asset('images/fotos_usuarios/TOWELLIN.png') }}" alt="Logo" width="307" height="391" decoding="async" class="h-40 w-auto">
+              <img src="{{ asset('images/fotos_usuarios/TOWELLIN.png') }}" alt="" width="307" height="391" decoding="async" class="h-40 w-auto">
             </picture>
           </div>
           <div>
@@ -68,7 +68,7 @@
         <div class="text-center w-full flex-shrink-0">
           <picture>
             <source srcset="{{ asset('images/fondosTowell/logo-sm.webp') }}" type="image/webp">
-            <img src="{{ asset('images/fondosTowell/logo.png') }}" width="792" height="227" class="h-20 w-auto mx-auto" decoding="async" alt="Logo_Towell">
+            <img src="{{ asset('images/fondosTowell/logo.png') }}" width="792" height="227" class="h-20 w-auto mx-auto" decoding="async" alt="Towell">
           </picture>
         </div>
 

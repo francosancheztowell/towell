@@ -1,6 +1,6 @@
 {{--
-    Loader global único (DS-07). Lo muestra app-core.js al navegar (quitando `hidden`) y las
-    vistas con window.loader.show()/hide() (resources/js/componentes/loader.ts).
+    Loader global único (DS-07). Lo muestran app-core.js al navegar y las vistas, siempre con
+    window.loader.show()/hide() (resources/js/componentes/loader.ts).
     El giro usa `animate-loader` (keyframes `loader-giro` en app.css): el `@keyframes spin`
     que vivía aquí pisaba el de Tailwind y desplazaba todo `animate-spin` de la app.
 --}}
