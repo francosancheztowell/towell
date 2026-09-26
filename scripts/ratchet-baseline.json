@@ -6,7 +6,7 @@
   "innerHTML =": 396,
   "X-CSRF-TOKEN": 190,
   "bg-opacity-": 0,
-  "<script> inline en blade": 159,
+  "<script> inline en blade": 158,
   "SQL crudo con $interpolado": 8,
   "getMessage() en response()->json": 270
 }
