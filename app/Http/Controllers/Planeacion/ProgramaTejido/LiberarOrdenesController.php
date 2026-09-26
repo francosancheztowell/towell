@@ -17,6 +17,7 @@ use App\Services\Planeacion\Liberar\LiberarHilosCatalogo;
 use App\Services\Planeacion\Liberar\LiberarMarbetesCalculator;
 use App\Services\Planeacion\Liberar\LiberarProgramaScheduling;
 use App\Services\Planeacion\Liberar\LiberarValidacionesService;
+use App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -200,10 +201,20 @@ class LiberarOrdenesController extends Controller
     /**
      * Libera las órdenes seleccionadas: genera folio, actualiza campos y devuelve Excel
      */
+    /** 02-MUESTRAS-LIBERAR R7: tras liberar, volver a la grilla de la misma superficie. */
+    public static function urlRegreso(ProgramaTejidoSurface $superficie): string
+    {
+        return route($superficie->esMuestras() ? 'muestras.index' : 'catalogos.req-programa-tejido');
+    }
+
     public function liberar(Request $request)
     {
         set_time_limit(0);
         AuditoriaHelper::contexto('LIBERAR');
+
+        // 02-MUESTRAS-LIBERAR R6: sin el DDL de marbetes, Muestras respondía 500 ("Invalid
+        // column name NoMarbete") a media liberación. Ahora 422 explícito antes de escribir.
+        ProgramaTejidoSurface::actual()->exigir('marbetes');
 
         $data = $request->validate([
             'registros' => 'required|array|min:1',
@@ -681,7 +692,7 @@ class LiberarOrdenesController extends Controller
                     'message' => 'Órdenes liberadas correctamente.',
                     'fileName' => 'ORDEN_CAMBIO_MODELO_'.now()->format('Ymd_His').'.xlsx',
                     'fileData' => base64_encode($excelBinary),
-                    'redirectUrl' => route('catalogos.req-programa-tejido'),
+                    'redirectUrl' => self::urlRegreso(ProgramaTejidoSurface::actual()),
                 ]);
             }
         } catch (\Throwable $e) {
@@ -699,7 +710,7 @@ class LiberarOrdenesController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Órdenes liberadas correctamente, pero no se pudo generar el Excel de orden de cambio. Reimprímelo desde Programa Tejido.',
-            'redirectUrl' => route('catalogos.req-programa-tejido'),
+            'redirectUrl' => self::urlRegreso(ProgramaTejidoSurface::actual()),
         ]);
     }
 
