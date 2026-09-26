@@ -40,3 +40,11 @@ ins(App\Models\Engomado\EngActividadesBpmModel::class, [['Id'=>1,'Orden'=>1,'Act
 ins(App\Models\Urdido\UrdBpmModel::class, [['Id'=>1,'Folio'=>'UB0001','Status'=>'Creado','Fecha'=>$hoy.' 07:00:00','CveEmplRec'=>'1001','NombreEmplRec'=>'Usuario Prueba','TurnoRecibe'=>1,'CveEmplEnt'=>'1002','NombreEmplEnt'=>'Otro','TurnoEntrega'=>3,'MaquinaId'=>'Mc Coy 1']]);
 ins(App\Models\Engomado\EngBpmModel::class, [['Id'=>1,'Folio'=>'EB0001','Status'=>'Creado','Fecha'=>$hoy.' 07:00:00','CveEmplRec'=>'1001','NombreEmplRec'=>'Usuario Prueba','TurnoRecibe'=>1,'CveEmplEnt'=>'1002','NombreEmplEnt'=>'Otro','TurnoEntrega'=>3,'MaquinaId'=>'West Point 2']]);
 ins(App\Models\Engomado\EngProduccionFormulacionModel::class, [['Id'=>1,'Folio'=>'U00101','Formula'=>'F-100','Status'=>'Creado','fecha'=>$hoy,'Hora'=>'08:00','MaquinaId'=>'West Point 2','Cuenta'=>'3040','Calibre'=>12.5,'Tipo'=>'ALGODON','NomEmpl'=>'Usuario Prueba','CveEmpl'=>'1001','Kilos'=>50,'Litros'=>200,'Solidos'=>10,'Viscocidad'=>7,'Olla'=>'1','Turno'=>1]]);
+ins(App\Models\Engomado\CatDefectosUrdEng::class, [
+  ['Id'=>7,'Clave'=>'RHC','Defecto'=>'Rotura de hilo con cuenta','Penalizacion'=>3,'Activo'=>1],
+  ['Id'=>8,'Clave'=>'MI','Defecto'=>'Mezcla de hilo','Penalizacion'=>1,'Activo'=>1],
+]);
+ins(App\Models\Urdido\UrdProduccionUrdido::class, [
+  ['Id'=>101,'Folio'=>'U00101','NoJulio'=>'11','Fecha'=>$hoy,'Metros1'=>4000,'NomEmpl1'=>'Ana López','KgBruto'=>300,'Tara'=>120.5,'KgNeto'=>179.5,'Turno'=>1],
+  ['Id'=>102,'Folio'=>'U00101','NoJulio'=>'12','Fecha'=>$hoy,'Metros1'=>4000,'NomEmpl1'=>'Beto Ruiz','KgBruto'=>310,'Tara'=>118,'KgNeto'=>192,'Turno'=>1,'ClaveDefecto'=>7],
+]);

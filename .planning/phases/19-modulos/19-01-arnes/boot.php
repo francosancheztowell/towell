@@ -26,6 +26,12 @@ function harness_attach(): void {
     foreach (['sqlsrv','sqlsrv_ti','sqlsrv_tow_pro','sqlsrv_tow_tow','sqlsrv_Reportes_Towell','sqlite'] as $c) {
         $db = Illuminate\Support\Facades\DB::connection($c);
         $names = array_column($db->select('PRAGMA database_list'), 'name');
+        // Funciones de SQL Server que aparecen en consultas crudas del módulo.
+        $pdo = $db->getPdo();
+        $pdo->sqliteCreateFunction('ISNUMERIC', fn ($v) => is_numeric($v) ? 1 : 0, 1);
+        $pdo->sqliteCreateFunction('ISNULL', fn ($a, $b) => $a ?? $b, 2);
+        $pdo->sqliteCreateFunction('GETDATE', fn () => date('Y-m-d H:i:s'), 0);
+        $pdo->sqliteCreateFunction('LEN', fn ($v) => $v === null ? null : strlen(rtrim((string) $v)), 1);
         if (! in_array('dbo', $names, true)) {
             $db->statement("ATTACH DATABASE '".HARNESS_DIR."/dbo.sqlite' AS dbo");
         }
