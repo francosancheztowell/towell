@@ -43,7 +43,7 @@ export async function cargarUsuariosUrdido(): Promise<void> {
     try {
         const r = await http.get<RespuestaApi & { data?: UsuarioUrdido[] }>(ctx.cfg.rutas.usuarios);
         usuarios = r.success && r.data ? r.data : [];
-        if (!usuarios.length) console.error('Error al cargar usuarios:', r.error ?? r.message);
+        if (!r.success) console.error('Error al cargar usuarios:', r.error ?? r.message);
     } catch (error) {
         console.error('Error al cargar usuarios de Urdido:', error);
         usuarios = [];

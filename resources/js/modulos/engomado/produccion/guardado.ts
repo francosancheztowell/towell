@@ -53,8 +53,9 @@ export async function actualizarTurnoOficial(registroId: string, numeroOficial: 
     }
 }
 
-export async function actualizarKgBruto(registroId: string, kgBruto: string): Promise<void> {
-    if (!puedeEditarFila(registroId)) return;
+/** true si el servidor guardó el valor. */
+export async function actualizarKgBruto(registroId: string, kgBruto: string): Promise<boolean> {
+    if (!puedeEditarFila(registroId)) return false;
     const fila = filaDe(registroId);
     try {
         const r = exigirExito(
@@ -71,9 +72,11 @@ export async function actualizarKgBruto(registroId: string, kgBruto: string): Pr
             if (bruto && r.data.kg_bruto !== undefined && r.data.kg_bruto !== null) bruto.value = decimales(r.data.kg_bruto, 2);
             if (neto) neto.value = decimales(r.data.kg_neto, 2);
         }
+        return true;
     } catch (err) {
         aviso(err, 'Error al actualizar Kg. Bruto. Por favor, intenta nuevamente.');
         if (fila) calcularNetoFila(fila);
+        return false;
     }
 }
 

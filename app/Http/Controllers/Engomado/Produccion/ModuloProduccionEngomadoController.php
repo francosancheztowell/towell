@@ -547,7 +547,7 @@ class ModuloProduccionEngomadoController extends Controller
 
                             $fila = (new EngProduccionEngomado)->forceFill($data)->getAttributes();
                             // SQL Server admite 2100 parámetros por sentencia.
-                            $porBloque = max(1, intdiv(2100, max(1, count($fila))));
+                            $porBloque = max(1, intdiv(2099, max(1, count($fila))));
                             foreach (array_chunk(array_fill(0, $diferencia, $fila), $porBloque) as $bloque) {
                                 try {
                                     EngProduccionEngomado::insert($bloque);

@@ -163,7 +163,10 @@ function enviarBruto(registroId: string, valor: string): void {
     // Evita el doble envío del mismo valor (debounce + blur).
     if (ultimoBrutoEnviado.get(registroId) === valor) return;
     ultimoBrutoEnviado.set(registroId, valor);
-    void actualizarKgBruto(registroId, valor);
+    void actualizarKgBruto(registroId, valor).then((guardado) => {
+        // Si falló, el mismo valor tiene que poder reenviarse (reintento al salir del campo).
+        if (!guardado && ultimoBrutoEnviado.get(registroId) === valor) ultimoBrutoEnviado.delete(registroId);
+    });
 }
 
 function cancelarPendienteBruto(registroId: string): void {
@@ -227,8 +230,19 @@ function alSalir(e: FocusEvent): void {
     const valor = redondear(input.value, 2);
     if (valor === '' || valor === (input.dataset.valorInicial ?? '')) return;
     input.value = valor;
+    guardarSolidos(input, registroId, valor);
+}
+
+/**
+ * data-valor-inicial evita el doble envío (change + focusout). Si el guardado falla se restaura,
+ * para que el mismo valor pueda reenviarse al salir otra vez del campo.
+ */
+function guardarSolidos(input: HTMLInputElement, registroId: string, valor: string): void {
+    const anterior = input.dataset.valorInicial ?? '';
     input.dataset.valorInicial = valor;
-    void actualizarCampoProduccion(registroId, 'Solidos', valor);
+    void actualizarCampoProduccion(registroId, 'Solidos', valor || null).then((guardado) => {
+        if (!guardado && input.dataset.valorInicial === valor) input.dataset.valorInicial = anterior;
+    });
 }
 
 function quitarErrorVisual(elemento: Element): void {
@@ -327,10 +341,11 @@ function alCambiar(e: Event): void {
         return;
     }
     let valor = control.value.trim();
-    if (nombre === 'solidos') {
+    if (nombre === 'solidos' && control instanceof HTMLInputElement) {
         valor = redondear(valor, 2);
         control.value = valor;
-        control.dataset.valorInicial = valor;
+        guardarSolidos(control, registroId, valor);
+        return;
     }
     void actualizarCampoProduccion(registroId, columna, valor || null);
 }
