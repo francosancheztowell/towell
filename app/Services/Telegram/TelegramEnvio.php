@@ -82,7 +82,8 @@ final class TelegramEnvio
     {
         return $resultado instanceof Response
             ? ['status' => $resultado->status(), 'response' => $resultado->json() ?? $resultado->body()]
-            : ['status' => null, 'response' => $resultado->getMessage()];
+            // El mensaje de Guzzle trae la URL con el token del bot: se tapa antes de loguearlo.
+            : ['status' => null, 'response' => preg_replace('#/bot[^/]+/#', '/bot***/', $resultado->getMessage())];
     }
 
     /**

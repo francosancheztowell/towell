@@ -59,13 +59,9 @@ class CortesEficienciaController extends Controller
             $puesto = strtolower(trim($user->puesto ?? ''));
             $esSupervisor = ($puesto === 'supervisor');
 
-            // Obtener todos los cortes de eficiencia ordenados por fecha descendente
-            $cortes = TejEficiencia::with([
-                'usuario',
-                'lineas' => function ($q) {
-                    $q->orderBy('NoTelarId');
-                },
-            ])
+            // Sin eager load: la vista solo pinta columnas de la cabecera, y cargar 'lineas'
+            // de todo el historial armaba un IN con un parámetro por folio (tope 2100 en SQL Server).
+            $cortes = TejEficiencia::query()
                 ->orderBy('Date', 'desc')
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -1397,7 +1393,7 @@ class CortesEficienciaController extends Controller
 
             $imageSizeMB = strlen($imageContent) / 1024 / 1024;
             if ($imageSizeMB > 10) {
-                Log::warning('Imagen de cortes excede límite de Telegram sendPhoto', [
+                Log::warning('Imagen de cortes excede el límite de 10 MB', [
                     'fecha' => $fecha,
                     'filename' => $filename,
                     'size_mb' => round($imageSizeMB, 2),
@@ -1418,7 +1414,7 @@ class CortesEficienciaController extends Controller
                 }
             }
 
-            $resultados = app(TelegramEnvio::class)->archivo('sendPhoto', $chatIds, $imageContent, $filename, $caption);
+            $resultados = app(TelegramEnvio::class)->archivo('sendDocument', $chatIds, $imageContent, $filename, $caption);
             TelegramEnvio::registrarFallos($resultados, 'imagen de cortes', ['fecha' => $fecha, 'filename' => $filename]);
 
             return ['enviados' => TelegramEnvio::enviados($resultados), 'total' => count($resultados)];

@@ -94,6 +94,16 @@ class TelegramEnvioTest extends TestCase
         $this->assertSame(1, TelegramEnvio::enviados($resultados));
     }
 
+    public function test_el_detalle_de_un_error_no_expone_el_token(): void
+    {
+        $error = new ConnectionException('cURL error 28: timed out for https://api.telegram.org/bot123:ABC-secreto/sendPhoto');
+
+        $respuesta = TelegramEnvio::detalle($error)['response'];
+
+        $this->assertStringNotContainsString('ABC-secreto', $respuesta);
+        $this->assertStringContainsString('/bot***/sendPhoto', $respuesta);
+    }
+
     public function test_sin_chats_no_hay_peticiones(): void
     {
         Http::fake();
