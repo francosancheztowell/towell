@@ -369,7 +369,7 @@ class ReqProgramaTejido extends Model
     /**
      * Valores de Ultimo que cuentan como "último del telar". El canónico es '1'; 'UL' llega
      * de imports viejos y se normaliza a '1' al escribir (decisión del owner, PT-05), pero se
-     * sigue leyendo mientras queden filas en live (database/sql/pt_ultimo_normalizar.sql).
+     * sigue leyendo mientras queden filas en live (.planning/phases/05-mutations/sql/pt_ultimo_normalizar.sql).
      */
     public const VALORES_ULTIMO = ['1', 'UL'];
 
