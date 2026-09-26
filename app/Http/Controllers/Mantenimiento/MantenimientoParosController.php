@@ -541,11 +541,8 @@ class MantenimientoParosController extends Controller
             });
 
             if ($notificarSupervisor) {
-                // Fuera del ciclo de respuesta: Telegram no debe hacer esperar al operador.
-                defer(
-                    static fn () => $notifier->notifyCreated($paro),
-                    name: 'paro-telegram-alta-'.$paro->Id,
-                );
+                // Encola el aviso: Telegram no debe hacer esperar al operador.
+                $notifier->notifyCreated($paro);
             }
 
             return response()->json([
@@ -893,11 +890,7 @@ class MantenimientoParosController extends Controller
 
             // Cerrar un paro también notifica siempre, igual que reportarlo: el
             // checkbox de la vista tampoco se podía desmarcar.
-            $cerradoPor = $usuario->nombre ?? null;
-            defer(
-                static fn () => $notifier->notifyClosed($paro, $cerradoPor),
-                name: 'paro-telegram-cierre-'.$paro->Id,
-            );
+            $notifier->notifyClosed($paro, $usuario->nombre ?? null);
 
             return response()->json([
                 'success' => true,

@@ -62,13 +62,8 @@ final class CrudoAuditController extends Controller
         $this->access->authorizeRegister();
         $result = $this->audits->storeAuditWithStop($request->validated(), $this->user($request));
         $stop = $result['stop'];
-        $notifier = $this->notifier;
         $this->avisarAlineacion($result['audit']);
-
-        defer(
-            static fn () => $notifier->notifyCreated($stop),
-            name: 'crudo-paro-telegram-'.$stop->Id,
-        );
+        $this->notifier->notifyCreated($stop);
 
         return response()->json([
             'success' => true,

@@ -9,6 +9,7 @@ use DateInterval;
 use DateTimeImmutable;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Database\SqlServerConnection;
 use Illuminate\Support\Facades\DB;
 
 final class SqlServerCrudoReadRepository implements CrudoReadRepository
@@ -287,8 +288,7 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
 
     public function activeParos(array $telares = []): array
     {
-        return $this->catalog()
-            ->table($this->table('paros'))
+        return $this->sinBloqueo('paros')
             ->where('Estatus', 'Activo')
             ->when($telares !== [], fn ($query) => $query->whereIn('MaquinaId', $telares))
             ->orderByDesc('Fecha')
@@ -312,8 +312,7 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
             return [];
         }
 
-        return $this->catalog()
-            ->table($this->table('programs'))
+        return $this->sinBloqueo('programs')
             ->where('EnProceso', 1)
             ->whereIn('NoTelarId', $telares)
             ->orderByDesc('FechaInicio')
@@ -338,8 +337,7 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
 
     public function efficiencyLinesForRange(DateTimeImmutable $from, DateTimeImmutable $to): array
     {
-        return $this->catalog()
-            ->table($this->table('efficiency_lines'))
+        return $this->sinBloqueo('efficiency_lines')
             // ponytail: se arrastra una ventana hacia atrás para que un telar sin
             // captura del día conserve su último dato; el servicio se queda con
             // la fila más reciente por telar y marca si no es del periodo.
@@ -375,6 +373,20 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
     private function catalog(): ConnectionInterface
     {
         return DB::connection((string) config('crudo.connections.catalog', 'sqlsrv'));
+    }
+
+    /**
+     * Lectura del tablero sobre tablas que Planeación, Paros y Cortes escriben en
+     * transacciones largas: con READ COMMITTED esperaba sus locks (hasta 94 s en Pulse).
+     * Un dato a medio escribir es aceptable aquí; el tablero se refresca cada 15 s.
+     */
+    private function sinBloqueo(string $key): Builder
+    {
+        $cn = $this->catalog();
+
+        return $cn instanceof SqlServerConnection
+            ? $cn->query()->fromRaw($this->table($key).' WITH (NOLOCK)')
+            : $cn->table($this->table($key));
     }
 
     private function table(string $key): string
