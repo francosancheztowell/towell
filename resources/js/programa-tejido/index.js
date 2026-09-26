@@ -14,6 +14,7 @@ import './recalcular-fechas.js';
 import './modales/act-calendarios.js';
 import './modales/repaso.js';
 import './modales/marbetes.js';
+import './lineas.js';
 
 // Bundle JS de Programa Tejido. Antes iba inline en el HTML (527 KB que el
 // navegador volvia a descargar y a recompilar en cada recarga); ahora lo sirve
