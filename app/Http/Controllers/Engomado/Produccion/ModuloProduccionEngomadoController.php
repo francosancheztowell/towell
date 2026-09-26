@@ -11,6 +11,7 @@ use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Sistema\SYSUsuario;
 use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProgramaUrdido;
+use App\Support\Http\Concerns\HandlesApiErrors;
 use App\Traits\ProduccionTrait;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -18,11 +19,19 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ModuloProduccionEngomadoController extends Controller
 {
+    use HandlesApiErrors;
     use ProduccionTrait;
+
+    /**
+     * Campos de la orden que la pantalla edita (inputs de merma) => columna de EngProgramaEngomado.
+     * Lista blanca de actualizarCampoOrden (hueco AuthZ de 20-03-MAPA-AUTHZ).
+     */
+    private const CAMPOS_ORDEN = ['merma_con_goma' => 'MermaGoma', 'merma_sin_goma' => 'Merma'];
 
     protected function getProduccionModelClass(): string
     {
@@ -246,7 +255,7 @@ class ModuloProduccionEngomadoController extends Controller
 
             return response()->json(['success' => true, 'data' => $usuarios]);
         } catch (\Throwable $e) {
-            return response()->json(['success' => false, 'error' => 'Error al obtener usuarios: '.$e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'Error al obtener usuarios de Engomado', 'Error al obtener usuarios');
         }
     }
 
@@ -308,51 +317,33 @@ class ModuloProduccionEngomadoController extends Controller
         } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al actualizar campo: '.$e->getMessage(),
-                'details' => config('app.debug') ? $e->getTraceAsString() : null,
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al actualizar campo de producción Engomado', 'Error al actualizar campo');
         }
     }
 
     public function actualizarCampoOrden(Request $request): JsonResponse
     {
-        try {
-            $request->validate([
-                'orden_id' => 'required|integer',
-                'campo' => 'required|string|in:merma_con_goma,merma_sin_goma',
-                'valor' => 'nullable',
-            ]);
+        // Validación de entrada fuera del try: 422 con los errores (la ruta sigue en modo auditar).
+        $datos = $request->validate([
+            'orden_id' => 'required|integer',
+            'campo' => ['required', 'string', Rule::in(array_keys(self::CAMPOS_ORDEN))],
+            'valor' => 'nullable|numeric|min:0',
+        ], [
+            'campo.in' => 'Campo no válido',
+            'valor.numeric' => 'El valor debe ser numérico',
+            'valor.min' => 'La merma no puede ser negativa.',
+        ]);
 
-            $orden = EngProgramaEngomado::find($request->orden_id);
+        try {
+            $orden = EngProgramaEngomado::find($datos['orden_id']);
 
             if (! $orden) {
                 return response()->json(['success' => false, 'error' => 'Orden no encontrada'], 404);
             }
 
-            $valor = null;
-            if ($request->has('valor') && $request->valor !== null && $request->valor !== '') {
-                if (! is_numeric($request->valor)) {
-                    return response()->json(['success' => false, 'error' => 'El valor debe ser numérico'], 422);
-                }
-                $valor = (float) $request->valor;
-
-                // Validar que mermas no sean negativas
-                if ($valor < 0) {
-                    return response()->json([
-                        'success' => false,
-                        'error' => 'El valor de '.str_replace('_', ' ', $request->campo).' no puede ser negativo.',
-                    ], 422);
-                }
-            }
-
-            $campoMap = ['merma_con_goma' => 'MermaGoma', 'merma_sin_goma' => 'Merma'];
-            $campoBD = $campoMap[$request->campo] ?? null;
-
-            if (! $campoBD) {
-                return response()->json(['success' => false, 'error' => 'Campo no válido'], 422);
-            }
+            $campo = (string) $datos['campo'];
+            $campoBD = self::CAMPOS_ORDEN[$campo];
+            $valor = isset($datos['valor']) && $datos['valor'] !== '' ? (float) $datos['valor'] : null;
 
             $orden->$campoBD = $valor;
             $orden->save();
@@ -360,36 +351,33 @@ class ModuloProduccionEngomadoController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => ucfirst(str_replace('_', ' ', $request->campo)).' actualizado correctamente',
-                'data' => ['campo' => $request->campo, 'valor' => $orden->$campoBD],
+                'message' => ucfirst(str_replace('_', ' ', $campo)).' actualizado correctamente',
+                'data' => ['campo' => $campo, 'valor' => $orden->$campoBD],
             ]);
-        } catch (ValidationException $e) {
-            return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (QueryException $e) {
             if (str_contains($e->getMessage(), 'Invalid column name')) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Las columnas MermaGoma y Merma no existen en la tabla. Por favor, ejecuta el script SQL para agregarlas.',
-                ], 500);
+                return $this->apiErrorResponse($e, 'Faltan columnas de merma en EngProgramaEngomado',
+                    'Las columnas MermaGoma y Merma no existen en la tabla. Por favor, ejecuta el script SQL para agregarlas.');
             }
 
-            return response()->json(['success' => false, 'error' => 'Error de base de datos al actualizar campo: '.$e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'Error de base de datos al actualizar campo de la orden de Engomado', 'Error de base de datos al actualizar campo');
         } catch (\Throwable $e) {
-            return response()->json(['success' => false, 'error' => 'Error al actualizar campo: '.$e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'Error al actualizar campo de la orden de Engomado', 'Error al actualizar campo');
         }
     }
 
     public function verificarFormulaciones(Request $request): JsonResponse
     {
-        try {
-            $request->validate(['folio' => 'required|string|max:50']);
+        // Fuera del try: sin folio es 422, no 500.
+        $request->validate(['folio' => 'required|string|max:50']);
 
+        try {
             $folio = $request->input('folio');
             $count = EngProduccionFormulacionModel::where('Folio', $folio)->count();
 
             return response()->json(['success' => true, 'tieneFormulaciones' => $count > 0, 'cantidad' => $count]);
         } catch (\Throwable $e) {
-            return response()->json(['success' => false, 'error' => 'Error al verificar formulaciones: '.$e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'Error al verificar formulaciones de Engomado', 'Error al verificar formulaciones');
         }
     }
 
@@ -499,9 +487,7 @@ class ModuloProduccionEngomadoController extends Controller
         } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al finalizar orden de engomado', ['error' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'error' => 'Error al finalizar la orden: '.$e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'Error al finalizar orden de engomado', 'Error al finalizar la orden');
         }
     }
 
@@ -535,38 +521,42 @@ class ModuloProduccionEngomadoController extends Controller
                         $metrosOrden = $orden->MetrajeTelas ?? $orden->Metros ?? 0;
 
                         if ($diferencia > 0) {
-                            // Crear registros faltantes
-                            for ($i = 0; $i < $diferencia; $i++) {
-                                $data = [
-                                    'Folio' => $orden->Folio,
-                                    'NoJulio' => null,
-                                    'Fecha' => now()->format('Y-m-d'),
-                                ];
-                                if ($solidosFormulacion !== null) {
-                                    $data['Solidos'] = $solidosFormulacion;
-                                }
-                                if (! empty($claveUsuario)) {
-                                    $data['CveEmpl1'] = $claveUsuario;
-                                }
-                                if (! empty($nombreUsuario)) {
-                                    $data['NomEmpl1'] = $nombreUsuario;
-                                }
-                                if ($metrosOrden > 0) {
-                                    $data['Metros1'] = round($metrosOrden, 2);
-                                }
-                                if (! empty($turnoUsuario)) {
-                                    $data['Turno1'] = (int) $turnoUsuario;
-                                }
+                            // Crear registros faltantes: todas las filas son iguales, se insertan
+                            // en bloque (antes un create() por fila). Los atributos pasan por el
+                            // modelo para conservar los casts de escritura (Fecha como fecha).
+                            $data = [
+                                'Folio' => $orden->Folio,
+                                'NoJulio' => null,
+                                'Fecha' => now()->format('Y-m-d'),
+                            ];
+                            if ($solidosFormulacion !== null) {
+                                $data['Solidos'] = $solidosFormulacion;
+                            }
+                            if (! empty($claveUsuario)) {
+                                $data['CveEmpl1'] = $claveUsuario;
+                            }
+                            if (! empty($nombreUsuario)) {
+                                $data['NomEmpl1'] = $nombreUsuario;
+                            }
+                            if ($metrosOrden > 0) {
+                                $data['Metros1'] = round($metrosOrden, 2);
+                            }
+                            if (! empty($turnoUsuario)) {
+                                $data['Turno1'] = (int) $turnoUsuario;
+                            }
 
+                            $fila = (new EngProduccionEngomado)->forceFill($data)->getAttributes();
+                            // SQL Server admite 2100 parámetros por sentencia.
+                            $porBloque = max(1, intdiv(2100, max(1, count($fila))));
+                            foreach (array_chunk(array_fill(0, $diferencia, $fila), $porBloque) as $bloque) {
                                 try {
-                                    EngProduccionEngomado::create($data);
+                                    EngProduccionEngomado::insert($bloque);
                                 } catch (\Throwable $e) {
-                                    Log::error('Error al crear registro de producción Engomado', [
+                                    Log::error('Error al crear registros de producción Engomado', [
                                         'folio' => $orden->Folio,
+                                        'filas' => count($bloque),
                                         'error' => $e->getMessage(),
                                     ]);
-
-                                    continue;
                                 }
                             }
                         } elseif ($diferencia < 0) {
