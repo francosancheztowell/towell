@@ -258,6 +258,12 @@ class TejidoHelpers
         $vel = (float) ($programa->VelocidadSTD ?? 0);
         $efic = (float) ($programa->EficienciaSTD ?? 0);
         $cantidad = self::sanitizeNumber($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
+
+        $stdKm = self::stdToaHraKarlMayer($programa);
+        if ($stdKm !== null) {
+            return $cantidad > 0 ? $cantidad / $stdKm : 0.0;
+        }
+
         $m = self::obtenerModeloParams($programa, $obtenerModeloCallback);
 
         return self::calcularHorasProdFromParams(
@@ -299,6 +305,28 @@ class TejidoHelpers
         }
 
         return 0.0;
+    }
+
+    /**
+     * Karl Mayer no se estima por pasadas/velocidad: su estandar es la meta fija de kg/dia
+     * por telar (crudo.fixed_daily_kilos, la misma del andon), sin eficiencia.
+     * Piezas/hora = (kgDia * 1000 / PesoCrudo) / 24. Null si no es KM o falta PesoCrudo
+     * (en ese caso sigue la formula de pasadas como JAC/SMIT).
+     */
+    public static function stdToaHraKarlMayer(ReqProgramaTejido $programa): ?float
+    {
+        $telar = trim((string) ($programa->NoTelarId ?? ''));
+        if (! TelarSalonResolver::esKarlMayer($programa->SalonTejidoId ?? null, $telar)) {
+            return null;
+        }
+
+        $kgDia = (float) (config('crudo.fixed_daily_kilos')[$telar] ?? 600.0);
+        $pesoCrudo = (float) ($programa->PesoCrudo ?? 0);
+        if ($kgDia <= 0 || $pesoCrudo <= 0) {
+            return null;
+        }
+
+        return ($kgDia * 1000 / $pesoCrudo) / 24;
     }
 
     /**
@@ -402,6 +430,14 @@ class TejidoHelpers
             }
 
             $stdToaHraParaCalculos = isset($formulas['StdToaHra']) ? $formulas['StdToaHra'] : $stdToaHra;
+
+            // Karl Mayer: meta fija kg/dia sin eficiencia, reemplaza el estandar de pasadas.
+            $stdKm = self::stdToaHraKarlMayer($programa);
+            if ($stdKm !== null) {
+                $stdToaHraParaCalculos = $stdKm;
+                $formulas['StdToaHra'] = (float) round($stdKm, 2);
+                $efic = 1.0;
+            }
 
             $largoToalla = (float) ($programa->LargoToalla ?? 0);
             $anchoToalla = (float) ($programa->AnchoToalla ?? 0);

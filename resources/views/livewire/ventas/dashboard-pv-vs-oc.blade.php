@@ -23,15 +23,6 @@
             </label>
         </div> --}}
 
-        <section class="pvoc-filters" aria-label="Filtros del dashboard">
-            <button type="button" class="pvoc-filter-heading" data-pvoc-filter-toggle aria-expanded="true">
-                <i class="fa-solid fa-filter" aria-hidden="true"></i> Filtros
-                <i class="fa-solid fa-chevron-up" aria-hidden="true"></i>
-            </button>
-            <div class="pvoc-filter-fields" data-pvoc-filters></div>
-            <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-clear>Limpiar</button>
-        </section>
-
         <div class="pvoc-tabs" role="tablist" aria-label="Vistas del dashboard">
             <button type="button" class="is-active" role="tab" aria-selected="true" data-pvoc-tab="summary">Resumen general</button>
             <button type="button" role="tab" aria-selected="false" data-pvoc-tab="history">Ventas históricas</button>
@@ -48,21 +39,38 @@
                     <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-collapse>Colapsar todo</button>
                 </div>
             </div>
+            <div class="pvoc-filters" aria-label="Filtros del resumen general">
+                <div class="pvoc-filter-fields" data-pvoc-filters></div>
+                <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-clear>Limpiar</button>
+            </div>
             <div class="pvoc-table-scroll" data-pvoc-table="summary"></div>
         </section>
 
-        <section class="pvoc-card is-hidden" data-pvoc-panel="history" data-ventas-historicas wire:ignore>
+        <section
+            class="pvoc-card is-hidden"
+            data-pvoc-panel="history"
+            data-ventas-historicas
+            data-historico='@json($historico)'
+            wire:ignore
+        >
             <div class="pvoc-card-header">
                 <div>
                     <h2>Ventas históricas</h2>
-                    <p>Clic en uno o varios valores para filtrar; los atenuados no tienen datos con la selección actual. <strong>Datos de ejemplo.</strong></p>
-                </div>
-                <div class="pvoc-card-actions">
-                    <button type="button" class="pvoc-button pvoc-button-small" data-vh-clear-all>Limpiar filtros</button>
+                    <p>Elige uno o varios valores en cada filtro; los atenuados no tienen datos con la selección actual. Fuente: facturación (TwHistoricosVentas).</p>
                 </div>
             </div>
-            <div class="vh-slicers" data-vh-slicers></div>
+            @if ($historicoError)
+                <div class="ventas-pvoc-alert" role="alert">
+                    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                    <span>{{ $historicoError }}</span>
+                </div>
+            @endif
+            <div class="pvoc-filters" aria-label="Filtros de ventas históricas">
+                <div class="pvoc-filter-fields" data-vh-slicers></div>
+                <button type="button" class="pvoc-button pvoc-button-small" data-vh-clear-all>Limpiar</button>
+            </div>
             <div class="vh-summary" data-vh-summary></div>
+            <div class="vh-subtabs" role="tablist" aria-label="Reportes de ventas históricas" data-vh-subtabs></div>
             <div class="vh-reports" data-vh-reports></div>
         </section>
     </div>

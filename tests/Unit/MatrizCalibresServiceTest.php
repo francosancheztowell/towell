@@ -123,6 +123,7 @@ final class MatrizCalibresServiceTest extends TestCase
             $table->string('InventSizeCrudo', 60)->nullable();
             $table->integer('Luchaje')->nullable();
             $table->string('CodigoDibujo', 30)->nullable();
+            $table->integer('Tipo')->nullable();
             $table->date('FechaRegistro')->nullable();
             $table->string('HoraRegistro', 20)->nullable();
             $table->string('UsuarioRegistro', 60)->nullable();

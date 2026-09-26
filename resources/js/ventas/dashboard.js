@@ -1,9 +1,20 @@
 import { mountVentasHistoricas } from './ventas-historicas';
+import { createMultiSelect } from './multi-select';
 
+const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const monthName = (value) => MONTH_NAMES[Number(value) - 1] ?? value;
+
+/** multi = selección múltiple (Set, vacío = todos); el resto es un select de una sola opción. */
 const FILTERS = [
-    ['anio', 'Año'], ['mes', 'Mes'], ['empresa', 'Empresa'], ['tipo', 'Tipo'],
-    ['cliente', 'Cliente'], ['tamano', 'Tamaño'], ['articulo', 'Artículo'], ['estatus', 'Estatus OC'],
+    { key: 'anio', label: 'Año' },
+    { key: 'mes', label: 'Mes', multi: true, format: monthName },
+    { key: 'empresa', label: 'Empresa' },
+    { key: 'tipo', label: 'Tipo', multi: true },
+    { key: 'cliente', label: 'Cliente', multi: true },
+    { key: 'tamano', label: 'Tamaño', multi: true },
+    { key: 'articulo', label: 'Artículo', multi: true },
 ];
+const emptyFilters = () => Object.fromEntries(FILTERS.map(({ key, multi }) => [key, multi ? new Set() : '']));
 
 const METRICS = [['piezas', 'Piezas'], ['kilos', 'Kilos'], ['vn', 'V.N.']];
 const SERIES = {
@@ -106,7 +117,6 @@ const expandCompactPayload = (payload) => {
 };
 
 const bindTabs = (root) => {
-    const globalFilters = root.querySelector('.pvoc-filters');
     root.querySelectorAll('[data-pvoc-tab]').forEach((button) => button.addEventListener('click', () => {
         const activeTab = button.dataset.pvocTab;
         root.querySelectorAll('[data-pvoc-tab]').forEach((tab) => {
@@ -115,8 +125,6 @@ const bindTabs = (root) => {
             tab.setAttribute('aria-selected', String(active));
         });
         root.querySelectorAll('[data-pvoc-panel]').forEach((panel) => panel.classList.toggle('is-hidden', panel.dataset.pvocPanel !== activeTab));
-        // Ventas históricas trae sus propios segmentadores; los filtros globales son del resumen PV vs OC.
-        globalFilters?.classList.toggle('is-hidden', activeTab !== 'summary');
     }));
 };
 
@@ -149,7 +157,7 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
 
     const state = {
         comparison: 'plan-pedido', grouping: 'origin',
-        filters: Object.fromEntries(FILTERS.map(([key]) => [key, ''])),
+        filters: emptyFilters(),
         expanded: { summary: new Set() },
     };
     const elements = {
@@ -171,23 +179,32 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
         cliente: `${record.clienteCodigo} ${record.cliente}`,
         tamano: record.tamano,
         articulo: `${record.articuloCodigo} ${record.articulo}`,
-        estatus: record.estatus,
     }[key]);
 
-    const filteredRecords = () => records.filter((record) => Object.entries(state.filters)
-        .every(([key, value]) => !value || String(filterValue(record, key)) === value));
+    const matchesFilter = (record, { key, multi }) => {
+        const selected = state.filters[key];
+        const value = String(filterValue(record, key));
+        return multi ? (!selected.size || selected.has(value)) : (!selected || value === selected);
+    };
+
+    const filteredRecords = () => records.filter((record) => FILTERS.every((filter) => matchesFilter(record, filter)));
+
+    const fragment = (html) => document.createRange().createContextualFragment(html);
 
     const renderFilters = () => {
-        const dataFilters = FILTERS.map(([key, label]) => {
+        const fields = FILTERS.map(({ key, label, multi, format }) => {
             const values = [...new Set(records.map((record) => String(filterValue(record, key))))].sort();
-            return `<label class="pvoc-select-label">${label}
+            if (multi) {
+                return createMultiSelect({ label, values, format, selected: state.filters[key], onChange: renderTables }).element;
+            }
+            return fragment(`<label class="pvoc-select-label">${label}
                 <select data-pvoc-filter="${key}">
                     <option value="">Todos</option>
                     ${values.map((value) => `<option value="${escapeHtml(value)}" ${state.filters[key] === value ? 'selected' : ''}>${escapeHtml(value)}</option>`).join('')}
                 </select>
-            </label>`;
-        }).join('');
-        const dashboardControls = `<label class="pvoc-select-label">Columnas
+            </label>`);
+        });
+        const dashboardControls = fragment(`<label class="pvoc-select-label">Columnas
                 <select data-pvoc-grouping>
                     <option value="origin" ${state.grouping === 'origin' ? 'selected' : ''}>Por origen</option>
                     <option value="metric" ${state.grouping === 'metric' ? 'selected' : ''}>Por medida</option>
@@ -199,8 +216,8 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
                     <option value="plan-real" ${state.comparison === 'plan-real' ? 'selected' : ''}>Plan vs Real</option>
                     <option value="pedido-real" ${state.comparison === 'pedido-real' ? 'selected' : ''}>Pedido vs Real</option>
                 </select>
-            </label>`;
-        elements.filters.innerHTML = `${dataFilters}${dashboardControls}`;
+            </label>`);
+        elements.filters.replaceChildren(...fields, dashboardControls);
         elements.filters.querySelectorAll('[data-pvoc-filter]').forEach((select) => select.addEventListener('change', () => {
             state.filters[select.dataset.pvocFilter] = select.value;
             renderTables();
@@ -305,12 +322,7 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
     const renderTables = () => { renderTable('summary'); };
 
     root.querySelector('[data-pvoc-clear]').addEventListener('click', () => {
-        state.filters = Object.fromEntries(FILTERS.map(([key]) => [key, ''])); renderFilters(); renderTables();
-    });
-    root.querySelector('[data-pvoc-filter-toggle]').addEventListener('click', (event) => {
-        const hidden = elements.filters.classList.toggle('is-hidden');
-        event.currentTarget.setAttribute('aria-expanded', String(!hidden));
-        event.currentTarget.querySelector('.fa-chevron-up, .fa-chevron-down').className = `fa-solid fa-chevron-${hidden ? 'down' : 'up'}`;
+        state.filters = emptyFilters(); renderFilters(); renderTables();
     });
     root.querySelectorAll('[data-pvoc-expand]').forEach((button) => button.addEventListener('click', () => expandAll(button.closest('[data-pvoc-panel]').dataset.pvocPanel)));
     root.querySelectorAll('[data-pvoc-collapse]').forEach((button) => button.addEventListener('click', () => {
