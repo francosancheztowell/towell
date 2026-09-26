@@ -2,6 +2,11 @@
 
 @section('page-title', 'Captura de Fórmulas')
 
+{{--
+  Captura de Fórmula (Engomado). JS: resources/js/modulos/engomado/captura-formula/index.ts (19-01).
+  Datos del servidor en data-pagina; acciones por data-accion (sin onclick) y rutas con route().
+--}}
+
 @section('navbar-right')
     @php
         $desdeProduccion = !empty($folioFiltro);
@@ -11,19 +16,19 @@
             <a href="{{ !empty($ordenIdProduccion) ? route('engomado.modulo.produccion.engomado', ['orden_id' => $ordenIdProduccion]) : route('engomado.modulo.produccion.engomado') }}"
                 class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition"
                 title="Volver a Producción de Engomado">
-                <i class="fa-solid fa-arrow-left"></i>
+                <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
                 <span>Producción</span>
             </a>
         @endif
         @if($desdeProduccion)
             <x-navbar.button-create
-            onclick="openCreateModal()"
+            data-accion="nueva"
             title="Autorizar Formula"
             module="Captura de Formula"
             />
             <x-navbar.button-delete
             id="btn-delete"
-            onclick="confirmDelete()"
+            data-accion="eliminar"
             title="Eliminar Fórmula"
             module="Captura de Formula"
             :disabled="true"
@@ -31,7 +36,7 @@
         @endif
         <x-navbar.button-edit
             id="btn-edit"
-            onclick="openEditModal()"
+            data-accion="editar"
             title="Editar"
             bg="bg-purple-500"
             text="Editar"
@@ -43,7 +48,7 @@
         />
         <x-navbar.button-edit
         id="btn-view"
-        onclick="openViewModal()"
+        data-accion="ver"
         title="Ver"
         bg="bg-orange-500"
         text="Ver"
@@ -59,40 +64,25 @@
 
 @section('content')
     @php
+        $desdeProduccion = !empty($folioFiltro);
         $puedeVerCalidad = function_exists('userCan') ? userCan('registrar', 'Captura de Formula') : true;
+        $configPagina = [
+            'desdeProduccion' => $desdeProduccion,
+            // Mismo origen que antes (Auth::user()->numero): el store toma CveEmpl del programa.
+            'usuario' => ['nombre' => auth()->user()->nombre ?? '', 'numero' => auth()->user()->numero ?? ''],
+            'rutas' => [
+                'guardar' => route('eng-formulacion.store'),
+                'formulacion' => route('eng-formulacion.update', ['folio' => '__FOLIO__']),
+                'porId' => route('eng-formulacion.by-id'),
+                'componentes' => route('eng-formulacion.componentes'),
+                'formulasDisponibles' => route('eng-formulacion.formulas-disponibles'),
+                'calibres' => route('eng-formulacion.calibres'),
+                'fibras' => route('eng-formulacion.fibras'),
+            ],
+        ];
     @endphp
-    @if(session('error'))
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                Swal.fire({
-                    toast: true,
-                    position: 'top-end',
-                    icon: 'error',
-                    title: 'Error',
-                    text: '{{ session('error') }}',
-                    showConfirmButton: false,
-                    timer: 5000,
-                    timerProgressBar: true
-                });
-            });
-        </script>
-    @endif
-    @if(session('success'))
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                Swal.fire({
-                    toast: true,
-                    position: 'top-end',
-                    icon: 'success',
-                    title: '{{ session('success') }}',
-                    showConfirmButton: false,
-                    timer: 4000,
-                    timerProgressBar: true
-                });
-            });
-        </script>
-    @endif
 
+    <div id="captura-formula" data-pagina='@json($configPagina)'>
     <div class="overflow-x-auto overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-md mt-4 mx-4" style="max-height: 70vh;">
         <table id="formulaTable" class="min-w-full text-sm">
             <thead class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-sm">
@@ -102,7 +92,7 @@
                     @endif
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap {{ $puedeVerCalidad ? '' : 'first:rounded-tl-xl' }}">ID</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Orden</th>
-                    <th id="th-fecha" class="text-left px-4 py-3 font-semibold whitespace-nowrap cursor-pointer select-none">Fecha <i class="fa-solid fa-filter text-xs ml-1 opacity-80"></i></th>
+                    <th id="th-fecha" class="text-left px-4 py-3 font-semibold whitespace-nowrap cursor-pointer select-none">Fecha <i class="fa-solid fa-filter text-xs ml-1 opacity-80" aria-hidden="true"></i></th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Hr</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Status</th>
                     <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Cuenta</th>
@@ -122,44 +112,26 @@
                 @forelse($items as $item)
                     @php
                         $folioOrden = trim((string) ($item->folio_resuelto ?? $item->Folio ?? $item->ProdId ?? ''));
+                        $okTiempo = $item->OkTiempo === null ? '' : ($item->OkTiempo ? '1' : '0');
+                        $okVisc = ($item->OkViscocidad ?? $item->OkViscosidad ?? null) === null ? '' : (($item->OkViscocidad ?? $item->OkViscosidad) ? '1' : '0');
+                        $okSolidos = $item->OkSolidos === null ? '' : ($item->OkSolidos ? '1' : '0');
                     @endphp
                     <tr class="formula-row  border-gray-100 cursor-pointer transition-all duration-150 hover:bg-blue-50/80 even:bg-gray-50/50"
-                        onclick="selectRow(this, '{{ $folioOrden }}', {{ $item->Id ?? 'null' }})"
                         data-folio="{{ $folioOrden }}"
                         data-id="{{ $item->Id ?? '' }}"
                         data-fecha="{{ ($item->fecha ?? $item->Fecha) ? \Carbon\Carbon::parse($item->fecha ?? $item->Fecha)->format('Y-m-d') : '' }}"
-                        data-hora="{{ $item->Hora ? substr($item->Hora, 0, 5) : '' }}"
                         data-status="{{ $item->Status }}"
-                        data-cuenta="{{ $item->Cuenta }}"
-                        data-calibre="{{ $item->Calibre }}"
-                        data-tipo="{{ $item->Tipo }}"
-                        data-nomempl="{{ $item->NomEmpl }}"
-                        data-cveempl="{{ $item->CveEmpl ?? '' }}"
-                        data-olla="{{ $item->Olla }}"
-                        data-formula="{{ $item->Formula }}"
-                        data-kilos="{{ $item->Kilos }}"
-                        data-litros="{{ $item->Litros }}"
-                        data-tiempo="{{ $item->TiempoCocinado }}"
-                        data-solidos="{{ number_format($item->Solidos ?? 0, 2) }}"
-                        data-viscocidad="{{ $item->Viscocidad }}"
-                        data-maquina="{{ $item->MaquinaId ?? '' }}"
-                        data-prodid="{{ $item->ProdId ?? '' }}"
-                        data-oktiempo="{{ $item->OkTiempo === null ? '' : ($item->OkTiempo ? '1' : '0') }}"
-                        data-okviscocidad="{{ ($item->OkViscocidad ?? $item->OkViscosidad ?? null) === null ? '' : (($item->OkViscocidad ?? $item->OkViscosidad) ? '1' : '0') }}"
-                        data-oksolidos="{{ $item->OkSolidos === null ? '' : ($item->OkSolidos ? '1' : '0') }}"
                         data-ax="{{ $item->AX ?? 0 }}"
                     >
                         @if($puedeVerCalidad)
                         <td class="px-4 py-3 text-center">
                             @php
                                 $tieneObs = !empty($item->obs_calidad);
-                                $iconoCalidad = $tieneObs ? 'fa-clipboard-check' : 'fa-clipboard-list';
-                                $tituloCalidad = $tieneObs ? e($item->obs_calidad) : 'Calidad (sin observaciones)';
                             @endphp
                             <x-navbar.button-report
-                                onclick="event.stopPropagation(); abrirModalObsCalidad(this)"
-                                title="{{ $tituloCalidad }}"
-                                icon="{{ $iconoCalidad }}"
+                                data-accion="calidad"
+                                title="{{ $tieneObs ? $item->obs_calidad : 'Calidad (sin observaciones)' }}"
+                                icon="{{ $tieneObs ? 'fa-clipboard-check' : 'fa-clipboard-list' }}"
                                 iconColor="{{ $tieneObs ? 'text-blue-700' : 'text-blue-500' }}"
                                 hoverBg="hover:bg-blue-50"
                                 module="Captura de Formula"
@@ -171,10 +143,10 @@
                                 data-tiempo="{{ $item->TiempoCocinado ?? '' }}"
                                 data-solidos="{{ number_format($item->Solidos ?? 0, 2) }}"
                                 data-viscocidad="{{ $item->Viscocidad ?? '' }}"
-                                data-oktiempo="{{ $item->OkTiempo === null ? '' : ($item->OkTiempo ? '1' : '0') }}"
-                                data-okviscocidad="{{ ($item->OkViscocidad ?? $item->OkViscosidad ?? null) === null ? '' : (($item->OkViscocidad ?? $item->OkViscosidad) ? '1' : '0') }}"
-                                data-oksolidos="{{ $item->OkSolidos === null ? '' : ($item->OkSolidos ? '1' : '0') }}"
-                                data-has-obs="{{ $tieneObs ? '1' : '0' }}"
+                                data-oktiempo="{{ $okTiempo }}"
+                                data-okviscocidad="{{ $okVisc }}"
+                                data-oksolidos="{{ $okSolidos }}"
+                                data-obs="{{ $item->obs_calidad ?? '' }}"
                                 data-programa-status="{{ $item->programa_status ?? '' }}"
                             />
                         </td>
@@ -215,13 +187,13 @@
         </table>
     </div>
 
-    <!-- Modal Crear/Editar -->
-    <div id="createModal" class="hidden fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <!-- Modal Crear/Editar/Ver -->
+    <div id="createModal" class="hidden fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="create_modal_title">
         <div id="createModalContent" class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div id="create_modal_header" class="bg-blue-50 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">
                 <h3 id="create_modal_title" class="text-xl font-semibold">Nueva Formulación de Engomado</h3>
-                <button onclick="cerrarModalCreate()" class="text-white hover:text-gray-200 transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button type="button" data-accion="cerrar-modal" class="text-white hover:text-gray-200 transition" aria-label="Cerrar">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
@@ -235,42 +207,42 @@
                 <div class="mb-4">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Folio (Programa Engomado) <span class="text-red-600">*</span></label>
-                            <select name="FolioProg" id="create_folio_prog" required onchange="cargarDatosPrograma(this, false)" class="campo-siempre-bloqueado w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed" style="pointer-events: none;" tabindex="-1">
+                            <label for="create_folio_prog" class="block text-xs font-medium text-gray-700 mb-1">Folio (Programa Engomado) <span class="text-red-600">*</span></label>
+                            <select name="FolioProg" id="create_folio_prog" required class="campo-siempre-bloqueado w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed" style="pointer-events: none;" tabindex="-1">
                                 <option value="">-- Seleccione un Folio --</option>
                                 @foreach($foliosPrograma as $prog)
                                     <option value="{{ $prog->Folio }}"
+                                            data-bomeng="{{ $prog->BomEng }}"
                                             data-cuenta="{{ $prog->Cuenta }}"
                                             data-calibre="{{ $prog->Calibre }}"
                                             data-tipo="{{ $prog->RizoPie }}"
                                             data-formula="{{ $prog->BomFormula }}"
-                                            data-bomeng="{{ $prog->BomEng }}"
                                             data-status="{{ $prog->Status ?? '' }}"
                                             {{ isset($folioFiltro) && $folioFiltro === $prog->Folio ? 'selected' : '' }}>
                                         {{ $prog->Folio }} - {{ $prog->Cuenta }}
                                     </option>
                                 @endforeach
                             </select>
-                            <input type="text" id="create_folio_prog_display" readonly tabindex="-1" class="hidden w-full px-0 py-2 text-sm text-gray-900 bg-transparent border-0 rounded-lg focus:outline-none focus:ring-0">
+                            <input type="text" id="create_folio_prog_display" readonly tabindex="-1" aria-label="Folio (Programa Engomado)" class="hidden w-full px-0 py-2 text-sm text-gray-900 bg-transparent border-0 rounded-lg focus:outline-none focus:ring-0">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Fecha</label>
+                            <label for="create_fecha" class="block text-xs font-medium text-gray-700 mb-1">Fecha</label>
                             <input type="date" name="fecha" id="create_fecha" value="{{ date('Y-m-d') }}" readonly class="campo-siempre-bloqueado w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Hora</label>
+                            <label for="create_hora" class="block text-xs font-medium text-gray-700 mb-1">Hora</label>
                             <input type="time" name="Hora" id="create_hora" value="{{ date('H:i') }}" step="60" readonly class="campo-siempre-bloqueado w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
+                            <label for="create_display_numero" class="block text-xs font-medium text-gray-700 mb-1">No. Empleado</label>
                             <input type="text" id="create_display_numero" value="{{ auth()->user()->numero_empleado ?? (auth()->user()->numero ?? '') }}" readonly class="campo-siempre-bloqueado w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Operador</label>
+                            <label for="create_display_operador" class="block text-xs font-medium text-gray-700 mb-1">Operador</label>
                             <input type="text" id="create_display_operador" value="{{ auth()->user()->nombre ?? '' }}" readonly class="campo-siempre-bloqueado w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Fórmula</label>
+                            <label for="create_formula" class="block text-xs font-medium text-gray-700 mb-1">Fórmula</label>
                             <select id="create_formula"
                                 class="campo-formula-select w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
                                 <option value="">-- Seleccione fórmula --</option>
@@ -291,10 +263,9 @@
                 <input type="hidden" name="componentes" id="create_componentes_payload">
                 <!-- Sección 2: Datos de Captura -->
                 <div class="mb-4">
-                    {{-- <h4 class="text-sm font-semibold text-purple-700 mb-2 pb-2 border-b border-purple-200">Datos de Captura</h4> --}}
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Olla</label>
+                            <label for="create_olla" class="block text-xs font-medium text-gray-700 mb-1">Olla</label>
                             <select
                             required
                             name="Olla" id="create_olla" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition">
@@ -305,31 +276,31 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Kilos (Kg.) <span class="text-red-600">*</span></label>
+                            <label for="create_kilos" class="block text-xs font-medium text-gray-700 mb-1">Kilos (Kg.) <span class="text-red-600">*</span></label>
                             <input
                             required
                             type="number" step="0.01" min="0" name="Kilos" id="create_kilos" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition" title="No se aceptan valores negativos">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Litros <span class="text-red-600">*</span></label>
+                            <label for="create_litros" class="block text-xs font-medium text-gray-700 mb-1">Litros <span class="text-red-600">*</span></label>
                             <input
                             required
                             type="number" step="0.01" min="0.01" max="1500" name="Litros" id="create_litros" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition" title="Entre 0.01 y 1500">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Tiempo Cocinado (Min) <span class="text-red-600">*</span></label>
+                            <label for="create_tiempo" class="block text-xs font-medium text-gray-700 mb-1">Tiempo Cocinado (Min) <span class="text-red-600">*</span></label>
                             <input
                             required
                             type="number" step="0.01" min="0.01" name="TiempoCocinado" id="create_tiempo" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition" title="Debe ser mayor a cero">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">% Sólidos <span class="text-red-600">*</span></label>
+                            <label for="create_solidos" class="block text-xs font-medium text-gray-700 mb-1">% Sólidos <span class="text-red-600">*</span></label>
                             <input
                             required
                             type="number" step="0.01" min="0.01" name="Solidos" id="create_solidos" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition" title="Debe ser mayor a cero">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Viscosidad <span class="text-red-600">*</span></label>
+                            <label for="create_viscocidad" class="block text-xs font-medium text-gray-700 mb-1">Viscosidad <span class="text-red-600">*</span></label>
                             <input
                             required
                             type="number" step="0.01" min="0.01" name="Viscocidad" id="create_viscocidad" placeholder="0.00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition" title="Debe ser mayor a cero">
@@ -341,22 +312,22 @@
                 <div class="mb-4">
                     <div class="flex items-center justify-between mb-2 pb-2 border-b border-purple-200">
                         <h4 class="text-sm font-semibold text-purple-700">Componentes de la Fórmula</h4>
-                        <button type="button" id="btn-create-add-row" onclick="agregarFilaComponenteCreate()"
+                        <button type="button" id="btn-create-add-row" data-accion="agregar-fila"
                                 class="px-4 py-2 text-sm font-medium rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition">
-                            <i class="fa-solid fa-plus mr-1"></i>Agregar fila
+                            <i class="fa-solid fa-plus mr-1" aria-hidden="true"></i>Agregar fila
                         </button>
                     </div>
 
                     <!-- Loading -->
                     <div id="create_componentes_loading" class="hidden text-center py-6">
-                        <i class="fa-solid fa-spinner fa-spin text-2xl text-blue-500"></i>
+                        <i class="fa-solid fa-spinner fa-spin text-2xl text-blue-500" aria-hidden="true"></i>
                         <p class="text-gray-600 mt-2 text-sm">Cargando componentes...</p>
                     </div>
 
                     <!-- Error -->
                     <div id="create_componentes_error" class="hidden">
                         <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-                            <i class="fa-solid fa-exclamation-triangle text-red-500 text-2xl mb-1"></i>
+                            <i class="fa-solid fa-exclamation-triangle text-red-500 text-2xl mb-1" aria-hidden="true"></i>
                             <p class="text-red-700 font-medium text-sm" id="create_componentes_error_message">Error al cargar componentes</p>
                         </div>
                     </div>
@@ -374,292 +345,102 @@
                                     </tr>
                                 </thead>
                                 <tbody id="create_componentes_tbody" class="bg-white divide-y divide-gray-100">
-                                    <!-- Se llenará dinámicamente -->
+                                    <!-- Lo llena componentes.ts -->
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                </div>
-
-                <!-- Observaciones de Calidad (solo visible en Ver/Editar cuando hay obs) -->
-                <div id="create_obs_section" class="hidden mb-4">
-                    <h4 class="text-sm font-semibold text-purple-700 mb-2 pb-2 border-b border-purple-200">Observaciones de Calidad</h4>
-                    <div id="create_obs_text" class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-gray-700 whitespace-pre-wrap max-h-32 overflow-y-auto"></div>
                 </div>
 
                 <!-- Botones -->
                 <div id="create-modal-buttons" class="flex gap-2 justify-end pt-3 border-t border-gray-200 mt-4">
-                    <button type="button" id="btn-cancel-create" onclick="cerrarModalCreate()"
+                    <button type="button" id="btn-cancel-create" data-accion="cerrar-modal"
                             class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 w-full transition">
-                        <i class="fa-solid fa-times mr-1"></i>Cancelar
+                        <i class="fa-solid fa-times mr-1" aria-hidden="true"></i>Cancelar
                     </button>
                     <button type="submit" id="btn-submit-create" class="px-4 py-2 text-sm font-medium bg-blue-500 w-full text-white rounded-lg hover:bg-blue-700 transition shadow-lg hover:shadow-xl">
-                        <i class="fa-solid fa-save mr-1"></i><span id="submit-text-create">Crear Formulación</span>
+                        <i class="fa-solid fa-save mr-1" aria-hidden="true"></i><span id="submit-text-create">Crear Formulación</span>
                     </button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Modal Editar -->
-    <div id="editModal" class="hidden fixed inset-0 bg-gray-900/50 z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-            <div class="bg-yellow-700 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">
-                <h3 id="edit_modal_title" class="text-xl font-semibold">Editar Formulación</h3>
-                <button onclick="document.getElementById('editModal').classList.add('hidden')" class="text-white hover:text-gray-200 transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-            </div>
-
-            <form id="editForm" method="POST" class="p-6">
-                @csrf
-                @method('PUT')
-
-                <!-- Sección 1: Información General -->
-                <div class="mb-6">
-                    <h4 class="text-sm font-semibold text-yellow-700 mb-3 pb-2 border-b border-yellow-200">Información General</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Hora</label>
-                            <input type="time" name="Hora" id="edit_hora" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Tipo Fórmula (Máquina)</label>
-                            <select name="MaquinaId" id="edit_maquina" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
-                                <option value="">Seleccione...</option>
-                                @foreach($maquinas as $maquina)
-                                    <option value="{{ $maquina->MaquinaId }}">{{ $maquina->Nombre }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Cuenta/Título</label>
-                            <input type="text" name="Cuenta" id="edit_cuenta" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sección 2: Operador -->
-                <div class="mb-6">
-                    <h4 class="text-sm font-semibold text-yellow-700 mb-3 pb-2 border-b border-yellow-200">Operador</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Empleado</label>
-                            <select name="NomEmpl" id="edit_empleado" onchange="fillEmpleadoEdit(this)" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
-                                <option value="">Seleccione...</option>
-                                @foreach($usuarios as $usuario)
-                                    <option value="{{ $usuario->nombre }}" data-numero="{{ $usuario->numero_empleado }}">
-                                        {{ $usuario->nombre }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Clave Empleado</label>
-                            <input type="text" name="CveEmpl" id="edit_cve_empl" readonly class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sección 3: Detalles de Formulación -->
-                <div class="mb-6">
-                    <h4 class="text-sm font-semibold text-yellow-700 mb-3 pb-2 border-b border-yellow-200">Detalles de Formulación</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Olla</label>
-                            <input type="text" name="Olla" id="edit_olla" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Fórmula</label>
-                            <input type="text" name="Formula" id="edit_formula" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Producto AX</label>
-                            <input type="text" name="ProdId" id="edit_prod_id" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sección 4: Especificaciones Técnicas -->
-                <div class="mb-6">
-                    <h4 class="text-sm font-semibold text-yellow-700 mb-3 pb-2 border-b border-yellow-200">Especificaciones Técnicas</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Calibre</label>
-                            <input type="number" step="0.01" name="Calibre" id="edit_calibre" placeholder="0.00" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
-                            <input type="text" name="Tipo" id="edit_tipo" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Kilos (Kg.)</label>
-                            <input type="number" step="0.01" name="Kilos" id="edit_kilos" placeholder="0.00" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sección 5: Mediciones -->
-                <div class="mb-6">
-                    <h4 class="text-sm font-semibold text-yellow-700 mb-3 pb-2 border-b border-yellow-200">Mediciones y Propiedades</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Litros</label>
-                            <input type="number" step="0.01" name="Litros" id="edit_litros" placeholder="0.00" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Tiempo Cocinado (Min)</label>
-                            <input type="number" step="0.01" name="TiempoCocinado" id="edit_tiempo" placeholder="0.00" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">% Sólidos</label>
-                            <input type="number" step="0.01" name="Solidos" id="edit_solidos" placeholder="0.00" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">Viscosidad</label>
-                            <input type="number" step="0.01" name="Viscocidad" id="edit_viscocidad" placeholder="0.00" class="w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sección 6: Componentes (solo vista) -->
-                <div id="view_componentes_container" class="mb-6 hidden">
-                    <h4 class="text-sm font-semibold text-yellow-700 mb-3 pb-2 border-b border-yellow-200">Componentes de la Fórmula</h4>
-                    <div id="view_componentes_loading" class="text-center py-6 hidden">
-                        <i class="fa-solid fa-spinner fa-spin text-3xl text-blue-500"></i>
-                        <p class="text-gray-600 mt-2 text-sm">Cargando componentes...</p>
-                    </div>
-                    <div id="view_componentes_error" class="hidden">
-                        <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-                            <i class="fa-solid fa-exclamation-triangle text-red-500 text-2xl mb-1"></i>
-                            <p class="text-red-700 font-medium text-sm" id="view_componentes_error_message">Error al cargar componentes</p>
-                        </div>
-                    </div>
-                    <div id="view_componentes_table" class="hidden">
-                        <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
-                            <table class="min-w-full divide-y divide-gray-200 text-sm">
-                                <thead class="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-                                    <tr>
-                                        <th class="px-4 py-2.5 text-left font-semibold rounded-tl-xl">ItemId</th>
-                                        <th class="px-4 py-2.5 text-left font-semibold">Nombre</th>
-                                        <th class="px-4 py-2.5 text-left font-semibold">ConfigId</th>
-                                        <th class="px-4 py-2.5 text-right font-semibold">Consumo Unitario</th>
-                                        <th class="px-4 py-2.5 text-right font-semibold">Consumo Total</th>
-                                        <th class="px-4 py-2.5 text-left font-semibold">Unidad</th>
-                                        <th class="px-4 py-2.5 text-left font-semibold rounded-tr-xl">Almacén</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="view_componentes_tbody" class="bg-white divide-y divide-gray-100">
-                                    <!-- Se llenará dinámicamente -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Botones -->
-                <div class="flex gap-3 justify-end pt-4 border-t border-gray-200 mt-6">
-                    <button type="button" onclick="document.getElementById('editModal').classList.add('hidden')"
-                            class="px-6 py-3 text-base font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-                        <i class="fa-solid fa-times mr-2"></i>Cancelar
-                    </button>
-                    <button id="btn-ver-componentes" type="button" onclick="abrirModalComponentes()" class="px-6 py-3 text-base font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition shadow-lg hover:shadow-xl">
-                        <i class="fa-solid fa-flask mr-2"></i>Ver Componentes
-                    </button>
-                    <button id="btn-edit-submit" type="submit" class="px-6 py-3 text-base font-medium bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition shadow-lg hover:shadow-xl">
-                        <i class="fa-solid fa-check mr-2"></i>Actualizar
-                    </button>
-                </div>
-            </form>
+    {{-- Filtro tipo Excel por columna (clic derecho o pulsación larga en el encabezado). Antes: Swal con html. --}}
+    <x-ui.modal-base id="modalFiltroColumna" title="Filtrar" size="sm" :close-on-backdrop="true">
+        <div class="relative mb-3">
+            <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" aria-hidden="true"></i>
+            <input type="search" data-filtro="buscar" aria-label="Buscar en lista"
+                   class="w-full min-h-touch pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                   placeholder="Buscar en lista...">
         </div>
-    </div>
-
-    <!-- Modal Componentes de Fórmula -->
-    <div id="componentesModal" class="hidden fixed inset-0 bg-gray-900/50 z-50 items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl max-w-7xl w-full max-h-[90vh] overflow-y-auto">
-            <!-- Header -->
-            <div class="bg-gradient-to-r from-blue-500 to-blue-700 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10">
-                <div>
-                    <h3 class="text-xl font-semibold">Componentes de la Fórmula</h3>
-                    <p class="text-sm text-blue-100 mt-1">Fórmula: <span id="modal_formula_nombre">-</span></p>
-                </div>
-                <button onclick="cerrarModalComponentes()" class="text-white hover:text-gray-200 transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-            </div>
-
-            <!-- Contenido -->
-            <div class="p-6">
-                <!-- Loading -->
-                <div id="componentes_loading" class="text-center py-8">
-                    <i class="fa-solid fa-spinner fa-spin text-4xl text-blue-500"></i>
-                    <p class="text-gray-600 mt-3">Cargando componentes...</p>
-                </div>
-
-                <!-- Error -->
-                <div id="componentes_error" class="hidden">
-                    <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-                        <i class="fa-solid fa-exclamation-triangle text-red-500 text-3xl mb-2"></i>
-                        <p class="text-red-700 font-medium" id="error_message">Error al cargar componentes</p>
-                    </div>
-                </div>
-
-                <!-- Tabla de Componentes -->
-                <div id="componentes_tabla_container" class="hidden">
-                    <!-- Toolbar -->
-                    <div class="bg-blue-50 rounded-lg p-4 mb-4 flex justify-between items-center">
-                        <div class="flex gap-3">
-                            <button id="btn-nuevo-componente" onclick="nuevoComponente()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
-                                <i class="fa-solid fa-plus mr-2"></i>Nuevo
-                            </button>
-                            <button id="btn-editar-componente" onclick="editarComponente()" disabled class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                                <i class="fa-solid fa-edit mr-2"></i>Editar
-                            </button>
-                            <button id="btn-eliminar-componente" onclick="eliminarComponenteSeleccionado()" disabled class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                                <i class="fa-solid fa-trash mr-2"></i>Eliminar
-                            </button>
-                        </div>
-                        <div class="text-sm text-gray-600">
-                            Total: <span id="total_componentes" class="font-bold text-blue-700">0</span> componentes
-                        </div>
-                    </div>
-
-                    <!-- Tabla -->
-                    <div class="overflow-x-auto border rounded-lg">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold">Folio</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold">ItemId</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold">ItemName</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold">ConfigId</th>
-                                    <th class="px-4 py-3 text-right text-sm font-semibold">Consumo Unitario</th>
-                                    <th class="px-4 py-3 text-right text-sm font-semibold">Consumo Total</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold">Unidad</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold">Almacén</th>
-                                    <th class="px-4 py-3 text-center text-sm font-semibold">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="componentes_tbody" class="bg-white divide-y divide-gray-200">
-                                <!-- Se llenará dinámicamente -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Footer -->
-            <div class="border-t border-gray-200 px-6 py-4 bg-gray-50 rounded-b-xl flex justify-end gap-3">
-                <button type="button" onclick="cerrarModalComponentes()" class="px-6 py-3 text-base font-medium border border-gray-300 rounded-lg hover:bg-gray-100 transition">
-                    <i class="fa-solid fa-times mr-2"></i>Cerrar
-                </button>
-            </div>
+        <div class="flex justify-between items-center mb-2">
+            <button type="button" data-filtro-accion="todos" class="min-h-touch px-2 text-caption text-blue-600 hover:text-blue-800 font-medium">
+                <i class="fa-solid fa-check-double mr-1" aria-hidden="true"></i>Todos
+            </button>
+            <button type="button" data-filtro-accion="ninguno" class="min-h-touch px-2 text-caption text-gray-500 hover:text-gray-700 font-medium">
+                <i class="fa-solid fa-square mr-1" aria-hidden="true"></i>Ninguno
+            </button>
+            <span data-filtro="conteo" class="text-caption text-gray-500 font-medium" aria-live="polite"></span>
         </div>
-    </div>
+        <div data-filtro="valores" class="filtro-col-valores max-h-[220px] overflow-y-auto border border-gray-200 rounded-lg bg-gray-50/50"></div>
+        <div data-filtro="quitar-todos" class="hidden mt-3 pt-3 border-t border-gray-200">
+            <button type="button" data-filtro-accion="quitar-todos" class="min-h-touch text-caption text-red-500 hover:text-red-700 hover:underline">
+                <i class="fa-solid fa-filter-circle-xmark mr-1" aria-hidden="true"></i>Quitar todos los filtros
+            </button>
+        </div>
+        <x-slot:footer>
+            <x-ui.button variant="neutral" data-ui-modal-close-target="modalFiltroColumna">Cancelar</x-ui.button>
+            <x-ui.button variant="delete" data-filtro-accion="limpiar">Limpiar filtro</x-ui.button>
+            <x-ui.button variant="create" icon="fa-filter" data-filtro-accion="aplicar">Aplicar</x-ui.button>
+        </x-slot:footer>
+    </x-ui.modal-base>
+
+    {{-- Calidad de una formulación (PUT eng-formulacion.update). Antes: Swal con html + preConfirm. --}}
+    @if($puedeVerCalidad)
+    <x-ui.modal-base id="modalCalidad" title="Calidad" size="md" :close-on-backdrop="true">
+        <div class="flex flex-wrap gap-4 mb-4 text-sm items-center">
+            <div><span class="text-gray-500">Folio</span> <span class="font-semibold" data-calidad="folio"></span></div>
+            <div><span class="text-gray-500">Fórmula</span> <span class="font-semibold" data-calidad="formula"></span></div>
+            <div><span class="text-gray-500">Litros</span> <span class="font-semibold" data-calidad="litros"></span></div>
+            <div><span data-calidad="status" class="px-2 py-0.5 rounded-full text-xs font-semibold"></span></div>
+        </div>
+        <div class="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
+            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+                    <tr>
+                        <th class="px-4 py-2.5 text-left font-semibold">Concepto</th>
+                        <th class="px-4 py-2.5 text-right font-semibold">Valor</th>
+                        <th class="px-4 py-2.5 text-center font-semibold">Estado</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-100">
+                    @foreach(['oktiempo' => ['Tiempo (Min)', 'tiempo'], 'oksolidos' => ['Sólidos (%)', 'solidos'], 'okviscocidad' => ['Viscosidad', 'viscocidad']] as $campo => [$concepto, $valor])
+                        <tr class="hover:bg-blue-50/50">
+                            <td class="px-4 py-2.5 font-medium text-gray-700">{{ $concepto }}</td>
+                            <td class="px-4 py-2.5 text-right font-semibold text-blue-700" data-calidad="{{ $valor }}"></td>
+                            <td class="px-4 py-2.5 text-center">
+                                <button type="button" data-calidad-ciclo="{{ $campo }}" data-concepto="{{ $concepto }}"
+                                        class="w-12 h-11 rounded-lg border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-blue-400 text-lg font-bold transition-colors"
+                                        title="1 toque ✓, 2 toques ✗"></button>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        <div class="border-t border-gray-200 pt-3 mt-4">
+            <label for="calidad-obs" class="text-gray-500 block mb-1 text-sm font-medium">Observaciones</label>
+            <input type="text" id="calidad-obs" maxlength="150"
+                   class="w-full min-h-touch border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                   placeholder="Añadir observaciones (opcional)...">
+        </div>
+        <x-slot:footer>
+            <x-ui.button variant="neutral" data-ui-modal-close-target="modalCalidad">Cancelar</x-ui.button>
+            <x-ui.button variant="create" icon="fa-floppy-disk" data-calidad-accion="guardar">Guardar</x-ui.button>
+        </x-slot:footer>
+    </x-ui.modal-base>
+    @endif
 
     <!-- Form para eliminar -->
     <form id="deleteForm" method="POST" class="hidden">
@@ -667,6 +448,7 @@
         @method('DELETE')
         <input type="hidden" name="formulacion_id" id="delete_formulacion_id">
     </form>
+    </div>
 
     <style>
         .formula-row:hover,
@@ -713,26 +495,14 @@
         .formula-row.selected .obs-calidad-btn:hover {
             background-color: rgba(147, 197, 253, 0.8) !important;
         }
-        .swal-ctx-popup {
-            border-radius: 1rem;
-            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
-        }
-        .swal-ctx-popup .swal2-title {
-            font-size: 1.125rem;
-            color: #1e3a8a;
-        }
-        .swal-ctx-popup .swal2-actions {
-            gap: 0.5rem;
-            margin-top: 1rem;
-        }
-        .swal-ctx-popup #swal-ctx-values::-webkit-scrollbar {
+        .filtro-col-valores::-webkit-scrollbar {
             width: 6px;
         }
-        .swal-ctx-popup #swal-ctx-values::-webkit-scrollbar-track {
+        .filtro-col-valores::-webkit-scrollbar-track {
             background: #f1f5f9;
             border-radius: 3px;
         }
-        .swal-ctx-popup #swal-ctx-values::-webkit-scrollbar-thumb {
+        .filtro-col-valores::-webkit-scrollbar-thumb {
             background: #94a3b8;
             border-radius: 3px;
         }
@@ -778,2812 +548,8 @@
             opacity: 1;
         }
     </style>
-
-    <script>
-        let selectedRow = null;
-        let selectedFolio = null;
-        let selectedId = null;
-        let viewOnlyMode = false;
-        let editMode = false;
-        let editFormInitialSnapshot = null;
-        let formulaSelectSoloConsulta = false;
-        const observaciones = {};
-        let fechaSortAsc = null;
-        const desdeProduccion = {{ $desdeProduccion ? 'true' : 'false' }};
-        const STATUS_FINALIZADOS = ['FINALIZADO', 'TERMINADO'];
-
-        function getCreateFormulaHidden() {
-            return document.getElementById('create_formula_value');
-        }
-
-        function setCreateFormulaValorReal(val) {
-            const v = val || '';
-            const hid = getCreateFormulaHidden();
-            const sel = document.getElementById('create_formula');
-            if (hid) {
-                hid.value = v;
-            }
-            if (sel) {
-                if (v && !Array.from(sel.options).some(o => o.value === v)) {
-                    const opt = document.createElement('option');
-                    opt.value = v;
-                    opt.textContent = v;
-                    sel.appendChild(opt);
-                }
-                sel.value = v;
-            }
-            formulaCreateActual = v;
-        }
-
-        function buildFormulasDisponiblesUrl(bomEng, formulaGuardada) {
-            const params = new URLSearchParams();
-            const b = (bomEng || '').trim();
-            const f = (formulaGuardada || '').trim();
-            if (b) {
-                params.set('bomId', b);
-            }
-            if (f) {
-                params.set('formula', f);
-            }
-            const q = params.toString();
-            if (!q) {
-                throw new Error('formulas-disponibles: falta bomId o formula');
-            }
-            return `/eng-formulacion/formulas-disponibles?${q}`;
-        }
-
-        /** Lista AX + fórmula histórica al final si no está en AX; sincroniza hidden y estado del select. */
-        function poblarOpcionesFormulaCreateDesdeAx(bomEng, formulaGuardada, isPrimerRegistroDelFolio) {
-            return fetch(buildFormulasDisponiblesUrl(bomEng, formulaGuardada))
-                .then(r => {
-                    if (!r.ok) {
-                        throw new Error('formulas-disponibles HTTP ' + r.status);
-                    }
-                    return r.json();
-                })
-                .then(d => {
-                    const fsel = document.getElementById('create_formula');
-                    if (!fsel) {
-                        return;
-                    }
-                    fsel.innerHTML = '<option value="">-- Seleccione fórmula --</option>';
-                    if (d.success && Array.isArray(d.formulas) && d.formulas.length > 0) {
-                        d.formulas.forEach(f => {
-                            const opt = document.createElement('option');
-                            opt.value = f;
-                            opt.textContent = f;
-                            fsel.appendChild(opt);
-                        });
-                    }
-                    const existingF = Array.from(fsel.options).map(o => o.value);
-                    const fg = formulaGuardada || '';
-                    if (fg && !existingF.includes(fg)) {
-                        const opt = document.createElement('option');
-                        opt.value = fg;
-                        opt.textContent = fg;
-                        fsel.appendChild(opt);
-                    }
-                    setCreateFormulaValorReal(fg);
-                    actualizarEstadoFormulaSelect(isPrimerRegistroDelFolio);
-                });
-        }
-
-        function normalizarStatus(status) {
-            return (status || '').toString().trim().toUpperCase();
-        }
-
-        function statusEsFinalizado(status) {
-            return STATUS_FINALIZADOS.includes(normalizarStatus(status));
-        }
-
-        function formulacionTieneAX1() {
-            const ax = selectedRow?.dataset?.ax ?? '';
-            return ax === 1 || ax === '1' || ax === true;
-        }
-
-        function obtenerStatusSeleccionado() {
-            return selectedRow?.dataset?.status || '';
-        }
-
-        function obtenerStatusProgramaSeleccionado() {
-            const select = document.getElementById('create_folio_prog');
-            const option = select?.options?.[select.selectedIndex];
-            return option?.getAttribute('data-status') || '';
-        }
-
-        function actualizarPresentacionFolioCreate(mostrarTextoPlano = false) {
-            const select = document.getElementById('create_folio_prog');
-            const display = document.getElementById('create_folio_prog_display');
-            if (!select || !display) return;
-
-            display.value = select.value || '';
-            display.classList.toggle('hidden', !mostrarTextoPlano);
-            select.classList.toggle('hidden', mostrarTextoPlano);
-        }
-
-        function setCreateFolioValue(folio) {
-            const select = document.getElementById('create_folio_prog');
-            const display = document.getElementById('create_folio_prog_display');
-            const normalizedFolio = (folio || '').toString().trim();
-
-            if (!select) {
-                if (display) {
-                    display.value = normalizedFolio;
-                }
-                return;
-            }
-
-            const tempOption = select.querySelector('option[data-temp-folio="1"]');
-            if (tempOption) {
-                tempOption.remove();
-            }
-
-            if (normalizedFolio === '') {
-                select.value = '';
-                if (display) {
-                    display.value = '';
-                }
-                return;
-            }
-
-            const existingOption = Array.from(select.options).find(option => option.value === normalizedFolio);
-            if (existingOption) {
-                select.value = normalizedFolio;
-            } else {
-                const injectedOption = new Option(normalizedFolio, normalizedFolio, true, true);
-                injectedOption.setAttribute('data-temp-folio', '1');
-                select.add(injectedOption);
-                select.value = normalizedFolio;
-            }
-
-            if (display) {
-                display.value = normalizedFolio;
-            }
-        }
-
-        function actualizarDisponibilidadRegistroPorStatusPrograma(mostrarAlerta = false) {
-            const method = document.getElementById('create_method')?.value;
-            if (method !== 'POST') return true;
-
-            const status = obtenerStatusProgramaSeleccionado();
-            const bloqueado = statusEsFinalizado(status);
-            const submitBtn = document.getElementById('btn-submit-create');
-            if (submitBtn) {
-                submitBtn.disabled = bloqueado;
-                submitBtn.classList.toggle('opacity-50', bloqueado);
-                submitBtn.classList.toggle('cursor-not-allowed', bloqueado);
-                submitBtn.classList.toggle('pointer-events-none', bloqueado);
-            }
-
-            if (bloqueado && mostrarAlerta) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Registro bloqueado',
-                    text: 'No se puede registrar una fórmula para un folio con status Finalizado/Terminado.',
-                    confirmButtonColor: '#3b82f6'
-                });
-            }
-
-            return !bloqueado;
-        }
-
-        function mostrarBloqueoFinalizado() {
-            Swal.fire({
-                icon: 'info',
-                title: 'Edición bloqueada',
-                text: 'No se puede editar una fórmula con status Finalizado/Terminado.',
-                confirmButtonColor: '#3b82f6'
-            });
-        }
-
-        function mostrarBloqueoAX1() {
-            Swal.fire({
-                icon: 'info',
-                title: 'Edición bloqueada',
-                text: 'No se puede editar una formulación con AX = 1.',
-                confirmButtonColor: '#3b82f6'
-            });
-        }
-
-        function setButtonEnabled(id, enabled) {
-            const btn = document.getElementById(id);
-            if (!btn) return;
-            btn.disabled = !enabled;
-            btn.classList.toggle('opacity-50', !enabled);
-            btn.classList.toggle('cursor-not-allowed', !enabled);
-        }
-
-        function actualizarEstadoBotonesAccion() {
-            const haySeleccion = !!selectedRow;
-            const bloqueadoPorAX = formulacionTieneAX1();
-
-            setButtonEnabled('btn-view', haySeleccion);
-            setButtonEnabled('btn-delete', haySeleccion && !bloqueadoPorAX);
-            setButtonEnabled('btn-edit', haySeleccion && !bloqueadoPorAX);
-        }
-
-        function obtenerFormulacionSeleccionadaValida() {
-            if (!selectedRow || !selectedFolio || !selectedId) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Selección requerida',
-                    text: 'Debe seleccionar una fórmula primero',
-                    confirmButtonColor: '#3b82f6'
-                });
-                return null;
-            }
-
-            const formulacionId = parseInt(selectedId, 10);
-            if (isNaN(formulacionId) || formulacionId <= 0) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'ID inválido',
-                    text: 'El ID de la formulación no es válido: ' + selectedId,
-                    confirmButtonColor: '#3b82f6'
-                });
-                return null;
-            }
-
-            return formulacionId;
-        }
-
-        function selectRow(row, folio, id) {
-            document.querySelectorAll('#formulaTable tbody tr.selected').forEach(existing => {
-                existing.classList.remove('selected');
-            });
-            selectedRow = row;
-            selectedFolio = folio;
-            selectedId = id;
-            row.classList.add('selected');
-
-            enableButtons();
-        }
-
-        function openCreateModal(readOnly = false) {
-            editMode = false;
-            editFormInitialSnapshot = null;
-            viewOnlyMode = readOnly;
-            const modal = document.getElementById('createModal');
-            if (modal) {
-                modal.classList.remove('hidden');
-            }
-
-            // Configurar modal para CREAR
-            document.getElementById('create_modal_title').textContent = 'Nueva Formulación de Engomado';
-            document.getElementById('create_method').value = 'POST';
-            const form = document.getElementById('createForm');
-            if (form) {
-                form.action = "{{ route('eng-formulacion.store') }}";
-            }
-
-            // Actualizar botón submit (siempre habilitado al crear)
-            const submitBtn = document.getElementById('btn-submit-create');
-            const submitText = document.getElementById('submit-text-create');
-            if (submitText) submitText.textContent = 'Crear Formulación';
-            if (submitBtn) {
-                submitBtn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700', 'opacity-50', 'cursor-not-allowed', 'pointer-events-none');
-                submitBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                submitBtn.disabled = false;
-            }
-
-            // Color azul para crear
-            const header = document.getElementById('create_modal_header');
-            if (header) {
-                header.className = 'bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10';
-            }
-
-            // Restaurar altura normal del modal
-            const modalContent = document.getElementById('createModalContent');
-            if (modalContent) {
-                modalContent.classList.remove('max-h-[70vh]');
-                modalContent.classList.add('max-h-[90vh]');
-            }
-
-            document.getElementById('create_formulacion_id').value = '';
-            document.getElementById('create_obs_section')?.classList.add('hidden');
-            // LIMPIAR todos los campos (para crear nuevo)
-            document.getElementById('create_olla').value = '';
-            document.getElementById('create_kilos').value = '0';
-            document.getElementById('create_litros').value = '0';
-            document.getElementById('create_tiempo').value = '0';
-            document.getElementById('create_solidos').value = '0';
-            document.getElementById('create_viscocidad').value = '0';
-            document.getElementById('create_obs_calidad').value = '';
-
-            kilosCreateFormula = 0;
-            litrosCreateFormula = 0;
-            componentesCreateData = [];
-            formulaCreateActual = '';
-
-            // Resetear el select de fórmula antes de la carga async
-            const formulaSelectCreate = document.getElementById('create_formula');
-            if (formulaSelectCreate) {
-                formulaSelectCreate.innerHTML = '<option value="">-- Seleccione fórmula --</option>';
-                formulaSelectCreate.removeAttribute('disabled');
-                formulaSelectCreate.disabled = false;
-            }
-            const formulaHidReset = getCreateFormulaHidden();
-            if (formulaHidReset) {
-                formulaHidReset.value = '';
-            }
-            actualizarEstadoFormulaSelect(false);
-
-            // Si hay un folio seleccionado en el dropdown, cargar sus datos básicos
-            const select = document.getElementById('create_folio_prog');
-            if (select && select.value) {
-                // Habilitar/deshabilitar el select sincronamente ANTES de la carga async de opciones
-                const folioValSync = select.value;
-                const existingCountSync = document.querySelectorAll(
-                    `#formulaTableBody tr[data-folio="${CSS.escape(folioValSync)}"]`
-                ).length;
-                actualizarEstadoFormulaSelect(existingCountSync === 0);
-
-                cargarDatosPrograma(select, false);
-            }
-
-            actualizarPresentacionFolioCreate(readOnly);
-
-            actualizarDisponibilidadRegistroPorStatusPrograma(false);
-
-            setCreateModalReadOnly(readOnly);
-        }
-
-        function cerrarModalCreate() {
-            const modal = document.getElementById('createModal');
-            if (modal) {
-                modal.classList.add('hidden');
-            }
-        }
-        // funcion para deshabilitar los botones de editar, ver y eliminar
-        function disableButtons() {
-            selectedRow = null;
-            selectedFolio = null;
-            selectedId = null;
-            actualizarEstadoBotonesAccion();
-        }
-
-        function enableButtons() {
-            actualizarEstadoBotonesAccion();
-        }
-
-        function obtenerFechaRow(row) {
-            let rowFecha = row.dataset.fecha || '';
-            if (!rowFecha) {
-                const cellFecha = (row.cells[1]?.textContent || '').trim();
-                if (cellFecha.includes('/')) {
-                    const parts = cellFecha.split('/');
-                    if (parts.length === 3) {
-                        const [d, m, y] = parts;
-                        rowFecha = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-                    }
-                }
-            }
-            return rowFecha;
-        }
-
-        function ordenarPorFecha(asc) {
-            const tbody = document.getElementById('formulaTableBody');
-            if (!tbody) return;
-
-            const rows = Array.from(tbody.querySelectorAll('tr[data-folio]'));
-            const dataRows = rows.map((row, index) => ({
-                row,
-                index,
-                fecha: obtenerFechaRow(row)
-            }));
-
-            dataRows.sort((a, b) => {
-                const aFecha = a.fecha;
-                const bFecha = b.fecha;
-
-                if (!aFecha && !bFecha) return a.index - b.index;
-                if (!aFecha) return 1;
-                if (!bFecha) return -1;
-                if (aFecha === bFecha) return a.index - b.index;
-                return asc ? aFecha.localeCompare(bFecha) : bFecha.localeCompare(aFecha);
-            });
-
-            dataRows.forEach(item => tbody.appendChild(item.row));
-        }
-
-        function toggleOrdenFecha() {
-            fechaSortAsc = fechaSortAsc === null ? false : !fechaSortAsc;
-            ordenarPorFecha(fechaSortAsc);
-            const thFecha = document.getElementById('th-fecha');
-            if (thFecha) {
-                thFecha.setAttribute('aria-sort', fechaSortAsc ? 'ascending' : 'descending');
-            }
-        }
-
-        function openEditModal() {
-            const formulacionId = obtenerFormulacionSeleccionadaValida();
-            if (!formulacionId) return;
-
-            editMode = true;
-            viewOnlyMode = false;
-            const modal = document.getElementById('createModal');
-            if (modal) {
-                modal.classList.remove('hidden');
-            }
-            actualizarPresentacionFolioCreate(true);
-
-            // Configurar modal para EDITAR
-            document.getElementById('create_modal_title').textContent = 'Editar Formulación';
-            document.getElementById('create_method').value = 'PUT';
-            const formElement = document.getElementById('createForm');
-            if (formElement) {
-                formElement.action = `/eng-formulacion/${selectedFolio}`;
-            }
-
-            // Actualizar botón submit (deshabilitado hasta que haya cambios)
-            const submitBtn = document.getElementById('btn-submit-create');
-            const submitText = document.getElementById('submit-text-create');
-            if (submitText) submitText.textContent = 'Guardar Cambios';
-            if (submitBtn) {
-                submitBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                submitBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
-                submitBtn.disabled = true;
-                submitBtn.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
-            }
-
-            // Cambiar color del header a amarillo para editar
-            const header = document.getElementById('create_modal_header');
-            if (header) {
-                header.className = 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10';
-            }
-
-            // Restaurar altura normal del modal
-            const modalContent = document.getElementById('createModalContent');
-            if (modalContent) {
-                modalContent.classList.remove('max-h-[70vh]');
-                modalContent.classList.add('max-h-[90vh]');
-            }
-
-            // Mostrar loading
-            document.getElementById('create_componentes_loading').classList.remove('hidden');
-            document.getElementById('create_componentes_error').classList.add('hidden');
-            document.getElementById('create_componentes_tabla_container').classList.add('hidden');
-
-            // IMPORTANTE: Cargar datos completos desde la BD por ID específico
-            // GET directo a EngFormulacionLine WHERE EngProduccionFormulacionId = {formulacionId}
-            fetch(`/eng-formulacion/by-id?id=${formulacionId}`)
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('create_componentes_loading').classList.add('hidden');
-                    document.getElementById('create_componentes_error').classList.add('hidden');
-
-                    if (data.success && data.formulacion) {
-                        const form = data.formulacion;
-
-                        // Validar que el ID de la formulación coincida
-                        if (parseInt(form.Id) !== formulacionId) {
-                            console.error('Error: El ID de la formulación no coincide', {
-                                esperado: formulacionId,
-                                recibido: form.Id
-                            });
-                            mostrarErrorComponentesCreate('Error: El ID de la formulación no coincide');
-                            return;
-                        }
-
-                        // IMPORTANTE: En modo editar, NO llamar a cargarDatosPrograma() porque sobrescribe los componentes
-                        // Solo establecer el valor del select sin disparar el evento onchange
-                        const select = document.getElementById('create_folio_prog');
-                        if (select) {
-                            // Guardar el valor actual de componentes antes de cambiar el select
-                            const componentesGuardados = [...componentesCreateData];
-
-                            // Remover temporalmente el evento onchange para evitar que se dispare
-                            const originalOnchange = select.getAttribute('onchange');
-                            select.removeAttribute('onchange');
-
-                            // Establecer el folio real aunque ya no exista en la lista filtrada
-                            setCreateFolioValue(form.Folio);
-
-                            // Restaurar el evento onchange
-                            if (originalOnchange) {
-                                select.setAttribute('onchange', originalOnchange);
-                            }
-
-                            // Restaurar los componentes que ya cargamos desde la BD
-                            componentesCreateData = componentesGuardados;
-
-                            // Solo llenar los campos ocultos sin cargar componentes desde AX
-                            document.getElementById('create_cuenta').value = form.Cuenta || '';
-                            document.getElementById('create_calibre').value = form.Calibre || '';
-                            document.getElementById('create_tipo').value = form.Tipo || '';
-
-                            const allFolioRowsEdit = document.querySelectorAll(
-                                `#formulaTableBody tr[data-folio="${CSS.escape(form.Folio || '')}"]`
-                            );
-                            const allIdsEdit = Array.from(allFolioRowsEdit)
-                                .map(r => parseInt(r.dataset.id || '0')).filter(n => n > 0);
-                            const minIdEdit = allIdsEdit.length > 0 ? Math.min(...allIdsEdit) : null;
-                            const isFirstRecordEdit = (minIdEdit !== null && minIdEdit === parseInt(form.Id));
-
-                            const folioSelEdit = document.getElementById('create_folio_prog');
-                            const folioOptEdit = folioSelEdit
-                                ? Array.from(folioSelEdit.options).find(o => o.value === (form.Folio || ''))
-                                : null;
-                            const bomEngEdit = folioOptEdit ? (folioOptEdit.getAttribute('data-bomeng') || '') : '';
-
-                            if (bomEngEdit) {
-                                poblarOpcionesFormulaCreateDesdeAx(bomEngEdit, form.Formula || '', isFirstRecordEdit)
-                                    .catch(() => {
-                                        const fEl = document.getElementById('create_formula');
-                                        if (fEl) {
-                                            fEl.innerHTML = '<option value="">-- Seleccione fórmula --</option>';
-                                        }
-                                        setCreateFormulaValorReal(form.Formula || '');
-                                        actualizarEstadoFormulaSelect(isFirstRecordEdit);
-                                    });
-                            } else {
-                                const editFormulaEl = document.getElementById('create_formula');
-                                if (editFormulaEl) {
-                                    editFormulaEl.innerHTML = '<option value="">-- Seleccione fórmula --</option>';
-                                }
-                                setCreateFormulaValorReal(form.Formula || '');
-                                actualizarEstadoFormulaSelect(isFirstRecordEdit);
-                            }
-
-                            actualizarPresentacionFolioCreate(true);
-                        }
-
-                        if (form.Folio && formElement) {
-                            formElement.action = `/eng-formulacion/${encodeURIComponent(form.Folio)}`;
-                        }
-
-                        document.getElementById('create_olla').value = form.Olla || '';
-
-                        // Actualizar valores de Kilos y Litros ANTES de renderizar componentes
-                        // para que el cálculo de ConsumoTotal sea correcto
-                        const kilosInput = document.getElementById('create_kilos');
-                        if (kilosInput) {
-                            kilosInput.value = form.Kilos || '0';
-                            kilosCreateFormula = parseFloat(form.Kilos) || 0;
-                        }
-
-                        const litrosInput = document.getElementById('create_litros');
-                        if (litrosInput) {
-                            litrosInput.value = form.Litros || '0';
-                            litrosCreateFormula = parseFloat(form.Litros) || 0;
-                        }
-
-                        document.getElementById('create_tiempo').value = form.TiempoCocinado || '0';
-                        document.getElementById('create_solidos').value = (parseFloat(form.Solidos) || 0).toFixed(2);
-                        document.getElementById('create_viscocidad').value = form.Viscocidad || '0';
-
-                        document.getElementById('create_nom_empl').value = form.NomEmpl || '';
-                        document.getElementById('create_cve_empl').value = form.CveEmpl || '';
-                        document.getElementById('create_obs_calidad').value = form.obs_calidad || '';
-                        const displayNum = document.getElementById('create_display_numero');
-                        const displayOper = document.getElementById('create_display_operador');
-                        if (displayNum) displayNum.value = form.CveEmpl || '';
-                        if (displayOper) displayOper.value = form.NomEmpl || '';
-
-                        document.getElementById('create_obs_section')?.classList.add('hidden');
-
-                        setCreateFormulaValorReal(form.Formula || '');
-
-                        // IMPORTANTE: Cargar componentes desde EngFormulacionLine filtrados por EngProduccionFormulacionId
-                        // Estos componentes vienen directamente de SELECT * FROM EngFormulacionLine WHERE EngProduccionFormulacionId = {formulacionId}
-                        // NO usar cargarDatosPrograma() porque carga componentes desde AX y sobrescribe estos
-                        if (data.componentes && data.componentes.length > 0) {
-                            // Mapear componentes preservando todos los datos; Consumo Total máx 100 para no-agua
-                            componentesCreateData = data.componentes.map(comp => {
-                                const consumoTotal = aplicarMaxConsumoTotal(comp, comp.ConsumoTotal || 0, parseFloat(form.Litros));
-                                return {
-                                    Id: comp.Id,
-                                    ItemId: comp.ItemId || '',
-                                    ItemName: comp.ItemName || '',
-                                    ConfigId: comp.ConfigId || '',
-                                    ConsumoUnitario: comp.ConsumoUnitario || 0,
-                                    ConsumoTotal: consumoTotal,
-                                    Unidad: comp.Unidad || '',
-                                    Almacen: comp.Almacen || '',
-                                    esNuevo: false
-                                };
-                            });
-
-                            renderizarTablaComponentesCreate();
-                            document.getElementById('create_componentes_tabla_container').classList.remove('hidden');
-                        } else {
-                            componentesCreateData = [];
-                            renderizarTablaComponentesCreate();
-                            document.getElementById('create_componentes_tabla_container').classList.add('hidden');
-                        }
-                        document.getElementById('create_formulacion_id').value = formulacionId;
-                        editFormInitialSnapshot = obtenerSnapshotFormulacionCreate();
-                        actualizarBotonGuardarEdicion();
-                    } else {
-                        console.error('Error al cargar formulación:', data.error);
-                        mostrarErrorComponentesCreate(data.error || 'Error al cargar la formulación');
-                    }
-                })
-                .catch(error => {
-                    document.getElementById('create_componentes_loading').classList.add('hidden');
-                    mostrarErrorComponentesCreate('Error de conexión: ' + error.message);
-                });
-
-            setCreateModalReadOnly(false);
-        }
-
-        function obtenerSnapshotFormulacionCreate() {
-            const componentes = obtenerComponentesCreateDesdeTabla();
-            const conCalibre = componentes.filter(c => (c.ItemId || '').trim()).map(c => ({
-                ItemId: c.ItemId,
-                ItemName: c.ItemName,
-                ConfigId: c.ConfigId,
-                ConsumoTotal: c.ConsumoTotal,
-                ConsumoUnitario: c.ConsumoUnitario
-            }));
-            return JSON.stringify({
-                Formula: getCreateFormulaHidden()?.value || '',
-                Olla: document.getElementById('create_olla')?.value || '',
-                Kilos: document.getElementById('create_kilos')?.value || '0',
-                Litros: document.getElementById('create_litros')?.value || '0',
-                TiempoCocinado: document.getElementById('create_tiempo')?.value || '0',
-                Solidos: document.getElementById('create_solidos')?.value || '0',
-                Viscocidad: document.getElementById('create_viscocidad')?.value || '0',
-                NomEmpl: document.getElementById('create_nom_empl')?.value || '',
-                CveEmpl: document.getElementById('create_cve_empl')?.value || '',
-                obs_calidad: document.getElementById('create_obs_calidad')?.value || '',
-                componentes: conCalibre
-            });
-        }
-
-        function haCambiadoFormulacionCreate() {
-            if (!editFormInitialSnapshot) return false;
-            const actual = obtenerSnapshotFormulacionCreate();
-            return actual !== editFormInitialSnapshot;
-        }
-
-        function actualizarBotonGuardarEdicion() {
-            const submitBtn = document.getElementById('btn-submit-create');
-            if (!submitBtn || !editMode || viewOnlyMode) return;
-            const method = document.getElementById('create_method');
-            if (method?.value !== 'PUT') return;
-            const hayCambios = haCambiadoFormulacionCreate();
-            submitBtn.disabled = !hayCambios;
-            submitBtn.classList.toggle('opacity-50', !hayCambios);
-            submitBtn.classList.toggle('cursor-not-allowed', !hayCambios);
-            submitBtn.classList.toggle('pointer-events-none', !hayCambios);
-        }
-
-        function openViewModal() {
-            const formulacionId = obtenerFormulacionSeleccionadaValida();
-            if (!formulacionId) return;
-
-            editMode = true;
-            viewOnlyMode = true;
-            const modal = document.getElementById('createModal');
-            if (modal) {
-                modal.classList.remove('hidden');
-            }
-            actualizarPresentacionFolioCreate(true);
-
-            // Configurar modal para VER
-            document.getElementById('create_modal_title').textContent = 'Visualización de Fórmula';
-
-            // Cambiar color del header a azul para ver
-            const header = document.getElementById('create_modal_header');
-            if (header) {
-                header.className = 'bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center sticky top-0 z-10';
-            }
-
-            // Reducir altura del modal en modo ver
-            const modalContent = document.getElementById('createModalContent');
-            if (modalContent) {
-                modalContent.classList.remove('max-h-[90vh]');
-                modalContent.classList.add('max-h-[70vh]');
-            }
-
-            // Mostrar loading
-            document.getElementById('create_componentes_loading').classList.remove('hidden');
-            document.getElementById('create_componentes_error').classList.add('hidden');
-            document.getElementById('create_componentes_tabla_container').classList.add('hidden');
-
-            // Cargar datos completos desde la BD por ID (igual que editar)
-            fetch(`/eng-formulacion/by-id?id=${selectedId}`)
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('create_componentes_loading').classList.add('hidden');
-                    document.getElementById('create_componentes_error').classList.add('hidden');
-
-                    if (data.success && data.formulacion) {
-                        const form = data.formulacion;
-
-                        // Validar que el ID de la formulación coincida
-                        if (parseInt(form.Id) !== formulacionId) {
-                            console.error('Error: El ID de la formulación no coincide', {
-                                esperado: formulacionId,
-                                recibido: form.Id
-                            });
-                            mostrarErrorComponentesCreate('Error: El ID de la formulación no coincide');
-                            return;
-                        }
-
-                        // Llenar campos del formulario SIN llamar a cargarDatosPrograma
-                        // (eso carga desde BOM y sobrescribe los componentes de EngFormulacionLine)
-                        const select = document.getElementById('create_folio_prog');
-                        if (select) {
-                            const originalOnchange = select.getAttribute('onchange');
-                            select.removeAttribute('onchange');
-                            setCreateFolioValue(form.Folio);
-                            if (originalOnchange) select.setAttribute('onchange', originalOnchange);
-                            document.getElementById('create_cuenta').value = form.Cuenta || '';
-                            document.getElementById('create_calibre').value = form.Calibre || '';
-                            document.getElementById('create_tipo').value = form.Tipo || '';
-
-                            const allFolioRowsView = document.querySelectorAll(
-                                `#formulaTableBody tr[data-folio="${CSS.escape(form.Folio || '')}"]`
-                            );
-                            const allIdsView = Array.from(allFolioRowsView)
-                                .map(r => parseInt(r.dataset.id || '0')).filter(n => n > 0);
-                            const minIdView = allIdsView.length > 0 ? Math.min(...allIdsView) : null;
-                            const isFirstRecordView = (minIdView !== null && minIdView === parseInt(form.Id));
-                            const folioSelView = document.getElementById('create_folio_prog');
-                            const folioOptView = folioSelView
-                                ? Array.from(folioSelView.options).find(o => o.value === (form.Folio || ''))
-                                : null;
-                            const bomEngView = folioOptView ? (folioOptView.getAttribute('data-bomeng') || '') : '';
-
-                            if (bomEngView) {
-                                poblarOpcionesFormulaCreateDesdeAx(bomEngView, form.Formula || '', isFirstRecordView)
-                                    .catch(() => {
-                                        const vEl = document.getElementById('create_formula');
-                                        if (vEl) {
-                                            vEl.innerHTML = '<option value="">-- Seleccione fórmula --</option>';
-                                        }
-                                        setCreateFormulaValorReal(form.Formula || '');
-                                        actualizarEstadoFormulaSelect(isFirstRecordView);
-                                    });
-                            } else {
-                                const viewFormulaEl = document.getElementById('create_formula');
-                                if (viewFormulaEl) {
-                                    viewFormulaEl.innerHTML = '<option value="">-- Seleccione fórmula --</option>';
-                                }
-                                setCreateFormulaValorReal(form.Formula || '');
-                                actualizarEstadoFormulaSelect(isFirstRecordView);
-                            }
-                            actualizarPresentacionFolioCreate(true);
-                        }
-
-                        document.getElementById('create_olla').value = form.Olla || '';
-
-                        const kilosInput = document.getElementById('create_kilos');
-                        if (kilosInput) {
-                            kilosInput.value = form.Kilos || '0';
-                            kilosCreateFormula = parseFloat(form.Kilos) || 0;
-                        }
-
-                        const litrosInput = document.getElementById('create_litros');
-                        if (litrosInput) {
-                            litrosInput.value = form.Litros || '0';
-                            litrosCreateFormula = parseFloat(form.Litros) || 0;
-                        }
-
-                        document.getElementById('create_tiempo').value = form.TiempoCocinado || '0';
-                        document.getElementById('create_solidos').value = (parseFloat(form.Solidos) || 0).toFixed(2);
-                        document.getElementById('create_viscocidad').value = form.Viscocidad || '0';
-
-                        document.getElementById('create_nom_empl').value = form.NomEmpl || '';
-                        document.getElementById('create_cve_empl').value = form.CveEmpl || '';
-                        document.getElementById('create_obs_calidad').value = form.obs_calidad || '';
-                        const displayNum = document.getElementById('create_display_numero');
-                        const displayOper = document.getElementById('create_display_operador');
-                        if (displayNum) displayNum.value = form.CveEmpl || '';
-                        if (displayOper) displayOper.value = form.NomEmpl || '';
-
-                        document.getElementById('create_obs_section')?.classList.add('hidden');
-
-                        setCreateFormulaValorReal(form.Formula || '');
-
-                        // IMPORTANTE: Cargar componentes desde EngFormulacionLine filtrados por EngProduccionFormulacionId
-                        // Estos componentes vienen directamente de SELECT * FROM EngFormulacionLine WHERE EngProduccionFormulacionId = {formulacionId}
-                        if (data.componentes && data.componentes.length > 0) {
-                            componentesCreateData = data.componentes.map(comp => {
-                                const consumoTotal = aplicarMaxConsumoTotal(comp, comp.ConsumoTotal || 0, parseFloat(form.Litros));
-                                return {
-                                    Id: comp.Id,
-                                    ItemId: comp.ItemId || '',
-                                    ItemName: comp.ItemName || '',
-                                    ConfigId: comp.ConfigId || '',
-                                    ConsumoUnitario: comp.ConsumoUnitario || 0,
-                                    ConsumoTotal: consumoTotal,
-                                    Unidad: comp.Unidad || '',
-                                    Almacen: comp.Almacen || '',
-                                    esNuevo: false
-                                };
-                            });
-                            renderizarTablaComponentesCreate();
-                            document.getElementById('create_componentes_tabla_container').classList.remove('hidden');
-                        } else {
-                            componentesCreateData = [];
-                            renderizarTablaComponentesCreate();
-                            document.getElementById('create_componentes_tabla_container').classList.add('hidden');
-                        }
-                    } else {
-                        console.error('Error al cargar formulación:', data.error);
-                        mostrarErrorComponentesCreate(data.error || 'Error al cargar la formulación');
-                    }
-                })
-                .catch(error => {
-                    document.getElementById('create_componentes_loading').classList.add('hidden');
-                    mostrarErrorComponentesCreate('Error de conexión: ' + error.message);
-                });
-
-            setCreateModalReadOnly(true);
-        }
-
-        function setEditModalReadOnly(isReadOnly) {
-            const modal = document.getElementById('editModal');
-            const title = document.getElementById('edit_modal_title');
-            const submitBtn = document.getElementById('btn-edit-submit');
-            const btnVerComponentes = document.getElementById('btn-ver-componentes');
-            const viewComponentesContainer = document.getElementById('view_componentes_container');
-            modal.classList.toggle('view-only-presentation', isReadOnly);
-            const fields = modal ? modal.querySelectorAll('input, select, textarea') : [];
-
-            fields.forEach(field => {
-                if (field.type === 'hidden') return;
-                if (isReadOnly) {
-                    field.setAttribute('disabled', 'disabled');
-                } else {
-                    field.removeAttribute('disabled');
-                }
-            });
-
-            if (submitBtn) {
-                submitBtn.classList.toggle('hidden', isReadOnly);
-            }
-            if (title) {
-                title.textContent = isReadOnly ? 'Ver Formulación' : 'Editar Formulación';
-            }
-            if (btnVerComponentes) {
-                btnVerComponentes.classList.toggle('hidden', isReadOnly);
-            }
-            if (viewComponentesContainer) {
-                viewComponentesContainer.classList.toggle('hidden', !isReadOnly);
-            }
-        }
-
-        function setCreateModalReadOnly(isReadOnly) {
-            const modal = document.getElementById('createModal');
-            if (!modal) return;
-
-            modal.classList.toggle('view-only-presentation', isReadOnly);
-            const fields = modal.querySelectorAll('input, select, textarea');
-            fields.forEach(field => {
-                if (field.type === 'hidden') return;
-                if (field.id === 'create_folio_prog_display') {
-                    field.setAttribute('readonly', 'readonly');
-                    field.removeAttribute('disabled');
-                    field.classList.remove('bg-gray-50', 'text-gray-700', 'cursor-not-allowed', 'pointer-events-none');
-                    return;
-                }
-                if (field.id === 'create_formula') {
-                    return; // Manejado por actualizarEstadoFormulaSelect()
-                }
-                // NUNCA desbloquear: Folio, Fecha, Hora, No Empleado, Operador, Fórmula
-                if (field.classList.contains('campo-siempre-bloqueado')) {
-                    field.setAttribute('readonly', 'readonly');
-                    // No usar disabled en inputs con name (fecha, Hora, Formula) para que se envíen
-                    if (field.tagName === 'SELECT') {
-                        field.style.pointerEvents = 'none';
-                        field.setAttribute('tabindex', '-1');
-                    }
-                    if (!field.name || field.id === 'create_display_numero' || field.id === 'create_display_operador') {
-                        field.setAttribute('disabled', 'disabled');
-                    }
-                    field.classList.add('bg-gray-50', 'cursor-not-allowed');
-                    return;
-                }
-                if (isReadOnly) {
-                    field.setAttribute('readonly', 'readonly');
-                    field.classList.add('bg-gray-50', 'text-gray-700', 'cursor-not-allowed');
-                    if (field.tagName === 'SELECT') {
-                        field.setAttribute('disabled', 'disabled');
-                        field.classList.add('pointer-events-none');
-                    }
-                } else {
-                    field.removeAttribute('readonly');
-                    field.removeAttribute('disabled');
-                    field.classList.remove('bg-gray-50', 'text-gray-700', 'cursor-not-allowed', 'pointer-events-none');
-                }
-            });
-
-            const addRowBtn = document.getElementById('btn-create-add-row');
-            if (addRowBtn) {
-                addRowBtn.classList.toggle('hidden', isReadOnly);
-                addRowBtn.disabled = isReadOnly;
-                addRowBtn.classList.toggle('opacity-50', isReadOnly);
-                addRowBtn.classList.toggle('cursor-not-allowed', isReadOnly);
-            }
-
-            const submitBtn = document.getElementById('btn-submit-create');
-            if (submitBtn) {
-                submitBtn.classList.toggle('hidden', isReadOnly);
-                submitBtn.disabled = isReadOnly;
-            }
-
-            const cancelBtn = document.getElementById('btn-cancel-create');
-            if (cancelBtn) {
-                cancelBtn.classList.toggle('hidden', isReadOnly);
-            }
-        }
-
-        function actualizarEstadoFormulaSelect(isFirstRecord) {
-            const sel = document.getElementById('create_formula');
-            if (!sel) return;
-            const method = document.getElementById('create_method')?.value;
-            formulaSelectSoloConsulta = viewOnlyMode
-                || (method === 'POST' && !isFirstRecord)
-                || (method === 'PUT' && !isFirstRecord);
-            sel.removeAttribute('disabled');
-            sel.disabled = false;
-            sel.classList.toggle('bg-gray-50', formulaSelectSoloConsulta);
-            sel.classList.toggle('cursor-not-allowed', formulaSelectSoloConsulta);
-            sel.classList.toggle('cursor-pointer', !formulaSelectSoloConsulta);
-        }
-
-        function fillEditModalFromRow(row) {
-            const data = row.dataset || {};
-            const editForm = document.getElementById('editForm');
-            if (editForm && data.folio) {
-                editForm.action = `/eng-formulacion/${data.folio}`;
-            }
-
-            const horaInput = document.getElementById('edit_hora');
-            if (horaInput) horaInput.value = data.hora || '';
-
-            const maquinaSelect = document.getElementById('edit_maquina');
-            if (maquinaSelect) maquinaSelect.value = data.maquina || '';
-
-            const cuentaInput = document.getElementById('edit_cuenta');
-            if (cuentaInput) cuentaInput.value = data.cuenta || '';
-
-            const empleadoSelect = document.getElementById('edit_empleado');
-            if (empleadoSelect) {
-                empleadoSelect.value = data.nomempl || '';
-                if (data.nomempl) {
-                    fillEmpleadoEdit(empleadoSelect);
-                }
-            }
-
-            const cveInput = document.getElementById('edit_cve_empl');
-            if (cveInput) cveInput.value = data.cveempl || '';
-
-            const ollaInput = document.getElementById('edit_olla');
-            if (ollaInput) ollaInput.value = data.olla || '';
-
-            const formulaInput = document.getElementById('edit_formula');
-            if (formulaInput) formulaInput.value = data.formula || '';
-
-            const prodInput = document.getElementById('edit_prod_id');
-            if (prodInput) prodInput.value = data.prodid || '';
-
-            const calibreInput = document.getElementById('edit_calibre');
-            if (calibreInput) calibreInput.value = data.calibre || '';
-
-            const tipoInput = document.getElementById('edit_tipo');
-            if (tipoInput) tipoInput.value = data.tipo || '';
-
-            const kilosInput = document.getElementById('edit_kilos');
-            if (kilosInput) kilosInput.value = data.kilos || '';
-
-            const litrosInput = document.getElementById('edit_litros');
-            if (litrosInput) litrosInput.value = data.litros || '';
-
-            const tiempoInput = document.getElementById('edit_tiempo');
-            if (tiempoInput) tiempoInput.value = data.tiempo || '';
-
-            const solidosInput = document.getElementById('edit_solidos');
-            if (solidosInput) solidosInput.value = data.solidos || '';
-
-            const viscInput = document.getElementById('edit_viscocidad');
-            if (viscInput) viscInput.value = data.viscocidad || '';
-
-            formulaActual = data.formula || '';
-            kilosFormula = parseFloat(data.kilos) || 0;
-        }
-
-        function cargarComponentesVista() {
-            if (!formulaActual) {
-                return;
-            }
-
-            const loading = document.getElementById('view_componentes_loading');
-            const errorBox = document.getElementById('view_componentes_error');
-            const tableBox = document.getElementById('view_componentes_table');
-            if (loading) loading.classList.remove('hidden');
-            if (errorBox) errorBox.classList.add('hidden');
-            if (tableBox) tableBox.classList.add('hidden');
-
-            fetch(`/eng-formulacion/componentes/formula?formula=${encodeURIComponent(formulaActual)}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (loading) loading.classList.add('hidden');
-                    if (errorBox) errorBox.classList.add('hidden');
-
-                    if (data.success) {
-                        const componentes = data.componentes || [];
-                        renderizarTablaComponentesVista(componentes);
-                        if (tableBox) tableBox.classList.remove('hidden');
-                    } else {
-                        mostrarErrorComponentesVista(data.error || 'Error al cargar componentes');
-                    }
-                })
-                .catch(error => {
-                    if (loading) loading.classList.add('hidden');
-                    mostrarErrorComponentesVista('Error de conexión: ' + error.message);
-                });
-        }
-
-        function renderizarTablaComponentesVista(componentes) {
-            const tbody = document.getElementById('view_componentes_tbody');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-
-            if (!componentes || componentes.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="px-4 py-6 text-center text-gray-500">
-                            No hay componentes para esta fórmula
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            componentes.forEach((comp, idx) => {
-                const consumoUnitario = parseFloat(comp.ConsumoUnitario) || 0;
-                const consumoTotal = (parseFloat(kilosFormula) || 0) * consumoUnitario;
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-blue-50/50 transition-colors' + (idx % 2 === 1 ? ' bg-gray-50/50' : '');
-                row.innerHTML = `
-                    <td class="px-4 py-2 text-sm font-medium">${comp.ItemId || ''}</td>
-                    <td class="px-4 py-2 text-sm">${comp.ItemName || ''}</td>
-                    <td class="px-4 py-2 text-sm">${comp.ConfigId || ''}</td>
-                    <td class="px-4 py-2 text-sm text-right">${consumoUnitario.toFixed(4)}</td>
-                    <td class="px-4 py-2 text-sm text-right font-semibold text-blue-700">${consumoTotal.toFixed(4)}</td>
-                    <td class="px-4 py-2 text-sm">${comp.Unidad || ''}</td>
-                    <td class="px-4 py-2 text-sm">${comp.Almacen || ''}</td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
-
-        function mostrarErrorComponentesVista(mensaje) {
-            const errorBox = document.getElementById('view_componentes_error');
-            const errorMsg = document.getElementById('view_componentes_error_message');
-            if (errorBox && errorMsg) {
-                errorBox.classList.remove('hidden');
-                errorMsg.textContent = mensaje;
-            }
-        }
-
-        function confirmDelete() {
-            if (!selectedFolio) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Ningún registro seleccionado',
-                    confirmButtonColor: '#a855f7'
-                });
-                return;
-            }
-
-            if (formulacionTieneAX1()) {
-                Swal.fire({
-                    icon: 'info',
-                    title: 'Eliminación bloqueada',
-                    text: 'No se puede eliminar una formulación con AX = 1.',
-                    confirmButtonColor: '#3b82f6'
-                });
-                return;
-            }
-
-            Swal.fire({
-                title: '¿Estás seguro?',
-                html: `Se eliminará la formulación con folio <strong>${selectedFolio}</strong> y todas sus líneas asociadas`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#dc2626',
-                cancelButtonColor: '#6b7280',
-                confirmButtonText: 'Sí, eliminar',
-                cancelButtonText: 'Cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    const form = document.getElementById('deleteForm');
-                    form.action = `/eng-formulacion/${selectedFolio}`;
-                    document.getElementById('delete_formulacion_id').value = selectedId || '';
-                    form.submit();
-                }
-            });
-        }
-
-        async function cargarDatosPrograma(select, mostrarAlerta = true) {
-            const option = select.options[select.selectedIndex];
-            const formulaSelect = document.getElementById('create_formula');
-
-            if (!option.value) {
-                // Limpiar campos si no hay selección
-                document.getElementById('create_cuenta').value = '';
-                document.getElementById('create_calibre').value = '';
-                document.getElementById('create_tipo').value = '';
-                if (formulaSelect) {
-                    formulaSelect.innerHTML = '<option value="">-- Seleccione fórmula --</option>';
-                    formulaSelect.removeAttribute('disabled');
-                    formulaSelect.disabled = false;
-                }
-                const hClear = getCreateFormulaHidden();
-                if (hClear) {
-                    hClear.value = '';
-                }
-                formulaCreateActual = '';
-                actualizarEstadoFormulaSelect(false);
-                componentesCreateData = [];
-                renderizarTablaComponentesCreate();
-                document.getElementById('create_componentes_tabla_container').classList.add('hidden');
-                document.getElementById('create_componentes_loading').classList.add('hidden');
-                document.getElementById('create_componentes_error').classList.add('hidden');
-                actualizarDisponibilidadRegistroPorStatusPrograma(false);
-                return;
-            }
-
-            // Obtener datos del option seleccionado
-            const cuenta     = option.getAttribute('data-cuenta')   || '';
-            const calibre    = option.getAttribute('data-calibre')  || '';
-            const tipo       = option.getAttribute('data-tipo')      || '';
-            const bomEng     = option.getAttribute('data-bomeng')    || '';
-            const bomFormula = option.getAttribute('data-formula')   || '';
-
-            // Llenar campos ocultos
-            document.getElementById('create_cuenta').value  = cuenta;
-            document.getElementById('create_calibre').value = calibre;
-            document.getElementById('create_tipo').value    = tipo;
-
-            // Determinar si es el primer registro para este folio
-            const selectedFolioVal = option.value;
-            const existingCount = document.querySelectorAll(
-                `#formulaTableBody tr[data-folio="${CSS.escape(selectedFolioVal)}"]`
-            ).length;
-            const isFirstRecord = existingCount === 0;
-
-            if (bomEng || bomFormula) {
-                try {
-                    await poblarOpcionesFormulaCreateDesdeAx(bomEng, bomFormula, isFirstRecord);
-                } catch (e) {
-                    if (formulaSelect) {
-                        formulaSelect.innerHTML = '<option value="">-- Seleccione fórmula --</option>';
-                    }
-                    setCreateFormulaValorReal(bomFormula || '');
-                    actualizarEstadoFormulaSelect(isFirstRecord);
-                }
-            } else if (formulaSelect) {
-                formulaSelect.innerHTML = '<option value="">-- Seleccione fórmula --</option>';
-                setCreateFormulaValorReal('');
-                actualizarEstadoFormulaSelect(isFirstRecord);
-            }
-
-            if (formulaCreateActual) {
-                cargarComponentesCreate(formulaCreateActual);
-            } else {
-                componentesCreateData = [];
-                renderizarTablaComponentesCreate();
-                document.getElementById('create_componentes_tabla_container').classList.add('hidden');
-            }
-
-            // Obtener operador actual del sistema (ya está cargado en Auth)
-            @if(Auth::check())
-                document.getElementById('create_nom_empl').value = '{{ Auth::user()->nombre ?? "" }}';
-                document.getElementById('create_cve_empl').value = '{{ Auth::user()->numero ?? "" }}';
-            @endif
-
-            // Al cargar datos ya no se muestra alerta
-            actualizarDisponibilidadRegistroPorStatusPrograma(mostrarAlerta);
-        }
-
-        function fillEmpleadoEdit(select) {
-            const option = select.options[select.selectedIndex];
-            document.getElementById('edit_cve_empl').value = option.getAttribute('data-numero') || '';
-        }
-
-        // ===== FUNCIONES PARA MODAL DE COMPONENTES =====
-        let componentesData = [];
-        let formulaActual = '';
-        let kilosFormula = 0;
-        let componentesCreateData = [];
-        let formulaCreateActual = '';
-        let kilosCreateFormula = 0;
-        let litrosCreateFormula = 0;
-
-        /** Consumo Total: AE-021 máx 10; no-agua máx 100; agua máx = valor del input Litros. */
-        const CONSUMO_TOTAL_MAX_NO_AGUA = 100;
-        const CONSUMO_TOTAL_MAX_AE_021 = 10;
-
-        function esComponenteAe021(comp) {
-            return (comp.ItemId || '').toString().trim().toUpperCase() === 'AE-021';
-        }
-
-        function esComponenteAgua(comp) {
-            const id = (comp.ItemId || '').toLowerCase();
-            const name = (comp.ItemName || '').toLowerCase();
-            return id.includes('agua') || name.includes('agua');
-        }
-
-        function obtenerLimiteConsumoInfo(comp, litrosMax) {
-            const litros = typeof litrosMax === 'number' && !isNaN(litrosMax) ? litrosMax : litrosCreateFormula;
-
-            if (esComponenteAgua(comp)) {
-                return {
-                    max: Math.max(0, litros),
-                    title: `Máximo igual a Litros (${Math.max(0, litros)})`,
-                    alertTitle: 'Consumo Total agua',
-                    alertText: `En el componente agua, Consumo Total no puede ser mayor a Litros (${Math.max(0, litros)}).`
-                };
-            }
-
-            if (esComponenteAe021(comp)) {
-                return {
-                    max: CONSUMO_TOTAL_MAX_AE_021,
-                    title: 'Máximo 10 para AE-021',
-                    alertTitle: 'Consumo Total máximo 10',
-                    alertText: 'El artículo AE-021 no puede tener un Consumo Total mayor a 10.'
-                };
-            }
-
-            return {
-                max: CONSUMO_TOTAL_MAX_NO_AGUA,
-                title: 'Máximo 100 (excepto agua)',
-                alertTitle: 'Consumo Total máximo 100',
-                alertText: 'En componentes que no son agua, Consumo Total no puede ser mayor a 100.'
-            };
-        }
-
-        function mostrarAlertaLimiteConsumo(comp, litrosMax) {
-            const info = obtenerLimiteConsumoInfo(comp, litrosMax);
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: 'warning',
-                title: info.alertTitle,
-                text: `${info.alertText} Revisa: ${comp.ItemId || comp.ItemName || 'componente'}`,
-                showConfirmButton: true,
-                timer: 0
-            });
-        }
-
-        /** Aplica tope: agua <= litrosMax; AE-021 <= 10; resto <= 100. */
-        function aplicarMaxConsumoTotal(comp, valor, litrosMax) {
-            const info = obtenerLimiteConsumoInfo(comp, litrosMax);
-            return Math.min(valor, info.max);
-        }
-
-        function abrirModalComponentes(kilos = 0) {
-            if (!formulaActual) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Fórmula no especificada',
-                    text: 'Debe seleccionar un registro primero',
-                    confirmButtonColor: '#3b82f6'
-                });
-                return;
-            }
-
-            kilosFormula = parseFloat(kilos) || 0;
-
-            // Mostrar modal
-            document.getElementById('componentesModal').classList.remove('hidden');
-            document.getElementById('modal_formula_nombre').textContent = formulaActual;
-
-            // Mostrar loading
-            document.getElementById('componentes_loading').classList.remove('hidden');
-            document.getElementById('componentes_error').classList.add('hidden');
-            document.getElementById('componentes_tabla_container').classList.add('hidden');
-            actualizarToolbarComponentes();
-
-            // Cargar componentes desde el servidor
-            fetch(`/eng-formulacion/componentes/formula?formula=${encodeURIComponent(formulaActual)}`)
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('componentes_loading').classList.add('hidden');
-                    document.getElementById('componentes_error').classList.add('hidden');
-
-                    if (data.success) {
-                        componentesData = data.componentes || [];
-                        document.getElementById('componentes_tabla_container').classList.remove('hidden');
-                        renderizarTablaComponentes();
-                        actualizarToolbarComponentes();
-
-                        // Mostrar alerta si está vacío
-                        if (data.vacio || componentesData.length === 0) {
-                            Swal.fire({
-                                icon: 'info',
-                                title: 'Sin componentes',
-                                text: 'No se encontraron componentes para la fórmula "' + formulaActual + '"',
-                                confirmButtonColor: '#3b82f6',
-                                timer: 3000
-                            });
-                        }
-                    } else {
-                        mostrarErrorComponentes(data.error || 'Error al cargar componentes');
-                    }
-                })
-                .catch(error => {
-                    document.getElementById('componentes_loading').classList.add('hidden');
-                    mostrarErrorComponentes('Error de conexión: ' + error.message);
-                });
-        }
-
-        function cerrarModalComponentes() {
-            document.getElementById('componentesModal').classList.add('hidden');
-            componentesData = [];
-        }
-
-        function mostrarErrorComponentes(mensaje) {
-            document.getElementById('componentes_error').classList.remove('hidden');
-            document.getElementById('error_message').textContent = mensaje;
-        }
-
-        let selectedComponenteIndex = null;
-        let selectedComponenteRow = null;
-
-        function actualizarToolbarComponentes() {
-            const btnNuevo = document.getElementById('btn-nuevo-componente');
-            const btnEditar = document.getElementById('btn-editar-componente');
-            const btnEliminar = document.getElementById('btn-eliminar-componente');
-
-            if (btnNuevo) {
-                btnNuevo.disabled = viewOnlyMode;
-                btnNuevo.classList.toggle('opacity-50', viewOnlyMode);
-                btnNuevo.classList.toggle('cursor-not-allowed', viewOnlyMode);
-            }
-
-            if (btnEditar) {
-                const disabled = viewOnlyMode || selectedComponenteIndex === null;
-                btnEditar.disabled = disabled;
-                btnEditar.classList.toggle('opacity-50', disabled);
-                btnEditar.classList.toggle('cursor-not-allowed', disabled);
-            }
-
-            if (btnEliminar) {
-                const disabled = viewOnlyMode || selectedComponenteIndex === null;
-                btnEliminar.disabled = disabled;
-                btnEliminar.classList.toggle('opacity-50', disabled);
-                btnEliminar.classList.toggle('cursor-not-allowed', disabled);
-            }
-        }
-
-        function renderizarTablaComponentes() {
-            const tbody = document.getElementById('componentes_tbody');
-            tbody.innerHTML = '';
-            selectedComponenteIndex = null;
-            selectedComponenteRow = null;
-            actualizarToolbarComponentes();
-
-            if (componentesData.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="8" class="px-4 py-8 text-center text-gray-500">
-                            No hay componentes para esta fórmula
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            componentesData.forEach((comp, index) => {
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-blue-50 transition-colors cursor-pointer';
-                row.onclick = () => seleccionarComponente(index, row);
-
-                // Validar y convertir valores numéricos
-                const consumoUnitario = parseFloat(comp.ConsumoUnitario) || 0;
-                const consumoTotal = calcularConsumoTotal(consumoUnitario);
-
-                row.innerHTML = `
-                    <td class="px-4 py-3 text-sm">${selectedFolio || '-'}</td>
-                    <td class="px-4 py-3 text-sm font-medium">${comp.ItemId || ''}</td>
-                    <td class="px-4 py-3 text-sm">${comp.ItemName || ''}</td>
-                    <td class="px-4 py-3 text-sm">${comp.ConfigId || ''}</td>
-                    <td class="px-4 py-3 text-sm text-right">${consumoUnitario.toFixed(4)}</td>
-                    <td class="px-4 py-3 text-sm text-right font-semibold text-blue-700">
-                        ${consumoTotal.toFixed(4)}
-                    </td>
-                    <td class="px-4 py-3 text-sm">${comp.Unidad || ''}</td>
-                    <td class="px-4 py-3 text-sm">${comp.Almacen || ''}</td>
-                    <td class="px-4 py-3 text-center">
-                        <i class="fa-solid fa-bars text-gray-400"></i>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
-
-            document.getElementById('total_componentes').textContent = componentesData.length;
-        }
-
-        function seleccionarComponente(index, row) {
-            // Limpiar selección anterior
-            if (selectedComponenteRow) {
-                selectedComponenteRow.classList.remove('bg-blue-100');
-            }
-
-            // Nueva selección
-            selectedComponenteIndex = index;
-            selectedComponenteRow = row;
-            row.classList.add('bg-blue-100');
-
-            // Habilitar botones
-            actualizarToolbarComponentes();
-        }
-
-        function habilitarBotonesComponente() {
-            actualizarToolbarComponentes();
-        }
-
-        function deshabilitarBotonesComponente() {
-            actualizarToolbarComponentes();
-        }
-
-        function calcularConsumoTotal(consumoUnitario) {
-            return (consumoUnitario || 0) * kilosFormula;
-        }
-
-        function nuevoComponente() {
-            if (viewOnlyMode) {
-                return;
-            }
-            Swal.fire({
-                title: 'Nuevo Componente',
-                html: `
-                    <div class="text-left space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">ItemId</label>
-                            <input id="nuevo_itemid" type="text" class="w-full px-3 py-2 border rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">ItemName</label>
-                            <input id="nuevo_itemname" type="text" class="w-full px-3 py-2 border rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">ConfigId</label>
-                            <input id="nuevo_configid" type="text" class="w-full px-3 py-2 border rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Consumo Unitario</label>
-                            <input id="nuevo_consumo" type="number" step="0.0001" class="w-full px-3 py-2 border rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Unidad</label>
-                            <input id="nuevo_unidad" type="text" class="w-full px-3 py-2 border rounded-lg">
-                        </div>
-                    </div>
-                `,
-                showCancelButton: true,
-                confirmButtonColor: '#10b981',
-                cancelButtonColor: '#6b7280',
-                confirmButtonText: 'Agregar',
-                cancelButtonText: 'Cancelar',
-                preConfirm: () => {
-                    return {
-                        ItemId: document.getElementById('nuevo_itemid').value,
-                        ItemName: document.getElementById('nuevo_itemname').value,
-                        ConfigId: document.getElementById('nuevo_configid').value,
-                        ConsumoUnitario: parseFloat(document.getElementById('nuevo_consumo').value) || 0,
-                        Unidad: document.getElementById('nuevo_unidad').value
-                    };
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    componentesData.push(result.value);
-                    renderizarTablaComponentes();
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Componente agregado',
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
-                }
-            });
-        }
-
-        function editarComponente() {
-            if (viewOnlyMode) {
-                return;
-            }
-            if (selectedComponenteIndex === null) return;
-
-            const comp = componentesData[selectedComponenteIndex];
-
-            Swal.fire({
-                title: 'Editar Componente',
-                html: `
-                    <div class="text-left space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">ItemId</label>
-                            <input id="edit_itemid" type="text" value="${comp.ItemId || ''}" class="w-full px-3 py-2 border rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">ItemName</label>
-                            <input id="edit_itemname" type="text" value="${comp.ItemName || ''}" class="w-full px-3 py-2 border rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">ConfigId</label>
-                            <input id="edit_configid" type="text" value="${comp.ConfigId || ''}" class="w-full px-3 py-2 border rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Consumo Unitario</label>
-                            <input id="edit_consumo" type="number" step="0.0001" value="${comp.ConsumoUnitario || 0}" class="w-full px-3 py-2 border rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Unidad</label>
-                            <input id="edit_unidad" type="text" value="${comp.Unidad || ''}" class="w-full px-3 py-2 border rounded-lg">
-                        </div>
-                    </div>
-                `,
-                showCancelButton: true,
-                confirmButtonColor: '#f59e0b',
-                cancelButtonColor: '#6b7280',
-                confirmButtonText: 'Guardar',
-                cancelButtonText: 'Cancelar',
-                preConfirm: () => {
-                    return {
-                        ItemId: document.getElementById('edit_itemid').value,
-                        ItemName: document.getElementById('edit_itemname').value,
-                        ConfigId: document.getElementById('edit_configid').value,
-                        ConsumoUnitario: parseFloat(document.getElementById('edit_consumo').value) || 0,
-                        Unidad: document.getElementById('edit_unidad').value
-                    };
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    componentesData[selectedComponenteIndex] = result.value;
-                    renderizarTablaComponentes();
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Componente actualizado',
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
-                }
-            });
-        }
-
-        function eliminarComponenteSeleccionado() {
-            if (viewOnlyMode) {
-                return;
-            }
-            if (selectedComponenteIndex === null) return;
-
-            const comp = componentesData[selectedComponenteIndex];
-
-            Swal.fire({
-                title: '¿Eliminar componente?',
-                text: `Se eliminará ${comp.ItemName || comp.ItemId}`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#dc2626',
-                cancelButtonColor: '#6b7280',
-                confirmButtonText: 'Sí, eliminar',
-                cancelButtonText: 'Cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    componentesData.splice(selectedComponenteIndex, 1);
-                    renderizarTablaComponentes();
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Componente eliminado',
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
-                }
-            });
-        }
-
-        /**
-         * Cargar componentes desde AX (para crear nueva formulación)
-         */
-        function cargarComponentesCreate(formula) {
-            if (!formula) {
-                componentesCreateData = [];
-                renderizarTablaComponentesCreate();
-                document.getElementById('create_componentes_tabla_container').classList.add('hidden');
-                document.getElementById('create_componentes_loading').classList.add('hidden');
-                document.getElementById('create_componentes_error').classList.add('hidden');
-                return;
-            }
-
-            document.getElementById('create_componentes_loading').classList.remove('hidden');
-            document.getElementById('create_componentes_error').classList.add('hidden');
-            document.getElementById('create_componentes_tabla_container').classList.add('hidden');
-
-            fetch(`/eng-formulacion/componentes/formula?formula=${encodeURIComponent(formula)}`)
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('create_componentes_loading').classList.add('hidden');
-                    document.getElementById('create_componentes_error').classList.add('hidden');
-
-                    if (data.success) {
-                        componentesCreateData = data.componentes || [];
-                        renderizarTablaComponentesCreate();
-                        document.getElementById('create_componentes_tabla_container').classList.remove('hidden');
-                    } else {
-                        mostrarErrorComponentesCreate(data.error || 'Error al cargar componentes');
-                    }
-                })
-                .catch(error => {
-                    document.getElementById('create_componentes_loading').classList.add('hidden');
-                    mostrarErrorComponentesCreate('Error de conexión: ' + error.message);
-                });
-        }
-
-        /**
-         * Cargar componentes desde EngFormulacionLine por ID (para editar formulación existente)
-         * Esta función se mantiene por compatibilidad, pero ahora se usa getFormulacionById
-         */
-        function cargarComponentesFormulacion(folio, id = null) {
-            if (!id && !folio) {
-                componentesCreateData = [];
-                renderizarTablaComponentesCreate();
-                document.getElementById('create_componentes_tabla_container').classList.add('hidden');
-                document.getElementById('create_componentes_loading').classList.add('hidden');
-                document.getElementById('create_componentes_error').classList.add('hidden');
-                return;
-            }
-
-            document.getElementById('create_componentes_loading').classList.remove('hidden');
-            document.getElementById('create_componentes_error').classList.add('hidden');
-            document.getElementById('create_componentes_tabla_container').classList.add('hidden');
-
-            const url = id
-                ? `/eng-formulacion/componentes/formulacion?id=${encodeURIComponent(id)}`
-                : `/eng-formulacion/componentes/formulacion?folio=${encodeURIComponent(folio)}`;
-
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('create_componentes_loading').classList.add('hidden');
-                    document.getElementById('create_componentes_error').classList.add('hidden');
-
-                    if (data.success) {
-                        const consumoTotalCapped = (c) => aplicarMaxConsumoTotal(c, c.ConsumoTotal || 0);
-                        componentesCreateData = (data.componentes || []).map(comp => ({
-                            Id: comp.Id,
-                            ItemId: comp.ItemId || '',
-                            ItemName: comp.ItemName || '',
-                            ConfigId: comp.ConfigId || '',
-                            ConsumoUnitario: comp.ConsumoUnitario || 0,
-                            ConsumoTotal: consumoTotalCapped(comp),
-                            Unidad: comp.Unidad || '',
-                            Almacen: comp.Almacen || '',
-                            esNuevo: false
-                        }));
-                        renderizarTablaComponentesCreate();
-                        document.getElementById('create_componentes_tabla_container').classList.remove('hidden');
-                    } else {
-                        mostrarErrorComponentesCreate(data.error || 'Error al cargar componentes');
-                    }
-                })
-                .catch(error => {
-                    document.getElementById('create_componentes_loading').classList.add('hidden');
-                    mostrarErrorComponentesCreate('Error de conexión: ' + error.message);
-                });
-        }
-
-        // Cache y rutas para materiales
-        const componenteMaterialRoutes = {
-            calibres: "{{ route('eng-formulacion.calibres') }}",
-            fibras: "{{ route('eng-formulacion.fibras') }}",
-            colores: "{{ route('eng-formulacion.colores') }}"
-        };
-
-        const componenteMaterialCache = {
-            calibres: null,
-            fibras: new Map(),
-            colores: new Map()
-        };
-
-        const fetchComponenteJson = async (url, params = {}) => {
-            const query = new URLSearchParams(params);
-            const fullUrl = query.toString() ? `${url}?${query}` : url;
-            const response = await fetch(fullUrl);
-            if (!response.ok) {
-                throw new Error(`Request failed: ${response.status}`);
-            }
-            return response.json();
-        };
-
-        const getComponenteCalibres = async () => {
-            if (componenteMaterialCache.calibres) return componenteMaterialCache.calibres;
-            try {
-                const data = await fetchComponenteJson(componenteMaterialRoutes.calibres);
-                const items = (data?.data || []).filter(i => i.ItemId);
-                componenteMaterialCache.calibres = items;
-                return items;
-            } catch (e) {
-                console.error('No se pudieron cargar calibres', e);
-                return [];
-            }
-        };
-
-        const getComponenteFibras = async (itemId) => {
-            if (componenteMaterialCache.fibras.has(itemId)) return componenteMaterialCache.fibras.get(itemId);
-            try {
-                const data = await fetchComponenteJson(componenteMaterialRoutes.fibras, { itemId });
-                const items = (data?.data || []).map(i => i.ConfigId).filter(Boolean);
-                componenteMaterialCache.fibras.set(itemId, items);
-                return items;
-            } catch (e) {
-                console.error('No se pudieron cargar fibras', e);
-                return [];
-            }
-        };
-
-        const setComponenteSelectOptions = (select, options, placeholder, selectedValue = '') => {
-            if (!select) return;
-            select.innerHTML = '';
-            const placeholderOption = document.createElement('option');
-            placeholderOption.value = '';
-            placeholderOption.textContent = placeholder;
-            select.appendChild(placeholderOption);
-
-            options.forEach((opt) => {
-                const option = document.createElement('option');
-                // Si es un objeto con ItemId, usarlo, sino es string simple
-                if (typeof opt === 'object' && opt.ItemId) {
-                    option.value = opt.ItemId;
-                    option.textContent = opt.ItemId;
-                    option.setAttribute('data-itemname', opt.ItemName || '');
-                } else {
-                    option.value = opt;
-                    option.textContent = opt;
-                }
-                select.appendChild(option);
-            });
-
-            select.value = selectedValue || '';
-            select.disabled = options.length === 0;
-        };
-
-        const ensureComponenteOption = (select, value, label) => {
-            if (!select || !value) return;
-            const exists = Array.from(select.options).some(opt => opt.value === value);
-            if (!exists) {
-                const option = document.createElement('option');
-                option.value = value;
-                option.textContent = label || value;
-                select.appendChild(option);
-            }
-        };
-
-        async function initComponenteSelectorsForRow(row, comp) {
-            const calibreEl = row.querySelector('[data-field="ItemId"]');
-            const fibraEl = row.querySelector('[data-field="ConfigId"]');
-
-            if (!calibreEl || !fibraEl) return;
-
-            // Cargar calibres
-            setComponenteSelectOptions(calibreEl, [], 'Cargando...');
-            const calibres = await getComponenteCalibres();
-            setComponenteSelectOptions(calibreEl, calibres, 'Selecciona calibre', comp.ItemId || '');
-
-            if (comp.ItemId) {
-                ensureComponenteOption(calibreEl, comp.ItemId, comp.ItemId);
-                calibreEl.value = comp.ItemId;
-            }
-
-            // Cargar fibras si hay calibre seleccionado
-            if (comp.ItemId) {
-                setComponenteSelectOptions(fibraEl, [], 'Cargando...');
-                const fibras = await getComponenteFibras(comp.ItemId);
-                setComponenteSelectOptions(fibraEl, fibras, 'Selecciona fibra', comp.ConfigId || '');
-
-                if (comp.ConfigId) {
-                    ensureComponenteOption(fibraEl, comp.ConfigId, comp.ConfigId);
-                    fibraEl.value = comp.ConfigId;
-                }
-            } else {
-                setComponenteSelectOptions(fibraEl, [], 'Selecciona calibre primero');
-            }
-
-            // Event listener para cuando cambie el calibre
-            calibreEl.addEventListener('change', async (e) => {
-                const itemId = e.target.value;
-                const itemNameEl = row.querySelector('[data-field="ItemName"]');
-
-                if (itemId) {
-                    // Obtener ItemName del option seleccionado
-                    const selectedOption = e.target.options[e.target.selectedIndex];
-                    const itemName = selectedOption.getAttribute('data-itemname') || '';
-                    if (itemNameEl) itemNameEl.value = itemName;
-
-                    // Actualizar índice en componentesCreateData
-                    const index = parseInt(calibreEl.getAttribute('data-index'));
-                    if (componentesCreateData[index]) {
-                        componentesCreateData[index].ItemId = itemId;
-                        componentesCreateData[index].ItemName = itemName;
-                    }
-
-                    setComponenteSelectOptions(fibraEl, [], 'Cargando...');
-                    const fibras = await getComponenteFibras(itemId);
-                    setComponenteSelectOptions(fibraEl, fibras, 'Selecciona fibra');
-
-                    // Auto-seleccionar ConfigId cuando solo hay 1 fibra (igual que se autocompleta Nombre)
-                    if (fibras.length === 1) {
-                        fibraEl.value = fibras[0];
-                        const idx = parseInt(calibreEl.getAttribute('data-index'));
-                        if (componentesCreateData[idx]) {
-                            componentesCreateData[idx].ConfigId = fibras[0];
-                        }
-                    }
-                    renderizarTablaComponentesCreate();
-                } else {
-                    if (itemNameEl) itemNameEl.value = '';
-                    const idx = parseInt(calibreEl.getAttribute('data-index'));
-                    if (componentesCreateData[idx]) {
-                        componentesCreateData[idx].ItemId = '';
-                        componentesCreateData[idx].ItemName = '';
-                        componentesCreateData[idx].ConfigId = '';
-                    }
-                    setComponenteSelectOptions(fibraEl, [], 'Selecciona calibre primero');
-                    renderizarTablaComponentesCreate();
-                }
-            });
-
-            // Sincronizar ConfigId a componentesCreateData
-            fibraEl.addEventListener('change', function() {
-                const idx = parseInt(fibraEl.getAttribute('data-index'));
-                if (componentesCreateData[idx]) {
-                    componentesCreateData[idx].ConfigId = this.value || '';
-                }
-            });
-        }
-
-        /** Inicializa solo select Articulo para filas nuevas. ConfigId se jala de fibras y queda bloqueado. */
-        async function initComponenteCalibreForNewRow(row, comp) {
-            const calibreEl = row.querySelector('[data-field="ItemId"]');
-            const configIdEl = row.querySelector('[data-field="ConfigId"]');
-
-            if (!calibreEl) return;
-
-            setComponenteSelectOptions(calibreEl, [], 'Cargando...');
-            const calibres = await getComponenteCalibres();
-            setComponenteSelectOptions(calibreEl, calibres, 'Selecciona calibre', comp.ItemId || '');
-
-            if (comp.ItemId) {
-                ensureComponenteOption(calibreEl, comp.ItemId, comp.ItemId);
-                calibreEl.value = comp.ItemId;
-                // Jalar ConfigId si ya hay ItemId (ej. al re-renderizar)
-                const fibras = await getComponenteFibras(comp.ItemId);
-                const configIdVal = fibras.length === 1 ? fibras[0] : (fibras[0] || comp.ConfigId || '');
-                if (configIdEl) configIdEl.value = configIdVal;
-                const idx = parseInt(calibreEl.getAttribute('data-index'));
-                if (componentesCreateData[idx]) componentesCreateData[idx].ConfigId = configIdVal;
-            }
-
-            calibreEl.addEventListener('change', async function(e) {
-                const itemId = e.target.value;
-                const itemNameEl = row.querySelector('[data-field="ItemName"]');
-                const idx = parseInt(calibreEl.getAttribute('data-index'));
-
-                if (itemId) {
-                    const selectedOption = e.target.options[e.target.selectedIndex];
-                    const itemName = selectedOption.getAttribute('data-itemname') || '';
-                    if (itemNameEl) itemNameEl.value = itemName;
-
-                    if (componentesCreateData[idx]) {
-                        componentesCreateData[idx].ItemId = itemId;
-                        componentesCreateData[idx].ItemName = itemName;
-                    }
-
-                    // Jalar ConfigId desde fibras
-                    const fibras = await getComponenteFibras(itemId);
-                    const configIdVal = fibras.length === 1 ? fibras[0] : (fibras[0] || '');
-                    if (configIdEl) configIdEl.value = configIdVal;
-                    if (componentesCreateData[idx]) componentesCreateData[idx].ConfigId = configIdVal;
-                } else {
-                    if (itemNameEl) itemNameEl.value = '';
-                    if (componentesCreateData[idx]) {
-                        componentesCreateData[idx].ItemId = '';
-                        componentesCreateData[idx].ItemName = '';
-                        componentesCreateData[idx].ConfigId = '';
-                    }
-                    if (configIdEl) configIdEl.value = '';
-                }
-                renderizarTablaComponentesCreate();
-            });
-        }
-
-        function renderizarTablaComponentesCreate() {
-            const tbody = document.getElementById('create_componentes_tbody');
-            if (!tbody) {
-                console.error('No se encontró el tbody con id create_componentes_tbody');
-                return;
-            }
-
-            tbody.innerHTML = '';
-
-
-            if (componentesCreateData.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="4" class="px-4 py-6 text-center text-gray-500">
-                            No hay componentes para esta formula
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            componentesCreateData.forEach((comp, index) => {
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-blue-50/50 transition-colors' + (index % 2 === 1 ? ' bg-gray-50/30' : '');
-
-                const consumoUnitario = parseFloat(comp.ConsumoUnitario) || 0;
-                let consumoTotal = consumoUnitario * litrosCreateFormula;
-                consumoTotal = aplicarMaxConsumoTotal(comp, consumoTotal);
-                const limiteConsumo = obtenerLimiteConsumoInfo(comp, litrosCreateFormula);
-                const maxAttr = ` max="${limiteConsumo.max}"`;
-                const disabledAttr = viewOnlyMode ? 'disabled' : '';
-                const disabledClass = viewOnlyMode ? 'bg-gray-100 cursor-not-allowed' : '';
-                const sinCalibre = !(comp.ItemId || '').trim();
-                const titleConsumo = sinCalibre ? 'Seleccione Artículo (calibre) primero' : limiteConsumo.title;
-                const consumoTotalDisabled = sinCalibre ? 'disabled' : disabledAttr;
-
-                // Filas nuevas: select Articulo, Nombre bloqueado, ConfigId texto plano (no select)
-                if (comp.esNuevo) {
-                    row.innerHTML = `
-                        <td class="px-4 py-2 text-sm">
-                            <select data-index="${index}" data-field="ItemId"
-                                class="componente-calibre w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${disabledAttr}>
-                                <option value="">Cargando...</option>
-                            </select>
-                        </td>
-                        <td class="px-4 py-2 text-sm">
-                            <input type="text" value="${comp.ItemName || ''}" data-index="${index}" data-field="ItemName"
-                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm bg-gray-50 cursor-not-allowed" readonly>
-                        </td>
-                        <td class="px-4 py-2 text-sm">
-                            <input type="text" value="${comp.ConfigId || ''}" data-index="${index}" data-field="ConfigId"
-                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm bg-gray-50 cursor-not-allowed" readonly>
-                        </td>
-                        <td class="px-4 py-2 text-sm">
-                            <input type="number" step="0.01" min="0" value="${consumoTotal.toFixed(2)}" data-index="${index}" data-field="ConsumoTotal"${maxAttr}
-                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm text-right font-semibold text-blue-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${consumoTotalDisabled}
-                                title="${sinCalibre ? 'Seleccione Artículo (calibre) primero' : titleConsumo}">
-                        </td>
-                    `;
-                } else {
-                    // Existentes: Articulo, Nombre, ConfigId bloqueados. Nuevos (!desdeProduccion): editables
-                    const esExistente = !comp.esNuevo;
-                    const bloqueadoAttr = esExistente ? 'readonly' : '';
-                    const bloqueadoClass = esExistente ? 'bg-gray-50 cursor-not-allowed' : '';
-                    const consumoTotalDisabledInput = sinCalibre ? 'disabled' : disabledAttr;
-                    row.innerHTML = `
-                        <td class="px-4 py-2 text-sm">
-                            <input type="text" value="${comp.ItemId || ''}" data-index="${index}" data-field="ItemId"
-                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass} ${bloqueadoClass}" ${disabledAttr} ${bloqueadoAttr}>
-                        </td>
-                        <td class="px-4 py-2 text-sm">
-                            <input type="text" value="${comp.ItemName || ''}" data-index="${index}" data-field="ItemName"
-                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass} ${bloqueadoClass}" ${disabledAttr} ${bloqueadoAttr}>
-                        </td>
-                        <td class="px-4 py-2 text-sm">
-                            <input type="text" value="${comp.ConfigId || ''}" data-index="${index}" data-field="ConfigId"
-                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass} ${bloqueadoClass}" ${disabledAttr} ${bloqueadoAttr}>
-                        </td>
-                        <td class="px-4 py-2 text-sm">
-                            <input type="number" step="0.01" min="0" value="${consumoTotal.toFixed(2)}" data-index="${index}" data-field="ConsumoTotal"${maxAttr}
-                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm text-right font-semibold text-blue-700 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${disabledClass}" ${consumoTotalDisabledInput}
-                                title="${sinCalibre ? 'Seleccione Artículo (calibre) primero' : titleConsumo}">
-                        </td>
-                    `;
-                }
-
-                tbody.appendChild(row);
-
-                // Inicializar solo select Articulo (ConfigId es input texto) para filas nuevas
-                if (comp.esNuevo) {
-                    initComponenteCalibreForNewRow(row, comp);
-                }
-
-                // Si ItemId es input (calibre manual), sincronizar al cambiar y re-renderizar para habilitar ConsumoTotal
-                const itemIdEl = row.querySelector('[data-field="ItemId"]');
-                if (itemIdEl && itemIdEl.tagName === 'INPUT') {
-                    itemIdEl.addEventListener('change', function() {
-                        if (componentesCreateData[index]) {
-                            componentesCreateData[index].ItemId = (this.value || '').trim();
-                        }
-                        renderizarTablaComponentesCreate();
-                    });
-                }
-
-                // IMPORTANTE: Agregar listener al campo ConsumoTotal para actualizar ConsumoUnitario cuando cambie
-                // Esto asegura que cuando el usuario edite manualmente el ConsumoTotal,
-                // el ConsumoUnitario se actualice correctamente para que cuando cambien los litros,
-                // el ConsumoTotal se recalcule correctamente
-                const consumoTotalInput = row.querySelector('[data-field="ConsumoTotal"]');
-                if (consumoTotalInput) {
-                    // Remover listeners anteriores si existen para evitar duplicados
-                    const nuevoInput = consumoTotalInput.cloneNode(true);
-                    consumoTotalInput.parentNode.replaceChild(nuevoInput, consumoTotalInput);
-
-                    nuevoInput.addEventListener('input', function() {
-                        if (this.value === '') return;
-                        const valorCapturado = parseFloat(this.value) || 0;
-                        let nuevoConsumoTotal = valorCapturado;
-                        const compData = componentesCreateData[index];
-                        if (compData) {
-                            const limiteInfo = obtenerLimiteConsumoInfo(compData, litrosCreateFormula);
-                            nuevoConsumoTotal = aplicarMaxConsumoTotal(compData, nuevoConsumoTotal);
-                            nuevoConsumoTotal = Math.round(nuevoConsumoTotal * 100) / 100;
-                            if (valorCapturado > limiteInfo.max) {
-                                const alertKey = `${compData.ItemId || ''}-${limiteInfo.max}`;
-                                if (this.dataset.limitAlertKey !== alertKey) {
-                                    this.dataset.limitAlertKey = alertKey;
-                                    mostrarAlertaLimiteConsumo(compData, litrosCreateFormula);
-                                }
-                            } else {
-                                delete this.dataset.limitAlertKey;
-                            }
-                            if (parseFloat(this.value) !== nuevoConsumoTotal) this.value = nuevoConsumoTotal.toFixed(2);
-                        }
-                        const nuevoConsumoUnitario = litrosCreateFormula > 0
-                            ? nuevoConsumoTotal / litrosCreateFormula
-                            : 0;
-
-                        if (compData) {
-                            compData.ConsumoTotal = nuevoConsumoTotal;
-                            compData.ConsumoUnitario = nuevoConsumoUnitario;
-                        }
-                    });
-                    nuevoInput.addEventListener('blur', function() {
-                        const val = parseFloat(this.value);
-                        if (!isNaN(val)) this.value = (Math.round(val * 100) / 100).toFixed(2);
-                    });
-                }
-            });
-
-        }
-
-        function agregarFilaComponenteCreate() {
-            const hayFilaSinCalibre = componentesCreateData.some(c => !(c.ItemId || '').trim());
-            if (hayFilaSinCalibre) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Seleccione calibre primero',
-                    text: 'No puede agregar una fila nueva si alguna fila no tiene Artículo (calibre) seleccionado. Seleccione el calibre en la fila incompleta o elimínela.',
-                    confirmButtonColor: '#3b82f6'
-                });
-                return;
-            }
-            componentesCreateData.push({
-                ItemId: '',
-                ItemName: '',
-                ConfigId: '',
-                ConsumoUnitario: 0,
-                Unidad: '',
-                Almacen: '',
-                esNuevo: true
-            });
-            renderizarTablaComponentesCreate();
-            document.getElementById('create_componentes_tabla_container').classList.remove('hidden');
-            document.getElementById('create_componentes_loading').classList.add('hidden');
-            document.getElementById('create_componentes_error').classList.add('hidden');
-            actualizarBotonGuardarEdicion();
-        }
-
-        function eliminarFilaComponenteCreate(index) {
-            if (index >= 0 && index < componentesCreateData.length) {
-                componentesCreateData.splice(index, 1);
-                renderizarTablaComponentesCreate();
-                actualizarBotonGuardarEdicion();
-            }
-        }
-
-        function obtenerComponentesCreateDesdeTabla() {
-            const tbody = document.getElementById('create_componentes_tbody');
-            if (!tbody) return [];
-
-            const filas = Array.from(tbody.querySelectorAll('tr'));
-            return filas.map((row, index) => {
-                const itemId = row.querySelector('[data-field="ItemId"]')?.value || '';
-                const itemName = row.querySelector('[data-field="ItemName"]')?.value || '';
-                const configId = row.querySelector('[data-field="ConfigId"]')?.value || '';
-                const consumoTotal = parseFloat(row.querySelector('[data-field="ConsumoTotal"]')?.value) || 0;
-
-                const original = componentesCreateData[index] || {};
-
-                // Calcular ConsumoUnitario desde ConsumoTotal si los litros están disponibles
-                // Esto asegura que cuando el usuario edite manualmente el ConsumoTotal,
-                // el ConsumoUnitario se actualice correctamente
-                let consumoUnitario = parseFloat(original.ConsumoUnitario) || 0;
-                if (litrosCreateFormula > 0 && consumoTotal > 0) {
-                    // Si el usuario editó el ConsumoTotal manualmente, recalcular ConsumoUnitario
-                    consumoUnitario = consumoTotal / litrosCreateFormula;
-                }
-
-                return {
-                    ItemId: itemId,
-                    ItemName: itemName,
-                    ConfigId: configId,
-                    ConsumoUnitario: consumoUnitario,
-                    ConsumoTotal: consumoTotal,
-                    Unidad: original.Unidad || '',
-                    Almacen: original.Almacen || ''
-                };
-            });
-        }
-
-        function mostrarErrorComponentesCreate(mensaje) {
-            const errorBox = document.getElementById('create_componentes_error');
-            const errorMsg = document.getElementById('create_componentes_error_message');
-            if (errorBox && errorMsg) {
-                errorBox.classList.remove('hidden');
-                errorMsg.textContent = mensaje;
-            }
-        }
-
-        // ===== Filtro tipo Excel por columna (SweetAlert) =====
-        const ctxActiveFilters = {};
-        let ctxCurrentColumn = null;
-        let ctxAllValues = [];
-        let ctxCheckedValues = new Set();
-        let ctxValuesWithCount = [];
-
-        function initCtxMenuFiltering() {
-            const headers = document.querySelectorAll('#formulaTable thead tr:last-child th');
-            headers.forEach((th, idx) => {
-                th.dataset.colIndex = idx;
-                th.style.cursor = 'context-menu';
-                th.addEventListener('contextmenu', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const name = (this.childNodes[0]?.textContent || this.textContent || '').trim().replace(/[\u25B2\u25BC]/g, '').trim();
-                    showColumnCtxMenu(idx, name);
-                });
-            });
-        }
-
-        function getColumnUniqueValues(colIndex) {
-            const rows = document.querySelectorAll('#formulaTableBody tr[data-folio]');
-            const values = new Map();
-            rows.forEach(row => {
-                const cells = row.querySelectorAll('td');
-                const cell = cells[parseInt(colIndex)];
-                if (cell) {
-                    const text = cell.textContent.trim();
-                    const key = text || '(Vacío)';
-                    values.set(key, (values.get(key) || 0) + 1);
-                }
-            });
-            return Array.from(values.entries())
-                .sort((a, b) => a[0].localeCompare(b[0], 'es', { numeric: true }));
-        }
-
-        function ctxEscape(s) {
-            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-        }
-
-        function showColumnCtxMenu(colIndex, colName) {
-            ctxCurrentColumn = colIndex;
-            ctxValuesWithCount = getColumnUniqueValues(colIndex);
-            ctxAllValues = ctxValuesWithCount.map(v => v[0]);
-            ctxCheckedValues = ctxActiveFilters[colIndex]
-                ? new Set(ctxActiveFilters[colIndex])
-                : new Set(ctxAllValues);
-
-            const footerHtml = Object.keys(ctxActiveFilters).length > 0
-                ? '<div class="mt-3 pt-3 border-t border-gray-200"><a href="#" id="swal-ctx-clear-all" class="text-xs text-red-500 hover:text-red-700 hover:underline"><i class="fa-solid fa-filter-circle-xmark mr-1"></i>Quitar todos los filtros</a></div>'
-                : '';
-
-            const buildCheckboxes = (search) => {
-                const filtered = search
-                    ? ctxValuesWithCount.filter(([v]) => v.toLowerCase().includes(search))
-                    : ctxValuesWithCount;
-                if (filtered.length === 0) return '<div class="px-3 py-6 text-center text-sm text-gray-400 italic">Sin resultados</div>';
-                return filtered.map(([val, count]) => {
-                    const safeVal = ctxEscape(val);
-                    const checked = ctxCheckedValues.has(val) ? 'checked' : '';
-                    const vacio = val === '(Vacío)' ? ' italic text-gray-400' : '';
-                    return `<label class="swal-ctx-row flex items-center gap-2.5 py-2 px-3 hover:bg-blue-50 cursor-pointer rounded text-sm border-b border-gray-100 last:border-b-0" data-val="${safeVal}">
-                        <input type="checkbox" class="swal-ctx-cb w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0" value="${safeVal}" ${checked}>
-                        <span class="truncate flex-1${vacio}" title="${safeVal}">${ctxEscape(val)}</span>
-                        <span class="text-[10px] text-gray-400 tabular-nums shrink-0">${count}</span>
-                    </label>`;
-                }).join('');
-            };
-
-            Swal.fire({
-                title: `<span class="flex items-center gap-2"><i class="fa-solid fa-filter text-blue-500"></i><span>${ctxEscape(colName)}</span></span>`,
-                html: `
-                    <div class="text-left">
-                        <div class="relative mb-3">
-                            <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                            <input type="text" id="swal-ctx-search" class="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Buscar en lista...">
-                        </div>
-                        <div class="flex justify-between items-center mb-2">
-                            <button type="button" id="swal-ctx-select-all" class="text-xs text-blue-600 hover:text-blue-800 font-medium"><i class="fa-solid fa-check-double mr-1"></i>Todos</button>
-                            <button type="button" id="swal-ctx-deselect-all" class="text-xs text-gray-500 hover:text-gray-700 font-medium"><i class="fa-solid fa-square mr-1"></i>Ninguno</button>
-                            <span id="swal-ctx-count" class="text-xs text-gray-400 font-medium">${ctxCheckedValues.size} de ${ctxAllValues.length}</span>
-                        </div>
-                        <div id="swal-ctx-values" class="max-h-[220px] overflow-y-auto border border-gray-200 rounded-lg bg-gray-50/50">${buildCheckboxes('')}</div>
-                        ${footerHtml}
-                    </div>
-                `,
-                width: '400px',
-                showConfirmButton: true,
-                showCancelButton: true,
-                showDenyButton: true,
-                confirmButtonText: '<i class="fa-solid fa-filter mr-1"></i> Aplicar',
-                cancelButtonText: 'Cancelar',
-                denyButtonText: 'Limpiar filtro',
-                confirmButtonColor: '#2563eb',
-                cancelButtonColor: '#6b7280',
-                denyButtonColor: '#dc2626',
-                customClass: { popup: 'swal-ctx-popup' },
-                didOpen: () => {
-                    const container = document.getElementById('swal-ctx-values');
-                    const countEl = document.getElementById('swal-ctx-count');
-                    const searchInput = document.getElementById('swal-ctx-search');
-
-                    const updateCount = () => {
-                        if (!countEl) return;
-                        const checked = container?.querySelectorAll('.swal-ctx-cb:checked') || [];
-                        countEl.textContent = `${checked.length} de ${ctxAllValues.length}`;
-                    };
-
-                    const render = (search) => {
-                        if (!container) return;
-                        container.innerHTML = buildCheckboxes(search);
-                        container.querySelectorAll('.swal-ctx-cb').forEach(cb => {
-                            cb.addEventListener('change', function() {
-                                const v = this.value === '(Vacío)' ? '(Vacío)' : this.value;
-                                if (this.checked) ctxCheckedValues.add(v);
-                                else ctxCheckedValues.delete(v);
-                                updateCount();
-                            });
-                        });
-                        updateCount();
-                    };
-
-                    searchInput?.addEventListener('input', () => render(searchInput.value.trim().toLowerCase()));
-
-                    document.getElementById('swal-ctx-select-all')?.addEventListener('click', () => {
-                        const s = (searchInput?.value || '').trim().toLowerCase();
-                        const vis = s ? ctxAllValues.filter(v => v.toLowerCase().includes(s)) : ctxAllValues;
-                        vis.forEach(v => ctxCheckedValues.add(v));
-                        render(s);
-                    });
-
-                    document.getElementById('swal-ctx-deselect-all')?.addEventListener('click', () => {
-                        const s = (searchInput?.value || '').trim().toLowerCase();
-                        const vis = s ? ctxAllValues.filter(v => v.toLowerCase().includes(s)) : ctxAllValues;
-                        vis.forEach(v => ctxCheckedValues.delete(v));
-                        render(s);
-                    });
-
-                    document.getElementById('swal-ctx-clear-all')?.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        for (const k in ctxActiveFilters) delete ctxActiveFilters[k];
-                        filterCtxRows();
-                        updateCtxFilterInfo();
-                        updateCtxIndicators();
-                        Swal.close();
-                    });
-
-                    render('');
-                    setTimeout(() => searchInput?.focus(), 100);
-                },
-                preConfirm: () => {
-                    const checked = document.querySelectorAll('#swal-ctx-values .swal-ctx-cb:checked');
-                    return Array.from(checked).map(cb => cb.value);
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    const selected = result.value || [];
-                    if (selected.length >= ctxAllValues.length || selected.length === 0) {
-                        delete ctxActiveFilters[ctxCurrentColumn];
-                    } else {
-                        ctxActiveFilters[ctxCurrentColumn] = new Set(selected);
-                    }
-                    filterCtxRows();
-                    updateCtxFilterInfo();
-                    updateCtxIndicators();
-                } else if (result.isDenied) {
-                    delete ctxActiveFilters[ctxCurrentColumn];
-                    filterCtxRows();
-                    updateCtxFilterInfo();
-                    updateCtxIndicators();
-                }
-            });
-        }
-
-        function clearAllCtxFilters() {
-            for (const k in ctxActiveFilters) delete ctxActiveFilters[k];
-            filterCtxRows();
-            updateCtxFilterInfo();
-            updateCtxIndicators();
-        }
-
-        function filterCtxRows() {
-            const rows = document.querySelectorAll('#formulaTableBody tr[data-folio]');
-            const filterEntries = Object.entries(ctxActiveFilters);
-            rows.forEach(row => {
-                if (filterEntries.length === 0) { row.style.display = ''; return; }
-                const cells = row.querySelectorAll('td');
-                let match = true;
-                for (const [col, allowedSet] of filterEntries) {
-                    const cell = cells[parseInt(col)];
-                    if (!cell) { match = false; break; }
-                    const text = cell.textContent.trim() || '(Vacío)';
-                    if (!allowedSet.has(text)) { match = false; break; }
-                }
-                row.style.display = match ? '' : 'none';
-            });
-        }
-
-        function updateCtxFilterInfo() {
-            const rows = document.querySelectorAll('#formulaTableBody tr[data-folio]');
-            const visible = Array.from(rows).filter(r => r.style.display !== 'none').length;
-            const total = rows.length;
-            const count = Object.keys(ctxActiveFilters).length;
-            const info = document.getElementById('ctxFilterInfo');
-            if (info) {
-                info.textContent = count > 0
-                    ? `${visible} de ${total} (${count} filtro${count > 1 ? 's' : ''})`
-                    : `${total} registros`;
-            }
-        }
-
-        function updateCtxIndicators() {
-            document.querySelectorAll('#formulaTable thead tr:last-child th').forEach(th => {
-                const idx = parseInt(th.dataset.colIndex);
-                let dot = th.querySelector('.ctx-filter-dot');
-                if (ctxActiveFilters[idx]) {
-                    if (!dot) {
-                        dot = document.createElement('span');
-                        dot.className = 'ctx-filter-dot ml-1 inline-block w-2 h-2 rounded-full bg-yellow-300 align-middle';
-                        th.appendChild(dot);
-                    }
-                } else {
-                    if (dot) dot.remove();
-                }
-            });
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            disableButtons();
-            initCtxMenuFiltering();
-            updateCtxFilterInfo();
-
-            // Listener para recargar componentes cuando el usuario cambia la fórmula seleccionada
-            const formulaSelectEl = document.getElementById('create_formula');
-            if (formulaSelectEl) {
-                formulaSelectEl.addEventListener('change', function() {
-                    if (formulaSelectSoloConsulta) {
-                        this.value = formulaCreateActual || getCreateFormulaHidden()?.value || '';
-                        actualizarBotonGuardarEdicion();
-                        return;
-                    }
-                    const val = this.value || '';
-                    setCreateFormulaValorReal(val);
-                    if (formulaCreateActual) {
-                        cargarComponentesCreate(formulaCreateActual);
-                    } else {
-                        componentesCreateData = [];
-                        renderizarTablaComponentesCreate();
-                        document.getElementById('create_componentes_tabla_container').classList.add('hidden');
-                    }
-                    actualizarBotonGuardarEdicion();
-                });
-            }
-
-            const thFecha = document.getElementById('th-fecha');
-            if (thFecha) {
-                thFecha.setAttribute('aria-sort', 'none');
-                thFecha.addEventListener('click', toggleOrdenFecha);
-            }
-
-            const recalcularYRenderizar = () => {
-                if (componentesCreateData.length === 0) return;
-                componentesCreateData.forEach((comp) => {
-                    const consumoUnitario = parseFloat(comp.ConsumoUnitario) || 0;
-                    comp.ConsumoTotal = aplicarMaxConsumoTotal(comp, consumoUnitario * litrosCreateFormula);
-                });
-                renderizarTablaComponentesCreate();
-                actualizarBotonGuardarEdicion();
-            };
-
-            const debounce = (fn, ms) => {
-                let t;
-                return function() { clearTimeout(t); t = setTimeout(() => fn.apply(this, arguments), ms); };
-            };
-
-            const kilosInput = document.getElementById('create_kilos');
-            if (kilosInput) {
-                kilosCreateFormula = parseFloat(kilosInput.value) || 0;
-                kilosInput.addEventListener('input', debounce(function() {
-                    if (this.value === '') return;
-                    kilosCreateFormula = parseFloat(this.value) || 0;
-                    recalcularYRenderizar();
-                }, 300));
-            }
-
-            const LITROS_MAX = 1500;
-            const litrosInput = document.getElementById('create_litros');
-            if (litrosInput) {
-                litrosCreateFormula = parseFloat(litrosInput.value) || 0;
-                litrosInput.addEventListener('input', (function() {
-                    let t;
-                    return function() {
-                        if (this.value === '') return;
-                        let val = parseFloat(this.value) || 0;
-                        if (val > LITROS_MAX) {
-                            val = LITROS_MAX;
-                            this.value = val;
-                        }
-                        litrosCreateFormula = val;
-                        clearTimeout(t);
-                        t = setTimeout(recalcularYRenderizar, 300);
-                    };
-                })());
-                litrosInput.addEventListener('blur', function() {
-                    let val = parseFloat(this.value) || 0;
-                    if (val > LITROS_MAX) {
-                        this.value = LITROS_MAX;
-                        litrosCreateFormula = LITROS_MAX;
-                        recalcularYRenderizar();
-                    }
-                });
-            }
-
-            const solidosInput = document.getElementById('create_solidos');
-            if (solidosInput) {
-                solidosInput.addEventListener('blur', function() {
-                    const val = parseFloat(this.value);
-                    if (!isNaN(val)) this.value = (Math.round(val * 100) / 100).toFixed(2);
-                });
-            }
-
-            const createForm = document.getElementById('createForm');
-            if (createForm) {
-                createForm.addEventListener('input', debounce(actualizarBotonGuardarEdicion, 200));
-                createForm.addEventListener('change', actualizarBotonGuardarEdicion);
-                createForm.addEventListener('submit', function(e) {
-                    if (!actualizarDisponibilidadRegistroPorStatusPrograma(true)) {
-                        e.preventDefault();
-                        return;
-                    }
-
-                    const kilosVal = parseFloat(document.getElementById('create_kilos')?.value) ?? NaN;
-                    const litrosVal = parseFloat(document.getElementById('create_litros')?.value) ?? NaN;
-                    const tiempoVal = parseFloat(document.getElementById('create_tiempo')?.value) ?? NaN;
-                    const solidosVal = parseFloat(document.getElementById('create_solidos')?.value) ?? NaN;
-                    const viscVal = parseFloat(document.getElementById('create_viscocidad')?.value) ?? NaN;
-
-                    if (kilosVal < 0 || isNaN(kilosVal)) {
-                        e.preventDefault();
-                        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'Los Kilos no pueden ser negativos', showConfirmButton: false, timer: 3000 });
-                        return;
-                    }
-                    if (litrosVal <= 0 || isNaN(litrosVal)) {
-                        e.preventDefault();
-                        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'Los Litros deben ser mayor a cero', showConfirmButton: false, timer: 3000 });
-                        return;
-                    }
-                    if (litrosVal > 1500) {
-                        e.preventDefault();
-                        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'Los Litros no pueden ser mayor a 1500', showConfirmButton: false, timer: 3000 });
-                        return;
-                    }
-                    if (tiempoVal <= 0 || isNaN(tiempoVal)) {
-                        e.preventDefault();
-                        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'El Tiempo Cocinado debe ser mayor a cero', showConfirmButton: false, timer: 3000 });
-                        return;
-                    }
-                    if (solidosVal <= 0 || isNaN(solidosVal)) {
-                        e.preventDefault();
-                        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'El % Sólidos debe ser mayor a cero', showConfirmButton: false, timer: 3000 });
-                        return;
-                    }
-                    if (viscVal <= 0 || isNaN(viscVal)) {
-                        e.preventDefault();
-                        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'La Viscosidad debe ser mayor a cero', showConfirmButton: false, timer: 3000 });
-                        return;
-                    }
-                    // Redondear Sólidos a 2 decimales antes de enviar
-                    const solidosEl = document.getElementById('create_solidos');
-                    if (solidosEl && !isNaN(solidosVal)) solidosEl.value = (Math.round(solidosVal * 100) / 100).toFixed(2);
-                    const method = document.getElementById('create_method');
-                    if (method && method.value === 'PUT' && !haCambiadoFormulacionCreate()) {
-                        e.preventDefault();
-                        return;
-                    }
-                    const componentes = obtenerComponentesCreateDesdeTabla();
-                    const invalidoConsumo = componentes.find(c => {
-                        if (!(c.ItemId || '').trim()) return false;
-                        const limiteInfo = obtenerLimiteConsumoInfo(c, litrosVal);
-                        return (parseFloat(c.ConsumoTotal) || 0) > limiteInfo.max;
-                    });
-                    if (invalidoConsumo) {
-                        e.preventDefault();
-                        mostrarAlertaLimiteConsumo(invalidoConsumo, litrosVal);
-                        return;
-                    }
-                    const conCalibre = componentes.filter(c =>
-                        (c.ItemId || '').trim() && (parseFloat(c.ConsumoTotal) || 0) > 0
-                    );
-
-                    const payload = document.getElementById('create_componentes_payload');
-                    if (payload) {
-                        payload.value = JSON.stringify(conCalibre);
-                    }
-
-                    // Si es edición, también enviar componentes
-                    if (method && method.value === 'PUT') {
-                        // Los componentes se envían en el payload
-                    }
-                    const submitBtnEl = document.getElementById('btn-submit-create');
-                    if (submitBtnEl) {
-                        const isEditMode = method && method.value === 'PUT';
-                        submitBtnEl.disabled = true;
-                        submitBtnEl.classList.add('opacity-70', 'cursor-not-allowed', 'pointer-events-none');
-                        submitBtnEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i><span>' + (isEditMode ? 'Actualizando...' : 'Creando...') + '</span>';
-                    }
-                });
-            }
-
-            const editFormEl = document.getElementById('editForm');
-            if (editFormEl) {
-                editFormEl.addEventListener('submit', function() {
-                    const editSubmitBtn = document.getElementById('btn-edit-submit');
-                    if (editSubmitBtn) {
-                        editSubmitBtn.disabled = true;
-                        editSubmitBtn.classList.add('opacity-70', 'cursor-not-allowed', 'pointer-events-none');
-                        editSubmitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Actualizando...';
-                    }
-                });
-            }
-        });
-
-        function verObsCalidad(event, texto) {
-            if (event) event.stopPropagation();
-            const obs = texto || 'Sin observaciones';
-            Swal.fire({
-                title: 'Observaciones de Calidad',
-                html: `<div class="text-left p-3 bg-gray-50 rounded-lg whitespace-pre-wrap max-h-64 overflow-y-auto">${obs.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`,
-                confirmButtonText: 'Cerrar',
-                confirmButtonColor: '#3b82f6',
-                width: '500px'
-            });
-        }
-
-        function abrirModalObsCalidad(btnCalidad) {
-            const folio = btnCalidad.dataset.folio || '';
-            const formula = btnCalidad.dataset.formula || '';
-            const litros = btnCalidad.dataset.litros || '';
-            const tiempo = btnCalidad.dataset.tiempo || '';
-            const solidos = btnCalidad.dataset.solidos || '';
-            const viscocidad = btnCalidad.dataset.viscocidad || '';
-            // Valores: '' = null (vacío), '0' = tache, '1' = palomita
-            const okTiempoVal = btnCalidad.dataset.oktiempo ?? '';
-            const okViscocidadVal = btnCalidad.dataset.okviscocidad ?? '';
-            const okSolidosVal = btnCalidad.dataset.oksolidos ?? '';
-            const obsActual = btnCalidad.dataset.hasObs === '1' ? (btnCalidad.title || '') : '';
-            const programaStatus = btnCalidad.dataset.programaStatus || '';
-            const esFinalizado = programaStatus === 'Finalizado';
-
-            const statusColor = esFinalizado
-                ? 'bg-gray-200 text-gray-700'
-                : (programaStatus ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500');
-            const statusLabel = programaStatus || 'Sin status';
-
-            // Una sola celda por fila: 1 toque = palomita (✓), 2 toques = equis (✗). Solo dos estados.
-            const cicloState = (name, current) => {
-                const v = (current === '1' || current === '0') ? current : '1';
-                const simbolo = v === '1' ? '✓' : '✗';
-                const clase = v === '1' ? 'text-green-600' : 'text-red-600';
-                return `<button type="button" class="calidad-ciclo w-12 h-9 rounded-lg border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-blue-400 text-lg font-bold ${clase} transition-colors" data-field="${name}" data-value="${v}" title="1 toque ✓, 2 toques ✗">${simbolo}</button>`;
-            };
-
-            Swal.fire({
-                title: 'Calidad',
-                width: '480px',
-                html: `
-                    <div class="text-left">
-                        <div class="flex flex-wrap gap-4 mb-4 text-sm items-center">
-                            <div><span class="text-gray-500">Folio</span> <span class="font-semibold">${folio}</span></div>
-                            <div><span class="text-gray-500">Fórmula</span> <span class="font-semibold">${formula}</span></div>
-                            <div><span class="text-gray-500">Litros</span> <span class="font-semibold">${litros}</span></div>
-                            <div><span class="px-2 py-0.5 rounded-full text-xs font-semibold ${statusColor}">${statusLabel}</span></div>
-                        </div>
-                        <div class="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
-                            <table class="min-w-full divide-y divide-gray-200 text-sm">
-                                <thead class="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-                                    <tr>
-                                        <th class="px-4 py-2.5 text-left font-semibold">Concepto</th>
-                                        <th class="px-4 py-2.5 text-right font-semibold">Valor</th>
-                                        <th class="px-4 py-2.5 text-center font-semibold">Estado</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-100">
-                                    <tr class="hover:bg-blue-50/50">
-                                        <td class="px-4 py-2.5 font-medium text-gray-700">Tiempo (Min)</td>
-                                        <td class="px-4 py-2.5 text-right font-semibold text-blue-700">${tiempo}</td>
-                                        <td class="px-4 py-2.5 text-center">${cicloState('oktiempo', okTiempoVal)}</td>
-                                    </tr>
-                                    <tr class="hover:bg-blue-50/50">
-                                        <td class="px-4 py-2.5 font-medium text-gray-700">Sólidos (%)</td>
-                                        <td class="px-4 py-2.5 text-right font-semibold text-blue-700">${solidos}</td>
-                                        <td class="px-4 py-2.5 text-center">${cicloState('oksolidos', okSolidosVal)}</td>
-                                    </tr>
-                                    <tr class="hover:bg-blue-50/50">
-                                        <td class="px-4 py-2.5 font-medium text-gray-700">Viscosidad</td>
-                                        <td class="px-4 py-2.5 text-right font-semibold text-blue-700">${viscocidad}</td>
-                                        <td class="px-4 py-2.5 text-center">${cicloState('okviscocidad', okViscocidadVal)}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="border-t border-gray-200 pt-3 mt-4">
-                            <label class="text-gray-500 block mb-1 text-sm font-medium">Observaciones</label>
-                            <input type="text" id="swal-obs-calidad" maxlength="150" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Añadir observaciones (opcional)...">
-                        </div>
-                    </div>
-                `,
-                showCancelButton: true,
-                confirmButtonColor: '#3b82f6',
-                cancelButtonColor: '#6b7280',
-                confirmButtonText: 'Guardar',
-                cancelButtonText: 'Cancelar',
-                focusConfirm: false,
-                preConfirm: () => {
-                    const obs = document.getElementById('swal-obs-calidad').value;
-                    const getVal = (field) => {
-                        const el = document.querySelector('.calidad-ciclo[data-field="' + field + '"]');
-                        if (!el) return 1;
-                        return el.dataset.value === '0' ? 0 : 1;
-                    };
-                    return { obs, okTiempo: getVal('oktiempo'), okViscocidad: getVal('okviscocidad'), okSolidos: getVal('oksolidos') };
-                },
-                didOpen: () => {
-                    const input = document.getElementById('swal-obs-calidad');
-                    if (input) {
-                        input.value = obsActual || '';
-                        input.focus();
-                    }
-                    document.querySelectorAll('.calidad-ciclo').forEach(btn => {
-                        btn.addEventListener('click', function() {
-                            const next = this.dataset.value === '1' ? '0' : '1';
-                            this.dataset.value = next;
-                            this.textContent = next === '1' ? '✓' : '✗';
-                            this.classList.remove('text-green-600', 'text-red-600');
-                            this.classList.add(next === '1' ? 'text-green-600' : 'text-red-600');
-                        });
-                    });
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    const { obs, okTiempo, okViscocidad, okSolidos } = result.value;
-                    guardarObsCalidad(folio, obs, btnCalidad, { okTiempo, okViscocidad, okSolidos });
-                }
-            });
-        }
-
-        async function guardarObsCalidad(folio, observaciones, btnCalidad, checks = {}) {
-            try {
-                const formulacionId = btnCalidad.dataset.id || '';
-                const url = `/eng-formulacion/${folio}`;
-                // null = vacío, 0 = tache, 1 = palomita
-                const toVal = (v) => (v === null || v === undefined) ? null : (v ? 1 : 0);
-                const okT = checks.hasOwnProperty('okTiempo') ? (checks.okTiempo === null ? null : (checks.okTiempo ? 1 : 0)) : (btnCalidad.dataset.oktiempo === '' ? null : (btnCalidad.dataset.oktiempo === '1' ? 1 : 0));
-                const okV = checks.hasOwnProperty('okViscocidad') ? (checks.okViscocidad === null ? null : (checks.okViscocidad ? 1 : 0)) : (btnCalidad.dataset.okviscocidad === '' ? null : (btnCalidad.dataset.okviscocidad === '1' ? 1 : 0));
-                const okS = checks.hasOwnProperty('okSolidos') ? (checks.okSolidos === null ? null : (checks.okSolidos ? 1 : 0)) : (btnCalidad.dataset.oksolidos === '' ? null : (btnCalidad.dataset.oksolidos === '1' ? 1 : 0));
-                const body = {
-                    obs_calidad: observaciones,
-                    ok_tiempo: okT,
-                    ok_viscocidad: okV,
-                    ok_solidos: okS
-                };
-                if (formulacionId) body.formulacion_id = formulacionId;
-                const response = await fetch(url, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(body)
-                });
-
-                const data = await response.json();
-
-                if (!response.ok || !data.success) {
-                    throw new Error(data.message || 'Error al guardar');
-                }
-
-                // Actualizar botón: icono, tooltip y data de los checks ('' = null, '0' = tache, '1' = palomita)
-                btnCalidad.dataset.oktiempo = okT === null ? '' : okT.toString();
-                btnCalidad.dataset.okviscocidad = okV === null ? '' : okV.toString();
-                btnCalidad.dataset.oksolidos = okS === null ? '' : okS.toString();
-                const row = btnCalidad.closest('tr');
-                if (row) {
-                    row.dataset.oktiempo = btnCalidad.dataset.oktiempo;
-                    row.dataset.okviscocidad = btnCalidad.dataset.okviscocidad;
-                    row.dataset.oksolidos = btnCalidad.dataset.oksolidos;
-                }
-                const iconEl = btnCalidad.querySelector('i');
-                if (observaciones.trim()) {
-                    btnCalidad.dataset.hasObs = '1';
-                    btnCalidad.title = observaciones;
-                    btnCalidad.classList.remove('text-blue-500');
-                    btnCalidad.classList.add('text-blue-700');
-                    if (iconEl) iconEl.className = 'fa-solid fa-clipboard-check text-sm text-blue-700';
-                } else {
-                    btnCalidad.dataset.hasObs = '0';
-                    btnCalidad.title = 'Calidad (sin observaciones)';
-                    btnCalidad.classList.remove('text-blue-700');
-                    btnCalidad.classList.add('text-blue-500');
-                    if (iconEl) iconEl.className = 'fa-solid fa-clipboard-list text-sm text-blue-500';
-                }
-                Swal.fire({
-                    icon: 'success',
-                    title: formulacionId ? 'Calidad actualizada' : 'Calidad creada',
-                    timer: 1500,
-                    showConfirmButton: false
-                });
-            } catch (error) {
-                console.error('Error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: error.message || 'No se pudieron guardar las observaciones'
-                });
-            }
-        }
-
-        function abrirModalObservaciones(checkbox) {
-            const folio = checkbox.dataset.folio || '';
-            const key = folio;
-            const cur = observaciones[key] || '';
-            Swal.fire({
-                title: 'Observaciones',
-                html: `
-                    <textarea id="obs-textarea"
-                              class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                              rows="4"
-                              placeholder="Escriba sus observaciones aquí...">${cur}</textarea>
-                `,
-                showCancelButton: true,
-                confirmButtonText: 'Guardar',
-                cancelButtonText: 'Cancelar',
-                focusConfirm: false,
-                preConfirm: () => {
-                    const value = document.getElementById('obs-textarea')?.value || '';
-                    return value.trim();
-                }
-            }).then(result => {
-                if (!result.isConfirmed) {
-                    return;
-                }
-
-                const text = result.value || '';
-                if (text) {
-                    observaciones[key] = text;
-                    checkbox.title = text;
-                } else {
-                    delete observaciones[key];
-                    checkbox.title = '';
-                }
-            });
-        }
-
-        window.addEventListener('pageshow', function(event) {
-            if (event.persisted) {
-                window.location.reload();
-            }
-        });
-    </script>
-
 @endsection
+
+@push('scripts')
+    @vite('resources/js/modulos/engomado/captura-formula/index.ts')
+@endpush

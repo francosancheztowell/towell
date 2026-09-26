@@ -13,7 +13,8 @@ function harness_config(): void {
     foreach (['sqlsrv','sqlsrv_ti','sqlsrv_tow_pro','sqlsrv_tow_tow','sqlsrv_Reportes_Towell','sqlite'] as $c) {
         config()->set("database.connections.$c", ['driver'=>'sqlite','database'=>$main,'prefix'=>'','foreign_key_constraints'=>false]);
     }
-    config()->set('database.default', 'sqlite');
+    // La misma conexión que usan los modelos: dos PDO sobre el mismo archivo se bloquean en transacciones.
+    config()->set('database.default', 'sqlsrv');
     config()->set('cache.default', 'array');
     config()->set('session.driver', 'file');
     config()->set('queue.default', 'sync');
