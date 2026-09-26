@@ -2,17 +2,22 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
+use App\Actions\Planeacion\ProgramaTejido\CambiarCalendario;
+use App\Actions\Planeacion\ProgramaTejido\FalloEnRegistro;
+use App\Actions\Planeacion\ProgramaTejido\MutacionRechazada;
+use App\Actions\Planeacion\ProgramaTejido\ReprogramarProgramaTejido;
+use App\Data\Planeacion\ProgramaTejido\CambioCalendario;
+use App\Data\Planeacion\ProgramaTejido\Reprogramacion;
 use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatCalendarios\CalendarioController;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
+use App\Http\Requests\Planeacion\ProgramaTejido\CambiarCalendarioRequest;
+use App\Http\Requests\Planeacion\ProgramaTejido\ReprogramarProgramaTejidoRequest;
 use App\Models\Planeacion\ReqProgramaTejido;
-use Carbon\Carbon;
+use App\Services\Planeacion\ProgramaTejido\MutacionesV2;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -23,7 +28,7 @@ use Illuminate\Validation\ValidationException;
  * @description Controlador de calendarios para Programa Tejido. Actualización masiva de calendarios,
  *              reprogramar registro, recalcular fechas. Regla: EnProceso no permite edición de fechas.
  *
- * @dependencies CalendarioController, BalancearTejido, ReqProgramaTejido
+ * @dependencies CambiarCalendario, ReprogramarProgramaTejido (Actions PT-05), MutacionesV2
  */
 class ProgramaTejidoCalendariosController extends Controller
 {
@@ -49,8 +54,60 @@ class ProgramaTejidoCalendariosController extends Controller
 
     public function actualizarCalendariosMasivo(Request $request)
     {
-        AuditoriaHelper::contexto('CALENDARIOS');
+        if (MutacionesV2::activa('calendarios')) {
+            return MutacionesV2::medir('calendarios', 'v2', fn () => $this->actualizarCalendariosMasivoV2(
+                app(CambiarCalendarioRequest::class), app(CambiarCalendario::class)
+            ));
+        }
 
+        return MutacionesV2::medir('calendarios', 'legacy', fn () => $this->actualizarCalendariosMasivoLegacy($request));
+    }
+
+    public function actualizarReprogramar(Request $request, int $id)
+    {
+        if (MutacionesV2::activa('reprogramar')) {
+            return MutacionesV2::medir('reprogramar', 'v2', fn () => $this->actualizarReprogramarV2(
+                app(ReprogramarProgramaTejidoRequest::class), $id, app(ReprogramarProgramaTejido::class)
+            ));
+        }
+
+        return MutacionesV2::medir('reprogramar', 'legacy', fn () => $this->actualizarReprogramarLegacy($request, $id));
+    }
+
+    /**
+     * v2 (PT-05): todo o nada. Si una fila truena no se confirma ninguna (antes se contaba
+     * en 'errores' y el resto quedaba confirmado con el calendario nuevo).
+     */
+    private function actualizarCalendariosMasivoV2(CambiarCalendarioRequest $request, CambiarCalendario $accion): JsonResponse
+    {
+        set_time_limit(300);
+        $t0 = microtime(true);
+        $cambio = CambioCalendario::desdeRequest($request);
+
+        try {
+            $resultado = $accion->ejecutar($cambio, estricto: true);
+        } catch (FalloEnRegistro $e) {
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => "No se actualizó ningún calendario: falló el registro {$e->registroId}. Los cambios se revirtieron.",
+                'registro_id' => $e->registroId,
+            ], 500);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No se actualizó ningún calendario. Los cambios se revirtieron.',
+            ], 500);
+        }
+
+        return $this->respuestaCalendarios($cambio->calendarioId, $resultado, $t0);
+    }
+
+    private function actualizarCalendariosMasivoLegacy(Request $request): JsonResponse
+    {
         set_time_limit(300);
 
         try {
@@ -60,174 +117,11 @@ class ProgramaTejidoCalendariosController extends Controller
                 'registros_ids.*' => ['required', 'integer', Rule::exists(ReqProgramaTejido::tableName(), 'Id')],
             ]);
 
-            $calendarioId = $request->input('calendario_id');
-            $registrosIds = array_unique($request->input('registros_ids', []));
-
-            $dispatcher = ReqProgramaTejido::suppressObservers();
-
             $t0 = microtime(true);
-            $procesados = 0;
-            $actualizados = 0;
-            $errores = 0;
+            $cambio = CambioCalendario::desdeRequest($request);
+            $resultado = (new CambiarCalendario)->ejecutar($cambio, estricto: false);
 
-            DBFacade::beginTransaction();
-
-            try {
-                $actualizados = ReqProgramaTejido::whereIn('Id', $registrosIds)
-                    ->update(['CalendarioId' => $calendarioId]);
-
-                $registros = ReqProgramaTejido::whereIn('Id', $registrosIds)
-                    ->whereNotNull('FechaInicio')
-                    ->orderBy('SalonTejidoId')
-                    ->orderBy('NoTelarId')
-                    ->orderBy('Posicion', 'asc')
-                    ->orderBy('FechaInicio', 'asc')
-                    ->orderBy('Id', 'asc')
-                    ->get([
-                        'Id',
-                        'CalendarioId',
-                        'SalonTejidoId',
-                        'NoTelarId',
-                        'FechaInicio',
-                        'FechaFinal',
-                        'HorasProd',
-                        'SaldoPedido',
-                        'Produccion',
-                        'TotalPedido',
-                        'PesoCrudo',
-                        'DiasEficiencia',
-                        'StdHrsEfect',
-                        'ProdKgDia2',
-                        'DiasJornada',
-                        'Ultimo',
-                        'EnProceso',
-                    ]);
-
-                $calendarioController = new CalendarioController;
-                $prevFin = null;
-                $prevTelar = null;
-
-                foreach ($registros as $p) {
-                    try {
-                        if (empty($p->FechaInicio)) {
-                            $errores++;
-
-                            continue;
-                        }
-
-                        $inicioOriginal = Carbon::parse($p->FechaInicio);
-                        $inicio = $inicioOriginal->copy();
-
-                        $esPrimerRegistroTelar = ($prevTelar === null ||
-                            ($prevTelar->SalonTejidoId !== $p->SalonTejidoId ||
-                             $prevTelar->NoTelarId !== $p->NoTelarId));
-
-                        $esEnProceso = ($p->EnProceso == 1 || $p->EnProceso === true);
-
-                        if ($esEnProceso) {
-                            $inicio = Carbon::now();
-                        } elseif ($esPrimerRegistroTelar) {
-                            $inicio = $inicioOriginal->copy();
-                        } else {
-                            if ($prevFin) {
-                                if (! $prevFin->equalTo($inicioOriginal)) {
-                                    $inicio = $prevFin->copy();
-                                }
-                            }
-                            $snap = $calendarioController->snapInicioAlCalendario($calendarioId, $inicio);
-                            if ($snap && ! $snap->equalTo($inicio)) {
-                                $inicio = $snap;
-                            }
-                        }
-
-                        $horas = (float) ($p->HorasProd ?? 0);
-                        if ($horas <= 0) {
-                            $horas = $calendarioController->calcularHorasProd($p);
-                            if ($horas > 0) {
-                                $p->HorasProd = $horas;
-                            }
-                        }
-                        if ($horas <= 0) {
-                            $errores++;
-
-                            continue;
-                        }
-
-                        $fin = TejidoHelpers::finDesdeHoras($inicio, $horas, $calendarioId);
-                        if ($fin->lt($inicio)) {
-                            $fin = $inicio->copy();
-                        }
-
-                        $inicioStr = $inicio->format('Y-m-d H:i:s');
-                        $finStr = $fin->format('Y-m-d H:i:s');
-
-                        $oldInicioStr = null;
-                        try {
-                            $oldInicioStr = Carbon::parse($p->FechaInicio)->format('Y-m-d H:i:s');
-                        } catch (\Throwable $e) {
-                        }
-                        $oldFinStr = null;
-                        if (! empty($p->FechaFinal)) {
-                            try {
-                                $oldFinStr = Carbon::parse($p->FechaFinal)->format('Y-m-d H:i:s');
-                            } catch (\Throwable $e) {
-                            }
-                        }
-
-                        $cambio = (! $esEnProceso && $oldInicioStr !== $inicioStr) || ($oldFinStr !== $finStr);
-
-                        if (! $esEnProceso) {
-                            $p->FechaInicio = $inicioStr;
-                        }
-                        $p->FechaFinal = $finStr;
-
-                        $deps = $calendarioController->calcularFormulasDependientesDeFechas($p, $inicio, $fin, $horas);
-                        foreach ($deps as $campo => $valor) {
-                            $p->{$campo} = $valor;
-                        }
-
-                        $p->saveQuietly();
-                        $procesados++;
-
-                        if ($cambio) {
-                            $actualizados++;
-                        }
-
-                        // regenerarLineas() bypassa el guard del observer (modelos refetcheados no tienen isDirty)
-                        ReqProgramaTejido::regenerarLineas([$p]);
-
-                        $prevFin = $fin->copy();
-                        $prevTelar = $p;
-                    } catch (\Throwable $e) {
-                        $errores++;
-                        LogFacade::error('Error recalculando registro', [
-                            'registro_id' => $p->Id ?? null,
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
-                }
-
-                DBFacade::commit();
-
-                ReqProgramaTejido::restoreObservers($dispatcher);
-
-                $tiempo = round(microtime(true) - $t0, 2);
-
-                return response()->json([
-                    'success' => true,
-                    'message' => "Se actualizaron {$actualizados} registro(s) con el calendario {$calendarioId} en {$tiempo}s",
-                    'data' => [
-                        'actualizados' => $actualizados,
-                        'procesados' => $procesados,
-                        'errores' => $errores,
-                        'tiempo_segundos' => $tiempo,
-                    ],
-                ]);
-            } catch (\Exception $e) {
-                DBFacade::rollBack();
-                ReqProgramaTejido::restoreObservers($dispatcher);
-                throw $e;
-            }
+            return $this->respuestaCalendarios($cambio->calendarioId, $resultado, $t0);
         } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
@@ -247,7 +141,51 @@ class ProgramaTejidoCalendariosController extends Controller
         }
     }
 
-    public function actualizarReprogramar(Request $request, int $id)
+    /** @param  array{actualizados: int, procesados: int, errores: int}  $resultado */
+    private function respuestaCalendarios(string $calendarioId, array $resultado, float $t0): JsonResponse
+    {
+        $tiempo = round(microtime(true) - $t0, 2);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Se actualizaron {$resultado['actualizados']} registro(s) con el calendario {$calendarioId} en {$tiempo}s",
+            'data' => [
+                'actualizados' => $resultado['actualizados'],
+                'procesados' => $resultado['procesados'],
+                'errores' => $resultado['errores'],
+                'tiempo_segundos' => $tiempo,
+            ],
+        ]);
+    }
+
+    private function actualizarReprogramarV2(ReprogramarProgramaTejidoRequest $request, int $id, ReprogramarProgramaTejido $accion): JsonResponse
+    {
+        try {
+            $registro = $accion->ejecutar(Reprogramacion::desdeRequest($request, $id));
+        } catch (MutacionRechazada $e) {
+            return $e->respuesta;
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Registro no encontrado',
+            ], 404);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar Reprogramar. No se guardó el cambio.',
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Reprogramar actualizado correctamente',
+            'reprogramar' => $registro->Reprogramar,
+        ]);
+    }
+
+    private function actualizarReprogramarLegacy(Request $request, int $id): JsonResponse
     {
         AuditoriaHelper::contexto('REPROGRAMAR');
 

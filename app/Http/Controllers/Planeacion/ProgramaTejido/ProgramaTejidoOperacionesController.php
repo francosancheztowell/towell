@@ -295,7 +295,7 @@ class ProgramaTejidoOperacionesController extends Controller
                 $detallesTotales = array_merge($detallesTotales, $detallesOrigen);
             }
 
-            $destInicioCarbon = Carbon::parse($destInicio ?? now());
+            $destInicioCarbon = Carbon::parse($destInicio);
             [$updatesDestino, $detallesDestino] = DateHelpers::recalcularFechasSecuencia($destRegistros, $destInicioCarbon);
             foreach ($destRegistros->values() as $index => $r) {
                 $idRegistro = (int) $r->Id;

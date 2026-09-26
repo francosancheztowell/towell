@@ -2,14 +2,21 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
+use App\Actions\Planeacion\ProgramaTejido\ActualizarProgramaTejido;
+use App\Actions\Planeacion\ProgramaTejido\MutacionRechazada;
+use App\Data\Planeacion\ProgramaTejido\CambiosProgramaTejido;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\EliminarTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\UpdateTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UtilityHelpers;
+use App\Http\Requests\Planeacion\ProgramaTejido\ActualizarProgramaTejidoRequest;
 use App\Models\Planeacion\OrdColProgramaTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\MutacionesV2;
 use App\Services\Planeacion\ProgramaTejido\ProgramaTejidoReadComparison;
 use App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log as LogFacade;
@@ -206,7 +213,41 @@ class ProgramaTejidoController extends Controller
 
     public function update(Request $request, int $id)
     {
-        return UpdateTejido::actualizar($request, $id);
+        if (MutacionesV2::activa('actualizar')) {
+            return MutacionesV2::medir('actualizar', 'v2', fn () => $this->actualizarV2(
+                app(ActualizarProgramaTejidoRequest::class), $id, app(ActualizarProgramaTejido::class)
+            ));
+        }
+
+        return MutacionesV2::medir('actualizar', 'legacy', fn () => UpdateTejido::actualizar($request, $id));
+    }
+
+    /**
+     * Edición inline v2 (PT-05): FormRequest → DTO → Action. Mismo JSON que el legacy; un
+     * fallo de derivados revierte todo y responde 500 sin el detalle técnico.
+     */
+    private function actualizarV2(ActualizarProgramaTejidoRequest $request, int $id, ActualizarProgramaTejido $accion): JsonResponse
+    {
+        try {
+            $registro = $accion->ejecutar(CambiosProgramaTejido::desdeRequest($request, $id));
+        } catch (MutacionRechazada $e) {
+            return $e->respuesta;
+        } catch (ModelNotFoundException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo actualizar el programa de tejido. Los cambios se revirtieron.',
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Programa de tejido actualizado',
+            'data' => UtilityHelpers::extractResumen($registro),
+        ]);
     }
 
     public function destroy(int $id)

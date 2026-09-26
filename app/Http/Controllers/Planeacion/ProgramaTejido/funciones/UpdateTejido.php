@@ -14,29 +14,28 @@ use App\Models\Planeacion\ReqProgramaTejidoLine;
 use App\Observers\ReqProgramaTejidoObserver;
 use App\Services\Planeacion\NoProduccionCierreAxService;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
 
 class UpdateTejido
 {
-    public static function actualizar(Request $request, int $id)
+    /** Campos que la grilla manda como '' y se tratan como null antes de validar. */
+    public const CAMPOS_VACIO_A_NULL = [
+        'programar_prod', 'entrega_produc', 'entrega_pt', 'entrega_cte', 'fecha_final',
+        'pedido', 'no_tiras', 'peine', 'largo_crudo', 'luchaje', 'peso_crudo', 'pt_vs_cte',
+        'ancho', 'ancho_toalla', 'no_produccion',
+    ];
+
+    /**
+     * Reglas del PUT legacy. Las comparte ActualizarProgramaTejidoRequest (v2).
+     *
+     * @return array<string, list<string>>
+     */
+    public static function reglas(): array
     {
-        AuditoriaHelper::contexto('EDITAR');
-
-        $registro = ReqProgramaTejido::findOrFail($id);
-
-        foreach ([
-            'programar_prod', 'entrega_produc', 'entrega_pt', 'entrega_cte', 'fecha_final',
-            'pedido', 'no_tiras', 'peine', 'largo_crudo', 'luchaje', 'peso_crudo', 'pt_vs_cte',
-            'ancho', 'ancho_toalla', 'no_produccion',
-        ] as $k) {
-            if ($request->has($k) && is_string($request->input($k)) && trim($request->input($k)) === '') {
-                $request->merge([$k => null]);
-            }
-        }
-
-        $data = $request->validate([
+        return [
             'hilo' => ['sometimes', 'nullable', 'string'],
             'calendario_id' => ['sometimes', 'nullable', 'string'],
             'tamano_clave' => ['sometimes', 'nullable', 'string'],
@@ -61,13 +60,95 @@ class UpdateTejido
             'ancho_toalla' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'velocidad_std' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'eficiencia_std' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-        ]);
+        ];
+    }
+
+    public static function actualizar(Request $request, int $id)
+    {
+        AuditoriaHelper::contexto('EDITAR');
+
+        $registro = ReqProgramaTejido::findOrFail($id);
+
+        foreach (self::CAMPOS_VACIO_A_NULL as $k) {
+            if ($request->has($k) && is_string($request->input($k)) && trim($request->input($k)) === '') {
+                $request->merge([$k => null]);
+            }
+        }
+
+        $data = $request->validate(self::reglas());
 
         // Snapshot
         $fechaFinalAntes = (string) ($registro->FechaFinal ?? '');
         $horasProdAntes = (float) ($registro->HorasProd ?? 0);
         $cantidadAntes = TejidoHelpers::sanitizeNumber($registro->SaldoPedido ?? $registro->Produccion ?? $registro->TotalPedido ?? 0);
 
+        $flags = self::aplicarCambios($registro, $data);
+        if ($flags instanceof JsonResponse) {
+            return $flags;
+        }
+
+        self::recalcularDerivados($registro, $flags, $horasProdAntes, $cantidadAntes);
+
+        // ===== 4) Truncar strings antes de guardar (evitar error "String or binary data would be truncated")
+        StringTruncator::truncateModelAttributes($registro);
+
+        // ===== 5) Log de campos que se actualizarán y guardar =====
+        $dirty = $registro->getDirty();
+        if (! empty($dirty)) {
+            $campos = array_keys($dirty);
+            $ordenNoActualizada = ! in_array('OrdPrincipal', $campos, true);
+            LogFacade::info('UpdateTejido: campos actualizados', [
+                'id' => $registro->Id,
+                'campos' => $campos,
+                'valores' => $dirty,
+                'orden_produccion_no_actualizada' => $ordenNoActualizada,
+                'calibre_trama' => [
+                    'CalibreTrama' => $registro->CalibreTrama ?? null,
+                    'CalibreTrama2' => $registro->CalibreTrama2 ?? null,
+                ],
+                'color_pie' => [
+                    'CodColorCtaPie' => $registro->CodColorCtaPie ?? null,
+                    'NombreCPie' => $registro->NombreCPie ?? null,
+                ],
+            ]);
+        }
+
+        // ===== Transacción única: pedido, fórmulas, CatCodificados y cascada se confirman juntos. =====
+        DBFacade::beginTransaction();
+        try {
+            self::persistir($registro, $flags, $fechaFinalAntes, estricto: false);
+
+            DBFacade::commit();
+        } catch (\Throwable $e) {
+            DBFacade::rollBack();
+            LogFacade::error('UpdateTejido: transacción fallida, cambios revertidos', [
+                'id' => $id, 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo actualizar el programa de tejido (cascada de fechas o regeneración de líneas falló): '.$e->getMessage(),
+            ], 500);
+        }
+
+        $registro = $registro->fresh(); // para devolver lo definitivo
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Programa de tejido actualizado',
+            'data' => UtilityHelpers::extractResumen($registro),
+        ]);
+    }
+
+    /**
+     * Aplica los campos validados al registro (sin guardar). Devuelve las banderas de qué
+     * afecta el cambio, o el 422 legacy (clave modelo inexistente, orden cerrada en AX).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, bool>|JsonResponse
+     */
+    public static function aplicarCambios(ReqProgramaTejido $registro, array $data): array|JsonResponse
+    {
         // Flags correctos
         $afectaCalendario = false;   // solo acomodación en líneas
         $afectaDuracion = false;   // cambia HorasProd necesaria (pedido/modelo/no_tiras/luchaje)
@@ -525,6 +606,19 @@ class UpdateTejido
             $fechaFinalManual = true;
         }
 
+        return compact('afectaCalendario', 'afectaDuracion', 'afectaFormulas', 'afectaAplicacion', 'fechaFinalManual', 'editoAncho');
+    }
+
+    /**
+     * FechaFinal, fórmulas y PesoGRM2 según las banderas de aplicarCambios() (sin guardar).
+     *
+     * @param  array<string, bool>  $flags
+     */
+    public static function recalcularDerivados(ReqProgramaTejido $registro, array $flags, float $horasProdAntes, float $cantidadAntes): void
+    {
+        ['afectaCalendario' => $afectaCalendario, 'afectaDuracion' => $afectaDuracion, 'afectaFormulas' => $afectaFormulas,
+            'fechaFinalManual' => $fechaFinalManual, 'editoAncho' => $editoAncho] = $flags;
+
         // ===== 2) Recalcular FechaFinal =====
         // REGLA: cambiar calendario NO cambia duración; solo re-acomoda en líneas.
         $enProceso = (bool) $registro->EnProceso;
@@ -596,114 +690,83 @@ class UpdateTejido
                 $registro->PesoGRM2 = (float) round(($pesoCrudo * 10000) / ($largo * $anchoToalla), 2);
             }
         }
+    }
 
+    /**
+     * Guarda la cabecera y sus derivados (CatCodificados, fórmulas de rollos, cascada,
+     * líneas, aplicación). Corre dentro de la transacción de quien llama.
+     * $estricto = false es el comportamiento legacy (un fallo de aplicación en líneas se
+     * registra y se confirma igual); true (v2) lo relanza para revertir todo.
+     *
+     * @param  array<string, bool>  $flags
+     */
+    public static function persistir(ReqProgramaTejido $registro, array $flags, string $fechaFinalAntes, bool $estricto): void
+    {
+        ['afectaCalendario' => $afectaCalendario, 'afectaDuracion' => $afectaDuracion,
+            'afectaAplicacion' => $afectaAplicacion, 'fechaFinalManual' => $fechaFinalManual] = $flags;
         $fechaFinalCambiada = ((string) ($registro->FechaFinal ?? '') !== $fechaFinalAntes);
 
-        // ===== 4) Truncar strings antes de guardar (evitar error "String or binary data would be truncated")
-        StringTruncator::truncateModelAttributes($registro);
+        $registro->saveQuietly();
 
-        // ===== 5) Log de campos que se actualizarán y guardar =====
-        $dirty = $registro->getDirty();
-        if (! empty($dirty)) {
-            $campos = array_keys($dirty);
-            $ordenNoActualizada = ! in_array('OrdPrincipal', $campos, true);
-            LogFacade::info('UpdateTejido: campos actualizados', [
-                'id' => $registro->Id,
-                'campos' => $campos,
-                'valores' => $dirty,
-                'orden_produccion_no_actualizada' => $ordenNoActualizada,
-                'calibre_trama' => [
-                    'CalibreTrama' => $registro->CalibreTrama ?? null,
-                    'CalibreTrama2' => $registro->CalibreTrama2 ?? null,
-                ],
-                'color_pie' => [
-                    'CodColorCtaPie' => $registro->CodColorCtaPie ?? null,
-                    'NombreCPie' => $registro->NombreCPie ?? null,
-                ],
-            ]);
-        }
-
-        // ===== Transacción única: pedido, fórmulas, CatCodificados y cascada se confirman juntos. =====
-        DBFacade::beginTransaction();
+        // Sincronizar campos editables hacia CatCodificados (TamanoClave→ClaveModelo, ItemId, TotalPedido→Pedido,
+        // SaldoPedido→Saldos, FlogsId, NombreProyecto, PesoCrudo→P_crudo). saveQuietly() NO dispara observers,
+        // por eso lo llamamos explícitamente. wasChanged() detecta qué campos efectivamente cambiaron.
         try {
-            $registro->saveQuietly();
+            $observer = new ReqProgramaTejidoObserver;
+            $observer->sincronizarCatCodificados($registro);
 
-            // Sincronizar campos editables hacia CatCodificados (TamanoClave→ClaveModelo, ItemId, TotalPedido→Pedido,
-            // SaldoPedido→Saldos, FlogsId, NombreProyecto, PesoCrudo→P_crudo). saveQuietly() NO dispara observers,
-            // por eso lo llamamos explícitamente. wasChanged() detecta qué campos efectivamente cambiaron.
-            try {
-                $observer = new ReqProgramaTejidoObserver;
-                $observer->sincronizarCatCodificados($registro);
-
-                // Si cambió un input que afecta la cadena de fórmulas, recalcular Repeticiones/PzasRollo/
-                // MtsRollo/TotalRollos/TotalPzas/SaldoMarbete tanto en ReqProgramaTejido como en CatCodificados.
-                $cambioInputFormula = false;
-                foreach (ReqProgramaTejidoObserver::CAMPOS_RECALC_FORMULA as $campo) {
-                    if ($registro->wasChanged($campo)) {
-                        $cambioInputFormula = true;
-                        break;
-                    }
-                }
-                if ($cambioInputFormula) {
-                    $recalculado = $observer->recalcularFormulasProduccion($registro);
-                    if (! $recalculado) {
-                        throw new \RuntimeException('No se pudieron persistir las fórmulas de rollos en ReqProgramaTejido.');
-                    }
-
-                    // Trabajar desde aquí con el valor confirmado en SQL Server, no con el modelo previo al UPDATE directo.
-                    $registro->refresh();
-                }
-            } catch (\Throwable $e) {
-                LogFacade::warning('UpdateTejido: sincronizarCatCodificados/recalc error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
-                throw $e;
-            }
-
-            // ===== 6) Cascada (solo si cambió FechaFinal y NO es Ultimo) =====
-            if ($fechaFinalCambiada && ! $registro->esUltimo()) {
-                // cascadeFechas rethrowa: relanzar para que la transacción externa revierte saveQuietly().
-                // No tragar: la inconsistencia "registro actualizado / cascada rollback" es peor que fallar limpio.
-                DateHelpers::cascadeFechas($registro);
-            }
-
-            // ===== 7) Líneas (solo si cambió planeación) =====
-            $necesitaLineas = $afectaCalendario || $afectaDuracion || $fechaFinalCambiada || $fechaFinalManual;
-
-            if ($necesitaLineas) {
-                // PT-02 (hallazgo 4): sin try y relanzando. Si las líneas no se regeneran, la
-                // transacción revierte la edición; antes se registraba un warning y la cabecera
-                // quedaba con líneas viejas.
-                (new ReqProgramaTejidoObserver)->regenerateLinesFor($registro, relanzar: true);
-            }
-
-            // ===== 8) Actualizar Aplicacion en líneas existentes (solo si cambió aplicación y NO se regeneraron líneas) =====
-            if ($afectaAplicacion && ! $necesitaLineas) {
-                try {
-                    self::actualizarAplicacionEnLineas($registro);
-                } catch (\Throwable $e) {
-                    LogFacade::warning('UpdateTejido: actualizarAplicacionEnLineas error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
+            // Si cambió un input que afecta la cadena de fórmulas, recalcular Repeticiones/PzasRollo/
+            // MtsRollo/TotalRollos/TotalPzas/SaldoMarbete tanto en ReqProgramaTejido como en CatCodificados.
+            $cambioInputFormula = false;
+            foreach (ReqProgramaTejidoObserver::CAMPOS_RECALC_FORMULA as $campo) {
+                if ($registro->wasChanged($campo)) {
+                    $cambioInputFormula = true;
+                    break;
                 }
             }
+            if ($cambioInputFormula) {
+                $recalculado = $observer->recalcularFormulasProduccion($registro);
+                if (! $recalculado) {
+                    throw new \RuntimeException('No se pudieron persistir las fórmulas de rollos en ReqProgramaTejido.');
+                }
 
-            DBFacade::commit();
+                // Trabajar desde aquí con el valor confirmado en SQL Server, no con el modelo previo al UPDATE directo.
+                $registro->refresh();
+            }
         } catch (\Throwable $e) {
-            DBFacade::rollBack();
-            LogFacade::error('UpdateTejido: transacción fallida, cambios revertidos', [
-                'id' => $id, 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'No se pudo actualizar el programa de tejido (cascada de fechas o regeneración de líneas falló): '.$e->getMessage(),
-            ], 500);
+            LogFacade::warning('UpdateTejido: sincronizarCatCodificados/recalc error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
+            throw $e;
         }
 
-        $registro = $registro->fresh(); // para devolver lo definitivo
+        // ===== 6) Cascada (solo si cambió FechaFinal y NO es Ultimo) =====
+        if ($fechaFinalCambiada && ! $registro->esUltimo()) {
+            // cascadeFechas rethrowa: relanzar para que la transacción externa revierte saveQuietly().
+            // No tragar: la inconsistencia "registro actualizado / cascada rollback" es peor que fallar limpio.
+            DateHelpers::cascadeFechas($registro);
+        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Programa de tejido actualizado',
-            'data' => UtilityHelpers::extractResumen($registro),
-        ]);
+        // ===== 7) Líneas (solo si cambió planeación) =====
+        $necesitaLineas = $afectaCalendario || $afectaDuracion || $fechaFinalCambiada || $fechaFinalManual;
+
+        if ($necesitaLineas) {
+            // PT-02 (hallazgo 4): sin try y relanzando. Si las líneas no se regeneran, la
+            // transacción revierte la edición; antes se registraba un warning y la cabecera
+            // quedaba con líneas viejas.
+            (new ReqProgramaTejidoObserver)->regenerateLinesFor($registro, relanzar: true);
+        }
+
+        // ===== 8) Actualizar Aplicacion en líneas existentes (solo si cambió aplicación y NO se regeneraron líneas) =====
+        if ($afectaAplicacion && ! $necesitaLineas) {
+            try {
+                self::actualizarAplicacionEnLineas($registro);
+            } catch (\Throwable $e) {
+                // Legacy: se registra y se confirma igual (WR-08). v2 ($estricto) revierte todo.
+                if ($estricto) {
+                    throw $e;
+                }
+                LogFacade::warning('UpdateTejido: actualizarAplicacionEnLineas error', ['id' => $registro->Id, 'error' => $e->getMessage()]);
+            }
+        }
     }
 
     /**

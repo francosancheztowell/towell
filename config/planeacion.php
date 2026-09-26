@@ -97,4 +97,17 @@ return [
         'shadow_sample' => (float) env('PLANEACION_READ_V2_SHADOW_SAMPLE', 0),
     ],
 
+    /*
+    | Mutaciones v2 (PT-05 · PT-MUT-01 / PT-ROL-01). Una familia por flag:
+    | 'off' (default) = handler legacy · 'canary' = v2 solo para usuarios_canary ·
+    | 'on' = v2 para todos. Rollback: volver a 'off' (config:clear). Mismas rutas y JSON.
+    | Telemetría: log 'programa_tejido.mutacion' (familia, versión, ms, status).
+    */
+    'mutaciones_v2' => [
+        'actualizar' => env('PLANEACION_MUT_V2_ACTUALIZAR', 'off'),
+        'reprogramar' => env('PLANEACION_MUT_V2_REPROGRAMAR', 'off'),
+        'calendarios' => env('PLANEACION_MUT_V2_CALENDARIOS', 'off'),
+        'usuarios_canary' => array_values(array_filter(array_map('intval', explode(',', (string) env('PLANEACION_MUT_V2_CANARY', ''))))),
+    ],
+
 ];

@@ -9,7 +9,18 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 /**
+ * Columnas que usa el código de Programa Tejido (sin migración: el esquema vive en SQL Server).
+ *
  * @property string|null $CalendarioId
+ * @property mixed $SalonTejidoId
+ * @property mixed $NoTelarId
+ * @property mixed $Posicion
+ * @property mixed $EnProceso
+ * @property mixed $Ultimo
+ * @property mixed $FechaInicio
+ * @property mixed $FechaFinal
+ * @property mixed $HorasProd
+ * @property mixed $Reprogramar
  */
 class ReqProgramaTejido extends Model
 {
