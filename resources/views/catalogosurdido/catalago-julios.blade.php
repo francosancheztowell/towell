@@ -5,27 +5,55 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         <x-navbar.button-create
-        onclick="openCreateModal()"
+        data-accion="crear"
         title="Nuevo Julio"
         module="Catalogo Julios Eng"
         />
         <x-navbar.button-edit
         id="btnEdit"
-        onclick="editSelected()"
+        data-accion="editar"
         title="Editar Julio"
         module="Catalogo Julios Eng"
         />
         <x-navbar.button-delete
         id="btnDelete"
-        onclick="deleteSelected()"
+        data-accion="eliminar"
         title="Eliminar Julio"
         module="Catalogo Julios Eng"/>
-        <x-buttons.catalog-actions route="julios" :showFilters="true" />
+        {{-- Antes x-buttons.catalog-actions route="julios": 'julios' no está en su mapa de permisos,
+             así que solo pintaba Filtrar/Restablecer (con onclick). Mismo markup, sin handlers inline. --}}
+        <div class="flex items-center gap-1">
+            <button type="button" id="btn-filtrar" data-accion="filtrar"
+               class="relative p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors"
+               title="Filtrar" aria-label="Filtrar">
+                <i class="fas fa-filter text-lg" aria-hidden="true"></i>
+            </button>
+            <button type="button" id="btn-restablecer-julios" data-accion="restablecer"
+               class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+               title="Restablecer" aria-label="Restablecer">
+                <i class="fas fa-redo text-lg" aria-hidden="true"></i>
+            </button>
+        </div>
     </div>
 @endsection
 
 @section('content')
-    <div class="w-full">
+    @php
+        $rutaJulios = $departamentoFiltro === 'Engomado' ? 'engomado.configuracion.catalogos.julios' : 'urdido.catalogos.julios';
+        $configJulios = [
+            "departamento" => $departamentoFiltro,
+            "rutas" => [
+                "guardar" => route($rutaJulios.".store"),
+                "actualizar" => route($rutaJulios.".update", ["id" => "__ID__"]),
+                "eliminar" => route($rutaJulios.".destroy", ["id" => "__ID__"]),
+                "listado" => url()->current(),
+            ],
+        ];
+    @endphp
+    <div class="w-full" id="catalogo-julios" data-pagina='@json($configJulios)'>
+    @if (! empty($error))
+        <x-ui.alert type="error" :message="$error" />
+    @endif
     @if ($noResults ?? false)
         <div class="alert alert-warning text-center">No se encontraron resultados con la información proporcionada.</div>
     @endif
@@ -52,7 +80,7 @@
                                     : 'bg-gray-100 text-gray-700');
                         @endphp
                         <tr class="text-center hover:bg-blue-50 transition cursor-pointer text-black"
-                            onclick="selectRow(this)"
+                            data-fila
                             data-uid="{{ $uid }}"
                             data-no-julio="{{ $julio->NoJulio }}"
                             data-tara="{{ $julio->Tara ?? 0 }}"
@@ -77,6 +105,37 @@
     </div>
     </div>
 
+    {{-- Formulario Crear/Editar (antes un Swal con HTML armado en JS). --}}
+    <x-ui.modal-base id="julioModal" title="Nuevo Julio" size="sm" :close-on-backdrop="true">
+        <form id="julioForm" class="grid grid-cols-1 gap-3 text-left text-sm" novalidate>
+            <x-ui.field as="input" name="NoJulio" id="julio-no" label="No. Julio" required
+                        placeholder="Ej: J001, J002" maxlength="50" autocomplete="off" />
+            <x-ui.field as="number" name="Tara" id="julio-tara" label="Tara" step="0.01" min="0" placeholder="Ej: 10.50" />
+            <x-ui.field as="select" name="Departamento" id="julio-departamento" label="Departamento" disabled>
+                <option value="{{ $departamentoFiltro }}" selected>{{ $departamentoFiltro }}</option>
+            </x-ui.field>
+        </form>
+        <x-slot:footer>
+            <x-ui.button variant="neutral" size="nav" data-ui-modal-close-target="julioModal">Cancelar</x-ui.button>
+            <x-ui.button variant="create" size="nav" type="submit" form="julioForm" data-julio-guardar><span data-texto-guardar>Guardar</span></x-ui.button>
+        </x-slot:footer>
+    </x-ui.modal-base>
+
+    {{-- Filtro (antes un Swal): el departamento ya lo fija la ruta. --}}
+    <x-ui.modal-base id="filtroJuliosModal" title="Filtrar Julios" size="sm" :close-on-backdrop="true">
+        <form id="filtroJuliosForm" class="grid grid-cols-1 gap-3 text-left text-sm">
+            <x-ui.field as="input" name="no_julio" id="filtro-no-julio" label="No. Julio"
+                        placeholder="Buscar por No. Julio" :value="request('no_julio')" autocomplete="off" />
+            <x-ui.field as="select" name="departamento_ruta" id="filtro-departamento" label="Departamento" disabled>
+                <option value="{{ $departamentoFiltro }}" selected>{{ $departamentoFiltro }}</option>
+            </x-ui.field>
+        </form>
+        <x-slot:footer>
+            <x-ui.button variant="neutral" size="nav" data-ui-modal-close-target="filtroJuliosModal">Cancelar</x-ui.button>
+            <x-ui.button variant="create" size="nav" type="submit" form="filtroJuliosForm" icon="fa-filter">Filtrar</x-ui.button>
+        </x-slot:footer>
+    </x-ui.modal-base>
+
 <style>
   .scrollbar-thin { scrollbar-width: thin; }
   .scrollbar-thin::-webkit-scrollbar { width: 8px; }
@@ -97,426 +156,8 @@
     background-clip: padding-box;
   }
 </style>
-
-
-    <script>
-    // Variables globales
-    let currentJulioId = null;
-    let selectedRow = null;
-
-    function getSelectedJulioData() {
-        if (!selectedRow) {
-            return null;
-        }
-
-        return {
-            id: (selectedRow.dataset.id || selectedRow.dataset.noJulio || '').trim(),
-            noJulio: selectedRow.dataset.noJulio || '',
-            tara: selectedRow.dataset.tara || '',
-            departamento: selectedRow.dataset.departamento || ''
-        };
-    }
-
-    // Seleccionar fila de la tabla
-    window.selectRow = function(row) {
-        // Deseleccionar fila anterior
-        if (selectedRow) {
-            selectedRow.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-600');
-            selectedRow.classList.add('text-black', 'hover:bg-blue-50');
-        }
-
-        // Si es la misma fila, deseleccionar
-        if (selectedRow === row) {
-            selectedRow = null;
-            currentJulioId = null;
-            row.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-600');
-            row.classList.add('text-black', 'hover:bg-blue-50');
-            disableButtons();
-            return;
-        }
-
-        // Seleccionar nueva fila
-        selectedRow = row;
-        currentJulioId = (row.dataset.id || row.dataset.noJulio || '').trim() || null;
-        row.classList.remove('text-black', 'hover:bg-blue-50');
-        row.classList.add('bg-blue-500', 'text-white', 'hover:bg-blue-600');
-        if (currentJulioId) {
-            enableButtons();
-        } else {
-            disableButtons();
-        }
-    }
-
-    // Habilitar botones del navbar
-    window.enableButtons = function() {
-        const btnEdit = document.getElementById('btnEdit');
-        const btnDelete = document.getElementById('btnDelete');
-
-        if (btnEdit) {
-            btnEdit.disabled = false;
-            btnEdit.removeAttribute('disabled');
-            btnEdit.classList.remove('opacity-50', 'cursor-not-allowed');
-            btnEdit.classList.add('cursor-pointer');
-        }
-        if (btnDelete) {
-            btnDelete.disabled = false;
-            btnDelete.removeAttribute('disabled');
-            btnDelete.classList.remove('opacity-50', 'cursor-not-allowed');
-            btnDelete.classList.add('cursor-pointer');
-        }
-
-        if (typeof window.actualizarBotonesAccionJulios === 'function') {
-            window.actualizarBotonesAccionJulios(true);
-        }
-    }
-
-    // Deshabilitar botones del navbar
-    window.disableButtons = function() {
-        const btnEdit = document.getElementById('btnEdit');
-        const btnDelete = document.getElementById('btnDelete');
-
-        if (btnEdit) {
-            btnEdit.disabled = true;
-            btnEdit.setAttribute('disabled', 'disabled');
-            btnEdit.classList.add('opacity-50', 'cursor-not-allowed');
-            btnEdit.classList.remove('cursor-pointer');
-        }
-        if (btnDelete) {
-            btnDelete.disabled = true;
-            btnDelete.setAttribute('disabled', 'disabled');
-            btnDelete.classList.add('opacity-50', 'cursor-not-allowed');
-            btnDelete.classList.remove('cursor-pointer');
-        }
-
-        if (typeof window.actualizarBotonesAccionJulios === 'function') {
-            window.actualizarBotonesAccionJulios(false);
-        }
-    }
-
-    function showSelectionWarning() {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Selecciona un julio',
-            text: 'Debes seleccionar un registro para continuar.'
-        });
-    }
-
-    // Editar registro seleccionado desde navbar
-    window.editSelected = function() {
-        const data = getSelectedJulioData();
-        if (!data || !data.id) {
-            showSelectionWarning();
-            return;
-        }
-
-        openEditModal(data.id);
-    }
-
-    // Eliminar registro seleccionado desde navbar
-    window.deleteSelected = function() {
-        const data = getSelectedJulioData();
-        if (!data || !data.id) {
-            showSelectionWarning();
-            return;
-        }
-
-        openDeleteModal(data.id);
-    }
-
-    // Abrir modal de creación
-    window.openCreateModal = function() {
-        openJulioModal('create');
-    }
-
-    window.agregarJulios = function() {
-        openCreateModal();
-    }
-
-    // Abrir modal de edición
-    window.openEditModal = function(julioId) {
-        const data = getSelectedJulioData() || {};
-        const resolvedId = (julioId || data.id || '').trim();
-
-        if (!resolvedId) {
-            showSelectionWarning();
-            return;
-        }
-
-        openJulioModal('edit', {
-            id: resolvedId,
-            noJulio: data.noJulio || '',
-            tara: data.tara || '',
-            departamento: data.departamento || ''
-        });
-    }
-
-    // Abrir modal de eliminación
-    window.openDeleteModal = function(julioId) {
-        const resolvedId = (julioId || currentJulioId || '').trim();
-        if (!resolvedId) {
-            showSelectionWarning();
-            return;
-        }
-
-        confirmDeleteJulio(resolvedId);
-    }
-
-    window.editarJulios = function() {
-        editSelected();
-    }
-
-    window.eliminarJulios = function() {
-        deleteSelected();
-    }
-
-    function openJulioModal(mode, data = {}) {
-        const isEdit = mode === 'edit';
-        const title = isEdit ? 'Editar Julio' : 'Nuevo Julio';
-        const confirmText = isEdit ? 'Actualizar' : 'Guardar';
-
-        // Detectar departamento según la ruta actual
-        const isEngomado = window.location.pathname.includes('catalogojulioseng');
-        const departamentoFiltro = isEngomado ? 'Engomado' : 'Urdido';
-        const departamentoActual = data.departamento || departamentoFiltro;
-
-        Swal.fire({
-            title: title,
-            html: `
-                <div class="grid grid-cols-1 gap-3 text-left text-sm">
-                    <div>
-                        <label class="block text-xs font-medium mb-1">
-                            No. Julio <span class="text-red-500">*</span>
-                        </label>
-                        <input id="swal-no-julio" class="swal2-input" placeholder="Ej: J001, J002">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium mb-1">Tara</label>
-                        <input id="swal-tara" type="number" step="0.01" min="0" class="swal2-input" placeholder="Ej: 10.50">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium mb-1">Departamento</label>
-                        <select id="swal-departamento" class="swal2-input" disabled>
-                            <option value="${departamentoFiltro}" selected>${departamentoFiltro}</option>
-                        </select>
-                        <input type="hidden" id="swal-departamento-hidden" value="${departamentoFiltro}">
-                    </div>
-                </div>
-            `,
-            showCancelButton: true,
-            confirmButtonText: confirmText,
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#3b82f6',
-            focusConfirm: false,
-            didOpen: () => {
-                document.getElementById('swal-no-julio').value = data.noJulio || '';
-                document.getElementById('swal-tara').value = data.tara ?? '';
-                document.getElementById('swal-departamento').value = departamentoFiltro;
-            },
-            preConfirm: () => {
-                const noJulio = document.getElementById('swal-no-julio').value.trim();
-                const taraValue = document.getElementById('swal-tara').value;
-                const departamentoHidden = document.getElementById('swal-departamento-hidden');
-                const departamento = departamentoHidden ? departamentoHidden.value : (isEngomado ? 'Engomado' : 'Urdido');
-
-                if (!noJulio) {
-                    Swal.showValidationMessage('El No. Julio es requerido');
-                    return false;
-                }
-
-                const tara = taraValue === '' ? 0 : Number(taraValue);
-                if (taraValue !== '' && Number.isNaN(tara)) {
-                    Swal.showValidationMessage('La Tara debe ser un número válido');
-                    return false;
-                }
-
-                return {
-                    NoJulio: noJulio,
-                    Tara: tara,
-                    Departamento: departamento
-                };
-            }
-        }).then((result) => {
-            if (!result.isConfirmed) {
-                return;
-            }
-
-            saveJulio(result.value, isEdit ? data.id : null);
-        });
-    }
-
-    function saveJulio(data, julioId) {
-        const isEdit = !!julioId;
-        // Detectar si estamos en engomado o urdido
-        const isEngomado = window.location.pathname.includes('catalogojulioseng');
-        const basePath = isEngomado ? '/engomado/configuracion/catalogojulioseng' : '/urdido/catalogos-julios';
-        const url = isEdit
-            ? `${basePath}/${encodeURIComponent(julioId)}`
-            : basePath;
-        const method = isEdit ? 'put' : 'post';
-
-        axios({
-            method: method,
-            url: url,
-            data: data,
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => {
-            if (response.data.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: isEdit ? '¡Actualizado!' : '¡Creado!',
-                    text: response.data.message,
-                    showConfirmButton: false,
-                    timer: 1500
-                }).then(() => {
-                    location.reload();
-                });
-                return;
-            }
-
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: response.data.message || 'No se pudo guardar el julio'
-            });
-        })
-        .catch(error => {
-            console.error('Error al guardar:', error);
-            let errorMessage = 'No se pudo guardar el julio';
-
-            if (error.response?.data?.message) {
-                if (typeof error.response.data.message === 'object') {
-                    errorMessage = Object.values(error.response.data.message).flat().join(', ');
-                } else {
-                    errorMessage = error.response.data.message;
-                }
-            }
-
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: errorMessage
-            });
-        });
-    }
-
-    function confirmDeleteJulio(julioId) {
-        Swal.fire({
-            title: 'Confirmar Eliminación',
-            text: '¿Está seguro que desea eliminar este julio? Esta acción no se puede deshacer.',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Eliminar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#ef4444'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                deleteJulio(julioId);
-            }
-        });
-    }
-
-    function deleteJulio(julioId) {
-        const resolvedId = (julioId || currentJulioId || '').trim();
-        if (!resolvedId) {
-            return;
-        }
-
-        // Detectar si estamos en engomado o urdido
-        const isEngomado = window.location.pathname.includes('catalogojulioseng');
-        const basePath = isEngomado ? '/engomado/configuracion/catalogojulioseng' : '/urdido/catalogos-julios';
-
-        axios.delete(`${basePath}/${encodeURIComponent(resolvedId)}`, {
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => {
-            if (response.data.success) {
-                if (selectedRow && selectedRow.dataset.id === resolvedId) {
-                    selectedRow.remove();
-                    selectedRow = null;
-                    currentJulioId = null;
-                    disableButtons();
-                }
-
-                Swal.fire({
-                    icon: 'success',
-                    title: '¡Eliminado!',
-                    text: response.data.message,
-                    showConfirmButton: false,
-                    timer: 1500
-                });
-                return;
-            }
-
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: response.data.message || 'No se pudo eliminar el julio'
-            });
-        })
-        .catch(error => {
-            console.error('Error al eliminar:', error);
-
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: error.response?.data?.message || 'No se pudo eliminar el julio'
-            });
-        });
-    }
-
-    // Funciones globales para el componente de filtros
-    window.filtrarJulios = function() {
-        // Detectar departamento según la ruta actual
-        const isEngomado = window.location.pathname.includes('catalogojulioseng');
-        const departamentoFiltro = isEngomado ? 'Engomado' : 'Urdido';
-
-        Swal.fire({
-            title: 'Filtrar Julios',
-            html: `
-                <div class="grid grid-cols-1 gap-3 text-left text-sm">
-                    <div>
-                        <label class="block text-xs font-medium mb-1">No. Julio</label>
-                        <input id="filter-no-julio" class="swal2-input" placeholder="Buscar por No. Julio">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium mb-1">Departamento</label>
-                        <select id="filter-departamento" class="swal2-input" disabled>
-                            <option value="${departamentoFiltro}" selected>${departamentoFiltro}</option>
-                        </select>
-                    </div>
-                </div>
-            `,
-            showCancelButton: true,
-            confirmButtonText: 'Filtrar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#3b82f6',
-            preConfirm: () => {
-                const params = new URLSearchParams();
-                const noJulio = document.getElementById('filter-no-julio').value.trim();
-
-                if (noJulio) params.append('no_julio', noJulio);
-                // El departamento ya está filtrado automáticamente por la ruta
-
-                window.location.href = `${window.location.pathname}?${params.toString()}`;
-            }
-        });
-    };
-
-    window.limpiarFiltrosJulios = function() {
-        window.location.href = window.location.pathname;
-    };
-
-    // Inicializar botones como deshabilitados
-    document.addEventListener('DOMContentLoaded', function() {
-        disableButtons();
-    });
-    </script>
 @endsection
+
+@push('scripts')
+    @vite('resources/js/modulos/urdido/catalogo-julios/index.ts')
+@endpush

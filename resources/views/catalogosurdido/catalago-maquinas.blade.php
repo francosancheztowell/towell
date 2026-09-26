@@ -5,31 +5,57 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         <x-navbar.button-create
-        onclick="openCreateModal()"
+        data-accion="crear"
         title="Nueva Máquina"
         module="Catalogos Maquinas"
         />
         <x-navbar.button-edit
         id="btnEdit"
-        onclick="editSelected()"
+        data-accion="editar"
         title="Editar Máquina"
         :disabled="true"
         module="Catalogos Maquinas"
         />
         <x-navbar.button-delete
         id="btnDelete"
-        onclick="deleteSelected()"
+        data-accion="eliminar"
         title="Eliminar Máquina"
         :disabled="true"
         hoverBg="hover:bg-red-200"
         module="Catalogos Maquinas"
         />
-        <x-buttons.catalog-actions route="maquinas" :showFilters="true" />
+        {{-- Antes x-buttons.catalog-actions route="maquinas": 'maquinas' no está en su mapa de permisos,
+             así que solo pintaba Filtrar/Restablecer. Mismo markup, sin handlers inline. --}}
+        <div class="flex items-center gap-1">
+            <button type="button" id="btn-filtrar" data-accion="filtrar"
+               class="relative p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors"
+               title="Filtrar" aria-label="Filtrar">
+                <i class="fas fa-filter text-lg" aria-hidden="true"></i>
+            </button>
+            <button type="button" id="btn-restablecer-maquinas" data-accion="restablecer"
+               class="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+               title="Restablecer" aria-label="Restablecer">
+                <i class="fas fa-redo text-lg" aria-hidden="true"></i>
+            </button>
+        </div>
     </div>
 @endsection
 
 @section('content')
-    <div class="container">
+    @php
+        $configMaquinas = [
+            "rutas" => [
+                "guardar" => route("urdido.catalogo.maquinas.store"),
+                "actualizar" => route("urdido.catalogo.maquinas.update", ["maquinaId" => "__ID__"]),
+                "eliminar" => route("urdido.catalogo.maquinas.destroy", ["maquinaId" => "__ID__"]),
+                "listado" => url()->current(),
+            ],
+        ];
+    @endphp
+    <div class="container" id="catalogo-maquinas" data-pagina='@json($configMaquinas)'>
+    @if (! empty($error))
+        <x-ui.alert type="error" :message="$error" />
+    @endif
     @if ($noResults ?? false)
         <div class="alert alert-warning text-center">No se encontraron resultados con la información proporcionada.</div>
     @endif
@@ -48,7 +74,7 @@
                     @forelse ($maquinas as $maquina)
                         @php $uid = $maquina->MaquinaId ?? uniqid(); @endphp
                         <tr class="text-center hover:bg-blue-50 transition cursor-pointer"
-                            onclick="selectRow(this, '{{ $maquina->MaquinaId }}')"
+                            data-fila
                             data-uid="{{ $uid }}"
                             data-maquina-id="{{ $maquina->MaquinaId }}"
                             data-nombre="{{ $maquina->Nombre ?? '' }}"
@@ -74,13 +100,13 @@
         <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
             <div class="flex justify-between items-center border-b p-4 bg-blue-500 rounded-t-lg">
                 <h2 class="text-xl font-bold text-white" id="formModalTitle">Nueva Máquina</h2>
-                <button onclick="closeFormModal()" class="text-white hover:text-gray-200">
+                <button type="button" data-accion="cerrar-modal" data-modal="formModal" class="text-white hover:text-gray-200" aria-label="Cerrar">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
                 </button>
             </div>
-            <form id="maquinaForm" onsubmit="handleSubmit(event)">
+            <form id="maquinaForm" novalidate>
                 <div class="p-6">
                     <input type="hidden" id="original_maquinaid" name="original_maquinaid">
 
@@ -113,7 +139,7 @@
                 </div>
 
                 <div class="border-t p-4 flex justify-end gap-2 bg-gray-50 rounded-b-lg">
-                    <button type="button" onclick="closeFormModal()"
+                    <button type="button" data-accion="cerrar-modal" data-modal="formModal"
                         class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
                         Cancelar
                     </button>
@@ -134,7 +160,7 @@
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div class="flex justify-between items-center border-b p-4 bg-red-500 rounded-t-lg">
                 <h2 class="text-xl font-bold text-white">Confirmar Eliminación</h2>
-                <button onclick="closeDeleteModal()" class="text-white hover:text-gray-200">
+                <button type="button" data-accion="cerrar-modal" data-modal="deleteModal" class="text-white hover:text-gray-200" aria-label="Cerrar">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -154,11 +180,11 @@
                 </div>
             </div>
             <div class="border-t p-4 flex justify-end gap-2 bg-gray-50 rounded-b-lg">
-                <button onclick="closeDeleteModal()"
+                <button type="button" data-accion="cerrar-modal" data-modal="deleteModal"
                     class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
                     Cancelar
                 </button>
-                <button onclick="deleteMaquina()"
+                <button type="button" data-accion="confirmar-eliminar"
                     class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex items-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
@@ -169,6 +195,22 @@
         </div>
     </div>
 
+    {{-- Filtro (antes un Swal con formulario). --}}
+    <x-ui.modal-base id="filtroMaquinasModal" title="Filtrar Máquinas" size="sm" :close-on-backdrop="true">
+        <form id="filtroMaquinasForm" class="grid grid-cols-1 gap-3 text-left text-sm">
+            <x-ui.field as="input" name="maquina_id" id="filtro-maquina-id" label="Máquina ID"
+                        placeholder="Buscar por Máquina ID" :value="request('maquina_id')" autocomplete="off" />
+            <x-ui.field as="input" name="nombre" id="filtro-nombre" label="Nombre"
+                        placeholder="Buscar por Nombre" :value="request('nombre')" autocomplete="off" />
+            <x-ui.field as="input" name="departamento" id="filtro-departamento" label="Departamento"
+                        placeholder="Buscar por Departamento" :value="request('departamento')" autocomplete="off" />
+        </form>
+        <x-slot:footer>
+            <x-ui.button variant="neutral" size="nav" data-ui-modal-close-target="filtroMaquinasModal">Cancelar</x-ui.button>
+            <x-ui.button variant="create" size="nav" type="submit" form="filtroMaquinasForm" icon="fa-filter">Filtrar</x-ui.button>
+        </x-slot:footer>
+    </x-ui.modal-base>
+
 <style>
   .scrollbar-thin { scrollbar-width: thin; }
   .scrollbar-thin::-webkit-scrollbar { width: 8px; }
@@ -176,305 +218,8 @@
   .scrollbar-track-gray-100::-webkit-scrollbar-track { background-color: #f3f4f6; }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover { background-color: #6b7280; }
 </style>
-
-    <script>
-    // Variables globales
-    let currentMaquinaId = null;
-    let selectedRow = null;
-
-    // Seleccionar fila de la tabla
-    function selectRow(row, maquinaId) {
-        // Deseleccionar fila anterior
-        if (selectedRow) {
-            selectedRow.classList.remove('bg-blue-100', 'border-l-4', 'border-blue-500');
-        }
-
-        // Si es la misma fila, deseleccionar
-        if (selectedRow === row) {
-            selectedRow = null;
-            currentMaquinaId = null;
-            disableButtons();
-            return;
-        }
-
-        // Seleccionar nueva fila
-        selectedRow = row;
-        currentMaquinaId = maquinaId;
-        row.classList.add('bg-blue-100', 'border-l-4', 'border-blue-500');
-        enableButtons();
-    }
-
-    // Habilitar botones del navbar
-    function enableButtons() {
-        const btnEdit = document.getElementById('btnEdit');
-        const btnDelete = document.getElementById('btnDelete');
-
-        if (btnEdit) {
-            btnEdit.disabled = false;
-            btnEdit.classList.remove('opacity-50', 'cursor-not-allowed');
-            btnEdit.classList.add('cursor-pointer');
-        }
-        if (btnDelete) {
-            btnDelete.disabled = false;
-            btnDelete.classList.remove('opacity-50', 'cursor-not-allowed');
-            btnDelete.classList.add('cursor-pointer');
-        }
-    }
-
-    // Deshabilitar botones del navbar
-    function disableButtons() {
-        const btnEdit = document.getElementById('btnEdit');
-        const btnDelete = document.getElementById('btnDelete');
-
-        if (btnEdit) {
-            btnEdit.disabled = true;
-            btnEdit.classList.add('opacity-50', 'cursor-not-allowed');
-            btnEdit.classList.remove('cursor-pointer');
-        }
-        if (btnDelete) {
-            btnDelete.disabled = true;
-            btnDelete.classList.add('opacity-50', 'cursor-not-allowed');
-            btnDelete.classList.remove('cursor-pointer');
-        }
-    }
-
-    // Editar registro seleccionado desde navbar
-    function editSelected() {
-        if (currentMaquinaId && selectedRow) {
-            openEditModal(currentMaquinaId);
-        }
-    }
-
-    // Eliminar registro seleccionado desde navbar
-    function deleteSelected() {
-        if (currentMaquinaId) {
-            openDeleteModal();
-        }
-    }
-
-    // Abrir modal de creación
-    function openCreateModal() {
-        document.getElementById('formModalTitle').textContent = 'Nueva Máquina';
-        document.getElementById('maquinaForm').reset();
-        document.getElementById('original_maquinaid').value = '';
-        document.getElementById('formModal').classList.remove('hidden');
-        document.getElementById('formModal').classList.add('flex');
-        document.getElementById('MaquinaId').focus();
-    }
-
-    // Abrir modal de edición
-    function openEditModal(maquinaId) {
-        if (!selectedRow) return;
-
-        document.getElementById('formModalTitle').textContent = 'Editar Máquina';
-        document.getElementById('original_maquinaid').value = maquinaId;
-        document.getElementById('MaquinaId').value = selectedRow.dataset.maquinaId || '';
-        document.getElementById('Nombre').value = selectedRow.dataset.nombre || '';
-        document.getElementById('Departamento').value = selectedRow.dataset.departamento || '';
-
-        document.getElementById('formModal').classList.remove('hidden');
-        document.getElementById('formModal').classList.add('flex');
-    }
-
-    // Cerrar modal de formulario
-    function closeFormModal() {
-        document.getElementById('formModal').classList.add('hidden');
-        document.getElementById('formModal').classList.remove('flex');
-    }
-
-    // Abrir modal de eliminación
-    function openDeleteModal() {
-        document.getElementById('deleteModal').classList.remove('hidden');
-        document.getElementById('deleteModal').classList.add('flex');
-    }
-
-    // Cerrar modal de eliminación
-    function closeDeleteModal() {
-        document.getElementById('deleteModal').classList.add('hidden');
-        document.getElementById('deleteModal').classList.remove('flex');
-    }
-
-    // Manejar envío del formulario
-    function handleSubmit(event) {
-        event.preventDefault();
-
-        const originalMaquinaId = document.getElementById('original_maquinaid').value;
-        const isEdit = originalMaquinaId !== '';
-
-        const data = {
-            MaquinaId: document.getElementById('MaquinaId').value.trim(),
-            Nombre: document.getElementById('Nombre').value.trim() || null,
-            Departamento: document.getElementById('Departamento').value.trim() || null
-        };
-
-        // Validación básica
-        if (!data.MaquinaId) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'El Máquina ID es requerido'
-            });
-            return;
-        }
-
-        const url = isEdit
-            ? `/urdido/catalogo-maquinas/${encodeURIComponent(originalMaquinaId)}`
-            : '/urdido/catalogo-maquinas';
-
-        const method = isEdit ? 'put' : 'post';
-
-        axios({
-            method: method,
-            url: url,
-            data: data,
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => {
-            if (response.data.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: isEdit ? '¡Actualizado!' : '¡Creado!',
-                    text: response.data.message,
-                    showConfirmButton: false,
-                    timer: 1500
-                }).then(() => {
-                    location.reload();
-                });
-            }
-        })
-        .catch(error => {
-            console.error('Error al guardar:', error);
-            let errorMessage = 'No se pudo guardar la máquina';
-
-            if (error.response?.data?.message) {
-                if (typeof error.response.data.message === 'object') {
-                    errorMessage = Object.values(error.response.data.message).flat().join(', ');
-                } else {
-                    errorMessage = error.response.data.message;
-                }
-            }
-
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: errorMessage
-            });
-        });
-    }
-
-    // Eliminar máquina
-    function deleteMaquina() {
-        if (!currentMaquinaId) return;
-
-        axios.delete(`/urdido/catalogo-maquinas/${encodeURIComponent(currentMaquinaId)}`, {
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => {
-            if (response.data.success) {
-                if (selectedRow) {
-                    selectedRow.remove();
-                    selectedRow = null;
-                    currentMaquinaId = null;
-                    disableButtons();
-                }
-                closeDeleteModal();
-
-                Swal.fire({
-                    icon: 'success',
-                    title: '¡Eliminado!',
-                    text: response.data.message,
-                    showConfirmButton: false,
-                    timer: 1500
-                });
-            }
-        })
-        .catch(error => {
-            console.error('Error al eliminar:', error);
-            closeDeleteModal();
-
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: error.response?.data?.message || 'No se pudo eliminar la máquina'
-            });
-        });
-    }
-
-    // Cerrar modales al hacer clic fuera
-    window.onclick = function(event) {
-        const formModal = document.getElementById('formModal');
-        const deleteModal = document.getElementById('deleteModal');
-
-        if (event.target === formModal) {
-            closeFormModal();
-        }
-        if (event.target === deleteModal) {
-            closeDeleteModal();
-        }
-    }
-
-    // Cerrar modales con tecla Escape
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            closeFormModal();
-            closeDeleteModal();
-        }
-    });
-
-    // Funciones globales para el componente de filtros
-    window.filtrarMaquinas = function() {
-        Swal.fire({
-            title: 'Filtrar Máquinas',
-            html: `
-                <div class="grid grid-cols-1 gap-3 text-left text-sm">
-                    <div>
-                        <label class="block text-xs font-medium mb-1">Máquina ID</label>
-                        <input id="filter-maquina-id" class="swal2-input" placeholder="Buscar por Máquina ID">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium mb-1">Nombre</label>
-                        <input id="filter-nombre" class="swal2-input" placeholder="Buscar por Nombre">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium mb-1">Departamento</label>
-                        <input id="filter-departamento" class="swal2-input" placeholder="Buscar por Departamento">
-                    </div>
-                </div>
-            `,
-            showCancelButton: true,
-            confirmButtonText: 'Filtrar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#3b82f6',
-            preConfirm: () => {
-                const params = new URLSearchParams();
-                const maquinaId = document.getElementById('filter-maquina-id').value.trim();
-                const nombre = document.getElementById('filter-nombre').value.trim();
-                const departamento = document.getElementById('filter-departamento').value.trim();
-
-                if (maquinaId) params.append('maquina_id', maquinaId);
-                if (nombre) params.append('nombre', nombre);
-                if (departamento) params.append('departamento', departamento);
-
-                window.location.href = `${window.location.pathname}?${params.toString()}`;
-            }
-        });
-    };
-
-    window.limpiarFiltrosMaquinas = function() {
-        window.location.href = window.location.pathname;
-    };
-
-    // Inicializar botones como deshabilitados
-    document.addEventListener('DOMContentLoaded', function() {
-        disableButtons();
-    });
-    </script>
 @endsection
 
+@push('scripts')
+    @vite('resources/js/modulos/urdido/catalogo-maquinas/index.ts')
+@endpush

@@ -4,10 +4,14 @@ namespace App\Http\Controllers\UrdEngomado;
 
 use App\Http\Controllers\Controller;
 use App\Models\UrdEngomado\UrdEngNucleos;
+use App\Support\Http\Concerns\HandlesApiErrors;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class UrdEngNucleosController extends Controller
 {
+    use HandlesApiErrors;
+
     /**
      * Mostrar la lista de núcleos con paginación y búsqueda
      */
@@ -58,7 +62,7 @@ class UrdEngNucleosController extends Controller
 
             return back()->with('success', 'Núcleo creado correctamente.');
         } catch (\Exception $e) {
-            return back()->withInput()->with('error', 'Error al crear el núcleo: '.$e->getMessage());
+            return $this->volverConError($e, 'No se pudo crear el núcleo.', true);
         }
     }
 
@@ -92,7 +96,7 @@ class UrdEngNucleosController extends Controller
 
             return back()->with('success', 'Núcleo actualizado correctamente.');
         } catch (\Exception $e) {
-            return back()->withInput()->with('error', 'Error al actualizar el núcleo: '.$e->getMessage());
+            return $this->volverConError($e, 'No se pudo actualizar el núcleo.', true);
         }
     }
 
@@ -106,7 +110,7 @@ class UrdEngNucleosController extends Controller
 
             return back()->with('success', 'Núcleo eliminado correctamente.');
         } catch (\Exception $e) {
-            return back()->with('error', 'Error al eliminar el núcleo: '.$e->getMessage());
+            return $this->volverConError($e, 'No se pudo eliminar el núcleo.');
         }
     }
 
@@ -149,11 +153,16 @@ class UrdEngNucleosController extends Controller
                 'data' => $nucleos,
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al obtener núcleos: '.$e->getMessage(),
-                'data' => [],
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al obtener núcleos', 'No se pudo obtener la lista de núcleos.');
         }
+    }
+
+    /** SEC-07: el usuario ve un mensaje genérico con la referencia del error; el detalle va a report(). */
+    private function volverConError(\Throwable $e, string $mensaje, bool $conInput = false): RedirectResponse
+    {
+        report($e);
+        $respuesta = back()->with('error', $mensaje.' (ref: '.$this->traceIdDeError($e).')');
+
+        return $conInput ? $respuesta->withInput() : $respuesta;
     }
 }
