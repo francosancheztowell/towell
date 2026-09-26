@@ -17,7 +17,6 @@ use App\Http\Requests\Planeacion\DividirTelarRequest;
 use App\Http\Requests\Planeacion\DuplicarTejidoRequest;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Observers\ReqProgramaTejidoObserver;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
@@ -76,7 +75,7 @@ class ProgramaTejidoOperacionesController extends Controller
             if ($registro->NoTelarId !== $nuevoTelar) {
                 $cambios[] = ['campo' => 'Telar', 'actual' => $registro->NoTelarId, 'nuevo' => $nuevoTelar];
             }
-            if ($registro->Ultimo == 1 || $registro->Ultimo == 'UL' || $registro->Ultimo == '1') {
+            if ($registro->esUltimo()) {
                 $cambios[] = ['campo' => 'Último', 'actual' => $registro->Ultimo, 'nuevo' => '0'];
             }
             if ($registro->CambioHilo != 0 && $registro->CambioHilo != null) {
@@ -174,7 +173,7 @@ class ProgramaTejidoOperacionesController extends Controller
         }
 
         DBFacade::beginTransaction();
-        ReqProgramaTejido::unsetEventDispatcher();
+        $dispatcher = ReqProgramaTejido::suppressObservers();
 
         try {
             $idsAfectados = [];
@@ -221,7 +220,7 @@ class ProgramaTejidoOperacionesController extends Controller
                 $posicionMinima = $ultimoEnProcesoIndex + 1;
                 if ($targetPosition < $posicionMinima) {
                     DBFacade::rollBack();
-                    ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+                    ReqProgramaTejido::restoreObservers($dispatcher);
 
                     return response()->json([
                         'success' => false,
@@ -392,7 +391,7 @@ class ProgramaTejidoOperacionesController extends Controller
                 $updatesMerged[(string) $idU] = array_merge($updatesMerged[(string) $idU] ?? [], $data);
             }
 
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             if (! empty($idsAfectados)) {
                 ReqProgramaTejido::regenerarLineas(
                     ReqProgramaTejido::whereIn('Id', $idsAfectados)->get()
@@ -409,7 +408,7 @@ class ProgramaTejidoOperacionesController extends Controller
             ]);
         } catch (\Throwable $e) {
             DBFacade::rollBack();
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             LogFacade::error('cambiarTelar error', [
                 'id' => $id ?? null,
                 'mensaje' => $e->getMessage(),
@@ -442,7 +441,7 @@ class ProgramaTejidoOperacionesController extends Controller
         $nuevoSalon = $request->input('nuevo_salon') ?? $salon;
 
         DBFacade::beginTransaction();
-        ReqProgramaTejido::unsetEventDispatcher();
+        $dispatcher = ReqProgramaTejido::suppressObservers();
 
         try {
             $registros = ReqProgramaTejido::query()
@@ -453,6 +452,9 @@ class ProgramaTejidoOperacionesController extends Controller
                 ->get();
 
             if ($registros->count() < 2) {
+                DBFacade::rollBack();
+                ReqProgramaTejido::restoreObservers($dispatcher);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Se requieren al menos 2 registros para dividir un telar',
@@ -460,6 +462,9 @@ class ProgramaTejidoOperacionesController extends Controller
             }
 
             if ($posicionDivision < 0 || $posicionDivision >= $registros->count()) {
+                DBFacade::rollBack();
+                ReqProgramaTejido::restoreObservers($dispatcher);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'La posición de división está fuera del rango válido',
@@ -506,7 +511,7 @@ class ProgramaTejidoOperacionesController extends Controller
 
             DBFacade::commit();
 
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             if (! empty($idsActualizados)) {
                 ReqProgramaTejido::regenerarLineas(
                     ReqProgramaTejido::whereIn('Id', $idsActualizados)->get()
@@ -522,7 +527,7 @@ class ProgramaTejidoOperacionesController extends Controller
             ]);
         } catch (\Throwable $e) {
             DBFacade::rollBack();
-            ReqProgramaTejido::observe(ReqProgramaTejidoObserver::class);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             LogFacade::error('dividirTelar error', [
                 'salon' => $salon,
                 'telar' => $telar,

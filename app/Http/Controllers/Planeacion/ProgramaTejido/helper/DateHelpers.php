@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\helper;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
@@ -89,29 +88,14 @@ class DateHelpers
                     ? Carbon::now()
                     : Carbon::parse($r->FechaInicio)->copy()->endOfDay();
             } elseif ($horasNecesarias > 0) {
-                if (! empty($r->CalendarioId)) {
-                    $finCalc = self::calcularFechaFinalDesdeInicio($r->CalendarioId, $nuevoInicio, $horasNecesarias);
-                    if ($finCalc) {
-                        $nuevoFin = $finCalc;
-                    } else {
-                        // sin líneas suficientes => continuo
-                        $nuevoFin = $nuevoInicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
-                    }
-                } else {
-                    $nuevoFin = $nuevoInicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
-                }
+                $nuevoFin = TejidoHelpers::finDesdeHoras($nuevoInicio, $horasNecesarias, $r->CalendarioId);
             } else {
                 // Saldo >= 0 pero horasNecesarias <= 0: Fallback cuando no se pudieron calcular horas
                 if ($esEnProceso) {
                     // EnProceso: usar HorasProd guardado como referencia de duración (no diff FechaInicio-FechaFinal).
                     $horasGuardadas = (float) ($r->HorasProd ?? 0);
                     if ($horasGuardadas > 0) {
-                        if (! empty($r->CalendarioId)) {
-                            $finCalc = self::calcularFechaFinalDesdeInicio($r->CalendarioId, $nuevoInicio, $horasGuardadas);
-                            $nuevoFin = $finCalc ?: $nuevoInicio->copy()->addSeconds((int) round($horasGuardadas * 3600));
-                        } else {
-                            $nuevoFin = $nuevoInicio->copy()->addSeconds((int) round($horasGuardadas * 3600));
-                        }
+                        $nuevoFin = TejidoHelpers::finDesdeHoras($nuevoInicio, $horasGuardadas, $r->CalendarioId);
                     } else {
                         // Repasos: medio día; resto: 30 días
                         $nuevoFin = TejidoHelpers::esRepaso($r)
@@ -194,7 +178,7 @@ class DateHelpers
      */
     public static function cascadeFechas(ReqProgramaTejido $registroActualizado)
     {
-        $dispatcher = ReqProgramaTejido::getEventDispatcher();
+        $dispatcher = null;
 
         DB::beginTransaction();
         try {
@@ -223,7 +207,7 @@ class DateHelpers
             $idsActualizados = [];
 
             // deshabilitar eventos
-            ReqProgramaTejido::unsetEventDispatcher();
+            $dispatcher = ReqProgramaTejido::suppressObservers();
 
             $cursor = $finActual->copy();
 
@@ -253,12 +237,7 @@ class DateHelpers
                 if ($saldoRow < 0) {
                     $nuevoFin = $nuevoInicio->copy()->endOfDay();
                 } elseif ($horasNecesarias > 0) {
-                    if (! empty($row->CalendarioId)) {
-                        $finCalc = self::calcularFechaFinalDesdeInicio($row->CalendarioId, $nuevoInicio, $horasNecesarias);
-                        $nuevoFin = $finCalc ?: $nuevoInicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
-                    } else {
-                        $nuevoFin = $nuevoInicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
-                    }
+                    $nuevoFin = TejidoHelpers::finDesdeHoras($nuevoInicio, $horasNecesarias, $row->CalendarioId);
                 } else {
                     // saldo >= 0 y horasNecesarias <= 0: conservar duración previa si existía, si no repaso=12h / resto=30d
                     if (! empty($row->FechaInicio) && ! empty($row->FechaFinal)) {
@@ -319,10 +298,8 @@ class DateHelpers
 
             DB::commit();
 
-            // restaurar dispatcher (solo si no es null, p. ej. cuando el comando ya lo desactivó)
-            if ($dispatcher !== null) {
-                ReqProgramaTejido::setEventDispatcher($dispatcher);
-            }
+            // null si quien llama ya lo tenía apagado (p. ej. el comando): se queda apagado.
+            ReqProgramaTejido::restoreObservers($dispatcher);
 
             // regenerar líneas en batch (evita N+1).
             // regenerarLineas() bypassa el guard shouldRegenerateLines() del observer,
@@ -337,9 +314,7 @@ class DateHelpers
 
         } catch (\Throwable $e) {
             DB::rollBack();
-            if ($dispatcher) {
-                ReqProgramaTejido::setEventDispatcher($dispatcher);
-            }
+            ReqProgramaTejido::restoreObservers($dispatcher);
 
             Log::error('cascadeFechas error', [
                 'id' => $registroActualizado->Id ?? null,
@@ -358,11 +333,6 @@ class DateHelpers
     public static function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
     {
         return TejidoHelpers::snapInicioAlCalendario($calendarioId, $fechaInicio);
-    }
-
-    public static function calcularFechaFinalDesdeInicio(string $calendarioId, Carbon $fechaInicio, float $horasNecesarias): ?Carbon
-    {
-        return BalancearTejido::calcularFechaFinalDesdeInicio($calendarioId, $fechaInicio, $horasNecesarias);
     }
 
     /* =========================================================

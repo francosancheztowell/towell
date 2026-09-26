@@ -93,7 +93,7 @@ class DividirTejido
                 $registroOriginal = ReqProgramaTejido::query()
                     ->salon($salonOrigen)
                     ->telar($telarOrigen)
-                    ->where('Ultimo', 1)
+                    ->whereIn('Ultimo', ReqProgramaTejido::VALORES_ULTIMO)
                     ->orderBy('FechaInicio', 'desc')
                     ->first()
                     ?? ReqProgramaTejido::query()
@@ -293,19 +293,7 @@ class DividirTejido
                 $inicio = Carbon::parse($registroOriginal->FechaInicio);
                 $horasNecesarias = self::calcularHorasProd($registroOriginal);
 
-                if ($horasNecesarias <= 0) {
-                    $registroOriginal->FechaFinal = $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS)->format('Y-m-d H:i:s');
-                } else {
-                    if (! empty($registroOriginal->CalendarioId)) {
-                        $fin = BalancearTejido::calcularFechaFinalDesdeInicio($registroOriginal->CalendarioId, $inicio, $horasNecesarias);
-                        if (! $fin) {
-                            $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
-                        }
-                        $registroOriginal->FechaFinal = $fin->format('Y-m-d H:i:s');
-                    } else {
-                        $registroOriginal->FechaFinal = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
-                    }
-                }
+                $registroOriginal->FechaFinal = TejidoHelpers::resolverFechaFinal($inicio, $horasNecesarias, $registroOriginal->CalendarioId)->format('Y-m-d H:i:s');
 
             }
 
@@ -339,7 +327,7 @@ class DividirTejido
                     ->first();
 
                 // Quitar Ultimo=1 del registro anterior del telar destino (si existe)
-                if ($ultimoRegistroDestino && $ultimoRegistroDestino->Ultimo == 1) {
+                if ($ultimoRegistroDestino && $ultimoRegistroDestino->esUltimo()) {
                     ReqProgramaTejido::where('Id', $ultimoRegistroDestino->Id)
                         ->update(['Ultimo' => 0]);
                 }
@@ -657,20 +645,7 @@ class DividirTejido
                 // ===== CALCULAR FECHA FINAL desde la fecha inicio exacta =====
                 $horasNecesarias = self::calcularHorasProd($nuevo);
 
-                if ($horasNecesarias <= 0) {
-                    $nuevo->FechaFinal = $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS)->format('Y-m-d H:i:s');
-                } else {
-                    // Calcular FechaFinal desde la fecha inicio exacta (sin snap)
-                    if (! empty($nuevo->CalendarioId)) {
-                        $fin = BalancearTejido::calcularFechaFinalDesdeInicio($nuevo->CalendarioId, $inicio, $horasNecesarias);
-                        if (! $fin) {
-                            $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
-                        }
-                        $nuevo->FechaFinal = $fin->format('Y-m-d H:i:s');
-                    } else {
-                        $nuevo->FechaFinal = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
-                    }
-                }
+                $nuevo->FechaFinal = TejidoHelpers::resolverFechaFinal($inicio, $horasNecesarias, $nuevo->CalendarioId)->format('Y-m-d H:i:s');
 
                 // CambioHilo
                 if ($ultimoRegistroDestino) {
@@ -1104,19 +1079,7 @@ class DividirTejido
                             $inicio = Carbon::parse($registro->FechaInicio);
                             $horasNecesarias = self::calcularHorasProd($registro);
 
-                            if ($horasNecesarias <= 0) {
-                                $registro->FechaFinal = $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS)->format('Y-m-d H:i:s');
-                            } else {
-                                if (! empty($registro->CalendarioId)) {
-                                    $fin = BalancearTejido::calcularFechaFinalDesdeInicio($registro->CalendarioId, $inicio, $horasNecesarias);
-                                    if (! $fin) {
-                                        $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
-                                    }
-                                    $registro->FechaFinal = $fin->format('Y-m-d H:i:s');
-                                } else {
-                                    $registro->FechaFinal = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
-                                }
-                            }
+                            $registro->FechaFinal = TejidoHelpers::resolverFechaFinal($inicio, $horasNecesarias, $registro->CalendarioId)->format('Y-m-d H:i:s');
                         }
 
                         // Recalcular f├│rmulas
@@ -1168,7 +1131,7 @@ class DividirTejido
                     ->first();
 
                 // Quitar Ultimo=1 del registro anterior del telar destino
-                if ($ultimoRegistroDestino && $ultimoRegistroDestino->Ultimo == 1) {
+                if ($ultimoRegistroDestino && $ultimoRegistroDestino->esUltimo()) {
                     ReqProgramaTejido::where('Id', $ultimoRegistroDestino->Id)
                         ->update(['Ultimo' => 0]);
                 }
@@ -1236,20 +1199,7 @@ class DividirTejido
                 // ===== CALCULAR FECHA FINAL desde la fecha inicio exacta =====
                 $horasNecesarias = self::calcularHorasProd($nuevo);
 
-                if ($horasNecesarias <= 0) {
-                    $nuevo->FechaFinal = $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS)->format('Y-m-d H:i:s');
-                } else {
-                    // Calcular FechaFinal desde la fecha inicio exacta (sin snap)
-                    if (! empty($nuevo->CalendarioId)) {
-                        $fin = BalancearTejido::calcularFechaFinalDesdeInicio($nuevo->CalendarioId, $inicio, $horasNecesarias);
-                        if (! $fin) {
-                            $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
-                        }
-                        $nuevo->FechaFinal = $fin->format('Y-m-d H:i:s');
-                    } else {
-                        $nuevo->FechaFinal = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
-                    }
-                }
+                $nuevo->FechaFinal = TejidoHelpers::resolverFechaFinal($inicio, $horasNecesarias, $nuevo->CalendarioId)->format('Y-m-d H:i:s');
 
                 // CambioHilo
                 if ($ultimoRegistroDestino) {

@@ -8,6 +8,9 @@ use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property string|null $CalendarioId
+ */
 class ReqProgramaTejido extends Model
 {
     /** @var string */
@@ -339,16 +342,39 @@ class ReqProgramaTejido extends Model
     }
 
     /**
-     * Restaura el dispatcher y re-registra el observer.
-     * Equivale al patrón: setEventDispatcher($dispatcher) + observe(Observer::class)
-     * que se repite en todos los bloques catch/finally de las operaciones.
+     * Restaura el dispatcher que devolvió suppressObservers(). Es idempotente: se puede
+     * llamar en cada catch/finally sin duplicar listeners.
      */
     public static function restoreObservers(?object $dispatcher): void
     {
+        // El dispatcher guardado ya trae el observer registrado. Antes se llamaba además a
+        // observe(): con dispatcher lo duplicaba (cada suppress/restore sumaba un listener) y
+        // sin dispatcher no hacía nada. null = ya estaba suprimido al entrar: se deja así.
         if ($dispatcher) {
             static::setEventDispatcher($dispatcher);
         }
-        static::observe(ReqProgramaTejidoObserver::class);
+    }
+
+    /**
+     * Valores de Ultimo que cuentan como "último del telar". El canónico es '1'; 'UL' llega
+     * de imports viejos y se normaliza a '1' al escribir (decisión del owner, PT-05), pero se
+     * sigue leyendo mientras queden filas en live (database/sql/pt_ultimo_normalizar.sql).
+     */
+    public const VALORES_ULTIMO = ['1', 'UL'];
+
+    public function esUltimo(): bool
+    {
+        $valor = strtoupper(trim((string) ($this->attributes['Ultimo'] ?? '')));
+
+        return in_array($valor, self::VALORES_ULTIMO, true);
+    }
+
+    public function setUltimoAttribute($valor): void
+    {
+        if (is_string($valor) && strtoupper(trim($valor)) === 'UL') {
+            $valor = '1';
+        }
+        $this->attributes['Ultimo'] = $valor;
     }
 
     /**

@@ -12,6 +12,7 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido\helper;
  * @dependencies ReqProgramaTejido, ReqModelosCodificados, ReqCalendarioLine, ReqEficienciaStd, ReqVelocidadStd
  */
 
+use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqEficienciaStd;
 use App\Models\Planeacion\ReqModelosCodificados;
@@ -146,8 +147,8 @@ class TejidoHelpers
     {
         // Obtener todos los registros del telar ordenados por Posicion actual
         $registros = ReqProgramaTejido::query()
-            ->where('SalonTejidoId', $salonTejidoId)
-            ->where('NoTelarId', $noTelarId)
+            ->salon($salonTejidoId)
+            ->telar($noTelarId)
             ->whereNotNull('Posicion')
             ->orderBy('Posicion', 'asc')
             ->orderBy('FechaInicio', 'asc') // Fallback por si hay registros sin Posicion
@@ -169,8 +170,8 @@ class TejidoHelpers
 
         // También actualizar registros que no tienen Posicion
         $registrosSinPosicion = ReqProgramaTejido::query()
-            ->where('SalonTejidoId', $salonTejidoId)
-            ->where('NoTelarId', $noTelarId)
+            ->salon($salonTejidoId)
+            ->telar($noTelarId)
             ->whereNull('Posicion')
             ->orderBy('FechaInicio', 'asc')
             ->get();
@@ -253,6 +254,35 @@ class TejidoHelpers
      *
      * @param  callable|null  $obtenerModeloCallback  (string $tamanoClave, string $salonTejidoId) => ReqModelosCodificados|null
      */
+    /**
+     * FechaFinal a partir de un inicio y las horas de producción (PT-DUP-02). Era el mismo
+     * árbol copiado 6 veces (UpdateTejido, DividirTejido ×4, DuplicarTejido):
+     * horas <= 0 → inicio + DEFAULT_DURACION_DIAS; si no, finDesdeHoras().
+     * Las políticas de horas <= 0 / saldo < 0 de Balancear, DateHelpers y el calendario
+     * masivo NO son esta: esos usan solo finDesdeHoras() (ver 05-SUMMARY.md, divergencias).
+     */
+    public static function resolverFechaFinal(Carbon $inicio, float $horas, ?string $calendarioId): Carbon
+    {
+        if ($horas <= 0) {
+            return $inicio->copy()->addDays(self::DEFAULT_DURACION_DIAS);
+        }
+
+        return self::finDesdeHoras($inicio, $horas, $calendarioId);
+    }
+
+    /**
+     * Consume las horas sobre las líneas del calendario; sin calendario, o si sus líneas se
+     * acaban, en tiempo continuo (segundos redondeados, igual que todas las copias previas).
+     */
+    public static function finDesdeHoras(Carbon $inicio, float $horas, ?string $calendarioId): Carbon
+    {
+        $fin = ! empty($calendarioId)
+            ? BalancearTejido::calcularFechaFinalDesdeInicio($calendarioId, $inicio, $horas)
+            : null;
+
+        return $fin ?? $inicio->copy()->addSeconds((int) round($horas * 3600));
+    }
+
     public static function calcularHorasProd(ReqProgramaTejido $programa, ?callable $obtenerModeloCallback = null): float
     {
         $vel = (float) ($programa->VelocidadSTD ?? 0);

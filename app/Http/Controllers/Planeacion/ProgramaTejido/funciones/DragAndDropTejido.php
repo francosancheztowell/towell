@@ -62,10 +62,10 @@ class DragAndDropTejido
     private static function moverAposicion(ReqProgramaTejido $registro, int $nuevaPosicion): array
     {
         // IMPORTANTE: guardar/restaurar dispatcher (evita duplicar observers)
-        $dispatcher = ReqProgramaTejido::getEventDispatcher();
+        $dispatcher = null;
 
         try {
-            $resultado = DB::transaction(function () use ($registro, $nuevaPosicion) {
+            $resultado = DB::transaction(function () use ($registro, $nuevaPosicion, &$dispatcher) {
                 // 1) Obtener registros del mismo salón/telar bloqueados
                 $registros = self::obtenerRegistrosBloqueadosPorTelar($registro);
 
@@ -86,7 +86,7 @@ class DragAndDropTejido
                 $registrosReordenados = self::reordenarColeccion($registros, $idxActual, $nuevaPosicion);
 
                 // 4) Deshabilitar eventos de Eloquent (evita regeneración duplicada)
-                ReqProgramaTejido::unsetEventDispatcher();
+                $dispatcher ??= ReqProgramaTejido::suppressObservers();
 
                 // 5) Recalcular fechas para toda la secuencia
                 [$updates, $detalles] = DateHelpers::recalcularFechasSecuencia($registrosReordenados, $inicioOriginal);
@@ -156,8 +156,8 @@ class DragAndDropTejido
                 ReqProgramaTejido::regenerarLineas(
                     ReqProgramaTejido::query()
                         ->whereIn('Id', $idsAfectados)
-                        ->where('SalonTejidoId', $registro->SalonTejidoId)
-                        ->where('NoTelarId', $registro->NoTelarId)
+                        ->salon($registro->SalonTejidoId)
+                        ->telar($registro->NoTelarId)
                         ->get()
                 );
             }

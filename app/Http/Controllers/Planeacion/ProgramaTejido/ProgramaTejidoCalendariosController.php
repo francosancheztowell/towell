@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatCalendarios\CalendarioController;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
+use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -63,8 +63,7 @@ class ProgramaTejidoCalendariosController extends Controller
             $calendarioId = $request->input('calendario_id');
             $registrosIds = array_unique($request->input('registros_ids', []));
 
-            $dispatcher = ReqProgramaTejido::getEventDispatcher();
-            ReqProgramaTejido::unsetEventDispatcher();
+            $dispatcher = ReqProgramaTejido::suppressObservers();
 
             $t0 = microtime(true);
             $procesados = 0;
@@ -154,10 +153,7 @@ class ProgramaTejidoCalendariosController extends Controller
                             continue;
                         }
 
-                        $fin = BalancearTejido::calcularFechaFinalDesdeInicio($calendarioId, $inicio, $horas);
-                        if (! $fin) {
-                            $fin = $inicio->copy()->addSeconds((int) round($horas * 3600));
-                        }
+                        $fin = TejidoHelpers::finDesdeHoras($inicio, $horas, $calendarioId);
                         if ($fin->lt($inicio)) {
                             $fin = $inicio->copy();
                         }
@@ -213,9 +209,7 @@ class ProgramaTejidoCalendariosController extends Controller
 
                 DBFacade::commit();
 
-                if ($dispatcher) {
-                    ReqProgramaTejido::setEventDispatcher($dispatcher);
-                }
+                ReqProgramaTejido::restoreObservers($dispatcher);
 
                 $tiempo = round(microtime(true) - $t0, 2);
 
@@ -231,9 +225,7 @@ class ProgramaTejidoCalendariosController extends Controller
                 ]);
             } catch (\Exception $e) {
                 DBFacade::rollBack();
-                if ($dispatcher) {
-                    ReqProgramaTejido::setEventDispatcher($dispatcher);
-                }
+                ReqProgramaTejido::restoreObservers($dispatcher);
                 throw $e;
             }
         } catch (ValidationException $e) {

@@ -201,7 +201,7 @@ class MoverOrdenesController extends Controller
             array_merge($request->input('ordenes_origen', []), $request->input('ordenes_destino', []))
         ))));
 
-        $dispatcher = ReqProgramaTejido::getEventDispatcher();
+        $dispatcher = null;
         $idsAfectados = [];
         $idsCambioSalon = [];
         $tabla = ReqProgramaTejido::tableName();
@@ -227,7 +227,7 @@ class MoverOrdenesController extends Controller
             }
 
             // Paso 2: Recalcular fechas encadenadas por telar.
-            ReqProgramaTejido::unsetEventDispatcher();
+            $dispatcher = ReqProgramaTejido::suppressObservers();
             foreach ($telaresAfectados as $telarKey => $cfg) {
                 $this->recalcularFechasPorTelar((string) $telarKey, (array) $cfg, $tabla, $inicioBasePorTelar, $idsAfectados);
             }
@@ -238,11 +238,11 @@ class MoverOrdenesController extends Controller
             }
 
             // Paso 3: Restaurar dispatcher y confirmar.
-            ReqProgramaTejido::setEventDispatcher($dispatcher);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             DB::commit();
 
         } catch (\Throwable $e) {
-            ReqProgramaTejido::setEventDispatcher($dispatcher);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             DB::rollBack();
 
             return $this->apiErrorResponse(

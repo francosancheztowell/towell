@@ -5010,11 +5010,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/RepasoController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalendarioId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/RepasoController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibrePie\.$#'
@@ -6864,11 +6859,6 @@ parameters:
 			count: 3
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/UpdateTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalendarioId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/UpdateTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreBarra1\.$#'
@@ -8142,11 +8132,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalendarioId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb1\.$#'

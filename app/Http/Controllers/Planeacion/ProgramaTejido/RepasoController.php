@@ -44,9 +44,8 @@ class RepasoController extends Controller
 
         $anterior = $this->obtenerRegistroAnterior($salon, $noTelarId);
 
-        $dispatcher = ReqProgramaTejido::getEventDispatcher();
         DB::beginTransaction();
-        ReqProgramaTejido::unsetEventDispatcher();
+        $dispatcher = ReqProgramaTejido::suppressObservers();
 
         try {
             if ($anterior) {
@@ -59,7 +58,7 @@ class RepasoController extends Controller
 
             $this->aplicarFormulas($nuevo);
 
-            ReqProgramaTejido::setEventDispatcher($dispatcher);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             DB::commit();
 
             // Durante save()/saveQuietly() el dispatcher estaba desactivado: el observer no generó líneas diarias.
@@ -110,7 +109,7 @@ class RepasoController extends Controller
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();
-            ReqProgramaTejido::setEventDispatcher($dispatcher ?? null);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             Log::error('RepasoController::createrepaso', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
 
             return response()->json([
@@ -137,8 +136,8 @@ class RepasoController extends Controller
 
         return ReqProgramaTejido::query()
             ->useWritePdo()
-            ->where('SalonTejidoId', $salon)
-            ->where('NoTelarId', $noTelarId)
+            ->salon($salon)
+            ->telar($noTelarId)
             ->where('NombreProducto', 'REPASO1')
             ->when($posicion !== null && $posicion !== '', fn ($q) => $q->where('Posicion', $posicion))
             ->orderByDesc('Id')
@@ -157,8 +156,8 @@ class RepasoController extends Controller
     private function obtenerRegistroAnterior(string $salon, string $noTelarId): ?ReqProgramaTejido
     {
         return ReqProgramaTejido::query()
-            ->where('SalonTejidoId', $salon)
-            ->where('NoTelarId', $noTelarId)
+            ->salon($salon)
+            ->telar($noTelarId)
             ->orderByDesc('Posicion')
             ->orderByDesc('FechaFinal')
             ->orderByDesc('Id')

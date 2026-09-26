@@ -565,19 +565,7 @@ class UpdateTejido
                 $horasNecesarias = $horasProdAntes > 0 ? $horasProdAntes : TejidoHelpers::calcularHorasProd($registro);
             }
 
-            if ($horasNecesarias <= 0) {
-                $registro->FechaFinal = $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS)->format('Y-m-d H:i:s');
-            } else {
-                if (! empty($registro->CalendarioId)) {
-                    $fin = BalancearTejido::calcularFechaFinalDesdeInicio($registro->CalendarioId, $inicio, $horasNecesarias);
-                    if (! $fin) {
-                        $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
-                    }
-                    $registro->FechaFinal = $fin->format('Y-m-d H:i:s');
-                } else {
-                    $registro->FechaFinal = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
-                }
-            }
+            $registro->FechaFinal = TejidoHelpers::resolverFechaFinal($inicio, $horasNecesarias, $registro->CalendarioId)->format('Y-m-d H:i:s');
         }
 
         // ===== 3) Fórmulas =====
@@ -671,7 +659,7 @@ class UpdateTejido
             }
 
             // ===== 6) Cascada (solo si cambió FechaFinal y NO es Ultimo) =====
-            if ($fechaFinalCambiada && (int) ($registro->Ultimo ?? 0) !== 1) {
+            if ($fechaFinalCambiada && ! $registro->esUltimo()) {
                 // cascadeFechas rethrowa: relanzar para que la transacción externa revierte saveQuietly().
                 // No tragar: la inconsistencia "registro actualizado / cascada rollback" es peor que fallar limpio.
                 DateHelpers::cascadeFechas($registro);
