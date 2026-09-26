@@ -4,6 +4,7 @@ namespace App\Traits;
 
 use App\Helpers\TurnoHelper;
 use App\Models\Urdido\UrdCatJulios;
+use App\Support\Http\Concerns\HandlesApiErrors;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,8 @@ use Illuminate\Validation\ValidationException;
  */
 trait ProduccionTrait
 {
+    use HandlesApiErrors;
+
     abstract protected function getProduccionModelClass(): string;
 
     abstract protected function getProgramaModelClass(): string;
@@ -879,7 +882,7 @@ trait ProduccionTrait
 
     /**
      * SEC-07 (19-01): 500 sin el texto de la excepción. El usuario ve el mensaje y una referencia;
-     * el detalle va a report()/log. Los dos controllers de producción usan HandlesApiErrors.
+     * el detalle va a report()/log.
      *
      * @param  array<string, mixed>  $contexto
      */
@@ -887,12 +890,6 @@ trait ProduccionTrait
     {
         $contexto['departamento'] ??= $this->getDepartamento();
 
-        if (method_exists($this, 'apiErrorResponse')) {
-            return $this->apiErrorResponse($e, $log, $mensaje, 500, $contexto);
-        }
-
-        report($e);
-
-        return response()->json(['success' => false, 'message' => $mensaje], 500);
+        return $this->apiErrorResponse($e, $log, $mensaje, 500, $contexto);
     }
 }
