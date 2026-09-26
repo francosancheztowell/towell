@@ -313,6 +313,12 @@ class DividirTejido
             // Datos de cada registro nuevo para la respuesta (evita depender de find() tras commit, que puede fallar en SQL Server)
             $registrosDatosParaRespuesta = [];
 
+            // PT-PERF-02: posiciones de todos los telares destino en una consulta, no una por destino.
+            $reservarPosicion = TejidoHelpers::reservadorDePosiciones(array_map(
+                fn ($d) => [(string) ($d['salon_destino'] ?? $salonDestino), (string) $d['telar']],
+                $destinosNuevos
+            ));
+
             // === PASO 2: Crear los nuevos registros para los telares destino ===
             foreach ($destinosNuevos as $destino) {
                 $telarDestino = $destino['telar'];
@@ -666,7 +672,7 @@ class DividirTejido
                 unset($nuevo->Repeticiones);
 
                 // Asignar posición consecutiva para este telar
-                $nuevo->Posicion = TejidoHelpers::obtenerSiguientePosicionDisponible($salonDestinoItem, $telarDestino);
+                $nuevo->Posicion = $reservarPosicion((string) $salonDestinoItem, (string) $telarDestino);
 
                 $nuevo->CreatedAt = now();
                 $nuevo->UpdatedAt = now();
@@ -1099,6 +1105,12 @@ class DividirTejido
                 }
             }
 
+            // PT-PERF-02: posiciones de todos los telares destino en una consulta, no una por destino.
+            $reservarPosicion = TejidoHelpers::reservadorDePosiciones(array_values(array_filter(array_map(
+                fn ($d) => [(string) ($d['salon_destino'] ?? $salonDestino), (string) ($d['telar'] ?? '')],
+                $destinosNuevos
+            ), fn ($par) => $par[1] !== '')));
+
             // Crear nuevos registros
             foreach ($destinosNuevos as $destino) {
                 $telarDestino = $destino['telar'] ?? '';
@@ -1220,7 +1232,7 @@ class DividirTejido
                 unset($nuevo->Repeticiones);
 
                 // Asignar posición consecutiva para este telar
-                $nuevo->Posicion = TejidoHelpers::obtenerSiguientePosicionDisponible($salonDestinoItem, $telarDestino);
+                $nuevo->Posicion = $reservarPosicion((string) $salonDestinoItem, (string) $telarDestino);
 
                 $nuevo->CreatedAt = now();
                 $nuevo->UpdatedAt = now();

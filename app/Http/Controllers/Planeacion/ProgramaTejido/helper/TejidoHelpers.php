@@ -140,6 +140,50 @@ class TejidoHelpers
     }
 
     /**
+     * PT-PERF-02: lo mismo que llamar obtenerSiguientePosicionDisponible() una vez por fila
+     * nueva, pero con UNA consulta (mismo filtro exacto y mismo UPDLOCK) por salón. Devuelve
+     * un reservador: cada llamada da el primer hueco del telar y lo marca ocupado, igual que
+     * hacía la consulta al ver la fila recién guardada.
+     *
+     * @param  list<array{0: string, 1: string}>  $telares  pares [salón, telar] destino
+     * @return \Closure(string, string): int
+     */
+    public static function reservadorDePosiciones(array $telares): \Closure
+    {
+        // SQL Server compara sin mayúsculas ni espacios finales: la llave del mapa también.
+        $llave = fn ($salon, $telar) => mb_strtoupper(rtrim((string) $salon)).'|'.mb_strtoupper(rtrim((string) $telar));
+
+        $porSalon = [];
+        foreach ($telares as [$salon, $telar]) {
+            $porSalon[(string) $salon][(string) $telar] = true;
+        }
+
+        $ocupadas = [];
+        foreach ($porSalon as $salon => $telaresSalon) {
+            $filas = ReqProgramaTejido::query()
+                ->where('SalonTejidoId', $salon)
+                ->whereIn('NoTelarId', array_map('strval', array_keys($telaresSalon)))
+                ->whereNotNull('Posicion')
+                ->lockForUpdate()
+                ->get(['NoTelarId', 'Posicion']);
+            foreach ($filas as $fila) {
+                $ocupadas[$llave($salon, $fila->NoTelarId)][(int) $fila->Posicion] = true;
+            }
+        }
+
+        return function (string $salon, string $telar) use (&$ocupadas, $llave): int {
+            $k = $llave($salon, $telar);
+            $posicion = 1;
+            while (isset($ocupadas[$k][$posicion])) {
+                $posicion++;
+            }
+            $ocupadas[$k][$posicion] = true;
+
+            return $posicion;
+        };
+    }
+
+    /**
      * Recalcular las posiciones de los registros de un telar de forma consecutiva
      * Reasigna posiciones 1, 2, 3, 4... a todos los registros del telar ordenados por Posicion actual
      */

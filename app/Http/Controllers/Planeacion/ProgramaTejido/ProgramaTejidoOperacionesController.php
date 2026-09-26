@@ -474,11 +474,19 @@ class ProgramaTejidoOperacionesController extends Controller
             $registrosOriginales = $registros->take($posicionDivision);
             $registrosNuevos = $registros->skip($posicionDivision);
 
+            // PT-PERF-02: una consulta de posiciones del destino, no una por fila movida. Si el
+            // destino es el mismo telar, cada fila libera su posición al moverse: ahí se queda
+            // la consulta por fila, que ve ese hueco.
+            $mismoTelar = (string) $nuevoSalon === (string) $salon && (string) $nuevoTelar === (string) $telar;
+            $reservarPosicion = $mismoTelar
+                ? fn (string $s, string $t) => TejidoHelpers::obtenerSiguientePosicionDisponible($s, $t)
+                : TejidoHelpers::reservadorDePosiciones([[(string) $nuevoSalon, (string) $nuevoTelar]]);
+
             $idsActualizados = [];
             foreach ($registrosNuevos as $registro) {
                 $registro->SalonTejidoId = $nuevoSalon;
                 $registro->NoTelarId = $nuevoTelar;
-                $registro->Posicion = TejidoHelpers::obtenerSiguientePosicionDisponible($nuevoSalon, $nuevoTelar);
+                $registro->Posicion = $reservarPosicion((string) $nuevoSalon, (string) $nuevoTelar);
                 $registro->CambioHilo = 0;
                 $registro->Ultimo = 0;
                 $registro->EnProceso = 0;
