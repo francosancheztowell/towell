@@ -68,6 +68,7 @@ Gates G0–G4: ver `PROTOCOLO-SESIONES.md` §8.
   **Requirements:** DS-01..12 · **Context:** `phases/16-componentes/16-CONTEXT.md`
 - [ ] **Phase 17: UX** — 17-01 auditoría exhaustiva (top 25 pantallas por telemetría); 17-02 correcciones globales (flash, títulos, h1, zoom, clic derecho, lang/es, páginas de error, contraseña, 419, offline, a11y).
   **Requirements:** UX-01..18 · **Context:** `phases/17-ux/17-CONTEXT.md`
+  **Estado:** 17-02 ✅ (2026-09-26; UX-10 fuera por decisión del owner; adopción por módulo en cada 19-xx) · 17-01 ⏳ (necesita telemetría de producción).
 
 ### Track PERF / MIG / ARQ-SEC
 
