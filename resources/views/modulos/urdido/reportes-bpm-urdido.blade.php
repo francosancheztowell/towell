@@ -3,7 +3,7 @@
 @section('page-title', 'BPM Urdido')
 
 @section('navbar-right')
-    <button type="button" onclick="mostrarModalConsultarBpmUrdido()"
+    <button type="button" data-ui-modal-open="modalReporteRango" aria-haspopup="dialog"
         class="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
         <i class="fas fa-search"></i> Consultar
     </button>
@@ -106,67 +106,9 @@
             </table>
         </div>
     </div>
+
+    @include('modulos.urdido.comun.reporte-rango', [
+        'ruta' => route('urdido.reportes.urdido.bpm'),
+        'checkbox' => 'Solo terminados/autorizados',
+    ])
 @endsection
-
-@push('scripts')
-<script>
-    function mostrarModalConsultarBpmUrdido() {
-        const hoy = new Date().toISOString().split('T')[0];
-        const fechaIni = '{{ $fechaIni ?? '' }}' || hoy;
-        const fechaFin = '{{ $fechaFin ?? '' }}' || hoy;
-        const soloFinalizados = {{ ($soloFinalizados ?? true) ? 'true' : 'false' }};
-
-        Swal.fire({
-            title: 'Consultar en rango',
-            html: `
-                <div class="text-left space-y-4">
-                    <div>
-                        <label for="swal_fecha_ini" class="block text-sm font-medium text-gray-700 mb-1">Fecha inicial</label>
-                        <input type="date" id="swal_fecha_ini" value="${fechaIni}" class="swal2-input w-full" style="margin: 0; width: 100%;">
-                    </div>
-                    <div>
-                        <label for="swal_fecha_fin" class="block text-sm font-medium text-gray-700 mb-1">Fecha final</label>
-                        <input type="date" id="swal_fecha_fin" value="${fechaFin}" class="swal2-input w-full" style="margin: 0; width: 100%;">
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox" id="swal_solo_finalizados" ${soloFinalizados ? 'checked' : ''} class="rounded border-gray-300 text-blue-600">
-                        <label for="swal_solo_finalizados" class="text-sm text-gray-700">Solo terminados/autorizados</label>
-                    </div>
-                </div>
-            `,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Consultar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#2563eb',
-            cancelButtonColor: '#6b7280',
-            focusConfirm: false,
-            preConfirm: () => {
-                const fi = document.getElementById('swal_fecha_ini')?.value;
-                const ff = document.getElementById('swal_fecha_fin')?.value;
-                if (!fi || !ff) {
-                    Swal.showValidationMessage('Seleccione fecha inicial y final');
-                    return false;
-                }
-                if (new Date(fi) > new Date(ff)) {
-                    Swal.showValidationMessage('La fecha inicial no puede ser mayor que la final');
-                    return false;
-                }
-                const solo = document.getElementById('swal_solo_finalizados')?.checked ? '1' : '0';
-                return { fecha_ini: fi, fecha_fin: ff, solo_finalizados: solo };
-            }
-        }).then((result) => {
-            if (result.isConfirmed && result.value) {
-                const params = new URLSearchParams(result.value);
-                window.location.href = '{{ route("urdido.reportes.urdido.bpm") }}?' + params.toString();
-            }
-        });
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        @if (empty($fechaIni) || empty($fechaFin))
-        mostrarModalConsultarBpmUrdido();
-        @endif
-    });
-</script>
-@endpush

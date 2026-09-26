@@ -36,16 +36,21 @@ tests/Js/<mod>-<pantalla>.test.mjs               ← node --test sobre logica.ts
 ## 2. Datos del servidor
 
 ```blade
-<div id="pagina-produccion" data-pagina='@json([
-    "rutas" => ["guardar" => route("x.guardar"), "julios" => route("x.julios")],
-    "ordenId" => $orden?->Id,
-    "puedeEditar" => $canEdit,
-    "usuario" => ["nombre" => auth()->user()->nombre, "numero" => auth()->user()->numero_empleado],
-])'>
+@php
+    $configPagina = [
+        'rutas' => ['guardar' => route('x.guardar'), 'julios' => route('x.julios')],
+        'ordenId' => $orden?->Id,
+        'puedeEditar' => $canEdit,
+    ];
+@endphp
+<div id="pagina-produccion" data-pagina='@json($configPagina)'>
 ```
 
+> **Siempre una variable dentro de `@json(...)`.** La directiva parte su argumento en las comas (`CompilesJson::compileJson` hace `explode(',')`): un array literal con varias claves pierde los flags `JSON_HEX_*` (o no compila) y un apóstrofo en los datos rompe el atributo `data-*='…'`. Con una variable, `@json` escapa `'`, `"`, `<`, `>` y `&`.
+
 ```ts
-import { leerConfig } from '../comun/config.ts'; // o JSON.parse(raiz.dataset.pagina ?? '{}') tipado
+import { leerDatos } from '../comun/pagina.ts';
+const cfg = leerDatos<ConfigPagina>(document.getElementById('pagina-produccion'));
 ```
 
 - **Rutas resueltas en PHP** con `route()`; nunca `'/modulo/' + id` a mano. Para rutas con parámetro, pasa la plantilla con un marcador: `route('x.show', ['id' => '__ID__'])` y en TS `url.replace('__ID__', encodeURIComponent(id))`.

@@ -33,6 +33,10 @@
         'Sin dato' => 'background:#E7E6E6;color:#595959',
     ];
 
+    // Datos de las gráficas (bundle panel-control). En variable: la directiva json con un array literal
+    // se parte en las comas y pierde los flags JSON_HEX_* (una ' rompería el atributo).
+    $configPanel = ['semanas' => array_values($semanasDetalle), 'categorias' => array_values($categorias)];
+
     $brecha = $kpis['brecha'] ?? null;
     $maxPct = 0;
     foreach ($categorias as $c) { $maxPct = max($maxPct, ($c['porcentaje'] ?? 0)); }
@@ -46,7 +50,8 @@
 @endsection
 
 @section('content')
-<div class="w-full p-3" id="panel-control-km-container" style="background:#EEF1F7">
+<div class="w-full p-3" id="panel-control-km-container" style="background:#EEF1F7"
+     data-panel-control='@json($configPanel)'>
     <div class="space-y-3">
 
         {{-- 1. BANNER (réplica del encabezado navy del Excel) --}}
@@ -267,112 +272,5 @@
 @endsection
 
 @push('scripts')
-@vite('resources/js/charts.js')
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const NAVY = '#1F3864', AZUL = '#2E75B6', AMBAR = '#BF8F00', GRISNAVY = '#A6B8D4';
-        Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
-        Chart.defaults.color = '#4B5563';
-
-        const semanas = @json($semanasDetalle);
-        const categorias = @json($categorias);
-
-        // null corta la línea (equivale al NA() del Excel)
-        const valor = (v) => (v === null || v === undefined ? null : Number(v));
-        const labels = semanas.map(s => 'S' + s.semana);
-
-        const base = (titulo) => ({
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-                legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, font: { size: 10 } } },
-                title: { display: true, text: titulo, color: NAVY, font: { size: 12, weight: 'bold' } }
-            },
-            scales: {
-                x: { grid: { display: false }, ticks: { font: { size: 9 } } },
-                y: { beginAtZero: true, grid: { color: '#EEF1F7' }, ticks: { font: { size: 9 } } }
-            }
-        });
-
-        if (semanas.length) {
-            new Chart(document.getElementById('panelKmEficienciaChart'), {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [{
-                        label: 'Eficiencia real',
-                        data: semanas.map(s => valor(s.efic)),
-                        borderColor: NAVY, backgroundColor: NAVY,
-                        borderWidth: 2, pointRadius: 2, spanGaps: false, tension: 0.25
-                    }, {
-                        label: 'Estándar',
-                        data: semanas.map(s => valor(s.est)),
-                        borderColor: AZUL, backgroundColor: AZUL,
-                        borderWidth: 2, borderDash: [6, 4], pointRadius: 0, spanGaps: false, tension: 0.25
-                    }]
-                },
-                options: base('Eficiencia real vs estándar por semana (%)')
-            });
-
-            new Chart(document.getElementById('panelKmRpmChart'), {
-                type: 'bar',
-                data: {
-                    labels,
-                    datasets: [{
-                        label: 'RPM real',
-                        data: semanas.map(s => valor(s.rpm)),
-                        backgroundColor: NAVY, borderRadius: 2
-                    }, {
-                        label: 'RPM estándar',
-                        data: semanas.map(s => valor(s.rpm_est)),
-                        backgroundColor: GRISNAVY, borderRadius: 2
-                    }]
-                },
-                options: base('RPM real vs estándar por semana')
-            });
-
-            new Chart(document.getElementById('panelKmEventosChart'), {
-                type: 'bar',
-                data: {
-                    labels,
-                    datasets: [{
-                        label: 'Eventos',
-                        data: semanas.map(s => Number(s.eventos || 0)),
-                        backgroundColor: AMBAR, borderRadius: 2
-                    }]
-                },
-                options: (() => {
-                    const o = base('Eventos registrados por semana');
-                    o.scales.y.ticks.precision = 0;
-                    return o;
-                })()
-            });
-        }
-
-        if (categorias.length && categorias.some(c => c.menciones > 0)) {
-            new Chart(document.getElementById('panelKmMencionesChart'), {
-                type: 'bar',
-                data: {
-                    labels: categorias.map(c => c.categoria),
-                    datasets: [{
-                        label: 'Menciones',
-                        data: categorias.map(c => Number(c.menciones || 0)),
-                        backgroundColor: NAVY, borderRadius: 2
-                    }]
-                },
-                options: (() => {
-                    const o = base('Menciones por tipo de observación');
-                    o.indexAxis = 'y';
-                    o.plugins.legend.display = false;
-                    o.scales = {
-                        x: { beginAtZero: true, grid: { color: '#EEF1F7' }, ticks: { font: { size: 9 }, precision: 0 } },
-                        y: { grid: { display: false }, ticks: { font: { size: 10 } } }
-                    };
-                    return o;
-                })()
-            });
-        }
-    });
-</script>
+    @vite('resources/js/modulos/urdido/panel-control/index.ts')
 @endpush

@@ -14,6 +14,8 @@
             border: none;
         }
     </style>
+    {{-- Módulo diferido: se ejecuta tras parsear el documento, antes de que el PDF del iframe termine de cargar. --}}
+    @vite('resources/js/modulos/urdido/reimpresion-popup/index.ts')
 </head>
 <body>
     <iframe
@@ -21,20 +23,5 @@
         src="{{ $pdfUrl }}"
         title="PDF orden urdido"
     ></iframe>
-    <script>
-        (function() {
-            var iframe = document.getElementById('pdf-frame');
-            function abrirImpresion() {
-                try {
-                    window.print();
-                } catch (e) {
-                    console.warn('Print:', e);
-                }
-            }
-            iframe.addEventListener('load', function() {
-                setTimeout(abrirImpresion, 600);
-            });
-        })();
-    </script>
 </body>
 </html>
