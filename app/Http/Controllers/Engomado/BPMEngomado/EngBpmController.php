@@ -7,13 +7,17 @@ use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngBpmModel;
 use App\Models\Sistema\SYSUsuario;
 use App\Models\Urdido\URDCatalogoMaquina;
+use App\Support\Http\Concerns\HandlesApiErrors;
 use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class EngBpmController extends Controller
 {
+    use HandlesApiErrors;
+
     public function index()
     {
         try {
@@ -87,7 +91,7 @@ class EngBpmController extends Controller
             return redirect()->route('eng-bpm-line.index', $folio)
                 ->with('success', 'Registro creado exitosamente con folio: '.$folio);
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error al crear el registro: '.$e->getMessage());
+            return $this->volverConError($e, 'crear');
         }
     }
 
@@ -113,7 +117,7 @@ class EngBpmController extends Controller
 
             return redirect()->back()->with('success', 'Registro actualizado exitosamente');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error al actualizar el registro: '.$e->getMessage());
+            return $this->volverConError($e, 'actualizar');
         }
     }
 
@@ -125,8 +129,16 @@ class EngBpmController extends Controller
 
             return redirect()->back()->with('success', 'Registro eliminado exitosamente');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error al eliminar el registro: '.$e->getMessage());
+            return $this->volverConError($e, 'eliminar');
         }
+    }
+
+    /** SEC-07: el usuario ve un mensaje genérico con la referencia del error, nunca el texto de la excepción. */
+    private function volverConError(\Throwable $e, string $accion): RedirectResponse
+    {
+        report($e);
+
+        return redirect()->back()->with('error', "Error al {$accion} el registro (ref: {$this->traceIdDeError($e)})");
     }
 
     private function currentUserIsSupervisor(): bool
