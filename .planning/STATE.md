@@ -21,10 +21,15 @@ Historial de sesiones (todas integradas):
 Gates: G1 ⏳ (monitoreo en prod ≥ 7 días: depende del despliegue); G2 ✅ salvo 17-01 (auditoría UX por uso real) e idrol de 22 rutas. Ola 3 se abre ya por decisión del owner (2026-09-25).
 
 Ola 3 — primera tanda (abierta 2026-09-25; prompts y propiedad en `SESIONES-OLA-3.md`):
-- (sesiones por crear)
+- 17-02 UX global → `claude/17-02-ux-global` · `session_01E9rbKp3ViiDqqUhJv8TffK` — ✅ **integrada** 2026-09-26 (`1e40cb57`): UX-01..09, 11..16, checklist UX-18 (`phases/17-ux/17-02-CHECKLIST.md`); UX-10 fuera. HANDOFF A1–A3 hechos por el integrador; B → PT, C → cada 19-xx.
+- 19-01 Urdido + Engomado → `claude/19-01-urdido-engomado` · `session_012UxJt1eZW7jHx3ZeaLDUTa`
+- 19-03 Atadores → `claude/19-03-atadores` · `session_015jawMebtV2XyHgiiwvQzHJ`
+- PT 05 Mutaciones → `claude/pt-05-mutaciones` · `session_01PkCzW1QDBcCLZoC6uG3dnW`
+- 19-01 y PT 05 trabajando; 19-03 espera aprobación de su plan + 2 respuestas del owner (columna `Id` en `AtaComentarios`, idrol de "Reportes Atadores"). Orden de integración: 19-01 → 19-03 → PT 05.
+- `main` avanzó 5 commits (Ventas históricas, Codificación, LMat Tipo, Karl Mayer 600 kg/día, liberar-ordenes): mergeado en la rama (`95324118`). Dos tocan helpers de PT: revisar al integrar PT 05.
 
 Status: Ola 3 en curso
-Last activity: 2026-09-25 — Olas 0–2 en `main`; redirect de Codificación; apertura de la Ola 3.
+Last activity: 2026-09-26 — 17-02 integrada con `main` al día; 1 653 tests PHP, phpstan OK, 148 JS, build, ratchet (`innerHTML =` 400→396).
 
 Progress: [██████░░░░] ~60% (fases 10–16, 18-01/03, 20 y PT 01–04-perf completas)
 
@@ -59,6 +64,8 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 
 ### Pending Todos (owner)
 
+- **17-02 al desplegar:** `APP_LOCALE=es` en la `.env` de producción (dejar `APP_FALLBACK_LOCALE=en`), `npm run build`, `php artisan optimize:clear && php artisan optimize`. Sin SQL.
+- **19-03:** aprobar su plan en la web y responder: ¿`dbo.AtaComentarios` ya tiene columna `Id` identity? · idrol de "Reportes Atadores" (`oee/despachar`).
 - **Cola de avisos (18-03), antes de desplegar `main`:** correr `database/sql/queue_jobs_tablas.sql` **y** crear la tarea programada del worker (`docs/cerebro-towell/Runbooks/deploy.md` §8). Las dos juntas o ninguna: con la tabla `jobs` y sin worker, los avisos de terminar atado, montado de julio y solicitud de trama se quedan atorados. Sin la tabla, la app manda en línea como antes. Alternativa: `QUEUE_CONNECTION=sync`.
 - Confirmar el SAPI con `phpinfo()` → "Server API" (runbook §8 paso 1).
 - `SELECT idrol, modulo, Ruta FROM dbo.SYSRoles WHERE Ruta LIKE '%odific%'` → corregir la `Ruta` del menú si apunta a `catalogoCodificacion` (el redirect ya cubre el 404).
@@ -117,5 +124,5 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 ## Session Continuity
 
 Last session: 2026-09-25
-Stopped at: Ola 3 abriéndose (17-02, 19-01, 19-03, PT 05). Integrar cada rama al terminar; no push a `main` sin pedido del owner.
+Stopped at: Ola 3: 17-02 integrada; 19-01 y PT 05 trabajando; 19-03 espera al owner. Integrar cada rama al terminar; no push a `main` sin pedido del owner.
 Resume file: None

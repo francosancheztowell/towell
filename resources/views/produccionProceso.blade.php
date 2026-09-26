@@ -6,6 +6,15 @@
     />
 @endsection
 
+{{-- UX-01: los avisos de sesión ("No tienes acceso a este módulo.") los pinta x-ui.flash desde
+     el layout; aquí no se repiten. --}}
 @section('content')
-    <x-layout.module-grid :modulos="$modulos" columns="xl:grid-cols-4" :filterConfig="true" />
+    @if(collect($modulos)->reject(fn ($m) => ($m['nombre'] ?? null) === 'Configuración')->isEmpty())
+        <x-empty.empty-state
+            title="No tienes módulos asignados"
+            message="Pide a Sistemas que te dé acceso a los módulos que necesitas."
+            icon="fa-lock" />
+    @else
+        <x-layout.module-grid :modulos="$modulos" columns="xl:grid-cols-4" :filterConfig="true" />
+    @endif
 @endsection

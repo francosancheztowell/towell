@@ -1,7 +1,6 @@
 /**
  * Loader global único (DS-07): #globalLoader de components/layout/global-loader.blade.php.
- * app-core.js lo sigue mostrando al navegar con la clase `hidden`; esto le da una API a las
- * vistas en vez de otro overlay propio: `window.loader.show()` / `window.loader.hide()`.
+ * app-core.js lo usa al navegar (HANDOFF 16 A3) y las vistas en vez de otro overlay propio: `window.loader.show()` / `window.loader.hide()`.
  */
 
 const ID = 'globalLoader';

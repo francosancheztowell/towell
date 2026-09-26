@@ -369,6 +369,13 @@ class DateHelpers
             }
         }
 
+        // Karl Mayer: meta fija kg/dia sin eficiencia (TejidoHelpers::stdToaHraKarlMayer).
+        $stdKm = TejidoHelpers::stdToaHraKarlMayer($p);
+        if ($stdKm !== null) {
+            $stdToaHra = $stdKm;
+            $efic = 1.0;
+        }
+
         $horasProdRaw = 0.0;
         if ($stdToaHra > 0 && $efic > 0 && $cant > 0) {
             $horasProdRaw = $cant / ($stdToaHra * $efic);

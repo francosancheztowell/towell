@@ -53,6 +53,7 @@ class CatLMatGuardarPorcentajeTest extends TestCase
             $table->string('InventSizeCrudo')->nullable();
             $table->integer('Luchaje')->nullable();
             $table->string('CodigoDibujo')->nullable();
+            $table->integer('Tipo')->nullable();
             $table->date('FechaRegistro')->nullable();
             $table->string('HoraRegistro')->nullable();
             $table->string('UsuarioRegistro')->nullable();
@@ -202,6 +203,34 @@ class CatLMatGuardarPorcentajeTest extends TestCase
         $bom = fn (string $orden) => DB::connection('sqlsrv')->table('CatCodificados')->where('OrdenTejido', $orden)->value('BomId');
         $this->assertSame('TEJHIL01', $bom('ORD-KM-BOM'));
         $this->assertNull($bom('ORD-JAC-BOM'));
+    }
+
+    public function test_karl_mayer_guarda_tipo_1_a_4_por_barra_y_jacquard_lo_deja_null(): void
+    {
+        // KM: cada fila lleva su barra (una barra sin cantidad no viaja: aquí falta la 2).
+        $filasKm = array_map(fn (int $barra): array => $this->filaLmat(100 / 3) + ['tipo' => $barra], [1, 3, 4]);
+        $filasKm[0]['porcentaje'] = 33.34;
+        $filasKm[1]['porcentaje'] = 33.33;
+        $filasKm[2]['porcentaje'] = 33.33;
+
+        $this->actingAs($this->usuarioConPermisoCodificacion())
+            ->postJson(route('planeacion.lmat.guardar'), ['salon' => 'KARL MAYER', 'telarId' => '401'] + $this->payloadLmat('ORD-KM-TIPO', $filasKm))
+            ->assertOk();
+
+        $this->assertSame([1, 3, 4], CatLMat::query()->where('Orden', 'ORD-KM-TIPO')->orderBy('Id')->pluck('Tipo')->all());
+
+        // Jacquard: aunque llegue un tipo, no tiene barras.
+        $this->actingAs($this->usuarioConPermisoCodificacion())
+            ->postJson(route('planeacion.lmat.guardar'), $this->payloadLmat('ORD-JAC-TIPO', [$this->filaLmat(100) + ['tipo' => 2]]))
+            ->assertOk();
+
+        $this->assertNull(CatLMat::query()->where('Orden', 'ORD-JAC-TIPO')->value('Tipo'));
+
+        // Fuera de 1..4 se rechaza.
+        $this->actingAs($this->usuarioConPermisoCodificacion())
+            ->postJson(route('planeacion.lmat.guardar'), ['salon' => 'KARL MAYER'] + $this->payloadLmat('ORD-KM-MAL', [$this->filaLmat(100) + ['tipo' => 5]]))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['filas.0.tipo']);
     }
 
     public function test_guardar_lmat_guarda_el_luchaje_capturado_en_codificacion_y_en_catlmat(): void

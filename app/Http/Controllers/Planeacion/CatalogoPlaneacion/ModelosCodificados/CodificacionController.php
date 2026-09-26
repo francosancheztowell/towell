@@ -224,7 +224,7 @@ class CodificacionController extends Controller
     private const DATE_FIELDS = ['FechaTejido', 'FechaCumplimiento', 'FechaCompromiso'];
 
     /** Campos requeridos en alta y edición. Tamaño Clave se arma con Clave AX + Tamaño. */
-    private const REQUIRED_FIELDS = ['TamanoClave', 'OrdenTejido', 'SalonTejidoId', 'ItemId', 'InventSizeId'];
+    private const REQUIRED_FIELDS = ['TamanoClave', 'SalonTejidoId', 'ItemId', 'InventSizeId'];
 
     private function clearCodificacionCache(?int $id = null): void
     {
@@ -827,7 +827,8 @@ class CodificacionController extends Controller
         foreach (self::REQUIRED_FIELDS as $field) {
             $rules[$field] = 'required';
         }
-        $rules['OrdenTejido'] = 'required|regex:/^\d+$/';
+        // Ya no se captura en el formulario; si llega (Excel, API) sigue siendo numérica.
+        $rules['OrdenTejido'] = 'sometimes|nullable|regex:/^\d+$/';
 
         return $rules;
     }

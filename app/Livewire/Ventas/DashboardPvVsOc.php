@@ -6,6 +6,7 @@ namespace App\Livewire\Ventas;
 
 use App\Models\Ventas\TwHistVtasModel;
 use App\Services\Ventas\PvVsOcPayloadBuilder;
+use App\Services\Ventas\VentasHistoricasPayloadBuilder;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
@@ -13,7 +14,12 @@ use Throwable;
 
 class DashboardPvVsOc extends Component
 {
-    private const CACHE_MINUTOS = 15;
+    /**
+     * [fresco, vencido] en segundos: los primeros 15 min se sirve tal cual; después y hasta 24 h se
+     * sirve el valor anterior al instante y se reconstruye tras enviar la respuesta. Así nadie espera
+     * los ~4 s que tardan las consultas en frío (tablas heap sin índices en SQL Server 2008 R2).
+     */
+    private const CACHE_TTL = [15 * 60, 24 * 60 * 60];
 
     public int $anio;
 
@@ -34,15 +40,29 @@ class DashboardPvVsOc extends Component
         $this->anio = $this->aniosDisponibles[array_key_last($this->aniosDisponibles)] ?? (int) now()->year;
     }
 
-    public function render(PvVsOcPayloadBuilder $builder): View
+    public function render(PvVsOcPayloadBuilder $builder, VentasHistoricasPayloadBuilder $historicoBuilder): View
     {
         $dashboard = null;
+        $historico = null;
+        $historicoError = null;
 
         try {
-            // Son ~40k filas históricas por año: reconstruirlas en cada visita tardaba varios segundos.
-            $dashboard = Cache::remember(
+            // TwHistoricosVentas no tiene índices: agrupar las ~89k facturas tarda ~2.5 s.
+            $historico = Cache::flexible(
+                'ventas:historico:payload',
+                self::CACHE_TTL,
+                fn (): array => $historicoBuilder->build(),
+            );
+        } catch (Throwable $e) {
+            report($e);
+            $historicoError = 'No se pudieron cargar las ventas históricas. Intenta nuevamente en unos minutos.';
+        }
+
+        try {
+            // Son ~40k filas históricas por año: reconstruirlas en cada visita tarda ~1.4 s.
+            $dashboard = Cache::flexible(
                 "ventas:pvoc:payload:{$this->anio}",
-                now()->addMinutes(self::CACHE_MINUTOS),
+                self::CACHE_TTL,
                 fn (): string => $builder->build($this->anio),
             );
         } catch (Throwable $e) {
@@ -52,6 +72,8 @@ class DashboardPvVsOc extends Component
 
         return view('livewire.ventas.dashboard-pv-vs-oc', [
             'dashboard' => $dashboard,
+            'historico' => $historico,
+            'historicoError' => $historicoError,
             'anios' => $this->aniosDisponibles,
         ]);
     }
@@ -63,7 +85,7 @@ class DashboardPvVsOc extends Component
      */
     private function cargarAniosDisponibles(): array
     {
-        return Cache::remember('ventas:pvoc:anios', now()->addMinutes(self::CACHE_MINUTOS), static fn (): array => TwHistVtasModel::query()
+        return Cache::flexible('ventas:pvoc:anios', self::CACHE_TTL, static fn (): array => TwHistVtasModel::query()
             ->select('ANIO')
             ->distinct()
             ->orderBy('ANIO')

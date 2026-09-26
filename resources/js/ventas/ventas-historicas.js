@@ -1,13 +1,15 @@
 /**
- * Ventas históricas: slicers estilo Excel (filtrado cruzado) + reportes tipo tabla dinámica,
+ * Ventas históricas: filtros de selección múltiple con filtrado cruzado + reportes tipo tabla dinámica,
  * cada uno con vista de tabla o de gráfica.
  *
- * Por ahora trabaja con datos mock generados en el cliente. Cuando exista la fuente real,
- * basta con reemplazar loadRecords() por registros con el mismo shape que buildMockRecords().
+ * Los datos vienen de dbo.TwHistoricosVentas, ya agrupados en SQL (ver VentasHistoricasPayloadBuilder).
  */
 import Chart from 'chart.js/auto';
+import { createMultiSelect } from './multi-select';
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const MESES_NOMBRE = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const monthName = (value) => MESES_NOMBRE[MESES.indexOf(value)] ?? value;
 const EMPRESA_ORDER = ['TOWEL', 'TEXTIL'];
 
 /** Orden natural de cada dimensión en tablas y ejes (los slicers de año van descendentes, como en Excel). */
@@ -19,22 +21,18 @@ const SORTERS = {
 const comparatorFor = (key) => SORTERS[key] || ((a, b) => String(a).localeCompare(String(b), 'es'));
 const sortValues = (key, values) => values.sort(comparatorFor(key));
 
-/**
- * type: switch = una opción o todas · chips = selección múltiple con clic ·
- * search = buscador con sugerencias · dropdown = lista desplegable con casillas.
- */
+/** Filtros de selección múltiple (mismo componente que Resumen general); order = orden en la lista. */
 const SLICERS = [
-    { key: 'empresa', label: 'Empresa', type: 'switch', allLabel: 'Ambas' },
-    { key: 'anio', label: 'Año', type: 'chips', order: (a, b) => Number(b) - Number(a) },
-    { key: 'semestre', label: 'Semestre', type: 'chips', short: (value) => value.replace(' Semestre', '') },
-    { key: 'mes', label: 'Mes', type: 'chips' },
-    { key: 'tipoPedido', label: 'Tipo Pedido', type: 'chips' },
-    { key: 'tipoMaterial', label: 'Tipo de Material', type: 'chips' },
-    { key: 'calidad', label: 'Calidad', type: 'chips' },
-    { key: 'cliente', label: 'Nombre Cliente', type: 'search', placeholder: 'Buscar cliente…' },
-    { key: 'agente', label: 'Agente Venta', type: 'dropdown', placeholder: 'Buscar agente…' },
+    { key: 'empresa', label: 'Empresa' },
+    { key: 'anio', label: 'Año', order: (a, b) => Number(b) - Number(a) },
+    { key: 'semestre', label: 'Semestre' },
+    { key: 'mes', label: 'Mes', format: monthName },
+    { key: 'tipoPedido', label: 'Tipo Pedido' },
+    { key: 'tipoMaterial', label: 'Tipo de Material' },
+    { key: 'calidad', label: 'Calidad' },
+    { key: 'cliente', label: 'Nombre Cliente' },
+    { key: 'agente', label: 'Agente Venta' },
 ];
-const SUGGESTION_LIMIT = 40;
 
 /** [métrica, etiqueta, decimales]: los montos sin decimales para que las 13 columnas quepan en pantalla. */
 const COLUMNS = [
@@ -96,110 +94,34 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (character
 }[character]));
 
 // ---------------------------------------------------------------------------
-// Datos mock
+// Datos
 // ---------------------------------------------------------------------------
 
-/** PRNG con semilla: el mock sale idéntico en cada carga. */
-const seededRandom = (seed) => () => {
-    seed = (seed + 0x6D2B79F5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-};
+/** Valores vacíos en la fuente (p.ej. factura sin agente) se muestran como en la tabla dinámica de Excel. */
+const BLANK = '(en blanco)';
 
-const pickWeighted = (random, entries) => {
-    const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
-    let roll = random() * total;
-    for (const [value, weight] of entries) {
-        roll -= weight;
-        if (roll <= 0) return value;
+/**
+ * VentasHistoricasPayloadBuilder manda { sf, nf, dict, rows }: cada fila son índices al
+ * diccionario (campos de texto, en el orden de sf) seguidos de los totales numéricos (nf).
+ */
+const loadRecords = (root) => {
+    let payload;
+    try {
+        payload = JSON.parse(root.dataset.historico || 'null');
+    } catch {
+        payload = null;
     }
-    return entries[entries.length - 1][0];
-};
+    if (!payload || !Array.isArray(payload.rows)) return [];
 
-const MOCK_AGENTES = [
-    'Alberto T.', 'Alejandro M.', 'Fabian Q.', 'Francisco P.', 'Gabriela O.', 'Hector G.', 'Jahaziel M.',
-    'José R.', 'Juan Pablo R.', 'Laura G.', 'Luis F.', 'Maria del Rayo', 'Monica M.', 'Othon O.',
-    'Rafael B.', 'Sin Agente', 'Sostenes T.', 'Tienda Towell', '(en blanco)',
-];
-
-const MOCK_CLIENTES = [
-    'ABASTECEDORA HOTELERA DEL NORTE SA DE CV', 'BLANCOS Y TEXTILES DEL BAJIO SA DE CV', 'CADENA COMERCIAL ORIENTE SA DE CV',
-    'COMERCIALIZADORA ALTAMAR SA DE CV', 'DISTRIBUIDORA DE BLANCOS PACIFICO', 'GRUPO HOTELERO RIVIERA SA DE CV',
-    'HOSPITALES DEL CENTRO SC', 'IMPORTADORA TEXTIL DEL GOLFO', 'LAVANDERIAS INDUSTRIALES MONTERREY',
-    'MAYORISTA DEL HOGAR SA DE CV', 'NOVEDADES TEXTILES JALISCO', 'OPERADORA DE CLUBES DEPORTIVOS',
-    'PROVEEDORA DE SPAS Y RESORTS', 'SERVICIOS HOSPITALARIOS DEL SURESTE', 'SUPER TIENDAS LA ESTRELLA',
-    'TEXTILES FINOS DE PUEBLA', 'TIENDA TOWELL (MOSTRADOR)', 'UNIFORMES Y BLANCOS DEL VALLE',
-    'VENTA DIRECTA EXPORTACION', 'ZONA LIBRE COMERCIAL SA DE CV',
-];
-
-/** Perfil anual por empresa: volumen, kilos por pieza, precio base y % de descuento. */
-const MOCK_PROFILE = {
-    TOWEL: {
-        piezas: 9_000_000, kgPza: 0.21, precio: 31.5, precioAlza: 2.1, desc: 0.105,
-        materiales: [['TOALLA', 60], ['BATA', 18], ['PONCHOS', 10], ['FELPA', 12]],
-        tipos: [['CE', 55], ['RS', 25], ['CE HT', 12], ['2das / 3ras', 8]],
-    },
-    TEXTIL: {
-        piezas: 1_500_000, kgPza: 0.44, precio: 44, precioAlza: 1.4, desc: 0.004,
-        materiales: [['FELPA', 62], ['TOALLA', 28], ['BATA', 10]],
-        tipos: [['CE', 70], ['RS', 20], ['2das / 3ras', 10]],
-    },
-};
-
-const buildMockRecords = () => {
-    const random = seededRandom(20260924);
-    // Cada cliente tiene un agente fijo, así el filtrado cruzado se comporta como en la vida real.
-    const agentePorCliente = Object.fromEntries(MOCK_CLIENTES.map((cliente, index) => [cliente, MOCK_AGENTES[index % MOCK_AGENTES.length]]));
-    const records = [];
-
-    Object.entries(MOCK_PROFILE).forEach(([empresa, profile]) => {
-        for (let anio = 2019; anio <= 2026; anio += 1) {
-            const lastMonth = anio === 2026 ? 8 : 12;
-            const yearFactor = 0.8 + random() * 0.4;
-            for (let mes = 1; mes <= lastMonth; mes += 1) {
-                const rowsInMonth = 18;
-                const weights = Array.from({ length: rowsInMonth }, () => random() ** 2 + 0.05);
-                const weightTotal = weights.reduce((sum, weight) => sum + weight, 0);
-                const monthPiezas = (profile.piezas / 12) * yearFactor * (0.85 + random() * 0.3);
-
-                weights.forEach((weight) => {
-                    const tipoPedido = pickWeighted(random, profile.tipos);
-                    const calidad = tipoPedido === '2das / 3ras'
-                        ? pickWeighted(random, [['SEGUNDAS', 70], ['TERCERA', 30]])
-                        : pickWeighted(random, [['1RAS', 96], ['MUESTRAS', 4]]);
-                    const cliente = MOCK_CLIENTES[Math.floor(random() * MOCK_CLIENTES.length)];
-                    const piezas = monthPiezas * (weight / weightTotal);
-                    const precio = (profile.precio + (anio - 2019) * profile.precioAlza) * (calidad === '1RAS' ? 1 : 0.55) * (0.9 + random() * 0.2);
-                    const ventasBrutas = piezas * precio;
-                    // 2019 no registraba descuentos en el histórico original.
-                    const descuentos = anio === 2019 ? 0 : ventasBrutas * profile.desc * (0.7 + random() * 0.6);
-
-                    records.push({
-                        empresa,
-                        anio: String(anio),
-                        mes: MESES[mes - 1],
-                        semestre: mes <= 6 ? '1er Semestre' : '2do Semestre',
-                        tipoPedido,
-                        tipoMaterial: pickWeighted(random, profile.materiales),
-                        calidad,
-                        cliente,
-                        agente: agentePorCliente[cliente],
-                        piezas,
-                        kilos: piezas * profile.kgPza * (0.9 + random() * 0.2),
-                        ventasBrutas,
-                        descuentos,
-                    });
-                });
-            }
-        }
+    const { sf, nf, dict, rows } = payload;
+    return rows.map((row) => {
+        const record = {};
+        sf.forEach((field, index) => { record[field] = dict[row[index]] || BLANK; });
+        nf.forEach((field, index) => { record[field] = Number(row[sf.length + index]) || 0; });
+        record.mes = MESES[Number(record.mes) - 1] ?? record.mes;
+        return record;
     });
-
-    return records;
 };
-
-const loadRecords = () => buildMockRecords();
-
 // ---------------------------------------------------------------------------
 // Agregación
 // ---------------------------------------------------------------------------
@@ -291,22 +213,22 @@ const buildChart = (canvas, { type, labels, datasets, horizontal = false, stacke
 // ---------------------------------------------------------------------------
 
 const initVentasHistoricas = (root) => {
-    const records = loadRecords();
+    const records = loadRecords(root);
     const allYears = sortValues('anio', [...new Set(records.map((record) => record.anio))]);
     const state = {
         selected: Object.fromEntries(SLICERS.map(({ key }) => [key, new Set()])),
-        openPanel: null,
-        search: Object.fromEntries(SLICERS.map(({ key }) => [key, ''])),
         view: Object.fromEntries([...REPORTS, { id: 'comparativo', defaultView: 'table' }].map(({ id, defaultView }) => [id, defaultView])),
         metric: Object.fromEntries([...REPORTS.map(({ id }) => id), 'comparativo'].map((id) => [id, 'importeNeto'])),
         collapsed: Object.fromEntries(REPORTS.map(({ id }) => [id, new Set()])),
         groupIds: Object.fromEntries(REPORTS.map(({ id }) => [id, new Set()])),
         compare: { anioA: allYears[allYears.length - 2] ?? allYears[0], anioB: allYears[allYears.length - 1], meses: new Set() },
+        activeReport: REPORTS[0].id,
     };
     const charts = {};
     const elements = {
         slicers: root.querySelector('[data-vh-slicers]'),
         summary: root.querySelector('[data-vh-summary]'),
+        subtabs: root.querySelector('[data-vh-subtabs]'),
         reports: root.querySelector('[data-vh-reports]'),
     };
 
@@ -326,84 +248,22 @@ const initVentasHistoricas = (root) => {
     /** Valores que siguen teniendo datos con el resto de filtros aplicados (sin contar el propio). */
     const availableValues = (key) => new Set(records.filter((record) => matches(record, [key])).map((record) => record[key]));
 
-    // --- Slicers -----------------------------------------------------------
+    // --- Filtros -------------------------------------------------------------
 
-    const slicerBox = (key) => elements.slicers.querySelector(`[data-vh-slicer="${key}"]`);
+    const pickers = Object.fromEntries(SLICERS.map((slicer) => [slicer.key, createMultiSelect({
+        label: slicer.label,
+        values: allValues[slicer.key],
+        selected: state.selected[slicer.key],
+        format: slicer.format,
+        onChange: () => refresh(),
+    })]));
 
-    /** Coincidencias del buscador: primero las que tienen datos con los filtros actuales. */
-    const matchingValues = (slicer, available) => {
-        const term = state.search[slicer.key].trim().toLowerCase();
-        return allValues[slicer.key]
-            .filter((value) => !term || String(value).toLowerCase().includes(term))
-            .sort((a, b) => Number(available.has(b)) - Number(available.has(a)));
-    };
-
-    const chipHtml = (slicer, value, available) => {
-        const selected = state.selected[slicer.key].has(value);
-        const classes = ['vh-chip', selected && 'is-selected', !available.has(value) && 'is-empty'].filter(Boolean).join(' ');
-        const label = slicer.short ? slicer.short(value) : value;
-        return `<button type="button" class="${classes}" data-vh-chip="${escapeHtml(value)}" title="${escapeHtml(value)}" aria-pressed="${selected}">${escapeHtml(label)}</button>`;
-    };
-
-    const renderSwitch = (slicer, box, available) => {
-        const [current] = state.selected[slicer.key];
-        const option = (value, label, empty = false) => `<button type="button" role="radio" class="${[
-            (current ?? '') === value && 'is-active', empty && 'is-empty',
-        ].filter(Boolean).join(' ')}" data-vh-switch="${escapeHtml(value)}" aria-checked="${(current ?? '') === value}">${escapeHtml(label)}</button>`;
-        box.querySelector('[data-vh-items]').innerHTML = option('', slicer.allLabel)
-            + allValues[slicer.key].map((value) => option(value, value, !available.has(value))).join('');
-    };
-
-    const renderSearch = (slicer, box, available) => {
-        const selected = state.selected[slicer.key];
-        box.querySelector('[data-vh-pills]').innerHTML = [...selected].map((value) => `<span class="vh-pill" title="${escapeHtml(value)}">
-            <span>${escapeHtml(value)}</span>
-            <button type="button" data-vh-pill-remove="${escapeHtml(value)}" aria-label="Quitar ${escapeHtml(value)}">×</button>
-        </span>`).join('');
-
-        const list = box.querySelector('[data-vh-items]');
-        const isOpen = state.openPanel === slicer.key;
-        list.hidden = !isOpen;
-        if (!isOpen) return;
-        const values = matchingValues(slicer, available).filter((value) => !selected.has(value));
-        list.innerHTML = values.slice(0, SUGGESTION_LIMIT).map((value, index) => `<button type="button" role="option" class="vh-option ${
-            available.has(value) ? '' : 'is-empty'} ${index === 0 ? 'is-first' : ''}" data-vh-suggest="${escapeHtml(value)}">${escapeHtml(value)}</button>`).join('')
-            || '<span class="vh-slicer-empty">Sin coincidencias</span>';
-    };
-
-    const renderDropdown = (slicer, box, available) => {
-        const selected = state.selected[slicer.key];
-        const [first] = selected;
-        box.querySelector('[data-vh-dd-label]').textContent = !selected.size
-            ? 'Todos' : (selected.size === 1 ? first : `${selected.size} seleccionados`);
-
-        const isOpen = state.openPanel === slicer.key;
-        box.querySelector('[data-vh-panel]').hidden = !isOpen;
-        box.querySelector('[data-vh-dd-toggle]').setAttribute('aria-expanded', String(isOpen));
-        if (!isOpen) return;
-        box.querySelector('[data-vh-items]').innerHTML = matchingValues(slicer, available).map((value) => `<label class="vh-check ${
-            available.has(value) ? '' : 'is-empty'}">
-            <input type="checkbox" data-vh-check="${escapeHtml(value)}" ${selected.has(value) ? 'checked' : ''}>
-            <span>${escapeHtml(value)}</span>
-        </label>`).join('') || '<span class="vh-slicer-empty">Sin coincidencias</span>';
-    };
-
-    const renderSlicer = (slicer) => {
-        const box = slicerBox(slicer.key);
-        const available = availableValues(slicer.key);
-        box.querySelector('[data-vh-clear]').hidden = !state.selected[slicer.key].size;
-        box.classList.toggle('is-filtered', state.selected[slicer.key].size > 0);
-
-        if (slicer.type === 'switch') renderSwitch(slicer, box, available);
-        else if (slicer.type === 'search') renderSearch(slicer, box, available);
-        else if (slicer.type === 'dropdown') renderDropdown(slicer, box, available);
-        else box.querySelector('[data-vh-items]').innerHTML = allValues[slicer.key].map((value) => chipHtml(slicer, value, available)).join('');
-    };
+    const renderSlicer = ({ key }) => pickers[key].setAvailable(availableValues(key));
 
     const renderSummary = () => {
         const active = SLICERS.filter(({ key }) => state.selected[key].size);
         elements.summary.innerHTML = active.length
-            ? active.map(({ key, label }) => `<span class="vh-summary-pill">${escapeHtml(label)}: <strong>${escapeHtml([...state.selected[key]].join(', '))}</strong></span>`).join('')
+            ? active.map(({ key, label, format = (value) => value }) => `<span class="vh-summary-pill">${escapeHtml(label)}: <strong>${escapeHtml([...state.selected[key]].map(format).join(', '))}</strong></span>`).join('')
             : '<span class="vh-summary-none">Sin filtros aplicados</span>';
     };
 
@@ -628,9 +488,17 @@ const initVentasHistoricas = (root) => {
         }
     };
 
-    const renderReports = () => {
-        REPORTS.forEach(({ id }) => renderReport(id));
-        renderReport('comparativo');
+    // Solo se dibuja la subsección visible: Chart.js no puede medir un canvas oculto.
+    const renderReports = () => renderReport(state.activeReport);
+
+    const syncSubtabs = () => {
+        elements.subtabs.querySelectorAll('[data-vh-subtab]').forEach((button) => {
+            const active = button.dataset.vhSubtab === state.activeReport;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-selected', String(active));
+        });
+        elements.reports.querySelectorAll('[data-vh-report]').forEach((section) =>
+            section.classList.toggle('is-hidden', section.dataset.vhReport !== state.activeReport));
     };
 
     const refresh = () => {
@@ -641,157 +509,26 @@ const initVentasHistoricas = (root) => {
 
     // --- Montaje y eventos -----------------------------------------------------
 
-    const controlHtml = (slicer) => {
-        const label = escapeHtml(slicer.label);
-        if (slicer.type === 'switch') return `<div class="vh-switch" role="radiogroup" aria-label="${label}" data-vh-items></div>`;
-        if (slicer.type === 'search') {
-            return `<div class="vh-combo">
-                <input type="search" class="vh-input" data-vh-search placeholder="${escapeHtml(slicer.placeholder)}" aria-label="${label}" autocomplete="off">
-                <div class="vh-popover vh-suggest" role="listbox" data-vh-items hidden></div>
-            </div>
-            <div class="vh-pills" data-vh-pills></div>`;
-        }
-        if (slicer.type === 'dropdown') {
-            return `<div class="vh-combo">
-                <button type="button" class="vh-input vh-dd-button" data-vh-dd-toggle aria-haspopup="true" aria-expanded="false">
-                    <span data-vh-dd-label>Todos</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
-                </button>
-                <div class="vh-popover vh-dd-panel" data-vh-panel hidden>
-                    <input type="search" class="vh-input" data-vh-search placeholder="${escapeHtml(slicer.placeholder)}" aria-label="Buscar en ${label}" autocomplete="off">
-                    <div class="vh-dd-list" data-vh-items></div>
-                </div>
-            </div>`;
-        }
-        return `<div class="vh-chips" data-vh-items></div>`;
-    };
+    elements.slicers.replaceChildren(...SLICERS.map(({ key }) => pickers[key].element));
 
-    const renderSlicers = () => {
-        elements.slicers.innerHTML = SLICERS.map((slicer) => `
-            <div class="vh-filter vh-filter-${slicer.type}" data-vh-slicer="${slicer.key}">
-                <div class="vh-filter-label">
-                    <span>${escapeHtml(slicer.label)}</span>
-                    <button type="button" class="vh-filter-clear" data-vh-clear title="Borrar filtro" aria-label="Borrar filtro de ${escapeHtml(slicer.label)}" hidden>×</button>
-                </div>
-                ${controlHtml(slicer)}
-            </div>`).join('');
-    };
+    const compareReport = { id: 'comparativo', title: 'Comparativo por Año' };
 
-    const slicerFor = (element) => SLICERS.find(({ key }) => key === element.closest('[data-vh-slicer]')?.dataset.vhSlicer);
+    elements.subtabs.innerHTML = [...REPORTS, compareReport].map(({ id, title }) =>
+        `<button type="button" role="tab" aria-selected="false" data-vh-subtab="${id}">${escapeHtml(title)}</button>`).join('');
 
-    const openPanel = (key) => {
-        const previous = state.openPanel;
-        state.openPanel = key;
-        [previous, key].filter(Boolean).forEach((panelKey) => renderSlicer(SLICERS.find((slicer) => slicer.key === panelKey)));
-    };
-
-    const pickSuggestion = (slicer, value) => {
-        state.selected[slicer.key].add(value);
-        state.search[slicer.key] = '';
-        slicerBox(slicer.key).querySelector('[data-vh-search]').value = '';
-        state.openPanel = null;
-        refresh();
-    };
-
-    const bindSlicerEvents = () => {
-        // mousedown en vez de click para que la sugerencia se tome antes de que el input pierda el foco.
-        elements.slicers.addEventListener('mousedown', (event) => {
-            const suggestion = event.target.closest('[data-vh-suggest]');
-            if (!suggestion) return;
-            event.preventDefault();
-            pickSuggestion(slicerFor(suggestion), suggestion.dataset.vhSuggest);
-        });
-
-        elements.slicers.addEventListener('click', (event) => {
-            const slicer = slicerFor(event.target);
-            if (!slicer) return;
-            const selected = state.selected[slicer.key];
-            const target = event.target;
-
-            const switchOption = target.closest('[data-vh-switch]');
-            if (switchOption) {
-                selected.clear();
-                if (switchOption.dataset.vhSwitch) selected.add(switchOption.dataset.vhSwitch);
-                refresh();
-                return;
-            }
-
-            const chip = target.closest('[data-vh-chip]');
-            if (chip) {
-                const value = chip.dataset.vhChip;
-                selected.has(value) ? selected.delete(value) : selected.add(value);
-                refresh();
-                return;
-            }
-
-            const pillRemove = target.closest('[data-vh-pill-remove]');
-            if (pillRemove) {
-                selected.delete(pillRemove.dataset.vhPillRemove);
-                refresh();
-                return;
-            }
-
-            if (target.closest('[data-vh-dd-toggle]')) {
-                openPanel(state.openPanel === slicer.key ? null : slicer.key);
-                if (state.openPanel) slicerBox(slicer.key).querySelector('[data-vh-panel] [data-vh-search]').focus();
-                return;
-            }
-
-            if (target.closest('[data-vh-clear]')) {
-                selected.clear();
-                refresh();
-            }
-        });
-
-        elements.slicers.addEventListener('change', (event) => {
-            const checkbox = event.target.closest('[data-vh-check]');
-            if (!checkbox) return;
-            const selected = state.selected[slicerFor(checkbox).key];
-            checkbox.checked ? selected.add(checkbox.dataset.vhCheck) : selected.delete(checkbox.dataset.vhCheck);
-            refresh();
-        });
-
-        elements.slicers.addEventListener('input', (event) => {
-            const input = event.target.closest('[data-vh-search]');
-            if (!input) return;
-            const slicer = slicerFor(input);
-            state.search[slicer.key] = input.value;
-            if (state.openPanel !== slicer.key) openPanel(slicer.key);
-            else renderSlicer(slicer);
-        });
-
-        elements.slicers.addEventListener('focusin', (event) => {
-            const input = event.target.closest('.vh-filter-search [data-vh-search]');
-            if (input && state.openPanel !== slicerFor(input).key) openPanel(slicerFor(input).key);
-        });
-
-        elements.slicers.addEventListener('keydown', (event) => {
-            const input = event.target.closest('[data-vh-search]');
-            if (!input) return;
-            const slicer = slicerFor(input);
-            if (event.key === 'Escape') {
-                openPanel(null);
-                input.blur();
-            } else if (event.key === 'Enter' && slicer.type === 'search') {
-                event.preventDefault();
-                const first = slicerBox(slicer.key).querySelector('[data-vh-suggest]');
-                if (first) pickSuggestion(slicer, first.dataset.vhSuggest);
-            }
-        });
-
-        // Clic fuera de un buscador o desplegable abierto: se cierra.
-        document.addEventListener('mousedown', (event) => {
-            if (!state.openPanel) return;
-            if (!slicerBox(state.openPanel).querySelector('.vh-combo').contains(event.target)) openPanel(null);
-        });
-    };
+    elements.subtabs.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-vh-subtab]');
+        if (!button || button.dataset.vhSubtab === state.activeReport) return;
+        state.activeReport = button.dataset.vhSubtab;
+        syncSubtabs();
+        renderReports();
+    });
 
     elements.reports.innerHTML = [
         ...REPORTS.map((report) => reportShell(report)),
-        reportShell(
-            { id: 'comparativo', title: 'Comparativo por Año' },
-            'Usa sus propios selectores de año y mes; el resto de los filtros sí aplica.',
-        ),
+        reportShell(compareReport, 'Usa sus propios selectores de año y mes; el resto de los filtros sí aplica.'),
     ].join('');
+    syncSubtabs();
 
     elements.reports.addEventListener('click', (event) => {
         const section = event.target.closest('[data-vh-report]');
@@ -862,8 +599,6 @@ const initVentasHistoricas = (root) => {
         refresh();
     });
 
-    renderSlicers();
-    bindSlicerEvents();
     refresh();
 };
 

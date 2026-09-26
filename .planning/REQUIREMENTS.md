@@ -89,15 +89,15 @@
 
 ### UX (fase 17)
 
-- [ ] **UX-01**: Flash visible en el layout. **UX-02**: `<title>` por página. **UX-03**: un solo `h1`.
-- [ ] **UX-04**: Pinch-zoom habilitado (salvo andón). **UX-05**: `user-select:none` solo en chrome.
-- [ ] **UX-06**: Acciones de clic derecho también por long-press/botón "⋮". **UX-07**: texto ≥ 12 px.
-- [ ] **UX-08**: `lang/es` + locale `es`. **UX-09**: páginas de error estilizadas con código de referencia.
-- [ ] **UX-10**: Regla de contraseña única. **UX-11**: 419 unificado. **UX-12**: banner sin conexión.
-- [ ] **UX-13**: Duraciones de notificación consistentes. **UX-14**: `aria-label` en botones de ícono. **UX-15**: foco visible.
-- [ ] **UX-16**: Sin mojibake en mensajes al usuario.
+- [x] **UX-01**: Flash visible en el layout. **UX-02**: `<title>` por página. **UX-03**: un solo `h1`.
+- [x] **UX-04**: Pinch-zoom habilitado (salvo andón). **UX-05**: `user-select:none` solo en chrome.
+- [x] **UX-06**: Acciones de clic derecho también por long-press/botón "⋮". **UX-07**: texto ≥ 12 px. (17-02: helper global y layout/componentes; clic derecho y texto < 12 px de cada módulo van en su 19-xx, HANDOFF 17 C1/C3.)
+- [x] **UX-08**: `lang/es` + locale `es`. **UX-09**: páginas de error estilizadas con código de referencia.
+- [x] **UX-10**: ~~Regla de contraseña única~~ fuera de alcance (owner 2026-09-25: contraseñas no se tocan). **UX-11**: 419 unificado. **UX-12**: banner sin conexión.
+- [x] **UX-13**: Duraciones de notificación consistentes. **UX-14**: `aria-label` en botones de ícono. **UX-15**: foco visible.
+- [x] **UX-16**: Sin mojibake en mensajes al usuario.
 - [ ] **UX-17**: Auditoría UX exhaustiva de las 25 pantallas más usadas (por telemetría).
-- [ ] **UX-18**: Checklist UX por pantalla aplicado en cada sesión 19-xx.
+- [ ] **UX-18**: Checklist UX por pantalla aplicado en cada sesión 19-xx. (Checklist publicada en 17-02: `phases/17-ux/17-02-CHECKLIST.md`; la adopción por módulo va en cada 19-xx.)
 
 ### Performance (fase 18)
 
