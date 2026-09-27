@@ -7,6 +7,7 @@ use App\Imports\ReqModelosCodificadosImport;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Support\Planeacion\TelarSalonResolver;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -817,15 +818,23 @@ class CodificacionController extends Controller
     /** Generar reglas de validación */
     private function getValidationRules(bool $isCreate = true): array
     {
+        // Longitud real de cada columna: sin esto un texto largo (p. ej. CuentaBarraN, NVARCHAR(10))
+        // llega al UPDATE y SQL Server responde 22001 como 500. Con max: el usuario ve qué campo es.
+        try {
+            $lengths = $this->getColumnMaxLengths('ReqModelosCodificados');
+        } catch (QueryException) {
+            $lengths = []; // sin INFORMATION_SCHEMA (sqlite de pruebas sin caché sembrada)
+        }
+
         $rules = [];
         foreach (array_keys(self::CAMPOS_MODELO) as $field) {
             $rules[$field] = in_array($field, self::DATE_FIELDS)
                 ? 'sometimes|nullable|date'
-                : 'sometimes|nullable';
+                : 'sometimes|nullable'.(isset($lengths[$field]) ? '|max:'.$lengths[$field] : '');
         }
 
         foreach (self::REQUIRED_FIELDS as $field) {
-            $rules[$field] = 'required';
+            $rules[$field] = 'required'.(isset($lengths[$field]) ? '|max:'.$lengths[$field] : '');
         }
         // Ya no se captura en el formulario; si llega (Excel, API) sigue siendo numérica.
         $rules['OrdenTejido'] = 'sometimes|nullable|regex:/^\d+$/';
