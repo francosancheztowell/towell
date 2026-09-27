@@ -44,8 +44,9 @@ class EngProduccionFormulacionController extends Controller
             });
 
             // Adjuntar el Status del programa engomado a cada formulación
-            $foliosEnItems = $items->map(fn ($i) => $i->folio_resuelto)->filter()->unique()->values()->toArray();
-            $programaStatuses = EngProgramaEngomado::whereIn('Folio', $foliosEnItems)->pluck('Status', 'Folio');
+            // ponytail: la tabla entera (~1000 filas) sale más barata que un whereIn con cientos
+            // de parámetros (1.4 s en producción). Si pasa de ~20k filas, volver a filtrar por subconsulta.
+            $programaStatuses = EngProgramaEngomado::pluck('Status', 'Folio');
             $items = $items->each(function ($item) use ($programaStatuses) {
                 $item->programa_status = $programaStatuses->get($item->folio_resuelto ?? '');
             });
