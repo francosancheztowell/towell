@@ -383,6 +383,16 @@ test('unhandledrejection reporta errores de JS pero no rechazos HTTP', async () 
   assert.deepEqual(env.de('/error').map((p) => p.body.mensaje), ['falló la promesa', 'texto plano'])
 })
 
+test('un rechazo con objeto plano manda su contenido, no "[object Object]"', async () => {
+  // Producción: admin.index acumuló 3 errores "[object Object]" imposibles de diagnosticar.
+  const env = entorno()
+  await arrancar(env)
+  env.win.dispatchEvent(Object.assign(new Event('unhandledrejection'), { reason: { message: 'sin sesión', code: 7 } }))
+  env.win.dispatchEvent(Object.assign(new Event('unhandledrejection'), { reason: { tipo: 'cancelado' } }))
+  await flush()
+  assert.deepEqual(env.de('/error').map((p) => p.body.mensaje), ['sin sesión', '{"tipo":"cancelado"}'])
+})
+
 test('towell:http-error: reporta red caída y 5xx; ignora 4xx, telemetría y navegador sin red', async () => {
   const env = entorno()
   await arrancar(env)
