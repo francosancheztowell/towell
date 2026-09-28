@@ -664,8 +664,8 @@
                             </section>
                         </div>
 
-                        @if ($canRegisterAudit)
-                            <div class="crudo-audit-toolbar">
+                        <div class="crudo-audit-toolbar">
+                            @if ($canRegisterAudit)
                                 <button
                                     type="button"
                                     class="crudo-audit-toggle"
@@ -678,7 +678,117 @@
                                     <span>Agregar auditoría</span>
                                     <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
                                 </button>
-                            </div>
+                            @endif
+                            <button
+                                type="button"
+                                class="crudo-audit-toggle crudo-alineacion-toggle"
+                                wire:click="verAlineacion"
+                                wire:loading.attr="disabled"
+                                wire:target="verAlineacion"
+                            >
+                                <i class="fa-solid fa-ruler-combined" aria-hidden="true"></i>
+                                <span>Ver alineación</span>
+                            </button>
+                        </div>
+
+                        @if ($alineacionAbierta)
+                            @php($alineacion = $this->alineacion)
+                            {{-- Se abre sola al renderizarse; al cerrarla (X, Esc o clic afuera) avisa a Livewire. --}}
+                            <dialog
+                                class="crudo-paro-dialog crudo-alineacion-dialog"
+                                wire:key="crudo-alineacion-{{ $selectedMachine['telar'] }}"
+                                {{-- Sin esto el refresco del tablero le quita el atributo `open` y la cierra. --}}
+                                wire:ignore.self
+                                x-data
+                                x-init="$el.showModal()"
+                                x-on:close="$wire.cerrarAlineacion()"
+                                x-on:click="if ($event.target === $el) $el.close()"
+                                aria-labelledby="crudo-alineacion-titulo"
+                            >
+                                <header class="crudo-paro-dialog-head">
+                                    <h4 id="crudo-alineacion-titulo">Alineación · {{ $selectedMachine['name'] }}</h4>
+                                    @if (! empty($alineacion['item']['_tieneParoActivo']))
+                                        <span class="crudo-paro-badge is-activo">Paro activo</span>
+                                    @endif
+                                    <button type="button" class="crudo-paro-dialog-close" x-on:click="$el.closest('dialog').close()" aria-label="Cerrar">
+                                        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                                    </button>
+                                </header>
+
+                                @if ($alineacion['error'])
+                                    <p class="crudo-audit-history-state">No fue posible consultar la alineación. Intenta de nuevo.</p>
+                                @elseif ($alineacion['item'] === null)
+                                    <p class="crudo-audit-history-state">Este telar no tiene una orden en proceso en Alineación.</p>
+                                @else
+                                    @php($item = $alineacion['item'])
+                                    @php($dato = fn (string $llave) => trim((string) ($item[$llave] ?? '')))
+                                    <section class="crudo-alineacion-resumen">
+                                        <p class="crudo-alineacion-modelo">{{ $dato('NombreProducto') ?: 'Modelo sin nombre' }}</p>
+                                        <dl>
+                                            @foreach (\App\Livewire\Crudo\MachineDetail::RESUMEN_ALINEACION as $llave => $etiqueta)
+                                                <div>
+                                                    <dt>{{ $etiqueta }}</dt>
+                                                    <dd class="{{ $dato($llave) === '' ? 'is-vacio' : '' }}">{{ $dato($llave) ?: '—' }}</dd>
+                                                </div>
+                                            @endforeach
+                                        </dl>
+                                    </section>
+
+                                    @php($esKarlMayer = ! empty($item['_esKarlMayer']))
+                                    <div class="crudo-alineacion-grid">
+                                        @foreach (\App\Livewire\Crudo\MachineDetail::seccionesAlineacion($esKarlMayer) as $seccion => $campos)
+                                            {{-- Karl Mayer: las barras ocupan el lugar de hilos y cenefas, antes de Producción. --}}
+                                            @if ($esKarlMayer && $seccion === 'Producción')
+                                                <section class="crudo-alineacion-seccion crudo-alineacion-barras">
+                                                    <h5>Barras</h5>
+                                                    @if (empty($item['_barras']))
+                                                        <p class="crudo-alineacion-obs is-vacio">Sin barras capturadas en el programa.</p>
+                                                    @else
+                                                        <table>
+                                                            <thead>
+                                                                <tr>
+                                                                    <th scope="col">Barra</th>
+                                                                    <th scope="col">Cuenta</th>
+                                                                    <th scope="col">Calibre</th>
+                                                                    <th scope="col">Fibra</th>
+                                                                    <th scope="col">Color</th>
+                                                                    <th scope="col">Pasadas</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                @foreach ($item['_barras'] as $barra)
+                                                                    <tr>
+                                                                        <th scope="row">{{ $barra['barra'] }}</th>
+                                                                        @foreach (['cuenta', 'calibre', 'fibra', 'color', 'pasadas'] as $campo)
+                                                                            <td class="{{ $barra[$campo] === '' ? 'is-vacio' : '' }}">{{ $barra[$campo] !== '' ? $barra[$campo] : '—' }}</td>
+                                                                        @endforeach
+                                                                    </tr>
+                                                                @endforeach
+                                                            </tbody>
+                                                        </table>
+                                                    @endif
+                                                </section>
+                                            @endif
+                                            <section class="crudo-alineacion-seccion">
+                                                <h5>{{ $seccion }}</h5>
+                                                <dl>
+                                                    @foreach ($campos as $llave => $etiqueta)
+                                                        <div>
+                                                            <dt>{{ $etiqueta }}</dt>
+                                                            <dd class="{{ $dato($llave) === '' ? 'is-vacio' : '' }}">{{ $dato($llave) ?: '—' }}</dd>
+                                                        </div>
+                                                    @endforeach
+                                                </dl>
+                                            </section>
+                                        @endforeach
+                                    </div>
+
+                                    <section class="crudo-alineacion-seccion crudo-alineacion-obs-seccion">
+                                        <h5>Observaciones</h5>
+                                        <p class="crudo-alineacion-obs">{{ $dato('Observaciones') ?: 'Sin observaciones.' }}</p>
+                                    </section>
+                                @endif
+                            </dialog>
                         @endif
                         @else
                         <section

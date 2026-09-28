@@ -51,6 +51,7 @@ class DesarrolladoresCapturaLivewireTest extends TestCase
             $table->string('NombreProducto')->nullable();
             $table->boolean('EnProceso')->default(false);
             $table->dateTime('FechaInicio')->nullable();
+            $table->integer('SaldoMarbete')->nullable();
             // Detalle de hilos: es lo que alimenta la tabla "Detalles de la Orden".
             $table->string('CalibreTrama')->nullable();
             $table->float('CalibreTrama2')->nullable();
@@ -512,6 +513,137 @@ class DesarrolladoresCapturaLivewireTest extends TestCase
 
         // Y una vez liberado, el guardado vuelve a intentarse con normalidad.
         $this->assertTrue(Cache::lock('desarrolladores:guardar:programa:101:'.$id, 15)->get());
+    }
+
+    // ── Alerta de saldo al finalizar ──────────────────────────────────────
+
+    /** La orden que el telar tiene en proceso: es la que "Finalizar" cierra. */
+    private function ordenEnProcesoConSaldo(?int $saldo): void
+    {
+        DB::connection('sqlsrv')->table('ReqProgramaTejido')->insert([
+            'NoProduccion' => '80000', 'NoTelarId' => '101', 'SalonTejidoId' => 'S1',
+            'NombreProducto' => 'TOALLA EN PROCESO', 'EnProceso' => true,
+            'FechaInicio' => '2026-03-01 06:00:00', 'SaldoMarbete' => $saldo,
+        ]);
+    }
+
+    /** @param  callable(\Illuminate\Http\Request): bool|null  $conPeticion */
+    private function servicioDeGuardado(int $veces, ?callable $conPeticion = null): void
+    {
+        $this->mock(\App\Services\Tejedores\Desarrolladores\ProcesarDesarrolladorService::class, function ($mock) use ($veces, $conPeticion) {
+            $esperado = $mock->shouldReceive('store')->times($veces);
+            if ($conPeticion !== null) {
+                $esperado->withArgs($conPeticion);
+            }
+            $esperado->andReturn(response()->json(['success' => true, 'message' => 'Guardado']));
+        });
+    }
+
+    public function test_la_tabla_muestra_el_saldo_de_cada_orden(): void
+    {
+        $this->autenticar();
+        $id = $this->sembrarTelarConOrden();
+        DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $id)->update(['SaldoMarbete' => 1234]);
+
+        Livewire::test(Captura::class)
+            ->set('telarId', '101')
+            ->assertSee('Saldo')
+            ->assertSee('1,234');
+    }
+
+    public function test_finalizar_con_saldo_mayor_a_2_detiene_el_guardado_y_pregunta(): void
+    {
+        $this->autenticar();
+        $id = $this->sembrarTelarConOrdenConDetalle('10.1', 10);
+        $this->ordenEnProcesoConSaldo(5);
+        $this->servicioDeGuardado(0);
+
+        $this->capturaCompleta($id)
+            ->call('guardar')
+            ->assertSet('alertaSaldo', true)
+            ->assertSee('¿Seguro que quieres finalizar esta orden?')
+            ->assertSee('Comunícate con tu supervisor')
+            ->assertSee('Reprogramar al siguiente')
+            ->assertSee('Reprogramar al final');
+    }
+
+    public function test_con_saldo_de_2_o_menos_finaliza_sin_preguntar(): void
+    {
+        $this->autenticar();
+        $id = $this->sembrarTelarConOrdenConDetalle('10.1', 10);
+        $this->ordenEnProcesoConSaldo(2);
+        $this->servicioDeGuardado(1);
+
+        $this->capturaCompleta($id)
+            ->call('guardar')
+            ->assertSet('alertaSaldo', false)
+            ->assertDispatched('aviso', tipo: 'success');
+    }
+
+    public function test_reprogramar_no_pregunta_aunque_haya_saldo(): void
+    {
+        $this->autenticar();
+        $id = $this->sembrarTelarConOrdenConDetalle('10.1', 10);
+        $this->ordenEnProcesoConSaldo(50);
+        $this->servicioDeGuardado(1);
+
+        $this->capturaCompleta($id)
+            ->set('accion', 'reprogramar_final')
+            ->call('guardar')
+            ->assertSet('alertaSaldo', false);
+    }
+
+    /** @return array<string, array{0: string}> */
+    public static function accionesDeLaAlerta(): array
+    {
+        return [
+            'si, finalizar' => ['finalizar'],
+            'reprogramar al siguiente' => ['reprogramar_siguiente'],
+            'reprogramar al final' => ['reprogramar_final'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('accionesDeLaAlerta')]
+    public function test_elegir_en_la_alerta_guarda_con_esa_accion(string $accion): void
+    {
+        $this->autenticar();
+        $id = $this->sembrarTelarConOrdenConDetalle('10.1', 10);
+        $this->ordenEnProcesoConSaldo(5);
+        $this->servicioDeGuardado(1, fn ($peticion) => $peticion->input('accion') === $accion);
+
+        $this->capturaCompleta($id)
+            ->call('guardar')
+            ->assertSet('alertaSaldo', true)
+            ->call('elegirAccionSaldo', $accion)
+            ->assertSet('alertaSaldo', false)
+            ->assertDispatched('aviso', tipo: 'success');
+    }
+
+    public function test_cancelar_la_alerta_no_guarda(): void
+    {
+        $this->autenticar();
+        $id = $this->sembrarTelarConOrdenConDetalle('10.1', 10);
+        $this->ordenEnProcesoConSaldo(5);
+        $this->servicioDeGuardado(0);
+
+        $this->capturaCompleta($id)
+            ->call('guardar')
+            ->call('cerrarAlertaSaldo')
+            ->assertSet('alertaSaldo', false)
+            ->assertSet('produccionSeleccionada', $id)
+            ->assertDontSee('¿Seguro que quieres finalizar esta orden?');
+    }
+
+    public function test_una_accion_inventada_en_la_alerta_se_rechaza(): void
+    {
+        $this->autenticar();
+        $id = $this->sembrarTelarConOrdenConDetalle('10.1', 10);
+        $this->ordenEnProcesoConSaldo(5);
+        $this->servicioDeGuardado(0);
+
+        $this->capturaCompleta($id)
+            ->call('elegirAccionSaldo', 'borrar_todo')
+            ->assertStatus(422);
     }
 
     // ── Catalogo de calibres ──────────────────────────────────────────────

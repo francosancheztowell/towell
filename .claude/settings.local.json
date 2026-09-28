@@ -173,5 +173,8 @@
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": false,
     "github@claude-plugins-official": false
-  }
+  },
+  "enabledMcpjsonServers": [
+    "laravel-boost"
+  ]
 }

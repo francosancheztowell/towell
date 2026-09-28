@@ -96,6 +96,12 @@
                             <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-amber-800">
                                 <span class="rounded-full bg-white px-2 py-0.5 font-semibold ring-1 ring-amber-300">Telar {{ $enProceso['telar'] }}</span>
                                 <span>{{ $enProceso['fecha'] }}</span>
+                                @if (($enProceso['saldoMarbete'] ?? null) !== null)
+                                    @php($saldoAlto = $enProceso['saldoMarbete'] > \App\Livewire\Desarrolladores\Captura::SALDO_MARBETE_ALERTA)
+                                    <span class="rounded-full px-2 py-0.5 font-semibold ring-1 {{ $saldoAlto ? 'bg-rose-100 text-rose-800 ring-rose-300' : 'bg-white ring-amber-300' }}">
+                                        Saldo {{ number_format($enProceso['saldoMarbete']) }}
+                                    </span>
+                                @endif
                             </div>
 
                             <div class="mt-3">
@@ -147,6 +153,7 @@
                                             <th scope="col" class="hidden px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-white sm:table-cell">Fecha cambio</th>
                                             <th scope="col" class="hidden px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-white md:table-cell">Clave</th>
                                             <th scope="col" class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-white">Modelo</th>
+                                            <th scope="col" class="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-white">Saldo</th>
                                             <th scope="col" class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-white">Telar destino</th>
                                             <th scope="col" class="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-white">Sel.</th>
                                         </tr>
@@ -170,6 +177,9 @@
                                                 </td>
                                                 <td class="hidden px-3 py-3 text-sm whitespace-nowrap text-slate-600 md:table-cell">{{ $p->TamanoClave ?? 'N/A' }}</td>
                                                 <td class="px-3 py-3 text-sm break-words text-slate-700">{{ $p->NombreProducto ?? 'N/A' }}</td>
+                                                <td class="px-3 py-3 text-right text-sm font-semibold whitespace-nowrap tabular-nums text-slate-900">
+                                                    {{ $p->SaldoMarbete !== null ? number_format((int) $p->SaldoMarbete) : '—' }}
+                                                </td>
                                                 <td class="px-3 py-3 whitespace-nowrap">
                                                     {{-- Antes cada fila pintaba el catalogo completo de telares: con N filas
                                                          y M telares eran N*M nodos. Ahora solo lo pinta la fila elegida. --}}
@@ -744,4 +754,49 @@
             };
         }
     </script>
+
+    {{-- Guardar se detuvo: la orden que se va a finalizar aun tiene marbetes por producir. --}}
+    @if ($alertaSaldo)
+        @php($enProcesoAlerta = $this->ordenEnProceso)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4"
+             x-data x-init="$nextTick(() => $el.querySelector('[data-cancelar]').focus())"
+             x-on:keydown.escape.window="$wire.cerrarAlertaSaldo()">
+            <div role="alertdialog" aria-modal="true" aria-labelledby="alerta-saldo-titulo" aria-describedby="alerta-saldo-texto"
+                 class="w-full max-w-lg overflow-hidden rounded-xl bg-white shadow-2xl">
+                <div class="flex items-start gap-3 border-b border-amber-200 bg-amber-50 px-5 py-4">
+                    <svg class="mt-0.5 h-7 w-7 shrink-0 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.008M10.34 3.94 1.82 18a1.88 1.88 0 0 0 1.6 2.82h17.16a1.88 1.88 0 0 0 1.6-2.82L13.66 3.94a1.88 1.88 0 0 0-3.32 0Z"/></svg>
+                    <div>
+                        <h2 id="alerta-saldo-titulo" class="text-xl font-bold text-amber-900">¿Seguro que quieres finalizar esta orden?</h2>
+                        <p id="alerta-saldo-texto" class="mt-1 text-base text-amber-900">
+                            La orden <strong>{{ $enProcesoAlerta['noProduccion'] ?? '' }}</strong> todavía tiene
+                            <strong>{{ number_format((int) ($enProcesoAlerta['saldoMarbete'] ?? 0)) }} marbetes</strong> de saldo.
+                            Comunícate con tu supervisor antes de continuar.
+                        </p>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2 p-5">
+                    <button type="button" wire:click="elegirAccionSaldo('finalizar')"
+                            wire:loading.attr="disabled" wire:target="elegirAccionSaldo"
+                            class="min-h-12 rounded-lg bg-rose-600 px-4 text-base font-bold text-white transition hover:bg-rose-700 disabled:opacity-60">
+                        Sí, finalizar la orden
+                    </button>
+                    <button type="button" wire:click="elegirAccionSaldo('reprogramar_siguiente')"
+                            wire:loading.attr="disabled" wire:target="elegirAccionSaldo"
+                            class="min-h-12 rounded-lg bg-blue-600 px-4 text-base font-bold text-white transition hover:bg-blue-700 disabled:opacity-60">
+                        Reprogramar al siguiente
+                    </button>
+                    <button type="button" wire:click="elegirAccionSaldo('reprogramar_final')"
+                            wire:loading.attr="disabled" wire:target="elegirAccionSaldo"
+                            class="min-h-12 rounded-lg bg-blue-600 px-4 text-base font-bold text-white transition hover:bg-blue-700 disabled:opacity-60">
+                        Reprogramar al final
+                    </button>
+                    <button type="button" data-cancelar wire:click="cerrarAlertaSaldo"
+                            wire:loading.attr="disabled" wire:target="elegirAccionSaldo"
+                            class="min-h-12 rounded-lg border border-slate-300 bg-white px-4 text-base font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60">
+                        Cancelar, no guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

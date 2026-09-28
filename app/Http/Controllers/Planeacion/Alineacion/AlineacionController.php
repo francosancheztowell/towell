@@ -8,6 +8,7 @@ use App\Models\Mantenimiento\ManFallasParos;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
 use Dompdf\Options;
@@ -259,7 +260,9 @@ class AlineacionController extends Controller
      *
      * @return array<int, array<string, mixed>>
      */
-    private function obtenerItemsAlineacion(): array
+    // ponytail: público para que el andón de Crudo (MachineDetail) comparta este mismo cálculo
+    // y su caché de 60 s; si otro módulo lo necesita, moverlo a un servicio.
+    public function obtenerItemsAlineacion(): array
     {
         return Cache::remember('alineacion_items', 60, function () {
             $registros = ReqProgramaTejido::query()
@@ -516,7 +519,42 @@ class AlineacionController extends Controller
         $noTelar = trim((string) ($r->NoTelarId ?? ''));
         $item['_tieneParoActivo'] = $noTelar !== '' && in_array($noTelar, $telaresConParoActivo, true);
 
+        // Karl Mayer (401/402) no tiene rizo/pie/trama/cenefas sino Barra 1-4. Fuera de
+        // $columnas a propósito: la tabla, el Excel y el PDF no cambian; lo usa el andón de Crudo.
+        $item['_esKarlMayer'] = TelarSalonResolver::esKarlMayer($r->getAttribute('SalonTejidoId'), $noTelar);
+        $item['_barras'] = $item['_esKarlMayer'] ? $this->barrasKarlMayer($r) : [];
+
         return $item;
+    }
+
+    /**
+     * Barras capturadas en el programa; una barra sin ningún dato no se lista.
+     *
+     * @return list<array{barra: int, cuenta: string, calibre: string, fibra: string, color: string, pasadas: string}>
+     */
+    private function barrasKarlMayer(ReqProgramaTejido $r): array
+    {
+        $barras = [];
+        foreach ([1, 2, 3, 4] as $n) {
+            $color = trim(implode(' ', array_filter([
+                trim((string) $r->getAttribute("CodColorBarra{$n}")),
+                trim((string) $r->getAttribute("ColorBarra{$n}")),
+            ])));
+            $barra = [
+                'barra' => $n,
+                'cuenta' => trim((string) $r->getAttribute("CuentaBarra{$n}")),
+                'calibre' => trim((string) $r->getAttribute("CalibreBarra{$n}")),
+                'fibra' => trim((string) $r->getAttribute("FibraBarra{$n}")),
+                'color' => $color,
+                'pasadas' => $this->esCeroSinDato($r->getAttribute("PasadasBarra{$n}"))
+                    ? '' : trim((string) $r->getAttribute("PasadasBarra{$n}")),
+            ];
+            if (implode('', array_slice($barra, 1)) !== '') {
+                $barras[] = $barra;
+            }
+        }
+
+        return $barras;
     }
 
     /**

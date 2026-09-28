@@ -3385,6 +3385,180 @@ button.crudo-status-card:disabled {
     grid-column: 1 / -1;
 }
 
+/* Ver alineación: botón secundario junto a "Agregar auditoría" y sub-modal por secciones. */
+.crudo-audit-toggle.crudo-alineacion-toggle {
+    border-color: #cbd5e1;
+    background: #fff;
+    color: #1e293b;
+    box-shadow: none;
+}
+
+.crudo-audit-toggle.crudo-alineacion-toggle:hover,
+.crudo-audit-toggle.crudo-alineacion-toggle:focus-visible {
+    background: #f1f5f9;
+    box-shadow: none;
+}
+
+/* Casi pantalla completa: todo cabe sin scroll en monitores de 1080 px. */
+.crudo-paro-dialog.crudo-alineacion-dialog {
+    width: min(110rem, 97vw);
+    max-height: 96vh;
+    padding: 1rem 1.25rem 1.1rem;
+}
+
+.crudo-alineacion-dialog dl {
+    margin: 0;
+}
+
+.crudo-alineacion-dialog dt {
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.crudo-alineacion-dialog dd {
+    margin: 0.1rem 0 0;
+    color: #0f172a;
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.crudo-alineacion-dialog dd.is-vacio {
+    color: #cbd5e1;
+}
+
+/* Franja de identificación: modelo grande y los datos de la orden en una sola línea. */
+.crudo-alineacion-resumen {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem 2rem;
+    margin-top: 0.75rem;
+    border: 2px solid #bfdbfe;
+    border-radius: 0.7rem;
+    background: #eff6ff;
+    padding: 0.75rem 1rem;
+}
+
+.crudo-alineacion-modelo {
+    margin: 0;
+    color: #1e3a8a;
+    font-size: 1.35rem;
+    font-weight: 900;
+    line-height: 1.15;
+}
+
+.crudo-alineacion-resumen dl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.75rem;
+}
+
+.crudo-alineacion-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.crudo-alineacion-seccion {
+    border: 2px solid #cbd5e1;
+    border-radius: 0.7rem;
+    padding: 0.65rem 0.85rem 0.75rem;
+}
+
+.crudo-alineacion-seccion h5 {
+    margin: 0 0 0.5rem;
+    color: #1d4ed8;
+    font-size: 0.8rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.crudo-alineacion-seccion dl {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.55rem 0.9rem;
+}
+
+/* Karl Mayer: la tabla de barras ocupa dos columnas de la rejilla. */
+.crudo-alineacion-barras {
+    grid-column: span 2;
+}
+
+.crudo-alineacion-barras table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.crudo-alineacion-barras th,
+.crudo-alineacion-barras td {
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.35rem 0.5rem;
+    text-align: left;
+}
+
+.crudo-alineacion-barras thead th {
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.crudo-alineacion-barras tbody th,
+.crudo-alineacion-barras td {
+    color: #0f172a;
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.crudo-alineacion-barras tbody tr:last-child > * {
+    border-bottom: 0;
+}
+
+.crudo-alineacion-dialog .is-vacio {
+    color: #cbd5e1;
+}
+
+.crudo-alineacion-obs-seccion {
+    margin-top: 0.75rem;
+}
+
+.crudo-alineacion-obs {
+    margin: 0;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 700;
+    white-space: pre-line;
+}
+
+@media (max-width: 1100px) {
+    .crudo-alineacion-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .crudo-alineacion-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .crudo-alineacion-barras {
+        grid-column: auto;
+        overflow-x: auto;
+    }
+
+    .crudo-alineacion-seccion dl {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 .crudo-paro-obs-sep {
     margin: 0 0.35rem;
     color: #94a3b8;
