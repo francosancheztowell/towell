@@ -54,26 +54,79 @@ class TelegramEnvioTest extends TestCase
         }
     }
 
-    public function test_un_archivo_usa_15_s_y_va_como_multipart(): void
+    public function test_un_archivo_sube_una_vez_y_los_demas_lo_reciben_por_file_id(): void
     {
-        $this->fakeTelegram();
+        $this->fakeArchivo();
 
-        $resultados = app(TelegramEnvio::class)->archivo('sendPhoto', ['111', '222'], 'PNGDATA', 'corte.png', 'Pie');
+        $resultados = app(TelegramEnvio::class)->archivo('sendDocument', ['111', '222', '333'], 'JPGDATA', 'corte.jpg', 'Pie');
+
+        $this->assertSame(3, TelegramEnvio::enviados($resultados));
+        Http::assertSentCount(3);
+        Http::assertSent(fn (Request $request) => $request->isMultipart()
+            && self::parte($request, 'chat_id') === '111'
+            && self::parte($request, 'caption') === 'Pie'
+            && self::parte($request, 'document') === 'JPGDATA');
+        foreach (['222', '333'] as $chatId) {
+            Http::assertSent(fn (Request $request) => ! $request->isMultipart()
+                && $request->url() === 'https://api.telegram.org/botTOKEN/sendDocument'
+                && $request['chat_id'] === $chatId
+                && $request['caption'] === 'Pie'
+                && $request['document'] === 'FILE-111');
+        }
+        $this->assertSame(1, collect($this->opciones)->where('timeout', 30)->count());
+        $this->assertSame(2, collect($this->opciones)->where('timeout', 8)->count());
+    }
+
+    public function test_una_foto_se_reenvia_con_el_file_id_de_mayor_resolucion(): void
+    {
+        $this->fakeArchivo();
+
+        app(TelegramEnvio::class)->archivo('sendPhoto', ['111', '222'], 'PNGDATA', 'corte.png', 'Pie');
+
+        Http::assertSent(fn (Request $request) => ! $request->isMultipart()
+            && $request['chat_id'] === '222'
+            && $request['photo'] === 'GRANDE-111');
+    }
+
+    public function test_si_el_primer_chat_rechaza_el_archivo_se_sube_al_siguiente(): void
+    {
+        $this->fakeArchivo(rechaza: ['111']);
+
+        $resultados = app(TelegramEnvio::class)->archivo('sendDocument', ['111', '222', '333'], 'JPGDATA', 'corte.jpg', 'Pie');
+
+        $this->assertFalse(TelegramEnvio::exitoso($resultados['111']));
+        $this->assertSame(2, TelegramEnvio::enviados($resultados));
+        Http::assertSent(fn (Request $request) => ! $request->isMultipart()
+            && $request['chat_id'] === '333'
+            && $request['document'] === 'FILE-222');
+    }
+
+    public function test_si_la_subida_se_vence_no_se_vuelve_a_subir(): void
+    {
+        Http::fake(fn () => Http::failedConnection());
+
+        $resultados = app(TelegramEnvio::class)->archivo('sendDocument', ['111', '222', '333'], 'JPGDATA', 'corte.jpg', 'Pie');
+
+        Http::assertSentCount(1);
+        $this->assertSame(['111', '222', '333'], array_map('strval', array_keys($resultados)));
+        $this->assertSame(0, TelegramEnvio::enviados($resultados));
+    }
+
+    public function test_un_reenvio_con_falla_pasajera_se_reintenta_una_vez(): void
+    {
+        $intentos = 0;
+        Http::fake(function (Request $request) use (&$intentos) {
+            if ($request->isMultipart()) {
+                return Http::response(['ok' => true, 'result' => ['document' => ['file_id' => 'FILE']]]);
+            }
+
+            return ++$intentos === 1 ? Http::response(['ok' => false], 502) : Http::response(['ok' => true, 'result' => []]);
+        });
+
+        $resultados = app(TelegramEnvio::class)->archivo('sendDocument', ['111', '222'], 'JPGDATA', 'corte.jpg', 'Pie');
 
         $this->assertSame(2, TelegramEnvio::enviados($resultados));
-        foreach ($this->opciones as $opcion) {
-            $this->assertSame(3, $opcion['connect_timeout']);
-            $this->assertSame(15, $opcion['timeout']);
-        }
-        Http::assertSent(function (Request $request) {
-            $partes = collect($request->data())->pluck('contents', 'name');
-
-            return $request->url() === 'https://api.telegram.org/botTOKEN/sendPhoto'
-                && $request->isMultipart()
-                && $partes['chat_id'] === '111'
-                && $partes['caption'] === 'Pie'
-                && $partes['photo'] === 'PNGDATA';
-        });
+        $this->assertSame(2, $intentos);
     }
 
     public function test_un_chat_caido_no_impide_que_los_demas_reciban(): void
@@ -127,5 +180,36 @@ class TelegramEnvioTest extends TestCase
 
             return Http::response(['ok' => true, 'result' => []]);
         });
+    }
+
+    /**
+     * Telegram simulado para archivos: la subida (multipart) devuelve el file_id
+     * "FILE-{chat}" (en fotos, varias resoluciones) y el reenvío por file_id responde ok.
+     *
+     * @param  list<string>  $rechaza  Chats que responden 403 a la subida.
+     */
+    private function fakeArchivo(array $rechaza = []): void
+    {
+        Http::fake(function (Request $request, array $options) use ($rechaza) {
+            $this->opciones[] = $options;
+            if (! $request->isMultipart()) {
+                return Http::response(['ok' => true, 'result' => []]);
+            }
+
+            $chatId = self::parte($request, 'chat_id');
+            if (in_array($chatId, $rechaza, true)) {
+                return Http::response(['ok' => false, 'description' => 'bot was blocked by the user'], 403);
+            }
+
+            return Http::response(['ok' => true, 'result' => [
+                'document' => ['file_id' => "FILE-{$chatId}"],
+                'photo' => [['file_id' => "CHICA-{$chatId}"], ['file_id' => "GRANDE-{$chatId}"]],
+            ]]);
+        });
+    }
+
+    private static function parte(Request $request, string $nombre): mixed
+    {
+        return collect($request->data())->pluck('contents', 'name')[$nombre] ?? null;
     }
 }

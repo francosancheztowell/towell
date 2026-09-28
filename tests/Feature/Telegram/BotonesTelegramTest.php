@@ -59,11 +59,14 @@ class BotonesTelegramTest extends TestCase
                 'destinatarios' => 3,
             ]);
 
-        // Todos salen en la misma tanda: el chat caído no impide que los otros dos reciban.
-        foreach (['bien', 'otro'] as $chat) {
-            Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/sendDocument')
-                && collect($request->data())->pluck('contents', 'name')['chat_id'] === $chat);
-        }
+        // La imagen sube una vez; el chat caído no impide que el otro la reciba por file_id.
+        Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/sendDocument')
+            && $request->isMultipart()
+            && self::chat($request) === 'bien');
+        Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/sendDocument')
+            && ! $request->isMultipart()
+            && $request['chat_id'] === 'otro'
+            && $request['document'] === 'FILE');
     }
 
     public function test_imagen_de_cortes_reporta_el_fallo_total(): void
@@ -118,11 +121,18 @@ class BotonesTelegramTest extends TestCase
 
     private function telegramConUnChatCaido(): void
     {
-        Http::fake(function (Request $request) {
-            $chat = collect($request->data())->pluck('contents', 'name')['chat_id'] ?? null;
-
-            return $chat === 'caido' ? Http::failedConnection() : Http::response(['ok' => true]);
+        Http::fake(fn (Request $request) => match (true) {
+            self::chat($request) === 'caido' => Http::failedConnection(),
+            $request->isMultipart() => Http::response(['ok' => true, 'result' => ['document' => ['file_id' => 'FILE']]]),
+            default => Http::response(['ok' => true, 'result' => []]),
         });
+    }
+
+    private static function chat(Request $request): mixed
+    {
+        return $request->isMultipart()
+            ? collect($request->data())->pluck('contents', 'name')['chat_id'] ?? null
+            : $request['chat_id'];
     }
 
     private function tablasMarcas(): void
