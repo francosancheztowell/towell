@@ -13,37 +13,59 @@
     @endif
 
     <div class="pvoc-content">
-        {{-- <div class="pvoc-anio-selector">
-            <label class="pvoc-select-label" for="pvoc-anio">Año
-                <select id="pvoc-anio" wire:model.live="anio">
-                    @foreach ($anios ?? [] as $anioOption)
-                        <option value="{{ $anioOption }}">{{ $anioOption }}</option>
-                    @endforeach
-                </select>
-            </label>
-        </div> --}}
-
         <div class="pvoc-tabs" role="tablist" aria-label="Vistas del dashboard">
-            <button type="button" class="is-active" role="tab" aria-selected="true" data-pvoc-tab="summary">Resumen general</button>
+            <button type="button" class="is-active" role="tab" aria-selected="true" data-pvoc-tab="summary">Compara</button>
             <button type="button" role="tab" aria-selected="false" data-pvoc-tab="history">Ventas históricas</button>
         </div>
 
         <section class="pvoc-card" data-pvoc-panel="summary">
-            <div class="pvoc-card-header">
-                <div>
-                    <h2>Comparativo Empresa › Tipo de pedido › Cliente</h2>
-                    <p>Clic en <strong>▸</strong> para expandir · doble clic en un cliente para ver artículos.</p>
-                </div>
-                <div class="pvoc-card-actions">
-                    <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-expand>Expandir todo</button>
-                    <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-collapse>Colapsar todo</button>
-                </div>
+            <div class="vh-subtabs" role="tablist" aria-label="Secciones de Compara">
+                <button type="button" class="is-active" role="tab" aria-selected="true" data-pvoc-subtab="resumen">Resumen General</button>
+                <button type="button" role="tab" aria-selected="false" data-pvoc-subtab="analisis">Análisis Histórico</button>
             </div>
-            <div class="pvoc-filters" aria-label="Filtros del resumen general">
+
+            {{-- Filtros compartidos por Resumen General y Análisis Histórico. --}}
+            <div class="pvoc-filters pvoc-filters-shared" aria-label="Filtros de Compara">
                 <div class="pvoc-filter-fields" data-pvoc-filters></div>
                 <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-clear>Limpiar</button>
             </div>
-            <div class="pvoc-table-scroll" data-pvoc-table="summary"></div>
+
+            <div class="pvoc-subpanel" role="tabpanel" data-pvoc-subpanel="resumen">
+                <div class="pvoc-card-header">
+                    <div>
+                        <h2>Comparativo Empresa › Tipo de pedido › Cliente</h2>
+                        <p>Clic en <strong>▸</strong> para expandir · doble clic en un cliente para ver artículos.</p>
+                    </div>
+                    <div class="pvoc-card-actions">
+                        <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-expand="summary">Expandir todo</button>
+                        <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-collapse="summary">Colapsar todo</button>
+                    </div>
+                </div>
+                <div class="pvoc-table-scroll" data-pvoc-table="summary"></div>
+            </div>
+
+            <div class="pvoc-subpanel is-hidden" role="tabpanel" data-pvoc-subpanel="analisis">
+                <div class="pvoc-card-header">
+                    <div class="pvoc-card-title">
+                        <h2>Comparativo Año › Mes</h2>
+                        <p>Doble clic en un mes para desglosar</p>
+                    </div>
+                    <div class="pvoc-card-actions">
+                        <label class="pvoc-inline-label">Desglose:
+                            <select data-pvoc-desglose></select>
+                        </label>
+                        <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-expand="analisis">Expandir todo</button>
+                        <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-collapse="analisis">Colapsar todo</button>
+                        <div class="pvoc-columns" data-pvoc-columns="analisis">
+                            <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-columns-toggle aria-haspopup="true" aria-expanded="false">
+                                Columnas <i class="fa-solid fa-caret-down" aria-hidden="true"></i>
+                            </button>
+                            <div class="pvoc-columns-menu" data-pvoc-columns-menu hidden></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="pvoc-table-scroll" data-pvoc-table="analisis"></div>
+            </div>
         </section>
 
         <section
