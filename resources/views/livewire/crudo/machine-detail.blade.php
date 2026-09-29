@@ -724,71 +724,55 @@
                                 @else
                                     @php($item = $alineacion['item'])
                                     @php($dato = fn (string $llave) => trim((string) ($item[$llave] ?? '')))
-                                    <section class="crudo-alineacion-resumen">
-                                        <p class="crudo-alineacion-modelo">{{ $dato('NombreProducto') ?: 'Modelo sin nombre' }}</p>
-                                        <dl>
-                                            @foreach (\App\Livewire\Crudo\MachineDetail::RESUMEN_ALINEACION as $llave => $etiqueta)
-                                                <div>
-                                                    <dt>{{ $etiqueta }}</dt>
-                                                    <dd class="{{ $dato($llave) === '' ? 'is-vacio' : '' }}">{{ $dato($llave) ?: '—' }}</dd>
-                                                </div>
-                                            @endforeach
-                                        </dl>
-                                    </section>
-
                                     @php($esKarlMayer = ! empty($item['_esKarlMayer']))
-                                    <div class="crudo-alineacion-grid">
-                                        @foreach (\App\Livewire\Crudo\MachineDetail::seccionesAlineacion($esKarlMayer) as $seccion => $campos)
-                                            {{-- Karl Mayer: las barras ocupan el lugar de hilos y cenefas, antes de Producción. --}}
-                                            @if ($esKarlMayer && $seccion === 'Producción')
-                                                <section class="crudo-alineacion-seccion crudo-alineacion-barras">
-                                                    <h5>Barras</h5>
-                                                    @if (empty($item['_barras']))
-                                                        <p class="crudo-alineacion-obs is-vacio">Sin barras capturadas en el programa.</p>
-                                                    @else
-                                                        <table>
-                                                            <thead>
+                                    {{-- Karl Mayer: las barras ocupan el lugar de rizo, hilos y cenefas y parten la fila en dos bloques. --}}
+                                    @php($columnas = \App\Livewire\Crudo\MachineDetail::columnasAlineacion($esKarlMayer))
+                                    @php($bloques = $esKarlMayer
+                                        ? [array_slice($columnas, 0, array_search('PesoGRM2', array_keys($columnas), true), true), 'barras', array_slice($columnas, array_search('PesoGRM2', array_keys($columnas), true), null, true)]
+                                        : [$columnas])
+                                    {{-- La fila de Planeación > Alineación, celda por celda y en su mismo orden. --}}
+                                    @foreach ($bloques as $bloque)
+                                        @if ($bloque === 'barras')
+                                            <div class="crudo-alineacion-barras">
+                                                <h5>Barras</h5>
+                                                @if (empty($item['_barras']))
+                                                    <p class="is-vacio">Sin barras capturadas en el programa.</p>
+                                                @else
+                                                    <table>
+                                                        <thead>
+                                                            <tr>
+                                                                <th scope="col">Barra</th>
+                                                                <th scope="col">Cuenta</th>
+                                                                <th scope="col">Calibre</th>
+                                                                <th scope="col">Fibra</th>
+                                                                <th scope="col">Color</th>
+                                                                <th scope="col">Pasadas</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach ($item['_barras'] as $barra)
                                                                 <tr>
-                                                                    <th scope="col">Barra</th>
-                                                                    <th scope="col">Cuenta</th>
-                                                                    <th scope="col">Calibre</th>
-                                                                    <th scope="col">Fibra</th>
-                                                                    <th scope="col">Color</th>
-                                                                    <th scope="col">Pasadas</th>
+                                                                    <th scope="row">{{ $barra['barra'] }}</th>
+                                                                    @foreach (['cuenta', 'calibre', 'fibra', 'color', 'pasadas'] as $campo)
+                                                                        <td class="{{ $barra[$campo] === '' ? 'is-vacio' : '' }}">{{ $barra[$campo] !== '' ? $barra[$campo] : '—' }}</td>
+                                                                    @endforeach
                                                                 </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                @foreach ($item['_barras'] as $barra)
-                                                                    <tr>
-                                                                        <th scope="row">{{ $barra['barra'] }}</th>
-                                                                        @foreach (['cuenta', 'calibre', 'fibra', 'color', 'pasadas'] as $campo)
-                                                                            <td class="{{ $barra[$campo] === '' ? 'is-vacio' : '' }}">{{ $barra[$campo] !== '' ? $barra[$campo] : '—' }}</td>
-                                                                        @endforeach
-                                                                    </tr>
-                                                                @endforeach
-                                                            </tbody>
-                                                        </table>
-                                                    @endif
-                                                </section>
-                                            @endif
-                                            <section class="crudo-alineacion-seccion">
-                                                <h5>{{ $seccion }}</h5>
-                                                <dl>
-                                                    @foreach ($campos as $llave => $etiqueta)
-                                                        <div>
-                                                            <dt>{{ $etiqueta }}</dt>
-                                                            <dd class="{{ $dato($llave) === '' ? 'is-vacio' : '' }}">{{ $dato($llave) ?: '—' }}</dd>
-                                                        </div>
-                                                    @endforeach
-                                                </dl>
-                                            </section>
-                                        @endforeach
-                                    </div>
-
-                                    <section class="crudo-alineacion-seccion crudo-alineacion-obs-seccion">
-                                        <h5>Observaciones</h5>
-                                        <p class="crudo-alineacion-obs">{{ $dato('Observaciones') ?: 'Sin observaciones.' }}</p>
-                                    </section>
+                                                            @endforeach
+                                                        </tbody>
+                                                    </table>
+                                                @endif
+                                            </div>
+                                        @else
+                                            <dl class="crudo-alineacion-fila">
+                                                @foreach ($bloque as $llave => $etiqueta)
+                                                    <div class="{{ $llave === 'Observaciones' ? 'crudo-alineacion-obs' : '' }}">
+                                                        <dt>{{ $etiqueta }}</dt>
+                                                        <dd class="{{ $dato($llave) === '' ? 'is-vacio' : '' }}">{{ $dato($llave) ?: ($llave === 'Observaciones' ? 'Sin obs.' : '—') }}</dd>
+                                                    </div>
+                                                @endforeach
+                                            </dl>
+                                        @endif
+                                    @endforeach
                                 @endif
                             </dialog>
                         @endif

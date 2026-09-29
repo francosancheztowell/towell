@@ -78,9 +78,20 @@
         }
         return '';
     };
+
+    // JS: resources/js/modulos/tejido/cortes-eficiencia/visualizar/index.ts (19-02).
+    $configPagina = [
+        'fecha' => $fecha,
+        'rutas' => [
+            'excel' => route('cortes.eficiencia.visualizar.excel'),
+            'pdf' => route('cortes.eficiencia.visualizar.pdf'),
+            'telegram' => route('cortes.eficiencia.visualizar.telegram'),
+            'telegramImagen' => route('cortes.eficiencia.visualizar.telegram.imagen'),
+        ],
+    ];
 @endphp
 
-<div id="cortes-eficiencia-share-canvas" class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8">
+<div id="pagina-visualizar" class="w-screen h-full overflow-hidden flex flex-col px-4 py-4 md:px-6 lg:px-8" data-pagina='@json($configPagina)'>
 
     {{-- ── Título y botones ── --}}
     <div class="flex items-center justify-between mb-4">
@@ -88,19 +99,19 @@
             Cortes de Eficiencia &mdash; {{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}
         </h2>
         <div class="flex gap-2">
-            <button onclick="exportarCortesExcel('{{ $fecha }}')"
+            <button type="button" data-accion="excel"
                     class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-md transition-colors">
-                <i class="fa fa-file-excel mr-2"></i> Exportar Excel
+                <i class="fa fa-file-excel mr-2" aria-hidden="true"></i> Exportar Excel
             </button>
-            <button onclick="descargarCortesPDF('{{ $fecha }}')"
+            <button type="button" data-accion="pdf"
                     class="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md transition-colors">
-                <i class="fa fa-file-pdf mr-2"></i> Descargar PDF
+                <i class="fa fa-file-pdf mr-2" aria-hidden="true"></i> Descargar PDF
             </button>
-            <button onclick="compartirCortesImagen('{{ $fecha }}')" id="btn-compartir-imagen"
+            <button type="button" data-accion="imagen" id="btn-compartir-imagen"
                     class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md transition-colors">
-                <i class="fa fa-image mr-2"></i> Compartir Imagen
+                <i class="fa fa-image mr-2" aria-hidden="true"></i> Compartir Imagen
             </button>
-            <button onclick="notificarTelegram('{{ $fecha }}')" id="btn-telegram"
+            <button type="button" data-accion="telegram" id="btn-telegram"
                     class="inline-flex items-center px-4 py-2 bg-white hover:bg-gray-100 text-sky-600 text-sm font-medium rounded-md transition-colors border border-sky-200">
                 <span class="mr-2 text-blue-600 text-lg"><svg class="inline-block h-[1em] w-[1em] align-[-0.125em] fill-current" viewBox="0 0 496 512" aria-hidden="true"><path d="M248 8C111 8 0 119 0 256S111 504 248 504 496 393 496 256 385 8 248 8zM363 176.7c-3.7 39.2-19.9 134.4-28.1 178.3-3.5 18.6-10.3 24.8-16.9 25.4-14.4 1.3-25.3-9.5-39.3-18.7-21.8-14.3-34.2-23.2-55.3-37.2-24.5-16.1-8.6-25 5.3-39.5 3.7-3.8 67.1-61.5 68.3-66.7 .2-.7 .3-3.1-1.2-4.4s-3.6-.8-5.1-.5q-3.3 .7-104.6 69.1-14.8 10.2-26.9 9.9c-8.9-.2-25.9-5-38.6-9.1-15.5-5-27.9-7.7-26.8-16.3q.8-6.7 18.5-13.7 108.4-47.2 144.6-62.3c68.9-28.6 83.2-33.6 92.5-33.8 2.1 0 6.6 .5 9.6 2.9a10.5 10.5 0 0 1 3.5 6.7A43.8 43.8 0 0 1 363 176.7z"/></svg></span> Notificar Telegram
             </button>
@@ -225,7 +236,7 @@
                                     <div class="flex flex-col items-center justify-center leading-tight text-center">
                                         <div class="text-base font-semibold">{{ $efi($tx, 'EficienciaR1') }}</div>
                                         @if ($o1['status'] || $o1['text'] !== '')
-                                            <div class="mt-0.5 text-[10px] leading-tight text-gray-700 text-center whitespace-normal break-words max-w-[64px]">
+                                            <div class="mt-0.5 text-xs leading-tight text-gray-700 text-center whitespace-normal break-words max-w-[64px]">
                                                 {{ $o1['text'] }}
                                             </div>
                                         @endif
@@ -235,7 +246,7 @@
                                     <div class="flex flex-col items-center justify-center leading-tight text-center">
                                         <div class="text-base font-semibold">{{ $efi($tx, 'EficienciaR2') }}</div>
                                         @if ($o2['status'] || $o2['text'] !== '')
-                                            <div class="mt-0.5 text-[10px] leading-tight text-gray-700 text-center whitespace-normal break-words max-w-[64px]">
+                                            <div class="mt-0.5 text-xs leading-tight text-gray-700 text-center whitespace-normal break-words max-w-[64px]">
                                                 {{ $o2['text'] }}
                                             </div>
                                         @endif
@@ -245,7 +256,7 @@
                                     <div class="flex flex-col items-center justify-center leading-tight text-center">
                                         <div class="text-base font-semibold">{{ $efi($tx, 'EficienciaR3') }}</div>
                                         @if ($o3['status'] || $o3['text'] !== '')
-                                            <div class="mt-0.5 text-[10px] leading-tight text-gray-700 text-center whitespace-normal break-words max-w-[64px]">
+                                            <div class="mt-0.5 text-xs leading-tight text-gray-700 text-center whitespace-normal break-words max-w-[64px]">
                                                 {{ $o3['text'] }}
                                             </div>
                                         @endif
@@ -269,184 +280,7 @@
 </div>
 
 @push('scripts')
-<script>
-    function descargarBlob(blob, filename) {
-        const blobUrl = window.URL.createObjectURL(blob);
-        const enlace = document.createElement('a');
-        enlace.href = blobUrl;
-        enlace.download = filename;
-        document.body.appendChild(enlace);
-        enlace.click();
-        enlace.remove();
-        window.URL.revokeObjectURL(blobUrl);
-    }
-
-    // pdf.js por npm, bajo demanda (resources/js/utils/librerias.ts).
-    function cargarPdfJs() {
-        return window.librerias.pdfjs();
-    }
-
-    async function solicitarPdfReporte(fecha) {
-        const response = await fetch('{{ route("cortes.eficiencia.visualizar.pdf") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/pdf'
-            },
-            body: new URLSearchParams({ fecha })
-        });
-
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`No se pudo generar el PDF (${response.status}). ${text?.slice(0, 200) || ''}`.trim());
-        }
-
-        return response.blob();
-    }
-
-    async function generarImagenDesdePdf(fecha) {
-        const pdfBlob = await solicitarPdfReporte(fecha);
-        const pdfBytes = await pdfBlob.arrayBuffer();
-        const pdfjsLib = await cargarPdfJs();
-
-        const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(pdfBytes) });
-        const pdfDoc = await loadingTask.promise;
-        const page = await pdfDoc.getPage(1);
-
-        const viewport = page.getViewport({ scale: 2.2 });
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d', { alpha: false });
-        canvas.width = Math.ceil(viewport.width);
-        canvas.height = Math.ceil(viewport.height);
-
-        await page.render({
-            canvasContext: ctx,
-            viewport,
-            background: '#ffffff'
-        }).promise;
-
-        const imageBlob = await new Promise((resolve, reject) => {
-            canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('No se pudo convertir el PDF a imagen.'))), 'image/jpeg', 0.92);
-        });
-
-        return new File([imageBlob], `cortes_eficiencia_${fecha}.jpg`, { type: 'image/jpeg' });
-    }
-
-    function exportarCortesExcel(fecha) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '{{ route("cortes.eficiencia.visualizar.excel") }}';
-
-        const csrf = document.createElement('input');
-        csrf.type = 'hidden';
-        csrf.name = '_token';
-        csrf.value = '{{ csrf_token() }}';
-
-        const fechaInput = document.createElement('input');
-        fechaInput.type  = 'hidden';
-        fechaInput.name  = 'fecha';
-        fechaInput.value = fecha;
-
-        form.appendChild(csrf);
-        form.appendChild(fechaInput);
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
-    }
-
-    async function descargarCortesPDF(fecha) {
-        try {
-            const blob = await solicitarPdfReporte(fecha);
-            descargarBlob(blob, `cortes_eficiencia_${fecha}.pdf`);
-        } catch (error) {
-            console.error('Excepción al descargar PDF:', error);
-            alert(error.message || 'Ocurrió un error al intentar descargar el PDF.');
-        }
-    }
-
-    async function compartirCortesImagen(fecha) {
-        const btn = document.getElementById('btn-compartir-imagen');
-        const originalHtml = btn?.innerHTML;
-        try {
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> Generando...';
-            }
-
-            const imagenFile = await generarImagenDesdePdf(fecha);
-            descargarBlob(imagenFile, imagenFile.name);
-
-            if (btn) {
-                btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> Enviando Telegram...';
-            }
-
-            const formData = new FormData();
-            formData.append('imagen', imagenFile, imagenFile.name);
-            formData.append('fecha', fecha);
-
-            const response = await fetch('{{ route("cortes.eficiencia.visualizar.telegram.imagen") }}', {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json'
-                },
-                body: formData
-            });
-
-            const data = await response.json();
-            if (!response.ok || !data.success) {
-                throw new Error(data.message || 'No se pudo enviar la imagen por Telegram.');
-            }
-
-            alert('Imagen descargada y enviada por Telegram exitosamente.');
-        } catch (error) {
-            if (error?.name === 'AbortError') return;
-            console.error('Excepción al compartir imagen:', error);
-            alert(error.message || 'No se pudo generar/enviar la imagen.');
-        } finally {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = originalHtml;
-            }
-        }
-    }
-
-    async function notificarTelegram(fecha) {
-        const btn = document.getElementById('btn-telegram');
-        const originalHtml = btn.innerHTML;
-        try {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> Enviando...';
-
-            const response = await fetch('{{ route("cortes.eficiencia.visualizar.telegram") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json'
-                },
-                body: new URLSearchParams({ fecha })
-            });
-
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
-                console.error('Error al notificar por Telegram:', data);
-                alert(data.message || 'No se pudo enviar la notificación por Telegram.');
-                return;
-            }
-
-            alert('Reporte enviado por Telegram exitosamente.');
-        } catch (error) {
-            console.error('Excepción al notificar por Telegram:', error);
-            alert('Ocurrió un error al intentar enviar la notificación por Telegram.');
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = originalHtml;
-        }
-    }
-</script>
+    @vite('resources/js/modulos/tejido/cortes-eficiencia/visualizar/index.ts')
 @endpush
 
 @endsection

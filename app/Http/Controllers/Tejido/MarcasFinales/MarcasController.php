@@ -10,6 +10,7 @@ use App\Models\Sistema\SYSMensaje;
 use App\Models\Tejido\TejMarcas;
 use App\Models\Tejido\TejMarcasLine;
 use App\Services\Telegram\TelegramEnvio;
+use App\Support\Http\Concerns\HandlesApiErrors;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Http\Request;
@@ -21,6 +22,11 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class MarcasController extends Controller
 {
+    use HandlesApiErrors;
+
+    /** Columnas de TejMarcasLine en el insert de store (límite de 2 100 parámetros de SQL Server). */
+    private const COLUMNAS_LINEA = 14;
+
     public function index(Request $request)
     {
         try {
@@ -41,6 +47,8 @@ class MarcasController extends Controller
 
             return view('modulos.marcas-finales.nuevo-marcas', compact('telares'));
         } catch (\Exception $e) {
+            report($e);
+
             return view('modulos.marcas-finales.nuevo-marcas', ['telares' => collect([])]);
         }
     }
@@ -72,6 +80,8 @@ class MarcasController extends Controller
 
             return view('modulos.marcas-finales.marcasFinales', compact('marcas', 'ultimoFolio', 'esSupervisor'));
         } catch (\Exception $e) {
+            report($e);
+
             return view('modulos.marcas-finales.marcasFinales', [
                 'marcas' => collect([]),
                 'ultimoFolio' => null,
@@ -172,12 +182,7 @@ class MarcasController extends Controller
             }, 5); // 5 intentos máximo si hay deadlock
 
         } catch (\Exception $e) {
-            Log::error('Error al generar folio: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al generar folio. Por favor, intente nuevamente.',
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al generar folio de marcas finales', 'Error al generar folio. Por favor, intente nuevamente.');
         }
     }
 
@@ -222,10 +227,7 @@ class MarcasController extends Controller
                 'datos' => $datos,
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener datos STD',
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al obtener datos STD de marcas finales', 'Error al obtener datos STD');
         }
     }
 
@@ -363,7 +365,10 @@ class MarcasController extends Controller
                     ];
                 }
 
-                TejMarcasLine::insert($lineasParaInsertar);
+                // En bloques: SQL Server acepta hasta 2 100 parámetros por sentencia.
+                foreach (array_chunk($lineasParaInsertar, intdiv(2000, self::COLUMNAS_LINEA)) as $bloque) {
+                    TejMarcasLine::insert($bloque);
+                }
             }
 
             DB::commit();
@@ -374,16 +379,8 @@ class MarcasController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error en MarcasController@store', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al guardar datos',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error en MarcasController@store', 'Error al guardar datos');
         }
     }
 
@@ -413,15 +410,15 @@ class MarcasController extends Controller
                 'lineas' => $lineas,
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener marca',
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al obtener marca final', 'Error al obtener marca');
         }
     }
 
     public function update(Request $request, $folio)
     {
+        // El folio de la URL manda sobre el del cuerpo.
+        $request->merge(['folio' => $folio]);
+
         return $this->store($request);
     }
 
@@ -461,9 +458,7 @@ class MarcasController extends Controller
                 'message' => 'Folio reabierto correctamente. Ahora puede editarlo.',
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al reabrir folio: '.$e->getMessage());
-
-            return response()->json(['success' => false, 'message' => 'Error al reabrir el folio'], 500);
+            return $this->apiErrorResponse($e, 'Error al reabrir folio de marcas finales', 'Error al reabrir el folio');
         }
     }
 
@@ -554,9 +549,7 @@ class MarcasController extends Controller
                 'marca' => $marca->fresh(),
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al actualizar registro de marca: '.$e->getMessage());
-
-            return response()->json(['success' => false, 'message' => 'Error al actualizar el registro'], 500);
+            return $this->apiErrorResponse($e, 'Error al actualizar registro de marca', 'Error al actualizar el registro');
         }
     }
 
@@ -590,12 +583,7 @@ class MarcasController extends Controller
                 'message' => 'Marca finalizada correctamente',
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al finalizar marca: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al finalizar marca',
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al finalizar marca', 'Error al finalizar marca');
         }
     }
 
@@ -617,10 +605,10 @@ class MarcasController extends Controller
                 'folioInicial' => $folio,
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al visualizar folio de marcas: '.$e->getMessage());
+            report($e);
 
             return redirect()->route('marcas.consultar')
-                ->with('error', 'Error al visualizar el folio');
+                ->with('error', 'Error al visualizar el folio (ref: '.$this->traceIdDeError($e).')');
         }
     }
 
@@ -645,7 +633,9 @@ class MarcasController extends Controller
                 'tablas' => $tablas,
             ]);
         } catch (\Exception $e) {
-            return redirect()->route('marcas.consultar')->with('error', 'Error al generar reporte: '.$e->getMessage());
+            report($e);
+
+            return redirect()->route('marcas.consultar')->with('error', 'Error al generar reporte (ref: '.$this->traceIdDeError($e).')');
         }
     }
 
@@ -664,7 +654,10 @@ class MarcasController extends Controller
 
             return Excel::download(new MarcasFinalesExport($tablas, $fechaNorm), $filename);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Error al exportar: '.$e->getMessage()], 500);
+            // Se llega por un POST de formulario (descarga): regresa al reporte con el aviso.
+            report($e);
+
+            return redirect()->back()->with('error', 'Error al exportar (ref: '.$this->traceIdDeError($e).')');
         }
     }
 
@@ -727,7 +720,7 @@ class MarcasController extends Controller
                 ->header('Content-Type', 'application/pdf')
                 ->header('Content-Disposition', 'attachment; filename="'.$filename.'"');
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Error al generar PDF: '.$e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'Error al generar PDF de marcas finales', 'Error al generar PDF');
         }
     }
 
@@ -796,15 +789,7 @@ class MarcasController extends Controller
                 'destinatarios' => $resultado['total'],
             ], $enviado ? 200 : 500);
         } catch (\Throwable $th) {
-            Log::error('Error al notificar por Telegram marcas finales', [
-                'mensaje' => $th->getMessage(),
-                'trace' => $th->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al enviar por Telegram: '.$th->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($th, 'Error al notificar por Telegram marcas finales', 'Error al enviar por Telegram');
         }
     }
 

@@ -6,7 +6,7 @@
     <div class="w-full p-4">
         <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
             <div class="bg-blue-600 px-6 py-4">
-                <h1 class="text-xl font-bold text-white">Reportes</h1>
+                <h2 class="text-xl font-bold text-white">Reportes</h2>
             </div>
             <div class="divide-y divide-gray-200">
                 @foreach ($reportes as $num => $reporte)
@@ -21,7 +21,7 @@
                                 <span class="text-sm text-gray-500">{{ $reporte['accion'] }}</span>
                             </div>
                             @if ($reporte['disponible'])
-                                <i class="fas fa-chevron-right text-gray-400 flex-shrink-0"></i>
+                                <i class="fas fa-chevron-right text-gray-400 flex-shrink-0" aria-hidden="true"></i>
                             @else
                                 <span class="text-xs text-amber-600 font-medium flex-shrink-0">Próximamente</span>
                             @endif
