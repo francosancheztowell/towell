@@ -101,7 +101,7 @@ PT **sí** migra a Livewire, **sin cambiar el diseño visual**; la migración (0
 - [ ] **Phase 1.1: Autorización en servidor (Programa Tejido)** — `module.permission` en las ~10 rutas de escritura de Planeación que faltan. Carpeta `phases/01.1-autorizaci-n-en-servidor-programa-tejido/` (plan por escribir).
 - [ ] **Phase 2: Contexto + lectura** — read-seam (Request/ReadService/Resource) paginado y proyectado sin tocar mutaciones. **Plan:** `phases/02-containment-read/02-containment-read-PLAN.md`
 - [ ] **Phase 4-perf: cortes medidos** — cortes 4–7 de `04-PERF-MEDIDO.md` (1–3 ya aplicados). Independientes de Livewire.
-- [ ] **Phase 3: Shell Livewire** — UI v2 en Livewire con el **mismo diseño**, canary por `numero_empleado`, rollback inmediato. Patrón `Crudo/MachineDetail.php` (`#[Computed]`). **Plan:** `phases/03-frontend-shell/03-shell-livewire-PLAN.md`
+- [x] **Phase 3: Shell Livewire** — (gate no pasa: apagado, ver PROJECT 2026-09-29) UI v2 en Livewire con el **mismo diseño**, canary por `numero_empleado`, rollback inmediato. Patrón `Crudo/MachineDetail.php` (`#[Computed]`). **Plan:** `phases/03-frontend-shell/03-shell-livewire-PLAN.md`
 - [x] **Phase 5: Mutaciones** — FormRequests + servicios por caso de uso; PT-DUP-01..04; N+1 de `store()`. **Plan:** `phases/05-mutations/05-mutations-PLAN.md`
 - [ ] **Phase 4-ux: UX/grid** — tabla accesible con estados explícitos, reorder con patrón `UrdEng/ProgramBoard.php`; **sin rediseño**. Plan por replanear (`.superseded` asumía Blade+Vite).
 - [ ] **Phase 6: Límites operacionales** — secuencia, grupos, balanceo, integraciones, cada uno su PR y gate. **Plan:** `phases/06-operational-boundaries/06-operational-boundaries-PLAN.md`
@@ -122,7 +122,7 @@ Gate PT (sin cambios): tests de contrato y dominio pasan; invariantes SQL se man
 | 16. Componentes | DS | 2 | 1/1 | Completa, integrada (`043883d6`; `<dialog>`, tabla, field, flash, loader único, piloto atadores) | 2026-09-25 |
 | 17. UX | UX | 2–3 | 1/2 | 17-02 integrada (`1e40cb57`; UX-10 fuera por decisión del owner); 17-01 espera telemetría de producción | 2026-09-26 |
 | 18. Perf | PERF | 2–3 | 1/2 | 18-01 integrada (`5974e47e`); PERF-07 espera datos de prod; 18-02 dentro de cada 19-xx | - |
-| 19. Módulos TS | MIG | 3 | 1/10 | 19-01 Urdido + Engomado integrada (`e794bb9c`; 41 vistas sin JS inline, receta `19-00-RECETA.md`); 19-03 espera al owner | 2026-09-29 |
+| 19. Módulos TS | MIG | 3 | 2/10 | 19-01 Urdido + Engomado (`e794bb9c`) y 19-02 Tejido (`5adbd1bc`) integradas; 19-03, 19-05 y 19-08 esperan aprobación del owner | 2026-09-29 |
 | 20. Arq/Sec | ARQ/SEC | 2–3 | 3/3 | 20-01 (`e5f2c08d`), 20-02 y 20-03 (`15227b6b`) integradas; 22 rutas esperan idrol del owner; SEC-06/07 y ARQ-05 en cada 19-xx | - |
 | 21. Adopción | ADOP | 4 | 0/1 | Context listo | - |
 | 8. ERP quick wins | ERP | — | 4/6 | 08-01 excluido por el owner; 08-03 F0-03 pendiente de consultas A/B (trabajada en `main`) | - |
@@ -130,8 +130,8 @@ Gate PT (sin cambios): tests de contrato y dominio pasan; invariantes SQL se man
 | PT 1.1 AuthZ | PT | 1 | 1/1 | Completa, integrada (`0e55e84`; liberar Muestras → idrol 5) | 2026-09-24 |
 | PT 2. Lectura | PT | 1 | 1/1 | Completa, integrada (`0e55e84`); canary 02.5 y `.sql` de Muestras pendientes del owner | 2026-09-24 |
 | PT 4-perf | PT | 2 | 1/1 | Completa, integrada (`56f83f4f`): HTML −16 % gzip, 0 `<script>` inline de PT; corte 7 descartado con números | 2026-09-25 |
-| PT 3. Shell Livewire | PT | 2 | 0/1 | Planned (mismo diseño) | - |
+| PT 3. Shell Livewire | PT | 2 | 1/1 | Integrada (`c4bbfffd`), **gate no pasa**: v2 peor en TTFB (+22–24 %) y bytes; apagado por flag. Hizo 17-02 B1/B2 y Redbooth a su bundle | 2026-09-29 |
 | PT 5. Mutaciones | PT | 3 | 1/1 | Integrada (`5566c3de`): PT-DUP-01..04, PT-PERF-02, mutaciones v2 detrás de flag (apagadas); canary 05.5 pendiente del owner | 2026-09-29 |
-| PT 4-ux | PT | 3 | 0/TBD | Por replanear | - |
+| PT 4-ux | PT | 3 | 0/TBD | Por replanear **sobre Blade/TS** (PT 03 no pasó el gate) | - |
 | PT 6. Límites | PT | 3 | 0/1 | Planned | - |
 | PT 7. Adopción PT | PT | 4 | 0/1 | Planned | - |

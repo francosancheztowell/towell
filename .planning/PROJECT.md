@@ -81,6 +81,7 @@ Core Value del track PT (sin cambios): el planeador opera Programa Tejido más r
 | 2026-09-25 | Codificación **no es duplicado** (BUG-012 reclasificado): catálogos = `ReqModelosCodificados` (modelos), codificación = `CatCodificados` (órdenes); se quedan las dos | Aclaración del owner |
 | 2026-09-25 | Ola 3 se abre ya con 4 sesiones (17-02, 19-01, 19-03, PT 05); AuthZ sigue en auditar hasta tener datos de prod | Decisión del owner |
 | 2026-09-25 | Avisos de Telegram secundarios por cola `database` + worker cada minuto (no `defer()`: sin PHP-FPM en Windows no libera la respuesta) | 18-03, medido |
+| 2026-09-29 | PT 03: el shell Livewire de Programa Tejido **no pasó el gate de D-E** (TTFB +56–62 ms, +1,2 KB gzip, +77 KB de runtime; diseño idéntico). Queda apagado (`PLANEACION_SHELL_V2=off`) y PT sigue en Blade/TS; 04-ux se replantea sobre Blade. Retirar o conservar el código v2: pendiente del owner | Medido en `03-frontend-shell/03-SUMMARY.md` §1 |
 
 ## Working Agreements
 
