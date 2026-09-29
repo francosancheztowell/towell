@@ -150,7 +150,7 @@ class DuplicarTejido
                 $porSalon[$s][] = $t;
             }
             foreach ($porSalon as $salon => $telares) {
-                $rows = ReqProgramaTejido::where('SalonTejidoId', $salon)
+                $rows = ReqProgramaTejido::salon($salon)
                     ->whereIn('NoTelarId', $telares)
                     ->orderBy('FechaInicio', 'desc')
                     ->get()
@@ -162,16 +162,16 @@ class DuplicarTejido
 
             // 3. Batch: limpiar flag Ultimo para todos los destinos (una UPDATE por salón)
             foreach ($porSalon as $salon => $telares) {
-                ReqProgramaTejido::where('SalonTejidoId', $salon)
+                ReqProgramaTejido::salon($salon)
                     ->whereIn('NoTelarId', $telares)
-                    ->where('Ultimo', 1)
+                    ->whereIn('Ultimo', ReqProgramaTejido::VALORES_ULTIMO)
                     ->update(['Ultimo' => 0]);
             }
 
             // 4. Pre-computar posiciones: batch query de posiciones existentes por telar
             $posicionesMap = []; // ['salon|telar' => [lista de posiciones ocupadas (sorted)]]
             foreach ($porSalon as $salon => $telares) {
-                $rows = ReqProgramaTejido::where('SalonTejidoId', $salon)
+                $rows = ReqProgramaTejido::salon($salon)
                     ->whereIn('NoTelarId', $telares)
                     ->whereNotNull('Posicion')
                     ->orderBy('Posicion', 'asc')
@@ -517,20 +517,7 @@ class DuplicarTejido
                     }
                 }
 
-                if ($horasNecesarias <= 0) {
-                    $nuevo->FechaFinal = $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS)->format('Y-m-d H:i:s');
-                } else {
-                    // Calcular FechaFinal desde la fecha inicio exacta (sin snap)
-                    if (! empty($nuevo->CalendarioId)) {
-                        $fin = BalancearTejido::calcularFechaFinalDesdeInicio($nuevo->CalendarioId, $inicio, $horasNecesarias);
-                        if (! $fin) {
-                            $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
-                        }
-                        $nuevo->FechaFinal = $fin->format('Y-m-d H:i:s');
-                    } else {
-                        $nuevo->FechaFinal = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600))->format('Y-m-d H:i:s');
-                    }
-                }
+                $nuevo->FechaFinal = TejidoHelpers::resolverFechaFinal($inicio, $horasNecesarias, $nuevo->CalendarioId)->format('Y-m-d H:i:s');
 
                 if (! empty($nuevo->FechaFinal) && ! empty($nuevo->FechaInicio)) {
                     if (Carbon::parse($nuevo->FechaFinal)->lt(Carbon::parse($nuevo->FechaInicio))) {
@@ -674,7 +661,7 @@ class DuplicarTejido
         return ReqProgramaTejido::query()
             ->salon($salon)
             ->telar($telar)
-            ->where('Ultimo', 1)
+            ->whereIn('Ultimo', ReqProgramaTejido::VALORES_ULTIMO)
             ->orderBy('FechaInicio', 'desc')
             ->first()
             ?? ReqProgramaTejido::query()

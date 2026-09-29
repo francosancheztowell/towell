@@ -134,8 +134,8 @@ class BalancearTejido
             $telar = $salonTelar[1] ?? '';
 
             $todosRegistrosTelar = ReqProgramaTejido::query()
-                ->where('SalonTejidoId', $salon)
-                ->where('NoTelarId', $telar)
+                ->salon($salon)
+                ->telar($telar)
                 ->orderBy('Posicion', 'asc')
                 ->orderBy('FechaInicio', 'asc')
                 ->orderBy('Id', 'asc')
@@ -232,7 +232,7 @@ class BalancearTejido
     {
         AuditoriaHelper::contexto('BALANCEO');
 
-        $dispatcher = ReqProgramaTejido::getEventDispatcher();
+        $dispatcher = null;
 
         try {
             $request->validate([
@@ -258,7 +258,7 @@ class BalancearTejido
             // Warm caches (NO cambia resultados, solo evita N+1)
             self::warmCachesFromProgramas($regs->values());
 
-            ReqProgramaTejido::unsetEventDispatcher();
+            $dispatcher = ReqProgramaTejido::suppressObservers();
 
             $idsAfectados = [];
             $porTelar = [];
@@ -338,8 +338,8 @@ class BalancearTejido
                 $telar = $salonTelar[1];
 
                 $todosRegistrosTelar = ReqProgramaTejido::query()
-                    ->where('SalonTejidoId', $salon)
-                    ->where('NoTelarId', $telar)
+                    ->salon($salon)
+                    ->telar($telar)
                     ->orderBy('Posicion', 'asc')
                     ->orderBy('FechaInicio', 'asc')
                     ->orderBy('Id', 'asc')
@@ -543,14 +543,7 @@ class BalancearTejido
             return [$inicio, $fin, 0.0];
         }
 
-        if (! empty($r->CalendarioId)) {
-            $fin = self::calcularFechaFinalDesdeInicio($r->CalendarioId, $inicio, $horasNecesarias);
-            if (! $fin) {
-                $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
-            }
-        } else {
-            $fin = $inicio->copy()->addSeconds((int) round($horasNecesarias * 3600));
-        }
+        $fin = TejidoHelpers::finDesdeHoras($inicio, $horasNecesarias, $r->CalendarioId);
 
         return [$inicio, $fin, $horasNecesarias];
     }
@@ -751,10 +744,9 @@ class BalancearTejido
             (new ReqProgramaTejidoObserver)->recalcularFormulasProduccion($registroRefreshed);
         }
 
-        $ultimo = (int) ($registro->Ultimo ?? 0);
         // recalcularFormulasProduccion solo toca campos de marbete, no fechas:
         // la instancia refetcheada sigue siendo válida para la cascada.
-        if ($ultimo !== 1 && $registroRefreshed) {
+        if (! $registro->esUltimo() && $registroRefreshed) {
             DateHelpers::cascadeFechas($registroRefreshed);
         }
 

@@ -102,6 +102,9 @@ test('el bundle se evalua sin errores y publica su superficie', async () => {
 		'crearRepasoEnviar',
 		'abrirModalMarbetes',
 		'guardarMarbetesEnviar',
+		// Tabla y modal de líneas (PT-05, HANDOFF B1).
+		'openLinesModal',
+		'loadReqProgramaTejidoLines',
 	]) {
 		assert.equal(typeof globalThis[nombre], 'function', `window.${nombre} no quedo publicado`)
 	}
