@@ -158,7 +158,7 @@ vendor/bin/pint --test (PHP cambiados)  pass
 planeacion:programa-tejido-health       ProgramaTejidoHealthCheckTest 6 passed en sqlite; suelto "No se pudo consultar"
                                         (no hay database/sqlite), igual que PT-02/04/05
 code-review (medium)                    0 hallazgos (1 inconsistencia menor del fallback del ⋮, corregida)
-security-review                         ver commit siguiente
+security-review                         0 hallazgos (componente con gate auth + canary en boot(); superficie #[Locked] y enum; tabla solo de config; @json con JSON_HEX_*; modal.js idéntico al inline salvo el boot). Brecha previa, no nueva: index() solo exige auth, sin acceso por módulo
 ```
 
 ## 5. Runbook para el owner (Laragon, datos reales)
