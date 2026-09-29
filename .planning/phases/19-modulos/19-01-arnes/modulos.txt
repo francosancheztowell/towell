@@ -1,0 +1,28 @@
+Captura de Formula
+Catalogo de Fallas
+Codificación
+Mantenimiento
+Marcas Finales
+Nuevas Marcas Finales
+Producción Engomado
+Programa Atadores
+Programa Urdido
+Trazabilidad
+Actividades BPM Engomado
+Actividades BPM Urdido
+BPM (Buenas Practicas Manufactura) Eng
+BPM (Buenas Practicas Manufactura) Urd
+Captura de Formula
+Catalogo Julios Eng
+Catalogo Ubicaciones
+Catalogos Maquinas
+Catálogo de Núcleos
+Catalogos Julios
+engomado
+urdido
+Producción Urdido
+Producción Engomado
+Programa Urdido
+Programa Engomado
+Reportes Urdido
+Reportes Engomado

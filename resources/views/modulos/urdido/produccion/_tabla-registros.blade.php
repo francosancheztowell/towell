@@ -213,6 +213,8 @@
                                     type="button"
                                     class="w-full border border-gray-300 rounded px-1 py-0.5 text-xs bg-white hover:bg-gray-50 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 btn-fecha-display flex items-center justify-center cursor-pointer"
                                     data-registro-id="{{ $registroId }}"
+                                    data-accion="elegir-fecha"
+                                    title="Cambiar fecha"
                                 >
                                     <span class="fecha-display-text text-gray-900 font-medium">
                                         {{ $fechaMostrar }}
@@ -247,9 +249,11 @@
                                                 class="btn-agregar-oficial flex-shrink-0 p-1.5 md:p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
                                                 data-registro-id="{{ $registroId }}"
                                                 data-cantidad-oficiales="{{ $cantidadOficiales }}"
+                                                data-accion="agregar-oficial"
                                                 title="Agregar oficial"
+                                                aria-label="Agregar oficial"
                                             >
-                                                <i class="fa-solid fa-plus-circle text-lg md:text-xl"></i>
+                                                <i class="fa-solid fa-plus-circle text-lg md:text-xl" aria-hidden="true"></i>
                                             </button>
                                         </div>
                         </td>
@@ -267,6 +271,7 @@
                                             <i
                                                 class="fa-solid fa-clock text-gray-400 text-2xl md:text-3xl cursor-pointer hover:text-blue-500 hover:bg-blue-50 set-current-time flex-shrink-0 inline-flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full transition-colors"
                                                 data-time-target="h_inicio"
+                                                data-accion="hora-actual"
                                                 title="Establecer hora actual"
                                             ></i>
                             </div>
@@ -285,6 +290,7 @@
                                             <i
                                                 class="fa-solid fa-clock text-gray-400 text-2xl md:text-3xl cursor-pointer hover:text-blue-500 hover:bg-blue-50 set-current-time flex-shrink-0 inline-flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-full transition-colors"
                                                 data-time-target="h_fin"
+                                                data-accion="hora-actual"
                                                 title="Establecer hora actual"
                                             ></i>
                             </div>
@@ -365,7 +371,7 @@
                                             <button
                                                 type="button"
                                                 class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-md transition-colors"
-                                                onclick="toggleQuantityEdit(this, 'hilat')"
+                                                data-accion="editar-cantidad"
                                             >
                                                 <span class="quantity-display font-semibold" data-field="hilat">
                                                     {{ $hilatura }}
@@ -394,7 +400,7 @@
                                             <button
                                                 type="button"
                                                 class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-md transition-colors"
-                                                onclick="toggleQuantityEdit(this, 'maq')"
+                                                data-accion="editar-cantidad"
                                             >
                                                 <span class="quantity-display font-semibold" data-field="maq">
                                                     {{ $maquina }}
@@ -423,7 +429,7 @@
                                 <button
                                     type="button"
                                     class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-md transition-colors"
-                                    onclick="toggleQuantityEdit(this, 'operac')"
+                                    data-accion="editar-cantidad"
                                 >
                                     <span class="quantity-display font-semibold" data-field="operac">
                                         {{ $operac }}
@@ -452,7 +458,7 @@
                                 <button
                                     type="button"
                                     class="edit-quantity-btn bg-gray-100 hover:bg-blue-700 text-black px-1.5 py-1.5 md:px-1.5 md:py-1.5 lg:px-2 lg:py-2 rounded text-md transition-colors"
-                                    onclick="toggleQuantityEdit(this, 'transf')"
+                                    data-accion="editar-cantidad"
                                 >
                                     <span class="quantity-display font-semibold" data-field="transf">
                                         {{ $transf }}

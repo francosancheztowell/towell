@@ -5,19 +5,19 @@
 @section('navbar-right')
     <div class="flex items-center gap-2">
         <x-navbar.button-create
-        onclick="openCreateModal()"
+        data-accion="crear"
         title="Nueva Ubicación"
         module="Catalogo Ubicaciones"
         />
         <x-navbar.button-edit
         id="btnEdit"
-        onclick="editSelected()"
+        data-accion="editar"
         title="Editar Ubicación"
         module="Catalogo Ubicaciones"
         />
         <x-navbar.button-delete
         id="btnDelete"
-        onclick="deleteSelected()"
+        data-accion="eliminar"
         title="Eliminar Ubicación"
         module="Catalogo Ubicaciones"
         />
@@ -25,7 +25,19 @@
 @endsection
 
 @section('content')
-    <div class="w-full">
+    @php
+        $configUbicaciones = [
+            "rutas" => [
+                "guardar" => route("engomado.configuracion.catalogo.ubicaciones.store"),
+                "actualizar" => route("engomado.configuracion.catalogo.ubicaciones.update", ["id" => "__ID__"]),
+                "eliminar" => route("engomado.configuracion.catalogo.ubicaciones.destroy", ["id" => "__ID__"]),
+            ],
+        ];
+    @endphp
+    <div class="w-full" id="catalogo-ubicaciones" data-pagina='@json($configUbicaciones)'>
+    @if (! empty($error))
+        <x-ui.alert type="error" :message="$error" />
+    @endif
     @if ($noResults ?? false)
         <div class="alert alert-warning text-center">No se encontraron resultados con la información proporcionada.</div>
     @endif
@@ -45,7 +57,7 @@
                             $uid = $ubicacion->Id ?? uniqid();
                         @endphp
                         <tr class="text-center hover:bg-blue-50 transition cursor-pointer text-black"
-                            onclick="selectRow(this)"
+                            data-fila
                             data-uid="{{ $uid }}"
                             data-codigo="{{ $ubicacion->Codigo }}"
                             data-id="{{ $ubicacion->Id }}">
@@ -62,6 +74,18 @@
         </div>
     </div>
     </div>
+
+    {{-- Formulario Crear/Editar (antes un Swal con HTML armado en JS). --}}
+    <x-ui.modal-base id="ubicacionModal" title="Nueva Ubicación" size="sm" :close-on-backdrop="true">
+        <form id="ubicacionForm" class="grid grid-cols-1 gap-3 text-left text-sm" novalidate>
+            <x-ui.field as="input" name="Codigo" id="ubicacion-codigo" label="Código" required
+                        placeholder="Ej: A1, B1, C1" maxlength="10" autocomplete="off" />
+        </form>
+        <x-slot:footer>
+            <x-ui.button variant="neutral" size="nav" data-ui-modal-close-target="ubicacionModal">Cancelar</x-ui.button>
+            <x-ui.button variant="create" size="nav" type="submit" form="ubicacionForm" data-ubicacion-guardar><span data-texto-guardar>Guardar</span></x-ui.button>
+        </x-slot:footer>
+    </x-ui.modal-base>
 
 <style>
   .scrollbar-thin { scrollbar-width: thin; }
@@ -83,314 +107,8 @@
     background-clip: padding-box;
   }
 </style>
-
-
-    <script>
-    // Variables globales
-    let currentUbicacionId = null;
-    let selectedRow = null;
-
-    function getSelectedUbicacionData() {
-        if (!selectedRow) {
-            return null;
-        }
-
-        return {
-            id: (selectedRow.dataset.id || '').trim(),
-            codigo: selectedRow.dataset.codigo || ''
-        };
-    }
-
-    // Seleccionar fila de la tabla
-    window.selectRow = function(row) {
-        // Deseleccionar fila anterior
-        if (selectedRow) {
-            selectedRow.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-600');
-            selectedRow.classList.add('text-black', 'hover:bg-blue-50');
-        }
-
-        // Si es la misma fila, deseleccionar
-        if (selectedRow === row) {
-            selectedRow = null;
-            currentUbicacionId = null;
-            row.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-600');
-            row.classList.add('text-black', 'hover:bg-blue-50');
-            disableButtons();
-            return;
-        }
-
-        // Seleccionar nueva fila
-        selectedRow = row;
-        currentUbicacionId = (row.dataset.id || '').trim() || null;
-        row.classList.remove('text-black', 'hover:bg-blue-50');
-        row.classList.add('bg-blue-500', 'text-white', 'hover:bg-blue-600');
-        if (currentUbicacionId) {
-            enableButtons();
-        } else {
-            disableButtons();
-        }
-    }
-
-    // Habilitar botones del navbar
-    window.enableButtons = function() {
-        const btnEdit = document.getElementById('btnEdit');
-        const btnDelete = document.getElementById('btnDelete');
-
-        if (btnEdit) {
-            btnEdit.disabled = false;
-            btnEdit.removeAttribute('disabled');
-            btnEdit.classList.remove('opacity-50', 'cursor-not-allowed');
-            btnEdit.classList.add('cursor-pointer');
-        }
-        if (btnDelete) {
-            btnDelete.disabled = false;
-            btnDelete.removeAttribute('disabled');
-            btnDelete.classList.remove('opacity-50', 'cursor-not-allowed');
-            btnDelete.classList.add('cursor-pointer');
-        }
-    }
-
-    // Deshabilitar botones del navbar
-    window.disableButtons = function() {
-        const btnEdit = document.getElementById('btnEdit');
-        const btnDelete = document.getElementById('btnDelete');
-
-        if (btnEdit) {
-            btnEdit.disabled = true;
-            btnEdit.setAttribute('disabled', 'disabled');
-            btnEdit.classList.add('opacity-50', 'cursor-not-allowed');
-            btnEdit.classList.remove('cursor-pointer');
-        }
-        if (btnDelete) {
-            btnDelete.disabled = true;
-            btnDelete.setAttribute('disabled', 'disabled');
-            btnDelete.classList.add('opacity-50', 'cursor-not-allowed');
-            btnDelete.classList.remove('cursor-pointer');
-        }
-    }
-
-    function showSelectionWarning() {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Selecciona una ubicación',
-            text: 'Debes seleccionar un registro para continuar.'
-        });
-    }
-
-    // Editar registro seleccionado desde navbar
-    window.editSelected = function() {
-        const data = getSelectedUbicacionData();
-        if (!data || !data.id) {
-            showSelectionWarning();
-            return;
-        }
-
-        openEditModal(data.id);
-    }
-
-    // Eliminar registro seleccionado desde navbar
-    window.deleteSelected = function() {
-        const data = getSelectedUbicacionData();
-        if (!data || !data.id) {
-            showSelectionWarning();
-            return;
-        }
-
-        openDeleteModal(data.id);
-    }
-
-    // Abrir modal de creación
-    window.openCreateModal = function() {
-        openUbicacionModal('create');
-    }
-
-    // Abrir modal de edición
-    window.openEditModal = function(ubicacionId) {
-        const data = getSelectedUbicacionData() || {};
-        const resolvedId = (ubicacionId || data.id || '').trim();
-
-        if (!resolvedId) {
-            showSelectionWarning();
-            return;
-        }
-
-        openUbicacionModal('edit', {
-            id: resolvedId,
-            codigo: data.codigo || ''
-        });
-    }
-
-    // Abrir modal de eliminación
-    window.openDeleteModal = function(ubicacionId) {
-        const resolvedId = (ubicacionId || currentUbicacionId || '').trim();
-        if (!resolvedId) {
-            showSelectionWarning();
-            return;
-        }
-
-        confirmDeleteUbicacion(resolvedId);
-    }
-
-    function openUbicacionModal(mode, data = {}) {
-        const isEdit = mode === 'edit';
-        const title = isEdit ? 'Editar Ubicación' : 'Nueva Ubicación';
-        const confirmText = isEdit ? 'Actualizar' : 'Guardar';
-
-        Swal.fire({
-            title: title,
-            html: `
-                <div class="grid grid-cols-1 gap-3 text-left text-sm">
-                    <div>
-                        <label class="block text-xs font-medium mb-1">
-                            Código <span class="text-red-500">*</span>
-                        </label>
-                        <input id="swal-codigo" class="swal2-input" placeholder="Ej: A1, B1, C1" maxlength="10">
-                    </div>
-                </div>
-            `,
-            showCancelButton: true,
-            confirmButtonText: confirmText,
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#3b82f6',
-            focusConfirm: false,
-            didOpen: () => {
-                document.getElementById('swal-codigo').value = data.codigo || '';
-            },
-            preConfirm: () => {
-                const codigo = document.getElementById('swal-codigo').value.trim().toUpperCase();
-
-                if (!codigo) {
-                    Swal.showValidationMessage('El Código es requerido');
-                    return false;
-                }
-
-                if (codigo.length > 10) {
-                    Swal.showValidationMessage('El Código no puede tener más de 10 caracteres');
-                    return false;
-                }
-
-                return {
-                    Codigo: codigo
-                };
-            }
-        }).then((result) => {
-            if (!result.isConfirmed) {
-                return;
-            }
-
-            saveUbicacion(result.value, isEdit ? data.id : null);
-        });
-    }
-
-    function saveUbicacion(data, ubicacionId) {
-        const isEdit = !!ubicacionId;
-        const url = isEdit
-            ? `/engomado/configuracion/catalogo-ubicaciones/${encodeURIComponent(ubicacionId)}`
-            : '/engomado/configuracion/catalogo-ubicaciones';
-        const method = isEdit ? 'put' : 'post';
-
-        fetch(url, {
-            method: method,
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify(data)
-        })
-        .then(response => response.json())
-        .then(response => {
-            if (response.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: isEdit ? '¡Actualizado!' : '¡Creado!',
-                    text: response.message,
-                    showConfirmButton: false,
-                    timer: 1500
-                }).then(() => {
-                    location.reload();
-                });
-                return;
-            }
-
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: response.message || 'No se pudo guardar la ubicación'
-            });
-        })
-        .catch(error => {
-            console.error('Error al guardar:', error);
-            let errorMessage = 'No se pudo guardar la ubicación';
-
-            if (error.response?.data?.message) {
-                if (typeof error.response.data.message === 'object') {
-                    errorMessage = Object.values(error.response.data.message).flat().join(', ');
-                } else {
-                    errorMessage = error.response.data.message;
-                }
-            }
-
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: errorMessage
-            });
-        });
-    }
-
-    function confirmDeleteUbicacion(ubicacionId) {
-        Swal.fire({
-            title: 'Confirmar Eliminación',
-            text: '¿Está seguro que desea eliminar esta ubicación? Esta acción no se puede deshacer.',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Eliminar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#ef4444'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                deleteUbicacion(ubicacionId);
-            }
-        });
-    }
-
-    function deleteUbicacion(ubicacionId) {
-        fetch(`/engomado/configuracion/catalogo-ubicaciones/${encodeURIComponent(ubicacionId)}`, {
-            method: 'delete',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(response => {
-            if (response.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: '¡Eliminado!',
-                    text: response.message,
-                    showConfirmButton: false,
-                    timer: 1500
-                }).then(() => {
-                    location.reload();
-                });
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: response.message || 'No se pudo eliminar la ubicación'
-                });
-            }
-        })
-        .catch(error => {
-            console.error('Error al eliminar:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'No se pudo eliminar la ubicación'
-            });
-        });
-    }
-    </script>
 @endsection
+
+@push('scripts')
+    @vite('resources/js/modulos/engomado/catalogo-ubicaciones/index.ts')
+@endpush

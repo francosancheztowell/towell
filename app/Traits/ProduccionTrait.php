@@ -4,6 +4,7 @@ namespace App\Traits;
 
 use App\Helpers\TurnoHelper;
 use App\Models\Urdido\UrdCatJulios;
+use App\Support\Http\Concerns\HandlesApiErrors;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,8 @@ use Illuminate\Validation\ValidationException;
  */
 trait ProduccionTrait
 {
+    use HandlesApiErrors;
+
     abstract protected function getProduccionModelClass(): string;
 
     abstract protected function getProgramaModelClass(): string;
@@ -281,15 +284,9 @@ trait ProduccionTrait
 
             return response()->json(['success' => true, 'data' => $julios]);
         } catch (\Throwable $e) {
-            Log::error('Error al obtener catálogo de julios', [
+            return $this->errorServidorProduccion($e, 'Error al obtener catálogo de julios', 'Error al obtener catálogo de julios', [
                 'departamento' => $this->getDepartamento(),
-                'error' => $e->getMessage(),
             ]);
-
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al obtener catálogo de julios: '.$e->getMessage(),
-            ], 500);
         }
     }
 
@@ -446,9 +443,7 @@ trait ProduccionTrait
         } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al guardar oficial', ['error' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'error' => 'Error al guardar oficial: '.$e->getMessage()], 500);
+            return $this->errorServidorProduccion($e, 'Error al guardar oficial', 'Error al guardar oficial');
         }
     }
 
@@ -481,9 +476,7 @@ trait ProduccionTrait
 
             return response()->json(['success' => true, 'message' => 'Oficial eliminado correctamente']);
         } catch (\Throwable $e) {
-            Log::error('Error al eliminar oficial', ['error' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'error' => 'Error al eliminar oficial: '.$e->getMessage()], 500);
+            return $this->errorServidorProduccion($e, 'Error al eliminar oficial', 'Error al eliminar oficial');
         }
     }
 
@@ -529,9 +522,7 @@ trait ProduccionTrait
         } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar turno de oficial', ['error' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'error' => 'Error al actualizar turno: '.$e->getMessage()], 500);
+            return $this->errorServidorProduccion($e, 'Error al actualizar turno de oficial', 'Error al actualizar turno');
         }
     }
 
@@ -573,9 +564,7 @@ trait ProduccionTrait
         } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar fecha', ['error' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'error' => 'Error al actualizar fecha: '.$e->getMessage()], 500);
+            return $this->errorServidorProduccion($e, 'Error al actualizar fecha', 'Error al actualizar fecha');
         }
     }
 
@@ -646,9 +635,7 @@ trait ProduccionTrait
         } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar NoJulio y Tara', ['error' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'error' => 'Error al actualizar No. Julio y Tara: '.$e->getMessage()], 500);
+            return $this->errorServidorProduccion($e, 'Error al actualizar NoJulio y Tara', 'Error al actualizar No. Julio y Tara');
         }
     }
 
@@ -720,9 +707,7 @@ trait ProduccionTrait
         } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar KgBruto', ['error' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'error' => 'Error al actualizar Kg. Bruto: '.$e->getMessage()], 500);
+            return $this->errorServidorProduccion($e, 'Error al actualizar KgBruto', 'Error al actualizar Kg. Bruto');
         }
     }
 
@@ -764,9 +749,7 @@ trait ProduccionTrait
         } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar horas', ['error' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'error' => 'Error al actualizar hora: '.$e->getMessage()], 500);
+            return $this->errorServidorProduccion($e, 'Error al actualizar horas', 'Error al actualizar hora');
         }
     }
 
@@ -883,12 +866,9 @@ trait ProduccionTrait
         } catch (ValidationException $e) {
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al marcar registro como listo', [
+            return $this->errorServidorProduccion($e, 'Error al marcar registro como listo', 'Error al actualizar el registro', [
                 'registro_id' => $request->registro_id ?? null,
-                'error' => $e->getMessage(),
             ]);
-
-            return response()->json(['success' => false, 'error' => 'Error al actualizar el registro: '.$e->getMessage()], 500);
         }
     }
 
@@ -898,5 +878,18 @@ trait ProduccionTrait
     protected function onRegistroDesmarcado($registro): void
     {
         // por defecto no hace nada
+    }
+
+    /**
+     * SEC-07 (19-01): 500 sin el texto de la excepción. El usuario ve el mensaje y una referencia;
+     * el detalle va a report()/log.
+     *
+     * @param  array<string, mixed>  $contexto
+     */
+    private function errorServidorProduccion(\Throwable $e, string $log, string $mensaje, array $contexto = []): JsonResponse
+    {
+        $contexto['departamento'] ??= $this->getDepartamento();
+
+        return $this->apiErrorResponse($e, $log, $mensaje, 500, $contexto);
     }
 }
