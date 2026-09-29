@@ -74,7 +74,7 @@ Lo no listado es **solo lectura** para el track. Los globs de un track **no** se
 | Archivo | Ola 0 | Ola 1 | Ola 2 | Ola 3 | Ola 4 |
 |---|---|---|---|---|---|
 | `composer.json/lock` | BASE | MON-D (`laravel/pulse`) | — | CAL (solo `require-dev`) | ADOP |
-| `package.json/lock`, `vite.config.js` | BASE (`qrcode`) | — | FE (inputs por glob) | congelado | ADOP |
+| `package.json/lock`, `vite.config.js` | BASE (`qrcode`) | — | FE (inputs por glob) | congelado (salvo CAL: solo la devDependency `jscpd`) | ADOP |
 | `tsconfig.json` | BASE | FE | FE | — | — |
 | `resources/js/bootstrap.js`, `app.js` | — | MON-B (1 línea en `app.js`) | FE | — | — |
 | `bootstrap/app.php`, `bootstrap/providers.php`, `routes/web.php` | MON-A | MON-A | ARQ | — | — |

@@ -225,3 +225,39 @@ Acuerdos: docs y commits en español ("programa tejido: …"); modo ponytail; NU
 Antes de push: hook SessionStart; php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run typecheck && npm run test:js && npm run build; npm run ratchet; php artisan planeacion:programa-tejido-health en sqlite; vendor/bin/pint --test en TODOS los PHP que cambies; skills code-review y security-review.
 Entregables: código + tests + 03-SUMMARY.md con la tabla de números v2 vs legacy (+ HANDOFF.md). Push a claude/pt-03-shell-livewire. NO abras PR.
 ```
+
+---
+
+# Ola 3 — Track CAL (fase 22)
+
+Abierta el 2026-09-29 a pedido del owner (propuesta de calidad propia, analizada en `phases/22-calidad/22-CONTEXT.md`). Base: `claude/friendly-hopper-506bg9`. Tags `towell-refactor-2026`, `ola-3`, `cal`. No comparte archivos con 19-03, 19-05, 19-08 ni PT.
+
+| Sesión | Rama | Contexto |
+|---|---|---|
+| CAL — 22-01 gates, 22-02 (libre), 22-04, 22-05 | `claude/22-cal-gates` | `phases/22-calidad/22-CONTEXT.md` |
+
+**Propiedad:** fila "CAL (22)" de `PROTOCOLO-SESIONES.md` §5, más `package.json/lock` (solo la devDependency `jscpd`), los exports `Bpm{Urdido,Engomado}Export` y `ReporteResumenSemanal{Urdido,Engomado}Export` con sus llamadores (solo `use`/`new`), y las constantes `KaizenExport::MESES` y `ReporteOtDiariasExport::COL_NOMBRE`.
+
+## 9. CAL — Gates y primera deuda
+
+```
+(Esta sesión arranca en modo plan: lee el protocolo y el contexto, presenta tu plan para aprobación del owner y, una vez aprobado, ejecútalo completo.)
+
+Proyecto Towell (Laravel 12 + Livewire 4 + Vite/TS; producción Windows/Laragon, SQL Server 2008 R2). Refactor integral 2026, track CAL (calidad). Lee primero .planning/PROTOCOLO-SESIONES.md, .planning/SESIONES-OLA-3.md (sección "Track CAL": propiedad), CLAUDE.md y .planning/phases/22-calidad/22-CONTEXT.md (hallazgos del owner verificados por el integrador y el alcance ajustado). Si el owner sube su documento de análisis a .planning/phases/22-calidad/, úsalo también.
+
+Fase 22 — Calidad, primera tanda. IDs: CAL-01, CAL-02 (parte libre), CAL-04, CAL-05.
+Principio: nada nuevo empeora (gates sobre archivos cambiados o métricas del ratchet, SIN baselines globales nuevos) y la deuda vieja se paga archivo por archivo, con tests primero, por su dueño. Escribe primero .planning/phases/22-calidad/22-01-PLAN.md (cubre las cuatro partes) y luego ejecútalo en commits separados, en este orden; si pasa de ~1 500 líneas sin contar movimientos, parte en -p1/-p2.
+Rama: claude/22-cal-gates (base claude/friendly-hopper-506bg9).
+
+22-01 Gates: (a) scripts/ratchet.mjs: métrica "catch vacío" en app/ (hoy 29; las excepciones deliberadas del CONTEXT cuentan igual, solo que nadie las baja) y métrica "duplicación %" con jscpd (devDependency; formatos php, ts, js, blade; techo = lo medido en la rama; excluir vendor, node_modules, public/build, tests/fixtures). (b) phpmd/phpmd en require-dev + phpmd.xml con reglas unusedcode y codesize (complejidad ciclomática, NPath, largo de método/clase con umbrales documentados en el PLAN), aplicado SOLO a los PHP cambiados en el CI, reusando la lógica de archivos cambiados del paso de Pint en .github/workflows/frontend-checks.yml; verifica que corre limpio en PHP 8.4. (c) composer audit en el CI: bloquea solo si el push/PR cambia composer.lock; si no, solo aviso. (d) script "composer quality" (pint --test en cambiados + phpstan + phpmd en cambiados + npm run ratchet) documentado en CLAUDE.md §Commands y §CI. PHP Insights NO entra como gate.
+22-02 Código muerto (solo lo que no tiene dueño activo): los 2 métodos privados sin uso de app/Imports/ReqModelosCodificadosImport.php (convertToInt, isValidTotalValue) y las constantes sin uso KaizenExport::MESES y ReporteOtDiariasExport::COL_NOMBRE; luego quita del phpstan-baseline.neon solo las entradas que dejan de aplicar (nunca agregar). NO toques OeeAtadoresFileService (19-03), BalancearTejido (PT) ni TelBpmController (19-04).
+22-04 Tests de hotspots: tests de ReqModelosCodificadosImport (import en cola ShouldQueue: filas válidas, vacías, totales, errores; con la cola en sync o Queue::fake) y convierte su catch vacío en report() si es del flujo principal. Cobertura por archivo con pcov medida EN ESTA RAMA (no en main: allí faltan ~550 tests de la Ola 3) → tabla en 22-01-SUMMARY.md con los 20 archivos más riesgosos (líneas × complejidad) con menos cobertura, para priorizar siguientes tandas. No se agrega cobertura al CI.
+22-05 Duplicación: BpmUrdidoExport/BpmEngomadoExport (282 líneas, difieren 6) y ReporteResumenSemanalUrdidoExport/ReporteResumenSemanalEngomadoExport (214, difieren 6) → una clase parametrizada por par (o una base + variante), mismos nombres públicos para sus llamadores; test que genere el Excel antes y después y compare celda a celda (valores, estilos relevantes, anchos). Mide jscpd antes/después.
+
+ERES DUEÑO DE: la fila "CAL (22)" de .planning/PROTOCOLO-SESIONES.md y de la sección Track CAL de SESIONES-OLA-3.md: composer.json/lock (solo require-dev), package.json/lock (solo la devDependency jscpd), .github/workflows/frontend-checks.yml (pasos de calidad), scripts/ratchet.mjs + scripts/ratchet-baseline.json, phpmd.xml, phpstan-baseline.neon (solo quitar), app/Imports/ReqModelosCodificadosImport.php, las 4 clases de export de arriba y sus llamadores (solo el use/new), las 2 constantes citadas, tests nuevos, CLAUDE.md (§Commands y §CI), .planning/phases/22-calidad/**.
+PROHIBIDO: archivos de 19-03 (Atadores/OeeAtadores), 19-05 (Programa Urd-Eng), 19-08 (Mantenimiento), Programa Tejido, bootstrap/**, vite.config.js, config/database.php, reglas de contraseña.
+
+Acuerdos: docs y commits en español ("calidad: …"); modo ponytail (reusa ratchet, baseline de phpstan y la lógica de archivos cambiados; no agregues baselines globales); NUNCA saltar/desactivar tests; no editar ROADMAP/STATE/REQUIREMENTS/PROJECT; el ratchet no sube; SQL 2008 R2 si hubiera; git merge origin/main antes del último push y vuelve a correr todo.
+Antes de push: hook SessionStart; php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run typecheck && npm run test:js && npm run build; npm run ratchet; composer quality; vendor/bin/pint --test en TODOS los PHP que cambies; skill code-review. Comprueba que el CI nuevo pasa en tu rama (el workflow corre en push a claude/**) y que un PHP cambiado con un método privado sin usar sí lo haría fallar (pruébalo en un commit local que no subas).
+Entregables: código + tests + 22-01-PLAN.md + 22-01-SUMMARY.md (con la tabla de cobertura y números antes/después) (+ HANDOFF.md). Push a claude/22-cal-gates. NO abras PR.
+```
