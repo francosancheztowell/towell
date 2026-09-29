@@ -2,7 +2,7 @@
  * Acciones de Programa Tejido / Muestras sin `onclick` ni clic derecho (HANDOFF 17-02 B1/B2).
  *
  * - "Liberar órdenes" del navbar: `data-accion="dias-liberar"` → el modal de días de
- *   resources/js/componentes/dias-liberar.ts (antes `onclick="mostrarModalDiasLiberar()"`).
+ *   resources/js/componentes/dias-liberar.ts (antes, un atributo onclick en línea).
  * - Menú de la fila: además de clic derecho y mantener presionado (accionesTactiles en
  *   index.js), un botón "⋮" en el navbar que lo abre para la fila seleccionada. No va un "⋮"
  *   por fila: index.js lee el textContent de las celdas (filtros, edición inline, totales).
