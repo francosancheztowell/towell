@@ -32,30 +32,19 @@
 
             <div class="pvoc-subpanel" role="tabpanel" data-pvoc-subpanel="resumen">
                 <div class="pvoc-card-header">
-                    <div>
-                        <h2>Comparativo Empresa › Tipo de pedido › Cliente</h2>
-                        <p>Clic en <strong>▸</strong> para expandir · doble clic en un cliente para ver artículos.</p>
-                    </div>
-                    <div class="pvoc-card-actions">
-                        <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-expand="summary">Expandir todo</button>
-                        <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-collapse="summary">Colapsar todo</button>
-                    </div>
                 </div>
                 <div class="pvoc-table-scroll" data-pvoc-table="summary"></div>
             </div>
 
             <div class="pvoc-subpanel is-hidden" role="tabpanel" data-pvoc-subpanel="analisis">
                 <div class="pvoc-card-header">
-                    <div class="pvoc-card-title">
+                    {{-- <div class="pvoc-card-title">
                         <h2>Comparativo Año › Mes</h2>
-                        <p>Doble clic en un mes para desglosar</p>
-                    </div>
+                    </div> --}}
                     <div class="pvoc-card-actions">
                         <label class="pvoc-inline-label">Desglose:
                             <select data-pvoc-desglose></select>
                         </label>
-                        <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-expand="analisis">Expandir todo</button>
-                        <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-collapse="analisis">Colapsar todo</button>
                         <div class="pvoc-columns" data-pvoc-columns="analisis">
                             <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-columns-toggle aria-haspopup="true" aria-expanded="false">
                                 Columnas <i class="fa-solid fa-caret-down" aria-hidden="true"></i>
@@ -75,12 +64,6 @@
             data-historico='@json($historico)'
             wire:ignore
         >
-            <div class="pvoc-card-header">
-                <div>
-                    <h2>Ventas históricas</h2>
-                    <p>Elige uno o varios valores en cada filtro; los atenuados no tienen datos con la selección actual. Fuente: facturación (TwHistoricosVentas).</p>
-                </div>
-            </div>
             @if ($historicoError)
                 <div class="ventas-pvoc-alert" role="alert">
                     <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
@@ -89,7 +72,6 @@
             @endif
             <div class="pvoc-filters" aria-label="Filtros de ventas históricas">
                 <div class="pvoc-filter-fields" data-vh-slicers></div>
-                <button type="button" class="pvoc-button pvoc-button-small" data-vh-clear-all>Limpiar</button>
             </div>
             <div class="vh-summary" data-vh-summary></div>
             <div class="vh-subtabs" role="tablist" aria-label="Reportes de ventas históricas" data-vh-subtabs></div>

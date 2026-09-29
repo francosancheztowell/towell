@@ -25,6 +25,16 @@ const DETAIL_LEVELS = [
     [(item) => `${item.articuloCodigo} ${item.articulo} · ${item.linea} · ${item.tamano} · ${item.color}`],
 ];
 
+/** Orden de negocio de los tipos de pedido; los no listados van al final en orden alfabético. */
+const TIPO_ORDEN = ['CE', 'CE HT', 'RS', '2das / 3ra'];
+const tipoRank = (value) => {
+    const index = TIPO_ORDEN.indexOf(String(value).trim());
+    return index === -1 ? TIPO_ORDEN.length : index;
+};
+const compareGroup = (selector) => (selector === 'tipo'
+    ? ([a], [b]) => tipoRank(a) - tipoRank(b) || String(a).localeCompare(String(b))
+    : ([a], [b]) => String(a).localeCompare(String(b)));
+
 const emptyFilters = () => Object.fromEntries(FILTERS.map(({ key, multi }) => [key, multi ? new Set() : '']));
 
 const METRICS = [['piezas', 'Piezas'], ['kilos', 'Kilos'], ['vn', 'V.N.']];
@@ -337,7 +347,7 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
             if (!groups.has(value)) groups.set(value, []);
             groups.get(value).push(item);
         });
-        return [...groups.entries()].sort(([a], [b]) => String(a).localeCompare(String(b))).map(([value, children], index) => {
+        return [...groups.entries()].sort(compareGroup(selector)).map(([value, children], index) => {
             const id = `${parentKey}/${value}-${index}`;
             return {
                 id,
