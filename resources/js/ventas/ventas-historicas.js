@@ -227,7 +227,6 @@ const initVentasHistoricas = (root) => {
     const charts = {};
     const elements = {
         slicers: root.querySelector('[data-vh-slicers]'),
-        summary: root.querySelector('[data-vh-summary]'),
         subtabs: root.querySelector('[data-vh-subtabs]'),
         reports: root.querySelector('[data-vh-reports]'),
     };
@@ -259,13 +258,6 @@ const initVentasHistoricas = (root) => {
     })]));
 
     const renderSlicer = ({ key }) => pickers[key].setAvailable(availableValues(key));
-
-    const renderSummary = () => {
-        const active = SLICERS.filter(({ key }) => state.selected[key].size);
-        elements.summary.innerHTML = active.length
-            ? active.map(({ key, label, format = (value) => value }) => `<span class="vh-summary-pill">${escapeHtml(label)}: <strong>${escapeHtml([...state.selected[key]].map(format).join(', '))}</strong></span>`).join('')
-            : '<span class="vh-summary-none">Sin filtros aplicados</span>';
-    };
 
     // --- Reportes tipo tabla dinámica ----------------------------------------
 
@@ -503,7 +495,6 @@ const initVentasHistoricas = (root) => {
 
     const refresh = () => {
         SLICERS.forEach(renderSlicer);
-        renderSummary();
         renderReports();
     };
 

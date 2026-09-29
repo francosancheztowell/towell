@@ -146,6 +146,7 @@ const bindTabs = (root) => {
             tab.setAttribute('aria-selected', String(active));
         });
         root.querySelectorAll('[data-pvoc-panel]').forEach((panel) => panel.classList.toggle('is-hidden', panel.dataset.pvocPanel !== activeTab));
+        root.dispatchEvent(new CustomEvent('pvoc:tab', { detail: activeTab }));
     }));
 
     // Subsecciones dentro de una pestaña (p.ej. Compara › Resumen General / Análisis Histórico).
@@ -161,9 +162,42 @@ const bindTabs = (root) => {
     }));
 };
 
+/**
+ * Botón "Filtrar" del navbar (fuera del root, vía @section('navbar-right')): abre el panel con los
+ * filtros de Compara. Solo se muestra en la pestaña Compara; Ventas históricas tiene sus propios filtros.
+ */
+const bindFilterPanel = (root) => {
+    const button = document.getElementById('btn-filtrar-ventas-compara');
+    const panel = root.querySelector('[data-pvoc-filter-panel]');
+    if (!button || !panel) return;
+
+    const setOpen = (open) => {
+        panel.hidden = !open;
+        button.setAttribute('aria-expanded', String(open));
+    };
+
+    button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        setOpen(panel.hidden);
+    });
+    panel.querySelector('[data-pvoc-filter-close]').addEventListener('click', () => setOpen(false));
+    // Los desplegables de cada filtro viven dentro del panel, así que un clic en ellos no lo cierra.
+    document.addEventListener('mousedown', (event) => {
+        if (!panel.hidden && !panel.contains(event.target) && !button.contains(event.target)) setOpen(false);
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !panel.hidden && !panel.querySelector('.pvoc-multi-panel:not([hidden])')) setOpen(false);
+    });
+    root.addEventListener('pvoc:tab', (event) => {
+        button.hidden = event.detail !== 'summary';
+        setOpen(false);
+    });
+};
+
 document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) => {
     // Pestañas y ventas históricas no dependen del payload PV vs OC: funcionan aunque éste falle.
     bindTabs(root);
+    bindFilterPanel(root);
     mountVentasHistoricas(root);
 
     let raw;
@@ -394,7 +428,18 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
         renderTable(panel);
     };
 
-    const renderTables = () => Object.keys(TABLES).forEach(renderTable);
+    /** Con los filtros escondidos en el panel, el botón del navbar indica cuántos hay activos. */
+    const filterButtonLabel = document.querySelector('#btn-filtrar-ventas-compara span');
+    const syncFilterCount = () => {
+        if (!filterButtonLabel) return;
+        const active = FILTERS.filter(({ key, multi }) => (multi ? state.filters[key].size : state.filters[key])).length;
+        filterButtonLabel.textContent = active ? `Filtrar (${active})` : 'Filtrar';
+    };
+
+    const renderTables = () => {
+        Object.keys(TABLES).forEach(renderTable);
+        syncFilterCount();
+    };
 
     Object.keys(TABLES).forEach((panel) => {
         const container = tableContainer(panel);

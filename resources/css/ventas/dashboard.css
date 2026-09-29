@@ -64,6 +64,16 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 /* La tabla del resumen crece hasta el borde inferior de la tarjeta. */
 .pvoc-subpanel > .pvoc-table-scroll { flex: 1; min-height: 240px; }
 .pvoc-filters-shared { margin: 0; }
+/* Panel flotante de filtros de Compara, bajo la barra superior (64px) y alineado a la derecha. */
+.pvoc-filter-panel { position: fixed; z-index: 40; top: 68px; right: .5rem; display: flex; flex-direction: column; gap: .6rem; width: min(calc(100% - 1rem), 30rem); max-height: calc(100dvh - 76px); overflow-y: auto; border: 1px solid #e5e7eb; border-radius: .5rem; background: #fff; padding: .75rem; box-shadow: 0 12px 32px rgb(15 23 42 / 18%); }
+.pvoc-filter-panel[hidden] { display: none; }
+.pvoc-filter-panel-header { display: flex; align-items: center; justify-content: space-between; }
+.pvoc-filter-panel-header h2 { margin: 0; color: #111827; font-size: .95rem; font-weight: 700; }
+.pvoc-filter-panel-close { display: grid; place-items: center; width: 2rem; height: 2rem; border: 0; border-radius: 999px; background: transparent; color: #6b7280; font-size: 1.25rem; line-height: 1; }
+.pvoc-filter-panel-close:hover { background: #f3f4f6; }
+.pvoc-filter-panel .pvoc-filter-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; overflow: visible; }
+.pvoc-filter-panel .pvoc-filter-fields .pvoc-select-label { min-width: 0; }
+.pvoc-filter-panel-footer { display: flex; justify-content: flex-end; border-top: 1px solid #f3f4f6; padding-top: .5rem; }
 .pvoc-card-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: .15rem .6rem; }
 .pvoc-card-title p { margin: 0; }
 .pvoc-card-actions { align-items: center; }
@@ -117,10 +127,6 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 .vh-chip.is-empty { border-style: dashed; color: #b6c2cf; }
 .vh-chip.is-selected.is-empty { background: #93b8e6; }
 
-.vh-summary { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: .3rem; padding: 0 .4rem; font-size: .76rem; }
-.vh-summary:empty { display: none; }
-.vh-summary-pill { border: 1px solid #bfdbfe; border-radius: 999px; background: #eff6ff; padding: .15rem .55rem; color: #1e3a8a; }
-.vh-summary-none { color: var(--pvoc-muted); }
 .vh-subtabs { display: flex; gap: .25rem; overflow-x: auto; border-bottom: 1px solid var(--pvoc-border); }
 .vh-subtabs button { flex: 0 0 auto; border: 0; border-bottom: 3px solid transparent; background: transparent; padding: .4rem .8rem; color: #64748b; font-size: .82rem; font-weight: 800; white-space: nowrap; }
 .vh-subtabs button:hover { color: #06496a; }
@@ -142,11 +148,11 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 .vh-report-table { flex: 1 1 0; min-height: 240px; max-height: none; }
 .vh-chart { position: relative; flex: 1 0 auto; height: 320px; }
 /* Tablas de ventas históricas: fluidas al ancho del contenedor en vez de max-content. */
-.vh-table { width: 100%; font-size: .82rem; }
-.vh-table th, .vh-table td { padding: .4rem .5rem; }
+.vh-table { width: 100%; font-size: .74rem; }
+.vh-table th, .vh-table td { padding: .3rem .4rem; }
 .vh-table thead th { vertical-align: bottom; white-space: normal; line-height: 1.15; }
 .vh-table .pvoc-number { min-width: 0; }
-.vh-table .pvoc-label { min-width: 150px; max-width: 280px; }
+.vh-table .pvoc-label { min-width: 130px; max-width: 260px; }
 .vh-report-table .vh-table .pvoc-label { width: 1%; }
 .vh-row-group td { background: #edf3f8; color: #06496a; font-weight: 800; }
 .vh-row-group.vh-depth-1 td { background: #f7fafc; color: #17445f; font-weight: 700; }
@@ -163,10 +169,11 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 @media (max-width: 1440px) {
     .pvoc-table th, .pvoc-table td { padding: .4rem .5rem; }
     .pvoc-table .pvoc-label { min-width: 220px; }
-    .vh-table th, .vh-table td { padding: .35rem .4rem; }
+    .vh-table th, .vh-table td { padding: .28rem .35rem; }
 }
 @media (max-width: 1280px) {
-    .vh-table .pvoc-label { min-width: 130px; }
+    .vh-table { font-size: .72rem; }
+    .vh-table .pvoc-label { min-width: 115px; }
     .vh-compare-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
