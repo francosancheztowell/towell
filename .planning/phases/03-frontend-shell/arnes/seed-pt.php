@@ -38,4 +38,9 @@ $ocultas = array_slice(array_merge(
 foreach ($ocultas as $c) {
     DB::connection('sqlsrv')->table('OrdColProgramaTejido')->insert(['UsuarioId' => 1, 'Columna' => $c, 'Estado' => 1]);
 }
+// Los botones del navbar piden permisos por NOMBRE de módulo: idrol 2 y 5 con su nombre real.
+foreach (['SYSRoles', 'dbo.SYSRoles'] as $t) {
+    DB::connection('sqlite')->table($t)->where('idrol', 2)->update(['modulo' => 'Programa Tejido']);
+    DB::connection('sqlite')->table($t)->where('idrol', 5)->update(['modulo' => 'Muestras']);
+}
 echo 'PT: 85 filas × 2 superficies, '.count($ocultas)." columnas ocultas para el usuario 1\n";
