@@ -8,7 +8,6 @@ import {
 } from './filter-engine.ts';
 import { instalarIndiceSeleccion as ptInstalarIndiceSeleccion } from './seleccion.ts';
 import { accionesTactiles as ptAccionesTactiles } from '../utils/acciones-tactiles.ts';
-import { mostrarModalDiasLiberar as ptMostrarModalDiasLiberar } from '../componentes/dias-liberar.ts';
 import { enlazarBotonAccionesFila as ptEnlazarBotonAccionesFila, enlazarDiasLiberar as ptEnlazarDiasLiberar } from './acciones.ts';
 // Scripts que vivían inline en la vista (04-perf, corte 5). Se evalúan antes que este
 // archivo y solo publican funciones en window, como hacían sus <script>.
@@ -6649,8 +6648,9 @@ let pinnedColumns = [];
 window.allRows = [];
 // Accesor sobre la fila, no un número congelado (seleccion.ts).
 ptInstalarIndiceSeleccion(window, () => (window.allRows.length > 0 ? window.allRows : document.querySelectorAll('.selectable-row')));
-// "Liberar órdenes" del navbar: data-accion en vez de onclick (HANDOFF 17-02 B1).
-ptEnlazarDiasLiberar(document, ptMostrarModalDiasLiberar);
+// "Liberar órdenes" del navbar: data-accion en vez de onclick (HANDOFF 17-02 B1). Import
+// dinámico: el modal trae SweetAlert, que no debe evaluarse al cargar el bundle.
+ptEnlazarDiasLiberar(document, () => import('../componentes/dias-liberar.ts').then((m) => m.mostrarModalDiasLiberar()));
 window.inlineEditMode = false;
 
 const normalizeInputValue = (value) => {
