@@ -55,3 +55,25 @@ ins(App\Models\Tejido\TejMarcasLine::class, [
 ins(App\Models\Tejido\TejProduccionReenconado::class, [
     ['Folio' => 'RC0001', 'Date' => $hoy, 'Turno' => 1, 'numero_empleado' => '1001', 'nombreEmpl' => 'Usuario Prueba', 'Calibre' => '20/1', 'FibraTrama' => 'ALGODON', 'CodColor' => 'B01', 'Color' => 'BLANCO', 'Cantidad' => 50, 'Cabezuela' => 2, 'Conos' => 10, 'Horas' => 8, 'Eficiencia' => 0.9, 'Obs' => "d'Ana", 'status' => 'Creado', 'capacidad' => 60],
 ]);
+// reenconado (19-02-a): catálogos de TI_PRO para calibre/fibra/color y la secuencia del folio.
+(function (): void {
+    $db = DB::connection('sqlite');
+    $db->statement('CREATE TABLE IF NOT EXISTS InventTable (ItemId TEXT, ItemGroupId TEXT, DATAAREAID TEXT)');
+    $db->statement('CREATE TABLE IF NOT EXISTS ConfigTable (ItemId TEXT, ConfigId TEXT, DATAAREAID TEXT)');
+    $db->statement('CREATE TABLE IF NOT EXISTS InventColor (ItemId TEXT, InventColorId TEXT, Name TEXT, DATAAREAID TEXT)');
+    $db->table('InventTable')->insert([
+        ['ItemId' => '20/1', 'ItemGroupId' => 'HILO DIREC', 'DATAAREAID' => 'PRO'],
+        ['ItemId' => '30/1', 'ItemGroupId' => 'HILO DIREC', 'DATAAREAID' => 'PRO'],
+    ]);
+    $db->table('ConfigTable')->insert([
+        ['ItemId' => '20/1', 'ConfigId' => 'ALGODON', 'DATAAREAID' => 'PRO'],
+        ['ItemId' => '30/1', 'ConfigId' => 'POLIESTER', 'DATAAREAID' => 'PRO'],
+    ]);
+    $db->table('InventColor')->insert([
+        ['ItemId' => '20/1', 'InventColorId' => 'B01', 'Name' => 'BLANCO', 'DATAAREAID' => 'PRO'],
+        ['ItemId' => '30/1', 'InventColorId' => 'N01', 'Name' => "NEGRO d'Ana", 'DATAAREAID' => 'PRO'],
+    ]);
+})();
+ins(App\Models\Sistema\SSYSFoliosSecuencia::class, [
+    ['modulo' => 'Reenconado', 'prefijo' => 'RC', 'consecutivo' => 1],
+]);

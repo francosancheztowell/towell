@@ -6,11 +6,17 @@ namespace App\Livewire\InventarioTrama;
 
 use App\Services\Tejido\InventarioTrama\CatalogoTramaService;
 use App\Services\Tejido\InventarioTrama\NuevoRequerimientoService;
+use App\Support\Http\Concerns\HandlesApiErrors;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
 class NuevoRequerimiento extends Component
 {
+    use HandlesApiErrors;
+
+    private const FOLIO_INEXISTENTE = 'El folio indicado no existe';
+
     #[Url]
     public ?string $folio = null;
 
@@ -245,11 +251,25 @@ class NuevoRequerimiento extends Component
         try {
             $this->ejecutarGuardado();
             $this->dispatch('aviso', tipo: 'success', texto: "Folio {$this->folioActual} guardado");
+        } catch (ModelNotFoundException $e) {
+            // El texto propio de NuevoRequerimientoService::resolverFolio() se sigue mostrando; el de
+            // un findOrFail trae la clase del modelo (SEC-07).
+            $this->dispatch('aviso', tipo: 'error', texto: $e->getMessage() === self::FOLIO_INEXISTENTE
+                ? 'Error al guardar: '.self::FOLIO_INEXISTENTE
+                : $this->mensajeErrorGuardar($e));
         } catch (\Throwable $e) {
-            $this->dispatch('aviso', tipo: 'error', texto: 'Error al guardar: '.$e->getMessage());
+            $this->dispatch('aviso', tipo: 'error', texto: $this->mensajeErrorGuardar($e));
         } finally {
             $this->guardando = false;
         }
+    }
+
+    /** SEC-07: sin getMessage() al usuario; el detalle queda en report() con su referencia. */
+    private function mensajeErrorGuardar(\Throwable $e): string
+    {
+        report($e);
+
+        return 'Error al guardar el requerimiento (ref: '.$this->traceIdDeError($e).')';
     }
 
     private function guardarSilencioso(): void
