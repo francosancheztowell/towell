@@ -71,6 +71,7 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 
 ### Pending Todos (owner)
 
+- **Track CAL (fase 22, propuesta del owner 2026-09-29):** analizado y documentado en `phases/22-calidad/22-CONTEXT.md`. Decidir qué hacer con el trabajo local sin commit (`composer.json/lock`, `phpinsights.php`, documento): subirlo a `claude/22-01-gates` **desde la rama integradora** para integrarlo, o que una sesión CAL haga 22-01 con el alcance ajustado (sin PHP Insights como gate; PHPMD y duplicación sobre archivos cambiados / ratchet). La cobertura se mide en la rama, no en `main`.
 - **Aprobar en la web:** 19-03 (desde el 25), 19-05 y 19-08 (con sus 3 decisiones).
 - **19-02 (6 decisiones; hoy se conserva el comportamiento):** (1) eficiencia de reenconado guarda `Cantidad/round(Horas×9.3,2)` como fracción y la etiqueta dice "%", ¿fórmula correcta? (2) guardado masivo de reenconado acepta el folio del cliente sin consumir la secuencia, ¿se retira? (3) marcas: "¿continuar editando ese folio?" nunca aparece y guardar un folio Finalizado lo reabre (4) finalizar/reabrir marcas, finalizar cortes y borrar reenconado están en enforce, a diferencia de sus hermanas en auditar, ¿se alinean? (5) saldos-2026: CSS tipo Excel < 12 px, ¿se sube? (6) rpm semanal: ¿se quiere la gráfica (hoy no hay `<canvas>`)?
 - **PT 03:** ¿se retira el código del shell v2 (apagado) o se conserva? Opcional: runbook §5 de `03-SUMMARY.md` para confirmar el gate con datos reales.
@@ -112,6 +113,7 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 
 ### HANDOFFs ruteados (Ola 3)
 
+- CAL: anexo para 19-03 cuando se apruebe su plan → borrar los 10 métodos muertos de `OeeAtadoresFileService` (bajan del baseline de phpstan) y bajar la complejidad de `AtadoresController`/OeeAtadores con tests primero. Catch vacíos → cada 19-xx/PT con su SEC-07 (lista de excepciones deliberadas en `22-CONTEXT.md`). Partición de `DividirTejido`/`DuplicarTejido` → PT 05.1 (tras CAL-04).
 - 19-02: T1 (`inventory-sequence-actions` sin uso) y T3 (`telar-requerimiento` con 11 `onclick` + puentes) → DS/19-04; T2 (`pagina.ts` duplicado Tejido/Urdido → utils) → FE; T4 Vite → Ola 4; T5/T6 (CSS < 12 px de inventario de telas; `<h1>` del navbar a 768 px) → UX; T7 → owner (decisión 4); T8 hecho por el integrador en `20-03-MAPA-AUTHZ.md`; T9 arnés → opcional.
 - PT 03: A (1 línea de `TrazabilidadStructureTest`) aceptado; A1 (ratchet que no cuente `type="application/json"`) → BASE/ADOP, choca con la receta §0; C1 navbar de PT a 768 px → UX + PT; O1/O2 → owner.
 - 19-01: U1 y U7 → 19-05 (puente `abrirModalCalificarJuliosEng`, `<script>alert` en reimpresión); U2 hecho (receta enlaza la checklist); U3 → 19-01 ya aplicó long-press en fórmula; U4 y U6 → DS (`onclick` del × de `modal-base`, `catalog-actions`); U5 → UX (`<h1>` del navbar tapa "Crear" a 768 px); U8 comentario de `charts.js` → FE; U9 `FolioHelper` en sqlite → opcional.

@@ -134,6 +134,16 @@
 - [ ] **ADOP-03**: Dependencias y adaptadores temporales retirados. **ADOP-04**: `filter-engine.ts` en utils.
 - [ ] **ADOP-05**: `CLAUDE.md`/`AGENTS.md`/`docs/cerebro-towell` al día. **ADOP-06**: `inventario-bugs.md` actualizado.
 
+### Calidad (fase 22)
+
+- [ ] **CAL-01**: Gates en CI sin baseline global: ratchet con `catch vacío` y `duplicación %` (jscpd), PHPMD `unusedcode`+`codesize` sobre archivos cambiados, `composer audit` bloqueante al cambiar `composer.lock`, comando `composer quality`.
+- [ ] **CAL-02**: Código muerto que phpstan ya marca (`is unused`) borrado y baseline regenerado; OeeAtadores dentro de 19-03.
+- [ ] **CAL-03**: Catch vacíos del flujo principal → `report($e)` por su dueño; excepciones deliberadas documentadas (Monitoreo, `EnsureModulePermission`, Telemetría).
+- [ ] **CAL-04**: Tests de hotspots sin cobertura (`ReqModelosCodificadosImport`); cobertura por archivo medida en la rama integradora; Infection puntual antes de partir `DividirTejido`/`DuplicarTejido`.
+- [ ] **CAL-05**: Exports idénticos de Urdido/Engomado unificados.
+- [ ] **CAL-06**: Complejidad de `ReportesUrdidoController` (y de `AtadoresController`/OeeAtadores en 19-03, `CatLMat` en 19-06) bajo los umbrales de PHPMD.
+- [ ] **CAL-07**: phpstan nivel 8 por carpeta para el código nuevo (Ola 4).
+
 ## v1 Requirements — Track PT (Programa Tejido)
 
 ### Contexto y contratos
