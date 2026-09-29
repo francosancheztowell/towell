@@ -10219,7 +10219,7 @@ const uiInlineEditableFields = {
           tb.classList.add('towell-acciones-zona');
           ptAccionesTactiles(tb, '.selectable-row', abrirMenuFila);
           ptEnlazarBotonAccionesFila(abrirMenuFila, () => {
-            const rows = window.allRows || qsa('.selectable-row', tb);
+            const rows = window.allRows?.length ? window.allRows : qsa('.selectable-row', tb);
             return window.selectedRowIndex != null ? rows[window.selectedRowIndex] || null : null;
           }, (msg) => toast(msg, 'info'));
         }
