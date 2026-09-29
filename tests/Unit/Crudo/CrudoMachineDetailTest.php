@@ -389,9 +389,10 @@ final class CrudoMachineDetailTest extends TestCase
     {
         $desde = 0;
         foreach ($etiquetas as $etiqueta) {
-            $pos = strpos($html, '<dt>'.$etiqueta.'</dt>', $desde);
-            $this->assertNotFalse($pos, "Falta '{$etiqueta}' o esta fuera de orden.");
-            $desde = $pos + 1;
+            // Celdas (<dt>) y, en Karl Mayer, el titulo del bloque de barras (<h5>).
+            $encontrado = preg_match('#<(dt|h5)>'.preg_quote($etiqueta, '#').'</(?:dt|h5)>#', $html, $m, PREG_OFFSET_CAPTURE, $desde);
+            $this->assertSame(1, $encontrado, "Falta '{$etiqueta}' o esta fuera de orden.");
+            $desde = $m[0][1] + 1;
         }
     }
 
@@ -472,7 +473,7 @@ final class CrudoMachineDetailTest extends TestCase
             ->call('verAlineacion')
             ->tap(fn ($t) => $this->assertStringContainsString('<dt>Hilo Rizo</dt>', $t->html()))
             ->tap(fn ($t) => $this->assertStringContainsString('<dt>Cenefa 1</dt>', $t->html()))
-            ->tap(fn ($t) => $this->assertStringNotContainsString('<dt>Barras</dt>', $t->html()))
+            ->tap(fn ($t) => $this->assertStringNotContainsString('<h5>Barras</h5>', $t->html()))
             ->assertSee('Sin obs.');
     }
 
