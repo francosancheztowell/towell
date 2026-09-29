@@ -366,7 +366,7 @@ class MarcasController extends Controller
                 }
 
                 // En bloques: SQL Server acepta hasta 2 100 parámetros por sentencia.
-                foreach (array_chunk($lineasParaInsertar, intdiv(2100, self::COLUMNAS_LINEA)) as $bloque) {
+                foreach (array_chunk($lineasParaInsertar, intdiv(2000, self::COLUMNAS_LINEA)) as $bloque) {
                     TejMarcasLine::insert($bloque);
                 }
             }

@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class ProduccionReenconadoCabezuelaController extends Controller
@@ -270,7 +269,6 @@ class ProduccionReenconadoCabezuelaController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Error insertando TejProduccionReenconado', ['e' => $e->getMessage()]);
             report($e);
 
             return back()->withErrors(['db' => 'No se pudo guardar (ref: '.$this->traceIdDeError($e).')'])->withInput();
@@ -307,10 +305,6 @@ class ProduccionReenconadoCabezuelaController extends Controller
                 'fecha' => date('Y-m-d'),
             ]);
         } catch (\Throwable $e) {
-            Log::error('Generar folio endpoint fallo', [
-                'exception' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
             report($e);
 
             return response()->json([

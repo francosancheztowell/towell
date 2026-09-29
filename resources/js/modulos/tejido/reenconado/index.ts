@@ -3,6 +3,7 @@
  * resources/views/modulos/produccion-reenconado-cabezuela.blade.php (axios crudo, Swal y
  * filas armadas con innerHTML sin escapar).
  */
+import { hoyLocal } from '../cortes-eficiencia/comun/logica.ts';
 import { delegate, onReady, qs, qsa } from '../../../utils/dom.ts';
 import { http } from '../../../utils/http.ts';
 import { notify } from '../../../utils/notifications.ts';
@@ -66,7 +67,8 @@ const CLASES_FILA = 'table-row odd:bg-white even:bg-gray-50 hover:bg-blue-50 cur
 const CLASES_CELDA = 'text-center whitespace-nowrap px-4 py-3';
 const TODOS: readonly CampoRegistro[] = [...CAMPOS.slice(0, 3), 'numero_empleado', ...CAMPOS.slice(3)];
 
-const hoyISO = (): string => new Date().toISOString().split('T')[0] ?? '';
+/** Fecha local (no UTC: de las 18:00 en adelante toISOString() daba mañana en CDMX). */
+const hoyISO = (): string => hoyLocal(new Date());
 
 function iniciar(): void {
     const raiz = qs('#pagina-reenconado');

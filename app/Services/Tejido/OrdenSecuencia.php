@@ -20,6 +20,8 @@ class OrdenSecuencia
      */
     public static function actualizar(string $modelo, string $llave, string $campo, array $items, array $extra = []): void
     {
+        // Llave repetida: gana la última, como en el UPDATE por fila de antes (en CASE ganaría la primera).
+        $items = array_values(array_column($items, null, $llave));
         if ($items === []) {
             return;
         }

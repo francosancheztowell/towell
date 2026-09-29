@@ -6,6 +6,7 @@ import { descargarBlob, ocupado, pdfAJpeg, pedirArchivo } from '../comun/archivo
 import { confirmarFinalizar, finalizarFolio, validarParaFinalizar } from '../comun/finalizar.ts';
 import { actualizarEstadoBotonesHeader, botones, cfg, estado, rutaFolio } from './estado.ts';
 import { guardarEnServidor } from './guardado.ts';
+import { aplicarModoSoloLectura } from './tabla.ts';
 
 export async function notificarTelegram(): Promise<void> {
     if (!estado.folio) {
@@ -48,6 +49,7 @@ export async function finalizar(): Promise<void> {
         if (!(await confirmarFinalizar(folio))) return;
         if (await finalizarFolio(rutaFolio(cfg().rutas.finalizar, folio), 'El folio se finalizó correctamente.')) {
             estado.status = 'Finalizado';
+            aplicarModoSoloLectura();
             actualizarEstadoBotonesHeader();
         }
     } catch (err) {

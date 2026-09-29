@@ -256,8 +256,8 @@ class MarcasFinalesTest extends TestCase
             return $n;
         };
 
-        // 14 columnas × 150 filas = 2 100 parámetros: 150 cabe en uno, 200 van en dos (antes: 1 de 2 800).
-        $this->assertSame(1, $inserts(150, 'FM0001', 1));
+        // 14 columnas × 142 filas = 1 988 parámetros (SQL Server rechaza 2 100 con los del RPC): 142 cabe en uno, 200 van en dos (antes: 1 de 2 800).
+        $this->assertSame(1, $inserts(142, 'FM0001', 1));
         $this->assertSame(2, $inserts(200, 'FM0002', 2));
         $this->assertSame(200, DB::connection('sqlsrv')->table('TejMarcasLine')->where('Folio', 'FM0002')->count());
         // Sin N+1: las demás consultas no crecen con el número de telares.

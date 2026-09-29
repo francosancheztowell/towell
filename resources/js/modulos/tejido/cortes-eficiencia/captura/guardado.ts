@@ -30,7 +30,8 @@ export function avisoFlotante(texto: string, esError = false): void {
 }
 
 async function guardarAhora(mostrarAviso: boolean): Promise<void> {
-    if (cfg().soloLectura) return;
+    // Un folio finalizado ya no se guarda: store() lo trataría como nuevo y generaría otro folio.
+    if (cfg().soloLectura || estado.status === 'Finalizado') return;
     if (!estado.folio || !estado.fecha || !estado.turno) return;
     const datos = recopilarDatosTelares();
     if (!datos.length) return;

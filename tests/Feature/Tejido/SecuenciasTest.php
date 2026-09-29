@@ -154,6 +154,18 @@ class SecuenciasTest extends TestCase
         $this->assertEquals(1, DB::connection('sqlsrv')->table($tabla)->where($llave, $llave === 'Id' ? 30 : 230)->value($campo));
     }
 
+    public function test_orden_con_llave_repetida_gana_la_ultima(): void
+    {
+        $this->sembrar(InvSecuenciaCorteEf::class, 'NoTelarId', 'Orden', 2);
+        $u = $this->usuarioCon($this->permisos('Secuencia Corte de Eficiencia'));
+        $orden = [['NoTelarId' => 201, 'Orden' => 1], ['NoTelarId' => 202, 'Orden' => 2], ['NoTelarId' => 201, 'Orden' => 5]];
+
+        $this->actingAs($u)->postJson('/tejido/configurar/secuenciacortedeeficiencia/orden', ['orden' => $orden])->assertOk();
+
+        // Como el UPDATE por fila de antes: el último valor de la llave repetida.
+        $this->assertEquals(5, DB::connection('sqlsrv')->table('dbo.InvSecuenciaCorteEf')->where('NoTelarId', 201)->value('Orden'));
+    }
+
     private function contarUpdates(callable $fn): int
     {
         $db = DB::connection('sqlsrv');

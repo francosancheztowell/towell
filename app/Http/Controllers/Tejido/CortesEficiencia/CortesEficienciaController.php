@@ -32,7 +32,7 @@ class CortesEficienciaController extends Controller
     use HandlesApiErrors;
 
     /** Filas por INSERT de TejEficienciaLine: 21 columnas y el tope de 2100 parámetros de SQL Server. */
-    private const LINEAS_POR_INSERT = 100;
+    private const LINEAS_POR_INSERT = 95; // 95 × 21 columnas = 1 995 parámetros (SQL Server admite < 2 100 por RPC)
 
     /**
      * Mostrar la vista de cortes de eficiencia

@@ -6,7 +6,7 @@
 import { delegate, onReady, qs } from '../../../../utils/dom.ts';
 import { HttpError, http } from '../../../../utils/http.ts';
 import { notify } from '../../../../utils/notifications.ts';
-import { exigirExito, leerDatos, type RespuestaApi } from '../../comun/pagina.ts';
+import { alertaError, exigirExito, leerDatos, type RespuestaApi } from '../../comun/pagina.ts';
 import { HORARIOS, recortarHora, type CorteDetalle } from '../comun/logica.ts';
 import { capturarImagen, finalizar, notificarTelegram } from './acciones.ts';
 import {
@@ -202,7 +202,8 @@ onReady(async () => {
         }
     } catch (err) {
         if (!folio && !config.soloLectura) await generarNuevoFolio();
-        else if (!(err instanceof HttpError)) console.error('Cortes: no se pudo cargar el corte', err);
+        else if (err instanceof HttpError) alertaError(err, 'No se pudo cargar el corte.');
+        else console.error('Cortes: no se pudo cargar el corte', err);
     }
 
     // Catálogo de fallas para abrir rápido el modal de observaciones.
