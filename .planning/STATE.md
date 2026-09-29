@@ -31,6 +31,7 @@ Ola 3 — segunda tanda (abierta 2026-09-29; prompts y propiedad en `SESIONES-OL
 - 19-05 Programa Urd-Eng → `claude/19-05-programa-urd-eng` · `session_014HTmPgyFxd1YTaZPML5HWN` — plan listo, espera aprobación del owner.
 - 19-08 Mantenimiento → `claude/19-08-mantenimiento` · `session_019pC9xQuThHejNMDvFf7Nyg` — plan listo, espera aprobación + 3 decisiones (BUG-025: todos ven todos los departamentos; operadores por idrol 53; quitar rutas de escritura de operadores al pasar a Livewire).
 - PT 03 Shell Livewire → `claude/pt-03-shell-livewire` · `session_01B3HkPWHQ1eQu44Qpe3KRe1` — ✅ **integrada** 2026-09-29 (`c4bbfffd`), **gate no pasa** (TTFB +22–24 %, +1,2 KB gzip, +77 KB runtime): v2 apagado, PT sigue en Blade/TS. Hizo 17-02 B1/B2 y Redbooth a `resources/js/modulos/redbooth/`.
+- **CAL 22-01** (gates + código muerto libre + tests de `ReqModelosCodificadosImport` + exports Urd/Eng) → `claude/22-cal-gates` · `session_014n9nQDVnWGNtS9EVgW6xVY` — espera aprobación de su plan.
 - Tercera tanda tentativa: 19-06 Codificación (tras calmarse los cambios del owner en `main`), 19-07 Mecánicos, 19-04 Tejedores, 19-09 Configuración, 19-10.
 
 - `main` al día en la rama: 5 commits el 26 (`95324118`) y 11 el 29 (Telegram con worker propio, whereIn en atadores/formulación, crudo, ventas, desarrolladores/alineación). Sin conflictos salvo `ratchet-baseline.json`.
@@ -71,7 +72,7 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 
 ### Pending Todos (owner)
 
-- **Track CAL (fase 22, propuesta del owner 2026-09-29):** analizado y documentado en `phases/22-calidad/22-CONTEXT.md`. Decidir qué hacer con el trabajo local sin commit (`composer.json/lock`, `phpinsights.php`, documento): subirlo a `claude/22-01-gates` **desde la rama integradora** para integrarlo, o que una sesión CAL haga 22-01 con el alcance ajustado (sin PHP Insights como gate; PHPMD y duplicación sobre archivos cambiados / ratchet). La cobertura se mide en la rama, no en `main`.
+- **Track CAL:** el owner eligió que una sesión haga 22-01 con el alcance ajustado (`session_014n9nQDVnWGNtS9EVgW6xVY`, espera aprobación de plan). Su trabajo local sin commit (`composer.json/lock`, `phpinsights.php`) **no** se sube: la sesión lo rehace sin PHP Insights. Su documento de análisis sí sirve: subirlo a `.planning/phases/22-calidad/` si se quiere conservar.
 - **Aprobar en la web:** 19-03 (desde el 25), 19-05 y 19-08 (con sus 3 decisiones).
 - **19-02 (6 decisiones; hoy se conserva el comportamiento):** (1) eficiencia de reenconado guarda `Cantidad/round(Horas×9.3,2)` como fracción y la etiqueta dice "%", ¿fórmula correcta? (2) guardado masivo de reenconado acepta el folio del cliente sin consumir la secuencia, ¿se retira? (3) marcas: "¿continuar editando ese folio?" nunca aparece y guardar un folio Finalizado lo reabre (4) finalizar/reabrir marcas, finalizar cortes y borrar reenconado están en enforce, a diferencia de sus hermanas en auditar, ¿se alinean? (5) saldos-2026: CSS tipo Excel < 12 px, ¿se sube? (6) rpm semanal: ¿se quiere la gráfica (hoy no hay `<canvas>`)?
 - **PT 03:** ¿se retira el código del shell v2 (apagado) o se conserva? Opcional: runbook §5 de `03-SUMMARY.md` para confirmar el gate con datos reales.
