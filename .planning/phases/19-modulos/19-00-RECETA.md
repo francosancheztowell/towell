@@ -1,7 +1,7 @@
 # 19-00 — Receta común de la fase 19 (JS inline → TS)
 
 **Autor:** sesión 19-01 (2026-09-26). **Aplica a:** todas las 19-xx. Deriva de `19-CONTEXT.md` y la corrige donde el código manda (ver §0).
-**Checklist UX-18:** `../17-ux/17-02-CHECKLIST.md` (la escribe 17-02; si aún no está en tu base, usa §7 de esta receta y enlázala en tu SUMMARY cuando llegue).
+**Checklist UX-18:** [`../17-ux/17-02-CHECKLIST.md`](../17-ux/17-02-CHECKLIST.md) (publicada por 17-02, integrada 2026-09-26). Es la que manda; §7 queda como resumen. Helpers globales ya disponibles: `window.accionesTactiles` (UX-06), `utils/sesion.ts` (419/401), banner sin conexión, `@section('title')`.
 
 ---
 
@@ -102,13 +102,13 @@ Mensajes de error al usuario: `err instanceof HttpError ? (err.data?.message ?? 
 - **SQL 2008 R2:** sin `OFFSET/FETCH`, `STRING_AGG`, `TRY_CONVERT`, `IIF`, `CONCAT`, `FORMAT`, `THROW`, `PERCENTILE_CONT`. Hay un test que vigila `database/sql`.
 - **AuthZ:** sigue en modo **auditar** (`module.permission:<accion>,<idrol>,auditar`) hasta SEC-06. Los huecos del módulo en `20-03-MAPA-AUTHZ.md` se cierran con validación de entrada y ruta en auditar, no con enforce.
 
-## 7. Checklist por pantalla (mínimo hasta que llegue UX-18)
+## 7. Checklist por pantalla (resumen; la completa es `17-02-CHECKLIST.md`)
 
 - [ ] 0 `<script>` inline en el HTML renderizado (salvo lo que el layout agrega) y 0 `onclick=` → test guardián por vista.
 - [ ] 0 errores de consola al abrir y en la acción principal (skill `run`).
 - [ ] Captura antes/después a **768×1024** (tablet) y 1280×800; mismo diseño salvo el bug que se corrige.
 - [ ] Botones de ícono con `aria-label`; texto ≥ 12 px (`text-caption`); objetivos táctiles ≥ 44 px en controles nuevos.
-- [ ] Acciones solo por clic derecho → también accesibles en tablet (helper UX-06 de 17-02 cuando exista).
+- [ ] Acciones solo por clic derecho → también accesibles en tablet (`accionesTactiles()` + `botonAcciones()` de `resources/js/utils/acciones-tactiles.ts`).
 - [ ] Ratchet baja; `--update` solo para fijar la baja.
 
 ## 8. Arnés para ver pantallas sin SQL Server

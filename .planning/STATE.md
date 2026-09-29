@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-09-25)
 
 **Core value:** Planta y planeación trabajan más rápido y sin fricción, y Sistemas ve qué pasa en producción, sin romper invariantes de dominio.
-**Current focus:** Ola 3 — primera tanda (17-02 UX global, 19-01 Urdido+Engomado, 19-03 Atadores, PT 05). Olas 0–2 completas y en `main`.
+**Current focus:** Ola 3 — primera tanda casi cerrada (17-02, 19-01 y PT 05 integradas; 19-03 espera al owner); proponer la segunda tanda. Olas 0–2 en `main`; Ola 3 solo en la rama integradora.
 **Protocolo:** `.planning/PROTOCOLO-SESIONES.md` (propiedad de archivos, orden de merge, gates).
 
 ## Current Position
@@ -22,14 +22,14 @@ Gates: G1 ⏳ (monitoreo en prod ≥ 7 días: depende del despliegue); G2 ✅ sa
 
 Ola 3 — primera tanda (abierta 2026-09-25; prompts y propiedad en `SESIONES-OLA-3.md`):
 - 17-02 UX global → `claude/17-02-ux-global` · `session_01E9rbKp3ViiDqqUhJv8TffK` — ✅ **integrada** 2026-09-26 (`1e40cb57`): UX-01..09, 11..16, checklist UX-18 (`phases/17-ux/17-02-CHECKLIST.md`); UX-10 fuera. HANDOFF A1–A3 hechos por el integrador; B → PT, C → cada 19-xx.
-- 19-01 Urdido + Engomado → `claude/19-01-urdido-engomado` · `session_012UxJt1eZW7jHx3ZeaLDUTa`
+- 19-01 Urdido + Engomado → `claude/19-01-urdido-engomado` · `session_012UxJt1eZW7jHx3ZeaLDUTa` — ✅ **integrada** 2026-09-29 (`e794bb9c`): 41 vistas sin JS inline, 49 TS, receta `19-00-RECETA.md` (enlaza ya la checklist de 17-02), bugs reales corregidos (oficiales sin `metros`, XSS en fórmula, BPM Eng cruzaba Entrega/Recibe), SEC-07 del módulo en 0. Espera 3 decisiones del owner (19-01-SUMMARY §Pendientes). Scripts del arnés formateados con Pint por el integrador.
 - 19-03 Atadores → `claude/19-03-atadores` · `session_015jawMebtV2XyHgiiwvQzHJ`
-- PT 05 Mutaciones → `claude/pt-05-mutaciones` · `session_01PkCzW1QDBcCLZoC6uG3dnW`
-- 19-01 y PT 05 trabajando; 19-03 espera aprobación de su plan + 2 respuestas del owner (columna `Id` en `AtaComentarios`, idrol de "Reportes Atadores"). Orden de integración: 19-01 → 19-03 → PT 05.
-- `main` avanzó 5 commits (Ventas históricas, Codificación, LMat Tipo, Karl Mayer 600 kg/día, liberar-ordenes): mergeado en la rama (`95324118`). Dos tocan helpers de PT: revisar al integrar PT 05.
+- PT 05 Mutaciones → `claude/pt-05-mutaciones` · `session_01PkCzW1QDBcCLZoC6uG3dnW` — ✅ **integrada** 2026-09-29 (`5566c3de`): PT-DUP-01..04 (observer ya no se registra N veces), PT-PERF-02 (mitad PT), mutaciones v2 apagadas por flag (`PLANEACION_MUT_V2_*`), liberar Muestras sin DDL → 422, HANDOFF B1 hecho; B3 Redbooth sin dueño.
+- 19-03 sigue esperando aprobación de su plan + 2 respuestas del owner (columna `Id` en `AtaComentarios`, idrol de "Reportes Atadores"). Ojo: `main` (`7c2af4be`) ya tocó `ProgramaAtadoresListado` (whereIn); la sesión debe partir de la rama actual.
+- `main` al día en la rama: 5 commits el 26 (`95324118`) y 11 el 29 (Telegram con worker propio, whereIn en atadores/formulación, crudo, ventas, desarrolladores/alineación). Sin conflictos salvo `ratchet-baseline.json`.
 
 Status: Ola 3 en curso
-Last activity: 2026-09-26 — 17-02 integrada con `main` al día; 1 653 tests PHP, phpstan OK, 148 JS, build, ratchet (`innerHTML =` 400→396).
+Last activity: 2026-09-29 — 19-01 y PT 05 integradas con `main` al día: **2 114 tests PHP**, phpstan OK, 234 JS, typecheck, build, ratchet (`fetch(` 246, `Swal.fire` 659, `onclick=` 265, `innerHTML =` 349, `<script>` inline 116, `getMessage()` 229), Pint en PHP cambiados.
 
 Progress: [██████░░░░] ~60% (fases 10–16, 18-01/03, 20 y PT 01–04-perf completas)
 
@@ -64,6 +64,8 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 
 ### Pending Todos (owner)
 
+- **19-01 (3 decisiones; hoy se conserva el comportamiento):** (1) Fórmula: al editar se pisan `fecha`/`Hora` con el momento actual, ¿conservar las originales? (2) `ProduccionTrait::guardarOficial` exige `metros > 0`, ¿relajar? (3) `index()` de producción pone al usuario actual como Oficial 1 en filas sin hora al recargar, ¿dejarlo?
+- **PT 05:** canary de mutaciones v2 (runbook `phases/05-mutations/05-SUMMARY.md` §6; todo apagado por default) y, opcional, `phases/05-mutations/sql/pt_ultimo_normalizar.sql` ('UL' → '1').
 - **17-02 al desplegar:** `APP_LOCALE=es` en la `.env` de producción (dejar `APP_FALLBACK_LOCALE=en`), `npm run build`, `php artisan optimize:clear && php artisan optimize`. Sin SQL.
 - **19-03:** aprobar su plan en la web y responder: ¿`dbo.AtaComentarios` ya tiene columna `Id` identity? · idrol de "Reportes Atadores" (`oee/despachar`).
 - **Cola de avisos (18-03), antes de desplegar `main`:** correr `database/sql/queue_jobs_tablas.sql` **y** crear la tarea programada del worker (`docs/cerebro-towell/Runbooks/deploy.md` §8). Las dos juntas o ninguna: con la tabla `jobs` y sin worker, los avisos de terminar atado, montado de julio y solicitud de trama se quedan atorados. Sin la tabla, la app manda en línea como antes. Alternativa: `QUEUE_CONNECTION=sync`.
@@ -98,6 +100,12 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 - Aviso de privacidad del monitoreo (propuesta: leyenda discreta en login).
 - Worker de colas en Windows (propuesta: `queue:work --stop-when-empty --max-time=50` desde `scheduler.bat`).
 
+### HANDOFFs ruteados (Ola 3)
+
+- 19-01: U1 y U7 → 19-05 (puente `abrirModalCalificarJuliosEng`, `<script>alert` en reimpresión); U2 hecho (receta enlaza la checklist); U3 → 19-01 ya aplicó long-press en fórmula; U4 y U6 → DS (`onclick` del × de `modal-base`, `catalog-actions`); U5 → UX (`<h1>` del navbar tapa "Crear" a 768 px); U8 comentario de `charts.js` → FE; U9 `FolioHelper` en sqlite → opcional.
+- PT 05: B1 observers/scopes fuera de PT → dueños de Configuración, CatCalendarios, comando de fechas, Desarrolladores (19-04) e Import; B3 N+1 de Cortes → 19-02; B4 Redbooth (lo usan PT, Trazabilidad y CatCodificación) → decidir dueño en la segunda tanda. Hallazgos H1–H4 → PT 06.
+- 17-02: C1–C8 → cada 19-xx vía checklist; B1/B2 → PT.
+
 ### HANDOFFs ruteados (Ola 2)
 
 - 20-02/03 #4 parser de `RutasDestructivasPermisoTest` → aceptado. #5 código de referencia de `errors/500.blade.php` por excepción → 17-02. Huecos (supervisor en `atadores/save`, `actualizar-campo-orden`, `actualizar-prioridades`, `telegram/send` sin llamadores, stub de cortes, reenconado legacy) → 19-xx.
@@ -124,5 +132,5 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 ## Session Continuity
 
 Last session: 2026-09-25
-Stopped at: Ola 3: 17-02 integrada; 19-01 y PT 05 trabajando; 19-03 espera al owner. Integrar cada rama al terminar; no push a `main` sin pedido del owner.
+Stopped at: Ola 3: 17-02, 19-01 y PT 05 integradas; 19-03 espera al owner; proponer segunda tanda. Integrar cada rama al terminar; no push a `main` sin pedido del owner.
 Resume file: None

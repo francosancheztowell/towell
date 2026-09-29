@@ -116,6 +116,7 @@
 - [ ] **MIG-<MOD>-02**: Adopción de `http`/`notify`/`format` y componentes DS; ratchet baja.
 - [ ] **MIG-<MOD>-03**: Duplicados del módulo consolidados (BPM, secuencias, calificar-julios, catálogos).
 - [ ] **MIG-<MOD>-04**: Livewire solo donde la guía lo indica.
+  - ✅ **URD** y **ENG** (19-01, 2026-09-29): 01–04 hechos; 41 vistas sin JS inline (guardián `VistasSinJsInlineTest`), BPM/BPM-Line/calificar-julios deduplicados, sin Livewire (no aplica). Pendientes: 3 decisiones del owner (19-01-SUMMARY).
 
 ### Arquitectura y seguridad (fases 10, 20)
 
@@ -141,8 +142,8 @@
 
 ### Dominio
 
-- [ ] **PT-DOM-01**: Posición, `EnProceso`, `Ultimo`, fechas, líneas y grupos conservan sus invariantes.
-- [ ] **PT-DOM-02**: Fórmulas y sincronización CatCodificados conservan semántica y son observables ante fallo. → catches silenciosos 1/4/5/6 contenidos y observables (PT 02); resto en PT-05.
+- [x] **PT-DOM-01**: Posición, `EnProceso`, `Ultimo`, fechas, líneas y grupos conservan sus invariantes.
+- [x] **PT-DOM-02**: Fórmulas y sincronización CatCodificados conservan semántica y son observables ante fallo. → catches silenciosos 1/4/5/6 contenidos y observables (PT 02); v2 revierte ante fallo de líneas/aplicación (PT 05, detrás de flag).
 
 ### Lectura
 
@@ -155,7 +156,7 @@
 
 ### Mutaciones
 
-- [ ] **PT-MUT-01**: Mutaciones se extraen verticalmente a FormRequests y servicios por caso de uso.
+- [x] **PT-MUT-01**: Mutaciones se extraen verticalmente a FormRequests y servicios por caso de uso.
 
 ### Operaciones
 
@@ -163,19 +164,19 @@
 
 ### Rollout
 
-- [ ] **PT-ROL-01**: Cada corte tiene feature flag, telemetría, gate y rollback probado.
+- [x] **PT-ROL-01**: Cada corte tiene feature flag, telemetría, gate y rollback probado.
 
 ### Deduplicación de backend (hallazgo de auditoría 2026-08-05)
 
-- [ ] **PT-DUP-01**: Eliminar las 3 implementaciones competidoras del patrón suppress/restore de observers (modelo, `ProgramaTejidoObserverHelper`, copias inline) — todos los call sites usan `ReqProgramaTejido::suppressObservers()/restoreObservers()`.
-- [ ] **PT-DUP-02**: Centralizar el árbol de fallback de `FechaFinal` (duplicado 6×) en `TejidoHelpers::resolverFechaFinal()`.
-- [ ] **PT-DUP-03**: Unificar el chequeo de flag "Ultimo" (3 variantes inconsistentes, una de ellas más débil = bug latente) en `ReqProgramaTejido::esUltimo()`.
-- [ ] **PT-DUP-04**: Reemplazar los 20+ sitios que rearman `where('SalonTejidoId',...)->where('NoTelarId',...)` a mano por los scopes `scopeSalon()`/`scopeTelar()` ya existentes en el modelo.
+- [x] **PT-DUP-01**: Eliminar las 3 implementaciones competidoras del patrón suppress/restore de observers (modelo, `ProgramaTejidoObserverHelper`, copias inline) — todos los call sites usan `ReqProgramaTejido::suppressObservers()/restoreObservers()`.
+- [x] **PT-DUP-02**: Centralizar el árbol de fallback de `FechaFinal` (duplicado 6×) en `TejidoHelpers::resolverFechaFinal()`.
+- [x] **PT-DUP-03**: Unificar el chequeo de flag "Ultimo" (3 variantes inconsistentes, una de ellas más débil = bug latente) en `ReqProgramaTejido::esUltimo()`.
+- [x] **PT-DUP-04**: Reemplazar los 20+ sitios que rearman `where('SalonTejidoId',...)->where('NoTelarId',...)` a mano por los scopes `scopeSalon()`/`scopeTelar()` ya existentes en el modelo.
 
 ### Rendimiento
 
 - [ ] **PT-PERF-01**: Índices faltantes creados — `ReqProgramaTejidoLine` no tiene ningún índice sobre `ProgramaId`/`Fecha`; `ReqProgramaTejido` sin índice directo sobre `(NoTelarId, Posicion)`.
-- [ ] **PT-PERF-02**: Eliminar N+1 confirmados en `ProgramaTejidoController::store()` (query de posición por telar en loop) y `CortesEficienciaController::obtenerDatosVisualizacionPorFecha()` (3 queries por fecha en rango).
+- [ ] **PT-PERF-02**: Eliminar N+1 confirmados en `ProgramaTejidoController::store()` (query de posición por telar en loop) y `CortesEficienciaController::obtenerDatosVisualizacionPorFecha()` (3 queries por fecha en rango). → mitad PT hecha en PT 05 (posiciones en 1 consulta; dividir 6 destinos 70→65); Cortes queda para 19-02 Tejido (HANDOFF PT-05 B3).
 
 ### ERP quick wins (auditoría 2026-09-22, Fase 0)
 
