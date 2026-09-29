@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Services\Planeacion\ProgramaTejido;
 
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UtilityHelpers;
+use App\Models\Planeacion\OrdColProgramaTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
 use DateTimeInterface;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Lectura v2 de Programa Tejido / Muestras (PT-02 · 02.3).
@@ -20,6 +23,156 @@ use Illuminate\Database\Query\Builder;
 final class ProgramaTejidoReadService
 {
     public const POR_PAGINA = [50, 100];
+
+    /**
+     * Lo que pinta la grilla completa (vista legacy y shell v2 de PT 03): sale de
+     * ProgramaTejidoController::index() tal cual, para que las dos lean lo mismo.
+     */
+    public const COLUMNAS_GRILLA = [
+        'Id',
+        'EnProceso',
+        'Reprogramar',
+        'CuentaRizo',
+        'CalibreRizo2',
+        'SalonTejidoId',
+        'NoTelarId',
+        'Posicion',
+        'Ultimo',
+        'CambioHilo',
+        'Maquina',
+        'Ancho',
+        'EficienciaSTD',
+        'VelocidadSTD',
+        'FibraRizo',
+        'CalibrePie2',
+        'CalendarioId',
+        'TamanoClave',
+        'NoExisteBase',
+        'ItemId',
+        'InventSizeId',
+        'Rasurado',
+        'NombreProducto',
+        'TotalPedido',
+        'PorcentajeSegundos',
+        'Produccion',
+        'SaldoPedido',
+        'SaldoMarbete',
+        'ProgramarProd',
+        'OrdCompartida',
+        'NoProduccion',
+        'Programado',
+        'FlogsId',
+        'CategoriaCalidad',
+        'NombreProyecto',
+        'CustName',
+        'AplicacionId',
+        'Observaciones',
+        'TipoPedido',
+        'NoTiras',
+        'Peine',
+        'Luchaje',
+        'PesoCrudo',
+        'LargoCrudo',
+        'CalibreTrama2',
+        'FibraTrama',
+        'DobladilloId',
+        'PasadasTrama',
+        'PasadasComb1',
+        'PasadasComb2',
+        'PasadasComb3',
+        'PasadasComb4',
+        'PasadasComb5',
+        'AnchoToalla',
+        'CodColorTrama',
+        'ColorTrama',
+        'CalibreComb1',
+        'FibraComb1',
+        'CodColorComb1',
+        'NombreCC1',
+        'CalibreComb2',
+        'FibraComb2',
+        'CodColorComb2',
+        'NombreCC2',
+        'CalibreComb3',
+        'FibraComb3',
+        'CodColorComb3',
+        'NombreCC3',
+        'CalibreComb4',
+        'FibraComb4',
+        'CodColorComb4',
+        'NombreCC4',
+        'CalibreComb5',
+        'FibraComb5',
+        'CodColorComb5',
+        'NombreCC5',
+        'MedidaPlano',
+        'CuentaPie',
+        'CodColorCtaPie',
+        'NombreCPie',
+        'PesoGRM2',
+        'DiasEficiencia',
+        'ProdKgDia',
+        'StdDia',
+        'ProdKgDia2',
+        'StdToaHra',
+        'DiasJornada',
+        'HorasProd',
+        'StdHrsEfect',
+        'FechaInicio',
+        'Calc4',
+        'Calc5',
+        'Calc6',
+        'FechaFinal',
+        'EntregaProduc',
+        'EntregaPT',
+        'EntregaCte',
+        'PTvsCte',
+        'CuentaBarra1', 'CalibreBarra1', 'CodColorBarra1', 'ColorBarra1', 'FibraBarra1', 'PasadasBarra1',
+        'CuentaBarra2', 'CalibreBarra2', 'CodColorBarra2', 'ColorBarra2', 'FibraBarra2', 'PasadasBarra2',
+        'CuentaBarra3', 'CalibreBarra3', 'CodColorBarra3', 'ColorBarra3', 'FibraBarra3', 'PasadasBarra3',
+        'CuentaBarra4', 'CalibreBarra4', 'CodColorBarra4', 'ColorBarra4', 'FibraBarra4', 'PasadasBarra4',
+
+    ];
+
+    /**
+     * Grilla completa sin paginar (85 filas hoy; 04-PERF-MEDIDO: paginar no es el problema),
+     * con modelos hidratados como la espera la vista. La tabla sale de la superficie, no del
+     * config que pone ProgramaTejidoContext: en /livewire/update ese middleware no corre.
+     *
+     * @return Collection<int, ReqProgramaTejido>
+     */
+    public function registrosGrilla(ProgramaTejidoSurface $superficie): Collection
+    {
+        return ReqProgramaTejido::query()->from($superficie->tabla())->select(self::COLUMNAS_GRILLA)->ordenado()->get();
+    }
+
+    /**
+     * Columnas que el usuario tiene ocultas. Se resuelven en el servidor para que el
+     * HTML salga ya oculto: antes el front pintaba las 92, y despues escribia
+     * style.display='none' celda por celda (59 columnas x 86 elementos = 5 074
+     * escrituras) con el salto de layout correspondiente.
+     *
+     * @return list<string>
+     */
+    public function columnasOcultas(int|string|null $userId): array
+    {
+        if (! $userId) {
+            return [];
+        }
+
+        try {
+            return OrdColProgramaTejido::query()
+                ->where('UsuarioId', $userId)
+                ->where('Estado', 1)
+                ->pluck('Columna')
+                ->all();
+        } catch (\Throwable $e) {
+            // Sin estado guardado se pintan todas: el front sigue pudiendo ocultarlas.
+            Log::warning('No se pudieron leer las columnas ocultas', ['msg' => $e->getMessage()]);
+
+            return [];
+        }
+    }
 
     /**
      * @return list<string> columnas legibles de la superficie, en el orden de la grilla

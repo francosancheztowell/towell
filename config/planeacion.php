@@ -110,4 +110,14 @@ return [
         'usuarios_canary' => array_values(array_filter(array_map('intval', explode(',', (string) env('PLANEACION_MUT_V2_CANARY', ''))))),
     ],
 
+    /*
+    | Shell Livewire v2 (PT 03 · PT-UI-01). Mismo diseño que la grilla legacy; solo se
+    | enciende si mejora TTFB / KB / interacción (ver 03-SUMMARY.md). 'off' (default) =
+    | vista legacy byte a byte · 'canary' = v2 para usuarios_canary · 'on' = todos.
+    */
+    'shell_v2' => [
+        'modo' => env('PLANEACION_SHELL_V2', 'off'),
+        'usuarios_canary' => array_values(array_filter(array_map('intval', explode(',', (string) env('PLANEACION_SHELL_V2_CANARY', ''))))),
+    ],
+
 ];
