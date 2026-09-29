@@ -1,65 +1,62 @@
 ---
 phase: 03-frontend-shell
 plan: "03"
+version: 2
 type: execute
 wave: 1
-depends_on: ["02"]
+depends_on: ["02", "04-perf", "05"]
 autonomous: false
 requirements: [PT-UI-01, PT-ROL-01]
+aprobado: 2026-09-29 (owner, sesión claude/pt-03-shell-livewire)
 files_modified:
   - app/Livewire/Planeacion/ProgramaTejidoBoard.php
-  - resources/views/livewire/planeacion/programa-tejido-board.blade.php
-  - resources/js/planeacion/feedback.ts
-  - resources/js/planeacion/program-board.ts
-  - resources/css/planeacion/programa-tejido.css
-  - vite.config.js
-  - config/planeacion.php
-  - app/Support/Planeacion/ProgramaTejidoCanary.php
+  - app/Services/Planeacion/ProgramaTejido/ShellV2.php
+  - app/Services/Planeacion/ProgramaTejido/ProgramaTejidoReadService.php
   - app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoController.php
-  - resources/views/modulos/programa-tejido/req-programa-tejido-livewire.blade.php
-  - resources/views/modulos/programa-tejido/muestras-livewire.blade.php
-  - tests/Unit/Programas/ProgramaTejidoBoardStructureTest.php
-  - tests/Feature/Planeacion/ProgramaTejidoCanaryTest.php
-must_haves:
-  truths:
-    - "El planeador en la lista canary ve el shell Livewire al abrir Programa Tejido o Muestras; el planeador fuera de la lista ve exactamente el Blade legacy sin cambios."
-    - "Apagar el canary (quitar el usuario de la allowlist) regresa de inmediato a legacy, sin limpiar caché de browser ni revertir BD."
-    - "Muestras resuelve su propia superficie (tabla/rutas/capacidades) de forma explícita en cada acción Livewire, sin depender del sniffing de URL de ProgramaTejidoContext."
-    - "El dataset de filas de Programa Tejido nunca es una propiedad pública de Livewire — vive en un método #[Computed]."
-    - "Con el canary apagado, la respuesta HTML no contiene ninguna referencia a los assets CSS/JS v2 (cero requests v2)."
-  artifacts:
-    - path: "app/Livewire/Planeacion/ProgramaTejidoBoard.php"
-      provides: "Componente shell: boot() con DI del read service de Fase 2, mount(string $surface) que resuelve Programa/Muestras explícitamente, #[Computed] rows(), #[Url] para filtros/paginación."
-    - path: "resources/views/livewire/planeacion/programa-tejido-board.blade.php"
-      provides: "Markup del shell: toolbar, estados loading/error/empty, tabla; sin <script> inline."
-    - path: "resources/views/modulos/programa-tejido/req-programa-tejido-livewire.blade.php"
-      provides: "Wrapper delgado (<40 líneas) que monta <livewire:planeacion.programa-tejido-board surface=\"programa\" /> y carga @vite solo aquí."
-    - path: "resources/views/modulos/programa-tejido/muestras-livewire.blade.php"
-      provides: "Wrapper delgado equivalente para Muestras, surface=\"muestras\"."
-    - path: "app/Support/Planeacion/ProgramaTejidoCanary.php"
-      provides: "Allowlist config-driven (numero_empleado) que decide si el usuario ve v2; sin paquete de feature flags nuevo."
-    - path: "app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoController.php"
-      provides: "index() bifurca a wrapper v2 o legacy según ProgramaTejidoCanary, conservando el nombre/URI de ruta existente."
-    - path: "tests/Unit/Programas/ProgramaTejidoBoardStructureTest.php"
-      provides: "Test estructural: wrappers delgados, sin <script> inline, assets v2 solo en wrappers, legacy view intacta."
-  key_links:
-    - from: "ProgramaTejidoController::index()"
-      to: "ProgramaTejidoCanary::allowsFor(Auth::user(), $surface)"
-      via: "chequeo server-side antes de elegir vista"
-      pattern: "ProgramaTejidoCanary::"
-    - from: "req-programa-tejido-livewire.blade.php / muestras-livewire.blade.php"
-      to: "App\\Livewire\\Planeacion\\ProgramaTejidoBoard::mount(string $surface)"
-      via: "<livewire:planeacion.programa-tejido-board surface=\"...\" />"
-      pattern: "livewire:planeacion.programa-tejido-board"
-    - from: "ProgramaTejidoBoard::mount()"
-      to: "Fase 2 ProgramaTejidoSurface::resolve() / ProgramaTejidoContextResolver"
-      via: "resolución explícita de superficie, no request()->is(...)"
-      pattern: "ProgramaTejidoSurface::resolve|ProgramaTejidoContextResolver"
-    - from: "ProgramaTejidoBoard::rows() [#[Computed]]"
-      to: "Fase 2 ProgramaTejidoReadService"
-      via: "llamada al read service paginado, nunca query directa a ReqProgramaTejido"
-      pattern: "ProgramaTejidoReadService"
+  - config/planeacion.php
+  - resources/views/livewire/planeacion/programa-tejido-board.blade.php
+  - resources/views/modulos/programa-tejido/req-programa-tejido.blade.php
+  - resources/views/modulos/programa-tejido/req-programa-tejido-v2.blade.php
+  - resources/views/modulos/programa-tejido/partials/*.blade.php
+  - resources/js/modulos/programa-tejido-v2/index.ts
+  - tests/Feature/Planeacion/ProgramaTejidoShellV2Test.php
+  - tests/Unit/Planeacion/ProgramaTejidoShellV2EstructuraTest.php
 ---
+
+# PT 03 — Shell Livewire · v2
+
+La v1 (abajo, como historial) se escribió antes de PT 02, PT 04-perf, PT 05 y 17-02. Esta sección
+**manda** sobre la v1 donde difieran.
+
+## Cambios v1 → v2
+
+| Tema | v1 | v2 (lo que se ejecuta) |
+|---|---|---|
+| Superficie | `app/Support/Planeacion/ProgramaTejidoSurface` (planeado) | Existe: enum `App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface` (PT-02, D-4). El componente recibe `superficie` en `mount()` y lo guarda `#[Locked]`; nunca `::actual()` ni `request()->is()` dentro del componente. |
+| Tabla en `/livewire/update` | — | El middleware `ProgramaTejidoContext` no corre ahí (config caería a Programa): el componente consulta con `setTable($superficie->tabla())` explícito. |
+| Lectura | `ProgramaTejidoReadService::paginate()` | La grilla legacy no pagina (85 filas; 04-PERF-MEDIDO: paginar no es el problema). La lista del SELECT de `index()` pasa a `ProgramaTejidoReadService::COLUMNAS_GRILLA` (movimiento puro) y la usan legacy y v2. |
+| UI | Tabla mínima nueva + buscador | **Mismo diseño (D-E):** la grilla se extrae a partials que incluyen legacy y v2; en v2 va dentro de `wire:ignore` y la sigue manejando el mismo bundle `programa-tejido/index.js`. Sin buscador ni UI nueva. |
+| Assets | `vite.config.js` + `resources/js/planeacion/*` + CSS nuevo | `vite.config.js` congelado en Ola 3: entrada `resources/js/modulos/programa-tejido-v2/index.ts` (glob). Sin CSS nuevo (mismo `public/css/programa-tejido/*`). |
+| Canary | Allowlist por `numero_empleado` | Mismo idiom que PT 05 (`MutacionesV2::activa`): `PLANEACION_SHELL_V2=off|canary|on` + `PLANEACION_SHELL_V2_CANARY=<Id>,<Id>`. Default `off`. |
+| Flag apagado | Cero assets v2 | Además: respuesta **byte a byte** igual a la legacy (diff real antes/después). |
+| 04-perf / 17-02 | — | La página ya tiene 0 `<script>` inline de PT y `#pt-boot` JSON; títulos por `page-title`, zoom por default, `sesion.ts` ya cubre el 419 de Livewire. No se reintroduce nada inline. |
+| GATE | Checkpoint humano | Además: TTFB, KB de HTML (gzip) y tiempo de interacción v2 vs legacy con el método de `04-PERF-MEDIDO.md`. **Si v2 no mejora, se documenta con números, queda apagado y 04-ux no sigue sobre Livewire.** |
+
+## Tareas v2
+
+1. **03.1 Componente** `App\Livewire\Planeacion\ProgramaTejidoBoard`: `mount(string $superficie)`, `#[Computed] registros()` (nunca propiedad pública), error → `report()` + estado de error legacy.
+2. **03.2 Mismo diseño:** `partials/grilla.blade.php` y `partials/complementos.blade.php` extraídos de `req-programa-tejido.blade.php` (legacy byte a byte igual); vista Livewire con la grilla en `wire:ignore`; wrapper `req-programa-tejido-v2.blade.php` (< 40 líneas) con `@vite` de v2 solo ahí; `programa-tejido-v2/index.ts` mínimo.
+3. **03.3 Canary:** `ShellV2::activo()`; `ProgramaTejidoController::index()` bifurca antes de consultar; rutas sin cambios.
+4. **03.4 Tests:** flag apagado → legacy sin rastro de v2/Livewire; canary → v2 con la superficie correcta; Muestras sigue en Muestras tras `$refresh`; dataset fuera del snapshot; superficie bloqueada; estructura del wrapper; paridad de la tabla v2 vs legacy.
+5. **03.5 GATE:** arnés `03-frontend-shell/arnes/` (sobre el de 19-01) + `medir-shell.mjs`; tabla en `03-SUMMARY.md`; capturas lado a lado 1280×800 y 768×1024; runbook para Laragon.
+6. **HANDOFF 17-02 B1** (dias-liberar sin `onclick`), **B2** (menús contextuales → `accionesTactiles` + un botón "⋮"), **PT-05 B4** (Redbooth a `resources/js/modulos/redbooth/index.ts`): commits aparte.
+
+Prohibido: `vite.config.js`, `package.json`, `resources/js/{utils,componentes}/**`, módulos 19-xx, `bootstrap/**`, `config/database.php`.
+
+---
+
+# v1 (historial, 2026-08)
+
 
 <objective>
 Reemplazar el fetch/DOM a mano de Programa Tejido y Muestras (`req-programa-tejido.blade.php` + `filter-engine.js`) por un shell Livewire, siguiendo exactamente los patrones ya usados en este mismo codebase (`Crudo\MachineDetail` para `#[Computed]`/DI/cache-fallback, `UrdEng\ProgramBoard` para shape de componente/`#[Url]`/eventos), activable solo para usuarios en una allowlist canary con rollback inmediato a Blade legacy.
