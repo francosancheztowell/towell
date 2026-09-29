@@ -4,11 +4,16 @@ namespace App\Http\Controllers\Tejido\Configuracion\SecuenciaInvTelas;
 
 use App\Http\Controllers\Controller;
 use App\Models\Inventario\InvSecuenciaTelares;
+use App\Services\Tejido\OrdenSecuencia;
+use App\Support\Http\Concerns\HandlesApiErrors;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class SecuenciaInvTelasController extends Controller
 {
+    use HandlesApiErrors;
+
     public function index()
     {
         try {
@@ -59,13 +64,8 @@ class SecuenciaInvTelasController extends Controller
                 'message' => 'Error de validación',
                 'errors' => $e->errors(),
             ], 422);
-        } catch (\Exception $e) {
-            Log::error('Error al crear Secuencia Inv Telas: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al crear el registro: '.$e->getMessage(),
-            ], 500);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Error al crear Secuencia Inv Telas', 'Error al crear el registro');
         }
     }
 
@@ -100,13 +100,10 @@ class SecuenciaInvTelasController extends Controller
                 'message' => 'Error de validación',
                 'errors' => $e->errors(),
             ], 422);
-        } catch (\Exception $e) {
-            Log::error('Error al actualizar Secuencia Inv Telas: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al actualizar el registro: '.$e->getMessage(),
-            ], 500);
+        } catch (ModelNotFoundException $e) {
+            return $this->apiClientErrorResponse('Registro no encontrado', 404);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Error al actualizar Secuencia Inv Telas', 'Error al actualizar el registro');
         }
     }
 
@@ -120,13 +117,10 @@ class SecuenciaInvTelasController extends Controller
                 'success' => true,
                 'message' => 'Registro eliminado exitosamente',
             ]);
-        } catch (\Exception $e) {
-            Log::error('Error al eliminar Secuencia Inv Telas: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al eliminar el registro: '.$e->getMessage(),
-            ], 500);
+        } catch (ModelNotFoundException $e) {
+            return $this->apiClientErrorResponse('Registro no encontrado', 404);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Error al eliminar Secuencia Inv Telas', 'Error al eliminar el registro');
         }
     }
 
@@ -143,18 +137,13 @@ class SecuenciaInvTelasController extends Controller
                 'orden.*.Secuencia' => 'required|integer|min:1',
             ]);
 
-            foreach ($validated['orden'] as $item) {
-                InvSecuenciaTelares::where('Id', $item['Id'])
-                    ->update(['Secuencia' => $item['Secuencia'], 'Updated_At' => now()]);
-            }
+            OrdenSecuencia::actualizar(InvSecuenciaTelares::class, 'Id', 'Secuencia', $validated['orden'], ['Updated_At' => now()]);
 
             return response()->json(['success' => true, 'message' => 'Orden actualizado']);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json(['success' => false, 'message' => 'Datos inválidos', 'errors' => $e->errors()], 422);
-        } catch (\Exception $e) {
-            Log::error('Error al actualizar orden Secuencia Inv Telas: '.$e->getMessage());
-
-            return response()->json(['success' => false, 'message' => 'Error al actualizar el orden'], 500);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Error al actualizar orden Secuencia Inv Telas', 'Error al actualizar el orden');
         }
     }
 }
