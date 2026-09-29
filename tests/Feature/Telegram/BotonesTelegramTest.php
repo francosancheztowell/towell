@@ -61,7 +61,7 @@ class BotonesTelegramTest extends TestCase
 
         // Todos salen en la misma tanda: el chat caído no impide que los otros dos reciban.
         foreach (['bien', 'otro'] as $chat) {
-            Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/sendPhoto')
+            Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/sendDocument')
                 && collect($request->data())->pluck('contents', 'name')['chat_id'] === $chat);
         }
     }

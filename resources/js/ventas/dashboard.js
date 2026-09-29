@@ -14,6 +14,17 @@ const FILTERS = [
     { key: 'tamano', label: 'Tamaño', multi: true },
     { key: 'articulo', label: 'Artículo', multi: true },
 ];
+/** Grupos de columnas que se pueden ocultar desde el menú "Columnas". */
+const COLUMN_GROUPS = [['plan', 'Plan'], ['pedido', 'Pedido'], ['real', 'Real'], ['delta', 'Δ (diferencia)'], ['cumplimiento', 'Cumplimiento y estatus']];
+const allColumns = () => new Set(COLUMN_GROUPS.map(([key]) => key));
+
+const DESGLOSES = [['', '(ninguno)'], ['empresa', 'Empresa'], ['tipo', 'Tipo de pedido'], ['cliente', 'Cliente'], ['articulo', 'Artículo']];
+
+const DETAIL_LEVELS = [
+    ['empresa'], ['tipo'], [(item) => `${item.clienteCodigo} ${item.cliente}`],
+    [(item) => `${item.articuloCodigo} ${item.articulo} · ${item.linea} · ${item.tamano} · ${item.color}`],
+];
+
 const emptyFilters = () => Object.fromEntries(FILTERS.map(({ key, multi }) => [key, multi ? new Set() : '']));
 
 const METRICS = [['piezas', 'Piezas'], ['kilos', 'Kilos'], ['vn', 'V.N.']];
@@ -126,6 +137,18 @@ const bindTabs = (root) => {
         });
         root.querySelectorAll('[data-pvoc-panel]').forEach((panel) => panel.classList.toggle('is-hidden', panel.dataset.pvocPanel !== activeTab));
     }));
+
+    // Subsecciones dentro de una pestaña (p.ej. Compara › Resumen General / Análisis Histórico).
+    root.querySelectorAll('[data-pvoc-subtab]').forEach((button) => button.addEventListener('click', () => {
+        const panel = button.closest('[data-pvoc-panel]');
+        const active = button.dataset.pvocSubtab;
+        panel.querySelectorAll('[data-pvoc-subtab]').forEach((tab) => {
+            tab.classList.toggle('is-active', tab === button);
+            tab.setAttribute('aria-selected', String(tab === button));
+        });
+        panel.querySelectorAll('[data-pvoc-subpanel]').forEach((subpanel) =>
+            subpanel.classList.toggle('is-hidden', subpanel.dataset.pvocSubpanel !== active));
+    }));
 };
 
 document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) => {
@@ -158,7 +181,9 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
     const state = {
         comparison: 'plan-pedido', grouping: 'origin',
         filters: emptyFilters(),
-        expanded: { summary: new Set() },
+        desglose: '',
+        expanded: { summary: new Set(), analisis: new Set() },
+        columns: { summary: allColumns(), analisis: allColumns() },
     };
     const elements = {
         filters: root.querySelector('[data-pvoc-filters]'),
@@ -188,6 +213,26 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
     };
 
     const filteredRecords = () => records.filter((record) => FILTERS.every((filter) => matchesFilter(record, filter)));
+
+    /** Nivel de detalle bajo cada mes: el elegido en Desglose o, sin él, Empresa › Tipo › Cliente › Artículo. */
+    const detailLevels = () => (state.desglose
+        ? [[(item) => String(filterValue(item, state.desglose))]]
+        : DETAIL_LEVELS);
+
+    /** label = encabezado de la primera columna · expandDepth = niveles que abre "Expandir todo". */
+    const TABLES = {
+        summary: { label: 'Empresa / Tipo / Cliente', expandDepth: 3, levels: () => DETAIL_LEVELS },
+        analisis: {
+            label: 'Año / Mes',
+            expandDepth: 2,
+            dashZero: true,
+            levels: () => [
+                ['anio', (value) => `Año ${value}`],
+                ['mes', (value) => monthName(value)],
+                ...detailLevels(),
+            ],
+        },
+    };
 
     const fragment = (html) => document.createRange().createContextualFragment(html);
 
@@ -244,27 +289,44 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
     });
 
     const comparisonSeries = () => state.comparison.split('-');
-    const numberCells = (totals) => {
+    const isVisible = (panel, group) => state.columns[panel].has(group);
+    const visibleColumnCount = (panel) => 1 + ['plan', 'pedido', 'real', 'delta'].filter((group) => isVisible(panel, group)).length * METRICS.length
+        + (isVisible(panel, 'cumplimiento') ? 2 : 0);
+
+    const numberCells = (totals, panel) => {
+        const { dashZero } = TABLES[panel];
         const [left, right] = comparisonSeries();
         const percentage = totals[left].piezas ? (totals[right].piezas / totals[left].piezas) * 100 : 0;
-        const deltaCells = METRICS.map(([metric]) => totals[right][metric] - totals[left][metric]).map((value) =>
-            `<td class="pvoc-number pvoc-delta ${value < 0 ? 'is-negative' : 'is-positive'}">${value > 0 ? '+' : ''}${formatNumber(value)}</td>`).join('');
-        const seriesCells = Object.keys(SERIES).map((series) => METRICS.map(([metric]) =>
-            `<td class="pvoc-number pvoc-${series}">${formatNumber(totals[series][metric])}</td>`).join('')).join('');
+        const seriesCells = Object.keys(SERIES).filter((series) => isVisible(panel, series)).map((series) => METRICS.map(([metric]) => {
+            const value = totals[series][metric];
+            return `<td class="pvoc-number pvoc-${series}">${dashZero && !value ? '–' : formatNumber(value)}</td>`;
+        }).join('')).join('');
+        const deltaCells = isVisible(panel, 'delta')
+            ? METRICS.map(([metric]) => totals[right][metric] - totals[left][metric]).map((value) =>
+                `<td class="pvoc-number pvoc-delta ${value < 0 ? 'is-negative' : 'is-positive'}">${value > 0 ? '+' : ''}${formatNumber(value)}</td>`).join('')
+            : '';
         const status = percentage >= 100 ? ['En meta', 'is-success'] : percentage >= 85 ? ['Parcial', 'is-warning'] : ['Bajo', 'is-danger'];
-        return `${seriesCells}${deltaCells}<td class="pvoc-number">${percentage.toFixed(1)}%</td><td><span class="pvoc-status ${status[1]}">${status[0]}</span></td>`;
+        const complianceCells = isVisible(panel, 'cumplimiento')
+            ? `<td class="pvoc-number">${percentage.toFixed(1)}%</td><td><span class="pvoc-status ${status[1]}">${status[0]}</span></td>`
+            : '';
+        return `${seriesCells}${deltaCells}${complianceCells}`;
     };
 
-    const tableHeader = () => `<table class="pvoc-table"><thead>
-        <tr class="pvoc-table-groups">
-            <th rowspan="2" class="pvoc-label">Empresa / Tipo / Cliente</th>
-            ${Object.entries(SERIES).map(([, series]) => `<th colspan="3" class="pvoc-${series.className}">${series.label}</th>`).join('')}
-            <th colspan="3" class="pvoc-delta">Δ ${comparisonSeries().map((series) => SERIES[series].label).join(' − ')}</th>
-            <th rowspan="2">Cumpl.</th><th rowspan="2">Estatus</th>
-        </tr>
-        <tr>${Object.keys(SERIES).map((series) => METRICS.map(([, label]) => `<th class="pvoc-${series}">${label}</th>`).join('')).join('')}
-            ${METRICS.map(([, label]) => `<th class="pvoc-delta">${label}</th>`).join('')}</tr>
-    </thead><tbody>`;
+    const tableHeader = (panel) => {
+        const series = Object.entries(SERIES).filter(([key]) => isVisible(panel, key));
+        const delta = isVisible(panel, 'delta');
+        const compliance = isVisible(panel, 'cumplimiento');
+        return `<table class="pvoc-table"><thead>
+            <tr class="pvoc-table-groups">
+                <th rowspan="2" class="pvoc-label">${TABLES[panel].label}</th>
+                ${series.map(([, { label, className }]) => `<th colspan="3" class="pvoc-${className}">${label}</th>`).join('')}
+                ${delta ? `<th colspan="3" class="pvoc-delta">Δ ${comparisonSeries().map((key) => SERIES[key].label).join(' − ')}</th>` : ''}
+                ${compliance ? '<th rowspan="2">Cumpl.</th><th rowspan="2">Estatus</th>' : ''}
+            </tr>
+            <tr>${series.map(([key]) => METRICS.map(([, label]) => `<th class="pvoc-${key}">${label}</th>`).join('')).join('')}
+                ${delta ? METRICS.map(([, label]) => `<th class="pvoc-delta">${label}</th>`).join('') : ''}</tr>
+        </thead><tbody>`;
+    };
 
     const buildTree = (items, levels, parentKey = '') => {
         if (!levels.length) return [];
@@ -293,42 +355,90 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
         const toggle = expandable
             ? `<button type="button" class="pvoc-expander" data-pvoc-node="${escapeHtml(node.id)}" aria-expanded="${isExpanded}">${isExpanded ? '▾' : '▸'}</button>`
             : '<span class="pvoc-expander-placeholder">•</span>';
-        const row = `<tr class="pvoc-level-${Math.min(level, 3)}"><td class="pvoc-label">${indentation}${toggle}${escapeHtml(node.label)}</td>${numberCells(sum(node.items))}</tr>`;
+        const row = `<tr class="pvoc-level-${Math.min(level, 3)}"><td class="pvoc-label">${indentation}${toggle}${escapeHtml(node.label)}</td>${numberCells(sum(node.items), panel)}</tr>`;
         return row + (isExpanded ? node.children.map((child) => renderNode(child, level + 1, panel)).join('') : '');
     };
 
+    const tableContainer = (panel) => root.querySelector(`[data-pvoc-table="${panel}"]`);
+
     const renderTable = (panel) => {
-        const container = root.querySelector(`[data-pvoc-table="${panel}"]`);
         const filtered = filteredRecords();
-        const levels = [
-            ['empresa'], ['tipo'], [(item) => `${item.clienteCodigo} ${item.cliente}`],
-            [(item) => `${item.articuloCodigo} ${item.articulo} · ${item.linea} · ${item.tamano} · ${item.color}`],
-        ];
-        const rows = buildTree(filtered, levels).map((node) => renderNode(node, 0, panel)).join('');
-        container.innerHTML = `${tableHeader()}${rows || '<tr><td colspan="15" class="pvoc-empty">No hay datos para los filtros seleccionados.</td></tr>'}
-            <tr class="pvoc-row-total"><td class="pvoc-label">Total general</td>${numberCells(sum(filtered))}</tr></tbody></table>`;
-        container.querySelectorAll('[data-pvoc-node]').forEach((button) => button.addEventListener('click', () => {
-            const node = button.dataset.pvocNode;
-            state.expanded[panel].has(node) ? state.expanded[panel].delete(node) : state.expanded[panel].add(node);
-            renderTable(panel);
-        }));
+        const rows = buildTree(filtered, TABLES[panel].levels()).map((node) => renderNode(node, 0, panel)).join('');
+        tableContainer(panel).innerHTML = `${tableHeader(panel)}${rows || `<tr><td colspan="${visibleColumnCount(panel)}" class="pvoc-empty">No hay datos para los filtros seleccionados.</td></tr>`}
+            <tr class="pvoc-row-total"><td class="pvoc-label">Total general</td>${numberCells(sum(filtered), panel)}</tr></tbody></table>`;
     };
 
-    const expandAll = (panel) => {
-        const expandPass = () => root.querySelectorAll(`[data-pvoc-table="${panel}"] [data-pvoc-node]`)
-            .forEach((node) => state.expanded[panel].add(node.dataset.pvocNode));
-        expandPass(); renderTable(panel); expandPass(); renderTable(panel); expandPass(); renderTable(panel);
+    const toggleNode = (panel, node) => {
+        state.expanded[panel].has(node) ? state.expanded[panel].delete(node) : state.expanded[panel].add(node);
+        renderTable(panel);
     };
-    const renderTables = () => { renderTable('summary'); };
+
+    /** Abre los nodos hasta la profundidad indicada recorriendo el árbol, sin re-renderizar por nivel. */
+    const expandTo = (panel, depth) => {
+        const walk = (nodes, level) => nodes.forEach((node) => {
+            if (level >= depth || !node.children.length) return;
+            state.expanded[panel].add(node.id);
+            walk(node.children, level + 1);
+        });
+        walk(buildTree(filteredRecords(), TABLES[panel].levels()), 0);
+        renderTable(panel);
+    };
+
+    const renderTables = () => Object.keys(TABLES).forEach(renderTable);
+
+    Object.keys(TABLES).forEach((panel) => {
+        const container = tableContainer(panel);
+        container.addEventListener('click', (event) => {
+            const button = event.target.closest('[data-pvoc-node]');
+            if (button) toggleNode(panel, button.dataset.pvocNode);
+        });
+        // Doble clic en cualquier parte de la fila la abre o cierra (p.ej. un mes para desglosarlo).
+        container.addEventListener('dblclick', (event) => {
+            if (event.target.closest('[data-pvoc-node]')) return;
+            const button = event.target.closest('tr')?.querySelector('[data-pvoc-node]');
+            if (button) toggleNode(panel, button.dataset.pvocNode);
+        });
+    });
 
     root.querySelector('[data-pvoc-clear]').addEventListener('click', () => {
         state.filters = emptyFilters(); renderFilters(); renderTables();
     });
-    root.querySelectorAll('[data-pvoc-expand]').forEach((button) => button.addEventListener('click', () => expandAll(button.closest('[data-pvoc-panel]').dataset.pvocPanel)));
+    root.querySelectorAll('[data-pvoc-expand]').forEach((button) => button.addEventListener('click', () => {
+        const panel = button.dataset.pvocExpand;
+        expandTo(panel, TABLES[panel].expandDepth);
+    }));
     root.querySelectorAll('[data-pvoc-collapse]').forEach((button) => button.addEventListener('click', () => {
-        const panel = button.closest('[data-pvoc-panel]').dataset.pvocPanel;
+        const panel = button.dataset.pvocCollapse;
         state.expanded[panel].clear(); renderTable(panel);
     }));
+
+    const desgloseSelect = root.querySelector('[data-pvoc-desglose]');
+    desgloseSelect.innerHTML = DESGLOSES.map(([key, label]) => `<option value="${key}">${escapeHtml(label)}</option>`).join('');
+    desgloseSelect.addEventListener('change', () => {
+        state.desglose = desgloseSelect.value;
+        renderTable('analisis');
+    });
+
+    root.querySelectorAll('[data-pvoc-columns]').forEach((wrapper) => {
+        const panel = wrapper.dataset.pvocColumns;
+        const toggle = wrapper.querySelector('[data-pvoc-columns-toggle]');
+        const menu = wrapper.querySelector('[data-pvoc-columns-menu]');
+        const setOpen = (open) => {
+            menu.hidden = !open;
+            toggle.setAttribute('aria-expanded', String(open));
+        };
+        menu.innerHTML = COLUMN_GROUPS.map(([key, label]) => `<label class="pvoc-multi-option">
+            <input type="checkbox" value="${key}" ${isVisible(panel, key) ? 'checked' : ''}><span>${escapeHtml(label)}</span>
+        </label>`).join('');
+        toggle.addEventListener('click', () => setOpen(menu.hidden));
+        menu.addEventListener('change', (event) => {
+            event.target.checked ? state.columns[panel].add(event.target.value) : state.columns[panel].delete(event.target.value);
+            renderTable(panel);
+        });
+        document.addEventListener('mousedown', (event) => { if (!wrapper.contains(event.target)) setOpen(false); });
+    });
+
     renderFilters();
     renderTables();
+    expandTo('analisis', 1);
 });

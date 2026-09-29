@@ -9,6 +9,10 @@ body:has(.ventas-pvoc-dashboard) { background: #f1f5f9; }
     --pvoc-pedido: #008b7b;
     --pvoc-real: #d97706;
     --pvoc-delta: #475569;
+    /* Ocupa justo el alto visible bajo la barra superior (64px) para que la tarjeta llegue al borde inferior. */
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - 64px);
     color: var(--pvoc-ink);
     font-variant-numeric: tabular-nums;
 }
@@ -22,7 +26,7 @@ body:has(.ventas-pvoc-dashboard) { background: #f1f5f9; }
 .pvoc-button:hover { border-color: #60a5fa; background: #eff6ff; color: #1d4ed8; }
 .pvoc-button-small { min-height: 2.25rem; font-size: .8rem; }
 
-.pvoc-content { padding: .5rem .6rem; }
+.pvoc-content { display: flex; flex: 1; flex-direction: column; min-height: 0; padding: .3rem; }
 .pvoc-anio-selector { max-width: 160px; margin-bottom: .65rem; }
 .pvoc-filters { display: flex; align-items: end; gap: .5rem; margin-bottom: .45rem; border: 1px solid var(--pvoc-border); border-radius: .5rem; background: #f8fafc; padding: .35rem .45rem; }
 .pvoc-filter-fields { display: flex; flex: 1; min-width: 0; gap: .5rem; overflow-x: auto; }
@@ -48,13 +52,27 @@ body:has(.ventas-pvoc-dashboard) { background: #f1f5f9; }
 .pvoc-tabs { display: flex; gap: .25rem; }
 .pvoc-tabs button { border: 1px solid var(--pvoc-border); border-bottom: 0; border-radius: .5rem .5rem 0 0; background: #f8fafc; padding: .45rem 1rem; color: #64748b; font-size: .9rem; font-weight: 800; }
 .pvoc-tabs button.is-active { background: #fff; color: #06496a; box-shadow: inset 0 -3px #06496a; }
-.pvoc-card { border: 1px solid var(--pvoc-border); border-radius: 0 .6rem .6rem .6rem; background: var(--pvoc-panel); padding: .5rem .6rem; box-shadow: 0 1px 2px rgb(15 23 42 / 4%); }
+.pvoc-card { display: flex; flex: 1; flex-direction: column; min-height: 0; overflow-y: auto; border: 1px solid var(--pvoc-border); border-radius: 0 .5rem .5rem .5rem; background: var(--pvoc-panel); padding: .4rem; box-shadow: 0 1px 2px rgb(15 23 42 / 4%); }
 .pvoc-card-header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .45rem; }
 .pvoc-card-header h2 { margin: 0; color: #06496a; font-size: 1.05rem; }
 .pvoc-card-header p { margin: .1rem 0 0; color: var(--pvoc-muted); font-size: .82rem; }
 .pvoc-card-actions { display: flex; gap: .45rem; }
 
-.pvoc-table-scroll { overflow: auto; max-height: calc(100vh - 300px); min-height: 310px; border: 1px solid var(--pvoc-border); border-radius: .65rem; }
+.pvoc-table-scroll { overflow: auto; border: 1px solid var(--pvoc-border); border-radius: .45rem; }
+/* La tabla del resumen crece hasta el borde inferior de la tarjeta. */
+.pvoc-subpanel > .pvoc-table-scroll { flex: 1; min-height: 240px; }
+.pvoc-filters-shared { margin: .4rem 0 0; }
+.pvoc-card-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: .15rem .6rem; }
+.pvoc-card-title p { margin: 0; }
+.pvoc-card-actions { align-items: center; }
+.pvoc-inline-label { display: inline-flex; align-items: center; gap: .4rem; color: var(--pvoc-muted); font-size: .8rem; font-weight: 600; }
+.pvoc-inline-label select { height: 2.25rem; min-width: 9rem; border: 1px solid #c7d5e0; border-radius: .45rem; background: #fff; padding: 0 .45rem; color: #1e293b; font-size: .82rem; font-weight: 600; }
+.pvoc-columns { position: relative; }
+.pvoc-columns-menu { position: absolute; z-index: 40; top: calc(100% + .25rem); right: 0; display: flex; flex-direction: column; min-width: 13rem; border: 1px solid #c7d5e0; border-radius: .45rem; background: #fff; padding: .35rem; box-shadow: 0 8px 24px rgb(15 23 42 / 14%); }
+.pvoc-columns-menu[hidden] { display: none; }
+.pvoc-card > :not(.pvoc-table-scroll, .vh-reports, .pvoc-subpanel), .pvoc-subpanel > :not(.pvoc-table-scroll) { flex-shrink: 0; }
+/* Subsección de una pestaña: llena el alto restante de la tarjeta. */
+.pvoc-subpanel { display: flex; flex: 1; flex-direction: column; min-height: 0; margin-top: .4rem; }
 .pvoc-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; font-size: .82rem; }
 .pvoc-table th, .pvoc-table td { border-bottom: 1px solid #e1e8ef; padding: .55rem .7rem; white-space: nowrap; }
 .pvoc-table thead th { position: sticky; z-index: 2; top: 0; background: #eef4f8; color: #456178; text-align: right; font-weight: 800; }
@@ -100,8 +118,9 @@ body:has(.ventas-pvoc-dashboard) { background: #f1f5f9; }
 .vh-subtabs button { flex: 0 0 auto; border: 0; border-bottom: 3px solid transparent; background: transparent; padding: .4rem .8rem; color: #64748b; font-size: .82rem; font-weight: 800; white-space: nowrap; }
 .vh-subtabs button:hover { color: #06496a; }
 .vh-subtabs button.is-active { border-bottom-color: #06496a; color: #06496a; }
-.vh-reports { display: grid; gap: .6rem; margin-top: .45rem; }
-.vh-report { border: 1px solid var(--pvoc-border); border-radius: .5rem; background: #fff; padding: .5rem .6rem; }
+/* El reporte visible llena lo que queda de la tarjeta; su tabla hace scroll por dentro. */
+.vh-reports { display: flex; flex: 1; flex-direction: column; min-height: 0; margin-top: .35rem; }
+.vh-report { display: flex; flex: 1 1 0; flex-direction: column; border: 1px solid var(--pvoc-border); border-radius: .45rem; background: #fff; padding: .4rem; }
 .vh-report-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .45rem; }
 .vh-report-header h3 { margin: 0; color: #06496a; font-size: .98rem; font-weight: 800; }
 .vh-report-header p { margin: .15rem 0 0; color: var(--pvoc-muted); font-size: .76rem; }
@@ -113,8 +132,8 @@ body:has(.ventas-pvoc-dashboard) { background: #f1f5f9; }
 .vh-view-toggle button { display: inline-flex; align-items: center; gap: .35rem; border: 0; background: #fff; padding: .4rem .7rem; color: #475569; font-size: .78rem; font-weight: 700; }
 .vh-view-toggle button + button { border-left: 1px solid #c7d5e0; }
 .vh-view-toggle button.is-active { background: #06496a; color: #fff; }
-.vh-report-table { min-height: 0; max-height: 34rem; }
-.vh-chart { position: relative; height: 320px; }
+.vh-report-table { flex: 1 1 0; min-height: 240px; max-height: none; }
+.vh-chart { position: relative; flex: 1 0 auto; height: 320px; }
 /* Tablas de ventas históricas: fluidas al ancho del contenedor en vez de max-content. */
 .vh-table { width: 100%; font-size: .78rem; }
 .vh-table th, .vh-table td { padding: .4rem .55rem; }
@@ -146,4 +165,4 @@ body:has(.ventas-pvoc-dashboard) { background: #f1f5f9; }
     .vh-compare-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
-@media (max-width: 760px) { .pvoc-content { padding: .65rem; }.pvoc-filters, .pvoc-card-header { align-items: stretch; flex-direction: column; }.pvoc-table-scroll { max-height: none; }.pvoc-table .pvoc-label { min-width: 250px; }.pvoc-card-actions { flex-wrap: wrap; }.vh-compare-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) { .ventas-pvoc-dashboard { height: auto; }.pvoc-card { overflow: visible; }.pvoc-filters, .pvoc-card-header { align-items: stretch; flex-direction: column; }.pvoc-table-scroll { max-height: none; }.pvoc-table .pvoc-label { min-width: 250px; }.pvoc-card-actions { flex-wrap: wrap; }.vh-compare-grid { grid-template-columns: minmax(0, 1fr); } }

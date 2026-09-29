@@ -15,6 +15,13 @@ return [
 
     'default' => env('QUEUE_CONNECTION', 'database'),
 
+    // php.exe de consola para el worker que arranca EnviarMensajeTelegram. Solo hace
+    // falta si no se encuentra solo (junto al php.ini, como en Laragon y XAMPP).
+    'php_cli' => env('PHP_CLI_PATH'),
+
+    // Apagado en phpunit.xml: un test no debe lanzar un worker real contra la base del .env.
+    'autoworker' => (bool) env('QUEUE_AUTOWORKER', true),
+
     /*
     |--------------------------------------------------------------------------
     | Queue Connections

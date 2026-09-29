@@ -84,6 +84,91 @@ class EnviarMensajeTelegramTest extends TestCase
         Log::shouldHaveReceived('warning')->once()->withArgs(fn (string $mensaje) => str_contains($mensaje, 'no se pudo encolar'));
     }
 
+    public function test_el_worker_vacia_la_cola_y_se_sale_solo(): void
+    {
+        config()->set('queue.default', 'database');
+        config()->set('queue.php_cli', PHP_BINARY);
+
+        $comando = EnviarMensajeTelegram::comandoWorker();
+
+        $this->assertNotNull($comando);
+        $this->assertStringContainsString(escapeshellarg(PHP_BINARY), $comando);
+        $this->assertStringContainsString('queue:work', $comando);
+        $this->assertStringContainsString(escapeshellarg('database'), $comando);
+        // Sin estas dos banderas el worker se quedaría vivo para siempre, uno por aviso.
+        $this->assertStringContainsString('--stop-when-empty', $comando);
+        $this->assertStringContainsString('--max-time=60', $comando);
+        $this->assertStringContainsString('--tries=1', $comando);
+    }
+
+    public function test_con_cola_sync_no_hay_worker_que_lanzar(): void
+    {
+        config()->set('queue.default', 'sync');
+        config()->set('queue.php_cli', PHP_BINARY);
+
+        $this->assertNull(EnviarMensajeTelegram::comandoWorker());
+    }
+
+    public function test_un_php_cli_inexistente_cae_al_php_junto_al_ini(): void
+    {
+        config()->set('queue.default', 'database');
+        config()->set('queue.php_cli', 'C:\\no\\existe\\php.exe');
+
+        $comando = EnviarMensajeTelegram::comandoWorker();
+
+        // En la consola de tests siempre hay algún php real (PHP_BINARY o junto al php.ini).
+        $this->assertNotNull($comando);
+        $this->assertStringNotContainsString('no\\existe', $comando);
+    }
+
+    public function test_un_aviso_de_hace_mas_de_30_minutos_en_la_cola_no_se_envia(): void
+    {
+        Http::fake();
+        Log::spy();
+        $job = $this->desdeLaCola($this->job(['111']), time() - EnviarMensajeTelegram::VIGENCIA_SEGUNDOS - 1);
+
+        $job->handle(app(TelegramEnvio::class));
+
+        Http::assertNothingSent();
+        Log::shouldHaveReceived('info')->once()->withArgs(fn (string $mensaje, array $contexto) => str_contains($mensaje, 'vencido')
+            && $contexto['folio'] === 'F-1');
+    }
+
+    /** Pasó el 28-sep: jobs de hace 10 minutos, encolados con el código anterior, se tiraban como viejos. */
+    public function test_un_aviso_reciente_de_la_cola_se_envia(): void
+    {
+        Http::fake(['*' => Http::response(['ok' => true])]);
+        $job = $this->desdeLaCola($this->job(['111']), time() - 600);
+
+        $job->handle(app(TelegramEnvio::class));
+
+        Http::assertSentCount(1);
+    }
+
+    public function test_en_linea_sin_cola_siempre_se_envia(): void
+    {
+        Http::fake(['*' => Http::response(['ok' => true])]);
+
+        $this->job(['111'])->handle(app(TelegramEnvio::class));
+
+        Http::assertSentCount(1);
+    }
+
+    /** Así lo entrega el worker: con el payload del renglón de `jobs`, que trae createdAt. */
+    private function desdeLaCola(EnviarMensajeTelegram $job, int $createdAt): EnviarMensajeTelegram
+    {
+        $renglon = \Mockery::mock(\Illuminate\Contracts\Queue\Job::class);
+        $renglon->shouldReceive('payload')->andReturn(['createdAt' => $createdAt]);
+        $job->setJob($renglon);
+
+        return $job;
+    }
+
+    public function test_en_tests_encolar_no_lanza_un_worker_real(): void
+    {
+        $this->assertFalse((bool) config('queue.autoworker'), 'phpunit.xml debe apagar QUEUE_AUTOWORKER.');
+    }
+
     public function test_nunca_lanza_aunque_telegram_explote(): void
     {
         Http::fake(fn () => throw new \RuntimeException('boom'));

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
@@ -497,5 +498,24 @@ class CodificacionFormularioTest extends TestCase
             ->assertStatus(422);
         $this->getJson('/planeacion/catalogos/codificacion-modelos/modelo-similar?origen=otro&por=orden&valor=1')
             ->assertStatus(422);
+    }
+
+    public function test_texto_mas_largo_que_la_columna_responde_422_y_no_500(): void
+    {
+        // Producción 25-sep: CuentaBarraN (NVARCHAR(10)) sin max: -> SQLSTATE[22001] -> 500, 9 veces
+        // sobre el mismo modelo. sqlite no aplica longitudes: se siembran las de SQL Server en la caché.
+        Cache::put('column_lengths_ReqModelosCodificados', ['CuentaBarra1' => 10, 'TamanoClave' => 200], 3600);
+        $modelo = ReqModelosCodificados::create([
+            'TamanoClave' => 'ALB7576', 'SalonTejidoId' => 'KARL MAYER', 'ItemId' => '7576', 'InventSizeId' => 'FEL',
+        ]);
+        $datos = ['TamanoClave' => 'ALB7576', 'SalonTejidoId' => 'KARL MAYER', 'ItemId' => '7576', 'InventSizeId' => 'FEL'];
+
+        $this->putJson('/planeacion/catalogos/codificacion-modelos/'.$modelo->Id, $datos + ['CuentaBarra1' => '2028-2104-X'])
+            ->assertStatus(422)->assertJsonValidationErrors(['CuentaBarra1']);
+        $this->postJson('/planeacion/catalogos/codificacion-modelos', $datos + ['CuentaBarra1' => '2028-2104-X'])
+            ->assertStatus(422)->assertJsonValidationErrors(['CuentaBarra1']);
+
+        $this->putJson('/planeacion/catalogos/codificacion-modelos/'.$modelo->Id, $datos + ['CuentaBarra1' => '2028'])
+            ->assertOk();
     }
 }

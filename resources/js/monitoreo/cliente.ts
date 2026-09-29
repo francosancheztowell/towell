@@ -102,6 +102,18 @@ const statusDe = (x: unknown): number | undefined => {
   return typeof s === 'number' ? s : undefined
 }
 
+/** Un rechazo que no es Error: String() lo dejaría en "[object Object]". */
+const describir = (x: unknown): string => {
+  const m = (x as { message?: unknown } | null)?.message
+  if (typeof m === 'string' && m !== '') return m
+  if (x === null || typeof x !== 'object') return String(x)
+  try {
+    return JSON.stringify(x).slice(0, 300)
+  } catch {
+    return Object.prototype.toString.call(x)
+  }
+}
+
 export function iniciar(op: Opciones): Telemetria | null {
   const win = op.win ?? (window as Win)
   const doc = win.document
@@ -273,7 +285,7 @@ export function iniciar(op: Opciones): Telemetria | null {
     const status = statusDe(r)
     // Errores HTTP ya los cubre towell:http-error / Livewire; aquí solo excepciones de JS.
     if (status !== undefined) return
-    const mensaje = r instanceof Error ? r.message || r.name : String(r)
+    const mensaje = r instanceof Error ? r.message || r.name : describir(r)
     if (ignorable(mensaje)) return
     reportar({ origen: 'js', mensaje, stack: r instanceof Error ? r.stack : undefined })
   }

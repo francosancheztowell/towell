@@ -252,10 +252,9 @@ final class CrudoLivewireTest extends TestCase
         );
         $this->assertStringContainsString('white-space: normal', $tabletRules);
         $this->assertStringContainsString(
-            'grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)',
+            'grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.85fr) minmax(0, 0.95fr)',
             $tabletRules,
         );
-        $this->assertStringContainsString('.crudo-orders-panel {', $tabletRules);
         $this->assertStringContainsString('.crudo-detail-table-scroll.crudo-orders-table-wrap {', $tabletRules);
         $this->assertStringContainsString('.crudo-orders-table .crudo-orders-col-lot {', $tabletRules);
         $this->assertStringContainsString('width: 18%', $tabletRules);

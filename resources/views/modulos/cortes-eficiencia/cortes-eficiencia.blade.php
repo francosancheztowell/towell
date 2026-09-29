@@ -602,7 +602,23 @@
                 } catch (e) { showToast({ icon: 'warning', title: 'Hora no guardada', html: `<div class='text-center'><div class='text-2xl mb-2'>${emojiHorario(h)}</div><p class='font-mono text-lg'>${hora}</p><p class='text-xs text-red-500 mt-1'>${e.message || 'No guardado en BD'}</p></div>` }); }
             }
 
-            async function guardarEnServidor({ mostrarBadge = true } = {}) {
+            // Un guardado a la vez: si llega otro mientras uno está en vuelo, se agenda
+            // uno solo más (lee la tabla al salir, así lleva lo último). Encimados se
+            // bloqueaban entre sí en TejEficienciaLine.
+            let guardadoEnVuelo = null, guardadoPendiente = null;
+            function guardarEnServidor(opts) {
+                if (!guardadoEnVuelo) {
+                    guardadoEnVuelo = guardarAhora(opts).finally(() => { guardadoEnVuelo = null; });
+                    return guardadoEnVuelo;
+                }
+                guardadoPendiente ??= guardadoEnVuelo.catch(() => {}).then(() => {
+                    guardadoPendiente = null;
+                    return guardarEnServidor(opts);
+                });
+                return guardadoPendiente;
+            }
+
+            async function guardarAhora({ mostrarBadge = true } = {}) {
                 if (PAGE_MODE.soloLectura) return;
                 if (!state.folio || !state.fecha || !state.turno) return;
                 const datos = recopilarDatosTelares(); if (!datos.length) return;

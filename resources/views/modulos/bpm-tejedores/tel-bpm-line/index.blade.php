@@ -146,7 +146,6 @@
 <script>
 (function(){
     const editable = @json($header->Status === 'Creado');
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     const toggleUrl = @json(route('tel-bpm-line.toggle', $header->Folio));
     const comentariosUrl = @json(route('tel-bpm-line.comentarios', $header->Folio));
     const COMENTARIOS_DEBOUNCE_MS = 3000;
@@ -169,19 +168,16 @@
         Swal.fire({ icon, title, toast:true, position:'top-end', timer:2000, showConfirmButton:false });
     }
 
+    // Nunca lanza: sin respuesta del servidor ("Failed to fetch") devuelve ok:false con aviso de conexión.
     async function postJson(url, payload) {
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        let data = {};
         try {
-            data = await res.json();
-        } catch (e) {
-            data = { ok: false, msg: 'Respuesta no valida del servidor' };
+            return await window.http.post(url, payload);
+        } catch (err) {
+            return {
+                ok: false,
+                msg: err.data?.msg || (err.status ? 'No se pudo guardar' : 'Sin conexión con el servidor. Intente de nuevo.'),
+            };
         }
-        return { res, data };
     }
 
     function setCellState(btn, next) {
@@ -242,8 +238,8 @@
                 Actividad: btn.dataset.actividad
             };
 
-            const { res, data } = await postJson(toggleUrl, payload);
-            if (!res.ok || !data.ok) {
+            const data = await postJson(toggleUrl, payload);
+            if (!data.ok) {
                 toast('error', data.msg || 'No se pudo guardar');
                 return;
             }
@@ -333,8 +329,8 @@
 
         setComentariosStatus('Guardando...', false);
         try {
-            const { res, data } = await postJson(comentariosUrl, { Comentarios: comentarios });
-            if (res.ok && data.ok) {
+            const data = await postJson(comentariosUrl, { Comentarios: comentarios });
+            if (data.ok) {
                 lastSavedComentarios = comentarios;
                 setComentariosStatus('Guardado', false);
                 setTimeout(function() { setComentariosStatus('', false); }, 2000);
