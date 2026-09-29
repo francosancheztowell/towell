@@ -14,17 +14,26 @@ use App\Models\Tejido\TejeFallasCeModel;
 use App\Models\Tejido\TejEficiencia;
 use App\Models\Tejido\TejEficienciaLine;
 use App\Services\Telegram\TelegramEnvio;
+use App\Support\Http\Concerns\HandlesApiErrors;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
 use Dompdf\Options;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 
 class CortesEficienciaController extends Controller
 {
+    use HandlesApiErrors;
+
+    /** Filas por INSERT de TejEficienciaLine: 21 columnas y el tope de 2100 parámetros de SQL Server. */
+    private const LINEAS_POR_INSERT = 100;
+
     /**
      * Mostrar la vista de cortes de eficiencia
      */
@@ -101,13 +110,8 @@ class CortesEficienciaController extends Controller
                 'descripcion' => $info['horario'],
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Error al obtener información del turno: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener información del turno: '.$e->getMessage(),
-            ], 500);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Error al obtener información del turno', 'Error al obtener información del turno');
         }
     }
 
@@ -122,18 +126,15 @@ class CortesEficienciaController extends Controller
             // 1) Ordenar telares según InvSecuenciaCorteEf
             $secuencia = InvSecuenciaCorteEf::orderBy('Orden', 'asc')->get(['NoTelarId']);
 
-            // 2) Para cada telar, buscar la última RPM real != 0 de cualquier turno/horario
+            // 2) Las 20 líneas más recientes de cada telar en UNA consulta (antes, una por telar).
+            //    ROW_NUMBER() existe desde SQL Server 2005.
+            $recientesPorTelar = $this->lineasRecientesPorTelar($secuencia->pluck('NoTelarId')->map(fn ($t) => (int) $t)->all(), 20);
+
+            // 3) Para cada telar, buscar la última RPM real != 0 de cualquier turno/horario
             $list = [];
             foreach ($secuencia as $row) {
                 $noTelar = (int) $row->NoTelarId;
-
-                // Obtener los registros más recientes (por fecha desc, turno desc)
-                $recentLines = TejEficienciaLine::where('NoTelarId', $noTelar)
-                    ->orderBy('Date', 'desc')
-                    ->orderBy('Turno', 'desc')
-                    ->orderBy('created_at', 'desc')
-                    ->limit(20)
-                    ->get();
+                $recentLines = $recientesPorTelar[$noTelar] ?? collect();
 
                 $lastRpm = null;
                 $lastEficiencia = null;
@@ -180,14 +181,41 @@ class CortesEficienciaController extends Controller
 
             return response()->json(['success' => true, 'telares' => $list]);
 
-        } catch (\Exception $e) {
-            Log::error('Error al obtener datos de telares: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener datos de telares: '.$e->getMessage(),
-            ], 500);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Error al obtener datos de telares', 'Error al obtener datos de telares');
         }
+    }
+
+    /**
+     * Las $limite líneas más recientes de cada telar (Date, Turno y created_at desc), agrupadas
+     * por NoTelarId. Mismo orden y tope que la consulta por telar que había en getDatosTelares.
+     *
+     * @param  array<int, int>  $telares
+     * @return array<int, \Illuminate\Support\Collection<int, TejEficienciaLine>>
+     */
+    private function lineasRecientesPorTelar(array $telares, int $limite): array
+    {
+        if ($telares === []) {
+            return [];
+        }
+
+        $numeradas = TejEficienciaLine::query()
+            ->select('*')
+            ->selectRaw('ROW_NUMBER() OVER (PARTITION BY NoTelarId ORDER BY Date DESC, Turno DESC, created_at DESC) AS rn')
+            ->whereIn('NoTelarId', $telares);
+
+        $porTelar = [];
+        TejEficienciaLine::query()
+            ->fromSub($numeradas, 'l')
+            ->where('rn', '<=', $limite)
+            ->orderBy('NoTelarId')
+            ->orderBy('rn')
+            ->get()
+            ->each(function (TejEficienciaLine $linea) use (&$porTelar) {
+                $porTelar[(int) $linea->getAttribute('NoTelarId')][] = $linea;
+            });
+
+        return array_map(fn (array $lineas) => collect($lineas), $porTelar);
     }
 
     /**
@@ -285,13 +313,8 @@ class CortesEficienciaController extends Controller
                 ]);
             });
 
-        } catch (\Exception $e) {
-            Log::error('Error al generar folio: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al generar el folio: '.$e->getMessage(),
-            ], 500);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Error al generar folio de cortes de eficiencia', 'Error al generar el folio');
         }
     }
 
@@ -381,6 +404,7 @@ class CortesEficienciaController extends Controller
 
                 // 2. Guardar las líneas de telares en TejEficienciaLine
                 $salonesByTelar = InvSecuenciaCorteEf::pluck('SalonTejidoId', 'NoTelarId')->toArray();
+                $lineas = [];
                 foreach ($validated['datos_telares'] as $telar) {
                     // Verificar que el telar tenga los datos necesarios
                     if (! isset($telar['NoTelar'])) {
@@ -395,7 +419,7 @@ class CortesEficienciaController extends Controller
 
                     // Truncar comentarios a los límites reales de la BD (ObsR1/2/3 = varchar(100))
                     // para que un comentario largo nunca tire el guardado con un error SQL.
-                    $datos = StringTruncator::truncateArray([
+                    $lineas[$noTelar] = StringTruncator::truncateArray([
                         'SalonTejidoId' => $salonId,
                         'RpmStd' => $rpmStd,
                         'EficienciaSTD' => $eficienciaStd,
@@ -412,20 +436,9 @@ class CortesEficienciaController extends Controller
                         'StatusOB2' => $telar['StatusOB2'] ?? null,
                         'StatusOB3' => $telar['StatusOB3'] ?? null,
                     ]);
-
-                    // updateOrCreate en lugar de "buscar y luego crear/actualizar" evita crear
-                    // filas duplicadas cuando el mismo folio se guarda desde más de una sesión
-                    // (p. ej. el operador que llena los datos y el revisor que corrige después).
-                    TejEficienciaLine::updateOrCreate(
-                        [
-                            'Folio' => $folioFinal,
-                            'NoTelarId' => $noTelar,
-                            'Turno' => $validated['turno'],
-                            'Date' => $validated['fecha'],
-                        ],
-                        $datos
-                    );
                 }
+
+                $this->guardarLineas($folioFinal, $validated['turno'], $validated['fecha'], $lineas);
 
                 DB::commit();
 
@@ -435,53 +448,98 @@ class CortesEficienciaController extends Controller
                     'folio' => $folioFinal,
                 ]);
 
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 DB::rollBack();
                 throw $e;
             }
 
-        } catch (\Exception $e) {
-            Log::error('Error al guardar corte de eficiencia: '.$e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al guardar el corte de eficiencia: '.$e->getMessage(),
-            ], 500);
+        } catch (ValidationException $e) {
+            return $this->errorDeValidacion($e);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Error al guardar corte de eficiencia', 'Error al guardar el corte de eficiencia');
         }
     }
 
     /**
-     * Actualizar un corte de eficiencia existente
+     * Crea o actualiza las líneas del folio (llave natural Folio + NoTelarId + Turno + Date).
+     *
+     * Antes: un updateOrCreate por telar (un SELECT y un INSERT/UPDATE por fila, en cada
+     * autoguardado). Ahora: un SELECT de las líneas del folio, UPDATE solo de las que cambiaron
+     * e INSERT en bloque de las nuevas. Si otra sesión insertó la misma línea entre el SELECT y
+     * el INSERT (índice único), se repite fila por fila con updateOrCreate como antes.
+     *
+     * @param  array<int, array<string, mixed>>  $lineas  datos por NoTelarId
      */
-    public function update(Request $request, $id)
+    private function guardarLineas(string $folio, $turno, string $fecha, array $lineas): void
     {
-        try {
-            $request->validate([
-                'folio' => 'required|string|max:20',
-                'fecha' => 'required|date',
-                'turno' => 'required|in:1,2,3',
-                'status' => 'required|string|max:20',
-                'usuario' => 'required|string|max:100',
-                'noEmpleado' => 'required|string|max:20',
-                'datos_telares' => 'required|array',
-            ]);
-
-            // Aquí iría la lógica para actualizar en la base de datos
-            return response()->json([
-                'success' => true,
-                'message' => 'Corte de eficiencia actualizado exitosamente',
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error al actualizar corte de eficiencia: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al actualizar el corte de eficiencia: '.$e->getMessage(),
-            ], 500);
+        if ($lineas === []) {
+            return;
         }
+
+        $existentes = [];
+        TejEficienciaLine::where('Folio', $folio)
+            ->where('Turno', $turno)
+            ->where('Date', $fecha)
+            ->get()
+            ->each(function (TejEficienciaLine $linea) use (&$existentes) {
+                $existentes[(int) $linea->getAttribute('NoTelarId')] ??= $linea;
+            });
+
+        $nuevas = [];
+        foreach ($lineas as $noTelar => $datos) {
+            $linea = $existentes[$noTelar] ?? null;
+            if ($linea) {
+                // save() sin cambios no manda nada, igual que updateOrCreate.
+                $linea->fill($datos)->save();
+
+                continue;
+            }
+            $nueva = new TejEficienciaLine(['Folio' => $folio, 'NoTelarId' => $noTelar, 'Turno' => $turno, 'Date' => $fecha] + $datos);
+            $ahora = $nueva->freshTimestampString();
+            $nuevas[] = $nueva->getAttributes() + ['created_at' => $ahora, 'updated_at' => $ahora];
+        }
+
+        if ($nuevas === []) {
+            return;
+        }
+
+        try {
+            DB::connection((new TejEficienciaLine)->getConnectionName())->transaction(function () use ($nuevas) {
+                foreach (array_chunk($nuevas, self::LINEAS_POR_INSERT) as $bloque) {
+                    TejEficienciaLine::insert($bloque);
+                }
+            });
+        } catch (UniqueConstraintViolationException $e) {
+            foreach ($nuevas as $fila) {
+                TejEficienciaLine::updateOrCreate(
+                    ['Folio' => $fila['Folio'], 'NoTelarId' => $fila['NoTelarId'], 'Turno' => $fila['Turno'], 'Date' => $fecha],
+                    array_diff_key($lineas[(int) $fila['NoTelarId']], array_flip(['Folio', 'NoTelarId', 'Turno', 'Date']))
+                );
+            }
+        }
+    }
+
+    /** 422 con el contrato del módulo (success/message/errors). */
+    private function errorDeValidacion(ValidationException $e): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'message' => 'Revisa los datos enviados',
+            'errors' => $e->errors(),
+        ], 422);
+    }
+
+    /**
+     * PUT /modulo-cortes-de-eficiencia/{id}: era un stub que respondía "actualizado" sin escribir
+     * nada y no tiene llamadores (la pantalla guarda con store()). 410 en vez de un éxito falso
+     * (20-03-MAPA-AUTHZ). La ruta sigue en module.permission:modificar,105,auditar.
+     */
+    public function update(Request $request, $id): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'message' => 'Esta acción ya no existe; usa Guardar del corte.',
+        ], 410);
     }
 
     /**
@@ -641,13 +699,8 @@ class CortesEficienciaController extends Controller
                 ],
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Error al finalizar corte de eficiencia: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al finalizar el corte de eficiencia: '.$e->getMessage(),
-            ], 500);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Error al finalizar corte de eficiencia', 'Error al finalizar el corte de eficiencia');
         }
     }
 
@@ -710,11 +763,8 @@ class CortesEficienciaController extends Controller
                 ],
             ]);
 
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener el corte de eficiencia: '.$e->getMessage(),
-            ], 500);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Error al obtener corte de eficiencia', 'Error al obtener el corte de eficiencia');
         }
     }
 
@@ -820,11 +870,18 @@ class CortesEficienciaController extends Controller
                     'telares_solicitados' => $telaresOrden,
                 ]);
 
-                $telares = collect($telaresOrden)->map(function ($telarId) {
-                    $ultimoRegistro = ReqProgramaTejido::where('NoTelarId', $telarId)
-                        ->orderBy('Id', 'desc')
-                        ->select('NoTelarId', 'VelocidadSTD', 'EficienciaSTD')
-                        ->first();
+                // El último registro de cada telar (MAX(Id)) en UNA consulta; antes, una por telar.
+                $ultimos = ReqProgramaTejido::query()
+                    ->whereIn('Id', ReqProgramaTejido::query()
+                        ->selectRaw('MAX(Id)')
+                        ->whereIn('NoTelarId', $telaresOrden)
+                        ->groupBy('NoTelarId'))
+                    ->select('NoTelarId', 'VelocidadSTD', 'EficienciaSTD')
+                    ->get()
+                    ->keyBy(fn ($r) => (string) $r->NoTelarId);
+
+                $telares = collect($telaresOrden)->map(function ($telarId) use ($ultimos) {
+                    $ultimoRegistro = $ultimos->get((string) $telarId);
 
                     if ($ultimoRegistro) {
                         return [
@@ -849,13 +906,8 @@ class CortesEficienciaController extends Controller
                 'telares' => $telares,
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Error al obtener datos de programa tejido: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener datos de programa tejido: '.$e->getMessage(),
-            ], 500);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Error al obtener datos de programa tejido', 'Error al obtener datos de programa tejido');
         }
     }
 
@@ -935,13 +987,10 @@ class CortesEficienciaController extends Controller
                 'data' => $datos,
             ]);
 
-        } catch (\Exception $e) {
-            Log::error('Error al guardar hora en TejEficiencia: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al guardar hora: '.$e->getMessage(),
-            ], 500);
+        } catch (ValidationException $e) {
+            return $this->errorDeValidacion($e);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Error al guardar hora en TejEficiencia', 'Error al guardar la hora');
         }
     }
 
@@ -968,11 +1017,11 @@ class CortesEficienciaController extends Controller
                 'coberturaT4PorTurno' => $info['coberturaT4PorTurno'] ?? [],
                 'maxTurno' => $corteBase->Turno,
             ]);
-        } catch (\Exception $e) {
-            Log::error('Error al visualizar cortes de eficiencia: '.$e->getMessage());
+        } catch (\Throwable $e) {
+            report($e);
 
             return redirect()->route('cortes.eficiencia.consultar')
-                ->with('error', 'Error al visualizar: '.$e->getMessage());
+                ->with('error', 'Error al visualizar el corte (ref: '.$this->traceIdDeError($e).')');
         }
     }
 
@@ -1021,11 +1070,7 @@ class CortesEficienciaController extends Controller
 
             return Excel::download(new CortesEficienciaExport($info, $fechaNorm), $filename);
         } catch (\Throwable $th) {
-            Log::error('Error al exportar Excel de cortes de eficiencia', [
-                'mensaje' => $th->getMessage(),
-            ]);
-
-            return response()->json(['error' => 'Error al exportar: '.$th->getMessage()], 500);
+            return $this->errorConClaveError($th, 'Error al exportar Excel de cortes de eficiencia', 'Error al exportar');
         }
     }
 
@@ -1078,12 +1123,16 @@ class CortesEficienciaController extends Controller
                 ->header('Content-Type', 'application/pdf')
                 ->header('Content-Disposition', 'attachment; filename="'.$filename.'"');
         } catch (\Throwable $th) {
-            Log::error('Error al generar PDF de cortes de eficiencia', [
-                'mensaje' => $th->getMessage(),
-            ]);
-
-            return response()->json(['error' => 'Error al generar PDF: '.$th->getMessage()], 500);
+            return $this->errorConClaveError($th, 'Error al generar PDF de cortes de eficiencia', 'Error al generar PDF');
         }
+    }
+
+    /** apiErrorResponse + la clave `error` que estos dos endpoints mandaban desde antes. */
+    private function errorConClaveError(\Throwable $e, string $log, string $mensaje): JsonResponse
+    {
+        $respuesta = $this->apiErrorResponse($e, $log, $mensaje);
+
+        return $respuesta->setData($respuesta->getData(true) + ['error' => $mensaje]);
     }
 
     private function obtenerDatosVisualizacionPorFecha($fecha, $maxTurno = null)
@@ -1299,15 +1348,7 @@ class CortesEficienciaController extends Controller
                 'destinatarios' => $resultado['total'],
             ], $enviado ? 200 : 500);
         } catch (\Throwable $th) {
-            Log::error('Error al notificar por Telegram cortes de eficiencia', [
-                'mensaje' => $th->getMessage(),
-                'trace' => $th->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al enviar por Telegram: '.$th->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($th, 'Error al notificar por Telegram cortes de eficiencia', 'Error al enviar por Telegram');
         }
     }
 
@@ -1345,16 +1386,10 @@ class CortesEficienciaController extends Controller
                 'enviados' => $resultado['enviados'],
                 'destinatarios' => $resultado['total'],
             ], $enviado ? 200 : 500);
+        } catch (ValidationException $e) {
+            return $this->errorDeValidacion($e);
         } catch (\Throwable $th) {
-            Log::error('Error al notificar imagen por Telegram cortes de eficiencia', [
-                'mensaje' => $th->getMessage(),
-                'trace' => $th->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al enviar imagen por Telegram: '.$th->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($th, 'Error al notificar imagen por Telegram cortes de eficiencia', 'Error al enviar la imagen por Telegram');
         }
     }
 
