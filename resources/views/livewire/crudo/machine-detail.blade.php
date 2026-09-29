@@ -300,13 +300,15 @@
                     <div class="crudo-production-detail-grid">
                         <section class="crudo-detail-panel crudo-orders-panel">
                             <div class="crudo-detail-panel-heading">
-                                <div>
+                                <div class="crudo-orders-heading-title">
                                     <h3>Órdenes y turnos</h3>
                                     @php $pesoCrudoPrograma = $selectedMachine['programa']['pesoCrudo'] ?? null; @endphp
                                     @if ($pesoCrudoPrograma)
-                                        <small title="PesoCrudo del programa de tejido en proceso (ReqProgramaTejido)">
-                                            P. crudo programa: {{ number_format((float) $pesoCrudoPrograma) }} g/pz
-                                        </small>
+                                        <p class="crudo-peso-programa" title="PesoCrudo del programa de tejido en proceso (ReqProgramaTejido)">
+                                            P. crudo programa
+                                            <strong>{{ number_format((float) $pesoCrudoPrograma) }}</strong>
+                                            <span>g/pz</span>
+                                        </p>
                                     @endif
                                 </div>
                                 <span>{{ $selectedMachine['captureCount'] }}</span>
@@ -328,11 +330,11 @@
                                     <thead>
                                         <tr>
                                             <th>Fecha</th>
-                                            <th>No. Rollo</th>
+                                            <th>Rollo</th>
                                             <th>Orden</th>
                                             <th>Pzas</th>
                                             <th>Kg</th>
-                                            <th title="Peso crudo real en g/pz: kg de la captura entre sus piezas">Crudo</th>
+                                            <th title="Peso crudo real en g/pz: kg de la captura entre sus piezas">P. crudo</th>
                                             <th>2das</th>
                                             <th title="Lote del proveedor, ligado por la orden de urdido">Lote</th>
                                             <th title="Turnos con piezas en esta captura (PIEZAST1–PIEZAST4)">Turno</th>

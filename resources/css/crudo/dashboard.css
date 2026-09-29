@@ -236,11 +236,42 @@ body:has([data-crudo-root]) main.app-main {
     color: #0f172a;
 }
 
-.crudo-orders-panel .crudo-detail-panel-heading small {
-    display: block;
-    color: #64748b;
-    font-size: 0.68rem;
-    font-weight: 700;
+.crudo-orders-heading-title {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
+    flex-wrap: nowrap;
+}
+
+.crudo-orders-panel .crudo-orders-heading-title h3 {
+    margin: 0;
+    flex: 0 0 auto;
+}
+
+.crudo-orders-panel .crudo-peso-programa {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.crudo-orders-panel .crudo-peso-programa strong {
+    color: #075985;
+    font-size: 1.55rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+}
+
+.crudo-orders-panel .crudo-peso-programa span {
+    color: #475569;
+    font-size: 0.95rem;
+    font-weight: 800;
 }
 
 /* En pantallas chicas el contenido scrollea dentro del panel/modal: el título
@@ -2728,11 +2759,14 @@ button.crudo-status-card:disabled {
     padding-right: 0.35rem;
     padding-left: 0.35rem;
     font-size: 0.92rem;
+    font-variant-numeric: tabular-nums;
     text-overflow: ellipsis;
 }
 
 .crudo-orders-table th {
     font-size: 0.76rem;
+    letter-spacing: 0;
+    text-transform: none;
 }
 
 .crudo-orders-table th:nth-child(n + 4):nth-child(-n + 7),
@@ -2776,6 +2810,11 @@ button.crudo-status-card:disabled {
     text-align: center;
 }
 
+.crudo-defect-table th {
+    letter-spacing: 0;
+    text-transform: none;
+}
+
 .crudo-defect-table th:first-child,
 .crudo-defect-table td:first-child {
     width: 40%;
@@ -2791,18 +2830,26 @@ button.crudo-status-card:disabled {
     width: 15%;
 }
 
+.crudo-defect-table td:not(:first-child) {
+    color: #0f172a;
+    font-size: 1.05rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
 .crudo-defect-table thead tr {
     height: 2.9rem;
 }
 
 .crudo-defect-table th:not(:first-child) {
     font-size: 0.72rem;
-    line-height: 1.15;
+    line-height: 1.1;
     white-space: normal;
 }
 
 .crudo-defect-turn-share {
     display: block;
+    font-size: 0.68rem;
     font-weight: 700;
     color: #64748b;
 }
@@ -4417,6 +4464,10 @@ button.crudo-status-card:disabled {
         width: 16%;
     }
 
+    .crudo-defect-table td:not(:first-child) {
+        font-size: 0.95rem;
+    }
+
     .crudo-defect-table th:not(:first-child) {
         font-size: 0.62rem;
     }
@@ -4674,6 +4725,18 @@ button.crudo-status-card:disabled {
 
     .crudo-modal-overview > .crudo-modal-kpi:last-child {
         padding-right: 0.65rem;
+    }
+
+    .crudo-orders-heading-title {
+        gap: 0.45rem;
+    }
+
+    .crudo-orders-panel .crudo-peso-programa {
+        font-size: 0.82rem;
+    }
+
+    .crudo-orders-panel .crudo-peso-programa strong {
+        font-size: 1.15rem;
     }
 }
 

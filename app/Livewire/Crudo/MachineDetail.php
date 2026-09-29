@@ -100,7 +100,7 @@ class MachineDetail extends Component
             'PasadasComb4' => 'Cenefa 4', 'AnchoToalla' => 'Medida cenefa',
         ],
         'Producción' => [
-            'TotalPedido' => 'Solicitado', 'Produccion' => 'Acumulado', 'SaldoPedido' => 'Diferencia',
+            'TotalPedido' => 'Pedido', 'Produccion' => 'Producción', 'SaldoPedido' => 'Saldo',
             'DiasEficiencia' => 'Días de prod.', 'ProdKgDia' => 'Prom. por día', 'DiasPorEjecutar' => 'Días por ejecutar',
         ],
     ];
