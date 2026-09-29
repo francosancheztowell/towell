@@ -15,3 +15,17 @@ Pedidos de cambios en archivos que no son de la sesión que los detecta. Cada fi
 | U7 | 19-05 | `ProgramarUrdidoController::reimpresionVentanaImprimir` | Sin `orden_id` responde 400 con un `<script>alert(…)</script>` inline | Receta §4 |
 | U8 | FE / 17-02 | `resources/js/charts.js` | Su comentario dice "4 vistas": las de Urdido/Engomado ya no lo cargan (Chart.js va en sus bundles); lo siguen usando `tejido/reportes/rpm-semanal` y `atadores/reportes/km` | Comentario desactualizado |
 | U9 | 20 / owner | `app/Helpers/FolioHelper.php` | `obtenerSiguienteFolio` consulta `INFORMATION_SCHEMA.COLUMNS`: el arnés sqlite no puede crear BPM nuevos. Opcional: capacidad por driver | Solo afecta pruebas locales |
+
+## De 19-02 (Tejido)
+
+| # | Para | Archivo | Cambio | Por qué |
+|---|---|---|---|---|
+| T1 | DS / 16 | `resources/views/components/buttons/inventory-sequence-actions.blade.php` | Borrarlo | Solo lo usaban las 4 secuencias de Tejido; la vista común `tejido/secuencia/comun.blade.php` pone sus botones con `data-accion` (el componente emitía `onclick`) |
+| T2 | FE | `resources/js/modulos/tejido/comun/pagina.ts` y `resources/js/modulos/urdido/comun/pagina.ts` | Unificar en `resources/js/utils/` (`leerDatos`, `mensajeError`, `ErrorApi`, `exigirExito`) | Dos copias casi iguales en dos módulos |
+| T3 | 19-04 / DS | `resources/views/components/telares/telar-requerimiento.blade.php` | 11 `onclick` → `data-accion`; luego quitar los puentes `// PUENTE 19-02` de `resources/js/tejido/inventario-telas.ts` (`abrirModalSeleccion`, `confirmarSeleccion`, `mostrarCalendarioParaActualizar`, `loadRequerimientos`…). Tiene ~24 `innerHTML` | 19-02 solo podía tocar su texto < 12 px |
+| T4 | FE (Ola 4) | `vite.config.js` | Si `resources/js/tejido/inventario-telas.ts` pasa a `modulos/`, quitar su entrada fija | Vite congelado en Ola 3 |
+| T5 | 17-02 | `resources/css/tejido/inventario-telas.css` | `--inv-text-xs`: mínimo `0.75rem` (hoy `clamp(0.65rem…)` ≈ 10 px) | UX-07 |
+| T6 | 17-02 | navbar (`components/navbar/navbar.blade.php`) | Igual que U5: a 768 px el `<h1>` "Cortes de Eficiencia" / "Producción Reenconado Cabezuela" se parte en 3 líneas y tapa "Crear"/"Filtros" | Tablet |
+| T7 | owner | `routes/modules/tejido.php` | `finalizar`/`reabrir` de marcas (`modificar,177`), `finalizar` de cortes (`modificar,105`) y `DELETE produccion-reenconado/{folio}` (`eliminar,27`) están en **enforce** (sin `,auditar`), a diferencia de sus hermanas. 19-02 no los cambió (regla: nunca enforce nuevo, pero tampoco quitarlo sin decisión) | Consistencia AuthZ antes de SEC-06 |
+| T8 | 20 | `.planning/phases/20-arq-sec/20-03-MAPA-AUTHZ.md` | Hueco `PUT modulo-cortes-de-eficiencia/{id}`: ya responde 410 (sigue en auditar). Hueco `POST produccion/reenconado-cabezuela`: misma acción y validación que la ruta nueva (test en `ReenconadoTest`) | Cerrar filas del mapa |
+| T9 | 19-01 / arnés | `.planning/phases/19-modulos/19-01-arnes/boot.php` (y el de 19-02) | Adjuntar un `INFORMATION_SCHEMA` con `COLUMNS` para que `nextFolio()` funcione (igual que U9) | Alta de reenconado da 500 solo en el arnés |
