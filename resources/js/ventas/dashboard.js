@@ -15,11 +15,10 @@ const FILTERS = [
     { key: 'tamano', label: 'Tamaño', multi: true },
     { key: 'articulo', label: 'Artículo', multi: true },
 ];
-/** Grupos de columnas que se pueden ocultar desde el menú "Columnas". */
-const COLUMN_GROUPS = [['plan', 'Plan'], ['pedido', 'Pedido'], ['real', 'Real'], ['delta', 'Δ (diferencia)'], ['cumplimiento', 'Cumplimiento y estatus']];
-const allColumns = () => new Set(COLUMN_GROUPS.map(([key]) => key));
+/** El menú "Columnas" oculta medidas (Piezas, Kg, V.B., Desc., V.N.) en todas las series a la vez. */
+const allColumns = () => new Set(METRICS.map(([key]) => key));
 
-const DESGLOSES = [['', '(ninguno)'], ['empresa', 'Empresa'], ['tipo', 'Tipo de pedido'], ['cliente', 'Cliente'], ['articulo', 'Artículo']];
+const DESGLOSES = [['empresa', 'Empresa'], ['tipo', 'Tipo de pedido'], ['cliente', 'Cliente'], ['articulo', 'Artículo']];
 
 const DETAIL_LEVELS = [
     ['empresa'], ['tipo'], [(item) => `${item.clienteCodigo} ${item.cliente}`],
@@ -49,7 +48,8 @@ const compareGroup = (key) => {
 
 const emptyFilters = () => Object.fromEntries(FILTERS.map(({ key, multi }) => [key, multi ? new Set() : '']));
 
-const METRICS = [['piezas', 'Piezas'], ['kilos', 'Kilos'], ['vn', 'V.N.']];
+/** Medidas de cada serie (vb/desc/vn vienen del payload: AMOUNT, AMOUNTDES, AMOUNTNETO). */
+const METRICS = [['piezas', 'Piezas'], ['kilos', 'Kg'], ['vb', 'V.B.'], ['desc', 'Desc.'], ['vn', 'V.N.']];
 const SERIES = {
     plan: { label: 'Plan', className: 'plan' },
     pedido: { label: 'Pedido', className: 'pedido' },
@@ -96,11 +96,9 @@ const decodeCompactRow = (row, dict, sf, nf) => {
 
 const DIMENSION_FIELDS = ['empresa', 'tipo', 'cve', 'nombreCte', 'artCode', 'artName', 'config', 'tamano', 'colorCode', 'colorName', 'anio', 'mes', 'semana'];
 const dimensionKey = (row) => DIMENSION_FIELDS.map((field) => row[field]).join('␟');
-const emptyMetrics = () => ({ piezas: 0, kilos: 0, vn: 0 });
+const emptyMetrics = () => Object.fromEntries(METRICS.map(([metric]) => [metric, 0]));
 const addMetrics = (target, row) => {
-    target.piezas += row.piezas || 0;
-    target.kilos += row.kilos || 0;
-    target.vn += row.vn || 0;
+    METRICS.forEach(([metric]) => { target[metric] += row[metric] || 0; });
 };
 
 /** OC trae status por línea; al combinar varias líneas en un mismo combo, gana el peor estatus. */
@@ -245,7 +243,7 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
     const state = {
         comparison: 'plan-pedido', grouping: 'origin',
         filters: defaultFilters(),
-        desglose: '',
+        desglose: 'empresa',
         expanded: { summary: new Set(), analisis: new Set() },
         columns: { summary: allColumns(), analisis: allColumns() },
     };
@@ -278,10 +276,8 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
 
     const filteredRecords = () => records.filter((record) => FILTERS.every((filter) => matchesFilter(record, filter)));
 
-    /** Nivel de detalle bajo cada mes: el elegido en Desglose o, sin él, Empresa › Tipo › Cliente › Artículo. */
-    const detailLevels = () => (state.desglose
-        ? [[(item) => String(filterValue(item, state.desglose)), undefined, state.desglose]]
-        : DETAIL_LEVELS);
+    /** Nivel de detalle bajo cada mes: el elegido en Desglose (siempre hay uno; Empresa por defecto). */
+    const detailLevels = () => [[(item) => String(filterValue(item, state.desglose)), undefined, state.desglose]];
 
     /** label = encabezado de la primera columna · expandDepth = niveles que abre "Expandir todo". */
     const TABLES = {
@@ -346,49 +342,41 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
             totals[series][metric] = items.reduce((total, item) => total + Number(item[series][metric] || 0), 0);
         });
         return totals;
-    }, {
-        plan: { piezas: 0, kilos: 0, vn: 0 },
-        pedido: { piezas: 0, kilos: 0, vn: 0 },
-        real: { piezas: 0, kilos: 0, vn: 0 },
-    });
+    }, { plan: emptyMetrics(), pedido: emptyMetrics(), real: emptyMetrics() });
 
     const comparisonSeries = () => state.comparison.split('-');
-    const isVisible = (panel, group) => state.columns[panel].has(group);
-    const visibleColumnCount = (panel) => 1 + ['plan', 'pedido', 'real', 'delta'].filter((group) => isVisible(panel, group)).length * METRICS.length
-        + (isVisible(panel, 'cumplimiento') ? 2 : 0);
+    /** Medidas visibles del panel, en el orden de METRICS. */
+    const visibleMetrics = (panel) => METRICS.filter(([metric]) => state.columns[panel].has(metric));
+    /** Etiqueta + (Plan, Pedido, Real, Δ) × medidas visibles + Cumpl. y Estatus. */
+    const visibleColumnCount = (panel) => 1 + 4 * visibleMetrics(panel).length + 2;
 
     const numberCells = (totals, panel) => {
         const { dashZero } = TABLES[panel];
+        const metrics = visibleMetrics(panel);
         const [left, right] = comparisonSeries();
         const percentage = totals[left].piezas ? (totals[right].piezas / totals[left].piezas) * 100 : 0;
-        const seriesCells = Object.keys(SERIES).filter((series) => isVisible(panel, series)).map((series) => METRICS.map(([metric]) => {
+        const seriesCells = Object.keys(SERIES).map((series) => metrics.map(([metric]) => {
             const value = totals[series][metric];
             return `<td class="pvoc-number pvoc-${series}">${dashZero && !value ? '–' : formatNumber(value)}</td>`;
         }).join('')).join('');
-        const deltaCells = isVisible(panel, 'delta')
-            ? METRICS.map(([metric]) => totals[right][metric] - totals[left][metric]).map((value) =>
-                `<td class="pvoc-number pvoc-delta ${value < 0 ? 'is-negative' : 'is-positive'}">${value > 0 ? '+' : ''}${formatNumber(value)}</td>`).join('')
-            : '';
+        const deltaCells = metrics.map(([metric]) => totals[right][metric] - totals[left][metric]).map((value) =>
+            `<td class="pvoc-number pvoc-delta ${value < 0 ? 'is-negative' : 'is-positive'}">${value > 0 ? '+' : ''}${formatNumber(value)}</td>`).join('');
         const status = percentage >= 100 ? ['En meta', 'is-success'] : percentage >= 85 ? ['Parcial', 'is-warning'] : ['Bajo', 'is-danger'];
-        const complianceCells = isVisible(panel, 'cumplimiento')
-            ? `<td class="pvoc-number">${percentage.toFixed(1)}%</td><td><span class="pvoc-status ${status[1]}">${status[0]}</span></td>`
-            : '';
+        const complianceCells = `<td class="pvoc-number">${percentage.toFixed(1)}%</td><td><span class="pvoc-status ${status[1]}">${status[0]}</span></td>`;
         return `${seriesCells}${deltaCells}${complianceCells}`;
     };
 
     const tableHeader = (panel) => {
-        const series = Object.entries(SERIES).filter(([key]) => isVisible(panel, key));
-        const delta = isVisible(panel, 'delta');
-        const compliance = isVisible(panel, 'cumplimiento');
+        const metrics = visibleMetrics(panel);
+        const metricHeaders = (className) => metrics.map(([, label]) => `<th class="pvoc-${className}">${label}</th>`).join('');
         return `<table class="pvoc-table"><thead>
             <tr class="pvoc-table-groups">
                 <th rowspan="2" class="pvoc-label">${TABLES[panel].label}</th>
-                ${series.map(([, { label, className }]) => `<th colspan="3" class="pvoc-${className}">${label}</th>`).join('')}
-                ${delta ? `<th colspan="3" class="pvoc-delta">Δ ${comparisonSeries().map((key) => SERIES[key].label).join(' − ')}</th>` : ''}
-                ${compliance ? '<th rowspan="2">Cumpl.</th><th rowspan="2">Estatus</th>' : ''}
+                ${Object.values(SERIES).map(({ label, className }) => `<th colspan="${metrics.length}" class="pvoc-${className}">${label}</th>`).join('')}
+                <th colspan="${metrics.length}" class="pvoc-delta">Δ ${comparisonSeries().map((key) => SERIES[key].label).join(' − ')}</th>
+                <th rowspan="2">Cumpl.</th><th rowspan="2">Estatus</th>
             </tr>
-            <tr>${series.map(([key]) => METRICS.map(([, label]) => `<th class="pvoc-${key}">${label}</th>`).join('')).join('')}
-                ${delta ? METRICS.map(([, label]) => `<th class="pvoc-delta">${label}</th>`).join('') : ''}</tr>
+            <tr>${Object.keys(SERIES).map(metricHeaders).join('')}${metricHeaders('delta')}</tr>
         </thead><tbody>`;
     };
 
@@ -506,12 +494,18 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
             menu.hidden = !open;
             toggle.setAttribute('aria-expanded', String(open));
         };
-        menu.innerHTML = COLUMN_GROUPS.map(([key, label]) => `<label class="pvoc-multi-option">
-            <input type="checkbox" value="${key}" ${isVisible(panel, key) ? 'checked' : ''}><span>${escapeHtml(label)}</span>
+        menu.innerHTML = METRICS.map(([key, label]) => `<label class="pvoc-multi-option">
+            <input type="checkbox" value="${key}" ${state.columns[panel].has(key) ? 'checked' : ''}><span>${escapeHtml(label)}</span>
         </label>`).join('');
         toggle.addEventListener('click', () => setOpen(menu.hidden));
         menu.addEventListener('change', (event) => {
-            event.target.checked ? state.columns[panel].add(event.target.value) : state.columns[panel].delete(event.target.value);
+            const visible = state.columns[panel];
+            // Siempre queda al menos una medida: sin ninguna, la tabla no tendría columnas numéricas.
+            if (!event.target.checked && visible.size === 1) {
+                event.target.checked = true;
+                return;
+            }
+            event.target.checked ? visible.add(event.target.value) : visible.delete(event.target.value);
             renderTable(panel);
         });
         document.addEventListener('mousedown', (event) => { if (!wrapper.contains(event.target)) setOpen(false); });
