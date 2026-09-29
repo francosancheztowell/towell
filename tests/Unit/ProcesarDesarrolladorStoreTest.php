@@ -834,6 +834,75 @@ class ProcesarDesarrolladorStoreTest extends TestCase
         }
     }
 
+    // ── Modelo compartido: lo que se vio en ProdTowel (29-sep-2026) ─────────
+
+    public function test_karl_mayer_sin_modelo_en_su_salon_guarda_cat_y_programa_pero_no_crea_el_modelo(): void
+    {
+        // 402 / orden 36974 en produccion: existe en Cat y en el programa, no en el modelo.
+        $programa = $this->programa(['NoTelarId' => '402', 'SalonTejidoId' => 'KARL MAYER', 'TamanoClave' => 'ALB7499']);
+        $cat = $this->cat(['TelarId' => 402, 'Departamento' => 'KARL MAYER', 'ClaveModelo' => 'ALB7499']);
+
+        $this->guardarBien($this->captura([
+            'NoTelarId' => '402', 'NumeroJulioRizo' => '', 'AlturaRizo' => null,
+            'pasadas' => ['PasadasBarra1' => 12], 'detalle_cuenta' => ['26'], 'detalle_calibre' => ['300'], 'detalle_hilo' => [''],
+            'detalle_fibra' => ['NYLON'], 'detalle_codcolor' => ['A01'], 'detalle_nombrecolor' => ['AZUL'],
+        ]));
+
+        $this->assertCampos(['PasadasBarra1' => 12, 'CalibreBarra1' => '300'], $this->fila('CatCodificados', $cat), 'Cat');
+        $this->assertCampos(['PasadasBarra1' => 12, 'CalibreBarra1' => '300'], $this->fila('ReqProgramaTejido', $programa), 'Programa');
+        $this->assertSame(0, DB::connection('sqlsrv')->table('ReqModelosCodificados')->count(), 'El modelo no se crea: queda sin actualizar, sin aviso.');
+    }
+
+    public function test_dos_telares_con_el_mismo_modelo_comparten_una_fila_y_gana_el_ultimo(): void
+    {
+        $this->programa();
+        $this->programa(['NoProduccion' => '36858', 'NoTelarId' => '310']);
+        $this->cat();
+        $this->cat(['OrdenTejido' => '36858', 'TelarId' => 310]);
+        $modelo = $this->modelo();
+
+        $this->guardarBien($this->captura());
+        $this->guardarBien($this->captura([
+            'NoTelarId' => '310', 'NoProduccion' => '36858', 'CodificacionModelo' => 'MBOTRODIB0001',
+            'pasadas' => ['PasadasTrama' => 1600, 'PasadasComb1' => 700],
+        ]));
+
+        // Una sola fila por clave y salon: la captura del 309 ya no esta en el modelo.
+        $this->assertCampos(
+            ['NoTelarId' => '310', 'OrdenTejido' => '36858', 'CodigoDibujo' => 'MBOTRODIB0001', 'PasadasTramaFondoC1' => '1600'],
+            $this->fila('ReqModelosCodificados', $modelo),
+            'Modelo'
+        );
+    }
+
+    public function test_con_filas_duplicadas_del_modelo_solo_se_actualiza_una(): void
+    {
+        // 11 claves con dos filas en produccion (p. ej. MBRAQUEL/JACQUARD, TAPETE7474/JACQUARD).
+        $this->programa();
+        $this->cat();
+        $a = $this->modelo();
+        $b = $this->modelo();
+
+        $this->guardarBien($this->captura());
+
+        $filaA = $this->fila('ReqModelosCodificados', $a);
+        $filaB = $this->fila('ReqModelosCodificados', $b);
+        $actualizadas = (int) ($filaA['CodigoDibujo'] === 'MBAUSTCO32N060E7') + (int) ($filaB['CodigoDibujo'] === 'MBAUSTCO32N060E7');
+        $this->assertSame(2, $actualizadas, 'Las dos filas del modelo deben quedar con lo capturado; hoy solo se toca la primera.');
+    }
+
+    public function test_un_calibre_de_mas_de_20_caracteres_no_cabe_en_el_modelo_y_cancela_todo(): void
+    {
+        // CalibreComb1 es nvarchar(20) en ReqModelosCodificados pero la validacion deja 50.
+        $this->sembrar();
+        $antes = $this->volcado();
+
+        $respuesta = $this->guardar($this->captura(['detalle_calibre' => ['12.1', 'ABCDEFGHIJKLMNOPQRSTUVWXY']]));
+
+        $this->assertFalse($respuesta['success'], 'Un calibre de 25 caracteres debe rechazarse antes de tocar nada.');
+        $this->assertSame($antes, $this->volcado());
+    }
+
     // ── Todo o nada ─────────────────────────────────────────────────────────
 
     public function test_una_captura_invalida_no_toca_ninguna_tabla(): void

@@ -71,7 +71,9 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSee('Órdenes y turnos')
             ->assertSee('meta a esta hora')
             ->assertSee('Fecha')
-            ->assertSee('No. Rollo')
+            ->assertSee('Rollo')
+            ->assertDontSee('No. Rollo')
+            ->assertSee('P. crudo')
             ->assertSee('Orden')
             ->assertDontSee('Orden tejido')
             ->assertSee('PB-1001')
@@ -382,7 +384,19 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSee('Ver alineación');
     }
 
-    public function test_ver_alineacion_muestra_el_renglon_del_telar_por_secciones(): void
+    /** El HTML ya renderizado, no el JSON de Livewire: ahi las tildes y las barras viajan escapadas. */
+    private function assertEtiquetasEnOrden(string $html, array $etiquetas): void
+    {
+        $desde = 0;
+        foreach ($etiquetas as $etiqueta) {
+            // Celdas (<dt>) y, en Karl Mayer, el titulo del bloque de barras (<h5>).
+            $encontrado = preg_match('#<(dt|h5)>'.preg_quote($etiqueta, '#').'</(?:dt|h5)>#', $html, $m, PREG_OFFSET_CAPTURE, $desde);
+            $this->assertSame(1, $encontrado, "Falta '{$etiqueta}' o esta fuera de orden.");
+            $desde = $m[0][1] + 1;
+        }
+    }
+
+    public function test_ver_alineacion_muestra_el_renglon_del_telar_en_el_orden_de_la_tabla(): void
     {
         $this->fakeAlineacion([
             ['NoTelarId' => '200', 'NoProduccion' => '11111', 'NombreProducto' => 'OTRO TELAR'],
@@ -396,8 +410,15 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSet('alineacionAbierta', true)
             ->assertSee('crudo-alineacion-dialog', false)
             ->assertSee('Alineación · JAC 201')
-            // assertSeeInOrder revisa el JSON crudo de Livewire, donde la "ó" viaja escapada.
-            ->assertSeeInOrder(['crudo-alineacion-resumen', '<h5>Crudo', '<h5>Peso y muestra', '<h5>Rizo y plano', '<h5>Hilos', '<h5>Cenefa trama', '<h5>Producci', '<h5>Observaciones'], false)
+            // Las mismas columnas y etiquetas de Planeación > Alineación, sin agrupar.
+            ->tap(fn ($t) => $this->assertEtiquetasEnOrden($t->html(), [
+                'Telar', 'No. Orden', 'Fecha de cambio', 'Fecha compromiso', 'Clave AX', 'Modelo', 'Tolerancia', 'Razurada S/N',
+                'Tipo Rizo', 'Altura Rizo', 'Crudo Ancho', 'Crudo Largo', 'Crudo Peso', 'Luchaje', 'Tipo Plano', 'Medida Plano', 'Tiras',
+                'Hilo Rizo', 'Hilo Pie', 'Hilo Trama', 'Cenefa 1', 'Cenefa 4', 'Medida Cenefa', 'Peso Muestra', 'Peso Mínimo', 'Peso Máximo',
+                'Muestra Mínima', 'Muestra Máxima', 'Cantidad Solicitada', 'Producción Acum. Mes Anterior', 'Producción Acum. Mes', 'Producción Acum.',
+                'Diferencia', 'Días de producción', 'Producción Promedio x Día', 'Días por Ejecutar', 'Observaciones',
+            ]))
+            ->assertDontSee('<h5>', false)
             ->assertSee('TOALLA JACQUARD')
             ->assertSee('12/ALG')
             ->assertSee('Revisar cenefa')
@@ -422,14 +443,14 @@ final class CrudoMachineDetailTest extends TestCase
         Livewire::test(TestableCrudoMachineDetail::class)
             ->dispatch('open-crudo-detail', telar: '401', machine: $machine)
             ->call('verAlineacion')
-            ->assertSeeInOrder(['<h5>Crudo', '<h5>Peso y muestra', '<h5>Plano', '<h5>Barras', '<h5>Producci'], false)
+            ->tap(fn ($t) => $this->assertEtiquetasEnOrden($t->html(), ['Crudo Ancho', 'Tiras', 'Barras', 'Peso Muestra', 'Cantidad Solicitada']))
             ->assertSee('167/1')
             ->assertSee('0001 BLANCO')
             ->assertSee('DOB-KM')
-            ->assertDontSee('<h5>Hilos', false)
-            ->assertDontSee('<h5>Cenefa trama', false)
-            ->assertDontSee('<h5>Rizo y plano', false)
-            ->assertDontSee('Altura rizo');
+            ->tap(fn ($t) => $this->assertStringNotContainsString('<dt>Hilo Rizo</dt>', $t->html()))
+            ->tap(fn ($t) => $this->assertStringNotContainsString('<dt>Cenefa 1</dt>', $t->html()))
+            ->tap(fn ($t) => $this->assertStringNotContainsString('<dt>Tipo Rizo</dt>', $t->html()))
+            ->tap(fn ($t) => $this->assertStringNotContainsString('<dt>Altura Rizo</dt>', $t->html()));
     }
 
     public function test_karl_mayer_sin_barras_capturadas_lo_dice(): void
@@ -450,9 +471,10 @@ final class CrudoMachineDetailTest extends TestCase
         Livewire::test(TestableCrudoMachineDetail::class)
             ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
             ->call('verAlineacion')
-            ->assertSee('<h5>Hilos', false)
-            ->assertSee('<h5>Cenefa trama', false)
-            ->assertDontSee('<h5>Barras', false);
+            ->tap(fn ($t) => $this->assertStringContainsString('<dt>Hilo Rizo</dt>', $t->html()))
+            ->tap(fn ($t) => $this->assertStringContainsString('<dt>Cenefa 1</dt>', $t->html()))
+            ->tap(fn ($t) => $this->assertStringNotContainsString('<h5>Barras</h5>', $t->html()))
+            ->assertSee('Sin obs.');
     }
 
     public function test_con_dos_ordenes_en_el_telar_gana_la_del_programa(): void

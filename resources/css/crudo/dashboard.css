@@ -236,11 +236,42 @@ body:has([data-crudo-root]) main.app-main {
     color: #0f172a;
 }
 
-.crudo-orders-panel .crudo-detail-panel-heading small {
-    display: block;
-    color: #64748b;
-    font-size: 0.68rem;
-    font-weight: 700;
+.crudo-orders-heading-title {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
+    flex-wrap: nowrap;
+}
+
+.crudo-orders-panel .crudo-orders-heading-title h3 {
+    margin: 0;
+    flex: 0 0 auto;
+}
+
+.crudo-orders-panel .crudo-peso-programa {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    margin: 0;
+    color: #0f172a;
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.crudo-orders-panel .crudo-peso-programa strong {
+    color: #075985;
+    font-size: 1.55rem;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+}
+
+.crudo-orders-panel .crudo-peso-programa span {
+    color: #475569;
+    font-size: 0.95rem;
+    font-weight: 800;
 }
 
 /* En pantallas chicas el contenido scrollea dentro del panel/modal: el título
@@ -2728,11 +2759,14 @@ button.crudo-status-card:disabled {
     padding-right: 0.35rem;
     padding-left: 0.35rem;
     font-size: 0.92rem;
+    font-variant-numeric: tabular-nums;
     text-overflow: ellipsis;
 }
 
 .crudo-orders-table th {
     font-size: 0.76rem;
+    letter-spacing: 0;
+    text-transform: none;
 }
 
 .crudo-orders-table th:nth-child(n + 4):nth-child(-n + 7),
@@ -2776,6 +2810,11 @@ button.crudo-status-card:disabled {
     text-align: center;
 }
 
+.crudo-defect-table th {
+    letter-spacing: 0;
+    text-transform: none;
+}
+
 .crudo-defect-table th:first-child,
 .crudo-defect-table td:first-child {
     width: 40%;
@@ -2791,18 +2830,26 @@ button.crudo-status-card:disabled {
     width: 15%;
 }
 
+.crudo-defect-table td:not(:first-child) {
+    color: #0f172a;
+    font-size: 1.05rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
 .crudo-defect-table thead tr {
     height: 2.9rem;
 }
 
 .crudo-defect-table th:not(:first-child) {
     font-size: 0.72rem;
-    line-height: 1.15;
+    line-height: 1.1;
     white-space: normal;
 }
 
 .crudo-defect-turn-share {
     display: block;
+    font-size: 0.68rem;
     font-weight: 700;
     color: #64748b;
 }
@@ -3412,10 +3459,8 @@ button.crudo-status-card:disabled {
 
 .crudo-alineacion-dialog dt {
     color: #64748b;
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     font-weight: 800;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
 }
 
 .crudo-alineacion-dialog dd {
@@ -3431,64 +3476,77 @@ button.crudo-status-card:disabled {
     color: #cbd5e1;
 }
 
-/* Franja de identificación: modelo grande y los datos de la orden en una sola línea. */
-.crudo-alineacion-resumen {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.6rem 2rem;
-    margin-top: 0.75rem;
-    border: 2px solid #bfdbfe;
-    border-radius: 0.7rem;
-    background: #eff6ff;
-    padding: 0.75rem 1rem;
-}
-
-.crudo-alineacion-modelo {
-    margin: 0;
-    color: #1e3a8a;
-    font-size: 1.35rem;
-    font-weight: 900;
-    line-height: 1.15;
-}
-
-.crudo-alineacion-resumen dl {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem 1.75rem;
-}
-
-.crudo-alineacion-grid {
+/*
+ * La fila de Planeación > Alineación: una celda por columna, en su orden, de izquierda a
+ * derecha. Las columnas son fijas por ancho (2 celular, 4 tablet, 6 PC) para poder
+ * sombrear una fila sí y otra no: con auto-fill no se sabe qué celdas comparten fila.
+ */
+.crudo-alineacion-fila {
+    --cols: 2;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.75rem;
+    grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
     margin-top: 0.75rem;
+    border-top: 2px solid #cbd5e1;
+    border-left: 2px solid #cbd5e1;
 }
 
-.crudo-alineacion-seccion {
-    border: 2px solid #cbd5e1;
-    border-radius: 0.7rem;
-    padding: 0.65rem 0.85rem 0.75rem;
+.crudo-alineacion-fila > div {
+    border-right: 2px solid #cbd5e1;
+    border-bottom: 2px solid #cbd5e1;
+    padding: 0.45rem 0.7rem;
 }
 
-.crudo-alineacion-seccion h5 {
-    margin: 0 0 0.5rem;
-    color: #1d4ed8;
-    font-size: 0.8rem;
-    font-weight: 900;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+/* Filas pares (2.ª, 4.ª...): las celdas cuyo lugar cae en la segunda mitad de cada 2 filas. */
+@media (max-width: 699px) {
+    .crudo-alineacion-fila > div:is(:nth-child(4n + 3), :nth-child(4n + 4)) {
+        background: #f1f5f9;
+    }
 }
 
-.crudo-alineacion-seccion dl {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.55rem 0.9rem;
+@media (min-width: 700px) {
+    .crudo-alineacion-fila {
+        --cols: 4;
+    }
 }
 
-/* Karl Mayer: la tabla de barras ocupa dos columnas de la rejilla. */
-.crudo-alineacion-barras {
+@media (min-width: 700px) and (max-width: 1099px) {
+    .crudo-alineacion-fila > div:is(:nth-child(8n + 5), :nth-child(8n + 6), :nth-child(8n + 7), :nth-child(8n + 8)) {
+        background: #f1f5f9;
+    }
+}
+
+@media (min-width: 1100px) {
+    .crudo-alineacion-fila {
+        --cols: 6;
+    }
+
+    .crudo-alineacion-fila > div:is(:nth-child(12n + 7), :nth-child(12n + 8), :nth-child(12n + 9), :nth-child(12n + 10), :nth-child(12n + 11), :nth-child(12n + 12)) {
+        background: #f1f5f9;
+    }
+}
+
+/* Observaciones va en la misma fila que los días, pero con espacio para el texto. */
+.crudo-alineacion-obs {
     grid-column: span 2;
+}
+
+/* Karl Mayer: las barras parten la fila y ocupan todo el ancho. */
+.crudo-alineacion-barras {
+    margin-top: 0.75rem;
+    border: 2px solid #cbd5e1;
+    padding: 0.45rem 0.7rem;
+}
+
+.crudo-alineacion-barras h5 {
+    margin: 0 0 0.25rem;
+    color: #64748b;
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+
+.crudo-alineacion-barras + .crudo-alineacion-fila {
+    margin-top: 0;
+    border-top: 0;
 }
 
 .crudo-alineacion-barras table {
@@ -3505,10 +3563,8 @@ button.crudo-status-card:disabled {
 
 .crudo-alineacion-barras thead th {
     color: #64748b;
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     font-weight: 800;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
 }
 
 .crudo-alineacion-barras tbody th,
@@ -3522,40 +3578,17 @@ button.crudo-status-card:disabled {
     border-bottom: 0;
 }
 
+.crudo-alineacion-obs dd {
+    white-space: pre-line;
+}
+
 .crudo-alineacion-dialog .is-vacio {
     color: #cbd5e1;
 }
 
-.crudo-alineacion-obs-seccion {
-    margin-top: 0.75rem;
-}
-
-.crudo-alineacion-obs {
-    margin: 0;
-    color: #0f172a;
-    font-size: 1rem;
-    font-weight: 700;
-    white-space: pre-line;
-}
-
-@media (max-width: 1100px) {
-    .crudo-alineacion-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
 @media (max-width: 640px) {
-    .crudo-alineacion-grid {
-        grid-template-columns: 1fr;
-    }
-
     .crudo-alineacion-barras {
-        grid-column: auto;
         overflow-x: auto;
-    }
-
-    .crudo-alineacion-seccion dl {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -4321,14 +4354,10 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-production-detail-grid {
-        /* Órdenes a todo el ancho (9 columnas: Fecha…Turno). Defectos y Flog
-           abajo, lado a lado: si van en 3 columnas, Lote y Turno se recortan. */
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        /* Misma fila que en escritorio: órdenes, defectos y Flog.
+           La tabla de órdenes scrollea dentro de su panel si no caben las 9 columnas. */
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.85fr) minmax(0, 0.95fr);
         gap: 0.4rem;
-    }
-
-    .crudo-orders-panel {
-        grid-column: 1 / -1;
     }
 
     /*
@@ -4415,6 +4444,10 @@ button.crudo-status-card:disabled {
     .crudo-defect-table th:not(:first-child),
     .crudo-defect-table td:not(:first-child) {
         width: 16%;
+    }
+
+    .crudo-defect-table td:not(:first-child) {
+        font-size: 0.95rem;
     }
 
     .crudo-defect-table th:not(:first-child) {
@@ -4611,10 +4644,9 @@ button.crudo-status-card:disabled {
         grid-column: 1 / -1;
     }
 
-    /* Vertical: el modal tiene alto de sobra y las 9 columnas de órdenes
-       necesitan el ancho completo. Defectos y Flog bajan debajo. */
+    /* Vertical: siguen en la misma fila. La tabla de órdenes scrollea dentro del panel. */
     .crudo-production-detail-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.85fr) minmax(0, 0.95fr);
     }
 
     .crudo-orders-table {
@@ -4674,6 +4706,18 @@ button.crudo-status-card:disabled {
 
     .crudo-modal-overview > .crudo-modal-kpi:last-child {
         padding-right: 0.65rem;
+    }
+
+    .crudo-orders-heading-title {
+        gap: 0.45rem;
+    }
+
+    .crudo-orders-panel .crudo-peso-programa {
+        font-size: 0.82rem;
+    }
+
+    .crudo-orders-panel .crudo-peso-programa strong {
+        font-size: 1.15rem;
     }
 }
 
