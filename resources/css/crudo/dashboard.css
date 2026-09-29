@@ -3459,10 +3459,8 @@ button.crudo-status-card:disabled {
 
 .crudo-alineacion-dialog dt {
     color: #64748b;
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     font-weight: 800;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
 }
 
 .crudo-alineacion-dialog dd {
@@ -3524,10 +3522,8 @@ button.crudo-status-card:disabled {
 
 .crudo-alineacion-barras thead th {
     color: #64748b;
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     font-weight: 800;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
 }
 
 .crudo-alineacion-barras tbody th,
