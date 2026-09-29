@@ -4368,14 +4368,10 @@ button.crudo-status-card:disabled {
     }
 
     .crudo-production-detail-grid {
-        /* Órdenes a todo el ancho (9 columnas: Fecha…Turno). Defectos y Flog
-           abajo, lado a lado: si van en 3 columnas, Lote y Turno se recortan. */
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        /* Misma fila que en escritorio: órdenes, defectos y Flog.
+           La tabla de órdenes scrollea dentro de su panel si no caben las 9 columnas. */
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.85fr) minmax(0, 0.95fr);
         gap: 0.4rem;
-    }
-
-    .crudo-orders-panel {
-        grid-column: 1 / -1;
     }
 
     /*
@@ -4662,10 +4658,9 @@ button.crudo-status-card:disabled {
         grid-column: 1 / -1;
     }
 
-    /* Vertical: el modal tiene alto de sobra y las 9 columnas de órdenes
-       necesitan el ancho completo. Defectos y Flog bajan debajo. */
+    /* Vertical: siguen en la misma fila. La tabla de órdenes scrollea dentro del panel. */
     .crudo-production-detail-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.85fr) minmax(0, 0.95fr);
     }
 
     .crudo-orders-table {
