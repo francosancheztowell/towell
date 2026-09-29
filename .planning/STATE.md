@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-09-25)
 
 **Core value:** Planta y planeación trabajan más rápido y sin fricción, y Sistemas ve qué pasa en producción, sin romper invariantes de dominio.
-**Current focus:** Ola 3 — primera tanda casi cerrada (17-02, 19-01 y PT 05 integradas; 19-03 espera al owner); proponer la segunda tanda. Olas 0–2 en `main`; Ola 3 solo en la rama integradora.
+**Current focus:** Ola 3 — primera tanda integrada salvo 19-03 (espera al owner); segunda tanda abierta (19-02, 19-05, 19-08, PT 03). Olas 0–2 en `main`; Ola 3 solo en la rama integradora.
 **Protocolo:** `.planning/PROTOCOLO-SESIONES.md` (propiedad de archivos, orden de merge, gates).
 
 ## Current Position
@@ -26,6 +26,13 @@ Ola 3 — primera tanda (abierta 2026-09-25; prompts y propiedad en `SESIONES-OL
 - 19-03 Atadores → `claude/19-03-atadores` · `session_015jawMebtV2XyHgiiwvQzHJ`
 - PT 05 Mutaciones → `claude/pt-05-mutaciones` · `session_01PkCzW1QDBcCLZoC6uG3dnW` — ✅ **integrada** 2026-09-29 (`5566c3de`): PT-DUP-01..04 (observer ya no se registra N veces), PT-PERF-02 (mitad PT), mutaciones v2 apagadas por flag (`PLANEACION_MUT_V2_*`), liberar Muestras sin DDL → 422, HANDOFF B1 hecho; B3 Redbooth sin dueño.
 - 19-03 sigue esperando aprobación de su plan + 2 respuestas del owner (columna `Id` en `AtaComentarios`, idrol de "Reportes Atadores"). Ojo: `main` (`7c2af4be`) ya tocó `ProgramaAtadoresListado` (whereIn); la sesión debe partir de la rama actual.
+Ola 3 — segunda tanda (abierta 2026-09-29; prompts y propiedad en `SESIONES-OLA-3.md` §Segunda tanda):
+- 19-02 Tejido → `claude/19-02-tejido` · `session_01HBPhCfcSD1d4Tw6QrRXngv`
+- 19-05 Programa Urd-Eng → `claude/19-05-programa-urd-eng` · `session_014HTmPgyFxd1YTaZPML5HWN`
+- 19-08 Mantenimiento → `claude/19-08-mantenimiento` · `session_019pC9xQuThHejNMDvFf7Nyg`
+- PT 03 Shell Livewire → `claude/pt-03-shell-livewire` · `session_01B3HkPWHQ1eQu44Qpe3KRe1` (gate: v2 solo si mejora TTFB/KB/interacción contra `04-PERF-MEDIDO.md`)
+- Las 4 esperan la aprobación de su plan en la web. Tercera tanda tentativa: 19-06 Codificación (tras calmarse los cambios del owner en `main`), 19-07 Mecánicos, 19-04 Tejedores, 19-09 Configuración, 19-10.
+
 - `main` al día en la rama: 5 commits el 26 (`95324118`) y 11 el 29 (Telegram con worker propio, whereIn en atadores/formulación, crudo, ventas, desarrolladores/alineación). Sin conflictos salvo `ratchet-baseline.json`.
 
 Status: Ola 3 en curso
@@ -132,5 +139,5 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 ## Session Continuity
 
 Last session: 2026-09-25
-Stopped at: Ola 3: 17-02, 19-01 y PT 05 integradas; 19-03 espera al owner; proponer segunda tanda. Integrar cada rama al terminar; no push a `main` sin pedido del owner.
+Stopped at: Ola 3: 17-02, 19-01 y PT 05 integradas; 19-03 espera al owner; segunda tanda abierta (4 sesiones esperan aprobación de plan). Integrar cada rama al terminar; no push a `main` sin pedido del owner.
 Resume file: None
