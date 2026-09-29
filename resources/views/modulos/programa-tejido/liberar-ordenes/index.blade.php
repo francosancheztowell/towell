@@ -1442,11 +1442,10 @@ function initLiberarContextMenuHeader() {
 
     const thead = document.querySelector('#mainTable thead');
     if (thead) {
-        thead.addEventListener('contextmenu', (e) => {
-            const th = e.target.closest('th');
-            if (!th) return;
-            e.preventDefault();
-            e.stopPropagation();
+        // Clic derecho o mantener presionado en tablet (UX-06, window.accionesTactiles).
+        thead.classList.add('towell-acciones-zona');
+        window.accionesTactiles.enlazar(thead, 'th', (th, pos) => {
+            const e = { clientX: pos.x, clientY: pos.y };
             let columnIndex = parseInt(th.dataset.index, 10);
             if (Number.isNaN(columnIndex)) {
                 const classMatch = th.className.match(/column-(\d+)/);
