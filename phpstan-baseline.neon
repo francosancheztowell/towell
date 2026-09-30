@@ -262,12 +262,6 @@ parameters:
 			path: app/Exports/KaizenExport.php
 
 		-
-			message: '#^Constant App\\Exports\\KaizenExport\:\:MESES is unused\.$#'
-			identifier: classConstant.unused
-			count: 1
-			path: app/Exports/KaizenExport.php
-
-		-
 			message: '#^Binary operation "\+" between string and int results in an error\.$#'
 			identifier: binaryOp.invalid
 			count: 2
@@ -320,12 +314,6 @@ parameters:
 			identifier: nullCoalesce.offset
 			count: 1
 			path: app/Exports/ReporteMarcasFinalesDiaSheet.php
-
-		-
-			message: '#^Constant App\\Exports\\ReporteOtDiariasExport\:\:COL_NOMBRE is unused\.$#'
-			identifier: classConstant.unused
-			count: 1
-			path: app/Exports/ReporteOtDiariasExport.php
 
 		-
 			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
@@ -10475,18 +10463,6 @@ parameters:
 			identifier: property.onlyWritten
 			count: 1
 			path: app/Imports/ReqCalendarioLineImport.php
-
-		-
-			message: '#^Method App\\Imports\\ReqModelosCodificadosImport\:\:convertToInt\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: app/Imports/ReqModelosCodificadosImport.php
-
-		-
-			message: '#^Method App\\Imports\\ReqModelosCodificadosImport\:\:isValidTotalValue\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: app/Imports/ReqModelosCodificadosImport.php
 
 		-
 			message: '#^Offset ''CalTramaFondoC12'' on array\{TamanoClave\: 1, OrdenTejido\: 2, FechaTejido\: 3, FechaCumplimiento\: 4, SalonTejidoId\: 5, NoTelarId\: 6, Prioridad\: 7, Nombre\: 8, \.\.\.\} on left side of \?\? does not exist\.$#'

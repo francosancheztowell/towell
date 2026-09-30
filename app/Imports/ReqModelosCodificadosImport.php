@@ -76,6 +76,8 @@ class ReqModelosCodificadosImport implements ShouldQueue, SkipsEmptyRows, ToColl
                         Cache::put($cacheKey, $state, 60 * 60);
                     }
                 } catch (\Throwable $e) {
+                    // Sin esto la UI se queda en 'processing': que se vea en el log.
+                    report($e);
                 }
             },
         ];
@@ -837,40 +839,6 @@ class ReqModelosCodificadosImport implements ShouldQueue, SkipsEmptyRows, ToColl
     private function pushError($filaExcel, $msg, $datos)
     {
         $this->errors[] = ['fila' => $filaExcel, 'error' => $msg, 'datos' => $datos];
-    }
-
-    /**
-     * Valida si el valor es un Total válido (no de marbetes)
-     */
-    private function isValidTotalValue(int $value): bool
-    {
-        // Excluir solo valores muy específicos de marbetes
-        // Los totales de pasadas pueden ser cualquier número > 0
-        if ($value <= 0) {
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Convierte un valor a entero de forma segura
-     */
-    private function convertToInt($value): ?int
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-        if (is_numeric($value)) {
-            return (int) $value;
-        }
-
-        $cleaned = preg_replace('/[^\d\-]/', '', (string) $value);
-        if ($cleaned === '' || $cleaned === '-' || $cleaned === '--') {
-            return null;
-        }
-
-        return is_numeric($cleaned) ? (int) $cleaned : null;
     }
 
     /**

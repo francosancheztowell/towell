@@ -9,6 +9,6 @@
   "<script> inline en blade": 99,
   "SQL crudo con $interpolado": 8,
   "getMessage() en response()->json": 192,
-  "catch vacío": 29,
-  "duplicación %": 7.11
+  "catch vacío": 28,
+  "duplicación %": 7.1
 }
