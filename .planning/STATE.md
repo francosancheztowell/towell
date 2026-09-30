@@ -41,7 +41,8 @@ Ola 3 — segunda tanda (abierta 2026-09-29; prompts y propiedad en `SESIONES-OL
   - 19-06b Catálogos de Planeación → `claude/19-06b-catalogos-planeacion` · `session_01FBThTUbCanfbeAwbcd49oK`
   - 19-04 Tejedores → `claude/19-04-tejedores` · `session_01Sw732UoqcCKcT4m6e6zXLj`
   - PT-TS 1 → `claude/pt-ts-1` · `session_01CzL1Ly5q8aQaK7ts5yxszR`
-  - Las 5 esperan la aprobación de su plan en la web.
+  - **19-06b y PT-TS 1 terminadas e integradas** (2026-09-30 17:00 UTC, junto con 5 commits de `main`): 19-06b catálogos sin JS inline, `CalendarioController` 1 301 → 274 líneas, consultas 21 → 11 / 57 → 8 / 67 → 8, 2 bugs de negocio corregidos; PT-TS 1 Liberar/Utilería/Alineación/modales/Redbooth en TS, 4 bugs corregidos. Ratchet: `fetch(` 102, `Swal.fire` 182, `onclick=` 143, `<script>` inline 56, `getMessage()` 88, catch vacío 13, duplicación 6.4 %.
+  - **Esperan al owner:** TS-base (4 puntos del plan), 19-06a (2 puntos), 19-04 (plan). PT-TS 1 pregunta H1: Liberar desde Muestras postea a las rutas de Programa (escribe en la tabla de Programa): ¿se corrige ya o en PT-06?
 - **Cuarta tanda (propuesta, sin abrir):** 20-05 Estructura Urd/Eng, 20-04 AuthZ, **16-02 DS Livewire** (prompt en `SESIONES-OLA-3.md` §16), PT-TS 2, 19-09, 19-07, 19-10, 22-06, PT 05.1, 22-08, 22-09.
 - Antes: tercera tanda propuesta (espera al owner): 19-06 Codificación (tras calmarse sus cambios en `main`), 19-07 Mecánicos, 19-04 Tejedores, 19-09 Configuración, 19-10, 22-06 complejidad (ReportesUrdido, CortesEficiencia `store`, ProduccionTrait), PT 05.1 (partir `dividir`/`duplicar` con tests e Infection).
 
@@ -143,6 +144,8 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 - 19-01: U1 y U7 → 19-05 (puente `abrirModalCalificarJuliosEng`, `<script>alert` en reimpresión); U2 hecho (receta enlaza la checklist); U3 → 19-01 ya aplicó long-press en fórmula; U4 y U6 → DS (`onclick` del × de `modal-base`, `catalog-actions`); U5 → UX (`<h1>` del navbar tapa "Crear" a 768 px); U8 comentario de `charts.js` → FE; U9 `FolioHelper` en sqlite → opcional.
 - PT 05: B1 observers/scopes fuera de PT → dueños de Configuración, CatCalendarios, comando de fechas, Desarrolladores (19-04) e Import; B3 N+1 de Cortes → 19-02; B4 Redbooth (lo usan PT, Trazabilidad y CatCodificación) → decidir dueño en la segunda tanda. Hallazgos H1–H4 → PT 06.
 - 17-02: C1–C8 → cada 19-xx vía checklist; B1/B2 → PT.
+- 19-06b: C1 (`CambiarCalendario` usa `FormulasCalendario` en vez de `new CalendarioController`, luego borrar los 3 métodos `PUENTE 19-06b`) → PT 05.1; C2 (Codificación registra sus acciones con `registrarAccionesCatalogo` y se quita el puente `window`) → 19-06a; C3 ratchet → hecho por el integrador; C4 (`onclick` del × de `modal-base`) → 16-02 DS; C5 runbook `SELECT DISTINCT Densidad` → owner.
+- PT-TS 1: A (layout sin `programa-tejido-menu.js`, `app-core` sin `modal-cache-bootstrap`, `redbooth-boot.test.ts`, 1 línea de `TrazabilidadStructureTest`) aceptado; TS-base no debe volver a importar/convertir esos archivos; B1–B3 → PT-TS 2; B4 → TS-base; B5 (H1) → owner; B6 partir `LiberarOrdenesController` → PT 05.1; B7 helper único de mensaje de error → FE/ADOP; B8 docs de módulos → ADOP.
 
 ### HANDOFFs ruteados (Ola 2)
 

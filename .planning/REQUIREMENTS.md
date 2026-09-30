@@ -147,6 +147,8 @@
 - [ ] **FE-TS-02**: Núcleo (`app`, `bootstrap`, `app-core`, `charts`) y PWA en TS.
 - [ ] **FE-TS-03**: Tests, scripts y `vite.config` en TS.
 - [ ] **FE-TS-04**: 0 líneas de JS en `resources/js`, `public/js` y Blade (se cumple al cerrar las 19-xx, PT-TS 1 y 2).
+- [x] **MIG-CAT-01..04** (19-06b, 2026-09-30): catálogos de Planeación sin JS inline ni `public/js/catalogs`; Eficiencia/Velocidad en una vista; controllers sin `DB::` ni `validate([`; enums `VarianteEstandar`/`Densidad` (cast de `Densidad` espera el runbook del owner).
+- [x] **PT-TS-01** (PT-TS 1, 2026-09-30): pantallas de PT fuera de la grilla en TS (Liberar, Utilería, Alineación, modales, Redbooth). Falta `programa-tejido/index.js` (PT-TS-02).
 - [ ] **ARQ-06**: Controllers delgados (FormRequest → Action/Service); sin `DB::` en controllers; gate en el ratchet.
 - [ ] **ARQ-07**: Status como backed enums con cast en los modelos (por módulo; compartidos en `app/Enums/{Programas,Bpm}`).
 - [ ] **ARQ-08**: Pares Urdido/Engomado y Programa/Muestras en una sola implementación (20-05 y cada 19-xx).
