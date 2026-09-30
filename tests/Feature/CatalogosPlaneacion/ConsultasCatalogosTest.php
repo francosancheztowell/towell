@@ -77,4 +77,33 @@ class ConsultasCatalogosTest extends TestCase
         $this->assertLessThanOrEqual(8, $n, "antes 67 (una consulta por programa y un UPDATE por línea), ahora $n");
         $this->assertSame(0, ReqProgramaTejidoLine::where('MtsRizo', 0)->orWhereNull('MtsRizo')->count());
     }
+
+    public function test_recalcular_calendario_46_a_28(): void
+    {
+        \App\Models\Planeacion\ReqProgramaTejido::query()->delete();
+        \App\Models\Planeacion\ReqCalendarioTab::create(['CalendarioId' => 'CAL', 'Nombre' => 'x']);
+        $filas = [];
+        $inicio = \Carbon\Carbon::parse('2026-01-05 06:30:00');
+        for ($t = 0; $t < 60; $t++) {
+            $a = $inicio->copy()->addHours(8 * $t);
+            $filas[] = ['CalendarioId' => 'CAL', 'FechaInicio' => $a->format('Y-m-d H:i:s'), 'FechaFin' => $a->copy()->addHours(8)->format('Y-m-d H:i:s'), 'HorasTurno' => 8, 'Turno' => ($t % 3) + 1];
+        }
+        \App\Models\Planeacion\ReqCalendarioLine::insert($filas);
+        $id = 1;
+        foreach (['201', '202'] as $telar) {
+            for ($i = 0; $i < 10; $i++) {
+                $this->programa(['Id' => $id++, 'CalendarioId' => 'CAL', 'SalonTejidoId' => 'JACQUARD', 'NoTelarId' => $telar,
+                    'FechaInicio' => \Carbon\Carbon::parse('2026-01-05 08:00')->addHours(6 * $i)->format('Y-m-d H:i:s'), 'HorasProd' => 5, 'SaldoPedido' => 100]);
+            }
+        }
+        \App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido::clearCalendarioLinesCache();
+
+        // El recálculo apaga el query log (como antes): se cuenta con DB::listen.
+        $n = 0;
+        DB::listen(function () use (&$n): void {
+            $n++;
+        });
+        $this->postJson('/planeacion/calendarios/CAL/recalcular-programas')->assertOk()->assertJsonPath('data.recalculo.procesados', 20);
+        $this->assertLessThanOrEqual(28, $n, "antes 46 (un SELECT por programa para ajustar al calendario), ahora $n");
+    }
 }

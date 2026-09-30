@@ -165,6 +165,36 @@ class CalendariosTest extends TestCase
         $this->postJson('/planeacion/calendarios/NADA/recalcular-programas')->assertNotFound()->assertJson(['success' => false]);
     }
 
+    public function test_lineas_crud_recalcula_el_rango(): void
+    {
+        $this->calendarioContinuo(dias: 1);
+        $this->programa(['Id' => 1, 'CalendarioId' => 'CAL', 'NoTelarId' => '201', 'FechaInicio' => '2026-01-05 08:00:00', 'HorasProd' => 4]);
+
+        $alta = $this->postJson('/planeacion/calendarios/lineas', ['CalendarioId' => 'CAL', 'FechaInicio' => '2026-01-06 06:30:00', 'FechaFin' => '2026-01-06 14:30:00', 'HorasTurno' => 8, 'Turno' => 1])
+            ->assertOk()->assertJson(['success' => true, 'message' => 'Línea de calendario creada exitosamente']);
+        $this->assertArrayHasKey('recalculo', $alta->json());
+        $this->postJson('/planeacion/calendarios/lineas', ['CalendarioId' => 'NADA', 'FechaInicio' => '2026-01-06 06:30:00', 'FechaFin' => '2026-01-06 14:30:00', 'HorasTurno' => 8, 'Turno' => 1])
+            ->assertStatus(422)->assertJson(['message' => 'El calendario especificado no existe']);
+        $this->postJson('/planeacion/calendarios/lineas', ['CalendarioId' => 'CAL', 'Turno' => 4])->assertStatus(422)->assertJson(['success' => false]);
+
+        $id = $alta->json('data.Id');
+        $this->putJson("/planeacion/calendarios/lineas/{$id}", ['FechaInicio' => '2026-01-06 07:00:00', 'FechaFin' => '2026-01-06 15:00:00', 'HorasTurno' => 8, 'Turno' => 1])
+            ->assertOk()->assertJsonPath('data.Turno', 1);
+        $this->deleteJson("/planeacion/calendarios/lineas/{$id}")->assertOk()->assertJson(['success' => true]);
+        $this->deleteJson("/planeacion/calendarios/lineas/{$id}")->assertNotFound();
+    }
+
+    public function test_borrar_lineas_por_rango_y_turno(): void
+    {
+        $this->calendarioContinuo(dias: 3);
+        $this->deleteJson('/planeacion/calendarios/CAL/lineas/rango', ['fechaInicio' => '2026-01-06', 'fechaFin' => '2026-01-06', 'turnos' => [2]])
+            ->assertOk()->assertJson(['success' => true, 'eliminadas' => 1]);
+        $this->assertSame(8, ReqCalendarioLine::count());
+        $this->deleteJson('/planeacion/calendarios/CAL/lineas/rango', ['fechaInicio' => '2026-02-01', 'fechaFin' => '2026-02-02'])
+            ->assertNotFound()->assertJson(['message' => 'No se encontraron lineas que coincidan con los criterios especificados']);
+        $this->deleteJson('/planeacion/calendarios/CAL/lineas/rango', ['fechaInicio' => '2026-02-03', 'fechaFin' => '2026-02-02'])->assertStatus(422);
+    }
+
     public function test_excel_de_calendarios_y_de_lineas_reemplaza_todo(): void
     {
         $this->calendarioContinuo(dias: 1);

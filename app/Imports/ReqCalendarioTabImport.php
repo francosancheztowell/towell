@@ -62,8 +62,8 @@ class ReqCalendarioTabImport implements ToModel, WithBatchInserts, WithChunkRead
             return null;
 
         } catch (\Exception $e) {
-            $this->errores[] = "Fila {$this->rowCounter}: {$e->getMessage()}";
-            Log::error("✗ Error fila {$this->rowCounter}: {$e->getMessage()}");
+            report($e);
+            $this->errores[] = "Fila {$this->rowCounter}: no se pudo procesar la fila";
 
             return null;
         }

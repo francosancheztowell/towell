@@ -5,6 +5,14 @@ namespace App\Models\Planeacion;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $Id
+ * @property string $CalendarioId
+ * @property \Illuminate\Support\Carbon|null $FechaInicio
+ * @property \Illuminate\Support\Carbon|null $FechaFin
+ * @property float|null $HorasTurno
+ * @property int|null $Turno
+ */
 class ReqCalendarioLine extends Model
 {
     use HasFactory;
