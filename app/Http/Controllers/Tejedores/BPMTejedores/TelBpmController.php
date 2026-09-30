@@ -10,6 +10,7 @@ use App\Models\Sistema\SYSUsuario;
 use App\Models\Tejedores\TelActividadesBPM;
 use App\Models\Tejedores\TelBpmModel;
 use App\Models\Tejedores\TelTelaresOperador;
+use App\Support\PaginacionCompat;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -39,7 +40,8 @@ class TelBpmController extends Controller
         $perPage = (int) $request->get('per_page', 300);
         $perPage = max(50, min($perPage, 1000));
 
-        $items = TelBpmModel::query()
+        // simplePaginate() emite OFFSET/FETCH (SQL Server 2012+); producción es 2008 R2.
+        $items = PaginacionCompat::paginar(TelBpmModel::query()
             ->select([
                 'TelBPM.Folio',
                 'TelBPM.Status',
@@ -63,8 +65,7 @@ class TelBpmController extends Controller
             })
             ->when($status, fn ($qry) => $qry->where('TelBPM.Status', $status))
             ->orderByDesc('TelBPM.Fecha') // último primero
-            ->orderByDesc('TelBPM.Folio')
-            ->simplePaginate($perPage)
+            ->orderByDesc('TelBPM.Folio'), $perPage)
             ->withQueryString();
 
         // Prefills para modal crear

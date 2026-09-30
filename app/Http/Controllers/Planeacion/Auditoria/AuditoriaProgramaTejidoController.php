@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Planeacion\Auditoria;
 
 use App\Http\Controllers\Controller;
+use App\Support\PaginacionCompat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -54,7 +55,8 @@ class AuditoriaProgramaTejidoController extends Controller
         return view('modulos.programa-tejido.auditoria.index', [
             'pageTitle' => 'Auditoría Programa de Tejido',
             'filtros' => $filtros,
-            'registros' => $query->paginate(100)->withQueryString(),
+            // paginate() emite OFFSET/FETCH (SQL Server 2012+); producción es 2008 R2.
+            'registros' => PaginacionCompat::paginar($query, 100)->withQueryString(),
         ]);
     }
 

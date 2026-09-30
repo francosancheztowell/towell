@@ -5,6 +5,7 @@ namespace App\Http\Controllers\UrdEngomado;
 use App\Http\Controllers\Controller;
 use App\Models\UrdEngomado\UrdEngNucleos;
 use App\Support\Http\Concerns\HandlesApiErrors;
+use App\Support\PaginacionCompat;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -20,14 +21,14 @@ class UrdEngNucleosController extends Controller
         $q = trim((string) $request->get('q', ''));
         $perPage = (int) $request->get('per_page', 15);
 
-        $items = UrdEngNucleos::query()
+        // paginate() emite OFFSET/FETCH (SQL Server 2012+); producción es 2008 R2.
+        $items = PaginacionCompat::paginar(UrdEngNucleos::query()
             ->when($q !== '', function ($query) use ($q) {
                 $query->where('Salon', 'like', "%{$q}%")
                     ->orWhere('Nombre', 'like', "%{$q}%");
             })
             ->orderBy('Salon')
-            ->orderBy('Nombre')
-            ->paginate($perPage)
+            ->orderBy('Nombre'), $perPage)
             ->withQueryString();
 
         return view('modulos.engomado.urd-eng-nucleos.index', compact('items', 'q'));

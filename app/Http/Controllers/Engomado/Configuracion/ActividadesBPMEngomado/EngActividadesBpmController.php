@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Engomado\Configuracion\ActividadesBPMEngomado;
 
 use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngActividadesBpmModel;
+use App\Support\PaginacionCompat;
 use Illuminate\Http\Request;
 
 class EngActividadesBpmController extends Controller
@@ -17,13 +18,13 @@ class EngActividadesBpmController extends Controller
         $q = trim((string) $request->get('q', ''));
         $perPage = (int) $request->get('per_page', 15);
 
-        $items = EngActividadesBpmModel::query()
+        // paginate() emite OFFSET/FETCH (SQL Server 2012+); producción es 2008 R2.
+        $items = PaginacionCompat::paginar(EngActividadesBpmModel::query()
             ->when($q !== '', fn ($qry) => $qry->where('Actividad', 'like', "%{$q}%")
                 ->orWhere('Orden', 'like', "%{$q}%")
             )
             ->orderBy('Orden')
-            ->orderBy('Id')
-            ->paginate($perPage)
+            ->orderBy('Id'), $perPage)
             ->withQueryString();
 
         // Ajusta el path si usas otra carpeta

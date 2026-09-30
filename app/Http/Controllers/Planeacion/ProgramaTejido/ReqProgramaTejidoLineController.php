@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
 use App\Http\Controllers\Controller;
 use App\Models\Planeacion\ReqProgramaTejidoLine;
+use App\Support\PaginacionCompat;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -43,7 +44,8 @@ class ReqProgramaTejidoLineController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $q->paginate($perPage),
+            // paginate() emite OFFSET/FETCH (SQL Server 2012+); producción es 2008 R2.
+            'data' => PaginacionCompat::paginar($q, $perPage),
         ])->header('Content-Type', 'application/json; charset=utf-8');
     }
 }
