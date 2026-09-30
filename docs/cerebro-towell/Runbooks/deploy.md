@@ -183,3 +183,48 @@ grupo de Atadores en menos de un minuto. Fallos de envío: `findstr /C:"Telegram
 **Válvula:** si el worker no está listo, `QUEUE_CONNECTION=sync` en `.env` + `php artisan config:cache`. Los
 avisos vuelven a salir en línea (como antes de 18-03, pero en paralelo y con timeouts de 3/8 s: peor caso
 ~16 s, un envío y un reintento, en vez de N × 20 s).
+
+## 9. Dependencias (composer / npm) — 22-02s
+
+**PHP de producción.** `composer.json` fija `config.platform.php = 8.2.0`: Composer resuelve el lock como si
+corriera en PHP 8.2 aunque la sesión/CI tenga 8.4, así un `composer update` nunca trae un paquete que
+Laragon no pueda correr. La CLI de producción es **8.3.28** (`scheduler.bat` y §8); el PHP del servidor web
+no está confirmado. Confirmarlo una vez (y anotarlo en `.planning/phases/22-calidad/22-02s-SUMMARY.md`):
+
+```bat
+php -v                                         :: CLI (la que usan scheduler.bat y composer)
+C:\laragon\bin\php\php-8.3.28-Win32-vs16-x64\php.exe -v
+```
+
+y en el `phpinfo()` web (Laragon → *Web* → `phpinfo`, o el `info-tmp.php` de §8, **borrarlo después**): la
+primera línea dice la versión que usa Apache. Si CLI y web son ≥ 8.3, subir el piso a `8.3.0` es opcional;
+si alguna fuera < 8.2, **no desplegar** el lock nuevo y avisar.
+
+**Desplegar un cambio de `composer.lock` / `package-lock.json`** (además de §3):
+
+```bat
+php artisan optimize:clear
+composer install --no-dev -o                  :: nunca "composer update" en producción
+npm ci && npm run build
+php artisan optimize
+```
+
+Revisar antes: `composer audit` en la PC de desarrollo (sin advisories) y el SUMMARY de la fase (qué pantallas
+probar a mano).
+
+**Rollback.** Lo normal es §4 con el commit anterior al cambio del lock. Si solo hay que regresar las
+dependencias y dejar el código:
+
+```bat
+php artisan optimize:clear
+git checkout <commit-anterior> -- composer.lock package-lock.json
+composer install --no-dev -o
+npm ci && npm run build
+php artisan optimize
+```
+
+Eso deja `composer.lock`/`package-lock.json` modificados en el árbol: antes del siguiente `git pull`,
+`git checkout HEAD -- composer.lock package-lock.json` (si no, el pull se niega a sobrescribirlos).
+
+Livewire sirve su JS desde `vendor/` con un hash de versión en la URL: tras subirlo no hace falta publicar
+assets ni pedir a los usuarios que limpien caché.
