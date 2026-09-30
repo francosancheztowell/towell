@@ -4,14 +4,14 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <a href="{{ route('planeacion.alineacion.export.excel') }}" class="bg-green-600 rounded-full flex items-center gap-2 px-3 py-2 text-sm font-medium shadow-sm" title="Descargar Excel">
-            <i class="fas fa-file-excel text-white"></i>
+        <a href="{{ route('planeacion.alineacion.export.excel') }}" class="bg-green-600 rounded-full flex items-center gap-2 px-3 py-2 text-sm font-medium shadow-sm" title="Descargar Excel" aria-label="Descargar Excel">
+            <i class="fas fa-file-excel text-white" aria-hidden="true"></i>
         </a>
-        <a href="{{ route('planeacion.alineacion.export.pdf') }}" class="bg-red-600 rounded-full flex items-center gap-2 px-3 py-2 text-sm font-medium shadow-sm" title="Descargar PDF">
-            <i class="fas fa-file-pdf text-white"></i>
+        <a href="{{ route('planeacion.alineacion.export.pdf') }}" class="bg-red-600 rounded-full flex items-center gap-2 px-3 py-2 text-sm font-medium shadow-sm" title="Descargar PDF" aria-label="Descargar PDF">
+            <i class="fas fa-file-pdf text-white" aria-hidden="true"></i>
         </a>
-        <button type="button" id="alineacionNavFijar" class="bg-blue-500 rounded-full flex items-center gap-2 px-3 py-2 text-sm font-medium shadow-sm" title="Ver columnas fijadas">
-            <i class="fas fa-thumbtack text-white"></i>
+        <button type="button" id="alineacionNavFijar" class="bg-blue-500 rounded-full flex items-center gap-2 px-3 py-2 text-sm font-medium shadow-sm" title="Ver columnas fijadas" aria-label="Fijar columnas">
+            <i class="fas fa-thumbtack text-white" aria-hidden="true"></i>
 
         </button>
     </div>
@@ -77,8 +77,15 @@
             ];
         }
         $items = $items ?? [];
+        // Valores del servidor para resources/js/modulos/programa-tejido/alineacion (receta 19-00 §2).
+        $paginaAlineacion = [
+            'columnas' => $columnas,
+            'columnLabels' => $columnLabels ?? [],
+            'apiUrl' => route('planeacion.alineacion.api.data'),
+            'items' => $items,
+        ];
     @endphp
-    <div class="container-fluid">
+    <div id="alineacion" class="container-fluid" data-pagina='@json($paginaAlineacion)'>
         <div class="relative bg-white rounded-lg shadow-sm flex flex-col" style="height: calc(100vh);">
 
             <div
@@ -149,5 +156,8 @@
 
 @include('planeacion.alineacion._styles')
 
-@include('planeacion.alineacion._script')
 @endsection
+
+@push('scripts')
+    @vite('resources/js/modulos/programa-tejido/alineacion/index.ts')
+@endpush
