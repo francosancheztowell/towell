@@ -9,6 +9,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Maatwebsite\Excel\Concerns\RemembersChunkOffset;
 use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithBatchInserts;
@@ -21,6 +22,8 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class ReqModelosCodificadosImport implements ShouldQueue, SkipsEmptyRows, ToCollection, WithBatchInserts, WithChunkReading, WithEvents, WithStartRow
 {
+    use RemembersChunkOffset;
+
     private int $rowCount = 0;
 
     private int $createdCount = 0;
@@ -28,6 +31,9 @@ class ReqModelosCodificadosImport implements ShouldQueue, SkipsEmptyRows, ToColl
     private int $updatedCount = 0;
 
     private array $errors = [];
+
+    /** Cuantos de $errors ya se copiaron al progreso en cache. */
+    private int $erroresEnCache = 0;
 
     private ?string $importId = null;
 
@@ -58,21 +64,13 @@ class ReqModelosCodificadosImport implements ShouldQueue, SkipsEmptyRows, ToColl
                 }
             },
             AfterImport::class => function () {
-                // Finalizar caché marcando status como done e incluyendo errores Y totales
+                // Solo marca done. Totales y errores ya estan en cache: en cola cada chunk corre
+                // en su propia copia del import y esta instancia no los vio.
                 try {
-                    $cacheKey = 'excel_import_progress:'.($this->importId ?? 'unknown');
+                    $cacheKey = $this->getCacheKey();
                     $state = Cache::get($cacheKey);
                     if (is_array($state)) {
                         $state['status'] = 'done';
-                        $state['created'] = $this->createdCount;
-                        $state['updated'] = $this->updatedCount;
-                        // Incluir errores en caché para mostrar en interfaz
-                        if (count($this->errors) > 0) {
-                            $state['has_errors'] = true;
-                            $state['total_errors'] = count($this->errors);
-                            // Limitar a primeros 20 errores para evitar caché muy grande
-                            $state['errors'] = array_slice($this->errors, 0, 20);
-                        }
                         Cache::put($cacheKey, $state, 60 * 60);
                     }
                 } catch (\Throwable $e) {
@@ -97,7 +95,10 @@ class ReqModelosCodificadosImport implements ShouldQueue, SkipsEmptyRows, ToColl
                 'processed_rows' => 0,
                 'created' => 0,
                 'updated' => 0,
-                'errors' => 0,
+                // Primeros 20 errores (fila, error, datos); el total va en total_errors.
+                'errors' => [],
+                'total_errors' => 0,
+                'has_errors' => false,
             ], 60 * 60); // 1 hora
         } catch (\Throwable $e) {
             Log::warning('No se pudo inicializar caché de progreso: '.$e->getMessage());
@@ -119,13 +120,18 @@ class ReqModelosCodificadosImport implements ShouldQueue, SkipsEmptyRows, ToColl
                 'processed_rows' => 0,
                 'created' => 0,
                 'updated' => 0,
-                'errors' => 0,
+                'errors' => [],
+                'total_errors' => 0,
             ]);
 
             $state['processed_rows'] = ($state['processed_rows'] ?? 0) + $processedInc;
             $state['created'] = ($state['created'] ?? 0) + $createdInc;
             $state['updated'] = ($state['updated'] ?? 0) + $updatedInc;
-            $state['errors'] = ($state['errors'] ?? 0) + $errorsInc;
+            $state['total_errors'] = ($state['total_errors'] ?? 0) + $errorsInc;
+            $state['has_errors'] = $state['total_errors'] > 0;
+            $nuevos = array_slice($this->errors, $this->erroresEnCache);
+            $this->erroresEnCache = count($this->errors);
+            $state['errors'] = array_slice(array_merge(is_array($state['errors'] ?? null) ? $state['errors'] : [], $nuevos), 0, 20);
             $state['status'] = 'processing';
 
             Cache::put($key, $state, 60 * 60);
@@ -136,16 +142,12 @@ class ReqModelosCodificadosImport implements ShouldQueue, SkipsEmptyRows, ToColl
 
     public function collection(Collection $rows)
     {
-        if ($rows->count() < 3) {
-            $this->pushError(1, 'Se requieren al menos 3 filas (2 encabezados + datos).', []);
-
+        $offset = $this->getChunkOffset() ?? $this->startRow();
+        $encabezados = $this->resolverEncabezados($rows, $offset);
+        if ($encabezados === null) {
             return;
         }
-
-        // Encabezados (fila 1 y 2)
-        $hdr1 = $this->rowToFlatArray($rows[0]);
-        $hdr2 = $this->rowToFlatArray($rows[1]);
-        $headers = $this->buildCompositeHeaders($hdr1, $hdr2);
+        [$headers, $primeraFila] = $encabezados;
 
         // Fallback por posición (1-based) – ajusta si cambia tu layout
         $pos = [
@@ -231,9 +233,9 @@ class ReqModelosCodificadosImport implements ShouldQueue, SkipsEmptyRows, ToColl
         ];
 
         // Datos desde la fila 3
-        for ($i = 2; $i < $rows->count(); $i++) {
+        for ($i = $primeraFila; $i < $rows->count(); $i++) {
             $this->rowCount++;
-            $excelRow = $i + 1;
+            $excelRow = $offset + $i;
 
             try {
                 $vals = $this->rowToFlatArray($rows[$i]);
@@ -431,6 +433,41 @@ class ReqModelosCodificadosImport implements ShouldQueue, SkipsEmptyRows, ToColl
     }
 
     /* ===================== Helpers de encabezados ===================== */
+
+    /**
+     * Encabezados (fila 1 y 2) y primera fila de datos del chunk. Solo el primer chunk los
+     * trae; los siguientes (cada chunkSize() filas) los leen de cache en vez de tomar sus dos
+     * primeras filas de datos como encabezado. null = chunk descartado (error ya registrado).
+     *
+     * @return array{0: array<int, string>, 1: int}|null
+     */
+    private function resolverEncabezados(Collection $rows, int $offset): ?array
+    {
+        $key = 'excel_import_headers:'.($this->importId ?? 'unknown');
+
+        if ($offset > $this->startRow()) {
+            $headers = Cache::get($key);
+            if (is_array($headers)) {
+                return [$headers, 0];
+            }
+            $this->pushError($offset, 'No se encontraron los encabezados del primer bloque del archivo.', []);
+            $this->updateProgressCache($rows->count(), 0, 0, 1);
+
+            return null;
+        }
+
+        if ($rows->count() < 3) {
+            $this->pushError(1, 'Se requieren al menos 3 filas (2 encabezados + datos).', []);
+            $this->updateProgressCache(0, 0, 0, 1);
+
+            return null;
+        }
+
+        $headers = $this->buildCompositeHeaders($this->rowToFlatArray($rows[0]), $this->rowToFlatArray($rows[1]));
+        Cache::put($key, $headers, 60 * 60);
+
+        return [$headers, 2];
+    }
 
     private function rowToFlatArray($row): array
     {
@@ -648,12 +685,12 @@ class ReqModelosCodificadosImport implements ShouldQueue, SkipsEmptyRows, ToColl
             if ($v === '') {
                 return null;
             }
-            $formats = ['d-m-Y', 'd/m/Y', 'Y-m-d', 'd-m-y', 'd/m/y'];
-            foreach ($formats as $fmt) {
-                $dt = Carbon::createFromFormat($fmt, $v);
-                if ($dt !== false) {
-                    return $dt;
-                }
+            // dd/mm/aaaa, dd-mm-aa... (createFromFormat lanza en vez de devolver false, asi que
+            // antes cualquier texto que no fuera d-m-Y quedaba en null). Anio de 2 digitos: 20xx.
+            if (preg_match('#^(\d{1,2})[-/](\d{1,2})[-/](\d{4}|\d{2})$#', $v, $m)) {
+                $anio = strlen($m[3]) === 2 ? 2000 + (int) $m[3] : (int) $m[3];
+
+                return checkdate((int) $m[2], (int) $m[1], $anio) ? Carbon::create($anio, (int) $m[2], (int) $m[1]) : null;
             }
 
             return Carbon::parse($v);
