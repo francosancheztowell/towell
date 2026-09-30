@@ -611,8 +611,15 @@ class BomMaterialesService
                 return $this->getBomFormulas($key);
             }
 
-            // PERF-08: una consulta para todos los BOM hermanos (antes una por BOM).
-            $result = $this->formulasDeBoms($bomIds);
+            // PERF-08: una consulta para todos los BOM hermanos (antes una por BOM). Si falla,
+            // se vuelve al camino de antes (getBomFormulas por BOM, cada uno tolera su propio fallo)
+            // para no perder las fórmulas de los hermanos.
+            try {
+                $result = $this->formulasDeBoms($bomIds);
+            } catch (\Throwable $e) {
+                report($e);
+                $result = $this->formulasPorBom($bomIds);
+            }
             sort($result);
 
             return $result;
@@ -677,6 +684,24 @@ class BomMaterialesService
         } catch (\Throwable $e) {
             return [];
         }
+    }
+
+    /**
+     * Camino de antes: una consulta por BOM ({@see getBomFormulas()} tolera su propio fallo).
+     *
+     * @param  list<string>  $bomIds
+     * @return list<string>
+     */
+    private function formulasPorBom(array $bomIds): array
+    {
+        $formulas = [];
+        foreach ($bomIds as $bid) {
+            foreach ($this->getBomFormulas($bid) as $f) {
+                $formulas[$f] = true;
+            }
+        }
+
+        return array_keys($formulas);
     }
 
     /**

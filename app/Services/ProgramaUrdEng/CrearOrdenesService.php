@@ -306,13 +306,15 @@ final class CrearOrdenesService
             $q->where('tipo', $tipo);
         }
         $porNumero = $q->orderBy('id')->get()
-            ->groupBy(fn (TejInventarioTelares $t) => trim((string) $t->no_telar))
+            ->groupBy(fn (TejInventarioTelares $t) => mb_strtoupper(trim((string) $t->no_telar)))
             ->map(fn ($grupo) => $grupo->first());
 
+        // Clave sin mayúsculas/espacios: whereIn en SQL Server no distingue 'km1' de 'KM1'.
         $telares = [];
         foreach ($numeros as $numero) {
-            if ($porNumero->has($numero)) {
-                $telares[] = $porNumero->get($numero);
+            $clave = mb_strtoupper(trim((string) $numero));
+            if ($porNumero->has($clave)) {
+                $telares[] = $porNumero->get($clave);
             }
         }
 

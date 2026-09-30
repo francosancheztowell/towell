@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Engomado\ProgramaEngomado;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ProgramaUrdEng\Concerns\RespuestasErrorUrdEng;
 use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\UrdProgramaUrdido;
 use App\Services\Programas\ProgramaPrioridadService;
 use App\Services\Programas\ProgramBoardActionService;
-use App\Support\Http\Concerns\HandlesApiErrors;
 use App\Support\Programas\ProgramaConfig;
 use App\Support\Programas\ProgramaModulo;
 use DomainException;
@@ -21,7 +21,7 @@ use Illuminate\Validation\ValidationException;
 
 class ProgramarEngomadoController extends Controller
 {
-    use HandlesApiErrors;
+    use RespuestasErrorUrdEng;
 
     /** Tope de filas por lote de actualizarPrioridades (un tablero activo tiene decenas). */
     private const MAX_PRIORIDADES_LOTE = 2000;
@@ -221,7 +221,7 @@ class ProgramarEngomadoController extends Controller
                 'data' => $ordenesPorTabla,
             ]);
         } catch (\Throwable $e) {
-            return $this->errorDeServidor($e, 'Error al obtener órdenes');
+            return $this->errorServidor($e, 'Programa Engomado: Error al obtener órdenes', 'Error al obtener órdenes.');
         }
     }
 
@@ -247,11 +247,11 @@ class ProgramarEngomadoController extends Controller
                 'message' => 'Prioridad actualizada correctamente',
             ]);
         } catch (DomainException $e) {
-            return $this->errorDeNegocio($e, str_contains($e->getMessage(), 'permiso') ? 403 : 422);
+            return $this->errorNegocio($e->getMessage(), str_contains($e->getMessage(), 'permiso') ? 403 : 422);
         } catch (ValidationException $e) {
-            return $this->errorDeValidacion($e);
+            return $this->errorValidacion($e);
         } catch (\Throwable $e) {
-            return $this->errorDeServidor($e, 'Error al intercambiar prioridad');
+            return $this->errorServidor($e, 'Programa Engomado: Error al intercambiar prioridad', 'Error al intercambiar prioridad.');
         }
     }
 
@@ -284,11 +284,11 @@ class ProgramarEngomadoController extends Controller
                 'message' => 'Observaciones guardadas correctamente',
             ]);
         } catch (DomainException $e) {
-            return $this->errorDeNegocio($e);
+            return $this->errorNegocio($e->getMessage());
         } catch (ValidationException $e) {
-            return $this->errorDeValidacion($e);
+            return $this->errorValidacion($e);
         } catch (\Throwable $e) {
-            return $this->errorDeServidor($e, 'Error al guardar observaciones');
+            return $this->errorServidor($e, 'Programa Engomado: Error al guardar observaciones', 'Error al guardar observaciones.');
         }
     }
 
@@ -322,11 +322,11 @@ class ProgramarEngomadoController extends Controller
                 'message' => 'Status actualizado correctamente',
             ]);
         } catch (DomainException $e) {
-            return $this->errorDeNegocio($e);
+            return $this->errorNegocio($e->getMessage());
         } catch (ValidationException $e) {
-            return $this->errorDeValidacion($e);
+            return $this->errorValidacion($e);
         } catch (\Throwable $e) {
-            return $this->errorDeServidor($e, 'Error al actualizar status');
+            return $this->errorServidor($e, 'Programa Engomado: Error al actualizar status', 'Error al actualizar status.');
         }
     }
 
@@ -385,7 +385,7 @@ class ProgramarEngomadoController extends Controller
                 'data' => $ordenesArray,
             ]);
         } catch (\Throwable $e) {
-            return $this->errorDeServidor($e, 'Error al obtener órdenes');
+            return $this->errorServidor($e, 'Programa Engomado: Error al obtener órdenes', 'Error al obtener órdenes.');
         }
     }
 
@@ -421,9 +421,9 @@ class ProgramarEngomadoController extends Controller
                 'message' => 'Prioridades actualizadas correctamente',
             ]);
         } catch (ValidationException $e) {
-            return $this->errorDeValidacion($e);
+            return $this->errorValidacion($e);
         } catch (\Throwable $e) {
-            return $this->errorDeServidor($e, 'Error al actualizar prioridades');
+            return $this->errorServidor($e, 'Programa Engomado: Error al actualizar prioridades', 'Error al actualizar prioridades.');
         }
     }
 
@@ -445,32 +445,5 @@ class ProgramarEngomadoController extends Controller
         }
 
         return array_values(array_filter($ids, fn (int $id): bool => ! isset($existentes[$id])));
-    }
-
-    /**
-     * Regla de negocio de ProgramBoardActionService (mensaje escrito por el código, SEC-07).
-     * Conserva la clave `error` del contrato del endpoint y agrega `message`/`trace_id`.
-     */
-    private function errorDeNegocio(DomainException $e, int $status = 422): JsonResponse
-    {
-        return $this->apiClientErrorResponse($e->getMessage(), $status, [], ['error' => $e->getMessage()]);
-    }
-
-    /** 422 con el primer mensaje de validación y la lista completa en `errors`. */
-    private function errorDeValidacion(ValidationException $e): JsonResponse
-    {
-        $mensaje = 'Error de validación: '.$e->validator->errors()->first();
-
-        return $this->apiClientErrorResponse($mensaje, 422, [], ['error' => $mensaje, 'errors' => $e->errors()]);
-    }
-
-    /** 500 sin el detalle de la excepción (queda en el log y en monitoreo con su trace_id). */
-    private function errorDeServidor(\Throwable $e, string $mensaje): JsonResponse
-    {
-        $respuesta = $this->apiErrorResponse($e, 'Programa Engomado: '.$mensaje, $mensaje.'.');
-        $datos = $respuesta->getData(true);
-        $datos['error'] = $datos['message'];
-
-        return $respuesta->setData($datos);
     }
 }

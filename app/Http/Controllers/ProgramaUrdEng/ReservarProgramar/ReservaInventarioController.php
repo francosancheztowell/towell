@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\Concerns\RespuestasErrorUrdEng;
+use App\Http\Controllers\ProgramaUrdEng\Concerns\RespuestasErrorUrdEng;
 use App\Services\ProgramaUrdEng\InventarioReservasService;
 use App\Services\ProgramaUrdEng\ReservarProgramarActionService;
 use Carbon\Carbon;

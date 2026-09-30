@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\Concerns;
+namespace App\Http\Controllers\ProgramaUrdEng\Concerns;
 
 use App\Support\Http\Concerns\HandlesApiErrors;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
 
 /**
- * SEC-07 en Programa Urd / Eng: errores JSON sin getMessage() y con trace_id (HandlesApiErrors).
+ * SEC-07 en Programa Urd / Eng (reservar/programar y tableros Programar Urdido/Engomado): errores JSON sin getMessage() y con trace_id (HandlesApiErrors).
  *
  * Además de 'message' mandan 'error' con el mismo texto: las pantallas que aún no pasan por
  * mensajeError() (creacion-ordenes.js, Karl Mayer) leen 'error'. Las claves de $extra son las
@@ -33,5 +34,11 @@ trait RespuestasErrorUrdEng
     protected function errorNegocio(string $mensaje, int $status = 422, array $extra = []): JsonResponse
     {
         return $this->apiClientErrorResponse($mensaje, $status, [], ['error' => $mensaje] + $extra);
+    }
+
+    /** 422 con el primer mensaje de validación y la lista completa en `errors`. */
+    protected function errorValidacion(ValidationException $e): JsonResponse
+    {
+        return $this->errorNegocio('Error de validación: '.$e->validator->errors()->first(), 422, ['errors' => $e->errors()]);
     }
 }

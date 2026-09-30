@@ -172,19 +172,23 @@ export async function reservar(): Promise<void> {
         }
 
         state.selectedInventarios = [];
-
-        const [inv, telares] = await Promise.all([cargarInventario(), getFilas(cfg.api.inventarioTelares)]);
-        reemplazarInventario(inv);
-
-        if (telares.length) {
-            state.telaresDataOriginal = clonar(telares);
-            state.telaresData = telares;
-            pintarTelares(telares);
-            // Por id: un mismo telar puede tener la misma barra dos veces con fechas distintas.
-            reseleccionarTelar(ref, tTipo);
-        }
-
         notify.success(piezas.length > 1 ? `${piezas.length} julios reservados` : 'Pieza reservada');
+
+        // La recarga va aparte: si falla, la reserva ya quedó guardada y no debe reportarse como error.
+        try {
+            const [inv, telares] = await Promise.all([cargarInventario(), getFilas(cfg.api.inventarioTelares)]);
+            reemplazarInventario(inv);
+
+            if (telares.length) {
+                state.telaresDataOriginal = clonar(telares);
+                state.telaresData = telares;
+                pintarTelares(telares);
+                // Por id: un mismo telar puede tener la misma barra dos veces con fechas distintas.
+                reseleccionarTelar(ref, tTipo);
+            }
+        } catch {
+            notify.warning('Reserva guardada, pero no se pudo actualizar la tabla. Recarga la página.');
+        }
     } catch (err) {
         if (confirmadas > 0) {
             // El lote falló a medias: esos julios ya están en la base, así que volver al

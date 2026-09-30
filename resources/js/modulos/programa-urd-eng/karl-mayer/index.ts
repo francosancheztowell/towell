@@ -130,10 +130,10 @@ function iniciar(): void {
             tablas.pintarResumen(data?.resumen ?? []);
             tablas.pintarDetalle(data?.detalle ?? []);
             if (inputLote) inputLote.value = '';
-        } catch {
+        } catch (err) {
             tablas.limpiar();
-            // El 500 de este endpoint todavía trae el detalle interno: mensaje genérico (SEC-07).
-            notify.error('No se pudieron cargar los materiales del BOM.');
+            // SEC-07: el 500 ya no trae detalle interno; el mensaje del servidor lleva la referencia.
+            notify.error(mensajeError(err, 'No se pudieron cargar los materiales del BOM.'));
         }
         actualizarBoton();
     };
@@ -215,9 +215,10 @@ function iniciar(): void {
         }
     };
 
+    // requestSubmit() como el JS viejo: así corren las validaciones nativas (min="1" en julios/hilos).
     boton()?.addEventListener('click', (e) => {
         e.preventDefault();
-        void crearOrden();
+        form.requestSubmit();
     });
     form.addEventListener('submit', (e) => {
         e.preventDefault();

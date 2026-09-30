@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\Concerns\RespuestasErrorUrdEng;
+use App\Http\Controllers\ProgramaUrdEng\Concerns\RespuestasErrorUrdEng;
 use App\Models\Planeacion\ReqTelares;
 use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Urdido\URDCatalogoMaquina;
@@ -275,6 +275,7 @@ class ReservarProgramarController extends Controller
         foreach ($telares as $t) {
             $noTelar = trim((string) ($t['no_telar'] ?? ''));
             if (empty($t['id']) && $noTelar !== '') {
+                // Las llaves numéricas ('305') se vuelven int: strval() arriba para ligarlas como texto.
                 $numeros[$noTelar] = true;
             }
         }
@@ -282,7 +283,7 @@ class ReservarProgramarController extends Controller
             return $telares;
         }
 
-        $candidatos = TejInventarioTelares::whereIn('no_telar', array_keys($numeros))
+        $candidatos = TejInventarioTelares::whereIn('no_telar', array_map('strval', array_keys($numeros)))
             ->where('status', self::STATUS_ACTIVO)
             ->orderBy('id')
             ->get(['id', 'no_telar', 'tipo', 'fecha', 'turno'])

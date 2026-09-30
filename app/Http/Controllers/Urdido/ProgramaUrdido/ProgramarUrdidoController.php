@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Urdido\ProgramaUrdido;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ProgramaUrdEng\Concerns\RespuestasErrorUrdEng;
 use App\Jobs\Programas\SendUrdidoQualityNotification;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
 use App\Services\Programas\ProgramaPrioridadService;
 use App\Services\Programas\ProgramBoardActionService;
-use App\Support\Http\Concerns\HandlesApiErrors;
 use App\Support\Programas\ProgramaConfig;
 use App\Support\Programas\ProgramaModulo;
 use DomainException;
@@ -22,7 +22,7 @@ use Illuminate\Validation\ValidationException;
 
 class ProgramarUrdidoController extends Controller
 {
-    use HandlesApiErrors;
+    use RespuestasErrorUrdEng;
 
     public function __construct(
         private readonly ProgramaPrioridadService $prioridadService,
@@ -253,7 +253,7 @@ class ProgramarUrdidoController extends Controller
                 'data' => $ordenesPorMcCoy,
             ]);
         } catch (\Throwable $e) {
-            return $this->errorDeServidor($e, 'Error al obtener órdenes');
+            return $this->errorServidor($e, 'Programa Urdido: Error al obtener órdenes', 'Error al obtener órdenes.');
         }
     }
 
@@ -283,11 +283,11 @@ class ProgramarUrdidoController extends Controller
                 'message' => 'Prioridad actualizada correctamente',
             ]);
         } catch (DomainException $e) {
-            return $this->errorDeNegocio($e, str_contains($e->getMessage(), 'permiso') ? 403 : 422);
+            return $this->errorNegocio($e->getMessage(), str_contains($e->getMessage(), 'permiso') ? 403 : 422);
         } catch (ValidationException $e) {
-            return $this->errorDeValidacion($e);
+            return $this->errorValidacion($e);
         } catch (\Throwable $e) {
-            return $this->errorDeServidor($e, 'Error al intercambiar prioridad');
+            return $this->errorServidor($e, 'Programa Urdido: Error al intercambiar prioridad', 'Error al intercambiar prioridad.');
         }
     }
 
@@ -320,11 +320,11 @@ class ProgramarUrdidoController extends Controller
                 'message' => 'Observaciones guardadas correctamente',
             ]);
         } catch (DomainException $e) {
-            return $this->errorDeNegocio($e);
+            return $this->errorNegocio($e->getMessage());
         } catch (ValidationException $e) {
-            return $this->errorDeValidacion($e);
+            return $this->errorValidacion($e);
         } catch (\Throwable $e) {
-            return $this->errorDeServidor($e, 'Error al guardar observaciones');
+            return $this->errorServidor($e, 'Programa Urdido: Error al guardar observaciones', 'Error al guardar observaciones.');
         }
     }
 
@@ -400,9 +400,9 @@ class ProgramarUrdidoController extends Controller
                 'calidad_puntos' => $this->puntosCalidad($orden),
             ]);
         } catch (ValidationException $e) {
-            return $this->errorDeValidacion($e);
+            return $this->errorValidacion($e);
         } catch (\Throwable $e) {
-            return $this->errorDeServidor($e, 'Error al actualizar calidad');
+            return $this->errorServidor($e, 'Programa Urdido: Error al actualizar calidad', 'Error al actualizar calidad.');
         }
     }
 
@@ -436,11 +436,11 @@ class ProgramarUrdidoController extends Controller
                 'message' => 'Status actualizado correctamente',
             ]);
         } catch (DomainException $e) {
-            return $this->errorDeNegocio($e);
+            return $this->errorNegocio($e->getMessage());
         } catch (ValidationException $e) {
-            return $this->errorDeValidacion($e);
+            return $this->errorValidacion($e);
         } catch (\Throwable $e) {
-            return $this->errorDeServidor($e, 'Error al actualizar status');
+            return $this->errorServidor($e, 'Programa Urdido: Error al actualizar status', 'Error al actualizar status.');
         }
     }
 
@@ -498,7 +498,7 @@ class ProgramarUrdidoController extends Controller
                 'data' => $ordenesArray,
             ]);
         } catch (\Throwable $e) {
-            return $this->errorDeServidor($e, 'Error al obtener órdenes');
+            return $this->errorServidor($e, 'Programa Urdido: Error al obtener órdenes', 'Error al obtener órdenes.');
         }
     }
 
@@ -529,36 +529,9 @@ class ProgramarUrdidoController extends Controller
                 'message' => 'Prioridades actualizadas correctamente',
             ]);
         } catch (ValidationException $e) {
-            return $this->errorDeValidacion($e);
+            return $this->errorValidacion($e);
         } catch (\Throwable $e) {
-            return $this->errorDeServidor($e, 'Error al actualizar prioridades');
+            return $this->errorServidor($e, 'Programa Urdido: Error al actualizar prioridades', 'Error al actualizar prioridades.');
         }
-    }
-
-    /**
-     * Regla de negocio de ProgramBoardActionService (mensaje escrito por el código, SEC-07).
-     * Conserva la clave `error` del contrato del endpoint y agrega `message`/`trace_id`.
-     */
-    private function errorDeNegocio(DomainException $e, int $status = 422): JsonResponse
-    {
-        return $this->apiClientErrorResponse($e->getMessage(), $status, [], ['error' => $e->getMessage()]);
-    }
-
-    /** 422 con el primer mensaje de validación y la lista completa en `errors`. */
-    private function errorDeValidacion(ValidationException $e): JsonResponse
-    {
-        $mensaje = 'Error de validación: '.$e->validator->errors()->first();
-
-        return $this->apiClientErrorResponse($mensaje, 422, [], ['error' => $mensaje, 'errors' => $e->errors()]);
-    }
-
-    /** 500 sin el detalle de la excepción (queda en el log y en monitoreo con su trace_id). */
-    private function errorDeServidor(\Throwable $e, string $mensaje): JsonResponse
-    {
-        $respuesta = $this->apiErrorResponse($e, 'Programa Urdido: '.$mensaje, $mensaje.'.');
-        $datos = $respuesta->getData(true);
-        $datos['error'] = $datos['message'];
-
-        return $respuesta->setData($datos);
     }
 }

@@ -57,6 +57,11 @@ class ProgramacionRequerimientosQueriesTest extends TestCase
 
         // Antes: 5 (una por telar sin id). Después: 1.
         $this->assertCount(1, $consultas);
+        // no_telar es varchar: '201' como llave de array se vuelve int; debe ligarse como texto
+        // (con int SQL Server convertiría la columna y fallaría con un telar no numérico).
+        foreach ($consultas->first()['bindings'] as $valor) {
+            $this->assertIsString($valor);
+        }
 
         $config = $this->jsonDeAtributo($html, 'data-pagina');
         $porTelar = collect($config['telares'])->keyBy('no_telar');

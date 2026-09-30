@@ -13,7 +13,7 @@ import { initializeResponsiveBoard } from './responsive.ts'
 // U1 (19-05): Livewire (EdicionOrdenes::calificar) manda el folio; el modal de la variante
 // engomado lo incluye reimpresion-engomado.blade.php. Sin puente window.
 window.addEventListener('engomado-calificar-julios', ((event: CustomEvent<{ folio: string }>) => {
-  abrirCalificarJulios('engomado', event.detail?.folio ?? '')
+  abrirCalificarJulios('engomado', event.detail?.folio || undefined)
 }) as EventListener)
 
 /** Mensaje del JSON de error aunque la respuesta se haya pedido como blob. */

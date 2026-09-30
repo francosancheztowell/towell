@@ -18,6 +18,9 @@ final class InsercionEnBloques
     /** SQL Server acepta como máximo 2 100 parámetros por sentencia; se deja uno de margen. */
     private const MAX_PARAMETROS = 2099;
 
+    /** Y como máximo 1 000 filas por INSERT … VALUES (error 10738). */
+    private const MAX_FILAS = 1000;
+
     /**
      * @param  class-string<Model>  $modelo
      * @param  array<int, array<string, mixed>>  $filas  atributos de cada fila, todas con las mismas claves
@@ -39,7 +42,7 @@ final class InsercionEnBloques
             return $m->getAttributes();
         }, $filas);
 
-        $porBloque = max(1, intdiv(self::MAX_PARAMETROS, count($valores[0])));
+        $porBloque = max(1, min(self::MAX_FILAS, intdiv(self::MAX_PARAMETROS, count($valores[0]))));
         foreach (array_chunk($valores, $porBloque) as $bloque) {
             $modelo::query()->toBase()->insert($bloque);
         }

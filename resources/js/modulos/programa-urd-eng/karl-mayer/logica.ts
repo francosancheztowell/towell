@@ -8,6 +8,7 @@ import {
     type MaterialInventario,
     type MaterialPayload,
 } from '../comun/inventario-materiales.ts';
+import { formatNumber } from '../../../utils/format.ts';
 
 /** Lo mínimo de FormData que usa la pantalla (en tests se pasa un FormData real). */
 export interface LectorCampos {
@@ -46,11 +47,14 @@ function texto(v: unknown): string {
 /** Kilos con 2 decimales en es-MX ("1,234.50"). */
 export function formatKilos(valor: unknown): string {
     const n = parseFloat(String(valor));
-    const kilos = Number.isFinite(n) ? n : 0;
-    return kilos.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return formatNumber(Number.isFinite(n) ? n : 0, 2);
 }
 
-/** Fecha de producción a dd/mm/aaaa (acepta ISO, dd/mm/aaaa o algo que Date entienda). */
+/**
+ * Fecha de producción a dd/mm/aaaa (acepta ISO, dd/mm/aaaa o algo que Date entienda).
+ * No usa utils/format.formatDate a propósito: el JS viejo tomaba la parte de fecha del ISO
+ * tal cual ('…T00:00:00Z' → ese día), y formatDate lo pasaría a hora de CDMX (día anterior).
+ */
 export function formatFecha(valor: unknown): string {
     const raw = texto(valor);
     if (!raw) return '';
