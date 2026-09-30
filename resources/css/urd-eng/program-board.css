@@ -498,7 +498,11 @@ body.program-board-modal-open main.app-main {
 }
 
 .program-board-order.is-selected {
-    background: #dbeafe;
+    background: #93c5fd;
+}
+
+.program-board-order.is-selected > td:first-child {
+    box-shadow: inset 4px 0 0 #1d4ed8;
 }
 
 /* Engomado: orden cuyo folio ya está Finalizado en urdido */
@@ -511,7 +515,7 @@ body.program-board-modal-open main.app-main {
 }
 
 .program-board-lanes.is-engomado .program-board-order.is-urdido-finished.is-selected {
-    background: #bfdbfe;
+    background: #93c5fd;
 }
 
 #priority-sort-body tr.is-urdido-finished {
