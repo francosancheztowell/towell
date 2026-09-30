@@ -103,12 +103,47 @@ class AtadoDeJulioReservadoTest extends TestCase
         $response->assertJsonMissingPath('detalles.registroCompleto');
     }
 
-    public function test_sin_reserva_no_hay_detalle(): void
+    public function test_sin_reserva_muestra_el_telar_para_avisar(): void
     {
-        $response = $this->getJson('/tejedores/atadodejulio?no_telar=300&tipo=pie');
+        $this->getJson('/tejedores/atadodejulio?no_telar=300&tipo=pie')
+            ->assertOk()
+            ->assertJsonPath('detalles.id', null)
+            ->assertJsonPath('detalles.sinReserva', true)
+            ->assertJsonPath('detalles.no_telar', '300');
 
-        $response->assertOk();
-        $response->assertJsonPath('detalles', null);
+        $this->getJson('/tejedores/atadodejulio?no_telar=300&tipo=otro')->assertJsonPath('detalles', null);
+    }
+
+    public function test_aviso_sin_reserva_queda_pendiente_en_tej_notifica_tejedor(): void
+    {
+        $this->postJson('/tejedores/atadodejulio/notificar', ['id' => null, 'no_telar' => '300', 'tipo' => 'pie', 'horaParo' => '06:40:00'])
+            ->assertOk()
+            ->assertJsonPath('horaParo', '06:40:00');
+
+        $aviso = DB::connection('sqlsrv')->table('TejNotificaTejedor')->sole();
+        $this->assertSame(['300', 'pie', '06:40:00', 0], [$aviso->telar, $aviso->tipo, $aviso->hora, (int) $aviso->Reserva]);
+        $this->assertNull(DB::connection('sqlsrv')->table('tej_inventario_telares')->where('id', 1)->value('horaParo'), 'No toca filas sin reserva.');
+    }
+
+    public function test_barra_km_sin_reserva_tambien_queda_pendiente(): void
+    {
+        DB::connection('sqlsrv')->table('TelTelaresOperador')->insert(['numero_empleado' => '1001', 'NoTelarId' => '401']);
+
+        $this->getJson('/tejedores/atadodejulio?no_telar=401&tipo=3')->assertJsonPath('detalles.sinReserva', true);
+        $this->postJson('/tejedores/atadodejulio/notificar', ['no_telar' => '401', 'tipo' => '3', 'horaParo' => '10:15:00'])->assertOk();
+
+        $aviso = DB::connection('sqlsrv')->table('TejNotificaTejedor')->sole();
+        $this->assertSame(['401', '3', 0], [$aviso->telar, $aviso->tipo, (int) $aviso->Reserva]);
+    }
+
+    public function test_aviso_sin_reserva_se_rechaza_si_ya_le_reservaron_o_no_es_su_telar(): void
+    {
+        // Rizo del 300 ya tiene reserva sin hora (fila 2): hay que notificar esa, no dejar un pendiente.
+        $this->postJson('/tejedores/atadodejulio/notificar', ['no_telar' => '300', 'tipo' => 'rizo', 'horaParo' => '06:40:00'])->assertStatus(422);
+        $this->postJson('/tejedores/atadodejulio/notificar', ['no_telar' => '999', 'tipo' => 'pie', 'horaParo' => '06:40:00'])->assertStatus(422);
+        $this->postJson('/tejedores/atadodejulio/notificar', ['no_telar' => '300', 'tipo' => '7', 'horaParo' => '06:40:00'])->assertStatus(422);
+
+        $this->assertSame(0, DB::connection('sqlsrv')->table('TejNotificaTejedor')->count());
     }
 
     public function test_un_telar_que_no_es_del_operador_no_devuelve_detalle(): void

@@ -385,6 +385,25 @@ class InventarioReservasServiceTest extends TestCase
         $this->assertSame(1, (int) DB::connection('sqlsrv')->table('TejNotificaTejedor')->where('id', $aviso)->value('Reserva'));
     }
 
+    public function test_regla_tejedor_con_barra_km_pasa_la_hora_a_esa_barra(): void
+    {
+        $barra2 = $this->telar(['no_telar' => '401', 'tipo' => '2', 'no_julio' => 'K6', 'no_orden' => '01269', 'no_julio2' => 'K7', 'no_orden2' => '01270']);
+        $barra3 = $this->telar(['no_telar' => '401', 'tipo' => '3']);
+        $aviso = $this->aviso(['telar' => '401', 'tipo' => '2', 'hora' => '10:15:00', 'Fecha' => '2026-09-30']);
+        $otraBarra = $this->aviso(['telar' => '401', 'tipo' => '3', 'hora' => '11:00:00', 'Fecha' => '2026-09-30']);
+
+        (new InventarioReservasService)->ejecutarReserva(
+            ['InventSerialId' => 'K7', 'InventBatchId' => '01270', 'Tipo' => '2'] + $this->datos($barra2)
+        );
+
+        $fila = DB::connection('sqlsrv')->table('TejNotificaTejedor')->where('id', $aviso)->first();
+        $this->assertSame(1, (int) $fila->Reserva);
+        $this->assertSame(['K7', '01270'], [$fila->no_julio, $fila->no_orden], 'El julio de la columna reservada, no el de la posición 1.');
+        $this->assertSame('10:15:00', TejInventarioTelares::find($barra2)->horaParo);
+        $this->assertNull(TejInventarioTelares::find($barra3)->horaParo);
+        $this->assertSame(0, (int) DB::connection('sqlsrv')->table('TejNotificaTejedor')->where('id', $otraBarra)->value('Reserva'));
+    }
+
     public function test_barra_km_guarda_julio_y_orden_principal(): void
     {
         $id = $this->telar(['no_telar' => '401', 'tipo' => '2', 'no_julio' => ' K6 ', 'no_orden' => '01269']);

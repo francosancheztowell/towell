@@ -48,6 +48,10 @@
                     <i class="fas fa-info-circle text-blue-600 mr-2"></i>
                     Información del Telar
                 </h3>
+                <p id="avisoSinReserva" class="hidden mb-4 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded text-base text-yellow-800">
+                    <i class="fas fa-clock mr-1"></i>
+                    Este telar no tiene julio reservado. Puedes notificar el paro: la hora queda guardada y se asigna cuando se reserve el julio.
+                </p>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     @foreach ([
                         'no_telar' => 'No. Telar',
@@ -144,6 +148,7 @@
 
                 registroActual = data.detalles;
                 sinDatos.classList.add('hidden');
+                document.getElementById('avisoSinReserva').classList.toggle('hidden', !data.detalles.sinReserva);
 
                 for (const campo of campos) {
                     const valor = data.detalles[campo] ?? '';

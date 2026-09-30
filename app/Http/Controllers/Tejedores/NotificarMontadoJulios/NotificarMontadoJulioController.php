@@ -32,8 +32,11 @@ class NotificarMontadoJulioController extends Controller
                 return response()->json(['detalles' => null]);
             }
 
+            $noTelar = trim((string) $request->no_telar);
+            $tipo = trim((string) $request->tipo);
+
             return response()->json([
-                'detalles' => $this->detalleReservado((string) $request->no_telar, (string) $request->tipo),
+                'detalles' => $this->detalleReservado($noTelar, $tipo) ?? $this->detalleSinReserva($noTelar, $tipo),
             ]);
         }
 
@@ -60,9 +63,11 @@ class NotificarMontadoJulioController extends Controller
                 ?? Carbon::now()->format('H:i:s');
             $fecha = Carbon::now()->toDateString();
 
-            $registro = $request->id
-                ? TejInventarioTelares::where('id', $request->id)->where('Reservado', 1)->first()
-                : null;
+            if (! $request->id) {
+                return $this->notificarSinReserva($request, $telaresOperador, $horaActual, $fecha, $user);
+            }
+
+            $registro = TejInventarioTelares::where('id', $request->id)->where('Reservado', 1)->first();
 
             if (! $registro || ! $this->telarAsignado($registro->no_telar, $telaresOperador)) {
                 return response()->json(['error' => 'No hay un julio reservado en ese telar'], 422);
@@ -109,6 +114,79 @@ class NotificarMontadoJulioController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Aviso del tejedor sin julio reservado (rizo, pie o barra KM 1-4): queda en
+     * TejNotificaTejedor con Reserva = 0. Al reservar un julio para ese telar y tipo,
+     * InventarioReservasService le pasa la hora a horaParo y lo marca Reserva = 1.
+     */
+    private function notificarSinReserva(Request $request, array $telaresOperador, string $hora, string $fecha, $user)
+    {
+        $noTelar = trim((string) $request->input('no_telar'));
+        $tipo = trim((string) $request->input('tipo'));
+
+        if (! $this->telarAsignado($noTelar, $telaresOperador) || ! $this->tipoValido($tipo)) {
+            return response()->json(['error' => 'Telar o tipo inválido'], 422);
+        }
+
+        // Si entre consultar y notificar le reservaron un julio, el aviso pendiente
+        // nunca se consumiría (o se le pegaría a la siguiente reserva).
+        if ($this->detalleReservado($noTelar, $tipo) !== null) {
+            return response()->json(['error' => 'Ese telar ya tiene un julio reservado; vuelve a consultar el telar'], 422);
+        }
+
+        $this->registrarNotificacionTejedor([
+            'telar' => $noTelar,
+            'tipo' => $tipo,
+            'hora' => $hora,
+            'NomEmpleado' => $user->nombre ?? $user->name ?? null,
+            'NoEmpleado' => $user->numero_empleado ?? null,
+            'Reserva' => 0,
+            'no_julio' => 0,
+            'no_orden' => 0,
+            'Fecha' => $fecha,
+        ], false);
+
+        try {
+            $this->enviarNotificacionTelegram((object) ['no_telar' => $noTelar, 'tipo' => $tipo, 'horaParo' => $hora, 'sinReserva' => true], $user);
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo enviar notificacion de atado de julio (sin reserva) a Telegram', [
+                'error' => $e->getMessage(),
+                'telar' => $noTelar,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'horaParo' => $hora,
+            'message' => 'Notificación registrada; la hora se asignará al reservar el julio',
+        ]);
+    }
+
+    /** rizo, pie o barra Karl Mayer 1-4. */
+    private function tipoValido(string $tipo): bool
+    {
+        return (bool) preg_match('/^(rizo|pie|[1-4])$/i', $tipo);
+    }
+
+    /**
+     * Sin julio reservado se muestra el telar igual, para que el tejedor avise el paro.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function detalleSinReserva(string $noTelar, string $tipo): ?array
+    {
+        if (! $this->tipoValido($tipo)) {
+            return null;
+        }
+
+        return [
+            'id' => null,
+            'no_telar' => $noTelar,
+            'tipo' => $tipo,
+            'sinReserva' => true,
+        ];
     }
 
     /**
@@ -214,17 +292,8 @@ class NotificarMontadoJulioController extends Controller
     private function telarAsignado(mixed $noTelar, array $telaresOperador): bool
     {
         $pedido = trim((string) $noTelar);
-        if ($pedido === '') {
-            return false;
-        }
 
-        foreach ($telaresOperador as $asignado) {
-            if (trim((string) $asignado) === $pedido) {
-                return true;
-            }
-        }
-
-        return false;
+        return $pedido !== '' && in_array($pedido, array_map(fn ($t) => trim((string) $t), $telaresOperador), true);
     }
 
     /**
@@ -232,19 +301,12 @@ class NotificarMontadoJulioController extends Controller
      */
     private function horaParoValida(mixed $valor): ?string
     {
-        $hora = trim((string) $valor);
-        if (! preg_match('/^(\d{1,2}):(\d{2}):(\d{2})$/', $hora, $m)) {
+        // Horas 0-23 (con o sin cero a la izquierda), minutos y segundos 00-59.
+        if (! preg_match('/^([01]?\d|2[0-3]):([0-5]\d):([0-5]\d)$/', trim((string) $valor), $m)) {
             return null;
         }
 
-        $h = (int) $m[1];
-        $i = (int) $m[2];
-        $s = (int) $m[3];
-        if ($h > 23 || $i > 59 || $s > 59) {
-            return null;
-        }
-
-        return sprintf('%02d:%02d:%02d', $h, $i, $s);
+        return sprintf('%02d:%s:%s', (int) $m[1], $m[2], $m[3]);
     }
 
     /**
@@ -273,26 +335,17 @@ class NotificarMontadoJulioController extends Controller
         $mensaje = "*ATADO DE JULIO NOTIFICADO*\n\n";
         $mensaje .= '*Telar:* '.($registro->no_telar ?? 'N/A')."\n";
         $mensaje .= '*Tipo:* '.($registro->tipo ?? 'N/A')."\n";
-        if (! empty($registro->tipo_atado)) {
-            $mensaje .= "*Tipo Atado:* {$registro->tipo_atado}\n";
+        $campos = [
+            'tipo_atado' => 'Tipo Atado', 'cuenta' => 'Cuenta', 'calibre' => 'Calibre', 'no_orden' => 'No. Orden',
+            'no_julio' => 'No. Julio', 'metros' => 'Metros', 'horaParo' => 'Hora Paro',
+        ];
+        foreach ($campos as $campo => $etiqueta) {
+            if (! empty($registro->{$campo})) {
+                $mensaje .= "*{$etiqueta}:* {$registro->{$campo}}\n";
+            }
         }
-        if (! empty($registro->cuenta)) {
-            $mensaje .= "*Cuenta:* {$registro->cuenta}\n";
-        }
-        if (! empty($registro->calibre)) {
-            $mensaje .= "*Calibre:* {$registro->calibre}\n";
-        }
-        if (! empty($registro->no_orden)) {
-            $mensaje .= "*No. Orden:* {$registro->no_orden}\n";
-        }
-        if (! empty($registro->no_julio)) {
-            $mensaje .= "*No. Julio:* {$registro->no_julio}\n";
-        }
-        if (! empty($registro->metros)) {
-            $mensaje .= "*Metros:* {$registro->metros}\n";
-        }
-        if (! empty($registro->horaParo)) {
-            $mensaje .= "*Hora Paro:* {$registro->horaParo}\n";
+        if (! empty($registro->sinReserva)) {
+            $mensaje .= "*Sin julio reservado:* la hora se asigna al reservar\n";
         }
 
         $mensaje .= '*Fecha:* '.Carbon::now()->format('d/m/Y')."\n";
