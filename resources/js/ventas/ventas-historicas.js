@@ -84,6 +84,8 @@ const REPORTS = [
 
 /** Paleta categórica validada (orden fijo, nunca ciclado): el color sigue a la entidad, no al rango. */
 const SERIES_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
+/** Comparativo por año: Año A en verde y Año B en azul, igual en tablas, selectores y gráfica. */
+const COMPARE_COLORS = { anioA: '#15885e', anioB: '#2a78d6' };
 const CHART_INK = '#52514e';
 const CHART_GRID = '#e7e5e4';
 
@@ -317,91 +319,125 @@ const initVentasHistoricas = (root, payload) => {
     };
 
     // --- Comparativo por año -------------------------------------------------
+    // Distribución como la hoja de Excel: Año A | tabla A | meses | tabla B | Año B, y debajo los
+    // semestres de cada año y la variación B vs A. Las filas de A y B se alinean (mismos meses).
 
     const compareBase = () => records.filter((record) => matches(record, ['anio', 'mes', 'semestre'])
         && (!state.compare.meses.size || state.compare.meses.has(record.mes)));
 
-    const compareCells = (totals) => COMPARE_COLUMNS.map(([key, , decimals]) =>
-        `<td class="pvoc-number">${formatNumber(totals[key], decimals)}</td>`).join('');
+    const compareColgroup = `<colgroup><col class="vh-cmp-col-label">${COMPARE_COLUMNS.map(() => '<col>').join('')}</colgroup>`;
+    const compareHeader = (firstLabel) => `<tr>
+        <th class="pvoc-label">${firstLabel}</th>${COMPARE_COLUMNS.map(([, label]) => `<th>${label}</th>`).join('')}
+    </tr>`;
+    const compareCells = (items) => {
+        if (!items.length) return COMPARE_COLUMNS.map(() => '<td class="pvoc-number vh-muted">–</td>').join('');
+        const totals = aggregate(items);
+        return COMPARE_COLUMNS.map(([key, , decimals]) => `<td class="pvoc-number">${formatNumber(totals[key], decimals)}</td>`).join('');
+    };
 
-    const compareHeader = (firstLabel) => `<thead><tr><th class="pvoc-label">${firstLabel}</th>${COMPARE_COLUMNS.map(([, label]) => `<th>${label}</th>`).join('')}</tr></thead>`;
-
-    const yearTable = (base, anio, key) => {
+    /** Tabla de un año (A o B) por mes o por semestre; values = filas compartidas con el otro año. */
+    const yearTable = (base, slot, key, values, area) => {
+        const anio = state.compare[slot];
         const items = base.filter((record) => record.anio === anio);
-        const rows = sortValues(key, [...groupBy(items, key).keys()]).map((value) =>
-            `<tr><td class="pvoc-label">${escapeHtml(value)}</td>${compareCells(aggregate(items.filter((record) => record[key] === value)))}</tr>`).join('');
-        return `<div class="pvoc-table-scroll vh-compare-table"><table class="pvoc-table vh-table">
-            ${compareHeader(key === 'mes' ? `Mes · ${escapeHtml(anio)}` : `Semestre · ${escapeHtml(anio)}`)}
-            <tbody>${rows || `<tr><td colspan="${COMPARE_COLUMNS.length + 1}" class="pvoc-empty">Sin datos para ${escapeHtml(anio)}.</td></tr>`}
-                <tr class="pvoc-row-total"><td class="pvoc-label">Total general</td>${compareCells(aggregate(items))}</tr></tbody>
+        const byValue = groupBy(items, key);
+        const label = key === 'mes' ? 'Mes' : 'Semestre';
+        const rows = values.map((value) =>
+            `<tr><td class="pvoc-label">${escapeHtml(value)}</td>${compareCells(byValue.get(value) ?? [])}</tr>`).join('');
+        return `<div class="pvoc-table-scroll vh-cmp-block vh-cmp-${area}"><table class="pvoc-table vh-cmp-table vh-cmp-${slot === 'anioA' ? 'a' : 'b'}">
+            ${compareColgroup}
+            <thead>
+                <tr class="vh-cmp-caption"><th colspan="${COMPARE_COLUMNS.length + 1}">${label} · ${escapeHtml(anio ?? '')}</th></tr>
+                ${compareHeader(label)}
+            </thead>
+            <tbody>${rows || `<tr><td colspan="${COMPARE_COLUMNS.length + 1}" class="pvoc-empty">Sin datos.</td></tr>`}
+                <tr class="pvoc-row-total"><td class="pvoc-label">Total general</td>${compareCells(items)}</tr></tbody>
         </table></div>`;
     };
 
-    const variationTable = (base) => {
+    const variationTable = (base, semestres) => {
         const { anioA, anioB } = state.compare;
         const variationCells = (itemsA, itemsB) => {
             const a = aggregate(itemsA);
             const b = aggregate(itemsB);
             return COMPARE_COLUMNS.map(([key]) => {
-                if (!a[key]) return '<td class="pvoc-number vh-muted">—</td>';
+                if (!a[key] || !itemsB.length) return '<td class="pvoc-number vh-muted">–</td>';
                 const change = (b[key] / a[key] - 1) * 100;
                 return `<td class="pvoc-number ${change < 0 ? 'is-negative' : 'is-positive'}">${change > 0 ? '+' : ''}${formatNumber(change)}%</td>`;
             }).join('');
         };
         const itemsA = base.filter((record) => record.anio === anioA);
         const itemsB = base.filter((record) => record.anio === anioB);
-        const semestres = sortValues('semestre', [...new Set(base.map((record) => record.semestre))]);
         const rows = semestres.map((semestre) => `<tr><td class="pvoc-label">${escapeHtml(semestre)}</td>${variationCells(
             itemsA.filter((record) => record.semestre === semestre),
             itemsB.filter((record) => record.semestre === semestre),
         )}</tr>`).join('');
 
-        return `<div class="pvoc-table-scroll vh-compare-table"><table class="pvoc-table vh-table">
-            <thead><tr class="pvoc-table-groups"><th colspan="${COMPARE_COLUMNS.length + 1}">Compara Semestre · ${escapeHtml(anioB)} vs ${escapeHtml(anioA)}</th></tr></thead>
-            ${compareHeader('Semestre')}
+        return `<div class="pvoc-table-scroll vh-cmp-block vh-cmp-cs"><table class="pvoc-table vh-cmp-table vh-cmp-var">
+            ${compareColgroup}
+            <thead>
+                <tr class="vh-cmp-caption"><th colspan="${COMPARE_COLUMNS.length + 1}">Compara Semestre · ${escapeHtml(anioB ?? '')} vs ${escapeHtml(anioA ?? '')}</th></tr>
+                ${compareHeader('Semestre')}
+            </thead>
             <tbody>${rows}<tr class="pvoc-row-total"><td class="pvoc-label">Total general</td>${variationCells(itemsA, itemsB)}</tr></tbody>
         </table></div>`;
     };
 
-    const renderCompareControls = () => {
-        const container = elements.reports.querySelector('[data-vh-compare-controls]');
-        const yearChips = (slot) => allYears.slice().reverse().map((anio) =>
-            `<button type="button" class="vh-chip ${state.compare[slot] === anio ? 'is-selected' : ''}" data-vh-compare-year="${slot}" data-vh-value="${escapeHtml(anio)}" aria-pressed="${state.compare[slot] === anio}">${escapeHtml(anio)}</button>`).join('');
-        const monthChips = MESES.map((mes) => {
+    /** Selector de año en columna, a un lado de su tabla (como el segmentador de Excel). */
+    const yearSlicer = (slot, area) => {
+        const label = slot === 'anioA' ? 'Año A' : 'Año B';
+        const chips = allYears.slice().reverse().map((anio) => {
+            const on = state.compare[slot] === anio;
+            return `<button type="button" class="vh-chip ${on ? 'is-selected' : ''}" data-vh-compare-year="${slot}" data-vh-value="${escapeHtml(anio)}" aria-pressed="${on}">${escapeHtml(anio)}</button>`;
+        }).join('');
+        return `<div class="vh-cmp-slicer vh-cmp-${area} vh-cmp-${slot === 'anioA' ? 'a' : 'b'}" role="group" aria-label="${label}">
+            <div class="vh-filter-label"><span>${label}</span></div>
+            <div class="vh-cmp-years">${chips}</div>
+        </div>`;
+    };
+
+    const monthSlicer = () => {
+        const chips = MESES.map((mes) => {
             const on = state.compare.meses.has(mes);
             return `<button type="button" class="vh-chip ${on ? 'is-selected' : ''}" data-vh-compare-month data-vh-value="${mes}" aria-pressed="${on}">${mes}</button>`;
         }).join('');
-        const field = (label, chips, clear = '') => `<div class="vh-filter">
-            <div class="vh-filter-label"><span>${label}</span>${clear}</div>
-            <div class="vh-chips">${chips}</div>
+        return `<div class="vh-cmp-slicer vh-cmp-mo" role="group" aria-label="Mes">
+            <div class="vh-filter-label"><span>Mes</span><button type="button" class="vh-filter-clear" data-vh-compare-clear title="Borrar filtro" aria-label="Borrar filtro de mes" ${state.compare.meses.size ? '' : 'hidden'}>×</button></div>
+            <div class="vh-cmp-months">${chips}</div>
         </div>`;
-
-        container.innerHTML = field('Año A', yearChips('anioA'))
-            + field('Mes', monthChips, `<button type="button" class="vh-filter-clear" data-vh-compare-clear title="Borrar filtro" aria-label="Borrar filtro de mes" ${state.compare.meses.size ? '' : 'hidden'}>×</button>`)
-            + field('Año B', yearChips('anioB'));
     };
 
     const renderCompare = () => {
         const section = elements.reports.querySelector('[data-vh-report="comparativo"]');
         const base = compareBase();
         const { anioA, anioB } = state.compare;
-        renderCompareControls();
+        const bothYears = base.filter((record) => record.anio === anioA || record.anio === anioB);
+        const meses = sortValues('mes', [...new Set(bothYears.map((record) => record.mes))]);
+        const semestres = sortValues('semestre', [...new Set(bothYears.map((record) => record.semestre))]);
 
-        section.querySelector('[data-vh-table]').innerHTML = `
-            <div class="vh-compare-grid">
-                ${yearTable(base, anioA, 'mes')}${yearTable(base, anioB, 'mes')}
-                ${yearTable(base, anioA, 'semestre')}${yearTable(base, anioB, 'semestre')}
-            </div>
-            ${variationTable(base)}`;
+        section.querySelector('[data-vh-table]').innerHTML = [
+            yearSlicer('anioA', 'ya'),
+            yearTable(base, 'anioA', 'mes', meses, 'ma'),
+            monthSlicer(),
+            yearTable(base, 'anioB', 'mes', meses, 'mb'),
+            yearSlicer('anioB', 'yb'),
+            // Abajo: Compara Semestre grande a la izquierda; semestres de A y B apilados a la derecha.
+            `<div class="vh-cmp-bottom">
+                ${variationTable(base, semestres)}
+                ${yearTable(base, 'anioA', 'semestre', semestres, 'sa')}
+                ${yearTable(base, 'anioB', 'semestre', semestres, 'sb')}
+            </div>`,
+        ].join('');
 
         const metric = state.metric.comparativo;
         const labels = MESES.filter((mes) => !state.compare.meses.size || state.compare.meses.has(mes));
-        const datasets = [anioA, anioB].map((anio, index) => ({
-            label: anio,
-            color: SERIES_COLORS[index],
-            data: labels.map((mes) => sumMetric(base.filter((record) => record.anio === anio && record.mes === mes), metric)),
+        const datasets = ['anioA', 'anioB'].map((slot) => ({
+            label: state.compare[slot],
+            color: COMPARE_COLORS[slot],
+            data: labels.map((mes) => sumMetric(base.filter((record) => record.anio === state.compare[slot] && record.mes === mes), metric)),
         }));
-        charts.comparativo = buildChart(section.querySelector('canvas'), { type: 'bar', labels, datasets });
+        const canvas = section.querySelector('canvas');
+        charts.comparativo = buildChart(canvas, { type: 'bar', labels, datasets });
+        canvas.setAttribute('aria-label', `Importe neto por mes: ${anioA} vs ${anioB}`);
     };
 
     // --- Contenedores de reporte ---------------------------------------------
@@ -409,8 +445,8 @@ const initVentasHistoricas = (root, payload) => {
     /** Cada subsección muestra su tabla y, debajo, su gráfica (medida fija: la de state.metric). */
     const reportShell = ({ id }) => `
         <section class="vh-report" data-vh-report="${id}">
-            ${id === 'comparativo' ? '<div class="vh-compare-controls" data-vh-compare-controls></div>' : ''}
-            <div data-vh-table></div>
+            <div data-vh-table ${id === 'comparativo' ? 'class="vh-cmp"' : ''}></div>
+            ${id === 'comparativo' ? '<h3 class="vh-chart-title">Importe neto por mes</h3>' : ''}
             <div class="vh-chart" data-vh-chart><canvas role="img"></canvas></div>
         </section>`;
 

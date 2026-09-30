@@ -123,10 +123,10 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 .vh-filter-label { display: flex; align-items: center; gap: .3rem; min-height: 1rem; color: #64748b; font-size: .62rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 .vh-filter-clear { display: inline-grid; place-items: center; width: 1rem; height: 1rem; border: 0; border-radius: 999px; background: #dbeafe; padding: 0; color: #1d4ed8; font-size: .75rem; line-height: 1; }
 .vh-filter-clear:hover { background: #1d4ed8; color: #fff; }
+.vh-filter-clear[hidden] { display: none; }
 
 /* Chips: siempre selección múltiple; nada seleccionado = todos */
 .vh-chips { display: flex; flex-wrap: wrap; gap: .2rem; }
-.vh-compare-controls .vh-filter:nth-child(2) .vh-chips { display: grid; grid-template-columns: repeat(6, auto); }
 .vh-chip { border: 1px solid #d5dee8; border-radius: .3rem; background: #fff; padding: .12rem .42rem; color: #334155; font-size: .7rem; font-weight: 600; line-height: 1.35; white-space: nowrap; transition: background-color .12s, border-color .12s; }
 .vh-chip:hover { border-color: #60a5fa; }
 .vh-chip.is-selected { border-color: #2a78d6; background: #2a78d6; color: #fff; }
@@ -156,10 +156,57 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 .vh-row-subtotal td { border-top: 1px solid #93a8bd; background: #f7fafc; font-weight: 800; }
 .vh-row-subtotal.vh-depth-1 td { border-top-color: #cbd5e1; background: #fff; font-weight: 700; }
 .vh-muted { color: #94a3b8; }
-.vh-compare-controls { display: flex; flex-wrap: wrap; gap: .55rem 1.4rem; margin-bottom: .4rem; border: 0; border-bottom: 1px solid var(--pvoc-border); border-radius: 0; background: #f8fafc; padding: .5rem .7rem; }
-.vh-compare-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; margin-bottom: .4rem; }
-.vh-compare-table { min-height: 0; max-height: none; }
-.vh-compare-table .pvoc-label { min-width: 110px; }
+
+/* Comparativo por año: misma distribución que la hoja de Excel.
+   Año A | tabla A | meses | tabla B | Año B; debajo semestres de A y B, y la variación bajo B. */
+.vh-cmp {
+    --vh-a: #15885e; --vh-a-soft: #e9f6ef; --vh-a-strong: #cdebdc;
+    --vh-b: #2a78d6; --vh-b-soft: #e8f0fb; --vh-b-strong: #cfe0f7;
+    --vh-head: #1f2937;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
+    grid-template-areas: "ya ma mo mb yb" "bt bt bt bt bt";
+    gap: .7rem .6rem;
+    align-items: start;
+    padding: .6rem .5rem .2rem;
+}
+.vh-cmp-ya { grid-area: ya; }.vh-cmp-ma { grid-area: ma; }.vh-cmp-mo { grid-area: mo; }.vh-cmp-mb { grid-area: mb; }.vh-cmp-yb { grid-area: yb; }
+/* Bloque inferior: Compara Semestre ocupa el alto de las dos tablas de semestre que van a su derecha. */
+.vh-cmp-bottom { display: grid; grid-area: bt; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "cs sa" "cs sb"; gap: .7rem .6rem; }
+.vh-cmp-sa { grid-area: sa; }.vh-cmp-sb { grid-area: sb; }.vh-cmp-cs { grid-area: cs; align-self: stretch; }
+.vh-cmp-cs .vh-cmp-table { height: 100%; font-size: .9rem; }
+.vh-cmp-cs .vh-cmp-caption th { font-size: .9rem; }
+.vh-cmp-block { border: 1px solid #cbd5e1; border-radius: .4rem; }
+
+.vh-cmp-slicer { display: flex; flex-direction: column; gap: .3rem; border: 1px solid #cbd5e1; border-radius: .4rem; background: #fff; padding: .35rem; }
+.vh-cmp-years { display: flex; flex-direction: column; gap: .25rem; }
+/* Una sola columna, como el segmentador de años; chips más bajos para no pasar el alto de la tabla. */
+.vh-cmp-months { display: grid; grid-template-columns: auto; gap: .2rem; }
+.vh-cmp-slicer .vh-cmp-months .vh-chip { min-height: 1.55rem; }
+.vh-cmp-slicer .vh-chip { min-height: 1.8rem; padding: .15rem .45rem; font-size: .76rem; text-align: center; }
+.vh-cmp-slicer.vh-cmp-a .vh-chip.is-selected { border-color: var(--vh-a); background: var(--vh-a); }
+.vh-cmp-slicer.vh-cmp-b .vh-chip.is-selected { border-color: var(--vh-b); background: var(--vh-b); }
+
+/* Columnas al ancho de su contenido (nunca se cortan los números); si no caben, la tabla hace scroll. */
+.vh-cmp-table { width: 100%; table-layout: auto; font-size: .76rem; }
+.vh-cmp .vh-cmp-table th, .vh-cmp .vh-cmp-table td { padding: .28rem .4rem; }
+.vh-cmp .vh-cmp-table .pvoc-label { position: static; min-width: 0; max-width: none; }
+.vh-cmp-table thead th, .vh-cmp-table thead .pvoc-label { position: static; background: var(--vh-head); color: #fff; }
+.vh-cmp-table .vh-cmp-caption th { padding: .35rem .55rem; font-size: .78rem; letter-spacing: .03em; text-align: left; text-transform: uppercase; }
+.vh-cmp-a .vh-cmp-caption th { background: var(--vh-a); }
+.vh-cmp-b .vh-cmp-caption th { background: var(--vh-b); }
+.vh-cmp-a tbody td { background: var(--vh-a-soft); }
+.vh-cmp-b tbody td { background: var(--vh-b-soft); }
+.vh-cmp-a tbody tr:nth-child(even) td { background: var(--vh-a-strong); }
+.vh-cmp-b tbody tr:nth-child(even) td { background: var(--vh-b-strong); }
+.vh-cmp-table tbody tr:hover td { background: #fff7d6; }
+.vh-cmp-table tbody tr.pvoc-row-total td { border-top: 0; background: var(--vh-head); color: #fff; }
+.vh-cmp-var .vh-cmp-caption th { background: #facc15; color: #1f2937; text-align: center; }
+.vh-cmp-var tbody td { background: #fff; }
+.vh-cmp-var tbody tr.pvoc-row-total td { border-top: 2px solid var(--vh-head); background: #f1f5f9; color: var(--pvoc-ink); }
+.vh-cmp-var .is-negative { color: #c81e1e !important; }
+.vh-cmp-var .is-positive { color: #0f7a52 !important; }
+.vh-chart-title { margin: .8rem .6rem 0; color: #334155; font-size: .82rem; font-weight: 800; }
 
 /* Laptops: se compacta el espaciado, no la letra, para no verse reducido. */
 @media (max-width: 1440px) {
@@ -170,7 +217,15 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 @media (max-width: 1280px) {
     .vh-table { font-size: .72rem; }
     .vh-table .pvoc-label { min-width: 115px; }
-    .vh-compare-grid { grid-template-columns: minmax(0, 1fr); }
+}
+/* Sin espacio para las dos tablas lado a lado (tablet): Año A y su bloque, luego Año B y el suyo. */
+@media (max-width: 1100px) {
+    .vh-cmp { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "mo mo" "ya ma" "yb mb" "bt bt"; }
+    .vh-cmp-bottom { grid-template-columns: minmax(0, 1fr); grid-template-areas: "cs" "sa" "sb"; }
+    .vh-cmp-months { grid-template-columns: repeat(12, auto); }
 }
 
-@media (max-width: 760px) { .ventas-pvoc-dashboard { height: auto; }.pvoc-card { overflow: visible; }.pvoc-filters, .pvoc-card-header { align-items: stretch; flex-direction: column; }.pvoc-table-scroll { max-height: none; }.pvoc-table .pvoc-label { min-width: 250px; }.pvoc-card-actions { flex-wrap: wrap; }.vh-compare-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) { .ventas-pvoc-dashboard { height: auto; }.pvoc-card { overflow: visible; }.pvoc-filters, .pvoc-card-header { align-items: stretch; flex-direction: column; }.pvoc-table-scroll { max-height: none; }.pvoc-table .pvoc-label { min-width: 250px; }.pvoc-card-actions { flex-wrap: wrap; }
+    .vh-cmp { grid-template-columns: minmax(0, 1fr); grid-template-areas: "mo" "ya" "ma" "yb" "mb" "bt"; }
+    .vh-cmp-years { flex-direction: row; flex-wrap: wrap; }
+    .vh-cmp-months { grid-template-columns: repeat(6, auto); } }
