@@ -7,17 +7,17 @@
 {{-- Sin x-buttons.catalog-actions (sin permisos por nombre, como antes); mismo runtime de acciones. --}}
 <div class="flex items-center gap-1" data-catalogo-acciones='@json($accionesCalibres)'>
     <button type="button" id="btn-agregar" data-accion-catalogo="agregar"
-        class="p-2 min-h-touch min-w-touch text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors"
+        class="p-2 min-h-touch text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors"
         title="Añadir" aria-label="Añadir">
         <i class="fas fa-plus text-lg" aria-hidden="true"></i>
     </button>
     <button type="button" id="btn-editar" data-accion-catalogo="editar" disabled
-        class="p-2 min-h-touch min-w-touch text-blue-600 hover:text-blue-800 rounded-md transition-colors disabled:text-gray-400 disabled:cursor-not-allowed"
+        class="p-2 min-h-touch text-blue-600 hover:text-blue-800 rounded-md transition-colors disabled:text-gray-400 disabled:cursor-not-allowed"
         title="Editar" aria-label="Editar">
         <i class="fas fa-edit text-lg" aria-hidden="true"></i>
     </button>
     <button type="button" id="btn-eliminar" data-accion-catalogo="eliminar" disabled
-        class="p-2 min-h-touch min-w-touch text-red-600 hover:text-red-800 rounded-md transition-colors disabled:text-gray-400 disabled:cursor-not-allowed"
+        class="p-2 min-h-touch text-red-600 hover:text-red-800 rounded-md transition-colors disabled:text-gray-400 disabled:cursor-not-allowed"
         title="Eliminar" aria-label="Eliminar">
         <i class="fas fa-trash text-lg" aria-hidden="true"></i>
     </button>

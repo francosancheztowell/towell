@@ -18,7 +18,9 @@ class ReqVelocidadStd extends Model
     use HasFactory;
 
     protected $table = 'dbo.ReqVelocidadStd';
+
     protected $primaryKey = 'Id';
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -26,13 +28,12 @@ class ReqVelocidadStd extends Model
         'NoTelarId',
         'FibraId',
         'Velocidad',
-        'Densidad'
+        'Densidad',
     ];
 
     protected $casts = [
-        'Velocidad' => 'float'
+        'Velocidad' => 'float',
     ];
-
 
     public function getRouteKeyName()
     {
@@ -42,30 +43,39 @@ class ReqVelocidadStd extends Model
     public static function obtenerTodos()
     {
         return self::orderBy('SalonTejidoId')
-                  ->orderBy('NoTelarId')
-                  ->orderBy('FibraId')
-                  ->get();
+            ->orderBy('NoTelarId')
+            ->orderBy('FibraId')
+            ->get();
     }
 
     public static function buscar($salon = null, $telar = null, $fibra = null, $densidad = null)
     {
         $query = self::query();
-        if ($salon) $query->where('SalonTejidoId', 'like', "%{$salon}%");
-        if ($telar) $query->where('NoTelarId', 'like', "%{$telar}%");
-        if ($fibra) $query->where('FibraId', 'like', "%{$fibra}%");
-        if ($densidad) $query->where('Densidad', 'like', "%{$densidad}%");
+        if ($salon) {
+            $query->where('SalonTejidoId', 'like', "%{$salon}%");
+        }
+        if ($telar) {
+            $query->where('NoTelarId', 'like', "%{$telar}%");
+        }
+        if ($fibra) {
+            $query->where('FibraId', 'like', "%{$fibra}%");
+        }
+        if ($densidad) {
+            $query->where('Densidad', 'like', "%{$densidad}%");
+        }
+
         return $query->orderBy('SalonTejidoId')
-                    ->orderBy('NoTelarId')
-                    ->orderBy('FibraId')
-                    ->get();
+            ->orderBy('NoTelarId')
+            ->orderBy('FibraId')
+            ->get();
     }
 
     public static function existeVelocidad($telar, $fibra, $densidad)
     {
         return self::where('NoTelarId', $telar)
-                  ->where('FibraId', $fibra)
-                  ->where('Densidad', $densidad)
-                  ->exists();
+            ->where('FibraId', $fibra)
+            ->where('Densidad', $densidad)
+            ->exists();
     }
 
     public static function crearDesdeExcel($datos)
@@ -75,7 +85,7 @@ class ReqVelocidadStd extends Model
             'NoTelarId' => $datos['telar'] ?? null,
             'FibraId' => $datos['fibra'] ?? null,
             'Velocidad' => $datos['velocidad'] ?? null,
-            'Densidad' => $datos['densidad'] ?? 'Normal'
+            'Densidad' => $datos['densidad'] ?? 'Normal',
         ]);
     }
 
@@ -86,7 +96,7 @@ class ReqVelocidadStd extends Model
             'NoTelarId' => $datos['telar'] ?? $this->NoTelarId,
             'FibraId' => $datos['fibra'] ?? $this->FibraId,
             'Velocidad' => $datos['velocidad'] ?? $this->Velocidad,
-            'Densidad' => $datos['densidad'] ?? $this->Densidad
+            'Densidad' => $datos['densidad'] ?? $this->Densidad,
         ]);
     }
 }

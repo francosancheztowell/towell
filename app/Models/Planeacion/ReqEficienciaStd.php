@@ -35,7 +35,7 @@ class ReqEficienciaStd extends Model
         'NoTelarId',      // Telar (Nombre del telar)
         'FibraId',        // Tipo de Hilo
         'Eficiencia',     // Eficiencia (Real/Float)
-        'Densidad'        // Densidad
+        'Densidad',        // Densidad
     ];
 
     /**
@@ -60,7 +60,7 @@ class ReqEficienciaStd extends Model
      * Casts para tipos de datos
      */
     protected $casts = [
-        'Eficiencia' => 'float'
+        'Eficiencia' => 'float',
     ];
 
     /**
@@ -69,9 +69,9 @@ class ReqEficienciaStd extends Model
     public static function obtenerTodos()
     {
         return self::orderBy('SalonTejidoId')
-                  ->orderBy('NoTelarId')
-                  ->orderBy('FibraId')
-                  ->get();
+            ->orderBy('NoTelarId')
+            ->orderBy('FibraId')
+            ->get();
     }
 
     /**
@@ -98,9 +98,9 @@ class ReqEficienciaStd extends Model
         }
 
         return $query->orderBy('SalonTejidoId')
-                    ->orderBy('NoTelarId')
-                    ->orderBy('FibraId')
-                    ->get();
+            ->orderBy('NoTelarId')
+            ->orderBy('FibraId')
+            ->get();
     }
 
     /**
@@ -109,8 +109,8 @@ class ReqEficienciaStd extends Model
     public static function existeEficiencia($telar, $fibra)
     {
         return self::where('NoTelarId', $telar)
-                  ->where('FibraId', $fibra)
-                  ->exists();
+            ->where('FibraId', $fibra)
+            ->exists();
     }
 
     /**
@@ -123,7 +123,7 @@ class ReqEficienciaStd extends Model
             'NoTelarId' => $datos['telar'] ?? null,
             'FibraId' => $datos['fibra'] ?? null,
             'Eficiencia' => $datos['eficiencia'] ?? null,
-            'Densidad' => $datos['densidad'] ?? null
+            'Densidad' => $datos['densidad'] ?? null,
         ]);
     }
 
@@ -137,7 +137,7 @@ class ReqEficienciaStd extends Model
             'NoTelarId' => $datos['telar'] ?? $this->NoTelarId,
             'FibraId' => $datos['fibra'] ?? $this->FibraId,
             'Eficiencia' => $datos['eficiencia'] ?? $this->Eficiencia,
-            'Densidad' => $datos['densidad'] ?? $this->Densidad
+            'Densidad' => $datos['densidad'] ?? $this->Densidad,
         ]);
     }
 
@@ -164,7 +164,4 @@ class ReqEficienciaStd extends Model
     {
         return $this->FibraId;
     }
-
-
 }
-

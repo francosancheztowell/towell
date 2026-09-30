@@ -110,6 +110,15 @@ export class CatalogoPlaneacion extends CatalogBase {
 
     alAbrirFormulario(valores: Registro | null): void {
         const form = this.el.formulario;
+        // Un valor guardado que no está en las opciones (p. ej. Salón "Ninguno" de Velocidad) se conserva.
+        for (const campo of this.planeacion.campos.filter((c) => c.tipo === 'select' && !c.depende)) {
+            const control = this.control(campo.nombre);
+            const valor = String(valores?.[campo.nombre] ?? '');
+            if (control instanceof HTMLSelectElement && valor !== '' && ![...control.options].some((o) => o.value === valor)) {
+                control.add(new Option(valor, valor));
+                control.value = valor;
+            }
+        }
         // El select dependiente (Telar) se llena después de fijar el padre (Salón).
         this.sincronizarDependientes();
         for (const campo of this.planeacion.campos.filter((c) => c.depende)) {

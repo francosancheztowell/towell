@@ -67,3 +67,13 @@ Pedidos de cambios en archivos que no son de la sesión que los detecta. Cada fi
 | A7 | 17-02 | `components/navbar/navbar.blade.php` | El `<a>` del logo (a `/produccionProceso`) no tiene texto ni `aria-label` | UX-14; lo detectó la auditoría UX-18 de 19-03 en las 12 pantallas |
 | A8 | owner / Jobs | `app/Jobs/ActualizarOeeAtadoresJob.php` | El estado que lee la pantalla (`mensaje`) sale de `readStatusMessage(..., $e->getMessage())`: mandar un texto fijo + trace_id y dejar el detalle en el log | SEC-07; `app/Jobs` no es de 19-03 |
 | A9 | 19-01 / arnés | `19-01-arnes`, `19-02-arnes` | `19-03-arnes` agrega `INFORMATION_SCHEMA.COLUMNS` (attach) y `WMSLocation`; se puede copiar a los otros arneses (U9/T9) | Folio Paro y las ubicaciones de TI-PRO daban 500 solo en el arnés |
+
+## De 19-06b (Catálogos de Planeación)
+
+| # | Para | Archivo | Cambio | Por qué |
+|---|---|---|---|---|
+| C1 | PT | `app/Actions/Planeacion/ProgramaTejido/CambiarCalendario.php` | Usar `App\Services\Planeacion\Calendarios\FormulasCalendario` (`snapInicio`, `horasProd`, `dependientesDeFechas`) en vez de `new CalendarioController`; luego borrar los tres métodos marcados `PUENTE 19-06b` del controller | Un Action no debería instanciar un controller |
+| C2 | 19-06a | `resources/views/catalagos/catalogoCodificacion.blade.php` | Al pasar a TS, registrar sus acciones con `registrarAccionesCatalogo('codificacion', {...})` de `resources/js/catalogos/catalog-actions.ts` y quitar `window.agregarCodificacion`/`editar…`/`eliminar…`/`filtrar…`/`limpiarFiltros…`; entonces se puede borrar el puente `window` de `catalog-actions.ts` | El componente ya no lleva `onclick` |
+| C3 | TS-base / integrador | `scripts/ratchet-baseline.json` | `node scripts/ratchet.mjs --update` para fijar la baja de 19-06b (ver SUMMARY §4) | El baseline es de TS-base en esta tanda |
+| C4 | DS / 17-02 | `resources/views/components/ui/modal-base.blade.php` | Igual que U4: su `onclick` del × aparece en el HTML de las 5 pantallas | Guardián sobre el fuente |
+| C5 | owner | `ReqEficienciaStd` / `ReqVelocidadStd` | Correr el runbook del SUMMARY §7 y, si solo hay `Normal`/`Alta`, agregar el cast al enum `Densidad` | Regla "un status, un enum" con dato verificado |

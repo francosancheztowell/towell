@@ -53,7 +53,7 @@
     $urlExcel = isset($rutaExcel[$route]) ? route($rutaExcel[$route], absolute: false) : null;
     $conExcelGenerico = $showExcel && $puedeCrear && $tieneAcceso && $urlExcel !== null;
     $configAcciones = ['ruta' => $route, 'routeJs' => $routeJs, 'excel' => $conExcelGenerico ? $urlExcel : null];
-    $iconoBoton = 'p-2 rounded-md transition-colors min-h-touch min-w-touch';
+    $iconoBoton = 'p-2 rounded-md transition-colors min-h-touch';
 @endphp
 
 <div class="flex items-center gap-1" data-catalogo-acciones='@json($configAcciones)'>

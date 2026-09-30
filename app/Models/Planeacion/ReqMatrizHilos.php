@@ -19,14 +19,14 @@ use Illuminate\Database\Eloquent\Model;
 class ReqMatrizHilos extends Model
 {
     protected $table = 'ReqMatrizHilos';
-    
+
     // La tabla usa 'Id' con mayúscula como clave primaria
     protected $primaryKey = 'Id';
-    
+
     protected $keyType = 'int';
-    
+
     public $incrementing = true;
-    
+
     public $timestamps = false;
 
     protected $fillable = [
