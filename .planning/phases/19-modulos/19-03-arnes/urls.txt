@@ -1,0 +1,12 @@
+programa | /atadores/programaatadores
+programa-todos | /atadores/programaatadores?filtro=todos
+programa-filtros | /atadores/programaatadores?filtro=todos | await page.click('#btn-open-filters');
+calificar-jacquard | /atadores/calificar?no_julio=J-102&no_orden=5002
+calificar-jacquard-calificado | /atadores/calificar?no_julio=J-104&no_orden=5004
+calificar-km | /atadores/calificar?no_julio=K12&no_orden=4072
+proceso-montado | /atadores/calificar/montado?no_julio=K12&no_orden=4072
+reportes-index | /atadores/reportes-atadores
+reportes-programa | /atadores/reportes-atadores/programa
+reportes-atadores | /atadores/reportes-atadores/atadores
+reportes-km | /atadores/reportes-atadores/km
+catalogo-comentarios | /atadores/catalogos/comentarios
