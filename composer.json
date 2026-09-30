@@ -72,6 +72,13 @@
             "Composer\\Config::disableProcessTimeout",
             "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite"
         ],
+        "quality": [
+            "Composer\\Config::disableProcessTimeout",
+            "node scripts/calidad.mjs pint",
+            "@php vendor/bin/phpstan analyse --memory-limit=2G --no-progress",
+            "node scripts/calidad.mjs phpmd",
+            "npm run ratchet"
+        ],
         "db:status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/db-config.ps1 status",
         "db:unlock": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/db-config.ps1 unlock",
         "db:lock": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/db-config.ps1 lock",
