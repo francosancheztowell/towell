@@ -3,20 +3,23 @@
 @php
     $soloAtras = true;
 
-    // Helper simple para iniciales
-    function iniciales($nombre)
-    {
-        $partes = preg_split('/\s+/', trim($nombre));
-        $ini = '';
-        foreach ($partes as $p) {
-            if ($p !== '') {
-                $ini .= mb_strtoupper(mb_substr($p, 0, 1));
+    // Helper simple para iniciales. function_exists: select.blade.php declara la misma función;
+    // renderizar las dos vistas en el mismo proceso (tests, workers) sería un "Cannot redeclare".
+    if (! function_exists('iniciales')) {
+        function iniciales($nombre)
+        {
+            $partes = preg_split('/\s+/', trim($nombre));
+            $ini = '';
+            foreach ($partes as $p) {
+                if ($p !== '') {
+                    $ini .= mb_strtoupper(mb_substr($p, 0, 1));
+                }
+                if (mb_strlen($ini) >= 2) {
+                    break;
+                }
             }
-            if (mb_strlen($ini) >= 2) {
-                break;
-            }
+            return mb_substr($ini, 0, 2);
         }
-        return mb_substr($ini, 0, 2);
     }
 @endphp
 
