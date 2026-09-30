@@ -903,7 +903,7 @@ async function redirectToRegistro(data) {
 
 				const tb = document.querySelector('#mainTable tbody');
 				if (tb) {
-					const filasExistentes = Array.from(tb.querySelectorAll('.selectable-row')).map(f => f.getAttribute('data-id'));
+					let filasExistentes = Array.from(tb.querySelectorAll('.selectable-row')).map(f => f.getAttribute('data-id'));
 					const primerId = parseInt(data.registro_id);
 					const registrosAgregados = [primerId];
 					const esVincular = data?.registros_vinculados > 0 || data?.ord_compartida;
