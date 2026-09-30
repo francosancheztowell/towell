@@ -149,9 +149,10 @@ class ProgramaAtadoresListadoTest extends TestCase
         $html = $this->get(route('atadores.programa', ['filtro' => 'todos']))
             ->assertOk()
             ->assertSee('Tipo atado', false)
-            ->assertSee("case 'activo': return status === 'Activo';", false)
+            ->assertSee('data-filtro="activo"', false)
             ->assertSee('JUL-CERO', false)
             ->assertSee('0.00', false)
+            // El JS vive en resources/js/modulos/atadores/programa (19-03); la ruta llega en data-pagina.
             ->assertSee('programaatadores\/estatus', false)
             ->getContent();
 
