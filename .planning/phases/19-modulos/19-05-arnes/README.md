@@ -43,15 +43,28 @@ Salida: `<pantalla>-768.png` y `<pantalla>-1280.png` + `consola.json` (status, e
 ## Flujo scriptable
 
 ```bash
-ARNES_REPO=/home/user/towell ARNES_DATOS=… php $A/setup.php      # el flujo escribe: resembrar antes
-ARNES_URL=http://127.0.0.1:8126 ARNES_SALIDA=<scratchpad>/capturas/flujo-despues node $A/flujo.mjs despues
+ARNES_REPO=/home/user/towell ARNES_DATOS=/tmp/towell-arnes-1905-despues php $A/setup.php   # el flujo escribe: resembrar antes
+ARNES_DATOS=/tmp/towell-arnes-1905-despues ARNES_URL=http://127.0.0.1:8126 \
+  ARNES_SALIDA=<scratchpad>/capturas/flujo-despues node $A/flujo.mjs despues
 ```
 
-Reserva J-502 al telar 203 → marca 201+202 → Programar → tamaño/hilo en programación → Siguiente →
-fila, destino, BOM `URD 3040-A12`, material, construcción, datos de engomado → Crear Órdenes → fecha →
-folio `00111`. Deja `NN-paso.png` + `flujo.json`. En el "antes" corre completo sin errores de consola.
-Selectores atados al DOM actual (`.swal2-confirm`, `#btn-crear-ordenes`, `.tamano-dropdown`,
-`#bom-suggestions-global`): si la migración cambia un modal o un id, ajustar el paso, no la semántica.
+`ARNES_DATOS` debe ser el del servidor: el flujo consulta ese sqlite para verificar el folio en BD.
+Tres grupos (un fallo omite solo el resto de su grupo):
+- **orden:** reserva J-502 al telar 203 → marca 201+202 → Programar → tamaño y hilo → Siguiente →
+  fila, destino, BOM `URD 3040-A12`, material, construcción, engomado → Crear Órdenes → fecha → folio
+  `00111` → verifica `UrdProgramaUrdido`, `EngProgramaEngomado`, `UrdJuliosOrden`, `UrdConsumoHilo` y
+  `no_orden` de los 2 telares.
+- **tactil (768 px, touch):** long-press en encabezado (menú de columna), botón "⋮" (menú de fila, 44 px)
+  y long-press en celda editable. En el "antes" se marca omitido (solo había clic derecho).
+- **karl-mayer:** 401 / barra 1 / A12 / `1800-8/1` / `URD 1800-KM` / material / hilos → Crear Orden →
+  fecha → folio `00112` → verifica en BD.
+
+Sirve para antes y después: la fecha se confirma en el modal x-ui (`data-fecha-requerimiento-*`) o
+en el SweetAlert, y el botón es `[data-accion="crear-ordenes"]` o `#btn-crear-ordenes`. Salida:
+`NN-paso.png` + `flujo.json` (ok/omitido, detalle, errores de consola y respuestas ≥ 400 por paso).
+
+Comparativas lado a lado (antes | después, una imagen por pantalla, sin ImageMagick):
+`node $A/comparar.mjs <capturas/antes> <capturas/despues> <salida> [768|1280]`.
 
 ## Limitaciones
 
