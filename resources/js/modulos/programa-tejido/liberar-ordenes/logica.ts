@@ -146,13 +146,14 @@ export function faltaLMat(registros: readonly RegistroLiberar[]): boolean {
 
 /** Mensaje de error de liberar: primer error de validación, el message o el genérico. */
 export function mensajeLiberar(data: unknown): string {
-    const d = (data && typeof data === 'object' ? data : {}) as { message?: unknown; errors?: unknown };
+    const d = (data && typeof data === 'object' ? data : {}) as { message?: unknown; errors?: unknown; trace_id?: unknown };
     let msg = typeof d.message === 'string' && d.message ? d.message : 'Error al liberar las órdenes.';
     if (d.errors && typeof d.errors === 'object') {
         const first = Object.values(d.errors as Record<string, unknown>).flat().find(Boolean);
         if (first) msg = String(first);
     }
-    return msg;
+    // 500 genérico (SEC-07): el código de referencia es lo que el usuario le pasa a Sistemas.
+    return typeof d.trace_id === 'string' && d.trace_id ? `${msg} (ref: ${d.trace_id})` : msg;
 }
 
 /** Filtro de texto (modal "Filtros"): la celda contiene el valor, sin distinguir mayúsculas. */

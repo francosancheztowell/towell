@@ -520,7 +520,7 @@ function schedulePreview(ordCompartida: Ord): void {
 // ==========================
 // Totales / saldos (SIN calcular fecha aquí)
 // ==========================
-function calcularTotalesYFechas(changedInput: HTMLInputElement | null = null, ordCompartida: Ord | null = null, forceRebalance = false): void {
+function calcularTotalesYFechas(ordCompartida: Ord | null = null, forceRebalance = false): void {
     if (adjustingPedidos) return;
 
     const inputs = pedidoInputs();
@@ -574,7 +574,7 @@ function calcularTotalesYFechas(changedInput: HTMLInputElement | null = null, or
                 target.value = adjusted ? String(adjusted) : '';
                 adjustingPedidos = false;
 
-                calcularTotalesYFechas(target, ordCompartida, forceRebalance);
+                calcularTotalesYFechas(ordCompartida, forceRebalance);
                 return;
             }
         }
@@ -589,7 +589,6 @@ function calcularTotalesYFechas(changedInput: HTMLInputElement | null = null, or
     if (totalSaldoEl) totalSaldoEl.textContent = totalSaldo.toLocaleString('es-MX');
     renderBalanceoLeaderBadge(currentGanttRegistros);
     updateBalanceoTotalVisualState();
-    void changedInput;
 }
 
 function actualizarPedidosDesdeTotal(totalInput: HTMLInputElement, ordCompartida: Ord): void {
@@ -612,7 +611,7 @@ function actualizarPedidosDesdeTotal(totalInput: HTMLInputElement, ordCompartida
         const input = inputs[i];
         if (input) input.value = nuevo ? String(nuevo) : '';
     });
-    calcularTotalesYFechas(inputs.length === 1 ? (inputs[0] ?? null) : null, ordCompartida);
+    calcularTotalesYFechas(ordCompartida);
     adjustingFromTotal = false;
     schedulePreview(ordCompartida);
 }
@@ -689,7 +688,7 @@ async function aplicarBalanceoAutomatico(ordCompartida: Ord): Promise<void> {
             setLockedTotalBalanceo(totalObjetivo);
             adjustingPedidos = false;
 
-            calcularTotalesYFechas(null, ordCompartida);
+            calcularTotalesYFechas(ordCompartida);
             setTimeout(() => {
                 void previewFechasExactas(ordCompartida, { force: true });
                 setTimeout(() => {
@@ -774,7 +773,7 @@ async function actualizarRegistrosBalanceo(registrosIds: Ord[]): Promise<void> {
 // Guardar cambios
 // ==========================
 async function guardarCambiosPedido(ordCompartida: Ord): Promise<boolean> {
-    calcularTotalesYFechas(null, ordCompartida, true);
+    calcularTotalesYFechas(ordCompartida, true);
     if (!isBalanceoTotalsBalanced()) {
         Swal.showValidationMessage('La suma de pedidos no coincide con el total del grupo. Revisa el mínimo por producción en el último telar o ajusta los demás telares.');
         return false;
@@ -1093,7 +1092,7 @@ function contenidoModal(filasHTML: string, noTelarPrincipal: string | null, tota
 function enlazarEventosModal(cuerpo: HTMLElement, ordCompartida: Ord): void {
     cuerpo.addEventListener('input', (e) => {
         const t = e.target as HTMLElement;
-        if (t.matches('.pedido-input')) calcularTotalesYFechas(t as HTMLInputElement, ordCompartida);
+        if (t.matches('.pedido-input')) calcularTotalesYFechas(ordCompartida);
         else if (t.id === 'total-pedido-input') actualizarPedidosDesdeTotal(t as HTMLInputElement, ordCompartida);
     });
     cuerpo.addEventListener('keydown', (e) => {
@@ -1113,7 +1112,7 @@ function enlazarEventosModal(cuerpo: HTMLElement, ordCompartida: Ord): void {
         schedulePreview(ordCompartida);
         window.setTimeout(() => {
             if (!document.querySelector('.swal2-popup')) return;
-            calcularTotalesYFechas(null, ordCompartida, true);
+            calcularTotalesYFechas(ordCompartida, true);
             schedulePreview(ordCompartida);
         }, 0);
     }, true);

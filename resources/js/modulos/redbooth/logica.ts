@@ -94,21 +94,26 @@ const ETIQUETAS_PERMITIDAS = new Set(['A', 'BR', 'CODE', 'DIV', 'EM', 'HR', 'IMG
  */
 export function limpiarNodos(raiz: ParentNode, urlArchivo: (fileId: string) => string): { img: Element; url: string; nombre: string }[] {
     const imagenes: { img: Element; url: string; nombre: string }[] = [];
-    const clean = (parent: ParentNode) => {
-        Array.from(parent.childNodes).forEach((node) => {
-            if (node.nodeType === 8 /* COMMENT_NODE */) { node.remove(); return; }
-            if (node.nodeType !== 1 /* ELEMENT_NODE */) return;
+    // Al desenvolver una etiqueta se vuelve a limpiar el padre: las imágenes ya reescritas no
+    // se procesan otra vez (su src ya apunta al proxy y no traería /files/<id>/: se borrarían).
+    const hechas = new WeakSet<Element>();
+    const clean = (parent: ParentNode): void => {
+        for (const node of Array.from(parent.childNodes)) {
+            if (node.nodeType === 8 /* COMMENT_NODE */) { node.remove(); continue; }
+            if (node.nodeType !== 1 /* ELEMENT_NODE */) continue;
             const elem = node as Element;
+            if (hechas.has(elem)) continue;
             if (!ETIQUETAS_PERMITIDAS.has(elem.tagName)) {
                 elem.replaceWith(...Array.from(elem.childNodes));
                 clean(parent);
                 return;
             }
+            hechas.add(elem);
             if (elem.tagName === 'IMG') {
                 const fileId = (elem.getAttribute('src') || '').match(/\/files\/(\d+)\//)?.[1] || '';
                 const alt = elem.getAttribute('alt') || 'Imagen adjunta';
                 Array.from(elem.attributes).forEach((a) => elem.removeAttribute(a.name));
-                if (!fileId) { elem.remove(); return; }
+                if (!fileId) { elem.remove(); continue; }
                 const url = urlArchivo(fileId);
                 elem.setAttribute('src', url);
                 elem.setAttribute('alt', alt);
@@ -116,9 +121,9 @@ export function limpiarNodos(raiz: ParentNode, urlArchivo: (fileId: string) => s
                 imagenes.push({ img: elem, url, nombre: alt });
             } else {
                 Array.from(elem.attributes).forEach((a) => elem.removeAttribute(a.name));
+                clean(elem);
             }
-            clean(elem);
-        });
+        }
     };
     clean(raiz);
     return imagenes;

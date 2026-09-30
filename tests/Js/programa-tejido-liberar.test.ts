@@ -86,6 +86,7 @@ test('mensajeLiberar: validación, message o genérico', () => {
     assert.equal(mensajeLiberar({ message: 'X', errors: { a: ['Primero'] } }), 'Primero');
     assert.equal(mensajeLiberar({ message: 'Solo message' }), 'Solo message');
     assert.equal(mensajeLiberar(null), 'Error al liberar las órdenes.');
+    assert.equal(mensajeLiberar({ message: 'Error al liberar las órdenes.', trace_id: 'ab12' }), 'Error al liberar las órdenes. (ref: ab12)');
 });
 
 test('filaPasaFiltros: texto contiene (AND) y lista tipo Excel', () => {

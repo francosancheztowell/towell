@@ -52,6 +52,11 @@ class LiberarOrdenesController extends Controller
      * Muestra los registros de ReqProgramaTejido que no tienen orden de producción
      *
      * @return View
+     *
+     * @SuppressWarnings("PHPMD.CyclomaticComplexity")
+     * @SuppressWarnings("PHPMD.NPathComplexity")
+     * @SuppressWarnings("PHPMD.ExcessiveMethodLength")
+     * Deuda previa al gate de PHPMD: PT-TS 1 solo tocó el catch (SEC-07); se parte en PT 05.1 con tests primero.
      */
     public function index(Request $request)
     {
@@ -203,15 +208,20 @@ class LiberarOrdenesController extends Controller
         }
     }
 
-    /**
-     * Libera las órdenes seleccionadas: genera folio, actualiza campos y devuelve Excel
-     */
     /** 02-MUESTRAS-LIBERAR R7: tras liberar, volver a la grilla de la misma superficie. */
     public static function urlRegreso(ProgramaTejidoSurface $superficie): string
     {
         return route($superficie->esMuestras() ? 'muestras.index' : 'catalogos.req-programa-tejido');
     }
 
+    /**
+     * Libera las órdenes seleccionadas: genera folio, actualiza campos y devuelve Excel
+     *
+     * @SuppressWarnings("PHPMD.CyclomaticComplexity")
+     * @SuppressWarnings("PHPMD.NPathComplexity")
+     * @SuppressWarnings("PHPMD.ExcessiveMethodLength")
+     * Deuda previa al gate de PHPMD: PT-TS 1 solo tocó el catch (SEC-07); se parte en PT 05.1 con tests primero.
+     */
     public function liberar(Request $request)
     {
         set_time_limit(0);
@@ -912,6 +922,9 @@ class LiberarOrdenesController extends Controller
 
     /**
      * Guarda los marbetes editados a mano en ReqProgramaTejido y replica en CatCodificados.
+     *
+     * @SuppressWarnings("PHPMD.CyclomaticComplexity")
+     * Deuda previa al gate de PHPMD: PT-TS 1 solo tocó el catch (SEC-07); se parte en PT 05.1 con tests primero.
      */
     public function guardarMarbetes(Request $request)
     {

@@ -436,7 +436,7 @@
             }
 
             if ($field === 'ItemId') {
-                return (string) $value;
+                return e((string) $value);
             }
 
             // Números con formato

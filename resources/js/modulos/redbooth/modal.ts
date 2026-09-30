@@ -16,6 +16,7 @@ import {
     type RedboothBoot,
     type UsuarioRedbooth,
 } from './logica.ts';
+import { el, icono } from '../urdido/comun/pagina.ts';
 import { http, HttpError } from '../../utils/http.ts';
 import { notify } from '../../utils/notifications.ts';
 import type { Combobox } from '../../utils/combobox.ts';
@@ -69,17 +70,9 @@ type Modo = 'loading' | 'editor' | 'viewer' | 'delete';
 /** Error con un mensaje ya pensado para el usuario. */
 class ErrorRedbooth extends Error {}
 
+/** el() de modulos/urdido/comun/pagina.ts con la firma corta (clase, texto). */
 function elemento<K extends keyof HTMLElementTagNameMap>(tag: K, clase = '', texto?: string): HTMLElementTagNameMap[K] {
-    const nodo = document.createElement(tag);
-    if (clase) nodo.className = clase;
-    if (texto !== undefined) nodo.textContent = texto;
-    return nodo;
-}
-
-function icono(clases: string): HTMLElement {
-    const i = elemento('i', clases);
-    i.setAttribute('aria-hidden', 'true');
-    return i;
+    return el(tag, { clase, texto: texto ?? null });
 }
 
 export function iniciarRedbooth(boot: RedboothBoot): void {

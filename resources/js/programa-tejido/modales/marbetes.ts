@@ -27,8 +27,12 @@ let registroId: string | null = null;
 
 const inp = (campo: Campo) => document.getElementById('marbetes-' + campo) as HTMLInputElement | null;
 // Solo `message`: el contrato del endpoint de marbetes (antes: err.data?.message).
-const mensaje = (err: unknown, porDefecto: string) =>
-    datosDelError<{ message?: string }>(err)?.message || porDefecto;
+// Con trace_id (500 genérico, SEC-07) se agrega el código de referencia.
+const mensaje = (err: unknown, porDefecto: string) => {
+    const d = datosDelError<{ message?: string; trace_id?: string }>(err);
+    const msg = d?.message || porDefecto;
+    return d?.trace_id ? `${msg} (ref: ${d.trace_id})` : msg;
+};
 
 function pintar(valores: Valores | null | undefined): void {
     CAMPOS.forEach((c) => {

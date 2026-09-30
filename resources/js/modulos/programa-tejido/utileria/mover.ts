@@ -224,7 +224,11 @@ async function cargarTelares(): Promise<void> {
 async function cambiarTelar(panel: Panel): Promise<void> {
     if (estado.hasChanges) {
         void notify.alert('Guarde sus cambios antes de cambiar de telar.', 'Cambios sin guardar', 'warning');
-        if (panel === 'origen') syncTelarSelects();
+        // El select vuelve al telar que sigue en pantalla (antes se quedaba en el nuevo y
+        // "Guardar" mandaba el anterior).
+        const actual = telarDe(panel);
+        $<HTMLSelectElement>(`moverSelect${cap(panel)}`).value = actual ? String(estado.telares.indexOf(actual)) : '';
+        syncTelarSelects();
         return;
     }
     const idx = $<HTMLSelectElement>(`moverSelect${cap(panel)}`).value;

@@ -1,4 +1,5 @@
 /** Utilería — piezas compartidas por Mover y Finalizar. */
+import { el, icono } from '../../urdido/comun/pagina.ts';
 import { HttpError } from '../../../utils/http.ts';
 
 type Icono = 'success' | 'error' | 'warning' | 'question';
@@ -37,20 +38,12 @@ export async function postConResultado<T extends { success?: boolean; message?: 
     }
 }
 
-/** Crea un elemento con clases y texto. */
+/** Crea un elemento con clases y texto (el() de modulos/urdido/comun/pagina.ts). */
 export function nodo<K extends keyof HTMLElementTagNameMap>(tag: K, clase = '', texto?: string | null): HTMLElementTagNameMap[K] {
-    const el = document.createElement(tag);
-    if (clase) el.className = clase;
-    if (texto !== undefined && texto !== null) el.textContent = texto;
-    return el;
+    return el(tag, { clase, texto: texto ?? null });
 }
 
-/** Ícono Font Awesome decorativo. */
-export function icono(clases: string): HTMLElement {
-    const i = nodo('i', clases);
-    i.setAttribute('aria-hidden', 'true');
-    return i;
-}
+export { icono };
 
 /** Llena un <select> de telares (valor = índice en la lista). */
 export function llenarTelares(select: HTMLSelectElement, telares: readonly { telar: string }[]): void {
