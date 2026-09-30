@@ -137,6 +137,18 @@
 - [ ] **ADOP-03**: Dependencias y adaptadores temporales retirados. **ADOP-04**: `filter-engine.ts` en utils.
 - [ ] **ADOP-05**: `CLAUDE.md`/`AGENTS.md`/`docs/cerebro-towell` al día. **ADOP-06**: `inventario-bugs.md` actualizado.
 
+### Solo TypeScript y estructura (owner, 2026-09-30)
+
+- [ ] **FE-TS-01**: Gate del CI: el JS (archivos y `<script>` inline) no crece y no entran `.js/.mjs/.cjs` nuevos.
+- [ ] **FE-TS-02**: Núcleo (`app`, `bootstrap`, `app-core`, `charts`) y PWA en TS.
+- [ ] **FE-TS-03**: Tests, scripts y `vite.config` en TS.
+- [ ] **FE-TS-04**: 0 líneas de JS en `resources/js`, `public/js` y Blade (se cumple al cerrar las 19-xx, PT-TS 1 y 2).
+- [ ] **ARQ-06**: Controllers delgados (FormRequest → Action/Service); sin `DB::` en controllers; gate en el ratchet.
+- [ ] **ARQ-07**: Status como backed enums con cast en los modelos (por módulo; compartidos en `app/Enums/{Programas,Bpm}`).
+- [ ] **ARQ-08**: Pares Urdido/Engomado y Programa/Muestras en una sola implementación (20-05 y cada 19-xx).
+- [ ] **ARQ-09**: AX detrás de `app/Integrations/Ax` con DTOs (cierra BUG-014 y BUG-007).
+- [x] **ORM-01**: Sin `paginate()`/`simplePaginate()` nativos en `app/` (2008 R2) + guardián `SinPaginateNativoTest` (2026-09-30).
+
 ### Calidad (fase 22)
 
 - [x] **CAL-01**: (22-01, 2026-09-30: ratchet con catch vacío 28 y duplicación 6.93 %; PHPMD solo violaciones nuevas en cambiados; `composer audit` al cambiar el lock; `composer quality`) Gates en CI sin baseline global: ratchet con `catch vacío` y `duplicación %` (jscpd), PHPMD `unusedcode`+`codesize` sobre archivos cambiados, `composer audit` bloqueante al cambiar `composer.lock`, comando `composer quality`.

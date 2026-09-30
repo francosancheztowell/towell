@@ -131,6 +131,7 @@ Gate PT (sin cambios): tests de contrato y dominio pasan; invariantes SQL se man
 | 19. Módulos TS | MIG | 3 | 5/10 | 19-01, 19-02, 19-03 (`fe02954a`), 19-05 (merge 19-05), 19-08 (`7ea03a39`) integradas; faltan 19-04, 19-06, 19-07, 19-09, 19-10 | 2026-09-30 |
 | 20. Arq/Sec | ARQ/SEC | 2–3 | 3/3 | 20-01 (`e5f2c08d`), 20-02 y 20-03 (`15227b6b`) integradas; 22 rutas esperan idrol del owner; SEC-06/07 y ARQ-05 en cada 19-xx | - |
 | 21. Adopción | ADOP | 4 | 0/1 | Context listo | - |
+| 20b. Estructura backend | ARQ | 3–4 | 0/2 | `20-04-ESTRUCTURA-BACKEND.md` (controllers delgados, Enums, Actions, DTOs); 20-04 AuthZ (auditoría del owner) y 20-05 pares Urd/Eng en la cuarta tanda | - |
 | 22. Calidad | CAL | 3–4 | 3/7 | 22-01 (`c2101e4f`) y 22-02s dependencias (`04a8442d`: `composer audit` 56 → 0, phpspreadsheet 1.30.7, Laravel 12.69.3, Livewire 4.4.7) integradas; CAL-02 cerrado por 19-03. Faltan 22-06 y 22-07 | 2026-09-30 |
 | 8. ERP quick wins | ERP | — | 4/6 | 08-01 excluido por el owner; 08-03 F0-03 pendiente de consultas A/B (trabajada en `main`) | - |
 | PT 1. Guardrails | PT | 0 | 1/1 | Completa en sqlite, integrada; runbook Laragon pendiente; decisión 01.3 aprobada | 2026-09-24 |

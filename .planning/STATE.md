@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-09-25)
 
 **Core value:** Planta y planeación trabajan más rápido y sin fricción, y Sistemas ve qué pasa en producción, sin romper invariantes de dominio.
-**Current focus:** Ola 3 — primera tanda integrada salvo 19-03 (espera al owner); segunda tanda abierta (19-02, 19-05, 19-08, PT 03). Olas 0–2 en `main`; Ola 3 solo en la rama integradora.
+**Current focus:** Ola 3 — tercera tanda (TS-base, 19-06a Codificación, 19-06b Catálogos de Planeación, 19-04 Tejedores, PT-TS 1). **La Ola 3 ya está en `main`** (`b7114948`, 2026-09-30). Decisiones nuevas del owner: solo TypeScript, ORM primero, estructura de controllers (20-04-ESTRUCTURA-BACKEND.md).
 **Protocolo:** `.planning/PROTOCOLO-SESIONES.md` (propiedad de archivos, orden de merge, gates).
 
 ## Current Position
@@ -34,7 +34,8 @@ Ola 3 — segunda tanda (abierta 2026-09-29; prompts y propiedad en `SESIONES-OL
 - **CAL 22-01** → `claude/22-cal-gates` · `session_014n9nQDVnWGNtS9EVgW6xVY` — ✅ **integrada** 2026-09-30 (`c2101e4f`): gates (catch vacío 28, duplicación 6.93 %, PHPMD solo violaciones nuevas, `composer audit`, `composer quality`), código muerto libre, 10 tests de `ReqModelosCodificadosImport` que destaparon **3 bugs ya corregidos** (totales del import en cola siempre en 0; archivos > 1 000 filas perdían filas y mapeaban mal; fechas `dd-mm-aa`), exports Urd/Eng unificados, cobertura 46 % con top-20 de riesgo.
 - **CAL-deps** → `claude/22-cal-deps` · `session_01FgMTLebNy5T2hbMo6NCNoW` — ✅ **integrada** 2026-09-30 (`04a8442d`): `composer audit` 56 → 0 y `npm audit` 1 → 0 sin subir mayores (phpspreadsheet 1.30.7, maatwebsite 3.1.70, Laravel 12.69.3, Livewire 4.4.7, guzzle 7.15.5, commonmark 2.10.3); `config.platform.php = 8.2.0`; test de `IOFactory::load` contra `phar://`.
 - 2026-09-30 02:25: 19-03, 19-05 y 19-08 destrabadas por el integrador (owner: "sigue") con sus planes tal cual y las opciones recomendadas; mensaje entregado por trigger a cada sesión (`trig_01HaHA9TAVBHsRayeNU6tGxi`, `trig_01NaK22wgeaos3B9b8Cc8Bx1`, `trig_01DovQhJpq4BCevnnAjVA4Nu`). Se les pidió merge de la rama integradora + `composer quality` antes del último push.
-- **Ninguna sesión abierta.** Tercera tanda propuesta (espera al owner): 19-06 Codificación (tras calmarse sus cambios en `main`), 19-07 Mecánicos, 19-04 Tejedores, 19-09 Configuración, 19-10, 22-06 complejidad (ReportesUrdido, CortesEficiencia `store`, ProduccionTrait), PT 05.1 (partir `dividir`/`duplicar` con tests e Infection).
+- **2026-09-30: Ola 3 subida a `main`** (fast-forward a `b7114948`, CI verde) tras marcar con `@SuppressWarnings` la deuda previa al gate de PHPMD (`351ce158`) y arreglar los 5 `paginate()` de la auditoría del owner (`b7114948`).
+- Tercera tanda: ver abajo (IDs). Antes: tercera tanda propuesta (espera al owner): 19-06 Codificación (tras calmarse sus cambios en `main`), 19-07 Mecánicos, 19-04 Tejedores, 19-09 Configuración, 19-10, 22-06 complejidad (ReportesUrdido, CortesEficiencia `store`, ProduccionTrait), PT 05.1 (partir `dividir`/`duplicar` con tests e Infection).
 
 - `main` al día en la rama: 5 commits el 26 (`95324118`) y 11 el 29 (Telegram con worker propio, whereIn en atadores/formulación, crudo, ventas, desarrolladores/alineación). Sin conflictos salvo `ratchet-baseline.json`.
 
@@ -74,7 +75,9 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 
 ### Pending Todos (owner)
 
-- **Subir la Ola 3 a `main`:** la rama lleva 17-02, 19-01/02/03/05/08, PT 03/05 y CAL (incluidas las dependencias con advisories) sin llegar a producción; `main` ya está contenido en la rama (merge limpio en seco). Al desplegar: `composer install --no-dev -o`, `npm ci && npm run build`, `php artisan optimize:clear && php artisan optimize`, `APP_LOCALE=es`, borrar `public/js/modulos/programa_urd_eng/creacion-ordenes.js` si el despliegue no sincroniza borrados; opcional `database/sql/atadores_comentarios_id.sql`; probar imports/exports de Excel (lista en `22-02s-SUMMARY.md`).
+- **Plan de salida de SQL Server 2008 R2** (auditoría del owner, Top #2): fecha y presupuesto para 2019/2022 (compat 100 al inicio) → PHP 8.4 → Laravel 13 antes del 24-feb-2027 (fin de seguridad de L12) y del 31-dic-2026 (PHP 8.2).
+- **Node en Laragon** (`node -v`): los scripts de calidad pasan a TS y necesitan Node ≥ 22.18 (o `tsx`).
+- **Desplegar `main`** (ya trae la Ola 3): la rama lleva 17-02, 19-01/02/03/05/08, PT 03/05 y CAL (incluidas las dependencias con advisories) sin llegar a producción; `main` ya está contenido en la rama (merge limpio en seco). Al desplegar: `composer install --no-dev -o`, `npm ci && npm run build`, `php artisan optimize:clear && php artisan optimize`, `APP_LOCALE=es`, borrar `public/js/modulos/programa_urd_eng/creacion-ordenes.js` si el despliegue no sincroniza borrados; opcional `database/sql/atadores_comentarios_id.sql`; probar imports/exports de Excel (lista en `22-02s-SUMMARY.md`).
 - **PHP de Apache en Laragon** (`phpinfo()` web): la CLI es 8.3.28; el lock quedó con piso 8.2.0. Si alguno fuera < 8.2, no desplegar.
 - **19-05 (5):** ⋮ en reservar-programar (filas más altas) ¿se acepta?; 3 bugs previos de negocio sin tocar (panel de urdido vacío tras elegir BOM, lista de engomado con 2 de 3 materiales, Karl Mayer ofrece un serial consumido no `Registrado`); fila agrupada guarda solo en el primer telar ¿esperado?; `actualizarPrioridades` sin permiso hasta SEC-06.
 - **19-03 (3):** correr `atadores_comentarios_id.sql`; idrol de "Reportes Atadores"; checkboxes del checklist a 44 px (cambia el diseño).

@@ -5,7 +5,7 @@
         "dev": "vite",
         "build": "vite build",
         "typecheck": "tsc --noEmit",
-        "test:js": "node --test tests/Js/*.test.mjs tests/Js/*.cjs",
+        "test:js": "node --test tests/Js/*.test.mjs tests/Js/*.cjs tests/Js/*.test.ts",
         "ratchet": "node scripts/ratchet.mjs",
         "update": "git pull && composer install --no-interaction && php artisan optimize:clear && php artisan optimize && npm install && npm run build"
     },
