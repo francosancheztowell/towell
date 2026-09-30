@@ -15,17 +15,19 @@ use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\Mantenimiento\ParoTelegramNotifier;
 use App\Services\Mecanicos\CalificacionParoService;
+use App\Support\Http\Concerns\HandlesApiErrors;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class MantenimientoParosController extends Controller
 {
+    use HandlesApiErrors;
+
     /** Días de histórico que devuelve el listado cuando se piden paros finalizados. */
     private const DIAS_HISTORICO_DEFAULT = 30;
 
@@ -50,34 +52,21 @@ class MantenimientoParosController extends Controller
 
     /**
      * Departamentos disponibles para el módulo de mantenimiento.
-     * Fuente: SysDepartamentos.Depto.
-     * El usuario con id 6 solo recibe Urdido y Engomado.
+     * Fuente: SysDepartamentos.Depto. La lista es la misma para todos (BUG-025:
+     * antes el usuario 6 solo recibía Urdido y Engomado); el área propia la
+     * preselecciona la vista con `areaUsuario`.
      */
     public function departamentos(): JsonResponse
     {
-        $usuario = Auth::user();
-        $userId = $usuario ? ($usuario->id ?? $usuario->idusuario ?? null) : null;
-
-        if ($userId === 6) {
-            $departamentos = SysDepartamento::orderBy('Depto')
-                ->whereIn('Depto', ['Urdido', 'Engomado'])
-                ->pluck('Depto')
-                ->toArray();
-        } else {
-            $departamentos = SysDepartamento::orderBy('Depto')
-                ->pluck('Depto')
-                ->toArray();
-        }
-
         return response()->json([
             'success' => true,
-            'data' => $departamentos,
+            'data' => SysDepartamento::orderBy('Depto')->pluck('Depto')->toArray(),
         ]);
     }
 
     /**
      * Todos los departamentos del catálogo (SysDepartamentos) para filtros en reportes de paros.
-     * Sin restricción por usuario (p. ej. id 6): el combo Área debe listar todas las áreas aunque los datos vengan filtrados por backend.
+     * Sin restricción por usuario: el combo Área lista todas las áreas aunque los datos vengan filtrados por backend.
      */
     public function departamentosCatalogoFiltros(): JsonResponse
     {
@@ -95,15 +84,7 @@ class MantenimientoParosController extends Controller
                 'data' => $departamentos,
             ]);
         } catch (\Throwable $e) {
-            Log::error('Error al obtener catálogo de departamentos para filtros', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-                'data' => [],
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al obtener catálogo de departamentos para filtros', 'No se pudieron cargar los departamentos.');
         }
     }
 
@@ -199,11 +180,7 @@ class MantenimientoParosController extends Controller
                 'data' => $maquinas,
             ]);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-                'data' => [],
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al obtener máquinas de mantenimiento', 'No se pudieron cargar las máquinas.', context: ['departamento' => $departamento]);
         }
     }
 
@@ -317,16 +294,7 @@ class MantenimientoParosController extends Controller
                 'data' => $tiposFalla,
             ]);
         } catch (\Throwable $e) {
-            Log::error('Error al obtener tipos de falla', [
-                'departamento' => $departamento,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-                'data' => [],
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al obtener tipos de falla', 'No se pudieron cargar los tipos de falla.', context: ['departamento' => $departamento]);
         }
     }
 
@@ -369,10 +337,7 @@ class MantenimientoParosController extends Controller
                 'data' => $items,
             ]);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al obtener fallas', 'No se pudieron cargar las fallas.', context: ['departamento' => $departamento, 'tipo_falla' => $tipoFallaId]);
         }
     }
 
@@ -439,10 +404,7 @@ class MantenimientoParosController extends Controller
                 'data' => $rows,
             ]);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al obtener orden de trabajo sugerida', 'No se pudo consultar la orden de trabajo.', context: ['departamento' => $departamento, 'maquina' => $maquina]);
         }
     }
 
@@ -561,15 +523,7 @@ class MantenimientoParosController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al guardar paro/falla', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al guardar el paro: '.$e->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al guardar paro/falla', 'No se pudo guardar el paro. Intenta de nuevo.');
         }
     }
 
@@ -769,15 +723,7 @@ class MantenimientoParosController extends Controller
                 ],
             ]);
         } catch (\Throwable $e) {
-            Log::error('Error al obtener paros/fallas', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-                'data' => [],
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al obtener paros/fallas', 'No se pudieron cargar los paros.');
         }
     }
 
@@ -801,15 +747,7 @@ class MantenimientoParosController extends Controller
                 'data' => $paro,
             ]);
         } catch (\Throwable $e) {
-            Log::error('Error al obtener paro/falla', [
-                'id' => $id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al obtener paro/falla', 'No se pudo cargar el paro.', context: ['id' => $id]);
         }
     }
 
@@ -912,16 +850,7 @@ class MantenimientoParosController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Error al finalizar paro/falla', [
-                'id' => $id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al finalizar el paro: '.$e->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al finalizar paro/falla', 'No se pudo finalizar el paro. Intenta de nuevo.', context: ['id' => $id]);
         }
     }
 
@@ -940,15 +869,7 @@ class MantenimientoParosController extends Controller
                 'data' => $operadores,
             ]);
         } catch (\Throwable $e) {
-            Log::error('Error al obtener operadores de mantenimiento', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-                'data' => [],
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al obtener operadores de mantenimiento', 'No se pudieron cargar los operadores.');
         }
     }
 }
