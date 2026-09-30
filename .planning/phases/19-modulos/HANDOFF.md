@@ -44,3 +44,12 @@ Pedidos de cambios en archivos que no son de la sesión que los detecta. Cada fi
 | R6 | 20 / owner | `app/Http/Controllers/PDFController.php` (~línea 163, `generarPDFUrdidoEngomado`) | `'Error al generar PDF: '.$e->getMessage()` → `HandlesApiErrors` | SEC-07; lo usa la descarga de edición de órdenes, pero el controller no es del módulo |
 | R7 | Tests (dueño de `tests/Unit/Programas/`) | `tests/Unit/Programas/ProgramBoardStructureTest.php` | Aceptar `from './sortable-board.ts'` (hoy busca el import sin extensión) | La receta pide imports con `.ts`; `program-board.ts` conserva el import sin extensión solo por ese test |
 | R8 | CAL-03 | lista de excepciones deliberadas de `22-CONTEXT.md` | Agregar `InventarioTelaresService::parseDateFlexible` (usa `rescue()`, sin `report()`) y el fallback de `ProgramaPrioridadService::loadRecordsWithOptionalPriority` | Intentar formatos / columna opcional es flujo normal; con el poll de 15 s del tablero, `report()` saturaría el monitoreo |
+
+## De 19-08 (Mantenimiento)
+
+| # | Para | Archivo | Cambio | Por qué |
+|---|---|---|---|---|
+| M1 | 17-02 / FE | `resources/css/app.css` | Agregar `@source '../**/*.ts';` (hoy solo `../**/*.js` y Blade) | Una clase de Tailwind que solo aparece en un `.ts` de `resources/js/modulos/**` no se genera. 19-08 dejó las clases alternadas en `data-clase-*` del `<template>` para no depender de esto |
+| M2 | 17-02 | navbar (`components/navbar/navbar.blade.php`) | Igual que U5/T6: a 768 px "Reporte de Fallos y Paros" y "Operadores de Mantenimiento" se parten y tapan los botones del navbar | Tablet (el alta de paro se usa en piso) |
+| M3 | owner | `SYSRoles` | Confirmar que "Mantenimiento" (el nombre que revisaba el GET de operadores) es el idrol **53**. El catálogo de operadores ahora revisa `acceso/crear/modificar/eliminar` por 53 | Siempre por idrol (`RutasDestructivasPermisoTest`) |
+| M4 | owner | `MantenimientoParosController::store()` | Si se quiere cerrar del todo la carrera de la cascada del lado servidor: validar que `maquina` pertenezca a `depto` (hoy no se valida; el front ya descarta respuestas rezagadas) | Defensa en profundidad; cambia reglas del alta abierta, decisión del owner |

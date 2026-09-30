@@ -1,0 +1,114 @@
+[
+  {
+    "nombre": "nuevo-paro",
+    "viewport": "768x1024",
+    "url": "/mantenimiento/nuevo-paro",
+    "status": 200,
+    "h1": 1,
+    "errores": []
+  },
+  {
+    "nombre": "solicitudes",
+    "viewport": "768x1024",
+    "url": "/mantenimiento/solicitudes",
+    "status": 200,
+    "h1": 1,
+    "errores": []
+  },
+  {
+    "nombre": "finalizar-paro",
+    "viewport": "768x1024",
+    "url": "/mantenimiento/finalizar-paro?id=1",
+    "status": 200,
+    "h1": 1,
+    "errores": []
+  },
+  {
+    "nombre": "reportes-index",
+    "viewport": "768x1024",
+    "url": "/mantenimiento/reportes",
+    "status": 200,
+    "h1": 1,
+    "errores": []
+  },
+  {
+    "nombre": "reporte-fallas-paros",
+    "viewport": "768x1024",
+    "url": "/mantenimiento/reportes/fallas-paros",
+    "status": 200,
+    "h1": 1,
+    "errores": []
+  },
+  {
+    "nombre": "catalogo-fallas",
+    "viewport": "768x1024",
+    "url": "/mantenimiento/catalogodefallas",
+    "status": 200,
+    "h1": 1,
+    "errores": []
+  },
+  {
+    "nombre": "operadores",
+    "viewport": "768x1024",
+    "url": "/mantenimiento/operadores-mantenimiento",
+    "status": 200,
+    "h1": 1,
+    "errores": []
+  },
+  {
+    "nombre": "nuevo-paro",
+    "viewport": "1280x800",
+    "url": "/mantenimiento/nuevo-paro",
+    "status": 200,
+    "h1": 1,
+    "errores": []
+  },
+  {
+    "nombre": "solicitudes",
+    "viewport": "1280x800",
+    "url": "/mantenimiento/solicitudes",
+    "status": 200,
+    "h1": 1,
+    "errores": []
+  },
+  {
+    "nombre": "finalizar-paro",
+    "viewport": "1280x800",
+    "url": "/mantenimiento/finalizar-paro?id=1",
+    "status": 200,
+    "h1": 1,
+    "errores": []
+  },
+  {
+    "nombre": "reportes-index",
+    "viewport": "1280x800",
+    "url": "/mantenimiento/reportes",
+    "status": 200,
+    "h1": 1,
+    "errores": []
+  },
+  {
+    "nombre": "reporte-fallas-paros",
+    "viewport": "1280x800",
+    "url": "/mantenimiento/reportes/fallas-paros",
+    "status": 200,
+    "h1": 1,
+    "errores": []
+  },
+  {
+    "nombre": "catalogo-fallas",
+    "viewport": "1280x800",
+    "url": "/mantenimiento/catalogodefallas",
+    "status": 200,
+    "h1": 1,
+    "errores": []
+  },
+  {
+    "nombre": "operadores",
+    "viewport": "1280x800",
+    "url": "/mantenimiento/operadores-mantenimiento",
+    "status": 200,
+    "h1": 1,
+    "errores": []
+  }
+]

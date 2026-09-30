@@ -1,0 +1,7 @@
+nuevo-paro | /mantenimiento/nuevo-paro
+solicitudes | /mantenimiento/solicitudes
+finalizar-paro | /mantenimiento/finalizar-paro?id=1
+reportes-index | /mantenimiento/reportes
+reporte-fallas-paros | /mantenimiento/reportes/fallas-paros
+catalogo-fallas | /mantenimiento/catalogodefallas
+operadores | /mantenimiento/operadores-mantenimiento

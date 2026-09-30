@@ -1,0 +1,14 @@
+{
+  "descripcion": "Hilo roto en fileta",
+  "aviso": "× Reportado correctamenteFolio: PF00042. Paro reportado correctamente y notificación enviada a TelegramOKNoCancel",
+  "foliosTrasAlta": [
+    "PF00042",
+    "PF00041"
+  ],
+  "turnoAutollenado": "1",
+  "estrella5Visible": true,
+  "activosTrasCierre": [
+    "PF00041"
+  ],
+  "errores": []
+}

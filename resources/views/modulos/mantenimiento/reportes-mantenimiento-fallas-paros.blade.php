@@ -2,14 +2,14 @@
 
 @section('navbar-right')
 <div class="flex items-center gap-2">
-    <button type="button" onclick="mostrarModalFechas()"
+    <button type="button" data-accion="abrir-rango"
         class="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
-        <i class="fas fa-search"></i> Consultar
+        <i class="fas fa-search" aria-hidden="true"></i> Consultar
     </button>
     @if (!empty($fechaIni) && !empty($fechaFin))
         <a href="{{ route('mantenimiento.reportes.fallas-paros.excel', ['fecha_ini' => $fechaIni, 'fecha_fin' => $fechaFin]) }}"
             class="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors">
-            <i class="fas fa-file-excel"></i> Descargar Excel
+            <i class="fas fa-file-excel" aria-hidden="true"></i> Descargar Excel
         </a>
     @endif
 </div>
@@ -17,7 +17,13 @@
 
 @section('page-title', 'Fallas y Paros')
 @section('content')
-<div class="w-full p-4" id="reportes-mant-container">
+@php
+    $configPagina = [
+        'destino' => route('mantenimiento.reportes.fallas-paros'),
+        'abrirAlCargar' => empty($fechaIni) || empty($fechaFin),
+    ];
+@endphp
+<div class="w-full p-4" id="pagina-reportes-mant" data-pagina='@json($configPagina)'>
     <div class="bg-white rounded-t-lg px-4 py-2 flex flex-wrap items-center gap-4">
         <span class="font-bold text-gray-800">Reporte Fallas y Paros</span>
         <span class="text-gray-600 text-sm">
@@ -103,26 +109,26 @@
 </div>
 
 {{-- Modal Rango de Fechas --}}
-<div id="modal-fechas-reporte" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-    <div class="bg-white max-w-md w-full rounded-xl shadow-xl p-6 m-4" onclick="event.stopPropagation()">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">
+<div id="modal-fechas-reporte" data-modal-rango role="dialog" aria-modal="true" aria-labelledby="titulo-rango-reporte" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+    <div class="bg-white max-w-md w-full rounded-xl shadow-xl p-6 m-4">
+        <h2 id="titulo-rango-reporte" class="text-lg font-semibold text-gray-800 mb-4">
             <i class="fa-solid fa-calendar-days text-blue-600 mr-2"></i>Rango de fechas
         </h2>
         <div class="space-y-4">
             <div>
                 <label for="fecha_ini_reporte" class="block text-sm font-medium text-gray-700 mb-1">Fecha inicial</label>
-                <input type="date" id="fecha_ini_reporte" value="{{ $fechaIni }}" class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                <input type="date" id="fecha_ini_reporte" data-rango="ini" value="{{ $fechaIni }}" class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
             </div>
             <div>
                 <label for="fecha_fin_reporte" class="block text-sm font-medium text-gray-700 mb-1">Fecha final</label>
-                <input type="date" id="fecha_fin_reporte" value="{{ $fechaFin }}" class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                <input type="date" id="fecha_fin_reporte" data-rango="fin" value="{{ $fechaFin }}" class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
             </div>
         </div>
         <div class="flex gap-2 mt-6">
-            <button type="button" id="btn-confirmar-fechas-reporte" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm">
+            <button type="button" id="btn-confirmar-fechas-reporte" data-accion="confirmar-rango" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm">
                 Consultar
             </button>
-            <button type="button" id="btn-cerrar-modal-fechas-reporte" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+            <button type="button" id="btn-cerrar-modal-fechas-reporte" data-accion="cerrar-rango" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
                 Cancelar
             </button>
         </div>
@@ -131,54 +137,5 @@
 @endsection
 
 @push('scripts')
-<script>
-function mostrarModalFechas() {
-    document.getElementById('modal-fechas-reporte').classList.remove('hidden');
-    document.getElementById('modal-fechas-reporte').classList.add('flex');
-    const hoy = new Date().toISOString().split('T')[0];
-    const fi = document.getElementById('fecha_ini_reporte');
-    const ff = document.getElementById('fecha_fin_reporte');
-    if (!fi.value) fi.value = hoy;
-    if (!ff.value) ff.value = hoy;
-    fi.focus();
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    const modal = document.getElementById('modal-fechas-reporte');
-    const fechaIni = document.getElementById('fecha_ini_reporte');
-    const fechaFin = document.getElementById('fecha_fin_reporte');
-    const btnConfirmar = document.getElementById('btn-confirmar-fechas-reporte');
-    const btnCerrar = document.getElementById('btn-cerrar-modal-fechas-reporte');
-
-    function cerrarModal() {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
-
-    function confirmar() {
-        const fi = fechaIni.value?.trim();
-        const ff = fechaFin.value?.trim();
-        if (!fi || !ff) {
-            alert('Seleccione fecha inicial y final');
-            return;
-        }
-        if (new Date(fi) > new Date(ff)) {
-            alert('La fecha inicial no puede ser mayor que la final');
-            return;
-        }
-        const params = new URLSearchParams({ fecha_ini: fi, fecha_fin: ff });
-        window.location.href = '{{ route("mantenimiento.reportes.fallas-paros") }}?' + params.toString();
-    }
-
-    btnConfirmar?.addEventListener('click', confirmar);
-    btnCerrar?.addEventListener('click', cerrarModal);
-    modal?.addEventListener('click', function(e) {
-        if (e.target === modal) cerrarModal();
-    });
-
-    @if (empty($fechaIni) || empty($fechaFin))
-    mostrarModalFechas();
-    @endif
-});
-</script>
+    @vite('resources/js/modulos/mantenimiento/reportes/index.ts')
 @endpush
