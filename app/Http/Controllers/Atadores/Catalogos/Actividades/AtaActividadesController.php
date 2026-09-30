@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Atadores\Catalogos\Actividades;
 
 use App\Http\Controllers\Atadores\Catalogos\CatalogosAtadoresVista;
+use App\Http\Controllers\Atadores\Catalogos\RespondeCatalogo;
 use App\Http\Controllers\Controller;
 use App\Models\Atadores\AtaActividadesModel;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class AtaActividadesController extends Controller
 {
+    use RespondeCatalogo;
+
     /**
      * Mostrar la vista principal con todas las actividades
      */
@@ -26,27 +30,14 @@ class AtaActividadesController extends Controller
      */
     public function store(Request $request)
     {
-        try {
-            $request->validate([
-                'ActividadId' => 'required|string|max:255|unique:AtaActividades,ActividadId',
-                'Porcentaje' => 'required|numeric|min:0|max:100',
-            ]);
+        $datos = $request->validate([
+            'ActividadId' => ['required', 'string', 'max:255', Rule::unique(AtaActividadesModel::class, 'ActividadId')],
+            'Porcentaje' => 'required|numeric|min:0|max:100',
+        ]);
 
-            AtaActividadesModel::create([
-                'ActividadId' => $request->ActividadId,
-                'Porcentaje' => $request->Porcentaje,
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Actividad creada exitosamente',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al crear la actividad: '.$e->getMessage(),
-            ], 500);
-        }
+        return $this->escribir(function () use ($datos) {
+            AtaActividadesModel::create($datos);
+        }, 'Actividad creada exitosamente', 'No se pudo crear la actividad');
     }
 
     /**
@@ -54,29 +45,19 @@ class AtaActividadesController extends Controller
      */
     public function update(Request $request, $id)
     {
-        try {
-            $actividad = AtaActividadesModel::where('ActividadId', $id)->firstOrFail();
-
-            $request->validate([
-                'ActividadId' => 'required|string|max:255|unique:AtaActividades,ActividadId,'.$id.',ActividadId',
-                'Porcentaje' => 'required|numeric|min:0|max:100',
-            ]);
-
-            $actividad->update([
-                'ActividadId' => $request->ActividadId,
-                'Porcentaje' => $request->Porcentaje,
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Actividad actualizada exitosamente',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al actualizar la actividad: '.$e->getMessage(),
-            ], 500);
+        $actividad = AtaActividadesModel::where('ActividadId', $id)->first();
+        if (! $actividad) {
+            return $this->noEncontrado('Actividad no encontrada');
         }
+
+        $datos = $request->validate([
+            'ActividadId' => ['required', 'string', 'max:255', Rule::unique(AtaActividadesModel::class, 'ActividadId')->ignore($id, 'ActividadId')],
+            'Porcentaje' => 'required|numeric|min:0|max:100',
+        ]);
+
+        return $this->escribir(function () use ($actividad, $datos) {
+            $actividad->update($datos);
+        }, 'Actividad actualizada exitosamente', 'No se pudo actualizar la actividad');
     }
 
     /**
@@ -84,20 +65,14 @@ class AtaActividadesController extends Controller
      */
     public function destroy($id)
     {
-        try {
-            $actividad = AtaActividadesModel::where('ActividadId', $id)->firstOrFail();
-            $actividad->delete();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Actividad eliminada exitosamente',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al eliminar la actividad: '.$e->getMessage(),
-            ], 500);
+        $actividad = AtaActividadesModel::where('ActividadId', $id)->first();
+        if (! $actividad) {
+            return $this->noEncontrado('Actividad no encontrada');
         }
+
+        return $this->escribir(function () use ($actividad) {
+            $actividad->delete();
+        }, 'Actividad eliminada exitosamente', 'No se pudo eliminar la actividad');
     }
 
     /**
@@ -105,18 +80,10 @@ class AtaActividadesController extends Controller
      */
     public function show($id)
     {
-        try {
-            $actividad = AtaActividadesModel::where('ActividadId', $id)->firstOrFail();
+        $actividad = AtaActividadesModel::where('ActividadId', $id)->first();
 
-            return response()->json([
-                'success' => true,
-                'data' => $actividad,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Actividad no encontrada',
-            ], 404);
-        }
+        return $actividad
+            ? response()->json(['success' => true, 'data' => $actividad])
+            : $this->noEncontrado('Actividad no encontrada');
     }
 }

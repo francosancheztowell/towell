@@ -56,6 +56,16 @@ Route::delete('/atadores/catalogos/actividades/{id}', [AtaActividadesController:
 Route::get('/atadores/catalogos/comentarios', [AtaComentariosController::class, 'index'])->name('atadores.catalogos.comentarios');
 Route::post('/atadores/catalogos/comentarios', [AtaComentariosController::class, 'store'])
     ->middleware('module.permission:crear,151')->name('atadores.catalogos.comentarios.store'); // Comentarios
+// Llave por Id (HANDOFF 16 C3): la usa la pantalla cuando dbo.AtaComentarios tiene la columna Id.
+// El POST en /id es el mismo alta: catalog-base.ts da de alta en {endpoint} y edita en {endpoint}/{llave}.
+Route::post('/atadores/catalogos/comentarios/id', [AtaComentariosController::class, 'store'])
+    ->middleware('module.permission:crear,151')->name('atadores.catalogos.comentarios.id.store'); // Comentarios
+Route::get('/atadores/catalogos/comentarios/id/{id}', [AtaComentariosController::class, 'showPorId'])
+    ->whereNumber('id')->name('atadores.catalogos.comentarios.id.show');
+Route::put('/atadores/catalogos/comentarios/id/{id}', [AtaComentariosController::class, 'updatePorId'])
+    ->whereNumber('id')->middleware('module.permission:modificar,151')->name('atadores.catalogos.comentarios.id.update'); // Comentarios
+Route::delete('/atadores/catalogos/comentarios/id/{id}', [AtaComentariosController::class, 'destroyPorId'])
+    ->whereNumber('id')->middleware('module.permission:eliminar,151')->name('atadores.catalogos.comentarios.id.destroy'); // Comentarios
 Route::get('/atadores/catalogos/comentarios/{nota1}', [AtaComentariosController::class, 'show'])->name('atadores.catalogos.comentarios.show');
 Route::put('/atadores/catalogos/comentarios/{nota1}', [AtaComentariosController::class, 'update'])
     ->middleware('module.permission:modificar,151')->name('atadores.catalogos.comentarios.update'); // Comentarios
