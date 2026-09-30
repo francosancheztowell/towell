@@ -61,23 +61,27 @@ function harness_attach(): void
 {
     foreach (['sqlsrv', 'sqlsrv_ti', 'sqlsrv_tow_pro', 'sqlsrv_tow_tow', 'sqlsrv_Reportes_Towell', 'sqlite'] as $c) {
         $db = Illuminate\Support\Facades\DB::connection($c);
+        harness_funciones($db->getPdo());
         $names = array_column($db->select('PRAGMA database_list'), 'name');
-        // Funciones de SQL Server (y de MySQL, en las ramas "no sqlsrv") que aparecen en consultas crudas.
-        $pdo = $db->getPdo();
-        $pdo->sqliteCreateFunction('ISNUMERIC', fn ($v) => is_numeric($v) ? 1 : 0, 1);
-        $pdo->sqliteCreateFunction('ISNULL', fn ($a, $b) => $a ?? $b, 2);
-        $pdo->sqliteCreateFunction('GETDATE', fn () => date('Y-m-d H:i:s'), 0);
-        $pdo->sqliteCreateFunction('LEN', fn ($v) => $v === null ? null : strlen(rtrim((string) $v)), 1);
-        $pdo->sqliteCreateFunction('DATE_FORMAT', fn ($v, $f) => $v === null ? null : date(str_replace(['%Y', '%m', '%d', '%H', '%i', '%s'], ['Y', 'm', 'd', 'H', 'i', 's'], (string) $f), strtotime((string) $v)), 2);
-        $pdo->sqliteCreateFunction('YEAR', fn ($v) => $v === null ? null : (int) date('Y', strtotime((string) $v)), 1);
-        $pdo->sqliteCreateFunction('MONTH', fn ($v) => $v === null ? null : (int) date('n', strtotime((string) $v)), 1);
-        $pdo->sqliteCreateFunction('DAY', fn ($v) => $v === null ? null : (int) date('j', strtotime((string) $v)), 1);
-        if (! in_array('dbo', $names, true)) {
-            $db->statement("ATTACH DATABASE '".HARNESS_DIR."/dbo.sqlite' AS dbo");
-        }
-        // INFORMATION_SCHEMA.COLUMNS (lo consultan SSYSFoliosSecuencia y otros): lo llena setup.php.
-        if (! in_array('INFORMATION_SCHEMA', $names, true)) {
-            $db->statement("ATTACH DATABASE '".HARNESS_DIR."/information_schema.sqlite' AS INFORMATION_SCHEMA");
+        // dbo + INFORMATION_SCHEMA.COLUMNS (lo consultan SSYSFoliosSecuencia y otros): los llena setup.php.
+        foreach (['dbo' => 'dbo', 'INFORMATION_SCHEMA' => 'information_schema'] as $alias => $archivo) {
+            if (! in_array($alias, $names, true)) {
+                $db->statement("ATTACH DATABASE '".HARNESS_DIR."/{$archivo}.sqlite' AS {$alias}");
+            }
         }
     }
+}
+
+/** Funciones de SQL Server (y de MySQL, en las ramas "no sqlsrv") que aparecen en consultas crudas. */
+function harness_funciones(PDO $pdo): void
+{
+    $fecha = fn (string $formato) => fn ($v) => $v === null ? null : (int) date($formato, strtotime((string) $v));
+    $pdo->sqliteCreateFunction('ISNUMERIC', fn ($v) => is_numeric($v) ? 1 : 0, 1);
+    $pdo->sqliteCreateFunction('ISNULL', fn ($a, $b) => $a ?? $b, 2);
+    $pdo->sqliteCreateFunction('GETDATE', fn () => date('Y-m-d H:i:s'), 0);
+    $pdo->sqliteCreateFunction('LEN', fn ($v) => $v === null ? null : strlen(rtrim((string) $v)), 1);
+    $pdo->sqliteCreateFunction('DATE_FORMAT', fn ($v, $f) => $v === null ? null : date(str_replace(['%Y', '%m', '%d', '%H', '%i', '%s'], ['Y', 'm', 'd', 'H', 'i', 's'], (string) $f), strtotime((string) $v)), 2);
+    $pdo->sqliteCreateFunction('YEAR', $fecha('Y'), 1);
+    $pdo->sqliteCreateFunction('MONTH', $fecha('n'), 1);
+    $pdo->sqliteCreateFunction('DAY', $fecha('j'), 1);
 }
