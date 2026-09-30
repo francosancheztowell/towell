@@ -7,44 +7,46 @@ namespace App\Repositories\Ventas;
 use App\Models\Ventas\TwHistPedidosModel;
 use App\Models\Ventas\TwHistPronosModel;
 use App\Models\Ventas\TwHistVtasModel;
-use Illuminate\Support\Collection;
+use Illuminate\Support\LazyCollection;
 
 final class PvVsOcReportRepository
 {
+    /*
+     * Todos los años de una vez (el filtro de año vive en el navegador). Son ~260k filas entre las
+     * tres tablas: cursor() las recorre una a una en vez de cargarlas todas en memoria.
+     */
+
     /**
      * Plan (Pronóstico), sin columnas de estatus: dbo.TwHistoricosPronostico.
      */
-    public function pronostico(int $anio): Collection
+    public function pronostico(): LazyCollection
     {
         return TwHistPronosModel::query()
-            ->where('ANIO', $anio)
             ->select($this->columnasBase())
             ->toBase()
-            ->get();
+            ->cursor();
     }
 
     /**
      * Pedidos (OC): dbo.TwHistoricosPedidos, con las columnas extra para calcular status.
      */
-    public function pedidos(int $anio): Collection
+    public function pedidos(): LazyCollection
     {
         return TwHistPedidosModel::query()
-            ->where('ANIO', $anio)
             ->select([...$this->columnasBase(), 'ENTREGADOQTY', 'PENDIENTEQTY'])
             ->toBase()
-            ->get();
+            ->cursor();
     }
 
     /**
      * Ventas reales: dbo.TwHistoricosVentas, sin columnas de estatus.
      */
-    public function ventas(int $anio): Collection
+    public function ventas(): LazyCollection
     {
         return TwHistVtasModel::query()
-            ->where('ANIO', $anio)
             ->select($this->columnasBase())
             ->toBase()
-            ->get();
+            ->cursor();
     }
 
     /**

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Livewire\Ventas;
 
-use App\Models\Ventas\TwHistVtasModel;
 use App\Services\Ventas\PvVsOcPayloadBuilder;
 use App\Services\Ventas\VentasHistoricasPayloadBuilder;
 use Illuminate\Contracts\View\View;
@@ -21,11 +20,6 @@ class DashboardPvVsOc extends Component
      */
     private const CACHE_TTL = [15 * 60, 24 * 60 * 60];
 
-    public int $anio;
-
-    /** @var list<int> */
-    public array $aniosDisponibles = [];
-
     public ?string $dataError = null;
 
     public function mount(): void
@@ -35,9 +29,6 @@ class DashboardPvVsOc extends Component
             403,
             'No tienes acceso al módulo de Ventas.'
         );
-
-        $this->aniosDisponibles = $this->cargarAniosDisponibles();
-        $this->anio = $this->aniosDisponibles[array_key_last($this->aniosDisponibles)] ?? (int) now()->year;
     }
 
     public function render(PvVsOcPayloadBuilder $builder, VentasHistoricasPayloadBuilder $historicoBuilder): View
@@ -59,38 +50,21 @@ class DashboardPvVsOc extends Component
         }
 
         try {
-            // Son ~40k filas históricas por año: reconstruirlas en cada visita tarda ~1.4 s.
+            // Todos los años (~260k filas, ~10 s en frío): el filtro de año se aplica en el navegador.
             $dashboard = Cache::flexible(
-                "ventas:pvoc:payload:{$this->anio}",
+                'ventas:pvoc:payload:todos',
                 self::CACHE_TTL,
-                fn (): string => $builder->build($this->anio),
+                fn (): string => $builder->build(),
             );
         } catch (Throwable $e) {
             report($e);
-            $this->dataError = "No se pudo cargar la información de Ventas para {$this->anio}. Intenta nuevamente en unos minutos.";
+            $this->dataError = 'No se pudo cargar la información de Ventas. Intenta nuevamente en unos minutos.';
         }
 
         return view('livewire.ventas.dashboard-pv-vs-oc', [
             'dashboard' => $dashboard,
             'historico' => $historico,
             'historicoError' => $historicoError,
-            'anios' => $this->aniosDisponibles,
         ]);
-    }
-
-    /**
-     * TwHistoricosVentas es la fuente con más historia; alcanza para poblar el selector de año.
-     *
-     * @return list<int>
-     */
-    private function cargarAniosDisponibles(): array
-    {
-        return Cache::flexible('ventas:pvoc:anios', self::CACHE_TTL, static fn (): array => TwHistVtasModel::query()
-            ->select('ANIO')
-            ->distinct()
-            ->orderBy('ANIO')
-            ->pluck('ANIO')
-            ->map(static fn ($anio) => (int) $anio)
-            ->all());
     }
 }
