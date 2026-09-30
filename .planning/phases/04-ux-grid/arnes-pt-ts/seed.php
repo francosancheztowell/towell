@@ -52,4 +52,14 @@ foreach (range(0, 4) as $d) {
     ]);
 }
 
+// Grupo de orden compartida sano (900) para el balanceo: pedido > producción, con fechas.
+foreach (DB::connection('sqlsrv')->table('ReqProgramaTejido')->orderBy('Id')->skip(20)->limit(2)->pluck('Id') as $i => $id) {
+    DB::connection('sqlsrv')->table('ReqProgramaTejido')->where('Id', $id)->update([
+        'OrdCompartida' => 900,
+        'TotalPedido' => $i === 0 ? 1000 : 2000, 'Produccion' => 0, 'StdDia' => 500,
+        'FechaInicio' => $hoy->copy()->addHours(6)->format('Y-m-d H:i:s'),
+        'FechaFinal' => $hoy->copy()->addDays(3 + 2 * $i)->format('Y-m-d H:i:s'),
+    ]);
+}
+
 echo 'PT-TS 1: '.count($ids)." filas para liberar\n";

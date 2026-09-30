@@ -11,7 +11,7 @@ import { accionesTactiles as ptAccionesTactiles } from '../utils/acciones-tactil
 import { enlazarBotonAccionesFila as ptEnlazarBotonAccionesFila, enlazarDiasLiberar as ptEnlazarDiasLiberar } from './acciones.ts';
 // Scripts que vivían inline en la vista (04-perf, corte 5). Se evalúan antes que este
 // archivo y solo publican funciones en window, como hacían sus <script>.
-import './balancear.js';
+import './balancear.ts';
 import './recalcular-fechas.ts';
 import './modales/act-calendarios.ts';
 import './modales/repaso.ts';

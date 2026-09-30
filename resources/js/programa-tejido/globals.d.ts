@@ -63,6 +63,12 @@ declare global {
         cerrarModalMarbetes?: () => void;
         loadReqProgramaTejidoLines?: (params?: Record<string, string>) => Promise<void>;
         openLinesModal?: (programaId: string | number) => void;
+        verDetallesGrupoBalanceo?: (ordCompartida: number | string) => Promise<void>;
+        abrirBalancearDesdeSeleccion?: () => void;
+        aplicarBalanceoAutomatico?: (ordCompartida: number | string) => Promise<void>;
+        recargarGanttOrdCompartida?: (ordCompartida: number | string) => Promise<void>;
+        /** Columnas de la grilla si otro script las publica; balancear cae al <thead> si no. */
+        columns?: Array<{ field: string; label?: string; dateType?: 'date' | 'datetime' | null }>;
 
         /** Vive en el scope de index.js y hoy no se publica (HANDOFF PT-TS 2): repaso lo busca aqui. */
         agregarRegistroSinRecargar?: (data: Record<string, unknown>, opciones?: { preventReload?: boolean }) => Promise<unknown>;
