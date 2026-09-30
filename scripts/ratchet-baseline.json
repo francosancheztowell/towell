@@ -10,5 +10,5 @@
   "SQL crudo con $interpolado": 8,
   "getMessage() en response()->json": 192,
   "catch vacío": 28,
-  "duplicación %": 7.1
+  "duplicación %": 6.93
 }
