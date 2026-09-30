@@ -36,8 +36,9 @@ const html2canvas = unaVez<Html2CanvasFn>(async () => (await import('html2canvas
 const pdfjs = unaVez<PdfJs>(async () => {
     const [pdfjsLib, worker] = await Promise.all([
         import('pdfjs-dist/legacy/build/pdf.mjs'),
-        // ?worker&url: Vite lo empaqueta como .js (un .mjs sin MIME en el servidor rompería el worker).
-        import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?worker&url'),
+        // ?url: se copia tal cual (ya viene minificado; pdf.js lo abre con type: "module").
+        // vite.config.js lo publica como .js: un .mjs sin MIME en el servidor rompería el worker.
+        import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url'),
     ]);
     pdfjsLib.GlobalWorkerOptions.workerSrc = worker.default;
     return pdfjsLib;

@@ -24,7 +24,14 @@ function entrada(sinExtension) {
 export default defineConfig({
   build: {
     sourcemap: false,
-    minify: 'esbuild',
+    // Sin `minify`: vite 8 minifica con Oxc (nativo), más rápido y ~400 KB menos que esbuild.
+    rolldownOptions: {
+      output: {
+        // El worker de pdf.js (?url) sale como .js: Apache/Laragon no sirven .mjs con MIME de JS.
+        assetFileNames: (asset) =>
+          asset.names?.[0]?.endsWith('.mjs') ? 'assets/[name]-[hash].js' : 'assets/[name]-[hash][extname]',
+      },
+    },
     // Sin manualChunks: un chunk `vendor` global hacía que las 129 páginas del
     // layout bajaran librerías que solo usan unas pocas (15-02).
   },
