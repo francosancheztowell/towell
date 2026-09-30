@@ -136,11 +136,11 @@
 
 ### Calidad (fase 22)
 
-- [ ] **CAL-01**: Gates en CI sin baseline global: ratchet con `catch vacío` y `duplicación %` (jscpd), PHPMD `unusedcode`+`codesize` sobre archivos cambiados, `composer audit` bloqueante al cambiar `composer.lock`, comando `composer quality`.
-- [ ] **CAL-02**: Código muerto que phpstan ya marca (`is unused`) borrado y baseline regenerado; OeeAtadores dentro de 19-03.
+- [x] **CAL-01**: (22-01, 2026-09-30: ratchet con catch vacío 28 y duplicación 6.93 %; PHPMD solo violaciones nuevas en cambiados; `composer audit` al cambiar el lock; `composer quality`) Gates en CI sin baseline global: ratchet con `catch vacío` y `duplicación %` (jscpd), PHPMD `unusedcode`+`codesize` sobre archivos cambiados, `composer audit` bloqueante al cambiar `composer.lock`, comando `composer quality`.
+- [ ] **CAL-02**: (parte libre hecha en 22-01; OeeAtadores en 19-03) Código muerto que phpstan ya marca (`is unused`) borrado y baseline regenerado; OeeAtadores dentro de 19-03.
 - [ ] **CAL-03**: Catch vacíos del flujo principal → `report($e)` por su dueño; excepciones deliberadas documentadas (Monitoreo, `EnsureModulePermission`, Telemetría).
-- [ ] **CAL-04**: Tests de hotspots sin cobertura (`ReqModelosCodificadosImport`); cobertura por archivo medida en la rama integradora; Infection puntual antes de partir `DividirTejido`/`DuplicarTejido`.
-- [ ] **CAL-05**: Exports idénticos de Urdido/Engomado unificados.
+- [x] **CAL-04**: (22-01: 10 tests del import que destaparon 3 bugs; cobertura 46 % medida en la rama, top-20 en `22-01-SUMMARY.md`; Infection queda para PT 05.1) Tests de hotspots sin cobertura (`ReqModelosCodificadosImport`); cobertura por archivo medida en la rama integradora; Infection puntual antes de partir `DividirTejido`/`DuplicarTejido`.
+- [x] **CAL-05**: (22-01: exports BPM y Resumen Semanal sobre bases comunes, 992→556 líneas, snapshot celda a celda) Exports idénticos de Urdido/Engomado unificados.
 - [ ] **CAL-06**: Complejidad de `ReportesUrdidoController` (y de `AtadoresController`/OeeAtadores en 19-03, `CatLMat` en 19-06) bajo los umbrales de PHPMD.
 - [ ] **CAL-07**: phpstan nivel 8 por carpeta para el código nuevo (Ola 4).
 

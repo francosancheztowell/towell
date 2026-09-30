@@ -131,7 +131,7 @@ Gate PT (sin cambios): tests de contrato y dominio pasan; invariantes SQL se man
 | 19. Módulos TS | MIG | 3 | 2/10 | 19-01 Urdido + Engomado (`e794bb9c`) y 19-02 Tejido (`5adbd1bc`) integradas; 19-03, 19-05 y 19-08 esperan aprobación del owner | 2026-09-29 |
 | 20. Arq/Sec | ARQ/SEC | 2–3 | 3/3 | 20-01 (`e5f2c08d`), 20-02 y 20-03 (`15227b6b`) integradas; 22 rutas esperan idrol del owner; SEC-06/07 y ARQ-05 en cada 19-xx | - |
 | 21. Adopción | ADOP | 4 | 0/1 | Context listo | - |
-| 22. Calidad | CAL | 3–4 | 0/7 | Context listo (análisis del owner verificado); 22-01 espera decidir qué hacer con el trabajo local del owner | - |
+| 22. Calidad | CAL | 3–4 | 1/7 | 22-01 integrada (`c2101e4f`): gates, código muerto libre, tests del import (3 bugs), exports Urd/Eng. Sigue 22-02s dependencias con advisories | 2026-09-30 |
 | 8. ERP quick wins | ERP | — | 4/6 | 08-01 excluido por el owner; 08-03 F0-03 pendiente de consultas A/B (trabajada en `main`) | - |
 | PT 1. Guardrails | PT | 0 | 1/1 | Completa en sqlite, integrada; runbook Laragon pendiente; decisión 01.3 aprobada | 2026-09-24 |
 | PT 1.1 AuthZ | PT | 1 | 1/1 | Completa, integrada (`0e55e84`; liberar Muestras → idrol 5) | 2026-09-24 |
