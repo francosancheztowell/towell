@@ -42,6 +42,7 @@ Ola 3 — segunda tanda (abierta 2026-09-29; prompts y propiedad en `SESIONES-OL
   - 19-04 Tejedores → `claude/19-04-tejedores` · `session_01Sw732UoqcCKcT4m6e6zXLj`
   - PT-TS 1 → `claude/pt-ts-1` · `session_01CzL1Ly5q8aQaK7ts5yxszR`
   - Las 5 esperan la aprobación de su plan en la web.
+- **Cuarta tanda (propuesta, sin abrir):** 20-05 Estructura Urd/Eng, 20-04 AuthZ, **16-02 DS Livewire** (prompt en `SESIONES-OLA-3.md` §16), PT-TS 2, 19-09, 19-07, 19-10, 22-06, PT 05.1, 22-08, 22-09.
 - Antes: tercera tanda propuesta (espera al owner): 19-06 Codificación (tras calmarse sus cambios en `main`), 19-07 Mecánicos, 19-04 Tejedores, 19-09 Configuración, 19-10, 22-06 complejidad (ReportesUrdido, CortesEficiencia `store`, ProduccionTrait), PT 05.1 (partir `dividir`/`duplicar` con tests e Infection).
 
 - `main` al día en la rama: 5 commits el 26 (`95324118`) y 11 el 29 (Telegram con worker propio, whereIn en atadores/formulación, crudo, ventas, desarrolladores/alineación). Sin conflictos salvo `ratchet-baseline.json`.
@@ -75,6 +76,7 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 - PT sí migra a Livewire **sin cambiar el diseño**, solo si mejora rendimiento medido. Orden PT: 01 → 01.1 → 02 → 04-perf → 03 → 05 → 04-ux → 06 → 07.
 - Logout normal y remoto = solo ese dispositivo (`logoutCurrentDevice`).
 - Panel solo área Sistemas, en `/admin`.
+- 2026-09-30: **Flux no.** Las vistas Livewire usan `x-ui.*` / `x-tabla`; 16-02 DS Livewire (DS-13..16) cubre lo que faltaba (spinner de `wire:click`, `wire:model`, modal por eventos). Razones en PROJECT.
 
 - 2026-09-24 (01.3): Muestras **sí se liberan**, con **"M"** en `CatCodificados.OrdenTejido` y en `MuestrasPrograma.NoProduccion` (formato exacto a confirmar al planear PT-02) → Marbetes A. Redbooth B, Producción A, Descarga TXT B, Finalización B, Longitudes A. Liberar Muestras exige `crear` del módulo Muestras (idrol 5).
 
