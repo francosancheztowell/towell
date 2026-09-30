@@ -38,11 +38,13 @@ trait CatalogosFixtures
         $this->createAuthTable();
 
         foreach ([ReqTelares::class, ReqAplicaciones::class, ReqEficienciaStd::class, ReqVelocidadStd::class,
-            ReqMatrizHilos::class, CatMatrizCalibres::class, ReqPesosRollosTejido::class, ReqCalendarioTab::class,
+            ReqMatrizHilos::class, CatMatrizCalibres::class, ReqPesosRollosTejido::class,
             ReqCalendarioLine::class, ReqProgramaTejidoLine::class] as $modelo) {
             $this->createTablaDesdeModelo($modelo);
         }
         $this->createTablaDesdeModelo(ReqProgramaTejido::class, ['UpdatedAt', 'CreatedAt']);
+        // La llave de ReqCalendarioTab es texto (createTablaDesdeModelo la haría autoincremental).
+        $this->createTablaDbo('ReqCalendarioTab', ['CalendarioId' => 'TEXT PRIMARY KEY', 'Nombre' => 'TEXT']);
 
         $this->actingAs($this->createUsuario(), 'web');
         foreach (self::MODULOS as $modulo => $idrol) {
