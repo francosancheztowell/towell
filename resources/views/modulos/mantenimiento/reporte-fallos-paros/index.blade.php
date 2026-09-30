@@ -25,9 +25,30 @@
 
 </div>
 @endsection
+
+@push('scripts')
+    @vite('resources/js/modulos/mantenimiento/solicitudes/index.ts')
+@endpush
 @section('page-title', 'Reporte de Fallos y Paros')
 @section('content')
-<div class="w-full">
+@php
+    $usuarioSesion = Auth::user();
+    $configPagina = [
+        'rutas' => [
+            'paros' => route('api.mantenimiento.paros.index'),
+            'departamentos' => route('api.mantenimiento.departamentos.catalogo-filtros'),
+            'nuevoParo' => route('mantenimiento.nuevo-paro'),
+            'finalizar' => route('mantenimiento.finalizar-paro'),
+        ],
+        // Área = SYSUsuario.area; debe coincidir con ManFallasParos.Depto para el filtro por defecto.
+        'usuario' => [
+            'nombre' => (string) ($usuarioSesion->nombre ?? ''),
+            'numeroEmpleado' => (string) ($usuarioSesion->numero_empleado ?? ''),
+            'area' => trim((string) ($usuarioSesion->area ?? '')),
+        ],
+    ];
+@endphp
+<div id="pagina-solicitudes" class="w-full" data-pagina='@json($configPagina)'>
     <div class="bg-white">
         <div class="flex gap-4">
             <!-- Tabla -->
@@ -43,8 +64,8 @@
                             <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Status</th>
                             <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Fecha</th>
                             <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Hora</th>
-                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Area</th>
-                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Maquina</th>
+                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Área</th>
+                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Máquina</th>
                             <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Tipo Falla</th>
                             <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Falla</th>
                             <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Usuario</th>
@@ -68,6 +89,36 @@
     </div>
 </div>
 
+{{-- Filas que pinta resources/js/modulos/mantenimiento/solicitudes (textContent, sin innerHTML).
+     Las clases que el JS alterna viven aquí: Tailwind escanea el Blade, no los .ts (ver HANDOFF 19-08). --}}
+<template id="tpl-fila-paro"
+          data-clase-seleccionada="bg-blue-700 text-white"
+          data-clase-normal="hover:bg-gray-100 text-gray-900"
+          data-clase-activo="bg-blue-100 text-blue-800"
+          data-clase-terminado="bg-gray-100 text-gray-800">
+    <tr class="row-paro cursor-pointer hover:bg-gray-100 transition-colors">
+        <td class="px-2 py-2 text-center">
+            <input type="radio" name="paro-seleccionado" class="h-5 w-5 align-middle cursor-pointer accent-blue-700">
+        </td>
+        <td data-col="Folio" class="px-2 py-2 text-gray-900 text-lg text-center"></td>
+        <td class="px-2 py-2 text-lg text-center"><span data-col="Estatus" class="inline-flex items-center px-2.5 py-0.5 rounded text-sm font-medium"></span></td>
+        <td data-col="Fecha" class="px-2 py-2 text-gray-900 text-lg text-center"></td>
+        <td data-col="Hora" class="px-2 py-2 text-gray-900 text-lg text-center"></td>
+        <td data-col="Depto" class="px-2 py-2 text-gray-900 text-lg text-center"></td>
+        <td data-col="MaquinaId" class="px-2 py-2 text-gray-900 text-lg text-center"></td>
+        <td data-col="TipoFallaId" class="px-2 py-2 text-gray-900 text-lg text-center"></td>
+        <td data-col="Falla" class="px-2 py-2 text-gray-900 text-lg text-center"></td>
+        <td data-col="NomEmpl" class="px-2 py-2 text-gray-900 text-lg text-center"></td>
+    </tr>
+</template>
+<template id="tpl-fila-mensaje">
+    <tr>
+        <td colspan="10" class="border border-gray-300 px-2 py-2 text-center">
+            <span role="status"><i class="fa-solid fa-spinner fa-spin mr-2 hidden" aria-hidden="true"></i></span>
+        </td>
+    </tr>
+</template>
+
 {{-- Modal Filtros (estilo BPM). <dialog> nativo: aporta role="dialog", aria-modal,
      foco atrapado, cierre con Escape y devolución del foco al botón que lo abrió. --}}
 <style>
@@ -85,7 +136,7 @@
     }
 </style>
 <dialog id="modal-filters" aria-labelledby="modal-filters-title" class="w-full max-w-2xl bg-transparent p-0">
-    <div class="bg-white max-w-2xl w-full rounded-xl shadow-xl p-4 m-4" onclick="event.stopPropagation()">
+    <div class="bg-white max-w-2xl w-full rounded-xl shadow-xl p-4 m-4">
         <div class="flex items-center justify-between mb-4">
             <h2 id="modal-filters-title" class="text-lg font-semibold text-gray-800">
                 <i class="fa-solid fa-filter text-purple-600 mr-2"></i>Filtros
@@ -94,7 +145,7 @@
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
             <div class="p-4 rounded-lg border-2 border-gray-300 bg-gray-50">
-                <label class="block text-xs text-gray-600 mb-2">
+                <label for="filter-depto" class="block text-xs text-gray-600 mb-2">
                     <i class="fa-solid fa-door-open mr-1"></i>Área
                 </label>
                 <select id="filter-depto" class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500">
@@ -102,7 +153,7 @@
                 </select>
             </div>
             <div class="p-4 rounded-lg border-2 border-gray-300 bg-gray-50">
-                <label class="block text-xs text-gray-600 mb-2">
+                <label for="filter-status" class="block text-xs text-gray-600 mb-2">
                     <i class="fa-solid fa-circle-info mr-1"></i>Status
                 </label>
                 <select id="filter-status" class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500">
@@ -110,7 +161,7 @@
                 </select>
             </div>
             <div class="p-4 rounded-lg border-2 border-gray-300 bg-gray-50">
-                <label class="block text-xs text-gray-600 mb-2">
+                <label for="filter-maquina" class="block text-xs text-gray-600 mb-2">
                     <i class="fa-solid fa-gear mr-1"></i>Máquina
                 </label>
                 <select id="filter-maquina" class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500">
@@ -140,479 +191,8 @@
     </div>
 </dialog>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const tbodyParos = document.getElementById('tbody-paros');
-    
-    // Información del usuario en sesión
-    const currentUser = {
-        numeroEmpleado: '{{ Auth::user()->numero_empleado ?? '' }}',
-        nombre: '{{ Auth::user()->nombre ?? '' }}'
-    };
-    /** Área del usuario (SYSUsuario.area); debe coincidir con ManFallasParos.Depto para filtrar por defecto. */
-    const defaultAreaFilter = @json(trim((string) (Auth::user()->area ?? '')));
-    let mostrarSoloMisSolicitudes = false;
-    let incluirTerminados = false;
-    let ultimoModoCarga = 'default';
-    let ultimoValorDeptoCombo = undefined;
-
-    // Ocultar botón de "Paro" en la barra de navegación
-    const navLinks = document.querySelectorAll('nav a, header a, .nav a, [role="navigation"] a');
-    navLinks.forEach(link => {
-        const href = link.getAttribute('href') || '';
-        if (href.includes('/mantenimiento/nuevo-paro') || href.includes('mantenimiento') && (link.textContent.includes('Paro') || link.textContent.includes('paro'))) {
-            link.style.display = 'none';
-        }
-    });
-
-    let allParos = [];
-    let catalogDeptosCache = [];
-    /** Identifica cada carga para descartar respuestas que llegan tarde y pisarían datos más nuevos. */
-    let cargaEnCursoId = 0;
-
-    const escHtml = (s) => (s ?? '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-    const filasParos = () => document.querySelectorAll('#tbody-paros tr.row-paro');
-
-    /** Quita la selección: estilos de fila, radio marcado y el id global. */
-    function limpiarSeleccion() {
-        filasParos().forEach(fila => {
-            fila.classList.remove('bg-blue-700');
-            fila.classList.add('hover:bg-gray-100');
-            fila.querySelectorAll('td').forEach(td => {
-                td.classList.remove('text-white');
-                td.classList.add('text-gray-900');
-            });
-        });
-        document.querySelectorAll('#tbody-paros input[name="paro-seleccionado"]').forEach(radio => {
-            radio.checked = false;
-        });
-        window.paroSeleccionadoId = null;
-    }
-
-    /**
-     * Selecciona una fila. El radio marcado es la señal accesible (foco, teclado y estado
-     * nativo); el color de fondo es solo el refuerzo visual.
-     */
-    function seleccionarFila(fila) {
-        limpiarSeleccion();
-        if (!fila) return;
-
-        fila.classList.remove('hover:bg-gray-100');
-        fila.classList.add('bg-blue-700');
-        fila.querySelectorAll('td').forEach(td => {
-            td.classList.remove('text-gray-900');
-            td.classList.add('text-white');
-        });
-        const radio = fila.querySelector('input[name="paro-seleccionado"]');
-        if (radio) radio.checked = true;
-        window.paroSeleccionadoId = fila.dataset.paroId || '';
-    }
-
-    /** Fila del paro seleccionado solo si sigue pintada y visible tras los filtros. */
-    function obtenerFilaSeleccionadaVisible() {
-        const radio = tbodyParos.querySelector('input[name="paro-seleccionado"]:checked');
-        const fila = radio ? radio.closest('tr.row-paro') : null;
-        if (!fila || fila.style.display === 'none') return null;
-        return fila;
-    }
-
-    /** Estado de carga en el tbody mientras la petición está en vuelo. */
-    function mostrarCargandoTabla() {
-        tbodyParos.setAttribute('aria-busy', 'true');
-        tbodyParos.innerHTML = `
-            <tr>
-                <td colspan="10" class="border border-gray-300 px-2 py-6 text-center text-gray-700 text-lg">
-                    <span role="status">
-                        <i class="fa-solid fa-spinner fa-spin mr-2" aria-hidden="true"></i>Cargando paros...
-                    </span>
-                </td>
-            </tr>
-        `;
-    }
-
-    // Teclado: al moverse con flechas dentro del grupo de radios se dispara 'change'.
-    tbodyParos.addEventListener('change', function(e) {
-        const radio = e.target.closest('input[name="paro-seleccionado"]');
-        if (!radio) return;
-        seleccionarFila(radio.closest('tr.row-paro'));
-    });
-
-    // Ratón/tablet: el clic en cualquier punto de la fila sigue siendo un atajo.
-    tbodyParos.addEventListener('click', function(e) {
-        const fila = e.target.closest('tr.row-paro');
-        if (!fila) return;
-        seleccionarFila(fila);
-    });
-
-    async function obtenerDepartamentosCatalogo() {
-        try {
-            const r = await fetch('{{ route('api.mantenimiento.departamentos.catalogo-filtros') }}');
-            const j = await r.json();
-            if (j.success && Array.isArray(j.data)) {
-                return [...new Set(j.data.map(d => String(d).trim()).filter(Boolean))].sort();
-            }
-        } catch (e) {
-            console.error(e);
-        }
-        return [];
-    }
-
-    /** @param {string[]} deptos @param {string|undefined} valorForzado Si está definido (incluye ''), fija el valor del combo tras poblar. */
-    function poblarSelectDepartamentos(deptos, valorForzado) {
-        const filterDepto = document.getElementById('filter-depto');
-        if (!filterDepto) return;
-        filterDepto.innerHTML = '<option value="">Todos</option>' +
-            deptos.map(d => `<option value="${escHtml(d)}">${escHtml(d)}</option>`).join('');
-        if (valorForzado !== undefined) {
-            filterDepto.value = valorForzado;
-            return;
-        }
-        if (defaultAreaFilter && deptos.includes(defaultAreaFilter)) {
-            filterDepto.value = defaultAreaFilter;
-        }
-    }
-
-    function applyFilters() {
-        const depto = (document.getElementById('filter-depto')?.value || '').trim();
-        const status = (document.getElementById('filter-status')?.value || '').trim();
-        const maquina = (document.getElementById('filter-maquina')?.value || '').trim();
-        const rows = document.querySelectorAll('#tbody-paros tr.row-paro');
-        const noResults = document.getElementById('filter-no-results');
-
-        let visible = 0;
-        rows.forEach(tr => {
-            const d = (tr.dataset.depto || '').toString().trim();
-            const s = (tr.dataset.status || '').toString().trim();
-            const m = (tr.dataset.maquina || '').toString().trim();
-            const usuario = (tr.dataset.usuario || '').toString().trim();
-            const empleado = (tr.dataset.empleado || '').toString().trim();
-            
-            const matchDepto = !depto || d === depto;
-            const matchStatus = !status || s === status;
-            const matchMaquina = !maquina || m === maquina;
-            
-            // Filtro por usuario en sesión
-            const matchUser = !mostrarSoloMisSolicitudes || 
-                usuario === currentUser.nombre || 
-                empleado === currentUser.numeroEmpleado;
-            
-            const show = matchDepto && matchStatus && matchMaquina && matchUser;
-            tr.style.display = show ? '' : 'none';
-            if (show) visible++;
-        });
-
-        // Si el filtro ocultó la fila seleccionada, la selección deja de ser válida.
-        const radioMarcado = tbodyParos.querySelector('input[name="paro-seleccionado"]:checked');
-        const filaMarcada = radioMarcado ? radioMarcado.closest('tr.row-paro') : null;
-        if (filaMarcada && filaMarcada.style.display === 'none') {
-            limpiarSeleccion();
-        }
-
-        const anyFilter = depto || status || maquina || mostrarSoloMisSolicitudes;
-        if (noResults) {
-            noResults.style.display = anyFilter && visible === 0 ? '' : 'none';
-        }
-    }
-
-    /** Consistencia del combo Status tras recargar datos (solo Activos en API salvo que incluya terminados). */
-    function aplicarValorStatusTrasCarga(filterStatusEl, prevStatus, opts = {}) {
-        if (!filterStatusEl) return;
-        const valores = [...filterStatusEl.options].map(o => o.value).filter(Boolean);
-
-        if (!incluirTerminados) {
-            filterStatusEl.value = '';
-            return;
-        }
-
-        if (opts.forzarStatusActivo && valores.includes('Activo')) {
-            filterStatusEl.value = 'Activo';
-            return;
-        }
-
-        if (prevStatus && valores.includes(prevStatus)) {
-            filterStatusEl.value = prevStatus;
-            return;
-        }
-
-        filterStatusEl.value = valores.includes('Activo') ? 'Activo' : '';
-    }
-
-    /**
-     * Carga paros desde API según alcance.
-     * @param {'default'|'todos'|'depto'} apiModo default = área del usuario; todos = alcance=todos; depto = query depto
-     * @param {string|undefined} valorDeptoCombo Valor a mantener en el combo Área (ej. área elegida); undefined = regla defaultAreaFilter
-     * @param {object} opts Opciones; si opts.forzarStatusActivo es true y hay terminados cargados, preselecciona Status Activo.
-     */
-    async function cargarParos(apiModo = 'default', valorDeptoCombo, opts = {}) {
-        // El tbody se reconstruye por completo: cualquier selección anterior queda obsoleta.
-        limpiarSeleccion();
-        const cargaId = ++cargaEnCursoId;
-        mostrarCargandoTabla();
-        try {
-            const prevStatus = (document.getElementById('filter-status')?.value || '').trim();
-            let catalogDeptos = catalogDeptosCache.length ? catalogDeptosCache : await obtenerDepartamentosCatalogo();
-            if (!catalogDeptosCache.length && catalogDeptos.length) {
-                catalogDeptosCache = catalogDeptos;
-            }
-
-            const params = new URLSearchParams();
-            if (apiModo === 'todos') {
-                params.set('alcance', 'todos');
-            } else if (apiModo === 'depto' && valorDeptoCombo) {
-                params.set('depto', valorDeptoCombo);
-            }
-            if (incluirTerminados) {
-                params.set('incluir_finalizados', '1');
-            }
-            const qs = params.toString();
-            let url = '{{ route('api.mantenimiento.paros.index') }}' + (qs ? '?' + qs : '');
-
-            const response = await fetch(url);
-            const result = await response.json();
-
-            // Respuesta rezagada: ya se lanzó una carga más nueva, no pisamos su tabla.
-            if (cargaId !== cargaEnCursoId) return;
-
-            if (result.success && Array.isArray(result.data)) {
-                allParos = result.data || [];
-                tbodyParos.innerHTML = '';
-
-                if (allParos.length === 0) {
-                    tbodyParos.innerHTML = `
-                        <tr>
-                            <td colspan="10" class="border border-gray-300 px-2 py-2 text-center text-gray-700">
-                                No hay paros/fallas
-                            </td>
-                        </tr>
-                    `;
-                    const deptosParaComboVacío = [...catalogDeptos].sort();
-                    poblarSelectDepartamentos(deptosParaComboVacío, valorDeptoCombo);
-                    const filterStatus = document.getElementById('filter-status');
-                    const filterMaquina = document.getElementById('filter-maquina');
-                    if (filterStatus) filterStatus.innerHTML = '<option value="">Todos</option>';
-                    if (filterMaquina) filterMaquina.innerHTML = '<option value="">Todos</option>';
-                    aplicarValorStatusTrasCarga(filterStatus, prevStatus, opts);
-                    ultimoModoCarga = apiModo;
-                    ultimoValorDeptoCombo = valorDeptoCombo;
-                    applyFilters();
-                    return;
-                }
-
-                const deptosDesdeParos = [...new Set(allParos.map(p => (p.Depto || '').toString().trim()).filter(Boolean))];
-                const deptosParaCombo = [...new Set([...catalogDeptos, ...deptosDesdeParos])].sort();
-
-                const statuses = [...new Set(allParos.map(p => (p.Estatus || '').toString().trim()).filter(Boolean))].sort();
-                const maquinas = [...new Set(allParos.map(p => (p.MaquinaId || '').toString().trim()).filter(Boolean))].sort();
-
-                const filterStatus = document.getElementById('filter-status');
-                const filterMaquina = document.getElementById('filter-maquina');
-                poblarSelectDepartamentos(deptosParaCombo, valorDeptoCombo);
-                filterStatus.innerHTML = '<option value="">Todos</option>' + statuses.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('');
-                filterMaquina.innerHTML = '<option value="">Todos</option>' + maquinas.map(m => `<option value="${escHtml(m)}">${escHtml(m)}</option>`).join('');
-                aplicarValorStatusTrasCarga(filterStatus, prevStatus, opts);
-
-                allParos.forEach(paro => {
-                    const row = document.createElement('tr');
-                    row.dataset.paroId = paro.Id || '';
-                    row.dataset.depto = (paro.Depto || '').toString().trim();
-                    row.dataset.status = (paro.Estatus || '').toString().trim();
-                    row.dataset.maquina = (paro.MaquinaId || '').toString().trim();
-                    row.dataset.usuario = (paro.NomEmpl || '').toString().trim();
-                    row.dataset.empleado = (paro.CveEmpl || '').toString().trim();
-                    row.className = 'row-paro cursor-pointer hover:bg-gray-100 transition-colors';
-
-                    const fecha = paro.Fecha ? new Date(paro.Fecha).toLocaleDateString('es-MX', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                    }) : '';
-
-                    const est = (paro.Estatus || '').toString().trim();
-                    const badgeActivo = 'inline-flex items-center px-2.5 py-0.5 rounded text-sm font-medium';
-                    const badgeEstatus = est.toLowerCase() === 'activo'
-                        ? `<span class="${badgeActivo} bg-blue-100 text-blue-800">${escHtml(est || '—')}</span>`
-                        : `<span class="${badgeActivo} bg-gray-100 text-gray-800">${escHtml(est || '—')}</span>`;
-
-                    const folioTxt = escHtml(paro.Folio);
-                    const idTxt = escHtml(paro.Id);
-                    const etiquetaRadio = folioTxt ? `Seleccionar paro folio ${folioTxt}` : 'Seleccionar paro';
-
-                    row.innerHTML = `
-                        <td class="px-2 py-2 text-center">
-                            <input type="radio" name="paro-seleccionado" value="${idTxt}"
-                                   aria-label="${etiquetaRadio}"
-                                   class="h-5 w-5 align-middle cursor-pointer accent-blue-700">
-                        </td>
-                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${folioTxt}</td>
-                        <td class="px-2 py-2 text-lg text-center">${badgeEstatus}</td>
-                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(fecha)}</td>
-                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(paro.Hora)}</td>
-                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(paro.Depto)}</td>
-                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(paro.MaquinaId)}</td>
-                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(paro.TipoFallaId)}</td>
-                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(paro.Falla)}</td>
-                        <td class="px-2 py-2 text-gray-900 text-lg text-center">${escHtml(paro.NomEmpl)}</td>
-                    `;
-
-                    tbodyParos.appendChild(row);
-                });
-
-                const noRow = document.createElement('tr');
-                noRow.id = 'filter-no-results';
-                noRow.style.display = 'none';
-                noRow.innerHTML = '<td colspan="10" class="border border-gray-300 px-2 py-2 text-center text-gray-700">No hay paros con el filtro aplicado</td>';
-                tbodyParos.appendChild(noRow);
-
-                ultimoModoCarga = apiModo;
-                ultimoValorDeptoCombo = valorDeptoCombo;
-                applyFilters();
-            } else {
-                tbodyParos.innerHTML = `
-                    <tr>
-                        <td colspan="10" class="border border-gray-300 px-2 py-2 text-center text-red-700">
-                            Error al cargar los datos: ${escHtml(result.error) || 'Error desconocido'}
-                        </td>
-                    </tr>
-                `;
-            }
-        } catch (error) {
-            console.error('Error al cargar paros:', error);
-            if (cargaId !== cargaEnCursoId) return;
-            tbodyParos.innerHTML = `
-                <tr>
-                    <td colspan="10" class="border border-gray-300 px-2 py-2 text-center text-red-700">
-                        Error de conexión. Por favor, recarga la página.
-                    </td>
-                </tr>
-            `;
-        } finally {
-            if (cargaId === cargaEnCursoId) {
-                tbodyParos.setAttribute('aria-busy', 'false');
-            }
-        }
-    }
-
-    // Variable global para almacenar el ID del paro seleccionado
-    window.paroSeleccionadoId = null;
-
-    cargarParos();
-
-    const modalFilters = document.getElementById('modal-filters');
-    /** <dialog> nativo: el navegador mueve el foco al diálogo, lo atrapa, cierra con Escape
-     *  y lo devuelve al botón que abrió. El respaldo es para navegadores sin showModal(). */
-    function openFiltersModal() {
-        if (!modalFilters || modalFilters.open) return;
-        if (typeof modalFilters.showModal === 'function') {
-            modalFilters.showModal();
-        } else {
-            modalFilters.setAttribute('open', '');
-        }
-    }
-    function closeFiltersModal() {
-        if (!modalFilters) return;
-        if (typeof modalFilters.close === 'function') {
-            modalFilters.close();
-        } else {
-            modalFilters.removeAttribute('open');
-        }
-    }
-
-    document.getElementById('btn-open-filters')?.addEventListener('click', openFiltersModal);
-    document.getElementById('btn-close-modal-filters')?.addEventListener('click', closeFiltersModal);
-    modalFilters?.addEventListener('click', function(e) {
-        if (e.target === modalFilters) closeFiltersModal();
-    });
-
-    document.getElementById('filter-depto')?.addEventListener('change', function() {
-        const v = (this.value || '').trim();
-        if (v === '') {
-            cargarParos('todos', '', {});
-        } else {
-            cargarParos('depto', v, {});
-        }
-    });
-    document.getElementById('filter-incluir-terminados')?.addEventListener('change', function() {
-        incluirTerminados = this.checked;
-        cargarParos(ultimoModoCarga, ultimoValorDeptoCombo, { forzarStatusActivo: incluirTerminados });
-    });
-    document.getElementById('filter-status')?.addEventListener('change', applyFilters);
-    document.getElementById('filter-maquina')?.addEventListener('change', applyFilters);
-    document.getElementById('filter-solo-mis')?.addEventListener('change', function() {
-        mostrarSoloMisSolicitudes = this.checked;
-        applyFilters();
-    });
-    document.getElementById('btn-clear-filter')?.addEventListener('click', async function() {
-        const filterDepto = document.getElementById('filter-depto');
-        const filterStatus = document.getElementById('filter-status');
-        const filterMaquina = document.getElementById('filter-maquina');
-        if (filterStatus) {
-            filterStatus.value = '';
-        }
-        if (filterMaquina) {
-            filterMaquina.value = '';
-        }
-        let deptVal = '';
-        if (filterDepto) {
-            const hasAreaOption = defaultAreaFilter && [...filterDepto.options].some(o => o.value === defaultAreaFilter);
-            deptVal = hasAreaOption ? defaultAreaFilter : '';
-        }
-        const checkboxSoloMis = document.getElementById('filter-solo-mis');
-        if (checkboxSoloMis) {
-            checkboxSoloMis.checked = false;
-            mostrarSoloMisSolicitudes = false;
-        }
-        const checkboxIncluirTerm = document.getElementById('filter-incluir-terminados');
-        if (checkboxIncluirTerm) {
-            checkboxIncluirTerm.checked = false;
-            incluirTerminados = false;
-        }
-        await cargarParos('default', deptVal, {});
-        closeFiltersModal();
-    });
-
-    // Botón Nuevo: redirigir a nuevo-paro
-    const btnNuevo = document.getElementById('btn-nuevo-paro');
-    if (btnNuevo) {
-        btnNuevo.addEventListener('click', function(e) {
-            e.preventDefault();
-            window.location.href = '{{ route('mantenimiento.nuevo-paro') }}';
-        });
-    }
-
-    // Botón Terminar: redirigir a finalizar-paro con el paro seleccionado
-    const btnTerminar = document.getElementById('btn-terminar-paro');
-    if (btnTerminar) {
-        btnTerminar.addEventListener('click', function(e) {
-            e.preventDefault();
-            // Solo vale la selección que sigue visible en la tabla actual (tras recargar o refiltrar).
-            const fila = obtenerFilaSeleccionadaVisible();
-
-            const avisar = (titulo, texto) => {
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({ icon: 'warning', title: titulo, text: texto });
-                } else {
-                    alert(titulo + '. ' + texto);
-                }
-            };
-
-            if (!fila) {
-                avisar('Seleccione un paro', 'Por favor, seleccione un paro de la tabla para finalizar.');
-                return;
-            }
-
-            // Un paro ya cerrado no se puede volver a cerrar: el servidor lo rechaza con 422.
-            // Se avisa aquí para no hacer que el operador llene todo el formulario en balde.
-            if ((fila.dataset.status || '').trim().toLowerCase() !== 'activo') {
-                avisar('Este paro ya fue finalizado', 'Solo se pueden cerrar los paros con estatus Activo.');
-                return;
-            }
-
-            // El id va en la URL: sobrevive a recargas de la pantalla de cierre.
-            window.location.href = '{{ route('mantenimiento.finalizar-paro') }}?id=' + encodeURIComponent(fila.dataset.paroId || '');
-        });
-    }
-});
-</script>
 @endsection
 
+@push('scripts')
+    @vite('resources/js/modulos/mantenimiento/solicitudes/index.ts')
+@endpush
