@@ -76,21 +76,22 @@
 
 @section('content')
 <div id="bpm-pagina" data-bpm='@json($configBpm)'>
-    <div class="overflow-x-auto overflow-y-auto rounded-lg border bg-white shadow-sm mt-4 mx-4" style="max-height: 70vh;">
-        <table id="bpmTable" class="min-w-full text-sm">
-            <thead class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+    {{-- Alto: lo que deja el navbar (dvh respeta la barra del navegador en tablet). --}}
+    <div class="overflow-auto overscroll-contain rounded-lg border bg-white shadow-sm mt-2 mx-2 sm:mt-4 sm:mx-4 max-h-[calc(100dvh-4.75rem)] sm:max-h-[calc(100dvh-5.5rem)]">
+        <table id="bpmTable" class="ui-table--grid min-w-full text-xs sm:text-sm [&_th]:px-2 [&_td]:px-2 [&_th]:py-2 [&_td]:py-2 sm:[&_th]:px-4 sm:[&_td]:px-4 sm:[&_th]:py-3 sm:[&_td]:py-3">
+            <thead class="sticky top-0 z-10 bg-blue-600 text-white">
                 <tr>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Folio</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Status</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Fecha</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">No Recibe</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Nombre Recibe</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Turno Recibe</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">No Entrega</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Nombre Entrega</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Turno Entrega</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Cve Autoriza</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Nombre Autoriza</th>
+                    <th class="text-left font-semibold whitespace-nowrap">Folio</th>
+                    <th class="text-left font-semibold whitespace-nowrap">Status</th>
+                    <th class="text-left font-semibold whitespace-nowrap">Fecha</th>
+                    <th class="text-left font-semibold whitespace-nowrap">No Recibe</th>
+                    <th class="text-left font-semibold whitespace-nowrap">Nombre Recibe</th>
+                    <th class="text-left font-semibold whitespace-nowrap">Turno Recibe</th>
+                    <th class="text-left font-semibold whitespace-nowrap">No Entrega</th>
+                    <th class="text-left font-semibold whitespace-nowrap">Nombre Entrega</th>
+                    <th class="text-left font-semibold whitespace-nowrap">Turno Entrega</th>
+                    <th class="text-left font-semibold whitespace-nowrap">Cve Autoriza</th>
+                    <th class="text-left font-semibold whitespace-nowrap">Nombre Autoriza</th>
                 </tr>
             </thead>
             <tbody id="tb-body">
@@ -112,21 +113,21 @@
                         data-cveemplent="{{ $item->CveEmplEnt }}"
                         data-nombreemplent="{{ $item->NombreEmplEnt }}"
                         data-turnoentrega="{{ $item->TurnoEntrega }}">
-                        <td class="px-4 py-3 whitespace-nowrap font-medium">{{ $item->Folio }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">
+                        <td class="whitespace-nowrap font-medium">{{ $item->Folio }}</td>
+                        <td class="whitespace-nowrap">
                             <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold {{ $statusClass }}">
                                 {{ $item->Status }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->Fecha ? $item->Fecha->format('d/m/Y') : '' }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->CveEmplRec }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->NombreEmplRec }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-center">{{ $item->TurnoRecibe }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->CveEmplEnt }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->NombreEmplEnt }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-center">{{ $item->TurnoEntrega }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->CveEmplAutoriza }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->{$cfgVariante['colAutoriza']} }}</td>
+                        <td class="whitespace-nowrap">{{ $item->Fecha ? $item->Fecha->format('d/m/Y') : '' }}</td>
+                        <td class="whitespace-nowrap">{{ $item->CveEmplRec }}</td>
+                        <td class="whitespace-nowrap">{{ $item->NombreEmplRec }}</td>
+                        <td class="whitespace-nowrap text-center">{{ $item->TurnoRecibe }}</td>
+                        <td class="whitespace-nowrap">{{ $item->CveEmplEnt }}</td>
+                        <td class="whitespace-nowrap">{{ $item->NombreEmplEnt }}</td>
+                        <td class="whitespace-nowrap text-center">{{ $item->TurnoEntrega }}</td>
+                        <td class="whitespace-nowrap">{{ $item->CveEmplAutoriza }}</td>
+                        <td class="whitespace-nowrap">{{ $item->{$cfgVariante['colAutoriza']} }}</td>
                     </tr>
                 @empty
                     <tr>
