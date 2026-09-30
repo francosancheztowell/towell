@@ -1,0 +1,7 @@
+# Revisión obligatoria en lo que afecta a todos los módulos
+*                                @francosancheztowell
+/.github/                        @francosancheztowell
+/app/Services/ModuloService.php  @francosancheztowell
+/app/Helpers/permission-helpers.php @francosancheztowell
+/config/                         @francosancheztowell
+/database/                       @francosancheztowell

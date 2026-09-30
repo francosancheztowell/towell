@@ -1,0 +1,26 @@
+name: Mejora o nueva funcionalidad
+description: Propón un cambio en un módulo existente o algo nuevo
+labels: [enhancement]
+body:
+  - type: input
+    id: modulo
+    attributes:
+      label: Módulo
+    validations:
+      required: true
+  - type: textarea
+    id: problema
+    attributes:
+      label: Problema de operación que resuelve
+      description: Quién lo usa, en qué momento del turno y qué hace hoy en su lugar
+    validations:
+      required: true
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: Propuesta
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Cómo sabremos que quedó bien
+      placeholder: "- Al liberar la orden se genera el folio…"
