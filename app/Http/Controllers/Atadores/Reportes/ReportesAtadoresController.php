@@ -7,6 +7,7 @@ use App\Exports\Reporte00EAtadoresRangoExport;
 use App\Http\Controllers\Controller;
 use App\Jobs\ActualizarOeeAtadoresJob;
 use App\Services\OeeAtadores\OeeAtadoresFileService;
+use App\Support\Http\Concerns\HandlesApiErrors;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -19,6 +20,8 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ReportesAtadoresController extends Controller
 {
+    use HandlesApiErrors;
+
     private const OEE_QUEUE = 'oee-atadores';
 
     // ponytail: ideal fijo por barra en minutos, tomado del Excel de producción (sep-2026).
@@ -245,7 +248,9 @@ class ReportesAtadoresController extends Controller
 
             return response()->json($resultado);
         } catch (\Throwable $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'OEE Atadores: no se pudo verificar el archivo', 'No se pudo verificar el archivo OEE. Si continúa, comparte el código de referencia con Sistemas.', 500, [
+                'archivo' => $filePath,
+            ]);
         }
     }
 
@@ -288,7 +293,11 @@ class ReportesAtadoresController extends Controller
         $filePath = $this->oeeAtadoresFilePath();
 
         if (! is_file($filePath)) {
-            return response()->json(['error' => "El archivo OEE no existe: {$filePath}"], 422);
+            // SEC-07: la ruta física del servidor va al log, no a la pantalla.
+            Log::warning('OEE Atadores: no existe el archivo', ['archivo' => $filePath]);
+            $mensaje = 'El archivo OEE no está disponible en el servidor. Avisa a Sistemas.';
+
+            return response()->json(['error' => $mensaje, 'message' => $mensaje], 422);
         }
 
         $token = bin2hex(random_bytes(16));

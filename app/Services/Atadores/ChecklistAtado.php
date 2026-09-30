@@ -46,7 +46,7 @@ final class ChecklistAtado
                 'NomEmpleado' => null,
             ]);
 
-        $this->insertar(AtaMontadoMaquinasModel::class, $filas);
+        $this->insertar(AtaMontadoMaquinasModel::class, $filas->values()->all());
     }
 
     /**
@@ -74,22 +74,22 @@ final class ChecklistAtado
                 'Turno' => $turno,
             ]);
 
-        $this->insertar(AtaMontadoActividadesModel::class, $filas);
+        $this->insertar(AtaMontadoActividadesModel::class, $filas->values()->all());
     }
 
     /**
      * @param  class-string<\Illuminate\Database\Eloquent\Model>  $modelo
-     * @param  Collection<int, array<string, mixed>>  $filas
+     * @param  list<array<string, mixed>>  $filas
      */
-    private function insertar(string $modelo, Collection $filas): void
+    private function insertar(string $modelo, array $filas): void
     {
-        if ($filas->isEmpty()) {
+        if ($filas === []) {
             return;
         }
 
-        $porBloque = intdiv(self::MAX_PARAMETROS, count($filas->first()));
-        foreach ($filas->values()->chunk($porBloque) as $bloque) {
-            $modelo::query()->insert($bloque->values()->all());
+        $porBloque = max(1, intdiv(self::MAX_PARAMETROS, count($filas[0])));
+        foreach (array_chunk($filas, $porBloque) as $bloque) {
+            $modelo::query()->insert($bloque);
         }
     }
 
@@ -98,7 +98,7 @@ final class ChecklistAtado
      * para no sembrar dos veces "Atadora " y "atadora".
      *
      * @param  Collection<int, mixed>  $ids
-     * @return array<string, true>
+     * @return array<string, bool>
      */
     private function llaves(Collection $ids): array
     {

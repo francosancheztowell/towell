@@ -4,6 +4,11 @@ namespace App\Models\Atadores;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $Id
+ * @property string|null $ActividadId
+ * @property float|null $Porcentaje
+ */
 class AtaActividadesModel extends Model
 {
     protected $table = 'AtaActividades';

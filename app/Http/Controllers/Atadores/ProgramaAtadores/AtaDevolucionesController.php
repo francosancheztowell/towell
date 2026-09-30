@@ -7,17 +7,22 @@ use App\Models\Atadores\AtaDevolucionesModel;
 use App\Models\Atadores\AtaMontadoTelasModel;
 use App\Models\Inventario\InvTelasReservadas;
 use App\Models\Tejido\TejInventarioTelares;
+use App\Support\Http\Concerns\HandlesApiErrors;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class AtaDevolucionesController extends Controller
 {
+    use HandlesApiErrors;
+
+    /** SEC-07: el detalle va al log y a /admin/errores (trace_id); al usuario, esto. */
+    private const ERROR_DEVOLUCION = 'No se pudo registrar la devolución. Si continúa, comparte el código de referencia con Sistemas.';
+
     /**
      * Ubicación fija del catálogo WMSLocation (TI-PRO) usada para el
      * combo de Ubicación en el panel de Devolución.
@@ -49,14 +54,7 @@ class AtaDevolucionesController extends Controller
 
             return response()->json(['ok' => true, 'ubicaciones' => $ubicaciones]);
         } catch (\Throwable $e) {
-            Log::error('Error al consultar WMSLocation (TI-PRO) para ubicaciones de devolución', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'ok' => false,
-                'message' => 'No se pudo consultar el catálogo de ubicaciones en TI-PRO.',
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al consultar WMSLocation (TI-PRO) para ubicaciones de devolución', 'No se pudo consultar el catálogo de ubicaciones en TI-PRO.');
         }
     }
 
@@ -155,16 +153,10 @@ class AtaDevolucionesController extends Controller
                 'hilo' => $registroSugerido['hilo'] ?? null,
             ]);
         } catch (\Throwable $e) {
-            Log::error('Error al consultar julios atados por telar para devolución', [
+            return $this->apiErrorResponse($e, 'Error al consultar julios atados por telar para devolución', 'No se pudo consultar los julios atados de ese telar.', 500, [
                 'telar' => $data['telar'],
                 'tipo' => $data['tipo'] ?? null,
-                'error' => $e->getMessage(),
             ]);
-
-            return response()->json([
-                'ok' => false,
-                'message' => 'No se pudo consultar los julios atados de ese telar.',
-            ], 500);
         }
     }
 
@@ -357,17 +349,11 @@ class AtaDevolucionesController extends Controller
                 'bloqueado_ax' => $bloqueadoPorAx,
             ], $bloqueadoPorAx ? 423 : 422);
         } catch (\Throwable $e) {
-            Log::error('Error al registrar devolución de atadores', [
+            return $this->apiErrorResponse($e, 'Error al registrar devolución de atadores', self::ERROR_DEVOLUCION, 500, [
                 'ref_id' => $montado->Id,
                 'no_julio' => $montado->NoJulio,
                 'no_orden' => $montado->NoProduccion,
-                'error' => $e->getMessage(),
             ]);
-
-            return response()->json([
-                'ok' => false,
-                'message' => 'No se pudo registrar la devolución: '.$e->getMessage(),
-            ], 500);
         }
 
         return response()->json([
@@ -413,15 +399,9 @@ class AtaDevolucionesController extends Controller
                 'bloqueado_ax' => true,
             ], 423);
         } catch (\Throwable $e) {
-            Log::error('Error al eliminar devolución de atadores', [
+            return $this->apiErrorResponse($e, 'Error al eliminar devolución de atadores', 'No se pudo eliminar la devolución.', 500, [
                 'ref_id' => $data['ref_id'],
-                'error' => $e->getMessage(),
             ]);
-
-            return response()->json([
-                'ok' => false,
-                'message' => 'No se pudo eliminar la devolución.',
-            ], 500);
         }
 
         return response()->json([
@@ -981,15 +961,9 @@ class AtaDevolucionesController extends Controller
                 'bloqueado_ax' => true,
             ], 423);
         } catch (\Throwable $e) {
-            Log::error('Error al registrar devoluciones Karl Mayer', [
+            return $this->apiErrorResponse($e, 'Error al registrar devoluciones Karl Mayer', self::ERROR_DEVOLUCION, 500, [
                 'ref_id' => $montado->Id,
-                'error' => $e->getMessage(),
             ]);
-
-            return response()->json([
-                'ok' => false,
-                'message' => 'No se pudo registrar la devolución: '.$e->getMessage(),
-            ], 500);
         }
 
         return response()->json([

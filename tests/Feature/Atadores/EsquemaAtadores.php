@@ -132,6 +132,18 @@ trait EsquemaAtadores
         $this->grantModulo('Programa Atadores', $acciones, null, 45);
     }
 
+    /** Otro usuario con permisos de Programa Atadores (el módulo ya existe en SYSRoles). */
+    protected function entrarComo(array $atributos, array $acciones = ['acceso', 'crear']): void
+    {
+        $usuario = $this->createUsuario($atributos);
+        $fila = ['idusuario' => $usuario->getKey(), 'idrol' => 45];
+        foreach (['acceso', 'crear', 'modificar', 'eliminar', 'registrar'] as $accion) {
+            $fila[$accion] = (int) in_array($accion, $acciones, true);
+        }
+        DB::connection('sqlsrv')->table('SYSUsuariosRoles')->insert($fila);
+        $this->actingAs($usuario, 'web');
+    }
+
     /** Catálogo de checklist con $maquinas máquinas y $actividades actividades. */
     protected function sembrarCatalogoChecklist(int $maquinas, int $actividades): void
     {
