@@ -79,8 +79,10 @@ async function paso(grupo, nombre, fn) {
 /* ---------- utilidades de página ---------- */
 const swalTexto = async () => (await page.locator('.swal2-popup:visible').first().innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
 const cerrarSwal = async () => {
+  // Un SweetAlert que se está cerrando (p. ej. el confirm de reservar mientras sale el toast) sigue
+  // "visible" unos ms y el click esperaría 30 s a un botón que desaparece: timeout corto e ignorar.
   const b = page.locator('.swal2-confirm:visible');
-  if (await b.count()) await b.first().click();
+  if (await b.count()) await b.first().click({ timeout: 2000 }).catch(() => {});
 };
 /** Fecha de requerimiento: modal x-ui (después) o SweetAlert (antes). Devuelve cuál fue. */
 async function confirmarFecha() {
