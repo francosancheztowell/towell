@@ -86,6 +86,10 @@
 - [x] **DS-10**: Barra de filtros reutilizable.
 - [x] **DS-11**: Galería `/dev/ui-kit` + receta de componentes.
 - [x] **DS-12**: Piloto: catálogos de atadores consolidados + `CatalogBase` en TS.
+- [ ] **DS-13**: `x-ui.button` con spinner automático mientras corre su `wire:click` (`wire:loading` + `wire:target` del mismo método), sin cambiar el uso en Blade + TS (16-02; decisión "Flux no", 2026-09-30).
+- [ ] **DS-14**: `x-ui.field` documentado y probado con `wire:model` / `wire:model.live` en `as="input|textarea|select"` y errores de validación de Livewire.
+- [ ] **DS-15**: `x-ui.modal-base` se abre y cierra desde Livewire con eventos (`modal-abrir` / `modal-cerrar` + nombre) en `resources/js/componentes/dialog.ts`, sin Alpine propio.
+- [ ] **DS-16**: Las vistas Livewire usan `x-ui.*` en lugar de marcado propio (hoy 3 de 26). 16-02 hace Admin, Inventario Trama, Trazabilidad y UrdEng; el resto su 19-xx (checklist 17-02 §1.4). Galería `/dev/ui-kit` con ejemplos Livewire y receta "Livewire + x-ui".
 
 ### UX (fase 17)
 

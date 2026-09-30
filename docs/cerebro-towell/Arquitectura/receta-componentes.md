@@ -120,6 +120,7 @@ El error sale de `$errors->first($name)` o de la prop `error`. Desde JS (respues
 
 - `onclick=` inline, `<script>` inline grandes, `fetch(...).then(r => r.json())`, `Swal.fire` para un simple aviso: el ratchet (`npm run ratchet`) no deja que suban. Usa `data-*` + módulo TS, `window.http`, `notify`.
 - Otro componente “parecido” en vez de evolucionar el existente.
+- Instalar otra librería de componentes (Flux, daisyUI…): decisión del owner 2026-09-30, ver sección 9.
 - Texto < 12 px, controles < 44 px en pantallas de planta.
 - `bg-opacity-*`, `text-opacity-*` (Tailwind v3): usa `bg-black/40`.
 
@@ -129,3 +130,22 @@ Piloto DS-12: `modulos/catalogos-atadores/index.blade.php` (una vista para Activ
 - La configuración vive en PHP (`CatalogosAtadoresVista`) y llega al JS por `data-catalogo='@json(...)'`.
 - El módulo `resources/js/modulos/<modulo>/index.ts` se carga con `@vite` desde la vista (entrada de Vite por glob `resources/js/modulos/**/index.ts`).
 - CRUD de catálogo sobre REST: `resources/js/catalogos/catalog-base.ts` (evolución de `public/js/catalogs/CatalogBase.js`, que queda para los 4 catálogos de Planeación hasta su 19-xx).
+
+## 9. Livewire + x-ui
+
+Las vistas Livewire usan los mismos componentes que Blade + TS. **No Flux** (decisión del owner 2026-09-30, razones en `.planning/PROJECT.md`): lo gratis ya está aquí, lo demás es de pago y sus componentes interactivos necesitan el runtime de Livewire (+77 KB gzip) en páginas que hoy no lo cargan.
+
+```blade
+<x-ui.field as="input" name="nombre" label="Nombre" wire:model="nombre" />
+<x-ui.field as="select" name="turno" label="Turno" wire:model.live="turno">…</x-ui.field>
+<x-ui.button variant="create" icon="fa-save" wire:click="guardar">Guardar</x-ui.button>
+<x-tabla :columnas="$this->columnas()" :filas="$filas" :seleccionado="$seleccionado"
+         :orden-por="$ordenPor" :orden-dir="$ordenDir" al-editar="abrirEdicion">…</x-tabla>  {{-- trait ConTabla --}}
+```
+
+- `x-ui.field` pasa `wire:model` al control generado (`as="input|textarea|select"`); el error de validación de Livewire sale de `$errors` sin código extra.
+- `x-ui.button` con `wire:click` se deshabilita y muestra el spinner mientras corre esa acción (DS-13, fase 16-02).
+- Modales: `x-ui.modal-base` se abre y cierra desde el componente con `$this->dispatch('modal-abrir', nombre: 'editar')` / `'modal-cerrar'` (DS-15, fase 16-02). No escribir Alpine propio para abrir modales.
+- Tablas CRUD: `x-tabla` + `App\Livewire\Concerns\ConTabla` (búsqueda, orden, paginación compatible con 2008 R2, selección).
+- Hasta que 16-02 cierre DS-13 y DS-15, lo que aún no exista se sigue haciendo como hoy y se anota en el SUMMARY del módulo.
+

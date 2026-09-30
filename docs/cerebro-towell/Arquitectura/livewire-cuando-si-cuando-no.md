@@ -8,6 +8,8 @@
 
 > **Actualización 2026-09-24 (decisión del owner):** **Programa Tejido sí migra a Livewire**, con el **mismo diseño visual**, y solo se da por buena si **mejora rendimiento/velocidad medidos** contra `.planning/phases/04-ux-grid/04-PERF-MEDIDO.md` (TTFB, KB de HTML, tiempo de interacción). Orden del track PT en `.planning/ROADMAP.md`: `01 → 01.1 AuthZ → 02 lectura → 04-perf → 03 shell Livewire → 05 mutaciones → 04-ux → 06 → 07` (services/tests antes que UI, como pide esta guía). **Liberar órdenes, Excel one-shot y reportes siguen en "No migrar ahora".** Roadmap global: `.planning/ROADMAP.md` (refactor integral 2026).
 
+> **Actualización 2026-09-30 (decisiones del owner):** (1) PT 03 **no pasó el gate** (2026-09-29): el shell Livewire de Programa Tejido salió peor en TTFB (+22–24 %) y en bytes (+77 KB gzip de `livewire.min.js`), así que queda apagado y **PT sigue en Blade/TS** (`.planning/phases/03-frontend-shell/03-SUMMARY.md`). (2) **Flux no:** no se instala `livewire/flux`. Las vistas Livewire usan los componentes propios `x-ui.*` y `x-tabla` (`docs/cerebro-towell/Arquitectura/receta-componentes.md`, sección "Livewire + x-ui"); la fase 16-02 los hace cubrir Livewire (spinner de `wire:click`, `wire:model`, modal por eventos). Razones en `.planning/PROJECT.md` (Key Decisions).
+
 ---
 
 ## Árbol de decisión (corto)
