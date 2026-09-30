@@ -62,7 +62,7 @@
 	}
 </style>
 
-{{-- El JS de la tabla y del modal de líneas vive en resources/js/programa-tejido/lineas.js (bundle de la grilla). --}}
+{{-- El JS de la tabla y del modal de líneas vive en resources/js/programa-tejido/lineas.ts (bundle de la grilla). --}}
 
 
 

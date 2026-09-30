@@ -61,6 +61,8 @@ declare global {
         cerrarModalRepaso?: () => void;
         abrirModalMarbetes?: (row: Element | null | undefined) => void;
         cerrarModalMarbetes?: () => void;
+        loadReqProgramaTejidoLines?: (params?: Record<string, string>) => Promise<void>;
+        openLinesModal?: (programaId: string | number) => void;
 
         /** Vive en el scope de index.js y hoy no se publica (HANDOFF PT-TS 2): repaso lo busca aqui. */
         agregarRegistroSinRecargar?: (data: Record<string, unknown>, opciones?: { preventReload?: boolean }) => Promise<unknown>;

@@ -43,4 +43,13 @@ foreach ($ids as $i => $id) {
         'FechaInicio' => $hoy->copy()->addHours($i)->format('Y-m-d H:i:s'),
     ]);
 }
+// Líneas diarias de la primera fila (tabla y modal "Detalle del Telar").
+$primera = DB::connection('sqlsrv')->table('ReqProgramaTejido')->orderBy('Id')->value('Id');
+foreach (range(0, 4) as $d) {
+    DB::connection('sqlsrv')->table('ReqProgramaTejidoLine')->insert([
+        'ProgramaId' => $primera, 'Fecha' => $hoy->copy()->addDays($d)->format('Y-m-d'),
+        'Cantidad' => 1234.5 + $d, 'Kilos' => 88.4, 'Aplicacion' => 0, 'Trama' => 12, 'Rizo' => 7.5,
+    ]);
+}
+
 echo 'PT-TS 1: '.count($ids)." filas para liberar\n";
