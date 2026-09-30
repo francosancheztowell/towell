@@ -68,24 +68,20 @@ class UsuarioService
                 'remember_token' => Str::random(60),
             ]);
 
-            $ahora = now();
-            $permisos = SYSUsuariosRoles::porUsuario($origen->idusuario)
-                ->get(['idrol', 'acceso', 'crear', 'modificar', 'eliminar', 'registrar'])
-                ->map(fn (SYSUsuariosRoles $p) => [
-                    'idusuario' => $usuario->idusuario,
-                    'idrol' => $p->idrol,
-                    'acceso' => (int) $p->acceso,
-                    'crear' => (int) $p->crear,
-                    'modificar' => (int) $p->modificar,
-                    'eliminar' => (int) $p->eliminar,
-                    'registrar' => (int) $p->registrar,
-                    'assigned_at' => $ahora,
-                ]);
+            // El trigger dbo.tr_SYSUsuario_expand_roles ya le insertó una fila por cada módulo
+            // de SYSRoles con valores por defecto: insertar encima viola PK_SYSUsuariosRoles.
+            // Se reemplazan por las del origen, igual que guardarPermisos() (borrar e insertar).
+            SYSUsuariosRoles::porUsuario($usuario->idusuario)->delete();
 
-            // Por lotes: SQL Server admite 2100 parámetros por sentencia (8 columnas × 200 = 1600).
-            foreach ($permisos->chunk(200) as $lote) {
-                SYSUsuariosRoles::insert($lote->values()->all());
-            }
+            $columnas = ['idrol', 'acceso', 'crear', 'modificar', 'eliminar', 'registrar'];
+            DB::connection('sqlsrv')->table('SYSUsuariosRoles')->insertUsing(
+                ['idusuario', ...$columnas, 'assigned_at'],
+                DB::connection('sqlsrv')->table('SYSUsuariosRoles')
+                    ->selectRaw('? as idusuario', [$usuario->idusuario])
+                    ->addSelect($columnas)
+                    ->selectRaw('? as assigned_at', [now()])
+                    ->where('idusuario', $origen->idusuario)
+            );
 
             return $usuario;
         });

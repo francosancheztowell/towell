@@ -39,7 +39,23 @@ class UsuarioDuplicarTest extends TestCase
             $table->integer('eliminar')->default(0);
             $table->integer('registrar')->default(0);
             $table->dateTime('assigned_at')->nullable();
+            $table->primary(['idusuario', 'idrol']); // PK_SYSUsuariosRoles
         });
+
+        Schema::connection('sqlsrv')->create('SYSRoles', function (Blueprint $table) {
+            $table->increments('idrol');
+            $table->string('orden')->nullable();
+            $table->string('modulo');
+            $table->string('Dependencia')->nullable();
+            $table->string('Ruta')->nullable();
+            $table->timestamps();
+        });
+        DB::table('SYSRoles')->insert([
+            ['idrol' => 10, 'orden' => '10', 'modulo' => 'Tejido'],
+            ['idrol' => 11, 'orden' => '11', 'modulo' => 'Urdido'],
+            ['idrol' => 12, 'orden' => '12', 'modulo' => 'Engomado'],
+            ['idrol' => 13, 'orden' => '13', 'modulo' => 'Atadores'],
+        ]);
 
         // UsuarioRepository lee App\Models\Sistema\Usuario, que apunta a dbo.SYSUsuario.
         $this->createTablaDbo('SYSUsuario', [
@@ -74,6 +90,19 @@ class UsuarioDuplicarTest extends TestCase
             ['idusuario' => self::ORIGEN, 'idrol' => 11, 'acceso' => 1, 'crear' => 0, 'modificar' => 1, 'eliminar' => 1, 'registrar' => 0],
             ['idusuario' => self::ORIGEN, 'idrol' => 12, 'acceso' => 0, 'crear' => 0, 'modificar' => 0, 'eliminar' => 0, 'registrar' => 0],
         ]);
+
+        // Réplica de dbo.tr_SYSUsuario_expand_roles (producción): todo usuario nuevo recibe
+        // una fila por cada módulo de SYSRoles. TEMP porque cruza la base adjunta 'dbo'.
+        DB::statement(<<<'SQL'
+            CREATE TEMP TRIGGER tr_SYSUsuario_expand_roles AFTER INSERT ON dbo.SYSUsuario
+            BEGIN
+                INSERT INTO SYSUsuariosRoles (idusuario, idrol)
+                SELECT NEW.idusuario, r.idrol FROM SYSRoles r
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM SYSUsuariosRoles s WHERE s.idusuario = NEW.idusuario AND s.idrol = r.idrol
+                );
+            END
+            SQL);
     }
 
     private function actuarComoAdmin(array $acciones = ['acceso', 'crear']): void
