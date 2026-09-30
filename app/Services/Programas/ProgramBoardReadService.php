@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Programas;
 
+use App\Models\Mantenimiento\ManFallasParos;
 use App\Models\Urdido\UrdProgramaUrdido;
 use App\Support\Programas\ProgramaConfig;
 use App\Support\Programas\ProgramaModulo;
@@ -50,7 +51,7 @@ class ProgramBoardReadService
 
     /**
      * @return array{
-     *   lanes:array<int, array{key:string,label:string,short:string,orders:array<int, array<string,mixed>>}>,
+     *   lanes:array<int, array{key:string,label:string,short:string,paro:array{folio:string,hora:string,falla:string,total:int,detalle:list<string>}|null,orders:array<int, array<string,mixed>>}>,
      *   summary:array{total:int,programado:int,en_proceso:int,parcial:int,metros:float}
      * }
      */
@@ -98,9 +99,11 @@ class ProgramBoardReadService
             true
         );
 
+        $paros = $this->parosActivos();
         $laneDefinitions = collect($module->lanes())->keyBy('key');
         $grouped = $laneDefinitions->map(fn (array $lane): array => [
             ...$lane,
+            'paro' => $paros[self::maquinaParo($lane['label'])] ?? $paros[self::maquinaParo($lane['short'])] ?? null,
             'orders' => [],
         ])->all();
 
@@ -142,6 +145,40 @@ class ProgramBoardReadService
             'lanes' => array_values($grouped),
             'summary' => $summary,
         ];
+    }
+
+    /**
+     * Paros Activos por máquina (el más reciente manda en el badge), indexado por nombre normalizado.
+     * Mantenimiento guarda "Mc Coy 1", "KM1", "WestPoint 2"; los carriles dicen
+     * "MC Coy 1", "Karl Mayer" (KM1), "West Point 2": se comparan sin espacios ni mayúsculas.
+     *
+     * @return array<string, array{folio:string,hora:string,falla:string,total:int,detalle:list<string>}>
+     */
+    private function parosActivos(): array
+    {
+        $paros = [];
+        ManFallasParos::query()
+            ->select('Id', 'Folio', 'MaquinaId', 'Hora', 'Falla', 'TipoFallaId')
+            ->where('Estatus', 'Activo')
+            ->orderByDesc('Id')
+            ->toBase()
+            ->get()
+            ->each(function (object $paro) use (&$paros): void {
+                $maquina = self::maquinaParo((string) $paro->MaquinaId);
+                $folio = trim((string) $paro->Folio);
+                $hora = substr(trim((string) $paro->Hora), 0, 5);
+                $falla = trim((string) ($paro->TipoFallaId ?: $paro->Falla));
+                $paros[$maquina] ??= ['folio' => $folio, 'hora' => $hora, 'falla' => $falla, 'total' => 0, 'detalle' => []];
+                $paros[$maquina]['total']++;
+                $paros[$maquina]['detalle'][] = trim("{$folio} · {$hora} · {$falla}", ' ·');
+            });
+
+        return $paros;
+    }
+
+    private static function maquinaParo(string $maquina): string
+    {
+        return strtolower(str_replace(' ', '', trim($maquina)));
     }
 
     /**

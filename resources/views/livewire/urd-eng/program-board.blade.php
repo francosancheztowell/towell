@@ -56,8 +56,26 @@
 
     <div class="program-board-lanes {{ $moduleMeta['isUrdido'] ? 'is-urdido' : 'is-engomado' }}" aria-label="Órdenes por máquina">
         @foreach ($board['lanes'] as $lane)
-            <section class="program-board-lane" wire:key="lane-{{ $moduleMeta['value'] }}-{{ $lane['key'] }}">
-                <h2>{{ $lane['label'] }}</h2>
+            @php
+                $paro = $lane['paro'] ?? null;
+            @endphp
+            <section class="program-board-lane{{ $paro ? ' is-paro' : '' }}" wire:key="lane-{{ $moduleMeta['value'] }}-{{ $lane['key'] }}">
+                <h2>
+                    <span>{{ $lane['label'] }}</span>
+                    @if ($paro)
+                        <span class="program-board-paro-badge" role="status"
+                            title="{{ $paro['total'] > 1 ? $paro['total'].' paros activos:' : 'Paro' }}&#10;{{ implode("\n", $paro['detalle']) }}">
+                            <span class="program-board-paro-dot" aria-hidden="true"></span>
+                            {{ $lane['short'] }} en paro
+                            @if ($paro['total'] > 1)
+                                <span class="program-board-paro-count">{{ $paro['total'] }}</span>
+                            @else
+                                @if ($paro['hora'] !== '')<span class="program-board-paro-meta">desde {{ $paro['hora'] }}</span>@endif
+                                @if ($paro['falla'] !== '')<span class="program-board-paro-meta">{{ $paro['falla'] }}</span>@endif
+                            @endif
+                        </span>
+                    @endif
+                </h2>
                 <div class="program-board-table-scroll" tabindex="0" role="region" aria-label="Tabla desplazable de {{ $lane['label'] }}">
                     <table class="program-board-table" aria-label="Órdenes de {{ $lane['label'] }}">
                         <thead><tr>

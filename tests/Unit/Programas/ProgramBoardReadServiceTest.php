@@ -72,6 +72,10 @@ class ProgramBoardReadServiceTest extends TestCase
                 $table->boolean('AX')->default(false);
             });
         }
+
+        // ManFallasParos usa el prefijo dbo.: sqlite lo lee como esquema.
+        DB::connection('sqlsrv')->statement("ATTACH DATABASE ':memory:' AS dbo");
+        DB::connection('sqlsrv')->statement('CREATE TABLE dbo.ManFallasParos (Id INTEGER PRIMARY KEY, Folio TEXT, Estatus TEXT, MaquinaId TEXT, Hora TEXT, Falla TEXT, TipoFallaId TEXT)');
     }
 
     public function test_urdido_is_sorted_in_sql_and_grouped_by_machine(): void
@@ -127,8 +131,23 @@ class ProgramBoardReadServiceTest extends TestCase
             ],
         ]);
 
+        // Mantenimiento escribe "Mc Coy 1" y "KM1"; los carriles dicen "MC Coy 1" y "Karl Mayer".
+        DB::connection('sqlsrv')->table('dbo.ManFallasParos')->insert([
+            ['Folio' => 'PF-0', 'Estatus' => 'Activo', 'MaquinaId' => 'MC COY 1', 'Hora' => '08:15:00', 'Falla' => null, 'TipoFallaId' => 'ELEC'],
+            ['Folio' => 'PF-1', 'Estatus' => 'Activo', 'MaquinaId' => 'Mc Coy 1', 'Hora' => '10:32:00', 'Falla' => 'Mecánica', 'TipoFallaId' => 'MEC'],
+            ['Folio' => 'PF-2', 'Estatus' => 'Activo', 'MaquinaId' => 'KM1', 'Hora' => '11:00:00', 'Falla' => '43', 'TipoFallaId' => null],
+            ['Folio' => 'PF-3', 'Estatus' => 'Terminado', 'MaquinaId' => 'Mc Coy 2', 'Hora' => '09:00:00', 'Falla' => 'x', 'TipoFallaId' => 'x'],
+        ]);
+
         $board = app(ProgramBoardReadService::class)->board(ProgramaModulo::Urdido);
 
+        // Dos paros activos en MC Coy 1: manda el más reciente y se cuentan ambos.
+        $this->assertSame([
+            'folio' => 'PF-1', 'hora' => '10:32', 'falla' => 'MEC', 'total' => 2,
+            'detalle' => ['PF-1 · 10:32 · MEC', 'PF-0 · 08:15 · ELEC'],
+        ], $board['lanes'][0]['paro']);
+        $this->assertNull($board['lanes'][1]['paro']);
+        $this->assertSame('43', $board['lanes'][3]['paro']['falla']);
         $this->assertSame(['URD-001', 'URD-002'], array_column($board['lanes'][0]['orders'], 'folio'));
         $this->assertSame('URD-KM', $board['lanes'][3]['orders'][0]['folio']);
         $this->assertSame(3, $board['summary']['total']);
