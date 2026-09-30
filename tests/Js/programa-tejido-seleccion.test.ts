@@ -10,13 +10,19 @@ import test from 'node:test'
 
 import { instalarIndiceSeleccion } from '../../resources/js/programa-tejido/seleccion.ts'
 
-const fila = (id) => ({ id, isConnected: true })
+interface Fila { id: string; isConnected: boolean }
+interface Grilla { allRows: Fila[]; selectedRowIndex: number | null }
 
-function grilla(...ids) {
-	const estado = { allRows: ids.map(fila) }
-	instalarIndiceSeleccion(estado, () => estado.allRows)
+const fila = (id: string): Fila => ({ id, isConnected: true })
+
+function grilla(...ids: string[]): Grilla {
+	const estado = { allRows: ids.map(fila), selectedRowIndex: -1 } as Grilla
+	// Las filas de verdad son <tr>; aquí basta con identidad e isConnected.
+	instalarIndiceSeleccion(estado, () => estado.allRows as unknown as Element[])
 	return estado
 }
+
+const en = (g: Grilla): Fila | undefined => g.allRows[g.selectedRowIndex ?? -1]
 
 test('sin seleccion vale -1 y asignar -1 o null limpia', () => {
 	const g = grilla('a', 'b')
@@ -35,14 +41,14 @@ test('insertar una fila antes de la seleccionada no la cambia', () => {
 	g.selectedRowIndex = 1 // b
 	g.allRows = [fila('nueva'), ...g.allRows]
 	assert.equal(g.selectedRowIndex, 2)
-	assert.equal(g.allRows[g.selectedRowIndex].id, 'b')
+	assert.equal(en(g)?.id, 'b')
 })
 
 test('borrar otra fila antes de la seleccionada no la cambia', () => {
 	const g = grilla('a', 'b', 'c')
 	g.selectedRowIndex = 2 // c
 	g.allRows = g.allRows.filter((r) => r.id !== 'a')
-	assert.equal(g.allRows[g.selectedRowIndex].id, 'c')
+	assert.equal(en(g)?.id, 'c')
 })
 
 test('reordenar (arrastrar) conserva la fila seleccionada', () => {
@@ -50,13 +56,14 @@ test('reordenar (arrastrar) conserva la fila seleccionada', () => {
 	g.selectedRowIndex = 0 // a
 	g.allRows = [...g.allRows].reverse()
 	assert.equal(g.selectedRowIndex, 2)
-	assert.equal(g.allRows[g.selectedRowIndex].id, 'a')
+	assert.equal(en(g)?.id, 'a')
 })
 
 test('si la fila seleccionada sale del DOM, no hay seleccion', () => {
 	const g = grilla('a', 'b')
 	g.selectedRowIndex = 0
-	g.allRows[0].isConnected = false
+	const primera = g.allRows[0] as Fila
+	primera.isConnected = false
 	assert.equal(g.selectedRowIndex, -1)
 })
 

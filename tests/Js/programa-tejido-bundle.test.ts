@@ -12,6 +12,8 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 const noop = () => {}
+// Globales de mentira para evaluar el bundle en node: sin tipos del DOM a propósito.
+const g = globalThis as any
 
 function instalarDomDeMentira() {
 	const el = new Proxy({}, {
@@ -28,25 +30,25 @@ function instalarDomDeMentira() {
 
 	const store = { getItem: () => null, setItem: noop, removeItem: noop, clear: noop }
 
-	globalThis.document = {
+	g.document = {
 		addEventListener: noop, removeEventListener: noop,
 		querySelector: () => null, querySelectorAll: () => [],
 		getElementById: () => null, createElement: () => el,
 		createTextNode: () => el,
 		body: el, documentElement: el, head: el, readyState: 'loading', cookie: '',
 	}
-	globalThis.localStorage = store
-	globalThis.sessionStorage = store
-	globalThis.Swal = { fire: noop, close: noop, isVisible: () => false }
-	globalThis.showToast = noop
-	globalThis.notify = { success: noop, error: noop, warning: noop, info: noop }
-	globalThis.http = { get: noop, post: noop }
-	globalThis.toast = noop
-	globalThis.$ = () => ({ on: noop, off: noop, val: noop, each: noop, length: 0, select2: noop })
-	globalThis.jQuery = globalThis.$
-	globalThis.requestAnimationFrame = () => 0
-	globalThis.matchMedia = () => ({ matches: false, addEventListener: noop })
-	globalThis.getComputedStyle = () => new Proxy({}, { get: () => '' })
+	g.localStorage = store
+	g.sessionStorage = store
+	g.Swal = { fire: noop, close: noop, isVisible: () => false }
+	g.showToast = noop
+	g.notify = { success: noop, error: noop, warning: noop, info: noop }
+	g.http = { get: noop, post: noop }
+	g.toast = noop
+	g.$ = () => ({ on: noop, off: noop, val: noop, each: noop, length: 0, select2: noop })
+	g.jQuery = g.$
+	g.requestAnimationFrame = () => 0
+	g.matchMedia = () => ({ matches: false, addEventListener: noop })
+	g.getComputedStyle = () => new Proxy({}, { get: () => '' })
 
 	// navigator y location son solo-lectura en node
 	Object.defineProperty(globalThis, 'navigator', {
@@ -61,7 +63,7 @@ function instalarDomDeMentira() {
 	})
 
 	// Lo que el Blade imprime en #pt-boot (aqui no hay nodo: boot.ts cae a window.PT_BOOT).
-	globalThis.PT_BOOT = {
+	g.PT_BOOT = {
 		basePath: '/planeacion/programa-tejido',
 		apiPath: '/programa-tejido',
 		linePath: '/planeacion/req-programa-tejido-line',
@@ -73,14 +75,16 @@ function instalarDomDeMentira() {
 		},
 	}
 
-	globalThis.window = globalThis
+	g.window = globalThis
 }
 
 test('el bundle se evalua sin errores y publica su superficie', async () => {
 	instalarDomDeMentira()
 
 	// Si el bundle lanza al evaluarse, esto rechaza y el test falla con el error real.
-	await import('../../resources/js/programa-tejido/index.js')
+	// Ruta en variable: index.js es JS (PT-TS 2) y el typecheck de los tests no lo resuelve.
+	const bundle = '../../resources/js/programa-tejido/index.js'
+	await import(bundle)
 
 	// Lo que la pagina necesita encontrar en window despues de la carga.
 	for (const nombre of [
@@ -108,6 +112,6 @@ test('el bundle se evalua sin errores y publica su superficie', async () => {
 		'openLinesModal',
 		'loadReqProgramaTejidoLines',
 	]) {
-		assert.equal(typeof globalThis[nombre], 'function', `window.${nombre} no quedo publicado`)
+		assert.equal(typeof g[nombre], 'function', `window.${nombre} no quedo publicado`)
 	}
 })

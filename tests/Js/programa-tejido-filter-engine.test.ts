@@ -54,7 +54,7 @@ test('groupFiltersByColumn agrupa varias condiciones de la misma columna', () =>
 		{ column: 'NoTelarId', operator: 'equals', value: '302' },
 		{ column: 'Producto', operator: 'contains', value: 'Toalla' },
 	])
-	assert.equal(g.NoTelarId.length, 2)
-	assert.equal(g.Producto.length, 1)
-	assert.equal(g.Producto[0].value, 'toalla')
+	assert.equal(g.NoTelarId?.length, 2)
+	assert.equal(g.Producto?.length, 1)
+	assert.equal(g.Producto?.[0]?.value, 'toalla')
 })
