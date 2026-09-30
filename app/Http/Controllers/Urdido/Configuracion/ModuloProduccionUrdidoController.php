@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Urdido\Configuracion;
 use App\Helpers\TurnoHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngProgramaEngomado;
+use App\Models\Mantenimiento\ManFallasParos;
 use App\Models\Sistema\SYSUsuario;
 use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProduccionUrdido;
@@ -229,7 +230,9 @@ class ModuloProduccionUrdidoController extends Controller
         // ponytail: el GET solo muta si el usuario puede capturar. Un lector (o un
         // prefetch del navegador) ya no cambia Status ni crea/borra filas.
         // Si se quiere mutación 100% explícita, mover esto a un POST /abrir-orden.
-        if ($this->usuarioPuedeEditar()) {
+        // Una orden cerrada no se toca: sin esto, reabrirla recreaba las filas que
+        // finalizar() descartó y reescribía fecha/oficial.
+        if ($this->usuarioPuedeEditar() && ! $this->ordenCerrada($orden)) {
             $redirect = $this->transitionToEnProceso($orden);
             if ($redirect) {
                 return $redirect;
@@ -276,26 +279,41 @@ class ModuloProduccionUrdidoController extends Controller
         $mcCoyActual = $this->extractMcCoyNumber($orden->MaquinaId);
         $limitePorMaquina = 2;
 
-        if ($mcCoyActual !== null) {
-            // ponytail: filtrar en SQL en vez de hidratar toda la tabla y contar en PHP.
-            // Sin % final: ancla al número (evita que "Coy 1" cuente a "Coy 12").
-            $patron = $mcCoyActual === 4 ? '%karl%mayer%' : "%coy%{$mcCoyActual}";
-            $ordenesEnProceso = UrdProgramaUrdido::where('Status', 'En Proceso')
-                ->where('Id', '!=', $orden->Id)
-                ->where('MaquinaId', 'like', $patron)
-                ->count();
+        try {
+            // Contar y cambiar en la misma transacción, con las filas contadas bloqueadas:
+            // dos usuarios abriendo órdenes de la misma máquina ya no dejan 3 En Proceso.
+            $lleno = DB::connection('sqlsrv')->transaction(function () use ($orden, $mcCoyActual, $limitePorMaquina): bool {
+                if ($mcCoyActual !== null) {
+                    // ponytail: filtrar en SQL en vez de hidratar toda la tabla y contar en PHP.
+                    // Sin % final: ancla al número (evita que "Coy 1" cuente a "Coy 12").
+                    $patron = $mcCoyActual === 4 ? '%karl%mayer%' : "%coy%{$mcCoyActual}";
+                    $ordenesEnProceso = UrdProgramaUrdido::where('Status', 'En Proceso')
+                        ->where('Id', '!=', $orden->Id)
+                        ->where('MaquinaId', 'like', $patron)
+                        ->lockForUpdate()
+                        ->count();
 
-            if ($ordenesEnProceso >= $limitePorMaquina) {
+                    if ($ordenesEnProceso >= $limitePorMaquina) {
+                        return true;
+                    }
+                }
+
+                // Condicional: si otro request ya la movió, no se pisa su Status.
+                UrdProgramaUrdido::where('Id', $orden->Id)
+                    ->where('Status', 'Programado')
+                    ->update(['Status' => 'En Proceso']);
+
+                return false;
+            });
+
+            if ($lleno) {
                 $nombreMaquina = $mcCoyActual === 4 ? 'Karl Mayer' : "MC Coy {$mcCoyActual}";
 
                 return redirect()->route('urdido.programar.urdido')
                     ->with('error', "Ya existen {$limitePorMaquina} ordenes con status \"En Proceso\" en {$nombreMaquina}. No se puede cargar otra orden hasta finalizar alguna de las actuales.");
             }
-        }
 
-        try {
-            $orden->Status = 'En Proceso';
-            $orden->save();
+            $orden->refresh();
         } catch (\Throwable $e) {
             Log::error('Error al actualizar status a "En Proceso"', [
                 'folio' => $orden->Folio,
@@ -461,7 +479,7 @@ class ModuloProduccionUrdidoController extends Controller
             $huerfanas = UrdProduccionUrdido::where('Folio', $orden->Folio)
                 ->whereNotIn('Id', $idsAEliminar ?: [0])
                 ->where(function ($q) {
-                    $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
+                    $q->whereNull('HoraInicial');
                 })
                 ->where(function ($q) {
                     $q->whereNull('NoJulio')->orWhere('NoJulio', '');
@@ -557,7 +575,7 @@ class ModuloProduccionUrdidoController extends Controller
                 }
             })
             ->where(function ($q) {
-                $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
+                $q->whereNull('HoraInicial');
             })
             ->where(function ($q) {
                 $q->whereNull('NoJulio')->orWhere('NoJulio', '');
@@ -737,6 +755,27 @@ class ModuloProduccionUrdidoController extends Controller
                 ], 422);
             }
 
+            // Mantenimiento registra la urdidora Karl Mayer como KM1 (URDCatalogoMaquinas); las
+            // Mc Coy con el mismo nombre que la orden. Sin filtrar por Depto: Calidad también
+            // levanta paros sobre estas máquinas, y sus nombres no se repiten en otro depto.
+            $maquina = trim((string) data_get($orden, 'MaquinaId'));
+            $maquinaParo = stripos($maquina, 'Karl Mayer') !== false ? 'KM1' : $maquina;
+            $parosActivos = ManFallasParos::where('Estatus', 'Activo')
+                ->where('MaquinaId', $maquinaParo)
+                ->orderBy('Folio')
+                ->pluck('Folio');
+
+            if ($parosActivos->isNotEmpty()) {
+                $folios = $parosActivos->implode(', ');
+
+                return response()->json([
+                    'success' => false,
+                    'error' => $parosActivos->count() === 1
+                        ? "Hay un paro activo en esta máquina (folio {$folios}). Ve a Paros y finalízalo."
+                        : "Hay {$parosActivos->count()} paros activos en esta máquina (folios {$folios}). Ve a Paros y finalízalos.",
+                ], 422);
+            }
+
             if ($this->traitHasNegativeKgNetoByFolio($orden->Folio)) {
                 return response()->json([
                     'success' => false,
@@ -813,7 +852,17 @@ class ModuloProduccionUrdidoController extends Controller
 
             $fechaCierre = $this->resolveMonthlyClosureDateContext();
 
-            DB::connection('sqlsrv')->transaction(function () use ($orden, $fechaCierre) {
+            $finalizada = DB::connection('sqlsrv')->transaction(function () use ($orden, $fechaCierre): bool {
+                // Reclamar la orden primero con un update condicional: toma el candado de la
+                // fila y solo un request gana. Un doble clic o dos usuarios a la vez ya no
+                // finalizan dos veces, y marcarListo() no puede regresarla a Parcial.
+                $reclamada = UrdProgramaUrdido::where('Id', $orden->Id)
+                    ->whereIn('Status', ['En Proceso', 'Parcial'])
+                    ->update(['Status' => 'Finalizado', 'FechaFinaliza' => $fechaCierre['fecha_efectiva']]);
+                if ($reclamada === 0) {
+                    return false;
+                }
+
                 // Eliminar registros sin HoraInicial o HoraFinal antes de consolidar el cierre.
                 UrdProduccionUrdido::where('Folio', $orden->Folio)
                     ->where(function ($query) {
@@ -835,10 +884,16 @@ class ModuloProduccionUrdidoController extends Controller
                     $this->updateProduccionFechaByFolio($orden->Folio, $fechaCierre['fecha_efectiva']);
                 }
 
-                $orden->Status = 'Finalizado';
-                $orden->FechaFinaliza = $fechaCierre['fecha_efectiva'];
-                $orden->save();
+                return true;
             });
+
+            if (! $finalizada) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'La orden ya fue finalizada o cambió de estado. Recarga la página.',
+                ], 409);
+            }
+            $orden->refresh();
 
             return response()->json([
                 'success' => true,

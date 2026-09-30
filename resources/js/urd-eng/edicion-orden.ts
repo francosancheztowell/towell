@@ -30,8 +30,10 @@ const MODAL_EMPLEADOS = 'modal-empleados-produccion'
 
 const raiz = (): HTMLElement | null => document.querySelector<HTMLElement>('[data-edicion-orden]')
 
-const post = async (url: string, datos: unknown): Promise<RespuestaApi> =>
-  exigirExito(await http.post<RespuestaApi>(url, datos), 'No se pudo actualizar')
+// `edicion: 1`: el servidor solo deja editar órdenes ya cerradas desde esta pantalla
+// (ProduccionTrait::jsonIfRegistroBloqueadoPorAx).
+const post = async (url: string, datos: object): Promise<RespuestaApi> =>
+  exigirExito(await http.post<RespuestaApi>(url, { ...datos, edicion: 1 }), 'No se pudo actualizar')
 
 const refrescarComponente = (): void => {
   const id = raiz()?.getAttribute('wire:id')

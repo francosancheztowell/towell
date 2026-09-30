@@ -106,12 +106,23 @@ class ProduccionEngomadoTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_la_ruta_sigue_en_modo_auditar(): void
+    public function test_sin_permiso_modificar_no_cambia_mermas(): void
     {
-        // Sin permiso "modificar" la validación de entrada se aplica, pero la ruta no bloquea (SEC-06 pendiente).
+        // La ruta sigue en modo auditar (no bloquea); el permiso lo revisa el controlador.
         $this->actingAs($this->usuarioCon(['Producción Engomado' => ['acceso']]))
             ->postJson(self::BASE.'/actualizar-campo-orden', ['orden_id' => 1, 'campo' => 'merma_con_goma', 'valor' => 2])
-            ->assertOk();
+            ->assertForbidden();
+
+        $this->assertNull(DB::connection('sqlsrv')->table('EngProgramaEngomado')->where('Id', 1)->value('MermaGoma'));
+    }
+
+    public function test_no_cambia_mermas_de_una_orden_finalizada(): void
+    {
+        DB::connection('sqlsrv')->table('EngProgramaEngomado')->where('Id', 1)->update(['Status' => 'Finalizado']);
+
+        $this->actingAs($this->usuario())
+            ->postJson(self::BASE.'/actualizar-campo-orden', ['orden_id' => 1, 'campo' => 'merma_con_goma', 'valor' => 2])
+            ->assertForbidden();
     }
 
     // ─── SEC-07 ──────────────────────────────────────────────────────────

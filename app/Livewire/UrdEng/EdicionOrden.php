@@ -399,7 +399,7 @@ class EdicionOrden extends Component
 
         if ($accion === ProgramaConfig::ACCION_METROS_ACTUALIZAR_SIN_HORA_INICIO) {
             $query->where(function (Builder $q): void {
-                $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
+                $q->whereNull('HoraInicial');
             });
         }
 

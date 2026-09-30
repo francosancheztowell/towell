@@ -348,10 +348,17 @@ class MantenimientoParosController extends Controller
         try {
             $depUpper = strtoupper(trim($departamento));
 
+            // 'Parcial' también es orden viva en la máquina (producción la sigue
+            // capturando), igual que en ModuloProduccionUrdido/Engomado.
+            $statusActivos = ['En Proceso', 'Parcial'];
+
             if ($depUpper === 'URDIDO') {
+                // Mantenimiento registra la Karl Mayer como KM1; el programa, como 'Karl Mayer'.
+                $maquinaPrograma = strcasecmp(trim($maquina), 'KM1') === 0 ? 'Karl Mayer' : $maquina;
+
                 $rows = DB::table('UrdProgramaUrdido')
-                    ->where('MaquinaId', $maquina)
-                    ->where('Status', 'En Proceso')
+                    ->where('MaquinaId', $maquinaPrograma)
+                    ->whereIn('Status', $statusActivos)
                     ->orderByDesc('FechaProg')
                     ->limit(5)
                     ->get([
@@ -369,7 +376,7 @@ class MantenimientoParosController extends Controller
             if ($depUpper === 'ENGOMADO') {
                 $rows = DB::table('EngProgramaEngomado')
                     ->where('MaquinaEng', $maquina)
-                    ->where('Status', 'En Proceso')
+                    ->whereIn('Status', $statusActivos)
                     ->orderByDesc('FechaProg')
                     ->limit(5)
                     ->get([

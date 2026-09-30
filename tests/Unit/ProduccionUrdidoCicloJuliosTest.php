@@ -71,6 +71,10 @@ class ProduccionUrdidoCicloJuliosTest extends TestCase
             $table->dateTime('FechaRequerimiento')->nullable();
         });
 
+        // finalizar() consulta paros activos; dbo. es un esquema para sqlite.
+        DB::connection('sqlsrv')->statement("ATTACH DATABASE ':memory:' AS dbo");
+        DB::connection('sqlsrv')->statement('CREATE TABLE dbo.ManFallasParos (Id INTEGER PRIMARY KEY, Folio TEXT, Estatus TEXT, Depto TEXT, MaquinaId TEXT)');
+
         $schema->create('UrdProduccionUrdido', function (Blueprint $table) {
             $table->increments('Id');
             $table->string('Folio')->nullable();

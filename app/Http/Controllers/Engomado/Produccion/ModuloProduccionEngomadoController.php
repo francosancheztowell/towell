@@ -156,13 +156,16 @@ class ModuloProduccionEngomadoController extends Controller
                 ->with('error', "No se puede cargar la orden. La orden de urdido debe tener status 'Finalizado' antes de poder ponerla en proceso en engomado.");
         }
 
-        if ($orden->Status === 'Programado') {
-            try {
-                $orden->Status = 'En Proceso';
-                $orden->save();
-            } catch (\Throwable $e) {
-                // Error al actualizar status
-            }
+        // Igual que Urdido: el GET solo muta si el usuario puede capturar y la orden sigue
+        // abierta. Un lector ya no cambia Status, crea filas ni queda como Oficial 1.
+        $puedeMutar = $this->usuarioPuedeEditar() && ! $this->ordenCerrada($orden);
+
+        if ($puedeMutar && $orden->Status === 'Programado') {
+            // Condicional: no pisa el Status si otro request ya la movió.
+            EngProgramaEngomado::where('Id', $orden->Id)
+                ->where('Status', 'Programado')
+                ->update(['Status' => 'En Proceso']);
+            $orden->refresh();
         }
 
         $julios = UrdJuliosOrden::where('Folio', $orden->Folio)
@@ -181,10 +184,11 @@ class ModuloProduccionEngomadoController extends Controller
 
         // Se extrae a su propio metodo para poder ejercitarlo sin pasar por
         // la pantalla (ver scripts/ensayo-engomado-20-ordenes.php).
-        $this->sincronizarRenglonesConNoTelas($orden, $totalRegistros, $solidosFormulacion);
-
-        $this->traitRefrescarFechaEnRegistrosVacios($orden);
-        $this->traitAutollenarOficial1EnRegistrosSinHoraInicial($orden);
+        if ($puedeMutar) {
+            $this->sincronizarRenglonesConNoTelas($orden, $totalRegistros, $solidosFormulacion);
+            $this->traitRefrescarFechaEnRegistrosVacios($orden);
+            $this->traitAutollenarOficial1EnRegistrosSinHoraInicial($orden);
+        }
         $registrosProduccion = EngProduccionEngomado::where('Folio', $orden->Folio)->orderBy('Id')->get();
 
         // Habilitar botón solo cuando hay registros con Finalizar=1 e Impresion=NULL/0 (listos pero no impresos)
@@ -275,6 +279,11 @@ class ModuloProduccionEngomadoController extends Controller
                 return response()->json(['success' => false, 'error' => 'Registro no encontrado con ID: '.$request->registro_id], 404);
             }
 
+            // Mismo candado que el resto de la captura (Urdido ya lo tenía): fila en AX u orden cerrada.
+            if ($bloqueado = $this->jsonIfRegistroBloqueadoPorAx($registro)) {
+                return $bloqueado;
+            }
+
             $campo = $request->campo;
 
             if ($campo === 'Ubicacion') {
@@ -285,6 +294,9 @@ class ModuloProduccionEngomadoController extends Controller
                         return response()->json(['success' => false, 'error' => 'El valor debe ser numérico para el campo '.$campo], 422);
                     }
                     $valor = (float) $request->valor;
+                    if ($valor < 0) {
+                        return response()->json(['success' => false, 'error' => 'El valor no puede ser negativo para el campo '.$campo], 422);
+                    }
                     if ($campo === 'Solidos') {
                         $valor = round($valor, 2);
                     }
@@ -323,6 +335,8 @@ class ModuloProduccionEngomadoController extends Controller
 
     public function actualizarCampoOrden(Request $request): JsonResponse
     {
+        // La ruta está en modo auditar (no bloquea): el permiso real se revisa aquí.
+        $this->ensureUserCanEdit();
         // Validación de entrada fuera del try: 422 con los errores (la ruta sigue en modo auditar).
         $datos = $request->validate([
             'orden_id' => 'required|integer',
@@ -339,6 +353,10 @@ class ModuloProduccionEngomadoController extends Controller
 
             if (! $orden) {
                 return response()->json(['success' => false, 'error' => 'Orden no encontrada'], 404);
+            }
+
+            if ($this->ordenCerrada($orden)) {
+                return response()->json(['success' => false, 'error' => 'La orden ya está finalizada o cancelada. No se puede editar.'], 403);
             }
 
             $campo = (string) $datos['campo'];

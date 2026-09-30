@@ -5,6 +5,7 @@ namespace App\Traits;
 use App\Helpers\TurnoHelper;
 use App\Models\Urdido\UrdCatJulios;
 use App\Support\Http\Concerns\HandlesApiErrors;
+use App\Support\Programas\ProgramaConfig;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -93,7 +94,34 @@ trait ProduccionTrait
             ], 403);
         }
 
+        // Todos los endpoints de captura pasan por aquí: también bloquea filas de una
+        // orden ya Finalizada/Cancelada (antes se podía cambiar peso u horas tras cerrar).
+        // Excepción deliberada: la pantalla Edición corrige órdenes cerradas y manda edicion=1.
+        // ponytail: la bandera no es un permiso (ensureUserCanEdit ya corrió); solo separa la
+        // Edición de escrituras tardías de la pantalla de captura. Si Edición debe restringirse
+        // a otro permiso, revisarlo aquí y en su ruta.
+        if ($this->ordenCerrada($registro) && ! request()->boolean('edicion')) {
+            return response()->json([
+                'success' => false,
+                'error' => 'La orden ya está finalizada o cancelada. No se puede editar.',
+            ], 403);
+        }
+
         return null;
+    }
+
+    /**
+     * ¿La orden (o la orden del registro, por Folio) ya no admite captura?
+     * Solo los status activos del programa se capturan.
+     */
+    protected function ordenCerrada($ordenORegistro): bool
+    {
+        $programa = $this->getProgramaModelClass();
+        $status = $ordenORegistro instanceof $programa
+            ? $ordenORegistro->Status
+            : $programa::where('Folio', $ordenORegistro->Folio)->value('Status');
+
+        return $status !== null && ! in_array(trim((string) $status), ProgramaConfig::ACTIVE_STATUSES, true);
     }
 
     /**
@@ -192,9 +220,8 @@ trait ProduccionTrait
                 $q->whereNull('NoJulio')->orWhere('NoJulio', '')
                     ->orWhereNull('KgBruto');
             })
-            ->where(function ($q) {
-                $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
-            })
+            ->whereNull('HoraInicial')
+            ->where(fn ($q) => $q->whereNull('AX')->orWhere('AX', '!=', 1))
             ->update([
                 'Fecha' => $hoy,
                 'Turno1' => $turnoUsuario > 0 ? $turnoUsuario : null,
@@ -218,9 +245,12 @@ trait ProduccionTrait
 
         $model = $this->getProduccionModelClass();
         $model::where('Folio', $orden->Folio)
-            ->where(function ($query) {
-                $query->whereNull('HoraInicial')->orWhere('HoraInicial', '');
-            })
+            // Solo filas sin captura: quien abre la orden (p. ej. un supervisor que
+            // revisa) ya no se pone como Oficial 1 de filas con julio/peso ni en AX.
+            ->whereNull('HoraInicial')
+            ->where(fn ($q) => $q->whereNull('NoJulio')->orWhere('NoJulio', ''))
+            ->whereNull('KgBruto')
+            ->where(fn ($q) => $q->whereNull('AX')->orWhere('AX', '!=', 1))
             ->update([
                 'CveEmpl1' => $claveUsuario,
                 'NomEmpl1' => $nombreUsuario,
@@ -424,7 +454,7 @@ trait ProduccionTrait
                 $model::where('Folio', $folio)
                     ->where('Id', '!=', $registro->Id)
                     ->where(function ($q) {
-                        $q->whereNull('HoraInicial')->orWhere('HoraInicial', '');
+                        $q->whereNull('HoraInicial');
                     })
                     ->update($updateData);
             }
@@ -778,6 +808,13 @@ trait ProduccionTrait
                 ], 422);
             }
 
+            if ($this->ordenCerrada($registro)) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'La orden ya está finalizada o cancelada. No se puede modificar.',
+                ], 422);
+            }
+
             // Validar campos requeridos antes de marcar como listo
             if ($request->listo) {
                 // Urdido: orden con cuenta/calibre marcada como incorrecta no se puede finalizar (ni parcial)
@@ -841,18 +878,17 @@ trait ProduccionTrait
 
             $registro->save();
 
-            $orden = $programaModel::where('Folio', $registro->Folio)->first();
-            $statusOrden = null;
+            $registrosFinalizados = $produccionModel::where('Folio', $registro->Folio)
+                ->where('Finalizar', 1)
+                ->count();
+            $nuevoStatus = $registrosFinalizados > 0 ? 'Parcial' : 'En Proceso';
 
-            if ($orden && in_array($orden->Status, ['En Proceso', 'Parcial'])) {
-                $registrosFinalizados = $produccionModel::where('Folio', $registro->Folio)
-                    ->where('Finalizar', 1)
-                    ->count();
-
-                $orden->Status = $registrosFinalizados > 0 ? 'Parcial' : 'En Proceso';
-                $orden->save();
-                $statusOrden = $orden->Status;
-            }
+            // Update condicional, no leer-y-save(): si finalizar() cerró la orden entre
+            // medio, save() la regresaba de Finalizado a Parcial.
+            $actualizadas = $programaModel::where('Folio', $registro->Folio)
+                ->whereIn('Status', ['En Proceso', 'Parcial'])
+                ->update(['Status' => $nuevoStatus]);
+            $statusOrden = $actualizadas > 0 ? $nuevoStatus : null;
 
             return response()->json([
                 'success' => true,

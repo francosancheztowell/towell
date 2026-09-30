@@ -9,6 +9,7 @@ use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Feature\UrdEng\Concerns\ModuloUrdEng;
 use Tests\TestCase;
 
@@ -31,6 +32,9 @@ class ProduccionUrdidoTest extends TestCase
         $this->tablaDe(UrdProduccionUrdido::class);
         $this->tablaDe(EngProgramaEngomado::class);
         $this->tablaDe(SYSUsuario::class, ['area']);
+        // ManFallasParos usa el prefijo dbo.: sqlite lo lee como esquema.
+        DB::connection('sqlsrv')->statement("ATTACH DATABASE ':memory:' AS dbo");
+        DB::connection('sqlsrv')->statement('CREATE TABLE dbo.ManFallasParos (Id INTEGER PRIMARY KEY, Folio TEXT, Estatus TEXT, Depto TEXT, MaquinaId TEXT)');
 
         DB::connection('sqlsrv')->table('UrdProgramaUrdido')->insert([
             'Id' => 1, 'Folio' => 'F-1', 'Status' => 'En Proceso', 'MaquinaId' => 'Mc Coy 2',
@@ -159,6 +163,78 @@ class ProduccionUrdidoTest extends TestCase
             ->assertJsonPath('success', false)
             ->assertJsonPath('requiere_confirmacion', true)
             ->assertJsonPath('registros_a_descartar', 1);
+    }
+
+    // ── paro activo en la máquina ───────────────────────────────────
+
+    /**
+     * Casos reales de dbo.ManFallasParos / URDCatalogoMaquinas (sep-2026):
+     * urdidoras Mc Coy 1-3 y KM1 (la orden la llama "Karl Mayer"); 401/402 son
+     * telares del depto Karl Mayer; Calidad puede levantar paros sobre urdidoras.
+     *
+     * @return array<string, array{string, list<array{string, string, string}>, ?string}>
+     */
+    public static function casosParo(): array
+    {
+        return [
+            'Mc Coy 1 con paro activo' => ['Mc Coy 1', [['Urdido', 'Mc Coy 1', 'Activo']], 'Hay un paro activo en esta máquina (folio P-1). Ve a Paros y finalízalo.'],
+            'Mc Coy 2 con paro activo' => ['Mc Coy 2', [['Urdido', 'Mc Coy 2', 'Activo']], 'Hay un paro activo en esta máquina (folio P-1). Ve a Paros y finalízalo.'],
+            'Mc Coy 3 con paro activo' => ['Mc Coy 3', [['Urdido', 'Mc Coy 3', 'Activo']], 'Hay un paro activo en esta máquina (folio P-1). Ve a Paros y finalízalo.'],
+            'Karl Mayer: el paro se registra como KM1' => ['Karl Mayer', [['Urdido', 'KM1', 'Activo']], 'Hay un paro activo en esta máquina (folio P-1). Ve a Paros y finalízalo.'],
+            'paro levantado por Calidad en la urdidora' => ['Mc Coy 2', [['Calidad', 'Mc Coy 2', 'Activo']], 'Hay un paro activo en esta máquina (folio P-1). Ve a Paros y finalízalo.'],
+            'varios paros activos: los lista todos' => ['Mc Coy 2', [['Urdido', 'Mc Coy 2', 'Activo'], ['Calidad', 'Mc Coy 2', 'Activo']], 'Hay 2 paros activos en esta máquina (folios P-1, P-2). Ve a Paros y finalízalos.'],
+            'sin paros' => ['Mc Coy 2', [], null],
+            'paro ya terminado' => ['Mc Coy 2', [['Urdido', 'Mc Coy 2', 'Terminado']], null],
+            'paro activo en otra urdidora' => ['Mc Coy 2', [['Urdido', 'Mc Coy 1', 'Activo'], ['Urdido', 'KM1', 'Activo']], null],
+            'Karl Mayer: paro de telar 401 no es la urdidora' => ['Karl Mayer', [['Karl Mayer', '401', 'Activo']], null],
+            'Mc Coy: paro de KM1 no le aplica' => ['Mc Coy 3', [['Urdido', 'KM1', 'Activo']], null],
+            'paro activo en Engomado' => ['Mc Coy 2', [['Engomado', 'WestPoint 2', 'Activo']], null],
+        ];
+    }
+
+    /** @param list<array{string, string, string}> $paros */
+    #[DataProvider('casosParo')]
+    public function test_finalizar_valida_paro_activo_de_la_maquina(string $maquinaOrden, array $paros, ?string $mensaje): void
+    {
+        $db = DB::connection('sqlsrv');
+        $db->table('UrdProgramaUrdido')->where('Id', 1)->update(['MaquinaId' => $maquinaOrden]);
+        foreach ($paros as $i => [$depto, $maquina, $estatus]) {
+            $db->table('dbo.ManFallasParos')->insert(['Folio' => 'P-'.($i + 1), 'Depto' => $depto, 'MaquinaId' => $maquina, 'Estatus' => $estatus]);
+        }
+
+        $r = $this->actingAs($this->usuarioCon([154 => ['acceso', 'modificar'], 'Producción Urdido' => ['acceso', 'modificar']], 'Urdido'))
+            ->postJson(self::BASE.'/finalizar', ['orden_id' => 1]);
+
+        if ($mensaje === null) {
+            $r->assertOk()->assertJsonPath('success', true);
+            $this->assertSame('Finalizado', $db->table('UrdProgramaUrdido')->where('Id', 1)->value('Status'));
+
+            return;
+        }
+
+        $r->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('error', $mensaje);
+        $this->assertSame('En Proceso', $db->table('UrdProgramaUrdido')->where('Id', 1)->value('Status'));
+    }
+
+    /** Bloqueado por paro no descarta ni marca registros: la orden queda como estaba. */
+    public function test_finalizar_con_paro_no_toca_los_registros(): void
+    {
+        $db = DB::connection('sqlsrv');
+        $db->table('UrdProduccionUrdido')->insert([
+            ['Folio' => 'F-1', 'Hilos' => 640, 'NoJulio' => '7', 'KgBruto' => 300, 'HoraInicial' => '07:00', 'HoraFinal' => '08:00'],
+            ['Folio' => 'F-1', 'Hilos' => 640, 'NoJulio' => null, 'KgBruto' => null, 'HoraInicial' => null, 'HoraFinal' => null],
+        ]);
+        $db->table('dbo.ManFallasParos')->insert(['Folio' => 'P-1', 'Depto' => 'Urdido', 'MaquinaId' => 'Mc Coy 2', 'Estatus' => 'Activo']);
+
+        $this->actingAs($this->usuarioCon([154 => ['acceso', 'modificar'], 'Producción Urdido' => ['acceso', 'modificar']], 'Urdido'))
+            ->postJson(self::BASE.'/finalizar', ['orden_id' => 1, 'confirmar_descarte' => true])
+            ->assertStatus(422);
+
+        $this->assertSame(2, $db->table('UrdProduccionUrdido')->where('Folio', 'F-1')->count());
+        $this->assertSame(0, $db->table('UrdProduccionUrdido')->where('Finalizar', 1)->count());
+        $this->assertNull($db->table('UrdProgramaUrdido')->where('Id', 1)->value('FechaFinaliza'));
     }
 
     // ── PERF ─────────────────────────────────────────────────────────

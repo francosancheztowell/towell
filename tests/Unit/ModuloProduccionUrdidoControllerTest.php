@@ -24,6 +24,7 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
         $this->useSqlsrvSqlite();
         config()->set('database.default', 'sqlsrv');
         config()->set('app.timezone', 'America/Mexico_City');
+        $this->createTablaDbo('ManFallasParos', ['Id' => 'INTEGER PRIMARY KEY', 'Folio' => 'TEXT', 'Estatus' => 'TEXT', 'Depto' => 'TEXT', 'MaquinaId' => 'TEXT']);
 
         $schema = Schema::connection('sqlsrv');
 
