@@ -1,4 +1,4 @@
-// Uso: ARNES_VIEWPORT=1280x800 node shoot.mjs <etiqueta> <urls>  (copia de 19-01 con viewport configurable)
+// Uso: ARNES_VIEWPORT=1280x800 node shoot.ts <etiqueta> <urls>  (copia de 19-01 con viewport configurable)
 import { createRequire } from 'module';
 import fs from 'fs';
 const require = createRequire((process.env.NODE_GLOBAL ?? '/opt/node22/lib/node_modules') + '/');
@@ -13,12 +13,12 @@ const [ancho, alto] = (process.env.ARNES_VIEWPORT ?? "768x1024").split("x").map(
 const ctx = await browser.newContext({ viewport: { width: ancho, height: alto } });
 const page = await ctx.newPage();
 await page.goto(base + '/__login/1');
-const reporte = [];
+const reporte: unknown[] = [];
 for (const linea of fs.readFileSync(lista, 'utf8').split('\n').filter(Boolean)) {
   const [nombre, url, pasos] = linea.split('|').map(s => s.trim());
-  const errores = [];
-  const onC = m => { if (m.type() === 'error') errores.push('console: ' + m.text()); };
-  const onE = e => errores.push('pageerror: ' + e.message);
+  const errores: string[] = [];
+  const onC = (m: any) => { if (m.type() === 'error') errores.push('console: ' + m.text()); };
+  const onE = (e: Error) => errores.push('pageerror: ' + e.message);
   page.on('console', onC); page.on('pageerror', onE);
   let status = 0;
   try {
@@ -27,7 +27,7 @@ for (const linea of fs.readFileSync(lista, 'utf8').split('\n').filter(Boolean)) 
     if (pasos) await new Function('page', `return (async () => { ${pasos} })()`)(page);
     await page.waitForTimeout(400);
     await page.screenshot({ path: `${out}/${nombre}.png`, fullPage: false });
-  } catch (e) { errores.push('driver: ' + e.message.split('\n')[0]); }
+  } catch (e: any) { errores.push('driver: ' + e.message.split('\n')[0]); }
   page.off('console', onC); page.off('pageerror', onE);
   reporte.push({ nombre, url, status, errores });
   console.log(`${status} ${nombre} ${errores.length ? 'ERR ' + errores.join(' || ').slice(0, 400) : 'ok'}`);
