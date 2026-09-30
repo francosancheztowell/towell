@@ -32,8 +32,15 @@ php artisan test tests/Feature/ExampleTest.php
 # Static analysis (larastan level 5; existing debt lives in phpstan-baseline.neon)
 vendor/bin/phpstan analyse --memory-limit=2G
 
-# Debt ratchet: fails if any counted pattern (fetch(, Swal.fire, onclick=, inline <script>...) goes up
-npm run ratchet            # node scripts/ratchet.mjs --update to lock in a decrease
+# Debt ratchet: fails if any counted pattern (fetch(, Swal.fire, onclick=, inline <script>,
+# catch vacío...) or the jscpd duplication % (.jscpd.json) goes up
+npm run ratchet            # node scripts/ratchet.mjs --update to lock in a decrease; --top '<metric>'
+
+# Quality gate before push (phase 22): pint --test on changed PHP + phpstan + PHPMD on changed PHP
+# (only NEW violations vs each file's base version, rules in phpmd.xml) + ratchet
+composer quality
+# Changed files are computed by scripts/calidad.mjs (base: your upstream, or CAMBIADOS_BASE=<ref>)
+node scripts/calidad.mjs archivos|pint|phpmd|audit
 
 # Clear all caches (often needed after config or module changes)
 php artisan cache:clear && php artisan config:clear && php artisan view:clear && php artisan route:clear
@@ -42,7 +49,8 @@ php artisan cache:clear && php artisan config:clear && php artisan view:clear &&
 ### CI
 `.github/workflows/frontend-checks.yml` (the only versioned workflow) runs on PRs and on pushes to `main` and `claude/**`:
 - `checks`: `npm run typecheck`, `npm run test:js`, `npm run build`, `npm run ratchet`.
-- `php`: `php artisan test` (sqlite in memory, needs `npm run build` first for the Vite manifest), `phpstan analyse`, and Pint `--test` only on changed PHP files (never format the whole repo).
+- `php`: `php artisan test` (sqlite in memory, needs `npm run build` first for the Vite manifest), `phpstan analyse`, and on changed PHP files only (`scripts/calidad.mjs`; PR → its base, push → what the push brings): Pint `--test` (never format the whole repo) and PHPMD (`phpmd.xml`: unusedcode + codesize; fails only on violations that the file's base version didn't have, no baseline). `composer audit` blocks only advisories that are new in a changed `composer.lock`; otherwise it's a warning.
+- No global baselines beyond `phpstan-baseline.neon` (which only goes down). PHP Insights is not a gate.
 
 Cloud sessions get `vendor/`, `node_modules/`, `.env` and `public/build` from the SessionStart hook `scripts/session-start.sh`.
 
@@ -113,9 +121,14 @@ Controllers follow the same subdirectory pattern under `app/Http/Controllers/`.
 #### HTTP, notificaciones y utilidades (preferir sobre `fetch` crudo)
 `bootstrap.js` expone utilidades globales (también importables como ESM desde `resources/js/utils/*.ts`), disponibles en cualquier `<script>` de Blade:
 - **`window.http`** (`resources/js/utils/http.ts`) — cliente HTTP único sobre axios. Firmas: `http.get(url, config?)`, `http.delete(url, config?)` (el body de un DELETE va en `config.data`), `http.post/put/patch(url, data?, config?)`, `http.upload(url, formData)`. Devuelve el JSON (`response.data`), manda siempre `Accept: application/json` y el CSRF, y **lanza** `HttpError` (`err.status`, `err.data`, `err.errors` en 422). En todo fallo emite `towell:http-error` en `window` (`{status, url, method}`). Sesión expirada (419/401): un aviso y recarga sola. No escribir `fetch(...).then(r => r.json())` nuevo.
-- **`window.notify`** (`resources/js/utils/notifications.ts`) — `notify.success/error/warning/info(msg)` son **toasts nativos** accesibles (`aria-live`, máx. 4, sin Toastr); `notify.confirm({...}) → Promise<boolean>`, `notify.validation(err.errors)`, `notify.loading()/close()` siguen con SweetAlert2. `window.showToast(msg, tipo)` apunta aquí. Escapa HTML.
+- **`window.notify`** (`resources/js/utils/notifications.ts`) — `notify.success/error/warning/info(msg)` son **toasts nativos** accesibles (`aria-live`, máx. 4, sin Toastr); `notify.confirm({...}) → Promise<boolean>`, `notify.validation(err.errors)`, `notify.loading()/close()` siguen con SweetAlert2. `window.showToast(msg, tipo)` apunta aquí. Escapa HTML. Todos los toasts duran 5 s y salen debajo del navbar.
 - **`resources/js/utils/format.ts`** — `escapeHtml`, `debounce`, `formatNumber`, `formatDate`, `formatDateTime` (es-MX, America/Mexico_City). No redefinirlos en vistas.
 - **`resources/js/utils/dom.ts`** — `qs`, `qsa`, `delegate`, `onReady`.
+- **`resources/js/utils/sesion.ts`** — `sesionExpirada()`: aviso único y recarga ante 419/401, compartido por `window.http` y por Livewire. Un `fetch` crudo no lo hace.
+- **`window.accionesTactiles`** (`resources/js/utils/acciones-tactiles.ts`) — `accionesTactiles(root, selector, abrir)` (clic derecho + long-press) y `botonAcciones(el, abrir)` (botón "⋮"); reemplaza los `contextmenu` sueltos, que no funcionan en tablet.
+- Banner "sin conexión" global (`resources/js/componentes/conexion.ts`, evento `towell:conexion` + `online`/`offline`): no pintar avisos propios de red.
+
+Páginas: `<title>` sale de `@section('title')` o del texto de `@section('page-title')` (con "· Towell"); el navbar pone el único `<h1>` (los títulos del contenido van en `<h2>`). Pinch-zoom habilitado salvo andón (`@section('viewport-fijo', '1')`). Idioma `es` (`lang/es/**`, `APP_LOCALE=es`). Páginas `errors/*` con layout propio. Checklist por pantalla para cada migración: `.planning/phases/17-ux/17-02-CHECKLIST.md`.
 
 Migración en curso (`.planning/ROADMAP.md`, fases 15/16/19): los `fetch` inline, `showToast()` duplicados y `onclick=` se reemplazan módulo por módulo; el ratchet (`npm run ratchet`) impide que crezcan.
 

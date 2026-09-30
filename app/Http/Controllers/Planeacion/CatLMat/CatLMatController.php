@@ -152,6 +152,7 @@ class CatLMatController extends Controller
             'filas.*.inventLocationId' => 'nullable|string|max:60',
             'filas.*.qty' => 'required|numeric|gt:0',
             'filas.*.porcentaje' => 'nullable|numeric',
+            'filas.*.tipo' => 'nullable|integer|between:1,4',
             'filas.*.matrizTipo' => 'nullable|string|max:60',
             'filas.*.matrizCalibre' => 'nullable|numeric',
             'filas.*.matrizFibraId' => 'nullable|string|max:60',
@@ -381,6 +382,9 @@ class CatLMatController extends Controller
                 // 2) CatLMat: reemplazar filas de esa Orden.
                 CatLMat::query()->where('Orden', $orden)->delete();
 
+                // Solo Karl Mayer tiene barras; en Jacquard/Smit Tipo queda NULL aunque llegue.
+                $esKarlMayer = TelarSalonResolver::esKarlMayer($salon, $telarId);
+
                 $now = Carbon::now();
                 $usuarioRegistro = Auth::check()
                     ? StringTruncator::truncateToLength(Auth::user()->nombre ?? 'Sistema', self::LIM_USUARIO_REGISTRO_CAT_LMAT)
@@ -433,6 +437,7 @@ class CatLMatController extends Controller
                         'InventSizeCrudo' => $inventSizeCrudo,
                         'Luchaje' => $luchaje,
                         'CodigoDibujo' => $codigoDibujo,
+                        'Tipo' => $esKarlMayer && isset($f['tipo']) ? (int) $f['tipo'] : null,
                         'FechaRegistro' => $now->toDateString(),
                         'HoraRegistro' => $now->format('H:i:s'),
                         'UsuarioRegistro' => $usuarioRegistro,

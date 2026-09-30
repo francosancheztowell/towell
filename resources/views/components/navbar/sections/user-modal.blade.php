@@ -114,14 +114,15 @@
                             <button id="edit-device-name"
                                     type="button"
                                     class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-500 transition-opacity"
-                                    title="Editar nombre">
-                                <i class="fas fa-pencil text-[10px]"></i>
+                                    title="Editar nombre"
+                                    aria-label="Editar nombre del dispositivo">
+                                <i class="fas fa-pencil text-xs" aria-hidden="true"></i>
                             </button>
                         @endif
                     </div>
                     <!-- Modelo detectado -->
                     @if($deviceModel)
-                        <span class="text-[10px] text-gray-500">{{ $deviceModel }}</span>
+                        <span class="text-xs text-gray-500">{{ $deviceModel }}</span>
                     @endif
                 </div>
                 <span class="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono text-gray-600" title="ID de dispositivo">
@@ -156,7 +157,7 @@
                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                placeholder="Ej: Tablet Producción 1"
                maxlength="80">
-        <p class="text-[10px] text-gray-500 mt-1">Este nombre identifica a este equipo en el monitoreo</p>
+        <p class="text-xs text-gray-500 mt-1">Este nombre identifica a este equipo en el monitoreo</p>
         <div class="flex gap-2 mt-3">
             <button id="cancel-device-name"
                     class="flex-1 px-3 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">

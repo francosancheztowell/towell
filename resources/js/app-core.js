@@ -90,18 +90,10 @@ import "./programa-tejido/modal-cache-bootstrap.js";
     // servidor (ver navbar/sections/left.blade.php). Aquí solo se intercepta
     // cuando la página define un comportamiento propio.
     function initNavigation() {
-        let loaderTimer = null;
-
-        const mostrarLoader = () => {
-            const loader = document.getElementById("globalLoader");
-            if (!loader) return;
-            loaderTimer = setTimeout(() => loader.classList.remove("hidden"), LOADER_DELAY);
-        };
-
-        const ocultarLoader = () => {
-            clearTimeout(loaderTimer);
-            document.getElementById("globalLoader")?.classList.add("hidden");
-        };
+        // Loader único (HANDOFF 16 A3): window.loader (componentes/loader.ts) tiene un solo
+        // temporizador, así un hide() de una vista cancela también el show diferido de aquí.
+        const mostrarLoader = () => window.loader?.show(LOADER_DELAY);
+        const ocultarLoader = () => window.loader?.hide();
 
         document.addEventListener("click", (e) => {
             const link = e.target.closest("a[href]");

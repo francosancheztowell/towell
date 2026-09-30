@@ -172,6 +172,38 @@ class AlineacionControllerTest extends TestCase
         $this->assertSame('9', $item['AnchoToalla']);
     }
 
+    public function test_karl_mayer_trae_sus_barras_y_omite_las_vacias(): void
+    {
+        $program = new ReqProgramaTejido;
+        $program->setRawAttributes([
+            'NoTelarId' => '401',
+            'SalonTejidoId' => 'KARL MAYER',
+            'CuentaBarra1' => '2028', 'CalibreBarra1' => '167/1', 'FibraBarra1' => 'POLIESTER',
+            'CodColorBarra1' => '0001', 'ColorBarra1' => 'BLANCO', 'PasadasBarra1' => 40,
+            // Barra 2 sin nada: no se lista. Barra 3 con pasadas en cero: el cero se vacía.
+            'CuentaBarra3' => '2104', 'CalibreBarra3' => '16/1', 'PasadasBarra3' => 0,
+        ]);
+
+        $item = $this->mapear($program);
+
+        $this->assertTrue($item['_esKarlMayer']);
+        $this->assertSame([1, 3], array_column($item['_barras'], 'barra'));
+        $this->assertSame('0001 BLANCO', $item['_barras'][0]['color']);
+        $this->assertSame('40', $item['_barras'][0]['pasadas']);
+        $this->assertSame('', $item['_barras'][1]['pasadas']);
+    }
+
+    public function test_un_telar_normal_no_trae_barras(): void
+    {
+        $program = new ReqProgramaTejido;
+        $program->setRawAttributes(['NoTelarId' => '215', 'SalonTejidoId' => 'JACQUARD', 'CuentaBarra1' => '99']);
+
+        $item = $this->mapear($program);
+
+        $this->assertFalse($item['_esKarlMayer']);
+        $this->assertSame([], $item['_barras']);
+    }
+
     private function programaConClave(): ReqProgramaTejido
     {
         $program = new ReqProgramaTejido;

@@ -1,0 +1,192 @@
+    @php
+      $columns   = $columns ?? [];
+      $registros = $registros ?? collect();
+      // Columnas ocultas resueltas en el servidor: salen ya con display:none, sin
+      // el salto de layout ni las ~5 000 escrituras inline que hacia el front.
+      $ocultas = array_fill_keys($hiddenFields ?? [], true);
+
+      $getRegistroId = function($registro) {
+        return $registro->Id ?? $registro->id ?? '';
+      };
+
+      $formatValue = function($registro, $field, $dateType = null) use ($getRegistroId) {
+        $value = $registro->{$field} ?? null;
+
+        if ($field === 'Reprogramar') {
+          $registroId = $getRegistroId($registro);
+          $valorActual = $value ?? '';
+          $checked = ($valorActual == '1' || $valorActual == '2') ? 'checked' : '';
+          $textoMostrar = '';
+          if ($valorActual == '1') {
+            $textoMostrar = 'P. Siguiente';
+          } elseif ($valorActual == '2') {
+            $textoMostrar = 'P. Ultima';
+          }
+          // Verificar si esta en proceso
+          $enProceso = $registro->EnProceso ?? 0;
+          $estaEnProceso = ($enProceso == 1 || $enProceso === true);
+          $disabled = $estaEnProceso ? '' : 'disabled';
+          $cursorClass = $estaEnProceso ? 'cursor-pointer' : 'cursor-not-allowed opacity-50';
+          $dataEnProceso = $estaEnProceso ? 'data-en-proceso="1"' : 'data-en-proceso="0"';
+          return '<div class="relative inline-flex items-center reprogramar-container" data-registro-id="'.e($registroId).'" '.$dataEnProceso.'>
+              <input type="checkbox" '.$checked.' '.$disabled.' class="reprogramar-checkbox w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 '.$cursorClass.'" data-registro-id="'.e($registroId).'" data-valor-actual="'.e($valorActual).'">
+              <span class="reprogramar-texto ml-2 text-xs text-gray-600 font-medium">'.e($textoMostrar).'</span>
+            </div>';
+        }
+
+        if ($value === null || $value === '') return '';
+
+        if ($field === 'EnProceso') {
+          $checked = ($value == 1 || $value === true) ? 'checked' : '';
+          return '<input type="checkbox" '.$checked.' disabled class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">';
+        }
+
+        if ($field === 'Ultimo') {
+          $sv = strtoupper(trim((string)$value));
+          if ($sv === 'UL') return '<strong>ULTIMO</strong>';
+          if ($sv === '1' || $value === 1 || $value === '1') return '<strong>ULTIMO</strong>';
+          if ($sv === '0' || $value === 0) return '';
+        }
+
+        if ($field === 'CambioHilo') {
+          if ($value === '0' || $value === 0) return '';
+        }
+
+        if ($field === 'EficienciaSTD' && is_numeric($value)) {
+          return round(((float)$value) * 100) . '%';
+        }
+
+        // Formatear PTvsCte (Dif vs Compromiso) como entero con redondeo
+        if ($field === 'PTvsCte' && is_numeric($value)) {
+          $valorFloat = (float)$value;
+          // Obtener la parte entera (truncar hacia cero)
+          $parteEntera = (int)$valorFloat;
+          // Calcular la parte decimal absoluta de forma más precisa
+          $parteDecimal = abs($valorFloat - $parteEntera);
+
+          // Si la parte decimal es mayor a 0.50, redondear hacia arriba
+          if ($parteDecimal > 0.50) {
+            // Redondear hacia arriba: para positivos usar ceil, para negativos usar floor
+            if ($valorFloat >= 0) {
+              return (string)(int)ceil($valorFloat);
+            } else {
+              return (string)(int)floor($valorFloat);
+            }
+          } else {
+            // Si es <= 0.50, truncar (hacia cero)
+            return (string)$parteEntera;
+          }
+        }
+
+        if ($dateType === 'date' || $dateType === 'datetime') {
+          try {
+            $dt = $value instanceof \Carbon\Carbon ? $value : \Carbon\Carbon::parse($value);
+            if ($dt->year <= 1970) return '';
+            return $dateType === 'date' ? $dt->format('d/m/Y') : $dt->format('d/m/Y H:i');
+          } catch (\Exception $e) {
+            return '';
+          }
+        }
+
+        if (is_numeric($value) && !preg_match('/^\d+$/', (string)$value)) {
+          return number_format((float)$value, 2);
+        }
+
+        // La celda se pinta con {!! !!} porque las ramas de arriba devuelven HTML.
+        // Esta rama es texto libre de BD (Observaciones, NombreProyecto: editables inline
+        // por cualquier usuario) => escapar o es XSS almacenado.
+        return e($value);
+      };
+
+      $celda = function($registro, $colIndex, $col) use ($formatValue, $ocultas) {
+        $field = $col['field'];
+        $rawValue = $registro->{$field} ?? '';
+        if ($rawValue instanceof \Carbon\Carbon) {
+          $rawValue = $rawValue->format('Y-m-d H:i:s');
+        }
+        $esNegativo = $field === 'PTvsCte'
+          && $rawValue !== null && $rawValue !== ''
+          && (is_numeric($rawValue) ? (float) $rawValue : 0) < 0;
+
+        $class = 'column-'.$colIndex
+          .(($col['dateType'] ?? null) ? ' pt-wrap' : '')
+          .($esNegativo ? ' valor-negativo' : '');
+
+        return '<td class="'.$class.'"'
+          .(isset($ocultas[$field]) ? ' style="display:none"' : '')
+          .' data-column="'.e($field).'"'
+          .' data-value="'.e(is_scalar($rawValue) ? $rawValue : json_encode($rawValue)).'"'
+          .($esNegativo ? ' data-es-negativo="1"' : '')
+          .'>'.$formatValue($registro, $field, $col['dateType'] ?? null).'</td>';
+      };
+    @endphp
+
+    @if($registros && $registros->count() > 0)
+      <div class="overflow-x-auto pt-table-wrapper">
+        <div class="overflow-y-auto pt-table-scroll" style="position: relative;">
+          <table id="mainTable" class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-blue-500 text-white " style="position: sticky; top: 0; z-index: 10;">
+              <tr>
+                @foreach($columns as $index => $col)
+                  <th
+                    class="px-2 py-1 text-left text-xs font-semibold text-white whitespace-nowrap column-{{ $index }}"
+                    style="position: sticky; top: 0; background-color: #1b4a7b; min-width: 80px; z-index: 10;{{ isset($ocultas[$col['field']]) ? 'display:none;' : '' }}"
+                    data-column="{{ $col['field'] }}"
+                    data-index="{{ $index }}"
+                  >
+                    {{ $col['label'] }}
+                  </th>
+                @endforeach
+              </tr>
+            </thead>
+
+            <tbody class="bg-white divide-y divide-gray-100">
+              @foreach($registros as $index => $registro)
+                @php
+                  $producto = $registro->NombreProducto ?? '';
+                  $esRepaso = !empty($producto) && strtoupper(substr(trim($producto), 0, 6)) === 'REPASO';
+                  $noExisteBase = $registro->NoExisteBase ?? null;
+                  $tieneNoExisteBase = !empty($noExisteBase) && ($noExisteBase !== '0' && $noExisteBase !== 0 && $noExisteBase !== false);
+                  $rowId = $getRegistroId($registro);
+                @endphp
+                <tr
+                  class="hover:bg-blue-50 cursor-pointer selectable-row"
+                  data-row-index="{{ $index }}"
+                  data-id="{{ $rowId }}"
+                  data-posicion="{{ e($registro->Posicion ?? '') }}"
+                  @if(!empty($registro->OrdCompartida)) data-ord-compartida="{{ $registro->OrdCompartida }}" @endif
+                  @if($esRepaso) data-es-repaso="1" @endif
+                  @if($tieneNoExisteBase) data-no-existe-base="1" @endif
+                >
+                  @foreach($columns as $colIndex => $col){!! $celda($registro, $colIndex, $col) !!}@endforeach
+                </tr>
+              @endforeach
+            </tbody>
+
+            {{-- Fila informativa de totales --}}
+            <tfoot id="tfootTotales">
+              <tr id="rowTotales" class="bg-blue-100 border-t-2 border-blue-500">
+                <td colspan="{{ count($columns) }}" class="px-4 py-3 text-sm font-semibold text-blue-900">
+                  <div class="flex items-center justify-start gap-4">
+                    <span>Total Registros: <strong id="totalRegistros" class="text-blue-700">0</strong></span>
+                    <span>Total Pedido: <strong id="totalPedido" class="text-blue-700">0.00</strong></span>
+                    <span>Total Producción: <strong id="totalProduccion" class="text-blue-700">0.00</strong></span>
+                    <span>Total Saldos: <strong id="totalSaldos" class="text-blue-700">0.00</strong></span>
+                  </div>
+                </td>
+              </tr>
+            </tfoot>
+
+          </table>
+        </div>
+      </div>
+    @elseif(!empty($error))
+      {{-- Error ≠ vacío (PT-02): mismo marcado que el estado vacío, sin invitar a reimportar. --}}
+      <div class="px-6 py-12 text-center" role="alert" data-estado="error">
+        <i class="fas fa-triangle-exclamation text-red-500 text-4xl mb-4"></i>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">No se pudieron cargar los registros</h3>
+        <p class="mt-1 text-sm text-gray-500">{{ $error }}</p>
+      </div>
+    @else
+      @include('components.programa-tejido.empty-state')
+    @endif

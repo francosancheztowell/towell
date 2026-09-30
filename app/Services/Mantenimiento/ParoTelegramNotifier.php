@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Mantenimiento;
 
+use App\Jobs\Telegram\EnviarMensajeTelegram;
 use App\Models\Mantenimiento\ManFallasParos;
 use App\Models\Sistema\SYSMensaje;
-use App\Services\Telegram\TelegramEnvio;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -20,8 +20,6 @@ use Throwable;
  */
 final class ParoTelegramNotifier
 {
-    public function __construct(private readonly TelegramEnvio $telegram = new TelegramEnvio) {}
-
     public function notifyCreated(ManFallasParos $stop): void
     {
         $this->dispatch($stop, $this->buildCreatedMessage($stop), 'alta');
@@ -119,16 +117,15 @@ final class ParoTelegramNotifier
                 return;
             }
 
-            foreach ($this->telegram->mensaje($chatIds, $message) as $chatId => $resultado) {
-                if (! TelegramEnvio::exitoso($resultado)) {
-                    Log::warning('Telegram rechazó una notificación de paro.', [
-                        'paro_id' => $stop->Id,
-                        'evento' => $evento,
-                        'chat_id' => (string) $chatId,
-                        'status' => TelegramEnvio::detalle($resultado)['status'],
-                    ]);
-                }
-            }
+            // A la cola, no defer(): en el Apache de producción defer() no suelta la
+            // respuesta y el operador esperaba a Telegram (hasta 3 s en Pulse).
+            EnviarMensajeTelegram::encolar(new EnviarMensajeTelegram(
+                $chatIds,
+                $message,
+                [],
+                'Telegram rechazó una notificación de paro.',
+                ['paro_id' => $stop->Id, 'evento' => $evento],
+            ));
         } catch (Throwable $exception) {
             Log::error('No fue posible notificar el paro por Telegram.', [
                 'paro_id' => $stop->Id,

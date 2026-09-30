@@ -7,6 +7,8 @@ import {
     rowMatchesCustomFilters as ptRowMatchesCustomFilters,
 } from './filter-engine.ts';
 import { instalarIndiceSeleccion as ptInstalarIndiceSeleccion } from './seleccion.ts';
+import { accionesTactiles as ptAccionesTactiles } from '../utils/acciones-tactiles.ts';
+import { enlazarBotonAccionesFila as ptEnlazarBotonAccionesFila, enlazarDiasLiberar as ptEnlazarDiasLiberar } from './acciones.ts';
 // Scripts que vivían inline en la vista (04-perf, corte 5). Se evalúan antes que este
 // archivo y solo publican funciones en window, como hacían sus <script>.
 import './balancear.js';
@@ -14,6 +16,7 @@ import './recalcular-fechas.js';
 import './modales/act-calendarios.js';
 import './modales/repaso.js';
 import './modales/marbetes.js';
+import './lineas.js';
 
 // Bundle JS de Programa Tejido. Antes iba inline en el HTML (527 KB que el
 // navegador volvia a descargar y a recompilar en cada recarga); ahora lo sirve
@@ -6645,6 +6648,9 @@ let pinnedColumns = [];
 window.allRows = [];
 // Accesor sobre la fila, no un número congelado (seleccion.ts).
 ptInstalarIndiceSeleccion(window, () => (window.allRows.length > 0 ? window.allRows : document.querySelectorAll('.selectable-row')));
+// "Liberar órdenes" del navbar: data-accion en vez de onclick (HANDOFF 17-02 B1). Import
+// dinámico: el modal trae SweetAlert, que no debe evaluarse al cargar el bundle.
+ptEnlazarDiasLiberar(document, () => import('../componentes/dias-liberar.ts').then((m) => m.mostrarModalDiasLiberar()));
 window.inlineEditMode = false;
 
 const normalizeInputValue = (value) => {
@@ -10193,15 +10199,9 @@ const uiInlineEditableFields = {
 
         const tb = tbodyEl();
         if (tb) {
-          tb.addEventListener('contextmenu', (e) => {
-            // No mostrar menú de filas si se hace click en un encabezado
-            if (e.target.closest('th')) return;
-
-            const clickedRow = e.target.closest('.selectable-row');
-            if (!clickedRow) return;
-
-            e.preventDefault();
-
+          // Clic derecho, mantener presionado (tablet) o el botón "⋮" del navbar (UX-06):
+          // el mismo menú por los tres caminos.
+          const abrirMenuFila = (clickedRow, pos) => {
             // Obtener todas las filas para encontrar el índice
             const rows = window.allRows?.length ? window.allRows : qsa('.selectable-row', tb);
             const clickedRowIndex = rows.indexOf(clickedRow);
@@ -10214,8 +10214,14 @@ const uiInlineEditableFields = {
             }
 
             // Usar la fila clickeada para el menú contextual
-            show(e, clickedRow);
-          });
+            show({ clientX: pos.x, clientY: pos.y }, clickedRow);
+          };
+          tb.classList.add('towell-acciones-zona');
+          ptAccionesTactiles(tb, '.selectable-row', abrirMenuFila);
+          ptEnlazarBotonAccionesFila(abrirMenuFila, () => {
+            const rows = window.allRows?.length ? window.allRows : qsa('.selectable-row', tb);
+            return window.selectedRowIndex != null ? rows[window.selectedRowIndex] || null : null;
+          }, (msg) => toast(msg, 'info'));
         }
 
         qs('#contextMenuCrear')?.addEventListener('click', () => {
@@ -10419,12 +10425,10 @@ const uiInlineEditableFields = {
         // Agregar listener de contextmenu en los encabezados
         const thead = qs('#mainTable thead');
         if (thead) {
-          thead.addEventListener('contextmenu', (e) => {
-            const th = e.target.closest('th');
-            if (!th) return;
-
-            e.preventDefault();
-            e.stopPropagation();
+          // Clic derecho o mantener presionado (UX-06); el helper hace el preventDefault.
+          thead.classList.add('towell-acciones-zona');
+          ptAccionesTactiles(thead, 'th', (th, pos) => {
+            const e = { clientX: pos.x, clientY: pos.y };
 
             // Intentar obtener el índice de varias formas
             let columnIndex = parseInt(th.dataset.index, 10);

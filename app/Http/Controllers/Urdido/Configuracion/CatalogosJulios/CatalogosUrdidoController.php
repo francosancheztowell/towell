@@ -5,11 +5,16 @@ namespace App\Http\Controllers\Urdido\Configuracion\CatalogosJulios;
 use App\Http\Controllers\Controller;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Models\Urdido\UrdCatJulios;
+use App\Support\Http\Concerns\HandlesApiErrors;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class CatalogosUrdidoController extends Controller
 {
+    use HandlesApiErrors;
+
     /**
      * Mostrar catálogo de julios
      */
@@ -38,17 +43,14 @@ class CatalogosUrdidoController extends Controller
 
             return view('catalogosurdido.catalago-julios', compact('julios', 'noResults', 'departamentoFiltro'));
         } catch (\Exception $e) {
-            Log::error('Error en CatalogosUrdidoController::catalogosJulios', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            report($e);
             $departamentoFiltro = $request->route()->getName() === 'engomado.configuracion.catalogos.julios' ? 'Engomado' : 'Urdido';
 
             return view('catalogosurdido.catalago-julios', [
                 'julios' => collect(),
                 'noResults' => true,
                 'departamentoFiltro' => $departamentoFiltro,
-            ])->with('error', 'Error al cargar los datos: '.$e->getMessage());
+            ])->with('error', $this->mensajeErrorCarga($e));
         }
     }
 
@@ -77,15 +79,12 @@ class CatalogosUrdidoController extends Controller
 
             return view('catalogosurdido.catalago-maquinas', compact('maquinas', 'noResults'));
         } catch (\Exception $e) {
-            Log::error('Error en CatalogosUrdidoController::catalogoMaquinas', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            report($e);
 
             return view('catalogosurdido.catalago-maquinas', [
                 'maquinas' => collect(),
                 'noResults' => true,
-            ])->with('error', 'Error al cargar los datos: '.$e->getMessage());
+            ])->with('error', $this->mensajeErrorCarga($e));
         }
     }
 
@@ -111,21 +110,10 @@ class CatalogosUrdidoController extends Controller
                 'success' => true,
                 'message' => 'Máquina creada exitosamente',
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->errors(),
-            ], 422);
+        } catch (ValidationException $e) {
+            return $this->errorValidacion($e);
         } catch (\Exception $e) {
-            Log::error('Error al crear máquina', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al crear la máquina: '.$e->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al crear máquina', 'No se pudo crear la máquina.');
         }
     }
 
@@ -169,21 +157,15 @@ class CatalogosUrdidoController extends Controller
                 'success' => true,
                 'message' => 'Máquina actualizada exitosamente',
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->errors(),
-            ], 422);
+                'message' => 'La máquina no fue encontrada',
+            ], 404);
+        } catch (ValidationException $e) {
+            return $this->errorValidacion($e);
         } catch (\Exception $e) {
-            Log::error('Error al actualizar máquina', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al actualizar la máquina: '.$e->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al actualizar máquina', 'No se pudo actualizar la máquina.');
         }
     }
 
@@ -200,21 +182,13 @@ class CatalogosUrdidoController extends Controller
                 'success' => true,
                 'message' => 'Máquina eliminada exitosamente',
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'La máquina no fue encontrada',
             ], 404);
         } catch (\Exception $e) {
-            Log::error('Error al eliminar máquina', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al eliminar la máquina: '.$e->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al eliminar máquina', 'No se pudo eliminar la máquina.');
         }
     }
 
@@ -244,21 +218,10 @@ class CatalogosUrdidoController extends Controller
                 'success' => true,
                 'message' => 'Julio creado exitosamente',
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->errors(),
-            ], 422);
+        } catch (ValidationException $e) {
+            return $this->errorValidacion($e);
         } catch (\Exception $e) {
-            Log::error('Error al crear julio', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al crear el julio: '.$e->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al crear julio', 'No se pudo crear el julio.');
         }
     }
 
@@ -299,21 +262,15 @@ class CatalogosUrdidoController extends Controller
                 'success' => true,
                 'message' => 'Julio actualizado exitosamente',
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->errors(),
-            ], 422);
+                'message' => 'El julio no fue encontrado',
+            ], 404);
+        } catch (ValidationException $e) {
+            return $this->errorValidacion($e);
         } catch (\Exception $e) {
-            Log::error('Error al actualizar julio', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al actualizar el julio: '.$e->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al actualizar julio', 'No se pudo actualizar el julio.');
         }
     }
 
@@ -332,21 +289,32 @@ class CatalogosUrdidoController extends Controller
                 'success' => true,
                 'message' => 'Julio eliminado exitosamente',
             ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'El julio no fue encontrado',
             ], 404);
         } catch (\Exception $e) {
-            Log::error('Error al eliminar julio', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al eliminar el julio: '.$e->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al eliminar julio', 'No se pudo eliminar el julio.');
         }
+    }
+
+    /**
+     * 422 con el primer mensaje en `message` (texto) y el detalle en `errors`, como Laravel.
+     * Antes `message` era el objeto de errores y el JS tenía que aplanarlo.
+     */
+    private function errorValidacion(ValidationException $e): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'message' => $e->validator->errors()->first(),
+            'errors' => $e->errors(),
+        ], 422);
+    }
+
+    /** SEC-07: la vista muestra un mensaje genérico con la referencia del error, no getMessage(). */
+    private function mensajeErrorCarga(\Throwable $e): string
+    {
+        return 'Error al cargar los datos (ref: '.$this->traceIdDeError($e).')';
     }
 }

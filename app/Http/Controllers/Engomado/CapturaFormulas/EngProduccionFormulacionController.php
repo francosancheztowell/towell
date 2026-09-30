@@ -9,6 +9,7 @@ use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Sistema\SYSUsuario;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\ProgramaUrdEng\BomMaterialesService;
+use App\Support\Http\Concerns\HandlesApiErrors;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,11 @@ use Illuminate\Support\Facades\Log;
 
 class EngProduccionFormulacionController extends Controller
 {
+    use HandlesApiErrors;
+
+    /** Columnas por fila de EngFormulacionLine en insertarLineas() (límite de 2100 parámetros de SQL Server). */
+    private const COLUMNAS_LINEA = 9;
+
     public function __construct(
         private BomMaterialesService $bomMaterialesService
     ) {}
@@ -32,7 +38,10 @@ class EngProduccionFormulacionController extends Controller
                 $itemsQuery->where(function ($query) use ($folioFiltro) {
                     $query->where('Folio', $folioFiltro)
                         ->orWhere(function ($fallbackQuery) use ($folioFiltro) {
-                            $fallbackQuery->whereRaw("(Folio IS NULL OR LTRIM(RTRIM(Folio)) = '')")
+                            // Equivale a "Folio IS NULL OR LTRIM(RTRIM(Folio)) = ''": en SQL Server '='
+                            // rellena con espacios a la derecha, así que una cadena de solo espacios ya es
+                            // igual a ''. Sin funciones sobre la columna, el filtro puede usar índice.
+                            $fallbackQuery->where(fn ($q) => $q->whereNull('Folio')->orWhere('Folio', ''))
                                 ->where('ProdId', $folioFiltro);
                         });
                 });
@@ -44,8 +53,9 @@ class EngProduccionFormulacionController extends Controller
             });
 
             // Adjuntar el Status del programa engomado a cada formulación
-            $foliosEnItems = $items->map(fn ($i) => $i->folio_resuelto)->filter()->unique()->values()->toArray();
-            $programaStatuses = EngProgramaEngomado::whereIn('Folio', $foliosEnItems)->pluck('Status', 'Folio');
+            // ponytail: la tabla entera (~1000 filas) sale más barata que un whereIn con cientos
+            // de parámetros (1.4 s en producción). Si pasa de ~20k filas, volver a filtrar por subconsulta.
+            $programaStatuses = EngProgramaEngomado::pluck('Status', 'Folio');
             $items = $items->each(function ($item) use ($programaStatuses) {
                 $item->programa_status = $programaStatuses->get($item->folio_resuelto ?? '');
             });
@@ -174,20 +184,7 @@ class EngProduccionFormulacionController extends Controller
                 if ($componentesRaw) {
                     $componentes = json_decode($componentesRaw, true);
                     if (is_array($componentes)) {
-                        foreach ($componentes as $comp) {
-                            // Truncar campos de texto para evitar errores de truncamiento en BD
-                            EngFormulacionLineModel::create([
-                                'Folio' => $folio,
-                                'EngProduccionFormulacionId' => $formulacionId, // Nueva FK
-                                'ItemId' => $this->truncateString($comp['ItemId'] ?? null, 20),
-                                'ItemName' => $this->truncateString($comp['ItemName'] ?? null, 100),
-                                'ConfigId' => $this->truncateString($comp['ConfigId'] ?? null, 20),
-                                'ConsumoUnit' => $comp['ConsumoUnitario'] ?? null,
-                                'ConsumoTotal' => $comp['ConsumoTotal'] ?? null,
-                                'Unidad' => $this->truncateString($comp['Unidad'] ?? null, 10),
-                                'InventLocation' => $this->truncateString($comp['Almacen'] ?? null, 20),
-                            ]);
-                        }
+                        $this->insertarLineas($componentes, $folio, $formulacionId);
                     }
                 }
             });
@@ -195,7 +192,9 @@ class EngProduccionFormulacionController extends Controller
             return redirect()->back()
                 ->with('success', 'Formulación creada exitosamente con folio: '.$folio);
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error al crear la formulación: '.$e->getMessage());
+            report($e);
+
+            return redirect()->back()->with('error', 'Error al crear la formulación (ref: '.$this->traceIdDeError($e).').');
         }
     }
 
@@ -235,9 +234,7 @@ class EngProduccionFormulacionController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Error al validar folio: '.$e->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al validar folio de formulación', 'Error al validar folio.');
         }
     }
 
@@ -329,13 +326,7 @@ class EngProduccionFormulacionController extends Controller
                 'vacio' => $componentes->isEmpty(),
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al obtener formulación por ID: '.$e->getMessage());
-            Log::error('Trace: '.$e->getTraceAsString());
-
-            return response()->json([
-                'error' => 'Error al obtener formulación: '.$e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al obtener formulación por ID', 'Error al obtener la formulación.');
         }
     }
 
@@ -408,13 +399,7 @@ class EngProduccionFormulacionController extends Controller
                 'vacio' => $componentes->isEmpty(),
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al obtener componentes de formulación: '.$e->getMessage());
-            Log::error('Trace: '.$e->getTraceAsString());
-
-            return response()->json([
-                'error' => 'Error al obtener componentes: '.$e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al obtener componentes de formulación', 'Error al obtener componentes.');
         }
     }
 
@@ -463,13 +448,7 @@ class EngProduccionFormulacionController extends Controller
                 'vacio' => $componentes->isEmpty(),
             ]);
         } catch (\Exception $e) {
-            Log::error('Error al obtener componentes: '.$e->getMessage());
-            Log::error('Trace: '.$e->getTraceAsString());
-
-            return response()->json([
-                'error' => 'Error al obtener componentes: '.$e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al obtener componentes de fórmula (AX)', 'Error al obtener componentes.');
         }
     }
 
@@ -571,20 +550,7 @@ class EngProduccionFormulacionController extends Controller
                     // Insertar nuevos componentes
                     $componentes = json_decode($componentesRaw, true);
                     if (is_array($componentes) && count($componentes) > 0) {
-                        foreach ($componentes as $comp) {
-                            // Truncar campos de texto para evitar errores de truncamiento en BD
-                            EngFormulacionLineModel::create([
-                                'Folio' => $folio, // Mantener Folio para compatibilidad
-                                'EngProduccionFormulacionId' => $formulacionId, // FK principal
-                                'ItemId' => $this->truncateString($comp['ItemId'] ?? null, 20),
-                                'ItemName' => $this->truncateString($comp['ItemName'] ?? null, 100),
-                                'ConfigId' => $this->truncateString($comp['ConfigId'] ?? null, 20),
-                                'ConsumoUnit' => $comp['ConsumoUnitario'] ?? null,
-                                'ConsumoTotal' => $comp['ConsumoTotal'] ?? null,
-                                'Unidad' => $this->truncateString($comp['Unidad'] ?? null, 10),
-                                'InventLocation' => $this->truncateString($comp['Almacen'] ?? null, 20),
-                            ]);
-                        }
+                        $this->insertarLineas($componentes, $folio, $formulacionId);
                     }
                 }
             });
@@ -596,13 +562,12 @@ class EngProduccionFormulacionController extends Controller
 
             return redirect()->back()->with('success', 'Formulación actualizada exitosamente');
         } catch (\Exception $e) {
-            Log::error('Error al actualizar formulación: '.$e->getMessage());
-
             if ($request->expectsJson()) {
-                return response()->json(['success' => false, 'message' => 'Error al actualizar la formulación: '.$e->getMessage()], 500);
+                return $this->apiErrorResponse($e, 'Error al actualizar formulación', 'Error al actualizar la formulación.');
             }
+            report($e);
 
-            return redirect()->back()->with('error', 'Error al actualizar la formulación: '.$e->getMessage());
+            return redirect()->back()->with('error', 'Error al actualizar la formulación (ref: '.$this->traceIdDeError($e).').');
         }
     }
 
@@ -638,9 +603,9 @@ class EngProduccionFormulacionController extends Controller
             return redirect()->back()->with('success', 'Formulación eliminada exitosamente');
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error al eliminar formulación: '.$e->getMessage());
+            report($e);
 
-            return redirect()->back()->with('error', 'Error al eliminar la formulación: '.$e->getMessage());
+            return redirect()->back()->with('error', 'Error al eliminar la formulación (ref: '.$this->traceIdDeError($e).').');
         }
     }
 
@@ -661,9 +626,7 @@ class EngProduccionFormulacionController extends Controller
 
             return response()->json(['success' => true, 'data' => $items]);
         } catch (\Throwable $e) {
-            Log::error('Error obteniendo calibres de fórmula', ['exception' => $e]);
-
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'Error obteniendo calibres de fórmula', 'Error al obtener calibres.');
         }
     }
 
@@ -689,9 +652,7 @@ class EngProduccionFormulacionController extends Controller
 
             return response()->json(['success' => true, 'data' => $fibras]);
         } catch (\Throwable $e) {
-            Log::error('Error obteniendo fibras de fórmula', ['exception' => $e, 'itemId' => $itemId]);
-
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'Error obteniendo fibras de fórmula', 'Error al obtener fibras.', 500, ['itemId' => $itemId]);
         }
     }
 
@@ -716,9 +677,7 @@ class EngProduccionFormulacionController extends Controller
 
             return response()->json(['success' => true, 'data' => $colores]);
         } catch (\Throwable $e) {
-            Log::error('Error obteniendo colores de fórmula', ['exception' => $e, 'itemId' => $itemId]);
-
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'Error obteniendo colores de fórmula', 'Error al obtener colores.', 500, ['itemId' => $itemId]);
         }
     }
 
@@ -743,9 +702,40 @@ class EngProduccionFormulacionController extends Controller
 
             return response()->json(['success' => true, 'formulas' => $formulas]);
         } catch (\Throwable $e) {
-            Log::error('Error obteniendo fórmulas disponibles', ['exception' => $e, 'bomId' => $bomId, 'formula' => $formula]);
+            return $this->apiErrorResponse($e, 'Error obteniendo fórmulas disponibles', 'Error al obtener las fórmulas disponibles.', 500, [
+                'bomId' => $bomId,
+                'formula' => $formula,
+            ]);
+        }
+    }
 
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+    /**
+     * Inserta las líneas (componentes) de una formulación con un INSERT por bloque en vez de un
+     * create() por componente (PERF, 19-01). EngFormulacionLine no usa timestamps y sus casts
+     * (float) no transforman al asignar, así que las filas son las mismas que armaba create().
+     *
+     * @param  array<int|string, mixed>  $componentes
+     */
+    private function insertarLineas(array $componentes, string $folio, int $formulacionId): void
+    {
+        $filas = [];
+        foreach ($componentes as $comp) {
+            // Truncar campos de texto para evitar errores de truncamiento en BD
+            $filas[] = [
+                'Folio' => $folio, // Mantener Folio para compatibilidad
+                'EngProduccionFormulacionId' => $formulacionId, // FK principal
+                'ItemId' => $this->truncateString($comp['ItemId'] ?? null, 20),
+                'ItemName' => $this->truncateString($comp['ItemName'] ?? null, 100),
+                'ConfigId' => $this->truncateString($comp['ConfigId'] ?? null, 20),
+                'ConsumoUnit' => $comp['ConsumoUnitario'] ?? null,
+                'ConsumoTotal' => $comp['ConsumoTotal'] ?? null,
+                'Unidad' => $this->truncateString($comp['Unidad'] ?? null, 10),
+                'InventLocation' => $this->truncateString($comp['Almacen'] ?? null, 20),
+            ];
+        }
+
+        foreach (array_chunk($filas, intdiv(2100, self::COLUMNAS_LINEA)) as $bloque) {
+            EngFormulacionLineModel::insert($bloque);
         }
     }
 

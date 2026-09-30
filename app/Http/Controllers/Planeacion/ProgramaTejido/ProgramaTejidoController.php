@@ -2,14 +2,21 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 
+use App\Actions\Planeacion\ProgramaTejido\ActualizarProgramaTejido;
+use App\Actions\Planeacion\ProgramaTejido\MutacionRechazada;
+use App\Data\Planeacion\ProgramaTejido\CambiosProgramaTejido;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\EliminarTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\UpdateTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UtilityHelpers;
-use App\Models\Planeacion\OrdColProgramaTejido;
-use App\Models\Planeacion\ReqProgramaTejido;
+use App\Http\Requests\Planeacion\ProgramaTejido\ActualizarProgramaTejidoRequest;
+use App\Services\Planeacion\ProgramaTejido\MutacionesV2;
 use App\Services\Planeacion\ProgramaTejido\ProgramaTejidoReadComparison;
+use App\Services\Planeacion\ProgramaTejido\ProgramaTejidoReadService;
 use App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface;
+use App\Services\Planeacion\ProgramaTejido\ShellV2;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log as LogFacade;
@@ -26,7 +33,7 @@ use Illuminate\Support\Facades\Log as LogFacade;
  */
 class ProgramaTejidoController extends Controller
 {
-    public function index()
+    public function index(ProgramaTejidoReadService $lectura)
     {
         // La superficie llega explícita a la vista (PT-02): antes $isMuestras se calculaba y
         // no se pasaba, así que Muestras mostraba Redbooth y acciones que no soporta.
@@ -41,114 +48,21 @@ class ProgramaTejidoController extends Controller
             'pageTitle' => $superficie->titulo(),
         ];
 
+        // Shell Livewire v2 (PT 03), solo por canary: la grilla la lee el componente. Apagado,
+        // todo lo de abajo queda igual y la respuesta es la legacy byte a byte.
+        if (ShellV2::activo()) {
+            return view('modulos.programa-tejido.req-programa-tejido-v2', [
+                ...$contexto,
+                'columns' => UtilityHelpers::getTableColumns(),
+                'hiddenFields' => $lectura->columnasOcultas(Auth::id()),
+            ]);
+        }
+
         try {
-            $registros = ReqProgramaTejido::select([
-                'Id',
-                'EnProceso',
-                'Reprogramar',
-                'CuentaRizo',
-                'CalibreRizo2',
-                'SalonTejidoId',
-                'NoTelarId',
-                'Posicion',
-                'Ultimo',
-                'CambioHilo',
-                'Maquina',
-                'Ancho',
-                'EficienciaSTD',
-                'VelocidadSTD',
-                'FibraRizo',
-                'CalibrePie2',
-                'CalendarioId',
-                'TamanoClave',
-                'NoExisteBase',
-                'ItemId',
-                'InventSizeId',
-                'Rasurado',
-                'NombreProducto',
-                'TotalPedido',
-                'PorcentajeSegundos',
-                'Produccion',
-                'SaldoPedido',
-                'SaldoMarbete',
-                'ProgramarProd',
-                'OrdCompartida',
-                'NoProduccion',
-                'Programado',
-                'FlogsId',
-                'CategoriaCalidad',
-                'NombreProyecto',
-                'CustName',
-                'AplicacionId',
-                'Observaciones',
-                'TipoPedido',
-                'NoTiras',
-                'Peine',
-                'Luchaje',
-                'PesoCrudo',
-                'LargoCrudo',
-                'CalibreTrama2',
-                'FibraTrama',
-                'DobladilloId',
-                'PasadasTrama',
-                'PasadasComb1',
-                'PasadasComb2',
-                'PasadasComb3',
-                'PasadasComb4',
-                'PasadasComb5',
-                'AnchoToalla',
-                'CodColorTrama',
-                'ColorTrama',
-                'CalibreComb1',
-                'FibraComb1',
-                'CodColorComb1',
-                'NombreCC1',
-                'CalibreComb2',
-                'FibraComb2',
-                'CodColorComb2',
-                'NombreCC2',
-                'CalibreComb3',
-                'FibraComb3',
-                'CodColorComb3',
-                'NombreCC3',
-                'CalibreComb4',
-                'FibraComb4',
-                'CodColorComb4',
-                'NombreCC4',
-                'CalibreComb5',
-                'FibraComb5',
-                'CodColorComb5',
-                'NombreCC5',
-                'MedidaPlano',
-                'CuentaPie',
-                'CodColorCtaPie',
-                'NombreCPie',
-                'PesoGRM2',
-                'DiasEficiencia',
-                'ProdKgDia',
-                'StdDia',
-                'ProdKgDia2',
-                'StdToaHra',
-                'DiasJornada',
-                'HorasProd',
-                'StdHrsEfect',
-                'FechaInicio',
-                'Calc4',
-                'Calc5',
-                'Calc6',
-                'FechaFinal',
-                'EntregaProduc',
-                'EntregaPT',
-                'EntregaCte',
-                'PTvsCte',
-                'CuentaBarra1', 'CalibreBarra1', 'CodColorBarra1', 'ColorBarra1', 'FibraBarra1', 'PasadasBarra1',
-                'CuentaBarra2', 'CalibreBarra2', 'CodColorBarra2', 'ColorBarra2', 'FibraBarra2', 'PasadasBarra2',
-                'CuentaBarra3', 'CalibreBarra3', 'CodColorBarra3', 'ColorBarra3', 'FibraBarra3', 'PasadasBarra3',
-                'CuentaBarra4', 'CalibreBarra4', 'CodColorBarra4', 'ColorBarra4', 'FibraBarra4', 'PasadasBarra4',
-            ])->ordenado()->get();
+            $registros = $lectura->registrosGrilla($superficie);
 
             $columns = UtilityHelpers::getTableColumns();
-            $hiddenFields = self::columnasOcultasDelUsuario();
+            $hiddenFields = $lectura->columnasOcultas(Auth::id());
 
             ProgramaTejidoReadComparison::programar($superficie, $registros);
 
@@ -177,36 +91,43 @@ class ProgramaTejidoController extends Controller
         }
     }
 
-    /**
-     * Columnas que el usuario tiene ocultas. Se resuelven en el servidor para que el
-     * HTML salga ya oculto: antes el front pintaba las 92, y despues escribia
-     * style.display='none' celda por celda (59 columnas x 86 elementos = 5 074
-     * escrituras) con el salto de layout correspondiente.
-     */
-    private static function columnasOcultasDelUsuario(): array
-    {
-        $userId = Auth::id();
-        if (! $userId) {
-            return [];
-        }
-
-        try {
-            return OrdColProgramaTejido::query()
-                ->where('UsuarioId', $userId)
-                ->where('Estado', 1)
-                ->pluck('Columna')
-                ->all();
-        } catch (\Throwable $e) {
-            // Sin estado guardado se pintan todas: el front sigue pudiendo ocultarlas.
-            LogFacade::warning('No se pudieron leer las columnas ocultas', ['msg' => $e->getMessage()]);
-
-            return [];
-        }
-    }
-
     public function update(Request $request, int $id)
     {
-        return UpdateTejido::actualizar($request, $id);
+        if (MutacionesV2::activa('actualizar')) {
+            return MutacionesV2::medir('actualizar', 'v2', fn () => $this->actualizarV2(
+                app(ActualizarProgramaTejidoRequest::class), $id, app(ActualizarProgramaTejido::class)
+            ));
+        }
+
+        return MutacionesV2::medir('actualizar', 'legacy', fn () => UpdateTejido::actualizar($request, $id));
+    }
+
+    /**
+     * Edición inline v2 (PT-05): FormRequest → DTO → Action. Mismo JSON que el legacy; un
+     * fallo de derivados revierte todo y responde 500 sin el detalle técnico.
+     */
+    private function actualizarV2(ActualizarProgramaTejidoRequest $request, int $id, ActualizarProgramaTejido $accion): JsonResponse
+    {
+        try {
+            $registro = $accion->ejecutar(CambiosProgramaTejido::desdeRequest($request, $id));
+        } catch (MutacionRechazada $e) {
+            return $e->respuesta;
+        } catch (ModelNotFoundException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo actualizar el programa de tejido. Los cambios se revirtieron.',
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Programa de tejido actualizado',
+            'data' => UtilityHelpers::extractResumen($registro),
+        ]);
     }
 
     public function destroy(int $id)

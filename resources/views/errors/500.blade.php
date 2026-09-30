@@ -1,67 +1,47 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Error del Servidor - TOWEL S.A DE C.V</title>
-    <style>
-        body {
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+@extends('errors.layout')
+
+@php
+    // Código de referencia = evento de SYSMonErrorEvento de ESTA excepción (HANDOFF 20-02 #5).
+    // bootstrap/app.php guarda excepción → Id en el WeakMap `monitoreo.eventos_por_excepcion`.
+    // Laravel envuelve lo que no es HttpException en HttpException(500, …, $original): se busca
+    // en toda la cadena de getPrevious(). EstadoRequest::eventoId (el último error de la
+    // request, que puede ser otro) solo cuenta si la vista se pinta sin excepción.
+    $codigoReferencia = rescue(function () use ($exception) {
+        if (! isset($exception)) {
+            return app(\App\Services\Monitoreo\EstadoRequest::class)->eventoId;
         }
-    </style>
-</head>
-<body class="min-h-screen flex items-center justify-center">
-    <div class="max-w-md mx-auto px-6 text-center">
-        <!-- Logo TOWELLIN -->
-        <div class="mb-12">
-            <picture>
-                <source srcset="{{ asset('images/fotos_usuarios/TOWELLIN.webp') }}" type="image/webp">
-                <img src="{{ asset('images/fotos_usuarios/TOWELLIN.png') }}" alt="TOWELLIN" width="307" height="391" decoding="async" class="h-24 w-auto mx-auto">
-            </picture>
-        </div>
+        $mapa = app()->bound('monitoreo.eventos_por_excepcion') ? app('monitoreo.eventos_por_excepcion') : null;
+        for ($e = $exception; $e !== null && $mapa !== null; $e = $e->getPrevious()) {
+            if (isset($mapa[$e])) {
+                return $mapa[$e];
+            }
+        }
 
-        <!-- Número 500 -->
-        <div class="mb-8">
-            <h1 class="text-6xl font-light text-gray-800 mb-2">
-                500
-            </h1>
-            <div class="w-16 h-1 bg-orange-500 mx-auto"></div>
-        </div>
+        return null;
+    }, null, false);
+@endphp
 
-        <!-- Mensaje principal -->
-        <div class="mb-12">
-            <h2 class="text-xl font-medium text-gray-700 mb-4">
-                Error del servidor
-            </h2>
-            <p class="text-gray-500 text-sm leading-relaxed">
-                Algo salió mal en nuestro servidor.
-            </p>
-            @php($codigoReferencia = rescue(fn () => app(\App\Services\Monitoreo\EstadoRequest::class)->eventoId, null, false))
-            @if($codigoReferencia)
-                <p class="text-gray-500 text-sm leading-relaxed mt-2">
-                    Código de referencia: <strong class="text-gray-700">#{{ $codigoReferencia }}</strong><br>
-                    Si el problema continúa, comparte este código con Sistemas.
-                </p>
-            @endif
-        </div>
-
-        <!-- Botones de acción -->
-        <div class="mb-8 space-x-4">
-            <a href="{{ url('/') }}"
-               class="inline-block bg-orange-500 text-white px-8 py-3 rounded-md font-medium text-sm hover:bg-orange-600 transition-colors duration-200">
-                Volver al inicio
-            </a>
-            <button onclick="window.location.reload()"
-               class="inline-block bg-gray-500 text-white px-8 py-3 rounded-md font-medium text-sm hover:bg-gray-600 transition-colors duration-200">
-                Reintentar
-            </button>
-        </div>
-
-        <!-- Información de contacto -->
-        <div class="text-gray-400 text-xs">
-            <p>TOWEL S.A DE C.V</p>
-        </div>
-    </div>
-</body>
-</html>
+@section('color', 'orange')
+@section('codigo', '500')
+@section('titulo', 'Error del servidor')
+@section('mensaje', 'Algo salió mal en nuestro servidor.')
+@section('extra')
+    @if($codigoReferencia)
+        <p class="text-gray-600 text-sm leading-relaxed mt-2">
+            Código de referencia: <strong class="text-gray-700">#{{ $codigoReferencia }}</strong><br>
+            Si el problema continúa, comparte este código con Sistemas.
+        </p>
+    @endif
+@endsection
+@section('acciones')
+    <a href="{{ url('/produccionProceso') }}"
+       class="inline-flex items-center justify-center min-h-touch bg-orange-600 hover:bg-orange-700 text-white px-8 py-3 rounded-md font-medium text-sm transition-colors duration-200">
+        Volver al inicio
+    </a>
+    @if(request()->isMethod('GET'))
+        <a href="{{ request()->fullUrl() }}"
+           class="inline-flex items-center justify-center min-h-touch bg-gray-600 hover:bg-gray-700 text-white px-8 py-3 rounded-md font-medium text-sm transition-colors duration-200">
+            Reintentar
+        </a>
+    @endif
+@endsection

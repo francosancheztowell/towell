@@ -31,8 +31,6 @@ final class ReporteOtDiariasExport implements FromArray, WithDrawings, WithEvent
 
     private const FILA_DATOS = 9;
 
-    private const COL_NOMBRE = 1;
-
     /**
      * @param  array<string, mixed>  $reporte
      */

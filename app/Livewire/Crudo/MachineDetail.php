@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Crudo;
 
 use App\Contracts\Crudo\CrudoDashboardProvider;
+use App\Http\Controllers\Planeacion\Alineacion\AlineacionController;
 use App\Services\Crudo\CrudoAccess;
 use App\Services\Crudo\CrudoParosHistoryService;
 use App\Services\Crudo\CrudoProductionTargetService;
@@ -44,6 +45,43 @@ class MachineDetail extends Component
     public bool $detailLoaded = false;
 
     public bool $auditModalOpen = false;
+
+    /** Se consulta la alineación solo cuando el usuario la pide, no en cada render del modal. */
+    public bool $alineacionAbierta = false;
+
+    /**
+     * Las columnas de Planeación > Alineación, en su mismo orden y con sus mismas etiquetas
+     * (llaves de AlineacionController::$columnas). El modal las pinta como la fila de la tabla.
+     */
+    public const COLUMNAS_ALINEACION = [
+        'NoTelarId' => 'Telar', 'NoProduccion' => 'No. Orden', 'FechaCambio' => 'Fecha de cambio',
+        'FechaCompromiso' => 'Fecha compromiso', 'ItemId' => 'Clave AX', 'NombreProducto' => 'Modelo',
+        'Tolerancia' => 'Tolerancia', 'RazSN' => 'Razurada S/N', 'TipoRizo' => 'Tipo Rizo', 'CalibreRizo' => 'Altura Rizo',
+        'Ancho' => 'Crudo Ancho', 'LargoCrudo' => 'Crudo Largo', 'PesoCrudo' => 'Crudo Peso', 'Luchaje' => 'Luchaje',
+        'TipoPlano' => 'Tipo Plano', 'MedidaPlano' => 'Medida Plano', 'NoTiras' => 'Tiras',
+        'FibraRizo' => 'Hilo Rizo', 'FibraPie' => 'Hilo Pie', 'CalibreTrama' => 'Hilo Trama',
+        'PasadasComb1' => 'Cenefa 1', 'PasadasComb2' => 'Cenefa 2', 'PasadasComb3' => 'Cenefa 3', 'PasadasComb4' => 'Cenefa 4',
+        'AnchoToalla' => 'Medida Cenefa', 'PesoGRM2' => 'Peso Muestra', 'PesoMin' => 'Peso Mínimo', 'PesoMax' => 'Peso Máximo',
+        'MuestraMin' => 'Muestra Mínima', 'MuestraMax' => 'Muestra Máxima',
+        'TotalPedido' => 'Cantidad Solicitada', 'ProdAcumMesAnt' => 'Producción Acum. Mes Anterior',
+        'ProdAcumMes' => 'Producción Acum. Mes', 'Produccion' => 'Producción Acum.', 'SaldoPedido' => 'Diferencia',
+        'DiasEficiencia' => 'Días de producción', 'ProdKgDia' => 'Producción Promedio x Día', 'DiasPorEjecutar' => 'Días por Ejecutar',
+        'Observaciones' => 'Observaciones',
+    ];
+
+    /** Karl Mayer no tiene rizo, pie, trama ni cenefas: en su lugar la vista pinta las barras. */
+    private const SIN_KARL_MAYER = [
+        'TipoRizo', 'CalibreRizo', 'FibraRizo', 'FibraPie', 'CalibreTrama',
+        'PasadasComb1', 'PasadasComb2', 'PasadasComb3', 'PasadasComb4', 'AnchoToalla',
+    ];
+
+    /** @return array<string, string> */
+    public static function columnasAlineacion(bool $esKarlMayer): array
+    {
+        return $esKarlMayer
+            ? array_diff_key(self::COLUMNAS_ALINEACION, array_flip(self::SIN_KARL_MAYER))
+            : self::COLUMNAS_ALINEACION;
+    }
 
     /**
      * Se consulta siempre el mes; la vista filtra a 2 días o semana con CSS, sin
@@ -95,6 +133,7 @@ class MachineDetail extends Component
         $this->detailError = null;
         $this->detailLoaded = false;
         $this->auditModalOpen = false;
+        $this->alineacionAbierta = false;
 
         if (! $wasOpen) {
             $this->dispatch('crudo-interaction-opened');
@@ -109,6 +148,7 @@ class MachineDetail extends Component
         $this->detailError = null;
         $this->detailLoaded = false;
         $this->auditModalOpen = false;
+        $this->alineacionAbierta = false;
 
         if ($wasOpen) {
             $this->dispatch('crudo-interaction-closed');
@@ -171,6 +211,52 @@ class MachineDetail extends Component
     public function closeAudit(): void
     {
         $this->auditModalOpen = false;
+    }
+
+    public function verAlineacion(): void
+    {
+        $this->alineacionAbierta = $this->selectedTelar !== null;
+    }
+
+    public function cerrarAlineacion(): void
+    {
+        $this->alineacionAbierta = false;
+    }
+
+    /**
+     * Renglón de Planeación > Alineación del telar abierto; si el telar trae varias
+     * órdenes en proceso, gana la del programa que muestra el modal.
+     *
+     * @return array{item: array<string, mixed>|null, error: bool}
+     */
+    #[Computed]
+    public function alineacion(): array
+    {
+        if (! $this->alineacionAbierta || $this->selectedTelar === null) {
+            return ['item' => null, 'error' => false];
+        }
+
+        try {
+            $items = app(AlineacionController::class)->obtenerItemsAlineacion();
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return ['item' => null, 'error' => true];
+        }
+
+        $telar = trim($this->selectedTelar);
+        $delTelar = array_values(array_filter(
+            $items,
+            static fn (array $item): bool => trim((string) ($item['NoTelarId'] ?? '')) === $telar,
+        ));
+        $orden = trim((string) ($this->machine['programa']['orden'] ?? ''));
+        foreach ($delTelar as $item) {
+            if ($orden !== '' && trim((string) ($item['NoProduccion'] ?? '')) === $orden) {
+                return ['item' => $item, 'error' => false];
+            }
+        }
+
+        return ['item' => $delTelar[0] ?? null, 'error' => false];
     }
 
     public function loadDetail(): void

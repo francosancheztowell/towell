@@ -477,12 +477,14 @@ class ProcesarDesarrolladorService
             return;
         }
 
-        $registroModelo = ReqModelosCodificados::query()
+        // Hay claves con dos filas en el mismo salon (11 en ProdTowel): con first() la
+        // segunda se quedaba con el dibujo y las pasadas de antes.
+        $registrosModelo = ReqModelosCodificados::query()
             ->where('TamanoClave', $claveModelo)
             ->where('SalonTejidoId', $salonDestino)
-            ->first();
+            ->get();
 
-        if (! $registroModelo) {
+        if ($registrosModelo->isEmpty()) {
             return;
         }
 
@@ -501,14 +503,17 @@ class ProcesarDesarrolladorService
             'AlturaRizo' => $this->normalizarAlturaRizo($validated['AlturaRizo'] ?? null),
         ], $detallePayload, $pasadasPayload);
 
-        $columnasModelo = Schema::getColumnListing($registroModelo->getTable());
-        foreach ($this->sinCamposNoCapturados($payloadModelo, $validated) as $column => $value) {
-            if (! in_array($column, $columnasModelo, true)) {
-                continue;
+        $columnasModelo = Schema::getColumnListing($registrosModelo->first()->getTable());
+        $payloadModelo = $this->sinCamposNoCapturados($payloadModelo, $validated);
+        foreach ($registrosModelo as $registroModelo) {
+            foreach ($payloadModelo as $column => $value) {
+                if (! in_array($column, $columnasModelo, true)) {
+                    continue;
+                }
+                $registroModelo->setAttribute($column, $value);
             }
-            $registroModelo->setAttribute($column, $value);
+            $registroModelo->save();
         }
-        $registroModelo->save();
     }
 
     private function ejecutarMovimientoYPonerEnProceso(

@@ -188,7 +188,7 @@ class FinalizarOrdenesController extends Controller
 
         $ids = $request->input('ids');
 
-        $dispatcher = ReqProgramaTejido::getEventDispatcher();
+        $dispatcher = null;
         $idsAfectados = [];   // IDs de registros restantes en telares afectados
         $tabla = ReqProgramaTejido::tableName();
 
@@ -318,7 +318,7 @@ class FinalizarOrdenesController extends Controller
             }
 
             // ─── PASO 2: Recalcular fechas encadenadas por telar ─────────────────────
-            ReqProgramaTejido::unsetEventDispatcher();
+            $dispatcher = ReqProgramaTejido::suppressObservers();
 
             foreach ($telaresAfectados as $info) {
                 $salon = $info['salon'];
@@ -382,11 +382,11 @@ class FinalizarOrdenesController extends Controller
             }
 
             // ─── PASO 3: Restaurar dispatcher y confirmar ────────────────────────────
-            ReqProgramaTejido::setEventDispatcher($dispatcher);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             DB::commit();
 
         } catch (\Throwable $e) {
-            ReqProgramaTejido::setEventDispatcher($dispatcher);
+            ReqProgramaTejido::restoreObservers($dispatcher);
             DB::rollBack();
 
             return $this->apiErrorResponse(

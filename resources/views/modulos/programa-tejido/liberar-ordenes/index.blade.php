@@ -13,7 +13,10 @@
     </button>
     {{-- En Muestras el servidor exige crear del módulo Muestras (idrol 5, decisión del owner):
          el botón usa el mismo permiso para no ofrecer una acción que termina en 403. --}}
-    @php($superficieLiberar = \App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface::actual())
+    {{-- Bloque, no @php(...): Blade empareja un @php( en línea con el siguiente @endphp y se come la vista hasta ahí. --}}
+    @php
+        $superficieLiberar = \App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface::actual();
+    @endphp
     <x-navbar.button-create
         id="btn-liberar"
         onclick="liberarOrdenes()"
@@ -1439,11 +1442,10 @@ function initLiberarContextMenuHeader() {
 
     const thead = document.querySelector('#mainTable thead');
     if (thead) {
-        thead.addEventListener('contextmenu', (e) => {
-            const th = e.target.closest('th');
-            if (!th) return;
-            e.preventDefault();
-            e.stopPropagation();
+        // Clic derecho o mantener presionado en tablet (UX-06, window.accionesTactiles).
+        thead.classList.add('towell-acciones-zona');
+        window.accionesTactiles.enlazar(thead, 'th', (th, pos) => {
+            const e = { clientX: pos.x, clientY: pos.y };
             let columnIndex = parseInt(th.dataset.index, 10);
             if (Number.isNaN(columnIndex)) {
                 const classMatch = th.className.match(/column-(\d+)/);

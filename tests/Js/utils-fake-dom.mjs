@@ -132,6 +132,8 @@ export class FakeDocument extends FakeNode {
         this.parentNode = null
         this.readyState = 'complete'
         this.documentElement = new FakeElement('html', this)
+        // Los eventos que burbujean llegan hasta el documento, como en el navegador.
+        this.documentElement.parentNode = this
         this.head = this.documentElement.appendChild(new FakeElement('head', this))
         this.body = this.documentElement.appendChild(new FakeElement('body', this))
     }

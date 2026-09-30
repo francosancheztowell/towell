@@ -554,7 +554,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return ['cabecera-fecha-paro', 'cabecera-hora-paro'];
     }
 
-    function establecerCamposCreacion({ manual = false, hayParos = false, telarSeleccionado = false } = {}) {
+    /** Opción "Otros" del select de máquina: la máquina se escribe a mano y no hay paros que consultar. */
+    const OPCION_OTROS = '__otros__';
+
+    function establecerCamposCreacion({ manual = false, hayParos = false, telarSeleccionado = false, telarLibre = false } = {}) {
         camposCapturaManual().forEach(id => {
             const campo = document.getElementById(id);
             campo.readOnly = !manual;
@@ -563,8 +566,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const telar = $('#cabecera-telar');
-        telar.readOnly = true;
-        telar.classList.add('bg-gray-50', 'text-gray-600');
+        telar.readOnly = ! telarLibre;
+        telar.classList.toggle('bg-gray-50', ! telarLibre);
+        telar.classList.toggle('text-gray-600', ! telarLibre);
 
         camposDatosParo().forEach(id => {
             const editable = manual && camposParoEditablesEnManual().includes(id);
@@ -589,6 +593,13 @@ document.addEventListener('DOMContentLoaded', () => {
             check.disabled = true;
             check.checked = false;
             $('#ayuda-captura-manual').textContent = 'Seleccione una máquina para consultar los paros de las últimas 12 horas.';
+            return;
+        }
+
+        if (telarLibre) {
+            check.disabled = true;
+            check.checked = true;
+            $('#ayuda-captura-manual').textContent = 'Escribe la máquina en el campo "Máquina". Sin folio de paro: la captura es manual.';
             return;
         }
 
@@ -618,6 +629,10 @@ document.addEventListener('DOMContentLoaded', () => {
             option.textContent = label;
             select.appendChild(option);
         });
+        const otros = document.createElement('option');
+        otros.value = OPCION_OTROS;
+        otros.textContent = 'Otros';
+        select.appendChild(otros);
     }
 
     function poblarSelectParosPorTelar(telarId) {
@@ -669,6 +684,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (! telar) {
             poblarSelectParosPorTelar('');
             establecerCamposCreacion();
+            return;
+        }
+
+        if (telar === OPCION_OTROS) {
+            const selectParo = $('#select-paro-folio');
+            selectParo.innerHTML = '<option value="">No aplica para Otros</option>';
+            selectParo.disabled = true;
+            establecerCamposCreacion({ manual: true, telarSeleccionado: true, telarLibre: true });
+            $('#cabecera-folio-paro').value = 'Sin Folio de Paro.';
+            $('#cabecera-turno').value = turnoSugerido;
+            $('#cabecera-telar').focus();
             return;
         }
 

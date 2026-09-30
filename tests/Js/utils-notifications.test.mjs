@@ -14,7 +14,7 @@ Swal.fire = async (options) => {
   return { isConfirmed: options.showCancelButton === true }
 }
 
-const { MAX_TOASTS, TOAST_DURATIONS, notify, showToast } = await import('../../resources/js/utils/notifications.ts')
+const { MAX_TOASTS, TOAST_DURATION, TOAST_DURATIONS, notify, showToast } = await import('../../resources/js/utils/notifications.ts')
 
 const container = () => document.getElementById('towell-toasts')
 
@@ -54,23 +54,32 @@ test('la pila no pasa de 4: se descarta el más viejo', () => {
   assert.deepEqual(mensajes, ['m3', 'm4', 'm5', 'm6'])
 })
 
-test('cada tipo dura lo acordado y el puntero encima pausa el cierre', (t) => {
+test('todos los tipos duran lo mismo (UX-13) y el puntero encima pausa el cierre', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
-  assert.deepEqual({ ...TOAST_DURATIONS }, { success: 2500, info: 3000, warning: 5000, error: 6000 })
+  assert.equal(TOAST_DURATION, 5000)
+  assert.deepEqual({ ...TOAST_DURATIONS }, { success: 5000, info: 5000, warning: 5000, error: 5000 })
 
   notify.success('s')
   notify.warning('w')
-  t.mock.timers.tick(2500)
-  assert.equal(container().children.length, 1, 'el éxito se fue a los 2.5 s')
+  t.mock.timers.tick(4999)
+  assert.equal(container().children.length, 2, 'ninguno se va antes de tiempo')
+  t.mock.timers.tick(1)
+  assert.equal(container().children.length, 0, 'éxito y advertencia se van a la vez')
 
-  const warning = container().children[0]
-  warning.dispatchEvent({ type: 'mouseenter' })
+  const error = notify.error('e')
+  error.dispatchEvent({ type: 'mouseenter' })
   t.mock.timers.tick(10000)
   assert.equal(container().children.length, 1, 'pausado mientras el puntero está encima')
 
-  warning.dispatchEvent({ type: 'mouseleave' })
+  error.dispatchEvent({ type: 'mouseleave' })
   t.mock.timers.tick(5000)
   assert.equal(container().children.length, 0)
+})
+
+test('la pila va debajo del navbar (no tapa Crear/Editar/Eliminar)', () => {
+  notify.info('x')
+  const css = document.getElementById('towell-toasts-style').textContent
+  assert.match(css, /\.towell-toasts\{position:fixed;top:calc\(var\(--pt-navbar-height,72px\) \+ \.75rem\)/)
 })
 
 test('los toasts no usan SweetAlert2 (no cierran un modal abierto)', () => {

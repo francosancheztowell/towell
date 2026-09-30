@@ -975,8 +975,10 @@ async function openLMatModal(context = {}) {
                 });
                 if (!saved) saved = tomarGuardado(() => true);
             } else if (/^b[1-4]$/.test(String(def.rol))) {
-                // Barras KM: CatLMat las guarda en orden (Barra 1 primero).
-                saved = tomarGuardado(noEsRizoNiPie);
+                // Barras KM: por CatLMat.Tipo (1..4); filas viejas sin Tipo, en orden (Barra 1 primero).
+                const barra = Number(String(def.rol).slice(1));
+                saved = tomarGuardado((r) => Number(r.Tipo) === barra)
+                    || tomarGuardado((r) => r.Tipo == null && noEsRizoNiPie(r));
             } else if (defTieneDatosLMat(def)) {
                 // Listas antiguas podían omitir combinaciones pequeñas. Cuando hay huecos,
                 // empatar por el artículo esperado evita cargar C2 dentro de C1.
@@ -2279,6 +2281,8 @@ async function openLMatModal(context = {}) {
                         porcentaje: Number((
                             parseFloat(fila.querySelector('.lmat-porcentaje-input')?.value || '0') || 0
                         ).toFixed(2)),
+                        // KM: b1..b4 → CatLMat.Tipo 1..4 (el servidor lo ignora fuera de Karl Mayer).
+                        tipo: /^b[1-4]$/.test(String(fila.dataset.rol || '')) ? Number(fila.dataset.rol.slice(1)) : null,
                         matrizTipo: fila.dataset.matrizTipo || null,
                         matrizCalibre: fila.dataset.matrizCalibre || null,
                         matrizFibraId: fila.dataset.matrizFibraId || null,

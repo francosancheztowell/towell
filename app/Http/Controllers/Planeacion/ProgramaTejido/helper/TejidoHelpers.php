@@ -12,6 +12,7 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido\helper;
  * @dependencies ReqProgramaTejido, ReqModelosCodificados, ReqCalendarioLine, ReqEficienciaStd, ReqVelocidadStd
  */
 
+use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqEficienciaStd;
 use App\Models\Planeacion\ReqModelosCodificados;
@@ -139,6 +140,50 @@ class TejidoHelpers
     }
 
     /**
+     * PT-PERF-02: lo mismo que llamar obtenerSiguientePosicionDisponible() una vez por fila
+     * nueva, pero con UNA consulta (mismo filtro exacto y mismo UPDLOCK) por salón. Devuelve
+     * un reservador: cada llamada da el primer hueco del telar y lo marca ocupado, igual que
+     * hacía la consulta al ver la fila recién guardada.
+     *
+     * @param  list<array{0: string, 1: string}>  $telares  pares [salón, telar] destino
+     * @return \Closure(string, string): int
+     */
+    public static function reservadorDePosiciones(array $telares): \Closure
+    {
+        // SQL Server compara sin mayúsculas ni espacios finales: la llave del mapa también.
+        $llave = fn ($salon, $telar) => mb_strtoupper(rtrim((string) $salon)).'|'.mb_strtoupper(rtrim((string) $telar));
+
+        $porSalon = [];
+        foreach ($telares as [$salon, $telar]) {
+            $porSalon[(string) $salon][(string) $telar] = true;
+        }
+
+        $ocupadas = [];
+        foreach ($porSalon as $salon => $telaresSalon) {
+            $filas = ReqProgramaTejido::query()
+                ->where('SalonTejidoId', $salon)
+                ->whereIn('NoTelarId', array_map('strval', array_keys($telaresSalon)))
+                ->whereNotNull('Posicion')
+                ->lockForUpdate()
+                ->get(['NoTelarId', 'Posicion']);
+            foreach ($filas as $fila) {
+                $ocupadas[$llave($salon, $fila->NoTelarId)][(int) $fila->Posicion] = true;
+            }
+        }
+
+        return function (string $salon, string $telar) use (&$ocupadas, $llave): int {
+            $k = $llave($salon, $telar);
+            $posicion = 1;
+            while (isset($ocupadas[$k][$posicion])) {
+                $posicion++;
+            }
+            $ocupadas[$k][$posicion] = true;
+
+            return $posicion;
+        };
+    }
+
+    /**
      * Recalcular las posiciones de los registros de un telar de forma consecutiva
      * Reasigna posiciones 1, 2, 3, 4... a todos los registros del telar ordenados por Posicion actual
      */
@@ -146,8 +191,8 @@ class TejidoHelpers
     {
         // Obtener todos los registros del telar ordenados por Posicion actual
         $registros = ReqProgramaTejido::query()
-            ->where('SalonTejidoId', $salonTejidoId)
-            ->where('NoTelarId', $noTelarId)
+            ->salon($salonTejidoId)
+            ->telar($noTelarId)
             ->whereNotNull('Posicion')
             ->orderBy('Posicion', 'asc')
             ->orderBy('FechaInicio', 'asc') // Fallback por si hay registros sin Posicion
@@ -169,8 +214,8 @@ class TejidoHelpers
 
         // También actualizar registros que no tienen Posicion
         $registrosSinPosicion = ReqProgramaTejido::query()
-            ->where('SalonTejidoId', $salonTejidoId)
-            ->where('NoTelarId', $noTelarId)
+            ->salon($salonTejidoId)
+            ->telar($noTelarId)
             ->whereNull('Posicion')
             ->orderBy('FechaInicio', 'asc')
             ->get();
@@ -253,11 +298,46 @@ class TejidoHelpers
      *
      * @param  callable|null  $obtenerModeloCallback  (string $tamanoClave, string $salonTejidoId) => ReqModelosCodificados|null
      */
+    /**
+     * FechaFinal a partir de un inicio y las horas de producción (PT-DUP-02). Era el mismo
+     * árbol copiado 6 veces (UpdateTejido, DividirTejido ×4, DuplicarTejido):
+     * horas <= 0 → inicio + DEFAULT_DURACION_DIAS; si no, finDesdeHoras().
+     * Las políticas de horas <= 0 / saldo < 0 de Balancear, DateHelpers y el calendario
+     * masivo NO son esta: esos usan solo finDesdeHoras() (ver 05-SUMMARY.md, divergencias).
+     */
+    public static function resolverFechaFinal(Carbon $inicio, float $horas, ?string $calendarioId): Carbon
+    {
+        if ($horas <= 0) {
+            return $inicio->copy()->addDays(self::DEFAULT_DURACION_DIAS);
+        }
+
+        return self::finDesdeHoras($inicio, $horas, $calendarioId);
+    }
+
+    /**
+     * Consume las horas sobre las líneas del calendario; sin calendario, o si sus líneas se
+     * acaban, en tiempo continuo (segundos redondeados, igual que todas las copias previas).
+     */
+    public static function finDesdeHoras(Carbon $inicio, float $horas, ?string $calendarioId): Carbon
+    {
+        $fin = ! empty($calendarioId)
+            ? BalancearTejido::calcularFechaFinalDesdeInicio($calendarioId, $inicio, $horas)
+            : null;
+
+        return $fin ?? $inicio->copy()->addSeconds((int) round($horas * 3600));
+    }
+
     public static function calcularHorasProd(ReqProgramaTejido $programa, ?callable $obtenerModeloCallback = null): float
     {
         $vel = (float) ($programa->VelocidadSTD ?? 0);
         $efic = (float) ($programa->EficienciaSTD ?? 0);
         $cantidad = self::sanitizeNumber($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
+
+        $stdKm = self::stdToaHraKarlMayer($programa);
+        if ($stdKm !== null) {
+            return $cantidad > 0 ? $cantidad / $stdKm : 0.0;
+        }
+
         $m = self::obtenerModeloParams($programa, $obtenerModeloCallback);
 
         return self::calcularHorasProdFromParams(
@@ -299,6 +379,28 @@ class TejidoHelpers
         }
 
         return 0.0;
+    }
+
+    /**
+     * Karl Mayer no se estima por pasadas/velocidad: su estandar es la meta fija de kg/dia
+     * por telar (crudo.fixed_daily_kilos, la misma del andon), sin eficiencia.
+     * Piezas/hora = (kgDia * 1000 / PesoCrudo) / 24. Null si no es KM o falta PesoCrudo
+     * (en ese caso sigue la formula de pasadas como JAC/SMIT).
+     */
+    public static function stdToaHraKarlMayer(ReqProgramaTejido $programa): ?float
+    {
+        $telar = trim((string) ($programa->NoTelarId ?? ''));
+        if (! TelarSalonResolver::esKarlMayer($programa->SalonTejidoId ?? null, $telar)) {
+            return null;
+        }
+
+        $kgDia = (float) (config('crudo.fixed_daily_kilos')[$telar] ?? 600.0);
+        $pesoCrudo = (float) ($programa->PesoCrudo ?? 0);
+        if ($kgDia <= 0 || $pesoCrudo <= 0) {
+            return null;
+        }
+
+        return ($kgDia * 1000 / $pesoCrudo) / 24;
     }
 
     /**
@@ -402,6 +504,14 @@ class TejidoHelpers
             }
 
             $stdToaHraParaCalculos = isset($formulas['StdToaHra']) ? $formulas['StdToaHra'] : $stdToaHra;
+
+            // Karl Mayer: meta fija kg/dia sin eficiencia, reemplaza el estandar de pasadas.
+            $stdKm = self::stdToaHraKarlMayer($programa);
+            if ($stdKm !== null) {
+                $stdToaHraParaCalculos = $stdKm;
+                $formulas['StdToaHra'] = (float) round($stdKm, 2);
+                $efic = 1.0;
+            }
 
             $largoToalla = (float) ($programa->LargoToalla ?? 0);
             $anchoToalla = (float) ($programa->AnchoToalla ?? 0);

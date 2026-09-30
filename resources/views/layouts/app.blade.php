@@ -29,7 +29,10 @@
     </style>
 </head>
 
-<body class="min-h-screen flex flex-col overflow-hidden h-screen bg-gradient-to-b from-blue-400 to-blue-200 relative" style="touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;">
+<body class="min-h-screen flex flex-col overflow-hidden h-screen bg-gradient-to-b from-blue-400 to-blue-200 relative" style="touch-action: manipulation; -webkit-touch-callout: none;">
+    {{-- UX-05: sin user-select:none global (impedía copiar folios); solo el chrome lo lleva
+         (app.css). touch-callout se queda: los long-press existentes dependen de él y no
+         impide seleccionar. touch-action: manipulation quita el doble toque, no el pinch. --}}
     <x-layout.global-loader />
 
     <x-navbar.navbar />

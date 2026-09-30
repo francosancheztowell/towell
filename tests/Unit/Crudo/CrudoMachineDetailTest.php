@@ -6,6 +6,7 @@ namespace Tests\Unit\Crudo;
 
 use App\Contracts\Crudo\CrudoDashboardProvider;
 use App\Contracts\Crudo\CrudoFlogProvider;
+use App\Http\Controllers\Planeacion\Alineacion\AlineacionController;
 use App\Livewire\Crudo\MachineDetail;
 use App\Livewire\Crudo\MachineFlogSummary;
 use Carbon\Carbon;
@@ -70,7 +71,9 @@ final class CrudoMachineDetailTest extends TestCase
             ->assertSee('Órdenes y turnos')
             ->assertSee('meta a esta hora')
             ->assertSee('Fecha')
-            ->assertSee('No. Rollo')
+            ->assertSee('Rollo')
+            ->assertDontSee('No. Rollo')
+            ->assertSee('P. crudo')
             ->assertSee('Orden')
             ->assertDontSee('Orden tejido')
             ->assertSee('PB-1001')
@@ -359,6 +362,176 @@ final class CrudoMachineDetailTest extends TestCase
             ->call('openAudit')
             ->assertForbidden()
             ->assertSet('auditModalOpen', false);
+    }
+
+    public function test_ver_alineacion_no_consulta_hasta_que_se_pide(): void
+    {
+        $alineacion = $this->fakeAlineacion([['NoTelarId' => '201', 'NoProduccion' => '36541']]);
+
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
+            ->assertSee('Ver alineación')
+            ->assertDontSee('crudo-alineacion-dialog', false);
+
+        $this->assertSame(0, $alineacion->llamadas);
+    }
+
+    public function test_ver_alineacion_se_ve_aunque_no_pueda_registrar_auditorias(): void
+    {
+        Livewire::test(DeniedCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
+            ->assertDontSee('Agregar auditoría')
+            ->assertSee('Ver alineación');
+    }
+
+    /** El HTML ya renderizado, no el JSON de Livewire: ahi las tildes y las barras viajan escapadas. */
+    private function assertEtiquetasEnOrden(string $html, array $etiquetas): void
+    {
+        $desde = 0;
+        foreach ($etiquetas as $etiqueta) {
+            // Celdas (<dt>) y, en Karl Mayer, el titulo del bloque de barras (<h5>).
+            $encontrado = preg_match('#<(dt|h5)>'.preg_quote($etiqueta, '#').'</(?:dt|h5)>#', $html, $m, PREG_OFFSET_CAPTURE, $desde);
+            $this->assertSame(1, $encontrado, "Falta '{$etiqueta}' o esta fuera de orden.");
+            $desde = $m[0][1] + 1;
+        }
+    }
+
+    public function test_ver_alineacion_muestra_el_renglon_del_telar_en_el_orden_de_la_tabla(): void
+    {
+        $this->fakeAlineacion([
+            ['NoTelarId' => '200', 'NoProduccion' => '11111', 'NombreProducto' => 'OTRO TELAR'],
+            ['NoTelarId' => '201', 'NoProduccion' => '36541', 'NombreProducto' => 'TOALLA JACQUARD', 'PesoMin' => 450,
+                'PesoMax' => 490, 'FibraRizo' => '12/ALG', 'Observaciones' => 'Revisar cenefa', '_tieneParoActivo' => true],
+        ]);
+
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
+            ->call('verAlineacion')
+            ->assertSet('alineacionAbierta', true)
+            ->assertSee('crudo-alineacion-dialog', false)
+            ->assertSee('Alineación · JAC 201')
+            // Las mismas columnas y etiquetas de Planeación > Alineación, sin agrupar.
+            ->tap(fn ($t) => $this->assertEtiquetasEnOrden($t->html(), [
+                'Telar', 'No. Orden', 'Fecha de cambio', 'Fecha compromiso', 'Clave AX', 'Modelo', 'Tolerancia', 'Razurada S/N',
+                'Tipo Rizo', 'Altura Rizo', 'Crudo Ancho', 'Crudo Largo', 'Crudo Peso', 'Luchaje', 'Tipo Plano', 'Medida Plano', 'Tiras',
+                'Hilo Rizo', 'Hilo Pie', 'Hilo Trama', 'Cenefa 1', 'Cenefa 4', 'Medida Cenefa', 'Peso Muestra', 'Peso Mínimo', 'Peso Máximo',
+                'Muestra Mínima', 'Muestra Máxima', 'Cantidad Solicitada', 'Producción Acum. Mes Anterior', 'Producción Acum. Mes', 'Producción Acum.',
+                'Diferencia', 'Días de producción', 'Producción Promedio x Día', 'Días por Ejecutar', 'Observaciones',
+            ]))
+            ->assertDontSee('<h5>', false)
+            ->assertSee('TOALLA JACQUARD')
+            ->assertSee('12/ALG')
+            ->assertSee('Revisar cenefa')
+            ->assertSee('Paro activo')
+            ->assertDontSee('OTRO TELAR')
+            ->call('cerrarAlineacion')
+            ->assertDontSee('crudo-alineacion-dialog', false);
+    }
+
+    public function test_karl_mayer_cambia_hilos_y_cenefas_por_barras(): void
+    {
+        $this->fakeAlineacion([[
+            'NoTelarId' => '401', 'NoProduccion' => '01144', 'TipoPlano' => 'DOB-KM',
+            '_esKarlMayer' => true,
+            '_barras' => [
+                ['barra' => 1, 'cuenta' => '2028', 'calibre' => '167/1', 'fibra' => 'POLIESTER', 'color' => '0001 BLANCO', 'pasadas' => '40'],
+                ['barra' => 3, 'cuenta' => '2104', 'calibre' => '16/1', 'fibra' => 'ALGODON', 'color' => '', 'pasadas' => ''],
+            ],
+        ]]);
+        $machine = ['telar' => '401', 'name' => 'KM 401', 'salon' => 'Karl Mayer'] + $this->machineData();
+
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '401', machine: $machine)
+            ->call('verAlineacion')
+            ->tap(fn ($t) => $this->assertEtiquetasEnOrden($t->html(), ['Crudo Ancho', 'Tiras', 'Barras', 'Peso Muestra', 'Cantidad Solicitada']))
+            ->assertSee('167/1')
+            ->assertSee('0001 BLANCO')
+            ->assertSee('DOB-KM')
+            ->tap(fn ($t) => $this->assertStringNotContainsString('<dt>Hilo Rizo</dt>', $t->html()))
+            ->tap(fn ($t) => $this->assertStringNotContainsString('<dt>Cenefa 1</dt>', $t->html()))
+            ->tap(fn ($t) => $this->assertStringNotContainsString('<dt>Tipo Rizo</dt>', $t->html()))
+            ->tap(fn ($t) => $this->assertStringNotContainsString('<dt>Altura Rizo</dt>', $t->html()));
+    }
+
+    public function test_karl_mayer_sin_barras_capturadas_lo_dice(): void
+    {
+        $this->fakeAlineacion([['NoTelarId' => '402', 'NoProduccion' => '1', '_esKarlMayer' => true, '_barras' => []]]);
+        $machine = ['telar' => '402', 'name' => 'KM 402', 'salon' => 'Karl Mayer'] + $this->machineData();
+
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '402', machine: $machine)
+            ->call('verAlineacion')
+            ->assertSee('Sin barras capturadas en el programa.');
+    }
+
+    public function test_un_telar_normal_no_muestra_barras(): void
+    {
+        $this->fakeAlineacion([['NoTelarId' => '201', 'NoProduccion' => '36541', '_esKarlMayer' => false, '_barras' => []]]);
+
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
+            ->call('verAlineacion')
+            ->tap(fn ($t) => $this->assertStringContainsString('<dt>Hilo Rizo</dt>', $t->html()))
+            ->tap(fn ($t) => $this->assertStringContainsString('<dt>Cenefa 1</dt>', $t->html()))
+            ->tap(fn ($t) => $this->assertStringNotContainsString('<h5>Barras</h5>', $t->html()))
+            ->assertSee('Sin obs.');
+    }
+
+    public function test_con_dos_ordenes_en_el_telar_gana_la_del_programa(): void
+    {
+        $this->fakeAlineacion([
+            ['NoTelarId' => '201', 'NoProduccion' => '10000', 'NombreProducto' => 'ORDEN VIEJA'],
+            ['NoTelarId' => '201', 'NoProduccion' => '36541', 'NombreProducto' => 'ORDEN DEL PROGRAMA'],
+        ]);
+        $machine = ['programa' => ['orden' => '36541']] + $this->machineData();
+
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $machine)
+            ->call('verAlineacion')
+            ->assertSee('ORDEN DEL PROGRAMA')
+            ->assertDontSee('ORDEN VIEJA');
+    }
+
+    public function test_ver_alineacion_sin_orden_en_proceso_lo_dice(): void
+    {
+        $this->fakeAlineacion([['NoTelarId' => '999', 'NoProduccion' => '1']]);
+
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
+            ->call('verAlineacion')
+            ->assertSee('Este telar no tiene una orden en proceso en Alineación.');
+    }
+
+    public function test_si_falla_la_consulta_de_alineacion_el_modal_sigue_vivo(): void
+    {
+        $this->fakeAlineacion(new \RuntimeException('timeout SQL'));
+
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
+            ->call('verAlineacion')
+            ->assertOk()
+            ->assertSee('No fue posible consultar la alineación.')
+            ->assertSee('Agregar auditoría');
+    }
+
+    public function test_cerrar_el_detalle_cierra_la_alineacion(): void
+    {
+        $this->fakeAlineacion([]);
+
+        Livewire::test(TestableCrudoMachineDetail::class)
+            ->dispatch('open-crudo-detail', telar: '201', machine: $this->machineData())
+            ->call('verAlineacion')
+            ->call('close')
+            ->assertSet('alineacionAbierta', false);
+    }
+
+    /** @param list<array<string, mixed>>|\Throwable $items */
+    private function fakeAlineacion(array|\Throwable $items): FakeAlineacionController
+    {
+        $fake = new FakeAlineacionController($items);
+        $this->app->instance(AlineacionController::class, $fake);
+
+        return $fake;
     }
 
     public function test_save_actions_are_rendered_only_in_the_audit_modal(): void
@@ -895,6 +1068,24 @@ final class FakeCrudoDashboardProviderForDetail implements CrudoDashboardProvide
             'defects' => $this->machine['defects'],
             'captures' => $this->machine['captures'],
         ];
+    }
+}
+
+final class FakeAlineacionController extends AlineacionController
+{
+    public int $llamadas = 0;
+
+    /** @param list<array<string, mixed>>|\Throwable $items */
+    public function __construct(private array|\Throwable $items) {}
+
+    public function obtenerItemsAlineacion(): array
+    {
+        $this->llamadas++;
+        if ($this->items instanceof \Throwable) {
+            throw $this->items;
+        }
+
+        return $this->items;
     }
 }
 

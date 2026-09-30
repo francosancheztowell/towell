@@ -45,6 +45,15 @@ class Captura extends Component
     /** Tick de la franja de confirmacion. Se exige solo si requiereConfirmacion. */
     public bool $confirmado = false;
 
+    /** Alerta "quedan marbetes" abierta: guardar se detuvo hasta que el operador elija. */
+    public bool $alertaSaldo = false;
+
+    /** El operador ya eligio en la alerta de saldo; el siguiente guardar no la repite. */
+    public bool $saldoRevisado = false;
+
+    /** Marbetes pendientes a partir de los cuales finalizar pide confirmacion. */
+    public const SALDO_MARBETE_ALERTA = 2;
+
     // ── Formulario ────────────────────────────────────────────────────────
     /** @var array<string, mixed> */
     public array $form = [
@@ -233,11 +242,11 @@ class Captura extends Component
         $orden = $modelo::query()
             ->where('NoTelarId', $telar)
             ->where('EnProceso', 1)
-            ->select('NoProduccion', 'NombreProducto', 'FechaInicio')
+            ->select('NoProduccion', 'NombreProducto', 'FechaInicio', 'SaldoMarbete')
             ->first();
 
         if (! $orden) {
-            return ['telar' => $telar, 'noProduccion' => 'Sin orden', 'nombre' => '-', 'fecha' => '-'];
+            return ['telar' => $telar, 'noProduccion' => 'Sin orden', 'nombre' => '-', 'fecha' => '-', 'saldoMarbete' => null];
         }
 
         return [
@@ -245,6 +254,7 @@ class Captura extends Component
             'noProduccion' => (string) $orden->NoProduccion,
             'nombre' => (string) ($orden->NombreProducto ?? '-'),
             'fecha' => $orden->FechaInicio ? $orden->FechaInicio->format('d/m/Y') : '-',
+            'saldoMarbete' => $orden->getAttribute('SaldoMarbete') !== null ? (int) $orden->getAttribute('SaldoMarbete') : null,
         ];
     }
 
@@ -510,6 +520,8 @@ class Captura extends Component
     private function limpiarCaptura(): void
     {
         $this->confirmado = false;
+        $this->alertaSaldo = false;
+        $this->saldoRevisado = false;
         $this->detalles = [];
         $this->codificacion = array_fill(0, 20, '');
         $this->form['NumeroJulioRizo'] = '';
@@ -944,11 +956,46 @@ class Captura extends Component
             return;
         }
 
+        // Finalizar una orden que aun tiene marbetes por producir casi siempre es un error
+        // de piso: se detiene y se pregunta antes de tocar el programa.
+        if ($this->requiereAlertaSaldo()) {
+            $candado->release();
+            $this->alertaSaldo = true;
+
+            return;
+        }
+
         try {
             $this->guardarConServicio($fila);
         } finally {
             $candado->release();
         }
+    }
+
+    /** La orden que se va a finalizar (la que esta en proceso) aun tiene mas de 2 marbetes. */
+    public function requiereAlertaSaldo(): bool
+    {
+        return $this->accion === 'finalizar'
+            && ! $this->saldoRevisado
+            && ($this->ordenEnProceso['saldoMarbete'] ?? 0) > self::SALDO_MARBETE_ALERTA;
+    }
+
+    /** Respuesta de la alerta de saldo: guarda con la accion elegida, sin volver a preguntar. */
+    public function elegirAccionSaldo(string $accion): void
+    {
+        abort_unless(in_array($accion, ['finalizar', 'reprogramar_siguiente', 'reprogramar_final'], true), 422);
+
+        $this->accion = $accion;
+        $this->saldoRevisado = true;
+        $this->alertaSaldo = false;
+        unset($this->resumenGuardado);
+
+        $this->guardar();
+    }
+
+    public function cerrarAlertaSaldo(): void
+    {
+        $this->alertaSaldo = false;
     }
 
     /**

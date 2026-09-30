@@ -14,7 +14,7 @@ use Throwable;
 /**
  * Manda un mensaje o un archivo a varios chats de Telegram a la vez.
  *
- * Todos los chats salen en paralelo (Http::pool), así que el peor caso es un
+ * Todos los chats salen en paralelo (Http::pool), asÃ­ que el peor caso es un
  * timeout y no uno por destinatario. No lee destinatarios: cada llamador conserva
  * sus validaciones y sus mensajes de log.
  */
@@ -24,7 +24,8 @@ final class TelegramEnvio
 
     public const SEGUNDOS_TEXTO = 8;
 
-    public const SEGUNDOS_ARCHIVO = 15;
+    // 15 s no alcanzaba para subir la imagen de cortes desde la planta (cURL 28 con 0 bytes).
+    public const SEGUNDOS_ARCHIVO = 45;
 
     /**
      * @param  array<int|string>  $chatIds
@@ -46,20 +47,54 @@ final class TelegramEnvio
     public function archivo(string $metodo, array $chatIds, string $contenido, string $nombre, string $caption): array
     {
         $campo = $metodo === 'sendPhoto' ? 'photo' : 'document';
-
-        return $this->enviar($metodo, $chatIds, static fn (PendingRequest $peticion, string $url, string $chatId) => $peticion
+        $subir = static fn (PendingRequest $peticion, string $url, string $chatId) => $peticion
             ->timeout(self::SEGUNDOS_ARCHIVO)
             ->attach($campo, $contenido, $nombre)
-            ->post($url, ['chat_id' => $chatId, 'caption' => $caption]));
+            ->post($url, ['chat_id' => $chatId, 'caption' => $caption]);
+
+        $chatIds = array_values(array_unique(array_map('strval', $chatIds)));
+        if ($chatIds === []) {
+            return [];
+        }
+
+        // Se sube una sola vez: N subidas en paralelo se repartÃ­an el ancho de banda y todas vencÃ­an.
+        // Los demÃ¡s chats reciben el file_id que devuelve Telegram (peticiÃ³n de texto, sin archivo).
+        $primero = array_shift($chatIds);
+        $resultados = $this->enviar($metodo, [$primero], $subir);
+        if ($chatIds === []) {
+            return $resultados;
+        }
+
+        $fileId = self::fileId($resultados[$primero], $campo);
+        if ($fileId === null) {
+            return $resultados + $this->enviar($metodo, $chatIds, $subir);
+        }
+
+        return $resultados + $this->enviar($metodo, $chatIds, static fn (PendingRequest $peticion, string $url, string $chatId) => $peticion
+            ->timeout(self::SEGUNDOS_TEXTO)
+            ->post($url, ['chat_id' => $chatId, $campo => $fileId, 'caption' => $caption]));
     }
 
-    /** Telegram aceptó el envío: 2xx y `ok: true`. */
+    /** file_id del archivo ya subido; en sendPhoto el Ãºltimo tamaÃ±o es el original. */
+    private static function fileId(Response|Throwable $resultado, string $campo): ?string
+    {
+        if (! $resultado instanceof Response || ! self::exitoso($resultado)) {
+            return null;
+        }
+
+        $archivo = $resultado->json("result.{$campo}");
+        $id = $campo === 'photo' ? data_get(is_array($archivo) ? end($archivo) : null, 'file_id') : data_get($archivo, 'file_id');
+
+        return is_string($id) ? $id : null;
+    }
+
+    /** Telegram aceptÃ³ el envÃ­o: 2xx y `ok: true`. */
     public static function exitoso(Response|Throwable $resultado): bool
     {
         return $resultado instanceof Response && $resultado->successful() && ($resultado->json('ok') ?? false) === true;
     }
 
-    /** Falla pasajera (conexión, 429 o 5xx) que vale la pena reintentar una vez. */
+    /** Falla pasajera (conexiÃ³n, 429 o 5xx) que vale la pena reintentar una vez. */
     public static function reintentable(Response|Throwable $resultado): bool
     {
         return $resultado instanceof Throwable || $resultado->status() === 429 || $resultado->serverError();
@@ -74,7 +109,7 @@ final class TelegramEnvio
     }
 
     /**
-     * Contexto de log de un envío fallido.
+     * Contexto de log de un envÃ­o fallido.
      *
      * @return array{status: int|null, response: mixed}
      */
@@ -82,7 +117,8 @@ final class TelegramEnvio
     {
         return $resultado instanceof Response
             ? ['status' => $resultado->status(), 'response' => $resultado->json() ?? $resultado->body()]
-            : ['status' => null, 'response' => $resultado->getMessage()];
+            // El mensaje de Guzzle trae la URL con el token del bot: se tapa antes de loguearlo.
+            : ['status' => null, 'response' => preg_replace('#/bot[^/]+/#', '/bot***/', $resultado->getMessage())];
     }
 
     /**
@@ -102,7 +138,7 @@ final class TelegramEnvio
 
     /**
      * Log por chat fallido con los mensajes de siempre de los reportes PDF/imagen:
-     * "Telegram respondió ok=false para {que}" y "Error HTTP al enviar {que} a Telegram".
+     * "Telegram respondiÃ³ ok=false para {que}" y "Error HTTP al enviar {que} a Telegram".
      *
      * @param  array<int|string, Response|Throwable>  $resultados
      * @param  array<string, mixed>  $contexto
@@ -116,7 +152,7 @@ final class TelegramEnvio
 
             $contexto['chat_id'] = (string) $chatId;
             if ($resultado instanceof Response && $resultado->successful()) {
-                Log::error("Telegram respondió ok=false para {$que}", ['response' => $resultado->json()] + $contexto);
+                Log::error("Telegram respondiÃ³ ok=false para {$que}", ['response' => $resultado->json()] + $contexto);
             } else {
                 Log::error("Error HTTP al enviar {$que} a Telegram", self::detalle($resultado) + $contexto);
             }

@@ -1070,6 +1070,12 @@ class CalendarioController extends Controller
         $vel = (float) ($p->VelocidadSTD ?? 0);
         $efic = (float) ($p->EficienciaSTD ?? 0);
         $cantidad = $this->sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
+
+        $stdKm = TejidoHelpers::stdToaHraKarlMayer($p);
+        if ($stdKm !== null) {
+            return $cantidad > 0 ? $cantidad / $stdKm : 0.0;
+        }
+
         $m = $this->getModeloParams($p->TamanoClave ?? null, $p);
 
         return TejidoHelpers::calcularHorasProdFromParams(

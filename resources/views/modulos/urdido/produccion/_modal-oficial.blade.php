@@ -5,6 +5,7 @@
      hasta 3 oficiales por registro, con selección de empleado,
      turno y metros.
      Variables requeridas: ninguna adicional (usa IDs del DOM)
+     JS: resources/js/modulos/urdido/produccion/oficiales.ts
      ============================================================ --}}
 
     <!-- Modal para agregar oficial -->
@@ -16,8 +17,8 @@
         <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-3 max-h-[65vh] overflow-y-auto">
             <div class="px-4 md:px-6 py-3 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
                 <h3 class="text-base md:text-lg font-semibold text-gray-900">Oficiales</h3>
-                <button type="button" id="btn-cerrar-modal" class="text-gray-400 hover:text-gray-600 transition-colors">
-                    <i class="fa-solid fa-times text-xl"></i>
+                <button type="button" id="btn-cerrar-modal" data-accion-oficial="cerrar" aria-label="Cerrar" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <i class="fa-solid fa-times text-xl" aria-hidden="true"></i>
                 </button>
             </div>
 
@@ -45,6 +46,7 @@
                     <button
                         type="button"
                         id="btn-cancelar-modal"
+                        data-accion-oficial="cerrar"
                         class="px-3 md:px-4 py-1.5 w-full md:py-2 text-md font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
                     >
                         Cancelar
@@ -52,6 +54,7 @@
                     <button
                         type="button"
                         id="btn-guardar-oficiales"
+                        data-accion-oficial="guardar"
                         class="px-3 md:px-4 py-1.5 w-full md:py-2 text-md font-medium text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors"
                     >
                         Guardar

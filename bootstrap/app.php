@@ -80,10 +80,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // Si expira la sesion/CSRF, redirigir a login en vez de mostrar 419.
         $exceptions->render(function (TokenMismatchException $_exception, Request $request): ?Response {
             if ($request->expectsJson()) {
-                return response()->json(['message' => 'La sesion expiro. Inicia sesion nuevamente.'], 419);
+                return response()->json(['message' => 'La sesión expiró. Inicia sesión nuevamente.'], 419);
             }
 
-            return redirect()->route('login')->with('error', 'Tu sesion expiro. Inicia sesion nuevamente.');
+            return redirect()->route('login')->with('error', 'Tu sesión expiró. Inicia sesión nuevamente.');
         });
 
         $exceptions->render(function (NotFoundHttpException $_exception, Request $request): ?Response {

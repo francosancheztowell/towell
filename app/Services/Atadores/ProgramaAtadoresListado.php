@@ -184,10 +184,14 @@ class ProgramaAtadoresListado
             return $filas;
         }
 
-        // SQL Server acepta 2100 parametros por consulta y los autorizados ya pasan
-        // de 1400 julios: se consulta por bloques y el par julio|orden se cruza abajo.
-        $inventario = $filas->pluck('NoJulio')->map(fn ($v) => (string) $v)->unique()->chunk(2000)
-            ->flatMap(fn ($julios) => TejInventarioTelares::query()->whereIn('no_julio', $julios->values()->all())->get())
+        // Los autorizados pasan de 1400 julios: mandarlos como parámetros (whereIn) costaba ~0.9 s
+        // en compilar y chocaba con el límite de 2100. Subconsulta: cero parámetros; el par
+        // julio|orden se cruza abajo.
+        $julios = DB::connection('sqlsrv')->table('AtaMontadoTelas')
+            ->joinSub($this->ultimoMontadoEn('sqlsrv'), 'ultimo', 'AtaMontadoTelas.Id', '=', 'ultimo.Id')
+            ->where('AtaMontadoTelas.Estatus', 'Autorizado')
+            ->select('AtaMontadoTelas.NoJulio');
+        $inventario = TejInventarioTelares::query()->whereIn('no_julio', $julios)->get()
             ->keyBy(fn ($inv) => (string) $inv->no_julio.'|'.(string) $inv->no_orden);
 
         return $filas->map(function ($ata) use ($inventario) {

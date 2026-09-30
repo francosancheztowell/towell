@@ -66,14 +66,15 @@ Lo no listado es **solo lectura** para el track. Los globs de un track **no** se
 | **UX-global (17-02)** | `resources/views/layouts/app.blade.php`, `components/layout-head.blade.php`, `resources/views/errors/**`, `lang/**`, `config/app.php` (locale), `resources/views/login.blade.php`, `resources/views/components/auth/**` | Vistas de módulos |
 | **PERF-infra (18-01)** | `app/Providers/AppServiceProvider.php`, `app/Helpers/permission-helpers.php`, `app/Http/Middleware/SetSqlContextInfo.php`, `config/session.php`, `config/cache.php`, `docs/cerebro-towell/Runbooks/deploy.md` | Controllers |
 | **ARQ/SEC (20)** | Ola 2: `bootstrap/app.php`, `app/Http/Middleware/EnsureModulePermission.php`, `app/Helpers/FolioHelper.php`, `app/Helpers/TurnoHelper.php`, `app/Support/Http/Concerns/HandlesApiErrors.php`, movimientos `app/Http/Controllers/Tejedores/Desarrolladores/Funciones/*` → `app/Services/Tejedores/**` | `Planeacion/ProgramaTejido/{funciones,helper}` (PT) |
+| **CAL (22)** | `composer.json/lock` (solo `require-dev`), `.github/workflows/frontend-checks.yml` (pasos de calidad), `scripts/ratchet.mjs` + baseline (métricas nuevas), `phpmd.xml`, `phpstan-baseline.neon` (solo bajar), `app/Imports/ReqModelosCodificadosImport.php`, `app/Exports/*{Urdido,Engomado}*`, `ReportesUrdidoController`, tests nuevos `tests/**/Calidad*` | Archivos de 19-xx/PT activas (su deuda la paga su dueño), `bootstrap/**`, `vite.config.js` |
 | **19-xx módulo** | `routes/modules/<mod>.php`, `app/Http/Controllers/<Mod>/**`, `app/Services/<Mod>/**`, `app/Livewire/<Mod>/**`, `resources/views/modulos/<mod>/**`, `resources/js/modulos/<mod>/**`, `tests/**/<Mod>*` | Otros módulos, utils, componentes (HANDOFF) |
 
 ### Archivos calientes (un solo dueño por ola)
 
 | Archivo | Ola 0 | Ola 1 | Ola 2 | Ola 3 | Ola 4 |
 |---|---|---|---|---|---|
-| `composer.json/lock` | BASE | MON-D (`laravel/pulse`) | — | — | ADOP |
-| `package.json/lock`, `vite.config.js` | BASE (`qrcode`) | — | FE (inputs por glob) | congelado | ADOP |
+| `composer.json/lock` | BASE | MON-D (`laravel/pulse`) | — | CAL (solo `require-dev`) | ADOP |
+| `package.json/lock`, `vite.config.js` | BASE (`qrcode`) | — | FE (inputs por glob) | congelado (salvo CAL: solo la devDependency `jscpd`) | ADOP |
 | `tsconfig.json` | BASE | FE | FE | — | — |
 | `resources/js/bootstrap.js`, `app.js` | — | MON-B (1 línea en `app.js`) | FE | — | — |
 | `bootstrap/app.php`, `bootstrap/providers.php`, `routes/web.php` | MON-A | MON-A | ARQ | — | — |

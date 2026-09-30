@@ -66,23 +66,8 @@ parameters:
 			count: 1
 			path: app/Console/Commands/PlaneacionProgramaTejidoHealthCheck.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Console/Commands/RecalcularFechasProduccionCommand.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Posicion\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Console/Commands/RecalcularFechasProduccionCommand.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Console/Commands/RecalcularFechasProduccionCommand.php
 
 		-
 			message: '#^Call to an undefined method Illuminate\\Database\\ConnectionInterface\:\:recordsHaveBeenModified\(\)\.$#'
@@ -277,12 +262,6 @@ parameters:
 			path: app/Exports/KaizenExport.php
 
 		-
-			message: '#^Constant App\\Exports\\KaizenExport\:\:MESES is unused\.$#'
-			identifier: classConstant.unused
-			count: 1
-			path: app/Exports/KaizenExport.php
-
-		-
 			message: '#^Binary operation "\+" between string and int results in an error\.$#'
 			identifier: binaryOp.invalid
 			count: 2
@@ -335,12 +314,6 @@ parameters:
 			identifier: nullCoalesce.offset
 			count: 1
 			path: app/Exports/ReporteMarcasFinalesDiaSheet.php
-
-		-
-			message: '#^Constant App\\Exports\\ReporteOtDiariasExport\:\:COL_NOMBRE is unused\.$#'
-			identifier: classConstant.unused
-			count: 1
-			path: app/Exports/ReporteOtDiariasExport.php
 
 		-
 			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
@@ -858,17 +831,7 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Configuracion/BaseDeDatosController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaFinal\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Configuracion/ConfiguracionController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Configuracion/ConfiguracionController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Sistema\\SysDepartamento\:\:\$Depto\.$#'
@@ -2052,11 +2015,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/CatCodificados/CatCodificacionController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/CatCodificados/CatCodificacionController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreProducto\.$#'
@@ -2070,11 +2028,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/CatCodificados/CatCodificacionController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/CatCodificados/CatCodificacionController.php
 
 		-
 			message: '#^Offset ''bomId'' on array\{bomId\: string, bomName\: string\} in isset\(\) always exists and is not nullable\.$#'
@@ -2274,35 +2227,10 @@ parameters:
 			count: 2
 			path: app/Http/Controllers/Planeacion/CatalogoPlaneacion/CatCalendarios/CalendarioController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaFinal\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/CatalogoPlaneacion/CatCalendarios/CalendarioController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/CatalogoPlaneacion/CatCalendarios/CalendarioController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$HorasProd\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/CatalogoPlaneacion/CatCalendarios/CalendarioController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/CatalogoPlaneacion/CatCalendarios/CalendarioController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/CatalogoPlaneacion/CatCalendarios/CalendarioController.php
 
 		-
 			message: '#^Called ''pluck'' on Laravel collection, but could have been retrieved as a query\.$#'
@@ -2466,11 +2394,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/CatalogoPlaneacion/CatVelocidades/CatalagoVelocidadController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/CatalogoPlaneacion/CatVelocidades/CatalagoVelocidadController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$UpdatedAt\.$#'
@@ -4158,11 +4081,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaFinal\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/OrdenDeCambio/Felpa/OrdenDeCambioFelpaController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb1\.$#'
@@ -4716,41 +4634,11 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoBalanceoController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EnProceso\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoCalendariosController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaFinal\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoCalendariosController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$HorasProd\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoCalendariosController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoCalendariosController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Reprogramar\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoCalendariosController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoCalendariosController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqCalendarioLine\:\:\$CalendarioId\.$#'
@@ -4794,17 +4682,7 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoCatalogosController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoCatalogosController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoCatalogosController.php
 
 		-
 			message: '#^Offset ''TipoPedido'' on array\{TamanoClave\: mixed, SalonTejidoId\: mixed, FlogsId\: mixed, NombreProyecto\: mixed, InventSizeId\: mixed, ItemId\: mixed, Nombre\: mixed, NombreProducto\: mixed, \.\.\.\} on left side of \?\? does not exist\.$#'
@@ -4878,23 +4756,8 @@ parameters:
 			count: 4
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoOperacionesController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EnProceso\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoOperacionesController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaFinal\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoOperacionesController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 5
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoOperacionesController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Maquina\.$#'
@@ -4902,23 +4765,8 @@ parameters:
 			count: 2
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoOperacionesController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 8
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoOperacionesController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Posicion\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoOperacionesController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 8
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoOperacionesController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TamanoClave\.$#'
@@ -4926,11 +4774,6 @@ parameters:
 			count: 2
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoOperacionesController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Ultimo\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoOperacionesController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$UpdatedAt\.$#'
@@ -5010,11 +4853,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/RepasoController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalendarioId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/RepasoController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibrePie\.$#'
@@ -5034,17 +4872,7 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/RepasoController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/RepasoController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Ultimo\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/RepasoController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqVelocidadStd\:\:\$Velocidad\.$#'
@@ -5088,35 +4916,10 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EnProceso\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaFinal\.$#'
-			identifier: property.notFound
-			count: 6
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 5
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$HorasProd\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SaldoPedido\.$#'
@@ -5124,11 +4927,6 @@ parameters:
 			count: 6
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TotalPedido\.$#'
@@ -5460,11 +5258,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EnProceso\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EntregaCte\.$#'
@@ -5484,17 +5277,7 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaFinal\.$#'
-			identifier: property.notFound
-			count: 14
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 7
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb1\.$#'
@@ -5592,11 +5375,6 @@ parameters:
 			count: 2
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTiras\.$#'
@@ -5718,11 +5496,6 @@ parameters:
 			count: 3
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Posicion\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Produccion\.$#'
@@ -5760,11 +5533,6 @@ parameters:
 			count: 4
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TamanoClave\.$#'
@@ -5778,11 +5546,6 @@ parameters:
 			count: 4
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Ultimo\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$UpdatedAt\.$#'
@@ -5808,17 +5571,7 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$FechaFinal\.$#'
-			identifier: property.notFound
-			count: 5
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$Maquina\.$#'
@@ -5826,11 +5579,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$Observaciones\.$#'
@@ -5868,11 +5616,6 @@ parameters:
 			count: 2
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$TamanoClave\.$#'
@@ -5952,23 +5695,8 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EnProceso\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DragAndDropTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DragAndDropTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DragAndDropTejido.php
 
 		-
 			message: '#^Offset ''detalles'' on array\{detalles\: array\<int, array\<string, mixed\>\>, idsAfectados\: list\<int\>, updates\: array\<int, array\<string, mixed\>\>\} on left side of \?\? always exists and is not nullable\.$#'
@@ -6300,11 +6028,6 @@ parameters:
 			count: 2
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EnProceso\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaCreacion\.$#'
@@ -6312,17 +6035,7 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaFinal\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaModificacion\.$#'
@@ -6456,11 +6169,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTiras\.$#'
@@ -6612,11 +6320,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Posicion\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Produccion\.$#'
@@ -6660,11 +6363,6 @@ parameters:
 			count: 2
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TamanoClave\.$#'
@@ -6678,11 +6376,6 @@ parameters:
 			count: 5
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Ultimo\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$UpdatedAt\.$#'
@@ -6702,17 +6395,7 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$OrdCompartida\.$#'
@@ -6720,11 +6403,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$TamanoClave\.$#'
@@ -6756,11 +6434,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EnProceso\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/EliminarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaFinaliza\.$#'
@@ -6768,17 +6441,7 @@ parameters:
 			count: 3
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/EliminarTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/EliminarTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 8
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/EliminarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$OrdCompartida\.$#'
@@ -6792,11 +6455,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/EliminarTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Reprogramar\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/EliminarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SaldoPedido\.$#'
@@ -6804,11 +6462,6 @@ parameters:
 			count: 2
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/EliminarTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 8
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/EliminarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TotalPedido\.$#'
@@ -6816,11 +6469,6 @@ parameters:
 			count: 2
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/EliminarTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Ultimo\.$#'
-			identifier: property.notFound
-			count: 6
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/EliminarTejido.php
 
 		-
 			message: '#^Variable \$lider in isset\(\) always exists and is not nullable\.$#'
@@ -6864,11 +6512,6 @@ parameters:
 			count: 3
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/UpdateTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalendarioId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/UpdateTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreBarra1\.$#'
@@ -7134,11 +6777,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/UpdateTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EnProceso\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/UpdateTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EntregaCte\.$#'
@@ -7158,17 +6796,7 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/UpdateTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaFinal\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/UpdateTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/UpdateTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraBarra1\.$#'
@@ -7476,11 +7104,6 @@ parameters:
 			count: 30
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/UpdateTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/VincularTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoProduccion\.$#'
@@ -7548,23 +7171,8 @@ parameters:
 			count: 2
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/VincularTejido.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EnProceso\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/DateHelpers.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaFinal\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/DateHelpers.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 5
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/DateHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraRizo\.$#'
@@ -7572,17 +7180,7 @@ parameters:
 			count: 3
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/DateHelpers.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/DateHelpers.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/DateHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$VelocidadSTD\.$#'
@@ -7908,17 +7506,7 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaFinal\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraBarra1\.$#'
@@ -8088,11 +7676,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Posicion\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$VelocidadSTD\.$#'
@@ -8142,11 +7725,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalendarioId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb1\.$#'
@@ -8352,17 +7930,7 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaFinal\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb1\.$#'
@@ -8418,11 +7986,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$HorasProd\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/helper/UtilityHelpers.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$InventSizeId\.$#'
@@ -8712,11 +8275,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/Utilerias/FinalizarOrdenesController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EnProceso\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Planeacion/Utilerias/FinalizarOrdenesController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaFinaliza\.$#'
@@ -8724,11 +8282,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/Utilerias/FinalizarOrdenesController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Http/Controllers/Planeacion/Utilerias/FinalizarOrdenesController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$OrdCompartidaLider\.$#'
@@ -8748,11 +8301,6 @@ parameters:
 			count: 2
 			path: app/Http/Controllers/Planeacion/Utilerias/FinalizarOrdenesController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Planeacion/Utilerias/FinalizarOrdenesController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TotalPedido\.$#'
@@ -8814,11 +8362,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Planeacion/Utilerias/MoverOrdenesController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EnProceso\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Http/Controllers/Planeacion/Utilerias/MoverOrdenesController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Maquina\.$#'
@@ -8826,23 +8369,8 @@ parameters:
 			count: 2
 			path: app/Http/Controllers/Planeacion/Utilerias/MoverOrdenesController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Planeacion/Utilerias/MoverOrdenesController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Posicion\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/Utilerias/MoverOrdenesController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Planeacion/Utilerias/MoverOrdenesController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$UpdatedAt\.$#'
@@ -9030,17 +8558,7 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Tejedores/BPMTejedores/TelBpmLineController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Http/Controllers/Tejedores/Configuracion/TelaresOperador/TelTelaresOperadorController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Tejedores/Configuracion/TelaresOperador/TelTelaresOperadorController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Tejedores\\TelTelaresOperador\:\:\$NoTelarId\.$#'
@@ -9072,11 +8590,6 @@ parameters:
 			count: 3
 			path: app/Http/Controllers/Tejedores/Configuracion/TelaresOperador/TelTelaresOperadorController.php
 
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 2
-			path: app/Http/Controllers/Tejedores/Configuracion/TelaresOperador/TelTelaresOperadorController.php
 
 		-
 			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Tejedores\\TelTelaresOperador\>\:\:map\(\) contains unresolvable type\.$#'
@@ -9144,11 +8657,6 @@ parameters:
 			count: 1
 			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EnProceso\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaArranque\.$#'
@@ -9162,17 +8670,7 @@ parameters:
 			count: 1
 			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$OrdCompartida\.$#'
@@ -9192,11 +8690,6 @@ parameters:
 			count: 1
 			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Reprogramar\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SaldoPedido\.$#'
@@ -9204,11 +8697,6 @@ parameters:
 			count: 2
 			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/Tejedores/Desarrolladores/MovimientoDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TotalPedido\.$#'
@@ -9372,11 +8860,6 @@ parameters:
 			count: 2
 			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraPie\.$#'
@@ -9444,11 +8927,6 @@ parameters:
 			count: 3
 			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTiras\.$#'
@@ -9528,17 +9006,7 @@ parameters:
 			count: 1
 			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Reprogramar\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/Tejedores/Desarrolladores/ProcesarDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TamanoClave\.$#'
@@ -9666,11 +9134,6 @@ parameters:
 			count: 2
 			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Tejedores/Desarrolladores/ProcesarMuestrasDesarrolladorService.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$VelocidadSTD\.$#'
@@ -9816,11 +9279,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Tejedores/NotificarMontadoRollo/NotificarMontRollosController.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/Tejido/CortesEficiencia/CortesEficienciaController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Tejido\\TejEficiencia\:\:\$Date\.$#'
@@ -10032,11 +9490,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Tejido/CortesEficiencia/CortesEficienciaController.php
 
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
-			path: app/Http/Controllers/Tejido/CortesEficiencia/CortesEficienciaController.php
 
 		-
 			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Tejido\\TejEficienciaLine\>\:\:map\(\) contains unresolvable type\.$#'
@@ -10044,11 +9497,6 @@ parameters:
 			count: 1
 			path: app/Http/Controllers/Tejido/CortesEficiencia/CortesEficienciaController.php
 
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<\(int\|string\),mixed\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
-			path: app/Http/Controllers/Tejido/CortesEficiencia/CortesEficienciaController.php
 
 		-
 			message: '#^Relation ''lineas'' is not found in App\\Models\\Tejido\\TejEficiencia model\.$#'
@@ -11017,18 +10465,6 @@ parameters:
 			path: app/Imports/ReqCalendarioLineImport.php
 
 		-
-			message: '#^Method App\\Imports\\ReqModelosCodificadosImport\:\:convertToInt\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: app/Imports/ReqModelosCodificadosImport.php
-
-		-
-			message: '#^Method App\\Imports\\ReqModelosCodificadosImport\:\:isValidTotalValue\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: app/Imports/ReqModelosCodificadosImport.php
-
-		-
 			message: '#^Offset ''CalTramaFondoC12'' on array\{TamanoClave\: 1, OrdenTejido\: 2, FechaTejido\: 3, FechaCumplimiento\: 4, SalonTejidoId\: 5, NoTelarId\: 6, Prioridad\: 7, Nombre\: 8, \.\.\.\} on left side of \?\? does not exist\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
@@ -11227,18 +10663,6 @@ parameters:
 			path: app/Imports/ReqModelosCodificadosImport.php
 
 		-
-			message: '#^Strict comparison using \!\=\= between Carbon\\Carbon\|null and false will always evaluate to true\.$#'
-			identifier: notIdentical.alwaysTrue
-			count: 1
-			path: app/Imports/ReqModelosCodificadosImport.php
-
-		-
-			message: '#^Unreachable statement \- code above always terminates\.$#'
-			identifier: deadCode.unreachable
-			count: 1
-			path: app/Imports/ReqModelosCodificadosImport.php
-
-		-
 			message: '#^Offset 0 on non\-empty\-list\<string\> on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
@@ -11394,11 +10818,6 @@ parameters:
 			count: 1
 			path: app/Livewire/Desarrolladores/Captura.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Livewire/Desarrolladores/Captura.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoProduccion\.$#'
@@ -12090,11 +11509,6 @@ parameters:
 			count: 1
 			path: app/Observers/ReqProgramaTejidoObserver.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Observers/ReqProgramaTejidoObserver.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreProyecto\.$#'
@@ -12120,11 +11534,6 @@ parameters:
 			count: 1
 			path: app/Observers/ReqProgramaTejidoObserver.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Observers/ReqProgramaTejidoObserver.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TamanoClave\.$#'
@@ -13278,11 +12687,6 @@ parameters:
 			count: 1
 			path: app/Services/Planeacion/Liberar/LiberarMarbetesCalculator.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaInicio\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Planeacion/Liberar/LiberarProgramaScheduling.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PrioridadAnterior\.$#'
@@ -13440,11 +12844,6 @@ parameters:
 			count: 1
 			path: app/Services/Planeacion/RevivirOrdenProgramaDesdeCatService.php
 
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EnProceso\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Planeacion/RevivirOrdenProgramaDesdeCatService.php
 
 		-
 			message: '#^Offset ''AnchoToalla''\|''LargoToalla'' does not exist on non\-empty\-array\<''Ancho''\|''CalibreComb1''\|''CalibreComb12''\|''CalibreComb2''\|''CalibreComb22''\|''CalibreComb3''\|''CalibreComb32''\|''CalibreComb4''\|''CalibreComb42''\|''CalibrePie''\|''CalibrePie2''\|''CalibreRizo''\|''CalibreRizo2''\|''CalibreTrama''\|''CalibreTrama2''\|''CodColorComb1''\|''CodColorComb2''\|''CodColorComb3''\|''CodColorComb4''\|''CodColorTrama''\|''ColorTrama''\|''CreatedAt''\|''CuentaPie''\|''CuentaRizo''\|''CustName''\|''DobladilloId''\|''EficienciaSTD''\|''EnProceso''\|''FibraComb1''\|''FibraComb2''\|''FibraComb3''\|''FibraComb4''\|''FibraPie''\|''FibraRizo''\|''FibraTrama''\|''FlogsId''\|''InventSizeId''\|''ItemId''\|''Luchaje''\|''Maquina''\|''MedidaPlano''\|''NombreCC1''\|''NombreCC2''\|''NombreCC3''\|''NombreProducto''\|''NombreProyecto''\|''NoProduccion''\|''NoTelarId''\|''NoTiras''\|''PasadasComb1''\|''PasadasComb2''\|''PasadasComb3''\|''PasadasComb4''\|''PasadasComb5''\|''PasadasTrama''\|''Peine''\|''PesoCrudo''\|''Posicion''\|''Rasurado''\|''Repeticiones''\|''SalonTejidoId''\|''TamanoClave''\|''UpdatedAt''\|''VelocidadSTD'', mixed\>\.$#'

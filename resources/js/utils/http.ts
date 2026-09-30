@@ -23,7 +23,7 @@
  */
 import axios from 'axios';
 import type { AxiosRequestConfig, AxiosResponse } from 'axios';
-import { notify } from './notifications.ts';
+import { esSesionExpirada, sesionExpirada } from './sesion.ts';
 
 export type HttpConfig = AxiosRequestConfig;
 
@@ -43,12 +43,8 @@ export class HttpError extends Error {
 
 export const HTTP_ERROR_EVENT = 'towell:http-error';
 
-export const SESSION_EXPIRED_MESSAGE = 'Tu sesión expiró. Recargando para volver a iniciar sesión…';
-
-/** Tiempo para leer el aviso antes de recargar. */
-export const SESSION_EXPIRED_RELOAD_MS = 2500;
-
-let sessionExpiredHandled = false;
+// Reexportados: la sesión expirada vive en utils/sesion.ts (compartida con Livewire, UX-11).
+export { SESSION_EXPIRED_MESSAGE, SESSION_EXPIRED_RELOAD_MS } from './sesion.ts';
 
 export function csrfToken(): string {
     return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
@@ -101,18 +97,6 @@ function emitError(detail: HttpErrorDetail): void {
     window.dispatchEvent(new CustomEvent<HttpErrorDetail>(HTTP_ERROR_EVENT, { detail }));
 }
 
-/**
- * Toast nativo + recarga temporizada, no un modal de SweetAlert2: el catch del caller
- * suele cerrar o abrir otro modal de Swal, lo que cerraría el aviso y recargaría al instante.
- */
-function handleSessionExpired(): void {
-    if (sessionExpiredHandled) return;
-    sessionExpiredHandled = true;
-
-    notify.warning(SESSION_EXPIRED_MESSAGE);
-    setTimeout(() => window.location.reload(), SESSION_EXPIRED_RELOAD_MS);
-}
-
 async function request<T>(method: string, url: string, run: () => Promise<AxiosResponse<T>>): Promise<T> {
     try {
         const res = await run();
@@ -123,7 +107,7 @@ async function request<T>(method: string, url: string, run: () => Promise<AxiosR
         // Una cancelación (AbortController) es intencional: no es un fallo que reportar.
         if (axios.isCancel(err)) throw error;
         emitError({ status: error.status, url: stripQuery(url), method: method.toUpperCase() });
-        if (error.status === 419 || error.status === 401) handleSessionExpired();
+        if (esSesionExpirada(error.status)) sesionExpirada();
         throw error;
     }
 }

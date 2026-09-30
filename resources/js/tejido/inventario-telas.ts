@@ -9,8 +9,9 @@
 // Los datos del servidor (telar, inventario) llegan con forma abierta y nombres
 // de campo variables, por eso se tipan como `Crudo`/`Registro`.
 
-import { http } from '../utils/http.ts'
-import type { HttpError } from '../utils/http.ts'
+import { http, HttpError } from '../utils/http.ts'
+import { notify } from '../utils/notifications.ts'
+import { ErrorApi, mensajeError } from '../modulos/tejido/comun/pagina.ts'
 
 /** Valor tal como llega del servidor: string, número o null. */
 type Crudo = any
@@ -450,38 +451,14 @@ function handleRequerimientoChange(checkbox: HTMLInputElement, telarId: TelarId,
                 checkbox.removeAttribute('data-cambio-reciente');
             }, 3000);
 
-            // Mostrar notificación de éxito
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Guardado con éxito',
-                    showConfirmButton: false,
-                    timer: 2500,
-                    timerProgressBar: true,
-                    position: 'top-end',
-                    toast: true
-                });
-            }
+            notify.success('Guardado con éxito');
         })
     .catch(error => {
-        // Mostrar notificación de error con más detalles
-        if (typeof Swal !== 'undefined') {
-            // http normaliza el error: .message, .status, .data y .errors (422)
-            const errorMessage = error.errors
-                ? Object.values(error.errors).flat().join(', ')
-                : (error.message || 'Error desconocido');
-
-            Swal.fire({
-                icon: 'error',
-                title: 'Error al guardar',
-                text: errorMessage,
-                showConfirmButton: false,
-                timer: 2500,
-                timerProgressBar: true,
-                position: 'top-end',
-                toast: true
-            });
-        }
+        // 422: todos los errores de campo; si no, el mensaje seguro del servidor (SEC-07).
+        const errorMessage = error instanceof HttpError && error.errors
+            ? Object.values(error.errors).flat().join(', ')
+            : mensajeError(error, 'Error desconocido');
+        notify.error(`Error al guardar: ${errorMessage}`);
         // Desmarcar checkbox si hubo error
         checkbox.checked = false;
     });
@@ -1466,18 +1443,7 @@ function confirmarSeleccion() {
     // Cerrar modal
     cerrarModalSeleccion();
 
-    // Mostrar notificación de éxito (muy rápida)
-    if (typeof Swal !== 'undefined') {
-        Swal.fire({
-            icon: 'success',
-            title: 'Actualizado',
-            showConfirmButton: false,
-            timer: 2000,
-            timerProgressBar: false,
-            position: 'top-end',
-            toast: true
-        });
-    }
+    notify.success('Actualizado');
 }
 
 // Función para obtener datos del proceso actual
@@ -2420,15 +2386,7 @@ window.seleccionarTurno = function(turno: number, btnElement?: HTMLButtonElement
 
     // Verificar si el turno está ocupado (deshabilitado)
     if (btn.disabled) {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Turno Ocupado',
-                text: `El turno ${turno} ya está ocupado para esta fecha. Por favor, selecciona otro turno.`,
-                showConfirmButton: true,
-                confirmButtonText: 'Entendido'
-            });
-        }
+        void notify.alert(`El turno ${turno} ya está ocupado para esta fecha. Por favor, selecciona otro turno.`, 'Turno Ocupado', 'warning');
         return;
     }
 
@@ -2486,14 +2444,7 @@ window.seleccionarTurno = function(turno: number, btnElement?: HTMLButtonElement
         window.location.reload();
     })
     .catch(error => {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error al actualizar',
-                text: error.message || 'No se pudo actualizar la fecha y turno del registro.',
-                showConfirmButton: true
-            });
-        }
+        void notify.alert(mensajeError(error, 'No se pudo actualizar la fecha y turno del registro.'), 'Error al actualizar', 'error');
     });
 }
 
@@ -2537,7 +2488,7 @@ async function actualizarRegistroConNuevaFecha(checkbox: HTMLInputElement, telar
         }
 
         if (!telarData) {
-            throw new Error('No se encontraron datos del telar. Por favor, recargue la página.');
+            throw new ErrorApi('No se encontraron datos del telar. Por favor, recargue la página.');
         }
 
         // Obtener cuenta, calibre, hilo y orden según el tipo
@@ -2557,7 +2508,7 @@ async function actualizarRegistroConNuevaFecha(checkbox: HTMLInputElement, telar
         const noOrden = telarData.Orden_Prod || telarData.OrdenProd || telarData.orden_prod || telarData.no_orden || '';
 
         if (!cuenta || cuenta === '') {
-            throw new Error('No se encontró cuenta para este telar. Verifique los datos del telar.');
+            throw new ErrorApi('No se encontró cuenta para este telar. Verifique los datos del telar.');
         }
 
         // Preparar datos para crear el nuevo registro
@@ -2586,11 +2537,13 @@ async function actualizarRegistroConNuevaFecha(checkbox: HTMLInputElement, telar
             const responseActualizar = await http.post('/inventario-telares/actualizar-fecha', datosActualizar)
 
             if (!responseActualizar || responseActualizar.success === false) {
-                throw new Error(responseActualizar?.message || 'Error al actualizar la fecha del registro');
+                throw new ErrorApi(responseActualizar?.message || 'Error al actualizar la fecha del registro');
             }
         } catch (errorActualizar) {
             console.error('Error al actualizar fecha del registro:', errorActualizar);
-            throw new Error((errorActualizar as { response?: { data?: { message?: string } } }).response?.data?.message || 'No se pudo actualizar la fecha del registro. El registro original se mantiene.');
+            // HANDOFF 15-01 #4: con window.http el mensaje viene en HttpError.data.message
+            // (antes se leía .response.data.message de axios y siempre salía el genérico).
+            throw new ErrorApi(mensajeError(errorActualizar, 'No se pudo actualizar la fecha del registro. El registro original se mantiene.'));
         }
 
         // Invalidar caché para forzar recarga
@@ -2621,19 +2574,7 @@ async function actualizarRegistroConNuevaFecha(checkbox: HTMLInputElement, telar
         const [año, mes, dia] = fechaNueva.split('-');
         const fechaFormato = `${dia}/${mes}`;
 
-        // Mostrar notificación de éxito
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                icon: 'success',
-                title: 'Actualizado con éxito',
-                text: `Fecha actualizada a ${fechaFormato}. El registro aparecerá en la nueva fecha.`,
-                showConfirmButton: false,
-                timer: 2000,
-                timerProgressBar: true,
-                position: 'top-end',
-                toast: true
-            });
-        }
+        notify.success(`Actualizado con éxito. Fecha actualizada a ${fechaFormato}. El registro aparecerá en la nueva fecha.`);
     } catch (error) {
         console.error('Error al actualizar registro:', error);
 
@@ -2642,17 +2583,7 @@ async function actualizarRegistroConNuevaFecha(checkbox: HTMLInputElement, telar
         checkbox.removeAttribute('data-eliminado');
         checkbox.removeAttribute('data-cambio-reciente');
 
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error al actualizar',
-                text: (error as Error).message || 'No se pudo actualizar el registro. El registro original se mantiene.',
-                showConfirmButton: false,
-                timer: 3000,
-                position: 'top-end',
-                toast: true
-            });
-        }
+        notify.error(`Error al actualizar: ${mensajeError(error, 'No se pudo actualizar el registro. El registro original se mantiene.')}`);
     }
 }
 
@@ -2828,44 +2759,20 @@ function eliminarRegistro(datosEliminar: DatosEliminar, checkbox: HTMLInputEleme
         // NO recargar automáticamente los requerimientos - el checkbox permanecerá desmarcado
         // Si el usuario necesita ver los cambios, puede recargar manualmente la página
 
-        // Mostrar notificación de éxito
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                icon: 'success',
-                title: 'Eliminado con éxito',
-                showConfirmButton: false,
-                timer: 2500,
-                timerProgressBar: true,
-                position: 'top-end',
-                toast: true
-            });
-        }
+        notify.success('Eliminado con éxito');
     })
     .catch(error => {
         // Si hay error, remover el atributo de eliminado para permitir reintentos
         checkbox.removeAttribute('data-eliminado');
 
-        // Mostrar notificación de error
-        if (typeof Swal !== 'undefined') {
-            const errorMessage = error.message || 'Error desconocido';
-
-            Swal.fire({
-                icon: 'error',
-                title: 'Error al eliminar',
-                text: errorMessage,
-                showConfirmButton: false,
-                timer: 2500,
-                timerProgressBar: true,
-                position: 'top-end',
-                toast: true
-            });
-        }
+        notify.error(`Error al eliminar: ${mensajeError(error, 'Error desconocido')}`);
         // Re-marcar el checkbox si hubo error
         checkbox.checked = true;
     });
 }
 
-// El HTML llama a estas desde onclick inline, asi que siguen siendo globales.
+// PUENTE 19-02: los onclick de resources/views/components/telares/telar-requerimiento.blade.php
+// (componente fuera del alcance de 19-02-a) llaman a estas; siguen siendo globales.
 Object.assign(window, {
   abrirModalSeleccion,
   cerrarModalSeleccion,

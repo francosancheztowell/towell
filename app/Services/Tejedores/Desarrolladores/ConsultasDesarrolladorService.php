@@ -236,7 +236,7 @@ class ConsultasDesarrolladorService
                 ->where('NoProduccion', '!=', '');
             $query = $this->filtrarProduccionesDisponibles($query);
 
-            $producciones = $query->select('Id', 'SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto')
+            $producciones = $query->select('Id', 'SalonTejidoId', 'NoProduccion', 'FechaInicio', 'TamanoClave', 'NombreProducto', 'SaldoMarbete')
                 ->distinct()
                 ->orderBy('FechaInicio', 'asc')
                 ->get();

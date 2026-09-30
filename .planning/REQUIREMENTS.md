@@ -89,15 +89,15 @@
 
 ### UX (fase 17)
 
-- [ ] **UX-01**: Flash visible en el layout. **UX-02**: `<title>` por página. **UX-03**: un solo `h1`.
-- [ ] **UX-04**: Pinch-zoom habilitado (salvo andón). **UX-05**: `user-select:none` solo en chrome.
-- [ ] **UX-06**: Acciones de clic derecho también por long-press/botón "⋮". **UX-07**: texto ≥ 12 px.
-- [ ] **UX-08**: `lang/es` + locale `es`. **UX-09**: páginas de error estilizadas con código de referencia.
-- [ ] **UX-10**: Regla de contraseña única. **UX-11**: 419 unificado. **UX-12**: banner sin conexión.
-- [ ] **UX-13**: Duraciones de notificación consistentes. **UX-14**: `aria-label` en botones de ícono. **UX-15**: foco visible.
-- [ ] **UX-16**: Sin mojibake en mensajes al usuario.
+- [x] **UX-01**: Flash visible en el layout. **UX-02**: `<title>` por página. **UX-03**: un solo `h1`.
+- [x] **UX-04**: Pinch-zoom habilitado (salvo andón). **UX-05**: `user-select:none` solo en chrome.
+- [x] **UX-06**: Acciones de clic derecho también por long-press/botón "⋮". **UX-07**: texto ≥ 12 px. (17-02: helper global y layout/componentes; clic derecho y texto < 12 px de cada módulo van en su 19-xx, HANDOFF 17 C1/C3.)
+- [x] **UX-08**: `lang/es` + locale `es`. **UX-09**: páginas de error estilizadas con código de referencia.
+- [x] **UX-10**: ~~Regla de contraseña única~~ fuera de alcance (owner 2026-09-25: contraseñas no se tocan). **UX-11**: 419 unificado. **UX-12**: banner sin conexión.
+- [x] **UX-13**: Duraciones de notificación consistentes. **UX-14**: `aria-label` en botones de ícono. **UX-15**: foco visible.
+- [x] **UX-16**: Sin mojibake en mensajes al usuario.
 - [ ] **UX-17**: Auditoría UX exhaustiva de las 25 pantallas más usadas (por telemetría).
-- [ ] **UX-18**: Checklist UX por pantalla aplicado en cada sesión 19-xx.
+- [ ] **UX-18**: Checklist UX por pantalla aplicado en cada sesión 19-xx. (Checklist publicada en 17-02: `phases/17-ux/17-02-CHECKLIST.md`; la adopción por módulo va en cada 19-xx.)
 
 ### Performance (fase 18)
 
@@ -116,6 +116,8 @@
 - [ ] **MIG-<MOD>-02**: Adopción de `http`/`notify`/`format` y componentes DS; ratchet baja.
 - [ ] **MIG-<MOD>-03**: Duplicados del módulo consolidados (BPM, secuencias, calificar-julios, catálogos).
 - [ ] **MIG-<MOD>-04**: Livewire solo donde la guía lo indica.
+  - ✅ **TEJ** (19-02, 2026-09-29): 01–04 hechos; 17 vistas de Tejido, Cortes, Marcas, Reenconado e Inventario de trama sin JS inline (guardián de 58 casos), secuencias ×4 → 1. Pendientes: 6 decisiones del owner (19-02-SUMMARY).
+  - ✅ **URD** y **ENG** (19-01, 2026-09-29): 01–04 hechos; 41 vistas sin JS inline (guardián `VistasSinJsInlineTest`), BPM/BPM-Line/calificar-julios deduplicados, sin Livewire (no aplica). Pendientes: 3 decisiones del owner (19-01-SUMMARY).
 
 ### Arquitectura y seguridad (fases 10, 20)
 
@@ -132,6 +134,16 @@
 - [ ] **ADOP-03**: Dependencias y adaptadores temporales retirados. **ADOP-04**: `filter-engine.ts` en utils.
 - [ ] **ADOP-05**: `CLAUDE.md`/`AGENTS.md`/`docs/cerebro-towell` al día. **ADOP-06**: `inventario-bugs.md` actualizado.
 
+### Calidad (fase 22)
+
+- [x] **CAL-01**: (22-01, 2026-09-30: ratchet con catch vacío 28 y duplicación 6.93 %; PHPMD solo violaciones nuevas en cambiados; `composer audit` al cambiar el lock; `composer quality`) Gates en CI sin baseline global: ratchet con `catch vacío` y `duplicación %` (jscpd), PHPMD `unusedcode`+`codesize` sobre archivos cambiados, `composer audit` bloqueante al cambiar `composer.lock`, comando `composer quality`.
+- [ ] **CAL-02**: (parte libre hecha en 22-01; OeeAtadores en 19-03) Código muerto que phpstan ya marca (`is unused`) borrado y baseline regenerado; OeeAtadores dentro de 19-03.
+- [ ] **CAL-03**: Catch vacíos del flujo principal → `report($e)` por su dueño; excepciones deliberadas documentadas (Monitoreo, `EnsureModulePermission`, Telemetría).
+- [x] **CAL-04**: (22-01: 10 tests del import que destaparon 3 bugs; cobertura 46 % medida en la rama, top-20 en `22-01-SUMMARY.md`; Infection queda para PT 05.1) Tests de hotspots sin cobertura (`ReqModelosCodificadosImport`); cobertura por archivo medida en la rama integradora; Infection puntual antes de partir `DividirTejido`/`DuplicarTejido`.
+- [x] **CAL-05**: (22-01: exports BPM y Resumen Semanal sobre bases comunes, 992→556 líneas, snapshot celda a celda) Exports idénticos de Urdido/Engomado unificados.
+- [ ] **CAL-06**: Complejidad de `ReportesUrdidoController` (y de `AtadoresController`/OeeAtadores en 19-03, `CatLMat` en 19-06) bajo los umbrales de PHPMD.
+- [ ] **CAL-07**: phpstan nivel 8 por carpeta para el código nuevo (Ola 4).
+
 ## v1 Requirements — Track PT (Programa Tejido)
 
 ### Contexto y contratos
@@ -141,8 +153,8 @@
 
 ### Dominio
 
-- [ ] **PT-DOM-01**: Posición, `EnProceso`, `Ultimo`, fechas, líneas y grupos conservan sus invariantes.
-- [ ] **PT-DOM-02**: Fórmulas y sincronización CatCodificados conservan semántica y son observables ante fallo. → catches silenciosos 1/4/5/6 contenidos y observables (PT 02); resto en PT-05.
+- [x] **PT-DOM-01**: Posición, `EnProceso`, `Ultimo`, fechas, líneas y grupos conservan sus invariantes.
+- [x] **PT-DOM-02**: Fórmulas y sincronización CatCodificados conservan semántica y son observables ante fallo. → catches silenciosos 1/4/5/6 contenidos y observables (PT 02); v2 revierte ante fallo de líneas/aplicación (PT 05, detrás de flag).
 
 ### Lectura
 
@@ -150,12 +162,12 @@
 
 ### UI (Livewire)
 
-- [ ] **PT-UI-01**: (2026-09-24: **mismo diseño visual** y solo si mejora TTFB/KB/interacción vs `04-PERF-MEDIDO.md`) UI v2 es Livewire — componente(s) siguiendo el patrón `Crudo/MachineDetail.php` (datasets grandes como `#[Computed]`, no propiedad pública) y `UrdEng/ProgramBoard.php` (reorder/drag-drop).
+- [x] **PT-UI-01**: (hecho 2026-09-29, **gate no pasa**: v2 apagado, PT sigue en Blade/TS; ver PROJECT) (2026-09-24: **mismo diseño visual** y solo si mejora TTFB/KB/interacción vs `04-PERF-MEDIDO.md`) UI v2 es Livewire — componente(s) siguiendo el patrón `Crudo/MachineDetail.php` (datasets grandes como `#[Computed]`, no propiedad pública) y `UrdEng/ProgramBoard.php` (reorder/drag-drop).
 - [ ] **PT-UI-02**: La tabla ofrece presets, filtros claros, acciones accesibles y estados explícitos (loading/error/empty).
 
 ### Mutaciones
 
-- [ ] **PT-MUT-01**: Mutaciones se extraen verticalmente a FormRequests y servicios por caso de uso.
+- [x] **PT-MUT-01**: Mutaciones se extraen verticalmente a FormRequests y servicios por caso de uso.
 
 ### Operaciones
 
@@ -163,19 +175,19 @@
 
 ### Rollout
 
-- [ ] **PT-ROL-01**: Cada corte tiene feature flag, telemetría, gate y rollback probado.
+- [x] **PT-ROL-01**: Cada corte tiene feature flag, telemetría, gate y rollback probado.
 
 ### Deduplicación de backend (hallazgo de auditoría 2026-08-05)
 
-- [ ] **PT-DUP-01**: Eliminar las 3 implementaciones competidoras del patrón suppress/restore de observers (modelo, `ProgramaTejidoObserverHelper`, copias inline) — todos los call sites usan `ReqProgramaTejido::suppressObservers()/restoreObservers()`.
-- [ ] **PT-DUP-02**: Centralizar el árbol de fallback de `FechaFinal` (duplicado 6×) en `TejidoHelpers::resolverFechaFinal()`.
-- [ ] **PT-DUP-03**: Unificar el chequeo de flag "Ultimo" (3 variantes inconsistentes, una de ellas más débil = bug latente) en `ReqProgramaTejido::esUltimo()`.
-- [ ] **PT-DUP-04**: Reemplazar los 20+ sitios que rearman `where('SalonTejidoId',...)->where('NoTelarId',...)` a mano por los scopes `scopeSalon()`/`scopeTelar()` ya existentes en el modelo.
+- [x] **PT-DUP-01**: Eliminar las 3 implementaciones competidoras del patrón suppress/restore de observers (modelo, `ProgramaTejidoObserverHelper`, copias inline) — todos los call sites usan `ReqProgramaTejido::suppressObservers()/restoreObservers()`.
+- [x] **PT-DUP-02**: Centralizar el árbol de fallback de `FechaFinal` (duplicado 6×) en `TejidoHelpers::resolverFechaFinal()`.
+- [x] **PT-DUP-03**: Unificar el chequeo de flag "Ultimo" (3 variantes inconsistentes, una de ellas más débil = bug latente) en `ReqProgramaTejido::esUltimo()`.
+- [x] **PT-DUP-04**: Reemplazar los 20+ sitios que rearman `where('SalonTejidoId',...)->where('NoTelarId',...)` a mano por los scopes `scopeSalon()`/`scopeTelar()` ya existentes en el modelo.
 
 ### Rendimiento
 
 - [ ] **PT-PERF-01**: Índices faltantes creados — `ReqProgramaTejidoLine` no tiene ningún índice sobre `ProgramaId`/`Fecha`; `ReqProgramaTejido` sin índice directo sobre `(NoTelarId, Posicion)`.
-- [ ] **PT-PERF-02**: Eliminar N+1 confirmados en `ProgramaTejidoController::store()` (query de posición por telar en loop) y `CortesEficienciaController::obtenerDatosVisualizacionPorFecha()` (3 queries por fecha en rango).
+- [x] **PT-PERF-02**: Eliminar N+1 confirmados en `ProgramaTejidoController::store()` (query de posición por telar en loop) y `CortesEficienciaController::obtenerDatosVisualizacionPorFecha()` (3 queries por fecha en rango). → mitad PT hecha en PT 05 (posiciones en 1 consulta; dividir 6 destinos 70→65); Cortes: 19-02 midió que `obtenerDatosVisualizacionPorFecha` hace 3 consultas fijas (no había rango ni N+1) y bajó `getDatosTelares` 31→2 y el autoguardado 60→~10.
 
 ### ERP quick wins (auditoría 2026-09-22, Fase 0)
 

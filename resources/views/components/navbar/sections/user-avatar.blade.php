@@ -5,7 +5,8 @@
 @endphp
 
 <div class="relative">
-    <button id="btn-user-avatar" 
+    <button id="btn-user-avatar" type="button"
+            aria-label="Menú de usuario: {{ $usuario->nombre }}" aria-haspopup="true" aria-controls="user-modal"
             class="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 overflow-hidden">
         @if($fotoUrl)
             <img src="{{ $fotoUrl }}" 

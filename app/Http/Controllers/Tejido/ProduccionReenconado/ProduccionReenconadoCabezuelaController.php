@@ -6,14 +6,17 @@ use App\Helpers\FolioHelper;
 use App\Helpers\TurnoHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Tejido\TejProduccionReenconado;
+use App\Support\Http\Concerns\HandlesApiErrors;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class ProduccionReenconadoCabezuelaController extends Controller
 {
+    use HandlesApiErrors;
+
     public function index()
     {
         $registros = TejProduccionReenconado::orderByDesc('Date')
@@ -38,9 +41,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
 
             return response()->json(['success' => true, 'data' => $items]);
         } catch (\Throwable $e) {
-            Log::error('Error obteniendo calibres', ['exception' => $e]);
-
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'Error obteniendo calibres', 'No se pudieron cargar los calibres');
         }
     }
 
@@ -63,9 +64,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
 
             return response()->json(['success' => true, 'data' => $fibras]);
         } catch (\Throwable $e) {
-            Log::error('Error obteniendo fibras', ['exception' => $e, 'itemId' => $itemId]);
-
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'Error obteniendo fibras', 'No se pudieron cargar las fibras', 500, ['itemId' => $itemId]);
         }
     }
 
@@ -87,9 +86,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
 
             return response()->json(['success' => true, 'data' => $colores]);
         } catch (\Throwable $e) {
-            Log::error('Error obteniendo colores', ['exception' => $e, 'itemId' => $itemId]);
-
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'Error obteniendo colores', 'No se pudieron cargar los colores', 500, ['itemId' => $itemId]);
         }
     }
 
@@ -104,12 +101,12 @@ class ProduccionReenconadoCabezuelaController extends Controller
             try {
                 $folioGenerado = FolioHelper::obtenerSiguienteFolio('Reenconado', 4);
             } catch (\Throwable $e) {
-                Log::error('Generar folio (modal) fallo', ['exception' => $e]);
                 if ($request->expectsJson()) {
-                    return response()->json(['success' => false, 'message' => 'Error generando folio: '.$e->getMessage()], 500);
+                    return $this->apiErrorResponse($e, 'Generar folio (modal) fallo', 'Error generando folio');
                 }
+                report($e);
 
-                return back()->withErrors(['folio' => 'Error generando folio: '.$e->getMessage()])->withInput();
+                return back()->withErrors(['folio' => 'Error generando folio (ref: '.$this->traceIdDeError($e).')'])->withInput();
             }
 
             // Calcular capacidad: Horas * 9.3
@@ -174,12 +171,12 @@ class ProduccionReenconadoCabezuelaController extends Controller
             try {
                 $created = TejProduccionReenconado::create($clean);
             } catch (\Throwable $e) {
-                Log::error('Guardar Reenconado (modal) fallo', ['exception' => $e, 'payload' => $clean]);
                 if ($request->expectsJson()) {
-                    return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+                    return $this->apiErrorResponse($e, 'Guardar Reenconado (modal) fallo', 'No se pudo guardar el registro', 500, ['payload' => $clean]);
                 }
+                report($e);
 
-                return back()->withErrors(['db' => 'No se pudo guardar: '.$e->getMessage()])->withInput();
+                return back()->withErrors(['db' => 'No se pudo guardar el registro (ref: '.$this->traceIdDeError($e).')'])->withInput();
             }
 
             if ($request->expectsJson()) {
@@ -272,9 +269,9 @@ class ProduccionReenconadoCabezuelaController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Error insertando TejProduccionReenconado', ['e' => $e->getMessage()]);
+            report($e);
 
-            return back()->withErrors(['db' => 'No se pudo guardar: '.$e->getMessage()])->withInput();
+            return back()->withErrors(['db' => 'No se pudo guardar (ref: '.$this->traceIdDeError($e).')'])->withInput();
         }
 
         return redirect()->route('produccion.reenconado_cabezuela')
@@ -286,8 +283,11 @@ class ProduccionReenconadoCabezuelaController extends Controller
         try {
             $user = Auth::user();
 
-            // No consumir la secuencia al abrir modal: devolver folio sugerido (lectura)
-            $folio = FolioHelper::obtenerFolioSugerido('Reenconado', 4);
+            // No consumir la secuencia al abrir modal: devolver folio sugerido (lectura).
+            // obtenerFolioSugerido() da el consecutivo guardado, que en Reenconado es el ÚLTIMO
+            // usado (store() consume con obtenerSiguienteFolio(), que suma 1): se muestra el +1
+            // para que el modal enseñe el folio con el que realmente se guardará.
+            $folio = $this->siguienteDe(FolioHelper::obtenerFolioSugerido('Reenconado', 4));
 
             // Si no hay folio sugerido, generar uno temporal
             if (empty($folio)) {
@@ -305,14 +305,12 @@ class ProduccionReenconadoCabezuelaController extends Controller
                 'fecha' => date('Y-m-d'),
             ]);
         } catch (\Throwable $e) {
-            Log::error('Generar folio endpoint fallo', [
-                'exception' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            report($e);
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => 'No se pudo generar el folio',
+                'trace_id' => $this->traceIdDeError($e),
                 'folio' => 'TEMP-'.time(),
                 'turno' => '1',
                 'usuario' => '',
@@ -320,6 +318,16 @@ class ProduccionReenconadoCabezuelaController extends Controller
                 'fecha' => date('Y-m-d'),
             ], 200); // Devolver 200 para que el frontend procese el fallback
         }
+    }
+
+    /** 'RE0005' → 'RE0006' (mismo ancho mínimo que str_pad en nextFolio); '' si no hay secuencia. */
+    private function siguienteDe(string $folio): string
+    {
+        if (preg_match('/^(.*?)(\d+)$/', $folio, $m) !== 1) {
+            return $folio;
+        }
+
+        return $m[1].str_pad((string) ((int) $m[2] + 1), strlen($m[2]), '0', STR_PAD_LEFT);
     }
 
     public function update(Request $request, string $folio)
@@ -379,10 +387,10 @@ class ProduccionReenconadoCabezuelaController extends Controller
         try {
             $registro = TejProduccionReenconado::findOrFail($folio);
             $registro->update($clean);
+        } catch (ModelNotFoundException) {
+            return $this->apiClientErrorResponse('Registro no encontrado', 404, ['folio' => $folio]);
         } catch (\Throwable $e) {
-            Log::error('Actualizar Reenconado fallo', ['folio' => $folio, 'exception' => $e]);
-
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'Actualizar Reenconado fallo', 'No se pudo actualizar el registro', 500, ['folio' => $folio]);
         }
 
         $out = $registro->fresh();
@@ -400,10 +408,10 @@ class ProduccionReenconadoCabezuelaController extends Controller
             $registro->delete();
 
             return response()->json(['success' => true]);
+        } catch (ModelNotFoundException) {
+            return $this->apiClientErrorResponse('Registro no encontrado', 404, ['folio' => $folio]);
         } catch (\Throwable $e) {
-            Log::error('Eliminar Reenconado fallo', ['folio' => $folio, 'exception' => $e]);
-
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'Eliminar Reenconado fallo', 'No se pudo eliminar el registro', 500, ['folio' => $folio]);
         }
     }
 }

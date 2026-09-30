@@ -17,27 +17,20 @@ class EngBpmLineController extends Controller
         $header = EngBpmModel::where('Folio', $folio)->firstOrFail();
         $actividades = EngActividadesBpmModel::orderBy('Orden')->get();
 
-        // Verificar si ya existen registros para este folio
-        $existingLines = EngBpmLineModel::where('Folio', $folio)->count();
-
-        // Obtener MaquinaId y Departamento de la sesión o de las líneas existentes
+        // Una sola lectura de las líneas del folio (antes: count() + first()).
+        // Si no hay líneas es la primera visita: MaquinaId y Departamento vienen de la sesión (store).
         $primeraLinea = EngBpmLineModel::where('Folio', $folio)->first();
         $maquinaId = $primeraLinea->MaquinaId ?? session('bpm_eng_maquina_id');
         $departamento = $primeraLinea->Departamento ?? session('bpm_eng_departamento', 'Engomado');
 
-        // Si no existen registros, crear todos con Valor=0
-        if ($existingLines === 0) {
-            foreach ($actividades as $actividad) {
-                EngBpmLineModel::create([
-                    'Folio' => $folio,
-                    'TurnoRecibe' => $header->TurnoRecibe,
-                    'MaquinaId' => $maquinaId,
-                    'Departamento' => $departamento,
-                    'Orden' => $actividad->Orden,
-                    'Actividad' => $actividad->Actividad,
-                    'Valor' => 0,
-                ]);
-            }
+        // Primera visita: todas las actividades con Valor=0, en bloque (antes un INSERT por actividad).
+        if ($primeraLinea === null) {
+            $this->crearLineas(EngBpmLineModel::class, $actividades, [
+                'Folio' => $folio,
+                'TurnoRecibe' => $header->TurnoRecibe,
+                'MaquinaId' => $maquinaId,
+                'Departamento' => $departamento,
+            ]);
             // Limpiar sesión después de usar
             session()->forget(['bpm_eng_maquina_id', 'bpm_eng_departamento']);
         }
@@ -154,6 +147,29 @@ class EngBpmLineController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Registro rechazado, regresado a estado Creado');
+    }
+
+    /**
+     * Inserta las líneas del checklist en bloque (Valor=0 = sin marcar). SQL Server acepta a lo más
+     * 2100 parámetros por comando: bloques de intdiv(2099, columnas) filas.
+     *
+     * @param  class-string<\Illuminate\Database\Eloquent\Model>  $modelo
+     * @param  iterable<int, EngActividadesBpmModel>  $actividades
+     * @param  array<string, mixed>  $comun  columnas iguales en todas las filas
+     */
+    private function crearLineas(string $modelo, iterable $actividades, array $comun): void
+    {
+        $filas = [];
+        foreach ($actividades as $actividad) {
+            $filas[] = $comun + ['Orden' => $actividad->Orden, 'Actividad' => $actividad->Actividad, 'Valor' => 0];
+        }
+        if ($filas === []) {
+            return;
+        }
+
+        foreach (array_chunk($filas, intdiv(2099, count($filas[0]))) as $bloque) {
+            $modelo::query()->insert($bloque);
+        }
     }
 
     private function currentUserIsSupervisor(): bool

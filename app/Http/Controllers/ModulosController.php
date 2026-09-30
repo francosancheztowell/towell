@@ -22,12 +22,12 @@ class ModulosController extends Controller
     }
 
     /**
-     * Mostrar la vista principal de gestiÃ³n de mÃ³dulos
+     * Mostrar la vista principal de gestión de módulos
      */
     public function index()
     {
         try {
-            // Obtener todos los mÃ³dulos y mÃ³dulos principales para selects
+            // Obtener todos los módulos y módulos principales para selects
             $modulos = SYSRoles::orderBy('orden', 'ASC')->get();
             $modulosPrincipales = SYSRoles::where('Nivel', 1)
                 ->whereNull('Dependencia')
@@ -36,42 +36,42 @@ class ModulosController extends Controller
 
             return view('modulos.gestion-modulos.index', compact('modulos', 'modulosPrincipales'));
         } catch (\Exception $e) {
-            Log::error('Error al cargar mÃ³dulos: '.$e->getMessage());
+            Log::error('Error al cargar módulos: '.$e->getMessage());
 
-            return redirect()->back()->with('error', 'Error al cargar los mÃ³dulos');
+            return redirect()->back()->with('error', 'Error al cargar los módulos');
         }
     }
 
     /**
-     * Almacenar un nuevo mÃ³dulo
+     * Almacenar un nuevo módulo
      *
-     * LÃ“GICA DE CREACIÃ“N DE MÃ“DULOS:
+     * LÓGICA DE CREACIÓN DE MÓDULOS:
      * ================================
      *
      * 1. CAMPOS REQUERIDOS:
-     *    - orden: Identificador Ãºnico (ej: "300", "304", "401-1")
-     *    - modulo: Nombre descriptivo del mÃ³dulo
-     *    - Nivel: 1 (Principal), 2 (SubmÃ³dulo nivel 2), 3 (SubmÃ³dulo nivel 3)
+     *    - orden: Identificador único (ej: "300", "304", "401-1")
+     *    - modulo: Nombre descriptivo del módulo
+     *    - Nivel: 1 (Principal), 2 (Submódulo nivel 2), 3 (Submódulo nivel 3)
      *
-     * 2. JERARQUÃA DE MÃ“DULOS:
-     *    - Nivel 1: MÃ³dulos principales (Dependencia = NULL)
+     * 2. JERARQUÍA DE MÓDULOS:
+     *    - Nivel 1: Módulos principales (Dependencia = NULL)
      *      Ejemplo: orden="300", modulo="Reportes Urdido", Nivel=1, Dependencia=NULL
      *
-     *    - Nivel 2: SubmÃ³dulos que dependen de un mÃ³dulo Nivel 1
-     *      Ejemplo: orden="304", modulo="CatÃ¡logos Julios", Nivel=2, Dependencia="300"
+     *    - Nivel 2: Submódulos que dependen de un módulo Nivel 1
+     *      Ejemplo: orden="304", modulo="Catálogos Julios", Nivel=2, Dependencia="300"
      *
-     *    - Nivel 3: SubmÃ³dulos que dependen de un mÃ³dulo Nivel 2
-     *      Ejemplo: orden="401-1", modulo="ProducciÃ³n Engomado", Nivel=3, Dependencia="401"
+     *    - Nivel 3: Submódulos que dependen de un módulo Nivel 2
+     *      Ejemplo: orden="401-1", modulo="Producción Engomado", Nivel=3, Dependencia="401"
      *
-     * 3. REGLAS DE VALIDACIÃ“N:
-     *    - El campo "orden" debe ser Ãºnico en toda la tabla
+     * 3. REGLAS DE VALIDACIÓN:
+     *    - El campo "orden" debe ser único en toda la tabla
      *    - Si Nivel=1, entonces Dependencia debe ser NULL
-     *    - Si Nivel=2 o 3, entonces Dependencia debe existir en otro mÃ³dulo
-     *    - La Dependencia debe apuntar al campo "orden" del mÃ³dulo padre
+     *    - Si Nivel=2 o 3, entonces Dependencia debe existir en otro módulo
+     *    - La Dependencia debe apuntar al campo "orden" del módulo padre
      *
      * 4. PERMISOS (CHECKBOXES):
-     *    - acceso: Permite acceder al mÃ³dulo
-     *    - crear: Permite crear registros en el mÃ³dulo
+     *    - acceso: Permite acceder al módulo
+     *    - crear: Permite crear registros en el módulo
      *    - modificar: Permite modificar registros
      *    - eliminar: Permite eliminar registros
      *    - reigstrar: Permiso especial de registro
@@ -84,7 +84,7 @@ class ModulosController extends Controller
     {
         try {
 
-            // Validar campos bÃ¡sicos
+            // Validar campos básicos
             $validator = Validator::make($request->all(), [
                 'orden' => 'required|string|max:50',
                 'modulo' => 'required|string|max:255',
@@ -110,45 +110,45 @@ class ModulosController extends Controller
             $ordenExistente = SYSRoles::where('orden', $request->orden)->exists();
             if ($ordenExistente) {
                 return back()
-                    ->withErrors(['orden' => 'El orden "'.$request->orden.'" ya existe. Debe ser Ãºnico.'])
+                    ->withErrors(['orden' => 'El orden "'.$request->orden.'" ya existe. Debe ser único.'])
                     ->withInput();
             }
 
-            // Validar jerarquÃ­a de mÃ³dulos
+            // Validar jerarquía de módulos
             $nivel = (int) $request->Nivel;
             $dependencia = $request->Dependencia;
 
             if ($nivel === 1 && ! empty($dependencia)) {
                 return back()
-                    ->withErrors(['Dependencia' => 'Los mÃ³dulos de Nivel 1 no deben tener dependencia.'])
+                    ->withErrors(['Dependencia' => 'Los módulos de Nivel 1 no deben tener dependencia.'])
                     ->withInput();
             }
 
             if ($nivel > 1 && empty($dependencia)) {
                 return back()
-                    ->withErrors(['Dependencia' => 'Los mÃ³dulos de Nivel '.$nivel.' deben tener una dependencia.'])
+                    ->withErrors(['Dependencia' => 'Los módulos de Nivel '.$nivel.' deben tener una dependencia.'])
                     ->withInput();
             }
 
-            // Si tiene dependencia, verificar que el mÃ³dulo padre exista
+            // Si tiene dependencia, verificar que el módulo padre exista
             if (! empty($dependencia)) {
                 $moduloPadre = SYSRoles::where('orden', $dependencia)->first();
 
                 if (! $moduloPadre) {
                     return back()
-                        ->withErrors(['Dependencia' => 'El mÃ³dulo padre con orden "'.$dependencia.'" no existe.'])
+                        ->withErrors(['Dependencia' => 'El módulo padre con orden "'.$dependencia.'" no existe.'])
                         ->withInput();
                 }
 
                 // Validar que el nivel sea correcto respecto al padre
                 if ($nivel <= $moduloPadre->Nivel) {
                     return back()
-                        ->withErrors(['Nivel' => 'El nivel del submÃ³dulo debe ser mayor que el nivel del mÃ³dulo padre ('.$moduloPadre->Nivel.').'])
+                        ->withErrors(['Nivel' => 'El nivel del submódulo debe ser mayor que el nivel del módulo padre ('.$moduloPadre->Nivel.').'])
                         ->withInput();
                 }
             }
 
-            // Preparar datos para inserciÃ³n
+            // Preparar datos para inserción
             $data = $request->except(['imagen_archivo', 'from_sweetalert']);
 
             // Convertir checkboxes a valores booleanos (0 o 1)
@@ -203,7 +203,7 @@ class ModulosController extends Controller
                 ->with('show_sweetalert', true);
 
         } catch (\Exception $e) {
-            Log::error('Error al crear mÃ³dulo: '.$e->getMessage(), [
+            Log::error('Error al crear módulo: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'user_id' => Auth::id(),
                 'user_authenticated' => Auth::check(),
@@ -211,13 +211,13 @@ class ModulosController extends Controller
             ]);
 
             return back()
-                ->with('error', 'Error al crear el mÃ³dulo: '.$e->getMessage())
+                ->with('error', 'Error al crear el módulo: '.$e->getMessage())
                 ->withInput();
         }
     }
 
     /**
-     * Actualizar un mÃ³dulo existente
+     * Actualizar un módulo existente
      */
     public function update(Request $request, $id)
     {
@@ -246,13 +246,13 @@ class ModulosController extends Controller
                 return back()->withErrors($validator)->withInput();
             }
 
-            // Verificar que el orden no exista en otro mÃ³dulo
+            // Verificar que el orden no exista en otro módulo
             $ordenExistente = SYSRoles::where('orden', $request->orden)
                 ->where('idrol', '!=', $modulo->idrol)
                 ->exists();
 
             if ($ordenExistente) {
-                return back()->withErrors(['orden' => 'El orden ya existe en otro mÃ³dulo'])->withInput();
+                return back()->withErrors(['orden' => 'El orden ya existe en otro módulo'])->withInput();
             }
 
             $data = $request->except(['imagen_archivo']);
@@ -364,10 +364,10 @@ class ModulosController extends Controller
     }
 
     /**
-     * Actualizar permisos para todos los usuarios cuando se crea un nuevo mÃ³dulo
+     * Actualizar permisos para todos los usuarios cuando se crea un nuevo módulo
      *
-     * @param  SYSRoles  $modulo  El mÃ³dulo reciÃ©n creado
-     * @return int NÃºmero de registros actualizados
+     * @param  SYSRoles  $modulo  El módulo recién creado
+     * @return int Número de registros actualizados
      */
     /**
      * Obtener la ruta de regreso para el listado de modulos segun el contexto actual

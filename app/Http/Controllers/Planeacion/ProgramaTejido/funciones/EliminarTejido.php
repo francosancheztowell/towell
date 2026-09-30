@@ -74,7 +74,7 @@ class EliminarTejido
             }
 
             // Guardar valor de Ultimo antes de eliminar
-            $tieneUltimo = ($registro->Ultimo == 1 || $registro->Ultimo === '1' || $registro->Ultimo === 'UL' || $registro->Ultimo === 1);
+            $tieneUltimo = $registro->esUltimo();
 
             // Si tiene NoProduccion asignado, sellar FechaFinaliza y sincronizar a CatCodificados
             if (trim((string) ($registro->NoProduccion ?? '')) !== '') {
@@ -410,7 +410,7 @@ class EliminarTejido
                 }
 
                 // Guardar valor de Ultimo antes de eliminar
-                $tieneUltimo = ($registro->Ultimo == 1 || $registro->Ultimo === '1' || $registro->Ultimo === 'UL' || $registro->Ultimo === 1);
+                $tieneUltimo = $registro->esUltimo();
 
                 self::sellarFechaFinaliza($registro);
 
@@ -543,7 +543,7 @@ class EliminarTejido
             }
 
             // Guardar valor de Ultimo antes de eliminar
-            $tieneUltimo = ($registro->Ultimo == 1 || $registro->Ultimo === '1' || $registro->Ultimo === 'UL' || $registro->Ultimo === 1);
+            $tieneUltimo = $registro->esUltimo();
 
             self::sellarFechaFinaliza($registro);
 
