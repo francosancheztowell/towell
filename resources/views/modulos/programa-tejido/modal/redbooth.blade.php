@@ -31,7 +31,21 @@
   }
 </style>
 
+{{-- La lógica vive en resources/js/modulos/redbooth/ (HANDOFF PT-05 B4); los valores del servidor van en data-redbooth-boot del modal. --}}
+@php
+  $redboothBoot = [
+    'contexto' => $redboothContext ?? 'programa',
+    'rutas' => [
+      'show' => route('programa-tejido.redbooth.show', ['programa' => '__ID__']),
+      'destroy' => route('programa-tejido.redbooth.destroy', ['programa' => '__ID__']),
+      'descargaArchivo' => route('redbooth.files.download', ['fileId' => '__FILE_ID__']),
+      'proyectos' => route('programa-tejido.redbooth.proyectos'),
+      'store' => route('programa-tejido.redbooth.store'),
+    ],
+  ];
+@endphp
 <div id="modalRedboothProgramaTejido"
+  data-redbooth-boot='@json($redboothBoot)'
   class="fixed inset-0 z-[10000] hidden items-center justify-center p-3"
   style="position:fixed;inset:0;z-index:2147483000;background-color:rgba(0,0,0,.82);backdrop-filter:blur(2px)"
   role="dialog" aria-modal="true" aria-labelledby="modalRedboothProgramaTejidoTitulo">
@@ -48,15 +62,15 @@
       </div>
       <button type="button" id="editarModalRedboothProgramaTejido"
         class="hidden items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">
-        <i class="fas fa-pen"></i> Editar vínculo
+        <i class="fas fa-pen" aria-hidden="true"></i> Editar vínculo
       </button>
       <button type="button" id="eliminarModalRedboothProgramaTejido"
         class="hidden items-center gap-2 rounded-md border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">
-        <i class="fas fa-unlink"></i> Eliminar vínculo
+        <i class="fas fa-unlink" aria-hidden="true"></i> Eliminar vínculo
       </button>
       <button type="button" id="cerrarModalRedboothProgramaTejido"
         class="inline-flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100"
-        aria-label="Cerrar"><i class="fas fa-times"></i></button>
+        aria-label="Cerrar"><i class="fas fa-times" aria-hidden="true"></i></button>
     </header>
 
     <section id="redboothLoading" class="flex flex-1 items-center justify-center text-gray-500">
@@ -80,7 +94,7 @@
     <section id="redboothDeleteConfirm" class="hidden flex-1 p-6">
       <div class="mx-auto max-w-xl rounded-lg border border-red-200 bg-red-50 p-5">
         <div class="flex gap-3">
-          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600"><i class="fas fa-unlink"></i></div>
+          <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600"><i class="fas fa-unlink" aria-hidden="true"></i></div>
           <div>
             <h3 class="text-base font-semibold text-gray-900">Eliminar vínculo de Redbooth</h3>
             <p class="mt-1 text-sm leading-6 text-gray-600">Se limpiarán el ID y el nombre de Redbooth en Programa Tejido y en todos los registros de CatCodificados ligados por la orden.</p>
@@ -116,27 +130,13 @@
   <div id="redboothImageViewer" class="fixed inset-0 hidden items-center justify-center p-4"
     style="z-index:2147483100;background:rgba(0,0,0,.94)">
     <button type="button" id="cerrarRedboothImageViewer" class="absolute right-5 top-5 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-xl text-white hover:bg-white/20" aria-label="Cerrar imagen">
-      <i class="fas fa-times"></i>
+      <i class="fas fa-times" aria-hidden="true"></i>
     </button>
     <img id="redboothImageViewerImg" src="" alt="Imagen de Redbooth" class="max-h-[88vh] max-w-[94vw] object-contain">
     <a id="descargarRedboothImageViewer" href="#" target="_blank" rel="noopener" class="absolute bottom-5 right-5 inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-800 shadow-lg hover:bg-gray-100">
-      <i class="fas fa-download"></i> Descargar
+      <i class="fas fa-download" aria-hidden="true"></i> Descargar
     </a>
   </div>
 </div>
 
-{{-- La lógica vive en resources/js/modulos/redbooth/ (HANDOFF PT-05 B4); aquí solo los valores del servidor. --}}
-@php
-  $redboothBoot = [
-    'contexto' => $redboothContext ?? 'programa',
-    'rutas' => [
-      'show' => route('programa-tejido.redbooth.show', ['programa' => '__ID__']),
-      'destroy' => route('programa-tejido.redbooth.destroy', ['programa' => '__ID__']),
-      'descargaArchivo' => route('redbooth.files.download', ['fileId' => '__FILE_ID__']),
-      'proyectos' => route('programa-tejido.redbooth.proyectos'),
-      'store' => route('programa-tejido.redbooth.store'),
-    ],
-  ];
-@endphp
-<script type="application/json" id="redbooth-boot">@json($redboothBoot)</script>
 @vite('resources/js/modulos/redbooth/index.ts')
