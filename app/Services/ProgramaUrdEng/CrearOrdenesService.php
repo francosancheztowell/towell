@@ -81,7 +81,9 @@ final class CrearOrdenesService
             $tipoAtado = $grupo['tipoAtado'] ?? '';
             $bomUrdId = trim($grupo['bomId'] ?? '');
             $loteProveedor = $this->obtenerLoteProveedor($materialesEngomado);
-            $fechaReq = $this->obtenerFechaReq($telaresStr, $tipo, $grupo['fechaReq'] ?? null);
+            // Una sola lectura de los telares del grupo: da la fecha de requerimiento y los ids a marcar.
+            $telares = $this->telaresActivos($telaresStr, $tipo);
+            $fechaReq = $this->obtenerFechaReq($telares, $grupo['fechaReq'] ?? null);
 
             $urdido = UrdProgramaUrdido::create([
                 'Folio' => $folio,
@@ -114,41 +116,37 @@ final class CrearOrdenesService
                 self::camposCreateParaAuditoria($urdido, ['Folio', 'FolioConsumo', 'Cuenta', 'Calibre', 'Fibra', 'Metros', 'Kilos', 'RizoPie', 'MaquinaId', 'BomId'])
             );
 
-            foreach ($materialesEngomado as $material) {
-                UrdConsumoHilo::create([
-                    'Folio' => $folio,
-                    'FolioConsumo' => $folioConsumo,
-                    'ItemId' => $material['itemId'] ?? null,
-                    'ConfigId' => $material['configId'] ?? null,
-                    'InventSizeId' => $material['inventSizeId'] ?? null,
-                    'InventColorId' => $material['inventColorId'] ?? null,
-                    'InventLocationId' => $material['inventLocationId'] ?? null,
-                    'InventBatchId' => $material['inventBatchId'] ?? null,
-                    'WMSLocationId' => $material['wmsLocationId'] ?? null,
-                    'InventSerialId' => $material['inventSerialId'] ?? null,
-                    'InventQty' => isset($material['kilos']) ? (float) $material['kilos'] : null,
-                    'ProdDate' => $this->parseProdDate($material['prodDate'] ?? null),
-                    'Status' => $material['status'] ?? 'Activo',
-                    'NumeroEmpleado' => $material['numeroEmpleado'] ?? $numeroEmpleado,
-                    'NombreEmpl' => $material['nombreEmpl'] ?? $nombreEmpleado,
-                    'Conos' => isset($material['conos']) ? (int) $material['conos'] : null,
-                    'LoteProv' => $material['loteProv'] ?? null,
-                    'NoProv' => $material['noProv'] ?? null,
-                    'FechaRegistro' => now(),
-                    'FechaRequerimiento' => $fechaRequerimiento ?? null,
-                ]);
-            }
+            // PERF-08: un INSERT por bloque, no uno por fila.
+            InsercionEnBloques::insertar(UrdConsumoHilo::class, array_map(fn ($material): array => [
+                'Folio' => $folio,
+                'FolioConsumo' => $folioConsumo,
+                'ItemId' => $material['itemId'] ?? null,
+                'ConfigId' => $material['configId'] ?? null,
+                'InventSizeId' => $material['inventSizeId'] ?? null,
+                'InventColorId' => $material['inventColorId'] ?? null,
+                'InventLocationId' => $material['inventLocationId'] ?? null,
+                'InventBatchId' => $material['inventBatchId'] ?? null,
+                'WMSLocationId' => $material['wmsLocationId'] ?? null,
+                'InventSerialId' => $material['inventSerialId'] ?? null,
+                'InventQty' => isset($material['kilos']) ? (float) $material['kilos'] : null,
+                'ProdDate' => $this->parseProdDate($material['prodDate'] ?? null),
+                'Status' => $material['status'] ?? 'Activo',
+                'NumeroEmpleado' => $material['numeroEmpleado'] ?? $numeroEmpleado,
+                'NombreEmpl' => $material['nombreEmpl'] ?? $nombreEmpleado,
+                'Conos' => isset($material['conos']) ? (int) $material['conos'] : null,
+                'LoteProv' => $material['loteProv'] ?? null,
+                'NoProv' => $material['noProv'] ?? null,
+                'FechaRegistro' => now(),
+                'FechaRequerimiento' => $fechaRequerimiento ?? null,
+            ], array_values($materialesEngomado)));
 
-            foreach ($construccionUrdido as $julio) {
-                if (! empty($julio['julios']) || ! empty($julio['hilos'])) {
-                    UrdJuliosOrden::create([
-                        'Folio' => $folio,
-                        'Julios' => isset($julio['julios']) && $julio['julios'] !== '' ? (int) $julio['julios'] : null,
-                        'Hilos' => isset($julio['hilos']) && $julio['hilos'] !== '' ? (int) $julio['hilos'] : null,
-                        'Obs' => $julio['observaciones'] ?? null,
-                    ]);
-                }
-            }
+            $julios = array_filter($construccionUrdido, fn ($julio): bool => ! empty($julio['julios']) || ! empty($julio['hilos']));
+            InsercionEnBloques::insertar(UrdJuliosOrden::class, array_map(fn ($julio): array => [
+                'Folio' => $folio,
+                'Julios' => isset($julio['julios']) && $julio['julios'] !== '' ? (int) $julio['julios'] : null,
+                'Hilos' => isset($julio['hilos']) && $julio['hilos'] !== '' ? (int) $julio['hilos'] : null,
+                'Obs' => $julio['observaciones'] ?? null,
+            ], array_values($julios)));
 
             $engomado = EngProgramaEngomado::create([
                 'Folio' => $folio,
@@ -191,7 +189,7 @@ final class CrearOrdenesService
             return [
                 'folio' => $folio,
                 'folioConsumo' => $folioConsumo,
-                'telares_actualizados' => $this->marcarTelaresProgramados($telaresStr, $tipo, $folio),
+                'telares_actualizados' => $this->marcarTelaresProgramados($telares, $folio),
             ];
         });
     }
@@ -231,14 +229,17 @@ final class CrearOrdenesService
         return null;
     }
 
-    /** La fecha de requerimiento de la orden es la mas temprana de sus telares. */
-    private function obtenerFechaReq(?string $telaresStr, ?string $tipo, $fallback = null): ?string
+    /**
+     * La fecha de requerimiento de la orden es la mas temprana de sus telares.
+     *
+     * @param  array<int, TejInventarioTelares>  $telares
+     */
+    private function obtenerFechaReq(array $telares, $fallback = null): ?string
     {
         $fechas = [];
 
-        foreach ($this->telaresDe($telaresStr) as $noTelar) {
-            $telar = $this->buscarTelarActivo($noTelar, $tipo);
-            if ($telar && $telar->fecha) {
+        foreach ($telares as $telar) {
+            if ($telar->fecha) {
                 try {
                     $fechas[] = $telar->fecha instanceof Carbon ? $telar->fecha : Carbon::parse($telar->fecha);
                 } catch (\Throwable $e) {
@@ -255,21 +256,20 @@ final class CrearOrdenesService
      * Solo actualiza no_orden y Programado: el hilo se guarda en el payload de
      * UrdProgramaUrdido/EngProgramaEngomado, NO en tej_inventario_telares.
      *
-     * @return int Cantidad de telares actualizados
+     * @param  array<int, TejInventarioTelares>  $telares
+     * @return int Cantidad de telares actualizados (un telar repetido en el grupo cuenta cada vez, como antes)
      */
-    private function marcarTelaresProgramados(?string $telaresStr, ?string $tipo, string $folio): int
+    private function marcarTelaresProgramados(array $telares, string $folio): int
     {
-        $count = 0;
-
-        foreach ($this->telaresDe($telaresStr) as $noTelar) {
-            $telar = $this->buscarTelarActivo($noTelar, $tipo);
-            if ($telar) {
-                $telar->update(['no_orden' => $folio, 'Programado' => true]);
-                $count++;
-            }
+        if ($telares === []) {
+            return 0;
         }
 
-        return $count;
+        // PERF-08: un UPDATE para todos (el builder de Eloquent pone updated_at como hacia update()).
+        $ids = array_values(array_unique(array_map(fn (TejInventarioTelares $t) => $t->getKey(), $telares)));
+        TejInventarioTelares::query()->whereIn('id', $ids)->update(['no_orden' => $folio, 'Programado' => true]);
+
+        return count($telares);
     }
 
     /**
@@ -286,14 +286,37 @@ final class CrearOrdenesService
         return array_filter(array_map('trim', explode(',', $telaresStr)));
     }
 
-    private function buscarTelarActivo(string $noTelar, ?string $tipo): ?TejInventarioTelares
+    /**
+     * Telar activo de cada numero del grupo, en el orden del grupo (los que no existen se omiten).
+     * Antes era un first() por telar; ahora un whereIn y, por numero, la fila de menor id.
+     *
+     * @return array<int, TejInventarioTelares>
+     */
+    private function telaresActivos(?string $telaresStr, ?string $tipo): array
     {
-        $q = TejInventarioTelares::where('no_telar', $noTelar)->where('status', self::STATUS_ACTIVO);
+        $numeros = $this->telaresDe($telaresStr);
+        if ($numeros === []) {
+            return [];
+        }
+
+        $q = TejInventarioTelares::query()
+            ->whereIn('no_telar', array_values(array_unique($numeros)))
+            ->where('status', self::STATUS_ACTIVO);
         if ($tipo) {
             $q->where('tipo', $tipo);
         }
+        $porNumero = $q->orderBy('id')->get()
+            ->groupBy(fn (TejInventarioTelares $t) => trim((string) $t->no_telar))
+            ->map(fn ($grupo) => $grupo->first());
 
-        return $q->first();
+        $telares = [];
+        foreach ($numeros as $numero) {
+            if ($porNumero->has($numero)) {
+                $telares[] = $porNumero->get($numero);
+            }
+        }
+
+        return $telares;
     }
 
     private function parseProdDate($prodDate): ?string

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\Concerns\RespuestasErrorUrdEng;
 use App\Models\Planeacion\ReqTelares;
 use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Urdido\URDCatalogoMaquina;
@@ -14,9 +15,12 @@ use DomainException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class ReservarProgramarController extends Controller
 {
+    use RespuestasErrorUrdEng;
+
     private const STATUS_ACTIVO = 'Activo';
 
     /** Debe coincidir con SYSRoles.modulo. */
@@ -132,10 +136,10 @@ class ReservarProgramarController extends Controller
                 'message' => "El telar {$noTelar} ha sido programado exitosamente.",
                 'no_telar' => $noTelar,
             ]);
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
-            Log::error('programarTelar', ['msg' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'message' => 'Error al programar el telar'], 500);
+            return $this->errorServidor($e, 'ReservarProgramar.programarTelar', 'Error al programar el telar');
         }
     }
 
@@ -172,13 +176,16 @@ class ReservarProgramarController extends Controller
                 'detalle' => $detalle,
             ]);
         } catch (DomainException $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
-        } catch (\RuntimeException $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 404);
+            // Mensajes de negocio escritos por ReservarProgramarActionService.
+            return $this->errorNegocio($e->getMessage(), 400);
         } catch (\Throwable $e) {
-            Log::error('actualizarTelar', ['msg' => $e->getMessage()]);
+            // Solo el RuntimeException propio del servicio ("Telar no encontrado…") es un 404 con su
+            // texto. QueryException/PDOException también son RuntimeException y traen el SQL: van al 500.
+            if (get_class($e) === \RuntimeException::class) {
+                return $this->errorNegocio($e->getMessage(), 404);
+            }
 
-            return response()->json(['success' => false, 'message' => 'Error al actualizar el telar: '.$e->getMessage()], 500);
+            return $this->errorServidor($e, 'ReservarProgramar.actualizarTelar', 'Error al actualizar el telar', [], ['no_telar' => $noTelar]);
         }
     }
 
@@ -208,11 +215,9 @@ class ReservarProgramarController extends Controller
         } catch (DomainException $e) {
             $status = str_contains($e->getMessage(), 'no encontrado') ? 404 : 400;
 
-            return response()->json(['success' => false, 'message' => $e->getMessage()], $status);
+            return $this->errorNegocio($e->getMessage(), $status);
         } catch (\Throwable $e) {
-            Log::error('liberarTelar', ['msg' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'message' => 'Error al liberar el telar: '.$e->getMessage()], 500);
+            return $this->errorServidor($e, 'ReservarProgramar.liberarTelar', 'Error al liberar el telar', [], ['no_telar' => $noTelar]);
         }
     }
 

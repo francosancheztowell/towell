@@ -49,9 +49,10 @@ Route::prefix('programa-urd-eng')->name('programa.urd.eng.')->middleware($puedeA
 
         Route::post('/liberar-telar', [ReservarProgramarController::class, 'liberarTelar'])->middleware($puedeEliminar)->name('liberar.telar');
 
+        // diagnostico antes de {noTelar}: registrada despues, la tapaba porTelar('diagnostico').
+        Route::get('/reservas/diagnostico', [InventarioDisponibleController::class, 'diagnosticarReservas'])->name('reservas.diagnostico');
         Route::get('/reservas/{noTelar}', [InventarioDisponibleController::class, 'porTelar'])->name('reservas.porTelar');
         Route::post('/reservas/cancelar', [ReservaInventarioController::class, 'cancelar'])->middleware($puedeEliminar)->name('reservas.cancelar');
-        Route::get('/reservas/diagnostico', [InventarioDisponibleController::class, 'diagnosticarReservas'])->name('reservas.diagnostico');
         Route::get('/buscar-bom-urdido', [BomMaterialesController::class, 'buscarBomUrdido'])->name('buscar.bom.urdido');
         Route::get('/buscar-bom-engomado', [BomMaterialesController::class, 'buscarBomEngomado'])->name('buscar.bom.engomado');
         Route::get('/buscar-bom-formula', [BomMaterialesController::class, 'buscarBomFormula'])->name('buscar.bom.formula');

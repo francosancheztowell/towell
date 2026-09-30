@@ -611,14 +611,8 @@ class BomMaterialesService
                 return $this->getBomFormulas($key);
             }
 
-            $seen = [];
-            foreach ($bomIds as $bid) {
-                foreach ($this->getBomFormulas($bid) as $f) {
-                    $seen[$f] = true;
-                }
-            }
-
-            $result = array_keys($seen);
+            // PERF-08: una consulta para todos los BOM hermanos (antes una por BOM).
+            $result = $this->formulasDeBoms($bomIds);
             sort($result);
 
             return $result;
@@ -683,6 +677,35 @@ class BomMaterialesService
         } catch (\Throwable $e) {
             return [];
         }
+    }
+
+    /**
+     * ITEMID de fórmula (TE-PD-ENF%) distintos de varios BOM de engomado, sin orden garantizado.
+     * Mismo filtro que {@see getBomFormulas()}; bloques de 2 000 ids por el límite de parámetros.
+     *
+     * @param  list<string>  $bomIds
+     * @return list<string>
+     */
+    private function formulasDeBoms(array $bomIds): array
+    {
+        $formulas = [];
+        foreach (array_chunk(array_values(array_unique($bomIds)), 2000) as $bloque) {
+            $ids = DB::connection(self::CONN)
+                ->table('BOM')
+                ->whereIn(DB::raw('RTRIM(BOM.BOMID)'), $bloque)
+                ->where('DATAAREAID', self::DATAAREA)
+                ->where('ITEMID', 'like', 'TE-PD-ENF%')
+                ->distinct()
+                ->pluck('ITEMID');
+            foreach ($ids as $id) {
+                $id = trim((string) $id);
+                if ($id !== '') {
+                    $formulas[$id] = true;
+                }
+            }
+        }
+
+        return array_keys($formulas);
     }
 
     /**

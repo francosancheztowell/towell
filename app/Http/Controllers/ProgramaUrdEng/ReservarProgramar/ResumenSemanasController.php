@@ -5,13 +5,15 @@ declare(strict_types=1);
 namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\Concerns\RespuestasErrorUrdEng;
 use App\Services\ProgramaUrdEng\ResumenSemanasService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class ResumenSemanasController extends Controller
 {
+    use RespuestasErrorUrdEng;
+
     public function __construct(
         private ResumenSemanasService $service
     ) {}
@@ -29,15 +31,10 @@ class ResumenSemanasController extends Controller
 
             return response()->json($resultado, $statusCode);
         } catch (\Throwable $e) {
-            Log::error('getResumenSemanas', ['msg' => $e->getMessage()]);
-            $semanas = $this->service->construirSemanas(5);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener resumen de semanas: '.$e->getMessage(),
+            return $this->errorServidor($e, 'ProgramaUrdEng.getResumenSemanas', 'Error al obtener resumen de semanas', [
                 'data' => ['rizo' => [], 'pie' => []],
-                'semanas' => $semanas,
-            ], 500);
+                'semanas' => $this->service->construirSemanas(5),
+            ]);
         }
     }
 

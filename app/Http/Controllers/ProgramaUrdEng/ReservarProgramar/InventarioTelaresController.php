@@ -5,16 +5,18 @@ declare(strict_types=1);
 namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\Concerns\RespuestasErrorUrdEng;
 use App\Services\ProgramaUrdEng\InventarioTelaresService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Devuelve el inventario de telares activos para la vista Reservar y Programar.
  */
 class InventarioTelaresController extends Controller
 {
+    use RespuestasErrorUrdEng;
+
     public function __construct(
         private InventarioTelaresService $service
     ) {}
@@ -39,9 +41,7 @@ class InventarioTelaresController extends Controller
                 'total' => $rows->count(),
             ]);
         } catch (\Throwable $e) {
-            Log::error('getInventarioTelares', ['msg' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'message' => 'Error al obtener inventario de telares'], 500);
+            return $this->errorServidor($e, 'InventarioTelares.getInventarioTelares', 'Error al obtener inventario de telares');
         }
     }
 }

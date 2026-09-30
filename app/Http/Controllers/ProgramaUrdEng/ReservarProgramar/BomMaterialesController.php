@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\Concerns\RespuestasErrorUrdEng;
 use App\Services\ProgramaUrdEng\BomMaterialesService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class BomMaterialesController extends Controller
 {
+    use RespuestasErrorUrdEng;
+
     public function __construct(
         private BomMaterialesService $service
     ) {}
@@ -25,9 +27,7 @@ class BomMaterialesController extends Controller
 
             return response()->json($results);
         } catch (\Throwable $e) {
-            Log::error('buscarBomUrdido', ['msg' => $e->getMessage()]);
-
-            return response()->json(['error' => 'Error al buscar BOM'], 500);
+            return $this->errorServidor($e, 'BomMateriales.buscarBomUrdido', 'Error al buscar BOM');
         }
     }
 
@@ -39,9 +39,7 @@ class BomMaterialesController extends Controller
 
             return response()->json($results);
         } catch (\Throwable $e) {
-            Log::error('buscarBomEngomado', ['msg' => $e->getMessage()]);
-
-            return response()->json(['error' => 'Error al buscar BOM de engomado'], 500);
+            return $this->errorServidor($e, 'BomMateriales.buscarBomEngomado', 'Error al buscar BOM de engomado');
         }
     }
 
@@ -53,9 +51,7 @@ class BomMaterialesController extends Controller
 
             return response()->json($results);
         } catch (\Throwable $e) {
-            Log::error('buscarBomFormula', ['msg' => $e->getMessage()]);
-
-            return response()->json(['error' => 'Error al buscar formulas'], 500);
+            return $this->errorServidor($e, 'BomMateriales.buscarBomFormula', 'Error al buscar formulas');
         }
     }
 
@@ -67,9 +63,7 @@ class BomMaterialesController extends Controller
 
             return response()->json($results);
         } catch (\Throwable $e) {
-            Log::error('buscarLoteProveedor', ['msg' => $e->getMessage()]);
-
-            return response()->json(['error' => 'Error al buscar lotes de proveedor'], 500);
+            return $this->errorServidor($e, 'BomMateriales.buscarLoteProveedor', 'Error al buscar lotes de proveedor');
         }
     }
 
@@ -81,9 +75,7 @@ class BomMaterialesController extends Controller
 
             return response()->json($results);
         } catch (\Throwable $e) {
-            Log::error('getMaterialesUrdido', ['msg' => $e->getMessage()]);
-
-            return response()->json(['error' => 'Error al obtener materiales'], 500);
+            return $this->errorServidor($e, 'BomMateriales.getMaterialesUrdido', 'Error al obtener materiales');
         }
     }
 
@@ -99,9 +91,7 @@ class BomMaterialesController extends Controller
 
             return response()->json($results);
         } catch (\Throwable $e) {
-            Log::error('getMaterialesUrdidoCompleto', ['msg' => $e->getMessage()]);
-
-            return response()->json(['resumen' => [], 'detalle' => [], 'error' => $e->getMessage()], 500);
+            return $this->errorServidor($e, 'BomMateriales.getMaterialesUrdidoCompleto', 'Error al obtener los materiales de urdido', ['resumen' => [], 'detalle' => []]);
         }
     }
 
@@ -123,9 +113,7 @@ class BomMaterialesController extends Controller
 
             return response()->json($results);
         } catch (\Throwable $e) {
-            Log::error('getMaterialesEngomado', ['msg' => $e->getMessage()]);
-
-            return response()->json(['error' => 'Error al obtener materiales de engomado'], 500);
+            return $this->errorServidor($e, 'BomMateriales.getMaterialesEngomado', 'Error al obtener materiales de engomado');
         }
     }
 
@@ -141,9 +129,7 @@ class BomMaterialesController extends Controller
         } catch (ValidationException $e) {
             throw $e;
         } catch (\Throwable $e) {
-            Log::error('getAnchosBalona', ['msg' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'error' => 'Error al obtener anchos de balona: '.$e->getMessage()], 500);
+            return $this->errorServidor($e, 'BomMateriales.getAnchosBalona', 'Error al obtener anchos de balona');
         }
     }
 
@@ -154,9 +140,7 @@ class BomMaterialesController extends Controller
 
             return response()->json(['success' => true, 'data' => $data]);
         } catch (\Throwable $e) {
-            Log::error('getMaquinasEngomado', ['msg' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'error' => 'Error al obtener máquinas de engomado: '.$e->getMessage()], 500);
+            return $this->errorServidor($e, 'BomMateriales.getMaquinasEngomado', 'Error al obtener máquinas de engomado');
         }
     }
 
@@ -167,9 +151,7 @@ class BomMaterialesController extends Controller
 
             return response()->json(['success' => true, 'data' => $data]);
         } catch (\Throwable $e) {
-            Log::error('obtenerHilos', ['msg' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'message' => 'Error al obtener los hilos: '.$e->getMessage()], 500);
+            return $this->errorServidor($e, 'BomMateriales.obtenerHilos', 'Error al obtener los hilos');
         }
     }
 
@@ -180,9 +162,7 @@ class BomMaterialesController extends Controller
 
             return response()->json(['success' => true, 'data' => $data]);
         } catch (\Throwable $e) {
-            Log::error('obtenerTamanos', ['msg' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'message' => 'Error al obtener los tamaños: '.$e->getMessage()], 500);
+            return $this->errorServidor($e, 'BomMateriales.obtenerTamanos', 'Error al obtener los tamaños');
         }
     }
 
@@ -197,13 +177,7 @@ class BomMaterialesController extends Controller
                 'bomFormulas' => $formulas,
             ]);
         } catch (\Throwable $e) {
-            Log::error('getBomFormula', ['msg' => $e->getMessage()]);
-
-            return response()->json([
-                'success' => false,
-                'bomFormulas' => [],
-                'message' => 'Error al obtener BomFormula',
-            ], 500);
+            return $this->errorServidor($e, 'BomMateriales.getBomFormula', 'Error al obtener BomFormula', ['bomFormulas' => []]);
         }
     }
 }
