@@ -6,71 +6,51 @@
 <x-buttons.catalog-actions route="telares" :showFilters="true" />
 @endsection
 
+@php $catalogo = \App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatalogosPlaneacionVista::telares(); @endphp
+
 @section('content')
     @if ($noResults ?? false)
         <div class="alert alert-warning text-center">No se encontraron resultados con la información proporcionada.</div>
     @endif
 
-    <div class="bg-white overflow-hidden w-full">
-        <div class="overflow-y-auto h-[640px]  scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100 w-full">
+    <div class="bg-white overflow-hidden w-full" data-catalogo='@json($catalogo)'>
+        <div class="overflow-y-auto h-[640px] [scrollbar-width:thin] w-full">
             <table class="w-full text-sm">
                 <thead class="sticky top-0 bg-blue-500 border-b-2 text-white z-20">
                     <tr>
-                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Salón</th>
-                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Telar</th>
-                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Nombre</th>
-                        <th class="py-1 px-2 font-bold  tracking-wider text-center">Grupo</th>
+                        <th scope="col" class="py-1 px-2 font-bold tracking-wider text-center">Salón</th>
+                        <th scope="col" class="py-1 px-2 font-bold tracking-wider text-center">Telar</th>
+                        <th scope="col" class="py-1 px-2 font-bold tracking-wider text-center">Nombre</th>
+                        <th scope="col" class="py-1 px-2 font-bold tracking-wider text-center">Grupo</th>
                     </tr>
                 </thead>
-                <tbody id="telares-body" class="bg-white text-black">
+                <tbody id="telares-body" class="bg-white text-black" data-catalogo-filas>
                     @foreach ($telares as $t)
-                        @php $uid = $t->SalonTejidoId . '_' . $t->NoTelarId; @endphp
-                        <tr class="text-center hover:bg-blue-50 transition cursor-pointer"
-                            onclick="window.catalogManager?.selectRow(this, '{{ $uid }}', '{{ $uid }}')"
-                            ondblclick="window.catalogManager?.deselectRow(this)"
-                            data-uid="{{ $uid }}"
-                            data-salon="{{ $t->SalonTejidoId }}"
-                            data-telar="{{ $t->NoTelarId }}"
-                            data-nombre="{{ $t->Nombre }}"
-                            data-grupo="{{ $t->Grupo ?? '' }}"
-                            data-id="{{ $uid }}">
+                        @php
+                            $uid = $t->SalonTejidoId . '_' . $t->NoTelarId;
+                            $valores = ['uid' => $uid, 'SalonTejidoId' => $t->SalonTejidoId, 'NoTelarId' => $t->NoTelarId, 'Nombre' => $t->Nombre, 'Grupo' => $t->Grupo];
+                        @endphp
+                        <tr data-fila data-id="{{ $uid }}" data-valores='@json($valores)' tabindex="0" aria-selected="false"
+                            class="text-center hover:bg-blue-50 transition cursor-pointer aria-selected:bg-blue-500 aria-selected:text-white aria-selected:hover:bg-blue-500">
                             <td class="py-2 px-4">{{ $t->SalonTejidoId }}</td>
                             <td class="py-2 px-4">{{ $t->NoTelarId }}</td>
                             <td class="py-2 px-4">{{ $t->Nombre }}</td>
                             <td class="py-2 px-4">{{ $t->Grupo ?? 'N/A' }}</td>
                         </tr>
                     @endforeach
+                    <tr data-catalogo-sin-coincidencias hidden>
+                        <td colspan="4" class="text-center py-8 text-gray-500">
+                            <i class="fas fa-search text-4xl mb-2" aria-hidden="true"></i><br>No se encontraron resultados
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
     </div>
 
-
-<style>
-  .scrollbar-thin { scrollbar-width: thin; }
-  .scrollbar-thin::-webkit-scrollbar { width: 8px; }
-  .scrollbar-thumb-gray-400::-webkit-scrollbar-thumb { background-color: #9ca3af; border-radius: 4px; }
-  .scrollbar-track-gray-100::-webkit-scrollbar-track { background-color: #f3f4f6; }
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover { background-color: #6b7280; }
-  .swal2-input { width: 100% !important; }
-</style>
-
-    <script src="{{ asset('js/catalogs/CatalogBase.js') }}"></script>
-    <script src="{{ asset('js/catalogs/TelaresCatalog.js') }}"></script>
-
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        window.catalogManager = new TelaresCatalog({
-            initialData: @json($telares)
-        });
-
-        // Funciones globales para el navbar
-        window.agregarTelares = () => window.catalogManager.create();
-        window.editarTelares = () => window.catalogManager.edit();
-        window.eliminarTelares = () => window.catalogManager.delete();
-        window.subirExcelTelares = () => window.catalogManager.uploadExcel();
-        window.filtrarTelares = () => window.catalogManager.showFilters();
-        window.limpiarFiltrosTelares = () => window.catalogManager.clearFilters();
-    });
-    </script>
+    @include('catalagos.comun.modales')
 @endsection
+
+@push('scripts')
+    @vite('resources/js/modulos/catalogos-planeacion/telares/index.ts')
+@endpush

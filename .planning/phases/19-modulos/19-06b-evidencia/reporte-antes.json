@@ -1,0 +1,128 @@
+[
+  {
+    "nombre": "telares",
+    "url": "/planeacion/catalogos/telares",
+    "vista": "768x1024",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "eficiencia",
+    "url": "/planeacion/catalogos/eficiencia",
+    "vista": "768x1024",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "velocidad",
+    "url": "/planeacion/catalogos/velocidad",
+    "vista": "768x1024",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "calendarios",
+    "url": "/planeacion/catalogos/calendarios",
+    "vista": "768x1024",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "calendarios-detalle",
+    "url": "/planeacion/catalogos/calendarios",
+    "vista": "768x1024",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "aplicaciones",
+    "url": "/planeacion/catalogos/aplicaciones",
+    "vista": "768x1024",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "matriz-hilos",
+    "url": "/planeacion/catalogos/matriz-hilos",
+    "vista": "768x1024",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "matriz-calibres",
+    "url": "/planeacion/catalogos/matrizcalibres",
+    "vista": "768x1024",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "pesos-rollos",
+    "url": "/planeacion/catalogos/pesos-rollos",
+    "vista": "768x1024",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "telares",
+    "url": "/planeacion/catalogos/telares",
+    "vista": "1280x800",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "eficiencia",
+    "url": "/planeacion/catalogos/eficiencia",
+    "vista": "1280x800",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "velocidad",
+    "url": "/planeacion/catalogos/velocidad",
+    "vista": "1280x800",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "calendarios",
+    "url": "/planeacion/catalogos/calendarios",
+    "vista": "1280x800",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "calendarios-detalle",
+    "url": "/planeacion/catalogos/calendarios",
+    "vista": "1280x800",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "aplicaciones",
+    "url": "/planeacion/catalogos/aplicaciones",
+    "vista": "1280x800",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "matriz-hilos",
+    "url": "/planeacion/catalogos/matriz-hilos",
+    "vista": "1280x800",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "matriz-calibres",
+    "url": "/planeacion/catalogos/matrizcalibres",
+    "vista": "1280x800",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "pesos-rollos",
+    "url": "/planeacion/catalogos/pesos-rollos",
+    "vista": "1280x800",
+    "status": 200,
+    "errores": []
+  }
+]

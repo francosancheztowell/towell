@@ -95,6 +95,25 @@ class ReqTelares extends Model
             ->exists();
     }
 
+    /** Nombre por defecto: "JAC 201", "Smith 305" o las tres primeras letras del salón. */
+    public static function nombreSugerido(?string $salon, ?string $telar): string
+    {
+        $up = strtoupper(trim((string) $salon));
+        $prefijo = str_contains($up, 'JACQUARD') ? 'JAC' : (str_contains($up, 'SMITH') ? 'Smith' : strtoupper(substr($up, 0, 3)));
+
+        return trim($prefijo.' '.$telar);
+    }
+
+    /** Telar por su llave de ruta "Salon_Telar" (el salón puede traer guiones bajos). */
+    public static function porLlave(string $llave): ?self
+    {
+        $pos = strrpos($llave, '_');
+
+        return $pos === false ? null : self::where('SalonTejidoId', substr($llave, 0, $pos))
+            ->where('NoTelarId', substr($llave, $pos + 1))
+            ->first();
+    }
+
     /**
      * Crear un nuevo telar desde datos de Excel
      */

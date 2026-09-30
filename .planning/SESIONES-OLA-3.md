@@ -290,3 +290,195 @@ Acuerdos: docs y commits en español ("calidad: …"); NUNCA saltar/desactivar t
 Antes de push: hook SessionStart (o CLAUDE_CODE_REMOTE=true bash scripts/session-start.sh); php artisan test; vendor/bin/phpstan analyse --memory-limit=2G (si un update mueve el baseline, solo se permite que BAJE; si sube por firmas nuevas de un paquete, explícalo y consúltalo en el SUMMARY); npm run typecheck && npm run test:js && npm run build; npm run ratchet; COMPOSER_ALLOW_SUPERUSER=1 composer quality; composer audit; skill security-review.
 Entregables: composer.lock/package-lock.json actualizados + tests si hicieron falta + 22-02s-PLAN.md + 22-02s-SUMMARY.md (antes/después, versiones, riesgos restantes, despliegue y rollback) (+ HANDOFF.md). Push a claude/22-cal-deps. NO abras PR.
 ```
+
+---
+
+# Ola 3 — tercera tanda
+
+Abierta el 2026-09-30 con la Ola 3 subida a `main`. Decisiones del owner que aplican a toda la tanda: **solo TypeScript** (también tests, scripts y la configuración de Vite) y **ORM primero** (ver PROJECT y CLAUDE.md). Además se toman en cuenta la auditoría del owner (`phases/22-calidad/AUDITORIA-OWNER-2026-09-29.md`) y la estructura destino del backend (`phases/20-arq-sec/20-04-ESTRUCTURA-BACKEND.md`). Base: `claude/friendly-hopper-506bg9`. Tags `towell-refactor-2026`, `ola-3`, `tanda-3`.
+
+| Sesión | Rama | Dueño de | Prohibido |
+|---|---|---|---|
+| TS-base | `claude/22-ts-base` | `resources/js/{app,bootstrap,app-core,charts}.*`, `public/js/app-pwa.js`, `public/sw.js`, `resources/js/pwa/**` (nuevo), `vite.config.*`, `package.json/lock`, `tsconfig.json`, `scripts/ratchet.*`, `scripts/calidad.*`, `scripts/ratchet-baseline.json`, `composer.json` (solo `scripts`), `.github/workflows/frontend-checks.yml`, `resources/css/app.css` (solo `@source`), los tests JS de áreas que no son de esta tanda, líneas `<script>`/`@vite` de layouts y login, `CLAUDE.md` (Commands/CI/Frontend) | Vistas, JS y backend de módulos |
+| 19-06a Codificación | `claude/19-06a-codificacion` | `catalagos/catalogoCodificacion`, `catalagos/codificacion-form`, `catcodificacion/**`, `resources/js/{catcodificacion,lmat-lista}/**`, `resources/js/modulos/codificacion/**`, `CodificacionController`, `CatCodificacionController`, `CatLMatController`, `ReqModelosCodificadosImport`, modelos de codificación, `app/Integrations/Ax/**` (BOM/L.Mat), tests del módulo y `tests/Js/{catcodificacion,lmat}-*` | 19-06b, PT (salvo el llamado al repositorio de L.Mat), utils/layouts, Vite, package.json |
+| 19-06b Catálogos de Planeación (**terminada 2026-09-30**, `19-06b-SUMMARY.md`) | `claude/19-06b-catalogos-planeacion` | `catalagos/**` salvo Codificación, `public/js/catalogs/**`, `public/js/catalog-core.js`, `resources/js/catalogos/**`, `resources/js/modulos/catalogos-planeacion/**`, `components/buttons/catalog-actions.blade.php`, controllers de `Planeacion/CatalogoPlaneacion/**` salvo `ModelosCodificados`, imports de catálogos, tests del módulo y `tests/Js/catalogos-*` | Codificación (19-06a), PT, utils/layouts, Vite, package.json |
+| 19-04 Tejedores | `claude/19-04-tejedores` | `routes/modules/tejedores.php`, `app/Http/Controllers/Tejedores/**`, `app/Services/Tejedores/**`, `app/Livewire/{Desarrolladores,Tejedores}/**`, vistas `tel-telares-operador`, `bpm-tejedores`, `tejedores`, `tel-actividades-bpm`, `desarrolladores`, `notificar-montado-julios`, `components/telares/**`, los puentes de `resources/js/tejido/inventario-telas.ts`, `resources/js/modulos/tejedores/**`, tests del módulo | Urdido/Engomado/Tejido (salvo lo listado), PT, utils/layouts, Vite, package.json |
+| PT-TS 1 | `claude/pt-ts-1` | Vistas de PT (`liberar-ordenes`, `planeacion/utileria/**`, `planeacion/alineacion/**`), `resources/js/programa-tejido/**` salvo el cuerpo de `index.js`, `public/js/programa-tejido-menu.js`, `resources/js/modulos/{redbooth,programa-tejido}/**`, `tests/Js/programa-tejido-*` | Backend de PT (salvo lo mínimo), módulos 19-xx, utils/layouts, Vite, package.json |
+
+Integración: en el orden en que terminen. Todas hacen `git merge origin/main` antes del último push: Jonny sigue trabajando en `main` (Ventas y Mecánicos, que por eso quedan fuera de esta tanda). **Siguiente tanda:** 20-05 Estructura Urd/Eng (pares Reportes/Programar/BpmLine/ModuloProduccion + `ProduccionTrait` + enum de status de programa), 20-04 AuthZ (Livewire `#[Locked]` y `authorize`, `addPersistentMiddleware`, Gates sobre `userCan`, `updatePermiso` con lista blanca, paros con lock, headers), PT-TS 2 (`index.js`), 19-09, 19-07, 19-10, 22-06, PT 05.1, 22-08 (SQL Server en el CI y phpat) y 22-09 (ide-helper y enums de status). También **16-02 DS Livewire** (prompt en la sección 16; decisión "Flux no", 2026-09-30).
+
+## 11. TS-base (solo TypeScript)
+
+```
+(Esta sesión arranca en modo plan: lee el protocolo y el contexto, presenta tu plan para aprobación del owner y, una vez aprobado, ejecútalo completo.)
+
+Proyecto Towell (Laravel 12.69 + Livewire 4.4 + Vite/TS; producción Windows/Laragon, SQL Server 2008 R2). Refactor integral 2026, Ola 3 tercera tanda. Lee primero .planning/PROTOCOLO-SESIONES.md, .planning/SESIONES-OLA-3.md (sección "Tercera tanda": propiedad), CLAUDE.md (reglas "Solo TypeScript" y "ORM primero"), .planning/phases/19-modulos/19-00-RECETA.md, .planning/phases/17-ux/17-02-CHECKLIST.md, .planning/phases/22-calidad/22-CONTEXT.md y .planning/phases/22-calidad/AUDITORIA-OWNER-2026-09-29.md.
+
+Fase TS-base — cimiento de "solo TypeScript". IDs: FE-TS-01..04.
+Escribe primero .planning/phases/15-fe-fundacion/15-03-TS-PLAN.md y luego ejecútalo en commits separados.
+Rama: claude/22-ts-base (base claude/friendly-hopper-506bg9).
+
+Alcance:
+1. Gate: scripts/ratchet.* agrega métricas "líneas JS en resources/js+public/js" y "líneas de <script> inline en Blade" (incluidas islas no JSON) que no pueden subir, y el CI falla si aparece un archivo .js/.mjs/.cjs nuevo en resources/js, public/js, tests o scripts (lista de permitidos solo para lo que aún no migra, que se achica).
+2. Núcleo a TS: resources/js/app.js, bootstrap.js, app-core.js, charts.js → .ts (y sus @vite en layouts/components de layout); PWA: public/js/app-pwa.js y public/sw.js → TS en resources/js/pwa/ compilados por Vite/esbuild a la MISMA URL pública (el service worker debe seguir en /sw.js con su scope; verifica registro y actualización en el navegador).
+3. Herramientas a TS: vite.config.js → vite.config.ts (conserva entrada() y el glob de modulos/**/index.ts); scripts/ratchet.mjs y scripts/calidad.mjs → .ts (Node ≥ 22.18 ejecuta TS por type stripping; fija "engines" en package.json, ajusta composer.json scripts y el workflow; documenta en CLAUDE.md que Laragon necesita Node ≥ 22.18 o deja un fallback con tsx si hace falta); tsconfig incluye tests y scripts.
+4. Tests JS a TS: convierte tests/Js/*.mjs/*.cjs de utils, componentes, monitoreo, urdeng/urdido/engomado, tejido, atadores, mantenimiento, programa-urd-eng, crudo, ventas, trazabilidad y demás que NO sean de las sesiones de esta tanda (catcodificacion/lmat → 19-06a; catalogos-* → 19-06b; tejedores/desarrolladores/telares → 19-04; programa-tejido-* → PT-TS 1: esas las convierte su dueño). tests/Js/agruparTelares.test.cjs prueba una copia vieja: bórralo si ya lo cubre programa-urd-eng-creacion-ordenes (HANDOFF 19-05 R5).
+5. Gates de estructura del backend (20-04-ESTRUCTURA-BACKEND.md) en el ratchet: "archivos de controllers con DB::" (hoy 44) y "->validate([ en controllers" (hoy 68), que no pueden subir.
+6. HANDOFF 19-08 M1: app.css con @source para *.ts (clases que solo aparecen en TS hoy no se generan).
+
+Reglas de esta tanda (decisiones del owner, 2026-09-30):
+- SOLO TYPESCRIPT: nada de .js nuevo ni <script> inline. Todo JS que toques termina en .ts (sin paso intermedio .js). Tests JS nuevos o migrados como tests/Js/<area>-*.test.ts (npm run test:js ya los corre). Vite: las entradas fijas se resuelven .ts primero (función entrada() de vite.config.js), así que al renombrar un .js a .ts solo cambias el @vite(...) de la vista, no el config.
+- ORM PRIMERO: Eloquent (modelos, relaciones, scopes, casts) para todo acceso a datos del módulo; Query Builder con bindings solo sin modelo; AX (sqlsrv_ti) detrás de app/Integrations/Ax/<Agregado>Repository.php con DTOs readonly (créalo solo para lo que tu módulo use; si otra sesión ya creó uno, reúsalo); SQL crudo solo documentado y parametrizado; WHERE sargables (no envolver columnas con LTRIM/RTRIM/UPPER/CAST si no hay prueba de que hace falta: la collation es CI); nada de paginate()/simplePaginate()/skip()/offset() (PaginacionCompat). Cada cambio de consulta con test y número de consultas antes/después.
+- CÓDIGO LARGO: en tu módulo, todo método > 100 líneas o con complejidad ≥ 10 que toques se parte (servicios/Actions/DTOs), con tests de caracterización ANTES de moverlo. PHPMD (composer quality) rechaza violaciones nuevas.
+- ESTRUCTURA (.planning/phases/20-arq-sec/20-04-ESTRUCTURA-BACKEND.md): controllers delgados (FormRequest → Action/Service → respuesta; meta ≤ 300 líneas por controller y métodos ≤ 50), nada de DB:: en controllers, validación en FormRequest (no $request->validate([...]) en línea), status del módulo como backed enum en app/Enums/<Mod>/ con cast en el modelo (mismo string que la BD; reusa uno compartido si ya existe), DTOs en app/Data/<Mod>/, lógica compartida entre pares (Urdido/Engomado, Programa/Muestras) en una sola implementación parametrizada.
+- AuthZ solo en modo auditar (sin enforce); SEC-07 (sin getMessage() al usuario; catch vacíos → report($e) salvo las excepciones del CONTEXT); checklist UX-18; mismo diseño (capturas antes/después 768×1024 y 1280×800, puedes reusar los arneses de .planning/phases/19-modulos/19-0x-arnes); contraseñas y login no se tocan.
+
+ERES DUEÑO DE: la fila TS-base de la tercera tanda en .planning/SESIONES-OLA-3.md.
+PROHIBIDO: vistas y JS de módulos (salvo las líneas <script>/@vite del layout y de login para app/app-core/PWA), backend de módulos, bootstrap/**, config/database.php.
+
+Acuerdos: docs y commits en español; modo ponytail (reusa http, notify, format, dom, combobox, acciones táctiles, x-ui.*, PaginacionCompat, HandlesApiErrors); ninguna optimización sin número; NUNCA saltar/desactivar tests; no editar ROADMAP/STATE/REQUIREMENTS/PROJECT; el ratchet debe BAJAR; SQL compatible con 2008 R2; antes del último push: git fetch origin && git merge origin/claude/friendly-hopper-506bg9 && git merge origin/main, y vuelve a correr todo.
+Antes de push: hook SessionStart (o CLAUDE_CODE_REMOTE=true bash scripts/session-start.sh); php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run typecheck && npm run test:js && npm run build; npm run ratchet; COMPOSER_ALLOW_SUPERUSER=1 composer quality; vendor/bin/pint --test en TODOS los PHP que cambies (incluidos arneses); skill code-review; con la skill run abre cada pantalla migrada (0 errores de consola) y su flujo principal.
+Entregables: código + tests + 15-03-TS-PLAN.md + 15-03-TS-SUMMARY.md (+ HANDOFF.md). Push a claude/22-ts-base. NO abras PR.
+```
+
+## 12. 19-06a Codificación
+
+```
+(Esta sesión arranca en modo plan: lee el protocolo y el contexto, presenta tu plan para aprobación del owner y, una vez aprobado, ejecútalo completo.)
+
+Proyecto Towell (Laravel 12.69 + Livewire 4.4 + Vite/TS; producción Windows/Laragon, SQL Server 2008 R2). Refactor integral 2026, Ola 3 tercera tanda. Lee primero .planning/PROTOCOLO-SESIONES.md, .planning/SESIONES-OLA-3.md (sección "Tercera tanda": propiedad), CLAUDE.md (reglas "Solo TypeScript" y "ORM primero"), .planning/phases/19-modulos/19-00-RECETA.md, .planning/phases/17-ux/17-02-CHECKLIST.md, .planning/phases/22-calidad/22-CONTEXT.md y .planning/phases/22-calidad/AUDITORIA-OWNER-2026-09-29.md.
+
+Fase 19-06a — Codificación (modelos codificados, CatCodificados y L.Mat): JS → TS, ORM y código largo. IDs: MIG-COD-01..04 (+ PERF-08..11, SEC-07, UX-18 y ORM del módulo).
+Contexto: fila 19-06 de 19-CONTEXT.md (dos pantallas que se quedan: catálogos = ReqModelosCodificados y codificación = CatCodificados); BUG-007 (L.Mat distinto entre CatCodificacionController::queryLmatDesdeTi y LiberarBomCrudoResolver) y BUG-012 en docs/cerebro-towell/Auditoria/inventario-bugs.md. Escribe primero .planning/phases/19-modulos/19-06a-PLAN.md; divide en -p1/-p2.
+Rama: claude/19-06a-codificacion (base claude/friendly-hopper-506bg9).
+
+Alcance: vistas catalagos/catalogoCodificacion (2 323 líneas inline), catalagos/codificacion-form (664), catcodificacion/** (497) y resources/js/catcodificacion/*.js (index 1 953, lmat-modal 2 542) + resources/js/lmat-lista/index.js → TS en resources/js/modulos/codificacion/** (o el nombre que el plan justifique); clic derecho → accionesTactiles (HANDOFF 17-02 C1). Backend: CodificacionController (1 692 líneas, 51 % cobertura), CatCodificacionController, CatLMatController (guardarLmat 381 líneas; 10 consultas directas a AX), ReqModelosCodificadosImport::collection (291) → partir con tests primero; AX detrás de app/Integrations/Ax (BOM/L.Mat) con UNA consulta de L.Mat compartida por CatCodificación y Liberar + test de contrato que compare ambas salidas (cierra BUG-007; si Liberar es de PT, deja el resolver de Liberar llamando al repositorio sin cambiar su comportamiento y HANDOFF). El owner cambió estas pantallas en main (25–27 sep): merge de main temprano y al final.
+
+Reglas de esta tanda (decisiones del owner, 2026-09-30):
+- SOLO TYPESCRIPT: nada de .js nuevo ni <script> inline. Todo JS que toques termina en .ts (sin paso intermedio .js). Tests JS nuevos o migrados como tests/Js/<area>-*.test.ts (npm run test:js ya los corre). Vite: las entradas fijas se resuelven .ts primero (función entrada() de vite.config.js), así que al renombrar un .js a .ts solo cambias el @vite(...) de la vista, no el config.
+- ORM PRIMERO: Eloquent (modelos, relaciones, scopes, casts) para todo acceso a datos del módulo; Query Builder con bindings solo sin modelo; AX (sqlsrv_ti) detrás de app/Integrations/Ax/<Agregado>Repository.php con DTOs readonly (créalo solo para lo que tu módulo use; si otra sesión ya creó uno, reúsalo); SQL crudo solo documentado y parametrizado; WHERE sargables (no envolver columnas con LTRIM/RTRIM/UPPER/CAST si no hay prueba de que hace falta: la collation es CI); nada de paginate()/simplePaginate()/skip()/offset() (PaginacionCompat). Cada cambio de consulta con test y número de consultas antes/después.
+- CÓDIGO LARGO: en tu módulo, todo método > 100 líneas o con complejidad ≥ 10 que toques se parte (servicios/Actions/DTOs), con tests de caracterización ANTES de moverlo. PHPMD (composer quality) rechaza violaciones nuevas.
+- ESTRUCTURA (.planning/phases/20-arq-sec/20-04-ESTRUCTURA-BACKEND.md): controllers delgados (FormRequest → Action/Service → respuesta; meta ≤ 300 líneas por controller y métodos ≤ 50), nada de DB:: en controllers, validación en FormRequest (no $request->validate([...]) en línea), status del módulo como backed enum en app/Enums/<Mod>/ con cast en el modelo (mismo string que la BD; reusa uno compartido si ya existe), DTOs en app/Data/<Mod>/, lógica compartida entre pares (Urdido/Engomado, Programa/Muestras) en una sola implementación parametrizada.
+- AuthZ solo en modo auditar (sin enforce); SEC-07 (sin getMessage() al usuario; catch vacíos → report($e) salvo las excepciones del CONTEXT); checklist UX-18; mismo diseño (capturas antes/después 768×1024 y 1280×800, puedes reusar los arneses de .planning/phases/19-modulos/19-0x-arnes); contraseñas y login no se tocan.
+
+ERES DUEÑO DE: la fila 19-06a de la tercera tanda en .planning/SESIONES-OLA-3.md.
+PROHIBIDO: catálogos de Planeación que no son Codificación (19-06b), Programa Tejido salvo el llamado al repositorio de L.Mat, utils/componentes/layouts (HANDOFF), vite.config.*, package.json.
+
+Acuerdos: docs y commits en español; modo ponytail (reusa http, notify, format, dom, combobox, acciones táctiles, x-ui.*, PaginacionCompat, HandlesApiErrors); ninguna optimización sin número; NUNCA saltar/desactivar tests; no editar ROADMAP/STATE/REQUIREMENTS/PROJECT; el ratchet debe BAJAR; SQL compatible con 2008 R2; antes del último push: git fetch origin && git merge origin/claude/friendly-hopper-506bg9 && git merge origin/main, y vuelve a correr todo.
+Antes de push: hook SessionStart (o CLAUDE_CODE_REMOTE=true bash scripts/session-start.sh); php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run typecheck && npm run test:js && npm run build; npm run ratchet; COMPOSER_ALLOW_SUPERUSER=1 composer quality; vendor/bin/pint --test en TODOS los PHP que cambies (incluidos arneses); skill code-review; con la skill run abre cada pantalla migrada (0 errores de consola) y su flujo principal.
+Entregables: código + tests + 19-06a-PLAN.md + 19-06a-SUMMARY.md (+ HANDOFF.md). Push a claude/19-06a-codificacion. NO abras PR.
+```
+
+## 13. 19-06b Catálogos de Planeación
+
+```
+(Esta sesión arranca en modo plan: lee el protocolo y el contexto, presenta tu plan para aprobación del owner y, una vez aprobado, ejecútalo completo.)
+
+Proyecto Towell (Laravel 12.69 + Livewire 4.4 + Vite/TS; producción Windows/Laragon, SQL Server 2008 R2). Refactor integral 2026, Ola 3 tercera tanda. Lee primero .planning/PROTOCOLO-SESIONES.md, .planning/SESIONES-OLA-3.md (sección "Tercera tanda": propiedad), CLAUDE.md (reglas "Solo TypeScript" y "ORM primero"), .planning/phases/19-modulos/19-00-RECETA.md, .planning/phases/17-ux/17-02-CHECKLIST.md, .planning/phases/22-calidad/22-CONTEXT.md y .planning/phases/22-calidad/AUDITORIA-OWNER-2026-09-29.md.
+
+Fase 19-06b — Catálogos de Planeación: JS → TS, ORM y código largo. IDs: MIG-CAT-01..04 (+ PERF, SEC-07, UX-18 y ORM del módulo).
+Escribe primero .planning/phases/19-modulos/19-06b-PLAN.md; divide en -p1/-p2 si hace falta.
+Rama: claude/19-06b-catalogos-planeacion (base claude/friendly-hopper-506bg9).
+
+Alcance: vistas catalagos/** salvo Codificación (catalagoEficiencia 644, catalagoVelocidad 603 —hoy duplicadas entre sí, dedupe—, calendarios/index 452 + modal-calendario 613 + modal-eliminar-rango 181, pesos-rollos 389, catalagoTelares, aplicaciones, matriz-calibres, matriz-hilos, y el resto que el plan liste) y su JS en public/js/catalogs/*.js + public/js/catalog-core.js (fuera de Vite hoy) → TS en resources/js/modulos/catalogos-planeacion/** y resources/js/catalogos/** (ya existe catalog-base.ts del piloto de atadores: reúsalo); components/buttons/catalog-actions.blade.php (300 líneas inline, HANDOFF 19-01 U6) sin onclick. Backend: CalendarioController (1 301 líneas; recalcularProgramasPorCalendario 212, 5.5 % de cobertura: tests primero), controllers de Eficiencia/Velocidad/Telares/Aplicaciones/Matrices a Eloquent y sin getMessage(); los imports de catálogos (Calendarios, Velocidades, Eficiencias, Telares, Aplicaciones) con tests del import real. Cuidado: recalcular programas por calendario escribe en ReqProgramaTejido (usar suppressObservers/restoreObservers del modelo, HANDOFF PT-05 B1).
+
+Reglas de esta tanda (decisiones del owner, 2026-09-30):
+- SOLO TYPESCRIPT: nada de .js nuevo ni <script> inline. Todo JS que toques termina en .ts (sin paso intermedio .js). Tests JS nuevos o migrados como tests/Js/<area>-*.test.ts (npm run test:js ya los corre). Vite: las entradas fijas se resuelven .ts primero (función entrada() de vite.config.js), así que al renombrar un .js a .ts solo cambias el @vite(...) de la vista, no el config.
+- ORM PRIMERO: Eloquent (modelos, relaciones, scopes, casts) para todo acceso a datos del módulo; Query Builder con bindings solo sin modelo; AX (sqlsrv_ti) detrás de app/Integrations/Ax/<Agregado>Repository.php con DTOs readonly (créalo solo para lo que tu módulo use; si otra sesión ya creó uno, reúsalo); SQL crudo solo documentado y parametrizado; WHERE sargables (no envolver columnas con LTRIM/RTRIM/UPPER/CAST si no hay prueba de que hace falta: la collation es CI); nada de paginate()/simplePaginate()/skip()/offset() (PaginacionCompat). Cada cambio de consulta con test y número de consultas antes/después.
+- CÓDIGO LARGO: en tu módulo, todo método > 100 líneas o con complejidad ≥ 10 que toques se parte (servicios/Actions/DTOs), con tests de caracterización ANTES de moverlo. PHPMD (composer quality) rechaza violaciones nuevas.
+- ESTRUCTURA (.planning/phases/20-arq-sec/20-04-ESTRUCTURA-BACKEND.md): controllers delgados (FormRequest → Action/Service → respuesta; meta ≤ 300 líneas por controller y métodos ≤ 50), nada de DB:: en controllers, validación en FormRequest (no $request->validate([...]) en línea), status del módulo como backed enum en app/Enums/<Mod>/ con cast en el modelo (mismo string que la BD; reusa uno compartido si ya existe), DTOs en app/Data/<Mod>/, lógica compartida entre pares (Urdido/Engomado, Programa/Muestras) en una sola implementación parametrizada.
+- AuthZ solo en modo auditar (sin enforce); SEC-07 (sin getMessage() al usuario; catch vacíos → report($e) salvo las excepciones del CONTEXT); checklist UX-18; mismo diseño (capturas antes/después 768×1024 y 1280×800, puedes reusar los arneses de .planning/phases/19-modulos/19-0x-arnes); contraseñas y login no se tocan.
+
+ERES DUEÑO DE: la fila 19-06b de la tercera tanda en .planning/SESIONES-OLA-3.md.
+PROHIBIDO: Codificación/CatCodificados/L.Mat (19-06a), Programa Tejido (salvo llamar al modelo como hoy), utils/componentes/layouts salvo catalog-actions, vite.config.*, package.json.
+
+Acuerdos: docs y commits en español; modo ponytail (reusa http, notify, format, dom, combobox, acciones táctiles, x-ui.*, PaginacionCompat, HandlesApiErrors); ninguna optimización sin número; NUNCA saltar/desactivar tests; no editar ROADMAP/STATE/REQUIREMENTS/PROJECT; el ratchet debe BAJAR; SQL compatible con 2008 R2; antes del último push: git fetch origin && git merge origin/claude/friendly-hopper-506bg9 && git merge origin/main, y vuelve a correr todo.
+Antes de push: hook SessionStart (o CLAUDE_CODE_REMOTE=true bash scripts/session-start.sh); php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run typecheck && npm run test:js && npm run build; npm run ratchet; COMPOSER_ALLOW_SUPERUSER=1 composer quality; vendor/bin/pint --test en TODOS los PHP que cambies (incluidos arneses); skill code-review; con la skill run abre cada pantalla migrada (0 errores de consola) y su flujo principal.
+Entregables: código + tests + 19-06b-PLAN.md + 19-06b-SUMMARY.md (+ HANDOFF.md). Push a claude/19-06b-catalogos-planeacion. NO abras PR.
+```
+
+## 14. 19-04 Tejedores
+
+```
+(Esta sesión arranca en modo plan: lee el protocolo y el contexto, presenta tu plan para aprobación del owner y, una vez aprobado, ejecútalo completo.)
+
+Proyecto Towell (Laravel 12.69 + Livewire 4.4 + Vite/TS; producción Windows/Laragon, SQL Server 2008 R2). Refactor integral 2026, Ola 3 tercera tanda. Lee primero .planning/PROTOCOLO-SESIONES.md, .planning/SESIONES-OLA-3.md (sección "Tercera tanda": propiedad), CLAUDE.md (reglas "Solo TypeScript" y "ORM primero"), .planning/phases/19-modulos/19-00-RECETA.md, .planning/phases/17-ux/17-02-CHECKLIST.md, .planning/phases/22-calidad/22-CONTEXT.md y .planning/phases/22-calidad/AUDITORIA-OWNER-2026-09-29.md.
+
+Fase 19-04 — Tejedores / Desarrolladores / BPM Tejedores: JS → TS, ORM y código largo. IDs: MIG-TEJE-01..04 (+ PERF, SEC-07, UX-18 y ORM del módulo).
+Contexto: fila 19-04 de 19-CONTEXT.md; HANDOFF 10-base (quitar tel-bpm/log-debug), 19-02 T3 (11 onclick de components/telares/telar-requerimiento.blade.php y los puentes // PUENTE 19-02 de resources/js/tejido/inventario-telas.ts), PT-05 B1 (MovimientoDesarrolladorService: suppress/restore de observers y scopes salon/telar). Escribe primero .planning/phases/19-modulos/19-04-PLAN.md.
+Rama: claude/19-04-tejedores (base claude/friendly-hopper-506bg9).
+
+Alcance: vistas tel-telares-operador (831), bpm-tejedores/tel-bpm (477) y tel-bpm-line (217), tejedores/notificar-mont-rollos (367) y demás de tejedores, tel-actividades-bpm (155), desarrolladores (58), notificar-montado-julios (107) → TS en resources/js/modulos/tejedores/**; BPM de Tejedores con el mismo patrón compartido que 19-01 dejó para Urdido/Engomado si encaja. Backend: InventarioTelaresController (0 % de cobertura; verificarEstado 288, updateFecha 189: tests primero), Livewire/Desarrolladores/Captura (1 164 líneas), MovimientoDesarrolladorService (N+1 ×14) y ProcesarDesarrolladorService::store (200) a Eloquent y partidos; ProcesarDesarrolladorService ↔ ProcesarMuestrasDesarrolladorService (257 líneas duplicadas) en un solo servicio con superficie Programa/Muestras; rutas de notificar (atadodejulio/notificar, cortadoderollo/notificar e insertar) en modo auditar.
+
+Reglas de esta tanda (decisiones del owner, 2026-09-30):
+- SOLO TYPESCRIPT: nada de .js nuevo ni <script> inline. Todo JS que toques termina en .ts (sin paso intermedio .js). Tests JS nuevos o migrados como tests/Js/<area>-*.test.ts (npm run test:js ya los corre). Vite: las entradas fijas se resuelven .ts primero (función entrada() de vite.config.js), así que al renombrar un .js a .ts solo cambias el @vite(...) de la vista, no el config.
+- ORM PRIMERO: Eloquent (modelos, relaciones, scopes, casts) para todo acceso a datos del módulo; Query Builder con bindings solo sin modelo; AX (sqlsrv_ti) detrás de app/Integrations/Ax/<Agregado>Repository.php con DTOs readonly (créalo solo para lo que tu módulo use; si otra sesión ya creó uno, reúsalo); SQL crudo solo documentado y parametrizado; WHERE sargables (no envolver columnas con LTRIM/RTRIM/UPPER/CAST si no hay prueba de que hace falta: la collation es CI); nada de paginate()/simplePaginate()/skip()/offset() (PaginacionCompat). Cada cambio de consulta con test y número de consultas antes/después.
+- CÓDIGO LARGO: en tu módulo, todo método > 100 líneas o con complejidad ≥ 10 que toques se parte (servicios/Actions/DTOs), con tests de caracterización ANTES de moverlo. PHPMD (composer quality) rechaza violaciones nuevas.
+- ESTRUCTURA (.planning/phases/20-arq-sec/20-04-ESTRUCTURA-BACKEND.md): controllers delgados (FormRequest → Action/Service → respuesta; meta ≤ 300 líneas por controller y métodos ≤ 50), nada de DB:: en controllers, validación en FormRequest (no $request->validate([...]) en línea), status del módulo como backed enum en app/Enums/<Mod>/ con cast en el modelo (mismo string que la BD; reusa uno compartido si ya existe), DTOs en app/Data/<Mod>/, lógica compartida entre pares (Urdido/Engomado, Programa/Muestras) en una sola implementación parametrizada.
+- AuthZ solo en modo auditar (sin enforce); SEC-07 (sin getMessage() al usuario; catch vacíos → report($e) salvo las excepciones del CONTEXT); checklist UX-18; mismo diseño (capturas antes/después 768×1024 y 1280×800, puedes reusar los arneses de .planning/phases/19-modulos/19-0x-arnes); contraseñas y login no se tocan.
+
+ERES DUEÑO DE: la fila 19-04 de la tercera tanda en .planning/SESIONES-OLA-3.md.
+PROHIBIDO: Urdido/Engomado (19-01, ya integrado: solo reusar), Tejido (19-02) salvo el componente telar-requerimiento y los puentes de inventario-telas.ts, Programa Tejido, utils/layouts, vite.config.*, package.json.
+
+Acuerdos: docs y commits en español; modo ponytail (reusa http, notify, format, dom, combobox, acciones táctiles, x-ui.*, PaginacionCompat, HandlesApiErrors); ninguna optimización sin número; NUNCA saltar/desactivar tests; no editar ROADMAP/STATE/REQUIREMENTS/PROJECT; el ratchet debe BAJAR; SQL compatible con 2008 R2; antes del último push: git fetch origin && git merge origin/claude/friendly-hopper-506bg9 && git merge origin/main, y vuelve a correr todo.
+Antes de push: hook SessionStart (o CLAUDE_CODE_REMOTE=true bash scripts/session-start.sh); php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run typecheck && npm run test:js && npm run build; npm run ratchet; COMPOSER_ALLOW_SUPERUSER=1 composer quality; vendor/bin/pint --test en TODOS los PHP que cambies (incluidos arneses); skill code-review; con la skill run abre cada pantalla migrada (0 errores de consola) y su flujo principal.
+Entregables: código + tests + 19-04-PLAN.md + 19-04-SUMMARY.md (+ HANDOFF.md). Push a claude/19-04-tejedores. NO abras PR.
+```
+
+## 15. PT-TS 1 (Programa Tejido a TS)
+
+```
+(Esta sesión arranca en modo plan: lee el protocolo y el contexto, presenta tu plan para aprobación del owner y, una vez aprobado, ejecútalo completo.)
+
+Proyecto Towell (Laravel 12.69 + Livewire 4.4 + Vite/TS; producción Windows/Laragon, SQL Server 2008 R2). Refactor integral 2026, Ola 3 tercera tanda. Lee primero .planning/PROTOCOLO-SESIONES.md, .planning/SESIONES-OLA-3.md (sección "Tercera tanda": propiedad), CLAUDE.md (reglas "Solo TypeScript" y "ORM primero"), .planning/phases/19-modulos/19-00-RECETA.md, .planning/phases/17-ux/17-02-CHECKLIST.md, .planning/phases/22-calidad/22-CONTEXT.md y .planning/phases/22-calidad/AUDITORIA-OWNER-2026-09-29.md.
+
+Fase PT-TS 1 — Programa Tejido: JS → TS (primera parte), mismo diseño. IDs: PT-TS-01 (+ SEC-07 y UX-18 de las pantallas tocadas).
+Contexto: PT 03 no pasó el gate de Livewire (PROJECT 2026-09-29): PT sigue en Blade/TS. Lee los SUMMARY de PT 04-perf, 05 y 03. Escribe primero .planning/phases/04-ux-grid/PT-TS-1-PLAN.md.
+Rama: claude/pt-ts-1 (base claude/friendly-hopper-506bg9).
+
+Alcance: liberar-ordenes (1 902 líneas inline), planeacion/utileria/mover-ordenes (610) y finalizar-ordenes (287), planeacion/alineacion/_script (421), resources/js/programa-tejido/{balancear,lineas,recalcular-fechas,modal-cache-bootstrap}.js, modales/*.js, public/js/programa-tejido-menu.js y resources/js/modulos/redbooth/modal.js → TS. programa-tejido/index.js (13 233 líneas) NO entra aquí (va en PT-TS 2): solo lo tocas para importar lo que migres. Tests del bundle de PT (tests/Js/programa-tejido-*) a .test.ts. Liberar, Mover y Finalizar tienen tests PHP de caracterización: no deben cambiar. FinalizarOrdenesController (finalizarOrdenes 233 líneas) solo si hace falta para el front; su partición va en PT 05.1.
+
+Reglas de esta tanda (decisiones del owner, 2026-09-30):
+- SOLO TYPESCRIPT: nada de .js nuevo ni <script> inline. Todo JS que toques termina en .ts (sin paso intermedio .js). Tests JS nuevos o migrados como tests/Js/<area>-*.test.ts (npm run test:js ya los corre). Vite: las entradas fijas se resuelven .ts primero (función entrada() de vite.config.js), así que al renombrar un .js a .ts solo cambias el @vite(...) de la vista, no el config.
+- ORM PRIMERO: Eloquent (modelos, relaciones, scopes, casts) para todo acceso a datos del módulo; Query Builder con bindings solo sin modelo; AX (sqlsrv_ti) detrás de app/Integrations/Ax/<Agregado>Repository.php con DTOs readonly (créalo solo para lo que tu módulo use; si otra sesión ya creó uno, reúsalo); SQL crudo solo documentado y parametrizado; WHERE sargables (no envolver columnas con LTRIM/RTRIM/UPPER/CAST si no hay prueba de que hace falta: la collation es CI); nada de paginate()/simplePaginate()/skip()/offset() (PaginacionCompat). Cada cambio de consulta con test y número de consultas antes/después.
+- CÓDIGO LARGO: en tu módulo, todo método > 100 líneas o con complejidad ≥ 10 que toques se parte (servicios/Actions/DTOs), con tests de caracterización ANTES de moverlo. PHPMD (composer quality) rechaza violaciones nuevas.
+- ESTRUCTURA (.planning/phases/20-arq-sec/20-04-ESTRUCTURA-BACKEND.md): controllers delgados (FormRequest → Action/Service → respuesta; meta ≤ 300 líneas por controller y métodos ≤ 50), nada de DB:: en controllers, validación en FormRequest (no $request->validate([...]) en línea), status del módulo como backed enum en app/Enums/<Mod>/ con cast en el modelo (mismo string que la BD; reusa uno compartido si ya existe), DTOs en app/Data/<Mod>/, lógica compartida entre pares (Urdido/Engomado, Programa/Muestras) en una sola implementación parametrizada.
+- AuthZ solo en modo auditar (sin enforce); SEC-07 (sin getMessage() al usuario; catch vacíos → report($e) salvo las excepciones del CONTEXT); checklist UX-18; mismo diseño (capturas antes/después 768×1024 y 1280×800, puedes reusar los arneses de .planning/phases/19-modulos/19-0x-arnes); contraseñas y login no se tocan.
+
+ERES DUEÑO DE: la fila PT-TS 1 de la tercera tanda en .planning/SESIONES-OLA-3.md.
+PROHIBIDO: backend de PT salvo lo mínimo para el front, index.js salvo imports, módulos 19-xx, utils/layouts, vite.config.*, package.json.
+
+Acuerdos: docs y commits en español; modo ponytail (reusa http, notify, format, dom, combobox, acciones táctiles, x-ui.*, PaginacionCompat, HandlesApiErrors); ninguna optimización sin número; NUNCA saltar/desactivar tests; no editar ROADMAP/STATE/REQUIREMENTS/PROJECT; el ratchet debe BAJAR; SQL compatible con 2008 R2; antes del último push: git fetch origin && git merge origin/claude/friendly-hopper-506bg9 && git merge origin/main, y vuelve a correr todo.
+Antes de push: hook SessionStart (o CLAUDE_CODE_REMOTE=true bash scripts/session-start.sh); php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run typecheck && npm run test:js && npm run build; npm run ratchet; COMPOSER_ALLOW_SUPERUSER=1 composer quality; vendor/bin/pint --test en TODOS los PHP que cambies (incluidos arneses); skill code-review; con la skill run abre cada pantalla migrada (0 errores de consola) y su flujo principal.
+Entregables: código + tests + PT-TS-1-PLAN.md + PT-TS-1-SUMMARY.md (+ HANDOFF.md). Push a claude/pt-ts-1. NO abras PR.
+```
+
+## 16. 16-02 DS Livewire (cuarta tanda; no se abre sin que el owner lo pida)
+
+Propiedad: `resources/views/components/ui/**`, `resources/views/components/tabla*.blade.php` (compatibles hacia atrás), `resources/js/componentes/dialog.ts` (y el runtime de `componentes/` que haga falta), la galería `/dev/ui-kit`, las **vistas** `resources/views/livewire/{admin,inventario-trama,trazabilidad,urd-eng}/**`, `docs/cerebro-towell/Arquitectura/receta-componentes.md`, tests nuevos `tests/Feature/Componentes/**` y `tests/Js/componentes-livewire-*.test.ts`. Prohibido: clases PHP de Livewire (salvo `dispatch` de abrir/cerrar modal y lo mínimo para usar `x-ui`), vistas Livewire de módulos con dueño (Tejedores/Desarrolladores → 19-04, Mecánicos → 19-07, Crudo y Ventas → 19-10, Mantenimiento ya migrado, PT), `resources/js/{app,bootstrap,app-core}.*`, Vite, package.json, composer.* (nada de Flux ni otra librería).
+
+```
+(Esta sesión arranca en modo plan: lee el protocolo y el contexto, presenta tu plan para aprobación del owner y, una vez aprobado, ejecútalo completo.)
+
+Proyecto Towell (Laravel 12.69 + Livewire 4.4 + Vite/TS; producción Windows/Laragon, SQL Server 2008 R2). Refactor integral 2026. Lee primero .planning/PROTOCOLO-SESIONES.md, .planning/SESIONES-OLA-3.md (sección 16: propiedad), CLAUDE.md (reglas "Solo TypeScript" y "ORM primero"), .planning/PROJECT.md (Key Decision 2026-09-30 "Flux no"), docs/cerebro-towell/Arquitectura/receta-componentes.md (secciones 3–5 y 9), .planning/phases/16-componentes/16-CONTEXT.md y 16-01-SUMMARY.md, .planning/phases/17-ux/17-02-CHECKLIST.md (punto 1.4).
+
+Fase 16-02 — DS Livewire: que los componentes propios x-ui cubran Livewire, en lugar de instalar Flux. IDs: DS-13..16.
+Escribe primero .planning/phases/16-componentes/16-02-PLAN.md y luego ejecútalo en commits separados.
+Rama: claude/16-02-ds-livewire (base claude/friendly-hopper-506bg9).
+
+Alcance:
+1. DS-13 x-ui.button: si trae wire:click, spinner y disabled automáticos mientras corre ESA acción (wire:loading + wire:target del método; respetar :loading y los usos Blade+TS actuales sin cambio visual).
+2. DS-14 x-ui.field: wire:model / wire:model.live / .blur pasan al control en as="input|textarea|select|number…"; error de validación de Livewire visible; test Livewire que lo pruebe.
+3. DS-15 x-ui.modal-base controlable desde Livewire: $this->dispatch('modal-abrir', nombre: '...') / 'modal-cerrar' manejados en resources/js/componentes/dialog.ts (TS, sin Alpine propio; que sobreviva a morph de Livewire con wire:ignore.self si hace falta). Mantener la API actual para Blade+TS.
+4. DS-16 vistas Livewire sin x-ui → x-ui (mismo diseño, capturas antes/después 1280×800 y 768×1024): admin/* (7; revisar partials), inventario-trama/* (2), trazabilidad/index, urd-eng/{program-board,edicion-ordenes} (edicion-orden ya lo usa). Quitar marcado duplicado de botones/campos/modales/alertas; Alpine propio solo donde x-ui no alcance (documentarlo).
+5. Galería /dev/ui-kit con ejemplos Livewire (un componente de demo solo local) y receta sección 9 actualizada con lo que quede.
+Solo si ≥ 2 pantallas lo piden (ponytail): x-ui.dropdown (menú "⋮" sobre accionesTactiles) y x-ui.tabs; si no, anótalo como pendiente.
+Medición: ningún livewire.min.js nuevo en páginas Blade (revisa el HTML de una pantalla Blade antes/después) y KB de HTML de /admin antes/después.
+
+Reglas: SOLO TYPESCRIPT (nada de .js ni <script> inline nuevo; tests JS como tests/Js/componentes-livewire-*.test.ts); ORM primero; NO instalar Flux ni ninguna librería de componentes; mismo diseño; texto ≥ 12 px y controles ≥ 44 px; contraseñas y login no se tocan; AuthZ no cambia.
+
+Acuerdos: docs y commits en español; ponytail (evoluciona x-ui, no crees componentes paralelos); NUNCA saltar/desactivar tests; no editar ROADMAP/STATE/REQUIREMENTS/PROJECT; el ratchet debe bajar o quedarse; antes del último push: git fetch origin && git merge origin/claude/friendly-hopper-506bg9 && git merge origin/main, y vuelve a correr todo.
+Antes de push: hook SessionStart (o CLAUDE_CODE_REMOTE=true bash scripts/session-start.sh); php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run typecheck && npm run test:js && npm run build; npm run ratchet; COMPOSER_ALLOW_SUPERUSER=1 composer quality; vendor/bin/pint --test en TODOS los PHP que cambies; skill code-review; con la skill run abre /admin (En línea, Errores, Accesos), Inventario Trama, Trazabilidad y Programar Urdido/Engomado (0 errores de consola) y prueba un modal y un guardado con spinner.
+Entregables: código + tests + 16-02-PLAN.md + 16-02-SUMMARY.md (+ HANDOFF.md). Push a claude/16-02-ds-livewire. NO abras PR.
+```
+

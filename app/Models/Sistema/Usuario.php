@@ -5,15 +5,32 @@ namespace App\Models\Sistema;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Facades\Hash;
 
+/**
+ * @property int $idusuario
+ * @property string|null $numero_empleado
+ * @property string $nombre
+ * @property string $contrasenia
+ * @property string|null $area
+ * @property string|null $telefono
+ * @property string|null $turno
+ * @property string|null $foto
+ * @property string|null $puesto
+ * @property string|null $correo
+ * @property string|null $remember_token
+ */
 class Usuario extends Authenticatable
 {
     protected $connection = 'sqlsrv'; // Usar la conexión correcta
-    protected $table = 'dbo.SYSUsuario'; // Usar la tabla correcta con esquema
-    protected $primaryKey = 'idusuario'; // Cambiar a la clave primaria correcta
-    public $incrementing = true;
-    protected $keyType = 'int';
-    public $timestamps = true; // Si tu tabla no tiene timestamps, pon esto
 
+    protected $table = 'dbo.SYSUsuario'; // Usar la tabla correcta con esquema
+
+    protected $primaryKey = 'idusuario'; // Cambiar a la clave primaria correcta
+
+    public $incrementing = true;
+
+    protected $keyType = 'int';
+
+    public $timestamps = true; // Si tu tabla no tiene timestamps, pon esto
 
     protected $fillable = [
         'idusuario',
@@ -50,14 +67,12 @@ class Usuario extends Authenticatable
     public function setContraseniaAttribute($value)
     {
         // Solo hashear si no está ya hasheado
-        if (!empty($value) && !str_starts_with($value, '$2y$')) {
+        if (! empty($value) && ! str_starts_with($value, '$2y$')) {
             $this->attributes['contrasenia'] = Hash::make($value);
         } else {
             $this->attributes['contrasenia'] = $value;
         }
     }
-
-
 
     // Para que {usuario} en la ruta resuelva por idusuario
     public function getRouteKeyName()

@@ -1,6 +1,6 @@
 /**
  * CatalogBase (TS) — CRUD de catálogos simples sobre REST. Evolución de
- * public/js/catalogs/CatalogBase.js (piloto DS-12, fase 16):
+ * public/js/catalogs/CatalogBase.js (piloto DS-12, fase 16; el JS se borró en 19-06b):
  *
  *   - URL base configurable (el JS viejo tenía `/planeacion/` fijo).
  *   - window.http / window.notify en vez de fetch + Swal, formularios en <dialog>
@@ -12,8 +12,10 @@
  * Contrato del servidor (el de los controllers de catálogos): GET/PUT/DELETE {endpoint}/{id},
  * POST {endpoint}; respuestas { success, message, data? }.
  *
- * Los 4 catálogos de Planeación (public/js/catalogs/*.js) siguen con la versión JS hasta que
- * su sesión 19-xx los migre. Receta: docs/cerebro-towell/Arquitectura/receta-componentes.md
+ * Los catálogos de Planeación (19-06b) la usan con los botones del navbar de catalog-actions
+ * (botonesExternos), leen los valores de la fila (valoresParaEditar) y recargan tras guardar
+ * (despuesDeGuardar), porque sus rutas no tienen GET por id.
+ * Receta: docs/cerebro-towell/Arquitectura/receta-componentes.md
  */
 import { abrir, cerrarPorId } from '../componentes/dialog.ts';
 
@@ -41,7 +43,7 @@ export interface CatalogoConfig {
 
 export type Registro = Record<string, string | number | null>;
 
-interface Respuesta {
+export interface Respuesta {
     success?: boolean;
     message?: string;
     data?: Registro;
@@ -64,7 +66,7 @@ export interface Dependencias {
 export interface Elementos {
     raiz: HTMLElement;
     cuerpo: HTMLElement;
-    plantilla: HTMLTemplateElement;
+    plantilla: HTMLTemplateElement | null;
     vacio: HTMLElement | null;
     formulario: HTMLFormElement;
     tituloFormulario: HTMLElement | null;
@@ -73,6 +75,8 @@ export interface Elementos {
     botonCrear: HTMLElement | null;
     botonConfirmarEliminar: HTMLElement | null;
     botonGuardar: HTMLButtonElement | null;
+    /** Crear/Editar/Eliminar los despacha otro (catalog-actions): aquí solo se habilitan. */
+    botonesExternos?: boolean;
 }
 
 export const MODAL_FORMULARIO = 'formModal';
@@ -137,6 +141,24 @@ export class CatalogBase {
 
     alSeleccionar(_fila: HTMLTableRowElement | null): void {}
 
+    /** Después de llenar el formulario (alta: valores = null). */
+    alAbrirFormulario(_valores: Registro | null): void {}
+
+    /** Valores del registro a editar: por defecto GET {endpoint}/{id}. */
+    async valoresParaEditar(_fila: HTMLTableRowElement, id: string): Promise<Registro> {
+        const res = (await this.deps.http.get(urlRecurso(this.config.endpoint, id))) as Respuesta;
+        if (!res?.success || !res.data) throw { data: res };
+
+        return res.data;
+    }
+
+    /** Tras un guardado exitoso: por defecto pinta la fila con lo que quedó en la base. */
+    async despuesDeGuardar(res: Respuesta, cuerpo: Registro, esEdicion: boolean, original: string): Promise<void> {
+        this.pintarFila(await this.leerGuardado(cuerpo), esEdicion ? this.filaPorId(original) : null);
+        cerrarPorId(MODAL_FORMULARIO);
+        this.deps.notify.success(res.message ?? 'Guardado');
+    }
+
     // ============ Selección ============
 
     idDe(fila: HTMLTableRowElement): string {
@@ -164,6 +186,7 @@ export class CatalogBase {
         this.el.formulario.reset();
         this.valorOculto('');
         this.titulo(this.config.textos.nuevo ?? 'Nuevo');
+        this.alAbrirFormulario(null);
         abrir(MODAL_FORMULARIO);
     }
 
@@ -171,15 +194,15 @@ export class CatalogBase {
         if (!this.seleccionada) return;
         const id = this.idDe(this.seleccionada);
         try {
-            const res = (await this.deps.http.get(urlRecurso(this.config.endpoint, id))) as Respuesta;
-            if (!res?.success || !res.data) throw { data: res };
+            const valores = await this.valoresParaEditar(this.seleccionada, id);
             this.el.formulario.reset();
             this.valorOculto(id);
             for (const campo of this.config.campos) {
                 const control = this.control(campo.nombre);
-                if (control) control.value = String(res.data[campo.nombre] ?? '');
+                if (control) control.value = String(valores[campo.nombre] ?? '');
             }
             this.titulo(this.config.textos.editar ?? 'Editar');
+            this.alAbrirFormulario(valores);
             abrir(MODAL_FORMULARIO);
         } catch (err) {
             this.deps.notify.error(mensajeDeError(err, this.config.textos.errorCargar ?? 'No se pudo cargar el registro'));
@@ -244,9 +267,7 @@ export class CatalogBase {
         try {
             const res = (await (esEdicion ? this.deps.http.put(url, cuerpo) : this.deps.http.post(url, cuerpo))) as Respuesta;
             if (!res?.success) throw { data: res };
-            this.pintarFila(await this.leerGuardado(cuerpo), esEdicion ? this.filaPorId(original) : null);
-            cerrarPorId(MODAL_FORMULARIO);
-            this.deps.notify.success(res.message ?? 'Guardado');
+            await this.despuesDeGuardar(res, cuerpo, esEdicion, original);
         } catch (err) {
             this.deps.notify.error(mensajeDeError(err, this.config.textos.errorGuardar ?? 'No se pudo guardar'));
         } finally {
@@ -285,7 +306,7 @@ export class CatalogBase {
 
     /** Crea (o reemplaza) la fila con los valores guardados, clonando la plantilla de Blade. */
     pintarFila(valores: Registro, existente: HTMLTableRowElement | null): HTMLTableRowElement | null {
-        const molde = this.el.plantilla.content.querySelector<HTMLTableRowElement>(FILA);
+        const molde = this.el.plantilla?.content.querySelector<HTMLTableRowElement>(FILA);
         if (!molde) return null;
         const fila = molde.cloneNode(true) as HTMLTableRowElement;
         fila.dataset.id = String(valores[this.config.llave] ?? '');
@@ -312,8 +333,10 @@ export class CatalogBase {
         if (this.el.vacio) this.el.vacio.hidden = this.el.cuerpo.querySelector(FILA) !== null;
     }
 
-    private control(nombre: string): HTMLInputElement | HTMLTextAreaElement | null {
-        return this.el.formulario.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[name="${nombre}"]`);
+    control(nombre: string): HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null {
+        return this.el.formulario.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+            `[name="${nombre}"]`,
+        );
     }
 
     private valorOculto(valor?: string): string {
@@ -348,9 +371,11 @@ export class CatalogBase {
             }
         });
 
-        this.el.botonCrear?.addEventListener('click', () => this.abrirCrear());
-        this.el.botonEditar?.addEventListener('click', () => void this.abrirEditar());
-        this.el.botonEliminar?.addEventListener('click', () => this.abrirEliminar());
+        if (!this.el.botonesExternos) {
+            this.el.botonCrear?.addEventListener('click', () => this.abrirCrear());
+            this.el.botonEditar?.addEventListener('click', () => void this.abrirEditar());
+            this.el.botonEliminar?.addEventListener('click', () => this.abrirEliminar());
+        }
         this.el.botonConfirmarEliminar?.addEventListener('click', () => void this.eliminar());
         formulario.addEventListener('submit', (e) => {
             e.preventDefault();

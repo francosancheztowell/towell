@@ -66,7 +66,8 @@ Gates G0–G4: ver `PROTOCOLO-SESIONES.md` §8.
 - [ ] **Phase 15: Fundación frontend** — 15-01 utils TS (http, notifications con toast nativo, format, dom, tipos globales); 15-02 Tom Select en lugar de Select2, quitar jQuery/Toastr, Vite sin vendor global + inputs por glob, CDN → npm, regresiones Tailwind v4.
   **Requirements:** FE-01..12 · **Context:** `phases/15-fe-fundacion/15-CONTEXT.md`
 - [ ] **Phase 16: Sistema de componentes** — evolucionar `components/ui/*`: `<dialog>`, tabla, field, botón, badge, loader, empty, flash, filter-bar; galería `/dev/ui-kit`; piloto catálogos atadores.
-  **Requirements:** DS-01..12 · **Context:** `phases/16-componentes/16-CONTEXT.md`
+  **Requirements:** DS-01..16 · **Context:** `phases/16-componentes/16-CONTEXT.md`
+  **16-02 DS Livewire** (DS-13..16, Ola 3 tanda 4): `x-ui` cubre Livewire (botón con spinner de `wire:click`, field con `wire:model`, modal por eventos) y las vistas Livewire lo adoptan. Decisión 2026-09-30: **no Flux** (PROJECT).
 - [ ] **Phase 17: UX** — 17-01 auditoría exhaustiva (top 25 pantallas por telemetría); 17-02 correcciones globales (flash, títulos, h1, zoom, clic derecho, lang/es, páginas de error, contraseña, 419, offline, a11y).
   **Requirements:** UX-01..18 · **Context:** `phases/17-ux/17-CONTEXT.md`
   **Estado:** 17-02 ✅ (2026-09-26; UX-10 fuera por decisión del owner; adopción por módulo en cada 19-xx) · 17-01 ⏳ (necesita telemetría de producción).
@@ -125,12 +126,13 @@ Gate PT (sin cambios): tests de contrato y dominio pasan; invariantes SQL se man
 | 13. Mon panel | MON | 1 | 1/1 | Completa, integrada (`8290129`; `/admin` con 6 vistas + cierre remoto). Compatible con SQL Server 2008 R2 | 2026-09-24 |
 | 14. Mon Pulse | MON | 1 | 1/1 | Completa, integrada (`8290129`; SQLite, `/admin/pulse`, overhead p95 1.4 ms local) | 2026-09-24 |
 | 15. FE fundación | FE | 1–2 | 2/2 | Completa, integrada (15-01 `1e3c525`; 15-02 `9c40d1bf`: sin jQuery/Select2/Toastr, JS inicial −50 KB gzip) | 2026-09-25 |
-| 16. Componentes | DS | 2 | 1/1 | Completa, integrada (`043883d6`; `<dialog>`, tabla, field, flash, loader único, piloto atadores) | 2026-09-25 |
+| 16. Componentes | DS | 2–3 | 1/2 | 16-01 integrada (`043883d6`; `<dialog>`, tabla, field, flash, loader único, piloto atadores); 16-02 DS Livewire en la cuarta tanda (no Flux) | 2026-09-25 |
 | 17. UX | UX | 2–3 | 1/2 | 17-02 integrada (`1e40cb57`; UX-10 fuera por decisión del owner); 17-01 espera telemetría de producción | 2026-09-26 |
 | 18. Perf | PERF | 2–3 | 1/2 | 18-01 integrada (`5974e47e`); PERF-07 espera datos de prod; 18-02 dentro de cada 19-xx | - |
-| 19. Módulos TS | MIG | 3 | 5/10 | 19-01, 19-02, 19-03 (`fe02954a`), 19-05 (merge 19-05), 19-08 (`7ea03a39`) integradas; faltan 19-04, 19-06, 19-07, 19-09, 19-10 | 2026-09-30 |
+| 19. Módulos TS | MIG | 3 | 6/11 | 19-01, 19-02, 19-03 (`fe02954a`), 19-05, 19-08 (`7ea03a39`) y 19-06b Catálogos de Planeación (merge 19-06b) integradas; faltan 19-04, 19-06a, 19-07, 19-09, 19-10 | 2026-09-30 |
 | 20. Arq/Sec | ARQ/SEC | 2–3 | 3/3 | 20-01 (`e5f2c08d`), 20-02 y 20-03 (`15227b6b`) integradas; 22 rutas esperan idrol del owner; SEC-06/07 y ARQ-05 en cada 19-xx | - |
 | 21. Adopción | ADOP | 4 | 0/1 | Context listo | - |
+| 20b. Estructura backend | ARQ | 3–4 | 0/2 | `20-04-ESTRUCTURA-BACKEND.md` (controllers delgados, Enums, Actions, DTOs); 20-04 AuthZ (auditoría del owner) y 20-05 pares Urd/Eng en la cuarta tanda | - |
 | 22. Calidad | CAL | 3–4 | 3/7 | 22-01 (`c2101e4f`) y 22-02s dependencias (`04a8442d`: `composer audit` 56 → 0, phpspreadsheet 1.30.7, Laravel 12.69.3, Livewire 4.4.7) integradas; CAL-02 cerrado por 19-03. Faltan 22-06 y 22-07 | 2026-09-30 |
 | 8. ERP quick wins | ERP | — | 4/6 | 08-01 excluido por el owner; 08-03 F0-03 pendiente de consultas A/B (trabajada en `main`) | - |
 | PT 1. Guardrails | PT | 0 | 1/1 | Completa en sqlite, integrada; runbook Laragon pendiente; decisión 01.3 aprobada | 2026-09-24 |
@@ -139,6 +141,7 @@ Gate PT (sin cambios): tests de contrato y dominio pasan; invariantes SQL se man
 | PT 4-perf | PT | 2 | 1/1 | Completa, integrada (`56f83f4f`): HTML −16 % gzip, 0 `<script>` inline de PT; corte 7 descartado con números | 2026-09-25 |
 | PT 3. Shell Livewire | PT | 2 | 1/1 | Integrada (`c4bbfffd`), **gate no pasa**: v2 peor en TTFB (+22–24 %) y bytes; apagado por flag. Hizo 17-02 B1/B2 y Redbooth a su bundle | 2026-09-29 |
 | PT 5. Mutaciones | PT | 3 | 1/1 | Integrada (`5566c3de`): PT-DUP-01..04, PT-PERF-02, mutaciones v2 detrás de flag (apagadas); canary 05.5 pendiente del owner | 2026-09-29 |
+| PT-TS 1 | PT | 3 | 1/1 | Integrada (merge PT-TS 1): Liberar, Utilería, Alineación, modales y Redbooth en TS; solo queda `index.js` (PT-TS 2). H1 (Liberar desde Muestras usa rutas de Programa) espera decisión del owner | 2026-09-30 |
 | PT 4-ux | PT | 3 | 0/TBD | Por replanear **sobre Blade/TS** (PT 03 no pasó el gate) | - |
 | PT 6. Límites | PT | 3 | 0/1 | Planned | - |
 | PT 7. Adopción PT | PT | 4 | 0/1 | Planned | - |

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\DuplicarUsuarioRequest;
 use App\Http\Requests\StoreUsuarioRequest;
 use App\Models\Sistema\SysDepartamentos;
 use App\Models\Sistema\SYSRoles;
@@ -11,6 +12,7 @@ use App\Repositories\UsuarioRepository;
 use App\Services\ModuloService;
 use App\Services\PermissionService;
 use App\Services\UsuarioService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -89,6 +91,40 @@ class UsuarioController extends Controller
                 ->with('error', 'No se pudo registrar el usuario. Intenta de nuevo.')
                 ->withInput();
         }
+    }
+
+    /**
+     * Crear un usuario nuevo con los permisos de otro (botón "Duplicar" de la lista).
+     */
+    public function duplicar(DuplicarUsuarioRequest $request, int $id): JsonResponse
+    {
+        $origen = $this->usuarioRepository->findById($id);
+
+        if (! $origen) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Usuario origen no encontrado',
+            ], 404);
+        }
+
+        try {
+            $usuario = $this->usuarioService->duplicar($origen, $request->validated());
+        } catch (\Throwable $e) {
+            Log::error('Error al duplicar usuario', [
+                'usuario_origen' => $id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo crear el usuario. Intenta de nuevo.',
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Usuario #{$usuario->numero_empleado} creado con los permisos de {$origen->nombre}.",
+        ], 201);
     }
 
     /**

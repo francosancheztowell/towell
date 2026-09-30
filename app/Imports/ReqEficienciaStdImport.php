@@ -2,6 +2,7 @@
 
 namespace App\Imports;
 
+use App\Imports\Contracts\ImportConEstadisticas;
 use App\Models\Planeacion\ReqEficienciaStd;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -9,7 +10,7 @@ use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class ReqEficienciaStdImport implements ToCollection, WithChunkReading, WithHeadingRow
+class ReqEficienciaStdImport implements ImportConEstadisticas, ToCollection, WithChunkReading, WithHeadingRow
 {
     private int $rowCounter = 0;
 
@@ -165,7 +166,8 @@ class ReqEficienciaStdImport implements ToCollection, WithChunkReading, WithHead
                     'error_line' => $e->getLine(),
                     'error_file' => $e->getFile(),
                 ]);
-                $this->errores[] = "Fila {$this->rowCounter}: Error al procesar - ".$e->getMessage();
+                report($e);
+                $this->errores[] = "Fila {$this->rowCounter}: no se pudo procesar la fila";
                 $this->skippedRows++;
             }
         }

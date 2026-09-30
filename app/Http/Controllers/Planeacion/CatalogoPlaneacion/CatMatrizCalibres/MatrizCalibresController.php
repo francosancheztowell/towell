@@ -5,24 +5,18 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatMatrizCalibres;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Planeacion\Catalogos\MatrizCalibreLookupRequest;
+use App\Http\Requests\Planeacion\Catalogos\MatrizCalibreLoteRequest;
+use App\Http\Requests\Planeacion\Catalogos\MatrizCalibreRequest;
 use App\Models\Planeacion\Catalogos\CatMatrizCalibres;
 use App\Services\Planeacion\MatrizCalibresService;
-use App\ValueObjects\Planeacion\MatrizCalibreClave;
+use App\Support\Http\Concerns\HandlesApiErrors;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 final class MatrizCalibresController extends Controller
 {
-    /** Tipos cuya clave incluye la cuenta: Rizo, Pie y las barras de Karl Mayer. */
-    private const TIPOS_CON_CUENTA = [
-        MatrizCalibreClave::TIPO_RIZO,
-        MatrizCalibreClave::TIPO_PIE,
-        ...MatrizCalibreClave::TIPOS_BARRA,
-    ];
+    use HandlesApiErrors;
 
     public function __construct(
         private readonly MatrizCalibresService $matrizCalibres,
@@ -49,32 +43,14 @@ final class MatrizCalibresController extends Controller
         ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(MatrizCalibreRequest $request): JsonResponse
     {
         try {
-            $validated = $this->validatePayload($request);
-            $registro = $this->matrizCalibres->guardarRegistroCompleto($validated);
+            $registro = $this->matrizCalibres->guardarRegistroCompleto($request->validated());
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Registro creado exitosamente',
-                'data' => $registro,
-            ]);
-        } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => collect($e->errors())->flatten()->first() ?? 'Error de validación',
-                'errors' => $e->errors(),
-            ], 422);
+            return response()->json(['success' => true, 'message' => 'Registro creado exitosamente', 'data' => $registro]);
         } catch (\Throwable $e) {
-            Log::error('Error al crear CatMatrizCalibres', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al crear registro: '.$e->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al crear CatMatrizCalibres', 'Error al crear el registro.');
         }
     }
 
@@ -95,42 +71,19 @@ final class MatrizCalibresController extends Controller
         ]);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(MatrizCalibreRequest $request, int $id): JsonResponse
     {
+        $registro = CatMatrizCalibres::find($id);
+        if (! $registro) {
+            return response()->json(['success' => false, 'message' => 'Registro no encontrado'], 404);
+        }
+
         try {
-            $registro = CatMatrizCalibres::find($id);
+            $registro = $this->matrizCalibres->guardarRegistroCompleto($request->validated(), $registro);
 
-            if (! $registro) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Registro no encontrado',
-                ], 404);
-            }
-
-            $validated = $this->validatePayload($request);
-            $registro = $this->matrizCalibres->guardarRegistroCompleto($validated, $registro);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Registro actualizado exitosamente',
-                'data' => $registro,
-            ]);
-        } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => collect($e->errors())->flatten()->first() ?? 'Error de validación',
-                'errors' => $e->errors(),
-            ], 422);
+            return response()->json(['success' => true, 'message' => 'Registro actualizado exitosamente', 'data' => $registro]);
         } catch (\Throwable $e) {
-            Log::error('Error al actualizar CatMatrizCalibres', [
-                'id' => $id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al actualizar registro: '.$e->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al actualizar CatMatrizCalibres', 'Error al actualizar el registro.', context: ['id' => $id]);
         }
     }
 
@@ -154,143 +107,27 @@ final class MatrizCalibresController extends Controller
                 'deleted_id' => $id,
             ]);
         } catch (\Throwable $e) {
-            Log::error('Error al eliminar CatMatrizCalibres', [
-                'id' => $id,
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al eliminar registro: '.$e->getMessage(),
-            ], 500);
+            return $this->apiErrorResponse($e, 'Error al eliminar CatMatrizCalibres', 'Error al eliminar el registro.', context: ['id' => $id]);
         }
     }
 
-    public function lookup(Request $request): JsonResponse
+    /** Una equivalencia (L.Mat, 19-06a). */
+    public function lookup(MatrizCalibreLookupRequest $request): JsonResponse
     {
-        $tipo = mb_strtoupper(trim((string) $request->input('tipo', '')), 'UTF-8');
-        $request->merge([
-            'tipo' => $tipo,
-        ]);
+        $registro = $this->matrizCalibres->buscar($request->clave() ?? throw new \LogicException('Clave validada inválida'));
 
-        $validated = $request->validate([
-            'tipo' => ['required', 'string', Rule::in(MatrizCalibreClave::TIPOS)],
-            'calibre' => [
-                Rule::requiredIf($tipo !== MatrizCalibreClave::TIPO_PIE),
-                'nullable',
-                'numeric',
-                'gt:0',
-            ],
-            'fibraId' => [
-                Rule::requiredIf($tipo !== MatrizCalibreClave::TIPO_PIE),
-                'nullable',
-                'string',
-                'max:60',
-            ],
-            'cuenta' => ['nullable', 'string', 'max:60'],
-        ]);
-
-        $clave = MatrizCalibreClave::tryFromArray($validated);
-        if ($clave === null) {
-            if (in_array($tipo, self::TIPOS_CON_CUENTA, true) && blank($validated['cuenta'] ?? null)) {
-                throw ValidationException::withMessages([
-                    'cuenta' => 'Cuenta es obligatoria para las equivalencias de '.$tipo.'.',
-                ]);
-            }
-
-            throw ValidationException::withMessages([
-                'fibraId' => $tipo === MatrizCalibreClave::TIPO_PIE
-                    ? 'Para Pie debe existir al menos Fibra o Calibre.'
-                    : 'Fibra y Calibre son obligatorios para '.$tipo.'.',
-            ]);
-        }
-
-        $registro = $this->matrizCalibres->buscar($clave);
-
-        return response()->json([
-            'success' => true,
-            'found' => $registro !== null,
-            'data' => $registro,
-        ]);
+        return response()->json(['success' => true, 'found' => $registro !== null, 'data' => $registro]);
     }
 
-    public function lookupBatch(Request $request): JsonResponse
+    /** Hasta 10 equivalencias por llave (L.Mat, 19-06a). */
+    public function lookupBatch(MatrizCalibreLoteRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'claves' => ['required', 'array', 'min:1', 'max:10'],
-            'claves.*.key' => ['required', 'string', 'max:255', 'distinct'],
-            'claves.*.tipo' => ['required', 'string', Rule::in(MatrizCalibreClave::TIPOS)],
-            'claves.*.calibre' => ['nullable', 'numeric', 'gt:0'],
-            'claves.*.fibraId' => ['nullable', 'string', 'max:60'],
-            'claves.*.cuenta' => ['nullable', 'string', 'max:60'],
-        ]);
-
-        $claves = [];
-        foreach ($validated['claves'] as $index => $data) {
-            $clave = MatrizCalibreClave::tryFromArray($data);
-            if ($clave === null) {
-                throw ValidationException::withMessages([
-                    "claves.$index" => 'La clave de Matriz de Calibres está incompleta o no es válida.',
-                ]);
-            }
-            $claves[] = $clave;
-        }
-
-        $registros = $this->matrizCalibres->buscarMultiples($claves);
+        $registros = $this->matrizCalibres->buscarMultiples($request->claves());
         $data = [];
-        foreach ($validated['claves'] as $index => $entrada) {
+        foreach (array_values((array) $request->validated('claves')) as $index => $entrada) {
             $data[$entrada['key']] = $registros[$index] ?? null;
         }
 
-        return response()->json([
-            'success' => true,
-            'data' => $data,
-        ]);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function validatePayload(Request $request): array
-    {
-        $tipo = mb_strtoupper(trim((string) $request->input('Tipo', '')), 'UTF-8');
-        $request->merge(['Tipo' => $tipo]);
-
-        $validated = $request->validate([
-            'Tipo' => ['required', 'string', Rule::in(MatrizCalibreClave::TIPOS)],
-            'Calibre' => [
-                Rule::requiredIf($tipo !== MatrizCalibreClave::TIPO_PIE),
-                'nullable',
-                'numeric',
-                'gt:0',
-            ],
-            'FibraId' => [
-                Rule::requiredIf($tipo !== MatrizCalibreClave::TIPO_PIE),
-                'nullable',
-                'string',
-                'max:60',
-            ],
-            'Cuenta' => [
-                Rule::requiredIf(in_array($tipo, self::TIPOS_CON_CUENTA, true)),
-                Rule::prohibitedIf($tipo === MatrizCalibreClave::TIPO_TRAMA),
-                'nullable',
-                'string',
-                'max:60',
-            ],
-            'ItemId' => ['required', 'string', 'max:60'],
-            'ConfigId' => ['required', 'string', 'max:60'],
-            'InventSizeId' => ['required', 'string', 'max:60'],
-            'InventColorId' => ['required', 'string', 'max:60'],
-        ]);
-
-        if (MatrizCalibreClave::tryFromArray($validated) === null) {
-            throw ValidationException::withMessages([
-                'FibraId' => $tipo === MatrizCalibreClave::TIPO_PIE
-                    ? 'Para Pie debe existir al menos Fibra o Calibre.'
-                    : 'Fibra, Calibre y Cuenta son obligatorios para '.$tipo.'.',
-            ]);
-        }
-
-        return $validated;
+        return response()->json(['success' => true, 'data' => $data]);
     }
 }

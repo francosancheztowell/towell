@@ -132,6 +132,8 @@ Páginas: `<title>` sale de `@section('title')` o del texto de `@section('page-t
 
 Migración en curso (`.planning/ROADMAP.md`, fases 15/16/19): los `fetch` inline, `showToast()` duplicados y `onclick=` se reemplazan módulo por módulo; el ratchet (`npm run ratchet`) impide que crezcan.
 
+**Solo TypeScript (decisión del owner, 2026-09-30):** no se escribe JavaScript nuevo, ni en archivos `.js` ni en `<script>` dentro de Blade. El código va en `resources/js/**/*.ts` (páginas en `resources/js/modulos/<mod>/<pantalla>/index.ts`, que Vite toma por glob). El JS que queda se migra módulo por módulo, y el ratchet no deja que crezca.
+
 ### Monitoreo y panel `/admin`
 - Tablas `dbo.SYSMon*` (dispositivos, sesiones, vistas, errores, accesos). Contrato en `.planning/phases/11-mon-servidor/11-CONTRACT.md`; kill switch `MONITOREO_ENABLED`.
 - Panel Livewire en `/admin` (solo área Sistemas, Gate `admin`, `MONITOREO_AREAS_ADMIN`) y Laravel Pulse en `/admin/pulse` sobre una conexión **SQLite** propia (Pulse no soporta SQL Server).
@@ -158,6 +160,13 @@ Uses `dompdf/dompdf` (v3.1). PDF controllers/views are in `app/Http/Controllers/
 - **Redis**: `predis/predis` v3.3 configured as cache/queue driver
 
 ## Important Conventions
+
+- **ORM primero (decisión del owner, 2026-09-30):**
+  - Eloquent (modelos, relaciones, scopes, casts, enums) para todo acceso a datos.
+  - Query Builder con bindings solo si no hay modelo; AX (`sqlsrv_ti`) va detrás de un repositorio, no en controllers ni Livewire.
+  - SQL crudo (`DB::raw`, `*Raw()`, `DB::select`) solo cuando el ORM no lo expresa, siempre parametrizado y con un comentario del porqué.
+  - En SQL Server 2008 R2 no se usa `paginate()`, `simplePaginate()`, `skip()`/`offset()` (emiten `OFFSET/FETCH`): usar `App\Support\PaginacionCompat::paginar()`. `SinPaginateNativoTest` lo vigila.
+- Métodos de más de 100 líneas o con complejidad ciclomática ≥ 10: PHPMD los rechaza en archivos cambiados (`phpmd.xml`). La deuda previa lleva `@SuppressWarnings` con su destino; al tocar esos métodos, se parten con tests primero.
 
 - The permission field in `SYSRoles` has a **typo**: it is `reigstrar` (not `registrar`). The corresponding column in `SYSUsuariosRoles` is correctly named `registrar`. Be careful when referencing both.
 - When creating new modules via `ModulosController`, permissions are automatically propagated to all existing users and caches are cleared.

@@ -25,18 +25,23 @@
 
 @section('content')
     @php
-        function iniciales($nombre)
-        {
-            $partes = preg_split('/\s+/', trim($nombre));
-            $ini = '';
-            foreach ($partes as $p) {
-                if ($p !== '') {
-                    $ini .= mb_strtoupper(mb_substr($p, 0, 1));
+        // function_exists: declarada en la vista compilada, un segundo render en el mismo proceso
+        // (tests, workers) sería un "Cannot redeclare".
+        if (! function_exists('iniciales')) {
+            function iniciales($nombre)
+            {
+                $partes = preg_split('/\s+/', trim($nombre));
+                $ini = '';
+                foreach ($partes as $p) {
+                    if ($p !== '') {
+                        $ini .= mb_strtoupper(mb_substr($p, 0, 1));
+                    }
+                    if (mb_strlen($ini) >= 2) break;
                 }
-                if (mb_strlen($ini) >= 2) break;
+                return mb_substr($ini, 0, 2);
             }
-            return mb_substr($ini, 0, 2);
         }
+        $puedeDuplicar = userCan('crear', 'Usuarios');
     @endphp
 
     <div class="">
@@ -129,6 +134,17 @@
                                         <i class="fas fa-edit mr-1"></i>
                                         Editar
                                     </a>
+                                    @if ($puedeDuplicar)
+                                        <button type="button"
+                                                data-duplicar-usuario="{{ $u->idusuario }}"
+                                                data-nombre="{{ $u->nombre }}"
+                                                data-numero-empleado="{{ $u->numero_empleado }}"
+                                                class="inline-flex items-center px-3 py-2 text-sm font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors"
+                                                title="Crear un usuario nuevo con los mismos permisos">
+                                            <i class="fas fa-copy mr-1" aria-hidden="true"></i>
+                                            Duplicar
+                                        </button>
+                                    @endif
                                     <form action="{{ route('configuracion.usuarios.destroy', $u->idusuario) }}" method="POST"
                                           onsubmit="return confirmarEliminacion(event)" class="inline">
                                         @csrf
@@ -292,6 +308,76 @@
             </form>
         </div>
     </div>
+
+    @if ($puedeDuplicar)
+        {{-- Duplicar: usuario nuevo con los permisos del elegido (resources/js/modulos/usuarios/duplicar) --}}
+        <x-ui.modal-base id="modalDuplicarUsuario" title="Duplicar usuario" size="md"
+                         data-url="{{ route('configuracion.usuarios.duplicar', ['id' => '__ID__']) }}">
+            <form id="formDuplicarUsuario" class="space-y-4" novalidate>
+                <p class="text-sm text-gray-600">
+                    El usuario nuevo tendrá los mismos permisos, área y puesto que
+                    <strong data-duplicar-origen></strong>.
+                </p>
+
+                <div>
+                    <label for="duplicar_numero_empleado" class="block text-sm font-medium text-gray-700 mb-1">
+                        Número de Empleado <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="duplicar_numero_empleado" name="numero_empleado" required
+                           maxlength="50" pattern="[0-9]*" inputmode="numeric" autocomplete="off"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                           placeholder="Ej: 2045">
+                </div>
+
+                <div>
+                    <label for="duplicar_nombre" class="block text-sm font-medium text-gray-700 mb-1">
+                        Nombre Completo <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="duplicar_nombre" name="nombre" required maxlength="255" autocomplete="off"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                           placeholder="Nombre completo">
+                </div>
+
+                <div>
+                    <label for="duplicar_turno" class="block text-sm font-medium text-gray-700 mb-1">
+                        Turno <span class="text-red-500">*</span>
+                    </label>
+                    <select id="duplicar_turno" name="turno" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white">
+                        <option value="">Selecciona el turno</option>
+                        <option value="1">Turno 1</option>
+                        <option value="2">Turno 2</option>
+                        <option value="3">Turno 3</option>
+                        <option value="4">Turno 4 (Cubre descansos)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="duplicar_contrasenia" class="block text-sm font-medium text-gray-700 mb-1">
+                        Contraseña <span class="text-red-500">*</span>
+                    </label>
+                    <input type="password" id="duplicar_contrasenia" name="contrasenia" required minlength="4"
+                           autocomplete="new-password"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                           placeholder="Mínimo 4 caracteres">
+                </div>
+            </form>
+
+            <x-slot:footer>
+                <button type="button" data-ui-modal-close-target="modalDuplicarUsuario"
+                        class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                    Cancelar
+                </button>
+                <button type="submit" form="formDuplicarUsuario" data-duplicar-guardar
+                        class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors inline-flex items-center disabled:opacity-60">
+                    <i class="fas fa-copy mr-2" aria-hidden="true"></i>
+                    Crear usuario
+                </button>
+            </x-slot:footer>
+        </x-ui.modal-base>
+
+        @vite('resources/js/modulos/usuarios/duplicar/index.ts')
+    @endif
 
     {{-- Confirmación de eliminación (SweetAlert si está disponible; fallback a confirm) --}}
     <script>

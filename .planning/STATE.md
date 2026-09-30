@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-09-25)
 
 **Core value:** Planta y planeación trabajan más rápido y sin fricción, y Sistemas ve qué pasa en producción, sin romper invariantes de dominio.
-**Current focus:** Ola 3 — primera tanda integrada salvo 19-03 (espera al owner); segunda tanda abierta (19-02, 19-05, 19-08, PT 03). Olas 0–2 en `main`; Ola 3 solo en la rama integradora.
+**Current focus:** Ola 3 — tercera tanda (TS-base, 19-06a Codificación, 19-06b Catálogos de Planeación, 19-04 Tejedores, PT-TS 1). **La Ola 3 ya está en `main`** (`b7114948`, 2026-09-30). Decisiones nuevas del owner: solo TypeScript, ORM primero, estructura de controllers (20-04-ESTRUCTURA-BACKEND.md).
 **Protocolo:** `.planning/PROTOCOLO-SESIONES.md` (propiedad de archivos, orden de merge, gates).
 
 ## Current Position
@@ -34,7 +34,17 @@ Ola 3 — segunda tanda (abierta 2026-09-29; prompts y propiedad en `SESIONES-OL
 - **CAL 22-01** → `claude/22-cal-gates` · `session_014n9nQDVnWGNtS9EVgW6xVY` — ✅ **integrada** 2026-09-30 (`c2101e4f`): gates (catch vacío 28, duplicación 6.93 %, PHPMD solo violaciones nuevas, `composer audit`, `composer quality`), código muerto libre, 10 tests de `ReqModelosCodificadosImport` que destaparon **3 bugs ya corregidos** (totales del import en cola siempre en 0; archivos > 1 000 filas perdían filas y mapeaban mal; fechas `dd-mm-aa`), exports Urd/Eng unificados, cobertura 46 % con top-20 de riesgo.
 - **CAL-deps** → `claude/22-cal-deps` · `session_01FgMTLebNy5T2hbMo6NCNoW` — ✅ **integrada** 2026-09-30 (`04a8442d`): `composer audit` 56 → 0 y `npm audit` 1 → 0 sin subir mayores (phpspreadsheet 1.30.7, maatwebsite 3.1.70, Laravel 12.69.3, Livewire 4.4.7, guzzle 7.15.5, commonmark 2.10.3); `config.platform.php = 8.2.0`; test de `IOFactory::load` contra `phar://`.
 - 2026-09-30 02:25: 19-03, 19-05 y 19-08 destrabadas por el integrador (owner: "sigue") con sus planes tal cual y las opciones recomendadas; mensaje entregado por trigger a cada sesión (`trig_01HaHA9TAVBHsRayeNU6tGxi`, `trig_01NaK22wgeaos3B9b8Cc8Bx1`, `trig_01DovQhJpq4BCevnnAjVA4Nu`). Se les pidió merge de la rama integradora + `composer quality` antes del último push.
-- **Ninguna sesión abierta.** Tercera tanda propuesta (espera al owner): 19-06 Codificación (tras calmarse sus cambios en `main`), 19-07 Mecánicos, 19-04 Tejedores, 19-09 Configuración, 19-10, 22-06 complejidad (ReportesUrdido, CortesEficiencia `store`, ProduccionTrait), PT 05.1 (partir `dividir`/`duplicar` con tests e Infection).
+- **2026-09-30: Ola 3 subida a `main`** (fast-forward a `b7114948`, CI verde) tras marcar con `@SuppressWarnings` la deuda previa al gate de PHPMD (`351ce158`) y arreglar los 5 `paginate()` de la auditoría del owner (`b7114948`).
+- **Tercera tanda (abierta 2026-09-30 05:29; prompts en `SESIONES-OLA-3.md` §11–15):**
+  - TS-base → `claude/22-ts-base` · `session_01KrXye8wBbMELr92bzRodsi`
+  - 19-06a Codificación → `claude/19-06a-codificacion` · `session_019XgUno8tYVLvSLyZvB5smG`
+  - 19-06b Catálogos de Planeación → `claude/19-06b-catalogos-planeacion` · `session_01FBThTUbCanfbeAwbcd49oK`
+  - 19-04 Tejedores → `claude/19-04-tejedores` · `session_01Sw732UoqcCKcT4m6e6zXLj`
+  - PT-TS 1 → `claude/pt-ts-1` · `session_01CzL1Ly5q8aQaK7ts5yxszR`
+  - **19-06b y PT-TS 1 terminadas e integradas** (2026-09-30 17:00 UTC, junto con 5 commits de `main`): 19-06b catálogos sin JS inline, `CalendarioController` 1 301 → 274 líneas, consultas 21 → 11 / 57 → 8 / 67 → 8, 2 bugs de negocio corregidos; PT-TS 1 Liberar/Utilería/Alineación/modales/Redbooth en TS, 4 bugs corregidos. Ratchet: `fetch(` 102, `Swal.fire` 182, `onclick=` 143, `<script>` inline 56, `getMessage()` 88, catch vacío 13, duplicación 6.4 %.
+  - **Esperan al owner:** TS-base (4 puntos del plan), 19-06a (2 puntos), 19-04 (plan). PT-TS 1 pregunta H1: Liberar desde Muestras postea a las rutas de Programa (escribe en la tabla de Programa): ¿se corrige ya o en PT-06?
+- **Cuarta tanda (propuesta, sin abrir):** 20-05 Estructura Urd/Eng, 20-04 AuthZ, **16-02 DS Livewire** (prompt en `SESIONES-OLA-3.md` §16), PT-TS 2, 19-09, 19-07, 19-10, 22-06, PT 05.1, 22-08, 22-09.
+- Antes: tercera tanda propuesta (espera al owner): 19-06 Codificación (tras calmarse sus cambios en `main`), 19-07 Mecánicos, 19-04 Tejedores, 19-09 Configuración, 19-10, 22-06 complejidad (ReportesUrdido, CortesEficiencia `store`, ProduccionTrait), PT 05.1 (partir `dividir`/`duplicar` con tests e Infection).
 
 - `main` al día en la rama: 5 commits el 26 (`95324118`) y 11 el 29 (Telegram con worker propio, whereIn en atadores/formulación, crudo, ventas, desarrolladores/alineación). Sin conflictos salvo `ratchet-baseline.json`.
 
@@ -67,6 +77,7 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 - PT sí migra a Livewire **sin cambiar el diseño**, solo si mejora rendimiento medido. Orden PT: 01 → 01.1 → 02 → 04-perf → 03 → 05 → 04-ux → 06 → 07.
 - Logout normal y remoto = solo ese dispositivo (`logoutCurrentDevice`).
 - Panel solo área Sistemas, en `/admin`.
+- 2026-09-30: **Flux no.** Las vistas Livewire usan `x-ui.*` / `x-tabla`; 16-02 DS Livewire (DS-13..16) cubre lo que faltaba (spinner de `wire:click`, `wire:model`, modal por eventos). Razones en PROJECT.
 
 - 2026-09-24 (01.3): Muestras **sí se liberan**, con **"M"** en `CatCodificados.OrdenTejido` y en `MuestrasPrograma.NoProduccion` (formato exacto a confirmar al planear PT-02) → Marbetes A. Redbooth B, Producción A, Descarga TXT B, Finalización B, Longitudes A. Liberar Muestras exige `crear` del módulo Muestras (idrol 5).
 
@@ -74,20 +85,23 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 
 ### Pending Todos (owner)
 
-- **Subir la Ola 3 a `main`:** la rama lleva 17-02, 19-01/02/03/05/08, PT 03/05 y CAL (incluidas las dependencias con advisories) sin llegar a producción; `main` ya está contenido en la rama (merge limpio en seco). Al desplegar: `composer install --no-dev -o`, `npm ci && npm run build`, `php artisan optimize:clear && php artisan optimize`, `APP_LOCALE=es`, borrar `public/js/modulos/programa_urd_eng/creacion-ordenes.js` si el despliegue no sincroniza borrados; opcional `database/sql/atadores_comentarios_id.sql`; probar imports/exports de Excel (lista en `22-02s-SUMMARY.md`).
+- **Aprobar en la web (tercera tanda):** TS-base (4 puntos: `.gitignore` de la PWA, excepción de `fetch` en el service worker, copia de `modal-cache-bootstrap` a `app-core.ts`, tests que deja a PT-TS 1/19-06b), 19-06a (2 puntos: ubicación de los TS, filtro por salón) y 19-04 (plan).
+- **PT-TS 1 · H1:** Liberar Órdenes desde Muestras postea a las rutas de Programa (escribe en la tabla de Programa). ¿Corregir ya (Muestras daría 422 hasta correr el DDL de marbetes) o en PT-06?
+- **Subir a `main`** 19-06b y PT-TS 1 (hoy solo en la rama integradora; PHPMD contra `main` limpio).
+- **Dependabot (8 PR abiertas, #56–#63):** recomendado cerrar las mayores (vite 8, laravel-vite-plugin 3, tinker 3, grupo composer; 3 con CI rojo) y agregar `ignore: update-types: ["version-update:semver-major"]` a `.github/dependabot.yml`; las menores, tras TS-base (dueña de `package.json`, Vite y el workflow).
+- **19-06b · Densidad:** runbook del SUMMARY §7 (`SELECT DISTINCT Densidad` en `ReqEficienciaStd`/`ReqVelocidadStd`); si solo hay `Normal`/`Alta`, se agrega el cast al enum.
+- **Plan de salida de SQL Server 2008 R2** (auditoría del owner, Top #2): fecha y presupuesto para 2019/2022 (compat 100 al inicio) → PHP 8.4 → Laravel 13 antes del 24-feb-2027 (fin de seguridad de L12) y del 31-dic-2026 (PHP 8.2).
+- **Node en Laragon** (`node -v`): los scripts de calidad pasan a TS y necesitan Node ≥ 22.18 (o `tsx`).
+- **Desplegar `main`** (ya trae la Ola 3): la rama lleva 17-02, 19-01/02/03/05/08, PT 03/05 y CAL (incluidas las dependencias con advisories) sin llegar a producción; `main` ya está contenido en la rama (merge limpio en seco). Al desplegar: `composer install --no-dev -o`, `npm ci && npm run build`, `php artisan optimize:clear && php artisan optimize`, `APP_LOCALE=es`, borrar `public/js/modulos/programa_urd_eng/creacion-ordenes.js` si el despliegue no sincroniza borrados; opcional `database/sql/atadores_comentarios_id.sql`; probar imports/exports de Excel (lista en `22-02s-SUMMARY.md`).
 - **PHP de Apache en Laragon** (`phpinfo()` web): la CLI es 8.3.28; el lock quedó con piso 8.2.0. Si alguno fuera < 8.2, no desplegar.
 - **19-05 (5):** ⋮ en reservar-programar (filas más altas) ¿se acepta?; 3 bugs previos de negocio sin tocar (panel de urdido vacío tras elegir BOM, lista de engomado con 2 de 3 materiales, Karl Mayer ofrece un serial consumido no `Registrado`); fila agrupada guarda solo en el primer telar ¿esperado?; `actualizarPrioridades` sin permiso hasta SEC-06.
 - **19-03 (3):** correr `atadores_comentarios_id.sql`; idrol de "Reportes Atadores"; checkboxes del checklist a 44 px (cambia el diseño).
 - **19-08:** confirmar que "Mantenimiento" en `SYSRoles` es el idrol 53 (HANDOFF M3).
-- **Seguridad (hallazgo de CAL):** `composer audit` → 56 advisories en 16 paquetes; **2 críticos en `phpoffice/phpspreadsheet` 1.30.2** (uno es SSRF/RCE en `IOFactory::load`; la app importa Excel subidos), altos en `laravel/framework` 12.53, `maatwebsite/excel` 3.1.67, `guzzlehttp/guzzle` 7.10, `league/commonmark` 2.8.2. Todos con arreglo dentro de las restricciones actuales → sesión CAL-deps. Al desplegarla: `composer install --no-dev -o` en Laragon y probar un import/export de Excel.
-- **Track CAL:** el owner eligió que una sesión haga 22-01 con el alcance ajustado (`session_014n9nQDVnWGNtS9EVgW6xVY`, espera aprobación de plan). Su trabajo local sin commit (`composer.json/lock`, `phpinsights.php`) **no** se sube: la sesión lo rehace sin PHP Insights. Su documento de análisis sí sirve: subirlo a `.planning/phases/22-calidad/` si se quiere conservar.
-- **Aprobar en la web:** 19-03 (desde el 25), 19-05 y 19-08 (con sus 3 decisiones).
 - **19-02 (6 decisiones; hoy se conserva el comportamiento):** (1) eficiencia de reenconado guarda `Cantidad/round(Horas×9.3,2)` como fracción y la etiqueta dice "%", ¿fórmula correcta? (2) guardado masivo de reenconado acepta el folio del cliente sin consumir la secuencia, ¿se retira? (3) marcas: "¿continuar editando ese folio?" nunca aparece y guardar un folio Finalizado lo reabre (4) finalizar/reabrir marcas, finalizar cortes y borrar reenconado están en enforce, a diferencia de sus hermanas en auditar, ¿se alinean? (5) saldos-2026: CSS tipo Excel < 12 px, ¿se sube? (6) rpm semanal: ¿se quiere la gráfica (hoy no hay `<canvas>`)?
 - **PT 03:** ¿se retira el código del shell v2 (apagado) o se conserva? Opcional: runbook §5 de `03-SUMMARY.md` para confirmar el gate con datos reales.
 - **19-01 (3 decisiones; hoy se conserva el comportamiento):** (1) Fórmula: al editar se pisan `fecha`/`Hora` con el momento actual, ¿conservar las originales? (2) `ProduccionTrait::guardarOficial` exige `metros > 0`, ¿relajar? (3) `index()` de producción pone al usuario actual como Oficial 1 en filas sin hora al recargar, ¿dejarlo?
 - **PT 05:** canary de mutaciones v2 (runbook `phases/05-mutations/05-SUMMARY.md` §6; todo apagado por default) y, opcional, `phases/05-mutations/sql/pt_ultimo_normalizar.sql` ('UL' → '1').
 - **17-02 al desplegar:** `APP_LOCALE=es` en la `.env` de producción (dejar `APP_FALLBACK_LOCALE=en`), `npm run build`, `php artisan optimize:clear && php artisan optimize`. Sin SQL.
-- **19-03:** aprobar su plan en la web y responder: ¿`dbo.AtaComentarios` ya tiene columna `Id` identity? · idrol de "Reportes Atadores" (`oee/despachar`).
 - **Cola de avisos (18-03), antes de desplegar `main`:** correr `database/sql/queue_jobs_tablas.sql` **y** crear la tarea programada del worker (`docs/cerebro-towell/Runbooks/deploy.md` §8). Las dos juntas o ninguna: con la tabla `jobs` y sin worker, los avisos de terminar atado, montado de julio y solicitud de trama se quedan atorados. Sin la tabla, la app manda en línea como antes. Alternativa: `QUEUE_CONNECTION=sync`.
 - Confirmar el SAPI con `phpinfo()` → "Server API" (runbook §8 paso 1).
 - `SELECT idrol, modulo, Ruta FROM dbo.SYSRoles WHERE Ruta LIKE '%odific%'` → corregir la `Ruta` del menú si apunta a `catalogoCodificacion` (el redirect ya cubre el 404).
@@ -120,6 +134,14 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 - Aviso de privacidad del monitoreo (propuesta: leyenda discreta en login).
 - Worker de colas en Windows (propuesta: `queue:work --stop-when-empty --max-time=50` desde `scheduler.bat`).
 
+### Limpieza de ramas (2026-09-30, hecha por el owner)
+
+Borradas (todo su trabajo está en `main` o en la integradora, salvo las dos últimas, descartadas a propósito). Para restaurar: `git push origin <sha>:refs/heads/<rama>`.
+
+`claude/17-02-ux-global` 07f7fb5478 · `claude/19-01-urdido-engomado` 64ca91d840 · `claude/19-02-tejido` 36f85aede4 · `claude/19-03-atadores` 970eccdab3 · `claude/19-05-programa-urd-eng` 629e530674 · `claude/19-08-mantenimiento` dcee3f90b4 · `claude/pt-03-shell-livewire` 20af504e60 · `claude/pt-05-mutaciones` 5e161111e4 · `claude/22-cal-gates` c5662238cb · `claude/22-cal-deps` 1603fbbd81 · `claude/19-06b-catalogos-planeacion` 846258faea · `fix/telegram-archivo-file-id` 21f0f2e69f (cerró la PR #55; archivos de Telegram por `file_id`, sin mezclar) · `cursor/authz-planeacion-bug-003-71d8` 2e40467e29 (superada por PT 01.1).
+
+Quedan `cursor/codificacion-max-22001-3452` (PR #54) y `cursor/unificar-lmat-crudo-bug-007-7d5a` (PR #53): 19-06a las revisa (su alcance cubre BUG-007 y los 422 de Codificación) y luego se cierran.
+
 ### HANDOFFs ruteados (Ola 3)
 
 - 19-05: R1 (Vite) → ADOP; R2/R6 → owner/20; R3 (CSS < 12 px del tablero) → siguiente 19-05/DS; R4 arnés → quien lo toque; R5 (`tests/Js/agruparTelares.test.cjs` prueba una copia vieja) → FE; R7 → aceptado (test de estructura); R8 → agregar `InventarioTelaresService::parseDateFlexible` a las excepciones de catch vacío de `22-CONTEXT.md`.
@@ -131,6 +153,8 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 - 19-01: U1 y U7 → 19-05 (puente `abrirModalCalificarJuliosEng`, `<script>alert` en reimpresión); U2 hecho (receta enlaza la checklist); U3 → 19-01 ya aplicó long-press en fórmula; U4 y U6 → DS (`onclick` del × de `modal-base`, `catalog-actions`); U5 → UX (`<h1>` del navbar tapa "Crear" a 768 px); U8 comentario de `charts.js` → FE; U9 `FolioHelper` en sqlite → opcional.
 - PT 05: B1 observers/scopes fuera de PT → dueños de Configuración, CatCalendarios, comando de fechas, Desarrolladores (19-04) e Import; B3 N+1 de Cortes → 19-02; B4 Redbooth (lo usan PT, Trazabilidad y CatCodificación) → decidir dueño en la segunda tanda. Hallazgos H1–H4 → PT 06.
 - 17-02: C1–C8 → cada 19-xx vía checklist; B1/B2 → PT.
+- 19-06b: C1 (`CambiarCalendario` usa `FormulasCalendario` en vez de `new CalendarioController`, luego borrar los 3 métodos `PUENTE 19-06b`) → PT 05.1; C2 (Codificación registra sus acciones con `registrarAccionesCatalogo` y se quita el puente `window`) → 19-06a; C3 ratchet → hecho por el integrador; C4 (`onclick` del × de `modal-base`) → 16-02 DS; C5 runbook `SELECT DISTINCT Densidad` → owner.
+- PT-TS 1: A (layout sin `programa-tejido-menu.js`, `app-core` sin `modal-cache-bootstrap`, `redbooth-boot.test.ts`, 1 línea de `TrazabilidadStructureTest`) aceptado; TS-base no debe volver a importar/convertir esos archivos; B1–B3 → PT-TS 2; B4 → TS-base; B5 (H1) → owner; B6 partir `LiberarOrdenesController` → PT 05.1; B7 helper único de mensaje de error → FE/ADOP; B8 docs de módulos → ADOP.
 
 ### HANDOFFs ruteados (Ola 2)
 

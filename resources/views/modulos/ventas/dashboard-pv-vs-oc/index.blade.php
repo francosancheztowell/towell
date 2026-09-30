@@ -8,7 +8,7 @@
     <div class="relative flex items-center gap-2">
         <x-navbar.button-report
             id="btn-filtrar-ventas-compara"
-            title="Filtrar Compara"
+            title="Filtrar"
             text="Filtrar"
             icon="fa-filter"
             bg="bg-green-600"

@@ -1,0 +1,16 @@
+pt-grilla | /planeacion/programa-tejido |
+pt-lineas | /planeacion/programa-tejido | await page.evaluate(() => { const f = document.querySelector('#mainTable tbody tr'); f?.click(); }); await page.click('#layoutBtnVerLineas').catch(() => {}); await page.waitForTimeout(800);
+pt-balancear | /planeacion/programa-tejido | await page.evaluate(() => window.verDetallesGrupoBalanceo(900)); await page.waitForTimeout(1500);
+pt-repaso | /planeacion/programa-tejido | await page.evaluate(() => window.abrirModalRepaso(document.querySelector('#mainTable tbody tr'))); await page.waitForTimeout(800);
+pt-marbetes | /planeacion/programa-tejido | await page.evaluate(() => window.abrirModalMarbetes(document.querySelector('#mainTable tbody tr'))); await page.waitForTimeout(800);
+pt-calendarios | /planeacion/programa-tejido | await page.evaluate(() => window.abrirModalActCalendarios()); await page.waitForTimeout(800);
+pt-redbooth | /planeacion/programa-tejido | await page.evaluate(() => window.abrirModalRedboothProgramaTejido({ registroId: document.querySelector('#mainTable tbody tr')?.dataset.id })); await page.waitForTimeout(800);
+mu-grilla | /planeacion/muestras |
+mu-balancear | /planeacion/muestras | await page.evaluate(() => window.verDetallesGrupoBalanceo(100)); await page.waitForTimeout(1500);
+liberar | /planeacion/programa-tejido/liberar-ordenes |
+liberar-menu | /planeacion/programa-tejido/liberar-ordenes | await page.click('#mainTable thead th:nth-child(5)', { button: 'right' }); await page.waitForTimeout(300);
+mu-liberar | /planeacion/muestras/liberar-ordenes |
+utileria | /planeacion/utileria |
+utileria-mover | /planeacion/utileria | await page.click('[data-accion="abrir-mover"], button:has(.fa-exchange-alt) >> nth=0'); await page.waitForTimeout(1200);
+utileria-finalizar | /planeacion/utileria | await page.click('[data-accion="abrir-finalizar"], button:has(.fa-check-double) >> nth=0'); await page.waitForTimeout(1200);
+alineacion | /planeacion/alineacion |

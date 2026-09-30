@@ -1,8 +1,6 @@
 /**
  * Scripts principales de la aplicación
  */
-import "./programa-tejido/modal-cache-bootstrap.js";
-
 (function () {
     "use strict";
 

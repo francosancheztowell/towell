@@ -3,27 +3,31 @@
 @section('page-title', 'Matriz de Calibres')
 
 @section('navbar-right')
-<div class="flex items-center gap-1">
-    <button type="button" id="btn-agregar" onclick="window.catalogManager?.create()"
-        class="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors"
+@php $accionesCalibres = ['ruta' => 'matriz-calibres', 'routeJs' => 'Matriz_calibres', 'excel' => null]; @endphp
+{{-- Sin x-buttons.catalog-actions (sin permisos por nombre, como antes); mismo runtime de acciones. --}}
+<div class="flex items-center gap-1" data-catalogo-acciones='@json($accionesCalibres)'>
+    <button type="button" id="btn-agregar" data-accion-catalogo="agregar"
+        class="p-2 min-h-touch text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-md transition-colors"
         title="Añadir" aria-label="Añadir">
         <i class="fas fa-plus text-lg" aria-hidden="true"></i>
     </button>
-    <button type="button" id="btn-editar" onclick="window.catalogManager?.edit()" disabled
-        class="p-2 text-gray-400 rounded-md transition-colors cursor-not-allowed"
+    <button type="button" id="btn-editar" data-accion-catalogo="editar" disabled
+        class="p-2 min-h-touch text-blue-600 hover:text-blue-800 rounded-md transition-colors disabled:text-gray-400 disabled:cursor-not-allowed"
         title="Editar" aria-label="Editar">
         <i class="fas fa-edit text-lg" aria-hidden="true"></i>
     </button>
-    <button type="button" id="btn-eliminar" onclick="window.catalogManager?.delete()" disabled
-        class="p-2 text-gray-400 rounded-md transition-colors cursor-not-allowed"
+    <button type="button" id="btn-eliminar" data-accion-catalogo="eliminar" disabled
+        class="p-2 min-h-touch text-red-600 hover:text-red-800 rounded-md transition-colors disabled:text-gray-400 disabled:cursor-not-allowed"
         title="Eliminar" aria-label="Eliminar">
         <i class="fas fa-trash text-lg" aria-hidden="true"></i>
     </button>
 </div>
 @endsection
 
+@php $catalogo = \App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatalogosPlaneacionVista::matrizCalibres(); @endphp
+
 @section('content')
-<div class="w-full px-3 sm:px-4 pb-4">
+<div class="w-full px-3 sm:px-4 pb-4" data-catalogo='@json($catalogo)'>
     <div class="bg-white/95 backdrop-blur rounded-xl shadow-lg border border-white/60 overflow-hidden">
         {{-- Toolbar --}}
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-sky-50">
@@ -32,7 +36,7 @@
                     <i class="fas fa-ruler-combined" aria-hidden="true"></i>
                 </div>
                 <div class="min-w-0">
-                    <h1 class="text-base sm:text-lg font-semibold text-slate-800 truncate">Matriz de Calibres</h1>
+                    <h2 class="text-base sm:text-lg font-semibold text-slate-800 truncate">Matriz de Calibres</h2>
                     <p class="text-xs text-slate-500">
                         Mostrando <span id="matriz-calibres-count" class="font-semibold text-sky-700">{{ $registros->count() }}</span>
                         de <span id="matriz-calibres-total" class="font-semibold">{{ $registros->count() }}</span> registros
@@ -66,7 +70,7 @@
                     type="button"
                     id="matriz-calibres-clear"
                     class="inline-flex items-center justify-center gap-2 px-3 py-2 text-sm text-slate-600 border border-slate-300 rounded-lg bg-white hover:bg-slate-50 transition-colors"
-                    title="Limpiar filtros"
+                    title="Limpiar filtros" aria-label="Limpiar filtros"
                 >
                     <i class="fas fa-redo" aria-hidden="true"></i>
                     <span class="sm:hidden">Limpiar</span>
@@ -90,27 +94,17 @@
                         <th class="py-2.5 px-3 font-semibold text-center">Color</th>
                     </tr>
                 </thead>
-                <tbody id="matriz-calibres-body" class="bg-white text-slate-800 text-sm">
+                <tbody id="matriz-calibres-body" class="bg-white text-slate-800 text-sm" data-catalogo-filas>
                     @forelse ($registros as $item)
                         @php
                             $itemId = $item->Id;
                             $calibre = $item->Calibre === null
                                 ? ''
                                 : rtrim(rtrim(number_format((float) $item->Calibre, 4, '.', ''), '0'), '.');
+                            $valores = $item->only(['Id', 'Tipo', 'Calibre', 'FibraId', 'Cuenta', 'ItemId', 'ConfigId', 'InventSizeId', 'InventColorId']);
                         @endphp
-                        <tr class="text-center hover:bg-sky-50 transition cursor-pointer border-b border-slate-100"
-                            onclick="window.catalogManager?.selectRow(this, '{{ $itemId }}', '{{ $itemId }}')"
-                            ondblclick="window.catalogManager?.deselectRow(this)"
-                            data-id="{{ $itemId }}"
-                            data-tipo="{{ $item->Tipo }}"
-                            data-calibre="{{ $item->Calibre }}"
-                            data-fibraid="{{ $item->FibraId }}"
-                            data-cuenta="{{ $item->Cuenta }}"
-                            data-itemid="{{ $item->ItemId }}"
-                            data-configid="{{ $item->ConfigId }}"
-                            data-inventsizeid="{{ $item->InventSizeId }}"
-                            data-inventcolorid="{{ $item->InventColorId }}"
-                        >
+                        <tr data-fila data-id="{{ $itemId }}" data-valores='@json($valores)' tabindex="0" aria-selected="false"
+                            class="text-center hover:bg-sky-50 transition cursor-pointer border-b border-slate-100 aria-selected:bg-blue-500 aria-selected:text-white aria-selected:hover:bg-blue-500">
                             <td class="py-2.5 px-3 text-slate-500 font-mono text-xs">{{ $itemId }}</td>
                             <td class="py-2.5 px-3">
                                 @if (filled($item->Tipo))
@@ -145,13 +139,10 @@
     </div>
 </div>
 
-<script src="{{ asset('js/catalogs/CatalogBase.js') }}"></script>
-<script src="{{ asset('js/catalogs/MatrizCalibresCatalog.js') }}"></script>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    window.catalogManager = new MatrizCalibresCatalog({
-        initialData: @json($registros)
-    });
-});
-</script>
+@include('catalagos.comun.modales')
 @endsection
+
+@push('scripts')
+    @vite('resources/js/modulos/catalogos-planeacion/acciones/index.ts')
+    @vite('resources/js/modulos/catalogos-planeacion/matriz-calibres/index.ts')
+@endpush

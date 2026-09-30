@@ -86,6 +86,10 @@
 - [x] **DS-10**: Barra de filtros reutilizable.
 - [x] **DS-11**: Galería `/dev/ui-kit` + receta de componentes.
 - [x] **DS-12**: Piloto: catálogos de atadores consolidados + `CatalogBase` en TS.
+- [ ] **DS-13**: `x-ui.button` con spinner automático mientras corre su `wire:click` (`wire:loading` + `wire:target` del mismo método), sin cambiar el uso en Blade + TS (16-02; decisión "Flux no", 2026-09-30).
+- [ ] **DS-14**: `x-ui.field` documentado y probado con `wire:model` / `wire:model.live` en `as="input|textarea|select"` y errores de validación de Livewire.
+- [ ] **DS-15**: `x-ui.modal-base` se abre y cierra desde Livewire con eventos (`modal-abrir` / `modal-cerrar` + nombre) en `resources/js/componentes/dialog.ts`, sin Alpine propio.
+- [ ] **DS-16**: Las vistas Livewire usan `x-ui.*` en lugar de marcado propio (hoy 3 de 26). 16-02 hace Admin, Inventario Trama, Trazabilidad y UrdEng; el resto su 19-xx (checklist 17-02 §1.4). Galería `/dev/ui-kit` con ejemplos Livewire y receta "Livewire + x-ui".
 
 ### UX (fase 17)
 
@@ -136,6 +140,20 @@
 - [ ] **ADOP-01**: Hits de redirects legados medidos. **ADOP-02**: rutas/vistas con 0 hits en 30 días retiradas.
 - [ ] **ADOP-03**: Dependencias y adaptadores temporales retirados. **ADOP-04**: `filter-engine.ts` en utils.
 - [ ] **ADOP-05**: `CLAUDE.md`/`AGENTS.md`/`docs/cerebro-towell` al día. **ADOP-06**: `inventario-bugs.md` actualizado.
+
+### Solo TypeScript y estructura (owner, 2026-09-30)
+
+- [ ] **FE-TS-01**: Gate del CI: el JS (archivos y `<script>` inline) no crece y no entran `.js/.mjs/.cjs` nuevos.
+- [ ] **FE-TS-02**: Núcleo (`app`, `bootstrap`, `app-core`, `charts`) y PWA en TS.
+- [ ] **FE-TS-03**: Tests, scripts y `vite.config` en TS.
+- [ ] **FE-TS-04**: 0 líneas de JS en `resources/js`, `public/js` y Blade (se cumple al cerrar las 19-xx, PT-TS 1 y 2).
+- [x] **MIG-CAT-01..04** (19-06b, 2026-09-30): catálogos de Planeación sin JS inline ni `public/js/catalogs`; Eficiencia/Velocidad en una vista; controllers sin `DB::` ni `validate([`; enums `VarianteEstandar`/`Densidad` (cast de `Densidad` espera el runbook del owner).
+- [x] **PT-TS-01** (PT-TS 1, 2026-09-30): pantallas de PT fuera de la grilla en TS (Liberar, Utilería, Alineación, modales, Redbooth). Falta `programa-tejido/index.js` (PT-TS-02).
+- [ ] **ARQ-06**: Controllers delgados (FormRequest → Action/Service); sin `DB::` en controllers; gate en el ratchet.
+- [ ] **ARQ-07**: Status como backed enums con cast en los modelos (por módulo; compartidos en `app/Enums/{Programas,Bpm}`).
+- [ ] **ARQ-08**: Pares Urdido/Engomado y Programa/Muestras en una sola implementación (20-05 y cada 19-xx).
+- [ ] **ARQ-09**: AX detrás de `app/Integrations/Ax` con DTOs (cierra BUG-014 y BUG-007).
+- [x] **ORM-01**: Sin `paginate()`/`simplePaginate()` nativos en `app/` (2008 R2) + guardián `SinPaginateNativoTest` (2026-09-30).
 
 ### Calidad (fase 22)
 

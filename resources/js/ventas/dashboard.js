@@ -1,3 +1,4 @@
+import { http } from '../utils/http';
 import { mountVentasHistoricas } from './ventas-historicas';
 import { createMultiSelect } from './multi-select';
 import { bindRowSelection, clearRowSelection } from './row-selection';
@@ -61,91 +62,51 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (character
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;',
 }[character]));
 
-/**
- * PvVsOcPayloadBuilder devuelve 'GZ:' + base64(gzip(json)). El navegador ya
- * trae DecompressionStream nativo, así que no hace falta ninguna librería.
- */
-const inflateGzipBase64 = async (base64) => {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-    const buffer = await new Response(stream).arrayBuffer();
-    return new TextDecoder('utf-8').decode(buffer);
-};
-
-/** raw puede ser el objeto plano de siempre (mock) o el string comprimido del builder real. */
-const decodePayload = async (raw) => {
-    if (typeof raw !== 'string' || !raw.startsWith('GZ:')) return raw;
-    const json = await inflateGzipBase64(raw.slice(3));
-    return JSON.parse(json);
-};
-
 /** TOWEL/TEXTIL → Towel/Textil. Solo para mostrar, no cambia el valor de filtrado. */
 const normalizeEmpresa = (value) => {
     const text = String(value ?? '');
     return text.length ? text.charAt(0) + text.slice(1).toLowerCase() : text;
 };
 
-const decodeCompactRow = (row, dict, sf, nf) => {
-    const record = {};
-    sf.forEach((name, index) => { record[name] = dict[row[index]]; });
-    nf.forEach((name, index) => { record[name] = row[sf.length + index]; });
-    return record;
-};
-
-const DIMENSION_FIELDS = ['empresa', 'tipo', 'cve', 'nombreCte', 'artCode', 'artName', 'config', 'tamano', 'colorCode', 'colorName', 'anio', 'mes', 'semana'];
-const dimensionKey = (row) => DIMENSION_FIELDS.map((field) => row[field]).join('␟');
 const emptyMetrics = () => Object.fromEntries(METRICS.map(([metric]) => [metric, 0]));
 const addMetrics = (target, row) => {
     METRICS.forEach(([metric]) => { target[metric] += row[metric] || 0; });
 };
 
-/** OC trae status por línea; al combinar varias líneas en un mismo combo, gana el peor estatus. */
-const ESTADO_PRIORIDAD = { Pendiente: 3, Parcial: 2, Entregado: 1 };
-
 /**
- * plan/oc/real llegan como líneas de factura/pedido/pronóstico sueltas, sin cruzar entre sí.
- * Acá se agrupan por la combinación de dimensiones (empresa, tipo, cliente, artículo, color,
- * tamaño, año/mes/semana) y se arma un registro "ancho" por combo, igual al shape que ya
- * entienden buildTree()/sum() más abajo.
+ * PvVsOcPayloadBuilder manda { sf, nf, series, dict, rows }: Plan, Pedido y Real ya vienen cruzados
+ * en SQL, una fila por combo (índices al diccionario de sf seguidos de nf × series). Aquí solo se
+ * arma el objeto de cada combo; los valores de filtro se calculan una vez y no en cada filtrado.
  */
-const expandCompactPayload = (payload) => {
-    const { sf, nf, dict, plan = [], oc = [], real = [] } = payload;
-    const combos = new Map();
-
-    const merge = (rows, series) => {
-        rows.forEach((raw) => {
-            const row = decodeCompactRow(raw, dict, sf, nf);
-            const key = dimensionKey(row);
-            let combo = combos.get(key);
-            if (!combo) {
-                combo = {
-                    anio: row.anio, mes: row.mes, semana: row.semana,
-                    empresa: normalizeEmpresa(row.empresa), tipo: row.tipo,
-                    clienteCodigo: row.cve, cliente: row.nombreCte,
-                    articuloCodigo: row.artCode, articulo: row.artName,
-                    linea: row.config, tamano: row.tamano, color: row.colorName,
-                    estatus: '',
-                    plan: emptyMetrics(), pedido: emptyMetrics(), real: emptyMetrics(),
-                };
-                combos.set(key, combo);
-            }
-            addMetrics(combo[series], row);
-            if (series === 'pedido' && row.status) {
-                const actual = ESTADO_PRIORIDAD[combo.estatus] || 0;
-                const nuevo = ESTADO_PRIORIDAD[row.status] || 0;
-                if (nuevo > actual) combo.estatus = row.status;
-            }
-        });
+const decodePayload = ({ sf, nf, series, dict, rows }) => rows.map((row) => {
+    const field = Object.fromEntries(sf.map((name, index) => [name, dict[row[index]] ?? '']));
+    const record = {
+        anio: field.anio, mes: field.mes,
+        empresa: normalizeEmpresa(field.empresa), tipo: field.tipo,
+        clienteCodigo: field.cve, cliente: field.nombreCte,
+        articuloCodigo: field.artCode, articulo: field.artName,
+        linea: field.config, tamano: field.tamano, color: field.colorName,
     };
+    series.forEach((serie, serieIndex) => {
+        const offset = sf.length + serieIndex * nf.length;
+        record[serie] = Object.fromEntries(nf.map((metric, index) => [metric, Number(row[offset + index]) || 0]));
+    });
+    record.filtros = {
+        anio: record.anio,
+        mes: record.mes,
+        empresa: record.empresa,
+        tipo: record.tipo,
+        cliente: `${record.clienteCodigo} ${record.cliente}`,
+        tamano: record.tamano,
+        articulo: `${record.articuloCodigo} ${record.articulo}`,
+    };
+    return record;
+});
 
-    merge(plan, 'plan');
-    merge(oc, 'pedido');
-    merge(real, 'real');
-
-    return [...combos.values()];
-};
+/** Aviso de error en lugar del "Cargando…" de cada contenedor. */
+const showLoadError = (containers, message) => containers.forEach((container) => {
+    container.innerHTML = `<div class="ventas-pvoc-alert" role="alert"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> <span>${escapeHtml(message)}</span></div>`;
+});
 
 const bindTabs = (root) => {
     root.querySelectorAll('[data-pvoc-tab]').forEach((button) => button.addEventListener('click', () => {
@@ -173,34 +134,55 @@ const bindTabs = (root) => {
 };
 
 /**
- * Botón "Filtrar" del navbar (fuera del root, vía @section('navbar-right')): abre el panel con los
- * filtros de Compara. Solo se muestra en la pestaña Compara; Ventas históricas tiene sus propios filtros.
+ * Botón "Filtrar" del navbar (fuera del root, vía @section('navbar-right')): abre el panel de filtros
+ * de la pestaña activa (Compara o Ventas históricas). Cada pestaña avisa cuántos filtros tiene activos
+ * con el evento 'pvoc:filtros' ({ tab, count }) y el botón muestra el de la pestaña visible.
  */
 const bindFilterPanel = (root) => {
     const button = document.getElementById('btn-filtrar-ventas-compara');
-    const panel = root.querySelector('[data-pvoc-filter-panel]');
-    if (!button || !panel) return;
+    const panels = {
+        summary: { element: root.querySelector('[data-pvoc-filter-panel]'), title: 'Filtrar Compara' },
+        history: { element: root.querySelector('[data-vh-filter-panel]'), title: 'Filtrar Ventas históricas' },
+    };
+    if (!button || Object.values(panels).some(({ element }) => !element)) return;
+
+    const label = button.querySelector('span');
+    const counts = { summary: 0, history: 0 };
+    let activeTab = 'summary';
+    const panel = () => panels[activeTab].element;
 
     const setOpen = (open) => {
-        panel.hidden = !open;
+        Object.values(panels).forEach(({ element }) => { element.hidden = true; });
+        panel().hidden = !open;
         button.setAttribute('aria-expanded', String(open));
+    };
+    const syncButton = () => {
+        button.title = panels[activeTab].title;
+        button.setAttribute('aria-controls', panel().id);
+        if (label) label.textContent = counts[activeTab] ? `Filtrar (${counts[activeTab]})` : 'Filtrar';
     };
 
     button.addEventListener('click', (event) => {
         event.stopPropagation();
-        setOpen(panel.hidden);
+        setOpen(panel().hidden);
     });
-    panel.querySelector('[data-pvoc-filter-close]').addEventListener('click', () => setOpen(false));
+    Object.values(panels).forEach(({ element }) =>
+        element.querySelector('[data-pvoc-filter-close]').addEventListener('click', () => setOpen(false)));
     // Los desplegables de cada filtro viven dentro del panel, así que un clic en ellos no lo cierra.
     document.addEventListener('mousedown', (event) => {
-        if (!panel.hidden && !panel.contains(event.target) && !button.contains(event.target)) setOpen(false);
+        if (!panel().hidden && !panel().contains(event.target) && !button.contains(event.target)) setOpen(false);
     });
     document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !panel.hidden && !panel.querySelector('.pvoc-multi-panel:not([hidden])')) setOpen(false);
+        if (event.key === 'Escape' && !panel().hidden && !panel().querySelector('.pvoc-multi-panel:not([hidden])')) setOpen(false);
     });
     root.addEventListener('pvoc:tab', (event) => {
-        button.hidden = event.detail !== 'summary';
         setOpen(false);
+        activeTab = event.detail;
+        syncButton();
+    });
+    root.addEventListener('pvoc:filtros', (event) => {
+        counts[event.detail.tab] = event.detail.count;
+        syncButton();
     });
 };
 
@@ -208,29 +190,16 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
     // Pestañas y ventas históricas no dependen del payload PV vs OC: funcionan aunque éste falle.
     bindTabs(root);
     bindFilterPanel(root);
-    mountVentasHistoricas(root);
+    mountVentasHistoricas(root, (container) => showLoadError([container], 'No se pudieron cargar las ventas históricas. Intenta nuevamente en unos minutos.'));
 
-    let raw;
+    let records;
     try {
-        raw = JSON.parse(root.dataset.dashboard || 'null');
-    } catch {
-        return;
-    }
-
-    let payload;
-    try {
-        payload = await decodePayload(raw);
+        records = decodePayload(await http.get(root.dataset.comparaUrl));
     } catch (error) {
-        console.error('No se pudo decodificar el payload del dashboard de Ventas.', error);
+        console.error('No se pudo cargar el dashboard de Ventas.', error);
+        showLoadError(root.querySelectorAll('[data-pvoc-table]'), 'No se pudo cargar la información de Ventas. Intenta nuevamente en unos minutos.');
         return;
     }
-
-    // Sin payload (p.ej. error del servidor): el componente Livewire ya muestra su propio aviso.
-    if (!payload) return;
-
-    const records = Array.isArray(payload.records)
-        ? payload.records
-        : (Array.isArray(payload.sf) ? expandCompactPayload(payload) : []);
 
     // El payload trae todos los años; de entrada (y al limpiar) se filtra el más reciente.
     const latestYear = records.reduce((max, record) => (String(record.anio) > max ? String(record.anio) : max), '');
@@ -241,7 +210,7 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
     };
 
     const state = {
-        comparison: 'plan-pedido', grouping: 'origin',
+        comparison: 'plan-pedido',
         filters: defaultFilters(),
         desglose: 'empresa',
         expanded: { summary: new Set(), analisis: new Set() },
@@ -249,32 +218,21 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
     };
     const elements = {
         filters: root.querySelector('[data-pvoc-filters]'),
-        toast: root.querySelector('[data-pvoc-toast]'),
     };
 
-    const notify = (message) => {
-        elements.toast.textContent = message;
-        elements.toast.classList.add('is-visible');
-        window.setTimeout(() => elements.toast.classList.remove('is-visible'), 2800);
-    };
-
-    const filterValue = (record, key) => ({
-        anio: record.anio,
-        mes: String(record.mes).padStart(2, '0'),
-        empresa: record.empresa,
-        tipo: record.tipo,
-        cliente: `${record.clienteCodigo} ${record.cliente}`,
-        tamano: record.tamano,
-        articulo: `${record.articuloCodigo} ${record.articulo}`,
-    }[key]);
+    const filterValue = (record, key) => record.filtros[key];
 
     const matchesFilter = (record, { key, multi }) => {
         const selected = state.filters[key];
-        const value = String(filterValue(record, key));
+        const value = filterValue(record, key);
         return multi ? (!selected.size || selected.has(value)) : (!selected || value === selected);
     };
 
-    const filteredRecords = () => records.filter((record) => FILTERS.every((filter) => matchesFilter(record, filter)));
+    /** Los filtros sin selección no filtran: se descartan antes de recorrer los ~48k combos. */
+    const filteredRecords = () => {
+        const active = FILTERS.filter(({ key, multi }) => (multi ? state.filters[key].size : state.filters[key]));
+        return active.length ? records.filter((record) => active.every((filter) => matchesFilter(record, filter))) : records;
+    };
 
     /** Nivel de detalle bajo cada mes: el elegido en Desglose (siempre hay uno; Empresa por defecto). */
     const detailLevels = () => [[(item) => String(filterValue(item, state.desglose)), undefined, state.desglose]];
@@ -298,7 +256,7 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
 
     const renderFilters = () => {
         const fields = FILTERS.map(({ key, label, multi, format }) => {
-            const values = [...new Set(records.map((record) => String(filterValue(record, key))))].sort();
+            const values = [...new Set(records.map((record) => filterValue(record, key)))].sort();
             if (multi) {
                 return createMultiSelect({ label, values, format, selected: state.filters[key], onChange: renderTables }).element;
             }
@@ -309,13 +267,7 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
                 </select>
             </label>`);
         });
-        const dashboardControls = fragment(`<label class="pvoc-select-label">Columnas
-                <select data-pvoc-grouping>
-                    <option value="origin" ${state.grouping === 'origin' ? 'selected' : ''}>Por origen</option>
-                    <option value="metric" ${state.grouping === 'metric' ? 'selected' : ''}>Por medida</option>
-                </select>
-            </label>
-            <label class="pvoc-select-label">Comparar Δ y %
+        const dashboardControls = fragment(`<label class="pvoc-select-label">Comparar Δ y %
                 <select data-pvoc-comparison>
                     <option value="plan-pedido" ${state.comparison === 'plan-pedido' ? 'selected' : ''}>Plan vs Pedido</option>
                     <option value="plan-real" ${state.comparison === 'plan-real' ? 'selected' : ''}>Plan vs Real</option>
@@ -327,22 +279,22 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
             state.filters[select.dataset.pvocFilter] = select.value;
             renderTables();
         }));
-        elements.filters.querySelector('[data-pvoc-grouping]').addEventListener('change', (event) => {
-            state.grouping = event.target.value;
-            notify(state.grouping === 'origin' ? 'Columnas agrupadas por origen.' : 'La vista por medida estará disponible con datos reales.');
-        });
         elements.filters.querySelector('[data-pvoc-comparison]').addEventListener('change', (event) => {
             state.comparison = event.target.value;
             renderTables();
         });
     };
 
-    const sum = (items) => ['plan', 'pedido', 'real'].reduce((totals, series) => {
-        METRICS.forEach(([metric]) => {
-            totals[series][metric] = items.reduce((total, item) => total + Number(item[series][metric] || 0), 0);
+    /** Una sola pasada por los combos (antes eran 15: una por serie y medida). */
+    const sum = (items) => {
+        const totals = { plan: emptyMetrics(), pedido: emptyMetrics(), real: emptyMetrics() };
+        items.forEach((item) => {
+            addMetrics(totals.plan, item.plan);
+            addMetrics(totals.pedido, item.pedido);
+            addMetrics(totals.real, item.real);
         });
         return totals;
-    }, { plan: emptyMetrics(), pedido: emptyMetrics(), real: emptyMetrics() });
+    };
 
     const comparisonSeries = () => state.comparison.split('-');
     /** Medidas visibles del panel, en el orden de METRICS. */
@@ -437,11 +389,9 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
     };
 
     /** Con los filtros escondidos en el panel, el botón del navbar indica cuántos hay activos. */
-    const filterButtonLabel = document.querySelector('#btn-filtrar-ventas-compara span');
     const syncFilterCount = () => {
-        if (!filterButtonLabel) return;
-        const active = FILTERS.filter(({ key, multi }) => (multi ? state.filters[key].size : state.filters[key])).length;
-        filterButtonLabel.textContent = active ? `Filtrar (${active})` : 'Filtrar';
+        const count = FILTERS.filter(({ key, multi }) => (multi ? state.filters[key].size : state.filters[key])).length;
+        root.dispatchEvent(new CustomEvent('pvoc:filtros', { detail: { tab: 'summary', count } }));
     };
 
     /** Solo lo llaman los filtros (y Limpiar): tocar un filtro también suelta la fila seleccionada. */

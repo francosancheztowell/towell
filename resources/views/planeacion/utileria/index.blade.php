@@ -20,14 +20,28 @@
 @endsection
 
 @section('content')
-    <div class="container mx-auto px-4 py-8">
+    @php
+        $paginaUtileria = [
+            'finalizar' => [
+                'telares' => route('planeacion.utileria.finalizar.telares'),
+                'ordenes' => route('planeacion.utileria.finalizar.ordenes'),
+                'procesar' => route('planeacion.utileria.finalizar.procesar'),
+            ],
+            'mover' => [
+                'telares' => route('planeacion.utileria.mover.telares'),
+                'registros' => route('planeacion.utileria.mover.registros'),
+                'procesar' => route('planeacion.utileria.mover.procesar'),
+            ],
+        ];
+    @endphp
+    <div id="utileria" data-pagina='@json($paginaUtileria)' class="container mx-auto px-4 py-8">
         {{-- * Tarjetas de opciones principales --}}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
 
             {{-- ? Opción 1: Finalizar Órdenes --}}
             <button
                 type="button"
-                onclick="abrirModalFinalizar()"
+                data-accion="abrir-finalizar"
                 class="group bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-8 text-left border border-gray-100 hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
                 <div class="flex items-start gap-4">
@@ -51,7 +65,7 @@
             {{-- ? Opción 2: Mover Órdenes --}}
             <button
                 type="button"
-                onclick="abrirModalMover()"
+                data-accion="abrir-mover"
                 class="group bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-8 text-left border border-gray-100 hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
                 <div class="flex items-start gap-4">
@@ -78,3 +92,7 @@
     @include('planeacion.utileria.finalizar-ordenes')
     @include('planeacion.utileria.mover-ordenes')
 @endsection
+
+@push('scripts')
+    @vite('resources/js/modulos/programa-tejido/utileria/index.ts')
+@endpush

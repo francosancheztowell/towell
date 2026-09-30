@@ -15,6 +15,12 @@ function entradasDeModulos() {
     .sort()
 }
 
+// Solo TS (owner, 2026-09-30): las entradas fijas que todavía existen en .js se buscan
+// primero en .ts, así una sesión que migra el archivo no tiene que tocar este config.
+function entrada(sinExtension) {
+  return existsSync(`${sinExtension}.ts`) ? `${sinExtension}.ts` : `${sinExtension}.js`
+}
+
 export default defineConfig({
   build: {
     sourcemap: false,
@@ -27,15 +33,15 @@ export default defineConfig({
       // Set: si otra rama agregó a mano una entrada que el glob ya encuentra, no se duplica.
       input: [...new Set([
         'resources/css/app.css',
-        'resources/js/app.js',
-        'resources/js/app-core.js',
-        'resources/js/charts.js',
+        entrada('resources/js/app'),
+        entrada('resources/js/app-core'),
+        entrada('resources/js/charts'),
         'resources/css/trazabilidad/index.css',
         'resources/js/trazabilidad/index.ts',
         'resources/css/crudo/dashboard.css',
         'resources/js/crudo/dashboard.ts',
         'resources/css/ventas/dashboard.css',
-        'resources/js/ventas/dashboard.js',
+        entrada('resources/js/ventas/dashboard'),
         'resources/css/urd-eng/edicion-ordenes.css',
         'resources/js/urd-eng/edicion-ordenes.ts',
         'resources/js/urd-eng/edicion-orden.ts',
@@ -43,9 +49,9 @@ export default defineConfig({
         'resources/js/urd-eng/program-board.ts',
         'resources/js/tejido/inventario-telas.ts',
         'resources/css/tejido/inventario-telas.css',
-        'resources/js/catcodificacion/index.js',
-        'resources/js/lmat-lista/index.js',
-        'resources/js/programa-tejido/index.js',
+        entrada('resources/js/catcodificacion/index'),
+        entrada('resources/js/lmat-lista/index'),
+        entrada('resources/js/programa-tejido/index'),
         'resources/js/programa-urd-eng/reservar-programar.ts',
         'resources/js/usuarios/qr.ts',
         ...entradasDeModulos(),

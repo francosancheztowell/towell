@@ -41,6 +41,8 @@ Route::prefix('configuracion')->name('configuracion.')->group(function () use (
             ->middleware("module.permission:crear,{$usuarios}")->name('create');
         Route::post('/store', [UsuarioController::class, 'store'])
             ->middleware("module.permission:crear,{$usuarios}")->name('store');
+        Route::post('/{id}/duplicar', [UsuarioController::class, 'duplicar'])
+            ->middleware("module.permission:crear,{$usuarios}")->name('duplicar');
         Route::get('/{id}/qr', [UsuarioController::class, 'showQR'])
             ->middleware("module.permission:acceso,{$usuarios}")->name('qr');
         Route::get('/{id}/edit', [UsuarioController::class, 'edit'])

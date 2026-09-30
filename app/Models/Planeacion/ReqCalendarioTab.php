@@ -5,19 +5,27 @@ namespace App\Models\Planeacion;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property string $CalendarioId
+ * @property string|null $Nombre
+ */
 class ReqCalendarioTab extends Model
 {
     use HasFactory;
 
     protected $table = 'dbo.ReqCalendarioTab';
+
     protected $primaryKey = 'CalendarioId';
+
     public $incrementing = false;
+
     public $timestamps = false;
+
     protected $keyType = 'string';
 
     protected $fillable = [
         'CalendarioId',
-        'Nombre'
+        'Nombre',
     ];
 
     public function getRouteKeyName()
@@ -36,62 +44,3 @@ class ReqCalendarioTab extends Model
         return self::orderBy('CalendarioId')->get();
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

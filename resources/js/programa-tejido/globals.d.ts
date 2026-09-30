@@ -50,8 +50,28 @@ declare global {
             };
         };
 
-        /** Flag de depuracion del modal. Lo inicializa modal-cache-bootstrap.js. */
+        /** Flag de depuracion del modal. Lo inicializa index.js. */
         __PT_DEBUG?: boolean;
+
+        // Puentes de los modulos del bundle (PT-TS 1): los llaman index.js o el onclose de
+        // x-ui.modal-base en los Blade de modal/*.
+        abrirModalActCalendarios?: () => Promise<void>;
+        cerrarModalActCalendarios?: () => void;
+        abrirModalRepaso?: (row: Element | null | undefined) => void;
+        cerrarModalRepaso?: () => void;
+        abrirModalMarbetes?: (row: Element | null | undefined) => void;
+        cerrarModalMarbetes?: () => void;
+        loadReqProgramaTejidoLines?: (params?: Record<string, string>) => Promise<void>;
+        openLinesModal?: (programaId: string | number) => void;
+        verDetallesGrupoBalanceo?: (ordCompartida: number | string) => Promise<void>;
+        abrirBalancearDesdeSeleccion?: () => void;
+        aplicarBalanceoAutomatico?: (ordCompartida: number | string) => Promise<void>;
+        recargarGanttOrdCompartida?: (ordCompartida: number | string) => Promise<void>;
+        /** Columnas de la grilla si otro script las publica; balancear cae al <thead> si no. */
+        columns?: Array<{ field: string; label?: string; dateType?: 'date' | 'datetime' | null }>;
+
+        /** Vive en el scope de index.js y hoy no se publica (HANDOFF PT-TS 2): repaso lo busca aqui. */
+        agregarRegistroSinRecargar?: (data: Record<string, unknown>, opciones?: { preventReload?: boolean }) => Promise<unknown>;
 
     }
 }

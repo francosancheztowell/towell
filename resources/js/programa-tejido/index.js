@@ -11,12 +11,12 @@ import { accionesTactiles as ptAccionesTactiles } from '../utils/acciones-tactil
 import { enlazarBotonAccionesFila as ptEnlazarBotonAccionesFila, enlazarDiasLiberar as ptEnlazarDiasLiberar } from './acciones.ts';
 // Scripts que vivían inline en la vista (04-perf, corte 5). Se evalúan antes que este
 // archivo y solo publican funciones en window, como hacían sus <script>.
-import './balancear.js';
-import './recalcular-fechas.js';
-import './modales/act-calendarios.js';
-import './modales/repaso.js';
-import './modales/marbetes.js';
-import './lineas.js';
+import './balancear.ts';
+import './recalcular-fechas.ts';
+import './modales/act-calendarios.ts';
+import './modales/repaso.ts';
+import './modales/marbetes.ts';
+import './lineas.ts';
 
 // Bundle JS de Programa Tejido. Antes iba inline en el HTML (527 KB que el
 // navegador volvia a descargar y a recompilar en cada recarga); ahora lo sirve

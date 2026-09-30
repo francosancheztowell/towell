@@ -26,17 +26,17 @@
 
   {{-- Botones de acción --}}
   <div class="flex justify-end gap-3 mt-3 pt-3 border-t border-gray-200">
-    <button type="button" onclick="cerrarModalActCalendarios()" class="modal-btn-secondary">
+    <button type="button" id="btnCancelarCalendarios" class="modal-btn-secondary">
       Cancelar
     </button>
-    <button type="button" id="btnGuardarCalendarios" onclick="guardarCalendariosSeleccionados()" class="modal-btn-primary">
+    <button type="button" id="btnGuardarCalendarios" class="modal-btn-primary">
       Guardar
     </button>
   </div>
 
 </x-ui.modal-base>
 
-{{-- El JS del modal vive en resources/js/programa-tejido/modales/act-calendarios.js (bundle de la grilla). --}}
+{{-- El JS del modal vive en resources/js/programa-tejido/modales/act-calendarios.ts (bundle de la grilla). --}}
 
 <style>
   #tablaRegistros {

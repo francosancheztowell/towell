@@ -21,10 +21,10 @@
   </div>
 
   <div class="flex justify-center mt-4">
-    <button type="button" id="btnGuardarMarbetes" onclick="guardarMarbetesEnviar()" class="modal-btn-primary">
+    <button type="button" id="btnGuardarMarbetes" class="modal-btn-primary">
       Guardar
     </button>
   </div>
 </x-ui.modal-base>
 
-{{-- El JS del modal vive en resources/js/programa-tejido/modales/marbetes.js (bundle de la grilla). --}}
+{{-- El JS del modal vive en resources/js/programa-tejido/modales/marbetes.ts (bundle de la grilla). --}}

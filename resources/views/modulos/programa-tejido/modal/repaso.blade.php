@@ -32,10 +32,10 @@
   </table>
 
   <div class="flex justify-center mt-4">
-    <button type="button" id="btnCrearRepaso" onclick="crearRepasoEnviar()" class="modal-btn-primary">
+    <button type="button" id="btnCrearRepaso" class="modal-btn-primary">
       Crear
     </button>
   </div>
 </x-ui.modal-base>
 
-{{-- El JS del modal vive en resources/js/programa-tejido/modales/repaso.js (bundle de la grilla). --}}
+{{-- El JS del modal vive en resources/js/programa-tejido/modales/repaso.ts (bundle de la grilla). --}}
