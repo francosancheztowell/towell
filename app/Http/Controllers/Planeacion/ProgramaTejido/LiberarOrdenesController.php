@@ -18,6 +18,7 @@ use App\Services\Planeacion\Liberar\LiberarMarbetesCalculator;
 use App\Services\Planeacion\Liberar\LiberarProgramaScheduling;
 use App\Services\Planeacion\Liberar\LiberarValidacionesService;
 use App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface;
+use App\Support\Http\Concerns\HandlesApiErrors;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -30,6 +31,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LiberarOrdenesController extends Controller
 {
+    use HandlesApiErrors;
+
     /** Alias público para Blade/observer. Fuente: {@see LiberarMarbetesCalculator::PESO_ROLLO_KG_KARL_MAYER}. */
     public const PESO_ROLLO_KG_KARL_MAYER = LiberarMarbetesCalculator::PESO_ROLLO_KG_KARL_MAYER;
 
@@ -190,10 +193,12 @@ class LiberarOrdenesController extends Controller
 
             return view('modulos.programa-tejido.liberar-ordenes.index', compact('registros', 'dias', 'hilosOptions'));
         } catch (\Throwable $e) {
+            // SEC-07: el detalle (SQL, AX) va al log y a SYSMonError; la vista solo muestra la referencia.
+            report($e);
 
             return view('modulos.programa-tejido.liberar-ordenes.index', [
                 'registros' => collect(),
-                'error' => 'Error al cargar los datos: '.$e->getMessage(),
+                'error' => 'No se pudieron cargar los datos (ref: '.$this->traceIdDeError($e).').',
             ]);
         }
     }
@@ -661,15 +666,10 @@ class LiberarOrdenesController extends Controller
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Error al liberar órdenes', [
-                'msg' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al liberar las órdenes: '.$e->getMessage(),
-            ], 500);
+            // SEC-07: los rechazos de negocio ya salieron arriba como 422 con su mensaje; esto es
+            // un error inesperado, así que al usuario solo va el mensaje genérico con trace_id.
+            return $this->apiErrorResponse($e, 'Error al liberar órdenes', 'Error al liberar las órdenes.');
         }
 
         // El Excel se genera FUERA de la transacción y con su propio try: las órdenes ya están
@@ -968,9 +968,8 @@ class LiberarOrdenesController extends Controller
             return response()->json(['success' => true, 'message' => 'Marbetes actualizados correctamente.']);
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('Error al guardar marbetes', ['id' => $data['id'] ?? null, 'error' => $e->getMessage()]);
 
-            return response()->json(['success' => false, 'message' => 'Error al guardar marbetes: '.$e->getMessage()], 500);
+            return $this->apiErrorResponse($e, 'Error al guardar marbetes', 'Error al guardar marbetes.', 500, ['id' => $data['id'] ?? null]);
         }
     }
 
