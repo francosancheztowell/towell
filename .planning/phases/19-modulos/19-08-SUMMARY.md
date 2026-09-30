@@ -43,7 +43,7 @@ Diff (sin la evidencia): 35 archivos, +2 765 / −2 597.
 | `8ee7639` | Reportes a TS (`<h1>` → `<h2>`, HANDOFF 17-02 C2) |
 | `a4e7f41` | Catálogo de operadores a Livewire; fuera las rutas POST/PUT/DELETE |
 | `5b68fd2` | Guardián de JS inline, ratchet, arnés |
-| (siguiente) | Carrera de la cascada de nuevo paro (hallazgo de code-review) + `@vite` duplicado |
+| `6e713b7` | Carrera de la cascada de nuevo paro (hallazgo de code-review) + `@vite` duplicado |
 
 ## Decisiones
 
