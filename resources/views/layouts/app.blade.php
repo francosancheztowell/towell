@@ -61,11 +61,6 @@
 
   @stack('scripts')
 
-  <!-- Scripts específicos -->
-  @if(request()->routeIs('catalogos.req-programa-tejido') || request()->is('planeacion/programa-tejido') || request()->routeIs('muestras.index') || request()->is('planeacion/muestras'))
-    <script src="{{ asset('js/programa-tejido-menu.js') }}"></script>
-  @endif
-
   @if(config('app.pwa_enabled', true) && !config('app.service_worker_cleanup', false))
     {{-- data-navigate-once: wire:navigate reinyecta scripts del layout; app-pwa.js no debe reejecutarse. --}}
     <script src="{{ asset('js/app-pwa.js') }}" data-navigate-once></script>

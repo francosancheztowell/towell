@@ -28,7 +28,7 @@ class TrazabilidadStructureTest extends TestCase
         $view = file_get_contents(resource_path('views/modulos/trazabilidad/index.blade.php'));
         $script = file_get_contents(resource_path('js/trazabilidad/redbooth.ts'));
         // La lógica del modal salió del Blade a su entrada Vite (HANDOFF PT-05 B4, PT 03).
-        $modal = file_get_contents(resource_path('js/modulos/redbooth/modal.js'));
+        $modal = file_get_contents(resource_path('js/modulos/redbooth/modal.ts'));
 
         $this->assertStringContainsString('id="btn-redbooth"', $view);
         $this->assertStringContainsString("'redbooth' => route('trazabilidad.redbooth')", $view);

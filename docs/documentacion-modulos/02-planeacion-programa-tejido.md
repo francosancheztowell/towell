@@ -417,7 +417,7 @@ Importados desde `app.js`/`bootstrap.js` y expuestos globalmente.
 - `getAll()`, `get(id)`, `set(id,data)` (merge), `add(data)` (nuevo registro), `remove(id)`, `subscribe(fn)` (devuelve unsubscribe), `notify()`, `loadFromServer(data)`.
 > Nota: `state.blade.php` define **otra** clase `PTStore` inline para estado de UI; conviven en `window.PTStore` según orden de carga.
 
-**`modal-cache-bootstrap.js`** — inicializa el flag de depuración `window.__PT_DEBUG=false` (ponerlo `true` en consola antes de abrir el modal habilita `ptDebugLog`).
+**`window.__PT_DEBUG`** — flag de depuración que inicializa `index.js` (ponerlo `true` en consola antes de abrir el modal habilita `ptDebugLog`). `modal-cache-bootstrap.js` hacía lo mismo desde `app-core.js` y se borró en PT-TS 1.
 
 ---
 
