@@ -35,7 +35,14 @@ Ola 3 — segunda tanda (abierta 2026-09-29; prompts y propiedad en `SESIONES-OL
 - **CAL-deps** → `claude/22-cal-deps` · `session_01FgMTLebNy5T2hbMo6NCNoW` — ✅ **integrada** 2026-09-30 (`04a8442d`): `composer audit` 56 → 0 y `npm audit` 1 → 0 sin subir mayores (phpspreadsheet 1.30.7, maatwebsite 3.1.70, Laravel 12.69.3, Livewire 4.4.7, guzzle 7.15.5, commonmark 2.10.3); `config.platform.php = 8.2.0`; test de `IOFactory::load` contra `phar://`.
 - 2026-09-30 02:25: 19-03, 19-05 y 19-08 destrabadas por el integrador (owner: "sigue") con sus planes tal cual y las opciones recomendadas; mensaje entregado por trigger a cada sesión (`trig_01HaHA9TAVBHsRayeNU6tGxi`, `trig_01NaK22wgeaos3B9b8Cc8Bx1`, `trig_01DovQhJpq4BCevnnAjVA4Nu`). Se les pidió merge de la rama integradora + `composer quality` antes del último push.
 - **2026-09-30: Ola 3 subida a `main`** (fast-forward a `b7114948`, CI verde) tras marcar con `@SuppressWarnings` la deuda previa al gate de PHPMD (`351ce158`) y arreglar los 5 `paginate()` de la auditoría del owner (`b7114948`).
-- Tercera tanda: ver abajo (IDs). Antes: tercera tanda propuesta (espera al owner): 19-06 Codificación (tras calmarse sus cambios en `main`), 19-07 Mecánicos, 19-04 Tejedores, 19-09 Configuración, 19-10, 22-06 complejidad (ReportesUrdido, CortesEficiencia `store`, ProduccionTrait), PT 05.1 (partir `dividir`/`duplicar` con tests e Infection).
+- **Tercera tanda (abierta 2026-09-30 05:29; prompts en `SESIONES-OLA-3.md` §11–15):**
+  - TS-base → `claude/22-ts-base` · `session_01KrXye8wBbMELr92bzRodsi`
+  - 19-06a Codificación → `claude/19-06a-codificacion` · `session_019XgUno8tYVLvSLyZvB5smG`
+  - 19-06b Catálogos de Planeación → `claude/19-06b-catalogos-planeacion` · `session_01FBThTUbCanfbeAwbcd49oK`
+  - 19-04 Tejedores → `claude/19-04-tejedores` · `session_01Sw732UoqcCKcT4m6e6zXLj`
+  - PT-TS 1 → `claude/pt-ts-1` · `session_01CzL1Ly5q8aQaK7ts5yxszR`
+  - Las 5 esperan la aprobación de su plan en la web.
+- Antes: tercera tanda propuesta (espera al owner): 19-06 Codificación (tras calmarse sus cambios en `main`), 19-07 Mecánicos, 19-04 Tejedores, 19-09 Configuración, 19-10, 22-06 complejidad (ReportesUrdido, CortesEficiencia `store`, ProduccionTrait), PT 05.1 (partir `dividir`/`duplicar` con tests e Infection).
 
 - `main` al día en la rama: 5 commits el 26 (`95324118`) y 11 el 29 (Telegram con worker propio, whereIn en atadores/formulación, crudo, ventas, desarrolladores/alineación). Sin conflictos salvo `ratchet-baseline.json`.
 
