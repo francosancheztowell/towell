@@ -7,72 +7,68 @@ namespace App\Repositories\Ventas;
 use App\Models\Ventas\TwHistPedidosModel;
 use App\Models\Ventas\TwHistPronosModel;
 use App\Models\Ventas\TwHistVtasModel;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\LazyCollection;
 
 final class PvVsOcReportRepository
 {
-    /*
-     * Todos los años de una vez (el filtro de año vive en el navegador). Son ~260k filas entre las
-     * tres tablas: cursor() las recorre una a una en vez de cargarlas todas en memoria.
+    /**
+     * Dimensiones por las que filtra y agrupa la pestaña Compara. La semana y el código de color
+     * quedan fuera a propósito: ninguna vista los usa y multiplicaban las filas (~262k líneas vs ~66k combos).
+     *
+     * @var list<string>
      */
+    public const DIMENSIONES = [
+        'TEXTIL', 'TIPOPEDIDO', 'CUSTACCOUNT', 'CUSTNAME', 'ITEMID', 'ITEMNAME',
+        'LINEA', 'INVENTSIZEID', 'INVENTCOLORTXT', 'ANIO', 'MES',
+    ];
+
+    /** @var list<string> */
+    public const MEDIDAS = ['QTY', 'PESO', 'AMOUNT', 'AMOUNTDES', 'AMOUNTNETO'];
 
     /**
-     * Plan (Pronóstico), sin columnas de estatus: dbo.TwHistoricosPronostico.
+     * Prefijo de la serie => tabla origen (Plan, Pedido/OC, Real).
+     *
+     * @var array<string, class-string>
      */
-    public function pronostico(): LazyCollection
-    {
-        return TwHistPronosModel::query()
-            ->select($this->columnasBase())
-            ->toBase()
-            ->cursor();
-    }
+    public const SERIES = [
+        'P' => TwHistPronosModel::class,
+        'O' => TwHistPedidosModel::class,
+        'R' => TwHistVtasModel::class,
+    ];
 
     /**
-     * Pedidos (OC): dbo.TwHistoricosPedidos, con las columnas extra para calcular status.
+     * Plan, Pedido y Real ya cruzados por combinación de dimensiones: una fila por combo con las
+     * columnas P_QTY … R_AMOUNTNETO. Todos los años de una vez (el filtro de año vive en el navegador).
+     * Las tres tablas son heaps sin índices en SQL Server 2008 R2; agrupar en SQL sigue siendo mucho
+     * más barato que pasar cada línea a PHP.
      */
-    public function pedidos(): LazyCollection
+    public function combinado(): LazyCollection
     {
-        return TwHistPedidosModel::query()
-            ->select([...$this->columnasBase(), 'ENTREGADOQTY', 'PENDIENTEQTY'])
-            ->toBase()
-            ->cursor();
-    }
+        $dimensiones = implode(', ', self::DIMENSIONES);
 
-    /**
-     * Ventas reales: dbo.TwHistoricosVentas, sin columnas de estatus.
-     */
-    public function ventas(): LazyCollection
-    {
-        return TwHistVtasModel::query()
-            ->select($this->columnasBase())
-            ->toBase()
-            ->cursor();
-    }
+        // Cada tabla se agrupa por separado (menos filas que cruzar) y cada serie llena solo sus
+        // columnas; el GROUP BY externo junta los tres resultados en una fila por combo.
+        $fuentes = [];
+        $sumas = [];
+        foreach (self::SERIES as $serie => $modelo) {
+            $columnas = [];
+            foreach (self::SERIES as $otra => $_) {
+                foreach (self::MEDIDAS as $medida) {
+                    $columnas[] = ($otra === $serie ? "SUM({$medida})" : '0')." AS {$otra}_{$medida}";
+                }
+            }
+            $fuentes[] = "SELECT {$dimensiones}, ".implode(', ', $columnas)
+                .' FROM '.(new $modelo)->getTable()." GROUP BY {$dimensiones}";
+            foreach (self::MEDIDAS as $medida) {
+                $sumas[] = "SUM({$serie}_{$medida}) AS {$serie}_{$medida}";
+            }
+        }
 
-    /**
-     * @return list<string>
-     */
-    private function columnasBase(): array
-    {
-        return [
-            'TEXTIL',
-            'TIPOPEDIDO',
-            'CUSTACCOUNT',
-            'CUSTNAME',
-            'ITEMID',
-            'ITEMNAME',
-            'LINEA',
-            'INVENTSIZEID',
-            'INVENTCOLORID',
-            'INVENTCOLORTXT',
-            'ANIO',
-            'MES',
-            'SEMANA',
-            'QTY',
-            'PESO',
-            'AMOUNT',
-            'AMOUNTDES',
-            'AMOUNTNETO',
-        ];
+        $sql = "SELECT {$dimensiones}, ".implode(', ', $sumas)
+            .' FROM ('.implode(' UNION ALL ', $fuentes).') combos'
+            ." GROUP BY {$dimensiones}";
+
+        return LazyCollection::make(fn () => yield from DB::connection((new TwHistVtasModel)->getConnectionName())->cursor($sql));
     }
 }
