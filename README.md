@@ -1,6 +1,6 @@
 <div align="center">
 
-# Towell
+<img src="public/images/fondosTowell/logo.png" alt="Towell" width="320">
 
 **Plataforma de planeación y control de producción para manufactura textil**
 
