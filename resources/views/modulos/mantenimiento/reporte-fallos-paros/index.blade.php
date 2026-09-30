@@ -25,10 +25,6 @@
 
 </div>
 @endsection
-
-@push('scripts')
-    @vite('resources/js/modulos/mantenimiento/solicitudes/index.ts')
-@endpush
 @section('page-title', 'Reporte de Fallos y Paros')
 @section('content')
 @php

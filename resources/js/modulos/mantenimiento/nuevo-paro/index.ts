@@ -126,21 +126,35 @@ function iniciar(): void {
 
     ocultarBotonParo(cfg.rutas.nuevoParo);
 
+    // Cada combo de la cascada descarta las respuestas rezagadas: en la red de la planta,
+    // cambiar de departamento A → B podía pintar las máquinas de A con B elegido (y el
+    // store no revisa que la máquina sea del departamento).
+    const vueltas = { tipos: 0, fallas: 0, maquinas: 0, orden: 0 };
+    type Vuelta = keyof typeof vueltas;
+    const nuevaVuelta = (k: Vuelta): (() => boolean) => {
+        const mia = ++vueltas[k];
+        return () => mia === vueltas[k];
+    };
+
     async function cargarTiposFalla(departamento: string): Promise<void> {
         errorCarga('tipo_falla');
         soloPlaceholder(selTipo, TXT_SIN_MAQUINA);
         if (!departamento) {
+            nuevaVuelta('tipos');
             refrescarAyudas();
             return;
         }
         marcarCargando(selTipo);
+        const vigente = nuevaVuelta('tipos');
         try {
             const r = await http.get<RespuestaApi<string[]>>(rutaCon(cfg!.rutas.tiposFalla, { __DEPTO__: departamento }));
+            if (!vigente()) return;
             soloPlaceholder(selTipo, TXT_SIN_MAQUINA);
             (r.data ?? []).forEach((tipo) => selTipo.add(new Option(tipo, tipo)));
             // El tipo de falla solo se abre cuando ya hay una máquina elegida.
             selTipo.disabled = !selMaquina.value;
         } catch (err) {
+            if (!vigente()) return;
             soloPlaceholder(selTipo, TXT_SIN_MAQUINA);
             selTipo.disabled = true;
             errorCarga('tipo_falla', mensajeError(err, 'No se pudieron cargar los tipos de falla de este departamento.'));
@@ -175,9 +189,11 @@ function iniciar(): void {
         errorCarga('descripcion');
         marcarCargando(selFalla);
         marcarCargando(selDescripcion);
+        const vigente = nuevaVuelta('fallas');
         try {
             const url = rutaCon(cfg!.rutas.fallasPorTipo, { __DEPTO__: departamento, __TIPO__: tipo });
             const r = await http.get<RespuestaApi<Falla[]>>(url);
+            if (!vigente()) return;
             const opciones = opcionesDeFallas(r.data ?? []);
 
             soloPlaceholder(selFalla, 'Seleccione una falla');
@@ -192,6 +208,7 @@ function iniciar(): void {
                 reiniciar(selDescripcion, 'No hay descripciones disponibles');
             }
         } catch (err) {
+            if (!vigente()) return;
             reiniciar(selFalla, 'Error al cargar fallas');
             reiniciar(selDescripcion, 'Error al cargar descripciones');
             errorCarga('falla', mensajeError(err, 'No se pudieron cargar las fallas de este tipo.'));
@@ -205,13 +222,16 @@ function iniciar(): void {
     async function cargarMaquinas(departamento: string): Promise<void> {
         errorCarga('maquina');
         if (!departamento) {
+            nuevaVuelta('maquinas');
             reiniciar(selMaquina, TXT_SIN_DEPTO);
             refrescarAyudas();
             return;
         }
         marcarCargando(selMaquina);
+        const vigente = nuevaVuelta('maquinas');
         try {
             const r = await http.get<RespuestaApi<Maquina[]>>(rutaCon(cfg!.rutas.maquinas, { __DEPTO__: departamento }));
+            if (!vigente()) return;
             const maquinas = r.data ?? [];
             const opcion = (m: Maquina): HTMLOptionElement => {
                 const o = new Option(String(m.MaquinaId), String(m.MaquinaId));
@@ -233,6 +253,7 @@ function iniciar(): void {
             }
             selMaquina.disabled = false;
         } catch (err) {
+            if (!vigente()) return;
             reiniciar(selMaquina, 'Error al cargar máquinas');
             errorCarga('maquina', mensajeError(err, 'No se pudieron cargar las máquinas de este departamento.'));
         }
@@ -250,20 +271,24 @@ function iniciar(): void {
             inputOrden.value = '';
             return;
         }
+        const vigente = nuevaVuelta('orden');
         try {
             const r = await http.get<RespuestaApi<Array<{ Orden_Prod?: string }>>>(
                 rutaCon(cfg!.rutas.ordenTrabajo, { __DEPTO__: departamento, __MAQ__: maquina }),
             );
             // Si llegó mientras el operador escribía, se respeta lo suyo.
-            if (!ordenManual) inputOrden.value = ordenSugerida(r.data?.[0]?.Orden_Prod);
+            if (vigente() && !ordenManual) inputOrden.value = ordenSugerida(r.data?.[0]?.Orden_Prod);
         } catch {
             // Sin sugerencia: se limpia para no dejar una OT de otra máquina.
-            if (!ordenManual) inputOrden.value = '';
+            if (vigente() && !ordenManual) inputOrden.value = '';
         }
     }
 
     selDepto.addEventListener('change', () => {
         const departamento = selDepto.value;
+        // Lo que venía en camino para el departamento anterior ya no aplica.
+        nuevaVuelta('fallas');
+        nuevaVuelta('orden');
         if (departamento) {
             void cargarMaquinas(departamento);
             void cargarTiposFalla(departamento);
@@ -273,6 +298,8 @@ function iniciar(): void {
             limpiarOrdenSugerida();
             reiniciar(selFalla, TXT_SIN_TIPO);
         } else {
+            nuevaVuelta('maquinas');
+            nuevaVuelta('tipos');
             reiniciar(selMaquina, TXT_SIN_DEPTO);
             selTipo.disabled = true;
             selDescripcion.disabled = true;
@@ -281,6 +308,8 @@ function iniciar(): void {
     });
 
     selMaquina.addEventListener('change', () => {
+        nuevaVuelta('fallas');
+        nuevaVuelta('orden');
         limpiarOrdenSugerida();
         if (selMaquina.value) {
             selTipo.disabled = false;
@@ -303,6 +332,7 @@ function iniciar(): void {
         if (selDepto.value && selTipo.value) {
             void cargarFallas(selDepto.value, selTipo.value);
         } else {
+            nuevaVuelta('fallas');
             selFalla.disabled = true;
             reiniciar(selDescripcion, TXT_SIN_TIPO);
         }
