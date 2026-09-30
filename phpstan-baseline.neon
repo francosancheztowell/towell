@@ -580,18 +580,6 @@ parameters:
 			path: app/Http/Controllers/Atadores/ProgramaAtadores/AtaDevolucionesController.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Atadores\\AtaActividadesModel\:\:\$ActividadId\.$#'
-			identifier: property.notFound
-			count: 4
-			path: app/Http/Controllers/Atadores/ProgramaAtadores/AtadoresController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Atadores\\AtaActividadesModel\:\:\$Porcentaje\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Http/Controllers/Atadores/ProgramaAtadores/AtadoresController.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Atadores\\AtaMontadoTelasModel\:\:\$Calidad\.$#'
 			identifier: property.notFound
 			count: 1
@@ -780,12 +768,6 @@ parameters:
 		-
 			message: '#^Access to an undefined property App\\Models\\Tejido\\TejInventarioTelares\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Tejido\\TejInventarioTelares\>\:\:\$horaParo\.$#'
 			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Atadores/ProgramaAtadores/AtadoresController.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,object\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
 			count: 1
 			path: app/Http/Controllers/Atadores/ProgramaAtadores/AtadoresController.php
 
@@ -12228,7 +12210,7 @@ parameters:
 		-
 			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
 			identifier: function.alreadyNarrowedType
-			count: 2
+			count: 1
 			path: app/Services/OeeAtadores/OeeAtadoresFileService.php
 
 		-
@@ -12246,66 +12228,6 @@ parameters:
 		-
 			message: '#^Call to function method_exists\(\) with PhpOffice\\PhpSpreadsheet\\Reader\\IReader and ''setReadEmptyCells'' will always evaluate to true\.$#'
 			identifier: function.alreadyNarrowedType
-			count: 1
-			path: app/Services/OeeAtadores/OeeAtadoresFileService.php
-
-		-
-			message: '#^Method App\\Services\\OeeAtadores\\OeeAtadoresFileService\:\:cloneLastSemanaSheet\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: app/Services/OeeAtadores/OeeAtadoresFileService.php
-
-		-
-			message: '#^Method App\\Services\\OeeAtadores\\OeeAtadoresFileService\:\:reapplySectionStyles\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: app/Services/OeeAtadores/OeeAtadoresFileService.php
-
-		-
-			message: '#^Method App\\Services\\OeeAtadores\\OeeAtadoresFileService\:\:rebuildAnnualAtadoresSheet\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: app/Services/OeeAtadores/OeeAtadoresFileService.php
-
-		-
-			message: '#^Method App\\Services\\OeeAtadores\\OeeAtadoresFileService\:\:rebuildConcentradoSheets\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: app/Services/OeeAtadores/OeeAtadoresFileService.php
-
-		-
-			message: '#^Method App\\Services\\OeeAtadores\\OeeAtadoresFileService\:\:rebuildGraficaSheet\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: app/Services/OeeAtadores/OeeAtadoresFileService.php
-
-		-
-			message: '#^Method App\\Services\\OeeAtadores\\OeeAtadoresFileService\:\:rebuildTotalAtadosSheet\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: app/Services/OeeAtadores/OeeAtadoresFileService.php
-
-		-
-			message: '#^Method App\\Services\\OeeAtadores\\OeeAtadoresFileService\:\:resizeSemanaSheet\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: app/Services/OeeAtadores/OeeAtadoresFileService.php
-
-		-
-			message: '#^Method App\\Services\\OeeAtadores\\OeeAtadoresFileService\:\:setFormulaIfBrokenOrBlank\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: app/Services/OeeAtadores/OeeAtadoresFileService.php
-
-		-
-			message: '#^Method App\\Services\\OeeAtadores\\OeeAtadoresFileService\:\:snapshotSectionStyles\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: app/Services/OeeAtadores/OeeAtadoresFileService.php
-
-		-
-			message: '#^Method App\\Services\\OeeAtadores\\OeeAtadoresFileService\:\:syncSemanaSheets\(\) is unused\.$#'
-			identifier: method.unused
 			count: 1
 			path: app/Services/OeeAtadores/OeeAtadoresFileService.php
 
