@@ -2,12 +2,27 @@
 
 @section('page-title', 'Programación de Requerimientos')
 
+@php
+    // 19-05: config de la página para resources/js/modulos/programa-urd-eng/programacion-requerimientos/index.ts
+    $configPagina = [
+        'rutas' => [
+            'resumen' => route('programa.urd.eng.programacion.resumen.semanas'),
+            'actualizarTelar' => route('programa.urd.eng.actualizar.telar'),
+            'hilos' => route('programa.urd.eng.hilos'),
+            'tamanos' => route('programa.urd.eng.tamanos'),
+            'creacionOrdenes' => route('programa.urd.eng.creacion.ordenes'),
+        ],
+        'telares' => $telaresSeleccionados ?? [],
+        'opcionesUrdido' => $opcionesUrdido ?? [],
+    ];
+@endphp
+
 @section('navbar-right')
 <div class="flex items-center gap-3">
     <!-- Botón único -->
-    <button id="btnSiguiente" type="button" title="Siguiente" disabled
+    <button id="btnSiguiente" type="button" title="Siguiente" aria-label="Siguiente: crear órdenes" disabled
         class="px-6 py-2.5 bg-blue-500 text-white font-semibold rounded-xl shadow-md hover:shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none">
-        <i class="fa-solid fa-arrow-right w-4 h-4 group-hover:translate-x-1 transition-transform duration-200"></i>
+        <i class="fa-solid fa-arrow-right w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" aria-hidden="true"></i>
     </button>
 </div>
 @endsection
@@ -15,7 +30,7 @@
 @section('content')
 
 
-<div class="w-full">
+<div class="w-full" id="pagina-programacion-requerimientos" data-pagina='@json($configPagina)'>
 
     {{-- =================== Tabla de requerimientos =================== --}}
     <div class="bg-white overflow-hidden mb-4">
@@ -23,17 +38,17 @@
             <table id="tablaRequerimientos" class="w-full">
                 <thead>
                     <tr class="bg-blue-500">
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20" data-column-field="telar" data-column-label="Telar">Telar</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28" data-column-field="fecha_req" data-column-label="Fecha">Fecha</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24" data-column-field="tamano" data-column-label="Tamaño">Tamaño</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20" data-column-field="cuenta" data-column-label="Cuenta">Cuenta</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20" data-column-field="calibre" data-column-label="Calibre">Calibre</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24" data-column-field="hilo" data-column-label="Hilo">Hilo</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28" data-column-field="urdido" data-column-label="Urdido">Urdido</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20" data-column-field="tipo" data-column-label="Tipo">Tipo</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28" data-column-field="tipo_atado" data-column-label="Tipo Atado">Tipo Atado</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24" data-column-field="metros" data-column-label="Metros">Metros</th>
-                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24" data-column-field="kilos" data-column-label="Kilos">Kilos</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20">Telar</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28">Fecha</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24">Tamaño</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20">Cuenta</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20">Calibre</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24">Hilo</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28">Urdido</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-20">Tipo</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-28">Tipo Atado</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24">Metros</th>
+                        <th class="px-2 py-3 text-left text-md font-semibold text-white w-24">Kilos</th>
                     </tr>
                 </thead>
                 <tbody id="tbodyRequerimientos" class="bg-white">
@@ -60,16 +75,12 @@
                         <th class="px-2 py-1.5 text-right text-[12px] font-semibold text-green-700 bg-green-50" rowspan="2">Total (kg)</th>
                     </tr>
                     <tr>
-                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="0">Semana 1</th>
-                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="1">Semana 2</th>
-                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="2">Semana 3</th>
-                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="3">Semana 4</th>
-                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="4">Semana 5</th>
-                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="0">Semana 1</th>
-                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="1">Semana 2</th>
-                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="2">Semana 3</th>
-                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="3">Semana 4</th>
-                        <th class="px-2 py-1 text-right text-[12px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="4">Semana 5</th>
+                        @for ($semana = 0; $semana < 5; $semana++)
+                            <th class="px-2 py-1 text-right text-[12px] font-semibold text-blue-600 bg-blue-50 semana-header" data-semana="{{ $semana }}">Semana {{ $semana + 1 }}<span class="hidden" data-rango-semana><br><span class="text-gray-500 font-normal text-caption" data-rango-texto></span></span></th>
+                        @endfor
+                        @for ($semana = 0; $semana < 5; $semana++)
+                            <th class="px-2 py-1 text-right text-[12px] font-semibold text-green-600 bg-green-50 semana-header" data-semana="{{ $semana }}">Semana {{ $semana + 1 }}<span class="hidden" data-rango-semana><br><span class="text-gray-500 font-normal text-caption" data-rango-texto></span></span></th>
+                        @endfor
                     </tr>
                 </thead>
                 <tbody id="tbodyResumen" class="bg-white">
@@ -80,1365 +91,106 @@
     </div>
 </div>
 
+{{-- =================== Plantillas (las llena index.ts; sin datos en el HTML) =================== --}}
+<template id="tpl-fila-requerimiento">
+    <tr class=" hover:bg-gray-50">
+        <td class="px-2 py-3 w-20">
+            <input type="text" class="w-full px-2 py-1.5 text-md bg-transparent border-0" data-field="telar" aria-label="Telar" disabled>
+        </td>
+        <td class="px-2 py-3 w-28">
+            <input type="date" class="w-full px-2 py-1.5 text-md bg-transparent border-0" data-field="fecha_req" aria-label="Fecha requerida" disabled>
+        </td>
+        <td class="px-2 py-3 w-24">
+            <div class="relative tamano-wrapper">
+                <input type="text" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tamano" aria-label="Tamaño" required placeholder="Buscar..." autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false">
+                <div class="tamano-dropdown hidden fixed z-[9999] bg-white border border-gray-300 rounded shadow-lg overflow-y-auto text-sm" style="max-height:200px;" role="listbox"></div>
+            </div>
+        </td>
+        <td class="px-2 py-3 w-20">
+            <input type="text" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-gray-100 focus:outline-none" data-field="cuenta" aria-label="Cuenta" readonly>
+        </td>
+        <td class="px-2 py-3 w-20">
+            <input type="text" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-gray-100 focus:outline-none" data-field="calibre" aria-label="Calibre" readonly>
+        </td>
+        <td class="px-2 py-3 w-24">
+            <select class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="hilo" aria-label="Hilo" required>
+                <option value="">Seleccione...</option>
+            </select>
+        </td>
+        <td class="px-2 py-3 w-28">
+            <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="urdido" aria-label="Urdido" required></select>
+        </td>
+        <td class="px-2 py-3 w-20">
+            <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tipo" aria-label="Tipo" required>
+                <option value="Rizo">Rizo</option>
+                <option value="Pie">Pie</option>
+            </select>
+        </td>
+        <td class="px-2 py-3 w-28">
+            <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tipo_atado" aria-label="Tipo de atado" required>
+                <option value="Normal">Normal</option>
+                <option value="Especial">Especial</option>
+            </select>
+        </td>
+        <td class="px-2 py-3 w-24">
+            <input type="text" placeholder="Metros (requerido)" inputmode="decimal"
+                   class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-right"
+                   data-field="metros" aria-label="Metros" required>
+        </td>
+        <td class="px-2 py-3 w-24">
+            <input type="text" placeholder="Kilos (requerido)" inputmode="decimal"
+                   class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
+                   data-field="kilos" aria-label="Kilos" required>
+        </td>
+    </tr>
+</template>
+
+<template id="tpl-requerimientos-vacio">
+    <tr>
+        <td colspan="11" class="px-4 py-8 text-center text-gray-500">
+            <i class="fa-solid fa-circle-info text-gray-400 mb-2" aria-hidden="true"></i>
+            <p>No hay telares seleccionados.</p>
+        </td>
+    </tr>
+</template>
+
+<template id="tpl-requerimientos-error">
+    <tr>
+        <td colspan="11" class="px-4 py-8 text-center text-red-500" role="alert">
+            <i class="fa-solid fa-triangle-exclamation text-red-400 mb-2" aria-hidden="true"></i>
+            <p class="font-semibold">Error de validación</p>
+            <p class="text-sm mt-2" data-slot="mensaje"></p>
+            <p class="text-md mt-2 text-gray-500">Todos los telares deben tener el mismo tipo y calibre.</p>
+        </td>
+    </tr>
+</template>
+
+<template id="tpl-resumen-mensaje">
+    <tr>
+        <td colspan="17" class="px-2 py-4 text-center text-gray-500 text-caption">
+            <i class="fa-solid fa-circle-info text-gray-400 mb-1" aria-hidden="true"></i>
+            <p class="whitespace-pre-line" data-slot="mensaje"></p>
+            <button type="button" data-accion="reintentar-resumen" hidden
+                class="mt-2 min-h-touch px-4 py-2 rounded-lg bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600">
+                <i class="fa-solid fa-rotate-right" aria-hidden="true"></i> Reintentar
+            </button>
+        </td>
+    </tr>
+</template>
+
+<template id="tpl-resumen-cargando">
+    <tr>
+        <td colspan="17" class="px-2 py-4 text-center text-gray-500 text-caption" role="status">
+            <div class="flex items-center justify-center gap-2">
+                <div class="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-blue-500" aria-hidden="true"></div>
+                <span>Cargando datos...</span>
+            </div>
+        </td>
+    </tr>
+</template>
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    /* =================== Estado & Constantes =================== */
-    const RUTA_RESUMEN = '{{ route("programa.urd.eng.programacion.resumen.semanas") }}';
-    const RUTA_ACTUALIZAR_TELAR = '{{ route("programa.urd.eng.actualizar.telar") }}';
-    const RUTA_GRUPO_BY_TELAR = '{{ route("programa.urd.eng.programacion.requerimientos.grupo.by.telar") }}';
-    const RUTA_HILOS = '{{ route("programa.urd.eng.hilos") }}';
-    const RUTA_TAMANOS = '{{ route("programa.urd.eng.tamanos") }}';
-    const CSRF = document.querySelector('meta[name="csrf-token"]')?.content || '';
-
-    const opciones = {
-        urdido: @json($opcionesUrdido ?? []),
-        tipoAtado: ['Normal', 'Especial'],
-        destino: ['Itema Nuevo', 'Itema Viejo', 'Jacquard Sulzer', 'Jacquard Smit', 'Smit'],
-        // Catálogos vigentes de AX, indexados por tipo de telar (RIZO/PIE):
-        // cada tipo usa su propio artículo de julio, con hilos y tamaños distintos.
-        hilos: {},
-        tamanos: {}
-    };
-    const JULIO_TIPOS = ['Rizo', 'Pie'];
-    const REQUERIMIENTOS_COLUMN_META = [
-        { field: 'telar', label: 'Telar' },
-        { field: 'fecha_req', label: 'Fecha' },
-        { field: 'tamano', label: 'Tamaño' },
-        { field: 'cuenta', label: 'Cuenta' },
-        { field: 'calibre', label: 'Calibre' },
-        { field: 'hilo', label: 'Hilo' },
-        { field: 'urdido', label: 'Urdido' },
-        { field: 'tipo', label: 'Tipo' },
-        { field: 'tipo_atado', label: 'Tipo Atado' },
-        { field: 'metros', label: 'Metros' },
-        { field: 'kilos', label: 'Kilos' }
-    ];
-    const REQUERIMIENTOS_COLUMN_ORDER = REQUERIMIENTOS_COLUMN_META.map(col => col.field);
-    // Función para mapear salón a destino (ITEMA y SMITH ambos usan SMIT) — fallback si no hay grupo en ReqTelares
-    function normalizarDestino(destino) {
-        const value = String(destino || '').trim();
-        if (!value) return '';
-
-        const normalized = value.toUpperCase().replace(/\s+/g, ' ');
-
-        if (normalized === 'ITEMA NUEVO') return 'Itema Nuevo';
-        if (normalized === 'ITEMA VIEJO') return 'Itema Viejo';
-        if (normalized === 'JACQUARD SULZER' || normalized === 'SULZER') return 'Jacquard Sulzer';
-        if (normalized === 'JACQUARD SMIT' || normalized === 'JACQUARD' || normalized === 'JAC') return 'Jacquard Smit';
-        if (normalized === 'SMIT' || normalized === 'SMITH') return 'Smit';
-
-        return '';
-    }
-
-    function mapearSalonADestino(salon) {
-        if (!salon) return '';
-        const s = String(salon).toUpperCase().trim();
-        if (s === 'SMITH' || s === 'SMIT') return 'Smit';
-        if (s === 'SULZER') return 'Jacquard Sulzer';
-        if (s === 'JACQUARD' || s === 'JAC') return 'Jacquard Smit';
-        return '';
-    }
-
-    // Establecer valor de Destino (grupo) en una fila y actualizar telaresData
-    function setDestinoEnFila(row, grupo) {
-        if (!row || grupo == null || grupo === '') return;
-        const select = row.querySelector('select[data-field="destino"]');
-        if (!select) return;
-        const grupoStr = normalizarDestino(grupo);
-        if (!grupoStr) return;
-        select.value = grupoStr;
-        const index = parseInt(row.dataset.index, 10);
-        if (!isNaN(index) && telaresData[index]) telaresData[index].destino = grupoStr;
-    }
-
-    // Cargar grupo (Destino) desde ReqTelares por NoTelarId para cada fila
-    async function cargarDestinoDesdeReqTelares() {
-        const tbody = document.getElementById('tbodyRequerimientos');
-        if (!tbody) return;
-        const filas = tbody.querySelectorAll('tr[data-telar-id]');
-        const cacheGrupo = {};
-        for (const row of filas) {
-            const noTelarId = row.dataset.telarId || '';
-            if (!noTelarId) continue;
-            if (cacheGrupo[noTelarId] !== undefined) {
-                setDestinoEnFila(row, cacheGrupo[noTelarId]);
-                continue;
-            }
-            try {
-                const url = `${RUTA_GRUPO_BY_TELAR}?notelarid=${encodeURIComponent(noTelarId)}`;
-                const res = await fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
-                const data = await res.json();
-                if (data.success && data.grupo != null && data.grupo !== '') {
-                    cacheGrupo[noTelarId] = data.grupo;
-                    setDestinoEnFila(row, data.grupo);
-                }
-            } catch (e) {
-                console.warn('Error al cargar grupo para telar', noTelarId, e);
-            }
-        }
-    }
-
-    let telaresData = normalizeInput(@json($telaresSeleccionados ?? []));
-
-    if (telaresData.length === 0) {
-        const urlParams = new URLSearchParams(location.search);
-        const raw = urlParams.get('telares') || sessionStorage.getItem('selectedTelares');
-        if (raw) {
-            try { telaresData = normalizeInput(JSON.parse(decodeURIComponent(raw))); }
-            catch { /* ignore */ }
-                sessionStorage.removeItem('selectedTelares');
-        }
-    }
-
-    /* =================== Helpers =================== */
-    function todayISO() {
-        const d = new Date(); const m = (d.getMonth()+1+'').padStart(2,'0'); const day = (d.getDate()+'').padStart(2,'0');
-        return `${d.getFullYear()}-${m}-${day}`;
-    }
-
-    function escapeHtml(value) {
-        return String(value ?? '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-    }
-
-    // Normalizar tipo a formato estándar: "Rizo" o "Pie" (primera letra mayúscula, resto minúsculas)
-    function normalizarTipo(tipo) {
-        if (!tipo || tipo === '') return '';
-        const tipoUpper = String(tipo).toUpperCase().trim();
-        if (tipoUpper === 'RIZO') return 'Rizo';
-        if (tipoUpper === 'PIE') return 'Pie';
-        return tipo; // Si no es RIZO ni PIE, retornar el original
-    }
-
-    // Tamaños vigentes del tipo que tiene esa fila: Rizo y Pie no comparten catálogo.
-    function tamanosDeFila(fila) {
-        const tipo = fila?.querySelector('select[data-field="tipo"]')?.value || '';
-        return opciones.tamanos[String(normalizarTipo(tipo) || '').toUpperCase()] || [];
-    }
-
-    function normalizeInput(arr) {
-        return (arr || []).map(t => ({
-            ...t,
-            tipo: normalizarTipo(t.tipo), // Normalizar tipo a "Rizo" o "Pie"
-            hilo: null  // Reiniciar: el usuario debe elegir el hilo desde esta pantalla
-        }));
-    }
-
-    // Formatear número para input (con comas y puntos)
-    function formatNumberInput(value) {
-        if (!value || value === '') return '';
-        const num = parseFloat(String(value).replace(/,/g, ''));
-        if (isNaN(num)) return '';
-        return num.toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2});
-    }
-
-    // Parsear número desde input (remover comas y puntos)
-    function parseNumberInput(value) {
-        if (!value || value === '') return '';
-        return String(value).replace(/,/g, '');
-    }
-
-    // Valida que todos compartan Tipo (obligatorio) y, si están presentes, mismo calibre.
-    // Hilo no se valida para ningún tipo.
-    function validarGrupo(telares) {
-        if (!telares.length) return { valido:false, mensaje:'No hay telares seleccionados' };
-
-        const base = telares[0] || {};
-        const tipoBase = String(base.tipo || '').toUpperCase().trim();
-        const calBase  = base.calibre != null && base.calibre !== '' ? parseFloat(base.calibre) : null;
-
-        if (!tipoBase) return { valido:false, mensaje:'El telar debe tener un tipo definido' };
-
-        for (let i=1;i<telares.length;i++){
-            const t = telares[i];
-            const tipo = String(t.tipo || '').toUpperCase().trim();
-            if (tipo !== tipoBase)
-                return { valido:false, mensaje:`El telar ${t.no_telar || 'N/A'} tiene tipo "${t.tipo || 'N/A'}" pero se esperaba "${base.tipo || 'N/A'}".` };
-
-            const cal = t.calibre != null && t.calibre !== '' ? parseFloat(t.calibre) : null;
-            if (calBase!=null && cal!=null && Math.abs(calBase - cal) >= 0.01)
-                return { valido:false, mensaje:`El telar ${t.no_telar || 'N/A'} calibre "${cal}" ≠ "${calBase}".` };
-        }
-
-        const tipoNormalizado = normalizarTipo(base.tipo);
-        return { valido:true, tipo:tipoNormalizado, calibre:calBase, hilo:null };
-    }
-
-    /* =================== Cargar catálogos vigentes desde TI_PRO =================== */
-    // Un telar Rizo y uno Pie no comparten hilos ni tamaños, así que cada tipo
-    // se pide por separado y se guarda bajo su clave (RIZO/PIE).
-    async function cargarCatalogoPorTipo(ruta, campo, etiqueta) {
-        const entradas = await Promise.all(JULIO_TIPOS.map(async (tipo) => {
-            const clave = tipo.toUpperCase();
-            try {
-                const response = await fetch(`${ruta}?tipo=${encodeURIComponent(tipo)}`, {
-                    method: 'GET',
-                    headers: { 'Accept': 'application/json' }
-                });
-                const result = await response.json();
-
-                if (result.success && Array.isArray(result.data)) {
-                    return [clave, result.data.map(item => item[campo] || '').filter(Boolean)];
-                }
-
-                console.warn(`No se pudieron cargar los ${etiqueta} de ${tipo}:`, result.message || 'Respuesta inválida');
-            } catch (error) {
-                console.error(`Error al cargar los ${etiqueta} de ${tipo}:`, error);
-            }
-
-            return [clave, []];
-        }));
-
-        return Object.fromEntries(entradas);
-    }
-
-    async function cargarHilos() {
-        opciones.hilos = await cargarCatalogoPorTipo(RUTA_HILOS, 'ConfigId', 'hilos');
-    }
-
-    async function cargarTamanos() {
-        opciones.tamanos = await cargarCatalogoPorTipo(RUTA_TAMANOS, 'InventSizeId', 'tamaños');
-    }
-
-    /* =================== Agrupar por cuenta =================== */
-    function agruparPorCuenta(telares) {
-        const map = new Map();
-        const order = [];
-        for (const t of telares) {
-            const clave = String(t.cuenta || '').trim() || `_${t.no_telar}`;
-            if (!map.has(clave)) { map.set(clave, []); order.push(clave); }
-            map.get(clave).push(t);
-        }
-        return order.map(k => map.get(k));
-    }
-
-    /* =================== Render principal =================== */
-    function crearFila(grupo, index) {
-        const telar = grupo[0];
-        const fechaISO = telar.fecha_req || todayISO();
-        // Normalizar tipo para mostrar
-        const tipoNormalizado = normalizarTipo(telar.tipo);
-        const tipoCls  = (String(tipoNormalizado||'').toUpperCase()==='RIZO')
-            ? 'bg-rose-100 text-rose-700' : (String(tipoNormalizado||'').toUpperCase()==='PIE'
-            ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-700');
-
-        const tr = document.createElement('tr');
-        tr.className = ' hover:bg-gray-50';
-        tr.dataset.index = index;
-        tr.dataset.telarId = telar.no_telar || '';
-        tr.dataset.inventarioId = (telar.id != null && telar.id !== '') ? String(telar.id) : '';
-        tr.dataset.fecha = telar.fecha || '';
-        tr.dataset.turno = (telar.turno != null && telar.turno !== '') ? String(telar.turno) : '';
-        tr.dataset.telares = JSON.stringify(grupo.map(t => ({ no_telar: t.no_telar, id: t.id, fecha: t.fecha, turno: t.turno })));
-
-        // Catálogos del tipo de este renglón (un Pie no puede pedir hilos de Rizo)
-        const claveTipo = String(tipoNormalizado || '').toUpperCase();
-        const hilosDelTipo = opciones.hilos[claveTipo] || [];
-        const tamanosDelTipo = opciones.tamanos[claveTipo] || [];
-
-        // Construir opciones del select de hilo (siempre iniciar vacío, el usuario elige)
-        const opcionesHilo = hilosDelTipo.map(hilo => `<option value="${hilo}">${hilo}</option>`).join('');
-        const selectHiloHTML = `<option value="">Seleccione...</option>${opcionesHilo}`;
-
-        // Construir opciones del select de tamaño
-        const tamanoActual = telar.tamano || telar.tamaño || telar.inventSizeId || '';
-        const opcionesTamano = tamanosDelTipo.map(tamano => {
-            const selected = tamano === tamanoActual ? 'selected' : '';
-            return `<option value="${tamano}" ${selected}>${tamano}</option>`;
-        }).join('');
-        // Agregar opción vacía al inicio si no hay tamaño seleccionado
-        const selectTamanoHTML = tamanoActual && !tamanosDelTipo.includes(tamanoActual)
-            ? `<option value="${tamanoActual}" selected>${tamanoActual}</option>${opcionesTamano}`
-            : `<option value="">Seleccione...</option>${opcionesTamano}`;
-
-        tr.innerHTML = `
-            <td class="px-2 py-3 w-20" data-column-field="telar">
-                <input type="text" class="w-full px-2 py-1.5 text-md bg-transparent border-0" value="${grupo.map(t => t.no_telar).join(', ')}" data-field="telar" disabled>
-            </td>
-            <td class="px-2 py-3 w-28" data-column-field="fecha_req">
-                <input type="date" class="w-full px-2 py-1.5 text-md bg-transparent border-0" value="${fechaISO}" data-field="fecha_req" disabled>
-            </td>
-            <td class="px-2 py-3 w-24" data-column-field="tamano">
-                <div class="relative tamano-wrapper">
-                    <input type="text" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tamano" data-telar-id="${telar.no_telar || ''}" required placeholder="Buscar..." value="${escapeHtml(tamanoActual)}" autocomplete="off">
-                    <div class="tamano-dropdown hidden fixed z-[9999] bg-white border border-gray-300 rounded shadow-lg overflow-y-auto text-sm" style="max-height:200px;"></div>
-                </div>
-            </td>
-            <td class="px-2 py-3 w-20" data-column-field="cuenta">
-                <input type="text" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-gray-100 focus:outline-none" value="${telar.cuenta || ''}" data-field="cuenta" data-telar-id="${telar.no_telar || ''}" readonly>
-            </td>
-            <td class="px-2 py-3 w-20" data-column-field="calibre">
-                <input type="text" class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-gray-100 focus:outline-none" value="${telar.calibre ?? ''}" data-field="calibre" data-telar-id="${telar.no_telar || ''}" readonly>
-            </td>
-            <td class="px-2 py-3 w-24" data-column-field="hilo">
-                <select class="w-full px-2 py-1.5 text-md border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="hilo" data-telar-id="${telar.no_telar || ''}" required>
-                    ${selectHiloHTML}
-                </select>
-            </td>
-            <td class="px-2 py-3 w-28" data-column-field="urdido">
-                <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="urdido" required>
-                    ${opciones.urdido.map((x, idx) => {
-                        const isSelected = telar.urdido === x || (!telar.urdido && idx === 0);
-                        return `<option value="${x}" ${isSelected ? 'selected' : ''}>${x}</option>`;
-                    }).join('')}
-                </select>
-            </td>
-            <td class="px-2 py-3 w-20" data-column-field="tipo">
-                <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tipo" data-telar-id="${telar.no_telar || ''}" required style="${(tipoNormalizado === 'Rizo' || !tipoNormalizado) ? 'background-color: #fee2e2; color: #be123c;' : 'background-color: #ccfbf1; color: #0f766e;'}">
-                    <option value="Rizo" ${tipoNormalizado === 'Rizo' || !tipoNormalizado ? 'selected' : ''}>Rizo</option>
-                    <option value="Pie" ${tipoNormalizado === 'Pie' ? 'selected' : ''}>Pie</option>
-                </select>
-            </td>
-
-            <td class="px-2 py-3 w-28" data-column-field="tipo_atado">
-                <select class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" data-field="tipo_atado" required>
-                    ${opciones.tipoAtado.map(x => `<option value="${x}" ${(telar.tipo_atado||'Normal')===x?'selected':''}>${x}</option>`).join('')}
-                </select>
-            </td>
-            <td class="px-2 py-3 w-24" data-column-field="metros">
-                <input type="text" placeholder="Metros (requerido)"
-                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-right"
-                       value="${telar.metros ? formatNumberInput(telar.metros) : ''}" data-field="metros" required>
-            </td>
-            <td class="px-2 py-3 w-24" data-column-field="kilos">
-                <input type="text" placeholder="Kilos (requerido)"
-                       class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-md text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
-                       value="${telar.kilos ? formatNumberInput(telar.kilos) : ''}" data-field="kilos" required>
-            </td>
-        `;
-        return tr;
-    }
-
-    function renderTabla() {
-        const tbody = document.getElementById('tbodyRequerimientos');
-        tbody.innerHTML = '';
-
-        if (!telaresData.length) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="13" class="px-4 py-8 text-center text-gray-500">
-                        <i class="fa-solid fa-circle-info text-gray-400 mb-2"></i>
-                        <p>No hay telares seleccionados.</p>
-                    </td>
-                </tr>`;
-            renderResumenMensaje('No hay telares seleccionados para mostrar el resumen.');
-            return;
-        }
-
-        const v = validarGrupo(telaresData);
-        if (!v.valido) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="13" class="px-4 py-8 text-center text-red-500">
-                        <i class="fa-solid fa-triangle-exclamation text-red-400 mb-2"></i>
-                        <p class="font-semibold">Error de validación</p>
-                        <p class="text-sm mt-2">${v.mensaje}</p>
-                        <p class="text-md mt-2 text-gray-500">Todos los telares deben tener el mismo tipo y calibre.</p>
-                    </td>
-                </tr>`;
-            renderResumenMensaje('No se puede cargar el resumen por error de validación.');
-            return;
-        }
-
-        // Filtrado tolerante
-        const tipoValidado = String(v.tipo||'').toUpperCase().trim();
-        const esPie = tipoValidado === 'PIE';
-        const filtrados = telaresData.filter(t => {
-            const tipo = String(t.tipo||'').toUpperCase().trim();
-            if (tipo !== tipoValidado) return false;
-
-            const cal = t.calibre!=null && t.calibre!=='' ? parseFloat(t.calibre) : null;
-            if (v.calibre!=null && cal!=null && Math.abs(v.calibre - cal) >= 0.01) return false;
-
-            return true;
-        });
-
-        const grupos = agruparPorCuenta(filtrados);
-        grupos.forEach((grupo, i) => tbody.appendChild(crearFila(grupo, i)));
-
-        // Agregar event listeners para campos editables (cuenta, calibre, hilo, tipo)
-        reordenarColumnasTablaRequerimientos();
-        agregarEventListenersCamposEditables();
-        // Autocompletar tamaño inicialmente si las filas ya tienen cuenta y calibre
-        const filas = document.querySelectorAll('#tablaRequerimientos tbody tr');
-        filas.forEach(fila => {
-            rellenarCuentaYCalibreDesdeTamano(fila, { guardar: false });
-        });
-
-        // Mantener dataset filtrado para el resumen
-        telaresData = filtrados;
-        cargarResumenDesdeServidor(v);
-        // Destino = Grupo desde ReqTelares por NoTelarId
-        cargarDestinoDesdeReqTelares();
-    }
-
-
-    function reordenarColumnasTablaRequerimientos() {
-        const headerRow = document.querySelector('#tablaRequerimientos thead tr');
-        if (headerRow) {
-            const headersByField = new Map(
-                Array.from(headerRow.children)
-                    .filter(cell => cell.dataset.columnField)
-                    .map(cell => [cell.dataset.columnField, cell])
-            );
-
-            REQUERIMIENTOS_COLUMN_ORDER.forEach(field => {
-                const cell = headersByField.get(field);
-                if (cell) {
-                    headerRow.appendChild(cell);
-                }
-            });
-        }
-
-        const filas = document.querySelectorAll('#tablaRequerimientos tbody tr');
-        filas.forEach((fila) => {
-            const cellsByField = new Map(
-                Array.from(fila.children)
-                    .filter(cell => cell.dataset.columnField)
-                    .map(cell => [cell.dataset.columnField, cell])
-            );
-
-            REQUERIMIENTOS_COLUMN_ORDER.forEach(field => {
-                const cell = cellsByField.get(field);
-                if (cell) {
-                    fila.appendChild(cell);
-                }
-            });
-        });
-    }
-
-    async function rellenarCuentaYCalibreDesdeTamano(fila, { guardar = true } = {}) {
-        if (!fila) return;
-
-        const cuentaInput = fila.querySelector('input[data-field="cuenta"]');
-        const calibreInput = fila.querySelector('input[data-field="calibre"]');
-        const tamanoInput = fila.querySelector('input[data-field="tamano"]');
-
-        if (!cuentaInput || !calibreInput || !tamanoInput) return;
-
-        const tamanoSeleccionado = tamanoInput.value.trim();
-        const telarId = tamanoInput.dataset.telarId || '';
-        const tipo = fila.querySelector('select[data-field="tipo"]')?.value || '';
-
-        let nuevaCuenta = '';
-        let nuevoCalibre = '';
-
-        if (tamanoSeleccionado) {
-            const match = tamanoSeleccionado.match(/^([^-]+)-([^/]+)\/\d+$/);
-            if (!match) return;
-            nuevaCuenta = match[1].trim();
-            nuevoCalibre = match[2].trim();
-        }
-
-        const cambios = [];
-
-        if (cuentaInput.value.trim() !== nuevaCuenta) {
-            cuentaInput.value = nuevaCuenta;
-            cambios.push(['cuenta', nuevaCuenta]);
-        }
-
-        if (calibreInput.value.trim() !== nuevoCalibre) {
-            calibreInput.value = nuevoCalibre;
-            cambios.push(['calibre', nuevoCalibre]);
-        }
-
-        if (!guardar || !telarId || cambios.length === 0) return;
-
-        for (const [campo, valor] of cambios) {
-            await guardarCampoTelar(campo, valor, telarId, tipo, fila, { silent: true });
-        }
-
-        return;
-
-        const tamano = tamanoSelect.value.trim();
-        let calibre = calibreInput.value.trim();
-
-        // Si ambos campos tienen valores, construir el tamaño esperado
-        if (cuenta && calibre) {
-            // Normalizar calibre: remover espacios y asegurar formato correcto
-            calibre = calibre.replace(/\s+/g, '');
-
-            // Formato: cuenta-calibre/1 (ejemplo: 4112-12/1 o 4112-12.5/1)
-            const tamanoEsperado = `${cuenta}-${calibre}/1`;
-
-            // Buscar si existe exactamente ese valor en las opciones
-            const opcionExacta = Array.from(tamanoSelect.options).find(opt => opt.value === tamanoEsperado);
-
-            if (opcionExacta) {
-                // Si existe exactamente, seleccionarlo
-                tamanoSelect.value = tamanoEsperado;
-                // Disparar evento change para guardar solo si cambió el valor
-                if (tamanoSelect.dataset.valorAnterior !== tamanoEsperado) {
-                    tamanoSelect.dataset.valorAnterior = tamanoEsperado;
-                    tamanoSelect.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            } else {
-                // Si no existe exactamente, buscar el más cercano (que empiece con cuenta-calibre)
-                const opcionCercana = Array.from(tamanoSelect.options).find(opt => {
-                    return opt.value && opt.value.startsWith(`${cuenta}-${calibre}`);
-                });
-
-                if (opcionCercana) {
-                    tamanoSelect.value = opcionCercana.value;
-                    if (tamanoSelect.dataset.valorAnterior !== opcionCercana.value) {
-                        tamanoSelect.dataset.valorAnterior = opcionCercana.value;
-                        tamanoSelect.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-                } else {
-                    // Si no hay coincidencia, agregar la opción esperada al select si no existe
-                    const yaExiste = Array.from(tamanoSelect.options).some(opt => opt.value === tamanoEsperado);
-                    if (!yaExiste) {
-                        const nuevaOpcion = document.createElement('option');
-                        nuevaOpcion.value = tamanoEsperado;
-                        nuevaOpcion.textContent = tamanoEsperado;
-                        nuevaOpcion.selected = true;
-                        tamanoSelect.appendChild(nuevaOpcion);
-                        if (tamanoSelect.dataset.valorAnterior !== tamanoEsperado) {
-                            tamanoSelect.dataset.valorAnterior = tamanoEsperado;
-                            tamanoSelect.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Función para agregar event listeners a campos editables (cuenta, calibre, hilo, tipo)
-    function agregarEventListenersCamposEditables() {
-        // Función para guardar cambios con debounce
-        let timeoutId = null;
-        const debounceGuardar = (campo, valor, telarId, tipo, fila) => {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(async () => {
-                await guardarCampoTelar(campo, valor, telarId, tipo, fila);
-            }, 800); // Esperar 800ms después del último cambio
-        };
-
-        // cuenta y calibre son readonly — se rellenan desde el dropdown de tamaño, sin listeners de edición
-
-        // Event listener para hilo (select)
-        const hiloSelects = document.querySelectorAll('select[data-field="hilo"]');
-        hiloSelects.forEach(select => {
-            const telarId = select.dataset.telarId || '';
-            const fila = select.closest('tr');
-            const tipoSelect = fila?.querySelector('select[data-field="tipo"]');
-            const tipo = tipoSelect?.value || '';
-
-            select.addEventListener('change', async function() {
-                const valor = this.value.trim();
-                await guardarCampoTelar('hilo', valor, telarId, tipo, fila);
-            });
-        });
-
-        // Autocomplete Tamaño (tipeo libre + validación por alerta)
-        const tamanoWrappers = document.querySelectorAll('.tamano-wrapper');
-        tamanoWrappers.forEach(wrapper => {
-            const tamInput  = wrapper.querySelector('input[data-field="tamano"]');
-            const dropdown  = wrapper.querySelector('.tamano-dropdown');
-            if (!tamInput || !dropdown) return;
-
-            const telarId = tamInput.dataset.telarId || '';
-            const fila    = wrapper.closest('tr');
-
-            const posicionar = () => {
-                const rect = tamInput.getBoundingClientRect();
-                dropdown.style.top   = (rect.bottom + window.scrollY) + 'px';
-                dropdown.style.left  = (rect.left  + window.scrollX) + 'px';
-                dropdown.style.width = rect.width + 'px';
-            };
-
-            const renderOps = (lista) => {
-                if (!lista.length) {
-                    dropdown.innerHTML = '<div class="px-2 py-2 text-gray-400 text-xs text-center">Sin resultados</div>';
-                } else {
-                    dropdown.innerHTML = lista.map(t =>
-                        `<div class="px-2 py-1 cursor-pointer hover:bg-blue-50 border-b border-gray-100 last:border-0 leading-tight" data-value="${t}">${t}</div>`
-                    ).join('');
-                }
-                posicionar();
-                dropdown.classList.remove('hidden');
-            };
-
-            const cerrarDrop = () => dropdown.classList.add('hidden');
-
-            const seleccionar = async (valor) => {
-                tamInput.value = valor;
-                cerrarDrop();
-                const tipo = fila?.querySelector('select[data-field="tipo"]')?.value || '';
-                await guardarCampoTelar('tamano', valor, telarId, tipo, fila);
-                await rellenarCuentaYCalibreDesdeTamano(fila);
-            };
-
-            const filtrarTamanos = (termino) => {
-                const term = String(termino ?? '').trim().toLowerCase();
-                const disponibles = tamanosDeFila(fila);
-                const filtrados = term
-                    ? disponibles.filter(t => t.toLowerCase().includes(term))
-                    : disponibles;
-                renderOps(filtrados.slice(0, 60));
-            };
-
-            tamInput.addEventListener('input', (e) => filtrarTamanos(e.target.value));
-
-            tamInput.addEventListener('focus', () => filtrarTamanos(tamInput.value));
-
-            tamInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') { cerrarDrop(); return; }
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const hi = dropdown.querySelector('.bg-blue-100');
-                    if (hi) seleccionar(hi.dataset.value);
-                    else cerrarDrop();
-                    return;
-                }
-                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    const items = Array.from(dropdown.querySelectorAll('[data-value]') ?? []);
-                    if (!items.length) return;
-                    const idx = items.findIndex(el => el.classList.contains('bg-blue-100'));
-                    items.forEach(el => el.classList.remove('bg-blue-100'));
-                    let next = e.key === 'ArrowDown' ? idx + 1 : idx - 1;
-                    if (next < 0) next = items.length - 1;
-                    if (next >= items.length) next = 0;
-                    items[next].classList.add('bg-blue-100');
-                    items[next].scrollIntoView({ block: 'nearest' });
-                }
-            });
-
-            tamInput.addEventListener('blur', () => {
-                setTimeout(() => {
-                    cerrarDrop();
-                    const val = String(tamInput.value ?? '').trim();
-                    if (val && !tamanosDeFila(fila).includes(val)) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Tamaño no válido',
-                            text: `"${val}" no coincide con ningún tamaño disponible. Seleccione una opción de la lista.`,
-                            confirmButtonColor: '#3b82f6',
-                            confirmButtonText: 'Entendido',
-                        });
-                        tamInput.value = '';
-                        const cuentaInput  = fila?.querySelector('input[data-field="cuenta"]');
-                        const calibreInput = fila?.querySelector('input[data-field="calibre"]');
-                        if (cuentaInput)  cuentaInput.value  = '';
-                        if (calibreInput) calibreInput.value = '';
-                    }
-                }, 180);
-            });
-
-            dropdown.addEventListener('mousedown', (e) => {
-                e.preventDefault();
-                const item = e.target.closest('[data-value]');
-                if (item) seleccionar(item.dataset.value);
-            });
-        });
-
-        // Cerrar dropdowns al hacer click fuera
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.tamano-wrapper')) {
-                document.querySelectorAll('.tamano-dropdown').forEach(d => d.classList.add('hidden'));
-            }
-        });
-
-        // Event listener para tipo (select)
-        const tipoSelects = document.querySelectorAll('select[data-field="tipo"]');
-        tipoSelects.forEach(select => {
-            const telarId = select.dataset.telarId || '';
-            const fila = select.closest('tr');
-
-            select.addEventListener('change', async function() {
-                const valor = this.value;
-                const tipoNormalizado = normalizarTipo(valor);
-
-                if (tipoNormalizado === 'Rizo') {
-                    this.style.backgroundColor = '#fee2e2';
-                    this.style.color = '#be123c';
-                } else if (tipoNormalizado === 'Pie') {
-                    this.style.backgroundColor = '#ccfbf1';
-                    this.style.color = '#0f766e';
-                }
-
-                await guardarCampoTelar('tipo', valor, telarId, valor, fila);
-
-                const telarEnData = telaresData.find(t => String(t.no_telar || '') === telarId);
-                if (telarEnData) {
-                    telarEnData.tipo = tipoNormalizado;
-                }
-            });
-        });
-    }
-
-    // Función para guardar un campo del telar en el servidor (usa id para identificar registro único)
-    async function guardarCampoTelar(campo, valor, telarId, tipo, fila, options = {}) {
-        if (!telarId) {
-            console.warn('No se puede guardar: telarId no disponible');
-            return;
-        }
-
-        const { silent = false } = options;
-        const inventarioId = fila?.dataset?.inventarioId || '';
-        const fechaFila = fila?.dataset?.fecha || '';
-        const turnoFila = fila?.dataset?.turno || '';
-
-        try {
-            const payload = {
-                no_telar: telarId,
-                [campo]: valor,
-                solo_inventario: true
-            };
-
-            if (inventarioId !== '' && !isNaN(parseInt(inventarioId, 10))) {
-                payload.id = parseInt(inventarioId, 10);
-            }
-
-            // Fecha y turno como discriminadores adicionales cuando hay registros similares
-            if (fechaFila) payload.fecha = fechaFila;
-            if (turnoFila) payload.turno = turnoFila;
-
-            if (campo === 'tipo' && valor) {
-                payload.tipo = normalizarTipo(valor);
-            } else if (tipo) {
-                payload.tipo = normalizarTipo(tipo);
-            }
-
-            const response = await fetch(RUTA_ACTUALIZAR_TELAR, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': CSRF,
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                // Actualizar el telar correcto en telaresData (por id si disponible, sino por no_telar)
-                const telarEnData = inventarioId
-                    ? telaresData.find(t => String(t.id) === inventarioId)
-                    : telaresData.find(t => String(t.no_telar || '') === telarId);
-                if (telarEnData) {
-                    telarEnData[campo] = campo === 'calibre' ? parseFloat(valor) || null : valor;
-                }
-
-                // Construir mensaje detallado
-                let mensajeDetalle = `${campo.charAt(0).toUpperCase() + campo.slice(1)} actualizado`;
-                if (result.detalle) {
-                    const detalles = [];
-                    if (result.detalle.tej_inventario_telares > 0) {
-                        detalles.push(`${result.detalle.tej_inventario_telares} en TejInventarioTelares`);
-                    }
-                    if (result.detalle.urd_programa_urdido > 0) {
-                        detalles.push(`${result.detalle.urd_programa_urdido} en UrdProgramaUrdido`);
-                    }
-                    if (result.detalle.eng_programa_engomado > 0) {
-                        detalles.push(`${result.detalle.eng_programa_engomado} en EngProgramaEngomado`);
-                    }
-                    if (detalles.length > 0) {
-                        mensajeDetalle += `: ${detalles.join(', ')}`;
-                    }
-                }
-
-                // Mostrar notificación de éxito (opcional, con SweetAlert si está disponible)
-                if (!silent && typeof Swal !== 'undefined') {
-                    const Toast = Swal.mixin({
-                        toast: true,
-                        position: 'top-end',
-                        showConfirmButton: false,
-                        timer: 1200,
-                        timerProgressBar: true
-                    });
-                    Toast.fire({
-                        icon: 'success',
-                        title: mensajeDetalle
-                    });
-                } else if (!silent) {
-                    console.log('Actualizado:', result.message || mensajeDetalle);
-                }
-            } else {
-                console.error('Error al guardar:', result.message);
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: result.message || 'Error al guardar los cambios'
-                    });
-                }
-            }
-        } catch (error) {
-            console.error('Error al guardar campo:', error);
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Error de conexión al guardar los cambios'
-                });
-            }
-        }
-    }
-
-    /* =================== Resumen =================== */
-    function renderResumenMensaje(msg) {
-        const tb = document.getElementById('tbodyResumen');
-        tb.innerHTML = `
-            <tr>
-                <td colspan="16" class="px-2 py-4 text-center text-gray-500 text-[10px]">
-                    <i class="fa-solid fa-circle-info text-gray-400 mb-1"></i>
-                    <p>${msg}</p>
-                </td>
-            </tr>`;
-    }
-
-    async function cargarResumenDesdeServidor(validacion) {
-        const tbody = document.getElementById('tbodyResumen');
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="16" class="px-2 py-4 text-center text-gray-500 text-[10px]">
-                    <div class="flex items-center justify-center gap-2">
-                        <div class="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-blue-500"></div>
-                        <span>Cargando datos...</span>
-                    </div>
-                </td>
-            </tr>`;
-
-        try {
-            const payload = normalizeInput(telaresData);
-
-
-            const res = await fetch(RUTA_RESUMEN, {
-                method: 'POST',
-                headers: {'Content-Type':'application/json','X-CSRF-TOKEN':CSRF,'Accept':'application/json'},
-                body: JSON.stringify({ telares: payload })
-            });
-
-            const json = await res.json();
-
-
-            if (!res.ok) {
-                throw new Error(json.message || `Error HTTP ${res.status}`);
-            }
-
-            if (json.success !== true) {
-                throw new Error(json.message || 'La respuesta del servidor indica error');
-            }
-
-            if (!json.data) {
-                throw new Error('El servidor no devolvió datos');
-            }
-
-            renderResumen(json.data, validacion, json.semanas || []);
-        } catch (e) {
-            console.error('Error al cargar resumen:', e);
-            renderResumenMensaje('Error al cargar datos: ' + (e.message || 'Error desconocido'));
-        }
-    }
-
-    function renderResumen(data, validacion, semanas) {
-        const tb = document.getElementById('tbodyResumen');
-        tb.innerHTML = '';
-
-        // Actualizar encabezados con fechas
-        if (Array.isArray(semanas) && semanas.length > 0) {
-            semanas.forEach((sem, idx) => {
-                const headers = document.querySelectorAll(`.semana-header[data-semana="${idx}"]`);
-                if (headers.length === 0) return;
-
-                let fechaIni = '';
-                let fechaFin = '';
-
-                if (sem.inicio) {
-                    try {
-                        const fecha = new Date(sem.inicio + 'T00:00:00');
-                        if (!isNaN(fecha.getTime())) {
-                            fechaIni = fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'2-digit'});
-                        }
-                    } catch(e) {
-                        fechaIni = sem.inicio ? sem.inicio.substring(5, 10).replace('-', '/') : '';
-                    }
-                }
-
-                if (sem.fin) {
-                    try {
-                        const fecha = new Date(sem.fin + 'T00:00:00');
-                        if (!isNaN(fecha.getTime())) {
-                            fechaFin = fecha.toLocaleDateString('es-MX', {day:'2-digit', month:'2-digit'});
-                        }
-                    } catch(e) {
-                        fechaFin = sem.fin ? sem.fin.substring(5, 10).replace('-', '/') : '';
-                    }
-                }
-
-                headers.forEach(header => {
-                    // Solo actualizar si no tiene fechas ya
-                    if (header.querySelector('span.text-gray-500') === null && fechaIni && fechaFin) {
-                        const originalText = header.textContent.trim();
-                        header.innerHTML = `${originalText}<br><span class="text-gray-500 font-normal text-[9px]">${fechaIni} - ${fechaFin}</span>`;
-                    }
-                });
-            });
-        }
-
-        const tipo = String(validacion.tipo || '').toUpperCase().trim();
-        const calEsperado = validacion.calibre;
-        const hiloEsperado = validacion.hilo; // null => no filtra por hilo
-
-        // Log para debugging
-
-
-        const items = [];
-
-        if (tipo === 'RIZO' && Array.isArray(data.rizo)) {
-            for (const it of data.rizo) {
-                const hiloIt = String(it.Hilo || it.hilo || '').trim();
-                // Validar que el hilo del resumen coincida con el hilo esperado (de la tabla de arriba)
-                const matchHilo = (hiloEsperado == null) || (hiloIt.toUpperCase() === String(hiloEsperado).toUpperCase());
-                if (!matchHilo) continue;
-
-                items.push({
-                    telar: it.TelarId || it.telarId || it.Telar || it.telar || '',
-                    cuenta: it.CuentaRizo || it.cuentaRizo || it.Cuenta || it.cuenta || '',
-                    hilo: hiloIt || '-',
-                    calibre: (calEsperado != null && calEsperado !== '') ? calEsperado : (it.Calibre || it.calibre || '-'),
-                    modelo: it.Modelo || it.modelo || '-',
-                    s0: it.SemActualMtsRizo || it.semActualMtsRizo || it.SemActual || 0,
-                    s1: it.SemActual1MtsRizo || it.semActual1MtsRizo || it.SemActual1 || 0,
-                    s2: it.SemActual2MtsRizo || it.semActual2MtsRizo || it.SemActual2 || 0,
-                    s3: it.SemActual3MtsRizo || it.semActual3MtsRizo || it.SemActual3 || 0,
-                    s4: it.SemActual4MtsRizo || it.semActual4MtsRizo || it.SemActual4 || 0,
-                    k0: it.SemActualKilosRizo || it.semActualKilosRizo || 0,
-                    k1: it.SemActual1KilosRizo || it.semActual1KilosRizo || 0,
-                    k2: it.SemActual2KilosRizo || it.semActual2KilosRizo || 0,
-                    k3: it.SemActual3KilosRizo || it.semActual3KilosRizo || 0,
-                    k4: it.SemActual4KilosRizo || it.semActual4KilosRizo || 0,
-                    total: it.Total || 0,
-                    totalKilos: it.TotalKilos || 0
-                });
-            }
-        }
-
-        if (tipo === 'PIE' && Array.isArray(data.pie)) {
-            for (const it of data.pie) {
-                const calIt = it.CalibrePie ?? it.calibrePie ?? it.Calibre ?? it.calibre;
-                const calNum = calIt!=null && calIt!=='' ? parseFloat(calIt) : null;
-
-                // Validar que el calibre del resumen coincida con el calibre esperado (tolerancia 0.11 para cubrir errores de precisión)
-                const okCal = (calEsperado==null) || (calNum==null) || Math.abs(calEsperado - calNum) <= 0.11;
-                if (!okCal) continue;
-
-                // Para PIE, NO se filtra por hilo - se muestran todos los registros que coincidan en calibre
-                const hiloIt = String(it.Hilo || it.hilo || '').trim();
-
-                items.push({
-                    telar: it.TelarId || it.telarId || it.Telar || it.telar || '',
-                    cuenta: it.CuentaPie || it.cuentaPie || it.Cuenta || it.cuenta || '',
-                    hilo: hiloIt || '-',
-                    calibre: calIt ?? '-',
-                    modelo: it.Modelo || it.modelo || '-',
-                    s0: it.SemActualMtsPie || it.semActualMtsPie || it.SemActual || 0,
-                    s1: it.SemActual1MtsPie || it.semActual1MtsPie || it.SemActual1 || 0,
-                    s2: it.SemActual2MtsPie || it.semActual2MtsPie || it.SemActual2 || 0,
-                    s3: it.SemActual3MtsPie || it.semActual3MtsPie || it.SemActual3 || 0,
-                    s4: it.SemActual4MtsPie || it.semActual4MtsPie || it.SemActual4 || 0,
-                    k0: it.SemActualKilosPie || it.semActualKilosPie || 0,
-                    k1: it.SemActual1KilosPie || it.semActual1KilosPie || 0,
-                    k2: it.SemActual2KilosPie || it.semActual2KilosPie || 0,
-                    k3: it.SemActual3KilosPie || it.semActual3KilosPie || 0,
-                    k4: it.SemActual4KilosPie || it.semActual4KilosPie || 0,
-                    total: it.Total || 0,
-                    totalKilos: it.TotalKilos || 0
-                });
-            }
-        }
-
-        if (!items.length) {
-            // Verificar si hay datos en la respuesta pero no coinciden con los filtros
-            const tieneDatosRizo = tipo === 'RIZO' && Array.isArray(data.rizo) && data.rizo.length > 0;
-            const tieneDatosPie = tipo === 'PIE' && Array.isArray(data.pie) && data.pie.length > 0;
-
-            let mensaje = `No hay datos de programación en el rango de 5 semanas.`;
-            mensaje += `\nTipo: ${tipo || 'N/A'}`;
-            mensaje += `\nCalibre: ${calEsperado ?? 'N/A'}`;
-            mensaje += `\nHilo: ${tipo === 'PIE' ? 'No aplica' : (hiloEsperado ?? 'Todos')}`;
-
-            if (tieneDatosRizo || tieneDatosPie) {
-                const filtrosAplicados = tipo === 'PIE' ? 'calibre' : 'hilo/calibre';
-                mensaje += `\n\nNota: Existen ${tieneDatosRizo ? data.rizo.length : data.pie.length} registro(s) en la base de datos, pero no coinciden con los filtros aplicados (${filtrosAplicados}) o no tienen fechas en el rango de las 5 semanas.`;
-            } else {
-                mensaje += `\n\nNota: No se encontraron registros de programación para los telares seleccionados en el rango de fechas de las 5 semanas (${semanas?.[0]?.inicio || 'N/A'} a ${semanas?.[4]?.fin || 'N/A'}).`;
-            }
-
-            renderResumenMensaje(mensaje);
-            return;
-        }
-
-        // Agrupar items por telar para calcular sumas por telar
-        const itemsPorTelar = {};
-        for (const r of items) {
-            const telarId = String(r.telar || '').trim();
-            if (!itemsPorTelar[telarId]) {
-                itemsPorTelar[telarId] = {
-                    telar: telarId,
-                    totalMetros: 0,
-                    totalKilos: 0,
-                    items: []
-                };
-            }
-            itemsPorTelar[telarId].totalMetros += Number(r.total || 0);
-            itemsPorTelar[telarId].totalKilos += Number(r.totalKilos || 0);
-            itemsPorTelar[telarId].items.push(r);
-        }
-
-        // Calcular totales por columna de semana (metros y kilos)
-        const totalesMetrosPorSemana = [0, 0, 0, 0, 0];
-        const totalesKilosPorSemana = [0, 0, 0, 0, 0];
-        let sumaTotalMetros = 0;
-        let sumaTotalKilos = 0;
-
-        // Primero calcular los totales por columna
-        for (const r of items) {
-            const semanasData = [
-                { idx: 0, metros: Number(r.s0 || 0), kilos: Number(r.k0 || 0) },
-                { idx: 1, metros: Number(r.s1 || 0), kilos: Number(r.k1 || 0) },
-                { idx: 2, metros: Number(r.s2 || 0), kilos: Number(r.k2 || 0) },
-                { idx: 3, metros: Number(r.s3 || 0), kilos: Number(r.k3 || 0) },
-                { idx: 4, metros: Number(r.s4 || 0), kilos: Number(r.k4 || 0) }
-            ];
-
-            semanasData.forEach((semData, idx) => {
-                totalesMetrosPorSemana[idx] += semData.metros;
-                totalesKilosPorSemana[idx] += semData.kilos;
-                sumaTotalMetros += semData.metros;
-                sumaTotalKilos += semData.kilos;
-            });
-        }
-
-        // Renderizar una fila por cada item con todas sus semanas
-        for (const r of items) {
-            const semanasData = [
-                { idx: 0, metros: Number(r.s0 || 0), kilos: Number(r.k0 || 0) },
-                { idx: 1, metros: Number(r.s1 || 0), kilos: Number(r.k1 || 0) },
-                { idx: 2, metros: Number(r.s2 || 0), kilos: Number(r.k2 || 0) },
-                { idx: 3, metros: Number(r.s3 || 0), kilos: Number(r.k3 || 0) },
-                { idx: 4, metros: Number(r.s4 || 0), kilos: Number(r.k4 || 0) }
-            ];
-
-            // Solo crear fila si tiene al menos un valor en alguna semana
-            const tieneDatos = semanasData.some(s => s.metros > 0 || s.kilos > 0);
-            if (!tieneDatos) continue;
-
-            const tr = document.createElement('tr');
-            tr.className = 'hover:bg-gray-50';
-
-            // Crear las columnas de metros y kilos para todas las semanas
-            const metrosCells = semanasData.map(s => {
-                return `<td class="px-2 py-1.5 whitespace-nowrap text-md text-right">${fmtNum(s.metros)}</td>`;
-            }).join('');
-
-            const kilosCells = semanasData.map(s => {
-                return `<td class="px-2 py-1.5 whitespace-nowrap text-md text-right">${fmtNum(s.kilos)}</td>`;
-            }).join('');
-
-            tr.innerHTML = `
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.telar}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.cuenta || '-'}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.hilo || '-'}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.calibre != null && r.calibre !== '' ? r.calibre : '-'}</td>
-                <td class="px-2 py-1.5 whitespace-nowrap text-[10px] text-gray-700">${r.modelo || '-'}</td>
-                ${metrosCells}
-                <td class="px-2 py-1.5 whitespace-nowrap text-md font-semibold text-right text-blue-600 bg-blue-50">${fmtNum(r.total || 0)}</td>
-                ${kilosCells}
-                <td class="px-2 py-1.5 whitespace-nowrap text-md font-semibold text-right text-green-600 bg-green-50">${fmtNum(r.totalKilos || 0)}</td>
-            `;
-            tb.appendChild(tr);
-        }
-
-        // Agregar fila de totales con totales por cada columna de semana
-        const trTotal = document.createElement('tr');
-        trTotal.className = 'bg-gray-100 font-bold';
-        trTotal.id = 'filaTotal';
-
-        // Crear celdas de totales por semana para metros
-        const totalesMetrosCells = totalesMetrosPorSemana.map(total => {
-            return `<td class="px-2 py-2 whitespace-nowrap text-md font-semibold text-right text-blue-700 bg-blue-100">${fmtNum(total)}</td>`;
-        }).join('');
-
-        // Crear celdas de totales por semana para kilos
-        const totalesKilosCells = totalesKilosPorSemana.map(total => {
-            return `<td class="px-2 py-2 whitespace-nowrap text-md font-semibold text-right text-green-700 bg-green-100">${fmtNum(total)}</td>`;
-        }).join('');
-
-        trTotal.innerHTML = `
-            <td class="px-2 py-2 whitespace-nowrap text-[10px] font-bold text-gray-800 bg-gray-100" colspan="5">TOTAL</td>
-            ${totalesMetrosCells}
-            <td class="px-2 py-2 whitespace-nowrap text-md font-semibold text-right text-blue-700 bg-blue-100">
-                <span class="block">${fmtNum(sumaTotalMetros)}</span>
-            </td>
-            ${totalesKilosCells}
-            <td class="px-2 py-2 whitespace-nowrap text-md font-semibold text-right text-green-700 bg-green-100">
-                <span class="block">${fmtNum(sumaTotalKilos)}</span>
-            </td>
-        `;
-        tb.appendChild(trTotal);
-
-        // Función para calcular kilos programados por telar
-        const calcularKilosProgramadosPorTelar = (telarId, metrosProg) => {
-            const datosTelar = itemsPorTelar[telarId];
-            if (!datosTelar || datosTelar.totalMetros <= 0 || datosTelar.totalKilos <= 0) return 0;
-            const metros = Number(metrosProg) || 0;
-            return (datosTelar.totalKilos / datosTelar.totalMetros) * metros;
-        };
-
-        // Actualizar valores en la tabla 1 por telar
-        const filasTabla1 = document.querySelectorAll('#tablaRequerimientos tbody tr');
-        filasTabla1.forEach(fila => {
-            const telarId = fila.dataset.telarId || '';
-            const datosTelar = itemsPorTelar[telarId];
-
-            if (datosTelar && datosTelar.totalMetros > 0) {
-                // Obtener inputs de esta fila
-                const metrosInput = fila.querySelector('input[data-field="metros"]');
-                const kilosInput = fila.querySelector('input[data-field="kilos"]');
-
-                if (metrosInput && kilosInput) {
-                    // Inicializar metros con la suma del telar
-                    metrosInput.value = formatNumberInput(datosTelar.totalMetros);
-
-                    // Calcular kilos iniciales para este telar
-                    const kilosInicial = calcularKilosProgramadosPorTelar(telarId, datosTelar.totalMetros);
-                    kilosInput.value = formatNumberInput(kilosInicial);
-
-                    // Event listeners para formatear y calcular
-                    // Limpiar formato al enfocar para edición
-                    metrosInput.addEventListener('focus', function() {
-                        this.value = parseNumberInput(this.value);
-                    });
-
-                    // Permitir solo números, comas y puntos
-                    metrosInput.addEventListener('input', function(e) {
-                        this.value = this.value.replace(/[^\d.,]/g, '');
-
-                        // Calcular kilos en tiempo real
-                        const metrosRaw = parseNumberInput(this.value);
-                        const metros = Number(metrosRaw) || 0;
-                        const kilos = calcularKilosProgramadosPorTelar(telarId, metros);
-
-                        // Actualizar solo el input de kilos de esta fila
-                        if (kilosInput) {
-                            kilosInput.value = kilos > 0 ? formatNumberInput(kilos) : '';
-                        }
-                    });
-
-                    // Formatear al perder el foco
-                    metrosInput.addEventListener('blur', function() {
-                        const value = parseNumberInput(this.value);
-                        if (value) {
-                            this.value = formatNumberInput(value);
-                            // Recalcular kilos después de formatear
-                            const metros = Number(value) || 0;
-                            const kilos = calcularKilosProgramadosPorTelar(telarId, metros);
-                            if (kilosInput) {
-                                kilosInput.value = kilos > 0 ? formatNumberInput(kilos) : '';
-                            }
-                        }
-                    });
-                }
-            }
-        });
-    }
-
-    function fmtNum(n) {
-        const v = Number(n||0);
-        return v>0 ? v.toLocaleString('es-MX',{minimumFractionDigits:2, maximumFractionDigits:2}) : '-';
-    }
-
-    // Habilitar o deshabilitar btnSiguiente según el estado de los campos requeridos
-    function actualizarEstadoBotonSiguiente() {
-        const btn = document.getElementById('btnSiguiente');
-        if (!btn) return;
-
-        const filas = document.querySelectorAll('#tbodyRequerimientos tr');
-        const filasValidas = Array.from(filas).filter(f => f.querySelector('input[data-field="telar"]')?.value);
-
-        if (!filasValidas.length) {
-            btn.disabled = true;
-            return;
-        }
-
-        const selectores = [
-            'input[data-field="tamano"]',
-            'input[data-field="cuenta"]',
-            'input[data-field="calibre"]',
-            'select[data-field="hilo"]',
-            'input[data-field="metros"]',
-            'input[data-field="kilos"]',
-        ];
-
-        for (const fila of filasValidas) {
-            for (const sel of selectores) {
-                const el = fila.querySelector(sel);
-                if (!el) continue;
-                if (!String(el.value || '').trim()) {
-                    btn.disabled = true;
-                    return;
-                }
-            }
-        }
-
-        btn.disabled = false;
-    }
-
-    // Validar que todos los campos requeridos estén llenos antes de continuar
-    function validarCamposRequeridos() {
-        const filas = document.querySelectorAll('#tablaRequerimientos tbody tr');
-        const camposRequeridos = [
-            { field: 'cuenta', label: 'Cuenta', selector: 'input[data-field="cuenta"]' },
-            { field: 'calibre', label: 'Calibre', selector: 'input[data-field="calibre"]' },
-            { field: 'tamano', label: 'Tamaño', selector: 'input[data-field="tamano"]' },
-            { field: 'hilo', label: 'Hilo', selector: 'select[data-field="hilo"]' },
-            { field: 'urdido', label: 'Urdido', selector: 'select[data-field="urdido"]' },
-            { field: 'tipo', label: 'Tipo', selector: 'select[data-field="tipo"]' },
-            { field: 'tipo_atado', label: 'Tipo Atado', selector: 'select[data-field="tipo_atado"]' },
-            { field: 'metros', label: 'Metros', selector: 'input[data-field="metros"]' },
-            { field: 'kilos', label: 'Kilos', selector: 'input[data-field="kilos"]' }
-        ];
-
-        // Limpiar estilos de error de todos los campos requeridos
-        filas.forEach(fila => {
-            camposRequeridos.forEach(c => {
-                const el = fila.querySelector(c.selector);
-                if (el) el.classList.remove('border-red-500', 'ring-2', 'ring-red-200');
-            });
-        });
-
-        for (const fila of filas) {
-            const telarId = fila.querySelector('input[data-field="telar"]')?.value || '';
-            if (!telarId) continue;
-
-            for (const c of camposRequeridos) {
-                const el = fila.querySelector(c.selector);
-                if (!el) continue;
-
-                let valor = el.value ? String(el.value).trim() : '';
-                if (c.field === 'metros' || c.field === 'kilos') {
-                    valor = parseNumberInput(valor) || '';
-                }
-
-                if (!valor || valor === '') {
-                    el.classList.add('border-red-500', 'ring-2', 'ring-red-200');
-                    el.focus?.();
-                    el.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-                    return {
-                        valido: false,
-                        mensaje: `Telar ${telarId}: complete el campo "${c.label}".`
-                    };
-                }
-            }
-        }
-        return { valido: true };
-    }
-
-    /* =================== Evento único =================== */
-    document.getElementById('btnSiguiente')?.addEventListener('click', () => {
-        // Validar campos requeridos antes de continuar
-        const validacion = validarCamposRequeridos();
-        if (!validacion.valido) {
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Campos requeridos',
-                    text: validacion.mensaje,
-                    confirmButtonText: 'Entendido',
-                    confirmButtonColor: '#2563eb'
-                });
-            } else {
-                alert(validacion.mensaje);
-            }
-            return;
-        }
-
-        // Recopilar datos de la tabla
-        const filas = document.querySelectorAll('#tablaRequerimientos tbody tr');
-        const datosTelares = [];
-
-        filas.forEach(fila => {
-            const fechaReq = fila.querySelector('input[data-field="fecha_req"]')?.value || '';
-            const cuenta = fila.querySelector('input[data-field="cuenta"]')?.value || '';
-            const calibre = fila.querySelector('input[data-field="calibre"]')?.value || '';
-            const hilo = fila.querySelector('select[data-field="hilo"]')?.value || fila.querySelector('input[data-field="hilo"]')?.value || '';
-            const tamano = fila.querySelector('input[data-field="tamano"]')?.value || '';
-            const urdido = fila.querySelector('select[data-field="urdido"]')?.value || '';
-            // Obtener tipo desde el select (Rizo/Pie); si queda vacío usar valor del select o 'Rizo'
-            const tipoSelect = fila.querySelector('select[data-field="tipo"]');
-            const tipoRaw = tipoSelect ? (tipoSelect.value || 'Rizo') : 'Rizo';
-            const tipo = normalizarTipo(tipoRaw) || 'Rizo';
-            const destino = fila.querySelector('select[data-field="destino"]')?.value || '';
-            const tipoAtado = fila.querySelector('select[data-field="tipo_atado"]')?.value || '';
-            const metros = parseNumberInput(fila.querySelector('input[data-field="metros"]')?.value || '0') || '0';
-            const kilos = parseNumberInput(fila.querySelector('input[data-field="kilos"]')?.value || '0') || '0';
-
-            // Leer grupo de telares desde data-telares
-            let telaresGrupo;
-            try { telaresGrupo = JSON.parse(fila.dataset.telares || 'null'); } catch { telaresGrupo = null; }
-            const telarIdRaw = fila.querySelector('input[data-field="telar"]')?.value || '';
-            if (!telaresGrupo || telaresGrupo.length === 0) {
-                telaresGrupo = telarIdRaw ? [{ no_telar: telarIdRaw }] : [];
-            }
-
-            telaresGrupo.forEach(t => {
-                if (t.no_telar) {
-                    datosTelares.push({
-                        no_telar: t.no_telar,
-                        fecha_req: fechaReq,
-                        cuenta: cuenta,
-                        calibre: calibre !== '' ? parseFloat(calibre) : null,
-                        hilo: hilo,
-                        tamano: tamano,
-                        urdido: urdido,
-                        tipo: tipo,
-                        destino: destino,
-                        tipo_atado: tipoAtado,
-                        metros: metros,
-                        kilos: kilos,
-                        agrupar: true
-                    });
-                }
-            });
-        });
-
-        if (datosTelares.length === 0) {
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({ icon: 'warning', title: 'Sin datos', text: 'No hay telares para procesar' });
-            } else {
-                alert('No hay telares para procesar');
-            }
-            return;
-        }
-
-        // Redirigir a la vista de creación de órdenes con los datos
-        const datosEncoded = encodeURIComponent(JSON.stringify(datosTelares));
-        window.location.href = `{{ route('programa.urd.eng.creacion.ordenes') }}?telares=${datosEncoded}`;
-    });
-
-    /* =================== Init =================== */
-    // Cargar hilos y tamaños primero, luego renderizar tabla
-    Promise.all([cargarHilos(), cargarTamanos()]).then(() => {
-        renderTabla();
-        actualizarEstadoBotonSiguiente();
-    }).catch(error => {
-        console.error('Error al inicializar:', error);
-        renderTabla();
-        actualizarEstadoBotonSiguiente();
-    });
-
-    // Event delegation: cualquier cambio en la tabla actualiza el estado del botón
-    document.getElementById('tbodyRequerimientos')?.addEventListener('input', actualizarEstadoBotonSiguiente);
-    document.getElementById('tbodyRequerimientos')?.addEventListener('change', actualizarEstadoBotonSiguiente);
-});
-</script>
 @endsection
+
+@push('scripts')
+    @vite('resources/js/modulos/programa-urd-eng/programacion-requerimientos/index.ts')
+@endpush
