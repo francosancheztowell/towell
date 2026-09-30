@@ -177,6 +177,15 @@ class MantenimientoParosApiTest extends TestCase
         $this->getJson(route('api.mantenimiento.maquinas', 'Smith'))->assertJsonPath('data.0.MaquinaId', '201')->assertJsonCount(1, 'data');
     }
 
+    /** 422, no 401: un 401 dispara "sesión expirada" en window.http y recarga la pantalla. */
+    public function test_maquinas_de_tejido_sin_numero_de_empleado_es_422(): void
+    {
+        $this->entrar(['numero_empleado' => null]);
+
+        $this->getJson(route('api.mantenimiento.maquinas', 'Tejedores'))
+            ->assertStatus(422)->assertJsonPath('success', false)->assertJsonPath('data', []);
+    }
+
     public function test_tipos_de_falla_y_fallas_del_catalogo(): void
     {
         $this->falla('MECANICO', 'Urdido', 'Rotura');
@@ -317,6 +326,24 @@ class MantenimientoParosApiTest extends TestCase
 
         $this->getJson(route('api.mantenimiento.operadores'))->assertOk()
             ->assertJsonPath('data.0.NomEmpl', 'Alfa')->assertJsonPath('data.1.Turno', 2);
+    }
+
+    /**
+     * PERF (19-08): el área sale del usuario autenticado (ya es dbo.SYSUsuario).
+     * Antes: nuevo paro 1 consulta, listado sin área 3 (SYSUsuario dos veces + paros).
+     */
+    public function test_el_area_no_vuelve_a_consultar_sysusuario(): void
+    {
+        $this->entrar(['area' => null]);
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->getJson(route('api.mantenimiento.paros.index'))->assertOk()->assertJsonCount(0, 'data');
+        $this->assertCount(1, DB::getQueryLog());
+
+        $this->entrar(['area' => 'Urdido']);
+        DB::flushQueryLog();
+        $this->get(route('mantenimiento.nuevo-paro'))->assertOk()->assertSee('"areaUsuario":"Urdido"', false);
+        $this->assertSame([], collect(DB::getQueryLog())->pluck('query')->filter(fn ($q) => str_contains($q, 'SYSUsuario'))->all());
     }
 
     /** SEC-07: un 500 no le enseña al usuario el texto de la excepción (SQL, tablas). */

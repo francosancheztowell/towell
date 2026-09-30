@@ -10,7 +10,6 @@ use App\Models\Mantenimiento\CatParosFallas;
 use App\Models\Mantenimiento\ManFallasParos;
 use App\Models\Mantenimiento\ManOperadoresMantenimiento;
 use App\Models\Sistema\SysDepartamento;
-use App\Models\Sistema\SYSUsuario;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\Mantenimiento\ParoTelegramNotifier;
@@ -36,17 +35,9 @@ class MantenimientoParosController extends Controller
      */
     public function nuevoParo()
     {
-        $usuario = Auth::user();
-        $areaUsuario = null;
-
-        // Obtener área del usuario desde SYSUsuario.
-        if ($usuario && $usuario->idusuario) {
-            $sysUsuario = SYSUsuario::where('idusuario', $usuario->idusuario)->first();
-            $areaUsuario = $sysUsuario->area ?? null;
-        }
-
+        // El usuario autenticado ya es la fila de dbo.SYSUsuario: no se vuelve a consultar.
         return view('modulos.mantenimiento.nuevo-paro.index', [
-            'areaUsuario' => $areaUsuario,
+            'areaUsuario' => Auth::user()->area ?? null,
         ]);
     }
 
@@ -142,12 +133,14 @@ class MantenimientoParosController extends Controller
             $usuario = Auth::user();
             $numeroEmpleado = $usuario->numero_empleado ?? null;
 
+            // 422 y no 401: la sesión es válida, solo falta el dato. Un 401 haría que
+            // window.http avisara "sesión expirada" y recargara la pantalla.
             if (! $numeroEmpleado) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Usuario no autenticado o sin número de empleado',
+                    'error' => 'Tu usuario no tiene número de empleado: no se pueden listar tus telares.',
                     'data' => [],
-                ], 401);
+                ], 422);
             }
 
             $query = TelTelaresOperador::query()
@@ -532,23 +525,9 @@ class MantenimientoParosController extends Controller
      */
     private function areaUsuarioAutenticado(): string
     {
-        $usuario = Auth::user();
-        if (! $usuario) {
-            return '';
-        }
-
-        $area = trim((string) ($usuario->area ?? ''));
-        if ($area !== '') {
-            return $area;
-        }
-
-        if ($usuario->idusuario) {
-            $desdeSys = SYSUsuario::where('idusuario', $usuario->idusuario)->value('area');
-
-            return trim((string) ($desdeSys ?? ''));
-        }
-
-        return '';
+        // Usuario ya es dbo.SYSUsuario: releer `area` de la misma fila era una consulta
+        // extra (dos por petición cuando el área viene vacía).
+        return trim((string) (Auth::user()->area ?? ''));
     }
 
     /**
