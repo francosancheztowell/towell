@@ -1,36 +1,14 @@
-import { programBoardWindow } from './types'
+import { notify } from '../utils/notifications.ts'
 
 type NotificationDetail = {
   type?: 'success' | 'warning' | 'error'
   message?: string
 }
 
-const notify = (detail: NotificationDetail): void => {
+const avisar = (detail: NotificationDetail): void => {
   const message = detail.message ?? 'Operación completada.'
   const type = detail.type ?? 'success'
-
-  if (programBoardWindow.Swal) {
-    void programBoardWindow.Swal.fire({
-      toast: true,
-      position: 'top-end',
-      icon: type,
-      title: message,
-      showConfirmButton: false,
-      timer: type === 'error' ? 4200 : 2200,
-      timerProgressBar: true,
-    })
-    return
-  }
-
-  const client = programBoardWindow.notify
-  if (client) {
-    client[type](message)
-    return
-  }
-
-  if (type === 'error') {
-    window.alert(message)
-  }
+  notify[type](message)
 }
 
 const toggleScrollLock = (open: boolean): void => {
@@ -40,7 +18,7 @@ const toggleScrollLock = (open: boolean): void => {
 export const initializeFeedback = (): void => {
   window.addEventListener('program-board-notify', (event) => {
     if (event instanceof CustomEvent) {
-      notify(event.detail as NotificationDetail)
+      avisar(event.detail as NotificationDetail)
     }
   })
 

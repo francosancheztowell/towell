@@ -2,7 +2,7 @@
   Modal Calificar Julios (19-01): una vista para Urdido y Engomado.
   @param string      $variante       'urdido' (julios de UrdProduccionUrdido, desde Producción Engomado)
                                      | 'engomado' (registros de EngProduccionEngomado, desde Edición Engomado)
-  @param string|null $folio          Folio fijo (urdido). En engomado llega al abrir: abrirModalCalificarJuliosEng(folio).
+  @param string|null $folio          Folio fijo (urdido). En engomado llega al abrir: abrirCalificarJulios('engomado', folio) (import de calificar-julios/index.ts).
   @param string|null $usuarioNombre  Nombre a mostrar (default: usuario en sesión)
   JS: resources/js/modulos/urdido/comun/calificar-julios/index.ts
 --}}

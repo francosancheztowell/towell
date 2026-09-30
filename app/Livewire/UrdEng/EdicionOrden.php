@@ -16,8 +16,10 @@ use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
 use App\Services\ProgramaUrdEng\BomMaterialesService;
+use App\Support\Http\Concerns\HandlesApiErrors;
 use App\Support\Programas\ProgramaConfig;
 use App\Support\Programas\ProgramaModulo;
+use DomainException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -26,6 +28,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 /**
@@ -38,6 +41,8 @@ use Throwable;
  */
 class EdicionOrden extends Component
 {
+    use HandlesApiErrors;
+
     /** Campos editables y su gemelo en EngProgramaEngomado (solo Urdido sincroniza). */
     private const SINCRONIZA_ENGOMADO = [
         'RizoPie' => 'RizoPie',
@@ -175,7 +180,7 @@ class EdicionOrden extends Component
             $registro->save();
             $this->avisar('success', 'Metros de la fila guardados: '.$registro->Metros1);
         } catch (Throwable $e) {
-            $this->avisar('error', 'No se guardó: '.$e->getMessage());
+            $this->avisar('error', 'No se guardó: '.$this->motivoDeError($e));
         }
     }
 
@@ -221,7 +226,7 @@ class EdicionOrden extends Component
             $this->escribirJulio($fila);
         } catch (Throwable $e) {
             $this->cargarJulios();
-            $this->notificar('error', $e->getMessage());
+            $this->notificar('error', $this->motivoDeError($e));
         }
     }
 
@@ -299,9 +304,6 @@ class EdicionOrden extends Component
             }
             $mensaje = 'Campo actualizado correctamente.'.$resumen;
             $this->notificar('success', $mensaje);
-            if ($campo === 'Metros') {
-                $this->js('window.alert('.json_encode($mensaje).')');
-            }
 
             if ($campo === 'Cuenta' || $campo === 'Calibre') {
                 $this->autocompletarTamano($orden);
@@ -309,9 +311,7 @@ class EdicionOrden extends Component
         } catch (Throwable $e) {
             $this->ordenCache = null;
             $this->form[$campo] = $this->valorParaFormulario($this->orden(), $campo);
-            $mensaje = 'No se guardó: '.$e->getMessage();
-            $this->notificar('error', $mensaje);
-            $this->js('window.alert('.json_encode($mensaje).')');
+            $this->notificar('error', 'No se guardó: '.$this->motivoDeError($e));
         }
     }
 
@@ -696,8 +696,11 @@ class EdicionOrden extends Component
                 return $que === 'hilos'
                     ? array_column($this->bomMateriales->obtenerHilos(), 'ConfigId')
                     : array_column($this->bomMateriales->obtenerTamanos(), 'InventSizeId');
-            } catch (Throwable) {
+            } catch (Throwable $e) {
                 // Si AX no responde la pantalla sigue abriendo: el campo queda con su valor actual.
+                // Se reporta (queda en monitoreo); el [] se cachea la hora, así que es un aviso por hora.
+                report($e);
+
                 return [];
             }
         });
@@ -803,8 +806,24 @@ class EdicionOrden extends Component
 
     private function avisar(string $tipo, string $mensaje): void
     {
+        // Antes también abría un window.alert: el error ya sale en el diálogo "No se guardó"
+        // de la vista y el éxito como aviso (resources/js/urd-eng/edicion-orden.ts).
         $this->notificar($tipo, $mensaje);
-        $this->js('window.alert('.json_encode($mensaje).')');
+    }
+
+    /**
+     * SEC-07: al usuario solo llega el motivo que escribió este código (abort() y
+     * DomainException); cualquier otro error se reporta y se muestra con su referencia.
+     */
+    private function motivoDeError(Throwable $e): string
+    {
+        if ($e instanceof HttpExceptionInterface || $e instanceof DomainException) {
+            return $e->getMessage();
+        }
+
+        report($e);
+
+        return 'ocurrió un error en el servidor (ref: '.$this->traceIdDeError($e).').';
     }
 
     private function notificar(string $tipo, string $mensaje): void

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Engomado\ProgramaEngomado;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ProgramaUrdEng\Concerns\RespuestasErrorUrdEng;
 use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Urdido\UrdProgramaUrdido;
@@ -20,6 +21,11 @@ use Illuminate\Validation\ValidationException;
 
 class ProgramarEngomadoController extends Controller
 {
+    use RespuestasErrorUrdEng;
+
+    /** Tope de filas por lote de actualizarPrioridades (un tablero activo tiene decenas). */
+    private const MAX_PRIORIDADES_LOTE = 2000;
+
     public function __construct(
         private readonly ProgramaPrioridadService $prioridadService,
         private readonly ProgramBoardActionService $boardActionService,
@@ -215,10 +221,7 @@ class ProgramarEngomadoController extends Controller
                 'data' => $ordenesPorTabla,
             ]);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al obtener órdenes: '.$e->getMessage(),
-            ], 500);
+            return $this->errorServidor($e, 'Programa Engomado: Error al obtener órdenes', 'Error al obtener órdenes.');
         }
     }
 
@@ -244,22 +247,11 @@ class ProgramarEngomadoController extends Controller
                 'message' => 'Prioridad actualizada correctamente',
             ]);
         } catch (DomainException $e) {
-            $status = str_contains($e->getMessage(), 'permiso') ? 403 : 422;
-
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-            ], $status);
+            return $this->errorNegocio($e->getMessage(), str_contains($e->getMessage(), 'permiso') ? 403 : 422);
         } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación: '.$e->getMessage(),
-            ], 422);
+            return $this->errorValidacion($e);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al intercambiar prioridad: '.$e->getMessage(),
-            ], 500);
+            return $this->errorServidor($e, 'Programa Engomado: Error al intercambiar prioridad', 'Error al intercambiar prioridad.');
         }
     }
 
@@ -292,20 +284,11 @@ class ProgramarEngomadoController extends Controller
                 'message' => 'Observaciones guardadas correctamente',
             ]);
         } catch (DomainException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-            ], 422);
+            return $this->errorNegocio($e->getMessage());
         } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación: '.$e->getMessage(),
-            ], 422);
+            return $this->errorValidacion($e);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al guardar observaciones: '.$e->getMessage(),
-            ], 500);
+            return $this->errorServidor($e, 'Programa Engomado: Error al guardar observaciones', 'Error al guardar observaciones.');
         }
     }
 
@@ -339,20 +322,11 @@ class ProgramarEngomadoController extends Controller
                 'message' => 'Status actualizado correctamente',
             ]);
         } catch (DomainException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-            ], 422);
+            return $this->errorNegocio($e->getMessage());
         } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación: '.$e->getMessage(),
-            ], 422);
+            return $this->errorValidacion($e);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al actualizar status: '.$e->getMessage(),
-            ], 500);
+            return $this->errorServidor($e, 'Programa Engomado: Error al actualizar status', 'Error al actualizar status.');
         }
     }
 
@@ -411,10 +385,7 @@ class ProgramarEngomadoController extends Controller
                 'data' => $ordenesArray,
             ]);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al obtener órdenes: '.$e->getMessage(),
-            ], 500);
+            return $this->errorServidor($e, 'Programa Engomado: Error al obtener órdenes', 'Error al obtener órdenes.');
         }
     }
 
@@ -424,13 +395,22 @@ class ProgramarEngomadoController extends Controller
     public function actualizarPrioridades(Request $request): JsonResponse
     {
         try {
-            // Habilitado para todos los usuarios
+            // Habilitado para todos los usuarios (20-03: AuthZ en modo auditar, sin enforce). Por eso
+            // la entrada se valida entera: ids enteros únicos que existan y prioridades 1..N sin repetir.
             $request->validate([
-                'prioridades' => 'required|array',
-                // ponytail: sin exists: por fila (eran N SELECT); el UPDATE ignora ids inexistentes
-                'prioridades.*.id' => 'required|integer',
-                'prioridades.*.prioridad' => 'required|integer|min:1',
+                'prioridades' => 'required|array|min:1|max:'.self::MAX_PRIORIDADES_LOTE,
+                'prioridades.*' => 'required|array',
+                'prioridades.*.id' => 'required|integer|min:1|distinct',
+                'prioridades.*.prioridad' => 'required|integer|min:1|max:'.self::MAX_PRIORIDADES_LOTE.'|distinct',
             ]);
+            if ($faltantes = $this->idsInexistentes(array_column($request->input('prioridades'), 'id'))) {
+                return $this->apiClientErrorResponse(
+                    'Error de validación: hay órdenes que no existen ('.implode(', ', array_slice($faltantes, 0, 10)).').',
+                    422,
+                    ['ids' => $faltantes],
+                    ['error' => 'Error de validación: hay órdenes que no existen.']
+                );
+            }
             $this->prioridadService->bulkUpdatePriorities(
                 EngProgramaEngomado::class,
                 $request->prioridades
@@ -441,15 +421,29 @@ class ProgramarEngomadoController extends Controller
                 'message' => 'Prioridades actualizadas correctamente',
             ]);
         } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación: '.$e->getMessage(),
-            ], 422);
+            return $this->errorValidacion($e);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al actualizar prioridades: '.$e->getMessage(),
-            ], 500);
+            return $this->errorServidor($e, 'Programa Engomado: Error al actualizar prioridades', 'Error al actualizar prioridades.');
         }
+    }
+
+    /**
+     * Ids que no están en EngProgramaEngomado. Una consulta por bloque de 2000 (límite de
+     * parámetros de SQL Server), no un exists: por fila.
+     *
+     * @param  array<int, mixed>  $ids
+     * @return array<int, int>
+     */
+    private function idsInexistentes(array $ids): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        $existentes = [];
+        foreach (array_chunk($ids, 2000) as $bloque) {
+            foreach (EngProgramaEngomado::query()->whereIn('Id', $bloque)->pluck('Id') as $id) {
+                $existentes[(int) $id] = true;
+            }
+        }
+
+        return array_values(array_filter($ids, fn (int $id): bool => ! isset($existentes[$id])));
     }
 }

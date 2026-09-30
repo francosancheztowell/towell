@@ -6,10 +6,12 @@ namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Helpers\FolioHelper;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ProgramaUrdEng\Concerns\RespuestasErrorUrdEng;
 use App\Models\Urdido\AuditoriaUrdEng;
 use App\Models\Urdido\UrdConsumoHilo;
 use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProgramaUrdido;
+use App\Services\ProgramaUrdEng\InsercionEnBloques;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,6 +25,8 @@ use Illuminate\Support\Facades\Log;
  */
 class CrearOrdenKarlMayerController extends Controller
 {
+    use RespuestasErrorUrdEng;
+
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -110,24 +114,19 @@ class CrearOrdenKarlMayerController extends Controller
             );
 
             $tamanoOrden = trim($validated['tamano'] ?? '');
-            foreach ($validated['materiales'] ?? [] as $material) {
-                $inventBatchId = $this->derivarInventBatchId(
-                    $material['inventSerialId'] ?? '',
-                    $material['inventBatchId'] ?? ''
-                );
+            // PERF-08: un INSERT por bloque, no uno por fila.
+            InsercionEnBloques::insertar(UrdConsumoHilo::class, array_map(function (array $material) use ($folio, $folioConsumo, $tamanoOrden, $numeroEmpleado, $nombreEmpleado, $fechaRequerimiento): array {
                 $inventSizeId = trim((string) ($material['inventSizeId'] ?? ''));
-                if ($inventSizeId === '' && $tamanoOrden !== '') {
-                    $inventSizeId = $tamanoOrden;
-                }
-                UrdConsumoHilo::create([
+
+                return [
                     'Folio' => $folio,
                     'FolioConsumo' => $folioConsumo,
                     'ItemId' => $material['itemId'] ?? '',
                     'ConfigId' => $material['configId'] ?? '',
-                    'InventSizeId' => $inventSizeId,
+                    'InventSizeId' => $inventSizeId === '' && $tamanoOrden !== '' ? $tamanoOrden : $inventSizeId,
                     'InventColorId' => $material['inventColorId'] ?? '',
                     'InventLocationId' => $material['inventLocationId'] ?? '',
-                    'InventBatchId' => $inventBatchId,
+                    'InventBatchId' => $this->derivarInventBatchId($material['inventSerialId'] ?? '', $material['inventBatchId'] ?? ''),
                     'WMSLocationId' => $material['wmsLocationId'] ?? '',
                     'InventSerialId' => $material['inventSerialId'] ?? '',
                     'InventQty' => isset($material['kilos']) ? (float) $material['kilos'] : 0,
@@ -140,26 +139,28 @@ class CrearOrdenKarlMayerController extends Controller
                     'NoProv' => $material['noProv'] ?? '',
                     'FechaRegistro' => now(),
                     'FechaRequerimiento' => $fechaRequerimiento ?? null,
-                ]);
-            }
+                ];
+            }, array_values($validated['materiales'] ?? [])));
 
             $julios = $validated['julios'] ?? [];
             $hilos = $validated['hilos'] ?? [];
             $obs = $validated['obs'] ?? [];
 
+            $filasJulios = [];
             $maxRows = max(count($julios), count($hilos), count($obs));
             for ($i = 0; $i < $maxRows; $i++) {
                 $j = isset($julios[$i]) && $julios[$i] !== '' && $julios[$i] !== null ? (int) $julios[$i] : null;
                 $h = isset($hilos[$i]) && $hilos[$i] !== '' && $hilos[$i] !== null ? (int) $hilos[$i] : null;
                 if ($j !== null || $h !== null) {
-                    UrdJuliosOrden::create([
+                    $filasJulios[] = [
                         'Folio' => $folio,
                         'Julios' => $j,
                         'Hilos' => $h,
                         'Obs' => $this->emptyToNull($obs[$i] ?? ''),
-                    ]);
+                    ];
                 }
             }
+            InsercionEnBloques::insertar(UrdJuliosOrden::class, $filasJulios);
 
             DB::commit();
 
@@ -178,12 +179,8 @@ class CrearOrdenKarlMayerController extends Controller
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('CrearOrdenKarlMayer', ['msg' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
 
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al crear la orden: '.$e->getMessage(),
-            ], 500);
+            return $this->errorServidor($e, 'CrearOrdenKarlMayer', 'Error al crear la orden Karl Mayer. No se guardó nada.');
         }
     }
 

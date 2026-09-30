@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ProgramaUrdEng\Concerns\RespuestasErrorUrdEng;
 use App\Models\Planeacion\ReqTelares;
 use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Urdido\URDCatalogoMaquina;
@@ -14,9 +15,12 @@ use DomainException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class ReservarProgramarController extends Controller
 {
+    use RespuestasErrorUrdEng;
+
     private const STATUS_ACTIVO = 'Activo';
 
     /** Debe coincidir con SYSRoles.modulo. */
@@ -132,10 +136,10 @@ class ReservarProgramarController extends Controller
                 'message' => "El telar {$noTelar} ha sido programado exitosamente.",
                 'no_telar' => $noTelar,
             ]);
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
-            Log::error('programarTelar', ['msg' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'message' => 'Error al programar el telar'], 500);
+            return $this->errorServidor($e, 'ReservarProgramar.programarTelar', 'Error al programar el telar');
         }
     }
 
@@ -172,13 +176,16 @@ class ReservarProgramarController extends Controller
                 'detalle' => $detalle,
             ]);
         } catch (DomainException $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
-        } catch (\RuntimeException $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 404);
+            // Mensajes de negocio escritos por ReservarProgramarActionService.
+            return $this->errorNegocio($e->getMessage(), 400);
         } catch (\Throwable $e) {
-            Log::error('actualizarTelar', ['msg' => $e->getMessage()]);
+            // Solo el RuntimeException propio del servicio ("Telar no encontrado…") es un 404 con su
+            // texto. QueryException/PDOException también son RuntimeException y traen el SQL: van al 500.
+            if (get_class($e) === \RuntimeException::class) {
+                return $this->errorNegocio($e->getMessage(), 404);
+            }
 
-            return response()->json(['success' => false, 'message' => 'Error al actualizar el telar: '.$e->getMessage()], 500);
+            return $this->errorServidor($e, 'ReservarProgramar.actualizarTelar', 'Error al actualizar el telar', [], ['no_telar' => $noTelar]);
         }
     }
 
@@ -208,11 +215,9 @@ class ReservarProgramarController extends Controller
         } catch (DomainException $e) {
             $status = str_contains($e->getMessage(), 'no encontrado') ? 404 : 400;
 
-            return response()->json(['success' => false, 'message' => $e->getMessage()], $status);
+            return $this->errorNegocio($e->getMessage(), $status);
         } catch (\Throwable $e) {
-            Log::error('liberarTelar', ['msg' => $e->getMessage()]);
-
-            return response()->json(['success' => false, 'message' => 'Error al liberar el telar: '.$e->getMessage()], 500);
+            return $this->errorServidor($e, 'ReservarProgramar.liberarTelar', 'Error al liberar el telar', [], ['no_telar' => $noTelar]);
         }
     }
 
@@ -259,45 +264,51 @@ class ReservarProgramarController extends Controller
      * Para cada telar sin id, busca el registro real en tej_inventario_telares
      * usando no_telar + tipo (+ fecha + turno si disponibles) y le asigna el id de BD.
      */
+    /**
+     * Completa id/fecha/turno de los telares que llegan sin id. Una sola consulta para todos
+     * (antes una por telar, PERF-08) y el filtro por tipo/fecha/turno se aplica en PHP con la
+     * semántica de SQL Server (sin distinguir mayúsculas ni espacios al final).
+     */
     private function enriquecerTelaresConId(array $telares): array
     {
-        foreach ($telares as &$t) {
-            if (! empty($t['id'])) {
-                continue;
-            }
-
+        $numeros = [];
+        foreach ($telares as $t) {
             $noTelar = trim((string) ($t['no_telar'] ?? ''));
-            if ($noTelar === '') {
+            if (empty($t['id']) && $noTelar !== '') {
+                // Las llaves numéricas ('305') se vuelven int: strval() arriba para ligarlas como texto.
+                $numeros[$noTelar] = true;
+            }
+        }
+        if ($numeros === []) {
+            return $telares;
+        }
+
+        $candidatos = TejInventarioTelares::whereIn('no_telar', array_map('strval', array_keys($numeros)))
+            ->where('status', self::STATUS_ACTIVO)
+            ->orderBy('id')
+            ->get(['id', 'no_telar', 'tipo', 'fecha', 'turno'])
+            ->groupBy(fn ($r) => mb_strtoupper(rtrim((string) $r->no_telar)));
+
+        foreach ($telares as &$t) {
+            $noTelar = trim((string) ($t['no_telar'] ?? ''));
+            if (! empty($t['id']) || $noTelar === '') {
                 continue;
             }
-
-            $query = TejInventarioTelares::where('no_telar', $noTelar)
-                ->where('status', self::STATUS_ACTIVO);
 
             $tipo = $this->telaresService->normalizeTipo($t['tipo'] ?? null);
-            if ($tipo !== null) {
-                $query->where('tipo', $tipo);
+            $registros = ($candidatos->get(mb_strtoupper($noTelar)) ?? collect())
+                ->filter(fn ($r) => $this->coincideRegistro($r, $tipo, $t))
+                ->values();
+
+            if ($registros->isEmpty()) {
+                continue;
             }
 
-            if (! empty($t['fecha'])) {
-                $query->whereDate('fecha', $t['fecha']);
-            }
-            if (isset($t['turno']) && $t['turno'] !== '' && $t['turno'] !== null) {
-                $query->where('turno', $t['turno']);
-            }
-
-            $registros = $query->get(['id', 'fecha', 'turno']);
-
-            if ($registros->count() === 1) {
-                $r = $registros->first();
-                $t['id'] = $r->id;
-                $t['fecha'] = $r->fecha ? substr(trim((string) $r->fecha), 0, 10) : null;
-                $t['turno'] = $r->turno;
-            } elseif ($registros->count() > 1) {
-                $r = $registros->first();
-                $t['id'] = $r->id;
-                $t['fecha'] = $r->fecha ? substr(trim((string) $r->fecha), 0, 10) : null;
-                $t['turno'] = $r->turno;
+            $r = $registros->first();
+            $t['id'] = $r->id;
+            $t['fecha'] = $r->fecha ? substr(trim((string) $r->fecha), 0, 10) : null;
+            $t['turno'] = $r->turno;
+            if ($registros->count() > 1) {
                 Log::warning('enriquecerTelaresConId: múltiples registros', [
                     'no_telar' => $noTelar,
                     'tipo' => $tipo,
@@ -309,6 +320,23 @@ class ReservarProgramarController extends Controller
         unset($t);
 
         return $telares;
+    }
+
+    /** Mismos filtros que la consulta por telar de antes: tipo, whereDate(fecha) y turno. */
+    private function coincideRegistro(object $registro, ?string $tipo, array $telar): bool
+    {
+        $igual = fn ($a, $b) => strcasecmp(rtrim((string) $a), rtrim((string) $b)) === 0;
+
+        if ($tipo !== null && ! $igual($registro->tipo, $tipo)) {
+            return false;
+        }
+        if (! empty($telar['fecha']) && substr(trim((string) $registro->fecha), 0, 10) !== (string) $telar['fecha']) {
+            return false;
+        }
+
+        $turno = $telar['turno'] ?? null;
+
+        return $turno === null || $turno === '' || $igual($registro->turno, $turno);
     }
 
     private function parseTelaresFromQuery(?string $telaresJson): array

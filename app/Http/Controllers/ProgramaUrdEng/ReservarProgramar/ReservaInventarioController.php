@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ProgramaUrdEng\Concerns\RespuestasErrorUrdEng;
 use App\Services\ProgramaUrdEng\InventarioReservasService;
 use App\Services\ProgramaUrdEng\ReservarProgramarActionService;
 use Carbon\Carbon;
@@ -11,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 /**
@@ -18,6 +20,8 @@ use Throwable;
  */
 class ReservaInventarioController extends Controller
 {
+    use RespuestasErrorUrdEng;
+
     public function __construct(
         private InventarioReservasService $reservasService,
         private ReservarProgramarActionService $acciones
@@ -98,18 +102,15 @@ class ReservaInventarioController extends Controller
                 'telares_actualizados' => $result['telares_actualizados'],
             ]);
         } catch (DomainException $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 404);
+            // Mensaje de negocio escrito por ReservarProgramarActionService (telar no encontrado, barra llena).
+            return $this->errorNegocio($e->getMessage(), 404);
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (Throwable $e) {
-            Log::error('ReservaInventario.reservar', [
-                'msg' => $e->getMessage(),
+            return $this->errorServidor($e, 'ReservaInventario.reservar', 'Error al reservar la pieza', [], [
                 'NoTelarId' => $request->input('NoTelarId'),
                 'InventSerialId' => $request->input('InventSerialId'),
             ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al reservar la pieza',
-            ], 500);
         }
     }
 
@@ -148,7 +149,7 @@ class ReservaInventarioController extends Controller
                 }
 
                 return $parsed->format('Y-m-d');
-            } catch (\Exception $e) {
+            } catch (\Exception) {
                 return $this->parseFecha($prodDate, null);
             }
         }
@@ -160,7 +161,7 @@ class ReservaInventarioController extends Controller
                 }
 
                 return $parsed->format('Y-m-d');
-            } catch (\Exception $e) {
+            } catch (\Exception) {
                 return null;
             }
         }

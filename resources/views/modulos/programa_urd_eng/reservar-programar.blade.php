@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @push('scripts')
-    @vite('resources/js/programa-urd-eng/reservar-programar.ts')
+    @vite('resources/js/modulos/programa-urd-eng/reservar-programar/index.ts')
 @endpush
 
 @section('page-title', 'Reservar y Prog')
@@ -13,12 +13,13 @@
        id="btnKarlMayer"
        class="px-3 py-2 rounded-lg transition flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium"
        title="Karl Mayer">
-        <i class="fa-solid fa-robot text-base"></i>
+        <i class="fa-solid fa-robot text-base" aria-hidden="true"></i>
         <span>Karl Mayer</span>
     </a>
     @endif
     <x-navbar.button-edit
         id="btnReservar"
+        data-accion="reservar"
         type="button"
         title="Reservar"
         icon="fa-save"
@@ -32,6 +33,7 @@
 
     <x-navbar.button-delete
         id="btnLiberarTelar"
+        data-accion="liberar"
         title="Liberar"
         icon="fa-unlock"
         iconColor="text-white"
@@ -44,6 +46,7 @@
 
     <x-navbar.button-create
         id="btnProgramar"
+        data-accion="programar"
         title="Programar"
         icon="fa-calendar-check"
         iconColor="text-white"
@@ -57,15 +60,29 @@
 @endsection
 
 @section('content')
+@php
+    // Datos para resources/js/modulos/programa-urd-eng/reservar-programar/index.ts (19-00-RECETA §2).
+    $puConfig = [
+        'api' => [
+            'inventarioTelares' => route('programa.urd.eng.inventario.telares'),
+            'inventarioDisponibleGet' => route('programa.urd.eng.inventario.disponible.get'),
+            'programarRequerimientos' => route('programa.urd.eng.programacion.requerimientos'),
+            'actualizarTelar' => route('programa.urd.eng.actualizar.telar'),
+            'reservarInventario' => route('programa.urd.eng.reservar.inventario'),
+            'liberarTelar' => route('programa.urd.eng.liberar.telar'),
+        ],
+        'can' => ['modificar' => $canModificar ?? false, 'crear' => $canCrear ?? false, 'eliminar' => $canEliminar ?? false],
+        'telares' => $inventarioTelares ?? [],
+    ];
+@endphp
 
+<div id="pu-pagina" class="w-full pu-split relative" data-pagina='@json($puConfig)'>
 
-<div class="w-full pu-split relative">
-
-    {{-- =================== Tabla: ProgramaciÃ³n (telares) =================== --}}
+    {{-- =================== Tabla: Programación (telares) =================== --}}
     <div class="pu-panel">
         <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-slate-900 px-4 py-2">
             <h2 class="text-sm font-bold tracking-wide text-white">Programación de telares</h2>
-            <div id="puChips" class="ml-auto flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1.5"></div>
+            <div id="puChips" role="group" aria-label="Filtros rápidos por salón y estado" class="ml-auto flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1.5"></div>
         </div>
         <div class="relative flex min-h-0 w-full flex-1 flex-col">
         <div class="relative flex min-h-0 w-full flex-1 flex-col">
@@ -107,31 +124,29 @@
                                             <button type="button"
                                                     class="w-full flex items-center justify-center gap-2 cursor-pointer">
                                                 <span>{{ $h['label'] }}</span>
-                                                <i class="fa-solid fa-sort text-gray-400 sort-icon"></i>
+                                                <i class="fa-solid fa-sort text-gray-400 sort-icon" aria-hidden="true"></i>
                                             </button>
                                         </th>
                                     @endforeach
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-100">
-                                {{-- Las filas las pinta render.telares() desde el island pu-config
-                                     en cuanto carga el DOM. Tenerlas tambien aqui era renderizarlas
-                                     en PHP para tirarlas milisegundos despues, y obligaba a escribir
-                                     cada cambio de celda dos veces. --}}
+                                {{-- Las filas las pinta tabla-telares.ts desde data-pagina en cuanto
+                                     carga el DOM (una sola fuente de marcado por celda). --}}
                             </tbody>
                         </table>
                 </div>
             @else
                 <div class="px-6 py-12 text-center">
-                    <i class="fa-solid fa-box-open w-12 h-12 text-gray-400"></i>
+                    <i class="fa-solid fa-box-open w-12 h-12 text-gray-400" aria-hidden="true"></i>
                     <h3 class="mt-4 text-lg font-medium text-gray-900">No hay inventario disponible</h3>
                     <p class="mt-2 text-sm text-gray-500">
                         No se han registrado telares en el inventario.
                     </p>
                     <div class="mt-6">
-                        <button id="btnReloadTelares"
+                        <button type="button" id="btnReloadTelares" data-accion="recargar-telares"
                                 class="inline-flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-                            <i class="fa-solid fa-rotate w-4 h-4 mr-1"></i> Recargar
+                            <i class="fa-solid fa-rotate w-4 h-4 mr-1" aria-hidden="true"></i> Recargar
                         </button>
                     </div>
                 </div>
@@ -144,20 +159,22 @@
         <div class="bg-blue-500 px-4 py-2 flex justify-between items-center gap-2">
             <h2 class="text-sm font-bold tracking-wide text-white text-center flex-1">Inventario Disponible</h2>
             {{-- Contador y selección por lote: solo con una barra de Karl Mayer seleccionada. --}}
-            <span id="puJuliosContador"
+            <span id="puJuliosContador" aria-live="polite"
                   class="hidden rounded-lg bg-white/20 px-3 py-1.5 text-sm font-semibold text-white whitespace-nowrap"></span>
             <button type="button"
                     id="btnSeleccionarLote"
+                    data-accion="seleccionar-lote"
                     class="hidden flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white hover:bg-blue-50 text-blue-700 text-sm font-semibold shadow-sm transition-colors whitespace-nowrap"
                     title="Seleccionar los julios libres de este lote hasta llenar la barra">
-                <i class="fa-solid fa-layer-group"></i>
+                <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
                 <span>Seleccionar todos los julios de este lote</span>
             </button>
             <button type="button"
                     id="btnQuitarFiltroInventario"
+                    data-accion="alternar-filtro-inventario"
                     class="hidden flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white hover:bg-blue-50 text-blue-700 text-sm font-semibold shadow-sm transition-colors"
                     title="Quitar filtro y mostrar todos los registros">
-                <i class="fa-solid fa-filter-circle-xmark"></i>
+                <i class="fa-solid fa-filter-circle-xmark" aria-hidden="true"></i>
                 <span>Quitar Filtro</span>
             </button>
         </div>
@@ -189,7 +206,7 @@
                                         <button type="button"
                                                 class="w-full flex items-center justify-center gap-2 cursor-pointer">
                                             <span>{{ $h['label'] }}</span>
-                                            <i class="fa-solid fa-sort text-gray-400 sort-icon-inventario"></i>
+                                            <i class="fa-solid fa-sort text-gray-400 sort-icon-inventario" aria-hidden="true"></i>
                                         </button>
                                     </th>
                                 @endforeach
@@ -198,7 +215,7 @@
                         <tbody class="bg-white divide-y divide-gray-100">
                             <tr>
                                 <td colspan="12" class="px-4 py-8 text-center text-sm text-gray-500">
-                                    <i class="fa-solid fa-box-open w-12 h-12 text-gray-400 mb-2"></i>
+                                    <i class="fa-solid fa-box-open w-12 h-12 text-gray-400 mb-2" aria-hidden="true"></i>
                                     No hay datos de inventario disponible por el momento
                                 </td>
                             </tr>
@@ -209,14 +226,8 @@
     </div>
 </div>
 
-<div id="puLoader" class="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-white/60 opacity-0 backdrop-blur-[2px] transition-opacity duration-200" aria-hidden="true">
-    <div class="flex items-center gap-3 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-xl">
-        <div class="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>
-        <span>Cargando…</span>
-    </div>
-</div>
-
-<div id="tableContextMenu"
+{{-- Menú de encabezado: clic derecho o mantener presionado sobre una columna (filtros.ts). --}}
+<div id="tableContextMenu" role="menu" aria-label="Filtros de columna"
      class="hidden fixed z-50 min-w-[220px] bg-white border border-gray-200 rounded-lg shadow-lg p-1">
     <button type="button" data-action="filter-column" class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-md">
         Filtrar columna
@@ -228,6 +239,41 @@
         Quitar filtros de tabla
     </button>
 </div>
+
+{{-- Menú de fila de telar: "⋮", clic derecho o mantener presionado (edicion.ts). --}}
+<div id="puMenuFila" role="menu" aria-label="Acciones del telar"
+     class="hidden fixed z-50 min-w-[220px] bg-white border border-gray-200 rounded-lg shadow-lg p-1">
+    <button type="button" role="menuitem" data-action="editar-cuenta" class="w-full min-h-touch text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-md">
+        <i class="fa-solid fa-pen mr-2 text-gray-500" aria-hidden="true"></i>Editar cuenta
+    </button>
+    <button type="button" role="menuitem" data-action="editar-calibre" class="w-full min-h-touch text-left px-3 py-2 text-sm hover:bg-gray-100 rounded-md">
+        <i class="fa-solid fa-pen mr-2 text-gray-500" aria-hidden="true"></i>Editar calibre
+    </button>
+</div>
+
+{{-- Valor del filtro de columna (antes un SweetAlert con input). --}}
+<x-ui.modal-base id="puModalFiltro" title="Filtrar columna" size="sm" :close-on-backdrop="true">
+    <form id="puFormFiltro" class="space-y-3" novalidate>
+        <p class="text-sm text-gray-600">Columna: <span id="puFiltroColumna" class="font-semibold text-gray-900"></span></p>
+        <div data-pu-campo>
+            <label for="puFiltroValor" class="mb-1 block text-sm font-medium text-gray-700">Valor</label>
+            <input id="puFiltroValor" type="text" placeholder="Valor de filtro" autocomplete="off"
+                   class="w-full min-h-touch rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div data-pu-campo class="hidden">
+            <label for="puFiltroSiNo" class="mb-1 block text-sm font-medium text-gray-700">Valor</label>
+            <select id="puFiltroSiNo"
+                    class="w-full min-h-touch rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="1">Sí</option>
+                <option value="0">No</option>
+            </select>
+        </div>
+    </form>
+    <x-slot:footer>
+        <x-ui.button variant="neutral" data-ui-modal-close-target="puModalFiltro">Cancelar</x-ui.button>
+        <x-ui.button variant="create" type="submit" form="puFormFiltro">Aplicar</x-ui.button>
+    </x-slot:footer>
+</x-ui.modal-base>
 
 {{-- =================== Estilos: split viewport + grupos + responsive =================== --}}
 <style>
@@ -243,7 +289,7 @@
     .pu-stack{display:inline-flex;flex-direction:column;align-items:center;gap:.1rem;line-height:1.25;vertical-align:middle;}
     .pu-stack .pu-extra{display:none;}
     #telaresTable tbody tr[data-expandido="1"] .pu-extra{display:block;}
-    .pu-toggle{margin-left:.25rem;display:inline-flex;align-items:center;gap:.2rem;border-radius:.375rem;background:#f1f5f9;color:#475569;font-size:.65rem;font-weight:700;padding:.05rem .3rem;vertical-align:middle;}
+    .pu-toggle{margin-left:.25rem;display:inline-flex;align-items:center;gap:.2rem;border-radius:.375rem;background:#f1f5f9;color:#475569;font-size:.75rem;font-weight:700;padding:.05rem .3rem;vertical-align:middle;}
     .pu-toggle:hover{background:#e2e8f0;}
     #telaresTable tbody tr[data-expandido="1"] .pu-toggle i{transform:rotate(180deg);}
     #telaresTable tbody tr.is-selected .pu-toggle{background:rgba(255,255,255,.25);color:#fff;}
@@ -253,7 +299,7 @@
     #telaresTable td, #inventarioTable td { font-variant-numeric:tabular-nums; }
 
     /* Encabezados de grupo: un tinte por familia de columnas. */
-    .pu-g{font-size:.7rem;font-weight:800;letter-spacing:.04em;padding:.3rem .5rem;text-align:center;border-bottom:2px solid;white-space:nowrap;}
+    .pu-g{font-size:.75rem;font-weight:800;letter-spacing:.04em;padding:.3rem .5rem;text-align:center;border-bottom:2px solid;white-space:nowrap;}
     .pu-g-a{background:#f1f5f9;color:#334155;border-color:#94a3b8;}
     .pu-g-b{background:#fef9c3;color:#854d0e;border-color:#eab308;}
     .pu-g-c{background:#e0f2fe;color:#0c4a6e;border-color:#0284c9;}
@@ -294,8 +340,8 @@
 
     /* Tablet: celdas compactas para que quepan más columnas sin apretar. */
     @media (max-width:1279.98px){
-        #telaresTable :is(th,td), #inventarioTable :is(th,td){padding:.35rem .45rem;font-size:.72rem;}
-        .pu-g{font-size:.6rem;padding:.25rem .4rem;}
+        #telaresTable :is(th,td), #inventarioTable :is(th,td){padding:.35rem .45rem;font-size:.75rem;}
+        .pu-g{font-size:.75rem;padding:.25rem .4rem;}
     }
     /* Móvil: los paneles se apilan con tope y la página vuelve a scrollear. */
     @media (max-width:767.98px){
@@ -309,7 +355,7 @@
     #btnProgramar:disabled, #btnReservar:disabled, #btnLiberarTelar:disabled{cursor:not-allowed;opacity:.55;}
     .pu-chip{transition:background-color .12s ease, color .12s ease, transform .1s ease;}
     .pu-chip:active{transform:scale(.96);}
-    .pu-chip{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .6rem;border-radius:9999px;font-size:.68rem;font-weight:700;letter-spacing:.02em;border:1px solid rgba(255,255,255,.35);color:#e2e8f0;background:rgba(255,255,255,.08);cursor:pointer;transition:all .12s;white-space:nowrap;}
+    .pu-chip{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .6rem;border-radius:9999px;font-size:.75rem;font-weight:700;letter-spacing:.02em;border:1px solid rgba(255,255,255,.35);color:#e2e8f0;background:rgba(255,255,255,.08);cursor:pointer;transition:all .12s;white-space:nowrap;}
     .pu-chip:hover{background:rgba(255,255,255,.2);color:#fff;}
     .pu-chip[aria-pressed="true"]{background:#fff;color:#0f172a;border-color:#fff;}
     .pu-chip-sep{width:1px;height:1rem;background:rgba(255,255,255,.25);}
@@ -317,7 +363,7 @@
         min-width: 16px;
         height: 16px;
         border-radius: 9999px;
-        font-size: 10px;
+        font-size: 12px;
         line-height: 16px;
         text-align: center;
         background: #dbeafe;
@@ -326,10 +372,5 @@
     }
 </style>
 
-{{-- Config para el módulo TS (ver resources/js/programa-urd-eng/reservar-programar.ts) --}}
-@php
-$puConfig = ['api' => ['inventarioTelares' => route('programa.urd.eng.inventario.telares'), 'inventarioDisponible' => route('programa.urd.eng.inventario.disponible'), 'inventarioDisponibleGet' => route('programa.urd.eng.inventario.disponible.get'), 'programarTelar' => route('programa.urd.eng.programar.telar'), 'programarRequerimientos' => route('programa.urd.eng.programacion.requerimientos'), 'actualizarTelar' => route('programa.urd.eng.actualizar.telar'), 'reservarInventario' => route('programa.urd.eng.reservar.inventario'), 'liberarTelar' => route('programa.urd.eng.liberar.telar')], 'columns' => $columnOptions ?? ['telares' => [], 'inventario' => []], 'can' => ['modificar' => $canModificar ?? false, 'crear' => $canCrear ?? false, 'eliminar' => $canEliminar ?? false], 'telares' => $inventarioTelares ?? []];
-@endphp
-<script type="application/json" id="pu-config">@json($puConfig)</script>
 @endsection
 

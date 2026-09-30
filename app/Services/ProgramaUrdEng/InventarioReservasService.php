@@ -9,6 +9,8 @@ use App\Models\Tejedores\TejNotificaTejedorModel;
 use App\Models\Tejido\TejInventarioTelares;
 use App\Support\ProgramaUrdEng\CompatibilidadInventario;
 use Carbon\Carbon;
+use Illuminate\Database\Connection;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -37,6 +39,14 @@ class InventarioReservasService
     private const LOCALIDADES_EN_MAQUINA = ['MC1', 'MC2', 'MC3'];
 
     private const LIMIT_TI = 2000;
+
+    private const STATUS_ACTIVO = 'Activo';
+
+    /**
+     * Lotes por consulta a UrdProgramaUrdido: cada lote va en dos formas (con y sin ceros), y
+     * SQL Server acepta 2 100 parámetros por consulta.
+     */
+    private const LOTES_POR_CONSULTA = 1000;
 
     /**
      * Patrones de búsqueda de Items para distinguir entre tipo Rizo y Pie.
@@ -146,25 +156,35 @@ class InventarioReservasService
             return [];
         }
 
-        $tipos = [];
-
         // El folio se guarda con ceros a la izquierda ('01269') y el lote no siempre: se
-        // indexa por ambas formas para que crucen igual.
-        DB::table('UrdProgramaUrdido')
-            ->whereIn('Folio', array_values(array_unique(array_merge(
-                $lotes,
-                array_map(fn (string $l) => str_pad(ltrim($l, '0'), 5, '0', STR_PAD_LEFT), $lotes)
-            ))))
-            ->select('Folio', 'RizoPie')
-            ->orderBy('Id')
-            ->get()
-            ->each(function ($fila) use (&$tipos) {
-                $tipo = trim((string) ($fila->RizoPie ?? ''));
-                if ($tipo !== '') {
-                    // El ultimo gana: si un folio se recapturo, manda el renglon mas reciente.
-                    $tipos[$this->normalizeFolio($fila->Folio)] = $tipo;
-                }
-            });
+        // indexa por ambas formas para que crucen igual. Una consulta por bloque de lotes
+        // (casi siempre una sola) para no pasar el límite de parámetros de SQL Server.
+        $filas = [];
+        foreach (array_chunk($lotes, self::LOTES_POR_CONSULTA) as $bloque) {
+            DB::table('UrdProgramaUrdido')
+                ->whereIn('Folio', array_values(array_unique(array_merge(
+                    $bloque,
+                    array_map(fn (string $l) => str_pad(ltrim($l, '0'), 5, '0', STR_PAD_LEFT), $bloque)
+                ))))
+                ->select('Id', 'Folio', 'RizoPie')
+                ->orderBy('Id')
+                ->get()
+                ->each(function ($fila) use (&$filas) {
+                    $filas[] = $fila;
+                });
+        }
+
+        // Con varios bloques el orden por Id se rehace aquí.
+        usort($filas, fn ($a, $b) => (int) $a->Id <=> (int) $b->Id);
+
+        $tipos = [];
+        foreach ($filas as $fila) {
+            $tipo = trim((string) ($fila->RizoPie ?? ''));
+            if ($tipo !== '') {
+                // El ultimo gana: si un folio se recapturo, manda el renglon mas reciente.
+                $tipos[$this->normalizeFolio($fila->Folio)] = $tipo;
+            }
+        }
 
         return $tipos;
     }
@@ -358,9 +378,11 @@ class InventarioReservasService
      * 3. Actualiza el inventario de telares marcándolo como reservado.
      *
      * @param  array  $data  Datos validados de la reserva.
+     * @param  TejInventarioTelares|null  $telar  El telar de TejInventarioTelaresId si el llamador
+     *                                            ya lo tiene en memoria (evita volver a leerlo).
      * @return array ['created' => bool, 'message' => string]
      */
-    public function ejecutarReserva(array $data): array
+    public function ejecutarReserva(array $data, ?TejInventarioTelares $telar = null): array
     {
         // El lote es el prefijo del numero de julio ('00061-744' -> '00061').
         $lote = CompatibilidadInventario::loteDerivado(
@@ -373,14 +395,18 @@ class InventarioReservasService
 
         // Las tres escrituras son una sola operacion: si falla la del telar, no
         // puede quedar una reserva huerfana con el telar sin marcar como Reservado.
-        return DB::transaction(function () use ($data): array {
+        return DB::transaction(function () use ($data, $telar): array {
             $created = false;
             $msg = 'Pieza reservada correctamente.';
 
-            // Regla de negocio: consumir notificaciones (avisos de los tejedores) previas a la reserva
-            $this->aplicarReglaNotificaTejedorAntesDeReservar($data);
+            // PERF-08: el telar de la reserva se lee una sola vez; antes lo releían el tipo, la
+            // regla del tejedor, el julio principal y la marca de Reservado (8 → 5 consultas).
+            $telar = $this->telarDeLaReserva($data, $telar);
 
-            $data = $this->conJulioPrincipal($data);
+            // Regla de negocio: consumir notificaciones (avisos de los tejedores) previas a la reserva
+            $this->aplicarReglaNotificaTejedorAntesDeReservar($data, $telar);
+
+            $data = $this->conJulioPrincipal($data, $telar);
 
             try {
                 InvTelasReservadas::create($data);
@@ -395,11 +421,32 @@ class InventarioReservasService
             // Actualizar el estado 'Reservado' y atributos dimensionales en el catálogo de telares
             $tejInventarioTelaresId = $data['TejInventarioTelaresId'] ?? null;
             if ($tejInventarioTelaresId) {
-                $this->actualizarEstadoTelarTrasReserva((int) $tejInventarioTelaresId, $data);
+                $this->actualizarEstadoTelarTrasReserva((int) $tejInventarioTelaresId, $data, $telar);
             }
 
             return ['created' => $created, 'message' => $msg];
         });
+    }
+
+    /** El registro de TejInventarioTelaresId, sin filtrar por status (así lo leía cada paso). */
+    private function telarDeLaReserva(array $data, ?TejInventarioTelares $telar): ?TejInventarioTelares
+    {
+        $id = $data['TejInventarioTelaresId'] ?? null;
+        if (! is_numeric($id)) {
+            return null;
+        }
+
+        if ($telar !== null && (int) $telar->getKey() === (int) $id) {
+            return $telar;
+        }
+
+        return TejInventarioTelares::find((int) $id);
+    }
+
+    /** Igual que `status = 'Activo'` en SQL Server (sin mayúsculas ni espacios finales). */
+    private function esActivo(TejInventarioTelares $telar): bool
+    {
+        return strcasecmp(rtrim((string) $telar->status), self::STATUS_ACTIVO) === 0;
     }
 
     /**
@@ -407,14 +454,8 @@ class InventarioReservasService
      * de la posicion 1 del telar (no_julio / no_orden), para filtrar la barra
      * completa desde otros programas. Rizo y pie quedan en NULL.
      */
-    private function conJulioPrincipal(array $data): array
+    private function conJulioPrincipal(array $data, ?TejInventarioTelares $telar): array
     {
-        $telarId = $data['TejInventarioTelaresId'] ?? null;
-        if (! is_numeric($telarId)) {
-            return $data;
-        }
-
-        $telar = TejInventarioTelares::find((int) $telarId, ['tipo', 'no_julio', 'no_orden']);
         if (! $telar || ! ReservarProgramarActionService::esBarraKm($telar->tipo)) {
             return $data;
         }
@@ -438,9 +479,9 @@ class InventarioReservasService
     /**
      * Actualiza la información (ConfigId, LoteProveedor, etc.) y la bandera "Reservado" en un Telar.
      */
-    private function actualizarEstadoTelarTrasReserva(int $telarId, array $data): void
+    private function actualizarEstadoTelarTrasReserva(int $telarId, array $data, ?TejInventarioTelares $telar): void
     {
-        $telar = TejInventarioTelares::where('id', $telarId)->where('status', 'Activo')->first();
+        $telar = $this->telarActivo($telarId, $telar);
 
         if (! $telar) {
             // Antes se tragaba con un warning y la reserva respondia success:true
@@ -468,7 +509,18 @@ class InventarioReservasService
             $telar->NoProveedor = $this->normalizeDimValue($data['NoProveedor']);
         }
 
+        // Guarda también horaParo si la regla del tejedor la dejó pendiente en este mismo telar.
         $telar->save();
+    }
+
+    /** El telar ya leído si es ese id (y activo); si no, se busca activo por id. */
+    private function telarActivo(int $telarId, ?TejInventarioTelares $telar): ?TejInventarioTelares
+    {
+        if ($telar === null || (int) $telar->getKey() !== $telarId) {
+            return TejInventarioTelares::where('id', $telarId)->where('status', self::STATUS_ACTIVO)->first();
+        }
+
+        return $this->esActivo($telar) ? $telar : null;
     }
 
     /**
@@ -476,10 +528,10 @@ class InventarioReservasService
      * Si el tejedor reportó una falta/paro en este telar/tipo (Rizo o Pie), tomamos la hora de esa
      * notificación, se la pasamos al telar (`horaParo`) para estadísticas, y cerramos la notificación.
      */
-    private function aplicarReglaNotificaTejedorAntesDeReservar(array $data): void
+    private function aplicarReglaNotificaTejedorAntesDeReservar(array $data, ?TejInventarioTelares $telarReserva): void
     {
         $noTelar = trim((string) ($data['NoTelarId'] ?? ''));
-        $tipo = $this->resolverTipoReserva($data);
+        $tipo = $this->resolverTipoReserva($data, $telarReserva);
 
         if ($noTelar === '' || $tipo === null) {
             return;
@@ -503,14 +555,17 @@ class InventarioReservasService
         }
 
         // 2. Obtener el telar físico (BD local) en el que recaerá la reserva
-        $telar = $this->obtenerTelarObjetivoParaNotificacion($data, $noTelar, $tipo);
+        $telar = $this->obtenerTelarObjetivoParaNotificacion($noTelar, $tipo, $telarReserva);
 
         if ($telar) {
             // Se le transfiere la hora del reporte al telar (para cálculos de eficiencia)
             $horaPendiente = trim((string) ($pendiente->hora ?? ''));
             if ($horaPendiente !== '') {
                 $telar->horaParo = $horaPendiente;
-                $telar->save();
+                // Si es el telar de la reserva, sale en el mismo UPDATE que marca Reservado.
+                if ($telar !== $telarReserva) {
+                    $telar->save();
+                }
             }
 
             // El julio de esta reserva. En una barra puede ser el 2, 3 o 4;
@@ -542,22 +597,15 @@ class InventarioReservasService
     }
 
     /**
-     * Busca el registro activo en `TejInventarioTelares` usando el ID o el nombre y tipo.
+     * El telar de la reserva si está activo; si no, el activo más reciente con ese número y tipo.
      */
-    private function obtenerTelarObjetivoParaNotificacion(array $data, string $noTelar, ?string $tipo): ?TejInventarioTelares
+    private function obtenerTelarObjetivoParaNotificacion(string $noTelar, ?string $tipo, ?TejInventarioTelares $telarReserva): ?TejInventarioTelares
     {
-        $telarId = isset($data['TejInventarioTelaresId']) && is_numeric($data['TejInventarioTelaresId'])
-            ? (int) $data['TejInventarioTelaresId']
-            : null;
-
-        if ($telarId) {
-            $telar = TejInventarioTelares::where('id', $telarId)->where('status', 'Activo')->first();
-            if ($telar) {
-                return $telar;
-            }
+        if ($telarReserva !== null && $this->esActivo($telarReserva)) {
+            return $telarReserva;
         }
 
-        $query = TejInventarioTelares::where('no_telar', $noTelar)->where('status', 'Activo');
+        $query = TejInventarioTelares::where('no_telar', $noTelar)->where('status', self::STATUS_ACTIVO);
         if ($tipo !== null) {
             $query->whereRaw('LOWER(LTRIM(RTRIM(tipo))) = ?', [mb_strtolower($tipo, 'UTF-8')]);
         }
@@ -592,24 +640,10 @@ class InventarioReservasService
     /**
      * Determina el tipo de reserva ('Rizo' o 'Pie') basándose en los datos entrantes o el telar.
      */
-    private function resolverTipoReserva(array $data): ?string
+    private function resolverTipoReserva(array $data, ?TejInventarioTelares $telarReserva): ?string
     {
-        $tipo = $this->normalizeTipoReserva($data['Tipo'] ?? null);
-        if ($tipo !== null) {
-            return $tipo;
-        }
-
-        $telarId = isset($data['TejInventarioTelaresId']) && is_numeric($data['TejInventarioTelaresId'])
-            ? (int) $data['TejInventarioTelaresId']
-            : null;
-
-        if (! $telarId) {
-            return null;
-        }
-
-        $tipoTelar = TejInventarioTelares::where('id', $telarId)->value('tipo');
-
-        return $this->normalizeTipoReserva($tipoTelar);
+        return $this->normalizeTipoReserva($data['Tipo'] ?? null)
+            ?? $this->normalizeTipoReserva($telarReserva?->tipo);
     }
 
     /**
@@ -707,7 +741,7 @@ class InventarioReservasService
      * @param  int  $limit  Límite de registros a traer.
      * @return array Resultados obtenidos.
      */
-    private function queryDisponibleFromTiPro(array $filtros = [], int $limit = self::LIMIT_TI): array
+    protected function queryDisponibleFromTiPro(array $filtros = [], int $limit = self::LIMIT_TI): array
     {
         $cn = DB::connection(self::TI_CONN);
 
@@ -715,115 +749,135 @@ class InventarioReservasService
         $cn->statement('SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;');
 
         try {
-            $query = $cn->table(DB::raw('InventSum AS s WITH (NOLOCK)'))
-                ->join(DB::raw('InventDim AS d WITH (NOLOCK)'), function ($join) {
-                    $join->on('d.InventDimId', '=', 's.InventDimId')
-                        ->where('d.DATAAREAID', '=', self::DATAAREA)
-                        ->whereIn('d.InventLocationId', self::ALMACENES);
-                })
-                ->leftJoin(DB::raw('InventSerial AS ser WITH (NOLOCK)'), function ($join) {
-                    $join->on('ser.InventSerialId', '=', 'd.InventSerialId')
-                        ->on('ser.ItemId', '=', 's.ItemId')
-                        ->where('ser.DATAAREAID', '=', self::DATAAREA);
-                })
-                ->where('s.DATAAREAID', self::DATAAREA)
-                ->where('s.PhysicalInvent', '>', 0) // Solo inventario realmente disponible
-                // Un julio en MC1/MC2/MC3 ya esta en la engomadora: no se puede reservar.
-                ->whereNotIn(
-                    DB::raw("LTRIM(RTRIM(ISNULL(d.WMSLocationId, '')))"),
-                    self::LOCALIDADES_EN_MAQUINA
-                )
-                ->where(function ($q) {
-                    // Filtrar que al menos sean productos de la categoría requerida (Rizo, Pie o urdido de KM)
-                    $q->where('s.ItemId', 'like', self::PATTERN_RIZO)
-                        ->orWhere('s.ItemId', 'like', self::PATTERN_PIE)
-                        ->orWhere('s.ItemId', 'like', self::PATTERN_URDIDO);
-                })
-                ->selectRaw("LTRIM(RTRIM(ISNULL(s.ItemId, ''))) AS ItemId")
-                ->selectRaw("LTRIM(RTRIM(ISNULL(d.ConfigId, ''))) AS ConfigId")
-                ->selectRaw("LTRIM(RTRIM(ISNULL(d.InventSizeId, ''))) AS InventSizeId")
-                ->selectRaw("LTRIM(RTRIM(ISNULL(d.InventColorId, ''))) AS InventColorId")
-                ->selectRaw("LTRIM(RTRIM(ISNULL(d.InventLocationId, ''))) AS InventLocationId")
-                ->selectRaw("LTRIM(RTRIM(ISNULL(d.InventBatchId, ''))) AS InventBatchId")
-                ->selectRaw("LTRIM(RTRIM(ISNULL(d.WMSLocationId, ''))) AS WMSLocationId")
-                ->selectRaw("LTRIM(RTRIM(ISNULL(d.InventSerialId, ''))) AS InventSerialId")
-                ->selectRaw(
-                    "CASE
-                        WHEN s.ItemId LIKE ? THEN 'Rizo'
-                        WHEN s.ItemId LIKE ? THEN 'Pie'
-                        ELSE NULL
-                     END AS Tipo",
-                    [self::PATTERN_RIZO, self::PATTERN_PIE]
-                )
-                ->selectRaw('ISNULL(ser.TwMts, 0) AS Metros')
-                ->selectRaw('ISNULL(s.PhysicalInvent, 0) AS InventQty')
-                ->addSelect('ser.ProdDate')
-                ->limit($limit);
-
-            // Aplicar filtros dinámicos indicados por el usuario/UI
-            foreach ($filtros as $f) {
-                $col = $f['columna'] ?? null;
-                $val = trim($f['valor'] ?? '');
-
-                if (! $col || $val === '') {
-                    continue;
-                }
-
-                if ($col === 'Tipo') {
-                    $v = mb_strtolower($val, 'UTF-8');
-                    if (strpos($v, 'rizo') !== false) {
-                        $query->where('s.ItemId', 'like', self::PATTERN_RIZO);
-                    } elseif (strpos($v, 'pie') !== false) {
-                        $query->where('s.ItemId', 'like', self::PATTERN_PIE);
-                    }
-
-                    // ponytail: una barra de Karl Mayer ('1'..'4') no filtra nada y se
-                    // ofrecen todos los julios. En TI-PRO solo existen items JU-ENG-RI y
-                    // JU-ENG-PI; cuando haya items por barra, agregar su patron aqui.
-                    continue;
-                }
-
-                if ($col === 'ProdDate') {
-                    try {
-                        $date = Carbon::parse($val)->format('Y-m-d');
-                        $query->whereRaw('CAST(ser.ProdDate AS DATE) = ?', [$date]);
-                    } catch (Throwable) {
-                        $query->whereRaw('CAST(ser.ProdDate AS NVARCHAR(23)) LIKE ?', ['%'.$val.'%']);
-                    }
-
-                    continue;
-                }
-
-                if ($col === 'InventQty' || $col === 'Metros') {
-                    $expr = self::FILTER_SQL[$col];
-                    if (is_numeric($val)) {
-                        $query->whereRaw("$expr = ?", [(float) $val]);
-                    } else {
-                        $query->whereRaw("CAST($expr AS NVARCHAR(50)) LIKE ?", ['%'.$val.'%']);
-                    }
-
-                    continue;
-                }
-
-                // Filtrar cualquier otro campo estándar usando LIKE ignorando mayúsculas/minúsculas
-                if (isset(self::FILTER_SQL[$col])) {
-                    $expr = self::FILTER_SQL[$col];
-                    $query->whereRaw(
-                        "LOWER(CAST($expr AS NVARCHAR(100))) LIKE ?",
-                        ['%'.mb_strtolower($val, 'UTF-8').'%']
-                    );
-                }
-            }
-
-            return $query
+            return $this->consultaDisponibleTi($cn, $filtros, $limit)
                 ->orderBy('s.ItemId')
                 ->orderBy('d.ConfigId')
                 ->get()
                 ->all();
-
         } finally {
             // Restaurar el nivel de aislamiento al finalizar (incluso si hubo excepción)
             $cn->statement('SET TRANSACTION ISOLATION LEVEL READ COMMITTED;');
         }
+    }
+
+    /**
+     * Consulta de TI-PRO sin ejecutar. Separada de queryDisponibleFromTiPro() para que los
+     * tests revisen el SQL (gramática SQL Server) sin abrir la conexión al ERP.
+     *
+     * @param  array<int, array{columna?: string, valor?: string}>  $filtros
+     */
+    public function consultaDisponibleTi(Connection $cn, array $filtros = [], int $limit = self::LIMIT_TI): Builder
+    {
+        $query = $cn->table(DB::raw('InventSum AS s WITH (NOLOCK)'))
+            ->join(DB::raw('InventDim AS d WITH (NOLOCK)'), function ($join) {
+                $join->on('d.InventDimId', '=', 's.InventDimId')
+                    ->where('d.DATAAREAID', '=', self::DATAAREA)
+                    ->whereIn('d.InventLocationId', self::ALMACENES);
+            })
+            ->leftJoin(DB::raw('InventSerial AS ser WITH (NOLOCK)'), function ($join) {
+                $join->on('ser.InventSerialId', '=', 'd.InventSerialId')
+                    ->on('ser.ItemId', '=', 's.ItemId')
+                    ->where('ser.DATAAREAID', '=', self::DATAAREA);
+            })
+            ->where('s.DATAAREAID', self::DATAAREA)
+            ->where('s.PhysicalInvent', '>', 0) // Solo inventario realmente disponible
+            // Un julio en MC1/MC2/MC3 ya esta en la engomadora: no se puede reservar.
+            ->whereNotIn(
+                DB::raw("LTRIM(RTRIM(ISNULL(d.WMSLocationId, '')))"),
+                self::LOCALIDADES_EN_MAQUINA
+            )
+            ->where(function ($q) {
+                // Filtrar que al menos sean productos de la categoría requerida (Rizo, Pie o urdido de KM)
+                $q->where('s.ItemId', 'like', self::PATTERN_RIZO)
+                    ->orWhere('s.ItemId', 'like', self::PATTERN_PIE)
+                    ->orWhere('s.ItemId', 'like', self::PATTERN_URDIDO);
+            })
+            ->selectRaw("LTRIM(RTRIM(ISNULL(s.ItemId, ''))) AS ItemId")
+            ->selectRaw("LTRIM(RTRIM(ISNULL(d.ConfigId, ''))) AS ConfigId")
+            ->selectRaw("LTRIM(RTRIM(ISNULL(d.InventSizeId, ''))) AS InventSizeId")
+            ->selectRaw("LTRIM(RTRIM(ISNULL(d.InventColorId, ''))) AS InventColorId")
+            ->selectRaw("LTRIM(RTRIM(ISNULL(d.InventLocationId, ''))) AS InventLocationId")
+            ->selectRaw("LTRIM(RTRIM(ISNULL(d.InventBatchId, ''))) AS InventBatchId")
+            ->selectRaw("LTRIM(RTRIM(ISNULL(d.WMSLocationId, ''))) AS WMSLocationId")
+            ->selectRaw("LTRIM(RTRIM(ISNULL(d.InventSerialId, ''))) AS InventSerialId")
+            ->selectRaw(
+                "CASE
+                        WHEN s.ItemId LIKE ? THEN 'Rizo'
+                        WHEN s.ItemId LIKE ? THEN 'Pie'
+                        ELSE NULL
+                     END AS Tipo",
+                [self::PATTERN_RIZO, self::PATTERN_PIE]
+            )
+            ->selectRaw('ISNULL(ser.TwMts, 0) AS Metros')
+            ->selectRaw('ISNULL(s.PhysicalInvent, 0) AS InventQty')
+            ->addSelect('ser.ProdDate')
+            ->limit($limit);
+
+        // Aplicar filtros dinámicos indicados por el usuario/UI
+        foreach ($filtros as $f) {
+            $col = $f['columna'] ?? null;
+            $val = trim($f['valor'] ?? '');
+
+            if ($col && $val !== '') {
+                $this->aplicarFiltroTi($query, (string) $col, $val);
+            }
+        }
+
+        return $query;
+    }
+
+    /** Un filtro del usuario sobre la consulta de TI-PRO (columnas de FILTER_SQL). */
+    private function aplicarFiltroTi(Builder $query, string $col, string $val): void
+    {
+        if ($col === 'Tipo') {
+            $this->aplicarFiltroTipoTi($query, $val);
+
+            return;
+        }
+
+        if ($col === 'ProdDate') {
+            try {
+                $date = Carbon::parse($val)->format('Y-m-d');
+                $query->whereRaw('CAST(ser.ProdDate AS DATE) = ?', [$date]);
+            } catch (Throwable) {
+                $query->whereRaw('CAST(ser.ProdDate AS NVARCHAR(23)) LIKE ?', ['%'.$val.'%']);
+            }
+
+            return;
+        }
+
+        if ($col === 'InventQty' || $col === 'Metros') {
+            $expr = self::FILTER_SQL[$col];
+            if (is_numeric($val)) {
+                $query->whereRaw("$expr = ?", [(float) $val]);
+            } else {
+                $query->whereRaw("CAST($expr AS NVARCHAR(50)) LIKE ?", ['%'.$val.'%']);
+            }
+
+            return;
+        }
+
+        // Filtrar cualquier otro campo estándar usando LIKE ignorando mayúsculas/minúsculas
+        if (isset(self::FILTER_SQL[$col])) {
+            $expr = self::FILTER_SQL[$col];
+            $query->whereRaw(
+                "LOWER(CAST($expr AS NVARCHAR(100))) LIKE ?",
+                ['%'.mb_strtolower($val, 'UTF-8').'%']
+            );
+        }
+    }
+
+    private function aplicarFiltroTipoTi(Builder $query, string $val): void
+    {
+        $v = mb_strtolower($val, 'UTF-8');
+        if (strpos($v, 'rizo') !== false) {
+            $query->where('s.ItemId', 'like', self::PATTERN_RIZO);
+        } elseif (strpos($v, 'pie') !== false) {
+            $query->where('s.ItemId', 'like', self::PATTERN_PIE);
+        }
+
+        // ponytail: una barra de Karl Mayer ('1'..'4') no filtra nada y se
+        // ofrecen todos los julios. En TI-PRO solo existen items JU-ENG-RI y
+        // JU-ENG-PI; cuando haya items por barra, agregar su patron aqui.
     }
 }

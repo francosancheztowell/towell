@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ProgramaUrdEng\Concerns\RespuestasErrorUrdEng;
 use App\Services\ProgramaUrdEng\CrearOrdenesService;
 use DomainException;
 use Illuminate\Http\JsonResponse;
@@ -22,6 +23,8 @@ use Illuminate\Validation\ValidationException;
  */
 class ProgramarUrdEngController extends Controller
 {
+    use RespuestasErrorUrdEng;
+
     public function __construct(
         private CrearOrdenesService $ordenes
     ) {}
@@ -52,15 +55,14 @@ class ProgramarUrdEngController extends Controller
             ]);
         } catch (DomainException $e) {
             // Falta un dato de negocio (destino, fibra): es culpa del payload, no del servidor.
-            return response()->json(['success' => false, 'error' => $e->getMessage()], 422);
+            // El mensaje lo escribe CrearOrdenesService, no viene de la BD.
+            return $this->errorNegocio($e->getMessage(), 422);
         } catch (ValidationException $e) {
             Log::error('crearOrdenes: validación', ['errors' => $e->errors()]);
 
             return response()->json(['success' => false, 'error' => 'Error de validación', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
-            Log::error('crearOrdenes', ['msg' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
-
-            return response()->json(['success' => false, 'error' => 'Error al crear órdenes: '.$e->getMessage()], 500);
+            return $this->errorServidor($e, 'ProgramaUrdEng.crearOrdenes', 'Error al crear las órdenes. No se guardó nada.');
         }
     }
 }

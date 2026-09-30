@@ -14,25 +14,25 @@
         <div class="program-board-navbar" aria-label="Acciones de {{ $moduleMeta['title'] }}">
             @if ($canLoadProduction)
                 <button type="button" class="program-board-navbar-button is-primary" wire:click="openProduction"
-                    wire:loading.attr="disabled" @disabled($selectedOrder === null) title="Cargar la orden seleccionada">
-                    <i class="fa-solid fa-download"></i><span>Cargar</span>
+                    wire:loading.attr="disabled" @disabled($selectedOrder === null) title="Cargar la orden seleccionada" aria-label="Cargar la orden seleccionada">
+                    <i class="fa-solid fa-download" aria-hidden="true"></i><span>Cargar</span>
                 </button>
             @endif
             @if ($canEdit)
                 <button type="button" class="program-board-navbar-button is-priority" wire:click="openPriority"
-                    wire:loading.attr="disabled" @disabled($selectedOrder === null) title="Editar prioridad de la orden seleccionada">
-                    <i class="fa-solid fa-sort-numeric-up"></i><span>Editar Prioridad</span>
+                    wire:loading.attr="disabled" @disabled($selectedOrder === null) title="Editar prioridad de la orden seleccionada" aria-label="Editar prioridad">
+                    <i class="fa-solid fa-sort-numeric-up" aria-hidden="true"></i><span>Editar Prioridad</span>
                 </button>
             @endif
             @if ($canReprint)
                 <a href="{{ $moduleMeta['reprintUrl'] }}" class="program-board-navbar-button is-reprint" aria-label="Edición" title="Edición">
-                    <i class="fa-solid fa-pen-to-square"></i><span>Edición</span>
+                    <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i><span>Edición</span>
                 </a>
             @endif
             @if ($canEvaluateQuality)
                 <button type="button" class="program-board-navbar-button is-quality" wire:click="openQuality" aria-label="Calidad" title="Calidad"
                     wire:loading.attr="disabled" @disabled($selectedOrder === null)>
-                    <i class="fa-solid fa-clipboard-check"></i><span>Calidad</span>
+                    <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i><span>Calidad</span>
                 </button>
             @endif
         </div>
@@ -88,7 +88,7 @@
                                         @if ($canEdit)
                                             <button type="button" class="program-board-drag-handle" data-drag-handle
                                                 title="Arrastrar para cambiar prioridad" aria-label="Mover prioridad de {{ $order['folio'] }}">
-                                                <i class="fa-solid fa-grip-vertical"></i>
+                                                <i class="fa-solid fa-grip-vertical" aria-hidden="true"></i>
                                             </button>
                                         @endif
                                         {{ $order['priority'] }}
@@ -126,7 +126,7 @@
                                     </td>
                                     @if ($moduleMeta['isUrdido'])
                                         <td class="program-board-quality-cell" title="{{ $qualityInfo['label'] ?? 'Sin evaluar' }}">
-                                            <i class="fa-solid {{ $qualityInfo['icon'] ?? 'fa-minus' }} {{ $qualityInfo['class'] ?? 'text-gray-400' }}" aria-label="{{ $qualityInfo['label'] ?? 'Sin evaluar' }}"></i>
+                                            <i class="fa-solid {{ $qualityInfo['icon'] ?? 'fa-minus' }} {{ $qualityInfo['class'] ?? 'text-gray-400' }}" role="img" aria-label="{{ $qualityInfo['label'] ?? 'Sin evaluar' }}"></i>
                                         </td>
                                     @endif
                                 </tr>
@@ -143,7 +143,7 @@
         <p class="sr-only" role="status">Orden seleccionada: {{ $selectedOrder['folio'] }}</p>
     @endif
     <div class="program-board-loading" wire:loading.delay.long wire:target="refreshBoard,reorder,savePriority,changeOrderStatus">
-        <i class="fa-solid fa-rotate fa-spin"></i><span>Actualizando…</span>
+        <i class="fa-solid fa-rotate fa-spin" aria-hidden="true"></i><span>Actualizando…</span>
     </div>
 
     @teleport('body')
@@ -153,7 +153,7 @@
                     <section class="program-board-modal is-wide" role="dialog" aria-modal="true" aria-labelledby="priority-title" data-board-id="{{ $this->getId() }}">
                         <header>
                             <h2 id="priority-title">Editar prioridad de órdenes</h2>
-                            <button type="button" wire:click="closeModal" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+                            <button type="button" wire:click="closeModal" aria-label="Cerrar"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
                         </header>
                         <div class="program-board-priority-table-wrap">
                             <table class="program-board-priority-table">
@@ -218,7 +218,7 @@
                                 <h2 id="observations-title">Observaciones</h2>
                             </div>
                             <button type="button" wire:click="closeModal" aria-label="Cerrar">
-                                <i class="fa-solid fa-xmark"></i>
+                                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                             </button>
                         </header>
                         <form wire:submit="saveObservations">
@@ -256,7 +256,7 @@
                                 <h2 id="quality-title">Evaluación de calidad</h2>
                             </div>
                             <button type="button" wire:click="closeModal" aria-label="Cerrar">
-                                <i class="fa-solid fa-xmark"></i>
+                                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                             </button>
                         </header>
                         <form wire:submit="saveQuality">
@@ -268,7 +268,8 @@
                                         <span>{{ $etiqueta }}</span>
                                         <button type="button" wire:click="toggleQualityPoint('{{ $campo }}')"
                                             class="{{ $valor === true ? 'is-good' : ($valor === false ? 'is-bad' : '') }}"
-                                            title="Clic para alternar bueno / malo">
+                                            title="Clic para alternar bueno / malo"
+                                            aria-label="{{ $etiqueta }}: {{ $valor === true ? 'bueno' : ($valor === false ? 'malo' : 'sin evaluar') }}">
                                             {{ $valor === true ? '✓' : ($valor === false ? '✕' : '—') }}
                                         </button>
                                     </div>
@@ -312,11 +313,11 @@
                                 <h2 id="cancel-title">¿Cancelar esta orden?</h2>
                             </div>
                             <button type="button" wire:click="closeModal" aria-label="Cerrar">
-                                <i class="fa-solid fa-xmark"></i>
+                                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                             </button>
                         </header>
                         <div class="program-board-danger-copy">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
                             <div>
                                 <strong>La cancelación elimina los registros de producción relacionados.</strong>
                                 <p>La orden saldrá del tablero activo y sus prioridades serán recalculadas.</p>

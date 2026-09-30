@@ -376,10 +376,11 @@
                                                 @endif
                                             @endforeach
                                         </div>
-                                        <button type="button" class="btn-editar-empleados shrink-0 p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded {{ $bloqueoFila ? 'opacity-40 pointer-events-none' : '' }}"
+                                        <button type="button" data-accion="editar-empleados" class="shrink-0 p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded {{ $bloqueoFila ? 'opacity-40 pointer-events-none' : '' }}"
                                             data-registro-id="{{ $reg->Id }}" data-oficiales='@json($oficiales)'
-                                            @disabled($bloqueoFila) title="{{ $bloqueoFila ? $tituloFila : 'Editar empleados' }}">
-                                            <i class="fa-solid fa-pen"></i>
+                                            @disabled($bloqueoFila) title="{{ $bloqueoFila ? $tituloFila : 'Editar empleados' }}"
+                                            aria-label="Editar empleados">
+                                            <i class="fa-solid fa-pen" aria-hidden="true"></i>
                                         </button>
                                     </div>
                                 </td>
@@ -439,5 +440,35 @@
                 </table>
             </div>
         @endif
+    </div>
+
+    {{-- Modal "Editar Empleados" de la tabla de producción (antes un diálogo de SweetAlert con HTML).
+         wire:ignore: lo llena resources/js/urd-eng/edicion-orden.ts y Livewire no lo repinta. --}}
+    <div wire:ignore>
+        <x-ui.modal-base id="modal-empleados-produccion" title="Editar Empleados" size="xl" :close-on-backdrop="true">
+            <p class="text-sm text-gray-600 mb-2">Hasta 3 empleados.</p>
+            @foreach ([1, 2, 3] as $numeroOficial)
+                <div class="grid grid-cols-[1.1fr_1.2fr_.7fr_.5fr] gap-x-2 mb-2" data-oficial-fila="{{ $numeroOficial }}">
+                    <select data-oficial="cve" class="px-2 py-1 border rounded text-sm" aria-label="No. Empleado del oficial {{ $numeroOficial }}">
+                        <option value="">No. Empleado</option>
+                    </select>
+                    <input data-oficial="nombre" class="px-2 py-1 border rounded text-sm bg-gray-100" readonly placeholder="Nombre"
+                        aria-label="Nombre del oficial {{ $numeroOficial }}">
+                    <input data-oficial="metros" type="number" min="0" step="0.01" class="px-2 py-1 border rounded text-sm" placeholder="Metros"
+                        aria-label="Metros del oficial {{ $numeroOficial }}">
+                    <select data-oficial="turno" class="px-2 py-1 border rounded text-sm" aria-label="Turno del oficial {{ $numeroOficial }}">
+                        <option value="">Turno</option>
+                        @foreach ([1, 2, 3, 4] as $turnoOficial)
+                            <option value="{{ $turnoOficial }}">{{ $turnoOficial }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endforeach
+            <p data-oficiales-error role="alert" class="hidden mt-2 text-sm text-red-700"></p>
+            <x-slot:footer>
+                <button type="button" data-ui-modal-close-target class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm">Cancelar</button>
+                <button type="button" data-accion="guardar-empleados" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white">Guardar</button>
+            </x-slot:footer>
+        </x-ui.modal-base>
     </div>
 </div>

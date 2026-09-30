@@ -1,0 +1,17 @@
+# nombre | ruta | pasos JS opcionales (Playwright, variable page). {TELARES}/{REQUERIMIENTOS} salen de casos.json
+reservar-programar | /programaurdeng
+reservar-programar-seleccion | /programaurdeng | await page.locator('#telaresTable tbody tr.selectable-row').filter({ hasText: '203' }).first().click(); await page.waitForLoadState('networkidle'); await page.locator('#inventarioTable tbody tr.selectable-row-inventario').filter({ hasText: 'J-502' }).first().click();
+programacion-requerimientos | /programa-urd-eng/programacion-requerimientos?telares={TELARES}
+creacion-ordenes | /programa-urd-eng/creacion-ordenes?telares={REQUERIMIENTOS}
+creacion-ordenes-bom | /programa-urd-eng/creacion-ordenes?telares={REQUERIMIENTOS} | const f = page.locator('[data-bom-input="true"]').first().locator('xpath=ancestor::tr'); await f.click(); await f.locator('[data-destino-select="true"]').selectOption('Jacquard Smit').catch(() => {}); await f.locator('[data-bom-input="true"]').fill('URD 30'); await page.locator('#bom-suggestions-global div').first().click(); await page.waitForLoadState('networkidle'); await page.locator('.checkbox-material').first().check();
+karl-mayer | /programa-urd-eng/karl-mayer
+karl-mayer-bom | /programa-urd-eng/karl-mayer | await page.selectOption('select[name="no_telar"]', '401'); await page.selectOption('select[name="barras"]', '1'); await page.selectOption('#input-fibra', 'A12').catch(() => {}); await page.fill('#input-lmat', 'URD 1800-KM'); await page.dispatchEvent('#input-lmat', 'change'); await page.waitForLoadState('networkidle');
+programar-urdido | /urdido/programar-urdido
+programar-engomado | /engomado/programar-engomado
+editar-orden-urdido | /urdido/editar-ordenes-programadas?orden_id=3
+editar-orden-urdido-en-proceso | /urdido/editar-ordenes-programadas?orden_id=1
+editar-orden-urdido-karl-mayer | /urdido/editar-ordenes-programadas?orden_id=6
+editar-orden-engomado | /engomado/editar-ordenes-programadas?orden_id=3
+editar-orden-engomado-en-proceso | /engomado/editar-ordenes-programadas?orden_id=1
+edicion-ordenes-urdido | /urdido/reimpresion-urdido
+edicion-ordenes-engomado | /engomado/reimpresion-engomado
