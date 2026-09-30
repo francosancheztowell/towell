@@ -63,7 +63,17 @@ class CalendariosTest extends TestCase
     public function test_index_y_json(): void
     {
         $this->calendarioContinuo();
-        $this->get('/planeacion/catalogos/calendarios')->assertOk()->assertSee('Tejido 3 turnos');
+        $html = $this->get('/planeacion/catalogos/calendarios')->assertOk()->assertSee('Tejido 3 turnos')->getContent();
+        foreach (['modalCalendario', 'modalLinea', 'modalRango', 'modalFiltros', 'modalExcelCalendario'] as $modal) {
+            $this->assertMatchesRegularExpression("/<dialog id=\"{$modal}\"/", $html);
+        }
+        preg_match("/data-pagina='([^']+)'/", $html, $m);
+        $rutas = json_decode(html_entity_decode($m[1] ?? '{}'), true)['rutas'] ?? [];
+        $this->assertSame('/planeacion/calendarios/__ID__/recalcular-programas', $rutas['recalcular'] ?? null);
+        $this->assertStringContainsString(
+            "@vite('resources/js/modulos/catalogos-planeacion/calendarios/index.ts')",
+            (string) file_get_contents(resource_path('views/catalagos/calendarios/index.blade.php')),
+        );
         $this->getJson('/planeacion/calendarios/json')->assertOk()
             ->assertJson(['success' => true, 'data' => [['CalendarioId' => 'CAL', 'Nombre' => 'Tejido 3 turnos']]]);
     }

@@ -2,7 +2,7 @@
     Componente: Catalog Actions (Acciones de Catálogo)
 
     Botones de acción para catálogos (crear, editar, eliminar, subir Excel, filtrar) con permisos
-    por módulo. Sin onclick ni <script> inline (19-06b): cada botón lleva data-accion-catalogo y
+    por módulo. Sin onclick ni JS inline (19-06b): cada botón lleva data-accion-catalogo y
     resources/js/catalogos/catalog-actions.ts lo despacha al handler que registró la pantalla
     (registrarAccionesCatalogo) o, si no hay, al window.<accion><RouteJs>() de siempre (PUENTE para
     las pantallas que siguen en JS, p. ej. Codificación).
