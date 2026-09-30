@@ -29,3 +29,12 @@ Pedidos de cambios en archivos que no son de la sesión que los detecta. Cada fi
 | T7 | owner | `routes/modules/tejido.php` | `finalizar`/`reabrir` de marcas (`modificar,177`), `finalizar` de cortes (`modificar,105`) y `DELETE produccion-reenconado/{folio}` (`eliminar,27`) están en **enforce** (sin `,auditar`), a diferencia de sus hermanas. 19-02 no los cambió (regla: nunca enforce nuevo, pero tampoco quitarlo sin decisión) | Consistencia AuthZ antes de SEC-06 |
 | T8 | 20 | `.planning/phases/20-arq-sec/20-03-MAPA-AUTHZ.md` | Hueco `PUT modulo-cortes-de-eficiencia/{id}`: ya responde 410 (sigue en auditar). Hueco `POST produccion/reenconado-cabezuela`: misma acción y validación que la ruta nueva (test en `ReenconadoTest`) | Cerrar filas del mapa |
 | T9 | 19-01 / arnés | `.planning/phases/19-modulos/19-01-arnes/boot.php` (y el de 19-02) | Adjuntar un `INFORMATION_SCHEMA` con `COLUMNS` para que `nextFolio()` funcione (igual que U9) | Alta de reenconado da 500 solo en el arnés |
+
+## De 19-08 (Mantenimiento)
+
+| # | Para | Archivo | Cambio | Por qué |
+|---|---|---|---|---|
+| M1 | 17-02 / FE | `resources/css/app.css` | Agregar `@source '../**/*.ts';` (hoy solo `../**/*.js` y Blade) | Una clase de Tailwind que solo aparece en un `.ts` de `resources/js/modulos/**` no se genera. 19-08 dejó las clases alternadas en `data-clase-*` del `<template>` para no depender de esto |
+| M2 | 17-02 | navbar (`components/navbar/navbar.blade.php`) | Igual que U5/T6: a 768 px "Reporte de Fallos y Paros" y "Operadores de Mantenimiento" se parten y tapan los botones del navbar | Tablet (el alta de paro se usa en piso) |
+| M3 | owner | `SYSRoles` | Confirmar que "Mantenimiento" (el nombre que revisaba el GET de operadores) es el idrol **53**. El catálogo de operadores ahora revisa `acceso/crear/modificar/eliminar` por 53 | Siempre por idrol (`RutasDestructivasPermisoTest`) |
+| M4 | 19-07 | `MantenimientoParosController::store()` | Si se quiere cerrar del todo la carrera de la cascada del lado servidor: validar que `maquina` pertenezca a `depto` (hoy no se valida; el front ya descarta respuestas rezagadas) | Defensa en profundidad; cambia reglas del alta abierta, decisión del owner |
