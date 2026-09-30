@@ -1,0 +1,98 @@
+[
+  {
+    "nombre": "pt-grilla",
+    "url": "/planeacion/programa-tejido",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "pt-lineas",
+    "url": "/planeacion/programa-tejido",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "pt-balancear",
+    "url": "/planeacion/programa-tejido",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "pt-repaso",
+    "url": "/planeacion/programa-tejido",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "pt-marbetes",
+    "url": "/planeacion/programa-tejido",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "pt-calendarios",
+    "url": "/planeacion/programa-tejido",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "pt-redbooth",
+    "url": "/planeacion/programa-tejido",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "mu-grilla",
+    "url": "/planeacion/muestras",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "mu-balancear",
+    "url": "/planeacion/muestras",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "liberar",
+    "url": "/planeacion/programa-tejido/liberar-ordenes",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "liberar-menu",
+    "url": "/planeacion/programa-tejido/liberar-ordenes",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "mu-liberar",
+    "url": "/planeacion/muestras/liberar-ordenes",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "utileria",
+    "url": "/planeacion/utileria",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "utileria-mover",
+    "url": "/planeacion/utileria",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "utileria-finalizar",
+    "url": "/planeacion/utileria",
+    "status": 200,
+    "errores": []
+  },
+  {
+    "nombre": "alineacion",
+    "url": "/planeacion/alineacion",
+    "status": 200,
+    "errores": []
+  }
+]
