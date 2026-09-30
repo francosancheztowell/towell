@@ -96,12 +96,14 @@ test('el bundle se evalua sin errores y publica su superficie', async () => {
 		'abrirBalancearDesdeSeleccion',
 		'verDetallesGrupoBalanceo',
 		'aplicarBalanceoAutomatico',
+		// Puentes de los modales (PT-TS 1): abrir lo llama index.js; cerrar, el onclose de x-ui.modal-base.
+		// Guardar/Crear ya no son globales: los botones se atienden por id dentro de cada modal.
 		'abrirModalActCalendarios',
-		'guardarCalendariosSeleccionados',
+		'cerrarModalActCalendarios',
 		'abrirModalRepaso',
-		'crearRepasoEnviar',
+		'cerrarModalRepaso',
 		'abrirModalMarbetes',
-		'guardarMarbetesEnviar',
+		'cerrarModalMarbetes',
 		// Tabla y modal de líneas (PT-05, HANDOFF B1).
 		'openLinesModal',
 		'loadReqProgramaTejidoLines',

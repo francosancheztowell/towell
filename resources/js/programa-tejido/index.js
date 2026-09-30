@@ -12,10 +12,10 @@ import { enlazarBotonAccionesFila as ptEnlazarBotonAccionesFila, enlazarDiasLibe
 // Scripts que vivían inline en la vista (04-perf, corte 5). Se evalúan antes que este
 // archivo y solo publican funciones en window, como hacían sus <script>.
 import './balancear.js';
-import './recalcular-fechas.js';
-import './modales/act-calendarios.js';
-import './modales/repaso.js';
-import './modales/marbetes.js';
+import './recalcular-fechas.ts';
+import './modales/act-calendarios.ts';
+import './modales/repaso.ts';
+import './modales/marbetes.ts';
 import './lineas.js';
 
 // Bundle JS de Programa Tejido. Antes iba inline en el HTML (527 KB que el
