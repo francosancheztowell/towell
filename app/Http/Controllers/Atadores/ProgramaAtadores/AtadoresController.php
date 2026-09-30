@@ -16,6 +16,7 @@ use App\Models\Atadores\AtaMontadoTelasModel;
 use App\Models\Planeacion\ReqTelares;
 use App\Models\Sistema\SYSMensaje;
 use App\Models\Tejido\TejInventarioTelares;
+use App\Services\Atadores\ChecklistAtado;
 use App\Services\Atadores\ProgramaAtadoresListado;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
@@ -204,7 +205,7 @@ class AtadoresController extends Controller
 
         // Karl Mayer no usa el checklist de atadoras. No se copian máquinas ni actividades.
         if (! $this->esAtadoKarlMayer($item->tipo, $item->no_telar)) {
-            $this->sembrarMaquinasYActividades($item->no_julio, $item->no_orden, $item->turno);
+            app(ChecklistAtado::class)->sembrar((string) $item->no_julio, (string) $item->no_orden, $item->turno);
         }
 
         // Redirigir a la página de calificar atadores con los parámetros del registro seleccionado
@@ -282,55 +283,6 @@ class AtadoresController extends Controller
         }
 
         return TelarSalonResolver::esKarlMayer(null, (string) $noTelar);
-    }
-
-    /**
-     * Crea las filas base de máquinas y actividades del catálogo para un folio.
-     * Es idempotente: si la fila ya existe no se inserta otra.
-     */
-    private function sembrarMaquinasYActividades($noJulio, $noProduccion, $turno): void
-    {
-        foreach (AtaMaquinasModel::all() as $maquina) {
-            $existe = AtaMontadoMaquinasModel::where('NoJulio', $noJulio)
-                ->where('NoProduccion', $noProduccion)
-                ->where('MaquinaId', $maquina->MaquinaId)
-                ->exists();
-
-            if ($existe) {
-                continue;
-            }
-
-            AtaMontadoMaquinasModel::create([
-                'NoJulio' => $noJulio,
-                'NoProduccion' => $noProduccion,
-                'MaquinaId' => $maquina->MaquinaId,
-                'Estado' => 0, // Por defecto inactivo
-                'NomEmpleado' => null,
-                'NomEmpl' => null,
-            ]);
-        }
-
-        foreach (AtaActividadesModel::all() as $actividad) {
-            $existe = AtaMontadoActividadesModel::where('NoJulio', $noJulio)
-                ->where('NoProduccion', $noProduccion)
-                ->where('ActividadId', $actividad->ActividadId)
-                ->exists();
-
-            if ($existe) {
-                continue;
-            }
-
-            AtaMontadoActividadesModel::create([
-                'NoJulio' => $noJulio,
-                'NoProduccion' => $noProduccion,
-                'ActividadId' => $actividad->ActividadId,
-                'Porcentaje' => $actividad->Porcentaje,
-                'Estado' => 0, // Por defecto inactivo
-                'CveEmpl' => null,
-                'NomEmpl' => null,
-                'Turno' => $turno,
-            ]);
-        }
     }
 
     public function calificarAtadores(Request $request)
@@ -422,18 +374,12 @@ class AtadoresController extends Controller
             });
 
             if ($faltantes->isNotEmpty()) {
-                foreach ($faltantes as $act) {
-                    AtaMontadoActividadesModel::create([
-                        'NoJulio' => $actual->NoJulio,
-                        'NoProduccion' => $actual->NoProduccion,
-                        'ActividadId' => $act->ActividadId,
-                        'Porcentaje' => $act->Porcentaje,
-                        'Estado' => 0,
-                        'CveEmpl' => null,
-                        'NomEmpl' => null,
-                        'Turno' => $actual->Turno,
-                    ]);
-                }
+                app(ChecklistAtado::class)->sembrarActividades(
+                    (string) $actual->NoJulio,
+                    (string) $actual->NoProduccion,
+                    $actual->Turno,
+                    $faltantes->values(),
+                );
 
                 // Recargar actividades del folio ya con faltantes creadas
                 $actividadesMontado = AtaMontadoActividadesModel::where('NoJulio', $actual->NoJulio)
@@ -686,51 +632,8 @@ class AtadoresController extends Controller
                 // 3. Guardar datos de máquinas y actividades del proceso actual.
                 // Karl Mayer no usa el checklist (tiene Montado/Enhebrado): no se siembra.
                 if (! $this->esAtadoKarlMayer($montado->Tipo, $montado->NoTelarId)) {
-                    // Obtener datos actuales de máquinas
-                    $maquinasActuales = AtaMontadoMaquinasModel::where('NoJulio', $montado->NoJulio)
-                        ->where('NoProduccion', $montado->NoProduccion)
-                        ->get();
-
-                    // Obtener datos actuales de actividades
-                    $actividadesActuales = AtaMontadoActividadesModel::where('NoJulio', $montado->NoJulio)
-                        ->where('NoProduccion', $montado->NoProduccion)
-                        ->get();
-
-                    // También asegurar que se guarden las máquinas y actividades con estado activo
-                    // (En caso de que no se hayan marcado manualmente en la interfaz)
-                    $maquinasCatalogo = AtaMaquinasModel::all();
-                    foreach ($maquinasCatalogo as $maq) {
-                        $existe = $maquinasActuales->where('MaquinaId', $maq->MaquinaId)->first();
-                        if (! $existe) {
-                            // Crear registro por defecto
-                            AtaMontadoMaquinasModel::create([
-                                'NoJulio' => $montado->NoJulio,
-                                'NoProduccion' => $montado->NoProduccion,
-                                'MaquinaId' => $maq->MaquinaId,
-                                'Estado' => 0, // Por defecto inactivo
-                                'NomEmpleado' => null,
-                                'NomEmpl' => null,
-                            ]);
-                        }
-                    }
-
-                    $actividadesCatalogo = AtaActividadesModel::all();
-                    foreach ($actividadesCatalogo as $act) {
-                        $existe = $actividadesActuales->where('ActividadId', $act->ActividadId)->first();
-                        if (! $existe) {
-                            // Crear registro por defecto
-                            AtaMontadoActividadesModel::create([
-                                'NoJulio' => $montado->NoJulio,
-                                'NoProduccion' => $montado->NoProduccion,
-                                'ActividadId' => $act->ActividadId,
-                                'Porcentaje' => $act->Porcentaje,
-                                'Estado' => 0, // Por defecto inactivo
-                                'CveEmpl' => null,
-                                'NomEmpl' => null,
-                                'Turno' => $montado->Turno,
-                            ]);
-                        }
-                    }
+                    // Deja completo el checklist aunque no se haya marcado nada en la pantalla.
+                    app(ChecklistAtado::class)->sembrar((string) $montado->NoJulio, (string) $montado->NoProduccion, $montado->Turno);
                 }
 
                 // Commit de la transacción SQL Server
