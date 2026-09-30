@@ -57,7 +57,7 @@ jobs:
           coverage: none
 
       - name: Cache de composer
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/composer/files
           key: composer-${{ hashFiles('composer.lock') }}
