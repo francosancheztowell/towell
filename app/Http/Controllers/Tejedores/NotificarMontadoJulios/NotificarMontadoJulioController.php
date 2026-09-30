@@ -68,6 +68,10 @@ class NotificarMontadoJulioController extends Controller
                 return response()->json(['error' => 'No hay un julio reservado en ese telar'], 422);
             }
 
+            if (trim((string) $registro->horaParo) !== '') {
+                return response()->json(['error' => 'Ese julio ya tiene hora de paro; vuelve a consultar el telar'], 422);
+            }
+
             $esCompleto = trim((string) $registro->no_julio) !== ''
                 && trim((string) $registro->no_orden) !== '';
 
@@ -169,7 +173,9 @@ class NotificarMontadoJulioController extends Controller
     /**
      * La fila que el tejedor puede notificar es la reservada de ese telar y tipo.
      * Una fila vieja sigue en status Activo despues de liberar; Reservado es lo que
-     * dice si el julio sigue en el telar.
+     * dice si el julio sigue en el telar. Con varias reservas (p. ej. KM barra 1),
+     * la que ya tiene horaParo ya se notificó: se toma la siguiente sin hora, en el
+     * mismo orden que el programa de atadores (fecha, turno).
      *
      * @return array<string, mixed>|null
      */
@@ -179,9 +185,10 @@ class NotificarMontadoJulioController extends Controller
             ->where('no_telar', trim($noTelar))
             ->whereRaw('LOWER(LTRIM(RTRIM(tipo))) = ?', [mb_strtolower(trim($tipo), 'UTF-8')])
             ->where('Reservado', 1)
-            ->orderByDesc('fecha')
-            ->orderByDesc('turno')
-            ->orderByDesc('id')
+            ->where(fn ($q) => $q->whereNull('horaParo')->orWhere('horaParo', ''))
+            ->orderBy('fecha')
+            ->orderBy('turno')
+            ->orderBy('id')
             ->first();
 
         if (! $registro) {

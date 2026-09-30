@@ -173,6 +173,29 @@ class AtadoDeJulioReservadoTest extends TestCase
             ->assertJsonPath('detalles.no_julio', 'BARRA-1');
     }
 
+    public function test_varias_reservas_de_la_misma_barra_saltan_la_que_ya_tiene_hora_paro(): void
+    {
+        DB::connection('sqlsrv')->table('TelTelaresOperador')->insert([
+            'numero_empleado' => '1001',
+            'NoTelarId' => '401',
+        ]);
+        $barra = ['no_telar' => '401', 'tipo' => '1', 'status' => 'Activo', 'no_orden' => 'ORD-B1', 'Reservado' => 1, 'turno' => '1'];
+        DB::connection('sqlsrv')->table('tej_inventario_telares')->insert([
+            ['id' => 10, 'no_julio' => 'J-A', 'fecha' => '2026-09-20', 'horaParo' => '07:00:00'] + $barra,
+            ['id' => 11, 'no_julio' => 'J-B', 'fecha' => '2026-09-21', 'horaParo' => null] + $barra,
+            ['id' => 12, 'no_julio' => 'J-C', 'fecha' => '2026-09-22', 'horaParo' => null] + $barra,
+        ]);
+
+        $this->getJson('/tejedores/atadodejulio?no_telar=401&tipo=1')->assertJsonPath('detalles.id', 11);
+
+        $this->postJson('/tejedores/atadodejulio/notificar', ['id' => 11, 'horaParo' => '08:00:00'])->assertOk();
+        $this->getJson('/tejedores/atadodejulio?no_telar=401&tipo=1')->assertJsonPath('detalles.id', 12);
+
+        // La que ya tiene hora no se vuelve a pisar.
+        $this->postJson('/tejedores/atadodejulio/notificar', ['id' => 10, 'horaParo' => '09:00:00'])->assertStatus(422);
+        $this->assertSame('07:00:00', DB::connection('sqlsrv')->table('tej_inventario_telares')->where('id', 10)->value('horaParo'));
+    }
+
     public function test_la_pantalla_ofrece_barras_en_el_telar_karl_mayer(): void
     {
         DB::connection('sqlsrv')->table('TelTelaresOperador')->insert([
