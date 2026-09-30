@@ -64,6 +64,16 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 /* La tabla del resumen crece hasta el borde inferior de la tarjeta. */
 .pvoc-subpanel > .pvoc-table-scroll { flex: 1; min-height: 240px; }
 .pvoc-filters-shared { margin: 0; }
+/* Panel flotante de filtros de Compara, bajo la barra superior (64px) y alineado a la derecha. */
+.pvoc-filter-panel { position: fixed; z-index: 40; top: 68px; right: .5rem; display: flex; flex-direction: column; gap: .6rem; width: min(calc(100% - 1rem), 30rem); max-height: calc(100dvh - 76px); overflow-y: auto; border: 1px solid #e5e7eb; border-radius: .5rem; background: #fff; padding: .75rem; box-shadow: 0 12px 32px rgb(15 23 42 / 18%); }
+.pvoc-filter-panel[hidden] { display: none; }
+.pvoc-filter-panel-header { display: flex; align-items: center; justify-content: space-between; }
+.pvoc-filter-panel-header h2 { margin: 0; color: #111827; font-size: .95rem; font-weight: 700; }
+.pvoc-filter-panel-close { display: grid; place-items: center; width: 2rem; height: 2rem; border: 0; border-radius: 999px; background: transparent; color: #6b7280; font-size: 1.25rem; line-height: 1; }
+.pvoc-filter-panel-close:hover { background: #f3f4f6; }
+.pvoc-filter-panel .pvoc-filter-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; overflow: visible; }
+.pvoc-filter-panel .pvoc-filter-fields .pvoc-select-label { min-width: 0; }
+.pvoc-filter-panel-footer { display: flex; justify-content: flex-end; border-top: 1px solid #f3f4f6; padding-top: .5rem; }
 .pvoc-card-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: .15rem .6rem; }
 .pvoc-card-title p { margin: 0; }
 .pvoc-card-actions { align-items: center; }
@@ -89,7 +99,13 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 .pvoc-number { min-width: 90px; text-align: right; }
 .pvoc-plan { color: var(--pvoc-plan) !important; }.pvoc-pedido { color: var(--pvoc-pedido) !important; }.pvoc-real { color: var(--pvoc-real) !important; }.pvoc-delta { color: var(--pvoc-delta) !important; }
 .pvoc-table td.pvoc-plan, .pvoc-table td.pvoc-pedido, .pvoc-table td.pvoc-real { font-weight: 700; }
+/* Cebra: las filas pares se oscurecen un poco sobre el color que ya tengan (nivel, grupo, subtotal). */
+.pvoc-table tbody tr { cursor: pointer; }
+.pvoc-table tbody tr:nth-child(even) td { background-image: linear-gradient(rgb(15 23 42 / 5%), rgb(15 23 42 / 5%)); }
 .pvoc-table tbody tr:hover td { background: #eef6ff; }
+/* Fila seleccionada (row-selection.js): queda marcada hasta elegir otra o tocar un filtro. */
+.pvoc-table tbody tr.is-selected td { background: #fde68a; color: #1f2937; }
+.pvoc-table tbody tr.is-selected td:first-child { box-shadow: inset 4px 0 #d97706; }
 .pvoc-level-0 td { background: #edf3f8; font-weight: 800; }.pvoc-level-1 td { background: #f7fafc; font-weight: 650; }.pvoc-level-2 td { background: #fff; }.pvoc-level-3 td { background: #fffcf5; font-size: .78rem; }
 .pvoc-row-total td { border-top: 2px solid #b9c9d6; background: #dce6ee; font-weight: 900; }
 .pvoc-level-0 .pvoc-label { background: #edf3f8; }.pvoc-level-1 .pvoc-label { background: #f7fafc; }.pvoc-level-2 .pvoc-label { background: #fff; }.pvoc-level-3 .pvoc-label { background: #fffcf5; }.pvoc-row-total .pvoc-label { background: #dce6ee; }
@@ -117,36 +133,22 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 .vh-chip.is-empty { border-style: dashed; color: #b6c2cf; }
 .vh-chip.is-selected.is-empty { background: #93b8e6; }
 
-.vh-summary { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: .3rem; padding: 0 .4rem; font-size: .76rem; }
-.vh-summary:empty { display: none; }
-.vh-summary-pill { border: 1px solid #bfdbfe; border-radius: 999px; background: #eff6ff; padding: .15rem .55rem; color: #1e3a8a; }
-.vh-summary-none { color: var(--pvoc-muted); }
 .vh-subtabs { display: flex; gap: .25rem; overflow-x: auto; border-bottom: 1px solid var(--pvoc-border); }
 .vh-subtabs button { flex: 0 0 auto; border: 0; border-bottom: 3px solid transparent; background: transparent; padding: .4rem .8rem; color: #64748b; font-size: .82rem; font-weight: 800; white-space: nowrap; }
 .vh-subtabs button:hover { color: #06496a; }
 .vh-subtabs button.is-active { border-bottom-color: #06496a; color: #06496a; }
 /* El reporte visible llena lo que queda de la tarjeta; su tabla hace scroll por dentro. */
 .vh-reports { display: flex; flex: 1; flex-direction: column; min-height: 0; margin-top: 0; }
-.vh-report { display: flex; flex: 1 1 0; flex-direction: column; border: 0; border-radius: 0; background: #fff; padding: .3rem 0 0; }
-.vh-report-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .3rem; padding: 0 .4rem; }
-.vh-report-header h3 { margin: 0; color: #06496a; font-size: .98rem; font-weight: 800; }
-.vh-report-header p { margin: .15rem 0 0; color: var(--pvoc-muted); font-size: .76rem; }
-.vh-report-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; }
-.vh-tree-tools { display: inline-flex; gap: .35rem; }
-.vh-metric { display: inline-flex; align-items: center; gap: .35rem; color: #64748b; font-size: .72rem; font-weight: 700; text-transform: uppercase; }
-.vh-metric select { height: 2.1rem; border: 1px solid #c7d5e0; border-radius: .45rem; background: #fff; padding: 0 .4rem; color: #1e293b; font-size: .8rem; font-weight: 600; text-transform: none; }
-.vh-view-toggle { display: inline-flex; overflow: hidden; border: 1px solid #c7d5e0; border-radius: .5rem; }
-.vh-view-toggle button { display: inline-flex; align-items: center; gap: .35rem; border: 0; background: #fff; padding: .4rem .7rem; color: #475569; font-size: .78rem; font-weight: 700; }
-.vh-view-toggle button + button { border-left: 1px solid #c7d5e0; }
-.vh-view-toggle button.is-active { background: #06496a; color: #fff; }
-.vh-report-table { flex: 1 1 0; min-height: 240px; max-height: none; }
-.vh-chart { position: relative; flex: 1 0 auto; height: 320px; }
+.vh-report { display: flex; flex: 1 0 auto; flex-direction: column; border: 0; border-radius: 0; background: #fff; padding: .3rem 0 0; }
+/* Tabla y gráfica juntas: la tabla se acota y hace scroll por dentro; la tarjeta hace scroll para ver la gráfica. */
+.vh-report-table { flex: none; min-height: 0; max-height: 60vh; }
+.vh-chart { position: relative; flex: none; height: 320px; margin-top: .5rem; }
 /* Tablas de ventas históricas: fluidas al ancho del contenedor en vez de max-content. */
-.vh-table { width: 100%; font-size: .82rem; }
-.vh-table th, .vh-table td { padding: .4rem .5rem; }
+.vh-table { width: 100%; font-size: .74rem; }
+.vh-table th, .vh-table td { padding: .3rem .4rem; }
 .vh-table thead th { vertical-align: bottom; white-space: normal; line-height: 1.15; }
 .vh-table .pvoc-number { min-width: 0; }
-.vh-table .pvoc-label { min-width: 150px; max-width: 280px; }
+.vh-table .pvoc-label { min-width: 130px; max-width: 260px; }
 .vh-report-table .vh-table .pvoc-label { width: 1%; }
 .vh-row-group td { background: #edf3f8; color: #06496a; font-weight: 800; }
 .vh-row-group.vh-depth-1 td { background: #f7fafc; color: #17445f; font-weight: 700; }
@@ -163,10 +165,11 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 @media (max-width: 1440px) {
     .pvoc-table th, .pvoc-table td { padding: .4rem .5rem; }
     .pvoc-table .pvoc-label { min-width: 220px; }
-    .vh-table th, .vh-table td { padding: .35rem .4rem; }
+    .vh-table th, .vh-table td { padding: .28rem .35rem; }
 }
 @media (max-width: 1280px) {
-    .vh-table .pvoc-label { min-width: 130px; }
+    .vh-table { font-size: .72rem; }
+    .vh-table .pvoc-label { min-width: 115px; }
     .vh-compare-grid { grid-template-columns: minmax(0, 1fr); }
 }
 

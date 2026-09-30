@@ -7,8 +7,11 @@
 //   node scripts/ratchet.mjs --top <metrica>   archivos con mas ocurrencias
 //
 // Bajar un conteo no falla: se imprime y se sugiere --update para fijar la ganancia.
+// 'duplicación %' (CAL-01) no cuenta patrones: la mide jscpd con .jscpd.json.
 
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -73,6 +76,37 @@ export const METRICS = {
     only: '.php',
     count: jsonConGetMessage,
   },
+  // CAL-03: un catch sin cuerpo (ni comentario) se traga el error. Las excepciones
+  // deliberadas de 22-CONTEXT.md (Monitoreo, EnsureModulePermission...) cuentan igual.
+  'catch vacío': {
+    dirs: ['app'],
+    only: '.php',
+    count: countRegex(/\bcatch\s*\([^)]*\)\s*\{\s*\}/g),
+  },
+}
+
+export const DUPLICACION = 'duplicación %'
+
+// Porcentaje de lineas duplicadas segun jscpd (config en .jscpd.json: php -incluye blade-,
+// ts y js). Proceso aparte y fuera de measure(): tarda segundos y los tests no lo necesitan.
+export function duplicacion(root = ROOT) {
+  const out = mkdtempSync(join(tmpdir(), 'jscpd-'))
+  try {
+    execFileSync(process.execPath, [join(root, 'node_modules', 'jscpd', 'run-jscpd.js'), '--absolute', '--output', out], {
+      cwd: root,
+      stdio: 'ignore',
+    })
+    const reporte = JSON.parse(readFileSync(join(out, 'jscpd-report.json'), 'utf8'))
+    const rel = (f) => relative(root, f).split(sep).join('/')
+    const porPar = {}
+    for (const d of reporte.duplicates) {
+      const par = `${rel(d.firstFile.name)} <-> ${rel(d.secondFile.name)}`
+      porPar[par] = (porPar[par] ?? 0) + d.lines
+    }
+    return { total: Math.round(reporte.statistics.total.percentage * 100) / 100, porPar }
+  } finally {
+    rmSync(out, { recursive: true, force: true })
+  }
 }
 
 function* walk(dir) {
@@ -130,6 +164,9 @@ export function compare(baseline, totals) {
 
 function main(argv) {
   const { totals, perFile } = measure()
+  const dup = duplicacion()
+  totals[DUPLICACION] = dup.total
+  perFile[DUPLICACION] = dup.porPar
 
   const topIndex = argv.indexOf('--top')
   if (topIndex !== -1) {

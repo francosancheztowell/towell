@@ -5,8 +5,10 @@ name: Frontend checks
 #
 # - checks: tipos, tests de JS, build y ratchet de deuda (ningun conteo sube).
 # - php:    php artisan test en sqlite (phpunit.xml; el grupo sqlserver se corre a
-#           mano, ver tests/README-sqlserver.md), phpstan con baseline y Pint
-#           solo sobre los PHP que cambian (el repo no esta formateado entero).
+#           mano, ver tests/README-sqlserver.md), phpstan con baseline, y sobre los
+#           PHP que cambian: Pint (el repo no esta formateado entero) y PHPMD (solo
+#           violaciones nuevas); composer audit bloquea si composer.lock trae
+#           advisories nuevos (fase 22, scripts/calidad.mjs).
 
 on:
   pull_request:
@@ -41,6 +43,8 @@ jobs:
 
   php:
     runs-on: ubuntu-latest
+    env:
+      CAMBIADOS_BEFORE: ${{ github.event.before }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -82,25 +86,16 @@ jobs:
       - name: PHPStan (baseline)
         run: vendor/bin/phpstan analyse --memory-limit=2G --no-progress
 
+      # Pint, PHPMD y composer audit comparan contra la misma base (scripts/calidad.mjs):
+      # PR, su rama base; push, lo que trae el push (rama nueva o force-push: el ultimo commit).
       - name: Pint (solo archivos cambiados)
-        run: |
-          # PR: contra su base. Push: lo que trae el push (rama nueva: el ultimo commit).
-          before="${{ github.event.before }}"
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            base="origin/${{ github.base_ref }}"
-          elif [ -n "$before" ] && [ "$before" != "0000000000000000000000000000000000000000" ]; then
-            base="$before"
-          else
-            base="HEAD~1"
-          fi
-          # Tras un force-push "before" puede no existir en el checkout.
-          git cat-file -e "$base^{commit}" 2>/dev/null || base="HEAD~1"
-          # Sin tuberia: si git diff falla, el paso falla (bash -e) en vez de pasar vacio.
-          changed=$(git diff --name-only --diff-filter=AMR "$base"...HEAD -- '*.php')
-          files=$(printf '%s\n' "$changed" | grep -v '\.blade\.php$' || true)
-          if [ -z "$files" ]; then
-            echo "Sin PHP cambiado"
-            exit 0
-          fi
-          echo "$files"
-          vendor/bin/pint --test $files
+        run: node scripts/calidad.mjs pint
+
+      # Sin baseline: falla solo por violaciones nuevas respecto a la version base de cada
+      # PHP cambiado (umbrales en phpmd.xml, criterio en .planning/phases/22-calidad/22-01-PLAN.md).
+      - name: PHPMD (solo archivos cambiados)
+        run: node scripts/calidad.mjs phpmd
+
+      # Bloquea solo advisories nuevos cuando el cambio toca composer.lock; si no, aviso.
+      - name: composer audit
+        run: node scripts/calidad.mjs audit

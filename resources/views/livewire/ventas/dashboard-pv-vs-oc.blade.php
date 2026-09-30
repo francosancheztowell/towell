@@ -24,12 +24,6 @@
                 <button type="button" role="tab" aria-selected="false" data-pvoc-subtab="analisis">Análisis Histórico</button>
             </div>
 
-            {{-- Filtros compartidos por Resumen General y Análisis Histórico. --}}
-            <div class="pvoc-filters pvoc-filters-shared" aria-label="Filtros de Compara">
-                <div class="pvoc-filter-fields" data-pvoc-filters></div>
-                <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-clear>Limpiar</button>
-            </div>
-
             <div class="pvoc-subpanel" role="tabpanel" data-pvoc-subpanel="resumen">
                 <div class="pvoc-card-header">
                 </div>
@@ -73,10 +67,21 @@
             <div class="pvoc-filters" aria-label="Filtros de ventas históricas">
                 <div class="pvoc-filter-fields" data-vh-slicers></div>
             </div>
-            <div class="vh-summary" data-vh-summary></div>
             <div class="vh-subtabs" role="tablist" aria-label="Reportes de ventas históricas" data-vh-subtabs></div>
             <div class="vh-reports" data-vh-reports></div>
         </section>
+    </div>
+
+    {{-- Filtros de Compara (Resumen General y Análisis Histórico); se abre con el botón "Filtrar" del navbar. --}}
+    <div id="pvoc-filter-panel" class="pvoc-filter-panel" role="dialog" aria-labelledby="pvoc-filter-panel-title" data-pvoc-filter-panel hidden>
+        <div class="pvoc-filter-panel-header">
+            <h2 id="pvoc-filter-panel-title">Filtrar Compara</h2>
+            <button type="button" class="pvoc-filter-panel-close" data-pvoc-filter-close aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="pvoc-filter-fields" data-pvoc-filters></div>
+        <div class="pvoc-filter-panel-footer">
+            <button type="button" class="pvoc-button pvoc-button-small" data-pvoc-clear>Limpiar filtros</button>
+        </div>
     </div>
 
     <div class="pvoc-toast" aria-live="polite" data-pvoc-toast></div>

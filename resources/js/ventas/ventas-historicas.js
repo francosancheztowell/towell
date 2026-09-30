@@ -6,6 +6,7 @@
  */
 import Chart from 'chart.js/auto';
 import { createMultiSelect } from './multi-select';
+import { bindRowSelection, clearRowSelection } from './row-selection';
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const MESES_NOMBRE = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -217,17 +218,14 @@ const initVentasHistoricas = (root) => {
     const allYears = sortValues('anio', [...new Set(records.map((record) => record.anio))]);
     const state = {
         selected: Object.fromEntries(SLICERS.map(({ key }) => [key, new Set()])),
-        view: Object.fromEntries([...REPORTS, { id: 'comparativo', defaultView: 'table' }].map(({ id, defaultView }) => [id, defaultView])),
         metric: Object.fromEntries([...REPORTS.map(({ id }) => id), 'comparativo'].map((id) => [id, 'importeNeto'])),
         collapsed: Object.fromEntries(REPORTS.map(({ id }) => [id, new Set()])),
-        groupIds: Object.fromEntries(REPORTS.map(({ id }) => [id, new Set()])),
         compare: { anioA: allYears[allYears.length - 2] ?? allYears[0], anioB: allYears[allYears.length - 1], meses: new Set() },
         activeReport: REPORTS[0].id,
     };
     const charts = {};
     const elements = {
         slicers: root.querySelector('[data-vh-slicers]'),
-        summary: root.querySelector('[data-vh-summary]'),
         subtabs: root.querySelector('[data-vh-subtabs]'),
         reports: root.querySelector('[data-vh-reports]'),
     };
@@ -260,13 +258,6 @@ const initVentasHistoricas = (root) => {
 
     const renderSlicer = ({ key }) => pickers[key].setAvailable(availableValues(key));
 
-    const renderSummary = () => {
-        const active = SLICERS.filter(({ key }) => state.selected[key].size);
-        elements.summary.innerHTML = active.length
-            ? active.map(({ key, label, format = (value) => value }) => `<span class="vh-summary-pill">${escapeHtml(label)}: <strong>${escapeHtml([...state.selected[key]].map(format).join(', '))}</strong></span>`).join('')
-            : '<span class="vh-summary-none">Sin filtros aplicados</span>';
-    };
-
     // --- Reportes tipo tabla dinámica ----------------------------------------
 
     const metricCells = (totals) => COLUMNS.map(([key, , decimals]) =>
@@ -283,22 +274,20 @@ const initVentasHistoricas = (root) => {
 
         return sortGroups(report, key, [...groupBy(items, key).entries()], isLeaf).map(([value, children]) => {
             if (isLeaf) {
-                return `<tr class="vh-row-leaf"><td class="pvoc-label" ${indent}>${escapeHtml(value)}</td>${metricCells(aggregate(children))}</tr>`;
+                return `<tr class="vh-row-leaf" data-row-key="${escapeHtml(`${path}/${value}`)}"><td class="pvoc-label" ${indent}>${escapeHtml(value)}</td>${metricCells(aggregate(children))}</tr>`;
             }
             const id = `${path}/${value}`;
-            state.groupIds[report.id].add(id);
             const collapsed = state.collapsed[report.id].has(id);
-            const header = `<tr class="vh-row-group vh-depth-${Math.min(depth, 2)}"><td class="pvoc-label" colspan="${COLUMNS.length + 1}" ${indent}>
+            const header = `<tr class="vh-row-group vh-depth-${Math.min(depth, 2)}" data-row-key="${escapeHtml(id)}"><td class="pvoc-label" colspan="${COLUMNS.length + 1}" ${indent}>
                 <button type="button" class="pvoc-expander" data-vh-toggle="${escapeHtml(id)}" aria-expanded="${!collapsed}">${collapsed ? '⊞' : '⊟'}</button>${escapeHtml(value)}
             </td></tr>`;
             const body = collapsed ? '' : renderTree(report, children, levels.slice(1), depth + 1, id);
-            const subtotal = `<tr class="vh-row-subtotal vh-depth-${Math.min(depth, 2)}"><td class="pvoc-label" ${indent}>Total ${escapeHtml(value)}</td>${metricCells(aggregate(children))}</tr>`;
+            const subtotal = `<tr class="vh-row-subtotal vh-depth-${Math.min(depth, 2)}" data-row-key="${escapeHtml(`${id}#total`)}"><td class="pvoc-label" ${indent}>Total ${escapeHtml(value)}</td>${metricCells(aggregate(children))}</tr>`;
             return header + body + subtotal;
         }).join('');
     };
 
     const renderReportTable = (report, container, data) => {
-        state.groupIds[report.id].clear();
         const body = renderTree(report, data, report.levels);
         container.innerHTML = `<table class="pvoc-table vh-table">
             <thead><tr><th class="pvoc-label">${escapeHtml(report.labelHeader)}</th>${COLUMNS.map(([, label]) => `<th>${label}</th>`).join('')}</tr></thead>
@@ -403,15 +392,12 @@ const initVentasHistoricas = (root) => {
         const { anioA, anioB } = state.compare;
         renderCompareControls();
 
-        if (state.view.comparativo === 'table') {
-            section.querySelector('[data-vh-table]').innerHTML = `
-                <div class="vh-compare-grid">
-                    ${yearTable(base, anioA, 'mes')}${yearTable(base, anioB, 'mes')}
-                    ${yearTable(base, anioA, 'semestre')}${yearTable(base, anioB, 'semestre')}
-                </div>
-                ${variationTable(base)}`;
-            return;
-        }
+        section.querySelector('[data-vh-table]').innerHTML = `
+            <div class="vh-compare-grid">
+                ${yearTable(base, anioA, 'mes')}${yearTable(base, anioB, 'mes')}
+                ${yearTable(base, anioA, 'semestre')}${yearTable(base, anioB, 'semestre')}
+            </div>
+            ${variationTable(base)}`;
 
         const metric = state.metric.comparativo;
         const labels = MESES.filter((mes) => !state.compare.meses.size || state.compare.meses.has(mes));
@@ -425,67 +411,30 @@ const initVentasHistoricas = (root) => {
 
     // --- Contenedores de reporte ---------------------------------------------
 
-    const reportShell = ({ id, title, levels = [] }, note = '') => `
+    /** Cada subsección muestra su tabla y, debajo, su gráfica (medida fija: la de state.metric). */
+    const reportShell = ({ id }) => `
         <section class="vh-report" data-vh-report="${id}">
-            <header class="vh-report-header">
-                <div>
-                    <h3>${escapeHtml(title)}</h3>
-                    ${note ? `<p>${note}</p>` : ''}
-                </div>
-                <div class="vh-report-tools">
-                    <label class="vh-metric" data-vh-metric-wrap>Medida
-                        <select data-vh-metric>${CHART_METRICS.map(([key, label]) => `<option value="${key}">${label}</option>`).join('')}</select>
-                    </label>
-                    ${levels.length > 1 ? `<span class="vh-tree-tools" data-vh-tree-tools>
-                        <button type="button" class="pvoc-button pvoc-button-small" data-vh-expand-report>Expandir</button>
-                        <button type="button" class="pvoc-button pvoc-button-small" data-vh-collapse-report>Colapsar</button>
-                    </span>` : ''}
-                    <div class="vh-view-toggle" role="group" aria-label="Vista de ${escapeHtml(title)}">
-                        <button type="button" data-vh-view="table"><i class="fa-solid fa-table" aria-hidden="true"></i> Tabla</button>
-                        <button type="button" data-vh-view="chart"><i class="fa-solid fa-chart-column" aria-hidden="true"></i> Gráfica</button>
-                    </div>
-                </div>
-            </header>
             ${id === 'comparativo' ? '<div class="vh-compare-controls" data-vh-compare-controls></div>' : ''}
             <div data-vh-table></div>
             <div class="vh-chart" data-vh-chart><canvas role="img"></canvas></div>
         </section>`;
 
-    const syncReportChrome = (id) => {
-        const section = elements.reports.querySelector(`[data-vh-report="${id}"]`);
-        const isChart = state.view[id] === 'chart';
-        section.querySelectorAll('[data-vh-view]').forEach((button) => {
-            const active = button.dataset.vhView === state.view[id];
-            button.classList.toggle('is-active', active);
-            button.setAttribute('aria-pressed', String(active));
-        });
-        section.querySelector('[data-vh-metric-wrap]').classList.toggle('is-hidden', !isChart);
-        section.querySelector('[data-vh-metric]').value = state.metric[id];
-        section.querySelector('[data-vh-tree-tools]')?.classList.toggle('is-hidden', isChart);
-        section.querySelector('[data-vh-table]').classList.toggle('is-hidden', isChart);
-        section.querySelector('[data-vh-chart]').classList.toggle('is-hidden', !isChart);
-        return section;
-    };
-
     const renderReport = (id) => {
         charts[id]?.destroy();
         delete charts[id];
-        const section = syncReportChrome(id);
 
         if (id === 'comparativo') {
             renderCompare();
             return;
         }
 
+        const section = elements.reports.querySelector(`[data-vh-report="${id}"]`);
         const report = REPORTS.find((candidate) => candidate.id === id);
         const data = filteredRecords();
-        if (state.view[id] === 'chart') {
-            renderReportChart(report, section.querySelector('canvas'), data);
-        } else {
-            const container = section.querySelector('[data-vh-table]');
-            container.className = 'pvoc-table-scroll vh-report-table';
-            renderReportTable(report, container, data);
-        }
+        const container = section.querySelector('[data-vh-table]');
+        container.className = 'pvoc-table-scroll vh-report-table';
+        renderReportTable(report, container, data);
+        renderReportChart(report, section.querySelector('canvas'), data);
     };
 
     // Solo se dibuja la subsección visible: Chart.js no puede medir un canvas oculto.
@@ -501,9 +450,12 @@ const initVentasHistoricas = (root) => {
             section.classList.toggle('is-hidden', section.dataset.vhReport !== state.activeReport));
     };
 
+    /** Tocar un filtro (slicers o selectores del comparativo) suelta la fila seleccionada. */
+    const clearSelections = () => elements.reports.querySelectorAll('[data-vh-table]').forEach(clearRowSelection);
+
     const refresh = () => {
+        clearSelections();
         SLICERS.forEach(renderSlicer);
-        renderSummary();
         renderReports();
     };
 
@@ -524,10 +476,8 @@ const initVentasHistoricas = (root) => {
         renderReports();
     });
 
-    elements.reports.innerHTML = [
-        ...REPORTS.map((report) => reportShell(report)),
-        reportShell(compareReport, 'Usa sus propios selectores de año y mes; el resto de los filtros sí aplica.'),
-    ].join('');
+    elements.reports.innerHTML = [...REPORTS, compareReport].map(reportShell).join('');
+    elements.reports.querySelectorAll('[data-vh-table]').forEach(bindRowSelection);
     syncSubtabs();
 
     elements.reports.addEventListener('click', (event) => {
@@ -535,13 +485,6 @@ const initVentasHistoricas = (root) => {
         if (!section) return;
         const id = section.dataset.vhReport;
         const target = event.target;
-
-        const viewButton = target.closest('[data-vh-view]');
-        if (viewButton) {
-            state.view[id] = viewButton.dataset.vhView;
-            renderReport(id);
-            return;
-        }
 
         const toggle = target.closest('[data-vh-toggle]');
         if (toggle) {
@@ -551,18 +494,7 @@ const initVentasHistoricas = (root) => {
             return;
         }
 
-        if (target.closest('[data-vh-expand-report]')) {
-            state.collapsed[id].clear();
-            renderReport(id);
-            return;
-        }
-
-        if (target.closest('[data-vh-collapse-report]')) {
-            // Solo el primer nivel: colapsar también los internos obligaría a abrir uno por uno después.
-            state.groupIds[id].forEach((groupId) => { if (groupId.split('/').length === 2) state.collapsed[id].add(groupId); });
-            renderReport(id);
-            return;
-        }
+        if (target.closest('[data-vh-compare-year], [data-vh-compare-month], [data-vh-compare-clear]')) clearSelections();
 
         const yearChip = target.closest('[data-vh-compare-year]');
         if (yearChip) {
@@ -584,14 +516,6 @@ const initVentasHistoricas = (root) => {
             state.compare.meses.clear();
             renderReport('comparativo');
         }
-    });
-
-    elements.reports.addEventListener('change', (event) => {
-        const select = event.target.closest('[data-vh-metric]');
-        if (!select) return;
-        const id = select.closest('[data-vh-report]').dataset.vhReport;
-        state.metric[id] = select.value;
-        renderReport(id);
     });
 
     root.querySelector('[data-vh-clear-all]')?.addEventListener('click', () => {
