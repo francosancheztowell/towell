@@ -1,14 +1,14 @@
 {
-  "fetch(": 181,
-  "Swal.fire": 408,
+  "fetch(": 154,
+  "Swal.fire": 339,
   "toastr.": 0,
-  "onclick=": 218,
-  "innerHTML =": 275,
-  "X-CSRF-TOKEN": 95,
+  "onclick=": 201,
+  "innerHTML =": 228,
+  "X-CSRF-TOKEN": 84,
   "bg-opacity-": 0,
-  "<script> inline en blade": 90,
+  "<script> inline en blade": 79,
   "SQL crudo con $interpolado": 8,
-  "getMessage() en response()->json": 148,
-  "catch vacío": 27,
-  "duplicación %": 6.85
+  "getMessage() en response()->json": 120,
+  "catch vacío": 26,
+  "duplicación %": 6.82
 }

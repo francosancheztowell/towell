@@ -116,6 +116,9 @@
 - [ ] **MIG-<MOD>-02**: Adopción de `http`/`notify`/`format` y componentes DS; ratchet baja.
 - [ ] **MIG-<MOD>-03**: Duplicados del módulo consolidados (BPM, secuencias, calificar-julios, catálogos).
 - [ ] **MIG-<MOD>-04**: Livewire solo donde la guía lo indica.
+  - ✅ **PUE** (19-05, 2026-09-30): 12 vistas sin JS inline, `public/js/.../creacion-ordenes.js` fuera (BUG-033), payloads caracterizados contra el JS viejo; tableros Livewire solo adoptan utils.
+  - ✅ **MAN** (19-08, 2026-09-30): 9 vistas sin JS inline; catálogo de operadores a Livewire (`ConTabla`); BUG-025 fuera.
+  - ✅ **ATA** (19-03, 2026-09-30): 2 751 líneas inline → 0; tablero con JSON + `http` y refresco solo con pestaña visible (sin Livewire, como dice la guía).
   - ✅ **TEJ** (19-02, 2026-09-29): 01–04 hechos; 17 vistas de Tejido, Cortes, Marcas, Reenconado e Inventario de trama sin JS inline (guardián de 58 casos), secuencias ×4 → 1. Pendientes: 6 decisiones del owner (19-02-SUMMARY).
   - ✅ **URD** y **ENG** (19-01, 2026-09-29): 01–04 hechos; 41 vistas sin JS inline (guardián `VistasSinJsInlineTest`), BPM/BPM-Line/calificar-julios deduplicados, sin Livewire (no aplica). Pendientes: 3 decisiones del owner (19-01-SUMMARY).
 
@@ -137,7 +140,7 @@
 ### Calidad (fase 22)
 
 - [x] **CAL-01**: (22-01, 2026-09-30: ratchet con catch vacío 28 y duplicación 6.93 %; PHPMD solo violaciones nuevas en cambiados; `composer audit` al cambiar el lock; `composer quality`) Gates en CI sin baseline global: ratchet con `catch vacío` y `duplicación %` (jscpd), PHPMD `unusedcode`+`codesize` sobre archivos cambiados, `composer audit` bloqueante al cambiar `composer.lock`, comando `composer quality`.
-- [ ] **CAL-02**: (parte libre hecha en 22-01; OeeAtadores en 19-03) Código muerto que phpstan ya marca (`is unused`) borrado y baseline regenerado; OeeAtadores dentro de 19-03.
+- [x] **CAL-02**: (22-01 lo libre; 19-03 borró los 10 métodos de `OeeAtadoresFileService`: 3 097 → 1 347 líneas, cobertura 31 % → 78 %) Código muerto que phpstan ya marca (`is unused`) borrado y baseline regenerado; OeeAtadores dentro de 19-03.
 - [ ] **CAL-03**: Catch vacíos del flujo principal → `report($e)` por su dueño; excepciones deliberadas documentadas (Monitoreo, `EnsureModulePermission`, Telemetría).
 - [x] **CAL-04**: (22-01: 10 tests del import que destaparon 3 bugs; cobertura 46 % medida en la rama, top-20 en `22-01-SUMMARY.md`; Infection queda para PT 05.1) Tests de hotspots sin cobertura (`ReqModelosCodificadosImport`); cobertura por archivo medida en la rama integradora; Infection puntual antes de partir `DividirTejido`/`DuplicarTejido`.
 - [x] **CAL-05**: (22-01: exports BPM y Resumen Semanal sobre bases comunes, 992→556 líneas, snapshot celda a celda) Exports idénticos de Urdido/Engomado unificados.

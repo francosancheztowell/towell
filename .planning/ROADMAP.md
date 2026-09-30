@@ -128,10 +128,10 @@ Gate PT (sin cambios): tests de contrato y dominio pasan; invariantes SQL se man
 | 16. Componentes | DS | 2 | 1/1 | Completa, integrada (`043883d6`; `<dialog>`, tabla, field, flash, loader único, piloto atadores) | 2026-09-25 |
 | 17. UX | UX | 2–3 | 1/2 | 17-02 integrada (`1e40cb57`; UX-10 fuera por decisión del owner); 17-01 espera telemetría de producción | 2026-09-26 |
 | 18. Perf | PERF | 2–3 | 1/2 | 18-01 integrada (`5974e47e`); PERF-07 espera datos de prod; 18-02 dentro de cada 19-xx | - |
-| 19. Módulos TS | MIG | 3 | 2/10 | 19-01 Urdido + Engomado (`e794bb9c`) y 19-02 Tejido (`5adbd1bc`) integradas; 19-03, 19-05 y 19-08 esperan aprobación del owner | 2026-09-29 |
+| 19. Módulos TS | MIG | 3 | 5/10 | 19-01, 19-02, 19-03 (`fe02954a`), 19-05 (merge 19-05), 19-08 (`7ea03a39`) integradas; faltan 19-04, 19-06, 19-07, 19-09, 19-10 | 2026-09-30 |
 | 20. Arq/Sec | ARQ/SEC | 2–3 | 3/3 | 20-01 (`e5f2c08d`), 20-02 y 20-03 (`15227b6b`) integradas; 22 rutas esperan idrol del owner; SEC-06/07 y ARQ-05 en cada 19-xx | - |
 | 21. Adopción | ADOP | 4 | 0/1 | Context listo | - |
-| 22. Calidad | CAL | 3–4 | 1/7 | 22-01 integrada (`c2101e4f`): gates, código muerto libre, tests del import (3 bugs), exports Urd/Eng. Sigue 22-02s dependencias con advisories | 2026-09-30 |
+| 22. Calidad | CAL | 3–4 | 3/7 | 22-01 (`c2101e4f`) y 22-02s dependencias (`04a8442d`: `composer audit` 56 → 0, phpspreadsheet 1.30.7, Laravel 12.69.3, Livewire 4.4.7) integradas; CAL-02 cerrado por 19-03. Faltan 22-06 y 22-07 | 2026-09-30 |
 | 8. ERP quick wins | ERP | — | 4/6 | 08-01 excluido por el owner; 08-03 F0-03 pendiente de consultas A/B (trabajada en `main`) | - |
 | PT 1. Guardrails | PT | 0 | 1/1 | Completa en sqlite, integrada; runbook Laragon pendiente; decisión 01.3 aprobada | 2026-09-24 |
 | PT 1.1 AuthZ | PT | 1 | 1/1 | Completa, integrada (`0e55e84`; liberar Muestras → idrol 5) | 2026-09-24 |
