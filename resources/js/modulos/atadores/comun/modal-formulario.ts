@@ -1,5 +1,5 @@
 /**
- * Formulario en un x-ui.modal-base (antes Swal.fire con html + preConfirm).
+ * Formulario en un x-ui.modal-base (antes un SweetAlert2 con html + preConfirm).
  * Resuelve con los datos al enviar el <form> (la validación `required` la hace el navegador)
  * o con null si el modal se cierra (×, Cancelar, Esc).
  */

@@ -3,7 +3,7 @@
 @section('page-title', 'Reporte Programa Atadores')
 
 @section('navbar-right')
-    <button type="button" onclick="mostrarModalConsultarReportesAtadores()"
+    <button type="button" data-ui-modal-open="modalRangoTejido"
         class="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
         <i class="fas fa-search"></i> Consultar
     </button>
@@ -16,10 +16,10 @@
 @endsection
 
 @section('content')
-    <div class="w-full p-4">
+    <div class="w-full p-4" id="reporte-atadores" data-indice="{{ route('atadores.reportes.index') }}">
         <div class="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
             <div class="bg-blue-600 px-6 py-4 flex items-center justify-between">
-                <h1 class="text-xl font-bold text-white">Reporte de Programa Atadores</h1>
+                <h2 class="text-xl font-bold text-white">Reporte de Programa Atadores</h2>
                 @if (!empty($fechaIni) && !empty($fechaFin))
                     <span class="text-white text-sm">
                         {{ \Carbon\Carbon::parse($fechaIni)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($fechaFin)->format('d/m/Y') }}
@@ -32,7 +32,7 @@
                     <div class="text-center py-12">
                         <i class="fas fa-calendar-alt text-6xl text-gray-300 mb-4"></i>
                         <p class="text-gray-500 text-lg">Seleccione un rango de fechas para consultar el reporte</p>
-                        <button type="button" onclick="mostrarModalConsultarReportesAtadores()"
+                        <button type="button" data-ui-modal-open="modalRangoTejido"
                             class="mt-4 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors">
                             <i class="fas fa-search mr-2"></i> Seleccionar Fechas
                         </button>
@@ -53,66 +53,15 @@
             </div>
         </div>
     </div>
+
+    @include('modulos.tejido.reportes.partials.rango-fechas', [
+        'ruta' => route('atadores.reportes.programa'),
+        'titulo' => 'Consultar en rango',
+        'descripcion' => 'Seleccione la fecha inicial y final del reporte.',
+        'abrirAlCargar' => empty($fechaIni) || empty($fechaFin),
+    ])
 @endsection
 
 @push('scripts')
-<script>
-    // Función para el botón de retroceso - redirige al índice de reportes
-    window.volverAlIndice = function() {
-        window.location.href = '{{ route("atadores.reportes.index") }}';
-    };
-
-    function mostrarModalConsultarReportesAtadores() {
-        const hoy = new Date().toISOString().split('T')[0];
-        const fechaIni = '{{ $fechaIni ?? '' }}' || hoy;
-        const fechaFin = '{{ $fechaFin ?? '' }}' || hoy;
-
-        Swal.fire({
-            title: 'Consultar en rango',
-            html: `
-                <div class="text-left space-y-4">
-                    <div>
-                        <label for="swal_fecha_ini" class="block text-sm font-medium text-gray-700 mb-1">Fecha inicial</label>
-                        <input type="date" id="swal_fecha_ini" value="${fechaIni}" class="swal2-input w-full" style="margin: 0; width: 100%;">
-                    </div>
-                    <div>
-                        <label for="swal_fecha_fin" class="block text-sm font-medium text-gray-700 mb-1">Fecha final</label>
-                        <input type="date" id="swal_fecha_fin" value="${fechaFin}" class="swal2-input w-full" style="margin: 0; width: 100%;">
-                    </div>
-                </div>
-            `,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Consultar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#2563eb',
-            cancelButtonColor: '#6b7280',
-            focusConfirm: false,
-            preConfirm: () => {
-                const fi = document.getElementById('swal_fecha_ini')?.value;
-                const ff = document.getElementById('swal_fecha_fin')?.value;
-                if (!fi || !ff) {
-                    Swal.showValidationMessage('Seleccione fecha inicial y final');
-                    return false;
-                }
-                if (new Date(fi) > new Date(ff)) {
-                    Swal.showValidationMessage('La fecha inicial no puede ser mayor que la final');
-                    return false;
-                }
-                return { fecha_ini: fi, fecha_fin: ff };
-            }
-        }).then((result) => {
-            if (result.isConfirmed && result.value) {
-                const params = new URLSearchParams(result.value);
-                window.location.href = '{{ route("atadores.reportes.programa") }}?' + params.toString();
-            }
-        });
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        @if (empty($fechaIni) || empty($fechaFin))
-        mostrarModalConsultarReportesAtadores();
-        @endif
-    });
-</script>
+    @vite('resources/js/modulos/atadores/reportes/programa/index.ts')
 @endpush

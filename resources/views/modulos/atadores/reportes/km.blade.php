@@ -3,17 +3,21 @@
 @section('page-title', 'Reporte Atadores KM')
 
 @section('navbar-right')
-    <button type="button" onclick="mostrarModalFechasKm()"
+    <button type="button" data-ui-modal-open="modalRangoTejido"
         class="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
         <i class="fas fa-search"></i> Consultar
     </button>
 @endsection
 
 @section('content')
-    <div class="w-full p-4 space-y-4">
+    @php
+        // Solo las filas que la gráfica dibuja (con efectividad); la tabla usa todas.
+        $filasGrafica = array_values(array_filter($filas ?? [], fn ($f) => $f['efectividad'] !== null));
+    @endphp
+    <div class="w-full p-4 space-y-4" id="reporte-atadores" data-indice="{{ route('atadores.reportes.index') }}" data-filas='@json($filasGrafica)'>
         <div class="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
             <div class="bg-blue-600 px-6 py-4 flex items-center justify-between">
-                <h1 class="text-xl font-bold text-white">Atadores KM (Karl Mayer)</h1>
+                <h2 class="text-xl font-bold text-white">Atadores KM (Karl Mayer)</h2>
                 @if ($fechaIni)
                     <span class="text-white text-sm">
                         {{ \Carbon\Carbon::parse($fechaIni)->format('d/m/Y') }} al {{ \Carbon\Carbon::parse($fechaFin)->format('d/m/Y') }}
@@ -127,91 +131,15 @@
             </div>
         @endif
     </div>
+
+    @include('modulos.tejido.reportes.partials.rango-fechas', [
+        'ruta' => route('atadores.reportes.km'),
+        'titulo' => 'Consultar en rango',
+        'descripcion' => 'Seleccione la fecha inicial y final del reporte.',
+        'abrirAlCargar' => ! $fechaIni,
+    ])
 @endsection
 
 @push('scripts')
-@vite('resources/js/charts.js')
-<script>
-    window.volverAlIndice = function() {
-        window.location.href = '{{ route("atadores.reportes.index") }}';
-    };
-
-    function mostrarModalFechasKm() {
-        const hoy = new Date().toISOString().split('T')[0];
-        Swal.fire({
-            title: 'Consultar en rango',
-            html: `
-                <div class="text-left space-y-4">
-                    <div>
-                        <label for="swal_fecha_ini" class="block text-sm font-medium text-gray-700 mb-1">Fecha inicial</label>
-                        <input type="date" id="swal_fecha_ini" value="{{ $fechaIni }}" class="swal2-input w-full" style="margin: 0; width: 100%;">
-                    </div>
-                    <div>
-                        <label for="swal_fecha_fin" class="block text-sm font-medium text-gray-700 mb-1">Fecha final</label>
-                        <input type="date" id="swal_fecha_fin" value="{{ $fechaFin }}" class="swal2-input w-full" style="margin: 0; width: 100%;">
-                    </div>
-                </div>
-            `,
-            didOpen: () => {
-                document.getElementById('swal_fecha_ini').value ||= hoy;
-                document.getElementById('swal_fecha_fin').value ||= hoy;
-            },
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Consultar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#2563eb',
-            cancelButtonColor: '#6b7280',
-            focusConfirm: false,
-            preConfirm: () => {
-                const fi = document.getElementById('swal_fecha_ini').value;
-                const ff = document.getElementById('swal_fecha_fin').value;
-                if (!fi || !ff) {
-                    Swal.showValidationMessage('Seleccione fecha inicial y final');
-                    return false;
-                }
-                if (fi > ff) {
-                    Swal.showValidationMessage('La fecha inicial no puede ser mayor que la final');
-                    return false;
-                }
-                return { fecha_ini: fi, fecha_fin: ff };
-            }
-        }).then((result) => {
-            if (result.isConfirmed && result.value) {
-                window.location.href = '{{ route("atadores.reportes.km") }}?' + new URLSearchParams(result.value);
-            }
-        });
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        @if (! $fechaIni)
-        mostrarModalFechasKm();
-        @elseif (! empty($filas))
-        const filas = @json(array_values(array_filter($filas, fn ($f) => $f['efectividad'] !== null)));
-        const canvas = document.getElementById('chartKm');
-        if (typeof Chart === 'undefined' || !canvas) return;
-
-        new Chart(canvas, {
-            data: {
-                labels: filas.map(f => `${f.etiqueta} · ${f.km} B${f.barra}`),
-                datasets: [
-                    { type: 'line', label: 'Efectividad %', data: filas.map(f => f.efectividad), yAxisID: 'pct', borderColor: 'rgb(132 204 22)', backgroundColor: 'rgb(132 204 22)', tension: 0 },
-                    { type: 'bar', label: 'Total enhebrado (min)', data: filas.map(f => f.enhebrado_min), backgroundColor: 'rgb(59 130 246)' },
-                    { type: 'bar', label: 'Ideal (min)', data: filas.map(f => f.ideal_min), backgroundColor: 'rgb(220 38 38)' },
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: { legend: { position: 'bottom' } },
-                scales: {
-                    y: { beginAtZero: true, title: { display: true, text: 'Minutos' } },
-                    pct: { position: 'right', beginAtZero: true, suggestedMax: 100, grid: { drawOnChartArea: false }, ticks: { callback: v => v + '%' } }
-                }
-            }
-        });
-        @endif
-    });
-</script>
+    @vite('resources/js/modulos/atadores/reportes/km/index.ts')
 @endpush

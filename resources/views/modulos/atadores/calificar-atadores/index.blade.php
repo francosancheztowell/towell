@@ -714,7 +714,7 @@
         @endif
     </div>
 
-    {{-- Formularios de las acciones del navbar (antes Swal.fire con html); los abre calificar/index.ts --}}
+    {{-- Formularios de las acciones del navbar (antes SweetAlert2 con html); los abre calificar/index.ts --}}
     <x-ui.modal-base id="modalTerminarAtado" title="¿Terminar atado?">
         <form id="formTerminarAtado" class="space-y-3">
             <p class="text-sm text-gray-600">Se registrará la hora de arranque con la hora actual y el estatus cambiará a "Terminado".</p>

@@ -6,7 +6,7 @@
     <div class="w-full p-4">
         <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
             <div class="bg-blue-600 px-6 py-4">
-                <h1 class="text-xl font-bold text-white">Reportes Atadores</h1>
+                <h2 class="text-xl font-bold text-white">Reportes Atadores</h2>
             </div>
             <div class="divide-y divide-gray-200">
                 @foreach ($reportes as $num => $reporte)
