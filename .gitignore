@@ -29,6 +29,12 @@ yarn-error.log
 !/.github/workflows/
 /.github/workflows/*
 !/.github/workflows/frontend-checks.yml
+!/.github/ISSUE_TEMPLATE/
+!/.github/pull_request_template.md
+!/.github/CODEOWNERS
+!/.github/dependabot.yml
+!/.github/SECURITY.md
+!/.github/CONTRIBUTING.md
 /.zed
 
 /app/Mcp
