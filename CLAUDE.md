@@ -32,8 +32,15 @@ php artisan test tests/Feature/ExampleTest.php
 # Static analysis (larastan level 5; existing debt lives in phpstan-baseline.neon)
 vendor/bin/phpstan analyse --memory-limit=2G
 
-# Debt ratchet: fails if any counted pattern (fetch(, Swal.fire, onclick=, inline <script>...) goes up
-npm run ratchet            # node scripts/ratchet.mjs --update to lock in a decrease
+# Debt ratchet: fails if any counted pattern (fetch(, Swal.fire, onclick=, inline <script>,
+# catch vacío...) or the jscpd duplication % (.jscpd.json) goes up
+npm run ratchet            # node scripts/ratchet.mjs --update to lock in a decrease; --top '<metric>'
+
+# Quality gate before push (phase 22): pint --test on changed PHP + phpstan + PHPMD on changed PHP
+# (only NEW violations vs each file's base version, rules in phpmd.xml) + ratchet
+composer quality
+# Changed files are computed by scripts/calidad.mjs (base: your upstream, or CAMBIADOS_BASE=<ref>)
+node scripts/calidad.mjs archivos|pint|phpmd|audit
 
 # Clear all caches (often needed after config or module changes)
 php artisan cache:clear && php artisan config:clear && php artisan view:clear && php artisan route:clear
@@ -42,7 +49,8 @@ php artisan cache:clear && php artisan config:clear && php artisan view:clear &&
 ### CI
 `.github/workflows/frontend-checks.yml` (the only versioned workflow) runs on PRs and on pushes to `main` and `claude/**`:
 - `checks`: `npm run typecheck`, `npm run test:js`, `npm run build`, `npm run ratchet`.
-- `php`: `php artisan test` (sqlite in memory, needs `npm run build` first for the Vite manifest), `phpstan analyse`, and Pint `--test` only on changed PHP files (never format the whole repo).
+- `php`: `php artisan test` (sqlite in memory, needs `npm run build` first for the Vite manifest), `phpstan analyse`, and on changed PHP files only (`scripts/calidad.mjs`; PR → its base, push → what the push brings): Pint `--test` (never format the whole repo) and PHPMD (`phpmd.xml`: unusedcode + codesize; fails only on violations that the file's base version didn't have, no baseline). `composer audit` blocks only advisories that are new in a changed `composer.lock`; otherwise it's a warning.
+- No global baselines beyond `phpstan-baseline.neon` (which only goes down). PHP Insights is not a gate.
 
 Cloud sessions get `vendor/`, `node_modules/`, `.env` and `public/build` from the SessionStart hook `scripts/session-start.sh`.
 

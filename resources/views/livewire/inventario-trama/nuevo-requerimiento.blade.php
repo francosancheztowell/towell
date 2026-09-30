@@ -19,8 +19,8 @@
                 <div class="w-full mt-auto">
                     <button type="button" wire:click="abrirModal('{{ $telar['numero'] }}')"
                         class="w-full flex flex-col items-center justify-center gap-0.5 px-2 py-2 bg-white/95 text-blue-700 hover:bg-white shadow-sm rounded-md transition-colors">
-                        <span class="text-[10px] leading-3 font-semibold">Nuevo</span>
-                        <span class="text-[10px] leading-3 font-semibold">Requerimiento</span>
+                        <span class="text-xs leading-3 font-semibold">Nuevo</span>
+                        <span class="text-xs leading-3 font-semibold">Requerimiento</span>
                     </button>
                 </div>
             </div>

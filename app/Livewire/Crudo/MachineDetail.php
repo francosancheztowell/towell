@@ -50,60 +50,38 @@ class MachineDetail extends Component
     public bool $alineacionAbierta = false;
 
     /**
-     * Karl Mayer no tiene rizo, pie, trama ni cenefas: esas tarjetas se cambian por la de
-     * barras (la pinta la vista) y "Rizo y plano" se queda solo con el plano.
-     *
-     * @return array<string, array<string, string>>
+     * Las columnas de Planeación > Alineación, en su mismo orden y con sus mismas etiquetas
+     * (llaves de AlineacionController::$columnas). El modal las pinta como la fila de la tabla.
      */
-    public static function seccionesAlineacion(bool $esKarlMayer): array
+    public const COLUMNAS_ALINEACION = [
+        'NoTelarId' => 'Telar', 'NoProduccion' => 'No. Orden', 'FechaCambio' => 'Fecha de cambio',
+        'FechaCompromiso' => 'Fecha compromiso', 'ItemId' => 'Clave AX', 'NombreProducto' => 'Modelo',
+        'Tolerancia' => 'Tolerancia', 'RazSN' => 'Razurada S/N', 'TipoRizo' => 'Tipo Rizo', 'CalibreRizo' => 'Altura Rizo',
+        'Ancho' => 'Crudo Ancho', 'LargoCrudo' => 'Crudo Largo', 'PesoCrudo' => 'Crudo Peso', 'Luchaje' => 'Luchaje',
+        'TipoPlano' => 'Tipo Plano', 'MedidaPlano' => 'Medida Plano', 'NoTiras' => 'Tiras',
+        'FibraRizo' => 'Hilo Rizo', 'FibraPie' => 'Hilo Pie', 'CalibreTrama' => 'Hilo Trama',
+        'PasadasComb1' => 'Cenefa 1', 'PasadasComb2' => 'Cenefa 2', 'PasadasComb3' => 'Cenefa 3', 'PasadasComb4' => 'Cenefa 4',
+        'AnchoToalla' => 'Medida Cenefa', 'PesoGRM2' => 'Peso Muestra', 'PesoMin' => 'Peso Mínimo', 'PesoMax' => 'Peso Máximo',
+        'MuestraMin' => 'Muestra Mínima', 'MuestraMax' => 'Muestra Máxima',
+        'TotalPedido' => 'Cantidad Solicitada', 'ProdAcumMesAnt' => 'Producción Acum. Mes Anterior',
+        'ProdAcumMes' => 'Producción Acum. Mes', 'Produccion' => 'Producción Acum.', 'SaldoPedido' => 'Diferencia',
+        'DiasEficiencia' => 'Días de producción', 'ProdKgDia' => 'Producción Promedio x Día', 'DiasPorEjecutar' => 'Días por Ejecutar',
+        'Observaciones' => 'Observaciones',
+    ];
+
+    /** Karl Mayer no tiene rizo, pie, trama ni cenefas: en su lugar la vista pinta las barras. */
+    private const SIN_KARL_MAYER = [
+        'TipoRizo', 'CalibreRizo', 'FibraRizo', 'FibraPie', 'CalibreTrama',
+        'PasadasComb1', 'PasadasComb2', 'PasadasComb3', 'PasadasComb4', 'AnchoToalla',
+    ];
+
+    /** @return array<string, string> */
+    public static function columnasAlineacion(bool $esKarlMayer): array
     {
-        $secciones = self::SECCIONES_ALINEACION;
-        if (! $esKarlMayer) {
-            return $secciones;
-        }
-
-        unset($secciones['Hilos'], $secciones['Cenefa trama']);
-        $plano = array_diff_key($secciones['Rizo y plano'], array_flip(['TipoRizo', 'CalibreRizo']));
-        unset($secciones['Rizo y plano']);
-
-        return ['Crudo' => $secciones['Crudo'], 'Peso y muestra' => $secciones['Peso y muestra'], 'Plano' => $plano]
-            + $secciones;
+        return $esKarlMayer
+            ? array_diff_key(self::COLUMNAS_ALINEACION, array_flip(self::SIN_KARL_MAYER))
+            : self::COLUMNAS_ALINEACION;
     }
-
-    /**
-     * Columnas de Planeación > Alineación agrupadas para leerse de arriba abajo en el andón.
-     * Las llaves son las de AlineacionController::$columnas.
-     */
-    /** Franja de arriba: lo que identifica la orden (el modelo va aparte, como título). */
-    public const RESUMEN_ALINEACION = [
-        'NoProduccion' => 'No. orden', 'ItemId' => 'Clave AX', 'Tolerancia' => 'Tolerancia', 'RazSN' => 'Razurada',
-        'FechaCambio' => 'Fecha de cambio', 'FechaCompromiso' => 'Fecha compromiso',
-    ];
-
-    public const SECCIONES_ALINEACION = [
-        'Crudo' => [
-            'Ancho' => 'Ancho', 'LargoCrudo' => 'Largo', 'PesoCrudo' => 'Peso',
-        ],
-        'Peso y muestra' => [
-            'PesoMin' => 'Peso mín.', 'PesoMax' => 'Peso máx.', 'PesoGRM2' => 'Peso muestra',
-            'MuestraMin' => 'Muestra mín.', 'MuestraMax' => 'Muestra máx.',
-        ],
-        'Rizo y plano' => [
-            'TipoRizo' => 'Tipo rizo', 'CalibreRizo' => 'Altura rizo', 'Luchaje' => 'Luchaje',
-            'TipoPlano' => 'Tipo plano', 'MedidaPlano' => 'Medida plano', 'NoTiras' => 'Tiras',
-        ],
-        'Hilos' => [
-            'FibraRizo' => 'Rizo', 'FibraPie' => 'Pie', 'CalibreTrama' => 'Trama',
-        ],
-        'Cenefa trama' => [
-            'PasadasComb1' => 'Cenefa 1', 'PasadasComb2' => 'Cenefa 2', 'PasadasComb3' => 'Cenefa 3',
-            'PasadasComb4' => 'Cenefa 4', 'AnchoToalla' => 'Medida cenefa',
-        ],
-        'Producción' => [
-            'TotalPedido' => 'Pedido', 'Produccion' => 'Producción', 'SaldoPedido' => 'Saldo',
-            'DiasEficiencia' => 'Días de prod.', 'ProdKgDia' => 'Prom. por día', 'DiasPorEjecutar' => 'Días por ejecutar',
-        ],
-    ];
 
     /**
      * Se consulta siempre el mes; la vista filtra a 2 días o semana con CSS, sin

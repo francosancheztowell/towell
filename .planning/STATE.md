@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-09-25)
 
 **Core value:** Planta y planeación trabajan más rápido y sin fricción, y Sistemas ve qué pasa en producción, sin romper invariantes de dominio.
-**Current focus:** Ola 3 — primera tanda casi cerrada (17-02, 19-01 y PT 05 integradas; 19-03 espera al owner); proponer la segunda tanda. Olas 0–2 en `main`; Ola 3 solo en la rama integradora.
+**Current focus:** Ola 3 — primera tanda integrada salvo 19-03 (espera al owner); segunda tanda abierta (19-02, 19-05, 19-08, PT 03). Olas 0–2 en `main`; Ola 3 solo en la rama integradora.
 **Protocolo:** `.planning/PROTOCOLO-SESIONES.md` (propiedad de archivos, orden de merge, gates).
 
 ## Current Position
@@ -26,10 +26,20 @@ Ola 3 — primera tanda (abierta 2026-09-25; prompts y propiedad en `SESIONES-OL
 - 19-03 Atadores → `claude/19-03-atadores` · `session_015jawMebtV2XyHgiiwvQzHJ`
 - PT 05 Mutaciones → `claude/pt-05-mutaciones` · `session_01PkCzW1QDBcCLZoC6uG3dnW` — ✅ **integrada** 2026-09-29 (`5566c3de`): PT-DUP-01..04 (observer ya no se registra N veces), PT-PERF-02 (mitad PT), mutaciones v2 apagadas por flag (`PLANEACION_MUT_V2_*`), liberar Muestras sin DDL → 422, HANDOFF B1 hecho; B3 Redbooth sin dueño.
 - 19-03 sigue esperando aprobación de su plan + 2 respuestas del owner (columna `Id` en `AtaComentarios`, idrol de "Reportes Atadores"). Ojo: `main` (`7c2af4be`) ya tocó `ProgramaAtadoresListado` (whereIn); la sesión debe partir de la rama actual.
+Ola 3 — segunda tanda (abierta 2026-09-29; prompts y propiedad en `SESIONES-OLA-3.md` §Segunda tanda):
+- 19-02 Tejido → `claude/19-02-tejido` · `session_01HBPhCfcSD1d4Tw6QrRXngv` — ✅ **integrada** 2026-09-29 (`5adbd1bc`): 17 vistas sin JS inline, secuencias ×4 → 1, bugs reales (XSS, inv-trama con id vacío, folio de cortes finalizado que seguía guardándose, INSERT de marcas > 2 100 parámetros), PERF con números. Espera 6 decisiones del owner (19-02-SUMMARY §Pendientes).
+- 19-05 Programa Urd-Eng → `claude/19-05-programa-urd-eng` · `session_014HTmPgyFxd1YTaZPML5HWN` — plan listo, espera aprobación del owner.
+- 19-08 Mantenimiento → `claude/19-08-mantenimiento` · `session_019pC9xQuThHejNMDvFf7Nyg` — plan listo, espera aprobación + 3 decisiones (BUG-025: todos ven todos los departamentos; operadores por idrol 53; quitar rutas de escritura de operadores al pasar a Livewire).
+- PT 03 Shell Livewire → `claude/pt-03-shell-livewire` · `session_01B3HkPWHQ1eQu44Qpe3KRe1` — ✅ **integrada** 2026-09-29 (`c4bbfffd`), **gate no pasa** (TTFB +22–24 %, +1,2 KB gzip, +77 KB runtime): v2 apagado, PT sigue en Blade/TS. Hizo 17-02 B1/B2 y Redbooth a `resources/js/modulos/redbooth/`.
+- **CAL 22-01** → `claude/22-cal-gates` · `session_014n9nQDVnWGNtS9EVgW6xVY` — ✅ **integrada** 2026-09-30 (`c2101e4f`): gates (catch vacío 28, duplicación 6.93 %, PHPMD solo violaciones nuevas, `composer audit`, `composer quality`), código muerto libre, 10 tests de `ReqModelosCodificadosImport` que destaparon **3 bugs ya corregidos** (totales del import en cola siempre en 0; archivos > 1 000 filas perdían filas y mapeaban mal; fechas `dd-mm-aa`), exports Urd/Eng unificados, cobertura 46 % con top-20 de riesgo.
+- **CAL-deps** (dependencias con advisories: phpspreadsheet crítico, laravel/framework, maatwebsite/excel, guzzle, commonmark; sin subir mayores) → `claude/22-cal-deps` · `session_01FgMTLebNy5T2hbMo6NCNoW` — espera aprobación de su plan.
+- 2026-09-30 02:25: 19-03, 19-05 y 19-08 destrabadas por el integrador (owner: "sigue") con sus planes tal cual y las opciones recomendadas; mensaje entregado por trigger a cada sesión (`trig_01HaHA9TAVBHsRayeNU6tGxi`, `trig_01NaK22wgeaos3B9b8Cc8Bx1`, `trig_01DovQhJpq4BCevnnAjVA4Nu`). Se les pidió merge de la rama integradora + `composer quality` antes del último push.
+- Tercera tanda tentativa: 19-06 Codificación (tras calmarse los cambios del owner en `main`), 19-07 Mecánicos, 19-04 Tejedores, 19-09 Configuración, 19-10.
+
 - `main` al día en la rama: 5 commits el 26 (`95324118`) y 11 el 29 (Telegram con worker propio, whereIn en atadores/formulación, crudo, ventas, desarrolladores/alineación). Sin conflictos salvo `ratchet-baseline.json`.
 
 Status: Ola 3 en curso
-Last activity: 2026-09-29 — 19-01 y PT 05 integradas con `main` al día: **2 114 tests PHP**, phpstan OK, 234 JS, typecheck, build, ratchet (`fetch(` 246, `Swal.fire` 659, `onclick=` 265, `innerHTML =` 349, `<script>` inline 116, `getMessage()` 229), Pint en PHP cambiados.
+Last activity: 2026-09-29 20:55 — 19-02 y PT 03 integradas: **2 271 tests PHP**, phpstan OK, 289 JS, typecheck, build, ratchet (`fetch(` 202, `Swal.fire` 485, `onclick=` 239, `innerHTML =` 329, `X-CSRF-TOKEN` 109, `<script>` inline 99, `getMessage()` 192), Pint. Antes: 19-01 y PT 05 integradas con `main` al día: **2 114 tests PHP**, phpstan OK, 234 JS, typecheck, build, ratchet (`fetch(` 246, `Swal.fire` 659, `onclick=` 265, `innerHTML =` 349, `<script>` inline 116, `getMessage()` 229), Pint en PHP cambiados.
 
 Progress: [██████░░░░] ~60% (fases 10–16, 18-01/03, 20 y PT 01–04-perf completas)
 
@@ -64,6 +74,11 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 
 ### Pending Todos (owner)
 
+- **Seguridad (hallazgo de CAL):** `composer audit` → 56 advisories en 16 paquetes; **2 críticos en `phpoffice/phpspreadsheet` 1.30.2** (uno es SSRF/RCE en `IOFactory::load`; la app importa Excel subidos), altos en `laravel/framework` 12.53, `maatwebsite/excel` 3.1.67, `guzzlehttp/guzzle` 7.10, `league/commonmark` 2.8.2. Todos con arreglo dentro de las restricciones actuales → sesión CAL-deps. Al desplegarla: `composer install --no-dev -o` en Laragon y probar un import/export de Excel.
+- **Track CAL:** el owner eligió que una sesión haga 22-01 con el alcance ajustado (`session_014n9nQDVnWGNtS9EVgW6xVY`, espera aprobación de plan). Su trabajo local sin commit (`composer.json/lock`, `phpinsights.php`) **no** se sube: la sesión lo rehace sin PHP Insights. Su documento de análisis sí sirve: subirlo a `.planning/phases/22-calidad/` si se quiere conservar.
+- **Aprobar en la web:** 19-03 (desde el 25), 19-05 y 19-08 (con sus 3 decisiones).
+- **19-02 (6 decisiones; hoy se conserva el comportamiento):** (1) eficiencia de reenconado guarda `Cantidad/round(Horas×9.3,2)` como fracción y la etiqueta dice "%", ¿fórmula correcta? (2) guardado masivo de reenconado acepta el folio del cliente sin consumir la secuencia, ¿se retira? (3) marcas: "¿continuar editando ese folio?" nunca aparece y guardar un folio Finalizado lo reabre (4) finalizar/reabrir marcas, finalizar cortes y borrar reenconado están en enforce, a diferencia de sus hermanas en auditar, ¿se alinean? (5) saldos-2026: CSS tipo Excel < 12 px, ¿se sube? (6) rpm semanal: ¿se quiere la gráfica (hoy no hay `<canvas>`)?
+- **PT 03:** ¿se retira el código del shell v2 (apagado) o se conserva? Opcional: runbook §5 de `03-SUMMARY.md` para confirmar el gate con datos reales.
 - **19-01 (3 decisiones; hoy se conserva el comportamiento):** (1) Fórmula: al editar se pisan `fecha`/`Hora` con el momento actual, ¿conservar las originales? (2) `ProduccionTrait::guardarOficial` exige `metros > 0`, ¿relajar? (3) `index()` de producción pone al usuario actual como Oficial 1 en filas sin hora al recargar, ¿dejarlo?
 - **PT 05:** canary de mutaciones v2 (runbook `phases/05-mutations/05-SUMMARY.md` §6; todo apagado por default) y, opcional, `phases/05-mutations/sql/pt_ultimo_normalizar.sql` ('UL' → '1').
 - **17-02 al desplegar:** `APP_LOCALE=es` en la `.env` de producción (dejar `APP_FALLBACK_LOCALE=en`), `npm run build`, `php artisan optimize:clear && php artisan optimize`. Sin SQL.
@@ -102,6 +117,9 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 
 ### HANDOFFs ruteados (Ola 3)
 
+- CAL: anexo para 19-03 cuando se apruebe su plan → borrar los 10 métodos muertos de `OeeAtadoresFileService` (bajan del baseline de phpstan) y bajar la complejidad de `AtadoresController`/OeeAtadores con tests primero. Catch vacíos → cada 19-xx/PT con su SEC-07 (lista de excepciones deliberadas en `22-CONTEXT.md`). Partición de `DividirTejido`/`DuplicarTejido` → PT 05.1 (tras CAL-04).
+- 19-02: T1 (`inventory-sequence-actions` sin uso) y T3 (`telar-requerimiento` con 11 `onclick` + puentes) → DS/19-04; T2 (`pagina.ts` duplicado Tejido/Urdido → utils) → FE; T4 Vite → Ola 4; T5/T6 (CSS < 12 px de inventario de telas; `<h1>` del navbar a 768 px) → UX; T7 → owner (decisión 4); T8 hecho por el integrador en `20-03-MAPA-AUTHZ.md`; T9 arnés → opcional.
+- PT 03: A (1 línea de `TrazabilidadStructureTest`) aceptado; A1 (ratchet que no cuente `type="application/json"`) → BASE/ADOP, choca con la receta §0; C1 navbar de PT a 768 px → UX + PT; O1/O2 → owner.
 - 19-01: U1 y U7 → 19-05 (puente `abrirModalCalificarJuliosEng`, `<script>alert` en reimpresión); U2 hecho (receta enlaza la checklist); U3 → 19-01 ya aplicó long-press en fórmula; U4 y U6 → DS (`onclick` del × de `modal-base`, `catalog-actions`); U5 → UX (`<h1>` del navbar tapa "Crear" a 768 px); U8 comentario de `charts.js` → FE; U9 `FolioHelper` en sqlite → opcional.
 - PT 05: B1 observers/scopes fuera de PT → dueños de Configuración, CatCalendarios, comando de fechas, Desarrolladores (19-04) e Import; B3 N+1 de Cortes → 19-02; B4 Redbooth (lo usan PT, Trazabilidad y CatCodificación) → decidir dueño en la segunda tanda. Hallazgos H1–H4 → PT 06.
 - 17-02: C1–C8 → cada 19-xx vía checklist; B1/B2 → PT.
@@ -132,5 +150,5 @@ Ver PROJECT.md → Key Decisions. Recientes (2026-09-24, owner):
 ## Session Continuity
 
 Last session: 2026-09-25
-Stopped at: Ola 3: 17-02, 19-01 y PT 05 integradas; 19-03 espera al owner; proponer segunda tanda. Integrar cada rama al terminar; no push a `main` sin pedido del owner.
+Stopped at: Ola 3: 17-02, 19-01, PT 05, 19-02 y PT 03 integradas; 19-03, 19-05 y 19-08 esperan aprobación del owner. Integrar cada rama al terminar; no push a `main` sin pedido del owner.
 Resume file: None

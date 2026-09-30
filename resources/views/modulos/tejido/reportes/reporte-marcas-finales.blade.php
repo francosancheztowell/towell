@@ -4,9 +4,9 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <button type="button" onclick="mostrarModalReporteMarcasFinales()"
+        <button type="button" data-ui-modal-open="modalRangoTejido"
             class="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors">
-            <i class="fas fa-search"></i> Consultar
+            <i class="fas fa-search" aria-hidden="true"></i> Consultar
         </button>
         @if (!empty($fechaIni) && !empty($fechaFin) && !$preview->isEmpty())
             <a href="{{ route('tejido.reportes.marcas-finales.export', ['fecha_ini' => $fechaIni, 'fecha_fin' => $fechaFin]) }}"
@@ -27,7 +27,7 @@
 
         <div class="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
             <div class="bg-blue-600 px-6 py-4 flex items-center justify-between">
-                <h1 class="text-xl font-bold text-white">Reporte Marcas Finales</h1>
+                <h2 class="text-xl font-bold text-white">Reporte Marcas Finales</h2>
                 @if (!empty($fechaIni) && !empty($fechaFin))
                     <span class="text-white text-sm">
                         {{ \Carbon\Carbon::parse($fechaIni)->format('d/m/Y') }} al
@@ -41,7 +41,7 @@
                     <div class="border border-dashed border-gray-300 rounded-xl p-8 text-center">
                         <i class="fas fa-calendar-alt text-5xl text-blue-200 mb-4"></i>
                         <p class="text-gray-600 text-lg">Seleccione un rango de fechas para mostrar el preview del reporte.</p>
-                        <button type="button" onclick="mostrarModalReporteMarcasFinales()"
+                        <button type="button" data-ui-modal-open="modalRangoTejido"
                             class="mt-4 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors">
                             <i class="fas fa-search mr-2"></i> Seleccionar fechas
                         </button>
@@ -188,65 +188,15 @@
             </div>
         </div>
     </div>
+
+    @include('modulos.tejido.reportes.partials.rango-fechas', [
+        'ruta' => route('tejido.reportes.marcas-finales'),
+        'titulo' => 'Consultar rango',
+        'descripcion' => 'Seleccione la fecha inicial y final del reporte.',
+        'abrirAlCargar' => empty($fechaIni) || empty($fechaFin),
+    ])
 @endsection
 
 @push('scripts')
-    <script>
-        function mostrarModalReporteMarcasFinales() {
-            const hoy = new Date().toISOString().split('T')[0];
-            const fechaIni = '{{ $fechaIni ?? '' }}' || hoy;
-            const fechaFin = '{{ $fechaFin ?? '' }}' || hoy;
-
-            Swal.fire({
-                title: 'Consultar rango',
-                html: `
-                        <div class="text-left space-y-4">
-                            <p class="text-sm text-gray-600">Seleccione la fecha inicial y final del reporte.</p>
-                            <div>
-                                <label for="swal_fecha_ini" class="block text-sm font-medium text-gray-700 mb-1">Fecha inicial</label>
-                                <input type="date" id="swal_fecha_ini" value="${fechaIni}" class="swal2-input w-full" style="margin: 0; width: 100%;">
-                            </div>
-                            <div>
-                                <label for="swal_fecha_fin" class="block text-sm font-medium text-gray-700 mb-1">Fecha final</label>
-                                <input type="date" id="swal_fecha_fin" value="${fechaFin}" class="swal2-input w-full" style="margin: 0; width: 100%;">
-                            </div>
-                        </div>
-                    `,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonText: 'Consultar',
-                cancelButtonText: 'Cancelar',
-                confirmButtonColor: '#2563eb',
-                cancelButtonColor: '#6b7280',
-                focusConfirm: false,
-                preConfirm: () => {
-                    const fi = document.getElementById('swal_fecha_ini')?.value;
-                    const ff = document.getElementById('swal_fecha_fin')?.value;
-
-                    if (!fi || !ff) {
-                        Swal.showValidationMessage('Seleccione fecha inicial y final');
-                        return false;
-                    }
-
-                    if (new Date(fi) > new Date(ff)) {
-                        Swal.showValidationMessage('La fecha inicial no puede ser mayor que la final');
-                        return false;
-                    }
-
-                    return { fecha_ini: fi, fecha_fin: ff };
-                }
-            }).then((result) => {
-                if (result.isConfirmed && result.value) {
-                    const params = new URLSearchParams(result.value);
-                    window.location.href = '{{ route('tejido.reportes.marcas-finales') }}?' + params.toString();
-                }
-            });
-        }
-
-        document.addEventListener('DOMContentLoaded', function () {
-            @if (empty($fechaIni) || empty($fechaFin))
-                mostrarModalReporteMarcasFinales();
-            @endif
-            });
-    </script>
+    @vite('resources/js/modulos/tejido/reportes/marcas-finales/index.ts')
 @endpush

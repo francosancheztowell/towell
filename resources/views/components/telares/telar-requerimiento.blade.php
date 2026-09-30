@@ -32,8 +32,8 @@
 
     $containerClass = 'p-3 md:p-1.5 lg:p-3';
     $accountBoxClass = 'mb-2 md:mb-1.5 lg:mb-0 mr-0 md:mr-0 lg:mr-4 mt-0 md:mt-0 lg:mt-[32px] rounded-lg p-3 md:p-1.5 lg:p-3 border border-gray-200';
-    $accountTitleClass = 'text-sm md:text-[10px] lg:text-sm font-semibold text-gray-700 mb-2 md:mb-0.5 lg:mb-2 md:inline md:mr-2 lg:block lg:mr-0';
-    $accountListClass = 'space-y-1 md:space-y-0 md:inline-flex md:gap-3 lg:space-y-1 lg:gap-0 lg:block text-sm md:text-[10px] lg:text-sm';
+    $accountTitleClass = 'text-sm md:text-xs lg:text-sm font-semibold text-gray-700 mb-2 md:mb-0.5 lg:mb-2 md:inline md:mr-2 lg:block lg:mr-0';
+    $accountListClass = 'space-y-1 md:space-y-0 md:inline-flex md:gap-3 lg:space-y-1 lg:gap-0 lg:block text-sm md:text-xs lg:text-sm';
     $accountRowClass = 'flex items-center md:justify-start lg:justify-between';
     $accountValueClass = 'ml-2 md:ml-1 lg:ml-2 font-bold text-blue-600';
     $accountButtonClass = 'ml-2 md:ml-1 lg:ml-2 p-1 md:p-0.5 lg:p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors';

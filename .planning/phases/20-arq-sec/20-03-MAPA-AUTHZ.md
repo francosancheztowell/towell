@@ -185,5 +185,5 @@ Cuando llegue el idrol: agregar `->middleware('module.permission:<acción>,<idro
 | `POST engomado/modulo-produccion-engomado/actualizar-campo-orden` | Es la única de Producción Engomado que no valida nada (escribe merma con y sin goma) |
 | `POST engomado/programar-engomado/actualizar-prioridades` | "Habilitado para todos" en el controller |
 | `POST telegram/send` | Relay genérico sin llamadores (no hay hits en `resources/`, `public/js`, `app/` ni `tests/`); propuesta: borrarlo |
-| `PUT modulo-cortes-de-eficiencia/{id}` | Stub que no escribe nada y no tiene llamadores |
-| `POST produccion/reenconado-cabezuela` | Duplicado legacy de `tejido/produccion-reenconado` sin llamadores |
+| `PUT modulo-cortes-de-eficiencia/{id}` | Stub que no escribe nada y no tiene llamadores → **cerrado en 19-02**: responde 410 (sigue en `modificar,105,auditar`) |
+| `POST produccion/reenconado-cabezuela` | Duplicado legacy de `tejido/produccion-reenconado` sin llamadores → **cerrado en 19-02**: misma acción, middleware y validación que la ruta nueva (test en `ReenconadoTest`) |

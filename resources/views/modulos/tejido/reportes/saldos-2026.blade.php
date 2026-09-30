@@ -3,21 +3,23 @@
 @section('page-title', 'Saldos 2026')
 
 @section('navbar-right')
-    <button id="saldos-filter-btn" type="button" class="relative flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium transition-colors border border-indigo-200">
-        <i class="fas fa-filter"></i>
+    <button id="saldos-filter-btn" type="button" title="Filtrar por columna" aria-pressed="false" class="relative flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium transition-colors border border-indigo-200">
+        <i class="fas fa-filter" aria-hidden="true"></i>
         <span>Filtrar</span>
-        <span id="saldos-filter-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold text-white bg-red-500 rounded-full px-1"></span>
+        <span id="saldos-filter-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center text-xs font-bold text-white bg-red-500 rounded-full px-1"></span>
     </button>
-    <button id="saldos-toggle-extra-cols" type="button" title="Mostrar u ocultar el resto de columnas del reporte"
+    <button id="saldos-toggle-extra-cols" type="button" title="Mostrar u ocultar el resto de columnas del reporte" aria-pressed="false"
         class="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-sm font-medium transition-colors border border-slate-200">
-        <i class="fas fa-columns"></i>
+        <i class="fas fa-columns" aria-hidden="true"></i>
         <span id="saldos-toggle-extra-cols-label">Más columnas</span>
     </button>
     <a href="{{ route('tejido.reportes.saldos-2026.excel') }}"
        class="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors shadow-sm">
-        <i class="fas fa-file-excel"></i>
+        <i class="fas fa-file-excel" aria-hidden="true"></i>
         <span>Exportar a Excel</span>
     </a>
+    {{-- Botón "⋮" del menú de columna (lo inserta el JS con botonAcciones, UX-06) --}}
+    <span data-saldos-acciones class="flex items-center"></span>
 @endsection
 
 @section('content')
@@ -139,8 +141,6 @@
                                 $saldo             = (float) ($r->_sumSaldoPedido ?? $r->SaldoPedido ?? 0);
                                 $produccionVal     = (float) ($r->_sumProduccion ?? $r->Produccion ?? 0);
                                 $faltan            = $solicitado - $saldo;
-                                $searchBase        = strtolower(($r->NoTelarId ?? '') . ' ' . ($r->NoProduccion ?? '') . ' ' . ($r->NombreProducto ?? '') . ' ' . ($r->ItemId ?? '') . ' ' . ($r->TamanoClave ?? '') . ' ' . $saldo . ' ' . $produccionVal);
-                                $searchFull        = $esGrupoVinculado && !$esLider ? $searchBase . ' abierto' : $searchBase;
                                 $avance            = $solicitado > 0
                                     ? round(min(100, max(0, $produccionVal / $solicitado * 100)), 1)
                                     : 0;
@@ -194,7 +194,6 @@
                             @php $esFinalizado = $r->_finalizado ?? false; @endphp
                             <tr class="saldos-row {{ $rowClass }}{{ $grupoClass }}{{ $liderClass }}"
                                 style="{{ $esGrupoVinculado ? 'background:#f0fdf4;' : '' }}{{ $esLider && $esGrupoVinculado ? 'border-left:3px solid #16a34a;' : '' }}"
-                                data-search="{{ $searchFull }}"
                                 data-es-grupo="{{ $esGrupoVinculado ? '1' : '0' }}"
                                 data-lider="{{ $esLider ? '1' : '0' }}"
                                 data-finalizado="{{ $esFinalizado ? '1' : '0' }}"
@@ -237,18 +236,18 @@
                                     @endif
                                 </td>
                                 <td class="saldos-td text-right tabular-nums" style="background:#dcfce7;border-color:#86efac;">{{ $r->LargoCrudo ?? '—' }}</td>
-                                <td class="saldos-td text-right tabular-nums text-[0.65rem]">{{ $r->PesoCrudo ?? '—' }}</td>
+                                <td class="saldos-td text-right tabular-nums text-xs">{{ $r->PesoCrudo ?? '—' }}</td>
                                 <td class="saldos-td text-right tabular-nums">{{ $r->Luchaje ?? '—' }}</td>
-                                <td class="saldos-td saldos-td-rizo-calibre text-center tabular-nums text-[0.68rem]">{{ $r->CalibreRizo2 ?? '—' }}</td>
+                                <td class="saldos-td saldos-td-rizo-calibre text-center tabular-nums text-xs">{{ $r->CalibreRizo2 ?? '—' }}</td>
                                 <td class="saldos-td saldos-td-rizo-cuenta text-center tabular-nums">{{ $r->CuentaRizo ?? '—' }}</td>
-                                <td class="saldos-td saldos-td-rizo-fibra text-[0.65rem]">{{ $r->FibraRizo ?? '—' }}</td>
-                                <td class="saldos-td saldos-td-pie-calibre text-center tabular-nums text-[0.68rem]">{{ $r->CalibrePie2 ?? '—' }}</td>
+                                <td class="saldos-td saldos-td-rizo-fibra text-xs">{{ $r->FibraRizo ?? '—' }}</td>
+                                <td class="saldos-td saldos-td-pie-calibre text-center tabular-nums text-xs">{{ $r->CalibrePie2 ?? '—' }}</td>
                                 <td class="saldos-td saldos-td-pie-cuenta text-center tabular-nums">{{ $r->CuentaPie ?? '—' }}</td>
-                                <td class="saldos-td saldos-td-pie-fibra text-[0.65rem]">{{ $r->FibraPie ?? '—' }}</td>
-                                <td class="saldos-td saldos-td-rasurada text-center text-[0.65rem] font-semibold {{ $esRasurada ? 'saldos-td-rasurada-si' : 'text-gray-700' }}">{{ $r->Rasurado ?? '—' }}</td>
-                                <td class="saldos-td text-right tabular-nums text-[0.65rem]">{{ $r->NoTiras ?? '—' }}</td>
-                                <td class="saldos-td text-right tabular-nums text-[0.65rem]">{{ $r->Repeticiones !== null ? number_format((float)$r->Repeticiones, 0) : '—' }}</td>
-                                <td class="saldos-td text-right tabular-nums text-[0.65rem]" style="background:#d1fae5;border-color:#6ee7b7;">
+                                <td class="saldos-td saldos-td-pie-fibra text-xs">{{ $r->FibraPie ?? '—' }}</td>
+                                <td class="saldos-td saldos-td-rasurada text-center text-xs font-semibold {{ $esRasurada ? 'saldos-td-rasurada-si' : 'text-gray-700' }}">{{ $r->Rasurado ?? '—' }}</td>
+                                <td class="saldos-td text-right tabular-nums text-xs">{{ $r->NoTiras ?? '—' }}</td>
+                                <td class="saldos-td text-right tabular-nums text-xs">{{ $r->Repeticiones !== null ? number_format((float)$r->Repeticiones, 0) : '—' }}</td>
+                                <td class="saldos-td text-right tabular-nums text-xs" style="background:#d1fae5;border-color:#6ee7b7;">
                                     @if ($esLider)
                                         {{ number_format((float) ($r->_sumTotalRollos ?? $r->TotalRollos ?? 0), 0) }}
                                     @else
@@ -309,7 +308,7 @@
                                                 : (str_contains($salon, 'KARL') ? 'background:#ede9fe;color:#111827;border:1px solid #c4b5fd;'
                                                 : 'background:#f3f4f6;color:#111827;border:1px solid #d1d5db;')));
                                         @endphp
-                                        <span style="display:inline-block;padding:2px 8px;border-radius:9999px;font-size:0.62rem;font-weight:700;letter-spacing:0.04em;{{ $badgeSalon }}">
+                                        <span style="display:inline-block;padding:2px 8px;border-radius:9999px;font-size:0.75rem;font-weight:700;letter-spacing:0.04em;{{ $badgeSalon }}">
                                             {{ $r->SalonTejidoId }}
                                         </span>
                                     @else
@@ -353,24 +352,48 @@
     </div>
 </div>
 
+{{-- ── Filtro por valores (tipo Excel) ── --}}
+<x-ui.modal-base id="modalSaldosFiltro" title="Filtrar" size="md">
+    <p class="text-sm text-gray-600 mb-3">Mostrar filas donde <strong data-filtro-columna></strong> sea uno de:</p>
+    <div class="flex gap-2 mb-3">
+        <button type="button" data-filtro-accion="todos" class="px-3 py-1.5 text-xs font-semibold rounded bg-green-100 text-green-700 hover:bg-green-200">Todos seleccionados</button>
+        <button type="button" data-filtro-accion="ninguno" class="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Quitar selección</button>
+    </div>
+    <div data-filtro-lista class="border border-gray-200 rounded-lg overflow-y-auto" style="max-height:320px;min-height:120px;"></div>
+    <p data-filtro-vacio hidden class="p-3 text-sm text-gray-500 text-center">No hay valores en esta columna.</p>
+    <template id="saldos-filtro-opcion">
+        <label class="flex items-center gap-2 py-1.5 px-2 hover:bg-gray-50 rounded cursor-pointer">
+            <input type="checkbox" class="saldos-excel-filter-cb w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
+            <span class="text-sm text-gray-700 truncate flex-1" data-texto></span>
+            <span class="text-xs text-gray-400" data-conteo></span>
+        </label>
+    </template>
+
+    <x-slot:footer>
+        <button type="button" data-filtro-accion="limpiar" class="mr-auto px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors">Limpiar filtro</button>
+        <button type="button" data-ui-modal-close-target="modalSaldosFiltro" class="px-4 py-2 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors">Cancelar</button>
+        <button type="button" data-filtro-accion="aplicar" class="px-5 py-2 text-xs font-semibold text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors shadow-sm">Aplicar</button>
+    </x-slot:footer>
+</x-ui.modal-base>
+
 {{-- ── Context Menu ── --}}
 <div id="saldos-ctx" role="menu" aria-hidden="true">
     <div class="ctx-header" id="ctx-col-label">Columna</div>
 
     <div class="ctx-section">Columna</div>
-    <button class="ctx-btn" data-action="freeze"><i class="ctx-ico fas fa-thumbtack"></i><span id="ctx-freeze-lbl">Fijar columna</span></button>
-    <button class="ctx-btn" data-action="hide"><i class="ctx-ico fas fa-eye-slash"></i>Ocultar columna</button>
+    <button type="button" role="menuitem" class="ctx-btn" data-action="freeze"><i aria-hidden="true" class="ctx-ico fas fa-thumbtack"></i><span id="ctx-freeze-lbl">Fijar columna</span></button>
+    <button type="button" role="menuitem" class="ctx-btn" data-action="hide"><i aria-hidden="true" class="ctx-ico fas fa-eye-slash"></i>Ocultar columna</button>
 
     <div class="ctx-sep"></div>
     <div class="ctx-section">Filtrar / Ordenar</div>
-    <button class="ctx-btn" data-action="filter"><i class="ctx-ico fas fa-filter"></i>Filtrar esta columna</button>
-    <button class="ctx-btn" data-action="sort-asc"><i class="ctx-ico fas fa-arrow-up-a-z"></i>Ordenar A → Z</button>
-    <button class="ctx-btn" data-action="sort-desc"><i class="ctx-ico fas fa-arrow-down-z-a"></i>Ordenar Z → A</button>
+    <button type="button" role="menuitem" class="ctx-btn" data-action="filter"><i aria-hidden="true" class="ctx-ico fas fa-filter"></i>Filtrar esta columna</button>
+    <button type="button" role="menuitem" class="ctx-btn" data-action="sort-asc"><i aria-hidden="true" class="ctx-ico fas fa-arrow-up-a-z"></i>Ordenar A → Z</button>
+    <button type="button" role="menuitem" class="ctx-btn" data-action="sort-desc"><i aria-hidden="true" class="ctx-ico fas fa-arrow-down-z-a"></i>Ordenar Z → A</button>
 
     <div class="ctx-sep"></div>
-    <button class="ctx-btn ctx-btn-muted" data-action="clear-filters"><i class="ctx-ico fas fa-xmark"></i>Limpiar filtros</button>
-    <button class="ctx-btn ctx-btn-muted" data-action="show-cols"><i class="ctx-ico fas fa-eye"></i>Mostrar columnas ocultas</button>
-    <button class="ctx-btn ctx-btn-muted" data-action="reset-sort"><i class="ctx-ico fas fa-rotate-left"></i>Restablecer orden</button>
+    <button type="button" role="menuitem" class="ctx-btn ctx-btn-muted" data-action="clear-filters"><i aria-hidden="true" class="ctx-ico fas fa-xmark"></i>Limpiar filtros</button>
+    <button type="button" role="menuitem" class="ctx-btn ctx-btn-muted" data-action="show-cols"><i aria-hidden="true" class="ctx-ico fas fa-eye"></i>Mostrar columnas ocultas</button>
+    <button type="button" role="menuitem" class="ctx-btn ctx-btn-muted" data-action="reset-sort"><i aria-hidden="true" class="ctx-ico fas fa-rotate-left"></i>Restablecer orden</button>
 </div>
 
 @push('styles')
@@ -1029,736 +1052,6 @@ tr.saldos-row-group-hover.saldos-row-selected:hover td.saldos-td-rasurada-si {
 @endpush
 
 @push('scripts')
-<script>
-(function () {
-    'use strict';
-
-    const table   = document.getElementById('saldos-table');
-    const tbody   = document.getElementById('saldos-tbody');
-    const ctxMenu = document.getElementById('saldos-ctx');
-    if (!table || !ctxMenu) return;
-
-    /* ═══════════════════════════════════════════════════════════
-       1. Build column map
-       Maps each cell → visual start-column index (accounts for
-       rowspan / colspan). colCells[idx] = [all single-col cells].
-    ═══════════════════════════════════════════════════════════ */
-    const cellToCol = new Map();
-    const colCells  = {};
-    let   totalCols = 0;
-
-    (function buildMap() {
-        const occupied = [];
-        function isOcc(r,c){ return !!(occupied[r] && occupied[r][c]); }
-        function setOcc(r,c){ if (!occupied[r]) occupied[r]={}; occupied[r][c]=true; }
-
-        Array.from(table.rows).forEach(function(row, ri) {
-            var ci = 0;
-            Array.from(row.cells).forEach(function(cell) {
-                while (isOcc(ri, ci)) ci++;
-                var cs = cell.colSpan || 1, rs = cell.rowSpan || 1;
-                cellToCol.set(cell, ci);
-                if (cs === 1) {
-                    if (!colCells[ci]) colCells[ci] = [];
-                    colCells[ci].push(cell);
-                    if (ci + 1 > totalCols) totalCols = ci + 1;
-                }
-                for (var r=0; r<rs; r++) for (var c=0; c<cs; c++) setOcc(ri+r, ci+c);
-                ci += cs;
-            });
-        });
-    })();
-
-    /* ═══════════════════════════════════════════════════════════
-       2. Filter row — one input per visual column
-    ═══════════════════════════════════════════════════════════ */
-    const thead      = table.tHead;
-    const filterRow  = document.createElement('tr');
-    filterRow.id     = 'saldos-filter-row';
-    const filterInps = {};   // colIdx → input
-    const colFilters = {};   // colIdx → string
-
-    for (var ci = 0; ci < totalCols; ci++) {
-        var th  = document.createElement('th');
-        var inp = document.createElement('input');
-        inp.type = 'text';
-        inp.placeholder = '…';
-        inp.className   = 'saldos-filter-inp';
-        inp.dataset.col = ci;
-        (function(colIdx, input){
-            input.addEventListener('input', function(){
-                colFilters[colIdx] = this.value.toLowerCase().trim();
-                applyFilters();
-            });
-        })(ci, inp);
-        filterInps[ci] = inp;
-        th.appendChild(inp);
-        var hdrCells = colCells[ci] || [];
-        var hdr0 = hdrCells[0];
-        if (hdr0 && hdr0.classList && hdr0.classList.contains('saldos-col-extra')) {
-            th.classList.add('saldos-col-extra');
-        }
-        filterRow.appendChild(th);
-    }
-    thead.appendChild(filterRow);
-
-    // Set sticky top for filter row after render
-    requestAnimationFrame(function(){
-        var h = 0;
-        Array.from(thead.rows).forEach(function(r){ if (r !== filterRow) h += r.offsetHeight; });
-        Array.from(filterRow.cells).forEach(function(th){ th.style.top = h + 'px'; });
-    });
-
-    /* ═══════════════════════════════════════════════════════════
-       3. Combined filter (global search bar + column filters)
-    ═══════════════════════════════════════════════════════════ */
-    var globalQ   = '';
-    var counter   = document.getElementById('saldos-count');
-    var visibleEl = document.getElementById('saldos-visible');
-    var searchInp = document.getElementById('saldos-search');
-
-    if (searchInp) {
-        searchInp.addEventListener('input', function(){
-            globalQ = this.value.toLowerCase().trim();
-            applyFilters();
-        });
-    }
-
-    function getCellText(row, colIdx) {
-        var cells = Array.from(row.cells);
-        for (var i=0; i<cells.length; i++) {
-            if (cellToCol.get(cells[i]) === colIdx)
-                return cells[i].textContent.trim().toLowerCase();
-        }
-        return '';
-    }
-
-    function applyFilters() {
-        var rows  = Array.from(tbody.querySelectorAll('tr.saldos-row'));
-        var shown = 0;
-        rows.forEach(function(row) {
-            var show = !globalQ || (row.dataset.search || '').includes(globalQ);
-            if (show) {
-                for (var idx in colFilters) {
-                    var v = colFilters[idx];
-                    if (v && !getCellText(row, parseInt(idx)).includes(v)) { show = false; break; }
-                }
-            }
-            row.classList.toggle('saldos-hidden', !show);
-            if (show) shown++;
-        });
-        if (counter)   counter.textContent   = shown;
-        if (visibleEl) visibleEl.textContent = shown;
-        // Re-evaluate select-all state after filter
-        if (checkAll) {
-            var vis = tbody.querySelectorAll('tr.saldos-row:not(.saldos-hidden) .saldos-row-check');
-            var chk = tbody.querySelectorAll('tr.saldos-row:not(.saldos-hidden) .saldos-row-check:checked');
-            checkAll.indeterminate = chk.length > 0 && chk.length < vis.length;
-            checkAll.checked = vis.length > 0 && chk.length === vis.length;
-        }
-    }
-
-    /* ═══════════════════════════════════════════════════════════
-       3b. Filter toggle button
-    ═══════════════════════════════════════════════════════════ */
-    var filterBtn = document.getElementById('saldos-filter-btn');
-    var filterVisible = false;
-    if (filterBtn) {
-        filterBtn.addEventListener('click', function () {
-            var activeCount = Object.keys(columnFilters).length;
-            if (activeCount > 0) {
-                for (var k in colFilters) delete colFilters[k];
-                Object.values(filterInps).forEach(function(i){ i.value=''; });
-                columnFilters = {};
-                globalQ = '';
-                if (searchInp) searchInp.value = '';
-                filterRow.style.display = 'none';
-                filterVisible = false;
-                applyFilters();
-                updateFilterBadge();
-                return;
-            }
-            filterVisible = !filterVisible;
-            filterRow.style.display = filterVisible ? '' : 'none';
-            filterBtn.classList.toggle('bg-indigo-50', filterVisible);
-            filterBtn.classList.toggle('border-indigo-300', filterVisible);
-            filterBtn.classList.toggle('text-indigo-700', filterVisible);
-            if (filterVisible) {
-                requestAnimationFrame(function(){
-                    var h = 0;
-                    Array.from(thead.rows).forEach(function(r){ if (r !== filterRow) h += r.offsetHeight; });
-                    Array.from(filterRow.cells).forEach(function(th){ th.style.top = h + 'px'; });
-                });
-            }
-        });
-    }
-
-    /* ═══════════════════════════════════════════════════════════
-       3b. Grupo hover highlight
-     ═══════════════════════════════════════════════════════════ */
-    var grupoHighlighted = null;
-
-    function highlightGrupo(row) {
-        if (row.dataset.esGrupo !== '1') return [];
-        var bloque = getGrupoBloque(row);
-        bloque.forEach(function(r) { r.classList.add('saldos-row-group-hover'); });
-        return bloque;
-    }
-
-    function clearGrupoHighlight(bloque) {
-        if (bloque) {
-            bloque.forEach(function(r) { r.classList.remove('saldos-row-group-hover'); });
-        }
-    }
-
-    tbody.addEventListener('mouseover', function(e) {
-        if (e.target.closest('a, button, input, select')) return;
-        var row = e.target.closest('tr.saldos-row');
-        if (!row || row.dataset.esGrupo !== '1') return;
-        if (grupoHighlighted) clearGrupoHighlight(grupoHighlighted);
-        grupoHighlighted = highlightGrupo(row);
-    });
-
-    tbody.addEventListener('mouseout', function(e) {
-        if (grupoHighlighted) {
-            clearGrupoHighlight(grupoHighlighted);
-            grupoHighlighted = null;
-        }
-    });
-
-    /* ═══════════════════════════════════════════════════════════
-       3c. Row selection (single row)
-     ═══════════════════════════════════════════════════════════ */
-    tbody.addEventListener('click', function(e) {
-        if (e.target.closest('a, button, input, select')) return;
-        var row = e.target.closest('tr.saldos-row');
-        if (!row) return;
-
-        // Limpiar selección anterior y hover
-        tbody.querySelectorAll('.saldos-row-selected').forEach(function(r) {
-            r.classList.remove('saldos-row-selected');
-        });
-        if (grupoHighlighted) {
-            clearGrupoHighlight(grupoHighlighted);
-            grupoHighlighted = null;
-        }
-
-        if (row.classList.contains('saldos-row-selected')) {
-            row.classList.remove('saldos-row-selected');
-        } else {
-            row.classList.add('saldos-row-selected');
-            // Si es parte de grupo, resaltar toda la grupo
-            if (row.dataset.esGrupo === '1') {
-                highlightGrupo(row);
-            }
-        }
-    });
-
-    /* ═══════════════════════════════════════════════════════════
-       4. State
-    ═══════════════════════════════════════════════════════════ */
-    var frozenCols   = new Set();
-    var hiddenCols   = new Set();
-    /* Solo filas de datos: los separadores telar se recrean con refreshTelarSeparators */
-    var origOrder    = tbody ? Array.from(tbody.querySelectorAll('tr.saldos-row')) : [];
-    var ctxColIdx    = null;
-    var ctxCell      = null;
-    var ctxRow       = null;
-
-    /* ═══════════════════════════════════════════════════════════
-       5. Context menu — show / hide
-    ═══════════════════════════════════════════════════════════ */
-    function openCtx(e, cell) {
-        e.preventDefault();
-        ctxCell   = cell;
-        ctxRow    = cell.closest('tr');
-        ctxColIdx = cellToCol.get(cell);
-
-        // Column label (header text of that column)
-        var label = document.getElementById('ctx-col-label');
-        if (label) {
-            var cells = colCells[ctxColIdx] || [];
-            var hdrCell = cells.find(function(c){ return c.closest('thead'); });
-            label.textContent = hdrCell ? hdrCell.textContent.trim().substring(0,30) : ('Col ' + (ctxColIdx+1));
-        }
-
-        // Freeze button label
-        var fl = document.getElementById('ctx-freeze-lbl');
-        if (fl) fl.textContent = frozenCols.has(ctxColIdx) ? 'Desfijar columna' : 'Fijar columna';
-
-        // Position (keep inside viewport)
-        var vw = window.innerWidth, vh = window.innerHeight;
-        var x = e.clientX, y = e.clientY;
-        if (x + 220 > vw) x = vw - 224;
-        if (y + 340 > vh) y = vh - 344;
-        ctxMenu.style.left    = x + 'px';
-        ctxMenu.style.top     = y + 'px';
-        ctxMenu.style.display = 'block';
-        ctxMenu.setAttribute('aria-hidden', 'false');
-    }
-
-    function closeCtx() {
-        ctxMenu.style.display = 'none';
-        ctxMenu.setAttribute('aria-hidden', 'true');
-    }
-
-    table.addEventListener('contextmenu', function(e) {
-        var cell = e.target.closest('td, th');
-        if (cell && table.contains(cell)) openCtx(e, cell);
-    });
-    document.addEventListener('click',   function(e){ if (!ctxMenu.contains(e.target)) closeCtx(); });
-    document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeCtx(); });
-
-    /* ═══════════════════════════════════════════════════════════
-       6. Actions
-    ═══════════════════════════════════════════════════════════ */
-    ctxMenu.addEventListener('click', function(e) {
-        var btn = e.target.closest('[data-action]');
-        if (!btn) return;
-        closeCtx();
-        handleAction(btn.dataset.action);
-    });
-
-    function handleAction(action) {
-        switch (action) {
-
-            case 'freeze':
-                if (ctxColIdx === null) return;
-                if (frozenCols.has(ctxColIdx)) frozenCols.delete(ctxColIdx);
-                else frozenCols.add(ctxColIdx);
-                reapplyFreeze();
-                break;
-
-            case 'hide':
-                if (ctxColIdx === null) return;
-                hiddenCols.add(ctxColIdx);
-                setColVisible(ctxColIdx, false);
-                break;
-
-            case 'filter':
-                if (ctxColIdx === null) return;
-                showColumnFilterModal(ctxColIdx);
-                break;
-
-            case 'sort-asc':  sortByCol(ctxColIdx, 'asc');  break;
-            case 'sort-desc': sortByCol(ctxColIdx, 'desc'); break;
-
-            case 'clear-filters':
-                for (var k in colFilters) delete colFilters[k];
-                Object.values(filterInps).forEach(function(i){ i.value=''; });
-                columnFilters = {};
-                globalQ = '';
-                if (searchInp) searchInp.value = '';
-                applyFilters();
-                updateFilterBadge();
-                break;
-
-            case 'show-cols':
-                hiddenCols.forEach(function(ci){ setColVisible(ci, true); });
-                hiddenCols.clear();
-                break;
-
-            case 'reset-sort':
-                if (!tbody) break;
-                // Remove sort indicators
-                table.querySelectorAll('[data-sort-dir]').forEach(function(el){
-                    el.removeAttribute('data-sort-dir');
-                });
-                while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
-                origOrder.forEach(function(row){ tbody.appendChild(row); });
-                refreshTelarSeparators();
-                break;
-        }
-    }
-
-    /* ═══════════════════════════════════════════════════════════
-       7. Freeze columns
-    ═══════════════════════════════════════════════════════════ */
-    function reapplyFreeze() {
-        var sorted = Array.from(frozenCols).sort(function(a,b){ return a-b; });
-        // Compute cumulative left offset
-        var leftOf = {};
-        var accum  = 0;
-        sorted.forEach(function(ci) {
-            leftOf[ci] = accum;
-            var cells  = colCells[ci] || [];
-            var w      = cells[0] ? cells[0].getBoundingClientRect().width : 80;
-            accum += w;
-        });
-
-        for (var idx in colCells) {
-            var col  = parseInt(idx);
-            var isFrz = frozenCols.has(col);
-            (colCells[col] || []).forEach(function(cell) {
-                if (isFrz) {
-                    cell.style.position = 'sticky';
-                    cell.style.left     = leftOf[col] + 'px';
-                    cell.style.zIndex   = cell.closest('thead') ? '25' : '10';
-                    cell.classList.add('saldos-col-frozen');
-                } else {
-                    cell.style.position = '';
-                    cell.style.left     = '';
-                    cell.style.zIndex   = '';
-                    cell.classList.remove('saldos-col-frozen');
-                }
-            });
-        }
-    }
-
-    /* ═══════════════════════════════════════════════════════════
-       8. Hide / show column
-    ═══════════════════════════════════════════════════════════ */
-    function setColVisible(colIdx, visible) {
-        (colCells[colIdx] || []).forEach(function(cell){
-            cell.style.display = visible ? '' : 'none';
-        });
-        var inp = filterInps[colIdx];
-        if (inp) inp.closest('th').style.display = visible ? '' : 'none';
-    }
-
-    /* ═══════════════════════════════════════════════════════════
-       9. Column filter modal (Excel-like)
-    ═══════════════════════════════════════════════════════════ */
-    var columnFilters = {}; // colIdx → Set of allowed values
-
-    function getCellTextForCol(row, colIdx) {
-        var cells = Array.from(row.cells);
-        for (var i = 0; i < cells.length; i++) {
-            if (cellToCol.get(cells[i]) === colIdx)
-                return cells[i].textContent.trim();
-        }
-        return '';
-    }
-
-    function getGrupoBloque(rowLider) {
-        // rowLider es un <tr> que es líder de grupo (data-lider="1", data-es-grupo="1")
-        // Retorna array con el líder + todos los no-líders adyacentes de la misma grupo
-        var bloque = [];
-        var allRows = Array.from(tbody.querySelectorAll('tr.saldos-row'));
-        var liderIdx = allRows.indexOf(rowLider);
-        if (liderIdx === -1) return [rowLider];
-
-        // Recopilar no-líders después del líder
-        for (var i = liderIdx + 1; i < allRows.length; i++) {
-            var r = allRows[i];
-            if (r.dataset.esGrupo !== '1') break; // fin del grupo
-            if (r.dataset.lider === '1') break;   // otro líder = fin del grupo
-            bloque.push(r);
-        }
-
-        // Devolver [lider] + [no-líders]
-        bloque.unshift(rowLider);
-        return bloque;
-    }
-
-    function escapeHtml(str) {
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/"/g, '&quot;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-    }
-
-    function showColumnFilterModal(colIdx) {
-        var rows = Array.from(tbody.querySelectorAll('tr.saldos-row:not(.saldos-hidden)'));
-        if (rows.length === 0) {
-            rows = Array.from(tbody.querySelectorAll('tr.saldos-row'));
-        }
-
-        var valueCounts = {};
-        rows.forEach(function(row) {
-            var val = getCellTextForCol(row, colIdx);
-            var key = val === '' ? '(vacío)' : val;
-            if (!valueCounts[key]) valueCounts[key] = 0;
-            valueCounts[key]++;
-        });
-
-        var uniqueValues = Object.keys(valueCounts).sort(function(a, b) {
-            if (a === '(vacío)') return -1;
-            if (b === '(vacío)') return 1;
-            return String(a).localeCompare(String(b), 'es', { sensitivity: 'base' });
-        });
-
-        var currentSelected = columnFilters[colIdx];
-        var selectedSet = currentSelected ? new Set(currentSelected) : null;
-
-        var checkboxesHtml = uniqueValues.map(function(val) {
-            var checked = selectedSet === null ? true : selectedSet.has(val);
-            var safeVal = escapeHtml(val);
-            var id = 'saldos-excel-filter-' + colIdx + '-' + safeVal.replace(/\W/g, '_').slice(0, 30);
-            var displayVal = val.length > 40 ? val.slice(0, 40) + '…' : val;
-            return '<label class="flex items-center gap-2 py-1.5 px-2 hover:bg-gray-50 rounded cursor-pointer' + (checked ? ' bg-blue-50' : '') + '">' +
-                '<input type="checkbox" class="saldos-excel-filter-cb w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" data-value="' + safeVal + '" ' + (checked ? 'checked' : '') + ' id="' + id + '">' +
-                '<span class="text-sm text-gray-700 truncate flex-1" title="' + safeVal + '">' + escapeHtml(displayVal) + '</span>' +
-                '<span class="text-xs text-gray-400">(' + valueCounts[val] + ')</span>' +
-                '</label>';
-        }).join('');
-
-        if (uniqueValues.length === 0) {
-            checkboxesHtml = '<p class="p-3 text-sm text-gray-500 text-center">No hay valores en esta columna.</p>';
-        }
-
-        var headerCells = colCells[colIdx] || [];
-        var hdrCell = headerCells.find(function(c){ return c.closest('thead'); });
-        var colLabel = hdrCell ? hdrCell.textContent.trim().substring(0, 40) : ('Columna ' + (colIdx + 1));
-
-        var html = '<div class="w-full" style="max-height:70vh;display:flex;flex-direction:column;">' +
-            '<p class="text-sm text-gray-600 mb-3">Mostrar filas donde <strong>' + escapeHtml(colLabel) + '</strong> sea uno de:</p>' +
-            '<div class="flex gap-2 mb-3">' +
-            '<button type="button" id="saldos-excel-filter-select-all" class="px-3 py-1.5 text-xs font-semibold rounded ' + (selectedSet === null ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-blue-100 text-blue-700 hover:bg-blue-200') + '">' + (selectedSet === null ? 'Todos seleccionados' : 'Seleccionar todo') + '</button>' +
-            '<button type="button" id="saldos-excel-filter-deselect-all" class="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded hover:bg-gray-200">Quitar selección</button>' +
-            '</div>' +
-            '<div class="border border-gray-200 rounded-lg overflow-y-auto flex-1" style="max-height:320px;min-height:120px;">' + checkboxesHtml + '</div>' +
-            '<footer class="flex justify-between gap-3 mt-4 pt-3 border-t border-gray-200">' +
-            '<button type="button" id="saldos-excel-filter-clear" class="px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200 transition-colors">Limpiar filtro</button>' +
-            '<div class="flex gap-2">' +
-            '<button type="button" id="saldos-excel-filter-cancel" class="px-4 py-2 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors">Cancelar</button>' +
-            '<button type="button" id="saldos-excel-filter-apply" class="px-5 py-2 text-xs font-semibold text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors shadow-sm">Aplicar</button>' +
-            '</div></footer></div>';
-
-        Swal.fire({
-            title: '<i class="fas fa-filter mr-2 text-blue-500"></i>Filtrar: ' + escapeHtml(colLabel),
-            html: html,
-            width: '440px',
-            padding: '1.25rem',
-            showConfirmButton: false,
-            showCloseButton: true,
-            customClass: {
-                popup: 'rounded-xl shadow-2xl',
-                htmlContainer: 'text-left',
-                title: 'text-base font-semibold text-gray-800'
-            },
-            didOpen: function() {
-                var container = document.querySelector('.swal2-html-container');
-                if (!container) return;
-
-                container.querySelector('#saldos-excel-filter-select-all')?.addEventListener('click', function() {
-                    container.querySelectorAll('.saldos-excel-filter-cb').forEach(function(cb) { cb.checked = true; });
-                    this.textContent = 'Todos seleccionados';
-                    this.className = 'px-3 py-1.5 text-xs font-semibold rounded bg-green-100 text-green-700 hover:bg-green-200';
-                });
-
-                container.querySelector('#saldos-excel-filter-deselect-all')?.addEventListener('click', function() {
-                    container.querySelectorAll('.saldos-excel-filter-cb').forEach(function(cb) { cb.checked = false; });
-                    var selAllBtn = container.querySelector('#saldos-excel-filter-select-all');
-                    if (selAllBtn) {
-                        selAllBtn.textContent = 'Seleccionar todo';
-                        selAllBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded bg-blue-100 text-blue-700 hover:bg-blue-200';
-                    }
-                });
-
-                container.querySelector('#saldos-excel-filter-apply')?.addEventListener('click', function() {
-                    var selected = Array.from(container.querySelectorAll('.saldos-excel-filter-cb:checked')).map(function(cb) { return cb.dataset.value; });
-                    if (selected.length === uniqueValues.length || selected.length === 0) {
-                        delete columnFilters[colIdx];
-                    } else {
-                        columnFilters[colIdx] = selected;
-                    }
-                    applyFilters();
-                    updateFilterBadge();
-                    Swal.close();
-                });
-
-                container.querySelector('#saldos-excel-filter-clear')?.addEventListener('click', function() {
-                    delete columnFilters[colIdx];
-                    applyFilters();
-                    updateFilterBadge();
-                    Swal.close();
-                });
-
-                container.querySelector('#saldos-excel-filter-cancel')?.addEventListener('click', function() {
-                    Swal.close();
-                });
-
-                container.querySelectorAll('.saldos-excel-filter-cb').forEach(function(cb) {
-                    cb.addEventListener('change', function() {
-                        var allChecked = Array.from(container.querySelectorAll('.saldos-excel-filter-cb')).every(function(c) { return c.checked; });
-                        var noneChecked = Array.from(container.querySelectorAll('.saldos-excel-filter-cb')).every(function(c) { return !c.checked; });
-                        var selAllBtn = container.querySelector('#saldos-excel-filter-select-all');
-                        if (selAllBtn) {
-                            if (allChecked) {
-                                selAllBtn.textContent = 'Todos seleccionados';
-                                selAllBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded bg-green-100 text-green-700 hover:bg-green-200';
-                            } else if (noneChecked) {
-                                selAllBtn.textContent = 'Seleccionar todo';
-                                selAllBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded bg-blue-100 text-blue-700 hover:bg-blue-200';
-                            } else {
-                                selAllBtn.textContent = 'Seleccionar todo';
-                                selAllBtn.className = 'px-3 py-1.5 text-xs font-semibold rounded bg-blue-100 text-blue-700 hover:bg-blue-200';
-                            }
-                        }
-                    });
-                });
-            }
-        });
-    }
-
-    function updateFilterBadge() {
-        var activeCount = Object.keys(columnFilters).length;
-        var badge = document.getElementById('saldos-filter-badge');
-        var btn = document.getElementById('saldos-filter-btn');
-        if (badge) {
-            badge.textContent = activeCount;
-            badge.style.display = activeCount > 0 ? 'inline-flex' : 'none';
-        }
-        if (btn) {
-            if (activeCount > 0) {
-                btn.classList.remove('bg-indigo-50', 'hover:bg-indigo-100', 'text-indigo-700', 'border-indigo-200');
-                btn.classList.add('bg-blue-500', 'hover:bg-blue-600', 'text-white', 'border-blue-600');
-                btn.title = 'Hay ' + activeCount + ' filtro(s) activo(s). Clic para limpiar.';
-            } else {
-                btn.classList.remove('bg-blue-500', 'hover:bg-blue-600', 'text-white', 'border-blue-600');
-                btn.classList.add('bg-indigo-50', 'hover:bg-indigo-100', 'text-indigo-700', 'border-indigo-200');
-                btn.title = 'Filtrar por columna';
-            }
-        }
-    }
-
-    /* ═══════════════════════════════════════════════════════════
-       9b. Modify applyFilters to use columnFilters modal
-    ═══════════════════════════════════════════════════════════ */
-    var originalApplyFilters = applyFilters;
-    function applyFilters() {
-        var rows = Array.from(tbody.querySelectorAll('tr.saldos-row'));
-        var shown = 0;
-
-        // Primera pasada: evaluar cada fila individualmente
-        rows.forEach(function(row) {
-            var show = !globalQ || (row.dataset.search || '').includes(globalQ);
-            if (show) {
-                for (var idx in colFilters) {
-                    var v = colFilters[idx];
-                    if (v && !getCellText(row, parseInt(idx)).includes(v)) { show = false; break; }
-                }
-            }
-            if (show && Object.keys(columnFilters).length > 0) {
-                for (var colIdx in columnFilters) {
-                    var allowed = columnFilters[colIdx];
-                    if (!allowed || allowed.length === 0) continue;
-                    var cellVal = getCellTextForCol(row, parseInt(colIdx));
-                    var key = cellVal === '' ? '(vacío)' : cellVal;
-                    if (!allowed.includes(key)) { show = false; break; }
-                }
-            }
-            row._miShow = show;
-        });
-
-        // Segunda pasada: si cualquier row de un grupo está visible, mostrar todos
-        rows.forEach(function(row) {
-            if (row.dataset.esGrupo !== '1') return;
-            var grupoRows = getGrupoBloque(row);
-            var algunaVisible = grupoRows.some(function(r) { return r._miShow; });
-            grupoRows.forEach(function(r) { r._miShow = algunaVisible; });
-        });
-
-        rows.forEach(function(row) {
-            row.classList.toggle('saldos-hidden', !row._miShow);
-            if (row._miShow) shown++;
-        });
-
-        if (counter) counter.textContent = shown;
-        if (visibleEl) visibleEl.textContent = shown;
-
-        if (checkAll) {
-            var vis = tbody.querySelectorAll('tr.saldos-row:not(.saldos-hidden) .saldos-row-check');
-            var chk = tbody.querySelectorAll('tr.saldos-row:not(.saldos-hidden) .saldos-row-check:checked');
-            checkAll.indeterminate = chk.length > 0 && chk.length < vis.length;
-            checkAll.checked = vis.length > 0 && chk.length === vis.length;
-        }
-    }
-
-    /* ═══════════════════════════════════════════════════════════
-       9b. Separadores entre telares (misma regla que Blade)
-    ═══════════════════════════════════════════════════════════ */
-    function refreshTelarSeparators() {
-        if (!tbody) return;
-        tbody.querySelectorAll('tr.saldos-telar-sep').forEach(function(tr){ tr.remove(); });
-        var rows = Array.from(tbody.querySelectorAll('tr.saldos-row'));
-        var first = rows[0];
-        var cs = first && first.cells.length ? first.cells.length : 81;
-        for (var i = 1; i < rows.length; i++) {
-            var prev = rows[i - 1], row = rows[i];
-            var sameTelar = (prev.dataset.noTelar || '') === (row.dataset.noTelar || '');
-            var ordP = (prev.dataset.ordCompartida || '').trim();
-            var ordC = (row.dataset.ordCompartida || '').trim();
-            var sameShared = prev.dataset.esGrupo === '1' && row.dataset.esGrupo === '1'
-                && ordP !== '' && ordP === ordC;
-            if (sameTelar || sameShared) continue;
-            var sep = document.createElement('tr');
-            sep.className = 'saldos-telar-sep';
-            sep.setAttribute('aria-hidden', 'true');
-            var td = document.createElement('td');
-            td.colSpan = cs;
-            td.innerHTML = '&nbsp;';
-            sep.appendChild(td);
-            tbody.insertBefore(sep, row);
-        }
-    }
-
-    /* ═══════════════════════════════════════════════════════════
-       10. Sort by column
-    ═══════════════════════════════════════════════════════════ */
-    function sortByCol(colIdx, dir) {
-        if (!tbody || colIdx === null) return;
-
-        // Extraer bloques [líder + no-líders adyacentes]
-        var bloques = [];
-        var bloqueActual = [];
-        var allRows = Array.from(tbody.querySelectorAll('tr.saldos-row'));
-
-        allRows.forEach(function(row) {
-            if (row.dataset.esGrupo === '1' && row.dataset.lider !== '1') {
-                // No-líder: agregar al bloque actual
-                bloqueActual.push(row);
-            } else {
-                // Líder o no-grupo: cerrar bloque anterior
-                if (bloqueActual.length > 0) bloques.push(bloqueActual);
-                bloqueActual = [row];
-            }
-        });
-        if (bloqueActual.length > 0) bloques.push(bloqueActual);
-
-        // Ordenar bloques por el valor del líder (índice 0 del bloque)
-        bloques.sort(function(a, b) {
-            var ta = getCellText(a[0], colIdx);
-            var tb = getCellText(b[0], colIdx);
-            var na = parseFloat(ta.replace(/,/g, '')), nb = parseFloat(tb.replace(/,/g, ''));
-            var cmp = (!isNaN(na) && !isNaN(nb)) ? (na - nb) : ta.localeCompare(tb, 'es', { sensitivity: 'base' });
-            return dir === 'asc' ? cmp : -cmp;
-        });
-
-        // Reconstruir tbody: vaciar y re-agregar bloques en orden
-        while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
-        bloques.forEach(function(bloque) {
-            bloque.forEach(function(row) { tbody.appendChild(row); });
-        });
-
-        refreshTelarSeparators();
-
-        // Update sort indicator on header
-        table.querySelectorAll('[data-sort-dir]').forEach(function(el) { el.removeAttribute('data-sort-dir'); });
-        var hdrCells = colCells[colIdx] || [];
-        var hdrCell = hdrCells.find(function(c) { return c.closest('thead') && c.tagName === 'TH'; });
-        if (hdrCell) hdrCell.setAttribute('data-sort-dir', dir);
-    }
-
-    /* Mostrar / ocultar columnas extra (además del menú contextual) */
-    var btnToggleExtra = document.getElementById('saldos-toggle-extra-cols');
-    var lblToggleExtra = document.getElementById('saldos-toggle-extra-cols-label');
-    if (btnToggleExtra && table) {
-        btnToggleExtra.addEventListener('click', function () {
-            table.classList.toggle('saldos-hide-extra');
-            var compact = table.classList.contains('saldos-hide-extra');
-            if (lblToggleExtra) {
-                lblToggleExtra.textContent = compact ? 'Más columnas' : 'Menos columnas';
-            }
-        });
-    }
-
-    /* Regenerar separadores al cargar (colspan = nº real de celdas) para que se vean bien */
-    refreshTelarSeparators();
-
-})();
-</script>
+    @vite('resources/js/modulos/tejido/reportes/saldos-2026/index.ts')
 @endpush
 @endsection

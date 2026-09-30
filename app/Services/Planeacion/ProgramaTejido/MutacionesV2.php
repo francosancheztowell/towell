@@ -20,11 +20,18 @@ final class MutacionesV2
 
     public static function activa(string $familia): bool
     {
-        $modo = strtolower(trim((string) config("planeacion.mutaciones_v2.{$familia}", 'off')));
+        return self::modoActivo(config("planeacion.mutaciones_v2.{$familia}", 'off'), config('planeacion.mutaciones_v2.usuarios_canary', []));
+    }
 
-        return match ($modo) {
+    /**
+     * 'on' = todos · 'canary' = solo los Id de la allowlist · cualquier otro valor = nadie.
+     * Lo comparten las mutaciones v2 y el shell v2 (ShellV2).
+     */
+    public static function modoActivo(mixed $modo, mixed $usuariosCanary): bool
+    {
+        return match (strtolower(trim((string) $modo))) {
             'on', '1', 'true' => true,
-            'canary' => in_array((int) Auth::id(), (array) config('planeacion.mutaciones_v2.usuarios_canary', []), true),
+            'canary' => in_array((int) Auth::id(), (array) $usuariosCanary, true),
             default => false,
         };
     }
