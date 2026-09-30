@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $no_orden2
  * @property string|null $no_orden3
  * @property string|null $no_orden4
+ * @property string|null $horaParo
  */
 class TejInventarioTelares extends Model
 {

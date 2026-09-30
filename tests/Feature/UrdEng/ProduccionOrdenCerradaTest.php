@@ -7,6 +7,7 @@ use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProduccionFormulacionModel;
 use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Sistema\SYSUsuario;
+use App\Models\Sistema\Usuario;
 use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
@@ -30,23 +31,18 @@ class ProduccionOrdenCerradaTest extends TestCase
         parent::setUp();
         $this->prepararSqlite();
         $this->tablaDe(UrdProgramaUrdido::class, ['Incorrecto']);
-        $this->tablaDe(UrdJuliosOrden::class);
-        $this->tablaDe(UrdProduccionUrdido::class);
-        $this->tablaDe(EngProgramaEngomado::class);
-        $this->tablaDe(EngProduccionEngomado::class);
-        $this->tablaDe(EngProduccionFormulacionModel::class);
         $this->tablaDe(SYSUsuario::class, ['area']);
-        $this->tablaDe(CatUbicaciones::class);
+        foreach ([UrdJuliosOrden::class, UrdProduccionUrdido::class, EngProgramaEngomado::class,
+            EngProduccionEngomado::class, EngProduccionFormulacionModel::class, CatUbicaciones::class] as $modelo) {
+            $this->tablaDe($modelo);
+        }
 
-        DB::connection('sqlsrv')->table('UrdProgramaUrdido')->insert([
-            'Id' => 1, 'Folio' => 'F-1', 'Status' => 'Finalizado', 'MaquinaId' => 'Mc Coy 2', 'Metros' => 6000, 'Incorrecto' => 0,
-        ]);
-        DB::connection('sqlsrv')->table('UrdProduccionUrdido')->insert([
-            'Id' => 1, 'Folio' => 'F-1', 'Hilos' => 640, 'KgBruto' => 300, 'AX' => 0,
-        ]);
+        $db = DB::connection('sqlsrv');
+        $db->table('UrdProgramaUrdido')->insert(['Id' => 1, 'Folio' => 'F-1', 'Status' => 'Finalizado', 'MaquinaId' => 'Mc Coy 2', 'Metros' => 6000, 'Incorrecto' => 0]);
+        $db->table('UrdProduccionUrdido')->insert(['Id' => 1, 'Folio' => 'F-1', 'Hilos' => 640, 'KgBruto' => 300, 'AX' => 0]);
     }
 
-    private function capturista(): \App\Models\Sistema\Usuario
+    private function capturista(): Usuario
     {
         return $this->usuarioCon([154 => ['acceso', 'modificar'], 'Producción Urdido' => ['acceso', 'modificar']], 'Urdido');
     }
