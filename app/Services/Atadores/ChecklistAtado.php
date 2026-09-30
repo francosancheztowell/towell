@@ -36,8 +36,8 @@ final class ChecklistAtado
         );
 
         $filas = AtaMaquinasModel::query()->pluck('MaquinaId')
-            ->reject(fn ($id) => isset($existentes[$this->llave($id)]))
-            ->unique(fn ($id) => $this->llave($id))
+            ->reject(fn ($id) => isset($existentes[self::llave($id)]))
+            ->unique(fn ($id) => self::llave($id))
             ->map(fn ($id) => [
                 'NoJulio' => $noJulio,
                 'NoProduccion' => $noProduccion,
@@ -61,8 +61,8 @@ final class ChecklistAtado
         $catalogo ??= AtaActividadesModel::query()->get(['ActividadId', 'Porcentaje']);
 
         $filas = $catalogo
-            ->reject(fn ($act) => isset($existentes[$this->llave($act->ActividadId)]))
-            ->unique(fn ($act) => $this->llave($act->ActividadId))
+            ->reject(fn ($act) => isset($existentes[self::llave($act->ActividadId)]))
+            ->unique(fn ($act) => self::llave($act->ActividadId))
             ->map(fn ($act) => [
                 'NoJulio' => $noJulio,
                 'NoProduccion' => $noProduccion,
@@ -102,10 +102,11 @@ final class ChecklistAtado
      */
     private function llaves(Collection $ids): array
     {
-        return $ids->mapWithKeys(fn ($id) => [$this->llave($id) => true])->all();
+        return $ids->mapWithKeys(fn ($id) => [self::llave($id) => true])->all();
     }
 
-    private function llave(mixed $id): string
+    /** Llave de máquina/actividad como la compara SQL Server (sin mayúsculas ni espacios finales). */
+    public static function llave(mixed $id): string
     {
         return mb_strtolower(rtrim((string) $id));
     }

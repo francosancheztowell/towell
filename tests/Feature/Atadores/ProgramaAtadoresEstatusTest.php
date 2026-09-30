@@ -64,7 +64,7 @@ class ProgramaAtadoresEstatusTest extends TestCase
     {
         return app(ProgramaAtadoresListado::class)->filas(auth()->user(), $filtro)
             ->map(fn ($f) => ['id' => (string) $f->id, 'status' => (string) ($f->status_proceso ?? 'Activo')])
-            ->values()->all();
+            ->sortBy('id')->values()->all();
     }
 
     /** @return list<array{id: string, status: string}> */
@@ -72,7 +72,7 @@ class ProgramaAtadoresEstatusTest extends TestCase
     {
         $json = $this->getJson(route('atadores.programa.estatus', array_filter(['filtro' => $filtro])))->assertOk()->json();
 
-        return array_map(fn ($f) => ['id' => (string) $f['id'], 'status' => (string) $f['status']], $json);
+        return collect($json)->map(fn ($f) => ['id' => (string) $f['id'], 'status' => (string) $f['status']])->sortBy('id')->values()->all();
     }
 
     public function test_estatus_devuelve_las_mismas_filas_que_el_tablero_para_cada_rol_y_filtro(): void

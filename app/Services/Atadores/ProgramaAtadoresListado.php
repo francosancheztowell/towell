@@ -75,13 +75,11 @@ class ProgramaAtadoresListado
             $this->aplicarRol($query, $user);
         }
 
+        // Sin ORDER BY: el tablero lo cruza por id (Map) y el orden lo pone la página.
         return $query
-            ->orderBy('tej_inventario_telares.fecha')
-            ->orderBy('tej_inventario_telares.turno')
             ->toBase()
             ->get()
-            ->map(fn ($fila) => ['id' => $fila->id, 'status' => $fila->status_proceso ?? 'Activo'])
-            ->values();
+            ->map(fn ($fila) => ['id' => $fila->id, 'status' => $fila->status_proceso ?? 'Activo']);
     }
 
     private function columnaEstatus(): Expression

@@ -120,4 +120,24 @@ class AtadoresChecklistConsultasTest extends TestCase
         $this->assertSame(12, DB::connection('sqlsrv')->table('AtaMontadoActividades')->count());
         $this->assertSame(1, (int) DB::connection('sqlsrv')->table('AtaMontadoActividades')->where('ActividadId', 'Actividad 1')->value('Estado'));
     }
+
+    /** Como compara SQL Server: 'Peinado' del catálogo es la fila 'PEINADO ' ya marcada, no una faltante. */
+    public function test_calificar_reconoce_la_actividad_sin_importar_mayusculas_ni_espacios_finales(): void
+    {
+        DB::connection('sqlsrv')->table('AtaActividades')->insert(['ActividadId' => 'Peinado', 'Porcentaje' => 20]);
+        DB::connection('sqlsrv')->table('AtaMontadoTelas')->insert([
+            'Estatus' => 'En Proceso', 'NoJulio' => '00010-1', 'NoProduccion' => '00010',
+            'Tipo' => 'Rizo', 'NoTelarId' => '300', 'Fecha' => '2026-09-24', 'Turno' => '1',
+        ]);
+        DB::connection('sqlsrv')->table('AtaMontadoActividades')->insert([
+            'NoJulio' => '00010-1', 'NoProduccion' => '00010', 'ActividadId' => 'PEINADO ', 'Estado' => 1,
+            'Porcentaje' => 20, 'CveEmpl' => '1001', 'NomEmpl' => 'Ana',
+        ]);
+
+        $html = (string) $this->get('/atadores/calificar?no_julio=00010-1&no_orden=00010')->assertOk()->getContent();
+
+        $this->assertSame(1, DB::connection('sqlsrv')->table('AtaMontadoActividades')->count(), 'no se siembra otra');
+        $this->assertMatchesRegularExpression('/<input type="checkbox" checked[^>]*data-actividad="Peinado"/s', $html);
+        $this->assertStringContainsString('1001 - Ana', $html);
+    }
 }

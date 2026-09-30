@@ -76,7 +76,7 @@ class OeeAtadoresFileService
         $detalle = $workbook->getSheetByName('DETALLE');
 
         if (! $detalle) {
-            throw new RuntimeException('No se encontró la hoja DETALLE en el archivo OEE.');
+            throw new OeeAtadoresReglaException('No se encontró la hoja DETALLE en el archivo OEE.');
         }
 
         $parsed = $this->parseDetalleSections($detalle);
@@ -138,7 +138,7 @@ class OeeAtadoresFileService
         $detalle = $spreadsheet->getSheetByName('DETALLE');
 
         if (! $detalle) {
-            throw new RuntimeException('No se encontró la hoja DETALLE en el archivo OEE.');
+            throw new OeeAtadoresReglaException('No se encontró la hoja DETALLE en el archivo OEE.');
         }
 
         $dataWorkbook = null;
@@ -153,7 +153,7 @@ class OeeAtadoresFileService
             $detalleData = $dataWorkbook->getSheetByName('DETALLE');
 
             if (! $detalleData) {
-                throw new RuntimeException('No se encontro la hoja DETALLE en el archivo OEE.');
+                throw new OeeAtadoresReglaException('No se encontro la hoja DETALLE en el archivo OEE.');
             }
 
             $parsed = $this->parseDetalleSections($detalle, $detalleData);
@@ -166,7 +166,7 @@ class OeeAtadoresFileService
 
         $workbookYear = $this->resolveWorkbookYear($spreadsheet);
         if ($workbookYear !== null && $workbookYear !== $year) {
-            throw new RuntimeException("El archivo OEE corresponde al año {$workbookYear}; no se pueden mezclar semanas del año ISO {$year}.");
+            throw new OeeAtadoresReglaException("El archivo OEE corresponde al año {$workbookYear}; no se pueden mezclar semanas del año ISO {$year}.");
         }
 
         $recordsByWeek = $this->preloadRecordsByWeek($weeks);
@@ -335,7 +335,7 @@ class OeeAtadoresFileService
         )));
 
         if (count($years) !== 1) {
-            throw new RuntimeException('El rango debe pertenecer al mismo año ISO para actualizar el archivo anual OEE.');
+            throw new OeeAtadoresReglaException('El rango debe pertenecer al mismo año ISO para actualizar el archivo anual OEE.');
         }
 
         return $years[0];

@@ -185,14 +185,19 @@ class AtadoresController extends Controller
                 return null;
             });
         } catch (\Throwable $e) {
+            // report() lo manda a /admin/errores; el mismo código va al log y al mensaje (si el monitoreo
+            // no registró evento, traceIdDeError da un uuid que solo queda en este log).
             report($e);
+            $ref = $this->traceIdDeError($e);
             Log::error('Atadores: no se pudo iniciar el atado', [
+                'trace_id' => $ref,
                 'no_julio' => $item->no_julio,
                 'no_orden' => $item->no_orden,
+                'exception' => $e->getMessage(),
             ]);
 
             return redirect()->route('atadores.programa')
-                ->with('error', 'No se pudo iniciar el atado. Intente nuevamente (ref: '.$this->traceIdDeError($e).').');
+                ->with('error', 'No se pudo iniciar el atado. Intente nuevamente (ref: '.$ref.').');
         }
 
         // Otra petición (o un intento anterior) ya creó el atado: continuar sobre él, no duplicar.
@@ -340,15 +345,16 @@ class AtadoresController extends Controller
             }
 
             if (! $esKm) {
+                // Llave normalizada (ChecklistAtado::llave) en la siembra, aquí y en la vista.
                 $maquinasMontado = AtaMontadoMaquinasModel::where('NoJulio', $actual->NoJulio)
                     ->where('NoProduccion', $actual->NoProduccion)
                     ->get()
-                    ->keyBy('MaquinaId');
+                    ->keyBy(fn ($m) => ChecklistAtado::llave($m->MaquinaId));
 
                 $actividadesMontado = AtaMontadoActividadesModel::where('NoJulio', $actual->NoJulio)
                     ->where('NoProduccion', $actual->NoProduccion)
                     ->get()
-                    ->keyBy('ActividadId');
+                    ->keyBy(fn ($a) => ChecklistAtado::llave($a->ActividadId));
             }
 
             if ($esKm) {
@@ -374,7 +380,7 @@ class AtadoresController extends Controller
 
             // En Jacquard/SMIT, si el inicio no sembró actividades, se crean al abrir.
             $faltantes = $actividadesCatalogo->filter(function ($act) use ($actividadesMontado) {
-                return ! $actividadesMontado->has((string) $act->ActividadId);
+                return ! $actividadesMontado->has(ChecklistAtado::llave($act->ActividadId));
             });
 
             if ($faltantes->isNotEmpty()) {
@@ -389,7 +395,7 @@ class AtadoresController extends Controller
                 $actividadesMontado = AtaMontadoActividadesModel::where('NoJulio', $actual->NoJulio)
                     ->where('NoProduccion', $actual->NoProduccion)
                     ->get()
-                    ->keyBy('ActividadId');
+                    ->keyBy(fn ($a) => ChecklistAtado::llave($a->ActividadId));
             }
         }
 

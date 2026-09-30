@@ -6,7 +6,7 @@
     <div class="flex items-center gap-2">
         {{-- Botón de Filtros --}}
         <x-navbar.button-report id="btn-open-filters" title="Filtros" icon="fa-filter" text="Filtrar"
-            module="Programa Atadores" iconColor="text-white" hoverBg="hover:bg-green-600" class="text-white"
+            :moduleId="45" iconColor="text-white" hoverBg="hover:bg-green-600" class="text-white"
             bg="bg-green-600" />
 
         <x-navbar.button-create id="btnIniciarAtado" data-accion="iniciar-atado" disabled :moduleId="45"

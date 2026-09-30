@@ -331,7 +331,7 @@
                         <tbody class="bg-white divide-y divide-gray-200">
                             @forelse($maquinasCatalogo as $maq)
                                 @php
-                                    $m = $maquinasMontado->get($maq->MaquinaId);
+                                    $m = $maquinasMontado->get(\App\Services\Atadores\ChecklistAtado::llave($maq->MaquinaId));
                                     $checked = $m && (int) ($m->Estado ?? 0) === 1;
                                 @endphp
                                 <tr>
@@ -374,7 +374,7 @@
                         <tbody class="bg-white divide-y divide-gray-200">
                             @forelse($actividadesCatalogo->reverse() as $act)
                                 @php
-                                    $a = $actividadesMontado->get($act->ActividadId);
+                                    $a = $actividadesMontado->get(\App\Services\Atadores\ChecklistAtado::llave($act->ActividadId));
                                     $checked = $a && (int) ($a->Estado ?? 0) === 1;
                                     $porcentaje = $a->Porcentaje ?? $act->Porcentaje;
                                     $operador = $a && ($a->NomEmpl || $a->CveEmpl)

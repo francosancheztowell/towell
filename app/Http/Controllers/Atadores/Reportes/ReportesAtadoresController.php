@@ -7,6 +7,7 @@ use App\Exports\Reporte00EAtadoresRangoExport;
 use App\Http\Controllers\Controller;
 use App\Jobs\ActualizarOeeAtadoresJob;
 use App\Services\OeeAtadores\OeeAtadoresFileService;
+use App\Services\OeeAtadores\OeeAtadoresReglaException;
 use App\Support\Http\Concerns\HandlesApiErrors;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
@@ -247,6 +248,12 @@ class ReportesAtadoresController extends Controller
             $resultado = $service->verificarSemanasConDatos($lunesInicio, $lunesFin);
 
             return response()->json($resultado);
+        } catch (OeeAtadoresReglaException $e) {
+            // Regla que el usuario corrige (p. ej. rango que cruza años ISO): el texto lo escribe el
+            // servicio (OeeAtadoresReglaException), no viene de SQL ni de PhpSpreadsheet.
+            $regla = $e->getMessage();
+
+            return response()->json(['error' => $regla, 'message' => $regla], 422);
         } catch (\Throwable $e) {
             return $this->apiErrorResponse($e, 'OEE Atadores: no se pudo verificar el archivo', 'No se pudo verificar el archivo OEE. Si continúa, comparte el código de referencia con Sistemas.', 500, [
                 'archivo' => $filePath,
