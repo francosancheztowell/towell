@@ -60,7 +60,8 @@ export function cambiados(desde) {
         return partes[0].startsWith('R') ? { archivo: partes[2], anterior: partes[1] } : { archivo: partes[1], anterior: partes[0] === 'A' ? null : partes[1] }
       })
     : []
-  const nuevos = git('ls-files', '--others', '--exclude-standard', '--', '*.php')
+  // En local tambien los nuevos sin git add; en el CI no hay (y lo que genera el job no cuenta).
+  const nuevos = process.env.GITHUB_ACTIONS ? '' : git('ls-files', '--others', '--exclude-standard', '--', '*.php')
   for (const archivo of nuevos ? nuevos.split('\n') : []) archivos.push({ archivo, anterior: null })
   return archivos.filter(({ archivo }) => !archivo.endsWith('.blade.php'))
 }
