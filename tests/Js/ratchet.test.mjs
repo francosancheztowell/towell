@@ -53,3 +53,19 @@ test('SQL crudo con $interpolado cuenta comillas dobles con variable, no binding
     DB::select("SELECT 1");`
   assert.equal(count(php), 3)
 })
+
+test('catch vacío cuenta solo cuerpos vacíos, no los que comentan o hacen algo', () => {
+  const count = METRICS['catch vacío'].count
+  const php = `
+    try { a(); } catch (\\Throwable $e) {}
+    try { a(); } catch (\\Throwable $e) {
+
+    }
+    try { a(); } catch (QueryException | \\PDOException $e) { }
+    try { a(); } catch (\\Throwable) {}
+    try { a(); } catch (\\Throwable $e) {
+        // nunca debe lanzar
+    }
+    try { a(); } catch (\\Throwable $e) { report($e); }`
+  assert.equal(count(php), 4)
+})

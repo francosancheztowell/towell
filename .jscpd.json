@@ -1,0 +1,15 @@
+{
+  "path": ["app", "resources", "routes", "config", "database", "public/js", "scripts", "tests"],
+  "format": ["php", "typescript", "javascript"],
+  "formatsExts": {
+    "php": ["php"],
+    "typescript": ["ts"],
+    "javascript": ["js", "mjs", "cjs"]
+  },
+  "ignore": ["**/vendor/**", "**/node_modules/**", "public/build/**", "tests/fixtures/**", "storage/**", "**/*.min.js"],
+  "gitignore": true,
+  "exitCode": 0,
+  "silent": true,
+  "reporters": ["json"],
+  "output": "node_modules/.cache/jscpd"
+}
