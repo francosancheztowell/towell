@@ -1,0 +1,20 @@
+{
+  "programa-tejido": {
+    "html_kb": 1078,
+    "gzip_kb": 100.9,
+    "ttfb_ms": 318,
+    "dcl_menos_response_ms": 652,
+    "clic_fila_ms": 2.5,
+    "clic_fallidos": 0,
+    "errores_consola": []
+  },
+  "muestras": {
+    "html_kb": 1050,
+    "gzip_kb": 93.2,
+    "ttfb_ms": 324,
+    "dcl_menos_response_ms": 647,
+    "clic_fila_ms": 2.3,
+    "clic_fallidos": 0,
+    "errores_consola": []
+  }
+}

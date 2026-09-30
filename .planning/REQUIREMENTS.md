@@ -116,6 +116,7 @@
 - [ ] **MIG-<MOD>-02**: Adopción de `http`/`notify`/`format` y componentes DS; ratchet baja.
 - [ ] **MIG-<MOD>-03**: Duplicados del módulo consolidados (BPM, secuencias, calificar-julios, catálogos).
 - [ ] **MIG-<MOD>-04**: Livewire solo donde la guía lo indica.
+  - ✅ **TEJ** (19-02, 2026-09-29): 01–04 hechos; 17 vistas de Tejido, Cortes, Marcas, Reenconado e Inventario de trama sin JS inline (guardián de 58 casos), secuencias ×4 → 1. Pendientes: 6 decisiones del owner (19-02-SUMMARY).
   - ✅ **URD** y **ENG** (19-01, 2026-09-29): 01–04 hechos; 41 vistas sin JS inline (guardián `VistasSinJsInlineTest`), BPM/BPM-Line/calificar-julios deduplicados, sin Livewire (no aplica). Pendientes: 3 decisiones del owner (19-01-SUMMARY).
 
 ### Arquitectura y seguridad (fases 10, 20)
@@ -132,6 +133,16 @@
 - [ ] **ADOP-01**: Hits de redirects legados medidos. **ADOP-02**: rutas/vistas con 0 hits en 30 días retiradas.
 - [ ] **ADOP-03**: Dependencias y adaptadores temporales retirados. **ADOP-04**: `filter-engine.ts` en utils.
 - [ ] **ADOP-05**: `CLAUDE.md`/`AGENTS.md`/`docs/cerebro-towell` al día. **ADOP-06**: `inventario-bugs.md` actualizado.
+
+### Calidad (fase 22)
+
+- [x] **CAL-01**: (22-01, 2026-09-30: ratchet con catch vacío 28 y duplicación 6.93 %; PHPMD solo violaciones nuevas en cambiados; `composer audit` al cambiar el lock; `composer quality`) Gates en CI sin baseline global: ratchet con `catch vacío` y `duplicación %` (jscpd), PHPMD `unusedcode`+`codesize` sobre archivos cambiados, `composer audit` bloqueante al cambiar `composer.lock`, comando `composer quality`.
+- [ ] **CAL-02**: (parte libre hecha en 22-01; OeeAtadores en 19-03) Código muerto que phpstan ya marca (`is unused`) borrado y baseline regenerado; OeeAtadores dentro de 19-03.
+- [ ] **CAL-03**: Catch vacíos del flujo principal → `report($e)` por su dueño; excepciones deliberadas documentadas (Monitoreo, `EnsureModulePermission`, Telemetría).
+- [x] **CAL-04**: (22-01: 10 tests del import que destaparon 3 bugs; cobertura 46 % medida en la rama, top-20 en `22-01-SUMMARY.md`; Infection queda para PT 05.1) Tests de hotspots sin cobertura (`ReqModelosCodificadosImport`); cobertura por archivo medida en la rama integradora; Infection puntual antes de partir `DividirTejido`/`DuplicarTejido`.
+- [x] **CAL-05**: (22-01: exports BPM y Resumen Semanal sobre bases comunes, 992→556 líneas, snapshot celda a celda) Exports idénticos de Urdido/Engomado unificados.
+- [ ] **CAL-06**: Complejidad de `ReportesUrdidoController` (y de `AtadoresController`/OeeAtadores en 19-03, `CatLMat` en 19-06) bajo los umbrales de PHPMD.
+- [ ] **CAL-07**: phpstan nivel 8 por carpeta para el código nuevo (Ola 4).
 
 ## v1 Requirements — Track PT (Programa Tejido)
 
@@ -151,7 +162,7 @@
 
 ### UI (Livewire)
 
-- [ ] **PT-UI-01**: (2026-09-24: **mismo diseño visual** y solo si mejora TTFB/KB/interacción vs `04-PERF-MEDIDO.md`) UI v2 es Livewire — componente(s) siguiendo el patrón `Crudo/MachineDetail.php` (datasets grandes como `#[Computed]`, no propiedad pública) y `UrdEng/ProgramBoard.php` (reorder/drag-drop).
+- [x] **PT-UI-01**: (hecho 2026-09-29, **gate no pasa**: v2 apagado, PT sigue en Blade/TS; ver PROJECT) (2026-09-24: **mismo diseño visual** y solo si mejora TTFB/KB/interacción vs `04-PERF-MEDIDO.md`) UI v2 es Livewire — componente(s) siguiendo el patrón `Crudo/MachineDetail.php` (datasets grandes como `#[Computed]`, no propiedad pública) y `UrdEng/ProgramBoard.php` (reorder/drag-drop).
 - [ ] **PT-UI-02**: La tabla ofrece presets, filtros claros, acciones accesibles y estados explícitos (loading/error/empty).
 
 ### Mutaciones
@@ -176,7 +187,7 @@
 ### Rendimiento
 
 - [ ] **PT-PERF-01**: Índices faltantes creados — `ReqProgramaTejidoLine` no tiene ningún índice sobre `ProgramaId`/`Fecha`; `ReqProgramaTejido` sin índice directo sobre `(NoTelarId, Posicion)`.
-- [ ] **PT-PERF-02**: Eliminar N+1 confirmados en `ProgramaTejidoController::store()` (query de posición por telar en loop) y `CortesEficienciaController::obtenerDatosVisualizacionPorFecha()` (3 queries por fecha en rango). → mitad PT hecha en PT 05 (posiciones en 1 consulta; dividir 6 destinos 70→65); Cortes queda para 19-02 Tejido (HANDOFF PT-05 B3).
+- [x] **PT-PERF-02**: Eliminar N+1 confirmados en `ProgramaTejidoController::store()` (query de posición por telar en loop) y `CortesEficienciaController::obtenerDatosVisualizacionPorFecha()` (3 queries por fecha en rango). → mitad PT hecha en PT 05 (posiciones en 1 consulta; dividir 6 destinos 70→65); Cortes: 19-02 midió que `obtenerDatosVisualizacionPorFecha` hace 3 consultas fijas (no había rango ni N+1) y bajó `getDatosTelares` 31→2 y el autoguardado 60→~10.
 
 ### ERP quick wins (auditoría 2026-09-22, Fase 0)
 

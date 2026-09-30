@@ -23,7 +23,8 @@ class ProgramaTejidoGridMarkupTest extends TestCase
 
     public function test_la_celda_se_arma_en_php_y_en_una_sola_linea(): void
     {
-        $vista = $this->src('resources/views/modulos/programa-tejido/req-programa-tejido.blade.php');
+        // La grilla vive en un partial que comparten la vista legacy y el shell v2 (PT 03).
+        $vista = $this->src('resources/views/modulos/programa-tejido/partials/grilla.blade.php');
 
         // El <td> multilinea dejaba ~150 bytes de sangria por celda (x7 820).
         $this->assertStringContainsString(
@@ -48,14 +49,16 @@ class ProgramaTejidoGridMarkupTest extends TestCase
 
     public function test_las_columnas_ocultas_se_resuelven_en_el_servidor(): void
     {
-        $vista = $this->src('resources/views/modulos/programa-tejido/req-programa-tejido.blade.php');
+        // La grilla vive en un partial que comparten la vista legacy y el shell v2 (PT 03).
+        $vista = $this->src('resources/views/modulos/programa-tejido/partials/grilla.blade.php');
         $this->assertStringContainsString('$ocultas = array_fill_keys($hiddenFields ?? [], true);', $vista);
         $this->assertStringContainsString("isset(\$ocultas[\$field]) ? ' style=\"display:none\"' : ''", $vista);
         // El th tambien, o queda una columna visible sin celdas debajo.
         $this->assertStringContainsString("isset(\$ocultas[\$col['field']]) ? 'display:none;' : ''", $vista);
 
-        $ctrl = $this->src('app/Http/Controllers/Planeacion/ProgramaTejido/ProgramaTejidoController.php');
-        $this->assertStringContainsString('columnasOcultasDelUsuario', $ctrl);
+        // La lectura salió del controller al read service (PT 03), que usan legacy y v2.
+        $ctrl = $this->src('app/Services/Planeacion/ProgramaTejido/ProgramaTejidoReadService.php');
+        $this->assertStringContainsString('function columnasOcultas(', $ctrl);
         $this->assertStringContainsString("->where('Estado', 1)", $ctrl);
 
         // Y el front tiene que recibir la lista para no volver a pedirla por HTTP
@@ -107,7 +110,8 @@ class ProgramaTejidoGridMarkupTest extends TestCase
         // Vite. Sin ?v= el navegador sirve el de antes: al mover px-3/py-2/text-sm
         // de la celda a #mainTable tbody td, un main.css viejo deja la tabla sin
         // tamano ni padding y la pagina se ve "con zoom".
-        $vista = $this->src('resources/views/modulos/programa-tejido/req-programa-tejido.blade.php');
+        // Modales, menús y hojas de estilo: partial compartido por la legacy y el shell v2 (PT 03).
+        $vista = $this->src('resources/views/modulos/programa-tejido/partials/complementos.blade.php');
 
         foreach (['main', 'modals'] as $hoja) {
             $this->assertStringContainsString(

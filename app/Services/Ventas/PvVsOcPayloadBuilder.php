@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Ventas;
 
 use App\Repositories\Ventas\PvVsOcReportRepository;
-use Illuminate\Support\Collection;
+use Illuminate\Support\LazyCollection;
 
 final class PvVsOcPayloadBuilder
 {
@@ -30,43 +30,47 @@ final class PvVsOcPayloadBuilder
 
     public function __construct(private readonly PvVsOcReportRepository $repository) {}
 
-    public function build(int $anio): string
+    /**
+     * Todos los años. Cada fila se serializa a JSON al vuelo: con arreglos PHP de ~260k filas el
+     * pico de memoria superaba los 512 MB (un solo año ya usaba ~230 MB).
+     */
+    public function build(): string
     {
         $dict = [];
         $indice = [];
 
-        $plan = $this->mapearFilas($this->repository->pronostico($anio), $dict, $indice, esOc: false);
-        $oc = $this->mapearFilas($this->repository->pedidos($anio), $dict, $indice, esOc: true);
-        $real = $this->mapearFilas($this->repository->ventas($anio), $dict, $indice, esOc: false);
+        $plan = $this->serializarFilas($this->repository->pronostico(), $dict, $indice, esOc: false);
+        $oc = $this->serializarFilas($this->repository->pedidos(), $dict, $indice, esOc: true);
+        $real = $this->serializarFilas($this->repository->ventas(), $dict, $indice, esOc: false);
 
-        $payload = [
-            'v' => 4,
-            'sf' => self::SF,
-            'nf' => self::NF,
-            'dict' => $dict,
-            'plan' => $plan,
-            'oc' => $oc,
-            'real' => $real,
-            'meta' => [
-                'archivo' => '(datos en vivo)',
-                'fecha' => now()->format('d/m/Y H:i'),
-            ],
-        ];
+        $encode = static fn (mixed $valor): string => json_encode($valor, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 
-        $json = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        // Mismo shape que antes: { v, sf, nf, dict, plan, oc, real, meta }.
+        $json = '{"v":4'
+            .',"sf":'.$encode(self::SF)
+            .',"nf":'.$encode(self::NF)
+            .',"dict":'.$encode($dict)
+            .',"plan":['.$plan.']'
+            .',"oc":['.$oc.']'
+            .',"real":['.$real.']'
+            .',"meta":'.$encode(['archivo' => '(datos en vivo)', 'fecha' => now()->format('d/m/Y H:i')])
+            .'}';
+        unset($plan, $oc, $real);
+
         $gzip = gzencode($json, 6, ZLIB_ENCODING_GZIP);
 
         return 'GZ:'.base64_encode((string) $gzip);
     }
 
     /**
+     * Devuelve las filas como JSON separado por comas (sin corchetes).
+     *
      * @param  array<int, string>  $dict
      * @param  array<string, int>  $indice
-     * @return list<list<int|float>>
      */
-    private function mapearFilas(Collection $filas, array &$dict, array &$indice, bool $esOc): array
+    private function serializarFilas(LazyCollection $filas, array &$dict, array &$indice, bool $esOc): string
     {
-        $out = [];
+        $out = '';
 
         foreach ($filas as $fila) {
             $status = $esOc ? $this->calcularStatus($fila) : '';
@@ -74,7 +78,7 @@ final class PvVsOcPayloadBuilder
             $mes = str_pad((string) ($fila->MES ?? ''), 2, '0', STR_PAD_LEFT);
             $semana = str_pad((string) ($fila->SEMANA ?? ''), 2, '0', STR_PAD_LEFT);
 
-            $out[] = [
+            $out .= ($out === '' ? '' : ',').json_encode([
                 $this->internar($status, $dict, $indice),
                 $this->internar((string) ($fila->TEXTIL ?? ''), $dict, $indice),
                 $this->internar((string) ($fila->TIPOPEDIDO ?? ''), $dict, $indice),
@@ -94,7 +98,7 @@ final class PvVsOcPayloadBuilder
                 $this->numero($fila->AMOUNT ?? 0),
                 $this->numero($fila->AMOUNTDES ?? 0),
                 $this->numero($fila->AMOUNTNETO ?? 0),
-            ];
+            ], JSON_THROW_ON_ERROR);
         }
 
         return $out;

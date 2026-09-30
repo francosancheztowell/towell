@@ -20,6 +20,7 @@
 
 @push('scripts')
     @vite('resources/js/tejido/inventario-telas.ts')
+    @vite('resources/js/modulos/tejido/inventario-telas/index.ts')
 @endpush
 
 @section('navbar-right')
@@ -29,10 +30,13 @@
         <button
             type="button"
             id="btnDropdownTelares"
+            aria-haspopup="true"
+            aria-expanded="false"
+            aria-controls="menuDropdownTelares"
             class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-none"
         >
             <span class="font-medium">Telares</span>
-            <i class="fas fa-chevron-down text-sm transition-transform duration-200 ease-out rotate-0" id="iconDropdown"></i>
+            <i class="fas fa-chevron-down text-sm transition-transform duration-200 ease-out rotate-0" id="iconDropdown" aria-hidden="true"></i>
         </button>
 
         <!-- Menú Dropdown -->
@@ -43,7 +47,8 @@
             <div class="py-2">
                 <button
                     type="button"
-                    onclick="event.stopPropagation(); irATelar('');"
+                    data-accion="ir-telar"
+                    data-telar=""
                     class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                 >
                     <span class="font-medium">Todos los telares</span>
@@ -52,7 +57,8 @@
                 @foreach(collect($telares)->sortBy(fn($v) => (float) $v)->values() as $t)
                     <button
                         type="button"
-                        onclick="event.stopPropagation(); irATelar('{{ $t }}');"
+                        data-accion="ir-telar"
+                        data-telar="{{ $t }}"
                         class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                     >
                         Telar <span class="font-semibold">{{ $t }}</span>
@@ -93,7 +99,7 @@
         <div class="flex flex-col items-center justify-center py-12 px-4">
             <div class="text-center">
                 <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gray-100 mb-4">
-                    <i class="fas fa-industry text-4xl text-gray-400"></i>
+                    <i class="fas fa-industry text-4xl text-gray-400" aria-hidden="true"></i>
                 </div>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">
                     No hay telares {{ $nombresSalon[$tipoInventario] ?? '' }} en proceso
@@ -109,99 +115,4 @@
     @endif
 </div>
 
-@if(count($telares) > 0)
-<script>
-/** Toggle del dropdown (sin dependencias) */
-(function(){
-  const btn = document.getElementById('btnDropdownTelares');
-  const menu = document.getElementById('menuDropdownTelares');
-  const icon = document.getElementById('iconDropdown');
-
-  btn?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const hidden = menu.classList.contains('hidden');
-    menu.classList.toggle('hidden', !hidden);
-    icon.classList.toggle('rotate-180', hidden);
-    icon.classList.toggle('rotate-0', !hidden);
-  });
-
-  document.addEventListener('click', (e) => {
-    // Solo cerrar si el click fue fuera del botón y del menú
-    // Y si el menú no está oculto (para evitar cerrar múltiples veces)
-    if (menu && !menu.classList.contains('hidden')) {
-      if (!btn.contains(e.target) && !menu.contains(e.target)) {
-        menu.classList.add('hidden');
-        icon.classList.remove('rotate-180');
-        icon.classList.add('rotate-0');
-      }
-    }
-  });
-
-  // Auto-enfocar por ?telar=### o #telar-###
-  window.addEventListener('DOMContentLoaded', function(){
-    const url = new URL(location.href);
-    let t = url.searchParams.get('telar');
-    if(!t && location.hash.startsWith('#telar-')) t = location.hash.replace('#telar-','');
-    if (t) setTimeout(() => irATelar(t), 500);
-  });
-})();
-
-/** Scroll suave al telar y actualización de URL */
-(function(){
-  function getScrollable(node){
-    let n = node ? node.parentElement : null;
-    while (n && n !== document.body) {
-      const cs = getComputedStyle(n);
-      if ((cs.overflowY === 'auto' || cs.overflowY === 'scroll') && n.scrollHeight > n.clientHeight) return n;
-      n = n.parentElement;
-    }
-    return document.scrollingElement || document.documentElement;
-  }
-
-  window.irATelar = function(noTelar){
-    // Cerrar dropdown después de un pequeño delay para permitir que el click se procese
-    setTimeout(() => {
-      const menu = document.getElementById('menuDropdownTelares');
-      const icon = document.getElementById('iconDropdown');
-      if (menu) menu.classList.add('hidden');
-      if (icon) { icon.classList.remove('rotate-180'); icon.classList.add('rotate-0'); }
-    }, 100);
-
-    // Mostrar todo (por si había filtro previo)
-    document.querySelectorAll('[id^="telar-"]').forEach(el => el.classList.remove('hidden'));
-
-    if (!noTelar) {
-      const u0 = new URL(location.href); u0.searchParams.delete('telar'); u0.hash = '';
-      history.replaceState(null,'',u0.toString());
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-
-    const el = document.getElementById('telar-'+noTelar);
-    if (!el) return;
-
-    const sticky = document.querySelector('nav.sticky, nav.fixed, .sticky.top-0');
-    const stickyH = sticky ? sticky.getBoundingClientRect().height : 0;
-    const extra = 50; // aire superior
-
-    const scroller = getScrollable(el);
-    const scRect = scroller.getBoundingClientRect ? scroller.getBoundingClientRect() : { top: 0 };
-    const tRect = el.getBoundingClientRect();
-    const current = scroller.scrollTop || window.pageYOffset || document.documentElement.scrollTop || 0;
-    const targetTop = tRect.top - scRect.top + current - stickyH - extra;
-
-    if (scroller.scrollTo) scroller.scrollTo({ top: Math.max(0, targetTop), behavior:'smooth' });
-    else window.scrollTo({ top: Math.max(0, targetTop), behavior:'smooth' });
-
-    // Actualizar URL con query y hash para compatibilidad
-    const url = new URL(location.href);
-    url.searchParams.set('telar', noTelar);
-    url.hash = 'telar-'+noTelar;
-    history.replaceState(null,'',url.toString());
-  }
-})();
-
-
-</script>
-@endif
 @endsection

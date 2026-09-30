@@ -225,3 +225,68 @@ Acuerdos: docs y commits en español ("programa tejido: …"); modo ponytail; NU
 Antes de push: hook SessionStart; php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run typecheck && npm run test:js && npm run build; npm run ratchet; php artisan planeacion:programa-tejido-health en sqlite; vendor/bin/pint --test en TODOS los PHP que cambies; skills code-review y security-review.
 Entregables: código + tests + 03-SUMMARY.md con la tabla de números v2 vs legacy (+ HANDOFF.md). Push a claude/pt-03-shell-livewire. NO abras PR.
 ```
+
+---
+
+# Ola 3 — Track CAL (fase 22)
+
+Abierta el 2026-09-29 a pedido del owner (propuesta de calidad propia, analizada en `phases/22-calidad/22-CONTEXT.md`). Base: `claude/friendly-hopper-506bg9`. Tags `towell-refactor-2026`, `ola-3`, `cal`. No comparte archivos con 19-03, 19-05, 19-08 ni PT.
+
+| Sesión | Rama | Contexto |
+|---|---|---|
+| CAL — 22-01 gates, 22-02 (libre), 22-04, 22-05 | `claude/22-cal-gates` | `phases/22-calidad/22-CONTEXT.md` |
+
+**Propiedad:** fila "CAL (22)" de `PROTOCOLO-SESIONES.md` §5, más `package.json/lock` (solo la devDependency `jscpd`), los exports `Bpm{Urdido,Engomado}Export` y `ReporteResumenSemanal{Urdido,Engomado}Export` con sus llamadores (solo `use`/`new`), y las constantes `KaizenExport::MESES` y `ReporteOtDiariasExport::COL_NOMBRE`.
+
+## 9. CAL — Gates y primera deuda
+
+```
+(Esta sesión arranca en modo plan: lee el protocolo y el contexto, presenta tu plan para aprobación del owner y, una vez aprobado, ejecútalo completo.)
+
+Proyecto Towell (Laravel 12 + Livewire 4 + Vite/TS; producción Windows/Laragon, SQL Server 2008 R2). Refactor integral 2026, track CAL (calidad). Lee primero .planning/PROTOCOLO-SESIONES.md, .planning/SESIONES-OLA-3.md (sección "Track CAL": propiedad), CLAUDE.md y .planning/phases/22-calidad/22-CONTEXT.md (hallazgos del owner verificados por el integrador y el alcance ajustado). Si el owner sube su documento de análisis a .planning/phases/22-calidad/, úsalo también.
+
+Fase 22 — Calidad, primera tanda. IDs: CAL-01, CAL-02 (parte libre), CAL-04, CAL-05.
+Principio: nada nuevo empeora (gates sobre archivos cambiados o métricas del ratchet, SIN baselines globales nuevos) y la deuda vieja se paga archivo por archivo, con tests primero, por su dueño. Escribe primero .planning/phases/22-calidad/22-01-PLAN.md (cubre las cuatro partes) y luego ejecútalo en commits separados, en este orden; si pasa de ~1 500 líneas sin contar movimientos, parte en -p1/-p2.
+Rama: claude/22-cal-gates (base claude/friendly-hopper-506bg9).
+
+22-01 Gates: (a) scripts/ratchet.mjs: métrica "catch vacío" en app/ (hoy 29; las excepciones deliberadas del CONTEXT cuentan igual, solo que nadie las baja) y métrica "duplicación %" con jscpd (devDependency; formatos php, ts, js, blade; techo = lo medido en la rama; excluir vendor, node_modules, public/build, tests/fixtures). (b) phpmd/phpmd en require-dev + phpmd.xml con reglas unusedcode y codesize (complejidad ciclomática, NPath, largo de método/clase con umbrales documentados en el PLAN), aplicado SOLO a los PHP cambiados en el CI, reusando la lógica de archivos cambiados del paso de Pint en .github/workflows/frontend-checks.yml; verifica que corre limpio en PHP 8.4. (c) composer audit en el CI: bloquea solo si el push/PR cambia composer.lock; si no, solo aviso. (d) script "composer quality" (pint --test en cambiados + phpstan + phpmd en cambiados + npm run ratchet) documentado en CLAUDE.md §Commands y §CI. PHP Insights NO entra como gate.
+22-02 Código muerto (solo lo que no tiene dueño activo): los 2 métodos privados sin uso de app/Imports/ReqModelosCodificadosImport.php (convertToInt, isValidTotalValue) y las constantes sin uso KaizenExport::MESES y ReporteOtDiariasExport::COL_NOMBRE; luego quita del phpstan-baseline.neon solo las entradas que dejan de aplicar (nunca agregar). NO toques OeeAtadoresFileService (19-03), BalancearTejido (PT) ni TelBpmController (19-04).
+22-04 Tests de hotspots: tests de ReqModelosCodificadosImport (import en cola ShouldQueue: filas válidas, vacías, totales, errores; con la cola en sync o Queue::fake) y convierte su catch vacío en report() si es del flujo principal. Cobertura por archivo con pcov medida EN ESTA RAMA (no en main: allí faltan ~550 tests de la Ola 3) → tabla en 22-01-SUMMARY.md con los 20 archivos más riesgosos (líneas × complejidad) con menos cobertura, para priorizar siguientes tandas. No se agrega cobertura al CI.
+22-05 Duplicación: BpmUrdidoExport/BpmEngomadoExport (282 líneas, difieren 6) y ReporteResumenSemanalUrdidoExport/ReporteResumenSemanalEngomadoExport (214, difieren 6) → una clase parametrizada por par (o una base + variante), mismos nombres públicos para sus llamadores; test que genere el Excel antes y después y compare celda a celda (valores, estilos relevantes, anchos). Mide jscpd antes/después.
+
+ERES DUEÑO DE: la fila "CAL (22)" de .planning/PROTOCOLO-SESIONES.md y de la sección Track CAL de SESIONES-OLA-3.md: composer.json/lock (solo require-dev), package.json/lock (solo la devDependency jscpd), .github/workflows/frontend-checks.yml (pasos de calidad), scripts/ratchet.mjs + scripts/ratchet-baseline.json, phpmd.xml, phpstan-baseline.neon (solo quitar), app/Imports/ReqModelosCodificadosImport.php, las 4 clases de export de arriba y sus llamadores (solo el use/new), las 2 constantes citadas, tests nuevos, CLAUDE.md (§Commands y §CI), .planning/phases/22-calidad/**.
+PROHIBIDO: archivos de 19-03 (Atadores/OeeAtadores), 19-05 (Programa Urd-Eng), 19-08 (Mantenimiento), Programa Tejido, bootstrap/**, vite.config.js, config/database.php, reglas de contraseña.
+
+Acuerdos: docs y commits en español ("calidad: …"); modo ponytail (reusa ratchet, baseline de phpstan y la lógica de archivos cambiados; no agregues baselines globales); NUNCA saltar/desactivar tests; no editar ROADMAP/STATE/REQUIREMENTS/PROJECT; el ratchet no sube; SQL 2008 R2 si hubiera; git merge origin/main antes del último push y vuelve a correr todo.
+Antes de push: hook SessionStart; php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run typecheck && npm run test:js && npm run build; npm run ratchet; composer quality; vendor/bin/pint --test en TODOS los PHP que cambies; skill code-review. Comprueba que el CI nuevo pasa en tu rama (el workflow corre en push a claude/**) y que un PHP cambiado con un método privado sin usar sí lo haría fallar (pruébalo en un commit local que no subas).
+Entregables: código + tests + 22-01-PLAN.md + 22-01-SUMMARY.md (con la tabla de cobertura y números antes/después) (+ HANDOFF.md). Push a claude/22-cal-gates. NO abras PR.
+```
+
+## 10. CAL — Dependencias con advisories (22-02s)
+
+Abierta el 2026-09-30 por el hallazgo de seguridad de 22-01 (2 críticos en `phpoffice/phpspreadsheet`). Rama `claude/22-cal-deps`. Dueña de `composer.json` (solo `config.platform` y lo que el update exija sin subir mayores), `composer.lock`, `package-lock.json`; no toca lógica de módulos con dueño activo.
+
+```
+(Esta sesión arranca en modo plan: lee el protocolo y el contexto, presenta tu plan para aprobación del owner y, una vez aprobado, ejecútalo completo.)
+
+Proyecto Towell (Laravel 12 + Livewire 4 + Vite/TS; producción Windows/Laragon, SQL Server 2008 R2). Refactor integral 2026, track CAL. Lee primero .planning/PROTOCOLO-SESIONES.md, .planning/SESIONES-OLA-3.md (Track CAL), CLAUDE.md, .planning/phases/22-calidad/22-CONTEXT.md y 22-01-SUMMARY.md (§Hallazgos y HANDOFF).
+
+Fase 22 — CAL-deps: dependencias con advisories de seguridad. Escribe primero .planning/phases/22-calidad/22-02s-PLAN.md y luego ejecútalo.
+Rama: claude/22-cal-deps (base claude/friendly-hopper-506bg9).
+
+Situación (composer audit sobre composer.lock, 2026-09-30): 56 advisories en 16 paquetes; 2 críticos en phpoffice/phpspreadsheet 1.30.2 (uno es SSRF/RCE en IOFactory::load con nombre de archivo del usuario; la app importa Excel subidos con maatwebsite/excel), altos en laravel/framework v12.53.0 (arreglo en 12.60), maatwebsite/excel 3.1.67 (arreglo en 3.1.70), guzzlehttp/guzzle 7.10.0, league/commonmark 2.8.2, symfony/* y otros. npm audit: 1 alto (nanoid).
+
+Alcance:
+1. Versión de PHP de producción: nadie la dejó escrita. Averíguala con lo que haya en el repo (docs/cerebro-towell/Runbooks, .env.example, requisitos del lock actual: el máximo "require php" de los paquetes instalados hoy es un piso que producción ya cumple). Fija config.platform.php en composer.json a ese piso para que el lock nuevo nunca exija más de lo que hay en Laragon, y documéntalo; si hay duda real, deja el piso más bajo que satisfaga el lock actual y anótalo como pregunta para el owner en el SUMMARY (el runbook de despliegue debe decir cómo confirmarlo: php -v en Laragon).
+2. composer update -W SOLO de los paquetes con advisories (y lo que arrastren), dentro de las restricciones actuales de composer.json: sin subir mayores (laravel/framework ^12, maatwebsite/excel ^3.1, phpspreadsheet dentro de lo que permita maatwebsite 3.1). Si un advisory no tiene arreglo sin subir mayor, no lo fuerces: documéntalo con su riesgo real para Towell.
+3. npm audit fix SIN --force; si algo pide mayor, documéntalo.
+4. Verificación extra de Excel: los snapshot celda a celda de CAL (tests/Unit/Calidad/*), los tests de imports/exports existentes y, con el arnés de .planning/phases/19-modulos/19-01-arnes o un test, un import real de .xlsx pequeño y un export descargado; lista en el SUMMARY qué pantallas de producción conviene probar a mano tras desplegar (imports de Programa Tejido, Codificación, Calendarios; exports de reportes).
+5. composer audit y npm audit antes/después en el SUMMARY (conteo por severidad) + notas de despliegue (composer install --no-dev -o, npm ci && npm run build, optimize) y rollback (volver al composer.lock anterior).
+
+ERES DUEÑO DE: composer.json (solo config.platform y restricciones que el update exija, sin subir mayores), composer.lock, package-lock.json (y package.json solo si npm audit fix lo exige sin mayores), docs de .planning/phases/22-calidad/22-02s-*, notas en docs/cerebro-towell/Runbooks/deploy.md (solo la sección de dependencias). Si un update rompe código de un módulo con dueño activo (19-03 Atadores, 19-05 Programa Urd-Eng, 19-08 Mantenimiento), NO lo arregles tú: HANDOFF; si rompe código sin dueño activo, arréglalo mínimo con test.
+PROHIBIDO: subir versiones mayores, tocar lógica de módulos con dueño activo, bootstrap/**, vite.config.js, config/database.php, reglas de contraseña.
+
+Acuerdos: docs y commits en español ("calidad: …"); NUNCA saltar/desactivar tests; no editar ROADMAP/STATE/REQUIREMENTS/PROJECT; el ratchet no sube; git merge origin/main antes del último push y vuelve a correr todo.
+Antes de push: hook SessionStart (o CLAUDE_CODE_REMOTE=true bash scripts/session-start.sh); php artisan test; vendor/bin/phpstan analyse --memory-limit=2G (si un update mueve el baseline, solo se permite que BAJE; si sube por firmas nuevas de un paquete, explícalo y consúltalo en el SUMMARY); npm run typecheck && npm run test:js && npm run build; npm run ratchet; COMPOSER_ALLOW_SUPERUSER=1 composer quality; composer audit; skill security-review.
+Entregables: composer.lock/package-lock.json actualizados + tests si hicieron falta + 22-02s-PLAN.md + 22-02s-SUMMARY.md (antes/después, versiones, riesgos restantes, despliegue y rollback) (+ HANDOFF.md). Push a claude/22-cal-deps. NO abras PR.
+```

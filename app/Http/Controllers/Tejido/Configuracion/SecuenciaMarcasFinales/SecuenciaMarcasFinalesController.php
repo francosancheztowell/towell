@@ -4,12 +4,17 @@ namespace App\Http\Controllers\Tejido\Configuracion\SecuenciaMarcasFinales;
 
 use App\Http\Controllers\Controller;
 use App\Models\Inventario\InvSecuenciaMarcas;
+use App\Services\Tejido\OrdenSecuencia;
+use App\Support\Http\Concerns\HandlesApiErrors;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class SecuenciaMarcasFinalesController extends Controller
 {
+    use HandlesApiErrors;
+
     public function index()
     {
         try {
@@ -60,13 +65,8 @@ class SecuenciaMarcasFinalesController extends Controller
                 'message' => 'Error de validación',
                 'errors' => $e->errors(),
             ], 422);
-        } catch (\Exception $e) {
-            Log::error('Error al crear Secuencia Marcas Finales: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al crear el registro: '.$e->getMessage(),
-            ], 500);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Error al crear Secuencia Marcas Finales', 'Error al crear el registro');
         }
     }
 
@@ -106,13 +106,10 @@ class SecuenciaMarcasFinalesController extends Controller
                 'message' => 'Error de validación',
                 'errors' => $e->errors(),
             ], 422);
-        } catch (\Exception $e) {
-            Log::error('Error al actualizar Secuencia Marcas Finales: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al actualizar el registro: '.$e->getMessage(),
-            ], 500);
+        } catch (ModelNotFoundException $e) {
+            return $this->apiClientErrorResponse('Registro no encontrado', 404);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Error al actualizar Secuencia Marcas Finales', 'Error al actualizar el registro');
         }
     }
 
@@ -126,13 +123,10 @@ class SecuenciaMarcasFinalesController extends Controller
                 'success' => true,
                 'message' => 'Registro eliminado exitosamente',
             ]);
-        } catch (\Exception $e) {
-            Log::error('Error al eliminar Secuencia Marcas Finales: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al eliminar el registro: '.$e->getMessage(),
-            ], 500);
+        } catch (ModelNotFoundException $e) {
+            return $this->apiClientErrorResponse('Registro no encontrado', 404);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Error al eliminar Secuencia Marcas Finales', 'Error al eliminar el registro');
         }
     }
 
@@ -149,10 +143,7 @@ class SecuenciaMarcasFinalesController extends Controller
                 'orden.*.Orden' => 'required|integer|min:1',
             ]);
 
-            foreach ($validated['orden'] as $item) {
-                InvSecuenciaMarcas::where('NoTelarId', $item['NoTelarId'])
-                    ->update(['Orden' => $item['Orden']]);
-            }
+            OrdenSecuencia::actualizar(InvSecuenciaMarcas::class, 'NoTelarId', 'Orden', $validated['orden']);
 
             return response()->json([
                 'success' => true,
@@ -164,13 +155,8 @@ class SecuenciaMarcasFinalesController extends Controller
                 'message' => 'Datos inválidos',
                 'errors' => $e->errors(),
             ], 422);
-        } catch (\Exception $e) {
-            Log::error('Error al actualizar orden Secuencia Marcas Finales: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al actualizar el orden',
-            ], 500);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Error al actualizar orden Secuencia Marcas Finales', 'Error al actualizar el orden');
         }
     }
 }
