@@ -62,4 +62,10 @@ foreach (DB::connection('sqlsrv')->table('ReqProgramaTejido')->orderBy('Id')->sk
     ]);
 }
 
+// Catálogo de telares (Mover Órdenes): los de las filas sembradas.
+foreach (DB::connection('sqlsrv')->table('ReqProgramaTejido')->select('SalonTejidoId', 'NoTelarId')->distinct()->get() as $t) {
+    DB::connection('sqlsrv')->table((new App\Models\Planeacion\ReqTelares)->getTable())
+        ->insert(['SalonTejidoId' => $t->SalonTejidoId, 'NoTelarId' => $t->NoTelarId]);
+}
+
 echo 'PT-TS 1: '.count($ids)." filas para liberar\n";
