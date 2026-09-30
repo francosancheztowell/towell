@@ -320,6 +320,9 @@ class CortesEficienciaController extends Controller
 
     /**
      * Guardar un nuevo corte de eficiencia
+     *
+     * @SuppressWarnings("PHPMD.CyclomaticComplexity")
+     * Deuda previa al gate de PHPMD (19-02, complejidad 10 en el umbral): se parte en 22-06.
      */
     public function store(Request $request)
     {

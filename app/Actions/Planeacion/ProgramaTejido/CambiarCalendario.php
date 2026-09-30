@@ -33,6 +33,11 @@ final class CambiarCalendario
      * @return array{actualizados: int, procesados: int, errores: int}
      *
      * @throws FalloEnRegistro (solo estricto) con el Id de la fila que falló; ya revertido
+     *
+     * @SuppressWarnings("PHPMD.CyclomaticComplexity")
+     * @SuppressWarnings("PHPMD.NPathComplexity")
+     * @SuppressWarnings("PHPMD.ExcessiveMethodLength")
+     * Loop movido tal cual de CalendarioController en PT 05: deuda previa al gate de PHPMD (fase 22); se parte en PT 05.1 con tests primero.
      */
     public function ejecutar(CambioCalendario $cambio, bool $estricto): array
     {

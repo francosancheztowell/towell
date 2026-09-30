@@ -184,7 +184,7 @@ class ProgramaTejidoMutacionesV2Test extends TestCase
         foreach ([['tamano_clave' => 'NO-EXISTE'], ['pedido' => -1], ['fecha_final' => 'no-es-fecha']] as $payload) {
             [$legacy] = $this->correr('actualizar', 'off', fn () => $this->como()->putJson('/planeacion/programa-tejido/2', $payload));
             $this->reiniciar();
-            [$v2, $foto] = $this->correr('actualizar', 'on', fn () => $this->como()->putJson('/planeacion/programa-tejido/2', $payload));
+            [$v2] = $this->correr('actualizar', 'on', fn () => $this->como()->putJson('/planeacion/programa-tejido/2', $payload));
 
             $this->assertSame(422, $legacy->status(), json_encode($payload));
             $this->assertSame(422, $v2->status(), json_encode($payload));

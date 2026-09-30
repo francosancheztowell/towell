@@ -146,6 +146,11 @@ class UpdateTejido
      *
      * @param  array<string, mixed>  $data
      * @return array<string, bool>|JsonResponse
+     *
+     * @SuppressWarnings("PHPMD.CyclomaticComplexity")
+     * @SuppressWarnings("PHPMD.NPathComplexity")
+     * @SuppressWarnings("PHPMD.ExcessiveMethodLength")
+     * Cuerpo movido tal cual del antiguo actualizar() en PT 05: deuda previa al gate de PHPMD (fase 22); se parte en PT 05.1 con tests primero.
      */
     public static function aplicarCambios(ReqProgramaTejido $registro, array $data): array|JsonResponse
     {
@@ -613,6 +618,10 @@ class UpdateTejido
      * FechaFinal, fórmulas y PesoGRM2 según las banderas de aplicarCambios() (sin guardar).
      *
      * @param  array<string, bool>  $flags
+     *
+     * @SuppressWarnings("PHPMD.CyclomaticComplexity")
+     * @SuppressWarnings("PHPMD.NPathComplexity")
+     * Movido del antiguo actualizar() en PT 05: deuda previa al gate de PHPMD (fase 22); se parte en PT 05.1 con tests primero.
      */
     public static function recalcularDerivados(ReqProgramaTejido $registro, array $flags, float $horasProdAntes, float $cantidadAntes): void
     {
@@ -699,6 +708,10 @@ class UpdateTejido
      * registra y se confirma igual); true (v2) lo relanza para revertir todo.
      *
      * @param  array<string, bool>  $flags
+     *
+     * @SuppressWarnings("PHPMD.CyclomaticComplexity")
+     * @SuppressWarnings("PHPMD.NPathComplexity")
+     * Movido del antiguo actualizar() en PT 05: deuda previa al gate de PHPMD (fase 22); se parte en PT 05.1 con tests primero.
      */
     public static function persistir(ReqProgramaTejido $registro, array $flags, string $fechaFinalAntes, bool $estricto): void
     {
