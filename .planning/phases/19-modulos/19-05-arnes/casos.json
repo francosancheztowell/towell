@@ -1,0 +1,10 @@
+{
+  "TELARES": [
+    { "id": 1, "no_telar": "201", "tipo": "Rizo", "cuenta": "3040", "salon": "JACQUARD", "calibre": "12.5", "hilo": "A12", "fecha": "", "turno": "1", "tipo_atado": "Normal" },
+    { "id": 2, "no_telar": "202", "tipo": "Rizo", "cuenta": "3040", "salon": "JACQUARD", "calibre": "12.5", "hilo": "A12", "fecha": "", "turno": "1", "tipo_atado": "Normal" }
+  ],
+  "REQUERIMIENTOS": [
+    { "no_telar": "201", "fecha_req": "2026-10-02", "cuenta": "3040", "calibre": 12.5, "hilo": "A12", "tamano": "3040-12.5/1", "urdido": "Mc Coy 1", "tipo": "Rizo", "destino": "Jacquard Smit", "tipo_atado": "Normal", "metros": "6000", "kilos": "420", "agrupar": true },
+    { "no_telar": "202", "fecha_req": "2026-10-02", "cuenta": "3040", "calibre": 12.5, "hilo": "A12", "tamano": "3040-12.5/1", "urdido": "Mc Coy 1", "tipo": "Rizo", "destino": "Jacquard Smit", "tipo_atado": "Normal", "metros": "6000", "kilos": "420", "agrupar": true }
+  ]
+}
