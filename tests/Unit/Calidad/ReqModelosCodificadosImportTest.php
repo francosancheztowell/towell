@@ -223,12 +223,14 @@ class ReqModelosCodificadosImportTest extends TestCase
             ['F3', '8003', '2025-03-15', null, null, null, null, null],
             ['F4', '8004', '31-02-2025', null, null, null, null, null],
             ['F5', '8005', '15-03-2025', null, null, null, null, null],
+            ['F6', '8006', '05-06-2024 00:00', null, null, null, null, null],
+            ['F7', '8007', 'marzo 2025', null, null, null, null, null],
         ]));
 
         $fechas = ReqModelosCodificados::orderBy('TamanoClave')->get()
             ->mapWithKeys(fn (ReqModelosCodificados $m) => [$m->TamanoClave => $m->FechaTejido?->format('Y-m-d')])
             ->all();
-        $this->assertSame(['F1' => null, 'F2' => '2025-03-15', 'F3' => '2025-03-15', 'F4' => null, 'F5' => '2025-03-15'], $fechas);
+        $this->assertSame(['F1' => null, 'F2' => '2025-03-15', 'F3' => '2025-03-15', 'F4' => null, 'F5' => '2025-03-15', 'F6' => '2024-06-05', 'F7' => null], $fechas);
     }
 
     public function test_import_en_cola_deja_totales_y_errores_al_terminar(): void

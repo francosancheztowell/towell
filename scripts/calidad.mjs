@@ -155,7 +155,17 @@ function composer(args) {
 
 function advisories(dir) {
   const r = composer(['audit', '--locked', '--format=json', '--abandoned=ignore', `--working-dir=${dir}`])
-  const json = JSON.parse(r.stdout || '{}')
+  // Exit 1/2 = hay advisories/abandonados; cualquier otra falla (sin red, lock invalido) no
+  // puede pasar por "cero advisories".
+  let json
+  try {
+    json = JSON.parse(r.stdout)
+  } catch {
+    json = null
+  }
+  if (!json || typeof json.advisories !== 'object') {
+    throw new Error(`composer audit fallo en ${dir} (exit ${r.status}): ${r.stderr.trim().slice(-500)}`)
+  }
   return Object.values(json.advisories ?? {})
     .flat()
     .map((a) => ({ id: a.advisoryId, paquete: a.packageName, titulo: a.title, severidad: a.severity }))
@@ -164,12 +174,19 @@ function advisories(dir) {
 function audit() {
   const desde = base()
   const cambioLock = git('diff', '--name-only', desde, '--', 'composer.lock') !== ''
-  const ahora = advisories(ROOT)
   if (!cambioLock) {
+    let ahora
+    try {
+      ahora = advisories(ROOT)
+    } catch (e) {
+      console.log(`::warning::${e.message}`)
+      return 0
+    }
     if (ahora.length) console.log(`::warning::composer audit: ${ahora.length} advisories en composer.lock (no bloquea: este cambio no toca composer.lock)`)
     else console.log('composer audit: sin advisories')
     return 0
   }
+  const ahora = advisories(ROOT)
   // Cambio el lock: bloquean solo los advisories que la base no tenia (nada nuevo empeora).
   const tmp = mkdtempSync(join(tmpdir(), 'audit-base-'))
   let antes = []
@@ -207,7 +224,8 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     try {
       process.exitCode = comando()
     } catch (e) {
-      console.error(`calidad: ${e.message}\nDefine la base a mano con CAMBIADOS_BASE=<rama o commit>.`)
+      const pista = e.message.startsWith('git ') ? '\nDefine la base a mano con CAMBIADOS_BASE=<rama o commit>.' : ''
+      console.error(`calidad: ${e.message}${pista}`)
       process.exitCode = 2
     }
   }

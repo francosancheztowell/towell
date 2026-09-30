@@ -685,18 +685,28 @@ class ReqModelosCodificadosImport implements ShouldQueue, SkipsEmptyRows, ToColl
             if ($v === '') {
                 return null;
             }
-            // dd/mm/aaaa, dd-mm-aa... (createFromFormat lanza en vez de devolver false, asi que
-            // antes cualquier texto que no fuera d-m-Y quedaba en null). Anio de 2 digitos: 20xx.
-            if (preg_match('#^(\d{1,2})[-/](\d{1,2})[-/](\d{4}|\d{2})$#', $v, $m)) {
-                $anio = strlen($m[3]) === 2 ? 2000 + (int) $m[3] : (int) $m[3];
 
-                return checkdate((int) $m[2], (int) $m[1], $anio) ? Carbon::create($anio, (int) $m[2], (int) $m[1]) : null;
-            }
-
-            return Carbon::parse($v);
+            return $this->fechaDeTexto($v);
         } catch (\Throwable $e) {
             return null;
         }
+    }
+
+    /**
+     * dd-mm-aaaa, dd-mm-aa (con o sin hora, que se ignora) o aaaa-mm-dd; si no, null.
+     * createFromFormat lanza en vez de devolver false: antes todo lo que no fuera d-m-Y quedaba
+     * en null. Nada de Carbon::parse con dia primero: lo leeria como mes/dia. Anio de 2
+     * digitos: 20xx.
+     */
+    private function fechaDeTexto(string $v): ?Carbon
+    {
+        if (preg_match('#^(\d{1,2})[-/](\d{1,2})[-/](\d{4}|\d{2})(?:\s.*)?$#', $v, $m)) {
+            $anio = strlen($m[3]) === 2 ? 2000 + (int) $m[3] : (int) $m[3];
+
+            return checkdate((int) $m[2], (int) $m[1], $anio) ? Carbon::create($anio, (int) $m[2], (int) $m[1]) : null;
+        }
+
+        return preg_match('#^\d{4}-\d{2}-\d{2}#', $v) ? Carbon::parse($v) : null;
     }
 
     /**
