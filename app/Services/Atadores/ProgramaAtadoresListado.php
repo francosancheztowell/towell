@@ -6,6 +6,7 @@ use App\Models\Atadores\AtaMontadoTelasModel;
 use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Tejido\TejInventarioTelares;
 use Carbon\Carbon;
+use Illuminate\Contracts\Database\Query\Expression;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -54,11 +55,47 @@ class ProgramaAtadoresListado
         ];
     }
 
+    /**
+     * Solo id + estatus de las mismas filas que ve el tablero (mismos joins y recorte por rol).
+     * Es lo que pide el refresco del tablero cada 15 s: antes corría la consulta completa de
+     * 23 columnas para quedarse con dos (19-03, número en 19-03-SUMMARY.md).
+     *
+     * @return Collection<int, array{id: mixed, status: string}>
+     */
+    public function estatus(object $user, ?string $filtro): Collection
+    {
+        if ($filtro === 'autorizados') {
+            return $this->autorizados()->map(fn ($item) => ['id' => $item->id, 'status' => 'Autorizado'])->values();
+        }
+
+        $query = $this->unirMontado(TejInventarioTelares::query()
+            ->select('tej_inventario_telares.id', $this->columnaEstatus()));
+
+        if ($filtro === null) {
+            $this->aplicarRol($query, $user);
+        }
+
+        // Sin ORDER BY: el tablero lo cruza por id (Map) y el orden lo pone la página.
+        return $query
+            ->toBase()
+            ->get()
+            ->map(fn ($fila) => ['id' => $fila->id, 'status' => $fila->status_proceso ?? 'Activo']);
+    }
+
+    private function columnaEstatus(): Expression
+    {
+        return DB::raw("CASE
+                    WHEN AtaMontadoTelas.Estatus = 'Autorizado' THEN 'Autorizado'
+                    WHEN AtaMontadoTelas.Estatus = 'Calificado' THEN 'Calificado'
+                    WHEN AtaMontadoTelas.Estatus = 'Terminado' THEN 'Terminado'
+                    WHEN AtaMontadoTelas.Estatus = 'En Proceso' THEN 'En Proceso'
+                    ELSE 'Activo'
+                END as status_proceso");
+    }
+
     private function consultaBase()
     {
-        $ultimo = $this->ultimoMontado();
-
-        return TejInventarioTelares::query()
+        return $this->unirMontado(TejInventarioTelares::query()
             ->select(
                 'tej_inventario_telares.id',
                 'tej_inventario_telares.fecha',
@@ -83,15 +120,15 @@ class ProgramaAtadoresListado
                 DB::raw('tej_inventario_telares.loteProveedor as LoteProveedor'),
                 DB::raw('tej_inventario_telares.noProveedor as NoProveedor'),
                 'tej_inventario_telares.horaParo',
-                DB::raw("CASE
-                    WHEN AtaMontadoTelas.Estatus = 'Autorizado' THEN 'Autorizado'
-                    WHEN AtaMontadoTelas.Estatus = 'Calificado' THEN 'Calificado'
-                    WHEN AtaMontadoTelas.Estatus = 'Terminado' THEN 'Terminado'
-                    WHEN AtaMontadoTelas.Estatus = 'En Proceso' THEN 'En Proceso'
-                    ELSE 'Activo'
-                END as status_proceso")
-            )
-            ->leftJoinSub($ultimo, 'ata_ultimo', function ($join) {
+                $this->columnaEstatus()
+            ));
+    }
+
+    /** Último atado de cada julio + orden, y solo filas con julio. */
+    private function unirMontado($query)
+    {
+        return $query
+            ->leftJoinSub($this->ultimoMontado(), 'ata_ultimo', function ($join) {
                 $join->on('tej_inventario_telares.no_julio', '=', 'ata_ultimo.NoJulio')
                     ->on('tej_inventario_telares.no_orden', '=', 'ata_ultimo.NoProduccion');
             })
@@ -258,9 +295,10 @@ class ProgramaAtadoresListado
 
     private function restringirAtador(object $user): bool
     {
+        // Por idrol (45 = Programa Atadores), no por nombre: hay nombres repetidos en SYSRoles (20-03).
         return $this->esPuestoAtador($user)
-            && userCan('acceso', 'Programa Atadores')
-            && userCan('crear', 'Programa Atadores');
+            && userCan('acceso', 45)
+            && userCan('crear', 45);
     }
 
     /**

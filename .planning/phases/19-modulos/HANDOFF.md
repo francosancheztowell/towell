@@ -53,3 +53,17 @@ Pedidos de cambios en archivos que no son de la sesión que los detecta. Cada fi
 | M2 | 17-02 | navbar (`components/navbar/navbar.blade.php`) | Igual que U5/T6: a 768 px "Reporte de Fallos y Paros" y "Operadores de Mantenimiento" se parten y tapan los botones del navbar | Tablet (el alta de paro se usa en piso) |
 | M3 | owner | `SYSRoles` | Confirmar que "Mantenimiento" (el nombre que revisaba el GET de operadores) es el idrol **53**. El catálogo de operadores ahora revisa `acceso/crear/modificar/eliminar` por 53 | Siempre por idrol (`RutasDestructivasPermisoTest`) |
 | M4 | owner | `MantenimientoParosController::store()` | Si se quiere cerrar del todo la carrera de la cascada del lado servidor: validar que `maquina` pertenezca a `depto` (hoy no se valida; el front ya descarta respuestas rezagadas) | Defensa en profundidad; cambia reglas del alta abierta, decisión del owner |
+
+## De 19-03 (Atadores)
+
+| # | Para | Archivo | Cambio | Por qué |
+|---|---|---|---|---|
+| A1 | DS / FE | `resources/views/modulos/tejido/reportes/partials/rango-fechas.blade.php` + `resources/js/modulos/tejido/reportes/comun/rango{,-logica}.ts` | Subirlos a un componente común (p. ej. `components/reportes/rango-fechas` + `resources/js/componentes/`) y renombrar `modalRangoTejido`/`data-rango-tejido` a algo neutro | Atadores (Programa, KM, OEE) ya los usa por `@include` / `import` desde Tejido en vez de copiar un cuarto modal |
+| A2 | DS (16) | `resources/js/catalogos/catalog-base.ts` | En `guardar()`, pasar la respuesta a `leerGuardado(cuerpo, res)` y usar `res.data` cuando venga | Con la llave `Id` de Comentarios el Id no está en el formulario; hoy `modulos/catalogos-atadores/guardado.ts` envuelve `http` para capturar la respuesta. Con el cambio se borra ese archivo |
+| A3 | FE | `resources/js/modulos/atadores/comun/pagina.ts` | Incluirlo en T2 (unificar `leerDatos/leerPagina`, `mensajeError`, `exigirExito/exigirOk` en `resources/js/utils/`) | Tercera copia; la de Atadores lee `ok` (contrato de `/atadores/save`) además de `success` |
+| A4 | SEC-06 / 20 | `app/Http/Controllers/Atadores/ProgramaAtadores/AtadoresController.php` (`auditarPermisoSupervisor`) | Al pasar Programa Atadores a enforce, cambiar también esta llamada (usa `EnsureModulePermission::MODO_AUDITAR` a mano) | La ruta `/atadores/save` es una sola para todas las acciones; `supervisor` necesita `registrar,45` y la ruta audita `modificar,45` |
+| A5 | 20 (integrador) | `.planning/phases/20-arq-sec/20-03-MAPA-AUTHZ.md` | §Huecos: `POST atadores/save` con `action=supervisor` → cerrado en modo auditar (19-03, `aba09eee`). `oee/despachar` sigue pendiente de idrol | Mantener el mapa al día |
+| A6 | 19-01 / CAL | `tests/Feature/Reporte03OeeFechaFinalizaTest.php` | Falla (2 casos, 500) cuando se corre solo; pasa en la suite completa. Igual en la base | Dependencia de orden entre tests |
+| A7 | 17-02 | `components/navbar/navbar.blade.php` | El `<a>` del logo (a `/produccionProceso`) no tiene texto ni `aria-label` | UX-14; lo detectó la auditoría UX-18 de 19-03 en las 12 pantallas |
+| A8 | owner / Jobs | `app/Jobs/ActualizarOeeAtadoresJob.php` | El estado que lee la pantalla (`mensaje`) sale de `readStatusMessage(..., $e->getMessage())`: mandar un texto fijo + trace_id y dejar el detalle en el log | SEC-07; `app/Jobs` no es de 19-03 |
+| A9 | 19-01 / arnés | `19-01-arnes`, `19-02-arnes` | `19-03-arnes` agrega `INFORMATION_SCHEMA.COLUMNS` (attach) y `WMSLocation`; se puede copiar a los otros arneses (U9/T9) | Folio Paro y las ubicaciones de TI-PRO daban 500 solo en el arnés |

@@ -123,9 +123,10 @@ class CatalogosAtadoresTest extends TestCase
         $this->putJson('/atadores/catalogos/actividades/MONTAJE', ['ActividadId' => 'MONTAJE-2', 'Porcentaje' => 50])
             ->assertOk()->assertJson(['success' => true]);
 
-        // Duplicado: el mensaje del servidor es el que muestra el JS.
+        // Duplicado: 422 con el error del campo (antes la ValidationException se atrapaba y salía 500
+        // con getMessage(); 19-03 SEC-07). El JS muestra `message`.
         $this->postJson('/atadores/catalogos/actividades', ['ActividadId' => 'MONTAJE-2', 'Porcentaje' => 1])
-            ->assertStatus(500)->assertJson(['success' => false]);
+            ->assertStatus(422)->assertJsonValidationErrors('ActividadId');
 
         $this->deleteJson('/atadores/catalogos/actividades/MONTAJE-2')->assertOk()->assertJson(['success' => true]);
         $this->assertSame(0, DB::connection('sqlsrv')->table('AtaActividades')->count());

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Atadores\ProgramaAtadores;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\EnsureModulePermission;
 use App\Jobs\Telegram\EnviarMensajeTelegram;
 use App\Models\Atadores\AtaActividadesModel;
 use App\Models\Atadores\AtaComentariosModel;
@@ -16,7 +17,9 @@ use App\Models\Atadores\AtaMontadoTelasModel;
 use App\Models\Planeacion\ReqTelares;
 use App\Models\Sistema\SYSMensaje;
 use App\Models\Tejido\TejInventarioTelares;
+use App\Services\Atadores\ChecklistAtado;
 use App\Services\Atadores\ProgramaAtadoresListado;
+use App\Support\Http\Concerns\HandlesApiErrors;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -27,6 +30,13 @@ use Illuminate\Support\Facades\Schema;
 
 class AtadoresController extends Controller
 {
+    use HandlesApiErrors;
+
+    private const FECHA_KM_INVALIDA = 'La fecha debe ir como aaaa-mm-dd hh:mm';
+
+    /** SYSRoles.idrol de "Programa Atadores" (routes/modules/atadores.php). */
+    private const IDROL_PROGRAMA_ATADORES = 45;
+
     /**
      * Estatus que representan un atado ya existente para un NoJulio + NoProduccion.
      * Si alguno de estos existe, NO debe crearse otro registro en AtaMontadoTelas.
@@ -64,12 +74,7 @@ class AtadoresController extends Controller
      */
     public function estatus(Request $request, ProgramaAtadoresListado $listado)
     {
-        $filas = $listado->filas(Auth::user(), $request->get('filtro'));
-
-        return response()->json($filas->map(fn ($item) => [
-            'id' => $item->id,
-            'status' => $item->status_proceso ?? 'Activo',
-        ])->values());
+        return response()->json($listado->estatus(Auth::user(), $request->get('filtro')));
     }
 
     public function iniciarAtado(Request $request)
@@ -180,14 +185,19 @@ class AtadoresController extends Controller
                 return null;
             });
         } catch (\Throwable $e) {
+            // report() lo manda a /admin/errores; el mismo código va al log y al mensaje (si el monitoreo
+            // no registró evento, traceIdDeError da un uuid que solo queda en este log).
+            report($e);
+            $ref = $this->traceIdDeError($e);
             Log::error('Atadores: no se pudo iniciar el atado', [
+                'trace_id' => $ref,
                 'no_julio' => $item->no_julio,
                 'no_orden' => $item->no_orden,
-                'error' => $e->getMessage(),
+                'exception' => $e->getMessage(),
             ]);
 
             return redirect()->route('atadores.programa')
-                ->with('error', 'No se pudo iniciar el atado. Intente nuevamente.');
+                ->with('error', 'No se pudo iniciar el atado. Intente nuevamente (ref: '.$ref.').');
         }
 
         // Otra petición (o un intento anterior) ya creó el atado: continuar sobre él, no duplicar.
@@ -204,7 +214,7 @@ class AtadoresController extends Controller
 
         // Karl Mayer no usa el checklist de atadoras. No se copian máquinas ni actividades.
         if (! $this->esAtadoKarlMayer($item->tipo, $item->no_telar)) {
-            $this->sembrarMaquinasYActividades($item->no_julio, $item->no_orden, $item->turno);
+            app(ChecklistAtado::class)->sembrar((string) $item->no_julio, (string) $item->no_orden, $item->turno);
         }
 
         // Redirigir a la página de calificar atadores con los parámetros del registro seleccionado
@@ -236,8 +246,8 @@ class AtadoresController extends Controller
         try {
             $datos['FechaInicio'] = $this->fechaKm($request->input('fecha_inicio'));
             $datos['FechaFin'] = $this->fechaKm($request->input('fecha_fin'));
-        } catch (\InvalidArgumentException $e) {
-            return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+        } catch (\InvalidArgumentException) {
+            return response()->json(['ok' => false, 'message' => self::FECHA_KM_INVALIDA], 422);
         }
 
         $modelo::updateOrCreate(
@@ -269,7 +279,7 @@ class AtadoresController extends Controller
             }
         }
 
-        throw new \InvalidArgumentException('La fecha debe ir como aaaa-mm-dd hh:mm');
+        throw new \InvalidArgumentException(self::FECHA_KM_INVALIDA);
     }
 
     /**
@@ -282,55 +292,6 @@ class AtadoresController extends Controller
         }
 
         return TelarSalonResolver::esKarlMayer(null, (string) $noTelar);
-    }
-
-    /**
-     * Crea las filas base de máquinas y actividades del catálogo para un folio.
-     * Es idempotente: si la fila ya existe no se inserta otra.
-     */
-    private function sembrarMaquinasYActividades($noJulio, $noProduccion, $turno): void
-    {
-        foreach (AtaMaquinasModel::all() as $maquina) {
-            $existe = AtaMontadoMaquinasModel::where('NoJulio', $noJulio)
-                ->where('NoProduccion', $noProduccion)
-                ->where('MaquinaId', $maquina->MaquinaId)
-                ->exists();
-
-            if ($existe) {
-                continue;
-            }
-
-            AtaMontadoMaquinasModel::create([
-                'NoJulio' => $noJulio,
-                'NoProduccion' => $noProduccion,
-                'MaquinaId' => $maquina->MaquinaId,
-                'Estado' => 0, // Por defecto inactivo
-                'NomEmpleado' => null,
-                'NomEmpl' => null,
-            ]);
-        }
-
-        foreach (AtaActividadesModel::all() as $actividad) {
-            $existe = AtaMontadoActividadesModel::where('NoJulio', $noJulio)
-                ->where('NoProduccion', $noProduccion)
-                ->where('ActividadId', $actividad->ActividadId)
-                ->exists();
-
-            if ($existe) {
-                continue;
-            }
-
-            AtaMontadoActividadesModel::create([
-                'NoJulio' => $noJulio,
-                'NoProduccion' => $noProduccion,
-                'ActividadId' => $actividad->ActividadId,
-                'Porcentaje' => $actividad->Porcentaje,
-                'Estado' => 0, // Por defecto inactivo
-                'CveEmpl' => null,
-                'NomEmpl' => null,
-                'Turno' => $turno,
-            ]);
-        }
     }
 
     public function calificarAtadores(Request $request)
@@ -384,15 +345,16 @@ class AtadoresController extends Controller
             }
 
             if (! $esKm) {
+                // Llave normalizada (ChecklistAtado::llave) en la siembra, aquí y en la vista.
                 $maquinasMontado = AtaMontadoMaquinasModel::where('NoJulio', $actual->NoJulio)
                     ->where('NoProduccion', $actual->NoProduccion)
                     ->get()
-                    ->keyBy('MaquinaId');
+                    ->keyBy(fn ($m) => ChecklistAtado::llave($m->MaquinaId));
 
                 $actividadesMontado = AtaMontadoActividadesModel::where('NoJulio', $actual->NoJulio)
                     ->where('NoProduccion', $actual->NoProduccion)
                     ->get()
-                    ->keyBy('ActividadId');
+                    ->keyBy(fn ($a) => ChecklistAtado::llave($a->ActividadId));
             }
 
             if ($esKm) {
@@ -418,28 +380,22 @@ class AtadoresController extends Controller
 
             // En Jacquard/SMIT, si el inicio no sembró actividades, se crean al abrir.
             $faltantes = $actividadesCatalogo->filter(function ($act) use ($actividadesMontado) {
-                return ! $actividadesMontado->has((string) $act->ActividadId);
+                return ! $actividadesMontado->has(ChecklistAtado::llave($act->ActividadId));
             });
 
             if ($faltantes->isNotEmpty()) {
-                foreach ($faltantes as $act) {
-                    AtaMontadoActividadesModel::create([
-                        'NoJulio' => $actual->NoJulio,
-                        'NoProduccion' => $actual->NoProduccion,
-                        'ActividadId' => $act->ActividadId,
-                        'Porcentaje' => $act->Porcentaje,
-                        'Estado' => 0,
-                        'CveEmpl' => null,
-                        'NomEmpl' => null,
-                        'Turno' => $actual->Turno,
-                    ]);
-                }
+                app(ChecklistAtado::class)->sembrarActividades(
+                    (string) $actual->NoJulio,
+                    (string) $actual->NoProduccion,
+                    $actual->Turno,
+                    $faltantes->values(),
+                );
 
                 // Recargar actividades del folio ya con faltantes creadas
                 $actividadesMontado = AtaMontadoActividadesModel::where('NoJulio', $actual->NoJulio)
                     ->where('NoProduccion', $actual->NoProduccion)
                     ->get()
-                    ->keyBy('ActividadId');
+                    ->keyBy(fn ($a) => ChecklistAtado::llave($a->ActividadId));
             }
         }
 
@@ -575,6 +531,8 @@ class AtadoresController extends Controller
         }
 
         if ($action === 'supervisor') {
+            $this->auditarPermisoSupervisor($request);
+
             // Validar que el atado esté en estado Calificado
             if ($montado->Estatus !== 'Calificado') {
                 return response()->json(['ok' => false, 'message' => 'Debe calificar el atado antes de autorizarlo como supervisor'], 422);
@@ -616,6 +574,8 @@ class AtadoresController extends Controller
                             $fechaRequerimiento = Carbon::instance($montado->Fecha);
                         }
                     } catch (\Exception $e) {
+                        // Sin FechaRequerimiento el historial se guarda igual; se reporta para verlo en /admin/errores.
+                        report($e);
                     }
                 }
 
@@ -686,51 +646,8 @@ class AtadoresController extends Controller
                 // 3. Guardar datos de máquinas y actividades del proceso actual.
                 // Karl Mayer no usa el checklist (tiene Montado/Enhebrado): no se siembra.
                 if (! $this->esAtadoKarlMayer($montado->Tipo, $montado->NoTelarId)) {
-                    // Obtener datos actuales de máquinas
-                    $maquinasActuales = AtaMontadoMaquinasModel::where('NoJulio', $montado->NoJulio)
-                        ->where('NoProduccion', $montado->NoProduccion)
-                        ->get();
-
-                    // Obtener datos actuales de actividades
-                    $actividadesActuales = AtaMontadoActividadesModel::where('NoJulio', $montado->NoJulio)
-                        ->where('NoProduccion', $montado->NoProduccion)
-                        ->get();
-
-                    // También asegurar que se guarden las máquinas y actividades con estado activo
-                    // (En caso de que no se hayan marcado manualmente en la interfaz)
-                    $maquinasCatalogo = AtaMaquinasModel::all();
-                    foreach ($maquinasCatalogo as $maq) {
-                        $existe = $maquinasActuales->where('MaquinaId', $maq->MaquinaId)->first();
-                        if (! $existe) {
-                            // Crear registro por defecto
-                            AtaMontadoMaquinasModel::create([
-                                'NoJulio' => $montado->NoJulio,
-                                'NoProduccion' => $montado->NoProduccion,
-                                'MaquinaId' => $maq->MaquinaId,
-                                'Estado' => 0, // Por defecto inactivo
-                                'NomEmpleado' => null,
-                                'NomEmpl' => null,
-                            ]);
-                        }
-                    }
-
-                    $actividadesCatalogo = AtaActividadesModel::all();
-                    foreach ($actividadesCatalogo as $act) {
-                        $existe = $actividadesActuales->where('ActividadId', $act->ActividadId)->first();
-                        if (! $existe) {
-                            // Crear registro por defecto
-                            AtaMontadoActividadesModel::create([
-                                'NoJulio' => $montado->NoJulio,
-                                'NoProduccion' => $montado->NoProduccion,
-                                'ActividadId' => $act->ActividadId,
-                                'Porcentaje' => $act->Porcentaje,
-                                'Estado' => 0, // Por defecto inactivo
-                                'CveEmpl' => null,
-                                'NomEmpl' => null,
-                                'Turno' => $montado->Turno,
-                            ]);
-                        }
-                    }
+                    // Deja completo el checklist aunque no se haya marcado nada en la pantalla.
+                    app(ChecklistAtado::class)->sembrar((string) $montado->NoJulio, (string) $montado->NoProduccion, $montado->Turno);
                 }
 
                 // Commit de la transacción SQL Server
@@ -739,7 +656,11 @@ class AtadoresController extends Controller
             } catch (\Exception $e) {
                 DB::connection('sqlsrv')->rollBack();
 
-                return response()->json(['ok' => false, 'message' => 'Error al autorizar: '.$e->getMessage()]);
+                // SEC-07: antes 200 con ok:false y el getMessage() (SQL) en el mensaje.
+                return $this->apiErrorResponse($e, 'Atadores: no se pudo autorizar el atado', 'No se pudo autorizar el atado. Si continúa, comparte el código de referencia con Sistemas.', 500, [
+                    'no_julio' => $montado->NoJulio,
+                    'no_orden' => $montado->NoProduccion,
+                ]);
             }
 
             // 4. Eliminar el registro original de tej_inventario_telares (MySQL)
@@ -909,16 +830,10 @@ class AtadoresController extends Controller
                     ->where('Id', $montado->Id)
                     ->update(['FolioParo' => $folioParo !== '' ? $folioParo : null]);
             } catch (\Throwable $e) {
-                Log::error('Error al guardar FolioParo', [
-                    'error' => $e->getMessage(),
+                return $this->apiErrorResponse($e, 'Error al guardar FolioParo', 'No se pudo guardar el Folio Paro. Si continúa, comparte el código de referencia con Sistemas.', 500, [
                     'no_julio' => $montado->NoJulio ?? null,
                     'no_orden' => $montado->NoProduccion ?? null,
                 ]);
-
-                return response()->json([
-                    'ok' => false,
-                    'message' => 'No se pudo guardar FolioParo: '.$e->getMessage(),
-                ], 500);
             }
 
             return response()->json([
@@ -1096,6 +1011,23 @@ class AtadoresController extends Controller
         }
 
         return response()->json(['ok' => false, 'message' => 'Acción no válida'], 422);
+    }
+
+    /**
+     * Autorizar es "Autoriza Supervisor" en la pantalla: la ruta audita modificar,45 para todas las
+     * acciones de /atadores/save y esta necesita registrar,45 (20-03-MAPA-AUTHZ §Huecos). Se reutiliza
+     * el middleware en modo auditar: registra authz_denegaria si faltaría el permiso y NO bloquea
+     * (SEC-06 decide el enforce con datos de /admin/accesos).
+     */
+    private function auditarPermisoSupervisor(Request $request): void
+    {
+        app(EnsureModulePermission::class)->handle(
+            $request,
+            fn () => response()->noContent(),
+            'registrar',
+            (string) self::IDROL_PROGRAMA_ATADORES,
+            EnsureModulePermission::MODO_AUDITAR,
+        );
     }
 
     /**

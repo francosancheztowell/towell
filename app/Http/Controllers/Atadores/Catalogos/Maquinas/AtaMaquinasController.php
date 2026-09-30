@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Atadores\Catalogos\Maquinas;
 
 use App\Http\Controllers\Atadores\Catalogos\CatalogosAtadoresVista;
+use App\Http\Controllers\Atadores\Catalogos\RespondeCatalogo;
 use App\Http\Controllers\Controller;
 use App\Models\Atadores\AtaMaquinasModel;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class AtaMaquinasController extends Controller
 {
+    use RespondeCatalogo;
+
     /**
      * Mostrar la vista principal con todas las máquinas
      */
@@ -26,25 +30,13 @@ class AtaMaquinasController extends Controller
      */
     public function store(Request $request)
     {
-        try {
-            $request->validate([
-                'MaquinaId' => 'required|string|max:255|unique:AtaMaquinas,MaquinaId',
-            ]);
+        $datos = $request->validate([
+            'MaquinaId' => ['required', 'string', 'max:255', Rule::unique(AtaMaquinasModel::class, 'MaquinaId')],
+        ]);
 
-            AtaMaquinasModel::create([
-                'MaquinaId' => $request->MaquinaId,
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Máquina creada exitosamente',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al crear la máquina: '.$e->getMessage(),
-            ], 500);
-        }
+        return $this->escribir(function () use ($datos) {
+            AtaMaquinasModel::create($datos);
+        }, 'Máquina creada exitosamente', 'No se pudo crear la máquina');
     }
 
     /**
@@ -52,27 +44,18 @@ class AtaMaquinasController extends Controller
      */
     public function update(Request $request, $maquinaId)
     {
-        try {
-            $maquina = AtaMaquinasModel::where('MaquinaId', $maquinaId)->firstOrFail();
-
-            $request->validate([
-                'MaquinaId' => 'required|string|max:255|unique:AtaMaquinas,MaquinaId,'.$maquinaId.',MaquinaId',
-            ]);
-
-            $maquina->update([
-                'MaquinaId' => $request->MaquinaId,
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Máquina actualizada exitosamente',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al actualizar la máquina: '.$e->getMessage(),
-            ], 500);
+        $maquina = AtaMaquinasModel::where('MaquinaId', $maquinaId)->first();
+        if (! $maquina) {
+            return $this->noEncontrado('Máquina no encontrada');
         }
+
+        $datos = $request->validate([
+            'MaquinaId' => ['required', 'string', 'max:255', Rule::unique(AtaMaquinasModel::class, 'MaquinaId')->ignore($maquinaId, 'MaquinaId')],
+        ]);
+
+        return $this->escribir(function () use ($maquina, $datos) {
+            $maquina->update($datos);
+        }, 'Máquina actualizada exitosamente', 'No se pudo actualizar la máquina');
     }
 
     /**
@@ -80,20 +63,14 @@ class AtaMaquinasController extends Controller
      */
     public function destroy($maquinaId)
     {
-        try {
-            $maquina = AtaMaquinasModel::where('MaquinaId', $maquinaId)->firstOrFail();
-            $maquina->delete();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Máquina eliminada exitosamente',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al eliminar la máquina: '.$e->getMessage(),
-            ], 500);
+        $maquina = AtaMaquinasModel::where('MaquinaId', $maquinaId)->first();
+        if (! $maquina) {
+            return $this->noEncontrado('Máquina no encontrada');
         }
+
+        return $this->escribir(function () use ($maquina) {
+            $maquina->delete();
+        }, 'Máquina eliminada exitosamente', 'No se pudo eliminar la máquina');
     }
 
     /**
@@ -101,18 +78,10 @@ class AtaMaquinasController extends Controller
      */
     public function show($maquinaId)
     {
-        try {
-            $maquina = AtaMaquinasModel::where('MaquinaId', $maquinaId)->firstOrFail();
+        $maquina = AtaMaquinasModel::where('MaquinaId', $maquinaId)->first();
 
-            return response()->json([
-                'success' => true,
-                'data' => $maquina,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Máquina no encontrada',
-            ], 404);
-        }
+        return $maquina
+            ? response()->json(['success' => true, 'data' => $maquina])
+            : $this->noEncontrado('Máquina no encontrada');
     }
 }

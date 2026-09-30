@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Atadores\Catalogos;
 
+use App\Models\Atadores\AtaComentariosModel;
+
 /**
  * Configuración de la vista única de los catálogos de atadores (piloto DS-12).
  *
@@ -42,12 +44,17 @@ final class CatalogosAtadoresVista
     /** @return Catalogo */
     public static function comentarios(): array
     {
+        // Con la columna Id, la llave de la ruta es numérica: una nota con "/" ya no da 404 (HANDOFF 16 C3).
+        $porId = AtaComentariosModel::tieneId();
+
         return [
             'clave' => 'comentarios',
             'titulo' => 'Catálogo de Comentarios',
             'modulo' => 'Comentarios',
-            'endpoint' => route('atadores.catalogos.comentarios', absolute: false),
-            'llave' => 'Nota1',
+            'endpoint' => $porId
+                ? route('atadores.catalogos.comentarios.id.store', absolute: false)
+                : route('atadores.catalogos.comentarios', absolute: false),
+            'llave' => $porId ? 'Id' : 'Nota1',
             'columnas' => [
                 ['campo' => 'Nota1', 'titulo' => 'Nota 1', 'clase' => 'font-medium'],
                 ['campo' => 'Nota2', 'titulo' => 'Nota 2'],
