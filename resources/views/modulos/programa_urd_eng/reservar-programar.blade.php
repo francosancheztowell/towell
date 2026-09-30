@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @push('scripts')
-    @vite('resources/js/programa-urd-eng/reservar-programar.ts')
+    @vite('resources/js/modulos/programa-urd-eng/reservar-programar/index.ts')
 @endpush
 
 @section('page-title', 'Reservar y Prog')
@@ -326,7 +326,7 @@
     }
 </style>
 
-{{-- Config para el módulo TS (ver resources/js/programa-urd-eng/reservar-programar.ts) --}}
+{{-- Config para el módulo TS (ver resources/js/modulos/programa-urd-eng/reservar-programar/index.ts) --}}
 @php
 $puConfig = ['api' => ['inventarioTelares' => route('programa.urd.eng.inventario.telares'), 'inventarioDisponible' => route('programa.urd.eng.inventario.disponible'), 'inventarioDisponibleGet' => route('programa.urd.eng.inventario.disponible.get'), 'programarTelar' => route('programa.urd.eng.programar.telar'), 'programarRequerimientos' => route('programa.urd.eng.programacion.requerimientos'), 'actualizarTelar' => route('programa.urd.eng.actualizar.telar'), 'reservarInventario' => route('programa.urd.eng.reservar.inventario'), 'liberarTelar' => route('programa.urd.eng.liberar.telar')], 'columns' => $columnOptions ?? ['telares' => [], 'inventario' => []], 'can' => ['modificar' => $canModificar ?? false, 'crear' => $canCrear ?? false, 'eliminar' => $canEliminar ?? false], 'telares' => $inventarioTelares ?? []];
 @endphp
