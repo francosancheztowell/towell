@@ -264,45 +264,50 @@ class ReservarProgramarController extends Controller
      * Para cada telar sin id, busca el registro real en tej_inventario_telares
      * usando no_telar + tipo (+ fecha + turno si disponibles) y le asigna el id de BD.
      */
+    /**
+     * Completa id/fecha/turno de los telares que llegan sin id. Una sola consulta para todos
+     * (antes una por telar, PERF-08) y el filtro por tipo/fecha/turno se aplica en PHP con la
+     * semántica de SQL Server (sin distinguir mayúsculas ni espacios al final).
+     */
     private function enriquecerTelaresConId(array $telares): array
     {
-        foreach ($telares as &$t) {
-            if (! empty($t['id'])) {
-                continue;
-            }
-
+        $numeros = [];
+        foreach ($telares as $t) {
             $noTelar = trim((string) ($t['no_telar'] ?? ''));
-            if ($noTelar === '') {
+            if (empty($t['id']) && $noTelar !== '') {
+                $numeros[$noTelar] = true;
+            }
+        }
+        if ($numeros === []) {
+            return $telares;
+        }
+
+        $candidatos = TejInventarioTelares::whereIn('no_telar', array_keys($numeros))
+            ->where('status', self::STATUS_ACTIVO)
+            ->orderBy('id')
+            ->get(['id', 'no_telar', 'tipo', 'fecha', 'turno'])
+            ->groupBy(fn ($r) => mb_strtoupper(rtrim((string) $r->no_telar)));
+
+        foreach ($telares as &$t) {
+            $noTelar = trim((string) ($t['no_telar'] ?? ''));
+            if (! empty($t['id']) || $noTelar === '') {
                 continue;
             }
-
-            $query = TejInventarioTelares::where('no_telar', $noTelar)
-                ->where('status', self::STATUS_ACTIVO);
 
             $tipo = $this->telaresService->normalizeTipo($t['tipo'] ?? null);
-            if ($tipo !== null) {
-                $query->where('tipo', $tipo);
+            $registros = ($candidatos->get(mb_strtoupper($noTelar)) ?? collect())
+                ->filter(fn ($r) => $this->coincideRegistro($r, $tipo, $t))
+                ->values();
+
+            if ($registros->isEmpty()) {
+                continue;
             }
 
-            if (! empty($t['fecha'])) {
-                $query->whereDate('fecha', $t['fecha']);
-            }
-            if (isset($t['turno']) && $t['turno'] !== '' && $t['turno'] !== null) {
-                $query->where('turno', $t['turno']);
-            }
-
-            $registros = $query->get(['id', 'fecha', 'turno']);
-
-            if ($registros->count() === 1) {
-                $r = $registros->first();
-                $t['id'] = $r->id;
-                $t['fecha'] = $r->fecha ? substr(trim((string) $r->fecha), 0, 10) : null;
-                $t['turno'] = $r->turno;
-            } elseif ($registros->count() > 1) {
-                $r = $registros->first();
-                $t['id'] = $r->id;
-                $t['fecha'] = $r->fecha ? substr(trim((string) $r->fecha), 0, 10) : null;
-                $t['turno'] = $r->turno;
+            $r = $registros->first();
+            $t['id'] = $r->id;
+            $t['fecha'] = $r->fecha ? substr(trim((string) $r->fecha), 0, 10) : null;
+            $t['turno'] = $r->turno;
+            if ($registros->count() > 1) {
                 Log::warning('enriquecerTelaresConId: múltiples registros', [
                     'no_telar' => $noTelar,
                     'tipo' => $tipo,
@@ -314,6 +319,23 @@ class ReservarProgramarController extends Controller
         unset($t);
 
         return $telares;
+    }
+
+    /** Mismos filtros que la consulta por telar de antes: tipo, whereDate(fecha) y turno. */
+    private function coincideRegistro(object $registro, ?string $tipo, array $telar): bool
+    {
+        $igual = fn ($a, $b) => strcasecmp(rtrim((string) $a), rtrim((string) $b)) === 0;
+
+        if ($tipo !== null && ! $igual($registro->tipo, $tipo)) {
+            return false;
+        }
+        if (! empty($telar['fecha']) && substr(trim((string) $registro->fecha), 0, 10) !== (string) $telar['fecha']) {
+            return false;
+        }
+
+        $turno = $telar['turno'] ?? null;
+
+        return $turno === null || $turno === '' || $igual($registro->turno, $turno);
     }
 
     private function parseTelaresFromQuery(?string $telaresJson): array
