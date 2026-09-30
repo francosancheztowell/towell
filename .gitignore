@@ -59,3 +59,12 @@ __pycache__/
 
 # Cache de phpstan (phpstan.neon: tmpDir)
 /storage/phpstan
+
+# Configuración local de agentes/editores de IA (cada quien la suya)
+/.agents/
+/skills-lock.json
+/.atl/
+/.codegraph/
+/.cursor/
+/.impeccable/
+/.windsurf/

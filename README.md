@@ -1,330 +1,205 @@
+<div align="center">
+
 # Towell
 
-Sistema de gestión de producción y planificación empresarial para la industria textil.
+**Plataforma de planeación y control de producción para manufactura textil**
+
+Planeación · Tejido · Urdido · Engomado · Atadores · Tejedores · Mantenimiento · Calidad · Ventas
+
+[![CI](https://github.com/francosancheztowell/towell/actions/workflows/frontend-checks.yml/badge.svg?branch=main)](https://github.com/francosancheztowell/towell/actions/workflows/frontend-checks.yml)
+![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?logo=php&logoColor=white)
+![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel&logoColor=white)
+![Livewire](https://img.shields.io/badge/Livewire-4-FB70A9?logo=livewire&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
+![SQL Server](https://img.shields.io/badge/SQL_Server-2008_R2%2B-CC2927?logo=microsoftsqlserver&logoColor=white)
+![PHPStan](https://img.shields.io/badge/PHPStan-level_5-2A5EA7)
+![License](https://img.shields.io/badge/license-propietaria-lightgrey)
+
+</div>
+
+---
+
+## Contenido
+
+- [Descripción](#descripción)
+- [Módulos](#módulos)
+- [Arquitectura](#arquitectura)
+- [Stack](#stack)
+- [Inicio rápido](#inicio-rápido)
+- [Comandos](#comandos)
+- [Calidad e integración continua](#calidad-e-integración-continua)
+- [Convenciones](#convenciones)
+- [Documentación](#documentación)
+- [Licencia](#licencia)
 
 ## Descripción
 
-Towell es una aplicación web desarrollada con Laravel que proporciona un sistema integral para la gestión y planificación de procesos de producción en la industria textil. El sistema permite administrar módulos de planeación, tejido, urdido, engomado, atadores, tejedores, mantenimiento y configuración, con un sistema de permisos granular basado en roles de usuario.
+Towell conecta en un solo flujo lo que ocurre entre la oficina de planeación y el piso de producción: se programa la orden, se reserva el material en el ERP, se ejecuta en máquina, se captura la producción por turno, se califica y se reporta. Cada paso queda auditado y los eventos críticos se notifican por Telegram.
 
-## Características Principales
+Está pensado para uso diario en planta: pantallas táctiles de 768 px, login con código QR, sesiones por turno y un sistema de permisos granular por módulo.
 
-### Módulos del Sistema
+**Puntos clave**
 
-- **Planeación**: Gestión de programa de tejido, catálogos (telares, eficiencia, velocidad, calendarios, aplicaciones), matriz de hilos, codificación de modelos, altas especiales y pronósticos
-- **Tejido**: Inventario de telas, secuencias de inventario, marcas finales, requerimientos de trama, cortes de eficiencia, producción de reenconado cabezuela
-- **Urdido y Engomado**: Programa de urdido y engomado, reservar y programar telares, programación de requerimientos
-- **Atadores**: Gestión de atadores y programación de requerimientos
-- **Tejedores**: Configuración y gestión de procesos de tejedores
-- **Mantenimiento**: Herramientas de mantenimiento del sistema
-- **Configuración**: Gestión de usuarios, módulos del sistema, permisos, cargar planeación
+- **Permisos por módulo y acción** (`acceso`, `crear`, `modificar`, `eliminar`, `registrar`) sobre una jerarquía de módulos de 3 niveles, validados en el router mediante gates y cacheados por usuario.
+- **Programación en cascada**: los cambios de catálogos (eficiencias, velocidades, calendarios) recalculan fechas y secuencias del programa de tejido.
+- **Integración con el ERP** mediante conexiones SQL Server dedicadas (`TI_PRO`, `TOW_PRO`) para inventario, órdenes y fórmulas.
+- **Auditoría**: contexto SQL por sesión (`SESSION_CONTEXT`), triggers de auditoría y una bitácora de acciones.
+- **Monitoreo propio**: panel `/admin` en Livewire, Laravel Pulse, errores PHP y JS agrupados por huella y alertas por correo.
+- **Reportes** en Excel (`maatwebsite/excel`) y PDF (`dompdf`), además de la exportación del OEE de atadores.
 
-### Funcionalidades Adicionales
+## Módulos
 
-- Sistema de autenticación con número de empleado y contraseña
-- Autenticación por código QR
-- Sistema de permisos por módulo (acceso, crear, modificar, eliminar, registrar)
-- Gestión dinámica de módulos y submódulos
-- Importación de datos desde archivos Excel
-- Interfaz de usuario responsiva
-- Aplicación Web Progresiva (PWA)
-- Gestión de folios y secuencias
-- Gestión de turnos de producción
-- Caché de módulos y permisos para optimización
+| Módulo | Alcance |
+|---|---|
+| **Planeación** | Programa de tejido (secuenciación por telar, duplicar, dividir, balancear, liberar con folio), muestras, catálogos maestros, codificación de modelos, alineación y utilerías |
+| **Programa Urdido-Engomado** | Reserva de julios del ERP, proyección de requerimientos a 5 semanas y creación de órdenes URD/ENG (MC Coy y Karl Mayer) |
+| **Urdido** | Priorización por máquina, captura de producción, BPM, catálogos y reportes |
+| **Engomado** | Programación WP2/WP3, fórmulas químicas desde AX, producción por julio, calificación, control de merma |
+| **Tejido** | Inventario de telas y trama, marcas finales, cortes de eficiencia, reenconado, reportes (RPM, saldos, paros) |
+| **Atadores** | Ciclo de atado (Activo → En proceso → Terminado → Calificado → Autorizado), OEE anual |
+| **Tejedores** | Julios por telar, checklist BPM, desarrolladores y muestras, notificaciones de atado y corte |
+| **Mantenimiento / Mecánicos** | Paros y fallas, órdenes de trabajo, catálogo de operadores, autorización y estado de máquina |
+| **Crudo · Producto terminado · Trazabilidad** | Auditorías de crudo con reporte diario programado, tiempos de preparación y trazabilidad por flog |
+| **Ventas** | Tablero comercial con filtros |
+| **Configuración** | Usuarios, módulos, permisos, folios, departamentos, destinatarios de Telegram y carga de planeación |
 
-## Requisitos del Sistema
+## Arquitectura
 
-### Servidor
+```mermaid
+flowchart LR
+    subgraph Cliente["Navegador / tablet de planta"]
+        UI["Blade + Livewire 4<br/>TypeScript (Vite)"]
+    end
 
-- PHP >= 8.2
-- Composer
-- Node.js >= 18.x
-- npm o yarn
-- Servidor web (Apache/Nginx)
-- SQL Server (recomendado) o base de datos compatible
-- Extensiones PHP: pdo_sqlsrv, sqlsrv, mbstring, xml, curl, zip, gd
+    subgraph App["Laravel 12"]
+        R["Rutas por dominio<br/>routes/modules/*"]
+        G["Gates de permisos<br/>module.permission"]
+        C["Controllers / Livewire"]
+        S["Services · Helpers · Observers"]
+        Q["Colas y scheduler"]
+    end
 
-### Base de Datos
+    subgraph Datos
+        DB[("SQL Server<br/>ProdTowel")]
+        TI[("TI_PRO<br/>ERP")]
+        TP[("TOW_PRO")]
+        PL[("SQLite<br/>Pulse")]
+    end
 
-- SQL Server (configuración por defecto)
-- Se requiere conexión a base de datos SQL Server con las tablas correspondientes
+    TG["Telegram Bot"]
 
-## Instalación
-
-### 1. Clonar el Repositorio
-
-```bash
-git clone <url-del-repositorio>
-cd Towell
+    UI --> R --> G --> C --> S
+    S --> DB
+    S --> TI
+    S --> TP
+    Q --> S
+    S --> TG
+    C -. métricas .-> PL
 ```
 
-### 2. Instalar Dependencias de PHP
+**Organización del código**
+
+```
+app/
+├── Http/Controllers/<Dominio>/   # Un subdirectorio por dominio de negocio
+├── Livewire/<Dominio>/           # Pantallas migradas a Livewire
+├── Models/<Dominio>/             # Eloquent sobre el esquema dbo.
+├── Services/                     # Reglas de negocio (ProgramaUrdEng, Engomado, Tejedores…)
+├── Helpers/                      # FolioHelper, TurnoHelper, StringTruncator, AuditoriaHelper…
+├── Observers/                    # Recalculo del programa de tejido y montado de telas
+├── Imports/ · Exports/           # Excel
+└── Console/Commands/             # Recalculo de fechas, reporte de crudo, correcciones de producción…
+routes/
+├── web.php                       # Dispatcher
+├── public.php                    # Sin autenticación
+└── modules/*.php                 # Una definición de rutas por dominio
+resources/js/
+├── utils/                        # http, notify, format, dom, combobox, sesión, acciones táctiles
+├── componentes/                  # Runtime de los componentes Blade x-ui.*
+├── modulos/**/index.ts           # Un bundle por módulo (Vite los descubre por glob)
+└── monitoreo/                    # Telemetría del cliente
+```
+
+## Stack
+
+| Capa | Tecnología |
+|---|---|
+| Backend | PHP 8.2+, Laravel 12, Livewire 4, Laravel Pulse |
+| Base de datos | SQL Server (`pdo_sqlsrv`), compatible con 2008 R2 |
+| Frontend | Blade, TypeScript, Vite 6, Tailwind CSS 4, Tom Select, SweetAlert2, Chart.js, SortableJS |
+| Reportes | maatwebsite/excel, dompdf, pdfjs-dist y html2canvas-pro (carga bajo demanda) |
+| Infraestructura | Redis/predis (caché y colas), scheduler de Laravel, bot de Telegram |
+| Calidad | PHPUnit 11, `node --test`, Larastan nivel 5, Pint, PHPMD, jscpd, ratchet de deuda |
+
+## Inicio rápido
+
+**Requisitos:** PHP 8.2+ con `pdo_sqlsrv`, `sqlsrv`, `mbstring`, `xml`, `curl`, `zip` y `gd`; Composer 2; Node.js 20+ (el CI usa 24); SQL Server.
 
 ```bash
+git clone https://github.com/francosancheztowell/towell.git
+cd towell
+
 composer install
-```
+npm ci
 
-### 3. Instalar Dependencias de Node.js
-
-```bash
-npm install
-```
-
-### 4. Configurar Variables de Entorno
-
-Copiar el archivo de ejemplo de variables de entorno:
-
-```bash
 cp .env.example .env
-```
-
-Editar el archivo `.env` y configurar:
-
-- `APP_NAME`: Nombre de la aplicación
-- `APP_ENV`: Entorno (local, staging, production)
-- `APP_DEBUG`: Modo debug (true/false)
-- `APP_URL`: URL de la aplicación
-- `DB_CONNECTION`: Conexión de base de datos (sqlsrv)
-- `DB_HOST`: Host de la base de datos
-- `DB_PORT`: Puerto de la base de datos
-- `DB_DATABASE`: Nombre de la base de datos
-- `DB_USERNAME`: Usuario de la base de datos
-- `DB_PASSWORD`: Contraseña de la base de datos
-
-### 5. Generar Clave de Aplicación
-
-```bash
 php artisan key:generate
-```
+# Configura DB_* (sqlsrv) y las conexiones del ERP en .env
 
-### 6. Ejecutar Migraciones
-
-```bash
 php artisan migrate
-```
-
-### 7. Compilar Assets
-
-Para desarrollo:
-
-```bash
-npm run dev
-```
-
-Para producción:
-
-```bash
-npm run build
-```
-
-### 8. Configurar Permisos de Almacenamiento
-
-```bash
 php artisan storage:link
+
+composer dev      # servidor + cola + logs (pail) + Vite
 ```
 
-Asegurar permisos de escritura en los directorios:
+La aplicación queda en `http://localhost:8000`. Después del login se redirige a `/produccionProceso`.
 
-```bash
-chmod -R 775 storage bootstrap/cache
-```
+> **Compatibilidad con SQL Server 2008 R2.** Producción no dispone de `OFFSET/FETCH`, `STRING_AGG`, `IIF`, `CONCAT`, `FORMAT`, `TRY_CONVERT` ni `THROW`. Para paginar se usa `ROW_NUMBER()` a través de `PaginacionCompat`.
 
-## Estructura del Proyecto
+## Comandos
 
-```
-Towell/
-├── app/
-│   ├── Console/          # Comandos de Artisan
-│   ├── Exceptions/       # Manejo de excepciones
-│   ├── Helpers/          # Funciones auxiliares
-│   ├── Http/
-│   │   ├── Controllers/  # Controladores de la aplicación
-│   │   ├── Middleware/   # Middleware personalizado
-│   │   └── Requests/     # Form requests de validación
-│   ├── Imports/          # Clases de importación de Excel
-│   ├── Models/           # Modelos de Eloquent
-│   ├── Observers/        # Observadores de modelos
-│   ├── Providers/        # Service providers
-│   ├── Services/         # Servicios de la aplicación
-│   └── Traits/           # Traits reutilizables
-├── bootstrap/            # Archivos de arranque
-├── config/               # Archivos de configuración
-├── database/
-│   ├── migrations/       # Migraciones de base de datos
-│   ├── seeders/          # Seeders de base de datos
-│   └── scripts/          # Scripts de utilidad
-├── public/               # Archivos públicos
-├── resources/
-│   ├── css/              # Estilos CSS
-│   ├── js/               # JavaScript
-│   └── views/            # Vistas Blade
-├── routes/               # Definición de rutas
-├── storage/              # Archivos de almacenamiento
-└── tests/                # Pruebas automatizadas
-```
+| Comando | Qué hace |
+|---|---|
+| `composer dev` | Levanta el entorno completo de desarrollo |
+| `npm run build` | Compila los assets de producción |
+| `php artisan test` | Suite PHP (SQLite en memoria; necesita haber corrido `npm run build` antes) |
+| `php artisan test --group=sqlserver` | Tests que requieren SQL Server real ([guía](tests/README-sqlserver.md)) |
+| `npm run test:js` | Tests de JavaScript con `node --test` |
+| `npm run typecheck` | `tsc --noEmit` |
+| `vendor/bin/phpstan analyse --memory-limit=2G` | Análisis estático (Larastan nivel 5) |
+| `composer quality` | Gate previo al push: Pint, PHPStan, PHPMD y ratchet sobre los archivos cambiados |
+| `npm run ratchet` | Falla si aumenta la deuda medida (`fetch(`, `Swal.fire`, `onclick=`, `<script>` inline, duplicación) |
+| `php artisan optimize:clear` | Limpia caché de configuración, rutas y vistas |
 
-## Configuración
+## Calidad e integración continua
 
-### Base de Datos
+El workflow [`frontend-checks.yml`](.github/workflows/frontend-checks.yml) se ejecuta en cada PR y en cada push a `main`:
 
-El sistema utiliza SQL Server como base de datos principal. Asegúrese de tener configurada la conexión en el archivo `.env`:
+- **checks**: typecheck, tests JS, build de Vite y ratchet de deuda.
+- **php**: PHPUnit, PHPStan y, solo sobre los archivos PHP modificados, Pint `--test` y PHPMD (únicamente falla ante violaciones nuevas respecto a la versión base del archivo). `composer audit` bloquea solo las advertencias de seguridad nuevas.
 
-```
-DB_CONNECTION=sqlsrv
-DB_HOST=tu-servidor-sql
-DB_PORT=1433
-DB_DATABASE=nombre_base_datos
-DB_USERNAME=usuario
-DB_PASSWORD=contraseña
-```
+La deuda se administra con un **ratchet**: cada métrica tiene un techo en `scripts/ratchet-baseline.json` que solo puede bajar. El baseline de PHPStan (`phpstan-baseline.neon`) sigue la misma regla.
 
-### Autenticación
+## Convenciones
 
-El sistema utiliza autenticación personalizada basada en el modelo `Usuario`. Los usuarios se autentican mediante número de empleado y contraseña. También se soporta autenticación por código QR.
+- **Permisos**: `userCan('crear', 'Modulo')` y `userPermissions('Modulo')`. Después de cambiarlos, llama a `ModuloService::limpiarCacheUsuario()`. La columna de `SYSRoles` se llama `reigstrar` (con el error de escritura original); en `SYSUsuariosRoles` se llama `registrar`.
+- **Folios**: `FolioHelper::obtenerFolioSugerido()` para vista previa y `obtenerSiguienteFolio()` solo al confirmar, porque incrementa la secuencia.
+- **Turnos**: `TurnoHelper` (T1 6:30–14:30, T2 14:30–22:30, T3 22:30–6:30, `America/Mexico_City`).
+- **Frontend**: usa `window.http` en lugar de `fetch` y `window.notify` para mensajes. Evita `onclick=` inline; cada módulo tiene su bundle en `resources/js/modulos/<modulo>/index.ts`.
+- **UI**: los componentes `x-ui.*` y los tokens de `resources/css/app.css` están descritos en la [receta de componentes](docs/cerebro-towell/Arquitectura/receta-componentes.md).
+- **Estilo**: Pint solo sobre los archivos que cambiaste; no se formatea el repositorio completo.
 
-### Permisos
+## Documentación
 
-El sistema implementa un sistema de permisos granular por módulo. Cada usuario puede tener permisos específicos (acceso, crear, modificar, eliminar, registrar) para cada módulo del sistema.
-
-## Uso
-
-### Acceso al Sistema
-
-1. Navegar a la URL de la aplicación
-2. Ingresar número de empleado y contraseña
-3. O utilizar código QR para autenticación rápida
-
-### Navegación
-
-El sistema presenta una interfaz modular donde los usuarios pueden acceder a los módulos según sus permisos. Los módulos se organizan jerárquicamente:
-
-- Módulos principales (Nivel 1)
-- Submódulos (Nivel 2)
-- Submódulos de nivel 3
-
-### Importación de Datos
-
-El sistema permite importar datos desde archivos Excel para varios módulos:
-
-- Catálogo de telares
-- Eficiencia estándar
-- Velocidad estándar
-- Calendarios
-- Aplicaciones
-- Programa de tejido
-
-## Desarrollo
-
-### Comandos Útiles
-
-Ejecutar servidor de desarrollo:
-
-```bash
-php artisan serve
-```
-
-Ejecutar en modo desarrollo completo (servidor, cola, logs, vite):
-
-```bash
-composer dev
-```
-
-Limpiar caché:
-
-```bash
-php artisan cache:clear
-php artisan config:clear
-php artisan view:clear
-php artisan route:clear
-```
-
-### Estructura de Código
-
-El proyecto sigue las convenciones de Laravel:
-
-- Controladores en `app/Http/Controllers`
-- Modelos en `app/Models`
-- Vistas en `resources/views`
-- Rutas en `routes/web.php`
-- Middleware en `app/Http/Middleware`
-
-### Helpers
-
-El proyecto incluye helpers personalizados:
-
-- `FolioHelper`: Gestión de folios y secuencias
-- `TurnoHelper`: Gestión de turnos de producción
-- `StringTruncator`: Truncado de strings según límites de base de datos
-- `format_helpers.php`: Funciones de formateo
-- `permission-helpers.php`: Funciones de permisos
-
-## Dependencias Principales
-
-### Backend
-
-- Laravel Framework ^12.0
-- Maatwebsite Excel ^3.1
-- Twilio SDK ^8.4
-
-### Frontend
-
-- Tailwind CSS ^4.1.14
-- Vite ^6.0.11
-- Axios ^1.7.4
-
-## Seguridad
-
-- Autenticación mediante sesiones
-- Validación de entrada en formularios
-- Protección CSRF en todas las rutas
-- Sanitización de datos de entrada
-- Contraseñas hasheadas (soporte para texto plano durante migración)
-
-## Mantenimiento
-
-### Logs
-
-Los logs de la aplicación se almacenan en `storage/logs/laravel.log`.
-
-### Backup
-
-Se recomienda realizar backups regulares de:
-
-- Base de datos
-- Archivos subidos en `storage/app/public`
-- Archivos de configuración en `config/`
-
-### Actualizaciones
-
-Para actualizar las dependencias:
-
-```bash
-composer update
-npm update
-```
-
-## Soporte
-
-Para problemas o consultas, contactar al equipo de desarrollo.
+| Recurso | Para quién |
+|---|---|
+| [`docs/documentacion-corporativa/`](docs/documentacion-corporativa/README.md) | Dirección, jefaturas y capacitación: qué hace el sistema desde el punto de vista del negocio |
+| [`docs/documentacion-tecnica/`](docs/documentacion-tecnica/README.md) | Desarrollo y soporte: rutas, controladores y matriz de trazabilidad |
+| [`docs/documentacion-modulos/`](docs/documentacion-modulos/README.md) | Referencia detallada por módulo (99 controladores, 209 vistas) |
+| [`docs/cerebro-towell/`](docs/cerebro-towell/00-Inicio.md) | Arquitectura, runbooks ([despliegue](docs/cerebro-towell/Runbooks/deploy.md)) y decisiones |
+| [`CLAUDE.md`](CLAUDE.md) | Guía técnica condensada para quien contribuye (personas y agentes de IA) |
 
 ## Licencia
 
-Este proyecto es software propietario. Todos los derechos reservados.
-
-## Versión
-
-Versión actual: 1.0.0
-
-## Autores
-
-Equipo de Desarrollo Towell
-
-## Changelog
-
-Ver archivo CHANGELOG.md para historial de cambios.
-
-## Notas Adicionales
-
-- El sistema está diseñado para funcionar como Progressive Web App (PWA)
-- Requiere conexión a SQL Server para funcionamiento completo
-- Los permisos se cachean por 24 horas para optimización
-- El sistema soporta múltiples conexiones de base de datos
+Software propietario. © Towell. Todos los derechos reservados. Queda prohibido copiarlo, distribuirlo o usarlo sin autorización expresa.
