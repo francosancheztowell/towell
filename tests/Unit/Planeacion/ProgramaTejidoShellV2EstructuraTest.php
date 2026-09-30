@@ -55,7 +55,8 @@ class ProgramaTejidoShellV2EstructuraTest extends TestCase
         $referencias = [];
         foreach ($vistas as $archivo) {
             if (str_ends_with($archivo->getFilename(), '.blade.php') && str_contains((string) file_get_contents($archivo->getPathname()), 'modulos/programa-tejido-v2')) {
-                $referencias[] = str_replace($this->ruta(''), '', $archivo->getPathname());
+                // En Windows el iterador devuelve "\": se normaliza para comparar igual que en Linux (CI).
+                $referencias[] = str_replace('\\', '/', str_replace($this->ruta(''), '', $archivo->getPathname()));
             }
         }
 
