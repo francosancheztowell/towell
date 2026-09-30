@@ -104,6 +104,16 @@ trait EsquemaAtadores
             });
         }
 
+        $this->crearTablasInventario();
+
+        $this->actingAs($this->createUsuario(), 'web');
+        $this->grantModulo('Programa Atadores', $acciones, null, 45);
+    }
+
+    /** Inventario de telares e historial (lo que lee iniciar y escribe autorizar). */
+    private function crearTablasInventario(): void
+    {
+        $schema = Schema::connection('sqlsrv');
         $schema->create('TejHistorialInventarioTelares', function (Blueprint $t) {
             $t->increments('Id');
             foreach (['NoTelarId', 'Status', 'Tipo', 'Cuenta', 'Calibre', 'Turno', 'Fibra', 'NoJulio',
@@ -127,9 +137,6 @@ trait EsquemaAtadores
             $t->float('metros')->nullable();
             $t->timestamps();
         });
-
-        $this->actingAs($this->createUsuario(), 'web');
-        $this->grantModulo('Programa Atadores', $acciones, null, 45);
     }
 
     /** Otro usuario con permisos de Programa Atadores (el módulo ya existe en SYSRoles). */

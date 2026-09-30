@@ -13,7 +13,6 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\ReferenceHelper;
-use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use RuntimeException;
@@ -802,8 +801,6 @@ class OeeAtadoresFileService
         unset($snapshotBook, $snapshotSheet);
     }
 
-
-
     private function replaceDetalleSection(Worksheet $detalle, array $section, array $generated): void
     {
         $desiredRows = (int) $generated['row_count'];
@@ -992,18 +989,6 @@ class OeeAtadoresFileService
         return self::$columnLabels = $labels;
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
     private function resolveAnnualSheet(Spreadsheet $spreadsheet): ?Worksheet
     {
         foreach ($spreadsheet->getWorksheetIterator() as $sheet) {
@@ -1025,7 +1010,6 @@ class OeeAtadoresFileService
 
         return null;
     }
-
 
     private function writeCkCuFormulas(
         Worksheet $sheet,
@@ -1087,41 +1071,6 @@ class OeeAtadoresFileService
             $sheet->setCellValue("CR{$row}", "=IFERROR(CQ{$row}*100/CO{$row},\"\")");
         }
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     private function extractAtadorList(array $layout, array $nameMap = []): array
     {
@@ -1285,9 +1234,6 @@ class OeeAtadoresFileService
             }
         }
     }
-
-
-
 
     private function copiarArchivoATemporalLocal(string $originalPath): string
     {
