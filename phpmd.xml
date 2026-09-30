@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<!--
+  PHPMD del track CAL (22-01). No hay baseline: scripts/calidad.mjs phpmd corre esto sobre los
+  PHP cambiados y solo falla por violaciones NUEVAS respecto a la version base de cada archivo
+  (regla + clase + metodo). Umbrales y exclusiones explicados en
+  .planning/phases/22-calidad/22-01-PLAN.md (D2).
+-->
+<ruleset name="Towell"
+         xmlns="http://pmd.sf.net/ruleset/1.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sf.net/ruleset/1.0.0 http://pmd.sf.net/ruleset_xml_schema.xsd">
+    <description>Codigo muerto y tamano/complejidad, sobre archivos cambiados.</description>
+
+    <!--
+      Fuera, a proposito: UnusedFormalParameter (Laravel y Excel imponen firmas:
+      styles(Worksheet $sheet), handle($request, $next)) y de codesize TooManyMethods,
+      TooManyPublicMethods, TooManyFields, ExcessivePublicCount (controllers y modelos de
+      Laravel los disparan por diseno).
+    -->
+    <rule ref="rulesets/unusedcode.xml/UnusedPrivateField"/>
+    <rule ref="rulesets/unusedcode.xml/UnusedPrivateMethod"/>
+    <rule ref="rulesets/unusedcode.xml/UnusedLocalVariable">
+        <properties>
+            <property name="allow-unused-foreach-variables" value="true"/>
+        </properties>
+    </rule>
+
+    <!-- Reporta desde 10 (default de PHPMD). -->
+    <rule ref="rulesets/codesize.xml/CyclomaticComplexity">
+        <properties>
+            <property name="reportLevel" value="10"/>
+        </properties>
+    </rule>
+    <rule ref="rulesets/codesize.xml/NPathComplexity">
+        <properties>
+            <property name="minimum" value="200"/>
+        </properties>
+    </rule>
+    <rule ref="rulesets/codesize.xml/ExcessiveMethodLength">
+        <properties>
+            <property name="minimum" value="100"/>
+            <property name="ignore-whitespace" value="true"/>
+        </properties>
+    </rule>
+    <rule ref="rulesets/codesize.xml/ExcessiveClassLength">
+        <properties>
+            <property name="minimum" value="1000"/>
+            <property name="ignore-whitespace" value="true"/>
+        </properties>
+    </rule>
+    <rule ref="rulesets/codesize.xml/ExcessiveParameterList">
+        <properties>
+            <property name="minimum" value="10"/>
+        </properties>
+    </rule>
+    <rule ref="rulesets/codesize.xml/ExcessiveClassComplexity">
+        <properties>
+            <property name="maximum" value="50"/>
+        </properties>
+    </rule>
+</ruleset>
