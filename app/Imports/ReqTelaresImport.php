@@ -2,21 +2,26 @@
 
 namespace App\Imports;
 
+use App\Imports\Contracts\ImportConEstadisticas;
 use App\Models\Planeacion\ReqTelares;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\ToModel;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithBatchInserts;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class ReqTelaresImport implements ToModel, WithHeadingRow, WithBatchInserts, WithChunkReading
+class ReqTelaresImport implements ImportConEstadisticas, ToModel, WithBatchInserts, WithChunkReading, WithHeadingRow
 {
     private int $rowCounter = 0;
+
     private int $processedRows = 0;
+
     private int $skippedRows = 0;
+
     private int $createdRows = 0;
+
     private int $updatedRows = 0;
+
     private array $errores = [];
 
     /**
@@ -33,6 +38,7 @@ class ReqTelaresImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
                 }
             }
         }
+
         return null;
     }
 
@@ -45,6 +51,7 @@ class ReqTelaresImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
         $s = preg_replace('/[^a-z0-9]+/u', '_', $s);
         // Colapsa múltiples guiones bajos
         $s = preg_replace('/_+/', '_', $s);
+
         return trim($s, '_');
     }
 
@@ -53,8 +60,9 @@ class ReqTelaresImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
     {
         $out = [];
         foreach ($row as $k => $v) {
-            $out[$this->normalizeKey((string)$k)] = $v;
+            $out[$this->normalizeKey((string) $k)] = $v;
         }
+
         return $out;
     }
 
@@ -64,9 +72,10 @@ class ReqTelaresImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
     private function removeAccents(string $value): string
     {
         $trans = [
-            'á' => 'a','é' => 'e','í' => 'i','ó' => 'o','ú' => 'u','ñ' => 'n',
-            'Á' => 'A','É' => 'E','Í' => 'I','Ó' => 'O','Ú' => 'U','Ñ' => 'N',
+            'á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ñ' => 'n',
+            'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ñ' => 'N',
         ];
+
         return strtr($value, $trans);
     }
 
@@ -85,6 +94,7 @@ class ReqTelaresImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
                     $matches++;
                 }
             }
+
             // Solo es encabezado si coinciden todas las 4 columnas
             return $matches === 4;
         }
@@ -93,8 +103,6 @@ class ReqTelaresImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
     }
 
     /**
-     * @param array $row
-     *
      * @return \Illuminate\Database\Eloquent\Model|null
      */
     public function model(array $row)
@@ -108,6 +116,7 @@ class ReqTelaresImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
             // Saltar filas que son encabezados repetidos dentro del cuerpo
             if ($this->looksLikeHeaderRow($row)) {
                 $this->skippedRows++;
+
                 return null;
             }
 
@@ -123,22 +132,24 @@ class ReqTelaresImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
             if (empty($salon) || empty($telar)) {
                 $this->errores[] = "Fila {$this->rowCounter}: Faltan datos requeridos (Salon: '{$salon}', Telar: '{$telar}')";
                 $this->skippedRows++;
+
                 return null;
             }
 
             // Verificar si ya existe un telar con el mismo salón y número
             $telarExistente = ReqTelares::where('SalonTejidoId', $salon)
-                                      ->where('NoTelarId', $telar)
-                                      ->first();
+                ->where('NoTelarId', $telar)
+                ->first();
 
             if ($telarExistente) {
                 // Actualizar registro existente
                 $telarExistente->update([
                     'Nombre' => $nombre,
-                    'Grupo' => $grupo
+                    'Grupo' => $grupo,
                 ]);
                 $this->processedRows++;
                 $this->updatedRows++;
+
                 return null; // No crear nuevo modelo, solo actualizar
             } else {
                 // Crear nuevo registro
@@ -146,25 +157,25 @@ class ReqTelaresImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
                     'SalonTejidoId' => $salon,
                     'NoTelarId' => $telar,
                     'Nombre' => $nombre,
-                    'Grupo' => $grupo
+                    'Grupo' => $grupo,
                 ]);
 
                 $this->processedRows++;
                 $this->createdRows++;
+
                 return $modelo;
             }
 
         } catch (\Exception $e) {
             // Log the error but continue processing
-            $this->errores[] = "Fila {$this->rowCounter}: Error al procesar - " . $e->getMessage();
+            report($e);
+            $this->errores[] = "Fila {$this->rowCounter}: no se pudo procesar la fila";
             $this->skippedRows++;
+
             return null; // Skip this row
         }
     }
 
-    /**
-     * @return int
-     */
     public function batchSize(): int
     {
         return 100;
@@ -189,7 +200,7 @@ class ReqTelaresImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
             'updated_rows' => $this->updatedRows,
             'skipped_rows' => $this->skippedRows,
             'total_rows' => $this->rowCounter,
-            'errores' => $this->errores
+            'errores' => $this->errores,
         ];
     }
 
@@ -202,7 +213,7 @@ class ReqTelaresImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
             return null;
         }
 
-        $s = trim((string)$value);
+        $s = trim((string) $value);
 
         // Detectar y limpiar fórmulas de Excel
         if (strpos($s, '=') === 0) {
@@ -237,7 +248,8 @@ class ReqTelaresImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
                 // Extraer solo el número de la celda
                 if (preg_match('/(\d+)/', $cellRef, $numberMatches)) {
                     $number = $numberMatches[1];
-                    return $baseText . $number;
+
+                    return $baseText.$number;
                 }
             }
         }
@@ -268,6 +280,6 @@ class ReqTelaresImport implements ToModel, WithHeadingRow, WithBatchInserts, Wit
             $prefijo = strtoupper(substr(trim($salon), 0, 3));
         }
 
-        return $prefijo . ' ' . $telar;
+        return $prefijo.' '.$telar;
     }
 }

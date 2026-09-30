@@ -66,15 +66,20 @@ class ExcelCatalogosTest extends TestCase
         $this->assertSame(850, (int) ReqVelocidadStd::value('Velocidad'));
     }
 
-    public function test_aplicaciones_hoy_exige_salon_y_telar(): void
+    public function test_aplicaciones_carga_clave_nombre_y_factor(): void
     {
-        // Caracterización (BUG-19-06b-2): el import todavía pide Salón y Telar (estructura vieja) y
-        // no lee Factor, así que el formato actual (Clave, Nombre, Factor) no carga nada.
-        $archivo = $this->excel([['Clave', 'Nombre', 'Factor'], ['BOR', 'Bordado', 1.5]]);
+        // BUG-19-06b-2 corregido: el import pedía Salón y Telar (estructura vieja) y no leía Factor,
+        // así que el formato vigente (Clave, Nombre, Factor) no cargaba nada.
+        ReqAplicaciones::create(['AplicacionId' => 'EST', 'Nombre' => 'Viejo', 'Factor' => 1]);
+        $archivo = $this->excel([['Clave', 'Nombre', 'Factor'], ['BOR', 'Bordado', 1.5], ['EST', 'Estampado', 2], ['', 'Sin clave', 1]]);
 
         $this->post('/planeacion/aplicaciones/excel', ['archivo_excel' => $archivo], ['Accept' => 'application/json'])
-            ->assertOk()->assertJson(['success' => true, 'data' => ['registros_procesados' => 0]]);
-        $this->assertSame(0, ReqAplicaciones::count());
+            ->assertOk()->assertJson(['success' => true, 'data' => [
+                'registros_procesados' => 2, 'registros_creados' => 1, 'registros_actualizados' => 1, 'total_errores' => 1,
+            ]]);
+        $this->assertEquals(1.5, ReqAplicaciones::where('AplicacionId', 'BOR')->value('Factor'));
+        $this->assertSame('Estampado', ReqAplicaciones::where('AplicacionId', 'EST')->value('Nombre'));
+        $this->assertEquals(2, ReqAplicaciones::where('AplicacionId', 'EST')->value('Factor'));
     }
 
     public function test_archivo_que_no_es_excel_se_rechaza(): void

@@ -71,16 +71,17 @@ class EstandarCatalogoTest extends TestCase
         $this->assertSame(850, (int) ReqProgramaTejido::find(2)->VelocidadSTD, 'densidad Alta: no');
     }
 
-    public function test_editar_velocidad_hoy_reescribe_fibras_del_programa(): void
+    public function test_editar_velocidad_no_reescribe_fibras_ni_telar_del_programa(): void
     {
-        // Caracterización del comportamiento actual (BUG-19-06b-1): al editar la velocidad, el
-        // programa que la usa por FibraRizo queda con FibraTrama = FibraId del catálogo.
+        // BUG-19-06b-1 corregido: antes el programa que usaba la velocidad por FibraRizo quedaba con
+        // FibraTrama = FibraId del catálogo (y con el telar nuevo si se cambiaba en el catálogo).
         $v = ReqVelocidadStd::create(['SalonTejidoId' => 'SMITH', 'NoTelarId' => '300', 'FibraId' => 'H', 'Velocidad' => 850, 'Densidad' => 'Normal']);
         $this->programa(['Id' => 1, 'NoTelarId' => '300', 'FibraRizo' => 'H', 'FibraTrama' => 'PAP', 'CalibreTrama' => 20, 'VelocidadSTD' => 850]);
 
         $this->putJson("/planeacion/velocidad/{$v->Id}", ['SalonTejidoId' => 'SMITH', 'NoTelarId' => '300', 'FibraId' => 'H', 'Velocidad' => 900, 'Densidad' => 'Normal'])->assertOk();
 
-        $this->assertSame('H', ReqProgramaTejido::find(1)->FibraTrama);
+        $this->assertSame('PAP', ReqProgramaTejido::find(1)->FibraTrama);
+        $this->assertSame(900, (int) ReqProgramaTejido::find(1)->VelocidadSTD);
     }
 
     public function test_no_se_borra_un_estandar_en_uso_y_si_uno_libre(): void

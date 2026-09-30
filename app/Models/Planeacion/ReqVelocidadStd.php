@@ -5,6 +5,14 @@ namespace App\Models\Planeacion;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $Id
+ * @property string|null $SalonTejidoId
+ * @property string $NoTelarId
+ * @property string $FibraId
+ * @property int|float|null $Velocidad
+ * @property string|null $Densidad
+ */
 class ReqVelocidadStd extends Model
 {
     use HasFactory;

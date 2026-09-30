@@ -164,7 +164,30 @@ class CatalogosSimplesTest extends TestCase
         $this->putJson("/planeacion/catalogos/pesos-rollos/{$registro->Id}", ['PesoRollo' => 30] + $alta)->assertOk();
         $this->assertEquals(30, ReqPesosRollosTejido::first()->PesoRollo);
         $this->deleteJson("/planeacion/catalogos/pesos-rollos/{$registro->Id}")->assertOk()->assertJson(['success' => true]);
-        // Hoy: el ModelNotFound se atrapa y sale 500 con getMessage().
-        $this->deleteJson("/planeacion/catalogos/pesos-rollos/{$registro->Id}")->assertStatus(500);
+        // Antes: el ModelNotFound se atrapaba y salía 500 con getMessage() (SEC-07). Ahora 404.
+        $this->deleteJson("/planeacion/catalogos/pesos-rollos/{$registro->Id}")->assertNotFound();
+    }
+
+    public function test_matriz_calibres_crud_y_consultas_de_lmat(): void
+    {
+        $salida = ['ItemId' => 'JULIO-URDIDO', 'ConfigId' => 'ALG-OPEN', 'InventSizeId' => '2028-370/1', 'InventColorId' => '1000'];
+        $this->postJson('/planeacion/catalogos/matrizcalibres', ['Tipo' => 'barra2', 'Calibre' => 75, 'FibraId' => 'FIL'] + $salida)
+            ->assertStatus(422)->assertJson(['success' => false])->assertJsonValidationErrors('Cuenta');
+        $this->postJson('/planeacion/catalogos/matrizcalibres', ['Tipo' => 'rizo', 'Calibre' => 12, 'FibraId' => 'ALG', 'Cuenta' => '3040'] + $salida)
+            ->assertOk()->assertJson(['success' => true, 'message' => 'Registro creado exitosamente'])->assertJsonPath('data.Tipo', 'RIZO');
+        $id = \App\Models\Planeacion\Catalogos\CatMatrizCalibres::value('Id');
+
+        $this->getJson('/planeacion/lmat/api/matriz-calibre?tipo=rizo&calibre=12&fibraId=ALG&cuenta=3040')
+            ->assertOk()->assertJson(['success' => true, 'found' => true]);
+        $this->getJson('/planeacion/lmat/api/matriz-calibre?tipo=rizo&calibre=12&fibraId=ALG')
+            ->assertStatus(422)->assertJsonValidationErrors('cuenta');
+        $this->postJson('/planeacion/lmat/api/matriz-calibre/lote', ['claves' => [
+            ['key' => 'a', 'tipo' => 'RIZO', 'calibre' => 12, 'fibraId' => 'ALG', 'cuenta' => '3040'],
+            ['key' => 'b', 'tipo' => 'TRAMA', 'calibre' => 20, 'fibraId' => 'ALG'],
+        ]])->assertOk()->assertJsonPath('data.b', null)->assertJsonPath('data.a.Id', $id);
+
+        $this->putJson("/planeacion/catalogos/matrizcalibres/{$id}", ['Tipo' => 'RIZO', 'Calibre' => 14, 'FibraId' => 'ALG', 'Cuenta' => '3040'] + $salida)->assertOk();
+        $this->putJson('/planeacion/catalogos/matrizcalibres/999', ['Tipo' => 'RIZO', 'Calibre' => 14, 'FibraId' => 'ALG', 'Cuenta' => '3040'] + $salida)->assertNotFound();
+        $this->deleteJson("/planeacion/catalogos/matrizcalibres/{$id}")->assertOk()->assertJson(['success' => true]);
     }
 }

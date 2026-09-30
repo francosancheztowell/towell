@@ -163,18 +163,6 @@ final class CatalogosPlaneacionVista
         $esEficiencia = $variante === 'eficiencia';
         $telares = $esEficiencia ? self::TELARES_EFICIENCIA : self::TELARES_VELOCIDAD;
         $salones = array_keys($telares);
-        $valor = $esEficiencia
-            ? ['nombre' => 'Eficiencia', 'etiqueta' => 'Eficiencia', 'tipo' => 'range', 'requerido' => true, 'min' => 0, 'max' => 100, 'step' => '1', 'sufijo' => '%', 'porDefecto' => '78', 'ancho' => 'completo']
-            : ['nombre' => 'Velocidad', 'etiqueta' => 'Velocidad (RPM)', 'tipo' => 'number', 'requerido' => true, 'min' => 0, 'step' => '1', 'placeholder' => '850', 'ancho' => 'completo'];
-        $filtrosValor = $esEficiencia
-            ? [
-                ['nombre' => 'eficiencia_min', 'campo' => 'Eficiencia', 'etiqueta' => 'Eficiencia Mínima (%)', 'modo' => 'min', 'control' => 'number', 'escala' => 100],
-                ['nombre' => 'eficiencia_max', 'campo' => 'Eficiencia', 'etiqueta' => 'Eficiencia Máxima (%)', 'modo' => 'max', 'control' => 'number', 'escala' => 100],
-            ]
-            : [
-                ['nombre' => 'velocidad_min', 'campo' => 'Velocidad', 'etiqueta' => 'Velocidad Mínima (RPM)', 'modo' => 'min', 'control' => 'number'],
-                ['nombre' => 'velocidad_max', 'campo' => 'Velocidad', 'etiqueta' => 'Velocidad Máxima (RPM)', 'modo' => 'max', 'control' => 'number'],
-            ];
 
         return [
             'clave' => $variante,
@@ -184,19 +172,49 @@ final class CatalogosPlaneacionVista
             'campos' => [
                 ['nombre' => 'SalonTejidoId', 'etiqueta' => 'Salón', 'tipo' => 'select', 'requerido' => true, 'opciones' => $salones],
                 ['nombre' => 'NoTelarId', 'etiqueta' => 'Telar', 'tipo' => 'select', 'requerido' => true, 'opciones' => [], 'depende' => 'SalonTejidoId', 'opcionesPor' => $telares],
-                ['nombre' => 'FibraId', 'etiqueta' => $esEficiencia ? 'Hilo' : 'Fibra', 'tipo' => 'text', 'requerido' => true, 'maxlength' => $esEficiencia ? 120 : 60, 'placeholder' => $esEficiencia ? 'H' : 'H, PAP'],
+                self::campoFibra($esEficiencia),
                 ['nombre' => 'Densidad', 'etiqueta' => 'Densidad', 'tipo' => 'select', 'opciones' => ['Normal', 'Alta'], 'porDefecto' => 'Normal'],
-                $valor,
+                self::campoValor($esEficiencia),
             ],
             'filtros' => [
                 ['nombre' => 'salon', 'campo' => 'SalonTejidoId', 'etiqueta' => 'Salón', 'modo' => 'contiene', 'control' => 'select', 'opciones' => $salones],
                 ['nombre' => 'telar', 'campo' => 'NoTelarId', 'etiqueta' => 'Telar', 'modo' => 'contiene', 'control' => 'select', 'opciones' => [], 'depende' => 'salon', 'opcionesPor' => $telares],
                 self::filtroTexto('fibra', 'FibraId', $esEficiencia ? 'Tipo de Hilo' : 'Fibra', 'H, PAP, FIL370'),
                 ['nombre' => 'densidad', 'campo' => 'Densidad', 'etiqueta' => 'Densidad', 'modo' => 'igual', 'control' => 'select', 'opciones' => ['Normal', 'Alta'], 'porDefecto' => 'Normal'],
-                ...$filtrosValor,
+                ...self::filtrosValor($esEficiencia),
             ],
             'textos' => self::textos($esEficiencia ? 'Eficiencia' : 'Velocidad', $esEficiencia ? 'la eficiencia' : 'la velocidad', 'Nueva'),
         ];
+    }
+
+    /** @return Campo */
+    private static function campoFibra(bool $esEficiencia): array
+    {
+        return $esEficiencia
+            ? ['nombre' => 'FibraId', 'etiqueta' => 'Hilo', 'tipo' => 'text', 'requerido' => true, 'maxlength' => 120, 'placeholder' => 'H']
+            : ['nombre' => 'FibraId', 'etiqueta' => 'Fibra', 'tipo' => 'text', 'requerido' => true, 'maxlength' => 60, 'placeholder' => 'H, PAP'];
+    }
+
+    /** @return Campo */
+    private static function campoValor(bool $esEficiencia): array
+    {
+        return $esEficiencia
+            ? ['nombre' => 'Eficiencia', 'etiqueta' => 'Eficiencia', 'tipo' => 'range', 'requerido' => true, 'min' => 0, 'max' => 100, 'step' => '1', 'sufijo' => '%', 'porDefecto' => '78', 'ancho' => 'completo']
+            : ['nombre' => 'Velocidad', 'etiqueta' => 'Velocidad (RPM)', 'tipo' => 'number', 'requerido' => true, 'min' => 0, 'step' => '1', 'placeholder' => '850', 'ancho' => 'completo'];
+    }
+
+    /** @return list<Filtro> */
+    private static function filtrosValor(bool $esEficiencia): array
+    {
+        return $esEficiencia
+            ? [
+                ['nombre' => 'eficiencia_min', 'campo' => 'Eficiencia', 'etiqueta' => 'Eficiencia Mínima (%)', 'modo' => 'min', 'control' => 'number', 'escala' => 100],
+                ['nombre' => 'eficiencia_max', 'campo' => 'Eficiencia', 'etiqueta' => 'Eficiencia Máxima (%)', 'modo' => 'max', 'control' => 'number', 'escala' => 100],
+            ]
+            : [
+                ['nombre' => 'velocidad_min', 'campo' => 'Velocidad', 'etiqueta' => 'Velocidad Mínima (RPM)', 'modo' => 'min', 'control' => 'number'],
+                ['nombre' => 'velocidad_max', 'campo' => 'Velocidad', 'etiqueta' => 'Velocidad Máxima (RPM)', 'modo' => 'max', 'control' => 'number'],
+            ];
     }
 
     /** @return Filtro */

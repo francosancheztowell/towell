@@ -4,6 +4,7 @@
 
 namespace App\Imports;
 
+use App\Imports\Contracts\ImportConEstadisticas;
 use App\Models\Planeacion\ReqAplicaciones;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\ToModel;
@@ -11,7 +12,7 @@ use Maatwebsite\Excel\Concerns\WithBatchInserts;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class ReqAplicacionesImport implements ToModel, WithBatchInserts, WithChunkReading, WithHeadingRow
+class ReqAplicacionesImport implements ImportConEstadisticas, ToModel, WithBatchInserts, WithChunkReading, WithHeadingRow
 {
     private int $rowCounter = 0;
 
@@ -27,7 +28,7 @@ class ReqAplicacionesImport implements ToModel, WithBatchInserts, WithChunkReadi
 
     /**
      * Mapea cada fila del Excel a un modelo o actualización.
-     * Acepta encabezados flexibles: clave|aplicacionid, salon|salontejidoid, telar|notelarid
+     * Encabezados: clave|aplicacionid, nombre, factor.
      */
     public function model(array $row)
     {
@@ -41,52 +42,36 @@ class ReqAplicacionesImport implements ToModel, WithBatchInserts, WithChunkReadi
                 return null;
             }
 
-            // Extraer con fallback de encabezados
-            $clave = trim((string) ($row['clave'] ?? $row['aplicacionid'] ?? ''));
-            $nombre = trim((string) ($row['nombre'] ?? ''));
-            $salon = trim((string) ($row['salon'] ?? $row['salontejidoid'] ?? ''));
-            $telar = trim((string) ($row['telar'] ?? $row['notelarid'] ?? ''));
+            // Estructura actual del catálogo: Clave, Nombre, Factor (19-06b). Antes exigía Salón y
+            // Telar, que ya no son columnas del modelo, y no leía Factor: el Excel vigente no cargaba nada.
+            $clave = mb_substr(trim((string) ($row['clave'] ?? $row['aplicacionid'] ?? '')), 0, 50);
+            $nombre = mb_substr(trim((string) ($row['nombre'] ?? '')), 0, 100);
+            $factorBruto = $row['factor'] ?? null;
+            $factor = is_numeric($factorBruto) ? (float) $factorBruto : null;
 
-            // Validaciones mínimas
-            if ($clave === '' || $nombre === '' || $salon === '' || $telar === '') {
+            if ($clave === '' || $nombre === '') {
                 $this->skippedRows++;
+                $this->errores[] = "Fila {$this->rowCounter}: faltan Clave o Nombre";
 
                 return null;
             }
 
-            // Truncamientos preventivos
-            $clave = mb_substr($clave, 0, 50);
-            $nombre = mb_substr($nombre, 0, 100);
-            $salon = mb_substr($salon, 0, 50);
-            $telar = mb_substr($telar, 0, 50);
-
-            // ¿Existe ya por clave?
             $existente = ReqAplicaciones::where('AplicacionId', $clave)->first();
+            $this->processedRows++;
 
             if ($existente) {
-                $existente->update([
-                    'Nombre' => $nombre,
-                    'SalonTejidoId' => $salon,
-                    'NoTelarId' => $telar,
-                ]);
-                $this->processedRows++;
+                $existente->update(['Nombre' => $nombre, 'Factor' => $factor ?? $existente->Factor]);
                 $this->updatedRows++;
 
-                return null; // No crear un nuevo modelo: ya se actualizó
+                return null;
             }
 
-            // Crear nuevo registro
-            $this->processedRows++;
             $this->createdRows++;
 
-            return new ReqAplicaciones([
-                'AplicacionId' => $clave,
-                'Nombre' => $nombre,
-                'SalonTejidoId' => $salon,
-                'NoTelarId' => $telar,
-            ]);
+            return new ReqAplicaciones(['AplicacionId' => $clave, 'Nombre' => $nombre, 'Factor' => $factor]);
         } catch (\Throwable $e) {
-            $this->errores[] = "Fila {$this->rowCounter}: {$e->getMessage()}";
+            report($e);
+            $this->errores[] = "Fila {$this->rowCounter}: no se pudo procesar la fila";
             $this->skippedRows++;
             Log::warning('ReqAplicacionesImport error', ['row' => $row, 'ex' => $e]);
 

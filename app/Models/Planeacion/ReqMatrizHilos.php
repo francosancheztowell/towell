@@ -4,6 +4,18 @@ namespace App\Models\Planeacion;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $Id
+ * @property string|null $Hilo
+ * @property float|null $Calibre
+ * @property float|null $Calibre2
+ * @property string|null $CalibreAX
+ * @property string|null $Fibra
+ * @property string|null $CodColor
+ * @property string|null $NombreColor
+ * @property float|null $N1
+ * @property float|null $N2
+ */
 class ReqMatrizHilos extends Model
 {
     protected $table = 'ReqMatrizHilos';
