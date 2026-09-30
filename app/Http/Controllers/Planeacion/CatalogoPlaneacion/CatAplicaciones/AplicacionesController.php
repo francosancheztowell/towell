@@ -3,322 +3,91 @@
 namespace App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatAplicaciones;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Planeacion\Catalogos\AplicacionRequest;
+use App\Http\Requests\Planeacion\Catalogos\ExcelCatalogoRequest;
 use App\Imports\ReqAplicacionesImport;
 use App\Models\Planeacion\ReqAplicaciones;
-use App\Models\Planeacion\ReqProgramaTejido;
-use App\Models\Planeacion\ReqProgramaTejidoLine;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
-use Maatwebsite\Excel\Facades\Excel;
+use App\Services\Planeacion\Catalogos\AplicacionesService;
+use App\Services\Planeacion\Catalogos\ImportarExcelCatalogo;
+use App\Support\Http\Concerns\HandlesApiErrors;
+use Illuminate\Http\JsonResponse;
+use Illuminate\View\View;
 
+/** Catálogo de Aplicaciones (AplicacionId, Nombre, Factor). La ruta acepta Id o AplicacionId. */
 class AplicacionesController extends Controller
 {
-    /**
-     * Mostrar el listado de aplicaciones
-     */
-    public function index(Request $request)
+    use HandlesApiErrors;
+
+    public function __construct(private readonly AplicacionesService $aplicaciones) {}
+
+    public function index(): View
     {
-
-        // Nueva estructura: solo AplicacionId, Nombre, Factor
-        $aplicaciones = ReqAplicaciones::orderBy('AplicacionId')
-            ->orderBy('Nombre')
-            ->get();
-
-        $noResults = false;
-
-        return view('catalagos.aplicaciones', compact('aplicaciones', 'noResults'));
+        return view('catalagos.aplicaciones', [
+            'aplicaciones' => ReqAplicaciones::obtenerTodas(),
+            'noResults' => false,
+        ]);
     }
 
-    /**
-     * Procesar archivo Excel de aplicaciones
-     */
-    public function procesarExcel(Request $request)
+    public function procesarExcel(ExcelCatalogoRequest $request, ImportarExcelCatalogo $importar): JsonResponse
     {
         try {
-            // Validar el archivo
-            $validator = Validator::make($request->all(), [
-                'archivo_excel' => 'required|file|mimes:xlsx,xls|max:10240',
-            ]);
+            $stats = $importar->importar(new ReqAplicacionesImport, $request->file('archivo_excel'));
 
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Archivo inválido. Debe ser un archivo Excel (.xlsx o .xls) de máximo 10MB.',
-                    'errors' => $validator->errors(),
-                ], 400);
-            }
-
-            $archivo = $request->file('archivo_excel');
-
-            // Usar transacciones
-            DB::beginTransaction();
-
-            try {
-                // Procesar el archivo
-                $importador = new ReqAplicacionesImport;
-                Excel::import($importador, $archivo);
-
-                // Obtener estadísticas
-                $stats = $importador->getStats();
-
-                DB::commit();
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Archivo procesado exitosamente',
-                    'data' => [
-                        'registros_procesados' => $stats['processed_rows'],
-                        'registros_creados' => $stats['created_rows'],
-                        'registros_actualizados' => $stats['updated_rows'],
-                        'total_errores' => count($stats['errores']),
-                        'errores' => array_slice($stats['errores'], 0, 10),
-                    ],
-                ]);
-
-            } catch (\Exception $e) {
-                DB::rollBack();
-                Log::error('Error al procesar Excel de aplicaciones: '.$e->getMessage(), [
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                    'trace' => $e->getTraceAsString(),
-                ]);
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Error interno del servidor al procesar el archivo Excel: '.$e->getMessage(),
-                ], 500);
-            }
-
-        } catch (\Exception $e) {
-            Log::error('Error en procesarExcel: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error inesperado: '.$e->getMessage(),
-            ], 500);
+            return response()->json(['success' => true, 'message' => 'Archivo procesado exitosamente', 'data' => $stats]);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Excel aplicaciones', 'Error al procesar el Excel de aplicaciones.');
         }
     }
 
-    /**
-     * Crear nueva aplicación
-     */
-    public function store(Request $request)
+    public function store(AplicacionRequest $request): JsonResponse
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'AplicacionId' => [
-                    'required',
-                    'string',
-                    'max:50',
-                    Rule::unique(ReqAplicaciones::class, 'AplicacionId'),
-                ],
-                'Nombre' => 'required|string|max:100',
-                'Factor' => 'nullable|numeric',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Error en la validación',
-                    'errors' => $validator->errors(),
-                ], 422);
-            }
-
+            $datos = $request->validated();
             $aplicacion = ReqAplicaciones::create([
-                'AplicacionId' => $request->AplicacionId,
-                'Nombre' => $request->Nombre,
-                'Factor' => $request->Factor,
+                'AplicacionId' => $datos['AplicacionId'],
+                'Nombre' => $datos['Nombre'],
+                'Factor' => $datos['Factor'] ?? null,
             ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Aplicación creada exitosamente',
-                'data' => $aplicacion,
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error al crear aplicación: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al crear la aplicación: '.$e->getMessage(),
-            ], 500);
+            return response()->json(['success' => true, 'message' => 'Aplicación creada exitosamente', 'data' => $aplicacion]);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Crear aplicación', 'Error al crear la aplicación.');
         }
     }
 
-    /**
-     * Actualizar aplicación
-     */
-    public function update(Request $request, $id)
+    public function update(AplicacionRequest $request, string $aplicacion): JsonResponse
     {
         try {
-            $aplicacion = null;
-            if (is_numeric($id)) {
-                $aplicacion = ReqAplicaciones::find($id);
+            $registro = ReqAplicaciones::buscarPorIdOClave($aplicacion);
+            if (! $registro) {
+                return response()->json(['success' => false, 'message' => 'Aplicación no encontrada'], 404);
             }
-            if (! $aplicacion) {
-                $aplicacion = ReqAplicaciones::where('AplicacionId', $id)->first();
-            }
+            $this->aplicaciones->actualizar($registro, $request->validated());
 
-            if (! $aplicacion) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Aplicación no encontrada',
-                ], 404);
-            }
-
-            $validator = Validator::make($request->all(), [
-                'AplicacionId' => [
-                    'required',
-                    'string',
-                    'max:50',
-                    Rule::unique(ReqAplicaciones::class, 'AplicacionId')->ignore($aplicacion->Id, 'Id'),
-                ],
-                'Nombre' => 'required|string|max:100',
-                'Factor' => 'nullable|numeric',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Error en la validación',
-                    'errors' => $validator->errors(),
-                ], 422);
-            }
-
-            // Guardar valores anteriores para comparar
-            $factorAnterior = $aplicacion->Factor;
-            $aplicacionId = $aplicacion->AplicacionId;
-
-            $aplicacion->update([
-                'AplicacionId' => $request->AplicacionId,
-                'Nombre' => $request->Nombre,
-                'Factor' => $request->Factor,
-            ]);
-
-            // Si cambió el Factor, recalcular fórmulas en ReqProgramaTejidoLine
-            $factorNuevo = $request->Factor;
-            $factorCambio = abs((float) $factorAnterior - (float) $factorNuevo) > 0.0001;
-
-            if ($factorCambio) {
-                $this->actualizarLineasPorCambioFactor($aplicacionId, $factorNuevo);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Aplicación actualizada exitosamente',
-                'data' => $aplicacion,
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error al actualizar aplicación: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al actualizar la aplicación: '.$e->getMessage(),
-            ], 500);
+            return response()->json(['success' => true, 'message' => 'Aplicación actualizada exitosamente', 'data' => $registro]);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Actualizar aplicación', 'Error al actualizar la aplicación.');
         }
     }
 
-    /**
-     * Actualiza las líneas de ReqProgramaTejidoLine cuando cambia el Factor de una aplicación
-     * Fórmula: Aplicacion = Factor * Kilos
-     */
-    private function actualizarLineasPorCambioFactor(string $aplicacionId, ?float $nuevoFactor)
+    public function destroy(string $aplicacion): JsonResponse
     {
         try {
-            // Identificar programas que usan esta aplicación
-            $programas = ReqProgramaTejido::where('AplicacionId', $aplicacionId)->get();
-
-            $lineasActualizadas = 0;
-            $programasIds = $programas->pluck('Id')->toArray();
-
-            if (! empty($programasIds)) {
-                // Buscar todas las líneas de estos programas
-                $lineas = ReqProgramaTejidoLine::whereIn('ProgramaId', $programasIds)
-                    ->whereNotNull('Kilos')
-                    ->where('Kilos', '>', 0)
-                    ->get();
-
-                // Actualizar cada línea: Aplicacion = Factor * Kilos
-                // Usar la misma precisión que el Observer (6 decimales)
-                foreach ($lineas as $linea) {
-                    $kilos = (float) ($linea->Kilos ?? 0);
-                    $nuevoAplicacion = ($nuevoFactor !== null && $kilos > 0)
-                        ? round((float) ($nuevoFactor * $kilos), 6)
-                        : null;
-
-                    $linea->update([
-                        'Aplicacion' => $nuevoAplicacion,
-                    ]);
-
-                    $lineasActualizadas++;
-                }
+            $registro = ReqAplicaciones::buscarPorIdOClave($aplicacion);
+            if (! $registro) {
+                return response()->json(['success' => false, 'message' => 'Aplicación no encontrada'], 404);
             }
-        } catch (\Exception $e) {
-            Log::error('Error al actualizar líneas por cambio de factor: '.$e->getMessage(), [
-                'aplicacion_id' => $aplicacionId,
-                'nuevo_factor' => $nuevoFactor,
-                'trace' => $e->getTraceAsString(),
-            ]);
-            throw $e;
-        }
-    }
-
-    /**
-     * Eliminar aplicación
-     */
-    public function destroy($id)
-    {
-        try {
-            // Buscar por ID numérico o por AplicacionId
-            $aplicacion = null;
-            if (is_numeric($id)) {
-                $aplicacion = ReqAplicaciones::find($id);
-            }
-            if (! $aplicacion) {
-                $aplicacion = ReqAplicaciones::where('AplicacionId', $id)->first();
-            }
-
-            if (! $aplicacion) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Aplicación no encontrada',
-                ], 404);
-            }
-
-            $aplicacionId = $aplicacion->AplicacionId;
-
-            // Verificar si se está usando en ReqProgramaTejido (campo AplicacionId)
-            $usoEnProgramaTejido = ReqProgramaTejido::where('AplicacionId', $aplicacionId)->exists();
-
-            // Verificar si se está usando en ReqProgramaTejidoLine (campo Aplicacion)
-            $usoEnProgramaTejidoLine = ReqProgramaTejidoLine::where('Aplicacion', $aplicacionId)->exists();
-
-            if ($usoEnProgramaTejido || $usoEnProgramaTejidoLine) {
+            if ($this->aplicaciones->enUso($registro->AplicacionId)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No se puede eliminar la aplicación porque está siendo utilizada en programas de tejido.',
                 ], 422);
             }
+            $registro->delete();
 
-            $aplicacion->delete();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Aplicación eliminada exitosamente',
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error al eliminar aplicación: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al eliminar la aplicación: '.$e->getMessage(),
-            ], 500);
+            return response()->json(['success' => true, 'message' => 'Aplicación eliminada exitosamente']);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Eliminar aplicación', 'Error al eliminar la aplicación.');
         }
     }
 }

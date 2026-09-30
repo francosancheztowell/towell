@@ -5,6 +5,12 @@ namespace App\Models\Planeacion;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $Id
+ * @property string $AplicacionId
+ * @property string|null $Nombre
+ * @property float|null $Factor
+ */
 class ReqAplicaciones extends Model
 {
     use HasFactory;
@@ -21,7 +27,9 @@ class ReqAplicaciones extends Model
      * (entero autoincremental)
      */
     protected $primaryKey = 'Id';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
 
     /**
@@ -42,10 +50,10 @@ class ReqAplicaciones extends Model
      * Casts útiles
      */
     protected $casts = [
-        'Id'           => 'integer',
+        'Id' => 'integer',
         'AplicacionId' => 'string',
-        'Nombre'       => 'string',
-        'Factor'       => 'float',
+        'Nombre' => 'string',
+        'Factor' => 'float',
     ];
 
     /**
@@ -76,13 +84,21 @@ class ReqAplicaciones extends Model
     public static function buscar($clave = null, $nombre = null)
     {
         $q = self::query();
-        if (!is_null($clave) && $clave !== '') {
+        if (! is_null($clave) && $clave !== '') {
             $q->where('AplicacionId', 'like', "%{$clave}%");
         }
-        if (!is_null($nombre) && $nombre !== '') {
+        if (! is_null($nombre) && $nombre !== '') {
             $q->where('Nombre', 'like', "%{$nombre}%");
         }
+
         return $q->orderBy('AplicacionId')->orderBy('Nombre')->get();
+    }
+
+    /** La ruta trae el Id numérico o la clave (AplicacionId): se acepta cualquiera, como antes. */
+    public static function buscarPorIdOClave(string $idOClave): ?self
+    {
+        return (is_numeric($idOClave) ? self::find((int) $idOClave) : null)
+            ?? self::where('AplicacionId', $idOClave)->first();
     }
 
     /**
@@ -99,9 +115,9 @@ class ReqAplicaciones extends Model
     public static function crearDesdeExcel(array $datos): self
     {
         return self::create([
-            'AplicacionId'  => $datos['clave']  ?? null,
-            'Nombre'        => $datos['nombre'] ?? null,
-            'Factor'        => isset($datos['factor']) ? (float)$datos['factor'] : null,
+            'AplicacionId' => $datos['clave'] ?? null,
+            'Nombre' => $datos['nombre'] ?? null,
+            'Factor' => isset($datos['factor']) ? (float) $datos['factor'] : null,
         ]);
     }
 
@@ -111,9 +127,9 @@ class ReqAplicaciones extends Model
     public function actualizarDesdeExcel(array $datos): bool
     {
         return $this->update([
-            'AplicacionId'  => $datos['clave']  ?? $this->AplicacionId,
-            'Nombre'        => $datos['nombre'] ?? $this->Nombre,
-            'Factor'        => isset($datos['factor']) ? (float)$datos['factor'] : $this->Factor,
+            'AplicacionId' => $datos['clave'] ?? $this->AplicacionId,
+            'Nombre' => $datos['nombre'] ?? $this->Nombre,
+            'Factor' => isset($datos['factor']) ? (float) $datos['factor'] : $this->Factor,
         ]);
     }
 
@@ -128,10 +144,13 @@ class ReqAplicaciones extends Model
     public static function findByIdOrClave($idOrClave): ?self
     {
         if (is_numeric($idOrClave)) {
-            $m = self::find((int)$idOrClave);
-            if ($m) return $m;
+            $m = self::find((int) $idOrClave);
+            if ($m) {
+                return $m;
+            }
         }
-        return self::where('AplicacionId', (string)$idOrClave)->first();
+
+        return self::where('AplicacionId', (string) $idOrClave)->first();
     }
 
     /**
@@ -144,6 +163,7 @@ class ReqAplicaciones extends Model
         if ($ignorarId) {
             $q->where('Id', '<>', $ignorarId);
         }
+
         return $q->exists();
     }
 }

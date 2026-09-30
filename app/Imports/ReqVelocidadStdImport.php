@@ -2,13 +2,14 @@
 
 namespace App\Imports;
 
+use App\Imports\Contracts\ImportConEstadisticas;
 use App\Models\Planeacion\ReqVelocidadStd;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithBatchInserts;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class ReqVelocidadStdImport implements ToModel, WithBatchInserts, WithChunkReading, WithHeadingRow
+class ReqVelocidadStdImport implements ImportConEstadisticas, ToModel, WithBatchInserts, WithChunkReading, WithHeadingRow
 {
     private $rowCounter = 0;
 
@@ -67,7 +68,8 @@ class ReqVelocidadStdImport implements ToModel, WithBatchInserts, WithChunkReadi
             return $modelo;
 
         } catch (\Exception $e) {
-            $this->errores[] = "Fila {$this->rowCounter}: {$e->getMessage()}";
+            report($e);
+            $this->errores[] = "Fila {$this->rowCounter}: no se pudo procesar la fila";
             $this->skippedRows++;
 
             return null;

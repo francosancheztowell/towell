@@ -1,0 +1,9 @@
+telares | /planeacion/catalogos/telares
+eficiencia | /planeacion/catalogos/eficiencia
+velocidad | /planeacion/catalogos/velocidad
+calendarios | /planeacion/catalogos/calendarios
+calendarios-detalle | /planeacion/catalogos/calendarios | await page.locator('#calendario-tab-body tr, table tbody tr').first().click(); await page.waitForTimeout(800);
+aplicaciones | /planeacion/catalogos/aplicaciones
+matriz-hilos | /planeacion/catalogos/matriz-hilos
+matriz-calibres | /planeacion/catalogos/matrizcalibres
+pesos-rollos | /planeacion/catalogos/pesos-rollos

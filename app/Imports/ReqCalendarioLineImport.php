@@ -109,7 +109,8 @@ class ReqCalendarioLineImport implements ToModel, WithBatchInserts, WithChunkRea
 
         } catch (\Exception $e) {
             $this->procesados++;
-            $this->errores[] = "Fila {$filaNum}: {$e->getMessage()}";
+            report($e);
+            $this->errores[] = "Fila {$filaNum}: no se pudo procesar la fila";
             Log::error("✗✗✗ ERROR en fila {$filaNum}: {$e->getMessage()}", [
                 'exception' => $e->getTraceAsString(),
                 'row_data' => $row,
@@ -130,6 +131,8 @@ class ReqCalendarioLineImport implements ToModel, WithBatchInserts, WithChunkRea
                     // Limpiar todas las líneas de calendario para evitar duplicados
                     ReqCalendarioLine::truncate();
                 } catch (\Exception $e) {
+                    // La transacción del servicio ya borró las líneas; el TRUNCATE es un refuerzo.
+                    report($e);
                 }
             },
         ];
