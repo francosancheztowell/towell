@@ -7,7 +7,7 @@ import { http, HttpError } from '../../../utils/http.ts';
 import { notify } from '../../../utils/notifications.ts';
 import { debounce } from '../../../utils/format.ts';
 import { onReady } from '../../../utils/dom.ts';
-import { abrir, cerrarPorId, estaVisible } from '../../../componentes/dialog.ts';
+import { pedirFechaRequerimiento } from '../comun/modal-fecha-requerimiento.ts';
 import { leerDatos, mensajeError } from '../../urdido/comun/pagina.ts';
 import type { MaterialInventario } from '../comun/inventario-materiales.ts';
 import { TablasInventario, type FilaResumen } from './inventario.ts';
@@ -15,8 +15,6 @@ import { autocompletarTamano } from './tamano.ts';
 import {
     armarPayload,
     cuentaYCalibre,
-    errorFechaRequerimiento,
-    fechaHoraLocal,
     formularioValido,
     listaDeCatalogo,
     MIN_CARACTERES_BOM,
@@ -24,7 +22,6 @@ import {
 } from './logica.ts';
 
 interface ConfigKarlMayer {
-    zona: string;
     rutas: {
         buscarBomUrdido: string;
         materialesCompleto: string;
@@ -49,6 +46,7 @@ interface RespuestaCrear {
     data?: { folio?: string };
 }
 
+// Karl Mayer sugería "ahora" (Creación sugiere +1 h); se conserva.
 const MODAL_FECHA = 'modal-fecha-req-km';
 
 function iniciar(): void {
@@ -169,53 +167,6 @@ function iniciar(): void {
     form.addEventListener('input', actualizarBoton);
     form.addEventListener('change', actualizarBoton);
 
-    /* ---------- Fecha de requerimiento (modal) ---------- */
-    const pedirFechaRequerimiento = (): Promise<string | null> =>
-        new Promise((resolver) => {
-            const modal = document.getElementById(MODAL_FECHA);
-            const input = document.getElementById('input-fecha-req-km') as HTMLInputElement | null;
-            const error = document.getElementById('error-fecha-req-km');
-            const confirmar = document.getElementById('btn-confirmar-fecha-req-km');
-            if (!modal || !input || !confirmar) {
-                resolver(null);
-                return;
-            }
-            const minimo = fechaHoraLocal(cfg.zona);
-            input.min = minimo;
-            input.value = minimo;
-            error?.classList.add('hidden');
-
-            let resuelto = false;
-            const terminar = (valor: string | null): void => {
-                if (resuelto) return;
-                resuelto = true;
-                observador.disconnect();
-                confirmar.removeEventListener('click', alConfirmar);
-                resolver(valor);
-            };
-            const alConfirmar = (): void => {
-                const msg = errorFechaRequerimiento(input.value, minimo);
-                if (msg) {
-                    if (error) {
-                        error.textContent = msg;
-                        error.classList.remove('hidden');
-                    }
-                    input.focus();
-                    return;
-                }
-                const valor = input.value;
-                terminar(valor);
-                cerrarPorId(MODAL_FECHA);
-            };
-            // Cerrar por ×, Esc o Cancelar = cancelar.
-            const observador = new MutationObserver(() => {
-                if (modal instanceof HTMLDialogElement && !estaVisible(modal)) terminar(null);
-            });
-            observador.observe(modal, { attributes: true, attributeFilter: ['class'] });
-            confirmar.addEventListener('click', alConfirmar);
-            abrir(MODAL_FECHA);
-        });
-
     /* ---------- Crear orden ---------- */
     const textoBoton = (texto: string, deshabilitado: boolean): void => {
         const b = boton();
@@ -239,7 +190,7 @@ function iniciar(): void {
         enviando = true;
         textoBoton('Guardando...', true);
         try {
-            const fechaRequerimiento = await pedirFechaRequerimiento();
+            const fechaRequerimiento = await pedirFechaRequerimiento(MODAL_FECHA, 0);
             if (!fechaRequerimiento) return;
 
             const payload = armarPayload(new FormData(form), materiales, fechaRequerimiento);

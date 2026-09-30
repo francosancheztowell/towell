@@ -7,14 +7,18 @@
 import { abrir, cerrarPorId } from '../../../componentes/dialog.ts';
 import { rangoFechaRequerimiento, validarFechaRequerimiento } from './fecha-requerimiento.ts';
 
-export function pedirFechaRequerimiento(id = 'modalFechaRequerimiento', ahora: Date = new Date()): Promise<string | null> {
+export function pedirFechaRequerimiento(
+    id = 'modalFechaRequerimiento',
+    sugerirEnMin = 60,
+    ahora: Date = new Date(),
+): Promise<string | null> {
     const dialog = document.getElementById(id);
     const input = dialog?.querySelector<HTMLInputElement>('[data-fecha-requerimiento-valor]');
     const error = dialog?.querySelector<HTMLElement>('[data-fecha-requerimiento-error]');
     const confirmar = dialog?.querySelector<HTMLElement>('[data-fecha-requerimiento-confirmar]');
     if (!dialog || !input || !error || !confirmar) return Promise.resolve(null);
 
-    const { min, sugerida } = rangoFechaRequerimiento(ahora);
+    const { min, sugerida } = rangoFechaRequerimiento(ahora, sugerirEnMin);
     input.min = min;
     input.value = sugerida;
     mostrarError(input, error, null);

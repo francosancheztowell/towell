@@ -1,10 +1,9 @@
 import test from 'node:test';
+import { rangoFechaRequerimiento, validarFechaRequerimiento } from '../../resources/js/modulos/programa-urd-eng/comun/fecha-requerimiento.ts';
 import assert from 'node:assert/strict';
 import {
     armarPayload,
     cuentaYCalibre,
-    errorFechaRequerimiento,
-    fechaHoraLocal,
     filaDetalle,
     filtrarTamanos,
     formatFecha,
@@ -196,13 +195,13 @@ test('formatos de fecha y kilos', () => {
     assert.equal(formatKilos(1234.567), '1,234.57');
 });
 
-test('fecha de requerimiento: hora local de la app (antes UTC) y validación', () => {
-    // 2026-09-30 20:15 UTC = 14:15 en Ciudad de México. El JS viejo usaba toISOString() → "20:15".
-    assert.equal(fechaHoraLocal('America/Mexico_City', new Date('2026-09-30T20:15:42Z')), '2026-09-30T14:15');
-    assert.equal(fechaHoraLocal('America/Mexico_City', new Date('2026-10-01T06:00:00Z')), '2026-10-01T00:00');
-    assert.match(errorFechaRequerimiento('', '2026-09-30T14:15') ?? '', /selecciona una fecha/);
-    assert.match(errorFechaRequerimiento('2026-09-30T14:00', '2026-09-30T14:15') ?? '', /anterior/);
-    assert.equal(errorFechaRequerimiento('2026-09-30T14:15', '2026-09-30T14:15'), null);
+test('fecha de requerimiento: hora local (antes UTC), Karl Mayer sugiere "ahora"', () => {
+    // El JS viejo usaba toISOString() (UTC): en CDMX el mínimo quedaba 6 h adelante.
+    const ahora = new Date(2026, 8, 30, 14, 15, 42);
+    assert.deepEqual(rangoFechaRequerimiento(ahora, 0), { min: '2026-09-30T14:15', sugerida: '2026-09-30T14:15' });
+    assert.match(validarFechaRequerimiento('', '2026-09-30T14:15') ?? '', /selecciona una fecha/);
+    assert.match(validarFechaRequerimiento('2026-09-30T14:00', '2026-09-30T14:15') ?? '', /anterior/);
+    assert.equal(validarFechaRequerimiento('2026-09-30T14:15', '2026-09-30T14:15'), null);
 });
 
 test('comun/inventario-materiales: orden por columna igual al JS viejo', () => {

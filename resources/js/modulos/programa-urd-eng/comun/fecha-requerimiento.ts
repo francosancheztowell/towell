@@ -11,11 +11,11 @@ export function aLocalISO(d: Date): string {
     return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}T${dos(d.getHours())}:${dos(d.getMinutes())}`;
 }
 
-/** Mínimo = ahora (sin segundos); sugerida = ahora + 1 h. */
-export function rangoFechaRequerimiento(ahora: Date = new Date()): { min: string; sugerida: string } {
+/** Mínimo = ahora (sin segundos); sugerida = ahora + `sugerirEnMin` (Creación: 60; Karl Mayer: 0, como antes). */
+export function rangoFechaRequerimiento(ahora: Date = new Date(), sugerirEnMin = 60): { min: string; sugerida: string } {
     const base = new Date(ahora.getTime());
     base.setSeconds(0, 0);
-    return { min: aLocalISO(base), sugerida: aLocalISO(new Date(base.getTime() + 60 * 60 * 1000)) };
+    return { min: aLocalISO(base), sugerida: aLocalISO(new Date(base.getTime() + sugerirEnMin * 60 * 1000)) };
 }
 
 /** Mensaje de error o null si la fecha es válida (mismos textos que el modal anterior). */

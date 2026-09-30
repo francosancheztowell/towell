@@ -6,7 +6,7 @@ use Tests\Feature\UrdEng\Concerns\ModuloUrdEng;
 use Tests\TestCase;
 
 /**
- * Programación Karl Mayer (19-05, p2.1): la vista ya no trae JS inline; rutas y zona van en
+ * Programación Karl Mayer (19-05, p2.1): la vista ya no trae JS inline; rutas van en
  * data-pagina y el formulario de fecha de requerimiento es un x-ui.modal-base (antes Swal.fire con html).
  */
 class KarlMayerVistaTest extends TestCase
@@ -32,7 +32,6 @@ class KarlMayerVistaTest extends TestCase
             ->getContent();
 
         $config = $this->jsonDeAtributo($html, 'data-pagina');
-        $this->assertSame(config('app.timezone'), $config['zona']);
         $this->assertSame([
             'buscarBomUrdido' => route('programa.urd.eng.buscar.bom.urdido'),
             'materialesCompleto' => route('programa.urd.eng.materiales.urdido.completo'),
@@ -44,7 +43,7 @@ class KarlMayerVistaTest extends TestCase
 
         // Modal de fecha de requerimiento en Blade (antes: Swal.fire({html: '<input type="datetime-local">'})).
         $this->assertStringContainsString('id="modal-fecha-req-km"', $html);
-        $this->assertStringContainsString('id="input-fecha-req-km"', $html);
+        $this->assertStringContainsString('id="modal-fecha-req-km-valor"', $html);
         $this->assertStringContainsString('data-ui-modal-close-target="modal-fecha-req-km"', $html);
 
         // Ningún <script> inline del HTML es de esta pantalla (los del layout no mencionan sus ids).

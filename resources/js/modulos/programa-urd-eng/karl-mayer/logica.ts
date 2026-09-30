@@ -182,17 +182,3 @@ export function armarPayload(campos: LectorCampos, materiales: MaterialInventari
     };
 }
 
-/** "Ahora" para un input datetime-local (AAAA-MM-DDTHH:mm) en la zona de la app. */
-export function fechaHoraLocal(zona: string, ahora: Date = new Date()): string {
-    // sv-SE da "2026-09-30 14:05"
-    return ahora
-        .toLocaleString('sv-SE', { timeZone: zona, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
-        .replace(' ', 'T');
-}
-
-/** Error de la fecha de requerimiento, o null si es válida. */
-export function errorFechaRequerimiento(valor: string, minimo: string): string | null {
-    if (!valor) return 'Por favor selecciona una fecha y hora de requerimiento.';
-    if (valor < minimo) return 'La fecha de requerimiento no puede ser anterior a la fecha y hora actual.';
-    return null;
-}
