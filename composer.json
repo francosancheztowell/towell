@@ -1,13 +1,18 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "towell/towell",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "Plataforma de planeación y control de producción para manufactura textil.",
     "keywords": [
         "laravel",
-        "framework"
+        "livewire",
+        "sql-server",
+        "manufacturing",
+        "textile",
+        "production-planning",
+        "mes"
     ],
-    "license": "MIT",
+    "license": "proprietary",
     "require": {
         "php": "^8.2",
         "dompdf/dompdf": "^3.1",

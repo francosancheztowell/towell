@@ -20,6 +20,9 @@ use Tests\TestCase;
  */
 final class SetSqlContextInfoTest extends TestCase
 {
+    /** Lo que durmió de verdad el SP simulado, en ms (usleep en Windows puede quedarse corto). */
+    private float $dormidoMs = 0.0;
+
     private function conexionSqlsrv(): Connection
     {
         $conexion = Mockery::mock(Connection::class);
@@ -28,7 +31,9 @@ final class SetSqlContextInfoTest extends TestCase
             ->once()
             ->with('EXEC dbo.sp_SetAppContext ?, ?, ?', [null, null, '10.0.0.7'])
             ->andReturnUsing(function () {
+                $inicio = hrtime(true);
                 usleep(2000);
+                $this->dormidoMs = (hrtime(true) - $inicio) / 1e6;
 
                 return true;
             });
@@ -56,7 +61,9 @@ final class SetSqlContextInfoTest extends TestCase
 
         $this->assertMatchesRegularExpression('/^app;dur=10\.0, db;dur=4\.0;desc="2 q", ctx;dur=(\d+\.\d)$/', $header);
         preg_match('/ctx;dur=(\d+\.\d)/', $header, $m);
-        $this->assertGreaterThanOrEqual(2.0, (float) $m[1]);
+        // El middleware mide una ventana que envuelve al SP: nunca menos de lo que durmió (a 1 decimal).
+        $this->assertGreaterThan(0.0, $this->dormidoMs);
+        $this->assertGreaterThanOrEqual(floor($this->dormidoMs * 10) / 10, (float) $m[1]);
     }
 
     public function test_sin_server_timing_previo_el_header_solo_trae_ctx_y_pulse_agrega_por_tipo(): void
