@@ -10,23 +10,23 @@
         "update": "git pull && composer install --no-interaction && php artisan optimize:clear && php artisan optimize && npm install && npm run build"
     },
     "devDependencies": {
-        "@tailwindcss/vite": "^4.0.0",
+        "@tailwindcss/vite": "^4.3.3",
         "@types/qrcode": "^1.5.6",
-        "esbuild": "^0.28.1",
+        "esbuild": "^0.28.2",
         "jscpd": "^5.3.3",
         "laravel-vite-plugin": "^1.0",
         "typescript": "^7.0.2",
         "vite": "^6.0"
     },
     "dependencies": {
-        "@fortawesome/fontawesome-free": "^7.2.0",
-        "axios": "^1.7.9",
+        "@fortawesome/fontawesome-free": "^7.3.1",
+        "axios": "^1.20.0",
         "chart.js": "^4.5.1",
         "html2canvas-pro": "^2.4.5",
         "pdfjs-dist": "^6.3.289",
         "qrcode": "^1.5.4",
-        "sortablejs": "^1.15.6",
-        "sweetalert2": "^11.26.17",
+        "sortablejs": "^1.15.7",
+        "sweetalert2": "^11.26.25",
         "tom-select": "^2.6.2"
     }
 }
