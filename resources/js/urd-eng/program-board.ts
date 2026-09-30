@@ -1,3 +1,4 @@
+// Imports sin extensión: tests/Unit/Programas/ProgramBoardStructureTest los busca así.
 import { initializeFeedback } from './feedback'
 import { initializeFullscreen } from './fullscreen'
 import { initializePrioritySort } from './priority-sort'

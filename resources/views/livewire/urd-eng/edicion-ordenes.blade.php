@@ -2,27 +2,27 @@
     @teleport('#tabla-navbar-acciones')
         <div class="flex flex-wrap items-center gap-2">
             <button type="button" wire:click="editar" wire:loading.attr="disabled" @disabled(! $ordenSeleccionada)
-                class="edicion-action bg-blue-600 text-white" title="Editar orden seleccionada">
-                <i class="fa-solid fa-pen-to-square"></i><span>Editar</span>
+                class="edicion-action bg-blue-600 text-white" title="Editar orden seleccionada" aria-label="Editar orden seleccionada">
+                <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i><span>Editar</span>
             </button>
             @if ($module === 'engomado')
             <button type="button" wire:click="calificar" wire:loading.attr="disabled"
                 @disabled(! $ordenSeleccionada || $ordenSeleccionada->Status !== 'Finalizado')
-                class="edicion-action bg-purple-600 text-white" title="Calificar julios: requiere una orden finalizada">
-                <i class="fa-solid fa-clipboard-check"></i><span>Calificar julios</span>
+                class="edicion-action bg-purple-600 text-white" title="Calificar julios: requiere una orden finalizada" aria-label="Calificar julios">
+                <i class="fa-solid fa-clipboard-check" aria-hidden="true"></i><span>Calificar julios</span>
             </button>
             @endif
             @if ($ordenSeleccionada && $ordenSeleccionada->Status === 'Finalizado')
                 @if ($module === 'urdido')
                     <a wire:loading.class="pointer-events-none opacity-50" class="edicion-action bg-slate-700 text-white" target="_blank" rel="noopener"
-                        href="{{ route('urdido.reimpresion.urdido.ventana.imprimir', ['orden_id' => $ordenSeleccionada->Id]) }}" title="Imprimir PDF de Urdido">
-                        <i class="fa-solid fa-file-pdf"></i><span>PDF</span>
+                        href="{{ route('urdido.reimpresion.urdido.ventana.imprimir', ['orden_id' => $ordenSeleccionada->Id]) }}" title="Imprimir PDF de Urdido" aria-label="Imprimir PDF de Urdido">
+                        <i class="fa-solid fa-file-pdf" aria-hidden="true"></i><span>PDF</span>
                     </a>
                 @else
                 @foreach ([false => ['PDF', 'fa-file-pdf'], true => ['Excel simplificado', 'fa-file-excel']] as $simplificado => [$titulo, $icono])
-                    <button type="button" wire:loading.attr="disabled" class="edicion-action bg-slate-700 text-white" title="{{ $titulo }}"
+                    <button type="button" wire:loading.attr="disabled" class="edicion-action bg-slate-700 text-white" title="{{ $titulo }}" aria-label="{{ $titulo }}"
                         data-engomado-pdf="{{ route('engomado.modulo.produccion.engomado.pdf', ['orden_id' => $ordenSeleccionada->Id, 'tipo' => 'engomado', 'reimpresion' => 1, 'simplificado' => $simplificado]) }}">
-                        <i class="fa-solid {{ $icono }}"></i><span>{{ $titulo }}</span>
+                        <i class="fa-solid {{ $icono }}" aria-hidden="true"></i><span>{{ $titulo }}</span>
                     </button>
                 @endforeach
                 @endif
@@ -38,7 +38,7 @@
         <label class="edicion-filter"><span>Estado</span><select wire:model.live="status"><option value="">Todos</option>
             @foreach (['Programado', 'En Proceso', 'Parcial', 'Finalizado', 'Cancelado'] as $opcion)<option value="{{ $opcion }}">{{ $opcion }}</option>@endforeach
         </select></label>
-        <button type="button" wire:click="limpiarFiltros" class="edicion-action border border-slate-300" title="Limpiar filtros"><i class="fa-solid fa-eraser"></i>Limpiar</button>
+        <button type="button" wire:click="limpiarFiltros" class="edicion-action border border-slate-300" title="Limpiar filtros"><i class="fa-solid fa-eraser" aria-hidden="true"></i>Limpiar</button>
     </section>
     <div class="edicion-summary" role="status">
         <span><strong>{{ number_format($total) }}</strong> órdenes · <strong>{{ count($boards) }}</strong> máquinas</span>

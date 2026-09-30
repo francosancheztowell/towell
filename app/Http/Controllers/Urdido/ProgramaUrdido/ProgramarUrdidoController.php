@@ -8,6 +8,7 @@ use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
 use App\Services\Programas\ProgramaPrioridadService;
 use App\Services\Programas\ProgramBoardActionService;
+use App\Support\Http\Concerns\HandlesApiErrors;
 use App\Support\Programas\ProgramaConfig;
 use App\Support\Programas\ProgramaModulo;
 use DomainException;
@@ -15,11 +16,14 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ProgramarUrdidoController extends Controller
 {
+    use HandlesApiErrors;
+
     public function __construct(
         private readonly ProgramaPrioridadService $prioridadService,
         private readonly ProgramBoardActionService $boardActionService,
@@ -103,11 +107,15 @@ class ProgramarUrdidoController extends Controller
      */
     public function reimpresionVentanaImprimir(Request $request)
     {
-        $ordenId = $request->query('orden_id');
-        if (! $ordenId) {
-            return response('<script>alert("Falta orden_id"); window.close();</script>', 400)
-                ->header('Content-Type', 'text/html; charset=UTF-8');
+        // U7 (19-05): antes respondía 400 con un <script>alert(...)</script>. Ahora validación
+        // normal: 422 JSON si se pide JSON; si no, la página de error 422 del layout.
+        $reglas = ['orden_id' => ['required', 'integer', 'min:1']];
+        if ($request->expectsJson()) {
+            $request->validate($reglas);
+        } elseif (Validator::make($request->query(), $reglas)->fails()) {
+            abort(422, 'Falta orden_id o no es válido.');
         }
+        $ordenId = (int) $request->query('orden_id');
 
         $pdfUrl = route('urdido.modulo.produccion.urdido.pdf', [
             'orden_id' => $ordenId,
@@ -245,10 +253,7 @@ class ProgramarUrdidoController extends Controller
                 'data' => $ordenesPorMcCoy,
             ]);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al obtener órdenes: '.$e->getMessage(),
-            ], 500);
+            return $this->errorDeServidor($e, 'Error al obtener órdenes');
         }
     }
 
@@ -278,22 +283,11 @@ class ProgramarUrdidoController extends Controller
                 'message' => 'Prioridad actualizada correctamente',
             ]);
         } catch (DomainException $e) {
-            $status = str_contains($e->getMessage(), 'permiso') ? 403 : 422;
-
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-            ], $status);
+            return $this->errorDeNegocio($e, str_contains($e->getMessage(), 'permiso') ? 403 : 422);
         } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación: '.$e->getMessage(),
-            ], 422);
+            return $this->errorDeValidacion($e);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al intercambiar prioridad: '.$e->getMessage(),
-            ], 500);
+            return $this->errorDeServidor($e, 'Error al intercambiar prioridad');
         }
     }
 
@@ -326,20 +320,11 @@ class ProgramarUrdidoController extends Controller
                 'message' => 'Observaciones guardadas correctamente',
             ]);
         } catch (DomainException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-            ], 422);
+            return $this->errorDeNegocio($e);
         } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación: '.$e->getMessage(),
-            ], 422);
+            return $this->errorDeValidacion($e);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al guardar observaciones: '.$e->getMessage(),
-            ], 500);
+            return $this->errorDeServidor($e, 'Error al guardar observaciones');
         }
     }
 
@@ -415,15 +400,9 @@ class ProgramarUrdidoController extends Controller
                 'calidad_puntos' => $this->puntosCalidad($orden),
             ]);
         } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación: '.$e->getMessage(),
-            ], 422);
+            return $this->errorDeValidacion($e);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al actualizar calidad: '.$e->getMessage(),
-            ], 500);
+            return $this->errorDeServidor($e, 'Error al actualizar calidad');
         }
     }
 
@@ -457,20 +436,11 @@ class ProgramarUrdidoController extends Controller
                 'message' => 'Status actualizado correctamente',
             ]);
         } catch (DomainException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-            ], 422);
+            return $this->errorDeNegocio($e);
         } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación: '.$e->getMessage(),
-            ], 422);
+            return $this->errorDeValidacion($e);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al actualizar status: '.$e->getMessage(),
-            ], 500);
+            return $this->errorDeServidor($e, 'Error al actualizar status');
         }
     }
 
@@ -528,10 +498,7 @@ class ProgramarUrdidoController extends Controller
                 'data' => $ordenesArray,
             ]);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al obtener órdenes: '.$e->getMessage(),
-            ], 500);
+            return $this->errorDeServidor($e, 'Error al obtener órdenes');
         }
     }
 
@@ -562,15 +529,36 @@ class ProgramarUrdidoController extends Controller
                 'message' => 'Prioridades actualizadas correctamente',
             ]);
         } catch (ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error de validación: '.$e->getMessage(),
-            ], 422);
+            return $this->errorDeValidacion($e);
         } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Error al actualizar prioridades: '.$e->getMessage(),
-            ], 500);
+            return $this->errorDeServidor($e, 'Error al actualizar prioridades');
         }
+    }
+
+    /**
+     * Regla de negocio de ProgramBoardActionService (mensaje escrito por el código, SEC-07).
+     * Conserva la clave `error` del contrato del endpoint y agrega `message`/`trace_id`.
+     */
+    private function errorDeNegocio(DomainException $e, int $status = 422): JsonResponse
+    {
+        return $this->apiClientErrorResponse($e->getMessage(), $status, [], ['error' => $e->getMessage()]);
+    }
+
+    /** 422 con el primer mensaje de validación y la lista completa en `errors`. */
+    private function errorDeValidacion(ValidationException $e): JsonResponse
+    {
+        $mensaje = 'Error de validación: '.$e->validator->errors()->first();
+
+        return $this->apiClientErrorResponse($mensaje, 422, [], ['error' => $mensaje, 'errors' => $e->errors()]);
+    }
+
+    /** 500 sin el detalle de la excepción (queda en el log y en monitoreo con su trace_id). */
+    private function errorDeServidor(\Throwable $e, string $mensaje): JsonResponse
+    {
+        $respuesta = $this->apiErrorResponse($e, 'Programa Urdido: '.$mensaje, $mensaje.'.');
+        $datos = $respuesta->getData(true);
+        $datos['error'] = $datos['message'];
+
+        return $respuesta->setData($datos);
     }
 }

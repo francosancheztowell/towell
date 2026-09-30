@@ -176,23 +176,30 @@ class ModalCalificarJulios {
     }
 }
 
+// Un modal por variante presente en la página. Módulo ES: aunque la vista cargue este bundle
+// con @vite y además lo importe resources/js/urd-eng/edicion-ordenes.ts, se evalúa una sola vez.
+const modales = new Map<string, ModalCalificarJulios>();
+
+/**
+ * Abre el modal de la variante con el folio dado (o el fijo de la vista). Lo usa
+ * resources/js/urd-eng/edicion-ordenes.ts (U1, 19-05) para la variante engomado.
+ * Devuelve false si la vista no incluye ese modal.
+ */
+export function abrirCalificarJulios(variante: ConfigCalificar['variante'], folio?: string | null): boolean {
+    const modal = modales.get(variante);
+    if (!modal) return false;
+    void (folio === undefined ? modal.abrir() : modal.abrir(folio));
+    return true;
+}
+
 onReady(() => {
-    const modales = new Map<string, ModalCalificarJulios>();
     document.querySelectorAll<HTMLElement>('[data-calificar-julios]').forEach((nodo) => {
         const cfg = leerDatos<ConfigCalificar>(nodo, 'calificarJulios');
-        if (cfg) modales.set(cfg.variante, new ModalCalificarJulios(nodo, cfg));
+        if (cfg && !modales.has(cfg.variante)) modales.set(cfg.variante, new ModalCalificarJulios(nodo, cfg));
     });
 
     // Botón de la vista que lo incluye: <button data-calificar-julios-abrir="urdido">.
     delegate(document, 'click', '[data-calificar-julios-abrir]', (_e, boton) => {
         void modales.get((boton as HTMLElement).dataset.calificarJuliosAbrir ?? '')?.abrir();
     });
-
-    // PUENTE 19-01: resources/js/urd-eng/edicion-ordenes.ts (19-05) abre la variante engomado
-    // con el folio que manda el evento Livewire 'engomado-calificar-julios'. Quitar cuando lo importe.
-    const engomado = modales.get('engomado');
-    if (engomado) {
-        (window as Window & { abrirModalCalificarJuliosEng?: (folio: string) => void }).abrirModalCalificarJuliosEng = (folio) =>
-            void engomado.abrir(folio);
-    }
 });

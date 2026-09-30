@@ -51,19 +51,42 @@ class ProgramBoardActionService
             throw new DomainException('No tienes permiso para cambiar el salón.');
         }
 
-        $permitidas = ['MC Coy 1', 'MC Coy 2', 'MC Coy 3'];
         $modelClass = $module->programModel();
 
-        foreach ($rows as $row) {
-            if (! in_array((string) ($row['status'] ?? ''), ['En Proceso', 'Programado'], true)) {
-                continue;
+        // PERF (19-05): un UPDATE ... WHERE Id IN (...) por máquina en lugar de uno por fila
+        // (30 órdenes: 30 → 3 consultas, ProgramaBoardQueriesTest).
+        foreach ($this->idsPorSalon($rows) as $maquina => $ids) {
+            // Bloques de 2000: límite de 2100 parámetros de SQL Server.
+            foreach (array_chunk($ids, 2000) as $bloque) {
+                $modelClass::query()->whereIn('Id', $bloque)->update(['MaquinaId' => $maquina]);
             }
-            $maquina = (string) ($row['machine'] ?? '');
-            if (! in_array($maquina, $permitidas, true)) {
-                continue;
-            }
-            $modelClass::query()->where('Id', (int) $row['id'])->update(['MaquinaId' => $maquina]);
         }
+    }
+
+    /**
+     * Ids a mover agrupados por salón: solo órdenes En Proceso/Programado y salones MC Coy 1-3.
+     * Si un id se repite gana la última fila, como con el UPDATE por fila de antes.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<string, array<int, int>>
+     */
+    private function idsPorSalon(array $rows): array
+    {
+        $destino = [];
+        foreach ($rows as $row) {
+            $maquina = (string) ($row['machine'] ?? '');
+            $activa = in_array((string) ($row['status'] ?? ''), ['En Proceso', 'Programado'], true);
+            if ($activa && in_array($maquina, ['MC Coy 1', 'MC Coy 2', 'MC Coy 3'], true)) {
+                $destino[(int) $row['id']] = $maquina;
+            }
+        }
+
+        $porMaquina = [];
+        foreach ($destino as $id => $maquina) {
+            $porMaquina[$maquina][] = $id;
+        }
+
+        return $porMaquina;
     }
 
     public function swapPriorities(ProgramaModulo $module, int $sourceId, int $targetId): void
@@ -344,12 +367,20 @@ class ProgramBoardActionService
             ->orderBy($module->fallbackOrderColumn())
             ->orderBy('Id')
             ->lockForUpdate()
-            ->get();
+            ->get(['Id', 'Prioridad']);
 
-        foreach ($orders as $index => $order) {
-            $order->Prioridad = $index + 1;
-            $order->save();
+        // PERF (19-05): las prioridades que cambian van en un UPDATE ... CASE por lote de 500
+        // (bulkUpdatePriorities) en lugar de un save() por orden (24 activas: 24 → 1 UPDATE,
+        // ProgramaBoardQueriesTest). Como save(), solo se escriben las que cambian.
+        $cambios = [];
+        foreach ($orders->values() as $index => $order) {
+            $actual = $order->getAttribute('Prioridad');
+            if ($actual === null || (int) $actual !== $index + 1) {
+                $cambios[] = ['id' => (int) $order->getAttribute('Id'), 'prioridad' => $index + 1];
+            }
         }
+
+        $this->priorityService->bulkUpdatePriorities($modelClass, $cambios);
     }
 
     private function nextPriority(ProgramaModulo $module): int

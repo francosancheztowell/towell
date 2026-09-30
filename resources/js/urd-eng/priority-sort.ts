@@ -1,4 +1,4 @@
-import { programBoardWindow } from './types'
+import { programBoardWindow } from './types.ts'
 
 // Arrastrar filas en el dialogo de prioridad. Delegado en document porque el
 // dialogo vive en un @teleport que Livewire vuelve a pintar.

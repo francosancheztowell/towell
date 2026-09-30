@@ -1,5 +1,5 @@
 import Sortable, { type SortableEvent } from 'sortablejs'
-import { programBoardWindow } from './types'
+import { programBoardWindow } from './types.ts'
 
 const BOARD_SELECTOR = '[data-program-board]'
 const LIST_SELECTOR = '[data-program-lane-list]'
