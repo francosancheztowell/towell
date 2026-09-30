@@ -5,6 +5,7 @@
  * Los datos vienen de dbo.TwHistoricosVentas, ya agrupados en SQL (ver VentasHistoricasPayloadBuilder).
  */
 import Chart from 'chart.js/auto';
+import { http } from '../utils/http';
 import { createMultiSelect } from './multi-select';
 import { bindRowSelection, clearRowSelection } from './row-selection';
 
@@ -105,13 +106,7 @@ const BLANK = '(en blanco)';
  * VentasHistoricasPayloadBuilder manda { sf, nf, dict, rows }: cada fila son índices al
  * diccionario (campos de texto, en el orden de sf) seguidos de los totales numéricos (nf).
  */
-const loadRecords = (root) => {
-    let payload;
-    try {
-        payload = JSON.parse(root.dataset.historico || 'null');
-    } catch {
-        payload = null;
-    }
+const loadRecords = (payload) => {
     if (!payload || !Array.isArray(payload.rows)) return [];
 
     const { sf, nf, dict, rows } = payload;
@@ -213,8 +208,8 @@ const buildChart = (canvas, { type, labels, datasets, horizontal = false, stacke
 // Componente
 // ---------------------------------------------------------------------------
 
-const initVentasHistoricas = (root) => {
-    const records = loadRecords(root);
+const initVentasHistoricas = (root, payload) => {
+    const records = loadRecords(payload);
     const allYears = sortValues('anio', [...new Set(records.map((record) => record.anio))]);
     const state = {
         selected: Object.fromEntries(SLICERS.map(({ key }) => [key, new Set()])),
@@ -526,6 +521,26 @@ const initVentasHistoricas = (root) => {
     refresh();
 };
 
-export const mountVentasHistoricas = (scope = document) => {
-    scope.querySelectorAll('[data-ventas-historicas]').forEach(initVentasHistoricas);
+/**
+ * Los datos se piden en segundo plano desde que carga la página, pero la pestaña se dibuja hasta
+ * que se abre por primera vez: Chart.js no puede medir un canvas oculto y así no retrasa Compara.
+ * scope = raíz del dashboard, que emite 'pvoc:tab' al cambiar de pestaña.
+ */
+export const mountVentasHistoricas = (scope, onError) => {
+    scope.querySelectorAll('[data-ventas-historicas]').forEach((root) => {
+        const datos = http.get(root.dataset.historicoUrl);
+        datos.catch(() => {});
+        let montado = false;
+
+        scope.addEventListener('pvoc:tab', async (event) => {
+            if (event.detail !== 'history' || montado) return;
+            montado = true;
+            try {
+                initVentasHistoricas(root, await datos);
+            } catch (error) {
+                console.error('No se pudieron cargar las ventas históricas.', error);
+                onError(root.querySelector('[data-vh-reports]'));
+            }
+        });
+    });
 };
