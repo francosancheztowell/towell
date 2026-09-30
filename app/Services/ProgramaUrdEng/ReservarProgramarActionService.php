@@ -44,9 +44,10 @@ final class ReservarProgramarActionService
     {
         return DB::transaction(function () use ($reserva, $camposTelar): array {
             $actualizados = 0;
+            $telar = null;
 
             if ($camposTelar !== []) {
-                $actualizados = $this->actualizarInventarioTelares(
+                [$actualizados, $telar] = $this->actualizarInventarioTelares(
                     isset($reserva['TejInventarioTelaresId']) ? (int) $reserva['TejInventarioTelaresId'] : null,
                     (string) ($reserva['NoTelarId'] ?? ''),
                     $this->telaresService->normalizeTipo($reserva['Tipo'] ?? null),
@@ -58,7 +59,8 @@ final class ReservarProgramarActionService
                 }
             }
 
-            $resultado = $this->reservasService->ejecutarReserva($reserva);
+            // El telar ya leído y actualizado viaja a la reserva: no se vuelve a leer.
+            $resultado = $this->reservasService->ejecutarReserva($reserva, $telar);
 
             return [
                 'created' => $resultado['created'],
@@ -93,9 +95,10 @@ final class ReservarProgramarActionService
             $inventario = 0;
             $urdido = 0;
             $engomado = 0;
+            $telarPorId = null;
 
             if ($updateInventario !== []) {
-                $inventario = $this->actualizarInventarioTelares($id, $noTelar, $tipo, $updateInventario, $fecha, $turno);
+                [$inventario, $telarPorId] = $this->actualizarInventarioTelares($id, $noTelar, $tipo, $updateInventario, $fecha, $turno);
                 if ($inventario === -1) {
                     throw new RuntimeException('Telar no encontrado o no está activo');
                 }
@@ -104,7 +107,8 @@ final class ReservarProgramarActionService
             // Los programas (UrdProgramaUrdido / EngProgramaEngomado) se tocan solo por Folio.
             // Programacion de Requerimientos manda solo_inventario=true y no los toca.
             if ($updateProgramas !== [] && empty($datos['solo_inventario'])) {
-                $telar = $this->telarPorIdONumero($id, $noTelar, $tipo);
+                // Por id es el mismo registro que se acaba de actualizar: no se relee.
+                $telar = $telarPorId ?? $this->telarPorIdONumero($id, $noTelar, $tipo);
                 $folio = $telar ? trim((string) ($telar->no_orden ?? '')) : '';
 
                 if ($folio !== '') {
@@ -159,6 +163,7 @@ final class ReservarProgramarActionService
             // puede tener varias activas (Rizo 00043-455 + Pie 00044-454).
             // Una barra de Karl Mayer lleva hasta cuatro julios y se sueltan juntos:
             // liberar uno solo dejaria los otros tres sin fila de telar que los explique.
+            // Un DELETE para todas (antes un DELETE por reserva; sin observers que perder).
             $eliminadas = InvTelasReservadas::where('Status', 'Reservado')
                 ->when(
                     self::esBarraKm($telar->tipo),
@@ -168,9 +173,7 @@ final class ReservarProgramarActionService
                         ->where('InventBatchId', $noOrden)
                         ->when($tipoTelar !== null && $tipoTelar !== '', fn ($q2) => $q2->where('Tipo', $tipoTelar))
                 )
-                ->get()
-                ->each(fn ($r) => $r->delete())
-                ->count();
+                ->delete();
 
             $notifica = TejNotificaTejedorModel::query()
                 ->whereRaw('LTRIM(RTRIM(telar)) = ?', [trim($noTelar)])
@@ -236,9 +239,6 @@ final class ReservarProgramarActionService
     /* ==================== Privados ==================== */
 
     /**
-     * @return int registros actualizados, o -1 si no se encontro el telar
-     */
-    /**
      * Julio y su orden, en la misma posición. Una barra de Karl Mayer usa las
      * cuatro parejas porque cada julio puede venir de otra orden. Rizo y Pie
      * solo usan la primera, que es la que cruza Atadores contra AtaMontadoTelas.
@@ -300,16 +300,20 @@ final class ReservarProgramarActionService
         );
     }
 
-    private function actualizarInventarioTelares(?int $id, string $noTelar, ?string $tipo, array $update, ?string $fecha = null, $turno = null): int
+    /**
+     * @return array{0: int, 1: TejInventarioTelares|null} registros actualizados (-1 si no se
+     *                                                     encontró el telar) y, por id, el telar ya actualizado
+     */
+    private function actualizarInventarioTelares(?int $id, string $noTelar, ?string $tipo, array $update, ?string $fecha = null, $turno = null): array
     {
         if ($id) {
             $telar = TejInventarioTelares::where('id', $id)->where('status', self::STATUS_ACTIVO)->first();
             if (! $telar) {
-                return -1;
+                return [-1, null];
             }
             $telar->update($this->acomodarJulio($telar, $update));
 
-            return 1;
+            return [1, $telar];
         }
 
         // Sin id: no_telar + tipo + fecha + turno acotan al registro exacto.
@@ -326,14 +330,34 @@ final class ReservarProgramarActionService
 
         $telares = $query->get();
         if ($telares->isEmpty()) {
-            return -1;
+            return [-1, null];
         }
 
+        if ($telares->count() === 1) {
+            $telares->first()->update($this->acomodarJulio($telares->first(), $update));
+
+            return [1, null];
+        }
+
+        // PERF-08: varios registros (fechas/turnos del mismo telar) llevan casi siempre el mismo
+        // cambio: un UPDATE por cambio distinto en vez de uno por registro. Una barra puede
+        // repartir el julio en columnas distintas y entonces sale un grupo por columna.
+        $grupos = [];
         foreach ($telares as $telar) {
-            $telar->update($this->acomodarJulio($telar, $update));
+            $cambio = $this->acomodarJulio($telar, $update);
+            if ($cambio === []) {
+                continue;
+            }
+            $clave = serialize($cambio);
+            $grupos[$clave]['cambio'] = $cambio;
+            $grupos[$clave]['ids'][] = $telar->getKey();
         }
 
-        return $telares->count();
+        foreach ($grupos as $grupo) {
+            TejInventarioTelares::whereKey($grupo['ids'])->update($grupo['cambio']);
+        }
+
+        return [$telares->count(), null];
     }
 
     private function telarPorIdONumero(?int $id, string $noTelar, ?string $tipo): ?TejInventarioTelares
@@ -363,13 +387,11 @@ final class ReservarProgramarActionService
             }
         }
 
-        // Priorizar los que de verdad estan reservados.
-        $telar = (clone $q)
-            ->whereNotNull('no_julio')->where('no_julio', '!=', '')
-            ->whereNotNull('no_orden')->where('no_orden', '!=', '')
-            ->first();
-
-        return $telar ?: $q->first();
+        // Priorizar los que de verdad estan reservados. Una sola consulta: antes eran dos
+        // (reservado y, si no habia, cualquiera), y una barra sin no_orden caia siempre en la segunda.
+        return $q->orderByRaw(
+            "CASE WHEN no_julio IS NOT NULL AND no_julio <> '' AND no_orden IS NOT NULL AND no_orden <> '' THEN 0 ELSE 1 END"
+        )->first();
     }
 
     /**

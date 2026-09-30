@@ -154,8 +154,9 @@ class InventarioTelaresService
             }
 
             if ($col === 'hilo') {
-                $query->whereNotNull($col)->where($col, '!=', '')
-                    ->whereRaw('LOWER(TRIM('.$col.')) = LOWER(TRIM(?))', [$val]);
+                // LTRIM(RTRIM()) y no TRIM(): TRIM no existe en SQL Server 2008 R2 (es de 2017).
+                $query->whereNotNull('hilo')->where('hilo', '!=', '')
+                    ->whereRaw('LOWER(LTRIM(RTRIM(hilo))) = LOWER(LTRIM(RTRIM(?)))', [$val]);
             } else {
                 $query->where($col, 'like', "%{$val}%");
             }
@@ -214,16 +215,15 @@ class InventarioTelaresService
     private function parseDateFlexible(string $v): ?Carbon
     {
         $v = trim($v);
+        // Probar formatos es flujo normal, no un error: rescue() sin report() para no llenar
+        // SYSMonError con cada formato que no aplica (CAL-03: ya no hay catch vacío).
         foreach (['Y-m-d', 'd/m/Y', 'd-m-Y', 'Y/m/d', 'Y.m.d', 'd.m.Y'] as $fmt) {
-            try {
-                return Carbon::createFromFormat($fmt, $v)->startOfDay();
-            } catch (\Throwable) {
+            $fecha = rescue(fn () => Carbon::createFromFormat($fmt, $v), null, false);
+            if ($fecha instanceof Carbon) {
+                return $fecha->startOfDay();
             }
         }
-        try {
-            return Carbon::parse($v)->startOfDay();
-        } catch (\Throwable) {
-            return null;
-        }
+
+        return rescue(fn () => Carbon::parse($v)->startOfDay(), null, false);
     }
 }
