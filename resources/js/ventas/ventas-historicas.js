@@ -484,10 +484,17 @@ const initVentasHistoricas = (root, payload) => {
     /** Tocar un filtro (slicers o selectores del comparativo) suelta la fila seleccionada. */
     const clearSelections = () => elements.reports.querySelectorAll('[data-vh-table]').forEach(clearRowSelection);
 
+    /** El botón "Filtrar" del navbar muestra cuántos filtros hay activos (lo escucha dashboard.js). */
+    const syncFilterCount = () => {
+        const count = SLICERS.filter(({ key }) => state.selected[key].size).length;
+        root.dispatchEvent(new CustomEvent('pvoc:filtros', { bubbles: true, detail: { tab: 'history', count } }));
+    };
+
     const refresh = () => {
         clearSelections();
         SLICERS.forEach(renderSlicer);
         renderReports();
+        syncFilterCount();
     };
 
     // --- Montaje y eventos -----------------------------------------------------

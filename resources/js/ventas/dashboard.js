@@ -134,34 +134,55 @@ const bindTabs = (root) => {
 };
 
 /**
- * Botón "Filtrar" del navbar (fuera del root, vía @section('navbar-right')): abre el panel con los
- * filtros de Compara. Solo se muestra en la pestaña Compara; Ventas históricas tiene sus propios filtros.
+ * Botón "Filtrar" del navbar (fuera del root, vía @section('navbar-right')): abre el panel de filtros
+ * de la pestaña activa (Compara o Ventas históricas). Cada pestaña avisa cuántos filtros tiene activos
+ * con el evento 'pvoc:filtros' ({ tab, count }) y el botón muestra el de la pestaña visible.
  */
 const bindFilterPanel = (root) => {
     const button = document.getElementById('btn-filtrar-ventas-compara');
-    const panel = root.querySelector('[data-pvoc-filter-panel]');
-    if (!button || !panel) return;
+    const panels = {
+        summary: { element: root.querySelector('[data-pvoc-filter-panel]'), title: 'Filtrar Compara' },
+        history: { element: root.querySelector('[data-vh-filter-panel]'), title: 'Filtrar Ventas históricas' },
+    };
+    if (!button || Object.values(panels).some(({ element }) => !element)) return;
+
+    const label = button.querySelector('span');
+    const counts = { summary: 0, history: 0 };
+    let activeTab = 'summary';
+    const panel = () => panels[activeTab].element;
 
     const setOpen = (open) => {
-        panel.hidden = !open;
+        Object.values(panels).forEach(({ element }) => { element.hidden = true; });
+        panel().hidden = !open;
         button.setAttribute('aria-expanded', String(open));
+    };
+    const syncButton = () => {
+        button.title = panels[activeTab].title;
+        button.setAttribute('aria-controls', panel().id);
+        if (label) label.textContent = counts[activeTab] ? `Filtrar (${counts[activeTab]})` : 'Filtrar';
     };
 
     button.addEventListener('click', (event) => {
         event.stopPropagation();
-        setOpen(panel.hidden);
+        setOpen(panel().hidden);
     });
-    panel.querySelector('[data-pvoc-filter-close]').addEventListener('click', () => setOpen(false));
+    Object.values(panels).forEach(({ element }) =>
+        element.querySelector('[data-pvoc-filter-close]').addEventListener('click', () => setOpen(false)));
     // Los desplegables de cada filtro viven dentro del panel, así que un clic en ellos no lo cierra.
     document.addEventListener('mousedown', (event) => {
-        if (!panel.hidden && !panel.contains(event.target) && !button.contains(event.target)) setOpen(false);
+        if (!panel().hidden && !panel().contains(event.target) && !button.contains(event.target)) setOpen(false);
     });
     document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !panel.hidden && !panel.querySelector('.pvoc-multi-panel:not([hidden])')) setOpen(false);
+        if (event.key === 'Escape' && !panel().hidden && !panel().querySelector('.pvoc-multi-panel:not([hidden])')) setOpen(false);
     });
     root.addEventListener('pvoc:tab', (event) => {
-        button.hidden = event.detail !== 'summary';
         setOpen(false);
+        activeTab = event.detail;
+        syncButton();
+    });
+    root.addEventListener('pvoc:filtros', (event) => {
+        counts[event.detail.tab] = event.detail.count;
+        syncButton();
     });
 };
 
@@ -368,11 +389,9 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
     };
 
     /** Con los filtros escondidos en el panel, el botón del navbar indica cuántos hay activos. */
-    const filterButtonLabel = document.querySelector('#btn-filtrar-ventas-compara span');
     const syncFilterCount = () => {
-        if (!filterButtonLabel) return;
-        const active = FILTERS.filter(({ key, multi }) => (multi ? state.filters[key].size : state.filters[key])).length;
-        filterButtonLabel.textContent = active ? `Filtrar (${active})` : 'Filtrar';
+        const count = FILTERS.filter(({ key, multi }) => (multi ? state.filters[key].size : state.filters[key])).length;
+        root.dispatchEvent(new CustomEvent('pvoc:filtros', { detail: { tab: 'summary', count } }));
     };
 
     /** Solo lo llaman los filtros (y Limpiar): tocar un filtro también suelta la fila seleccionada. */

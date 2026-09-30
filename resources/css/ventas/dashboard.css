@@ -73,6 +73,7 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 .pvoc-filter-panel-close:hover { background: #f3f4f6; }
 .pvoc-filter-panel .pvoc-filter-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; overflow: visible; }
 .pvoc-filter-panel .pvoc-filter-fields .pvoc-select-label { min-width: 0; }
+.pvoc-filter-panel .pvoc-loading { grid-column: 1 / -1; padding: 1.5rem 1rem; }
 .pvoc-filter-panel-footer { display: flex; justify-content: flex-end; border-top: 1px solid #f3f4f6; padding-top: .5rem; }
 .pvoc-card-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: .15rem .6rem; }
 .pvoc-card-title p { margin: 0; }

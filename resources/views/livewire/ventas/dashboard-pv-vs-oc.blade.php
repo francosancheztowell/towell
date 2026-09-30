@@ -51,8 +51,16 @@
             data-historico-url="{{ route('ventas.datos.historico') }}"
             wire:ignore
         >
-            <div class="pvoc-filters" aria-label="Filtros de ventas históricas">
-                <div class="pvoc-filter-fields" data-vh-slicers></div>
+            {{-- Filtros de Ventas históricas; se abre con el mismo botón "Filtrar" del navbar. --}}
+            <div id="vh-filter-panel" class="pvoc-filter-panel" role="dialog" aria-labelledby="vh-filter-panel-title" data-vh-filter-panel hidden>
+                <div class="pvoc-filter-panel-header">
+                    <h2 id="vh-filter-panel-title">Filtrar Ventas históricas</h2>
+                    <button type="button" class="pvoc-filter-panel-close" data-pvoc-filter-close aria-label="Cerrar">&times;</button>
+                </div>
+                <div class="pvoc-filter-fields" data-vh-slicers>@include('livewire.ventas.partials.cargando')</div>
+                <div class="pvoc-filter-panel-footer">
+                    <button type="button" class="pvoc-button pvoc-button-small" data-vh-clear-all>Limpiar filtros</button>
+                </div>
             </div>
             <div class="vh-subtabs" role="tablist" aria-label="Reportes de ventas históricas" data-vh-subtabs></div>
             <div class="vh-reports" data-vh-reports>@include('livewire.ventas.partials.cargando')</div>
