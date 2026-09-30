@@ -66,7 +66,8 @@ Gates G0–G4: ver `PROTOCOLO-SESIONES.md` §8.
 - [ ] **Phase 15: Fundación frontend** — 15-01 utils TS (http, notifications con toast nativo, format, dom, tipos globales); 15-02 Tom Select en lugar de Select2, quitar jQuery/Toastr, Vite sin vendor global + inputs por glob, CDN → npm, regresiones Tailwind v4.
   **Requirements:** FE-01..12 · **Context:** `phases/15-fe-fundacion/15-CONTEXT.md`
 - [ ] **Phase 16: Sistema de componentes** — evolucionar `components/ui/*`: `<dialog>`, tabla, field, botón, badge, loader, empty, flash, filter-bar; galería `/dev/ui-kit`; piloto catálogos atadores.
-  **Requirements:** DS-01..12 · **Context:** `phases/16-componentes/16-CONTEXT.md`
+  **Requirements:** DS-01..16 · **Context:** `phases/16-componentes/16-CONTEXT.md`
+  **16-02 DS Livewire** (DS-13..16, Ola 3 tanda 4): `x-ui` cubre Livewire (botón con spinner de `wire:click`, field con `wire:model`, modal por eventos) y las vistas Livewire lo adoptan. Decisión 2026-09-30: **no Flux** (PROJECT).
 - [ ] **Phase 17: UX** — 17-01 auditoría exhaustiva (top 25 pantallas por telemetría); 17-02 correcciones globales (flash, títulos, h1, zoom, clic derecho, lang/es, páginas de error, contraseña, 419, offline, a11y).
   **Requirements:** UX-01..18 · **Context:** `phases/17-ux/17-CONTEXT.md`
   **Estado:** 17-02 ✅ (2026-09-26; UX-10 fuera por decisión del owner; adopción por módulo en cada 19-xx) · 17-01 ⏳ (necesita telemetría de producción).
@@ -125,7 +126,7 @@ Gate PT (sin cambios): tests de contrato y dominio pasan; invariantes SQL se man
 | 13. Mon panel | MON | 1 | 1/1 | Completa, integrada (`8290129`; `/admin` con 6 vistas + cierre remoto). Compatible con SQL Server 2008 R2 | 2026-09-24 |
 | 14. Mon Pulse | MON | 1 | 1/1 | Completa, integrada (`8290129`; SQLite, `/admin/pulse`, overhead p95 1.4 ms local) | 2026-09-24 |
 | 15. FE fundación | FE | 1–2 | 2/2 | Completa, integrada (15-01 `1e3c525`; 15-02 `9c40d1bf`: sin jQuery/Select2/Toastr, JS inicial −50 KB gzip) | 2026-09-25 |
-| 16. Componentes | DS | 2 | 1/1 | Completa, integrada (`043883d6`; `<dialog>`, tabla, field, flash, loader único, piloto atadores) | 2026-09-25 |
+| 16. Componentes | DS | 2–3 | 1/2 | 16-01 integrada (`043883d6`; `<dialog>`, tabla, field, flash, loader único, piloto atadores); 16-02 DS Livewire en la cuarta tanda (no Flux) | 2026-09-25 |
 | 17. UX | UX | 2–3 | 1/2 | 17-02 integrada (`1e40cb57`; UX-10 fuera por decisión del owner); 17-01 espera telemetría de producción | 2026-09-26 |
 | 18. Perf | PERF | 2–3 | 1/2 | 18-01 integrada (`5974e47e`); PERF-07 espera datos de prod; 18-02 dentro de cada 19-xx | - |
 | 19. Módulos TS | MIG | 3 | 5/10 | 19-01, 19-02, 19-03 (`fe02954a`), 19-05 (merge 19-05), 19-08 (`7ea03a39`) integradas; faltan 19-04, 19-06, 19-07, 19-09, 19-10 | 2026-09-30 |

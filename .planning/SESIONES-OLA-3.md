@@ -305,7 +305,7 @@ Abierta el 2026-09-30 con la Ola 3 subida a `main`. Decisiones del owner que apl
 | 19-04 Tejedores | `claude/19-04-tejedores` | `routes/modules/tejedores.php`, `app/Http/Controllers/Tejedores/**`, `app/Services/Tejedores/**`, `app/Livewire/{Desarrolladores,Tejedores}/**`, vistas `tel-telares-operador`, `bpm-tejedores`, `tejedores`, `tel-actividades-bpm`, `desarrolladores`, `notificar-montado-julios`, `components/telares/**`, los puentes de `resources/js/tejido/inventario-telas.ts`, `resources/js/modulos/tejedores/**`, tests del módulo | Urdido/Engomado/Tejido (salvo lo listado), PT, utils/layouts, Vite, package.json |
 | PT-TS 1 | `claude/pt-ts-1` | Vistas de PT (`liberar-ordenes`, `planeacion/utileria/**`, `planeacion/alineacion/**`), `resources/js/programa-tejido/**` salvo el cuerpo de `index.js`, `public/js/programa-tejido-menu.js`, `resources/js/modulos/{redbooth,programa-tejido}/**`, `tests/Js/programa-tejido-*` | Backend de PT (salvo lo mínimo), módulos 19-xx, utils/layouts, Vite, package.json |
 
-Integración: en el orden en que terminen. Todas hacen `git merge origin/main` antes del último push: Jonny sigue trabajando en `main` (Ventas y Mecánicos, que por eso quedan fuera de esta tanda). **Siguiente tanda:** 20-05 Estructura Urd/Eng (pares Reportes/Programar/BpmLine/ModuloProduccion + `ProduccionTrait` + enum de status de programa), 20-04 AuthZ (Livewire `#[Locked]` y `authorize`, `addPersistentMiddleware`, Gates sobre `userCan`, `updatePermiso` con lista blanca, paros con lock, headers), PT-TS 2 (`index.js`), 19-09, 19-07, 19-10, 22-06, PT 05.1, 22-08 (SQL Server en el CI y phpat) y 22-09 (ide-helper y enums de status).
+Integración: en el orden en que terminen. Todas hacen `git merge origin/main` antes del último push: Jonny sigue trabajando en `main` (Ventas y Mecánicos, que por eso quedan fuera de esta tanda). **Siguiente tanda:** 20-05 Estructura Urd/Eng (pares Reportes/Programar/BpmLine/ModuloProduccion + `ProduccionTrait` + enum de status de programa), 20-04 AuthZ (Livewire `#[Locked]` y `authorize`, `addPersistentMiddleware`, Gates sobre `userCan`, `updatePermiso` con lista blanca, paros con lock, headers), PT-TS 2 (`index.js`), 19-09, 19-07, 19-10, 22-06, PT 05.1, 22-08 (SQL Server en el CI y phpat) y 22-09 (ide-helper y enums de status). También **16-02 DS Livewire** (prompt en la sección 16; decisión "Flux no", 2026-09-30).
 
 ## 11. TS-base (solo TypeScript)
 
@@ -452,3 +452,33 @@ Acuerdos: docs y commits en español; modo ponytail (reusa http, notify, format,
 Antes de push: hook SessionStart (o CLAUDE_CODE_REMOTE=true bash scripts/session-start.sh); php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run typecheck && npm run test:js && npm run build; npm run ratchet; COMPOSER_ALLOW_SUPERUSER=1 composer quality; vendor/bin/pint --test en TODOS los PHP que cambies (incluidos arneses); skill code-review; con la skill run abre cada pantalla migrada (0 errores de consola) y su flujo principal.
 Entregables: código + tests + PT-TS-1-PLAN.md + PT-TS-1-SUMMARY.md (+ HANDOFF.md). Push a claude/pt-ts-1. NO abras PR.
 ```
+
+## 16. 16-02 DS Livewire (cuarta tanda; no se abre sin que el owner lo pida)
+
+Propiedad: `resources/views/components/ui/**`, `resources/views/components/tabla*.blade.php` (compatibles hacia atrás), `resources/js/componentes/dialog.ts` (y el runtime de `componentes/` que haga falta), la galería `/dev/ui-kit`, las **vistas** `resources/views/livewire/{admin,inventario-trama,trazabilidad,urd-eng}/**`, `docs/cerebro-towell/Arquitectura/receta-componentes.md`, tests nuevos `tests/Feature/Componentes/**` y `tests/Js/componentes-livewire-*.test.ts`. Prohibido: clases PHP de Livewire (salvo `dispatch` de abrir/cerrar modal y lo mínimo para usar `x-ui`), vistas Livewire de módulos con dueño (Tejedores/Desarrolladores → 19-04, Mecánicos → 19-07, Crudo y Ventas → 19-10, Mantenimiento ya migrado, PT), `resources/js/{app,bootstrap,app-core}.*`, Vite, package.json, composer.* (nada de Flux ni otra librería).
+
+```
+(Esta sesión arranca en modo plan: lee el protocolo y el contexto, presenta tu plan para aprobación del owner y, una vez aprobado, ejecútalo completo.)
+
+Proyecto Towell (Laravel 12.69 + Livewire 4.4 + Vite/TS; producción Windows/Laragon, SQL Server 2008 R2). Refactor integral 2026. Lee primero .planning/PROTOCOLO-SESIONES.md, .planning/SESIONES-OLA-3.md (sección 16: propiedad), CLAUDE.md (reglas "Solo TypeScript" y "ORM primero"), .planning/PROJECT.md (Key Decision 2026-09-30 "Flux no"), docs/cerebro-towell/Arquitectura/receta-componentes.md (secciones 3–5 y 9), .planning/phases/16-componentes/16-CONTEXT.md y 16-01-SUMMARY.md, .planning/phases/17-ux/17-02-CHECKLIST.md (punto 1.4).
+
+Fase 16-02 — DS Livewire: que los componentes propios x-ui cubran Livewire, en lugar de instalar Flux. IDs: DS-13..16.
+Escribe primero .planning/phases/16-componentes/16-02-PLAN.md y luego ejecútalo en commits separados.
+Rama: claude/16-02-ds-livewire (base claude/friendly-hopper-506bg9).
+
+Alcance:
+1. DS-13 x-ui.button: si trae wire:click, spinner y disabled automáticos mientras corre ESA acción (wire:loading + wire:target del método; respetar :loading y los usos Blade+TS actuales sin cambio visual).
+2. DS-14 x-ui.field: wire:model / wire:model.live / .blur pasan al control en as="input|textarea|select|number…"; error de validación de Livewire visible; test Livewire que lo pruebe.
+3. DS-15 x-ui.modal-base controlable desde Livewire: $this->dispatch('modal-abrir', nombre: '...') / 'modal-cerrar' manejados en resources/js/componentes/dialog.ts (TS, sin Alpine propio; que sobreviva a morph de Livewire con wire:ignore.self si hace falta). Mantener la API actual para Blade+TS.
+4. DS-16 vistas Livewire sin x-ui → x-ui (mismo diseño, capturas antes/después 1280×800 y 768×1024): admin/* (7; revisar partials), inventario-trama/* (2), trazabilidad/index, urd-eng/{program-board,edicion-ordenes} (edicion-orden ya lo usa). Quitar marcado duplicado de botones/campos/modales/alertas; Alpine propio solo donde x-ui no alcance (documentarlo).
+5. Galería /dev/ui-kit con ejemplos Livewire (un componente de demo solo local) y receta sección 9 actualizada con lo que quede.
+Solo si ≥ 2 pantallas lo piden (ponytail): x-ui.dropdown (menú "⋮" sobre accionesTactiles) y x-ui.tabs; si no, anótalo como pendiente.
+Medición: ningún livewire.min.js nuevo en páginas Blade (revisa el HTML de una pantalla Blade antes/después) y KB de HTML de /admin antes/después.
+
+Reglas: SOLO TYPESCRIPT (nada de .js ni <script> inline nuevo; tests JS como tests/Js/componentes-livewire-*.test.ts); ORM primero; NO instalar Flux ni ninguna librería de componentes; mismo diseño; texto ≥ 12 px y controles ≥ 44 px; contraseñas y login no se tocan; AuthZ no cambia.
+
+Acuerdos: docs y commits en español; ponytail (evoluciona x-ui, no crees componentes paralelos); NUNCA saltar/desactivar tests; no editar ROADMAP/STATE/REQUIREMENTS/PROJECT; el ratchet debe bajar o quedarse; antes del último push: git fetch origin && git merge origin/claude/friendly-hopper-506bg9 && git merge origin/main, y vuelve a correr todo.
+Antes de push: hook SessionStart (o CLAUDE_CODE_REMOTE=true bash scripts/session-start.sh); php artisan test; vendor/bin/phpstan analyse --memory-limit=2G; npm run typecheck && npm run test:js && npm run build; npm run ratchet; COMPOSER_ALLOW_SUPERUSER=1 composer quality; vendor/bin/pint --test en TODOS los PHP que cambies; skill code-review; con la skill run abre /admin (En línea, Errores, Accesos), Inventario Trama, Trazabilidad y Programar Urdido/Engomado (0 errores de consola) y prueba un modal y un guardado con spinner.
+Entregables: código + tests + 16-02-PLAN.md + 16-02-SUMMARY.md (+ HANDOFF.md). Push a claude/16-02-ds-livewire. NO abras PR.
+```
+

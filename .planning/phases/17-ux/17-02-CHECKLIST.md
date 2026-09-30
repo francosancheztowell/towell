@@ -14,6 +14,7 @@ Referencias: `docs/cerebro-towell/Arquitectura/receta-componentes.md` (component
 | 1.1 | **`<title>` propio** | La pestaña dice "<Pantalla> · Towell", no "Producción Towell". | El layout lo toma de `@section('page-title')`; si la vista no lo tiene, agregar `@section('title', 'Nombre')`. |
 | 1.2 | **Un solo `<h1>`** | `document.querySelectorAll('h1').length === 1` | El título va en `@section('page-title')` (con `<x-layout.page-title>` o texto). Los encabezados dentro del contenido son `<h2>`/`<h3>`. |
 | 1.3 | **Andón** | Solo pantallas fijas en TV/tablet todo el turno. | `@section('viewport-fijo', '1')` bloquea el pinch-zoom. Ninguna otra pantalla lo lleva. |
+| 1.4 | **Componentes `x-ui`, también en Livewire** | Botones, campos, modales, tablas y alertas salen de `x-ui.*` / `x-tabla`, no de marcado propio. | `x-ui.button` (con `wire:click` muestra spinner solo), `x-ui.field as="input" wire:model="…"`, `x-ui.modal-base`, `x-tabla` + `ConTabla`. **No Flux** (decisión 2026-09-30, PROJECT). Receta: sección "Livewire + x-ui". |
 
 ## 2. Tablet (iPad / Android)
 
