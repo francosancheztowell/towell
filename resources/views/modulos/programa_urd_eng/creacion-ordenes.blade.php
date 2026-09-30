@@ -6,11 +6,10 @@
 <div class="flex items-center gap-1">
    <x-navbar.button-create
    id="btn-crear-ordenes"
-   onclick="crearOrdenes()"
+   data-accion="crear-ordenes"
    title="Crear Órdenes"
    icon="fa-save"
    iconColor="text-white"
-
    bg="bg-purple-500"
    text="Crear Órdenes"
    />
@@ -18,6 +17,22 @@
 @endsection
 
 @section('content')
+@php
+    $configPagina = [
+        'telares' => $telaresSeleccionados ?? [],
+        'rutas' => [
+            'buscarBomUrdido' => route('programa.urd.eng.buscar.bom.urdido'),
+            'buscarBomEngomado' => route('programa.urd.eng.buscar.bom.engomado'),
+            'materialesUrdido' => route('programa.urd.eng.materiales.urdido'),
+            'materialesEngomado' => route('programa.urd.eng.materiales.engomado'),
+            'anchosBalona' => route('programa.urd.eng.anchos.balona'),
+            'maquinasEngomado' => route('programa.urd.eng.maquinas.engomado'),
+            'nucleos' => route('programa.urd.eng.nucleos'),
+            'crearOrdenes' => route('programa.urd.eng.crear.ordenes'),
+            'despues' => route('programa.urd.eng.reservar.programar'),
+        ],
+    ];
+@endphp
 <style>
     .sort-icon {
         opacity: 0.5;
@@ -37,7 +52,7 @@
         opacity: 1;
     }
 </style>
-<div class="w-full">
+<div class="w-full" id="creacion-ordenes" data-pagina='@json($configPagina)'>
     {{-- =================== Tabla de requerimientos agrupados =================== --}}
     <div class="bg-white overflow-hidden mb-4">
         <div class="overflow-x-auto">
@@ -49,7 +64,7 @@
                         <th class="px-2 py-2 text-center text-sm font-semibold w-20">Cuenta</th>
                         <th class="px-2 py-2 text-center text-sm font-semibold w-20">Calibre</th>
                         <th class="px-2 py-2 text-center text-sm font-semibold w-24">Hilo</th>
-                        <th class="px0-2 py-2 text-center text-sm font-semibold w-24">Tamaño</th>
+                        <th class="px-2 py-2 text-center text-sm font-semibold w-24">Tamaño</th>
                         <th class="px-2 py-2 text-center text-sm font-semibold w-28">Urdido</th>
                         <th class="px-2 py-2 text-center text-sm font-semibold w-20">Tipo</th>
                         <th class="px-2 py-2 text-center text-sm font-semibold w-28">Destino</th>
@@ -92,44 +107,44 @@
                 <table id="tablaMaterialesEngomado" class="w-full">
                     <thead class="sticky top-0 bg-slate-100 z-10">
                         <tr class="bg-blue-500 text-white">
-                            <th class="px-2 py-2 text-center text-sm font-semibold w-24 sortable cursor-pointer hover:bg-blue-600 transition-colors" data-sort="itemId">
-                                Articulo <i class="fa-solid fa-sort sort-icon ml-1"></i>
+                            <th class="px-2 py-2 text-center text-sm font-semibold w-24 sortable cursor-pointer hover:bg-blue-600 transition-colors" tabindex="0" aria-sort="none" data-sort="itemId">
+                                Articulo <i class="fa-solid fa-sort sort-icon ml-1" aria-hidden="true"></i>
                             </th>
-                            <th class="px-2 py-2 text-center text-sm font-semibold w-24 sortable cursor-pointer hover:bg-blue-600 transition-colors" data-sort="configId">
-                                Config <i class="fa-solid fa-sort sort-icon ml-1"></i>
+                            <th class="px-2 py-2 text-center text-sm font-semibold w-24 sortable cursor-pointer hover:bg-blue-600 transition-colors" tabindex="0" aria-sort="none" data-sort="configId">
+                                Config <i class="fa-solid fa-sort sort-icon ml-1" aria-hidden="true"></i>
                             </th>
-                            <th class="px-2 py-2 text-center text-sm font-semibold w-20 sortable cursor-pointer hover:bg-blue-600 transition-colors" data-sort="inventSizeId">
-                                Tamaño <i class="fa-solid fa-sort sort-icon ml-1"></i>
+                            <th class="px-2 py-2 text-center text-sm font-semibold w-20 sortable cursor-pointer hover:bg-blue-600 transition-colors" tabindex="0" aria-sort="none" data-sort="inventSizeId">
+                                Tamaño <i class="fa-solid fa-sort sort-icon ml-1" aria-hidden="true"></i>
                             </th>
-                            <th class="px-2 py-2 text-center text-sm font-semibold w-20 sortable cursor-pointer hover:bg-blue-600 transition-colors" data-sort="inventColorId">
-                                Color <i class="fa-solid fa-sort sort-icon ml-1"></i>
+                            <th class="px-2 py-2 text-center text-sm font-semibold w-20 sortable cursor-pointer hover:bg-blue-600 transition-colors" tabindex="0" aria-sort="none" data-sort="inventColorId">
+                                Color <i class="fa-solid fa-sort sort-icon ml-1" aria-hidden="true"></i>
                             </th>
-                            <th class="px-2 py-2 text-center text-sm font-semibold w-24 sortable cursor-pointer hover:bg-blue-600 transition-colors" data-sort="inventLocationId">
-                                Almacen <i class="fa-solid fa-sort sort-icon ml-1"></i>
+                            <th class="px-2 py-2 text-center text-sm font-semibold w-24 sortable cursor-pointer hover:bg-blue-600 transition-colors" tabindex="0" aria-sort="none" data-sort="inventLocationId">
+                                Almacen <i class="fa-solid fa-sort sort-icon ml-1" aria-hidden="true"></i>
                             </th>
-                            <th class="px-2 py-2 text-center text-sm font-semibold w-20 sortable cursor-pointer hover:bg-blue-600 transition-colors" data-sort="inventBatchId">
-                                Lote <i class="fa-solid fa-sort sort-icon ml-1"></i>
+                            <th class="px-2 py-2 text-center text-sm font-semibold w-20 sortable cursor-pointer hover:bg-blue-600 transition-colors" tabindex="0" aria-sort="none" data-sort="inventBatchId">
+                                Lote <i class="fa-solid fa-sort sort-icon ml-1" aria-hidden="true"></i>
                             </th>
-                            <th class="px-2 py-2 text-center text-sm font-semibold w-24 sortable cursor-pointer hover:bg-blue-600 transition-colors" data-sort="wmsLocationId">
-                                Localidad <i class="fa-solid fa-sort sort-icon ml-1"></i>
+                            <th class="px-2 py-2 text-center text-sm font-semibold w-24 sortable cursor-pointer hover:bg-blue-600 transition-colors" tabindex="0" aria-sort="none" data-sort="wmsLocationId">
+                                Localidad <i class="fa-solid fa-sort sort-icon ml-1" aria-hidden="true"></i>
                             </th>
-                            <th class="px-2 py-2 text-center text-sm font-semibold w-20 sortable cursor-pointer hover:bg-blue-600 transition-colors" data-sort="inventSerialId">
-                                Serie <i class="fa-solid fa-sort sort-icon ml-1"></i>
+                            <th class="px-2 py-2 text-center text-sm font-semibold w-20 sortable cursor-pointer hover:bg-blue-600 transition-colors" tabindex="0" aria-sort="none" data-sort="inventSerialId">
+                                Serie <i class="fa-solid fa-sort sort-icon ml-1" aria-hidden="true"></i>
                             </th>
-                            <th class="px-2 py-2 text-center text-sm font-semibold w-28 sortable cursor-pointer hover:bg-blue-600 transition-colors" data-sort="loteProv">
-                                Lote Proveedor <i class="fa-solid fa-sort sort-icon ml-1"></i>
+                            <th class="px-2 py-2 text-center text-sm font-semibold w-28 sortable cursor-pointer hover:bg-blue-600 transition-colors" tabindex="0" aria-sort="none" data-sort="loteProv">
+                                Lote Proveedor <i class="fa-solid fa-sort sort-icon ml-1" aria-hidden="true"></i>
                             </th>
-                            <th class="px-2 py-2 text-center text-sm font-semibold w-24 sortable cursor-pointer hover:bg-blue-600 transition-colors" data-sort="noProv">
-                                No Proveedor <i class="fa-solid fa-sort sort-icon ml-1"></i>
+                            <th class="px-2 py-2 text-center text-sm font-semibold w-24 sortable cursor-pointer hover:bg-blue-600 transition-colors" tabindex="0" aria-sort="none" data-sort="noProv">
+                                No Proveedor <i class="fa-solid fa-sort sort-icon ml-1" aria-hidden="true"></i>
                             </th>
-                            <th class="px-2 py-2 text-center text-sm font-semibold w-28 sortable cursor-pointer hover:bg-blue-600 transition-colors" data-sort="prodDate">
-                                Fecha <i class="fa-solid fa-sort sort-icon ml-1"></i>
+                            <th class="px-2 py-2 text-center text-sm font-semibold w-28 sortable cursor-pointer hover:bg-blue-600 transition-colors" tabindex="0" aria-sort="none" data-sort="prodDate">
+                                Fecha <i class="fa-solid fa-sort sort-icon ml-1" aria-hidden="true"></i>
                             </th>
-                            <th class="px-2 py-2 text-center text-sm font-semibold w-20 sortable cursor-pointer hover:bg-blue-600 transition-colors" data-sort="conos">
-                                Conos <i class="fa-solid fa-sort sort-icon ml-1"></i>
+                            <th class="px-2 py-2 text-center text-sm font-semibold w-20 sortable cursor-pointer hover:bg-blue-600 transition-colors" tabindex="0" aria-sort="none" data-sort="conos">
+                                Conos <i class="fa-solid fa-sort sort-icon ml-1" aria-hidden="true"></i>
                             </th>
-                            <th class="px-2 py-2 text-center text-sm font-semibold w-20 sortable cursor-pointer hover:bg-blue-600 transition-colors" data-sort="kilos">
-                                Kilos <i class="fa-solid fa-sort sort-icon ml-1"></i>
+                            <th class="px-2 py-2 text-center text-sm font-semibold w-20 sortable cursor-pointer hover:bg-blue-600 transition-colors" tabindex="0" aria-sort="none" data-sort="kilos">
+                                Kilos <i class="fa-solid fa-sort sort-icon ml-1" aria-hidden="true"></i>
                             </th>
                             <th class="px-2 py-2 text-center text-sm font-semibold w-20">Seleccionar</th>
                         </tr>
@@ -168,46 +183,46 @@
                     <tbody id="tbodyConstruccionUrdido" class="bg-white ">
                         <tr>
                             <td class="px-2 py-0.5">
-                                <input type="number" step="1" min="0" max="15" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input data-julios aria-label="No. Julios, fila 1" type="number" step="1" min="0" max="15" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
-                                <input type="number" step="1" min="0" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input aria-label="Hilos, fila 1" type="number" step="1" min="0" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
-                                <input type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="px-2 py-0.5">
-                                <input type="number" step="1" min="0" max="15" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
-                            </td>
-                            <td class="px-2 py-0.5">
-                                <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
-                            </td>
-                            <td class="px-2 py-0.5">
-                                <input type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input aria-label="Observaciones, fila 1" type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                         </tr>
                         <tr>
                             <td class="px-2 py-0.5">
-                                <input type="number" step="1" min="0" max="15" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input data-julios aria-label="No. Julios, fila 2" type="number" step="1" min="0" max="15" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
-                                <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input aria-label="Hilos, fila 2" type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
-                                <input type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input aria-label="Observaciones, fila 2" type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                         </tr>
                         <tr>
                             <td class="px-2 py-0.5">
-                                <input type="number" step="1" min="0" max="15" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input data-julios aria-label="No. Julios, fila 3" type="number" step="1" min="0" max="15" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
-                                <input type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input aria-label="Hilos, fila 3" type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-0.5">
-                                <input type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                                <input aria-label="Observaciones, fila 3" type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="px-2 py-0.5">
+                                <input data-julios aria-label="No. Julios, fila 4" type="number" step="1" min="0" max="15" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                            </td>
+                            <td class="px-2 py-0.5">
+                                <input aria-label="Hilos, fila 4" type="number" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
+                            </td>
+                            <td class="px-2 py-0.5">
+                                <input aria-label="Observaciones, fila 4" type="text" class="w-full px-1.5 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="" required>
                             </td>
                         </tr>
                     </tbody>
@@ -235,35 +250,35 @@
                     <tbody id="tbodyDatosEngomado" class="bg-white divide-y">
                         <tr>
                             <td class="px-2 py-2">
-                                <select id="inputNucleo" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                <select id="inputNucleo" aria-label="Núcleo" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                                     <option value="">Seleccione</option>
                                     <!-- Los núcleos se cargarán dinámicamente desde el catálogo -->
                                 </select>
                             </td>
                             <td class="px-2 py-2">
-                                <input type="number" id="inputNoTelas" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="" value="2" required>
+                                <input type="number" id="inputNoTelas" aria-label="No. de Telas" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="" value="2" required>
                             </td>
                             <td class="px-2 py-2">
-                                <select id="inputAnchoBalonas" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                <select id="inputAnchoBalonas" aria-label="Ancho Balonas" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                                     <option value="">Seleccione</option>
                                 </select>
                             </td>
                             <td class="px-2 py-2">
-                                <input type="text" id="inputMetrajeTelas" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="" required>
+                                <input type="text" id="inputMetrajeTelas" aria-label="Metraje de Telas" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="" required>
                             </td>
                             <td class="px-2 py-2">
-                                <input type="number" id="inputCuendeadosMin" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="" value="2" required>
+                                <input type="number" id="inputCuendeadosMin" aria-label="Cuendeados Mín. por Tela" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="" value="2" required>
                             </td>
                             <td class="px-2 py-2">
-                                <select id="inputMaquinaEngomado" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                <select id="inputMaquinaEngomado" aria-label="Máquina Engomado" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                                     <option value="">Seleccione</option>
                                 </select>
                             </td>
                             <td class="px-2 py-2">
-                                <input type="text" id="inputLMatEngomado" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar lista..." data-bom-engomado-input="true" autocomplete="off" required>
+                                <input type="text" id="inputLMatEngomado" aria-label="L Mat Engomado" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar lista..." data-bom-engomado-input="true" autocomplete="off" required>
                             </td>
                             <td class="px-2 py-2">
-                                <select id="inputBomFormula" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                <select id="inputBomFormula" aria-label="Bom Formula" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                                     <option value="">Seleccione</option>
                                     <option value="TE-PD-ENF-0025">TE-PD-ENF-0025</option>
                                     <option value="TE-PD-ENF-0032">TE-PD-ENF-0032</option>
@@ -273,7 +288,7 @@
                                 </select>
                             </td>
                             <td class="px-2 py-2">
-                                <textarea id="inputObservaciones" rows="2" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder=""></textarea>
+                                <textarea id="inputObservaciones" aria-label="Observaciones de engomado" rows="2" class="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder=""></textarea>
                             </td>
                         </tr>
                     </tbody>
@@ -283,40 +298,9 @@
     </div>
 </div>
 
-<script src="{{ asset('js/modulos/programa_urd_eng/creacion-ordenes.js') }}?v={{ filemtime(public_path('js/modulos/programa_urd_eng/creacion-ordenes.js')) }}"></script>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    // Restricción en tiempo real: No. Julios máximo 15
-    document.getElementById('tbodyConstruccionUrdido')?.addEventListener('input', function(e) {
-        const input = e.target;
-        if (input.tagName !== 'INPUT' || input.type !== 'number') return;
-        // Solo aplica a la primera columna (No. Julios) de cada fila
-        const td = input.closest('td');
-        if (!td || td !== td.parentElement.children[0]) return;
-        const val = parseInt(input.value, 10);
-        if (val > 15) {
-            input.value = 15;
-            Swal.fire({ icon: 'warning', title: 'Máximo 15 julios', text: 'El número de julios no puede ser mayor a 15.', confirmButtonColor: '#2563eb', toast: true, position: 'top-end', timer: 2500, showConfirmButton: false });
-        }
-    });
-
-    if (typeof window.initCreacionOrdenes === 'function') {
-        window.initCreacionOrdenes({
-            telaresData: @json($telaresSeleccionados ?? []),
-            destinoOptions: ['Itema Nuevo', 'Itema Viejo', 'Jacquard Sulzer', 'Jacquard Smit', 'Smit'],
-            routes: {
-                buscarBomUrdido: '{{ route("programa.urd.eng.buscar.bom.urdido") }}',
-                buscarBomEngomado: '{{ route("programa.urd.eng.buscar.bom.engomado") }}',
-                materialesUrdido: '{{ route("programa.urd.eng.materiales.urdido") }}',
-                materialesEngomado: '{{ route("programa.urd.eng.materiales.engomado") }}',
-                anchosBalona: '{{ route("programa.urd.eng.anchos.balona") }}',
-                maquinasEngomado: '{{ route("programa.urd.eng.maquinas.engomado") }}',
-                nucleos: '{{ route("programa.urd.eng.nucleos") }}',
-                bomFormula: '{{ route("programa.urd.eng.bom.formula") }}',
-                crearOrdenes: '{{ route("programa.urd.eng.crear.ordenes") }}'
-            }
-        });
-    }
-});
-</script>
+@include('modulos.programa_urd_eng.comun.modal-fecha-requerimiento')
 @endsection
+
+@push('scripts')
+    @vite('resources/js/modulos/programa-urd-eng/creacion-ordenes/index.ts')
+@endpush
