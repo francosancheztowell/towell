@@ -9,6 +9,7 @@ import {
 import { instalarIndiceSeleccion as ptInstalarIndiceSeleccion } from './seleccion.ts';
 import { accionesTactiles as ptAccionesTactiles } from '../utils/acciones-tactiles.ts';
 import { enlazarDiasLiberar as ptEnlazarDiasLiberar } from './acciones.ts';
+import { botonConfirmarAbierto as ptBotonConfirmarAbierto } from './modales/boton-confirmar.ts';
 // Scripts que vivían inline en la vista (04-perf, corte 5). Se evalúan antes que este
 // archivo y solo publican funciones en window, como hacían sus <script>.
 import './balancear.ts';
@@ -3760,7 +3761,8 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	const hiloActual = selectHilo?.dataset?.hiloActual || hiloActualParam || '';
 	const salonActual = selectSalon?.dataset?.salonActual || '';
 	const telarActual = telar || '';
-	const confirmButton = document.querySelector('dialog.ui-dialogo .ui-dialogo__boton--primario');
+	// Se busca en cada uso (ver modales/boton-confirmar.ts).
+	const confirmButton = ptBotonConfirmarAbierto;
 
 	if (!tbody || !selectHilo || !selectSalon || !selectAplicacion) {
 		return;
@@ -3933,11 +3935,11 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 		});
 
 		if (esDuplicar) {
-			confirmButton.disabled = !hasAnyFilled || !todasClavesValidas;
+			(confirmButton() ?? {}).disabled = !hasAnyFilled || !todasClavesValidas;
 		} else {
 			const tieneDestinos = telarInputs.length > 1;
 			const origenTieneCantidad = pedidoInputs[0]?.value?.trim() !== '';
-			confirmButton.disabled = !tieneDestinos || !allDestinationsValid || !origenTieneCantidad;
+			(confirmButton() ?? {}).disabled = !tieneDestinos || !allDestinationsValid || !origenTieneCantidad;
 		}
 	}
 
@@ -4369,15 +4371,15 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			}
 			if (descDuplicar) descDuplicar.classList.remove('hidden');
 
-			if (confirmButton) {
+			if (confirmButton()) {
 				if (vincularActivado) {
-					confirmButton.textContent = 'Vincular';
-					confirmButton.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'bg-green-500', 'hover:bg-green-600');
-					confirmButton.classList.add('bg-purple-500', 'hover:bg-purple-600');
+					confirmButton().textContent = 'Vincular';
+					confirmButton().classList.remove('bg-blue-600', 'hover:bg-blue-700', 'bg-green-500', 'hover:bg-green-600');
+					confirmButton().classList.add('bg-purple-500', 'hover:bg-purple-600');
 				} else {
-					confirmButton.textContent = 'Duplicar';
-					confirmButton.classList.remove('bg-green-500', 'hover:bg-green-600', 'bg-purple-500', 'hover:bg-purple-600');
-					confirmButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+					confirmButton().textContent = 'Duplicar';
+					confirmButton().classList.remove('bg-green-500', 'hover:bg-green-600', 'bg-purple-500', 'hover:bg-purple-600');
+					confirmButton().classList.add('bg-blue-600', 'hover:bg-blue-700');
 				}
 			}
 		} else if (modoActual === 'dividir') {
@@ -4387,10 +4389,10 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 			}
 			if (descDividir) descDividir.classList.remove('hidden');
 
-			if (confirmButton) {
-				confirmButton.textContent = 'Dividir';
-				confirmButton.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'bg-purple-500', 'hover:bg-purple-600');
-				confirmButton.classList.add('bg-green-500', 'hover:bg-green-600');
+			if (confirmButton()) {
+				confirmButton().textContent = 'Dividir';
+				confirmButton().classList.remove('bg-blue-600', 'hover:bg-blue-700', 'bg-purple-500', 'hover:bg-purple-600');
+				confirmButton().classList.add('bg-green-500', 'hover:bg-green-600');
 			}
 		}
 
@@ -5787,7 +5789,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 
 	// Event listeners
 	btnAdd.disabled = true;
-	confirmButton.disabled = true;
+	(confirmButton() ?? {}).disabled = true;
 
 	if (firstTelarSelect) {
 		firstTelarSelect.addEventListener('change', recomputeState);
