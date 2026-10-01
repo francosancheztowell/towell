@@ -5,6 +5,7 @@
 @section('content')
 @php
     $fallaTexto = $orden->Falla ?: 'Sin descripción';
+    $tipoFallaTexto = $orden->getAttribute('TipoFalla') ?: '—';
     $estatusActual = $orden->Estatus ?: 'Activo';
     $badgeClases = match ($estatusActual) {
         'Autorizado' => 'bg-emerald-100 text-emerald-800',
@@ -77,7 +78,7 @@
                     </div>
                 </div>
 
-                <dl class="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-gray-100 pt-2 sm:grid-cols-4 lg:grid-cols-7 min-[56.25rem]:grid-cols-7 short:gap-y-1">
+                <dl class="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-gray-100 pt-2 sm:grid-cols-4 lg:grid-cols-8 min-[56.25rem]:grid-cols-8 short:gap-y-1">
                     <div>
                         <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm short:text-xs">Fecha</dt>
                         <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg short:text-base">{{ optional($orden->Fecha)->format('d/m/Y') ?? '—' }}</dd>
@@ -101,6 +102,10 @@
                     <div>
                         <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm short:text-xs">Orden</dt>
                         <dd class="mt-0.5 text-base font-bold text-gray-900 sm:text-lg short:text-base">{{ $orden->Orden ?: '—' }}</dd>
+                    </div>
+                    <div class="min-w-0">
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm short:text-xs">Tipo de falla</dt>
+                        <dd class="mt-0.5 line-clamp-2 text-base font-bold text-gray-900 sm:text-lg short:text-base" title="{{ $tipoFallaTexto }}">{{ $tipoFallaTexto }}</dd>
                     </div>
                     <div class="min-w-0">
                         <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500 sm:text-sm short:text-xs">Falla</dt>

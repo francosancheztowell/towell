@@ -52,6 +52,7 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
             $table->string('Estatus')->nullable();
             $table->date('Fecha')->nullable();
             $table->string('TelarId')->nullable();
+            $table->string('TipoFalla')->nullable();
             $table->string('Falla')->nullable();
             $table->string('Orden')->nullable();
             $table->integer('Turno')->nullable();
@@ -435,6 +436,58 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
             'La máquina no puede pasar de 10 caracteres.',
             $valida('12345678901')->errors()->first('TelarId')
         );
+    }
+
+    public function test_falla_es_opcional_y_tipo_de_falla_no_pasa_de_100_caracteres(): void
+    {
+        $controller = new OrdenesTrabajoMecaController;
+        $reglas = (new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'reglasCabecera'))->invoke($controller);
+        $mensajes = (new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'mensajesCabecera'))->invoke($controller);
+
+        $this->assertContains('nullable', $reglas['Falla']);
+        $this->assertNotContains('required', $reglas['Falla']);
+        $this->assertTrue(validator(['TelarId' => '201'], $reglas, $mensajes)->passes());
+
+        $this->assertTrue(validator(['TelarId' => '201', 'TipoFalla' => str_repeat('A', 100)], $reglas, $mensajes)->passes());
+        $this->assertSame(
+            'El tipo de falla no puede pasar de 100 caracteres.',
+            validator(['TelarId' => '201', 'TipoFalla' => str_repeat('A', 101)], $reglas, $mensajes)->errors()->first('TipoFalla')
+        );
+    }
+
+    public function test_orden_no_vacia_acepta_tipo_o_descripcion_de_falla(): void
+    {
+        $method = new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'validarOrdenNoVacia');
+        $controller = new OrdenesTrabajoMecaController;
+
+        // No lanza excepción: basta con uno de los dos campos de falla.
+        $method->invoke($controller, ['TelarId' => '201', 'TipoFalla' => 'Mecánica', 'Falla' => null]);
+        $method->invoke($controller, ['TelarId' => '201', 'TipoFalla' => null, 'Falla' => 'Se rompió la lanzadera']);
+        $this->addToAssertionCount(2);
+
+        foreach ([
+            ['TelarId' => '201', 'TipoFalla' => '  ', 'Falla' => null],
+            ['TelarId' => '', 'TipoFalla' => 'Mecánica', 'Falla' => 'Rota'],
+        ] as $datos) {
+            try {
+                $method->invoke($controller, $datos);
+                $this->fail('Se esperaba ValidationException por orden vacía.');
+            } catch (ValidationException $exception) {
+                $this->assertSame(
+                    'La orden de trabajo no puede quedar vacía: captura la máquina y el tipo o la descripción de la falla.',
+                    $exception->errors()['Falla'][0]
+                );
+            }
+        }
+    }
+
+    public function test_normalizar_cabecera_deja_tipo_de_falla_vacio_en_null(): void
+    {
+        $method = new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'normalizarCabecera');
+        $controller = new OrdenesTrabajoMecaController;
+
+        $this->assertNull($method->invoke($controller, ['TipoFalla' => '   '])['TipoFalla']);
+        $this->assertSame('Eléctrica', $method->invoke($controller, ['TipoFalla' => ' Eléctrica '])['TipoFalla']);
     }
 
     public function test_reglas_de_linea_exigen_comentarios(): void

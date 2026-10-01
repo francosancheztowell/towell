@@ -143,6 +143,7 @@ class OrdenesTrabajoMecaController extends Controller
             'folio_paro' => ['nullable', 'string', 'max:30'],
             'orden' => ['nullable', 'string', 'max:20'],
             'falla' => ['nullable', 'string', 'max:150'],
+            'tipo_falla' => ['nullable', 'string', 'max:100'],
             'turno' => ['nullable', 'string', 'max:5'],
             'mecanico' => ['nullable', 'string', 'max:150'],
         ]);
@@ -168,6 +169,7 @@ class OrdenesTrabajoMecaController extends Controller
             ->when(trim((string) ($datos['folio_paro'] ?? '')) !== '', fn ($query) => $query->where('FolioParo', 'like', $like($datos['folio_paro'])))
             ->when(trim((string) ($datos['orden'] ?? '')) !== '', fn ($query) => $query->where('Orden', 'like', $like($datos['orden'])))
             ->when(trim((string) ($datos['falla'] ?? '')) !== '', fn ($query) => $query->where('Falla', 'like', $like($datos['falla'])))
+            ->when(trim((string) ($datos['tipo_falla'] ?? '')) !== '', fn ($query) => $query->where('TipoFalla', 'like', $like($datos['tipo_falla'])))
             ->when(trim((string) ($datos['turno'] ?? '')) !== '', fn ($query) => $query->where('Turno', trim((string) $datos['turno'])))
             ->when($mecanico !== '', function ($query) use ($mecanico, $like) {
                 $query->whereExists(function ($exists) use ($mecanico, $like) {
@@ -183,6 +185,7 @@ class OrdenesTrabajoMecaController extends Controller
                         ->orWhere('TelarId', 'like', $like($buscar))
                         ->orWhere('FolioParo', 'like', $like($buscar))
                         ->orWhere('Falla', 'like', $like($buscar))
+                        ->orWhere('TipoFalla', 'like', $like($buscar))
                         ->orWhere('Orden', 'like', $like($buscar))
                         ->orWhereExists(function ($exists) use ($buscar, $like) {
                             $exists->selectRaw('1')
@@ -411,6 +414,8 @@ class OrdenesTrabajoMecaController extends Controller
 
             // Fecha de creación del folio y estatus de flujo no se editan aquí.
             unset($datos['Fecha'], $datos['Estatus']);
+
+            $this->validarOrdenNoVacia($datos);
 
             $orden->update($datos);
             $orden->load(['lineas' => fn ($query) => $query->orderBy('Id')]);
@@ -890,7 +895,8 @@ class OrdenesTrabajoMecaController extends Controller
             // MecOrdenTrabajoTable.TelarId es nvarchar(10).
             'TelarId' => ['required', 'string', 'max:10'],
             'FolioParo' => ['nullable', 'string', 'max:30'],
-            'Falla' => ['required', 'string', 'max:150'],
+            'TipoFalla' => ['nullable', 'string', 'max:100'],
+            'Falla' => ['nullable', 'string', 'max:150'],
             'Comentarios' => ['nullable', 'string', 'max:500'],
             'FechaParo' => ['nullable', 'date'],
             'HoraParo' => ['nullable', 'date_format:H:i'],
@@ -907,6 +913,7 @@ class OrdenesTrabajoMecaController extends Controller
     {
         return [
             'TelarId.max' => 'La máquina no puede pasar de 10 caracteres.',
+            'TipoFalla.max' => 'El tipo de falla no puede pasar de 100 caracteres.',
             'Orden.max' => 'La orden no puede pasar de 20 caracteres.',
             'Orden.regex' => 'La orden no puede llevar espacios.',
         ];
@@ -1027,7 +1034,7 @@ class OrdenesTrabajoMecaController extends Controller
 
     private function normalizarCabecera(array $datos): array
     {
-        foreach (['TelarId', 'FolioParo', 'Falla', 'Comentarios', 'Orden'] as $campo) {
+        foreach (['TelarId', 'FolioParo', 'TipoFalla', 'Falla', 'Comentarios', 'Orden'] as $campo) {
             if (array_key_exists($campo, $datos)) {
                 $valor = trim((string) ($datos[$campo] ?? ''));
                 $datos[$campo] = $valor !== '' ? $valor : null;
@@ -1375,18 +1382,20 @@ class OrdenesTrabajoMecaController extends Controller
     }
 
     /**
-     * Evita crear órdenes de trabajo “vacías” (sin telar ni descripción de falla).
+     * Evita órdenes de trabajo “vacías”: exige la máquina y al menos el tipo
+     * o la descripción de la falla (ambos son opcionales por separado).
      *
      * @param  array<string, mixed>  $datos
      */
     private function validarOrdenNoVacia(array $datos): void
     {
         $telar = trim((string) ($datos['TelarId'] ?? ''));
+        $tipoFalla = trim((string) ($datos['TipoFalla'] ?? ''));
         $falla = trim((string) ($datos['Falla'] ?? ''));
 
-        if ($telar === '' || $falla === '') {
+        if ($telar === '' || ($tipoFalla === '' && $falla === '')) {
             throw ValidationException::withMessages([
-                'Falla' => ['La orden de trabajo no puede quedar vacía: captura el telar y la descripción de la falla.'],
+                'Falla' => ['La orden de trabajo no puede quedar vacía: captura la máquina y el tipo o la descripción de la falla.'],
             ]);
         }
     }

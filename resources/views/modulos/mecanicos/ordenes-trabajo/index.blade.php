@@ -40,12 +40,13 @@
                     <col class="w-[11%]">
                     <col class="w-[8%]">
                     <col class="w-[9%]">
-                    <col class="w-[14%]">
+                    <col class="w-[12%]">
                     <col class="w-[4%]">
                     <col class="w-[7%]">
                     <col class="w-[5%]">
                     <col class="w-[8%]">
-                    <col class="w-[21%]">
+                    <col class="w-[9%]">
+                    <col class="w-[14%]">
                     <col class="w-[13%]">
                 </colgroup>
                 <thead class="sticky top-0 z-10 bg-gray-100 text-gray-700 shadow-sm">
@@ -58,13 +59,14 @@
                         <th class="{{ $th }}" data-col="folio_paro">Folio paro <i class="fas fa-filter ml-0.5 text-[8px] text-gray-400 sm:text-[10px]"></i></th>
                         <th class="{{ $th }}" data-col="telar">Telar <i class="fas fa-filter ml-0.5 text-[8px] text-gray-400 sm:text-[10px]"></i></th>
                         <th class="{{ $th }}" data-col="orden">Orden <i class="fas fa-filter ml-0.5 text-[8px] text-gray-400 sm:text-[10px]"></i></th>
+                        <th class="{{ $th }}" data-col="tipo_falla">Tipo falla <i class="fas fa-filter ml-0.5 text-[8px] text-gray-400 sm:text-[10px]"></i></th>
                         <th class="{{ $th }}" data-col="falla">Falla <i class="fas fa-filter ml-0.5 text-[8px] text-gray-400 sm:text-[10px]"></i></th>
                         <th class="{{ $th }}">Acciones</th>
                     </tr>
                 </thead>
                 <tbody id="ordenes-body" class="bg-white">
                     <tr>
-                        <td colspan="10" class="px-3 py-10 text-center text-xs text-gray-500 sm:text-sm">
+                        <td colspan="11" class="px-3 py-10 text-center text-xs text-gray-500 sm:text-sm">
                             Cargando órdenes de trabajo…
                         </td>
                     </tr>
@@ -136,12 +138,19 @@
 
         <form id="form-cabecera" class="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-5 short:px-4 short:py-3">
             <div id="bloque-seleccion-paro" class="mb-4 rounded-md border border-blue-100 bg-blue-50 p-3 short:mb-3 short:p-2">
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 short:gap-2">
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-3 short:gap-2">
+                    <div>
+                        <label for="select-depto-paro" class="mb-1 block text-xs font-semibold text-blue-900">Departamento</label>
+                        <select id="select-depto-paro"
+                            class="w-full rounded-md border border-blue-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600">
+                            <option value="">Seleccione departamento</option>
+                        </select>
+                    </div>
                     <div>
                         <label for="select-telar-paro" class="mb-1 block text-xs font-semibold text-blue-900">Máquina <span class="font-normal">(opcional)</span></label>
-                        <select id="select-telar-paro"
-                            class="w-full rounded-md border border-blue-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600">
-                            <option value="">Seleccione máquina</option>
+                        <select id="select-telar-paro" disabled
+                            class="w-full rounded-md border border-blue-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 disabled:cursor-not-allowed disabled:bg-gray-100">
+                            <option value="">Seleccione departamento primero</option>
                         </select>
                     </div>
                     <div>
@@ -175,8 +184,14 @@
                         class="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 outline-none">
                 </div>
                 <div class="md:col-span-2">
-                    <label for="cabecera-falla" class="mb-1 block text-xs font-medium text-gray-700">Descripción de falla <span class="text-red-600">*</span></label>
-                    <input id="cabecera-falla" name="Falla" maxlength="150" required
+                    <label for="cabecera-tipo-falla" class="mb-1 block text-xs font-medium text-gray-700">Tipo de falla</label>
+                    <input id="cabecera-tipo-falla" name="TipoFalla" maxlength="100"
+                        placeholder="Ej. Mecánica, eléctrica…"
+                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+                </div>
+                <div class="md:col-span-2">
+                    <label for="cabecera-falla" class="mb-1 block text-xs font-medium text-gray-700">Descripción de falla</label>
+                    <input id="cabecera-falla" name="Falla" maxlength="150"
                         placeholder="Código y descripción de la falla"
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                 </div>
@@ -243,13 +258,14 @@ document.addEventListener('DOMContentLoaded', () => {
         folio_paro: { param: 'folio_paro', label: 'Folio de paro' },
         telar: { param: 'telar', label: 'Telar' },
         orden: { param: 'orden', label: 'Orden' },
+        tipo_falla: { param: 'tipo_falla', label: 'Tipo de falla' },
         falla: { param: 'falla', label: 'Falla' },
     };
     const state = {
         ordenes: [],
         parosTelar: [],
         // Por defecto solo las OT abiertas; el tejedor ve todas porque califica las Terminado.
-        filtros: { estatus: modoTejedor ? '' : 'Activo', fecha: '', buscar: '', folio: '', telar: '', folio_paro: '', orden: '', falla: '', turno: '', mecanico: '' },
+        filtros: { estatus: modoTejedor ? '' : 'Activo', fecha: '', buscar: '', folio: '', telar: '', folio_paro: '', orden: '', tipo_falla: '', falla: '', turno: '', mecanico: '' },
         columnaMenu: null,
     };
     const cell = 'truncate border border-gray-200 px-0.5 py-1 text-center sm:px-1 sm:py-1.5 md:px-1.5 md:py-2 lg:px-2 short:py-1';
@@ -438,7 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderOrdenes() {
         if (! state.ordenes.length) {
-            ordenesBody.innerHTML = '<tr><td colspan="10" class="px-3 py-10 text-center text-xs text-gray-500 sm:text-sm">No hay órdenes con los filtros seleccionados.</td></tr>';
+            ordenesBody.innerHTML = '<tr><td colspan="11" class="px-3 py-10 text-center text-xs text-gray-500 sm:text-sm">No hay órdenes con los filtros seleccionados.</td></tr>';
             return;
         }
 
@@ -460,6 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const mecanico = String(orden.NomMecanico || '').trim();
+            const tipoFalla = String(orden.TipoFalla || '').trim();
             const falla = String(orden.Falla || '').trim();
 
             return `
@@ -472,6 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="${cell} text-gray-700">${display(orden.FolioParo)}</td>
                 <td class="${cell} text-gray-700">${display(orden.TelarId)}</td>
                 <td class="${cell} text-gray-700">${display(orden.Orden)}</td>
+                <td class="${cell} text-gray-700" title="${escapeHtml(tipoFalla)}">${display(tipoFalla)}</td>
                 <td class="${cell} font-semibold text-gray-900" title="${escapeHtml(falla)}">${display(falla)}</td>
                 <td class="${cell}">${accionPrincipal}</td>
             </tr>
@@ -480,7 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function cargarOrdenes() {
-        ordenesBody.innerHTML = '<tr><td colspan="10" class="px-3 py-10 text-center text-xs text-gray-500 sm:text-sm">Cargando órdenes de trabajo…</td></tr>';
+        ordenesBody.innerHTML = '<tr><td colspan="11" class="px-3 py-10 text-center text-xs text-gray-500 sm:text-sm">Cargando órdenes de trabajo…</td></tr>';
 
         try {
             const result = await api(`${baseUrl}/registros?${obtenerFiltros().toString()}`);
@@ -488,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderOrdenes();
             renderChipsFiltros();
         } catch (error) {
-            ordenesBody.innerHTML = `<tr><td colspan="10" class="px-3 py-10 text-center text-xs text-red-600 sm:text-sm">${escapeHtml(mensajeError(error))}</td></tr>`;
+            ordenesBody.innerHTML = `<tr><td colspan="11" class="px-3 py-10 text-center text-xs text-red-600 sm:text-sm">${escapeHtml(mensajeError(error))}</td></tr>`;
         }
     }
 
@@ -611,34 +629,67 @@ document.addEventListener('DOMContentLoaded', () => {
             : 'No hay paros de las últimas 12 horas para esta máquina. La captura manual está habilitada.';
     }
 
+    /** Deja un select con una sola opción vacía (aviso) y bloqueado. */
+    function selectConAviso(select, texto) {
+        select.replaceChildren(new Option(texto, ''));
+        select.disabled = true;
+    }
+
     function resetearOrigenCreacion() {
-        const selectParo = $('#select-paro-folio');
-        selectParo.innerHTML = '<option value="">Seleccione máquina primero</option>';
-        selectParo.disabled = true;
+        selectConAviso($('#select-paro-folio'), 'Seleccione máquina primero');
         state.parosTelar = [];
-        poblarSelectTelares();
+        poblarSelectDeptos();
+        poblarSelectTelares('');
         limpiarCabeceraParaSeleccionTelar();
         establecerCamposCreacion();
     }
 
-    function poblarSelectTelares() {
+    /** Departamentos (grupo del catálogo) en el orden del catálogo, más "Otros". */
+    function poblarSelectDeptos() {
+        const deptos = [...new Set(telaresCatalogo.map(({ grupo }) => grupo))];
+        $('#select-depto-paro').replaceChildren(
+            new Option('Seleccione departamento', ''),
+            ...deptos.map(grupo => new Option(grupo, grupo)),
+            new Option('Otros (escribir máquina)', OPCION_OTROS),
+        );
+    }
+
+    /** Máquinas del departamento elegido; sin departamento (u "Otros") el select queda bloqueado. */
+    function poblarSelectTelares(depto) {
         const select = $('#select-telar-paro');
-        select.innerHTML = '<option value="">Seleccione máquina</option>';
-        // El catálogo ya viene ordenado por área: un <optgroup> por cada una.
-        const grupos = new Map();
-        telaresCatalogo.forEach(({ id, label, grupo }) => {
-            if (! grupos.has(grupo)) {
-                const optgroup = document.createElement('optgroup');
-                optgroup.label = grupo;
-                grupos.set(grupo, optgroup);
-                select.appendChild(optgroup);
-            }
-            grupos.get(grupo).appendChild(new Option(label, id));
-        });
-        const otros = document.createElement('optgroup');
-        otros.label = 'Otros';
-        otros.appendChild(new Option('Otros (escribir máquina)', OPCION_OTROS));
-        select.appendChild(otros);
+        if (! depto || depto === OPCION_OTROS) {
+            selectConAviso(select, depto === OPCION_OTROS ? 'Escriba la máquina abajo' : 'Seleccione departamento primero');
+            return;
+        }
+        select.replaceChildren(
+            new Option('Seleccione máquina', ''),
+            ...telaresCatalogo.filter(({ grupo }) => grupo === depto).map(({ id, label }) => new Option(label, id)),
+        );
+        select.disabled = false;
+    }
+
+    /** Máquina libre ("Otros"): se escribe a mano y no hay paros que consultar. */
+    function activarMaquinaLibre() {
+        selectConAviso($('#select-paro-folio'), 'No aplica para Otros');
+        establecerCamposCreacion({ manual: true, telarSeleccionado: true, telarLibre: true });
+        $('#cabecera-folio-paro').value = 'Sin Folio de Paro.';
+        $('#cabecera-turno').value = turnoSugerido;
+        $('#cabecera-telar').focus();
+    }
+
+    function onDeptoParoChange() {
+        const depto = $('#select-depto-paro').value;
+        state.parosTelar = [];
+        poblarSelectTelares(depto);
+        limpiarCabeceraParaSeleccionTelar();
+
+        if (depto === OPCION_OTROS) {
+            activarMaquinaLibre();
+            return;
+        }
+
+        selectConAviso($('#select-paro-folio'), 'Seleccione máquina primero');
+        establecerCamposCreacion();
     }
 
     function poblarSelectParosPorTelar(telarId) {
@@ -690,17 +741,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (! telar) {
             poblarSelectParosPorTelar('');
             establecerCamposCreacion();
-            return;
-        }
-
-        if (telar === OPCION_OTROS) {
-            const selectParo = $('#select-paro-folio');
-            selectParo.innerHTML = '<option value="">No aplica para Otros</option>';
-            selectParo.disabled = true;
-            establecerCamposCreacion({ manual: true, telarSeleccionado: true, telarLibre: true });
-            $('#cabecera-folio-paro').value = 'Sin Folio de Paro.';
-            $('#cabecera-turno').value = turnoSugerido;
-            $('#cabecera-telar').focus();
             return;
         }
 
@@ -777,6 +817,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     $('#form-cabecera').addEventListener('submit', async (event) => {
         event.preventDefault();
+        if (! $('#cabecera-tipo-falla').value.trim() && ! $('#cabecera-falla').value.trim()) {
+            notificar('warning', 'La orden de trabajo no puede quedar vacía: captura la máquina y el tipo o la descripción de la falla.');
+            $('#cabecera-tipo-falla').focus();
+            return;
+        }
         const button = $('#btn-guardar-cabecera');
         button.disabled = true;
         button.textContent = 'Guardando…';
@@ -826,6 +871,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#btn-cerrar-filtros')?.addEventListener('click', cerrarPanelFiltros);
 
     $('#btn-nueva-orden')?.addEventListener('click', abrirNuevaOrden);
+    $('#select-depto-paro').addEventListener('change', onDeptoParoChange);
     $('#select-telar-paro').addEventListener('change', onTelarParoChange);
     $('#select-paro-folio').addEventListener('change', aplicarParoSeleccionado);
     $('#check-captura-manual').addEventListener('change', event => {
