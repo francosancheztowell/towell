@@ -179,13 +179,16 @@
                     @forelse ($filas as $fila)
                         @php
                             $id = (string) $fila->getKey();
+                            // Comillas simples: el attribute bag escapa " como \", y el HTML
+                            // corta ahí el atributo. Sin el clic, la fila no se selecciona.
+                            $jsId = "'".addcslashes($id, "\\'\n\r")."'";
                             // Atributos según el modo; van armados aquí porque dentro de la etiqueta
                             // de un componente Blade no admite @if.
                             $atributosFila = array_filter([
-                                'x-on:click' => $seleccionInmediata ? 'elegir('.\Illuminate\Support\Js::from($id).')' : null,
-                                'wire:click' => $seleccionInmediata ? null : "seleccionar('{$id}')",
-                                'wire:dblclick' => $alEditar ? "{$alEditar}('{$id}')" : null,
-                                'x-bind:aria-selected' => $seleccionInmediata ? 'visual === '.\Illuminate\Support\Js::from($id)." ? 'true' : 'false'" : null,
+                                'x-on:click' => $seleccionInmediata ? "elegir({$jsId})" : null,
+                                'wire:click' => $seleccionInmediata ? null : "seleccionar({$jsId})",
+                                'wire:dblclick' => $alEditar ? "{$alEditar}({$jsId})" : null,
+                                'x-bind:aria-selected' => $seleccionInmediata ? "visual === {$jsId} ? 'true' : 'false'" : null,
                                 'aria-selected' => $seleccionInmediata ? null : ($seleccionado === $id ? 'true' : 'false'),
                             ], fn ($valor) => $valor !== null);
                         @endphp
