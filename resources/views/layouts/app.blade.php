@@ -39,7 +39,6 @@
         <x-ui.flash :contenido="$__env->yieldContent('content').$__env->yieldPushContent('scripts')" />
     @endif
 
-  <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display:none;">@csrf</form>
 
         <main class="app-main overflow-x-hidden overflow-y-auto max-w-full flex-1" style="padding-top: var(--pt-navbar-height); height: 100vh; max-height: 100vh; min-height: -webkit-fill-available;">
             @yield('content')

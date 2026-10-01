@@ -84,11 +84,12 @@ export function actualizarBotonesAccion(): void {
 }
 
 export function seleccionarFila(fila: HTMLTableRowElement): void {
-    document.querySelectorAll('#formulaTable tbody tr.selected').forEach((f) => f.classList.remove('selected'));
+    // Color de la seleccionada: .tabla-seleccionable (app.css) por aria-selected.
+    document.querySelectorAll('#formulaTable tbody tr[aria-selected="true"]').forEach((f) => f.setAttribute('aria-selected', 'false'));
     estado.filaSeleccionada = fila;
     estado.folioSeleccionado = fila.dataset.folio ?? '';
     estado.idSeleccionado = parseInt(fila.dataset.id ?? '', 10) || 0;
-    fila.classList.add('selected');
+    fila.setAttribute('aria-selected', 'true');
     actualizarBotonesAccion();
 }
 

@@ -79,7 +79,8 @@ function pintarValores(): void {
 
 function aplicarFiltros(): void {
     for (const fila of filas()) {
-        fila.style.display = filtros.size === 0 || filaPasaFiltros(textosDeFila(fila), filtros) ? '' : 'none';
+        // hidden, no display: la cebra (.tabla-cebra) cuenta solo las visibles.
+        fila.hidden = !(filtros.size === 0 || filaPasaFiltros(textosDeFila(fila), filtros));
     }
     for (const th of encabezados()) {
         const activo = filtros.has(Number(th.dataset.colIndex));

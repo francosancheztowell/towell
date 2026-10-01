@@ -80,8 +80,31 @@
 
                 <!-- Botón Salir -->
                 @if($isProduccionIndex)
-                    <flux:button id="logout-btn" variant="danger" icon="arrow-right-start-on-rectangle"
-                                 class="min-h-touch font-bold">Salir</flux:button>
+                    <flux:modal.trigger name="confirmar-salir">
+                        <flux:button variant="danger" icon="arrow-right-start-on-rectangle"
+                                     class="min-h-touch font-bold">Salir</flux:button>
+                    </flux:modal.trigger>
+
+                    <flux:modal name="confirmar-salir" class="w-full max-w-sm">
+                        <form method="POST" action="{{ route('logout') }}" class="space-y-6">
+                            @csrf
+                            <div class="flex items-start gap-4">
+                                <div class="flex size-12 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                                    <flux:icon.arrow-right-start-on-rectangle />
+                                </div>
+                                <div>
+                                    <flux:heading size="lg">¿Cerrar sesión?</flux:heading>
+                                    <flux:text class="mt-1">Tendrás que volver a entrar con tu número de empleado.</flux:text>
+                                </div>
+                            </div>
+                            <div class="flex justify-end gap-2">
+                                <flux:modal.close>
+                                    <flux:button variant="ghost" class="min-h-touch">Cancelar</flux:button>
+                                </flux:modal.close>
+                                <flux:button type="submit" variant="danger" class="min-h-touch">Sí, salir</flux:button>
+                            </div>
+                        </form>
+                    </flux:modal>
                 @endif
 
                 <!-- Avatar + menú de usuario: ui-dropdown de Flux abre/cierra, Esc, clic fuera y foco. -->

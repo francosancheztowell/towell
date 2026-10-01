@@ -83,32 +83,32 @@
     @endphp
 
     <div id="captura-formula" data-pagina='@json($configPagina)'>
-    <div class="overflow-x-auto overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-md mt-4 mx-4" style="max-height: 70vh;">
-        <table id="formulaTable" class="min-w-full text-sm">
-            <thead class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-sm">
-                <tr>
+    {{-- flux:table + .tabla-cebra / .tabla-seleccionable (app.css). Filtro por columna con clic derecho
+         y orden por fecha: captura-formula/filtros.ts (motor propio de la pantalla). --}}
+    <div class="rounded-xl bg-white shadow-md mt-4 mx-4 overflow-hidden">
+        <flux:table id="formulaTable" class="tabla-cebra tabla-seleccionable" container:class="max-h-[70vh] [&>ui-table-scroll-area]:min-h-0">
+            <flux:table.columns sticky class="bg-white">
                     @if($puedeVerCalidad)
-                    <th class="text-center px-4 py-3 font-semibold whitespace-nowrap first:rounded-tl-xl">Calidad</th>
+                    <flux:table.column align="center">Calidad</flux:table.column>
                     @endif
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap {{ $puedeVerCalidad ? '' : 'first:rounded-tl-xl' }}">ID</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Orden</th>
-                    <th id="th-fecha" class="text-left px-4 py-3 font-semibold whitespace-nowrap cursor-pointer select-none">Fecha <i class="fa-solid fa-filter text-xs ml-1 opacity-80" aria-hidden="true"></i></th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Hr</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Status</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Cuenta</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Calibre</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Tipo</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Operador</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Olla</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Formula</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Kg.</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Litros</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Tiempo (Min)</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">% Solidos</th>
-                    <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Viscocidad</th>
-                </tr>
-            </thead>
-            <tbody id="formulaTableBody">
+                    <flux:table.column>ID</flux:table.column>
+                    <flux:table.column>Orden</flux:table.column>
+                    <flux:table.column id="th-fecha" class="cursor-pointer select-none">Fecha <i class="fa-solid fa-filter text-xs ml-1 opacity-80" aria-hidden="true"></i></flux:table.column>
+                    <flux:table.column>Hr</flux:table.column>
+                    <flux:table.column>Status</flux:table.column>
+                    <flux:table.column>Cuenta</flux:table.column>
+                    <flux:table.column align="end">Calibre</flux:table.column>
+                    <flux:table.column>Tipo</flux:table.column>
+                    <flux:table.column>Operador</flux:table.column>
+                    <flux:table.column>Olla</flux:table.column>
+                    <flux:table.column>Formula</flux:table.column>
+                    <flux:table.column align="end">Kg.</flux:table.column>
+                    <flux:table.column align="end">Litros</flux:table.column>
+                    <flux:table.column align="end">Tiempo (Min)</flux:table.column>
+                    <flux:table.column align="end">% Solidos</flux:table.column>
+                    <flux:table.column align="end">Viscocidad</flux:table.column>
+            </flux:table.columns>
+            <flux:table.rows id="formulaTableBody">
                 @forelse($items as $item)
                     @php
                         $folioOrden = trim((string) ($item->folio_resuelto ?? $item->Folio ?? $item->ProdId ?? ''));
@@ -116,7 +116,7 @@
                         $okVisc = ($item->OkViscocidad ?? $item->OkViscosidad ?? null) === null ? '' : (($item->OkViscocidad ?? $item->OkViscosidad) ? '1' : '0');
                         $okSolidos = $item->OkSolidos === null ? '' : ($item->OkSolidos ? '1' : '0');
                     @endphp
-                    <tr class="formula-row  border-gray-100 cursor-pointer transition-all duration-150 hover:bg-blue-50/80 even:bg-gray-50/50"
+                    <flux:table.row class="formula-row" aria-selected="false"
                         data-folio="{{ $folioOrden }}"
                         data-id="{{ $item->Id ?? '' }}"
                         data-fecha="{{ ($item->fecha ?? $item->Fecha) ? \Carbon\Carbon::parse($item->fecha ?? $item->Fecha)->format('Y-m-d') : '' }}"
@@ -124,7 +124,7 @@
                         data-ax="{{ $item->AX ?? 0 }}"
                     >
                         @if($puedeVerCalidad)
-                        <td class="px-4 py-3 text-center">
+                        <flux:table.cell align="center">
                             @php
                                 $tieneObs = !empty($item->obs_calidad);
                             @endphp
@@ -149,42 +149,36 @@
                                 data-obs="{{ $item->obs_calidad ?? '' }}"
                                 data-programa-status="{{ $item->programa_status ?? '' }}"
                             />
-                        </td>
+                        </flux:table.cell>
                         @endif
-                        <td class="px-4 py-3 whitespace-nowrap font-semibold text-blue-700">{{ $item->Id }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap font-medium">{{ $folioOrden !== '' ? $folioOrden : '-' }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">
+                        <flux:table.cell class="font-semibold text-blue-700">{{ $item->Id }}</flux:table.cell>
+                        <flux:table.cell variant="strong">{{ $folioOrden !== '' ? $folioOrden : '-' }}</flux:table.cell>
+                        <flux:table.cell>
                             {{ ($item->fecha ?? $item->Fecha) ? \Carbon\Carbon::parse($item->fecha ?? $item->Fecha)->format('d/m/Y') : '' }}
-                        </td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->Hora ? substr($item->Hora, 0, 5) : '' }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">
-                            <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold
-                                @if($item->Status === 'Creado') bg-yellow-100 text-yellow-800
-                                @elseif($item->Status === 'En Proceso') bg-blue-100 text-blue-800
-                                @elseif($item->Status === 'Terminado') bg-green-100 text-green-800
-                                @endif">
-                                {{ $item->Status }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->Cuenta }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Calibre ?? 0, 2) }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->Tipo }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->NomEmpl }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->Olla }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap">{{ $item->Formula }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Kilos ?? 0, 2) }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Litros ?? 0, 2) }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->TiempoCocinado ?? 0, 2) }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Solidos ?? 0, 2) }}</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-right">{{ number_format($item->Viscocidad ?? 0, 2) }}</td>
-                    </tr>
+                        </flux:table.cell>
+                        <flux:table.cell>{{ $item->Hora ? substr($item->Hora, 0, 5) : '' }}</flux:table.cell>
+                        <flux:table.cell>
+                            <flux:badge size="sm" inset="top bottom" :color="['Creado' => 'yellow', 'En Proceso' => 'blue', 'Terminado' => 'green'][$item->Status] ?? 'zinc'">{{ $item->Status }}</flux:badge>
+                        </flux:table.cell>
+                        <flux:table.cell>{{ $item->Cuenta }}</flux:table.cell>
+                        <flux:table.cell align="end">{{ number_format($item->Calibre ?? 0, 2) }}</flux:table.cell>
+                        <flux:table.cell>{{ $item->Tipo }}</flux:table.cell>
+                        <flux:table.cell>{{ $item->NomEmpl }}</flux:table.cell>
+                        <flux:table.cell>{{ $item->Olla }}</flux:table.cell>
+                        <flux:table.cell>{{ $item->Formula }}</flux:table.cell>
+                        <flux:table.cell align="end">{{ number_format($item->Kilos ?? 0, 2) }}</flux:table.cell>
+                        <flux:table.cell align="end">{{ number_format($item->Litros ?? 0, 2) }}</flux:table.cell>
+                        <flux:table.cell align="end">{{ number_format($item->TiempoCocinado ?? 0, 2) }}</flux:table.cell>
+                        <flux:table.cell align="end">{{ number_format($item->Solidos ?? 0, 2) }}</flux:table.cell>
+                        <flux:table.cell align="end">{{ number_format($item->Viscocidad ?? 0, 2) }}</flux:table.cell>
+                    </flux:table.row>
                 @empty
-                    <tr>
-                        <td colspan="{{ $puedeVerCalidad ? 17 : 16 }}" class="px-4 py-8 text-center text-gray-500">No hay fórmulas disponibles</td>
-                    </tr>
+                    <flux:table.row>
+                        <flux:table.cell colspan="{{ $puedeVerCalidad ? 17 : 16 }}" class="py-8 text-center">No hay fórmulas disponibles</flux:table.cell>
+                    </flux:table.row>
                 @endforelse
-            </tbody>
-        </table>
+            </flux:table.rows>
+        </flux:table>
     </div>
 
     <!-- Modal Crear/Editar/Ver -->
@@ -451,50 +445,7 @@
     </div>
 
     <style>
-        .formula-row:hover,
-        .formula-row:hover td {
-            background-color: rgb(219, 234, 255) !important;
-            color: rgb(30, 64, 175) !important;
-        }
-        .formula-row:hover a,
-        .formula-row:hover span,
-        .formula-row:hover div {
-            color: rgb(30, 64, 175) !important;
-        }
-        .formula-row:hover .bg-yellow-100,
-        .formula-row:hover .bg-blue-100,
-        .formula-row:hover .bg-green-100 {
-            background-color: rgba(147, 197, 253, 0.5) !important;
-            color: rgb(30, 64, 175) !important;
-        }
-        .formula-row.selected,
-        .formula-row.selected td {
-            background-color: rgb(191, 219, 254) !important;
-            color: rgb(30, 64, 175) !important;
-        }
-        .formula-row.selected a,
-        .formula-row.selected span,
-        .formula-row.selected div {
-            color: rgb(30, 64, 175) !important;
-        }
-        .formula-row.selected .bg-yellow-100,
-        .formula-row.selected .bg-blue-100,
-        .formula-row.selected .bg-green-100 {
-            background-color: rgba(147, 197, 253, 0.6) !important;
-            color: rgb(30, 64, 175) !important;
-        }
-        .formula-row:hover .obs-calidad-btn,
-        .formula-row.selected .obs-calidad-btn {
-            color: rgb(37, 99, 235) !important;
-        }
-        .formula-row:hover .obs-calidad-btn i,
-        .formula-row.selected .obs-calidad-btn i {
-            color: rgb(37, 99, 235) !important;
-        }
-        .formula-row:hover .obs-calidad-btn:hover,
-        .formula-row.selected .obs-calidad-btn:hover {
-            background-color: rgba(147, 197, 253, 0.8) !important;
-        }
+        /* Hover y fila seleccionada: .tabla-seleccionable (app.css) por aria-selected. */
         .filtro-col-valores::-webkit-scrollbar {
             width: 6px;
         }
