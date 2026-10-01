@@ -57,11 +57,11 @@ class EdicionOrdenes extends Component
     public function columnas(): array
     {
         return [
-            ['campo' => 'Folio', 'titulo' => 'Folio', 'clase' => 'font-semibold whitespace-nowrap'],
+            ['campo' => 'Folio', 'filtro' => true, 'titulo' => 'Folio', 'clase' => 'font-semibold whitespace-nowrap'],
             ['campo' => 'FechaProg', 'titulo' => 'Fecha', 'valor' => fn ($fila) => $fila->FechaProg?->format('d/m/Y'), 'clase' => 'whitespace-nowrap'],
-            ['campo' => 'Cuenta', 'titulo' => 'Cuenta'],
-            ['campo' => 'Fibra', 'titulo' => 'Configuración'],
-            ['campo' => 'RizoPie', 'titulo' => 'Tipo'],
+            ['campo' => 'Cuenta', 'filtro' => true, 'titulo' => 'Cuenta'],
+            ['campo' => 'Fibra', 'filtro' => true, 'titulo' => 'Configuración'],
+            ['campo' => 'RizoPie', 'filtro' => true, 'titulo' => 'Tipo'],
             ['campo' => 'Metros', 'titulo' => 'Metros', 'valor' => fn ($fila) => $fila->Metros === null ? null : number_format($fila->Metros, 0), 'clase' => 'text-right tabular-nums'],
             ['campo' => 'Status', 'titulo' => 'Estado', 'valor' => fn ($fila) => new HtmlString(view('components.urd-eng.estado-orden', ['estado' => $fila->Status])->render())],
         ];

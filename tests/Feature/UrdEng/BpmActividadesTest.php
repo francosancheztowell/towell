@@ -58,7 +58,8 @@ class BpmActividadesTest extends TestCase
 
         $conMaquina = $base === '/urd-actividades-bpm';
         $this->assertSame($conMaquina, str_contains($html, 'id="editMaquina"'));
-        $this->assertSame($conMaquina, str_contains($html, 'Karl Mayer 1</span>'));
+        // La máquina va como flux:badge solo en Urdido.
+        $this->assertSame($conMaquina, preg_match('/data-flux-badge[^>]*>\s*Karl Mayer 1\s*</', $html) === 1);
         $this->assertStringContainsString(url($base).'/__ID__', str_replace('\\/', '/', html_entity_decode($html)));
     }
 

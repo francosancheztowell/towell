@@ -64,18 +64,9 @@ function iniciar(): void {
         return fila;
     }
 
-    // Clases desde el <template>: Tailwind no escanea los .ts y no las generaría.
-    const clases = (clave: string): string[] => (tplFila!.dataset[clave] ?? '').split(/\s+/).filter(Boolean);
-    const [claseFilaSel = '', claseTextoSel = ''] = clases('claseSeleccionada');
-    const [claseFilaNormal = '', claseTextoNormal = ''] = clases('claseNormal');
-
+    /** Color de la seleccionada: .tabla-seleccionable (app.css) por aria-selected. */
     function pintarFila(fila: HTMLTableRowElement, seleccionada: boolean): void {
-        fila.classList.toggle(claseFilaSel, seleccionada);
-        fila.classList.toggle(claseFilaNormal, !seleccionada);
-        fila.querySelectorAll('td').forEach((td) => {
-            td.classList.toggle(claseTextoSel, seleccionada);
-            td.classList.toggle(claseTextoNormal, !seleccionada);
-        });
+        fila.setAttribute('aria-selected', String(seleccionada));
         const radio = fila.querySelector<HTMLInputElement>('input[name="paro-seleccionado"]');
         if (radio) radio.checked = seleccionada;
     }
@@ -140,11 +131,11 @@ function iniciar(): void {
             if (celda) celda.textContent = col === 'Fecha' ? fechaCorta(paro.Fecha) : String(paro[col] ?? '');
         }
         const estatus = String(paro.Estatus ?? '').trim();
-        const badge = fila.querySelector<HTMLElement>('[data-col="Estatus"]');
-        if (badge) {
-            badge.textContent = estatus || '—';
-            badge.classList.add(...clases(esActivo(estatus) ? 'claseActivo' : 'claseTerminado'));
-        }
+        // flux:badge ya renderizado en <template data-badge-paro> (la vista); aquí solo su texto.
+        const plantilla = document.querySelector<HTMLTemplateElement>(`template[data-badge-paro="${esActivo(estatus) ? 'activo' : 'terminado'}"]`);
+        const badge = plantilla?.content.firstElementChild?.cloneNode(true) as HTMLElement | undefined;
+        if (badge) badge.textContent = estatus || '—';
+        fila.querySelector('[data-col="Estatus"]')?.replaceChildren(badge ?? estatus);
         const radio = fila.querySelector<HTMLInputElement>('input[type="radio"]');
         if (radio) {
             radio.value = String(paro.Id ?? '');

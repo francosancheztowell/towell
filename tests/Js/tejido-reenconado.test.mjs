@@ -11,7 +11,6 @@ import {
     pasaFiltro,
     textoCelda,
     turnoPorMinuto,
-    unicos,
     validar,
 } from '../../resources/js/modulos/tejido/reenconado/logica.ts';
 
@@ -66,10 +65,9 @@ test('opciones de catálogos: descarta vacíos y arma la etiqueta del color', ()
     ]);
 });
 
-test('filtros: exacto, vacío = todos; unicos ordenados sin vacíos', () => {
+test('filtros: exacto, vacío = todos', () => {
     assert.equal(pasaFiltro({ operador: ' Ana ', calibre: '20/1' }, { operador: 'Ana', calibre: '' }), true);
     assert.equal(pasaFiltro({ operador: 'Ana', calibre: '20/1' }, { operador: 'Beto', calibre: '' }), false);
     assert.equal(pasaFiltro({ operador: 'Ana', calibre: '20/1' }, { operador: '', calibre: '30/1' }), false);
     assert.equal(pasaFiltro({}, { operador: '', calibre: '' }), true);
-    assert.deepEqual(unicos(['b', 'a', '', undefined, 'b']), ['a', 'b']);
 });

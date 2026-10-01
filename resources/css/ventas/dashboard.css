@@ -10,10 +10,10 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
     --pvoc-pedido: #008b7b;
     --pvoc-real: #d97706;
     --pvoc-delta: #475569;
-    /* Ocupa justo el alto visible bajo la barra superior (64px) para que la tarjeta llegue al borde inferior. */
+    /* Ocupa justo el alto visible bajo la barra superior para que la tarjeta llegue al borde inferior. */
     display: flex;
     flex-direction: column;
-    height: calc(100dvh - 64px);
+    height: calc(100dvh - var(--pt-navbar-height));
     color: var(--pvoc-ink);
     font-variant-numeric: tabular-nums;
 }
@@ -64,8 +64,8 @@ body:has(.ventas-pvoc-dashboard), body:has(.ventas-pvoc-dashboard) .app-main { b
 /* La tabla del resumen crece hasta el borde inferior de la tarjeta. */
 .pvoc-subpanel > .pvoc-table-scroll { flex: 1; min-height: 240px; }
 .pvoc-filters-shared { margin: 0; }
-/* Panel flotante de filtros de Compara, bajo la barra superior (64px) y alineado a la derecha. */
-.pvoc-filter-panel { position: fixed; z-index: 40; top: 68px; right: .5rem; display: flex; flex-direction: column; gap: .6rem; width: min(calc(100% - 1rem), 30rem); max-height: calc(100dvh - 76px); overflow-y: auto; border: 1px solid #e5e7eb; border-radius: .5rem; background: #fff; padding: .75rem; box-shadow: 0 12px 32px rgb(15 23 42 / 18%); }
+/* Panel flotante de filtros de Compara, bajo la barra superior y alineado a la derecha. */
+.pvoc-filter-panel { position: fixed; z-index: 40; top: calc(var(--pt-navbar-height) + 4px); right: .5rem; display: flex; flex-direction: column; gap: .6rem; width: min(calc(100% - 1rem), 30rem); max-height: calc(100dvh - var(--pt-navbar-height) - 12px); overflow-y: auto; border: 1px solid #e5e7eb; border-radius: .5rem; background: #fff; padding: .75rem; box-shadow: 0 12px 32px rgb(15 23 42 / 18%); }
 .pvoc-filter-panel[hidden] { display: none; }
 .pvoc-filter-panel-header { display: flex; align-items: center; justify-content: space-between; }
 .pvoc-filter-panel-header h2 { margin: 0; color: #111827; font-size: .95rem; font-weight: 700; }

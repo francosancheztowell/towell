@@ -1,7 +1,6 @@
 @php
     $usuario = Auth::user();
     $fotoUrl = function_exists('getFotoUsuarioUrl') ? getFotoUsuarioUrl($usuario->foto ?? null) : null;
-    $usuarioInicial = strtoupper(substr($usuario->nombre, 0, 1));
 
     // Información del dispositivo
     $deviceInfo = function_exists('getDeviceInfo') ? getDeviceInfo() : [
@@ -36,25 +35,14 @@
         : '';
 @endphp
 
-<div id="user-modal"
-     class="fixed top-16 right-4 max-w-[calc(100vw-2rem)] w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 opacity-0 invisible scale-95 transition-all duration-200 origin-top-right">
+{{-- Panel del flux:dropdown (navbar.blade.php): el popover lo posiciona y cierra Flux. --}}
+<div id="user-modal" popover="manual"
+     class="max-w-[calc(100vw-2rem)] w-80 bg-white rounded-lg shadow-lg border border-gray-200">
     <div class="p-4">
         <!-- Header del modal -->
         <div class="flex items-center gap-3 mb-3 pb-3 border-b border-gray-100">
-            <div class="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
-                @if($fotoUrl)
-                    <img src="{{ $fotoUrl }}"
-                         alt="Foto de {{ $usuario->nombre }}"
-                         width="48"
-                         height="48"
-                         decoding="async"
-                         class="w-full h-full object-cover">
-                @else
-                    <div class="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-base">
-                        {{ $usuarioInicial }}
-                    </div>
-                @endif
-            </div>
+            <flux:avatar circle size="lg" color="blue" initials:single class="shrink-0"
+                         :name="$usuario->nombre" :src="$fotoUrl" :alt="'Foto de '.$usuario->nombre" />
             <div class="flex-1 min-w-0">
                 <h4 class="font-bold text-gray-900 text-sm truncate">{{ $usuario->nombre }}</h4>
                 <p class="text-xs text-gray-500">{{ $usuario->puesto ?? 'Usuario' }}</p>

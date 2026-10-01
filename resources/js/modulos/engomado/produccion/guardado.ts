@@ -69,7 +69,8 @@ export async function actualizarKgBruto(registroId: string, kgBruto: string): Pr
         if (fila && r.data) {
             const bruto = campo(fila, 'kg_bruto');
             const neto = campo(fila, 'kg_neto');
-            if (bruto && r.data.kg_bruto !== undefined && r.data.kg_bruto !== null) bruto.value = decimales(r.data.kg_bruto, 2);
+            // Si ya volvió a entrar al campo, no se le toca lo que escribe.
+            if (bruto && bruto !== document.activeElement && r.data.kg_bruto !== undefined && r.data.kg_bruto !== null) bruto.value = decimales(r.data.kg_bruto, 2);
             if (neto) neto.value = decimales(r.data.kg_neto, 2);
         }
         return true;

@@ -32,11 +32,11 @@ class Errores extends Component
     public function columnas(): array
     {
         return [
-            ['campo' => 'Estado', 'titulo' => 'Estado'],
-            ['campo' => 'Origen', 'titulo' => 'Origen', 'clase' => 'hidden sm:table-cell'],
-            ['campo' => 'Clase', 'titulo' => 'Clase', 'valor' => fn ($e) => Str::afterLast((string) $e->Clase, '\\')],
-            ['campo' => 'Mensaje', 'titulo' => 'Mensaje', 'orden' => false, 'valor' => fn ($e) => Str::limit((string) $e->Mensaje, 110)],
-            ['campo' => 'Ruta', 'titulo' => 'Ruta', 'clase' => 'hidden lg:table-cell'],
+            ['campo' => 'Estado', 'filtro' => true, 'titulo' => 'Estado'],
+            ['campo' => 'Origen', 'filtro' => true, 'titulo' => 'Origen', 'clase' => 'hidden sm:table-cell'],
+            ['campo' => 'Clase', 'filtro' => true, 'titulo' => 'Clase', 'valor' => fn ($e) => Str::afterLast((string) $e->Clase, '\\')],
+            ['campo' => 'Mensaje', 'filtro' => true, 'titulo' => 'Mensaje', 'orden' => false, 'valor' => fn ($e) => Str::limit((string) $e->Mensaje, 110)],
+            ['campo' => 'Ruta', 'filtro' => true, 'titulo' => 'Ruta', 'clase' => 'hidden lg:table-cell'],
             ['campo' => 'Ocurrencias', 'titulo' => 'Veces'],
             ['campo' => 'UltimaVez', 'titulo' => 'Última vez', 'valor' => fn ($e) => $e->UltimaVez?->diffForHumans()],
         ];

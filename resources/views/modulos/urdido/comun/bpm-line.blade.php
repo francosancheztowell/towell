@@ -94,9 +94,9 @@
 @endsection
 
 @section('content')
-<div id="bpm-line-pagina" data-bpm-line='@json($configLinea)'>
+<div id="bpm-line-pagina" class="pantalla-completa gap-2 p-2" data-bpm-line='@json($configLinea)'>
     @if(!empty($esSupervisor) && $header->Status === 'Creado')
-        <div class="max-w-6xl mx-auto mt-3 mb-2 px-4">
+        <div class="w-full">
             <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
                 Al terminar este checklist como supervisor, el folio se autoriza automáticamente.
             </div>
@@ -104,8 +104,11 @@
     @endif
 
     <!-- Información del Header (una sola línea) -->
-    <div class="bg-white rounded-lg shadow-sm border p-3 md:p-4 mb-2 mt-2 max-w-6xl mx-auto overflow-x-auto">
+    <div class="bg-white rounded-lg shadow-sm border p-3 md:p-4 overflow-x-auto shrink-0">
         <div class="flex items-center gap-4 md:gap-6 justify-between divide-x divide-gray-200 whitespace-nowrap text-sm px-2">
+            <div class="flex items-center gap-1 px-4">
+                <flux:badge size="sm" :color="['Autorizado' => 'green', 'Terminado' => 'amber'][$header->Status] ?? 'blue'">{{ $header->Status }}</flux:badge>
+            </div>
             <div class="flex items-baseline gap-1 px-4">
                 <span class="text-sm text-gray-500 font-medium uppercase">Fecha:</span>
                 <span class="text-base font-semibold">{{ $header->Fecha ? $header->Fecha->format('d/m/Y H:i') : '' }}</span>
@@ -128,42 +131,39 @@
     </div>
 
     <!-- Checklist de Actividades -->
-    <div class="bg-white rounded-lg shadow-sm border p-2 mx-60 mb-32">
+    <div class="tabla-pantalla bg-white rounded-lg shadow-sm border p-2">
         <h2 class="text-base font-bold text-gray-800 mb-2 border-b pb-1.5 px-2">Actividades</h2>
 
-        <div class="overflow-y-auto" style="max-height: calc(100vh - 280px);">
-            <table class="min-w-full text-sm">
-                <thead class="sticky top-0 bg-gray-100 border-b">
-                    <tr>
-                        <th class="text-left px-2 py-2 font-semibold text-gray-700 w-12">Orden</th>
-                        <th class="text-left px-2 py-2 font-semibold text-gray-700">Actividad</th>
-                        <th class="text-center px-2 py-2 font-semibold text-gray-700 w-32">{{ $nombreMaquina }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($actividades as $actividad)
-                        @php
-                            $valor = (int) $lineas->get($actividad->Actividad, 0);
-                            $valor = in_array($valor, [1, 2], true) ? $valor : 0;
-                        @endphp
-                        <tr class="border-b hover:bg-gray-50">
-                            <td class="px-2 py-1.5 text-center text-gray-600 font-medium">{{ $actividad->Orden }}</td>
-                            <td class="px-2 py-1.5 text-base font-medium">{{ $actividad->Actividad }}</td>
-                            <td class="px-2 py-1.5 text-center">
-                                <button type="button"
-                                    class="cell-btn inline-flex items-center justify-center w-9 h-9 rounded-lg border-2 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-300 {{ $clasesValor[$valor] }}"
-                                    data-actividad="{{ $actividad->Actividad }}"
-                                    data-valor="{{ $valor }}"
-                                    aria-label="{{ $actividad->Actividad }}: {{ $etiquetas[$valor] }}"
-                                    @disabled($header->Status !== 'Creado')>
-                                    <span class="cell-icon text-lg font-bold" aria-hidden="true">{{ $iconos[$valor] }}</span>
-                                </button>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
+        {{-- flux:table + .tabla-cebra (app.css). Los botones los repinta bpm-line/index.ts. --}}
+        <flux:table class="tabla-cebra">
+            <flux:table.columns sticky class="bg-white">
+                <flux:table.column class="w-12">Orden</flux:table.column>
+                <flux:table.column>Actividad</flux:table.column>
+                <flux:table.column align="center" class="w-32">{{ $nombreMaquina }}</flux:table.column>
+            </flux:table.columns>
+            <flux:table.rows>
+                @foreach($actividades as $actividad)
+                    @php
+                        $valor = (int) $lineas->get($actividad->Actividad, 0);
+                        $valor = in_array($valor, [1, 2], true) ? $valor : 0;
+                    @endphp
+                    <flux:table.row>
+                        <flux:table.cell align="center">{{ $actividad->Orden }}</flux:table.cell>
+                        <flux:table.cell variant="strong" class="text-base">{{ $actividad->Actividad }}</flux:table.cell>
+                        <flux:table.cell align="center" class="py-1.5!">
+                            <button type="button"
+                                class="cell-btn inline-flex items-center justify-center size-touch rounded-lg border-2 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-300 {{ $clasesValor[$valor] }}"
+                                data-actividad="{{ $actividad->Actividad }}"
+                                data-valor="{{ $valor }}"
+                                aria-label="{{ $actividad->Actividad }}: {{ $etiquetas[$valor] }}"
+                                @disabled($header->Status !== 'Creado')>
+                                <span class="cell-icon text-lg font-bold" aria-hidden="true">{{ $iconos[$valor] }}</span>
+                            </button>
+                        </flux:table.cell>
+                    </flux:table.row>
+                @endforeach
+            </flux:table.rows>
+        </flux:table>
     </div>
 </div>
 @endsection

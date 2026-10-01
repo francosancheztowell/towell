@@ -7,7 +7,7 @@
     <style>
         /* .fa-spin ya no se redefine aquí: Font Awesome 7 (app.js) trae el suyo con sus
            variables --fa-animation-*; la copia local las ignoraba. */
-        /* Fondo compatible con iPad/Safari: rellena viewport y gradiente con prefijo WebKit */
+        /* Fondo compatible con iPad/Safari: rellena viewport y color sólido */
         html {
             min-height: 100vh;
             min-height: -webkit-fill-available;
@@ -15,21 +15,17 @@
         body {
             min-height: 100vh;
             min-height: -webkit-fill-available;
-            background: #93c5fd;
-            background: -webkit-linear-gradient(to bottom, #60a5fa, #93c5fd);
-            background: linear-gradient(to bottom, #60a5fa, #93c5fd);
+            background: #60a5fa;
         }
-        /* Mismo fondo en main para que en iPad el scroll muestre el gradiente */
+        /* Mismo fondo en main para que en iPad el scroll muestre el fondo */
         main.app-main {
-            background: #93c5fd;
-            background: -webkit-linear-gradient(to bottom, #60a5fa, #93c5fd);
-            background: linear-gradient(to bottom, #60a5fa, #93c5fd);
+            background: #60a5fa;
         }
 
     </style>
 </head>
 
-<body class="min-h-screen flex flex-col overflow-hidden h-screen bg-gradient-to-b from-blue-400 to-blue-200 relative" style="touch-action: manipulation; -webkit-touch-callout: none;">
+<body class="min-h-screen flex flex-col overflow-hidden h-screen bg-blue-400 relative" style="touch-action: manipulation; -webkit-touch-callout: none;">
     {{-- UX-05: sin user-select:none global (impedía copiar folios); solo el chrome lo lleva
          (app.css). touch-callout se queda: los long-press existentes dependen de él y no
          impide seleccionar. touch-action: manipulation quita el doble toque, no el pinch. --}}
@@ -43,9 +39,8 @@
         <x-ui.flash :contenido="$__env->yieldContent('content').$__env->yieldPushContent('scripts')" />
     @endif
 
-  <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display:none;">@csrf</form>
 
-        <main class="app-main overflow-x-hidden overflow-y-auto max-w-full flex-1" style="padding-top: 64px; height: 100vh; max-height: 100vh; min-height: -webkit-fill-available;">
+        <main class="app-main overflow-x-hidden overflow-y-auto max-w-full flex-1" style="padding-top: var(--pt-navbar-height); height: 100vh; max-height: 100vh; min-height: -webkit-fill-available;">
             @yield('content')
         </main>
 
@@ -57,6 +52,10 @@
          window.applyFilters / removeFilter / resetFilters / openFilterModal. Encima su HTML
          (#filtersModal, #f_list, #f_col_select) no existe en ninguna vista del repo, asi que
          las funciones ganadoras eran no-ops silenciosos y rompian los filtros de 5 paginas. --}}
+    {{-- Solo flux.js: @fluxScripts además fuerza Livewire en todas las páginas (la grilla legacy
+         de PT no debe cargarlo, ProgramaTejidoShellV2Test). Los ui-* de Flux son custom elements
+         y no lo necesitan; donde ya hay Livewire, Flux se engancha a Alpine solo. --}}
+    {!! app('flux')->scripts() !!}
     @vite(['resources/js/app-core.js'])
 
   @stack('scripts')

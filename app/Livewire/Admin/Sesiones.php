@@ -43,11 +43,11 @@ class Sesiones extends Component
             ['campo' => self::T.'.Fin', 'titulo' => 'Fin', 'valor' => fn ($s) => $s->Fin?->format('d/m/Y H:i') ?? 'Abierta'],
             ['campo' => '', 'titulo' => 'Duración', 'valor' => fn ($s) => PanelConsultas::duracion(
                 $s->Inicio ? (int) $s->Inicio->diffInSeconds($s->Fin ?? $s->UltimaActividad ?? now()) : null)],
-            ['campo' => 'UsuarioNombre', 'titulo' => 'Usuario', 'valor' => fn ($s) => $s->UsuarioNombre ? $s->UsuarioNombre.' (#'.$s->UsuarioNumero.')' : '#'.$s->UsuarioId],
-            ['campo' => 'DispositivoNombre', 'titulo' => 'Dispositivo', 'valor' => fn ($s) => $s->DispositivoNombre ?: $s->DispositivoModelo],
-            ['campo' => self::T.'.Origen', 'titulo' => 'Origen', 'valor' => fn ($s) => $s->Origen, 'clase' => 'hidden md:table-cell'],
-            ['campo' => self::T.'.Ip', 'titulo' => 'IP', 'valor' => fn ($s) => $s->Ip, 'clase' => 'hidden md:table-cell'],
-            ['campo' => self::T.'.MotivoFin', 'titulo' => 'Motivo de fin', 'valor' => fn ($s) => $s->MotivoFin],
+            ['campo' => 'UsuarioNombre', 'filtro' => 'u.nombre', 'titulo' => 'Usuario', 'valor' => fn ($s) => $s->UsuarioNombre ? $s->UsuarioNombre.' (#'.$s->UsuarioNumero.')' : '#'.$s->UsuarioId],
+            ['campo' => 'DispositivoNombre', 'filtro' => 'd.Nombre', 'titulo' => 'Dispositivo', 'valor' => fn ($s) => $s->DispositivoNombre ?: $s->DispositivoModelo],
+            ['campo' => self::T.'.Origen', 'filtro' => true, 'titulo' => 'Origen', 'valor' => fn ($s) => $s->Origen, 'clase' => 'hidden md:table-cell'],
+            ['campo' => self::T.'.Ip', 'filtro' => true, 'titulo' => 'IP', 'valor' => fn ($s) => $s->Ip, 'clase' => 'hidden md:table-cell'],
+            ['campo' => self::T.'.MotivoFin', 'filtro' => true, 'titulo' => 'Motivo de fin', 'valor' => fn ($s) => $s->MotivoFin],
         ];
     }
 

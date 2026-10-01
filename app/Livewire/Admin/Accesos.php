@@ -35,13 +35,13 @@ class Accesos extends Component
     {
         return [
             ['campo' => self::T.'.Fecha', 'titulo' => 'Fecha', 'valor' => fn ($a) => $a->Fecha?->format('d/m/Y H:i:s')],
-            ['campo' => self::T.'.Tipo', 'titulo' => 'Tipo', 'valor' => fn ($a) => str_replace('_', ' ', (string) $a->Tipo)],
-            ['campo' => self::T.'.NumeroEmpleado', 'titulo' => 'Empleado', 'valor' => fn ($a) => $a->NumeroEmpleado ?: $a->UsuarioNumero],
-            ['campo' => 'UsuarioNombre', 'titulo' => 'Usuario'],
-            ['campo' => 'DispositivoNombre', 'titulo' => 'Dispositivo', 'valor' => fn ($a) => $a->DispositivoNombre ?: $a->DispositivoModelo, 'clase' => 'hidden lg:table-cell'],
-            ['campo' => self::T.'.Ip', 'titulo' => 'IP', 'valor' => fn ($a) => $a->Ip, 'clase' => 'hidden md:table-cell'],
-            ['campo' => self::T.'.Motivo', 'titulo' => 'Motivo', 'valor' => fn ($a) => $a->Motivo],
-            ['campo' => 'ActorNombre', 'titulo' => 'Admin', 'clase' => 'hidden md:table-cell'],
+            ['campo' => self::T.'.Tipo', 'filtro' => true, 'titulo' => 'Tipo', 'valor' => fn ($a) => str_replace('_', ' ', (string) $a->Tipo)],
+            ['campo' => self::T.'.NumeroEmpleado', 'filtro' => true, 'titulo' => 'Empleado', 'valor' => fn ($a) => $a->NumeroEmpleado ?: $a->UsuarioNumero],
+            ['campo' => 'UsuarioNombre', 'filtro' => 'u.nombre', 'titulo' => 'Usuario'],
+            ['campo' => 'DispositivoNombre', 'filtro' => 'd.Nombre', 'titulo' => 'Dispositivo', 'valor' => fn ($a) => $a->DispositivoNombre ?: $a->DispositivoModelo, 'clase' => 'hidden lg:table-cell'],
+            ['campo' => self::T.'.Ip', 'filtro' => true, 'titulo' => 'IP', 'valor' => fn ($a) => $a->Ip, 'clase' => 'hidden md:table-cell'],
+            ['campo' => self::T.'.Motivo', 'filtro' => true, 'titulo' => 'Motivo', 'valor' => fn ($a) => $a->Motivo],
+            ['campo' => 'ActorNombre', 'filtro' => 'a.nombre', 'titulo' => 'Admin', 'clase' => 'hidden md:table-cell'],
         ];
     }
 

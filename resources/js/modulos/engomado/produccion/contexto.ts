@@ -4,7 +4,7 @@
  */
 import { notify } from '../../../utils/notifications.ts';
 import { leerDatos } from '../../urdido/comun/pagina.ts';
-import { calcularNeto, limitarBruto, parsearOficiales } from './logica.ts';
+import { calcularNeto, excedeBruto, parsearOficiales } from './logica.ts';
 
 export interface ConfigProduccion {
     rutas: {
@@ -119,7 +119,10 @@ export function marcarCampoError(elemento: Element | null, conError: boolean): v
 }
 
 
-/** Aplica el tope de Kg. Bruto y recalcula Kg. Neto de la fila. Devuelve true si recortó el bruto. */
+/**
+ * Recalcula Kg. Neto de la fila y marca Kg. Bruto si pasa el tope. Devuelve true si lo excede.
+ * No reescribe el valor: hacerlo en cada tecla movía el cursor y no dejaba escribir.
+ */
 export function calcularNetoFila(fila: HTMLElement): boolean {
     const bruto = campo(fila, 'kg_bruto');
     const tara = campo(fila, 'tara');
@@ -127,18 +130,18 @@ export function calcularNetoFila(fila: HTMLElement): boolean {
     if (!bruto || !tara || !neto) return false;
 
     const max = cfg().maxKgBruto;
-    const antes = bruto.value;
+    const excede = excedeBruto(bruto.value, max);
     if (max !== null) {
         bruto.max = String(max);
         bruto.title = `Kg. Bruto máximo: ${max.toFixed(0)}`;
-        bruto.value = limitarBruto(bruto.value, max);
     } else {
         bruto.removeAttribute('max');
         bruto.removeAttribute('title');
     }
+    marcarCampoError(bruto, excede);
 
     const valor = calcularNeto(bruto.value, tara.value);
     neto.value = valor.toFixed(2);
     marcarCampoError(neto, valor < 0);
-    return bruto.value !== antes;
+    return excede;
 }

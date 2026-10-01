@@ -12,7 +12,7 @@ import { installFakeDom } from './utils-fake-dom.mjs'
 // DOM falso sin tipos: se usa como any a propósito.
 const document: any = installFakeDom()
 
-const { enlazarDiasLiberar, enlazarBotonAccionesFila, ID_BOTON_FILA, SIN_SELECCION } = await import('../../resources/js/programa-tejido/acciones.ts')
+const { enlazarDiasLiberar } = await import('../../resources/js/programa-tejido/acciones.ts')
 
 // El DOM falso no entiende [attr="valor"], isConnected ni getBoundingClientRect: se completan aquí.
 const matchesBase = Object.getPrototypeOf(document.body).matches
@@ -46,32 +46,4 @@ test('el botón con data-accion="dias-liberar" abre el modal de días', () => {
   assert.equal(abiertos, 1, 'otros botones no')
   soltar()
   boton.remove()
-})
-
-test('el "⋮" abre el menú de la fila seleccionada y avisa sin selección', () => {
-  assert.equal(enlazarBotonAccionesFila(() => {}, () => null, () => {}), null, 'sin contenedor no hace nada')
-
-  const contenedor = document.body.appendChild(document.createElement('span'))
-  contenedor.id = ID_BOTON_FILA
-  const fila = document.body.appendChild(document.createElement('tr'))
-  let seleccionada: unknown = null
-  const abiertos: unknown[] = []
-  const avisos: string[] = []
-  const boton = enlazarBotonAccionesFila((f) => abiertos.push(f), () => seleccionada as HTMLElement | null, (m) => avisos.push(m)) as HTMLButtonElement
-  assert.ok(boton)
-
-  assert.equal(boton.getAttribute('aria-label'), 'Acciones de la fila')
-  assert.equal(enlazarBotonAccionesFila(() => {}, () => null, () => {}), boton, 'idempotente')
-
-  boton.dispatchEvent(evento('click'))
-  assert.deepEqual(avisos, [SIN_SELECCION])
-
-  seleccionada = fila
-  boton.dispatchEvent(evento('click'))
-  assert.deepEqual(abiertos, [fila])
-
-  fila.remove()
-  boton.dispatchEvent(evento('click'))
-  assert.equal(abiertos.length, 1, 'fila desconectada = sin selección')
-  contenedor.remove()
 })

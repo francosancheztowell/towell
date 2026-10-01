@@ -1,4 +1,4 @@
-<div>
+<div class="flex min-h-0 flex-1 flex-col">
     <x-tabla :columnas="$this->columnas()"
              :filas="$filas"
              :seleccionado="$seleccionado"

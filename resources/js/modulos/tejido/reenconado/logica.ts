@@ -158,8 +158,3 @@ export function pasaFiltro(fila: { operador?: string | undefined; calibre?: stri
     if (filtro.calibre && (fila.calibre ?? '').trim() !== filtro.calibre) return false;
     return true;
 }
-
-/** Valores únicos no vacíos, ordenados como antes (Array.sort por defecto). */
-export function unicos(valores: ReadonlyArray<string | undefined>): string[] {
-    return Array.from(new Set(valores.filter((v): v is string => !!v))).sort();
-}

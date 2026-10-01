@@ -8,7 +8,7 @@ import {
 } from './filter-engine.ts';
 import { instalarIndiceSeleccion as ptInstalarIndiceSeleccion } from './seleccion.ts';
 import { accionesTactiles as ptAccionesTactiles } from '../utils/acciones-tactiles.ts';
-import { enlazarBotonAccionesFila as ptEnlazarBotonAccionesFila, enlazarDiasLiberar as ptEnlazarDiasLiberar } from './acciones.ts';
+import { enlazarDiasLiberar as ptEnlazarDiasLiberar } from './acciones.ts';
 // Scripts que vivían inline en la vista (04-perf, corte 5). Se evalúan antes que este
 // archivo y solo publican funciones en window, como hacían sus <script>.
 import './balancear.ts';
@@ -10218,10 +10218,6 @@ const uiInlineEditableFields = {
           };
           tb.classList.add('towell-acciones-zona');
           ptAccionesTactiles(tb, '.selectable-row', abrirMenuFila);
-          ptEnlazarBotonAccionesFila(abrirMenuFila, () => {
-            const rows = window.allRows?.length ? window.allRows : qsa('.selectable-row', tb);
-            return window.selectedRowIndex != null ? rows[window.selectedRowIndex] || null : null;
-          }, (msg) => toast(msg, 'info'));
         }
 
         qs('#contextMenuCrear')?.addEventListener('click', () => {

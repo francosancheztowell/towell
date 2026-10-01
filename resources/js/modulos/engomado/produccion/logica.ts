@@ -71,14 +71,9 @@ export function calcularNeto(bruto: unknown, tara: unknown): number {
     return numeroO0(bruto) - numeroO0(tara);
 }
 
-/**
- * Tope de Kg. Bruto: si el valor excede el máximo devuelve el máximo con 2 decimales,
- * si no, el valor tal cual. Sin máximo (null) nunca cambia.
- */
-export function limitarBruto(valor: string, max: number | null): string {
-    if (max === null) return valor;
-    const n = parseFloat(valor);
-    return !Number.isNaN(n) && n > max ? max.toFixed(2) : valor;
+/** true si Kg. Bruto pasa el tope. Sin máximo (null) o vacío, nunca. */
+export function excedeBruto(valor: string, max: number | null): boolean {
+    return max !== null && parseFloat(valor) > max;
 }
 
 /** Redondea a `decimales` si es numérico; si no, devuelve el texto recortado. */

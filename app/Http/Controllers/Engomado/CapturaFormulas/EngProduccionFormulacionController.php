@@ -727,8 +727,10 @@ class EngProduccionFormulacionController extends Controller
                 'ItemId' => $this->truncateString($comp['ItemId'] ?? null, 20),
                 'ItemName' => $this->truncateString($comp['ItemName'] ?? null, 100),
                 'ConfigId' => $this->truncateString($comp['ConfigId'] ?? null, 20),
-                'ConsumoUnit' => $comp['ConsumoUnitario'] ?? null,
-                'ConsumoTotal' => $comp['ConsumoTotal'] ?? null,
+                // float siempre: en un INSERT de varias filas SQL Server da a la columna el tipo
+                // de mayor precedencia; con '741.18' (texto) y 90 (int) eligió int y tronó.
+                'ConsumoUnit' => self::decimalONulo($comp['ConsumoUnitario'] ?? null),
+                'ConsumoTotal' => self::decimalONulo($comp['ConsumoTotal'] ?? null),
                 'Unidad' => $this->truncateString($comp['Unidad'] ?? null, 10),
                 'InventLocation' => $this->truncateString($comp['Almacen'] ?? null, 20),
             ];
@@ -737,6 +739,11 @@ class EngProduccionFormulacionController extends Controller
         foreach (array_chunk($filas, intdiv(2100, self::COLUMNAS_LINEA)) as $bloque) {
             EngFormulacionLineModel::insert($bloque);
         }
+    }
+
+    private static function decimalONulo(mixed $valor): ?float
+    {
+        return is_numeric($valor) ? (float) $valor : null;
     }
 
     /**

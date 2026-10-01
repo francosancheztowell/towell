@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '../../vendor/livewire/flux/dist/flux.css';
 @import './programa-tejido/modals.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
@@ -9,12 +10,19 @@
 /* Small landscape tablets (e.g. 1006x427): short viewports. Current tablets are 1280x665 and stay unaffected. */
 @custom-variant short (@media (max-height: 540px));
 
+/* Flux trae clases dark:; sin esto se pintarían oscuras en equipos con tema oscuro del SO.
+   La app no tiene modo oscuro: dark solo aplica bajo una clase .dark que nadie pone. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ============ Tokens del sistema de componentes (fase 16, DS-01) ============
    Receta: docs/cerebro-towell/Arquitectura/receta-componentes.md
    - Texto: nada por debajo de 12 px (text-caption = text-xs). No usar text-[10px]/[11px].
    - Táctil: todo control de los componentes nuevos mide >= 44 px (min-h-touch / size-touch).
    - Color: los componentes usan los semánticos; mapean a la paleta que ya usa la app
      (blue-500 de los botones del navbar, etc.), así que adoptarlos no cambia el aspecto. */
+/* Alto del navbar (navbar.blade.php, h-14). Programa Tejido lo re-mide en JS. */
+:root { --pt-navbar-height: 3.5rem; }
+
 @theme {
     --text-caption: 0.75rem;
     --text-caption--line-height: 1rem;
@@ -35,6 +43,9 @@
     --color-info-soft: var(--color-sky-50);
     --color-accent: var(--color-purple-500);
     --color-accent-hover: var(--color-purple-600);
+    /* Flux lee accent + estos dos (variant="primary", checkbox, switch). */
+    --color-accent-content: var(--color-purple-600);
+    --color-accent-foreground: var(--color-white);
     --color-surface: var(--color-white);
     --color-surface-muted: var(--color-slate-50);
     --color-line: var(--color-slate-200);
@@ -220,3 +231,95 @@
 .towell-acciones-btn:hover {
     background-color: var(--color-slate-100);
 }
+
+/* ============ Tablas reutilizables (flux:table, <table>, x-ui.table) ============
+   .tabla-cebra           filas alternas; cuenta solo las visibles (los filtros ocultan con
+                          hidden o data-filtro-col-oculta, nunca con style.display)
+   .tabla-seleccionable   hover + fila con aria-selected="true" en azul y su badge resaltado;
+                          la pantalla solo pone aria-selected
+   data-filtros-columna   en el <table>: un input por columna (componentes/tabla-columnas.ts)
+   Cebra y filtros van en capa components; selección y hover sin capa, para ganarles a la
+   cebra y a las utilidades de Flux (text-zinc-*, colores del badge) sin !important. */
+@layer components {
+    .tabla-cebra tbody > tr:nth-child(even of :not([hidden], [data-filtro-col-oculta])) {
+        background-color: var(--color-slate-50);
+    }
+    [data-fila-filtros] > th { padding: 0.25rem 0.5rem 0.5rem; font-weight: 400; }
+    .tabla-filtro-input {
+        width: 100%; min-width: 6rem; min-height: var(--spacing-touch); padding: 0 0.5rem;
+        border: 1px solid var(--color-slate-200); border-radius: 0.375rem;
+        background-color: var(--color-white); color: var(--color-slate-800); font-size: var(--text-sm);
+    }
+    .tabla-filtro-input:focus { outline: 2px solid var(--color-primary); outline-offset: -1px; }
+}
+[data-filtro-col-oculta] { display: none; }
+/* Tabla a pantalla completa (todas las tablas de listado):
+   .pantalla-completa   el contenedor de la página: alto = lo que deja el navbar, columna flex.
+   .tabla-pantalla      la tarjeta de la tabla: toma el ancho y el alto que sobren (encabezados,
+                        avisos o comentarios de la página quedan arriba/abajo) y el scroll vive en la
+                        tabla, con el encabezado fijo. Sin max-h / max-w por pantalla. */
+.pantalla-completa { display: flex; flex-direction: column; width: 100%; height: calc(100dvh - var(--pt-navbar-height)); }
+.tabla-pantalla { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; width: 100%; }
+.tabla-pantalla div:has(> ui-table-scroll-area),
+.tabla-pantalla ui-table-scroll-area { flex: 1 1 auto; min-height: 0; }
+/* flux:table en toda la app: columnas a lo ancho de su contenido (Flux trae table-fixed, que
+   encima nombres largos) y aire en los bordes (Flux pone ps-0/pe-0 pensando en tarjetas con padding). */
+[data-flux-table] { table-layout: auto; }
+/* Encabezado de toda flux:table: azul con texto blanco (el estilo de la app). Sin capa: gana a las
+   utilidades de Flux (text-zinc-*, bg-white de flux:table.columns). Los inputs de la fila de
+   filtros conservan su color. Columna con filtro activo: th[data-filtro-activo] en verde. */
+[data-flux-table] thead th { background-color: var(--color-blue-600); color: var(--color-white); border-bottom-color: var(--color-blue-700); }
+[data-flux-table] thead th :not(input) { color: inherit; }
+[data-flux-table] thead th[data-filtro-activo] { background-color: var(--color-green-600); }
+[data-flux-table] :is(th, td):first-child { padding-inline-start: 1rem; }
+[data-flux-table] :is(th, td):last-child { padding-inline-end: 1rem; }
+/* Botón Flux de alternar (aria-pressed="true"): activo en azul. Sin capa: gana a sus utilidades. */
+[data-flux-button][aria-pressed='true'] { background-color: var(--color-blue-500); color: var(--color-white); border-color: var(--color-blue-600); }
+.tabla-seleccionable tbody > tr { cursor: pointer; }
+.tabla-seleccionable tbody > tr:not([aria-selected='true']):hover { background-color: var(--color-blue-50); }
+.tabla-seleccionable tbody > tr[aria-selected='true'] { background-color: var(--color-blue-500); }
+.tabla-seleccionable tbody > tr[aria-selected='true'] > td { color: var(--color-white); }
+.tabla-seleccionable tbody > tr[aria-selected='true'] [data-flux-badge] {
+    background-color: var(--color-white); color: var(--color-blue-700); font-weight: 700;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.2);
+}
+
+/* Diálogo de confirmación/aviso (utils/dialogo.ts, notify.confirm/alert/validation/loading).
+   <dialog> nativo con showModal(): Esc, foco y fondo los da el navegador. Mismo aspecto que
+   el modal de Salir del navbar (tarjeta de Flux, centrado, botones grandes para tablet). */
+.ui-dialogo {
+    margin: auto; padding: 0; border: 0;
+    width: calc(100% - 2rem); max-width: 32rem; max-height: calc(100dvh - 2rem);
+    border-radius: 1rem; background: var(--color-white); color: var(--color-zinc-800);
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / .25), 0 0 0 1px rgb(0 0 0 / .05);
+    overflow-y: auto;
+}
+.ui-dialogo::backdrop { background: rgb(0 0 0 / .5); }
+.ui-dialogo[open] { animation: ui-dialogo-in .15s ease-out; }
+@keyframes ui-dialogo-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ui-dialogo[open] { animation: none; } }
+.ui-dialogo__cuerpo { display: flex; flex-direction: column; align-items: center; gap: 1.5rem; padding: 2rem; text-align: center; }
+.ui-dialogo__icono { display: flex; align-items: center; justify-content: center; width: 5rem; height: 5rem; border-radius: 9999px; font-size: 2.25rem; }
+.ui-dialogo__icono--warning  { background: var(--color-amber-100); color: var(--color-amber-600); }
+.ui-dialogo__icono--danger,
+.ui-dialogo__icono--error    { background: var(--color-red-100); color: var(--color-red-600); }
+.ui-dialogo__icono--success  { background: var(--color-green-100); color: var(--color-green-600); }
+.ui-dialogo__icono--info,
+.ui-dialogo__icono--question,
+.ui-dialogo__icono--loading  { background: var(--color-blue-100); color: var(--color-blue-600); }
+.ui-dialogo__titulo { font-size: var(--text-2xl); line-height: var(--text-2xl--line-height); font-weight: 600; color: var(--color-zinc-800); }
+.ui-dialogo__texto { margin-top: .5rem; font-size: var(--text-base); color: var(--color-zinc-500); white-space: pre-line; overflow-wrap: anywhere; }
+.ui-dialogo__texto ul { margin: 0; padding-left: 1.25rem; list-style: disc; text-align: left; }
+.ui-dialogo__botones { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: .75rem; width: 100%; }
+.ui-dialogo__boton {
+    display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+    height: 3.5rem; padding: 0 1rem; border-radius: .5rem; border: 1px solid transparent;
+    font-size: var(--text-lg); font-weight: 600; cursor: pointer; transition: background-color .15s;
+}
+.ui-dialogo__boton:focus-visible { outline: 2px solid var(--color-blue-500); outline-offset: 2px; }
+.ui-dialogo__boton--primario   { background: var(--color-blue-600); color: var(--color-white); }
+.ui-dialogo__boton--primario:hover { background: var(--color-blue-700); }
+.ui-dialogo__boton--peligro    { background: var(--color-red-500); color: var(--color-white); }
+.ui-dialogo__boton--peligro:hover { background: var(--color-red-600); }
+.ui-dialogo__boton--secundario { background: var(--color-white); color: var(--color-zinc-800); border-color: var(--color-zinc-200); box-shadow: 0 1px 2px rgb(0 0 0 / .05); }
+.ui-dialogo__boton--secundario:hover { background: var(--color-zinc-50); }
