@@ -8,6 +8,7 @@ import { delegate, onReady, qs, qsa } from '../../../utils/dom.ts';
 import { http } from '../../../utils/http.ts';
 import { notify } from '../../../utils/notifications.ts';
 import { leerDatos, mensajeError, type RespuestaApi } from '../comun/pagina.ts';
+import { filaSinResultados } from '../../urdido/comun/pagina.ts';
 import {
     CAMPOS,
     DATASET,
@@ -19,7 +20,6 @@ import {
     pasaFiltro,
     textoCelda,
     turnoPorMinuto,
-    unicos,
     validar,
     type CampoRegistro,
     type Filtro,
@@ -63,8 +63,9 @@ interface Selecciones {
     colorName?: string;
 }
 
-const CLASES_FILA = 'table-row odd:bg-white even:bg-gray-50 hover:bg-blue-50 cursor-pointer';
-const CLASES_CELDA = 'text-center whitespace-nowrap px-4 py-3';
+// Cebra, hover y selección: .tabla-cebra / .tabla-seleccionable (app.css). Celda: mismas clases que flux:table.cell.
+const CLASES_FILA = 'table-row';
+const CLASES_CELDA = 'py-3 px-3 text-sm text-center whitespace-nowrap text-zinc-500 border-t border-zinc-800/10';
 const TODOS: readonly CampoRegistro[] = [...CAMPOS.slice(0, 3), 'numero_empleado', ...CAMPOS.slice(3)];
 
 /** Fecha local (no UTC: de las 18:00 en adelante toISOString() daba mañana en CDMX). */
@@ -75,7 +76,6 @@ function iniciar(): void {
     const cfg = leerDatos<ConfigReenconado>(raiz);
     const tbody = qs<HTMLTableSectionElement>('#rows-body');
     const modal = qs('#modalNuevo');
-    const modalFiltros = qs('#modal-filters');
     if (!raiz || !cfg || !tbody || !modal) return;
 
     const btnEditar = qs<HTMLButtonElement>('#btn-editar');
@@ -85,14 +85,14 @@ function iniciar(): void {
     const calibreEl = qs<HTMLSelectElement>('#f_Calibre');
     const fibraEl = qs<HTMLSelectElement>('#f_FibraTrama');
     const codColorEl = qs<HTMLSelectElement>('#f_CodColor');
-    const filtroOperador = qs<HTMLSelectElement>('#filter-operador');
-    const filtroCalibre = qs<HTMLSelectElement>('#filter-calibre');
 
     let seleccionada: HTMLTableRowElement | null = null;
     let modo: 'create' | 'edit' = 'create';
     let guardando = false;
-    // Por defecto se filtra por el usuario actual (como antes).
-    let filtro: Filtro = { operador: cfg.usuario || '', calibre: '' };
+    // "Mis registros" (botón del navbar) arranca encendido, como antes el filtro de operador.
+    // Calibre y demás columnas: filtros por columna de la tabla (componentes/tabla-columnas.ts).
+    let misRegistros = !!cfg.usuario;
+    const filtro = (): Filtro => ({ operador: misRegistros ? cfg.usuario : '', calibre: '' });
 
     const cache = {
         calibres: null as string[] | null,
@@ -282,10 +282,8 @@ function iniciar(): void {
     };
 
     const seleccionar = (fila: HTMLTableRowElement | null): void => {
-        seleccionada?.classList.remove('selected', 'text-white');
         seleccionada?.setAttribute('aria-selected', 'false');
         seleccionada = fila;
-        fila?.classList.add('selected', 'text-white');
         fila?.setAttribute('aria-selected', 'true');
         actualizarBotones();
     };
@@ -416,70 +414,24 @@ function iniciar(): void {
     }
 
     /* ---------- Filtros ---------- */
-    const llenarFiltro = (select: HTMLSelectElement | null, valores: string[]): void => {
-        if (!select) return;
-        const primera = select.options[0];
-        select.replaceChildren(...(primera ? [primera] : []), ...valores.map((v) => new Option(v, v)));
-    };
-
-    const poblarFiltros = (): void => {
-        const lista = filas();
-        llenarFiltro(filtroOperador, unicos(lista.map((f) => f.dataset.nombreempl)));
-        llenarFiltro(filtroCalibre, unicos(lista.map((f) => f.dataset.calibre)));
-        // Antes siempre volvía a mostrar el usuario actual aunque el filtro estuviera limpio.
-        if (filtroOperador) filtroOperador.value = filtro.operador;
-        if (filtroCalibre) filtroCalibre.value = filtro.calibre;
-    };
-
-    const filaSinResultados = (): HTMLTableRowElement => {
-        const tr = document.createElement('tr');
-        tr.className = 'no-results';
-        const td = document.createElement('td');
-        td.colSpan = 14;
-        td.className = 'px-4 py-6 text-center text-slate-500';
-        const caja = document.createElement('div');
-        caja.className = 'flex flex-col items-center gap-2';
-        const icono = document.createElement('i');
-        icono.className = 'fa-solid fa-inbox text-4xl text-gray-300';
-        icono.setAttribute('aria-hidden', 'true');
-        const texto = document.createElement('span');
-        texto.className = 'text-base font-medium';
-        texto.textContent = 'Sin resultados con los filtros aplicados';
-        caja.append(icono, texto);
-        td.append(caja);
-        tr.append(td);
-        return tr;
-    };
-
     function aplicarFiltros(): void {
         let visibles = 0;
         for (const fila of filas()) {
-            const ver = pasaFiltro({ operador: fila.dataset.nombreempl, calibre: fila.dataset.calibre }, filtro);
-            fila.style.display = ver ? '' : 'none';
+            const ver = pasaFiltro({ operador: fila.dataset.nombreempl, calibre: fila.dataset.calibre }, filtro());
+            fila.hidden = !ver; // hidden, no display: la cebra cuenta solo las visibles
             if (ver) visibles++;
         }
-        qs('#filter-badge')?.classList.toggle('hidden', !(filtro.operador || filtro.calibre));
-        const vacia = qs('tr.no-results', tbody!);
-        if (visibles === 0) {
-            if (!vacia) tbody!.appendChild(filaSinResultados());
-        } else {
-            vacia?.remove();
-        }
+        qs('[data-accion="mis-registros"]')?.setAttribute('aria-pressed', String(misRegistros));
+        filaSinResultados(tbody, 14, visibles === 0 ? 'Sin resultados con los filtros aplicados' : null);
     }
-
-    const cerrarFiltros = (): void => modalFiltros?.classList.add('hidden');
 
     /* ---------- Eventos ---------- */
     const acciones: Record<string, () => void> = {
         'cerrar-modal': cerrarModal,
         guardar: () => void guardar(),
-        'cerrar-filtros': cerrarFiltros,
-        'limpiar-filtros': () => {
-            filtro = { operador: '', calibre: '' };
-            if (filtroOperador) filtroOperador.value = '';
-            if (filtroCalibre) filtroCalibre.value = '';
+        'mis-registros': () => {
+            misRegistros = !misRegistros;
             aplicarFiltros();
-            cerrarFiltros();
         },
     };
     delegate(document, 'click', '[data-accion]', (_ev, el) => acciones[el.dataset.accion ?? '']?.());
@@ -488,24 +440,12 @@ function iniciar(): void {
     qs('#btn-nuevo')?.addEventListener('click', () => void nuevo());
     btnEditar?.addEventListener('click', () => void editar());
     btnEliminar?.addEventListener('click', () => void eliminar());
-    qs('#btn-open-filters')?.addEventListener('click', () => {
-        poblarFiltros();
-        modalFiltros?.classList.remove('hidden');
-    });
 
     calibreEl?.addEventListener('change', () => {
         limpiarDependientes();
         void cargarDependientes(calibreEl.value);
     });
     codColorEl?.addEventListener('change', () => poner('f_Color', codColorEl.selectedOptions[0]?.dataset.name || ''));
-    filtroOperador?.addEventListener('change', () => {
-        filtro = { ...filtro, operador: filtroOperador.value || '' };
-        aplicarFiltros();
-    });
-    filtroCalibre?.addEventListener('change', () => {
-        filtro = { ...filtro, calibre: filtroCalibre.value || '' };
-        aplicarFiltros();
-    });
 
     // Enter en observaciones no mete salto de línea (la columna es de 60 caracteres).
     campo('f_Obs')?.addEventListener('keydown', (ev) => {
@@ -525,11 +465,9 @@ function iniciar(): void {
     document.addEventListener('keydown', (ev) => {
         if (ev.key !== 'Escape') return;
         if (modalAbierto()) cerrarModal();
-        else if (modalFiltros && !modalFiltros.classList.contains('hidden')) cerrarFiltros();
     });
 
     actualizarBotones();
-    poblarFiltros();
     aplicarFiltros();
 }
 

@@ -4,15 +4,11 @@
 
 @section('navbar-right')
 <div class="flex items-center gap-2">
-    {{-- Botón de Filtros --}}
-    <x-navbar.button-report
-    id="btn-open-filters"
-    title="Filtros"
-    icon="fa-filter"
-    module="Producción Reenconado Cabezuela"
-    iconColor="text-purple-600"
-    hoverBg="hover:bg-purple-100"
-    class="text-sm" />
+    {{-- "Mis registros" (reenconado/index.ts pone aria-pressed; arranca encendido) y filtros por
+         columna (tabla-columnas.ts): reemplazan el modal de operador/calibre. --}}
+    <flux:button data-accion="mis-registros" aria-pressed="true" icon="user" class="min-h-touch">Mis registros</flux:button>
+    <flux:button data-alternar-filtros="#tabla-registros" aria-pressed="false" icon="funnel"
+                 class="min-h-touch min-w-touch" title="Filtrar por columna" aria-label="Filtrar por columna" />
 
     <x-navbar.button-create
         id="btn-nuevo"
@@ -34,18 +30,6 @@
 </div>
 @endsection
 
-@push('styles')
-<style>
-    #tabla-registros tr.selected {
-        background-color: #3b82f6 !important;
-        color: white !important;
-    }
-    #tabla-registros tr.selected td {
-        color: white !important;
-    }
-</style>
-@endpush
-
 @push('scripts')
     @vite('resources/js/modulos/tejido/reenconado/index.ts')
 @endpush
@@ -66,29 +50,29 @@
     ];
 @endphp
 <div class="w-full" id="pagina-reenconado" data-pagina='@json($configPagina)'>
-    <div class="overflow-x-auto  bg-white w-full">
-        <table class="min-w-full table-capture text-sm" id="tabla-registros">
-            <thead class="text-white">
-                <tr class="text-center align-middle">
-                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Folio</th>
-                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Fecha</th>
-                    <th class="w-[72px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Turno</th>
-                    <th class="min-w-[160px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Operador</th>
-                    <th class="w-[72px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Calibre</th>
-                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Fibra</th>
-                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Cód. Color</th>
-                    <th class="min-w-[160px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Color</th>
-                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Cantidad</th>
-                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Cabezuela</th>
-                    <th class="w-[72px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Conos</th>
-                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Hrs</th>
-                    <th class="w-[90px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Eficiencia</th>
-                    <th class="min-w-[160px] bg-blue-500 whitespace-nowrap px-4 py-3 border-b-2 border-gray-200">Observaciones</th>
-                </tr>
-            </thead>
-            <tbody id="rows-body" class="text-gray-800">
+    {{-- flux:table + .tabla-cebra / .tabla-seleccionable / data-filtros-columna (app.css, tabla-columnas.ts).
+         reenconado/index.ts solo pone hidden ("Mis registros") y aria-selected. --}}
+    <div class="bg-white w-full">
+        <flux:table id="tabla-registros" data-filtros-columna class="tabla-cebra tabla-seleccionable">
+            <flux:table.columns sticky class="bg-white">
+                <flux:table.column align="center">Folio</flux:table.column>
+                <flux:table.column align="center">Fecha</flux:table.column>
+                <flux:table.column align="center">Turno</flux:table.column>
+                <flux:table.column align="center" class="min-w-[160px]">Operador</flux:table.column>
+                <flux:table.column align="center">Calibre</flux:table.column>
+                <flux:table.column align="center">Fibra</flux:table.column>
+                <flux:table.column align="center">Cód. Color</flux:table.column>
+                <flux:table.column align="center" class="min-w-[160px]">Color</flux:table.column>
+                <flux:table.column align="center">Cantidad</flux:table.column>
+                <flux:table.column align="center">Cabezuela</flux:table.column>
+                <flux:table.column align="center">Conos</flux:table.column>
+                <flux:table.column align="center">Hrs</flux:table.column>
+                <flux:table.column align="center">Eficiencia</flux:table.column>
+                <flux:table.column align="center" class="min-w-[160px]">Observaciones</flux:table.column>
+            </flux:table.columns>
+            <flux:table.rows id="rows-body">
                 @forelse($registros as $r)
-                    <tr class="table-row odd:bg-white even:bg-gray-50 hover:bg-blue-50 cursor-pointer"
+                    <flux:table.row class="table-row" aria-selected="false"
                         data-folio="{{ $r->Folio }}"
                         data-date="{{ $r->Date ? $r->Date->format('Y-m-d') : '' }}"
                         data-turno="{{ $r->Turno }}"
@@ -104,28 +88,28 @@
                         data-horas="{{ is_null($r->Horas) ? '' : number_format($r->Horas, 2, '.', '') }}"
                         data-eficiencia="{{ is_null($r->Eficiencia) ? '' : number_format($r->Eficiencia, 2, '.', '') }}"
                         data-obs="{{ $r->Obs }}">
-                        <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Folio }}</td>
-                        <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Date ? $r->Date->format('Y-m-d') : '' }}</td>
-                        <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Turno }}</td>
-                        <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->nombreEmpl }}</td>
-                        <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Calibre }}</td>
-                        <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->FibraTrama }}</td>
-                        <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->CodColor }}</td>
-                        <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Color }}</td>
-                        <td class="text-center whitespace-nowrap px-4 py-3">{{ is_null($r->Cantidad) ? '' : number_format($r->Cantidad, 2) }}</td>
-                        <td class="text-center whitespace-nowrap px-4 py-3">{{ is_null($r->Cabezuela) ? '' : number_format($r->Cabezuela, 2) }}</td>
-                        <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Conos }}</td>
-                        <td class="text-center whitespace-nowrap px-4 py-3">{{ is_null($r->Horas) ? '' : number_format($r->Horas, 2) }}</td>
-                        <td class="text-center whitespace-nowrap px-4 py-3">{{ is_null($r->Eficiencia) ? '' : number_format($r->Eficiencia, 2) }}</td>
-                        <td class="text-center whitespace-nowrap px-4 py-3">{{ $r->Obs }}</td>
-                    </tr>
+                        <flux:table.cell align="center">{{ $r->Folio }}</flux:table.cell>
+                        <flux:table.cell align="center">{{ $r->Date ? $r->Date->format('Y-m-d') : '' }}</flux:table.cell>
+                        <flux:table.cell align="center">{{ $r->Turno }}</flux:table.cell>
+                        <flux:table.cell align="center">{{ $r->nombreEmpl }}</flux:table.cell>
+                        <flux:table.cell align="center">{{ $r->Calibre }}</flux:table.cell>
+                        <flux:table.cell align="center">{{ $r->FibraTrama }}</flux:table.cell>
+                        <flux:table.cell align="center">{{ $r->CodColor }}</flux:table.cell>
+                        <flux:table.cell align="center">{{ $r->Color }}</flux:table.cell>
+                        <flux:table.cell align="center">{{ is_null($r->Cantidad) ? '' : number_format($r->Cantidad, 2) }}</flux:table.cell>
+                        <flux:table.cell align="center">{{ is_null($r->Cabezuela) ? '' : number_format($r->Cabezuela, 2) }}</flux:table.cell>
+                        <flux:table.cell align="center">{{ $r->Conos }}</flux:table.cell>
+                        <flux:table.cell align="center">{{ is_null($r->Horas) ? '' : number_format($r->Horas, 2) }}</flux:table.cell>
+                        <flux:table.cell align="center">{{ is_null($r->Eficiencia) ? '' : number_format($r->Eficiencia, 2) }}</flux:table.cell>
+                        <flux:table.cell align="center">{{ $r->Obs }}</flux:table.cell>
+                    </flux:table.row>
                 @empty
-                    <tr class="odd:bg-white even:bg-gray-50">
-                        <td colspan="14" class="text-center text-gray-500 py-4">Sin registros</td>
-                    </tr>
+                    <flux:table.row>
+                        <flux:table.cell colspan="14" class="py-4 text-center">Sin registros</flux:table.cell>
+                    </flux:table.row>
                 @endforelse
-            </tbody>
-        </table>
+            </flux:table.rows>
+        </flux:table>
     </div>
 </div>
 
@@ -240,50 +224,6 @@
                     <textarea class="w-full min-w-[110px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4" id="f_Obs" rows="2"></textarea>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
-
-{{-- Modal FILTROS --}}
-<div id="modal-filters" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden" role="dialog" aria-modal="true" aria-labelledby="modal-filters-titulo">
-    <div class="bg-white max-w-2xl w-full rounded-xl shadow-xl p-4 m-4">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-800" id="modal-filters-titulo">
-                <i class="fa-solid fa-filter text-purple-600 mr-2" aria-hidden="true"></i>Filtros
-            </h2>
-            <button type="button" data-accion="cerrar-filtros" aria-label="Cerrar filtros"
-                    class="text-slate-500 hover:text-slate-700 text-5xl leading-none">&times;</button>
-        </div>
-
-        <div class="space-y-4 mb-4">
-            {{-- Filtro por Operador --}}
-            <div class="p-4 rounded-lg border-2 border-gray-300 bg-gray-50">
-                <label for="filter-operador" class="block text-xs text-gray-600 mb-2">
-                    <i class="fa-solid fa-user mr-1" aria-hidden="true"></i>Operador
-                </label>
-                <select id="filter-operador"
-                        class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500">
-                    <option value="">Todos los operadores</option>
-                </select>
-            </div>
-
-            {{-- Filtro por Calibre --}}
-            <div class="p-4 rounded-lg border-2 border-gray-300 bg-gray-50">
-                <label for="filter-calibre" class="block text-xs text-gray-600 mb-2">
-                    <i class="fa-solid fa-ruler mr-1" aria-hidden="true"></i>Calibre
-                </label>
-                <select id="filter-calibre"
-                        class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500">
-                    <option value="">Todos los calibres</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="flex items-center gap-2">
-            <button type="button" id="btn-clear-filters" data-accion="limpiar-filtros"
-                    class="flex-1 px-3 py-2 rounded-lg border border-gray-300 bg-blue-500 text-white transition text-sm">
-                <i class="fa-solid fa-eraser mr-1" aria-hidden="true"></i>Limpiar
-            </button>
         </div>
     </div>
 </div>
