@@ -94,9 +94,9 @@
 @endsection
 
 @section('content')
-<div id="bpm-line-pagina" data-bpm-line='@json($configLinea)'>
+<div id="bpm-line-pagina" class="pantalla-completa gap-2 p-2" data-bpm-line='@json($configLinea)'>
     @if(!empty($esSupervisor) && $header->Status === 'Creado')
-        <div class="max-w-6xl mx-auto mt-3 mb-2 px-4">
+        <div class="w-full">
             <div class="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
                 Al terminar este checklist como supervisor, el folio se autoriza automáticamente.
             </div>
@@ -104,7 +104,7 @@
     @endif
 
     <!-- Información del Header (una sola línea) -->
-    <div class="bg-white rounded-lg shadow-sm border p-3 md:p-4 mb-2 mt-2 max-w-6xl mx-auto overflow-x-auto">
+    <div class="bg-white rounded-lg shadow-sm border p-3 md:p-4 overflow-x-auto shrink-0">
         <div class="flex items-center gap-4 md:gap-6 justify-between divide-x divide-gray-200 whitespace-nowrap text-sm px-2">
             <div class="flex items-center gap-1 px-4">
                 <flux:badge size="sm" :color="['Autorizado' => 'green', 'Terminado' => 'amber'][$header->Status] ?? 'blue'">{{ $header->Status }}</flux:badge>
@@ -131,11 +131,11 @@
     </div>
 
     <!-- Checklist de Actividades -->
-    <div class="bg-white rounded-lg shadow-sm border p-2 mx-60 mb-32">
+    <div class="tabla-pantalla bg-white rounded-lg shadow-sm border p-2">
         <h2 class="text-base font-bold text-gray-800 mb-2 border-b pb-1.5 px-2">Actividades</h2>
 
         {{-- flux:table + .tabla-cebra (app.css). Los botones los repinta bpm-line/index.ts. --}}
-        <flux:table class="tabla-cebra" container:class="max-h-[calc(100vh-280px)] [&>ui-table-scroll-area]:min-h-0">
+        <flux:table class="tabla-cebra">
             <flux:table.columns sticky class="bg-white">
                 <flux:table.column class="w-12">Orden</flux:table.column>
                 <flux:table.column>Actividad</flux:table.column>

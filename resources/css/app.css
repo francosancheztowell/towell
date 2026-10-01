@@ -253,9 +253,24 @@
     .tabla-filtro-input:focus { outline: 2px solid var(--color-primary); outline-offset: -1px; }
 }
 [data-filtro-col-oculta] { display: none; }
+/* Tabla a pantalla completa (todas las tablas de listado):
+   .pantalla-completa   el contenedor de la página: alto = lo que deja el navbar, columna flex.
+   .tabla-pantalla      la tarjeta de la tabla: toma el ancho y el alto que sobren (encabezados,
+                        avisos o comentarios de la página quedan arriba/abajo) y el scroll vive en la
+                        tabla, con el encabezado fijo. Sin max-h / max-w por pantalla. */
+.pantalla-completa { display: flex; flex-direction: column; width: 100%; height: calc(100dvh - var(--pt-navbar-height)); }
+.tabla-pantalla { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; width: 100%; }
+.tabla-pantalla div:has(> ui-table-scroll-area),
+.tabla-pantalla ui-table-scroll-area { flex: 1 1 auto; min-height: 0; }
 /* flux:table en toda la app: columnas a lo ancho de su contenido (Flux trae table-fixed, que
    encima nombres largos) y aire en los bordes (Flux pone ps-0/pe-0 pensando en tarjetas con padding). */
 [data-flux-table] { table-layout: auto; }
+/* Encabezado de toda flux:table: azul con texto blanco (el estilo de la app). Sin capa: gana a las
+   utilidades de Flux (text-zinc-*, bg-white de flux:table.columns). Los inputs de la fila de
+   filtros conservan su color. Columna con filtro activo: th[data-filtro-activo] en verde. */
+[data-flux-table] thead th { background-color: var(--color-blue-600); color: var(--color-white); border-bottom-color: var(--color-blue-700); }
+[data-flux-table] thead th :not(input) { color: inherit; }
+[data-flux-table] thead th[data-filtro-activo] { background-color: var(--color-green-600); }
 [data-flux-table] :is(th, td):first-child { padding-inline-start: 1rem; }
 [data-flux-table] :is(th, td):last-child { padding-inline-end: 1rem; }
 /* Botón Flux de alternar (aria-pressed="true"): activo en azul. Sin capa: gana a sus utilidades. */

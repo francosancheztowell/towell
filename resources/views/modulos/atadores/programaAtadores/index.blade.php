@@ -38,11 +38,11 @@
             'filtroGlobalActivo' => (bool) ($filtroGlobalActivo ?? false),
         ];
     @endphp
-    <div class="container mx-auto px-4 py-4" id="programa-atadores" data-pagina='@json($configPagina)'>
+    <div class="pantalla-completa p-2" id="programa-atadores" data-pagina='@json($configPagina)'>
 
         {{-- flux:table + .tabla-cebra / .tabla-seleccionable (app.css). Orden y filtro por columna: programa/index.ts. --}}
-        <div class="rounded-lg shadow-md bg-white overflow-hidden">
-            <flux:table class="tabla-cebra tabla-seleccionable" container:class="max-h-[calc(100vh-7rem)] [&>ui-table-scroll-area]:min-h-0">
+        <div class="tabla-pantalla rounded-lg shadow-md bg-white overflow-hidden">
+            <flux:table class="tabla-cebra tabla-seleccionable">
                 <flux:table.columns sticky id="atadoresTableHead" class="towell-acciones-zona bg-white">
                         <flux:table.column data-sort="fecha" data-column="fecha" class="th-sortable cursor-pointer select-none" role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar">Fecha <span class="sort-icon ml-1 opacity-80">▲</span></flux:table.column>
                         <flux:table.column data-sort="estatus" data-column="estatus" class="th-sortable cursor-pointer select-none" role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar">Estatus <span class="sort-icon ml-1 opacity-80"></span></flux:table.column>

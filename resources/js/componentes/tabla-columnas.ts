@@ -2,7 +2,8 @@
  * Filtros por columna para cualquier tabla (flux:table, <table>, x-ui.table): basta poner
  * `data-filtros-columna` en el <table>. Agrega bajo el encabezado una fila con un input por
  * columna (`th[data-sin-filtro]` = sin input) y oculta las filas que no coinciden: "contiene",
- * sin mayúsculas ni acentos, AND entre columnas. Una <th> por columna (sin colspan).
+ * sin mayúsculas ni acentos, AND entre columnas. Como en AX, comas = varios valores (OR):
+ * "2229,2039,2049" deja las tres claves. Una <th> por columna (sin colspan).
  *
  * Oculta con [data-filtro-col-oculta], no con `hidden`: así convive con los filtros propios de
  * cada pantalla (que usan `hidden`) sin pisarse. .tabla-cebra (app.css) ignora ambas.
@@ -23,9 +24,18 @@ export function normalizar(texto: string): string {
     return texto.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
 }
 
+/** "a, b,,c" → ['a', 'b', 'c'] normalizados: cada parte es una alternativa (OR). */
+export function partesFiltro(filtro: string): string[] {
+    return filtro.split(',').map(normalizar).filter(Boolean);
+}
+
 /** filtros[i] = texto del input de la columna i ('' = sin filtro). */
 export function celdasCoinciden(celdas: string[], filtros: string[]): boolean {
-    return filtros.every((f, i) => normalizar(f) === '' || normalizar(celdas[i] ?? '').includes(normalizar(f)));
+    return filtros.every((f, i) => {
+        const partes = partesFiltro(f);
+        const celda = normalizar(celdas[i] ?? '');
+        return partes.length === 0 || partes.some((p) => celda.includes(p));
+    });
 }
 
 const iniciadas = new WeakSet<HTMLTableElement>();
@@ -107,6 +117,7 @@ export function iniciarFiltrosColumna(root: ParentNode = document): void {
             input.type = 'search';
             input.className = 'tabla-filtro-input';
             input.placeholder = 'Filtrar';
+            input.title = 'Varios valores separados por coma: 2229, 2039, 2049';
             input.setAttribute('aria-label', `Filtrar ${th.textContent?.trim() ?? ''}`);
             celda.append(input);
             return input;

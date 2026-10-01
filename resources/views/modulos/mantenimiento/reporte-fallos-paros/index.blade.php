@@ -34,13 +34,10 @@
         ],
     ];
 @endphp
-<div id="pagina-solicitudes" class="w-full" data-pagina='@json($configPagina)'>
-    <div class="bg-white">
-        <div class="flex gap-4">
-            <!-- Tabla -->
-            {{-- flux:table + .tabla-cebra / .tabla-seleccionable (app.css). Filas: <template> de abajo. --}}
-            <div class="flex-1 rounded-lg shadow-sm overflow-hidden">
-                <flux:table class="tabla-cebra tabla-seleccionable" container:class="max-h-[70vh] [&>ui-table-scroll-area]:min-h-0">
+<div id="pagina-solicitudes" class="pantalla-completa p-2" data-pagina='@json($configPagina)'>
+            {{-- flux:table a pantalla completa + .tabla-cebra / .tabla-seleccionable (app.css). Filas: <template> de abajo. --}}
+            <div class="tabla-pantalla bg-white rounded-lg shadow-sm overflow-hidden">
+                <flux:table class="tabla-cebra tabla-seleccionable">
                     <flux:table.columns sticky class="bg-white">
                         {{-- Columna de selección: el radio da foco, teclado y estado accesible a la fila --}}
                         <flux:table.column class="w-12"><span class="sr-only">Seleccionar paro</span></flux:table.column>
@@ -59,10 +56,6 @@
                     </flux:table.rows>
                 </flux:table>
             </div>
-
-
-        </div>
-    </div>
 </div>
 
 {{-- Filas que pinta resources/js/modulos/mantenimiento/solicitudes (textContent, sin innerHTML).

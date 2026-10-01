@@ -114,8 +114,12 @@ trait ConTabla
         $termino = trim($this->buscar);
 
         foreach ($this->columnasFiltrables() as $indice => $columna) {
-            $texto = mb_substr(trim((string) ($this->filtrosColumna[$indice] ?? '')), 0, 80);
-            $query->when($texto !== '', fn (Builder $q): Builder => $q->where($columna, 'like', '%'.$texto.'%'));
+            $partes = $this->partesFiltro((string) ($this->filtrosColumna[$indice] ?? ''));
+            $query->when($partes !== [], fn (Builder $q): Builder => $q->where(function (Builder $sub) use ($columna, $partes): void {
+                foreach ($partes as $parte) {
+                    $sub->orWhere($columna, 'like', '%'.$parte.'%');
+                }
+            }));
         }
 
         return $query
@@ -140,6 +144,19 @@ trait ConTabla
     protected function paginar(Builder $query): LengthAwarePaginator
     {
         return PaginacionCompat::paginar($query, $this->porPagina, $this->getPage());
+    }
+
+    /**
+     * Como en AX: comas = varios valores (OR). "2229, 2039,,2049" → ['2229', '2039', '2049'].
+     * Tope de 20 partes de 80 caracteres para no armar un WHERE desmedido.
+     *
+     * @return array<int, string>
+     */
+    protected function partesFiltro(string $texto): array
+    {
+        $partes = array_map(fn (string $parte): string => mb_substr(trim($parte), 0, 80), explode(',', $texto));
+
+        return array_slice(array_values(array_filter($partes, fn (string $parte): bool => $parte !== '')), 0, 20);
     }
 
     /**

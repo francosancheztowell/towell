@@ -37,12 +37,11 @@
     ];
     $colorStatus = ['Autorizado' => 'green', 'Terminado' => 'amber'];
 @endphp
-<div id="tel-bpm-pagina" class="max-w-7xl mx-auto p-4 pb-8" data-tel-bpm='@json($configTelBpm)'>
+<div id="tel-bpm-pagina" class="pantalla-completa p-2" data-tel-bpm='@json($configTelBpm)'>
     {{-- flux:table con las piezas reutilizables (cebra, selección y filtros por columna, app.css /
          tabla-columnas.ts). El alcance oculta filas con hidden desde tel-bpm/index.ts. --}}
-    <div class="rounded-lg bg-white shadow-sm overflow-hidden">
-        <flux:table id="telBpmTable" data-filtros-columna class="tabla-cebra tabla-seleccionable"
-                    container:class="max-h-[70vh] [&>ui-table-scroll-area]:min-h-0">
+    <div class="tabla-pantalla rounded-lg bg-white shadow-sm overflow-hidden">
+        <flux:table id="telBpmTable" data-filtros-columna class="tabla-cebra tabla-seleccionable">
             <flux:table.columns sticky class="bg-white">
                 @foreach (['Folio', 'Status', 'Fecha', 'No Recibe', 'Nombre Recibe', 'Turno Recibe', 'No Entrega', 'Nombre Entrega', 'Turno Entrega', 'Cve Autoriza', 'Nombre Autoriza'] as $titulo)
                     <flux:table.column :align="str_starts_with($titulo, 'Turno') ? 'center' : 'start'">{{ $titulo }}</flux:table.column>

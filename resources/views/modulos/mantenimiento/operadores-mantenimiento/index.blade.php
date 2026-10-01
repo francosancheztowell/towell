@@ -12,7 +12,8 @@
 @endsection
 
 @section('content')
-    <div class="w-full px-2 py-4 md:px-4">
+    {{-- Tabla a pantalla completa (.pantalla-completa → raíz flex del componente → x-tabla). --}}
+    <div class="pantalla-completa p-2 md:px-4">
         <livewire:mantenimiento.catalogo-operadores />
     </div>
 @endsection

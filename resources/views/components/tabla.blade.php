@@ -55,7 +55,9 @@
     @endteleport
 @endif
 
-<div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" x-data="{ verFiltros: false }">
+{{-- .tabla-pantalla: si la página es .pantalla-completa, la tabla ocupa el alto que sobra y el scroll
+     vive dentro; si no, crece como antes. --}}
+<div class="tabla-pantalla overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" x-data="{ verFiltros: false }">
     @if ($mostrarFiltros)
     {{-- Barra: buscador + filtros de la pantalla --}}
     <div class="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-3 py-2.5">
@@ -84,12 +86,12 @@
 
     @endif
 
-    <div class="relative overflow-x-auto">
-        <div wire:loading.delay.class="opacity-50" wire:target="{{ $objetivosCarga }}">
+    <div class="relative flex min-h-0 flex-1 flex-col">
+        <div class="flex min-h-0 flex-1 flex-col" wire:loading.delay.class="opacity-50" wire:target="{{ $objetivosCarga }}">
             {{-- flux:table. El <thead> va a mano (no flux:table.columns) porque lleva dos filas:
                  títulos y filtros por columna; las celdas sí son de Flux. --}}
             <flux:table class="tabla-cebra tabla-seleccionable">
-                <thead>
+                <thead class="sticky top-0 z-20 bg-white">
                     <tr>
                         @foreach ($columnas as $columna)
                             @php
@@ -111,6 +113,7 @@
                                 <th class="{{ $columna['clase'] ?? '' }}">
                                     @if ($conFiltro($columna))
                                         <input type="search" class="tabla-filtro-input" placeholder="Filtrar"
+                                               title="Varios valores separados por coma: 2229, 2039, 2049"
                                                aria-label="Filtrar {{ $columna['titulo'] ?? $columna['campo'] }}"
                                                wire:model.live.debounce.400ms="filtrosColumna.{{ $indice }}">
                                     @endif

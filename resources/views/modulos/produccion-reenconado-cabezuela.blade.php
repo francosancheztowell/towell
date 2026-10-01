@@ -49,10 +49,10 @@
         ],
     ];
 @endphp
-<div class="w-full" id="pagina-reenconado" data-pagina='@json($configPagina)'>
+<div class="pantalla-completa" id="pagina-reenconado" data-pagina='@json($configPagina)'>
     {{-- flux:table + .tabla-cebra / .tabla-seleccionable / data-filtros-columna (app.css, tabla-columnas.ts).
          reenconado/index.ts solo pone hidden ("Mis registros") y aria-selected. --}}
-    <div class="bg-white w-full">
+    <div class="tabla-pantalla bg-white">
         <flux:table id="tabla-registros" data-filtros-columna class="tabla-cebra tabla-seleccionable">
             <flux:table.columns sticky class="bg-white">
                 <flux:table.column align="center">Folio</flux:table.column>

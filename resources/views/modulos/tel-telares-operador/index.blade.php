@@ -17,7 +17,7 @@ Telares por Operador
 @endsection
 
 @section('content')
-<div class="w-full px-4 py-6">
+<div class="pantalla-completa p-2">
     {{-- Errores de validación y éxito: los pinta x-ui.flash del layout. --}}
 
     @php
@@ -27,9 +27,8 @@ Telares por Operador
 
     {{-- flux:table + .tabla-cebra / .tabla-seleccionable / data-filtros-columna (app.css, tabla-columnas.ts).
          Selección: el script de abajo solo pone aria-selected. --}}
-    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-        <flux:table id="telaresOperadorTable" data-filtros-columna class="tabla-cebra tabla-seleccionable"
-                    container:class="max-h-[75vh] min-h-[200px] [&>ui-table-scroll-area]:min-h-0 [&>ui-table-scroll-area]:overscroll-contain">
+    <div class="tabla-pantalla bg-white rounded-lg shadow-lg overflow-hidden">
+        <flux:table id="telaresOperadorTable" data-filtros-columna class="tabla-cebra tabla-seleccionable">
             <flux:table.columns sticky class="bg-white">
                 <flux:table.column>Número</flux:table.column>
                 <flux:table.column>Nombre</flux:table.column>

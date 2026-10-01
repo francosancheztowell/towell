@@ -76,7 +76,7 @@ function iniciar(raiz: HTMLElement, cfg: ConfigPrograma): void {
     const marcarColumnas = (): void => {
         cabecera?.querySelectorAll<HTMLElement>('th[data-column]').forEach((th) => {
             const conFiltro = Boolean(columnas[th.dataset.column ?? '']);
-            th.classList.toggle('bg-green-100', conFiltro);
+            th.toggleAttribute('data-filtro-activo', conFiltro); // verde: app.css
         });
     };
 

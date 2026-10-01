@@ -80,31 +80,28 @@
 
                 <!-- Botón Salir -->
                 @if($isProduccionIndex)
-                    <flux:modal.trigger name="confirmar-salir">
-                        <flux:button variant="danger" icon="arrow-right-start-on-rectangle"
-                                     class="min-h-touch font-bold">Salir</flux:button>
-                    </flux:modal.trigger>
+                    {{-- <dialog> nativo y no flux:modal: este layout no carga Alpine (ver app.blade.php)
+                         y flux:modal lo necesita. Lo abre componentes/dialog-nativo.ts. --}}
+                    <flux:button data-dialog-abrir="confirmar-salir" variant="danger" icon="arrow-right-start-on-rectangle"
+                                 class="min-h-touch font-bold">Salir</flux:button>
 
-                    <flux:modal name="confirmar-salir" class="w-full max-w-sm">
-                        <form method="POST" action="{{ route('logout') }}" class="space-y-6">
+                    <dialog id="confirmar-salir" aria-labelledby="confirmar-salir-titulo"
+                            class="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl bg-white p-0 shadow-2xl ring ring-black/5 backdrop:bg-black/50">
+                        <form method="POST" action="{{ route('logout') }}" class="flex flex-col items-center gap-6 p-8 text-center">
                             @csrf
-                            <div class="flex items-start gap-4">
-                                <div class="flex size-12 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
-                                    <flux:icon.arrow-right-start-on-rectangle />
-                                </div>
-                                <div>
-                                    <flux:heading size="lg">¿Cerrar sesión?</flux:heading>
-                                    <flux:text class="mt-1">Tendrás que volver a entrar con tu número de empleado.</flux:text>
-                                </div>
+                            <div class="flex size-20 items-center justify-center rounded-full bg-red-100 text-red-600">
+                                <flux:icon.arrow-right-start-on-rectangle class="size-10" />
                             </div>
-                            <div class="flex justify-end gap-2">
-                                <flux:modal.close>
-                                    <flux:button variant="ghost" class="min-h-touch">Cancelar</flux:button>
-                                </flux:modal.close>
-                                <flux:button type="submit" variant="danger" class="min-h-touch">Sí, salir</flux:button>
+                            <div>
+                                <flux:heading id="confirmar-salir-titulo" size="xl" class="text-2xl!">¿Cerrar sesión?</flux:heading>
+                                <flux:text class="mt-2 text-base!">Tendrás que volver a entrar con tu número de empleado.</flux:text>
+                            </div>
+                            <div class="grid w-full grid-cols-2 gap-3">
+                                <flux:button type="submit" formmethod="dialog" formnovalidate class="h-14! text-lg! font-semibold">Cancelar</flux:button>
+                                <flux:button type="submit" variant="danger" icon="arrow-right-start-on-rectangle" class="h-14! text-lg! font-semibold">Sí, salir</flux:button>
                             </div>
                         </form>
-                    </flux:modal>
+                    </dialog>
                 @endif
 
                 <!-- Avatar + menú de usuario: ui-dropdown de Flux abre/cierra, Esc, clic fuera y foco. -->

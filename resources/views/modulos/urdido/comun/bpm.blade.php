@@ -73,13 +73,12 @@
 @endsection
 
 @section('content')
-<div id="bpm-pagina" data-bpm='@json($configBpm)'>
-    {{-- flux:table. Alto: lo que deja el navbar; el scroll vive en el ui-table-scroll-area de Flux
-         (min-h-0 para que encoja dentro del max-h y el encabezado sticky funcione).
+<div id="bpm-pagina" class="pantalla-completa p-2" data-bpm='@json($configBpm)'>
+    {{-- flux:table a pantalla completa (.pantalla-completa / .tabla-pantalla, app.css): el scroll vive en
+         la tabla y el encabezado queda fijo.
          Cebra, selección y filtros por columna: piezas reutilizables de app.css / tabla-columnas.ts. --}}
-    <div class="rounded-lg bg-white shadow-sm overflow-hidden mt-2 mx-2 sm:mt-4 sm:mx-4">
+    <div class="tabla-pantalla rounded-lg bg-white shadow-sm overflow-hidden">
         <flux:table id="bpmTable"
-                    container:class="max-h-[calc(100dvh-4.75rem)] sm:max-h-[calc(100dvh-5.5rem)] [&>ui-table-scroll-area]:min-h-0 [&>ui-table-scroll-area]:overscroll-contain"
                     data-filtros-columna
                     class="tabla-cebra tabla-seleccionable">
             <flux:table.columns sticky class="bg-white">

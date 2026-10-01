@@ -40,9 +40,9 @@
         ],
     ];
 @endphp
-<div id="tel-bpm-line-pagina" class="max-w-full mx-auto p-2 pb-4" data-tel-bpm-line='@json($configLinea)'>
+<div id="tel-bpm-line-pagina" class="pantalla-completa gap-2 p-2" data-tel-bpm-line='@json($configLinea)'>
     {{-- Header --}}
-    <div class="bg-white rounded-xl border p-4 mb-4">
+    <div class="bg-white rounded-xl border p-4 shrink-0">
         <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
                 <div class="text-md text-slate-500">Folio</div>
@@ -80,8 +80,8 @@
             'M' => 'bg-amber-100 border-amber-400 text-amber-700 hover:bg-amber-200',
         ];
     @endphp
-    <div class="rounded-lg bg-white shadow-sm overflow-hidden">
-        <flux:table id="grid" class="tabla-cebra" container:class="max-h-[calc(100vh-280px)] [&>ui-table-scroll-area]:min-h-0">
+    <div class="tabla-pantalla rounded-lg bg-white shadow-sm overflow-hidden">
+        <flux:table id="grid" class="tabla-cebra">
             <flux:table.columns sticky class="bg-white">
                 <flux:table.column sticky class="bg-white min-w-[160px]">Actividad</flux:table.column>
                 @foreach($telares as $t)
@@ -125,7 +125,7 @@
     </div>
 
     {{-- Sección de Comentarios --}}
-    <div class="bg-white rounded-lg border p-2 mt-2">
+    <div class="bg-white rounded-lg border p-2 shrink-0">
         <div class="flex items-center justify-between mb-2">
             <h3 class="text-base font-semibold text-gray-700">Comentarios</h3>
             <span id="comentarios-status" class="text-xs text-slate-400"></span>

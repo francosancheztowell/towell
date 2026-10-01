@@ -79,9 +79,9 @@
 @endsection
 
 @section('content')
-<div id="actividades-bpm-pagina" class="container mx-auto px-4 py-6" data-actividades-bpm='@json($configActividades)'>
+<div id="actividades-bpm-pagina" class="pantalla-completa p-2" data-actividades-bpm='@json($configActividades)'>
     <!-- Tabla de Actividades -->
-    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="tabla-pantalla bg-white rounded-lg shadow-md overflow-hidden">
         {{-- flux:table + piezas reutilizables (app.css). Selección: index.ts pone aria-selected.
              Filtros por columna solo sin paginar (Urdido): en Engomado filtrarían una sola página. --}}
         <flux:table id="actividadesBpmTable" class="tabla-cebra tabla-seleccionable" :data-filtros-columna="$paginado ? null : true">

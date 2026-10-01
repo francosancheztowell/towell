@@ -112,6 +112,11 @@ class CatalogoFallasLivewireTest extends TestCase
             ->assertViewHas('filas', fn ($filas) => $filas->total() === 2)
             ->set('filtrosColumna.1', 'urd')
             ->assertViewHas('filas', fn ($filas) => $filas->total() === 1 && $filas->first()->Falla === 'Fuga de aire')
+            // Como en AX: comas = varios valores (OR) dentro de la columna.
+            ->set('filtrosColumna', [2 => 'aire, corto'])
+            ->assertViewHas('filas', fn ($filas) => $filas->total() === 2)
+            ->set('filtrosColumna', [2 => ' , '])
+            ->assertViewHas('filas', fn ($filas) => $filas->total() === 3)
             // Un índice que no existe o sin 'filtro' no llega al SQL.
             ->set('filtrosColumna', ['99' => 'x', 'Falla' => 'nada'])
             ->assertViewHas('filas', fn ($filas) => $filas->total() === 3);

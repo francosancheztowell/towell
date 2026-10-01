@@ -8,10 +8,10 @@
 @endsection
 
 @section('content')
-<div class="w-full px-4 py-6">
+<div class="pantalla-completa p-2">
     {{-- flux:table + .tabla-cebra y filtros por columna (app.css, tabla-columnas.ts): reemplazan el
          menú de clic derecho y el modal de filtros que tenía la vista. --}}
-    <div class="bg-white rounded-2xl overflow-hidden shadow-sm">
+    <div class="tabla-pantalla bg-white rounded-2xl overflow-hidden shadow-sm">
         <flux:table id="usuariosTable" data-filtros-columna class="tabla-cebra"
                     data-ruta-productivo="{{ route('configuracion.basededatos.update-productivo') }}">
             <flux:table.columns sticky class="bg-white">

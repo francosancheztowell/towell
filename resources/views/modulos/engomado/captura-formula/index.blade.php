@@ -82,11 +82,11 @@
         ];
     @endphp
 
-    <div id="captura-formula" data-pagina='@json($configPagina)'>
+    <div id="captura-formula" class="pantalla-completa p-2" data-pagina='@json($configPagina)'>
     {{-- flux:table + .tabla-cebra / .tabla-seleccionable (app.css). Filtro por columna con clic derecho
          y orden por fecha: captura-formula/filtros.ts (motor propio de la pantalla). --}}
-    <div class="rounded-xl bg-white shadow-md mt-4 mx-4 overflow-hidden">
-        <flux:table id="formulaTable" class="tabla-cebra tabla-seleccionable" container:class="max-h-[70vh] [&>ui-table-scroll-area]:min-h-0">
+    <div class="tabla-pantalla rounded-xl bg-white shadow-md overflow-hidden">
+        <flux:table id="formulaTable" class="tabla-cebra tabla-seleccionable">
             <flux:table.columns sticky class="bg-white">
                     @if($puedeVerCalidad)
                     <flux:table.column align="center">Calidad</flux:table.column>
