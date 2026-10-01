@@ -45,6 +45,26 @@ test('419 y 401 de Livewire: mismo aviso que http, sin el confirm() en inglés, 
   assert.equal(reloads, 1)
 })
 
+test('502-504 de Livewire: toast en vez del modal de error, uno por minuto', (t) => {
+  t.mock.timers.enable({ apis: ['Date'] })
+  const hooks = {}
+  sesion.escucharSesionLivewire({ hook: (nombre, cb) => { hooks[nombre] = cb } })
+  const fallos = []
+  hooks.request({ fail: (cb) => fallos.push(cb) })
+  let prevenidos = 0
+  const falla = (status) => fallos.forEach((cb) => cb({ status, preventDefault: () => prevenidos++ }))
+  const avisos = () => document.body.querySelectorAll('.towell-toast__msg').filter((el) => el.textContent === sesion.SERVIDOR_OCUPADO_MESSAGE).length
+
+  falla(503)
+  falla(502)
+  assert.equal(prevenidos, 2, 'Livewire no pinta su modal')
+  assert.equal(avisos(), 1, 'dos fallos seguidos, un solo aviso')
+
+  t.mock.timers.tick(sesion.SERVIDOR_OCUPADO_SILENCIO_MS)
+  falla(504)
+  assert.equal(avisos(), 2)
+})
+
 test('http reexporta el mismo mensaje de sesión (un solo texto en la app)', async () => {
   const http = await import('../../resources/js/utils/http.ts')
   assert.equal(http.SESSION_EXPIRED_MESSAGE, sesion.SESSION_EXPIRED_MESSAGE)

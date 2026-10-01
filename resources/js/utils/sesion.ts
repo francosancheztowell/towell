@@ -40,13 +40,37 @@ interface LivewireConHooks {
     hook(name: string, callback: (...args: any[]) => void): void;
 }
 
-/** Reemplaza el confirm() de Livewire para 419/401 por el mismo aviso que http. */
+export const SERVIDOR_OCUPADO_MESSAGE = 'El servidor no respondió. Si estabas guardando algo, vuelve a intentarlo.';
+
+/** Entre avisos de servidor ocupado: un poll cada 15 s no debe llenar la pantalla de toasts. */
+export const SERVIDOR_OCUPADO_SILENCIO_MS = 60_000;
+
+let ultimoAvisoOcupado = -Infinity;
+
+/**
+ * 502/503/504: el servidor (Apache) no tuvo worker libre o se cayó el proxy. Livewire pinta
+ * esa página de error en un modal que bloquea la pantalla; se cambia por un toast. No se
+ * reintenta solo: en producción un 503 puede llegar después de que la acción sí corrió
+ * (ver crudo/busy-retry.ts). Los polls se recuperan en su siguiente vuelta.
+ */
+function servidorOcupado(): void {
+    const ahora = Date.now();
+    if (ahora - ultimoAvisoOcupado < SERVIDOR_OCUPADO_SILENCIO_MS) return;
+    ultimoAvisoOcupado = ahora;
+    notify.warning(SERVIDOR_OCUPADO_MESSAGE);
+}
+
+/** Reemplaza el confirm() de Livewire para 419/401 y su modal de error para 502-504. */
 export function escucharSesionLivewire(livewire: LivewireConHooks): void {
     livewire.hook('request', ({ fail }: { fail: (cb: (f: FalloLivewire) => void) => void }) => {
         fail(({ status, preventDefault }) => {
-            if (!esSesionExpirada(status)) return;
-            preventDefault();
-            sesionExpirada();
+            if (esSesionExpirada(status)) {
+                preventDefault();
+                sesionExpirada();
+            } else if (status >= 502 && status <= 504) {
+                preventDefault();
+                servidorOcupado();
+            }
         });
     });
 }
