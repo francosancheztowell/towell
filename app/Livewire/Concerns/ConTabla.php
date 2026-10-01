@@ -57,9 +57,13 @@ trait ConTabla
      *   titulo  string  encabezado visible
      *   orden   bool    ordenable (default true)
      *   clase   string  clases de la celda (ej. 'hidden md:table-cell' para móvil)
+     *   alinear string  'start' (default), 'center' o 'end': encabezado y celdas (align de flux:table)
      *   valor   Closure opcional, recibe la fila y devuelve el texto a pintar
-     *   filtro  true = filtro por columna sobre `campo`; string = columna real a filtrar
-     *           (para alias de un JOIN: SQL Server no acepta alias en el WHERE). Default: sin filtro
+     *   filtro  true = filtro por columna sobre `campo` (contiene, LIKE); string = columna real a filtrar
+     *           (para alias de un JOIN: SQL Server no acepta alias en el WHERE); Closure(Builder, list<string>)
+     *           = filtro propio con las partes ya separadas por coma (ej. App\Support\FiltroAx::mes('Mes'),
+     *           sintaxis de AX: rangos, >, !). Default: sin filtro
+     *   filtroAyuda string  ejemplo que se ve en el input del filtro (placeholder)
      *
      * @return array<int, array<string, mixed>>
      */
@@ -116,6 +120,11 @@ trait ConTabla
         foreach ($this->columnasFiltrables() as $indice => $columna) {
             $partes = $this->partesFiltro((string) ($this->filtrosColumna[$indice] ?? ''));
             $query->when($partes !== [], fn (Builder $q): Builder => $q->where(function (Builder $sub) use ($columna, $partes): void {
+                if ($columna instanceof \Closure) {
+                    $columna($sub, $partes);
+
+                    return;
+                }
                 foreach ($partes as $parte) {
                     $sub->orWhere($columna, 'like', '%'.$parte.'%');
                 }
@@ -160,16 +169,19 @@ trait ConTabla
     }
 
     /**
-     * Índice => columna real de cada columna con filtro. Lista blanca: las claves y valores
-     * de filtrosColumna vienen del cliente; solo los textos llegan al SQL, como binding.
+     * Índice => columna real (o filtro propio) de cada columna con filtro. Lista blanca: las claves
+     * y valores de filtrosColumna vienen del cliente; solo los textos llegan al SQL, como binding.
      *
-     * @return array<int, string>
+     * @return array<int, string|\Closure>
      */
     protected function columnasFiltrables(): array
     {
         return collect($this->columnas())
             ->filter(fn (array $columna): bool => ! empty($columna['filtro']) && filled($columna['campo'] ?? null))
-            ->map(fn (array $columna): string => is_string($columna['filtro']) ? $columna['filtro'] : $columna['campo'])
+            ->map(fn (array $columna): string|\Closure => match (true) {
+                $columna['filtro'] instanceof \Closure, is_string($columna['filtro']) => $columna['filtro'],
+                default => $columna['campo'],
+            })
             ->all();
     }
 

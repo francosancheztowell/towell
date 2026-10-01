@@ -1528,13 +1528,6 @@ const utils = {
         }
 
         // Abrir modal de duplicar/importar codificación
-        // Verificar si SweetAlert2 está disponible
-        if (typeof Swal === 'undefined') {
-            console.error('SweetAlert2 no está disponible');
-            showToast('Error: SweetAlert2 no está cargado', 'error');
-            return;
-        }
-
         if (typeof window.abrirModalDuplicarImportarCodificacion === 'function') {
             window.abrirModalDuplicarImportarCodificacion(state.selectedId);
         } else {
@@ -1547,17 +1540,7 @@ const utils = {
      * Muestra una alerta SweetAlert2 al hacer clic en el botón de la navbar.
      */
     function mostrarAlertaNavbar() {
-        if (typeof Swal === 'undefined') {
-            alert('SweetAlert2 no está cargado.');
-            return;
-        }
-        Swal.fire({
-            title: 'Módulo de Codificación',
-            html: '<p class="text-gray-600">Modelos Codificados</p>',
-            icon: 'info',
-            confirmButtonText: 'Aceptar',
-            confirmButtonColor: '#3b82f6'
-        });
+        window.notify.html('<p class="text-gray-600">Modelos Codificados</p>', 'Módulo de Codificación', 'info');
     }
 
     // ============================================
@@ -1582,16 +1565,15 @@ function eliminarCodificacion() {
             return;
         }
 
-    Swal.fire({
+    window.notify.confirm({
             title: '¿Eliminar registro?',
         text: 'Esta acción no se puede deshacer',
         icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar'
-    }).then(result => {
-        if (!result.isConfirmed) return;
+        confirmColor: '#d33',
+        confirmText: 'Sí, eliminar',
+        cancelText: 'Cancelar'
+    }).then(ok => {
+        if (!ok) return;
 
         fetch(`/planeacion/catalogos/codificacion-modelos/${state.selectedId}`, {
             method: 'DELETE',
@@ -1696,20 +1678,14 @@ function eliminarCodificacion() {
     }
 
     function filtrarCodificacion() {
-        Swal.fire({
+        window.notify.dialog({
+            titulo: 'Filtrar Datos',
+            tono: null,
+            ancho: 'xl',
+            formulario: true,
+            botones: [{ texto: 'Cerrar', valor: 'cerrar', variante: 'secundario' }],
             html: `
-                <div class="relative">
-                    <div class="flex items-center justify-between mb-4 pb-3">
-                        <h2 class="text-lg font-semibold text-gray-800">Filtrar Datos</h2>
-                        <button
-                            type="button"
-                            id="btn-close-modal"
-                            class="text-gray-400 hover:text-red-600 text-2xl leading-none"
-                        >
-                            &times;
-                        </button>
-                    </div>
-
+                <div class="relative text-left">
                     <div class="space-y-4">
                         <div class="">
                             <div class="flex flex-wrap gap-2">
@@ -1764,17 +1740,8 @@ function eliminarCodificacion() {
                     </div>
                 </div>
             `,
-            width: '580px',
-            showConfirmButton: false,
-            showCancelButton: false,
-            showCloseButton: false,
-            didOpen: () => {
+            alAbrir: () => {
                 renderModalFilters();
-
-                const closeBtn = $('#btn-close-modal');
-                if (closeBtn) {
-                    closeBtn.onclick = () => Swal.close();
-                }
 
                 const addBtn = $('#btn-add-filter');
                 if (addBtn) {
@@ -1795,7 +1762,7 @@ function eliminarCodificacion() {
                 if (clearBtn) {
                     clearBtn.onclick = () => {
                         limpiarFiltrosCodificacion();
-                        Swal.close();
+                        window.notify.close();
                     };
                 }
 
@@ -1803,7 +1770,7 @@ function eliminarCodificacion() {
                 if (btnQuickOrdCompartida) {
                     btnQuickOrdCompartida.onclick = () => {
                         aplicarAccionRapidaOrdCompartida();
-                        Swal.close();
+                        window.notify.close();
                     };
                 }
 
@@ -1963,14 +1930,13 @@ function eliminarCodificacion() {
                 return;
             }
 
-        Swal.fire({
+        window.notify.confirm({
             title: '¿Procesar Excel?',
                 text: `${file.name} (${sizeMB.toFixed(2)} MB)`,
             icon: 'question',
-            showCancelButton: true,
-                confirmButtonText: 'Procesar'
-            }).then(result => {
-                if (result.isConfirmed) {
+                confirmText: 'Procesar'
+            }).then(ok => {
+                if (ok) {
                     procesarExcel(file);
                 }
             });
@@ -1983,16 +1949,12 @@ function procesarExcel(file) {
     const formData = new FormData();
     formData.append('archivo_excel', file);
 
-        Swal.fire({
-            title: 'Procesando...',
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading()
-        });
+        window.notify.loading('Procesando...');
 
     fetch('/planeacion/catalogos/codificacion-modelos/excel', {
         method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').content
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
             },
         body: formData
     })
@@ -2003,24 +1965,20 @@ function procesarExcel(file) {
                     return;
                 }
 
-                Swal.fire({
-                    title: 'Error',
-                    text: data.message || 'Ocurrió un error al procesar el archivo',
-                    icon: 'error'
-                });
+                // Cierra el loading antes del aviso.
+                window.notify.close();
+                window.notify.alert(data.message || 'Ocurrió un error al procesar el archivo', 'Error', 'error');
             })
             .catch(error => {
-                Swal.fire({
-                    title: 'Error',
-                    text: error.message,
-                    icon: 'error'
-                });
+                window.notify.close();
+                window.notify.alert(error.message, 'Error', 'error');
             });
     }
 
     function pollImportProgress(url, attempts = 0) {
         if (attempts > 600) {
-            Swal.fire({ title: 'Timeout', icon: 'warning' });
+            window.notify.close();
+            window.notify.alert('', 'Timeout', 'warning');
             return;
         }
 
@@ -2036,17 +1994,13 @@ function procesarExcel(file) {
                         updated = 0
                     } = result.data;
 
-                    Swal.update({
-                        html: `${processed_rows}/${total_rows} (${result.percent || 0}%)`
+                    window.notify.update({
+                        text: `${processed_rows}/${total_rows} (${result.percent || 0}%)`
                     });
 
                 if (status === 'done') {
-                    Swal.close();
-                        Swal.fire({
-                            title: '¡Éxito!',
-                            text: `Nuevos: ${created}, Actualizados: ${updated}`,
-                            icon: 'success'
-                        }).then(() => location.reload());
+                    window.notify.close();
+                        window.notify.alert(`Nuevos: ${created}, Actualizados: ${updated}`, '¡Éxito!', 'success').then(() => location.reload());
                         return;
                     }
 
@@ -2372,17 +2326,14 @@ function procesarExcel(file) {
             </div>
         `;
 
-        Swal.fire({
+        window.notify.form({
             title: 'Fijar Columnas',
             html: html,
-            showCancelButton: true,
-            confirmButtonText: 'Aplicar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#f59e0b',
-            cancelButtonColor: '#6b7280',
-            width: '500px',
-            didOpen: () => {
-                document.querySelectorAll('#swal2-html-container .column-toggle-pin').forEach(checkbox => {
+            confirmText: 'Aplicar',
+            cancelText: 'Cancelar',
+            width: 'lg',
+            didOpen: (root) => {
+                root.querySelectorAll('.column-toggle-pin').forEach(checkbox => {
                     checkbox.addEventListener('change', function() {
                         const columnIndex = parseInt(this.dataset.columnIndex);
                         togglePinColumn(columnIndex);
@@ -2423,17 +2374,15 @@ function procesarExcel(file) {
             </div>
         `;
 
-        Swal.fire({
+        window.notify.form({
             title: 'Ocultar Columnas',
             html: html,
-            showCancelButton: true,
-            confirmButtonText: 'Aplicar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#6b7280',
-            width: '500px',
-            didOpen: () => {
-                document.querySelectorAll('#swal2-html-container .column-toggle-hide').forEach(checkbox => {
+            confirmText: 'Aplicar',
+            cancelText: 'Cancelar',
+            danger: true,
+            width: 'lg',
+            didOpen: (root) => {
+                root.querySelectorAll('.column-toggle-hide').forEach(checkbox => {
                     checkbox.addEventListener('change', function() {
                         const columnIndex = parseInt(this.dataset.columnIndex);
                         if (this.checked) {
@@ -2644,15 +2593,12 @@ function procesarExcel(file) {
 
         html += '</div></div></div>';
 
-        Swal.fire({
+        window.notify.form({
             title: 'Filtrar Columna',
             html: html,
-            showCancelButton: true,
-            confirmButtonText: 'Aplicar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#3b82f6',
-            cancelButtonColor: '#6b7280',
-            width: '500px',
+            confirmText: 'Aplicar',
+            cancelText: 'Cancelar',
+            width: 'lg',
             didOpen: () => {
                 // Restaurar estado de checkboxes si hay filtros activos para esta columna
                 const activeFiltersForColumn = state.filtrosDinamicos.filter(f => f.columna === columnIndex);

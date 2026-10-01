@@ -117,6 +117,43 @@ final class ModulosRutaTest extends TestCase
         );
     }
 
+    public function test_al_crear_un_modulo_se_ve_el_aviso_de_exito(): void
+    {
+        // La vista pintaba el flash con un <script> inline que corria antes que app.js
+        // (modulo diferido): notify no existia y x-ui.flash no lo repetia por verlo ya en
+        // la vista, asi que el alta no mostraba nada. Ahora lo pinta x-ui.flash.
+        $this->actingAs($this->usuarioConPermisos())
+            ->from(route('configuracion.utileria.modulos.index'))
+            ->followingRedirects()
+            ->post(route('configuracion.utileria.modulos.store'), [
+                'orden' => '951',
+                'modulo' => 'Modulo Con Aviso',
+                'Nivel' => 1,
+                'acceso' => 1,
+            ])
+            ->assertOk()
+            ->assertSee('data-ui-flash', false)
+            ->assertSee('Modulo creado correctamente')
+            ->assertDontSee("notify.success('Modulo creado", false);
+    }
+
+    public function test_si_el_alta_falla_se_ve_el_error(): void
+    {
+        DB::connection('sqlsrv')->table('SYSRoles')->insert(['orden' => '952', 'modulo' => 'Ya existe', 'Nivel' => 1]);
+
+        $this->actingAs($this->usuarioConPermisos())
+            ->from(route('configuracion.utileria.modulos.index'))
+            ->followingRedirects()
+            ->post(route('configuracion.utileria.modulos.store'), [
+                'orden' => '952',
+                'modulo' => 'Repetido',
+                'Nivel' => 1,
+            ])
+            ->assertOk()
+            ->assertSee('data-ui-flash', false)
+            ->assertSee('ya existe. Debe ser único.');
+    }
+
     private function usuarioConPermisos(): Usuario
     {
         $usuario = new Usuario(['nombre' => 'Alta de modulos']);

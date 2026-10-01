@@ -150,17 +150,15 @@
         if (!selectedRow) return;
         const id = selectedRow.dataset.id;
         const depto = selectedRow.dataset.depto || 'este registro';
-        Swal.fire({
+        notify.confirm({
             title: '¿Eliminar departamento?',
             text: 'Se eliminará "' + depto + '".',
             icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc2626',
-            cancelButtonColor: '#6b7280',
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar'
+            confirmColor: '#dc2626',
+            confirmText: 'Sí, eliminar',
+            cancelText: 'Cancelar'
         }).then(async r => {
-            if (!r.isConfirmed) return;
+            if (!r) return;
             try {
                 const fd = new FormData();
                 fd.append('_token', csrf);
@@ -178,12 +176,12 @@
                         empty.innerHTML = '<td colspan="3" class="px-4 py-8 text-center text-gray-500">No hay departamentos registrados.</td>';
                         tbody.appendChild(empty);
                     }
-                    Swal.fire({ icon: 'success', title: data.message || 'Eliminado', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+                    notify.success(data.message || 'Eliminado');
                 } else {
-                    Swal.fire({ icon: 'error', title: data.message || 'No se pudo eliminar' });
+                    notify.alert('', data.message || 'No se pudo eliminar', 'error');
                 }
             } catch (err) {
-                Swal.fire({ icon: 'error', title: 'Error de conexión' });
+                notify.alert('', 'Error de conexión', 'error');
             }
         });
     });
@@ -226,13 +224,13 @@
                     tr.innerHTML = '<td class="px-4 py-3 text-gray-700 text-base">' + (item.id || '') + '</td><td class="px-4 py-3 font-medium text-gray-900 text-base">' + (item.Depto || '') + '</td><td class="px-4 py-3 text-gray-600 text-base">' + (item.Descripcion || '—') + '</td>';
                     tbody.appendChild(tr);
                 }
-                Swal.fire({ icon: 'success', title: data.message || 'Guardado', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+                notify.success(data.message || 'Guardado');
             } else {
                 const msg = (data.errors && Object.values(data.errors).flat().length) ? Object.values(data.errors).flat().join(' ') : (data.message || 'No se pudo guardar');
-                Swal.fire({ icon: 'error', title: msg });
+                notify.alert('', msg, 'error');
             }
         } catch (err) {
-            Swal.fire({ icon: 'error', title: 'Error de conexión' });
+            notify.alert('', 'Error de conexión', 'error');
         }
         submitBtn.disabled = false;
     });

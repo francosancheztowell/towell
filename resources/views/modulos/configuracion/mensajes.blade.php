@@ -301,17 +301,15 @@
         if (!selectedRow) return;
         const id = selectedRow.dataset.id;
         const telefono = selectedRow.dataset.telefono || 'este registro';
-        Swal.fire({
+        notify.confirm({
             title: '¿Eliminar mensaje?',
             text: 'Se eliminará el teléfono "' + telefono + '".',
             icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc2626',
-            cancelButtonColor: '#6b7280',
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar'
+            confirmColor: '#dc2626',
+            confirmText: 'Sí, eliminar',
+            cancelText: 'Cancelar'
         }).then(async r => {
-            if (!r.isConfirmed) return;
+            if (!r) return;
             try {
                 const fd = new FormData();
                 fd.append('_token', csrf);
@@ -329,12 +327,12 @@
                         empty.innerHTML = '<td colspan="14" class="px-4 py-8 text-center text-gray-500 text-base">No hay mensajes registrados.</td>';
                         tbody.appendChild(empty);
                     }
-                    Swal.fire({ icon: 'success', title: data.message || 'Eliminado', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+                    notify.success(data.message || 'Eliminado');
                 } else {
-                    Swal.fire({ icon: 'error', title: data.message || 'No se pudo eliminar' });
+                    notify.alert('', data.message || 'No se pudo eliminar', 'error');
                 }
             } catch (err) {
-                Swal.fire({ icon: 'error', title: 'Error de conexión' });
+                notify.alert('', 'Error de conexión', 'error');
             }
         });
     });
@@ -391,12 +389,12 @@
                             selectedRow.cells[3].textContent = item.Token || '';
                             selectedRow.cells[3].title = item.Token || '';
                             closeModalChatId();
-                            Swal.fire({ icon: 'success', title: d.message || 'Chat ID asignado', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+                            notify.success(d.message || 'Chat ID asignado');
                         } else {
-                            Swal.fire({ icon: 'error', title: d.message || 'No se pudo asignar' });
+                            notify.alert('', d.message || 'No se pudo asignar', 'error');
                         }
                     } catch (err) {
-                        Swal.fire({ icon: 'error', title: 'Error de conexión' });
+                        notify.alert('', 'Error de conexión', 'error');
                     }
                 });
             });
@@ -502,13 +500,13 @@
                     tr.innerHTML = '<td class="px-4 py-3 text-gray-700 text-base">' + (item.Id || '') + '</td><td class="px-4 py-3 font-medium text-gray-900 text-base">' + (item.DepartamentoNombre || '') + '</td><td class="px-4 py-3 text-gray-700 text-base">' + (item.Telefono || '') + '</td><td class="px-4 py-3 text-gray-600 text-base max-w-[140px] truncate font-mono" title="' + (item.Token || '') + '">' + (item.Token || '') + '</td><td class="px-4 py-3 text-gray-700 text-base">' + (item.Nombre || '') + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.DesarrolladoresPrue) + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.Desarrolladores) + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.NotificarAtadoJulio) + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.CorteSEF) + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.MarcasFinales) + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.ReporteElectrico) + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.ReporteMecanico) + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.ReporteTiempoMuerto) + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.Atadores) + '</td><td class="px-3 py-2 text-center whitespace-nowrap">' + siNo(item.InvTrama) + '</td>';
                     tbody.appendChild(tr);
                 }
-                Swal.fire({ icon: 'success', title: data.message || 'Guardado', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+                notify.success(data.message || 'Guardado');
             } else {
                 const msg = (data.errors && Object.values(data.errors).flat().length) ? Object.values(data.errors).flat().join(' ') : (data.message || 'No se pudo guardar');
-                Swal.fire({ icon: 'error', title: msg });
+                notify.alert('', msg, 'error');
             }
         } catch (err) {
-            Swal.fire({ icon: 'error', title: 'Error de conexión' });
+            notify.alert('', 'Error de conexión', 'error');
         }
         submitBtn.disabled = false;
     });

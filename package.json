@@ -26,7 +26,6 @@
         "pdfjs-dist": "^6.3.289",
         "qrcode": "^1.5.4",
         "sortablejs": "^1.15.7",
-        "sweetalert2": "^11.26.25",
         "tom-select": "^2.6.2"
     }
 }

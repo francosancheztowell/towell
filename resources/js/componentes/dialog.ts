@@ -92,8 +92,8 @@ export function iniciarModales(root: ParentNode = document): void {
 }
 
 function hayAlertaEncima(): boolean {
-    // Un SweetAlert2 abierto sobre el modal maneja su propio Esc.
-    return document.querySelector('.swal2-container') !== null;
+    // Un diálogo de notify (utils/dialogo.ts) abierto sobre el modal maneja su propio Esc.
+    return document.querySelector('dialog.ui-dialogo[open]') !== null;
 }
 
 let escuchando = false;

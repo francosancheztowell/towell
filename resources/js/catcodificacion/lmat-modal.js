@@ -455,11 +455,6 @@ async function openLMatModal(context = {}) {
         onSaved = () => {},
         showToast = window.showToast || defaultToast,
     } = context;
-    if (typeof Swal === 'undefined') {
-        fallbackToast('SweetAlert2 no está cargado.', 'warning');
-        return;
-    }
-
     const registroSeleccionado = getSelectedRecord();
 
     if (!registroSeleccionado) {
@@ -488,14 +483,7 @@ async function openLMatModal(context = {}) {
     const telarSeleccionado = parseInt(registroSeleccionado?.TelarId, 10) || 0;
 
     // Respuesta visual inmediata mientras se resuelven CatLMat y Matriz de Calibres.
-    Swal.fire({
-        title: 'Lista de materiales',
-        html: '<div class="py-3 text-sm text-gray-600">Preparando materiales...</div>',
-        showConfirmButton: false,
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        didOpen: () => Swal.showLoading(),
-    });
+    window.notify.loading('Lista de materiales');
 
     // El catálogo de artículos AX puede cargarse en paralelo con CatLMat.
     const calibresPromise = LMatMateriales.getCalibres();
@@ -1282,12 +1270,18 @@ async function openLMatModal(context = {}) {
     `;
     }).join('');
 
-    Swal.fire({
+    // Cierra el loading antes de abrir el formulario.
+    window.notify.close();
+    window.notify.dialog({
+        titulo: 'Lista de materiales',
+        tono: null,
+        formulario: true,
+        cerrable: false,
+        ancho: '2xl',
         html: `
             <div class="text-left text-sm text-gray-800">
                 <div class="mb-3 border-b border-gray-200 pb-3 text-center">
                     <div class="flex items-center justify-center gap-2">
-                        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Lista de materiales</h2>
                         <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${esActualizacionLMat ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'}">
                             <i class="${esActualizacionLMat ? 'fas fa-pen' : 'fas fa-plus'} text-[9px]"></i>
                             ${esActualizacionLMat ? 'Actualización' : 'Nueva L.Mat'}
@@ -1457,11 +1451,11 @@ async function openLMatModal(context = {}) {
                 </div>
             </div>
         `,
-        width: 'min(1700px, 98vw)',
-        showConfirmButton: false,
-        allowOutsideClick: false,
-        didOpen: () => {
-            const tbodyLMat = document.querySelector('.swal2-html-container tbody');
+        alAbrir: (raizLMat) => {
+            // Mismo ancho que tenía antes (la tabla tiene muchas columnas).
+            const dialogoLMat = raizLMat.closest('dialog');
+            if (dialogoLMat) dialogoLMat.style.maxWidth = 'min(1700px, 98vw)';
+            const tbodyLMat = raizLMat.querySelector('tbody');
             const pesoCrudoInput = document.getElementById('lmat-pesocrudo');
             const largoInput = document.getElementById('lmat-largo');
             const anchoPeineInput = document.getElementById('lmat-ancho-peine');
@@ -1507,8 +1501,8 @@ async function openLMatModal(context = {}) {
             const cantidadesReferenciaPasadasLMat = {};
             const capturarReferenciaPasadasLMat = () => {
                 ['rizo', 'pie', 'trama', 'c1', 'c2', 'c3', 'c4', 'c5'].forEach((rol) => {
-                    const input = document.querySelector(
-                        `.swal2-html-container tr[data-rol="${rol}"] .lmat-cantidad-input`,
+                    const input = raizLMat.querySelector(
+                        `tr[data-rol="${rol}"] .lmat-cantidad-input`,
                     );
                     if (input) cantidadesReferenciaPasadasLMat[rol] = obtenerCantidadRawLMat(input);
                 });
@@ -1635,7 +1629,7 @@ async function openLMatModal(context = {}) {
                 const pesoCrudoActual = Number(String(pesoCrudoInput?.value ?? '').replace(',', '.')) || 0;
                 const pesos = calcularPesosComponentesLMat(pesoCrudoActual);
                 const aplicar = (rol, pesoG) => {
-                    const fila = document.querySelector(`.swal2-html-container tr[data-rol="${rol}"]`);
+                    const fila = raizLMat.querySelector(`tr[data-rol="${rol}"]`);
                     if (!fila) return;
                     const vals = pesoACantidadYPorcentajeLMat(pesoG, pesos.pesoCrudoTotal);
                     const input = fila.querySelector('.lmat-cantidad-input');
@@ -1655,7 +1649,7 @@ async function openLMatModal(context = {}) {
             // Rizo = residuo real (PesoCrudo − todas las demás filas), no delta de fórmula:
             // absorbe el redondeo a 4 decimales de los Qty guardados y el total da 100% exacto.
             const ajustarRizoResidualLMat = () => {
-                const inputRizo = document.querySelector(`.swal2-html-container tr[data-rol="${rolResidualLMat}"] .lmat-cantidad-input`);
+                const inputRizo = raizLMat.querySelector(`tr[data-rol="${rolResidualLMat}"] .lmat-cantidad-input`);
                 if (!inputRizo) return;
                 const pesoCrudoActual = Number(String(pesoCrudoInput?.value ?? '').replace(',', '.')) || 0;
                 let sumaOtras = 0;
@@ -1676,7 +1670,7 @@ async function openLMatModal(context = {}) {
                 const pesosReferencia = calcularPesosComponentesLMat(pesoCrudoActual, inputsReferenciaLMat);
                 const aplicarDiferencia = (rol, pesoActualG, pesoReferenciaG) => {
                     if (!Object.prototype.hasOwnProperty.call(cantidadesReferenciaPasadasLMat, rol)) return;
-                    const fila = document.querySelector(`.swal2-html-container tr[data-rol="${rol}"]`);
+                    const fila = raizLMat.querySelector(`tr[data-rol="${rol}"]`);
                     const input = fila?.querySelector('.lmat-cantidad-input');
                     const cantidad = Math.max(
                         0,
@@ -2219,7 +2213,7 @@ async function openLMatModal(context = {}) {
                 const filasSinColor = [];
                 const pasadasData = {};
                 const pasadasInvalidas = [];
-                document.querySelectorAll('.swal2-html-container tbody tr').forEach((fila, index) => {
+                raizLMat.querySelectorAll('tbody tr').forEach((fila, index) => {
                     const pasadasInput = fila.querySelector('.lmat-pasadas-input');
                     // Filas C vacías (sin pasadas capturadas) no envían el campo ni bloquean.
                     if (pasadasInput && String(pasadasInput.value).trim() !== '') {
@@ -2386,7 +2380,7 @@ async function openLMatModal(context = {}) {
                 const advertencias = [];
                 const qtyPorRol = {};
                 const datosSinCantidad = [];
-                document.querySelectorAll('.swal2-html-container tbody tr').forEach((fila) => {
+                raizLMat.querySelectorAll('tbody tr').forEach((fila) => {
                     const rol = String(fila.dataset.rol || '');
                     const qty = obtenerCantidadRawLMat(fila.querySelector('.lmat-cantidad-input'));
                     if (rol) qtyPorRol[rol] = qty;
@@ -2413,7 +2407,7 @@ async function openLMatModal(context = {}) {
                 // Combinaciones que tenian datos al abrir y quedaron completamente vacias:
                 // se limpian en CatCodificados para que no reaparezcan al reabrir el modal.
                 const combinacionesVacias = [];
-                document.querySelectorAll('.swal2-html-container tbody tr[data-rol]').forEach((fila) => {
+                raizLMat.querySelectorAll('tbody tr[data-rol]').forEach((fila) => {
                     const indice = String(fila.dataset.rol).match(/^c([1-5])$/);
                     if (!indice) return;
                     const n = Number(indice[1]);
@@ -2502,7 +2496,7 @@ async function openLMatModal(context = {}) {
                             ? baseMsg + ' Se omitieron ' + omitidasSinCantidad + ' fila(s) sin cantidad positiva.'
                             : baseMsg;
                         showToast(msg, 'success');
-                        Swal.close();
+                        window.notify.close();
                         try {
                             onSaved({
                                 orden,
@@ -2533,7 +2527,7 @@ async function openLMatModal(context = {}) {
                 }
             });
             document.getElementById('lmat-cerrar-front')?.addEventListener('click', () => {
-                Swal.close();
+                window.notify.close();
             });
         },
     });

@@ -2,8 +2,8 @@
  * Armado de DOM sin innerHTML para los módulos del bundle de la grilla.
  *
  * Es la misma firma que el() / icono() de modulos/urdido/comun/pagina.ts; no se importa de ahí
- * porque ese archivo trae utils/http.ts → sweetalert2, que no se puede evaluar en el test del
- * bundle (tests/Js/programa-tejido-bundle.test.ts).
+ * porque ese archivo traía utils/http.ts → sweetalert2, que no se podía evaluar en el test del
+ * bundle (tests/Js/programa-tejido-bundle.test.ts). sweetalert2 ya se retiró (2026-10): se puede importar.
  */
 type Hijo = Node | string | null | undefined | false;
 

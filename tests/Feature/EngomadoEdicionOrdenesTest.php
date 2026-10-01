@@ -163,7 +163,10 @@ class EngomadoEdicionOrdenesTest extends TestCase
             ->assertSeeLivewire(\App\Livewire\UrdEng\EdicionOrdenes::class);
         Livewire::test(\App\Livewire\UrdEng\EdicionOrdenes::class, ['module' => 'urdido'])
             ->assertViewHas('boards', fn ($boards) => count($boards) === 4)
-            ->assertSee('Karl Mayer')->call('seleccionar', '1')
+            ->assertSee('Karl Mayer')
+            ->assertSee("elegir('1')", false)
+            ->assertDontSee('elegir(\\"', false)
+            ->call('seleccionar', '1')
             ->assertSee(route('urdido.reimpresion.urdido.ventana.imprimir', ['orden_id' => 1]), false)
             ->assertDontSee('Calificar julios')->assertDontSee('Excel simplificado')
             ->call('editar')->assertRedirect(route('urdido.editar.ordenes.programadas', ['orden_id' => 1, 'from' => 'reimpresion']));

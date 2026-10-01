@@ -29,27 +29,8 @@ Actividades Tejedores · BPM
 
 @section('content')
 <div class="w-full px-4 py-6">
-    @if($errors->any())
-        <script>
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                html: '<ul class="text-left list-disc list-inside">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>',
-                confirmButtonText: 'Aceptar'
-            });
-        </script>
-    @endif
-    @if(session('success'))
-        <script>
-            Swal.fire({
-                icon: 'success',
-                title: 'Éxito',
-                text: '{{ session('success') }}',
-                confirmButtonText: 'Aceptar',
-                timer: 3000
-            });
-        </script>
-    @endif
+    {{-- Éxito y validación los pinta x-ui.flash (layout): un <script> inline aquí corría antes
+         que app.js y notify no existía, así que no salía ningún aviso. --}}
 
     <!-- Tabla de Actividades -->
     <div class="bg-white rounded-lg shadow-lg overflow-hidden">
@@ -359,22 +340,15 @@ Actividades Tejedores · BPM
 
     // Eliminar actividad
     function deleteActivity(key) {
-        Swal.fire({
+        notify.confirm({
             title: '¿Estás seguro?',
             text: 'Esta acción no se puede deshacer',
             icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc2626',
-            cancelButtonColor: '#6b7280',
-            confirmButtonText: '<i class="fa-solid fa-trash mr-1"></i> Sí, eliminar',
-            cancelButtonText: '<i class="fa-solid fa-times mr-1"></i> Cancelar',
-            reverseButtons: true,
-            customClass: {
-                confirmButton: 'px-4 py-2 rounded-lg font-medium',
-                cancelButton: 'px-4 py-2 rounded-lg font-medium'
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
+            confirmColor: '#dc2626',
+            confirmText: 'Sí, eliminar',
+            cancelText: 'Cancelar'
+        }).then((ok) => {
+            if (ok) {
                 const form = document.getElementById('globalDeleteForm');
                 form.action = destroyUrl.replace('PLACEHOLDER', encodeURIComponent(key));
                 form.submit();

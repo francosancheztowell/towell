@@ -7,6 +7,8 @@ import { iniciarAutocierre } from './dismiss.ts';
 import { escucharDialogsNativos } from './dialog-nativo.ts';
 import { iniciarFiltros, refrescarFiltros } from './filter-bar.ts';
 import { iniciarFiltrosColumna } from './tabla-columnas.ts';
+import { escucharColumnasFijas, iniciarColumnasFijas } from './tabla-fijar.ts';
+import { escucharEntradasFiltradas } from './entrada-filtrada.ts';
 import { loader } from './loader.ts';
 import { iniciarConexion, pintarConexion } from './conexion.ts';
 import { mostrarModalDiasLiberar } from './dias-liberar.ts';
@@ -37,11 +39,14 @@ function iniciar(): void {
     iniciarAutocierre();
     iniciarFiltros();
     iniciarFiltrosColumna();
+    iniciarColumnasFijas();
     pintarConexion();
 }
 
 escucharDocumento();
 escucharDialogsNativos();
+escucharColumnasFijas();
+escucharEntradasFiltradas();
 iniciarConexion();
 
 // UX-11: 419/401 de Livewire → mismo aviso y recarga que window.http (sin el confirm en inglés).

@@ -146,38 +146,28 @@ export function liberarOrdenes(cfg: ConfigLiberar): void {
         return;
     }
 
-    // Confirmación con el POST dentro (loader en el botón y error en el mismo modal): SweetAlert2.
-    void Swal.fire({
+    // Confirmación con el POST dentro (botones deshabilitados mientras corre y error en el mismo modal).
+    void notify.form<RespuestaLiberar>({
         title: 'Liberar órdenes',
         html: `Se actualizarán <strong>${registros.length}</strong> registros seleccionados.`,
         icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Liberar',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#22c55e',
-        cancelButtonColor: '#6b7280',
-        showLoaderOnConfirm: true,
-        allowOutsideClick: () => !Swal.isLoading(),
-        preConfirm: async () => {
+        confirmText: 'Liberar',
+        cancelText: 'Cancelar',
+        width: 'md',
+        preConfirm: async (ctx) => {
             try {
                 const data = await http.post<RespuestaLiberar>(cfg.rutas.procesar, { registros });
                 if (!data?.success) throw new Error(mensajeLiberar(data));
                 return data;
             } catch (error) {
-                Swal.showValidationMessage(error instanceof HttpError ? mensajeLiberar(error.data) : (error as Error).message);
-                return undefined;
+                ctx.error(error instanceof HttpError ? mensajeLiberar(error.data) : (error as Error).message);
+                return false;
             }
         },
-    }).then((result) => {
-        const payload = result.isConfirmed ? (result.value as RespuestaLiberar | undefined) : undefined;
+    }).then((payload) => {
         if (!payload) return;
         if (payload.fileData) descargarExcelBase64(payload.fileData, payload.fileName);
-        void Swal.fire({
-            icon: 'success',
-            title: 'Órdenes liberadas',
-            text: payload.message || 'Se actualizaron los registros seleccionados.',
-            confirmButtonText: 'Aceptar',
-        }).then(() => {
+        void notify.alert(payload.message || 'Se actualizaron los registros seleccionados.', 'Órdenes liberadas', 'success').then(() => {
             window.location.href = payload.redirectUrl || cfg.rutas.redirect;
         });
     });

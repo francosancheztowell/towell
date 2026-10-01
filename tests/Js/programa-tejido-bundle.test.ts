@@ -39,7 +39,6 @@ function instalarDomDeMentira() {
 	}
 	g.localStorage = store
 	g.sessionStorage = store
-	g.Swal = { fire: noop, close: noop, isVisible: () => false }
 	g.showToast = noop
 	g.notify = { success: noop, error: noop, warning: noop, info: noop }
 	g.http = { get: noop, post: noop }

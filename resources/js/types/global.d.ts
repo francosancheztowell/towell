@@ -7,7 +7,6 @@
  * ese módulo, no aquí.
  */
 import type { AxiosStatic } from 'axios';
-import type SwalStatic from 'sweetalert2';
 import type { Http } from '../utils/http.ts';
 import type { Notify } from '../utils/notifications.ts';
 import type { Combobox, OpcionesCombobox } from '../utils/combobox.ts';
@@ -37,7 +36,6 @@ declare global {
     var http: Http;
     var notify: Notify;
     var showToast: (message: unknown, type?: string) => void;
-    var Swal: typeof SwalStatic;
     var toastr: ToastrClient;
     var combobox: (select: HTMLSelectElement, opciones?: OpcionesCombobox) => Promise<Combobox>;
     var librerias: Librerias;

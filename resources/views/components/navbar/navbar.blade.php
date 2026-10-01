@@ -27,7 +27,8 @@
         && !request()->routeIs('crudo.*')
         && !request()->is('simulacion*')
         && !request()->routeIs('ventas.*')
-        && !request()->is('ventas*');
+        && !request()->is('ventas*')
+        && !request()->routeIs('costos.*');
 
     // Días para liberar órdenes
     $diasLiberarOrdenes = session('liberar_ordenes_dias', 10.999);
@@ -85,7 +86,7 @@
                     <flux:button data-dialog-abrir="confirmar-salir" variant="danger" icon="arrow-right-start-on-rectangle"
                                  class="min-h-touch font-bold">Salir</flux:button>
 
-                    <dialog id="confirmar-salir" aria-labelledby="confirmar-salir-titulo"
+                    <dialog id="confirmar-salir" data-dialog-nativo aria-labelledby="confirmar-salir-titulo"
                             class="m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl bg-white p-0 shadow-2xl ring ring-black/5 backdrop:bg-black/50">
                         <form method="POST" action="{{ route('logout') }}" class="flex flex-col items-center gap-6 p-8 text-center">
                             @csrf

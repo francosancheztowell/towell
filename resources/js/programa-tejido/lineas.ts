@@ -9,6 +9,7 @@ import {
     totalesLineas,
     type LineaDiaria,
 } from './lineas-logica.ts';
+import { notify } from '../utils/notifications.ts';
 import { el, icono, spinner } from './nodos.ts';
 import { esCancelacion, statusDelError } from './respuesta.ts';
 import { rutaSuperficie } from './rutas.ts';
@@ -204,30 +205,22 @@ function openLinesModal(programaId: string | number): void {
                 el('div', { clase: 'w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin' }),
                 el('span', { clase: 'text-gray-700 font-medium', texto: 'Cargando detalle del telar...' }))));
 
-    // Modal propio con tabla, totales y selección: se queda en SweetAlert2 (mismo diseño).
-    void Swal.fire({
-        title: '<div class="text-lg font-bold text-gray-800">Detalle del Telar</div>',
-        html: cargando,
-        width: '90%',
-        showConfirmButton: false,
-        showCancelButton: false,
-        showCloseButton: true,
-        closeButtonHtml: '<i class="fa-solid fa-times text-gray-400 hover:text-gray-600 text-sm transition-colors"></i>',
-        allowOutsideClick: true,
-        allowEscapeKey: true,
-        backdrop: true,
-        customClass: {
-            popup: 'rounded-lg shadow-2xl',
-            title: '!mb-1',
-            htmlContainer: 'p-0',
-            closeButton: '!top-4 !right-4 !w-8 !h-8 !flex !items-center !justify-center !text-xl hover:bg-gray-100 rounded-full transition-colors',
+    // Modal propio con tabla, totales y selección (solo lectura: botón Cerrar, Esc o clic fuera).
+    void notify.dialog({
+        titulo: 'Detalle del Telar',
+        html: '<div id="lines-modal-content" class="w-full"></div>',
+        tono: null,
+        ancho: '2xl',
+        botones: [{ texto: 'Cerrar', valor: 'cerrar', variante: 'secundario' }],
+        alAbrir: (root) => {
+            root.replaceChildren(cargando);
+            void cargarModal(programaId, requestId, controlador.signal);
         },
-        didOpen: () => { void cargarModal(programaId, requestId, controlador.signal); },
-        willClose: () => {
-            // Cancelar petición pendiente al cerrar el modal
-            currentLinesAbortController?.abort();
-            currentLinesAbortController = null;
-        },
+    }).then(() => {
+        // Cancelar petición pendiente al cerrar el modal (si no la reemplazó otro modal ya abierto).
+        if (currentLinesAbortController !== controlador) return;
+        controlador.abort();
+        currentLinesAbortController = null;
     });
 }
 

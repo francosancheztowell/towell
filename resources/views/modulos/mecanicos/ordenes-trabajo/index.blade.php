@@ -337,10 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
             window.notify[icon](title);
             return;
         }
-        if (window.Swal) {
-            Swal.fire({ icon, title, toast: true, position: 'top-end', showConfirmButton: false, timer: 2800, timerProgressBar: true });
-            return;
-        }
         window.alert(title);
     }
 

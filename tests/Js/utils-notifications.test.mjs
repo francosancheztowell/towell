@@ -1,26 +1,21 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import Swal from 'sweetalert2'
-
 import { installFakeDom } from './utils-fake-dom.mjs'
 
 const document = installFakeDom()
 
-let fired = []
-Swal.fire = async (options) => {
-  fired.push(options)
-
-  return { isConfirmed: options.showCancelButton === true }
-}
-
-const { MAX_TOASTS, TOAST_DURATION, TOAST_DURATIONS, notify, showToast } = await import('../../resources/js/utils/notifications.ts')
+const { MAX_TOASTS, TOAST_DURATION, TOAST_DURATIONS, esColorPeligro, notify, showToast } = await import('../../resources/js/utils/notifications.ts')
 
 const container = () => document.getElementById('towell-toasts')
 
+const dialogoAbierto = () => document.querySelector('dialog')
+const botones = () => dialogoAbierto().querySelectorAll('button')
+const pulsar = (texto) => botones().find((b) => b.textContent === texto).dispatchEvent({ type: 'click' })
+
 test.beforeEach(() => {
-  fired = []
   container()?.remove()
+  notify.close()
 })
 
 test('el primer toast crea un contenedor aria-live y los estilos una sola vez', () => {
@@ -82,12 +77,13 @@ test('la pila va debajo del navbar (no tapa Crear/Editar/Eliminar)', () => {
   assert.match(css, /\.towell-toasts\{position:fixed;top:calc\(var\(--pt-navbar-height,72px\) \+ \.75rem\)/)
 })
 
-test('los toasts no usan SweetAlert2 (no cierran un modal abierto)', () => {
+test('los toasts no cierran un diálogo abierto', () => {
+  notify.confirm({ text: '¿Seguro?' })
   notify.success('a')
   notify.error('b')
   showToast('c', 'warning')
 
-  assert.equal(fired.length, 0)
+  assert.equal(dialogoAbierto()?.open, true)
 })
 
 test('showToast mantiene la firma (message, type) y cae en info con tipos desconocidos', () => {
@@ -99,11 +95,65 @@ test('showToast mantiene la firma (message, type) y cae en info con tipos descon
   assert.ok(second.classList.contains('towell-toast--info'))
 })
 
-test('confirm devuelve boolean y validation escapa los mensajes', async () => {
-  assert.equal(await notify.confirm({ text: '¿Eliminar?' }), true)
-  assert.equal(fired[0].text, '¿Eliminar?')
+test('confirm abre un <dialog> y devuelve true solo con el botón de confirmar', async () => {
+  const si = notify.confirm({ title: '¿Eliminar?', text: 'No se puede deshacer', confirmText: 'Eliminar', confirmColor: '#dc2626' })
+  assert.equal(dialogoAbierto().open, true)
+  assert.equal(dialogoAbierto().querySelector('.ui-dialogo__titulo').textContent, '¿Eliminar?')
+  assert.deepEqual(botones().map((b) => b.textContent), ['Cancelar', 'Eliminar'])
+  assert.ok(botones()[1].classList.contains('ui-dialogo__boton--peligro'), 'confirmColor rojo → botón de peligro')
+  pulsar('Eliminar')
+  assert.equal(await si, true)
+  assert.equal(dialogoAbierto(), null, 'el <dialog> se quita al cerrar')
 
-  await notify.validation({ nombre: ['<script>x</script>'], clave: 'Requerida' })
-  assert.match(fired[1].html, /&lt;script&gt;x&lt;\/script&gt;/)
-  assert.match(fired[1].html, /<li>Requerida<\/li>/)
+  const no = notify.confirm({ text: '¿Seguro?' })
+  assert.ok(botones()[1].classList.contains('ui-dialogo__boton--primario'))
+  pulsar('Cancelar')
+  assert.equal(await no, false)
+
+  const esc = notify.confirm({ text: '¿Seguro?' })
+  dialogoAbierto().close('') // Esc / clic fuera
+  assert.equal(await esc, false)
+})
+
+test('validation escapa los mensajes y loading se cierra con notify.close()', async () => {
+  const v = notify.validation({ nombre: ['<script>x</script>'], clave: 'Requerida' })
+  const html = dialogoAbierto().querySelector('.ui-dialogo__texto').innerHTML
+  assert.match(html, /&lt;script&gt;x&lt;\/script&gt;/)
+  assert.match(html, /<li>Requerida<\/li>/)
+  pulsar('Aceptar')
+  await v
+
+  const cargando = notify.loading('Guardando...')
+  assert.equal(botones().length, 0, 'el loading no tiene botones')
+  notify.close()
+  await cargando
+  assert.equal(dialogoAbierto(), null)
+})
+
+test('esColorPeligro distingue rojos de azules', () => {
+  for (const c of ['#d33', '#dc2626', '#ef4444', '#e3342f']) assert.equal(esColorPeligro(c), true, c)
+  for (const c of ['#3085d6', '#2563eb', '#6b7280', undefined, 'red']) assert.equal(esColorPeligro(c), false, String(c))
+})
+
+test('form: preConfirm con error lo deja abierto; luego devuelve lo validado; cancelar da null', async () => {
+  let intentos = 0
+  const enviar = () => dialogoAbierto().querySelector('form').dispatchEvent({ type: 'submit', preventDefault() {} })
+  const p = notify.form({
+    title: 'Filtrar',
+    html: '<input id="f">',
+    confirmText: 'Aplicar',
+    preConfirm: ({ error }) => (++intentos === 1 ? error('Escribe algo') : { valor: 'x' }),
+  })
+  assert.ok(dialogoAbierto().classList.contains('ui-dialogo--formulario'))
+  assert.equal(dialogoAbierto().querySelector('.ui-dialogo__icono'), null, 'un formulario va sin ícono')
+  enviar()
+  await new Promise((r) => setTimeout(r, 0))
+  assert.equal(dialogoAbierto().open, true)
+  assert.equal(dialogoAbierto().querySelector('.ui-dialogo__error').textContent, 'Escribe algo')
+  enviar()
+  assert.deepEqual(await p, { valor: 'x' })
+
+  const c = notify.form({ title: 'X', html: '<input>' })
+  pulsar('Cancelar')
+  assert.equal(await c, null)
 })

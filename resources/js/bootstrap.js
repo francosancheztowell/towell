@@ -9,10 +9,6 @@ if (csrfToken) {
     window.axios.defaults.headers.common['X-CSRF-TOKEN'] = csrfToken.content;
 }
 
-// Configurar SweetAlert2 global
-import Swal from 'sweetalert2';
-window.Swal = Swal;
-
 // Cliente HTTP unificado y notificaciones (expuestos para scripts inline de Blade).
 // Ver resources/js/utils/ (tipos en resources/js/types/global.d.ts). Reemplazan los
 // fetch() crudos y los showToast() duplicados.

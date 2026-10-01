@@ -22,9 +22,9 @@ document.addEventListener('DOMContentLoaded', () => {
         http.post<RespuestaRecalcular>(url)
             .then((data) => {
                 if (data.ok) {
-                    // Aviso modal con cierre solo y recarga, como antes.
-                    void Swal.fire({ icon: 'success', title: 'Listo', text: data.message, timer: 2000, showConfirmButton: false })
-                        .then(() => window.location.reload());
+                    // Aviso con cierre solo y recarga a los 2 s, como antes.
+                    notify.success(data.message ?? 'Listo');
+                    setTimeout(() => window.location.reload(), 2000);
                 } else {
                     void notify.alert(data.message ?? '', 'Error', 'error');
                 }

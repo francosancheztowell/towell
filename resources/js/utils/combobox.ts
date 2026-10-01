@@ -97,8 +97,10 @@ export function combobox(select: HTMLSelectElement, opciones: OpcionesCombobox =
     }
 
     // La lista va en <body>, como en Select2: dentro del contenedor la tapaban
-    // encabezados sticky y la recortaban modales/tablas con overflow.
-    ajustes.dropdownParent = 'body';
+    // encabezados sticky y la recortaban modales/tablas con overflow. Dentro de un
+    // <dialog> modal no: el top layer taparía todo lo que esté en <body>; ahí va junto
+    // al select (Tom Select la posiciona sola, relativa a su contenedor).
+    ajustes.dropdownParent = select.closest('dialog') ? null : 'body';
     ajustes.dropdownClass = 'ts-dropdown combobox-flotante';
 
     const instancia: TomSelect = new TomSelect(select, ajustes as ConstructorParameters<typeof TomSelect>[1]);

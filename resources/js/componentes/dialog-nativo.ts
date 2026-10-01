@@ -1,6 +1,7 @@
 /**
  * <dialog> nativo en el top layer: [data-dialog-abrir="id"] abre el dialog con ese id (showModal).
- * Esc y el foco los da el navegador; un <form method="dialog"> cierra sin JS; clic en el fondo cierra.
+ * Esc y el foco los da el navegador; un <form method="dialog"> cierra sin JS; clic en el fondo cierra los [data-dialog-nativo]
+ * (no los de utils/dialogo.ts, que manejan el suyo: el de "Cargando" no debe cerrarse).
  * Delegado en document: wire:navigate reemplaza el <body>.
  */
 export function escucharDialogsNativos(): void {
@@ -13,6 +14,6 @@ export function escucharDialogsNativos(): void {
             return;
         }
         // El clic en el ::backdrop llega con target = el propio <dialog>.
-        if (target instanceof HTMLDialogElement && target.open) target.close();
+        if (target instanceof HTMLDialogElement && target.open && target.hasAttribute('data-dialog-nativo')) target.close();
     });
 }
