@@ -29,16 +29,8 @@ Actividades Tejedores · BPM
 
 @section('content')
 <div class="w-full px-4 py-6">
-    @if($errors->any())
-        <script>
-            notify.html('<ul class="text-left list-disc list-inside">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>', 'Error', 'error');
-        </script>
-    @endif
-    @if(session('success'))
-        <script>
-            notify.success('{{ session('success') }}');
-        </script>
-    @endif
+    {{-- Éxito y validación los pinta x-ui.flash (layout): un <script> inline aquí corría antes
+         que app.js y notify no existía, así que no salía ningún aviso. --}}
 
     <!-- Tabla de Actividades -->
     <div class="bg-white rounded-lg shadow-lg overflow-hidden">
