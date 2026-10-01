@@ -283,3 +283,43 @@
     background-color: var(--color-white); color: var(--color-blue-700); font-weight: 700;
     box-shadow: 0 2px 6px rgb(0 0 0 / 0.2);
 }
+
+/* Diálogo de confirmación/aviso (utils/dialogo.ts, notify.confirm/alert/validation/loading).
+   <dialog> nativo con showModal(): Esc, foco y fondo los da el navegador. Mismo aspecto que
+   el modal de Salir del navbar (tarjeta de Flux, centrado, botones grandes para tablet). */
+.ui-dialogo {
+    margin: auto; padding: 0; border: 0;
+    width: calc(100% - 2rem); max-width: 32rem; max-height: calc(100dvh - 2rem);
+    border-radius: 1rem; background: var(--color-white); color: var(--color-zinc-800);
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / .25), 0 0 0 1px rgb(0 0 0 / .05);
+    overflow-y: auto;
+}
+.ui-dialogo::backdrop { background: rgb(0 0 0 / .5); }
+.ui-dialogo[open] { animation: ui-dialogo-in .15s ease-out; }
+@keyframes ui-dialogo-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ui-dialogo[open] { animation: none; } }
+.ui-dialogo__cuerpo { display: flex; flex-direction: column; align-items: center; gap: 1.5rem; padding: 2rem; text-align: center; }
+.ui-dialogo__icono { display: flex; align-items: center; justify-content: center; width: 5rem; height: 5rem; border-radius: 9999px; font-size: 2.25rem; }
+.ui-dialogo__icono--warning  { background: var(--color-amber-100); color: var(--color-amber-600); }
+.ui-dialogo__icono--danger,
+.ui-dialogo__icono--error    { background: var(--color-red-100); color: var(--color-red-600); }
+.ui-dialogo__icono--success  { background: var(--color-green-100); color: var(--color-green-600); }
+.ui-dialogo__icono--info,
+.ui-dialogo__icono--question,
+.ui-dialogo__icono--loading  { background: var(--color-blue-100); color: var(--color-blue-600); }
+.ui-dialogo__titulo { font-size: var(--text-2xl); line-height: var(--text-2xl--line-height); font-weight: 600; color: var(--color-zinc-800); }
+.ui-dialogo__texto { margin-top: .5rem; font-size: var(--text-base); color: var(--color-zinc-500); white-space: pre-line; overflow-wrap: anywhere; }
+.ui-dialogo__texto ul { margin: 0; padding-left: 1.25rem; list-style: disc; text-align: left; }
+.ui-dialogo__botones { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: .75rem; width: 100%; }
+.ui-dialogo__boton {
+    display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+    height: 3.5rem; padding: 0 1rem; border-radius: .5rem; border: 1px solid transparent;
+    font-size: var(--text-lg); font-weight: 600; cursor: pointer; transition: background-color .15s;
+}
+.ui-dialogo__boton:focus-visible { outline: 2px solid var(--color-blue-500); outline-offset: 2px; }
+.ui-dialogo__boton--primario   { background: var(--color-blue-600); color: var(--color-white); }
+.ui-dialogo__boton--primario:hover { background: var(--color-blue-700); }
+.ui-dialogo__boton--peligro    { background: var(--color-red-500); color: var(--color-white); }
+.ui-dialogo__boton--peligro:hover { background: var(--color-red-600); }
+.ui-dialogo__boton--secundario { background: var(--color-white); color: var(--color-zinc-800); border-color: var(--color-zinc-200); box-shadow: 0 1px 2px rgb(0 0 0 / .05); }
+.ui-dialogo__boton--secundario:hover { background: var(--color-zinc-50); }
