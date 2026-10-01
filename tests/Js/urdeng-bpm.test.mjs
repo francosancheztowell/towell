@@ -9,20 +9,20 @@ import {
 } from '../../resources/js/modulos/urdido/comun/bpm/logica.ts';
 
 const ctx = { esSupervisor: false, usuario: 'Ana Pérez' };
-const fila = (status, nombreRecibe = 'Ana Pérez', turnoRecibe = '1') => ({ status, nombreRecibe, turnoRecibe });
+const fila = (status, nombreRecibe = 'Ana Pérez') => ({ status, nombreRecibe });
 
 test('estado inicial: el supervisor ve terminados; el resto, sus folios', () => {
-    assert.deepEqual(estadoInicial(true), { terminados: true, misFolios: false, todos: false, turno: '' });
-    assert.deepEqual(estadoInicial(false), { terminados: false, misFolios: true, todos: false, turno: '' });
+    assert.deepEqual(estadoInicial(true), { terminados: true, misFolios: false, todos: false });
+    assert.deepEqual(estadoInicial(false), { terminados: false, misFolios: true, todos: false });
 });
 
 test('alternar: "todos" apaga terminados y mis folios; los otros apagan "todos"', () => {
     const todos = alternar(estadoInicial(false), 'todos');
-    assert.deepEqual(todos, { terminados: false, misFolios: false, todos: true, turno: '' });
+    assert.deepEqual(todos, { terminados: false, misFolios: false, todos: true });
     assert.equal(alternar(todos, 'terminados').todos, false);
     assert.equal(alternar(todos, 'misFolios').todos, false);
     // Apagar un filtro no toca "todos".
-    assert.equal(alternar({ terminados: true, misFolios: false, todos: false, turno: '' }, 'terminados').todos, false);
+    assert.equal(alternar({ terminados: true, misFolios: false, todos: false }, 'terminados').todos, false);
     assert.equal(alternar(todos, 'todos').todos, false);
 });
 
@@ -47,12 +47,6 @@ test('mis folios compara el nombre sin mayúsculas ni espacios; sin usuario no f
     assert.equal(filaVisible(fila('Creado', '  ana pérez '), e, ctx), true);
     assert.equal(filaVisible(fila('Creado', 'Beto'), e, ctx), false);
     assert.equal(filaVisible(fila('Creado', 'Beto'), e, { ...ctx, usuario: '' }), true);
-});
-
-test('turno exacto', () => {
-    const e = { ...alternar(estadoInicial(false), 'todos'), turno: '2' };
-    assert.equal(filaVisible(fila('Creado', 'x', '2'), e, ctx), true);
-    assert.equal(filaVisible(fila('Creado', 'x', '1'), e, ctx), false);
 });
 
 test('mensaje sin resultados', () => {

@@ -43,12 +43,23 @@ trait ConTabla
     public ?string $seleccionado = null;
 
     /**
+     * Filtros por columna (fila de inputs bajo el encabezado de x-tabla): índice de la
+     * columna en columnas() => texto. Por índice y no por campo: los campos con punto
+     * (Tabla.Columna) Livewire los anidaría. Solo cuentan las columnas con 'filtro'.
+     *
+     * @var array<int|string, string>
+     */
+    public array $filtrosColumna = [];
+
+    /**
      * Columnas de la tabla. Cada una:
      *   campo   string  columna real (se usa para ordenar y leer el valor)
      *   titulo  string  encabezado visible
      *   orden   bool    ordenable (default true)
      *   clase   string  clases de la celda (ej. 'hidden md:table-cell' para móvil)
      *   valor   Closure opcional, recibe la fila y devuelve el texto a pintar
+     *   filtro  true = filtro por columna sobre `campo`; string = columna real a filtrar
+     *           (para alias de un JOIN: SQL Server no acepta alias en el WHERE). Default: sin filtro
      *
      * @return array<int, array<string, mixed>>
      */
@@ -81,6 +92,12 @@ trait ConTabla
         $this->resetPage();
     }
 
+    public function updatedFiltrosColumna(): void
+    {
+        $this->seleccionado = null;
+        $this->resetPage();
+    }
+
     public function updatedPorPagina(): void
     {
         $this->resetPage();
@@ -95,6 +112,11 @@ trait ConTabla
     protected function aplicarTabla(Builder $query, array $buscables): Builder
     {
         $termino = trim($this->buscar);
+
+        foreach ($this->columnasFiltrables() as $indice => $columna) {
+            $texto = mb_substr(trim((string) ($this->filtrosColumna[$indice] ?? '')), 0, 80);
+            $query->when($texto !== '', fn (Builder $q): Builder => $q->where($columna, 'like', '%'.$texto.'%'));
+        }
 
         return $query
             ->when(
@@ -118,6 +140,20 @@ trait ConTabla
     protected function paginar(Builder $query): LengthAwarePaginator
     {
         return PaginacionCompat::paginar($query, $this->porPagina, $this->getPage());
+    }
+
+    /**
+     * Índice => columna real de cada columna con filtro. Lista blanca: las claves y valores
+     * de filtrosColumna vienen del cliente; solo los textos llegan al SQL, como binding.
+     *
+     * @return array<int, string>
+     */
+    protected function columnasFiltrables(): array
+    {
+        return collect($this->columnas())
+            ->filter(fn (array $columna): bool => ! empty($columna['filtro']) && filled($columna['campo'] ?? null))
+            ->map(fn (array $columna): string => is_string($columna['filtro']) ? $columna['filtro'] : $columna['campo'])
+            ->all();
     }
 
     /** @return array<int, string> */

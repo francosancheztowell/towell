@@ -7,8 +7,6 @@ import { notify } from '../../../../utils/notifications.ts';
 import { delegate, onReady, qs, qsa } from '../../../../utils/dom.ts';
 import { el, icono, leerDatos, rutaCon } from '../pagina.ts';
 import {
-    CLASES_FILTRO_ACTIVO,
-    CLASES_FILTRO_INACTIVO,
     alternar,
     camposAutollenado,
     estadoInicial,
@@ -50,7 +48,6 @@ function cerrar(id: string): void {
 
 function iniciar(raiz: HTMLElement, cfg: ConfigBpm): void {
     const cuerpo = qs<HTMLTableSectionElement>('#tb-body', raiz);
-    const turno = qs<HTMLSelectElement>('#filter-turno', raiz);
     let filtros: EstadoFiltros = estadoInicial(cfg.esSupervisor);
     let seleccionada: HTMLTableRowElement | null = null;
 
@@ -63,12 +60,11 @@ function iniciar(raiz: HTMLElement, cfg: ConfigBpm): void {
                 {
                     status: fila.dataset.status ?? '',
                     nombreRecibe: fila.dataset.nombreemplrec ?? '',
-                    turnoRecibe: fila.dataset.turnorecibe ?? '',
                 },
                 filtros,
                 { esSupervisor: cfg.esSupervisor, usuario: cfg.usuario },
             );
-            fila.style.display = ver ? '' : 'none';
+            fila.hidden = !ver; // hidden, no display: la cebra de la tabla cuenta solo las visibles
             if (ver) visibles++;
         }
 
@@ -95,12 +91,8 @@ function iniciar(raiz: HTMLElement, cfg: ConfigBpm): void {
 
     function pintarBotonesFiltro(): void {
         for (const filtro of FILTROS) {
-            const boton = qs(`[data-bpm-filtro="${filtro}"]`, raiz);
-            if (!boton) continue;
-            const activo = filtros[filtro];
-            for (const c of CLASES_FILTRO_ACTIVO[filtro]) boton.classList.toggle(c, activo);
-            for (const c of CLASES_FILTRO_INACTIVO) boton.classList.toggle(c, !activo);
-            boton.setAttribute('aria-pressed', String(activo));
+            // Navbar (fuera de la raíz). El color del activo sale de aria-pressed (app.css).
+            qs(`[data-bpm-filtro="${filtro}"]`)?.setAttribute('aria-pressed', String(filtros[filtro]));
         }
     }
 
@@ -110,13 +102,8 @@ function iniciar(raiz: HTMLElement, cfg: ConfigBpm): void {
     }
 
     function seleccionar(fila: HTMLTableRowElement): void {
-        for (const f of filas()) {
-            f.classList.remove('bg-blue-500', 'text-white');
-            f.classList.add('hover:bg-blue-50');
-            f.setAttribute('aria-selected', 'false');
-        }
-        fila.classList.remove('hover:bg-blue-50');
-        fila.classList.add('bg-blue-500', 'text-white');
+        // El color lo pone .tabla-seleccionable (app.css) por aria-selected.
+        for (const f of filas()) f.setAttribute('aria-selected', 'false');
         fila.setAttribute('aria-selected', 'true');
         seleccionada = fila;
 
@@ -173,28 +160,17 @@ function iniciar(raiz: HTMLElement, cfg: ConfigBpm): void {
 
     const acciones: Record<string, () => void> = {
         crear: () => abrir('createModal'),
-        filtros: () => abrir('modal-filters'),
         checklist: abrirChecklist,
         editar: abrirEdicion,
         eliminar: () => void eliminar(),
-        'limpiar-filtros': () => {
-            filtros = estadoInicial(cfg.esSupervisor);
-            if (turno) turno.value = '';
-            refrescar();
-            cerrar('modal-filters');
-        },
     };
 
     delegate(document, 'click', '[data-bpm-accion]', (_e, boton) => acciones[boton.dataset.bpmAccion ?? '']?.());
     delegate(raiz, 'click', '[data-bpm-cerrar]', (_e, boton) => cerrar(boton.dataset.bpmCerrar ?? ''));
     delegate(raiz, 'click', 'tr[data-bpm-fila]', (_e, fila) => seleccionar(fila as HTMLTableRowElement));
-    delegate(raiz, 'click', '[data-bpm-filtro]', (_e, boton) => {
+    delegate(document, 'click', '[data-bpm-filtro]', (_e, boton) => {
         filtros = alternar(filtros, boton.dataset.bpmFiltro as FiltroAlternable);
         refrescar();
-    });
-    turno?.addEventListener('change', () => {
-        filtros = { ...filtros, turno: turno.value || '' };
-        aplicarFiltros();
     });
 
     // Autollenado: <select data-bpm-autollenar data-llenar-numero="input_X"> copia data-numero de la opción.

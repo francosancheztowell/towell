@@ -10,8 +10,6 @@ export interface EstadoFiltros {
     misFolios: boolean;
     /** Todos (anula terminados y mis folios; también muestra Autorizados al supervisor). */
     todos: boolean;
-    /** '' = cualquier turno. */
-    turno: string;
 }
 
 export type FiltroAlternable = 'terminados' | 'misFolios' | 'todos';
@@ -19,7 +17,6 @@ export type FiltroAlternable = 'terminados' | 'misFolios' | 'todos';
 export interface FilaBpm {
     status: string;
     nombreRecibe: string;
-    turnoRecibe: string;
 }
 
 export interface Contexto {
@@ -30,7 +27,7 @@ export interface Contexto {
 
 /** Estado al abrir la pantalla y al pulsar "Limpiar": el supervisor ve terminados; el resto, sus folios. */
 export function estadoInicial(esSupervisor: boolean): EstadoFiltros {
-    return { terminados: esSupervisor, misFolios: !esSupervisor, todos: false, turno: '' };
+    return { terminados: esSupervisor, misFolios: !esSupervisor, todos: false };
 }
 
 /** Alterna un botón de filtro con las mismas exclusiones que la vista original. */
@@ -52,7 +49,6 @@ export function filaVisible(fila: FilaBpm, estado: EstadoFiltros, ctx: Contexto)
     if (estado.misFolios && ctx.usuario && fila.nombreRecibe.trim().toLowerCase() !== ctx.usuario.toLowerCase()) {
         return false;
     }
-    if (estado.turno && fila.turnoRecibe !== estado.turno) return false;
     return true;
 }
 
@@ -60,14 +56,6 @@ export function filaVisible(fila: FilaBpm, estado: EstadoFiltros, ctx: Contexto)
 export function mensajeSinResultados(estado: EstadoFiltros): string {
     return estado.misFolios && !estado.todos ? 'No tienes folios asignados' : 'Sin resultados con los filtros aplicados';
 }
-
-/** Clases de cada botón de filtro activo; inactivo comparten las grises. */
-export const CLASES_FILTRO_ACTIVO: Readonly<Record<FiltroAlternable, readonly string[]>> = {
-    terminados: ['bg-amber-100', 'border-amber-400', 'text-amber-800'],
-    misFolios: ['bg-blue-100', 'border-blue-400', 'text-blue-800'],
-    todos: ['bg-green-100', 'border-green-400', 'text-green-800'],
-};
-export const CLASES_FILTRO_INACTIVO: readonly string[] = ['bg-gray-50', 'border-gray-300', 'text-gray-700'];
 
 /**
  * Autollenado de un <select>: sus atributos data-llenar-<dato>="<id destino>" dicen qué data-<dato>

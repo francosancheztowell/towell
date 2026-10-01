@@ -56,11 +56,11 @@ class CatalogoOperadores extends Component
     public function columnas(): array
     {
         return [
-            ['campo' => 'CveEmpl', 'titulo' => 'Clave'],
-            ['campo' => 'NomEmpl', 'titulo' => 'Nombre'],
-            ['campo' => 'Turno', 'titulo' => 'Turno'],
-            ['campo' => 'Depto', 'titulo' => 'Departamento', 'clase' => 'hidden sm:table-cell'],
-            ['campo' => 'Telefono', 'titulo' => 'Teléfono', 'clase' => 'hidden md:table-cell', 'valor' => fn ($fila) => $fila->Telefono ?: '-'],
+            ['campo' => 'CveEmpl', 'filtro' => true, 'titulo' => 'Clave'],
+            ['campo' => 'NomEmpl', 'filtro' => true, 'titulo' => 'Nombre'],
+            ['campo' => 'Turno', 'filtro' => true, 'titulo' => 'Turno'],
+            ['campo' => 'Depto', 'filtro' => true, 'titulo' => 'Departamento', 'clase' => 'hidden sm:table-cell'],
+            ['campo' => 'Telefono', 'filtro' => true, 'titulo' => 'Teléfono', 'clase' => 'hidden md:table-cell', 'valor' => fn ($fila) => $fila->Telefono ?: '-'],
         ];
     }
 

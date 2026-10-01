@@ -13,7 +13,7 @@
             'rutas' => 'urd-bpm',
             'rutaLinea' => 'urd-bpm-line.index',
             'colAutoriza' => 'NombreEmplAutoriza',
-            'badge' => ['Creado' => 'bg-blue-100 text-blue-800', 'Terminado' => 'bg-yellow-100 text-yellow-800'],
+            'badge' => ['Creado' => 'blue', 'Terminado' => 'yellow'],
             'tituloCrear' => 'Crear Nuevo Registro',
             'anchoCrear' => 'max-w-2xl',
             // El update de Urdido guarda solo el día; Engomado conserva la hora.
@@ -26,7 +26,7 @@
             'rutas' => 'eng-bpm',
             'rutaLinea' => 'eng-bpm-line.index',
             'colAutoriza' => 'NomEmplAutoriza',
-            'badge' => ['Creado' => 'bg-yellow-100 text-yellow-800', 'Terminado' => 'bg-blue-100 text-blue-800'],
+            'badge' => ['Creado' => 'yellow', 'Terminado' => 'blue'],
             'tituloCrear' => 'Crear Nuevo Folio BPM Engomado',
             'anchoCrear' => 'max-w-4xl',
             'tipoFechaEdicion' => 'datetime-local',
@@ -51,17 +51,15 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <x-navbar.button-report
-            id="btn-open-filters"
-            data-bpm-accion="filtros"
-            title="Filtros"
-            icon="fa-filter"
-            text="Filtrar"
-            :module="$cfgVariante['modulo']"
-            iconColor="text-white"
-            hoverBg="hover:bg-green-600"
-            class="text-white"
-            bg="bg-green-600" />
+        {{-- Alcance (bpm/index.ts pone aria-pressed) y filtros por columna (tabla-columnas.ts).
+             Turno: lo cubre el filtro de la columna "Turno Recibe". --}}
+        <flux:button.group>
+            <flux:button data-bpm-filtro="misFolios" aria-pressed="false" icon="user" class="min-h-touch">Mis folios</flux:button>
+            <flux:button data-bpm-filtro="terminados" aria-pressed="false" icon="check-circle" class="min-h-touch">Finalizados</flux:button>
+            <flux:button data-bpm-filtro="todos" aria-pressed="false" icon="list-bullet" class="min-h-touch">Todos</flux:button>
+        </flux:button.group>
+        <flux:button data-alternar-filtros="#bpmTable" aria-pressed="false" icon="funnel"
+                     class="min-h-touch min-w-touch" title="Filtrar por columna" aria-label="Filtrar por columna" />
         <x-navbar.button-create
             data-bpm-accion="crear"
             :module="$cfgVariante['modulo']"
@@ -76,31 +74,30 @@
 
 @section('content')
 <div id="bpm-pagina" data-bpm='@json($configBpm)'>
-    {{-- Alto: lo que deja el navbar (dvh respeta la barra del navegador en tablet). --}}
-    <div class="overflow-auto overscroll-contain rounded-lg border bg-white shadow-sm mt-2 mx-2 sm:mt-4 sm:mx-4 max-h-[calc(100dvh-4.75rem)] sm:max-h-[calc(100dvh-5.5rem)]">
-        <table id="bpmTable" class="ui-table--grid min-w-full text-xs sm:text-sm [&_th]:px-2 [&_td]:px-2 [&_th]:py-2 [&_td]:py-2 sm:[&_th]:px-4 sm:[&_td]:px-4 sm:[&_th]:py-3 sm:[&_td]:py-3">
-            <thead class="sticky top-0 z-10 bg-blue-600 text-white">
-                <tr>
-                    <th class="text-left font-semibold whitespace-nowrap">Folio</th>
-                    <th class="text-left font-semibold whitespace-nowrap">Status</th>
-                    <th class="text-left font-semibold whitespace-nowrap">Fecha</th>
-                    <th class="text-left font-semibold whitespace-nowrap">No Recibe</th>
-                    <th class="text-left font-semibold whitespace-nowrap">Nombre Recibe</th>
-                    <th class="text-left font-semibold whitespace-nowrap">Turno Recibe</th>
-                    <th class="text-left font-semibold whitespace-nowrap">No Entrega</th>
-                    <th class="text-left font-semibold whitespace-nowrap">Nombre Entrega</th>
-                    <th class="text-left font-semibold whitespace-nowrap">Turno Entrega</th>
-                    <th class="text-left font-semibold whitespace-nowrap">Cve Autoriza</th>
-                    <th class="text-left font-semibold whitespace-nowrap">Nombre Autoriza</th>
-                </tr>
-            </thead>
-            <tbody id="tb-body">
+    {{-- flux:table. Alto: lo que deja el navbar; el scroll vive en el ui-table-scroll-area de Flux
+         (min-h-0 para que encoja dentro del max-h y el encabezado sticky funcione).
+         Cebra, selección y filtros por columna: piezas reutilizables de app.css / tabla-columnas.ts. --}}
+    <div class="rounded-lg bg-white shadow-sm overflow-hidden mt-2 mx-2 sm:mt-4 sm:mx-4">
+        <flux:table id="bpmTable"
+                    container:class="max-h-[calc(100dvh-4.75rem)] sm:max-h-[calc(100dvh-5.5rem)] [&>ui-table-scroll-area]:min-h-0 [&>ui-table-scroll-area]:overscroll-contain"
+                    data-filtros-columna
+                    class="tabla-cebra tabla-seleccionable">
+            <flux:table.columns sticky class="bg-white">
+                <flux:table.column>Folio</flux:table.column>
+                <flux:table.column>Status</flux:table.column>
+                <flux:table.column>Fecha</flux:table.column>
+                <flux:table.column>No Recibe</flux:table.column>
+                <flux:table.column>Nombre Recibe</flux:table.column>
+                <flux:table.column align="center">Turno Recibe</flux:table.column>
+                <flux:table.column>No Entrega</flux:table.column>
+                <flux:table.column>Nombre Entrega</flux:table.column>
+                <flux:table.column align="center">Turno Entrega</flux:table.column>
+                <flux:table.column>Cve Autoriza</flux:table.column>
+                <flux:table.column>Nombre Autoriza</flux:table.column>
+            </flux:table.columns>
+            <flux:table.rows id="tb-body">
                 @forelse($items as $item)
-                    @php
-                        $statusClass = $cfgVariante['badge'][$item->Status]
-                            ?? ($item->Status === 'Autorizado' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800');
-                    @endphp
-                    <tr class="table-row hover:bg-blue-50 cursor-pointer transition-colors"
+                    <flux:table.row
                         data-bpm-fila
                         aria-selected="false"
                         data-id="{{ $item->Id }}"
@@ -113,85 +110,30 @@
                         data-cveemplent="{{ $item->CveEmplEnt }}"
                         data-nombreemplent="{{ $item->NombreEmplEnt }}"
                         data-turnoentrega="{{ $item->TurnoEntrega }}">
-                        <td class="whitespace-nowrap font-medium">{{ $item->Folio }}</td>
-                        <td class="whitespace-nowrap">
-                            <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold {{ $statusClass }}">
+                        <flux:table.cell variant="strong">{{ $item->Folio }}</flux:table.cell>
+                        <flux:table.cell>
+                            <flux:badge size="sm" inset="top bottom"
+                                        :color="$cfgVariante['badge'][$item->Status] ?? ($item->Status === 'Autorizado' ? 'green' : 'zinc')">
                                 {{ $item->Status }}
-                            </span>
-                        </td>
-                        <td class="whitespace-nowrap">{{ $item->Fecha ? $item->Fecha->format('d/m/Y') : '' }}</td>
-                        <td class="whitespace-nowrap">{{ $item->CveEmplRec }}</td>
-                        <td class="whitespace-nowrap">{{ $item->NombreEmplRec }}</td>
-                        <td class="whitespace-nowrap text-center">{{ $item->TurnoRecibe }}</td>
-                        <td class="whitespace-nowrap">{{ $item->CveEmplEnt }}</td>
-                        <td class="whitespace-nowrap">{{ $item->NombreEmplEnt }}</td>
-                        <td class="whitespace-nowrap text-center">{{ $item->TurnoEntrega }}</td>
-                        <td class="whitespace-nowrap">{{ $item->CveEmplAutoriza }}</td>
-                        <td class="whitespace-nowrap">{{ $item->{$cfgVariante['colAutoriza']} }}</td>
-                    </tr>
+                            </flux:badge>
+                        </flux:table.cell>
+                        <flux:table.cell>{{ $item->Fecha ? $item->Fecha->format('d/m/Y') : '' }}</flux:table.cell>
+                        <flux:table.cell>{{ $item->CveEmplRec }}</flux:table.cell>
+                        <flux:table.cell>{{ $item->NombreEmplRec }}</flux:table.cell>
+                        <flux:table.cell align="center">{{ $item->TurnoRecibe }}</flux:table.cell>
+                        <flux:table.cell>{{ $item->CveEmplEnt }}</flux:table.cell>
+                        <flux:table.cell>{{ $item->NombreEmplEnt }}</flux:table.cell>
+                        <flux:table.cell align="center">{{ $item->TurnoEntrega }}</flux:table.cell>
+                        <flux:table.cell>{{ $item->CveEmplAutoriza }}</flux:table.cell>
+                        <flux:table.cell>{{ $item->{$cfgVariante['colAutoriza']} }}</flux:table.cell>
+                    </flux:table.row>
                 @empty
-                    <tr>
-                        <td colspan="11" class="px-4 py-8 text-center text-gray-500">
-                            No hay registros disponibles
-                        </td>
-                    </tr>
+                    <flux:table.row>
+                        <flux:table.cell colspan="11" class="py-8 text-center">No hay registros disponibles</flux:table.cell>
+                    </flux:table.row>
                 @endforelse
-            </tbody>
-        </table>
-    </div>
-
-    {{-- Modal FILTROS --}}
-    <div id="modal-filters" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white max-w-2xl w-full rounded-xl shadow-xl p-4 m-4">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-semibold text-gray-800">
-                    <i class="fa-solid fa-filter text-purple-600 mr-2" aria-hidden="true"></i>Filtros
-                </h2>
-                <button type="button" data-bpm-cerrar="modal-filters" aria-label="Cerrar"
-                        class="text-slate-500 hover:text-slate-700 text-5xl leading-none">&times;</button>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3 mb-4">
-                <button type="button" id="btn-filter-finished" data-bpm-filtro="terminados"
-                        class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
-                    <i class="fa-solid fa-check-circle text-2xl mb-2 block" aria-hidden="true"></i>
-                    <div class="font-semibold text-sm">Finalizados</div>
-                </button>
-
-                <button type="button" id="btn-filter-my-folios" data-bpm-filtro="misFolios"
-                        class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-blue-100 border-blue-400 text-blue-800">
-                    <i class="fa-solid fa-user text-2xl mb-2 block" aria-hidden="true"></i>
-                    <div class="font-semibold text-sm">Mis Folios</div>
-                </button>
-
-                <button type="button" id="btn-filter-all" data-bpm-filtro="todos"
-                        class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
-                    <i class="fa-solid fa-list text-2xl mb-2 block" aria-hidden="true"></i>
-                    <div class="font-semibold text-sm">Todos</div>
-                </button>
-
-                <div class="p-4 rounded-lg border-2 border-gray-300 bg-gray-50">
-                    <label for="filter-turno" class="block text-xs text-gray-600 mb-2 text-center">
-                        <i class="fa-solid fa-clock mr-1" aria-hidden="true"></i>Turno
-                    </label>
-                    <select id="filter-turno"
-                            class="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-purple-500">
-                        <option value="">Todos</option>
-                        <option value="1">Turno 1</option>
-                        <option value="2">Turno 2</option>
-                        <option value="3">Turno 3</option>
-                        <option value="4">Turno 4</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="flex items-center gap-2">
-                <button type="button" id="btn-clear-filters" data-bpm-accion="limpiar-filtros"
-                        class="flex-1 px-3 py-2 rounded-lg border border-gray-300 bg-blue-500 text-white transition text-sm">
-                    <i class="fa-solid fa-eraser mr-1" aria-hidden="true"></i>Limpiar
-                </button>
-            </div>
-        </div>
+            </flux:table.rows>
+        </flux:table>
     </div>
 
     <!-- Modal Crear -->

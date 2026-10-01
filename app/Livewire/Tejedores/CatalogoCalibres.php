@@ -59,9 +59,9 @@ class CatalogoCalibres extends Component
     public function columnas(): array
     {
         return [
-            ['campo' => 'Codigo', 'titulo' => 'Codigo AX'],
-            ['campo' => 'Nombre', 'titulo' => 'Nombre'],
-            ['campo' => 'CodigoInterno', 'titulo' => 'Calibre'],
+            ['campo' => 'Codigo', 'filtro' => true, 'titulo' => 'Codigo AX'],
+            ['campo' => 'Nombre', 'filtro' => true, 'titulo' => 'Nombre'],
+            ['campo' => 'CodigoInterno', 'filtro' => true, 'titulo' => 'Calibre'],
             ['campo' => 'Divisor', 'titulo' => 'Hilo (divisor)'],
             [
                 'campo' => 'Vigente',

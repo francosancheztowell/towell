@@ -90,6 +90,33 @@ class CatalogoFallasLivewireTest extends TestCase
             ->assertViewHas('filas', fn ($filas) => $filas->first()->Falla === 'Fuga de aire');
     }
 
+    public function test_filtros_por_columna_combinan_y_solo_aceptan_columnas_con_filtro(): void
+    {
+        $this->autenticarCon(['acceso']);
+
+        CatParosFallas::create(['TipoFallaId' => 'MECANICO', 'Departamento' => 'Urdido', 'Falla' => 'Fuga de aire']);
+        CatParosFallas::create(['TipoFallaId' => 'MECANICO', 'Departamento' => 'Tejido', 'Falla' => 'Fuga de aceite']);
+        CatParosFallas::create(['TipoFallaId' => 'ELECTRICO', 'Departamento' => 'Urdido', 'Falla' => 'Corto']);
+
+        Livewire::test(CatalogoFallas::class)
+            ->assertSeeHtml('aria-label="Filtrar por columna"')
+            // x-tabla pinta con flux:table y conserva orden y selección por fila.
+            ->assertSeeHtml('data-flux-table')
+            ->assertSeeHtml('data-flux-cell')
+            ->assertSeeHtml('wire:click="ordenar(&#039;Falla&#039;)"')
+            ->assertSeeHtml("wire:click=\"seleccionar('1')\"")
+            ->call('seleccionar', '1')
+            // Índices de columnas(): 1 = Departamento, 2 = Falla.
+            ->set('filtrosColumna.2', 'fuga')
+            ->assertSet('seleccionado', null)
+            ->assertViewHas('filas', fn ($filas) => $filas->total() === 2)
+            ->set('filtrosColumna.1', 'urd')
+            ->assertViewHas('filas', fn ($filas) => $filas->total() === 1 && $filas->first()->Falla === 'Fuga de aire')
+            // Un índice que no existe o sin 'filtro' no llega al SQL.
+            ->set('filtrosColumna', ['99' => 'x', 'Falla' => 'nada'])
+            ->assertViewHas('filas', fn ($filas) => $filas->total() === 3);
+    }
+
     public function test_el_orden_solo_acepta_columnas_declaradas(): void
     {
         $this->autenticarCon(['acceso']);

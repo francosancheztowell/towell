@@ -1,7 +1,7 @@
 {{--
     Tabla reutilizable para los CRUD de la app. Se usa dentro de un componente
-    Livewire que aplique el trait App\Livewire\Concerns\ConTabla. Compone x-ui.table
-    (el shell) y x-ui.table-empty; aquí queda lo propio de Livewire (orden, selección, paginado).
+    Livewire que aplique el trait App\Livewire\Concerns\ConTabla. Pinta con flux:table
+    (+ x-ui.table-empty); aquí queda lo propio de Livewire (orden, selección, paginado).
 
     @prop array   $columnas   [['campo','titulo','orden'=>bool,'clase'=>string,'valor'=>Closure], ...]
     @prop mixed   $filas      LengthAwarePaginator con los registros
@@ -13,6 +13,9 @@
                     así que la página debe incluir en @section('navbar-right'):
                         <div id="tabla-navbar-acciones" class="flex items-center gap-2"></div>
     @slot filtros   Selects propios de la pantalla; van junto al buscador.
+    Filtros por columna: las columnas con 'filtro' (ver ConTabla::columnas) llevan un input en
+    una fila bajo el encabezado, oculta hasta pulsar el embudo; al ocultarla se limpian.
+    Cebra y selección: .tabla-cebra / .tabla-seleccionable (app.css), las mismas de flux:table.
 
     Ejemplo:
       <x-tabla :columnas="$this->columnas()" :filas="$filas" :seleccionado="$seleccionado"
@@ -41,7 +44,9 @@
 
 @php
     // Un solo target para las acciones: mismo lugar en todas las pantallas.
-    $objetivosCarga = 'buscar,ordenar,gotoPage,previousPage,nextPage,porPagina'.($objetivosExtra !== '' ? ','.$objetivosExtra : '');
+    $objetivosCarga = 'buscar,filtrosColumna,ordenar,gotoPage,previousPage,nextPage,porPagina'.($objetivosExtra !== '' ? ','.$objetivosExtra : '');
+    $conFiltro = fn (array $columna): bool => ! empty($columna['filtro']) && filled($columna['campo'] ?? null);
+    $hayFiltrosColumna = collect($columnas)->contains($conFiltro);
 @endphp
 
 @if (filled($acciones))
@@ -50,7 +55,7 @@
     @endteleport
 @endif
 
-<div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+<div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" x-data="{ verFiltros: false }">
     @if ($mostrarFiltros)
     {{-- Barra: buscador + filtros de la pantalla --}}
     <div class="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-3 py-2.5">
@@ -64,6 +69,13 @@
 
         {{ $filtros }}
 
+        @if ($hayFiltrosColumna)
+            <flux:button icon="funnel" variant="filled" class="min-h-touch min-w-touch"
+                         title="Filtrar por columna" aria-label="Filtrar por columna"
+                         x-bind:aria-pressed="verFiltros.toString()"
+                         x-on:click="verFiltros = !verFiltros; if (!verFiltros) $wire.set('filtrosColumna', {})" />
+        @endif
+
         <span wire:loading.delay wire:target="{{ $objetivosCarga }}"
               class="ms-auto hidden items-center gap-1.5 text-xs font-semibold text-blue-600 sm:inline-flex">
             <i class="fa-solid fa-circle-notch fa-spin"></i> Actualizando
@@ -74,38 +86,41 @@
 
     <div class="relative overflow-x-auto">
         <div wire:loading.delay.class="opacity-50" wire:target="{{ $objetivosCarga }}">
-            <x-ui.table>
-                <x-slot:head>
+            {{-- flux:table. El <thead> va a mano (no flux:table.columns) porque lleva dos filas:
+                 títulos y filtros por columna; las celdas sí son de Flux. --}}
+            <flux:table class="tabla-cebra tabla-seleccionable">
+                <thead>
                     <tr>
                         @foreach ($columnas as $columna)
                             @php
                                 $campo = $columna['campo'] ?? '';
                                 $ordenable = ($columna['orden'] ?? true) && $campo !== '';
                                 $activa = $ordenable && $ordenPor === $campo;
+                                $alOrdenar = $ordenable ? "ordenar('{$campo}')" : null;
                             @endphp
-                            <th scope="col"
-                                class="whitespace-nowrap px-4 py-2.5 text-left font-semibold {{ $columna['clase'] ?? '' }}"
-                                @if ($activa) aria-sort="{{ $ordenDir === 'desc' ? 'descending' : 'ascending' }}" @endif>
-                                @if ($ordenable)
-                                    <button type="button" wire:click="ordenar('{{ $campo }}')"
-                                            class="inline-flex items-center gap-1.5 rounded transition hover:text-blue-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70">
-                                        {{ $columna['titulo'] ?? $campo }}
-                                        <i @class([
-                                            'fa-solid text-[11px]',
-                                            'fa-sort opacity-50' => ! $activa,
-                                            'fa-sort-up' => $activa && $ordenDir === 'asc',
-                                            'fa-sort-down' => $activa && $ordenDir === 'desc',
-                                        ])></i>
-                                    </button>
-                                @else
-                                    {{ $columna['titulo'] ?? $campo }}
-                                @endif
-                            </th>
+                            <flux:table.column :sortable="$ordenable" :sorted="$activa" :direction="$ordenDir"
+                                               class="{{ $columna['clase'] ?? '' }}" :wire:click="$alOrdenar"
+                                               aria-sort="{{ $activa ? ($ordenDir === 'desc' ? 'descending' : 'ascending') : 'none' }}">
+                                {{ $columna['titulo'] ?? $campo }}
+                            </flux:table.column>
                         @endforeach
                     </tr>
-                </x-slot:head>
+                    @if ($hayFiltrosColumna)
+                        <tr data-fila-filtros x-show="verFiltros" x-cloak>
+                            @foreach ($columnas as $indice => $columna)
+                                <th class="{{ $columna['clase'] ?? '' }}">
+                                    @if ($conFiltro($columna))
+                                        <input type="search" class="tabla-filtro-input" placeholder="Filtrar"
+                                               aria-label="Filtrar {{ $columna['titulo'] ?? $columna['campo'] }}"
+                                               wire:model.live.debounce.400ms="filtrosColumna.{{ $indice }}">
+                                    @endif
+                                </th>
+                            @endforeach
+                        </tr>
+                    @endif
+                </thead>
 
-                <tbody x-data="{
+                <flux:table.rows x-data="{
                     visual: @js($seleccionado),
                     pending: 0,
                     init() {
@@ -128,26 +143,26 @@
                     }
                 }" x-on:tabla-seleccion-local.window="if ($event.detail.component === $wire.$id) visual = $event.detail.id">
                     @forelse ($filas as $fila)
-                        @php $id = (string) $fila->getKey(); @endphp
-                        <tr data-fila tabindex="0"
+                        @php
+                            $id = (string) $fila->getKey();
+                            // Atributos según el modo; van armados aquí porque dentro de la etiqueta
+                            // de un componente Blade no admite @if.
+                            $atributosFila = array_filter([
+                                'x-on:click' => $seleccionInmediata ? 'elegir('.\Illuminate\Support\Js::from($id).')' : null,
+                                'wire:click' => $seleccionInmediata ? null : "seleccionar('{$id}')",
+                                'wire:dblclick' => $alEditar ? "{$alEditar}('{$id}')" : null,
+                                'x-bind:aria-selected' => $seleccionInmediata ? 'visual === '.\Illuminate\Support\Js::from($id)." ? 'true' : 'false'" : null,
+                                'aria-selected' => $seleccionInmediata ? null : ($seleccionado === $id ? 'true' : 'false'),
+                            ], fn ($valor) => $valor !== null);
+                        @endphp
+                        {{-- Color de cebra, hover y seleccionada: .tabla-cebra / .tabla-seleccionable por aria-selected. --}}
+                        <flux:table.row data-fila tabindex="0"
                             wire:key="fila-{{ $filas->getPageName() }}-{{ $id }}"
-                            @if ($seleccionInmediata)
-                                x-on:click="elegir(@js($id))"
-                                x-bind:style="visual === @js($id) ? 'background-color: #dbeafe; box-shadow: inset 4px 0 0 #3b82f6' : ''"
-                            @else
-                                wire:click="seleccionar('{{ $id }}')"
-                            @endif
-                            @if ($alEditar) wire:dblclick="{{ $alEditar }}('{{ $id }}')" @endif
-                            @keydown.enter.prevent="$wire.{{ $alEditar ?? 'seleccionar' }}('{{ $id }}')"
-                            @keydown.arrow-down.prevent="mover($event, 1)"
-                            @keydown.arrow-up.prevent="mover($event, -1)"
-                            @class([
-                                'cursor-pointer border-b border-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500',
-                                'bg-blue-100 shadow-[inset_4px_0_0_0_#3b82f6]' => ! $seleccionInmediata && $seleccionado === $id,
-                                'odd:bg-white even:bg-slate-50/60 hover:bg-blue-50' => $seleccionInmediata || $seleccionado !== $id,
-                            ])
-                            @if ($seleccionInmediata) x-bind:aria-selected="visual === @js($id) ? 'true' : 'false'"
-                            @else aria-selected="{{ $seleccionado === $id ? 'true' : 'false' }}" @endif>
+                            x-on:keydown.enter.prevent="$wire.{{ $alEditar ?? 'seleccionar' }}('{{ $id }}')"
+                            x-on:keydown.arrow-down.prevent="mover($event, 1)"
+                            x-on:keydown.arrow-up.prevent="mover($event, -1)"
+                            class="transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
+                            :attributes="new \Illuminate\View\ComponentAttributeBag($atributosFila)">
                             @foreach ($columnas as $columna)
                                 @php
                                     $campo = $columna['campo'] ?? '';
@@ -155,16 +170,16 @@
                                         ? ($columna['valor'])($fila)
                                         : data_get($fila, $campo);
                                 @endphp
-                                <td class="px-4 py-2.5 align-middle text-slate-700 {{ $columna['clase'] ?? '' }}">
+                                <flux:table.cell class="{{ $columna['clase'] ?? '' }}">
                                     {{ filled($valor) ? $valor : '—' }}
-                                </td>
+                                </flux:table.cell>
                             @endforeach
-                        </tr>
+                        </flux:table.row>
                     @empty
                         <x-ui.table-empty :colspan="count($columnas)" :message="$vacio" :icon="$vacioIcono" />
                     @endforelse
-                </tbody>
-            </x-ui.table>
+                </flux:table.rows>
+            </flux:table>
         </div>
     </div>
 

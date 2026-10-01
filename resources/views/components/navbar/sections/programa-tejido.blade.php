@@ -10,9 +10,6 @@
             <i class="fa-solid fa-info text-sm"></i>
         </button>
 
-        <!-- "⋮": menú de la fila seleccionada sin clic derecho (UX-06); lo pinta programa-tejido/acciones.ts -->
-        <span id="pt-acciones-fila" class="flex items-center"></span>
-
         <!-- Grupo 1: Controles principales -->
         <div class="flex items-center gap-1">
             <!-- Botón Drag and Drop -->

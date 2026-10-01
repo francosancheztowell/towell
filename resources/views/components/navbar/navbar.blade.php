@@ -8,10 +8,6 @@
     $programaTejidoModuleLabel = $isMuestras ? 'Muestras' : 'Programa';
     $programaTejidoModulePermission = $isMuestras ? 'Muestras' : 'Programa Tejido';
     $liberarOrdenesBase = $isMuestras ? '/planeacion/muestras' : '/planeacion/programa-tejido';
-    // Información del usuario
-    $usuario = Auth::user();
-    $fotoUrl = getFotoUsuarioUrl($usuario->foto ?? null);
-    $usuarioInicial = strtoupper(substr($usuario->nombre, 0, 1));
 
     // Acceso al módulo Configuración (la lista viene del caché de módulos del usuario).
     // El engranaje solo se ofrece desde el inicio.
@@ -39,8 +35,9 @@
 
 <!-- NAVBAR -->
 <nav class="bg-white fixed top-0 left-0 right-0 z-50">
-    <div class="w-full mx-auto px-0 md:px-2 py-2">
-        <div class="flex items-center gap-2">
+    {{-- Alto fijo = --pt-navbar-height (app.css): main y los overlays se alinean a él. --}}
+    <div class="w-full mx-auto px-0 md:px-2">
+        <div class="h-14 flex items-center gap-2">
             <!-- Sección Izquierda: Botón atrás + Logo -->
             @include('components.navbar.sections.left')
 
@@ -50,7 +47,7 @@
                     {{-- UX-03: un solo <h1>. x-layout.page-title ya trae el suyo; texto plano no. --}}
                     @php($tituloNavbar = $__env->yieldContent('page-title'))
                     @php($etiquetaTitulo = stripos($tituloNavbar, '<h1') === false ? 'h1' : 'div')
-                    <{{ $etiquetaTitulo }} class="text-lg md:text-xl lg:text-2xl font-bold text-blue-600 animate-fade-in">
+                    <{{ $etiquetaTitulo }} class="text-base md:text-lg lg:text-xl font-bold text-blue-600 animate-fade-in">
                         {!! $tituloNavbar !!}
                     </{{ $etiquetaTitulo }}>
                 @endif
@@ -58,15 +55,11 @@
             </div>
 
             <!-- Sección Derecha: Botones y controles -->
-            <div class="flex items-center gap-4 flex-shrink-0">
+            <div class="flex items-center gap-3 flex-shrink-0">
                 <!-- Botón Configuración -->
                 @if($tieneConfiguracion)
-                    <a href="{{ route('configuracion.index') }}"
-                       class="w-10 h-10 bg-blue-100 hover:bg-blue-200 rounded-full flex items-center justify-center text-blue-800 hover:text-blue-900 transition-all duration-200 shadow-sm hover:shadow-md"
-                       title="Configuración"
-                       aria-label="Configuración">
-                        <i class="fas fa-cog" aria-hidden="true"></i>
-                    </a>
+                    <flux:button :href="route('configuracion.index')" variant="filled" color="blue" icon="cog-6-tooth"
+                                 class="min-h-touch min-w-touch" title="Configuración" aria-label="Configuración" />
                 @endif
 
                 <!-- Controles Programa Tejido -->
@@ -81,31 +74,25 @@
 
                 <!-- Botón Paro -->
                 @if($showParoButton)
-                    <a href="{{ url('mantenimiento/nuevo-paro') }}"
-                       class="bg-yellow-500 hover:bg-yellow-600 flex items-center gap-2 px-4 py-3 text-md font-bold rounded-lg transition-colors">
-                        <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
-                        Paro
-                    </a>
+                    <flux:button :href="url('mantenimiento/nuevo-paro')" variant="primary" color="yellow"
+                                 icon="exclamation-triangle" class="min-h-touch font-bold">Paro</flux:button>
                 @endif
 
                 <!-- Botón Salir -->
                 @if($isProduccionIndex)
-                    <button id="logout-btn"
-                            class="flex items-center gap-1 px-4 py-3 text-md font-bold text-white bg-red-700 hover:bg-red-800 rounded-lg transition-colors">
-                        <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
-                        Salir
-                    </button>
+                    <flux:button id="logout-btn" variant="danger" icon="arrow-right-start-on-rectangle"
+                                 class="min-h-touch font-bold">Salir</flux:button>
                 @endif
 
-                <!-- Avatar Usuario -->
-                @include('components.navbar.sections.user-avatar')
+                <!-- Avatar + menú de usuario: ui-dropdown de Flux abre/cierra, Esc, clic fuera y foco. -->
+                <flux:dropdown position="bottom" align="end">
+                    @include('components.navbar.sections.user-avatar')
+                    @include('components.navbar.sections.user-modal')
+                </flux:dropdown>
             </div>
         </div>
     </div>
 </nav>
-
-<!-- Modal Usuario -->
-@include('components.navbar.sections.user-modal')
 
 {{-- Días para liberar órdenes (Programa Tejido / Muestras): el modal vive en
      resources/js/componentes/dias-liberar.ts (HANDOFF PT B2); aquí solo sus datos. --}}

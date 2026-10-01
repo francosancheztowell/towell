@@ -5,6 +5,7 @@
 import { abrir, cerrarPorId, escucharDocumento, iniciarModales } from './dialog.ts';
 import { iniciarAutocierre } from './dismiss.ts';
 import { iniciarFiltros, refrescarFiltros } from './filter-bar.ts';
+import { iniciarFiltrosColumna } from './tabla-columnas.ts';
 import { loader } from './loader.ts';
 import { iniciarConexion, pintarConexion } from './conexion.ts';
 import { mostrarModalDiasLiberar } from './dias-liberar.ts';
@@ -34,6 +35,7 @@ function iniciar(): void {
     iniciarModales();
     iniciarAutocierre();
     iniciarFiltros();
+    iniciarFiltrosColumna();
     pintarConexion();
 }
 

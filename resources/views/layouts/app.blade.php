@@ -45,7 +45,7 @@
 
   <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display:none;">@csrf</form>
 
-        <main class="app-main overflow-x-hidden overflow-y-auto max-w-full flex-1" style="padding-top: 64px; height: 100vh; max-height: 100vh; min-height: -webkit-fill-available;">
+        <main class="app-main overflow-x-hidden overflow-y-auto max-w-full flex-1" style="padding-top: var(--pt-navbar-height); height: 100vh; max-height: 100vh; min-height: -webkit-fill-available;">
             @yield('content')
         </main>
 
@@ -57,6 +57,10 @@
          window.applyFilters / removeFilter / resetFilters / openFilterModal. Encima su HTML
          (#filtersModal, #f_list, #f_col_select) no existe en ninguna vista del repo, asi que
          las funciones ganadoras eran no-ops silenciosos y rompian los filtros de 5 paginas. --}}
+    {{-- Solo flux.js: @fluxScripts además fuerza Livewire en todas las páginas (la grilla legacy
+         de PT no debe cargarlo, ProgramaTejidoShellV2Test). Los ui-* de Flux son custom elements
+         y no lo necesitan; donde ya hay Livewire, Flux se engancha a Alpine solo. --}}
+    {!! app('flux')->scripts() !!}
     @vite(['resources/js/app-core.js'])
 
   @stack('scripts')

@@ -44,13 +44,13 @@ class EnLinea extends Component
     {
         return [
             ['campo' => '', 'titulo' => 'Estado', 'valor' => fn ($d) => $this->textoEstado($d)],
-            ['campo' => self::T.'.Nombre', 'titulo' => 'Dispositivo', 'valor' => fn ($d) => $d->Nombre ?: trim(($d->Modelo ?: '').' '.$d->Tipo)],
-            ['campo' => 'UsuarioNombre', 'titulo' => 'Usuario', 'valor' => fn ($d) => $d->UsuarioNombre ? $d->UsuarioNombre.' (#'.$d->UsuarioNumero.')' : ''],
-            ['campo' => 'UsuarioArea', 'titulo' => 'Área', 'clase' => 'hidden lg:table-cell'],
-            ['campo' => self::T.'.UltimaIp', 'titulo' => 'IP', 'valor' => fn ($d) => $d->UltimaIp, 'clase' => 'hidden md:table-cell'],
+            ['campo' => self::T.'.Nombre', 'filtro' => true, 'titulo' => 'Dispositivo', 'valor' => fn ($d) => $d->Nombre ?: trim(($d->Modelo ?: '').' '.$d->Tipo)],
+            ['campo' => 'UsuarioNombre', 'filtro' => 'u.nombre', 'titulo' => 'Usuario', 'valor' => fn ($d) => $d->UsuarioNombre ? $d->UsuarioNombre.' (#'.$d->UsuarioNumero.')' : ''],
+            ['campo' => 'UsuarioArea', 'filtro' => 'u.area', 'titulo' => 'Área', 'clase' => 'hidden lg:table-cell'],
+            ['campo' => self::T.'.UltimaIp', 'filtro' => true, 'titulo' => 'IP', 'valor' => fn ($d) => $d->UltimaIp, 'clase' => 'hidden md:table-cell'],
             ['campo' => '', 'titulo' => 'Tipo / SO / navegador', 'clase' => 'hidden xl:table-cell',
                 'valor' => fn ($d) => collect([$d->Tipo, $d->SO, $d->Navegador, $d->Pantalla])->filter()->implode(' · ')],
-            ['campo' => self::T.'.UltimaRuta', 'titulo' => 'Página', 'valor' => fn ($d) => $d->UltimaRuta],
+            ['campo' => self::T.'.UltimaRuta', 'filtro' => true, 'titulo' => 'Página', 'valor' => fn ($d) => $d->UltimaRuta],
             ['campo' => 'SesionInicio', 'titulo' => 'En sesión', 'clase' => 'hidden md:table-cell',
                 'valor' => fn ($d) => $d->SesionInicio ? PanelConsultas::duracion((int) Carbon::parse($d->SesionInicio)->diffInSeconds(now())) : ''],
             ['campo' => self::T.'.UltimaActividad', 'titulo' => 'Última actividad',

@@ -50,14 +50,14 @@ class Navegacion extends Component
     {
         return [
             ['campo' => self::T.'.Inicio', 'titulo' => 'Hora', 'valor' => fn ($v) => $v->Inicio?->format('H:i:s')],
-            ['campo' => self::T.'.Ruta', 'titulo' => 'Página', 'valor' => fn ($v) => $v->Ruta],
-            ['campo' => self::T.'.Url', 'titulo' => 'URL', 'valor' => fn ($v) => $v->Url, 'clase' => 'hidden lg:table-cell'],
+            ['campo' => self::T.'.Ruta', 'filtro' => true, 'titulo' => 'Página', 'valor' => fn ($v) => $v->Ruta],
+            ['campo' => self::T.'.Url', 'filtro' => true, 'titulo' => 'URL', 'valor' => fn ($v) => $v->Url, 'clase' => 'hidden lg:table-cell'],
             ['campo' => self::T.'.VisibleMs', 'titulo' => 'Tiempo visible', 'valor' => fn ($v) => $v->VisibleMs === null ? ($v->Fin ? '' : 'Abierta') : PanelConsultas::duracion(intdiv($v->VisibleMs, 1000))],
-            ['campo' => self::T.'.Tipo', 'titulo' => 'Tipo', 'valor' => fn ($v) => $v->Tipo, 'clase' => 'hidden md:table-cell'],
+            ['campo' => self::T.'.Tipo', 'filtro' => true, 'titulo' => 'Tipo', 'valor' => fn ($v) => $v->Tipo, 'clase' => 'hidden md:table-cell'],
             ['campo' => self::T.'.ServidorMs', 'titulo' => 'Servidor', 'valor' => fn ($v) => $v->ServidorMs === null ? '' : $v->ServidorMs.' ms', 'clase' => 'hidden md:table-cell'],
             ['campo' => self::T.'.CargaMs', 'titulo' => 'Carga', 'valor' => fn ($v) => $v->CargaMs === null ? '' : $v->CargaMs.' ms', 'clase' => 'hidden md:table-cell'],
-            ['campo' => 'UsuarioNombre', 'titulo' => 'Usuario', 'clase' => 'hidden sm:table-cell'],
-            ['campo' => 'DispositivoNombre', 'titulo' => 'Dispositivo', 'valor' => fn ($v) => $v->DispositivoNombre ?: $v->DispositivoModelo, 'clase' => 'hidden xl:table-cell'],
+            ['campo' => 'UsuarioNombre', 'filtro' => 'u.nombre', 'titulo' => 'Usuario', 'clase' => 'hidden sm:table-cell'],
+            ['campo' => 'DispositivoNombre', 'filtro' => 'd.Nombre', 'titulo' => 'Dispositivo', 'valor' => fn ($v) => $v->DispositivoNombre ?: $v->DispositivoModelo, 'clase' => 'hidden xl:table-cell'],
         ];
     }
 

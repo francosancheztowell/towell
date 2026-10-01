@@ -49,12 +49,12 @@ class CatalogoFallas extends Component
     public function columnas(): array
     {
         return [
-            ['campo' => 'TipoFallaId', 'titulo' => 'Tipo de falla'],
-            ['campo' => 'Departamento', 'titulo' => 'Departamento'],
-            ['campo' => 'Falla', 'titulo' => 'Falla'],
-            ['campo' => 'Descripcion', 'titulo' => 'Descripción', 'clase' => 'hidden md:table-cell'],
-            ['campo' => 'Abreviado', 'titulo' => 'Abreviado', 'clase' => 'hidden sm:table-cell'],
-            ['campo' => 'Seccion', 'titulo' => 'Sección', 'clase' => 'hidden lg:table-cell'],
+            ['campo' => 'TipoFallaId', 'filtro' => true, 'titulo' => 'Tipo de falla'],
+            ['campo' => 'Departamento', 'filtro' => true, 'titulo' => 'Departamento'],
+            ['campo' => 'Falla', 'filtro' => true, 'titulo' => 'Falla'],
+            ['campo' => 'Descripcion', 'filtro' => true, 'titulo' => 'Descripción', 'clase' => 'hidden md:table-cell'],
+            ['campo' => 'Abreviado', 'filtro' => true, 'titulo' => 'Abreviado', 'clase' => 'hidden sm:table-cell'],
+            ['campo' => 'Seccion', 'filtro' => true, 'titulo' => 'Sección', 'clase' => 'hidden lg:table-cell'],
         ];
     }
 

@@ -42,46 +42,6 @@
     }
 
     // ==============================
-    // Menú usuario compacto
-    // ==============================
-    function initUserMenu() {
-        const estaAbierto = (modal) => modal.classList.contains("opacity-100");
-
-        const mostrar = (modal) => {
-            modal.classList.remove("opacity-0", "invisible", "scale-95");
-            modal.classList.add("opacity-100", "visible", "scale-100");
-        };
-
-        const ocultar = (modal) => {
-            modal.classList.remove("opacity-100", "visible", "scale-100");
-            modal.classList.add("opacity-0", "invisible", "scale-95");
-        };
-
-        document.addEventListener("click", (e) => {
-            const modal = document.getElementById("user-modal");
-            if (!modal) return;
-
-            const btn = e.target.closest("#btn-user-avatar");
-            if (btn) {
-                e.stopPropagation();
-                estaAbierto(modal) ? ocultar(modal) : mostrar(modal);
-                return;
-            }
-
-            if (estaAbierto(modal) && !modal.contains(e.target)) {
-                ocultar(modal);
-            }
-        });
-
-        document.addEventListener("keydown", (e) => {
-            const modal = document.getElementById("user-modal");
-            if (e.key === "Escape" && modal && estaAbierto(modal)) {
-                ocultar(modal);
-            }
-        });
-    }
-
-    // ==============================
     // Navegación: loader, debounce y botón atrás
     // ==============================
     // El botón atrás es un <a href> con la ruta del padre ya resuelta en el
@@ -134,7 +94,6 @@
     // ==============================
     function initAppScripts() {
         initLogout();
-        initUserMenu();
         initNavigation();
     }
 
