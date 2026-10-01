@@ -115,6 +115,23 @@ test('una petición cancelada no se reporta como error', async () => {
   assert.deepEqual(events, [])
 })
 
+test('una petición que el navegador aborta al salir de la página no se reporta', async () => {
+  const { events, stop } = captureErrors()
+  const abortada = async (config) => {
+    throw new AxiosError('Request aborted', AxiosError.ECONNABORTED, config, {})
+  }
+  const timeout = async (config) => {
+    throw new AxiosError('timeout of 10ms exceeded', AxiosError.ECONNABORTED, config, {})
+  }
+
+  await assert.rejects(http.get('/catalogos-julios', { adapter: abortada }), (err) => err.status === 0)
+  await assert.rejects(http.get('/lento', { adapter: timeout }), (err) => err.status === 0)
+  stop()
+
+  // El timeout sí es un fallo real: solo se calla el aborto por navegación.
+  assert.deepEqual(events, [{ status: 0, url: '/lento', method: 'GET' }])
+})
+
 test('419 y 401 avisan con un toast y recargan una sola vez por página; el error llega al caller', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   reloads = 0

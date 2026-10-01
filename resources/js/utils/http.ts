@@ -97,6 +97,15 @@ function emitError(detail: HttpErrorDetail): void {
     window.dispatchEvent(new CustomEvent<HttpErrorDetail>(HTTP_ERROR_EVENT, { detail }));
 }
 
+/**
+ * El navegador corta las peticiones en curso cuando el usuario navega o recarga; axios las
+ * rechaza con ECONNABORTED 'Request aborted'. Una red caída llega como ERR_NETWORK y un
+ * timeout con otro mensaje: esos sí se reportan.
+ */
+function abortadaAlSalir(err: unknown): boolean {
+    return axios.isAxiosError(err) && err.code === 'ECONNABORTED' && err.message === 'Request aborted';
+}
+
 async function request<T>(method: string, url: string, run: () => Promise<AxiosResponse<T>>): Promise<T> {
     try {
         const res = await run();
@@ -104,8 +113,9 @@ async function request<T>(method: string, url: string, run: () => Promise<AxiosR
         return res.data;
     } catch (err) {
         const error = normalizeError(err);
-        // Una cancelación (AbortController) es intencional: no es un fallo que reportar.
-        if (axios.isCancel(err)) throw error;
+        // Una cancelación (AbortController) es intencional y un aborto del navegador al salir
+        // o recargar la página no le importa a nadie: ninguno es un fallo que reportar.
+        if (axios.isCancel(err) || abortadaAlSalir(err)) throw error;
         emitError({ status: error.status, url: stripQuery(url), method: method.toUpperCase() });
         if (esSesionExpirada(error.status)) sesionExpirada();
         throw error;
