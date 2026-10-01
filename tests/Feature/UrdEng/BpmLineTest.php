@@ -92,7 +92,7 @@ class BpmLineTest extends TestCase
     }
 
     #[DataProvider('variantes')]
-    public function test_vista_y_toggle(string $variante, string $controller, string $folio, string $tabla): void
+    public function test_vista_y_toggle(string $variante, string $controller, string $folio, string $tabla, mixed ...$resto): void
     {
         $prefijo = $variante === 'urdido' ? '/urd-bpm-line/' : '/eng-bpm-line/';
         $usuario = $this->usuarioCon([35 => ['acceso', 'modificar'], 41 => ['acceso', 'modificar']]);

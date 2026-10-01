@@ -61,7 +61,7 @@ class SecuenciasTest extends TestCase
     }
 
     #[DataProvider('variantes')]
-    public function test_vista_comun_con_config_y_sin_js_inline(string $url, string $modelo, string $llave, string $campo, string $modulo): void
+    public function test_vista_comun_con_config_y_sin_js_inline(string $url, string $modelo, string $llave, string $campo, string $modulo, mixed ...$resto): void
     {
         $this->sembrar($modelo, $llave, $campo, 2);
         $html = $this->actingAs($this->usuarioCon($this->permisos($modulo)))->get($url)->assertOk()->getContent();
@@ -79,7 +79,7 @@ class SecuenciasTest extends TestCase
     }
 
     #[DataProvider('variantes')]
-    public function test_sin_permiso_no_hay_acciones(string $url, string $modelo, string $llave, string $campo, string $modulo): void
+    public function test_sin_permiso_no_hay_acciones(string $url, string $modelo, string $llave, string $campo, string $modulo, mixed ...$resto): void
     {
         $html = $this->actingAs($this->usuarioCon([$modulo => ['acceso']]))->get($url)->assertOk()->getContent();
         $this->assertStringNotContainsString('data-accion="crear"', $html);
@@ -126,7 +126,7 @@ class SecuenciasTest extends TestCase
     }
 
     #[DataProvider('variantes')]
-    public function test_orden_en_una_sola_sentencia(string $url, string $modelo, string $llave, string $campo, string $modulo): void
+    public function test_orden_en_una_sola_sentencia(string $url, string $modelo, string $llave, string $campo, string $modulo, mixed ...$resto): void
     {
         $this->sembrar($modelo, $llave, $campo, 30);
         $u = $this->usuarioCon($this->permisos($modulo));

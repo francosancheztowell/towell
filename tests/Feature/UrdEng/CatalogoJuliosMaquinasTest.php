@@ -6,6 +6,7 @@ use App\Models\Urdido\UrdCatJulios;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Feature\UrdEng\Concerns\ModuloUrdEng;
 use Tests\TestCase;
 
@@ -55,7 +56,7 @@ class CatalogoJuliosMaquinasTest extends TestCase
         ];
     }
 
-    /** @dataProvider variantesJulios */
+    #[DataProvider('variantesJulios')]
     public function test_vista_julios_filtra_por_departamento_y_trae_config(string $url, string $dep, string $ajeno): void
     {
         $html = $this->actingAs($this->usuarioCon($this->todos()))->get($url)->assertOk()->getContent();
@@ -75,8 +76,8 @@ class CatalogoJuliosMaquinasTest extends TestCase
         $this->assertStringNotContainsString('data-no-julio="11"', $html);
     }
 
-    /** @dataProvider variantesJulios */
-    public function test_crea_edita_y_elimina_julio(string $url, string $dep): void
+    #[DataProvider('variantesJulios')]
+    public function test_crea_edita_y_elimina_julio(string $url, string $dep, mixed ...$resto): void
     {
         $u = $this->usuarioCon($this->todos());
         $db = DB::connection('sqlsrv');

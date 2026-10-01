@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Planeacion;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -36,7 +37,7 @@ class ProgramaTejidoSinJsInlineTest extends TestCase
         return $casos;
     }
 
-    /** @dataProvider vistas */
+    #[DataProvider('vistas')]
     public function test_sin_script_inline_ni_handlers_on(string $ruta): void
     {
         $this->assertFileExists($ruta);

@@ -6,6 +6,7 @@ use App\Models\Engomado\CatDefectosUrdEng;
 use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Urdido\UrdProduccionUrdido;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Feature\UrdEng\Concerns\ModuloUrdEng;
 use Tests\TestCase;
 
@@ -42,8 +43,8 @@ class CalificarJuliosTest extends TestCase
         ];
     }
 
-    /** @dataProvider variantes */
-    public function test_lista_julios_y_defectos(string $sufijo): void
+    #[DataProvider('variantes')]
+    public function test_lista_julios_y_defectos(string $sufijo, mixed ...$resto): void
     {
         $this->actingAs($this->usuarioCon(['Producción Engomado' => ['acceso', 'modificar']]))
             ->getJson(self::BASE.$sufijo.'?folio=F-1')
@@ -60,15 +61,15 @@ class CalificarJuliosTest extends TestCase
         $this->assertSame(['9', '10'], array_column($r->json('julios'), 'NoJulio'));
     }
 
-    /** @dataProvider variantes */
-    public function test_sin_folio_es_422_y_no_500(string $sufijo): void
+    #[DataProvider('variantes')]
+    public function test_sin_folio_es_422_y_no_500(string $sufijo, mixed ...$resto): void
     {
         $this->actingAs($this->usuarioCon(['Producción Engomado' => ['acceso']]))
             ->getJson(self::BASE.$sufijo)
             ->assertStatus(422);
     }
 
-    /** @dataProvider variantes */
+    #[DataProvider('variantes')]
     public function test_califica_y_limpia(string $sufijo, string $tabla, int $id): void
     {
         $usuario = $this->usuarioCon(['Producción Engomado' => ['acceso', 'modificar']]);
@@ -87,8 +88,8 @@ class CalificarJuliosTest extends TestCase
         $this->assertNull(DB::connection('sqlsrv')->table($tabla)->where('Id', $id)->value('ClaveDefecto'));
     }
 
-    /** @dataProvider variantes */
-    public function test_no_encontrado_es_404_con_mensaje_propio(string $sufijo): void
+    #[DataProvider('variantes')]
+    public function test_no_encontrado_es_404_con_mensaje_propio(string $sufijo, mixed ...$resto): void
     {
         $this->actingAs($this->usuarioCon(['Producción Engomado' => ['acceso', 'modificar']]))
             ->postJson(self::BASE.$sufijo.'/calificar', ['julio_id' => 999, 'defecto_id' => 7])
@@ -97,7 +98,7 @@ class CalificarJuliosTest extends TestCase
             ->assertJsonStructure(['message', 'trace_id']);
     }
 
-    /** @dataProvider variantes */
+    #[DataProvider('variantes')]
     public function test_sin_modificar_es_403(string $sufijo, string $tabla, int $id): void
     {
         $this->actingAs($this->usuarioCon(['Producción Engomado' => ['acceso']]))

@@ -51,7 +51,7 @@ class PlaneacionEscrituraAutorizacionTest extends TestCase
     }
 
     #[DataProvider('rutasCerradas')]
-    public function test_la_ruta_declara_su_permiso_de_modulo(string $ruta, string $_metodo, string $middleware): void
+    public function test_la_ruta_declara_su_permiso_de_modulo(string $ruta, string $_metodo, string $middleware, mixed ...$resto): void
     {
         $route = Route::getRoutes()->getByName($ruta);
 
@@ -61,7 +61,7 @@ class PlaneacionEscrituraAutorizacionTest extends TestCase
     }
 
     #[DataProvider('rutasCerradas')]
-    public function test_sin_permiso_responde_403(string $ruta, string $metodo): void
+    public function test_sin_permiso_responde_403(string $ruta, string $metodo, mixed ...$resto): void
     {
         $this->actingAs($this->usuarioConPermisos([]))
             ->json($metodo, route($ruta))

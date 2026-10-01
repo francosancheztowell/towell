@@ -79,7 +79,7 @@ class BpmTest extends TestCase
     }
 
     #[DataProvider('variantes')]
-    public function test_store_con_error_no_expone_la_excepcion(string $url): void
+    public function test_store_con_error_no_expone_la_excepcion(string $url, mixed ...$resto): void
     {
         // Sin tabla de folios: FolioHelper lanza (SQLSTATE ... no such table) dentro del try de store().
         $this->actingAs($this->usuarioCon(['BPM (Buenas Practicas Manufactura) Urd' => ['acceso', 'crear'], 'BPM (Buenas Practicas Manufactura) Eng' => ['acceso', 'crear']]))
@@ -91,7 +91,7 @@ class BpmTest extends TestCase
     }
 
     #[DataProvider('variantes')]
-    public function test_update_y_destroy(string $url, string $tabla): void
+    public function test_update_y_destroy(string $url, string $tabla, mixed ...$resto): void
     {
         // destroy se gatea por id de módulo (35 Urd, 41 Eng), no en modo auditar.
         $usuario = $this->usuarioCon([35 => ['acceso', 'modificar', 'eliminar'], 41 => ['acceso', 'modificar', 'eliminar']]);

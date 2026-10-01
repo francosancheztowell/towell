@@ -40,7 +40,7 @@ class BpmActividadesTest extends TestCase
     }
 
     #[DataProvider('variantes')]
-    public function test_indice_renderiza_sin_js_inline(string $url, string $base, int $modulo): void
+    public function test_indice_renderiza_sin_js_inline(string $url, string $base, int $modulo, mixed ...$resto): void
     {
         // Los botones del navbar comprueban el permiso por nombre de módulo.
         $nombre = $base === '/urd-actividades-bpm' ? 'Actividades BPM Urdido' : 'Actividades BPM Engomado';
