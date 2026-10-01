@@ -184,15 +184,8 @@ function notificarProgramaTejido(message, type = 'info') {
 		window.toast(message, type);
 		return;
 	}
-	if (typeof Swal !== 'undefined' && Swal.fire) {
-		Swal.fire({
-			text: message,
-			icon: type === 'error' ? 'error' : (type === 'success' ? 'success' : 'info'),
-			toast: true,
-			position: 'top-end',
-			timer: 3000,
-			showConfirmButton: false
-		});
+	if (typeof window.notify !== 'undefined') {
+		window.notify[type === 'error' ? 'error' : (type === 'success' ? 'success' : 'info')](message);
 		return;
 	}
 	console[type === 'error' ? 'error' : 'log'](message);
@@ -621,16 +614,16 @@ function buildCalendarWarningHtml(message, advertencias) {
 	const detalles = Array.isArray(advertencias?.detalles) ? advertencias.detalles : [];
 	const detallesHtml = detalles.length > 0
 		? `<ul class="list-disc list-inside text-xs text-yellow-700 space-y-1">${detalles.slice(0, 5).map(detalle => (
-			`<li>Calendario '<strong>${detalle.calendario_id}</strong>': ${detalle.mensaje}</li>`
+			`<li>Calendario '<strong>${escapeHtmlPtModal(detalle.calendario_id)}</strong>': ${escapeHtmlPtModal(detalle.mensaje)}</li>`
 		)).join('')}${detalles.length > 5 ? `<li>... y ${detalles.length - 5} mas</li>` : ''}</ul>`
 		: '';
 
 	return `
 		<div class="text-left">
-			<p class="mb-3 text-sm text-gray-700">${message}</p>
+			<p class="mb-3 text-sm text-gray-700">${escapeHtmlPtModal(message)}</p>
 			<div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-3">
 				<p class="font-semibold text-yellow-800 mb-2">Advertencia: Problemas con calendarios</p>
-				<p class="text-sm text-yellow-700 mb-2">${advertencias.total_errores} programa(s) no pudieron generar lineas diarias porque no hay fechas disponibles en el calendario.</p>
+				<p class="text-sm text-yellow-700 mb-2">${escapeHtmlPtModal(advertencias.total_errores)} programa(s) no pudieron generar lineas diarias porque no hay fechas disponibles en el calendario.</p>
 				${detallesHtml}
 			</div>
 			<p class="text-xs text-gray-600">Los programas se crearon correctamente, pero necesitas agregar fechas al calendario para generar las lineas diarias.</p>
@@ -1635,16 +1628,16 @@ function formatearValorCelda(registro, field, value, dateType) {
 function showLoading() {
 	if (window.PT && window.PT.loader) {
 		window.PT.loader.show();
-	} else if (typeof Swal !== 'undefined') {
-		Swal.showLoading();
+	} else if (typeof window.notify !== 'undefined') {
+		window.notify.loading();
 	}
 }
 
 function hideLoading() {
 	if (window.PT && window.PT.loader) {
 		window.PT.loader.hide();
-	} else if (typeof Swal !== 'undefined') {
-		Swal.hideLoading();
+	} else if (typeof window.notify !== 'undefined') {
+		window.notify.close();
 	}
 }
 
@@ -3375,22 +3368,19 @@ async function duplicarTelar(row) {
 	const esGrupoOrdCompartidaActivo = grupoOrdCompartida.esGrupoActivo;
 
 	// Modal con formato de tabla
-	const resultado = await Swal.fire({
+	const resultado = await window.notify.form({
+		title: '',
 		html: generarHTMLModalDuplicar({ telar, salon, codArticulo, claveModelo, producto, hilo, pedido: pedidoFinal, saldo: saldoFinal, produccion: produccionFinal, flog, ordCompartida, aplicacion: aplicacionFinal, registroId, descripcion, esGrupoOrdCompartidaActivo }),
-		width: 'min(100%, 1600px)',
-		showCancelButton: true,
-		confirmButtonText: 'Aceptar',
-		cancelButtonText: 'Cancelar',
-		// No cerrar al hacer clic fuera: el autocomplete se dibuja fuera del modal y al elegir opción cerraría el modal
-		allowOutsideClick: false,
-		allowEscapeKey: true,
-		// Desactivar estilos por defecto de SweetAlert (morado) y usar clases Tailwind
-		buttonsStyling: false,
-		customClass: {
-			confirmButton: 'swal-confirm-btn inline-flex justify-center px-4 py-2 text-sm font-semibold rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500',
-			cancelButton: 'ml-2 inline-flex justify-center px-4 py-2 text-sm font-semibold rounded-md text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300'
-		},
-		didOpen: () => {
+		width: '3xl',
+		confirmText: 'Aceptar',
+		cancelText: 'Cancelar',
+		didOpen: (root) => {
+			// No cerrar al hacer clic fuera: el autocomplete se dibuja fuera del modal y al elegir opción cerraría el modal
+			// (el diálogo cierra con clic en el backdrop, que llega con target = el <dialog>; Esc sigue cerrando).
+			const dialogEl = root.closest('dialog');
+			dialogEl?.addEventListener('click', (e) => {
+				if (e.target === dialogEl) e.stopImmediatePropagation();
+			}, true);
 			initModalDuplicar(telar, hilo, ordCompartida, registroId, esGrupoOrdCompartidaActivo);
 
 			// Cuando no se espero la red (fila sin OrdCompartida), el detalle llega
@@ -3401,7 +3391,7 @@ async function duplicarTelar(row) {
 
 			const renderizado = { pedido: pedidoFinal, saldo: saldoFinal };
 			detallePendiente.then((detalle) => {
-				if (! Swal.isVisible()) return;
+				if (! root.isConnected) return;
 				aplicarDetalle(detalle);
 
 				const pedidoNuevo = pedidoBackend || pedidoFinal;
@@ -3435,12 +3425,8 @@ async function duplicarTelar(row) {
 				}
 			}).catch(() => { /* el detalle es un fallback: si falla, quedan los datos de la fila */ });
 		},
-		showLoaderOnConfirm: true,
-		preConfirm: async () => {
-			if (typeof Swal.resetValidationMessage === 'function') {
-				Swal.resetValidationMessage();
-			}
-			const datos = validarYCapturarDatosDuplicar();
+		preConfirm: async (ctx) => {
+			const datos = validarYCapturarDatosDuplicar(ctx);
 			if (datos === false) {
 				return false;
 			}
@@ -3484,12 +3470,12 @@ async function duplicarTelar(row) {
 				try {
 					data = await response.json();
 				} catch (e) {
-					Swal.showValidationMessage('Respuesta inválida del servidor.');
+					ctx.error('Respuesta inválida del servidor.');
 					return false;
 				}
 
 				if (response.status === 422 && data.tipo_error === 'calendario_sin_fechas') {
-					Swal.showValidationMessage(
+					ctx.error(
 						(typeof data.message === 'string' && data.message.trim() !== '')
 							? data.message.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
 							: 'Hay calendarios sin fechas asignadas. Revise los datos e intente de nuevo.'
@@ -3498,27 +3484,23 @@ async function duplicarTelar(row) {
 				}
 
 				if (!data.success) {
-					Swal.showValidationMessage(data.message || 'Error al procesar la solicitud');
+					ctx.error(data.message || 'Error al procesar la solicitud');
 					return false;
 				}
 
 				return { datos, data };
 			} catch (err) {
-				Swal.showValidationMessage('Ocurrió un error de conexión.');
+				ctx.error('Ocurrió un error de conexión.');
 				return false;
 			}
 		}
 	});
 
-	if (!resultado.isConfirmed) {
+	if (!resultado || typeof resultado !== 'object') {
 		return;
 	}
 
-	if (!resultado.value || typeof resultado.value !== 'object') {
-		return;
-	}
-
-	const { datos, data } = resultado.value;
+	const { datos, data } = resultado;
 
 	const usarVincular = datos.vincular === true && datos.modo === 'duplicar';
 	const mensajeExito = datos.modo === 'dividir'
@@ -3547,14 +3529,7 @@ async function duplicarTelar(row) {
 	if (data.advertencias && data.advertencias.tipo === 'calendario_sin_fechas') {
 		const mensajeAdvertencia = buildCalendarWarningHtml(data.message, data.advertencias);
 
-		Swal.fire({
-			title: 'Duplicacion completada con advertencias',
-			html: mensajeAdvertencia,
-			icon: 'warning',
-			confirmButtonText: 'Entendido',
-			confirmButtonColor: '#f59e0b',
-			width: '600px'
-		}).then(async () => {
+		window.notify.html(mensajeAdvertencia, 'Duplicacion completada con advertencias', 'warning').then(async () => {
 			await redirectToRegistro(data);
 			if (datos.modo === 'dividir') {
 				await actualizarTelaresAfectadosDespuesDividir(opcionesTelaresPostDividir);
@@ -3785,7 +3760,7 @@ function initModalDuplicar(telar, hiloActualParam, ordCompartidaParam, registroI
 	const hiloActual = selectHilo?.dataset?.hiloActual || hiloActualParam || '';
 	const salonActual = selectSalon?.dataset?.salonActual || '';
 	const telarActual = telar || '';
-	const confirmButton = Swal.getConfirmButton();
+	const confirmButton = document.querySelector('dialog.ui-dialogo .ui-dialogo__boton--primario');
 
 	if (!tbody || !selectHilo || !selectSalon || !selectAplicacion) {
 		return;
@@ -6377,7 +6352,7 @@ function buildBaseInfoCells({ claveModelo, producto, flog, descripcion, aplicaci
 }
 
 // Valida y captura los datos del modal para enviar al backend
-function validarYCapturarDatosDuplicar() {
+function validarYCapturarDatosDuplicar(ctx) {
 	// Verificar que todas las claves modelo existan en codificados (solo en modo duplicar)
 	if (getModoActual() === 'duplicar') {
 		const filasValidacion = document.querySelectorAll('#telar-pedido-body tr');
@@ -6385,7 +6360,7 @@ function validarYCapturarDatosDuplicar() {
 			const claveInput = fila.querySelector('.clave-modelo-cell input');
 			const claveVal = claveInput ? (claveInput.value || '').trim() : '';
 			if (claveVal !== '' && fila.dataset.claveValida === 'false') {
-				Swal.showValidationMessage('Primero verifique en Modelos si la clave existe');
+				ctx.error('Primero verifique en Modelos si la clave existe');
 				return false;
 			}
 		}
@@ -7125,8 +7100,8 @@ function updateQuickFilterButtonInModal(key) {
 // ===== Modal Filtros – Programa Tejido (SweetAlert2) =====
 window.openProgramaTejidoFilterModal = openProgramaTejidoFilterModal;
 function openProgramaTejidoFilterModal() {
-    if (typeof Swal === 'undefined') {
-        console.warn('SweetAlert2 no está disponible');
+    if (typeof window.notify === 'undefined') {
+        console.warn('notify no está disponible');
         return;
     }
 
@@ -7222,18 +7197,14 @@ function openProgramaTejidoFilterModal() {
             </div>
 	`;
 
-	Swal.fire({
+	window.notify.dialog({
+        titulo: 'Filtros',
         html,
-        width: '580px',
-        padding: 0,
-        showConfirmButton: false,
-        showCloseButton: true,
-        customClass: {
-            popup: 'rounded-xl overflow-hidden p-0 shadow-xl',
-            htmlContainer: 'p-0 m-0'
-        },
-        backdrop: 'rgba(0,0,0,0.4)',
-        didOpen: (modalEl) => {
+        tono: null,
+        formulario: true,
+        ancho: 'lg',
+        botones: [{ texto: 'Cerrar', valor: 'cerrar', variante: 'secundario' }],
+        alAbrir: (modalEl) => {
             // Quick filters - ya aplican automáticamente
             modalEl.querySelectorAll('[data-quick-filter]').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -7295,8 +7266,8 @@ function saveDateRangeFilters() {
 
 window.closeProgramaTejidoFilterModal = closeProgramaTejidoFilterModal;
 function closeProgramaTejidoFilterModal() {
-    if (typeof Swal !== 'undefined') {
-        Swal.close();
+    if (typeof window.notify !== 'undefined') {
+        window.notify.close();
     }
 }
 
@@ -8129,9 +8100,8 @@ function buildColumnsModalHtml({ mode, groupedColumns, ungroupedColumns }) {
 	`;
 	return html;
 }
-function bindColumnsModalEvents(mode) {
+function bindColumnsModalEvents(mode, container) {
 	const config = COLUMN_MODAL_CONFIG[mode];
-	const container = document.getElementById('swal2-html-container');
 	if (!config || !container) return;
 	container.querySelectorAll(`.${config.groupClass}[data-indeterminate="1"]`).forEach(cb => {
 		cb.indeterminate = true;
@@ -8163,16 +8133,14 @@ function openColumnsModal(mode) {
 	const { groupedColumns, ungroupedColumns } = buildGroupedColumns();
 	const html = buildColumnsModalHtml({ mode, groupedColumns, ungroupedColumns });
 	const config = COLUMN_MODAL_CONFIG[mode];
-	Swal.fire({
+	window.notify.form({
 		title: config.title,
 		html: html,
-		showCancelButton: true,
-		confirmButtonText: 'Aplicar',
-		cancelButtonText: 'Cancelar',
-		confirmButtonColor: config.confirmColor,
-		cancelButtonColor: '#6b7280',
-		width: '600px',
-		didOpen: () => bindColumnsModalEvents(mode)
+		confirmText: 'Aplicar',
+		cancelText: 'Cancelar',
+		danger: mode === 'hide',
+		width: 'lg',
+		didOpen: (root) => bindColumnsModalEvents(mode, root)
 	});
 }
 window.openPinColumnsModal = openPinColumnsModal;
@@ -9400,8 +9368,8 @@ const uiInlineEditableFields = {
 
       if (typeof window.showToast === 'function') {
         window.showToast('Campo actualizado', 'success');
-      } else if (typeof Swal !== 'undefined') {
-        Swal.fire({ icon: 'success', title: 'Actualizado', timer: 1200, showConfirmButton: false, toast: true, position: 'top-end' });
+      } else if (typeof window.notify !== 'undefined') {
+        window.notify.success('Actualizado');
       }
     } catch (e) {
       console.error('saveInlineField error', e);
@@ -9415,8 +9383,8 @@ const uiInlineEditableFields = {
 
       if (typeof window.showToast === 'function') {
         window.showToast(`Error: ${e.message}`, 'error');
-      } else if (typeof Swal !== 'undefined') {
-        Swal.fire({ icon: 'error', title: 'Error', text: e.message, timer: 2500, showConfirmButton: false, toast: true, position: 'top-end' });
+      } else if (typeof window.notify !== 'undefined') {
+        window.notify.error(e.message);
       }
     } finally {
       row.classList.remove('inline-saving');
@@ -10655,15 +10623,12 @@ const uiInlineEditableFields = {
 
       html += '</div></div></div>';
 
-      Swal.fire({
+      window.notify.form({
         title: 'Filtrar Columna',
         html: html,
-        showCancelButton: true,
-        confirmButtonText: 'Aplicar',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#3b82f6',
-        cancelButtonColor: '#6b7280',
-        width: '500px',
+        confirmText: 'Aplicar',
+        cancelText: 'Cancelar',
+        width: 'lg',
         didOpen: () => {
           // Restaurar estado de checkboxes si hay filtros activos para esta columna
           // Usar la variable global 'filters' directamente
@@ -10735,9 +10700,9 @@ const uiInlineEditableFields = {
           return checked;
         }
       }).then((result) => {
-        if (!result.isConfirmed) return;
+        if (result === null) return;
 
-        const selectedValues = result.value || [];
+        const selectedValues = result || [];
 
         // Aplicar filtro
         if (typeof window.applyColumnFilter === 'function') {
@@ -11020,7 +10985,7 @@ const uiInlineEditableFields = {
     PT.actions = PT.actions || {};
 
     PT.actions.descargarPrograma = function descargarPrograma() {
-      Swal.fire({
+      window.notify.form({
         title: 'Descargar Programa',
         html: `
           <div class="text-left">
@@ -11030,26 +10995,23 @@ const uiInlineEditableFields = {
           </div>
         `,
         icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Descargar',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#3b82f6',
-        cancelButtonColor: '#6b7280',
+        confirmText: 'Descargar',
+        cancelText: 'Cancelar',
         didOpen: () => {
           const hoy = new Date().toISOString().split('T')[0];
           qs('#fechaInicial').value = hoy;
           qs('#fechaInicial').focus();
         },
-        preConfirm: () => {
+        preConfirm: (ctx) => {
           const fechaInicial = qs('#fechaInicial').value;
           if (!fechaInicial) {
-            Swal.showValidationMessage('Por favor seleccione una fecha inicial');
+            ctx.error('Por favor seleccione una fecha inicial');
             return false;
           }
           return fechaInicial;
         }
-      }).then((result) => {
-        if (!result.isConfirmed) return;
+      }).then((fechaInicial) => {
+        if (fechaInicial === null) return;
 
         PT.loader.show();
         fetch('/planeacion/programa-tejido/descargar-programa', {
@@ -11058,7 +11020,7 @@ const uiInlineEditableFields = {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': qs('meta[name="csrf-token"]').content
           },
-          body: JSON.stringify({ fecha_inicial: result.value })
+          body: JSON.stringify({ fecha_inicial: fechaInicial })
         })
         .then(r => r.json())
         .then(data => {
@@ -11283,23 +11245,20 @@ const uiInlineEditableFields = {
           });
       };
 
-      if (typeof Swal === 'undefined') {
+      if (typeof window.notify === 'undefined') {
         if (confirm('¿Eliminar registro? Esta acción no se puede deshacer.')) doDeleteWithGlobalLoader();
         return;
       }
 
-      Swal.fire({
+      window.notify.form({
         title: '¿Eliminar registro?',
+        html: '',
         icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#dc2626',
-        cancelButtonColor: '#6b7280',
-        showLoaderOnConfirm: true,
-        allowOutsideClick: () => !Swal.isLoading(),
-        preConfirm: async () => {
-          if (typeof Swal.resetValidationMessage === 'function') Swal.resetValidationMessage();
+        confirmText: 'Sí, eliminar',
+        cancelText: 'Cancelar',
+        danger: true,
+        width: 'md',
+        preConfirm: async (ctx) => {
           const rowCheck = document.querySelector(`tr.selectable-row[data-id="${id}"]`);
           if (!rowCheck) {
             console.warn('[PT eliminar] ADVERTENCIA: la fila con data-id=' + id + ' no existe en DOM. Esto puede indicar un ID incorrecto.');
@@ -11316,18 +11275,18 @@ const uiInlineEditableFields = {
                 // Cerrar el modal sin mensaje de error: ya no existe (p. ej. doble DELETE o otra pestaña).
                 return { ok: true, alreadyGone: true };
               }
-              Swal.showValidationMessage(data.message || 'No se pudo eliminar el registro');
+              ctx.error(data.message || 'No se pudo eliminar el registro');
               return false;
             }
             return { ok: true };
           } catch (e) {
-            Swal.showValidationMessage('Ocurrió un error de conexión.');
+            ctx.error('Ocurrió un error de conexión.');
             return false;
           }
         }
       }).then(result => {
-        if (!result.isConfirmed || !result.value || !result.value.ok) return;
-        if (result.value.alreadyGone) {
+        if (!result || !result.ok) return;
+        if (result.alreadyGone) {
           if (typeof refreshAllRows === 'function') refreshAllRows();
           if (typeof window.updateTotales === 'function') window.updateTotales();
           toast('El registro ya no existía en el programa. La vista se sincronizó.', 'info');
@@ -11387,26 +11346,22 @@ const uiInlineEditableFields = {
         }
       };
 
-      if (typeof Swal === 'undefined') {
+      if (typeof window.notify === 'undefined') {
         if (confirm('¿Eliminar el registro en proceso? El siguiente registro pasará a ser el activo y el telar será recalculado. Esta acción no se puede deshacer.')) {
           doDeleteWithGlobalLoader();
         }
         return;
       }
 
-      Swal.fire({
+      window.notify.form({
         title: '¿Eliminar registro en proceso?',
-        text: 'El siguiente registro en la cola pasará a estar en proceso y se recalcularán las fechas del telar.',
+        html: 'El siguiente registro en la cola pasará a estar en proceso y se recalcularán las fechas del telar.',
         icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#dc2626',
-        cancelButtonColor: '#6b7280',
-        showLoaderOnConfirm: true,
-        allowOutsideClick: () => !Swal.isLoading(),
-        preConfirm: async () => {
-          if (typeof Swal.resetValidationMessage === 'function') Swal.resetValidationMessage();
+        confirmText: 'Sí, eliminar',
+        cancelText: 'Cancelar',
+        danger: true,
+        width: 'md',
+        preConfirm: async (ctx) => {
           try {
             const data = await performEnProcesoFetch();
             if (!data.success) {
@@ -11418,24 +11373,24 @@ const uiInlineEditableFields = {
                 if (typeof refreshAllRows === 'function') refreshAllRows();
                 return { ok: true, alreadyGone: true };
               }
-              Swal.showValidationMessage(data.message || 'No se pudo eliminar el registro en proceso');
+              ctx.error(data.message || 'No se pudo eliminar el registro en proceso');
               return false;
             }
             return { ok: true, payload: data };
           } catch (e) {
-            Swal.showValidationMessage('Ocurrió un error de conexión.');
+            ctx.error('Ocurrió un error de conexión.');
             return false;
           }
         }
       }).then(async (r) => {
-        if (!r.isConfirmed || !r.value || !r.value.ok) return;
-        if (r.value.alreadyGone) {
+        if (!r || !r.ok) return;
+        if (r.alreadyGone) {
           if (typeof refreshAllRows === 'function') refreshAllRows();
           if (typeof window.updateTotales === 'function') window.updateTotales();
           toast('El registro ya no existía en el programa. La vista se sincronizó.', 'info');
           return;
         }
-        await applyEnProcesoSuccess(r.value.payload);
+        await applyEnProcesoSuccess(r.payload);
       });
     };
 
@@ -11474,23 +11429,21 @@ const uiInlineEditableFields = {
         }
       };
 
-      if (typeof Swal === 'undefined') {
+      if (typeof window.notify === 'undefined') {
         if (confirm('¿Desvincular este registro? Se eliminará su relación con otros registros.')) {
           doDesvincular();
         }
         return;
       }
 
-      Swal.fire({
+      window.notify.confirm({
         title: '¿Desvincular registro?',
         text: 'Se eliminará la relación con otros registros vinculados.',
         icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Sí, desvincular',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#9333ea',
-        cancelButtonColor: '#6b7280',
-      }).then(r => { if (r.isConfirmed) doDesvincular(); });
+        confirmText: 'Sí, desvincular',
+        cancelText: 'Cancelar',
+        confirmColor: '#9333ea',
+      }).then(ok => { if (ok) doDesvincular(); });
     };
 
     // =========================
@@ -11853,12 +11806,7 @@ const uiInlineEditableFields = {
             // Sin este aviso el fallo es invisible: la fila queda movida en pantalla
             // y el usuario asume que se guardo. Pasa con 419 (CSRF vencido), 500, o
             // cuando el servidor responde HTML y resp.json() revienta.
-            Swal.fire({
-              icon: 'error',
-              title: 'Error',
-              text: 'No se pudo guardar la prioridad: ' + (err.message || 'Error desconocido'),
-              confirmButtonColor: '#dc2626'
-            });
+            window.notify.alert('No se pudo guardar la prioridad: ' + (err.message || 'Error desconocido'), 'Error', 'error');
             clearVisualRows();
           }
           return false;
@@ -11902,55 +11850,45 @@ const uiInlineEditableFields = {
           PT.loader.hide();
 
           if (!verificacion?.puede_mover) {
-            Swal.fire({
-              icon: 'error',
-              title: 'No se puede cambiar de telar',
-              html: `
+            const esc = escapeHtmlPtModal;
+            window.notify.html(`
                 <div class="text-left">
-                  <p class="mb-3">${verificacion?.mensaje || 'Validación fallida'}</p>
+                  <p class="mb-3">${esc(verificacion?.mensaje || 'Validación fallida')}</p>
                   <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-sm">
-                    <p><span class="font-medium">Clave Modelo:</span> ${verificacion?.clave_modelo || 'N/A'}</p>
-                    <p><span class="font-medium">Telar Destino:</span> ${verificacion?.telar_destino || nuevoTelar} (${verificacion?.salon_destino || nuevoSalon || 'N/A'})</p>
+                    <p><span class="font-medium">Clave Modelo:</span> ${esc(verificacion?.clave_modelo || 'N/A')}</p>
+                    <p><span class="font-medium">Telar Destino:</span> ${esc(verificacion?.telar_destino || nuevoTelar)} (${esc(verificacion?.salon_destino || nuevoSalon || 'N/A')})</p>
                   </div>
                 </div>
-              `,
-              confirmButtonText: 'Entendido',
-              confirmButtonColor: '#dc2626',
-              width: '520px'
-            });
+              `, 'No se puede cambiar de telar', 'error');
             clearVisualRows();
             return;
           }
 
           // Solo mostrar confirmación si el salón es diferente
-          let confirmacion = { isConfirmed: true }; // Por defecto, confirmado
+          let confirmado = true; // Por defecto, confirmado
 
           if (!mismoSalon) {
             // Si el salón es diferente, mostrar la alerta de confirmación
-            confirmacion = await Swal.fire({
+            const esc = escapeHtmlPtModal;
+            confirmado = await window.notify.confirm({
               icon: 'warning',
               title: 'Cambio de Telar/Salón',
               html: `
                 <div class="text-left">
-                  <p class="mb-2">${verificacion?.mensaje || 'Se aplicará el cambio de telar'}</p>
+                  <p class="mb-2">${esc(verificacion?.mensaje || 'Se aplicará el cambio de telar')}</p>
                   <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
-                    <p><span class="font-medium">Origen:</span> Telar ${verificacion?.telar_origen || state.origin.telar} (Salón ${verificacion?.salon_origen || state.origin.salon || 'N/A'})</p>
-                    <p><span class="font-medium">Destino:</span> Telar ${verificacion?.telar_destino || nuevoTelar} (Salón ${verificacion?.salon_destino || nuevoSalon || 'N/A'})</p>
+                    <p><span class="font-medium">Origen:</span> Telar ${esc(verificacion?.telar_origen || state.origin.telar)} (Salón ${esc(verificacion?.salon_origen || state.origin.salon || 'N/A')})</p>
+                    <p><span class="font-medium">Destino:</span> Telar ${esc(verificacion?.telar_destino || nuevoTelar)} (Salón ${esc(verificacion?.salon_destino || nuevoSalon || 'N/A')})</p>
                   </div>
                 </div>
               `,
-              showCancelButton: true,
-              confirmButtonText: 'Sí, cambiar de telar',
-              cancelButtonText: 'Cancelar',
-              confirmButtonColor: '#3b82f6',
-              cancelButtonColor: '#6b7280',
-              width: '700px',
-              allowOutsideClick: false,
-              allowEscapeKey: true
+              confirmText: 'Sí, cambiar de telar',
+              cancelText: 'Cancelar',
+              confirmColor: '#3b82f6',
             });
           }
 
-          if (!confirmacion.isConfirmed) {
+          if (!confirmado) {
             toast('Operación cancelada', 'info');
             clearVisualRows();
             return;
@@ -11974,12 +11912,7 @@ const uiInlineEditableFields = {
           PT.loader.hide();
 
           if (!cambio?.success) {
-            Swal.fire({
-              icon: 'error',
-              title: 'Error al cambiar de telar',
-              text: cambio?.message || 'No se pudo cambiar de telar',
-              confirmButtonColor: '#dc2626'
-            });
+            window.notify.alert(cambio?.message || 'No se pudo cambiar de telar', 'Error al cambiar de telar', 'error');
             clearVisualRows();
             return;
           }
@@ -11990,12 +11923,7 @@ const uiInlineEditableFields = {
           }
         } catch (err) {
           PT.loader.hide();
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Ocurrió un error al procesar el cambio de telar: ' + (err.message || 'Error desconocido'),
-            confirmButtonColor: '#dc2626'
-          });
+          window.notify.alert('Ocurrió un error al procesar el cambio de telar: ' + (err.message || 'Error desconocido'), 'Error', 'error');
           clearVisualRows();
         }
       }
@@ -12265,7 +12193,7 @@ const uiInlineEditableFields = {
       const primerTieneOrdCompartida = primerOrdCompartida && primerOrdCompartida.trim() !== '';
 
       // Confirmar acción
-      if (typeof Swal === 'undefined') {
+      if (typeof window.notify === 'undefined') {
         const mensaje = primerTieneOrdCompartida
           ? `¿Vincular ${selectedIds.length} registro(s) usando el OrdCompartida existente (${primerOrdCompartida.trim()})?`
           : `¿Vincular ${selectedIds.length} registro(s) con un nuevo OrdCompartida?`;
@@ -12273,22 +12201,17 @@ const uiInlineEditableFields = {
         doVincular(selectedIds);
       } else {
         const mensajeHtml = primerTieneOrdCompartida
-          ? `Se vincularán <strong>${selectedIds.length} registro(s)</strong> usando el OrdCompartida existente: <strong>${primerOrdCompartida.trim()}</strong>.<br><br>Esto no afectará los datos de los registros, solo los agrupará.`
+          ? `Se vincularán <strong>${selectedIds.length} registro(s)</strong> usando el OrdCompartida existente: <strong>${escapeHtmlPtModal(primerOrdCompartida.trim())}</strong>.<br><br>Esto no afectará los datos de los registros, solo los agrupará.`
           : `Se vincularán <strong>${selectedIds.length} registro(s)</strong> con un nuevo OrdCompartida.<br><br>Esto no afectará los datos de los registros, solo los agrupará.`;
 
-        Swal.fire({
+        window.notify.form({
           title: 'Vincular registros?',
           html: mensajeHtml,
           icon: 'question',
-          showCancelButton: true,
-          confirmButtonText: 'Si, vincular',
-          cancelButtonText: 'Cancelar',
-          confirmButtonColor: '#6366f1',
-          cancelButtonColor: '#6b7280',
-          showLoaderOnConfirm: true,
-          allowOutsideClick: () => !Swal.isLoading(),
-          preConfirm: async () => {
-            if (typeof Swal.resetValidationMessage === 'function') Swal.resetValidationMessage();
+          confirmText: 'Si, vincular',
+          cancelText: 'Cancelar',
+          width: 'md',
+          preConfirm: async (ctx) => {
             const registrosIdsOrdenados = window.selectedRowsOrder.filter(iid => selectedIds.includes(iid));
             const idsParaEnviar = registrosIdsOrdenados.length > 0 ? registrosIdsOrdenados : selectedIds;
             try {
@@ -12303,18 +12226,18 @@ const uiInlineEditableFields = {
               });
               const data = await r.json().catch(() => ({}));
               if (!data.success) {
-                Swal.showValidationMessage(data.message || 'Error al vincular los registros');
+                ctx.error(data.message || 'Error al vincular los registros');
                 return false;
               }
               return { data, idsParaEnviar };
             } catch (e) {
-              Swal.showValidationMessage('Error al procesar la solicitud.');
+              ctx.error('Error al procesar la solicitud.');
               return false;
             }
           }
         }).then((result) => {
-          if (!result.isConfirmed || !result.value) return;
-          const { data, idsParaEnviar } = result.value;
+          if (!result) return;
+          const { data, idsParaEnviar } = result;
           actualizarRegistrosVinculados(data.registros_ids || idsParaEnviar, data.ord_compartida);
           toast(data.message || 'Registros vinculados correctamente', 'success');
           window.selectedRowsIds.clear();
@@ -13081,8 +13004,8 @@ const uiInlineEditableFields = {
           }
 
           // Si no está marcado, mostrar modal
-          if (typeof Swal === 'undefined') {
-            toast('SweetAlert no está disponible', 'error');
+          if (typeof window.notify === 'undefined') {
+            toast('notify no está disponible', 'error');
             checkbox.checked = false;
             return;
           }
@@ -13090,8 +13013,11 @@ const uiInlineEditableFields = {
           // Asegurar que el checkbox no está marcado antes de mostrar el modal
           checkbox.checked = false;
 
-          const resultado = await Swal.fire({
-            title: 'Seleccionar Reprogramar',
+          let opcionElegida = null;
+          await window.notify.dialog({
+            titulo: 'Seleccionar Reprogramar',
+            tono: null,
+            botones: [{ texto: 'Cancelar', valor: 'cancelar', variante: 'secundario' }],
             html: `
               <div class="text-left">
                 <p class="mb-4 text-sm text-gray-600">Selecciona una opción:</p>
@@ -13105,36 +13031,31 @@ const uiInlineEditableFields = {
                 </div>
               </div>
             `,
-            showCancelButton: true,
-            showConfirmButton: false,
-            cancelButtonText: 'Cancelar',
-            cancelButtonColor: '#6b7280',
-            width: '400px',
-            allowOutsideClick: true,
-            allowEscapeKey: true,
-            didOpen: () => {
+            alAbrir: () => {
               // Manejar click en opciones
               const opcion1 = document.getElementById('swal-opcion-1');
               const opcion2 = document.getElementById('swal-opcion-2');
 
               if (opcion1) {
                 opcion1.addEventListener('click', () => {
-                  Swal.close();
-                  procesarSeleccionReprogramar(registroId, '1', checkbox, texto);
+                  opcionElegida = '1';
+                  window.notify.close();
                 });
               }
 
               if (opcion2) {
                 opcion2.addEventListener('click', () => {
-                  Swal.close();
-                  procesarSeleccionReprogramar(registroId, '2', checkbox, texto);
+                  opcionElegida = '2';
+                  window.notify.close();
                 });
               }
             }
           });
 
           // Si se canceló el modal, no hacer nada (el checkbox ya no estará marcado)
-          if (resultado.dismiss === Swal.DismissReason.cancel || resultado.dismiss === Swal.DismissReason.backdrop) {
+          if (opcionElegida) {
+            procesarSeleccionReprogramar(registroId, opcionElegida, checkbox, texto);
+          } else {
             checkbox.checked = false;
           }
         }, true); // Usar capture phase para capturar antes que otros listeners

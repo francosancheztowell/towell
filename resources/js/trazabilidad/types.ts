@@ -58,7 +58,7 @@ export interface RedboothResponse {
     primerVinculo?: RedboothOrder | null;
 }
 
-// http, notify, Swal, Livewire y jQuery se tipan en resources/js/types/global.d.ts.
+// http, notify, Livewire y jQuery se tipan en resources/js/types/global.d.ts.
 declare global {
     interface Window {
         abrirModalRedboothProgramaTejido?: (order: RedboothOrder) => void;

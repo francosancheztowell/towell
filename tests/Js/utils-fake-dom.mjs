@@ -1,5 +1,5 @@
 // DOM mínimo para probar resources/js/utils en node (no hay jsdom en el proyecto).
-// Solo implementa lo que usan utils/dom.ts y utils/notifications.ts.
+// Solo implementa lo que usan utils/dom.ts, utils/notifications.ts y utils/dialogo.ts.
 
 // Eventos propios (no EventTarget de node): así el burbujeo conserva event.target.
 class FakeNode {
@@ -42,6 +42,20 @@ class FakeElement extends FakeNode {
         this.id = ''
         this.type = ''
         this._text = ''
+        this.open = false
+        this.returnValue = ''
+    }
+
+    // <dialog>: showModal/close como el nativo (close dispara 'close' con returnValue).
+    showModal() {
+        this.open = true
+    }
+
+    close(value) {
+        if (!this.open) return
+        this.open = false
+        if (value !== undefined) this.returnValue = String(value)
+        this.dispatchEvent({ type: 'close' })
     }
 
     get textContent() {
@@ -65,6 +79,14 @@ class FakeElement extends FakeNode {
         this.attributes[name] = String(value)
         if (name === 'id') this.id = String(value)
         if (name === 'class') this.className = String(value)
+    }
+
+    hasAttribute(name) {
+        return name in this.attributes
+    }
+
+    removeAttribute(name) {
+        delete this.attributes[name]
     }
 
     getAttribute(name) {
@@ -139,6 +161,10 @@ export class FakeDocument extends FakeNode {
     }
 
     createElement(tag) {
+        return new FakeElement(tag, this)
+    }
+
+    createElementNS(_ns, tag) {
         return new FakeElement(tag, this)
     }
 

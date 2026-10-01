@@ -13,6 +13,11 @@
                     así que la página debe incluir en @section('navbar-right'):
                         <div id="tabla-navbar-acciones" class="flex items-center gap-2"></div>
     @slot filtros   Selects propios de la pantalla; van junto al buscador.
+    @prop ?string $fijarColumnas  Clave para recordar columnas fijas: clic derecho en un encabezado →
+                    Fijar columna (componentes/tabla-fijar.ts). null = sin la opción.
+    @prop bool    $mostrarPie   Pie con conteo, tamaño de página y paginación (default true).
+    @prop bool    $filtroArriba  El botón del embudo (filtros por columna) va en el navbar, con las
+                    acciones, en vez de en la barra de la tabla.
     Filtros por columna: las columnas con 'filtro' (ver ConTabla::columnas) llevan un input en
     una fila bajo el encabezado, oculta hasta pulsar el embudo; al ocultarla se limpian.
     Cebra y selección: .tabla-cebra / .tabla-seleccionable (app.css), las mismas de flux:table.
@@ -40,6 +45,9 @@
     'objetivosExtra' => '',
     'mostrarFiltros' => true,
     'mostrarTamanoPagina' => true,
+    'mostrarPie' => true,
+    'fijarColumnas' => null,
+    'filtroArriba' => false,
 ])
 
 @php
@@ -49,15 +57,53 @@
     $hayFiltrosColumna = collect($columnas)->contains($conFiltro);
 @endphp
 
-@if (filled($acciones))
-    @teleport('#tabla-navbar-acciones')
-        <div class="flex items-center gap-2">{{ $acciones }}</div>
-    @endteleport
-@endif
-
 {{-- .tabla-pantalla: si la página es .pantalla-completa, la tabla ocupa el alto que sobra y el scroll
      vive dentro; si no, crece como antes. --}}
-<div class="tabla-pantalla overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" x-data="{ verFiltros: false }">
+{{-- El x-data va aquí y no en el <tbody>: este nodo no cambia entre renders, así que el scope
+     sobrevive al morph de Livewire (en el <tbody>, con la selección incrustada, se reemplazaba y
+     las filas nuevas quedaban sin `visual`: "visual is not defined" y no se podía seleccionar).
+     La selección inicial se lee de $wire, no de un literal que cambia en cada render. --}}
+<div class="tabla-pantalla overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+     x-data="{
+        verFiltros: false,
+        visual: null,
+        pending: 0,
+        init() {
+            this.visual = this.$wire.seleccionado;
+            this.$watch('$wire.seleccionado', value => { if (!this.pending) this.visual = value; });
+        },
+        async elegir(id) {
+            this.visual = this.visual === id ? null : id;
+            window.dispatchEvent(new CustomEvent('tabla-seleccion-local', { detail: { component: this.$wire.$id, id: this.visual } }));
+            this.pending++;
+            try { await this.$wire.seleccionar(id); }
+            finally {
+                this.pending--;
+                if (!this.pending) this.visual = this.$wire.seleccionado;
+            }
+        },
+        mover(evento, paso) {
+            const filas = [...this.$root.querySelectorAll('tr[data-fila]')];
+            const actual = filas.indexOf(evento.target.closest('tr[data-fila]'));
+            filas[Math.min(filas.length - 1, Math.max(0, actual + paso))]?.focus();
+        }
+     }"
+     x-on:tabla-seleccion-local.window="if ($event.detail.component === $wire.$id) visual = $event.detail.id">
+    {{-- Dentro del x-data: lo teletransportado conserva el scope (el embudo usa verFiltros). --}}
+    @if (filled($acciones) || ($filtroArriba && $hayFiltrosColumna))
+        @teleport('#tabla-navbar-acciones')
+            <div class="flex items-center gap-2">
+                @if ($filtroArriba && $hayFiltrosColumna)
+                    <flux:button icon="funnel" class="min-h-touch"
+                                 title="Filtrar por columna"
+                                 x-bind:class="verFiltros && 'ring-2 ring-blue-500'"
+                                 x-bind:aria-pressed="verFiltros.toString()"
+                                 x-on:click="verFiltros = !verFiltros; if (!verFiltros) $wire.set('filtrosColumna', {})">Filtrar</flux:button>
+                @endif
+                {{ $acciones }}
+            </div>
+        @endteleport
+    @endif
     @if ($mostrarFiltros)
     {{-- Barra: buscador + filtros de la pantalla --}}
     <div class="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-3 py-2.5">
@@ -71,7 +117,7 @@
 
         {{ $filtros }}
 
-        @if ($hayFiltrosColumna)
+        @if ($hayFiltrosColumna && ! $filtroArriba)
             <flux:button icon="funnel" variant="filled" class="min-h-touch min-w-touch"
                          title="Filtrar por columna" aria-label="Filtrar por columna"
                          x-bind:aria-pressed="verFiltros.toString()"
@@ -90,18 +136,24 @@
         <div class="flex min-h-0 flex-1 flex-col" wire:loading.delay.class="opacity-50" wire:target="{{ $objetivosCarga }}">
             {{-- flux:table. El <thead> va a mano (no flux:table.columns) porque lleva dos filas:
                  títulos y filtros por columna; las celdas sí son de Flux. --}}
-            <flux:table class="tabla-cebra tabla-seleccionable">
+            <flux:table class="tabla-cebra tabla-seleccionable" :data-fijar-columnas="$fijarColumnas">
                 <thead class="sticky top-0 z-20 bg-white">
                     <tr>
-                        @foreach ($columnas as $columna)
+                        @foreach ($columnas as $indice => $columna)
                             @php
                                 $campo = $columna['campo'] ?? '';
                                 $ordenable = ($columna['orden'] ?? true) && $campo !== '';
                                 $activa = $ordenable && $ordenPor === $campo;
                                 $alOrdenar = $ordenable ? "ordenar('{$campo}')" : null;
+                                $filtroActivo = $conFiltro($columna)
+                                    ? "String(\$wire.filtrosColumna?.[{$indice}] ?? '').trim() !== '' ? '' : null"
+                                    : null;
                             @endphp
                             <flux:table.column :sortable="$ordenable" :sorted="$activa" :direction="$ordenDir"
+                                               :align="$columna['alinear'] ?? 'start'"
                                                class="{{ $columna['clase'] ?? '' }}" :wire:click="$alOrdenar"
+                                               {{-- Verde (app.css) mientras su filtro tenga algo: se ve qué está filtrando. --}}
+                                               :x-bind:data-filtro-activo="$filtroActivo"
                                                aria-sort="{{ $activa ? ($ordenDir === 'desc' ? 'descending' : 'ascending') : 'none' }}">
                                 {{ $columna['titulo'] ?? $campo }}
                             </flux:table.column>
@@ -110,10 +162,10 @@
                     @if ($hayFiltrosColumna)
                         <tr data-fila-filtros x-show="verFiltros" x-cloak>
                             @foreach ($columnas as $indice => $columna)
-                                <th class="{{ $columna['clase'] ?? '' }}">
+                                <th class="{{ $columna['clase'] ?? '' }} {{ ($columna['alinear'] ?? '') === 'center' ? 'text-center' : '' }}">
                                     @if ($conFiltro($columna))
-                                        <input type="search" class="tabla-filtro-input" placeholder="Filtrar"
-                                               title="Varios valores separados por coma: 2229, 2039, 2049"
+                                        <input type="search" class="tabla-filtro-input" placeholder="{{ $columna['filtroAyuda'] ?? 'Filtrar' }}"
+                                               title="{{ isset($columna['filtroAyuda']) ? 'Ej.: '.$columna['filtroAyuda'].' · comas = varios valores' : 'Varios valores separados por coma: 2229, 2039, 2049' }}"
                                                aria-label="Filtrar {{ $columna['titulo'] ?? $columna['campo'] }}"
                                                wire:model.live.debounce.400ms="filtrosColumna.{{ $indice }}">
                                     @endif
@@ -123,28 +175,7 @@
                     @endif
                 </thead>
 
-                <flux:table.rows x-data="{
-                    visual: @js($seleccionado),
-                    pending: 0,
-                    init() {
-                        this.$watch('$wire.seleccionado', value => { if (!this.pending) this.visual = value; });
-                    },
-                    async elegir(id) {
-                        this.visual = this.visual === id ? null : id;
-                        window.dispatchEvent(new CustomEvent('tabla-seleccion-local', { detail: { component: this.$wire.$id, id: this.visual } }));
-                        this.pending++;
-                        try { await this.$wire.seleccionar(id); }
-                        finally {
-                            this.pending--;
-                            if (!this.pending) this.visual = this.$wire.seleccionado;
-                        }
-                    },
-                    mover(evento, paso) {
-                        const filas = [...$el.querySelectorAll('tr[data-fila]')];
-                        const actual = filas.indexOf(evento.target.closest('tr[data-fila]'));
-                        filas[Math.min(filas.length - 1, Math.max(0, actual + paso))]?.focus();
-                    }
-                }" x-on:tabla-seleccion-local.window="if ($event.detail.component === $wire.$id) visual = $event.detail.id">
+                <flux:table.rows>
                     @forelse ($filas as $fila)
                         @php
                             $id = (string) $fila->getKey();
@@ -173,7 +204,7 @@
                                         ? ($columna['valor'])($fila)
                                         : data_get($fila, $campo);
                                 @endphp
-                                <flux:table.cell class="{{ $columna['clase'] ?? '' }}">
+                                <flux:table.cell class="{{ $columna['clase'] ?? '' }}" :align="$columna['alinear'] ?? 'start'">
                                     {{ filled($valor) ? $valor : '—' }}
                                 </flux:table.cell>
                             @endforeach
@@ -186,7 +217,9 @@
         </div>
     </div>
 
-    {{-- Pie: a la izquierda qué se está viendo, a la derecha cómo moverse. --}}
+    {{-- Pie: a la izquierda qué se está viendo, a la derecha cómo moverse. Sin él (mostrarPie=false)
+         el componente debe traer todas las filas en una página. --}}
+    @if ($mostrarPie)
     <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-slate-100 bg-slate-50/60 px-3 py-2">
         <div class="flex items-center gap-3 text-xs text-slate-500">
             <span>
@@ -213,4 +246,5 @@
 
         {{ $filas->onEachSide(1)->links('components.tabla-paginacion') }}
     </div>
+    @endif
 </div>

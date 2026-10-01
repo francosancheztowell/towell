@@ -10,6 +10,11 @@
             queued: false,
         };
 
+        // Escape mínimo para datos del Excel/servidor que van dentro de HTML.
+        const esc = (valor) => String(valor ?? '').replace(/[&<>"']/g, (c) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+        })[c]);
+
         const getCsrfToken = () =>
             document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
@@ -73,11 +78,7 @@
                 return;
             }
 
-            Swal.fire({
-                icon: type === 'error' ? 'error' : (type === 'warning' ? 'warning' : 'info'),
-                text: message,
-                confirmButtonColor: '#2563eb',
-            });
+            window.notify.alert(message, undefined, type === 'error' ? 'error' : (type === 'warning' ? 'warning' : 'info'));
         };
 
         const cancelImportFlow = async () => {
@@ -105,9 +106,7 @@
                 }
             }
 
-            if (Swal.isVisible()) {
-                Swal.close();
-            }
+            window.notify.close();
 
             notify(
                 shouldCancelBackend
@@ -129,10 +128,10 @@
 
                 return `
                     <tr class="border-b border-gray-100">
-                        <td class="px-3 py-2 font-semibold text-gray-700">${error.column}</td>
-                        <td class="px-3 py-2 font-semibold text-blue-700">${error.column_letter ?? ''}</td>
-                        <td class="px-3 py-2 text-gray-700">${error.expected}</td>
-                        <td class="px-3 py-2 text-red-600">${actual}</td>
+                        <td class="px-3 py-2 font-semibold text-gray-700">${esc(error.column)}</td>
+                        <td class="px-3 py-2 font-semibold text-blue-700">${esc(error.column_letter)}</td>
+                        <td class="px-3 py-2 text-gray-700">${esc(error.expected)}</td>
+                        <td class="px-3 py-2 text-red-600">${esc(actual)}</td>
                     </tr>
                 `;
             }).join('');
@@ -174,8 +173,8 @@
                                 <tbody>
                                     ${errorList.map((error) => `
                                         <tr class="border-b border-red-50">
-                                            <td class="px-3 py-2 font-semibold text-red-700">${error.fila ?? 'N/A'}</td>
-                                            <td class="px-3 py-2 text-red-700">${error.error ?? 'Error desconocido'}</td>
+                                            <td class="px-3 py-2 font-semibold text-red-700">${esc(error.fila ?? 'N/A')}</td>
+                                            <td class="px-3 py-2 text-red-700">${esc(error.error ?? 'Error desconocido')}</td>
                                         </tr>
                                     `).join('')}
                                 </tbody>
@@ -187,8 +186,8 @@
 
             return `
                 <div class="text-sm text-gray-700 text-left">
-                    <p>Registros creados: <strong>${created}</strong></p>
-                    <p>Registros actualizados: <strong>${updated}</strong></p>
+                    <p>Registros creados: <strong>${esc(created)}</strong></p>
+                    <p>Registros actualizados: <strong>${esc(updated)}</strong></p>
                     ${errorHtml}
                 </div>
             `;
@@ -200,13 +199,11 @@
             const errorCount = summary.error_count ?? 0;
             const errors = summary.errors ?? [];
 
-            Swal.fire({
-                title: 'Importacion completa',
-                icon: errorCount > 0 ? 'warning' : 'success',
-                width: errorCount > 0 ? '820px' : '500px',
-                html: renderImportSummary(created, updated, errors),
-                confirmButtonColor: '#2563eb',
-            }).then(async () => {
+            window.notify.html(
+                renderImportSummary(created, updated, errors),
+                'Importacion completa',
+                errorCount > 0 ? 'warning' : 'success'
+            ).then(async () => {
                 if (typeof window.loadData === 'function') {
                     try {
                         await window.loadData(true);
@@ -220,7 +217,7 @@
         };
 
         window.subirExcelCatCodificacion = function () {
-            Swal.fire({
+            window.notify.form({
                 title: 'Subir Excel de CatCodificados',
                 html: `
                     <div class="space-y-4">
@@ -239,22 +236,20 @@
                         </div>
                     </div>
                 `,
-                width: '520px',
-                showCancelButton: true,
-                confirmButtonText: 'Procesar Excel',
-                cancelButtonText: 'Cancelar',
-                confirmButtonColor: '#059669',
-                preConfirm: () => {
+                width: 'lg',
+                confirmText: 'Procesar Excel',
+                cancelText: 'Cancelar',
+                preConfirm: (ctx) => {
                     const input = document.getElementById('swal-file-excel-catcodificados');
                     const file = input?.files?.[0];
 
                     if (!file) {
-                        Swal.showValidationMessage('Selecciona un archivo Excel.');
+                        ctx.error('Selecciona un archivo Excel.');
                         return false;
                     }
 
                     if (file.size > (10 * 1024 * 1024)) {
-                        Swal.showValidationMessage('El archivo no puede exceder 10 MB.');
+                        ctx.error('El archivo no puede exceder 10 MB.');
                         return false;
                     }
 
@@ -275,12 +270,12 @@
                         document.getElementById('swal-file-info-catcodificados').classList.remove('hidden');
                     });
                 },
-            }).then((result) => {
-                if (!result.isConfirmed || !result.value) {
+            }).then((file) => {
+                if (!file) {
                     return;
                 }
 
-                window.procesarExcel(result.value);
+                window.procesarExcel(file);
             });
         };
 
@@ -291,17 +286,14 @@
             formData.append('archivo_excel', file);
             importFlowState.uploadController = new AbortController();
 
-            Swal.fire({
-                title: 'Procesando...',
+            window.notify.dialog({
+                titulo: 'Procesando...',
                 html: '<p class="text-sm text-gray-600">Se esta validando y encolando tu archivo.</p>',
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                showCancelButton: true,
-                cancelButtonText: 'Cancelar seguimiento',
-                cancelButtonColor: '#6b7280',
-                didOpen: () => Swal.showLoading(),
-            }).then((result) => {
-                if (result.dismiss === Swal.DismissReason.cancel) {
+                tono: 'loading',
+                cerrable: false,
+                botones: [{ texto: 'Cancelar seguimiento', valor: 'cancelar', variante: 'secundario' }],
+            }).then((valor) => {
+                if (valor === 'cancelar') {
                     cancelImportFlow();
                 }
             });
@@ -337,7 +329,7 @@
 
                     if (data.success && data.data?.completed) {
                         finishImportFlow();
-                        Swal.close();
+                        window.notify.close();
                         showImportFinished(data.data.summary ?? {});
                         return;
                     }
@@ -357,17 +349,11 @@
                     }
 
                     finishImportFlow();
-                    Swal.close();
+                    window.notify.close();
 
                     const headerErrors = error?.errors?.headers ?? [];
                     if (headerErrors.length > 0) {
-                        Swal.fire({
-                            title: 'Plantilla invalida',
-                            icon: 'error',
-                            width: '780px',
-                            html: renderHeaderErrors(headerErrors),
-                            confirmButtonColor: '#dc2626',
-                        });
+                        window.notify.html(renderHeaderErrors(headerErrors), 'Plantilla invalida', 'error');
                         return;
                     }
 
@@ -382,7 +368,7 @@
 
             if (attempts > 600) {
                 finishImportFlow();
-                Swal.close();
+                window.notify.close();
                 notify('Tiempo de espera agotado al procesar el archivo.', 'warning');
                 return;
             }
@@ -419,20 +405,20 @@
                     const percent = result.percent ?? 0;
                     const errorCount = data.error_count ?? 0;
 
-                    Swal.update({
+                    window.notify.update({
                         html: `
-                            <div class="text-sm text-gray-700 text-left">
+                            <div class="text-sm text-gray-700 text-left" style="white-space:normal">
                                 <p class="mb-2">Procesando archivo...</p>
-                                <p class="font-semibold mb-2">${processed}/${total} filas (${percent}%)</p>
-                                <p class="text-sm text-gray-600 mb-1">Creados: ${created} - Actualizados: ${updated}</p>
-                                <p class="text-sm text-gray-600">Errores: ${errorCount}</p>
+                                <p class="font-semibold mb-2">${esc(processed)}/${esc(total)} filas (${esc(percent)}%)</p>
+                                <p class="text-sm text-gray-600 mb-1">Creados: ${esc(created)} - Actualizados: ${esc(updated)}</p>
+                                <p class="text-sm text-gray-600">Errores: ${esc(errorCount)}</p>
                             </div>
-                        `,
+                        `.trim(),
                     });
 
                     if (data.status === 'done') {
                         finishImportFlow();
-                        Swal.close();
+                        window.notify.close();
                         showImportFinished({
                             created,
                             updated,
@@ -445,7 +431,7 @@
 
                     if (data.status === 'cancelled') {
                         finishImportFlow();
-                        Swal.close();
+                        window.notify.close();
                         notify('La importacion fue cancelada.', 'warning');
                         return;
                     }

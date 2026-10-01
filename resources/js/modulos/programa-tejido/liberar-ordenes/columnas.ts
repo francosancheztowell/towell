@@ -2,8 +2,8 @@
  * Liberar Órdenes — columnas: fijar, ocultar, filtros (texto y tipo Excel) y el menú
  * contextual del encabezado (clic derecho o mantener presionado en tablet).
  *
- * Los modales con casillas y listas siguen en SweetAlert2 (mismo diseño); sus eventos se
- * enlazan en didOpen, sin onclick en el HTML. Todo dato que entra al HTML va escapado.
+ * Los modales con casillas y listas usan notify.form/notify.dialog; sus eventos se
+ * enlazan en didOpen/alAbrir, sin onclick en el HTML. Todo dato que entra al HTML va escapado.
  */
 import { accionesTactiles } from '../../../utils/acciones-tactiles.ts';
 import { escapeHtml } from '../../../utils/format.ts';
@@ -166,7 +166,7 @@ function modalCasillas(titulo: string, texto: string, marcadas: number[], color:
             </div>
         `)).filter((html) => html !== '').join('');
 
-    void Swal.fire({
+    void notify.form({
         title: titulo,
         html: `
             <div class="text-left">
@@ -176,12 +176,10 @@ function modalCasillas(titulo: string, texto: string, marcadas: number[], color:
                 </div>
             </div>
         `,
-        showCancelButton: true,
-        confirmButtonText: 'Aplicar',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: confirmColor,
-        cancelButtonColor: '#6b7280',
-        width: '500px',
+        confirmText: 'Aplicar',
+        cancelText: 'Cancelar',
+        danger: confirmColor === '#ef4444',
+        width: 'md',
         didOpen: (popup) => {
             popup.addEventListener('change', (e) => {
                 const cb = e.target as HTMLInputElement;
@@ -206,7 +204,7 @@ export function openHideColumnsModal(): void {
 
 function reabrirFiltros(): void {
     applyFiltersSilent();
-    Swal.close();
+    notify.close();
     setTimeout(() => openFiltersModal(), 100);
 }
 
@@ -254,7 +252,7 @@ export function openFiltersModal(preSelectColumnField?: string): void {
     ` : '';
 
     const html = `
-        <div class="w-full max-h-[80vh] overflow-hidden flex flex-col">
+        <div class="w-full max-h-[80vh] overflow-hidden flex flex-col text-left whitespace-normal">
             <section class="flex-1 overflow-y-auto bg-white px-5 py-4 space-y-4">
                 ${activos}
 
@@ -293,16 +291,14 @@ export function openFiltersModal(preSelectColumnField?: string): void {
         </div>
     `;
 
-    void Swal.fire({
-        title: 'Filtros',
-        html,
-        width: '580px',
-        padding: 0,
-        showConfirmButton: false,
-        showCloseButton: true,
-        customClass: { popup: 'rounded-xl overflow-hidden p-0 shadow-xl', htmlContainer: 'p-0 m-0' },
-        backdrop: 'rgba(0,0,0,0.4)',
-        didOpen: (popup) => {
+    // Sin botones propios del diálogo: el pie del html trae Limpiar Todo y Cerrar (Esc y clic fuera también cierran).
+    void notify.dialog({
+        titulo: 'Filtros',
+        html: html.trim(),
+        tono: null,
+        botones: [],
+        ancho: 'lg',
+        alAbrir: (popup) => {
             popup.addEventListener('click', (e) => {
                 const boton = (e.target as Element).closest<HTMLElement>('[data-accion-filtro]');
                 switch (boton?.dataset.accionFiltro) {
@@ -317,7 +313,7 @@ export function openFiltersModal(preSelectColumnField?: string): void {
                         updateLiberarHeaderBadges();
                         reabrirFiltros();
                         break;
-                    case 'cerrar': Swal.close(); break;
+                    case 'cerrar': notify.close(); break;
                 }
             });
             popup.querySelector('#filtro-valor')?.addEventListener('keypress', (e) => {
@@ -356,7 +352,7 @@ function openFilterExcelModal(columnField: string, columnLabel: string): void {
     }).join('');
 
     const html = `
-        <div class="w-full max-h-[70vh] flex flex-col">
+        <div class="w-full max-h-[70vh] flex flex-col text-left whitespace-normal">
             <p class="text-sm text-gray-600 mb-2">Mostrar filas donde <strong>${escapeHtml(columnLabel)}</strong> sea uno de:</p>
             <div class="flex gap-2 mb-2">
                 <button type="button" id="excel-filter-select-all" class="px-3 py-1.5 text-xs font-medium bg-blue-100 text-blue-700 rounded hover:bg-blue-200">Seleccionar todo</button>
@@ -371,15 +367,13 @@ function openFilterExcelModal(columnField: string, columnLabel: string): void {
             </footer>
         </div>`;
 
-    void Swal.fire({
-        title: 'Filtrar: ' + (columnLabel || columnField),
-        html,
-        width: '420px',
-        padding: '1rem',
-        showConfirmButton: false,
-        showCloseButton: true,
-        customClass: { popup: 'rounded-xl', htmlContainer: 'p-0 text-left' },
-        didOpen: (popup) => {
+    void notify.dialog({
+        titulo: 'Filtrar: ' + (columnLabel || columnField),
+        html: html.trim(),
+        tono: null,
+        botones: [],
+        ancho: 'md',
+        alAbrir: (popup) => {
             const casillas = () => popup.querySelectorAll<HTMLInputElement>('.excel-filter-cb');
             popup.querySelector('#excel-filter-select-all')?.addEventListener('click', () => casillas().forEach((cb) => { cb.checked = true; }));
             popup.querySelector('#excel-filter-deselect-all')?.addEventListener('click', () => casillas().forEach((cb) => { cb.checked = false; }));
@@ -389,14 +383,14 @@ function openFilterExcelModal(columnField: string, columnLabel: string): void {
                 else filtrosColumna[columnField] = selected;
                 applyFiltersSilent();
                 updateLiberarHeaderBadges();
-                Swal.close();
+                notify.close();
                 notify.success('Filtro aplicado');
             });
             popup.querySelector('#excel-filter-clear')?.addEventListener('click', () => {
                 delete filtrosColumna[columnField];
                 applyFiltersSilent();
                 updateLiberarHeaderBadges();
-                Swal.close();
+                notify.close();
                 notify.info('Filtro de columna quitado');
             });
         },

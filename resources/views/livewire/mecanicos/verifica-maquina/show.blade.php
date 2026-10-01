@@ -168,14 +168,8 @@
 
             this.$nextTick(() => {
                 const mensaje = `Folio en estatus ${this.estatus}. Solo los Activo se pueden editar.`
-                if (window.Swal) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Solo lectura',
-                        text: mensaje,
-                        confirmButtonText: 'Entendido',
-                        confirmButtonColor: '#111827',
-                    })
+                if (window.notify) {
+                    window.notify.alert(mensaje, 'Solo lectura', 'warning')
                     return
                 }
                 window.alert(mensaje)

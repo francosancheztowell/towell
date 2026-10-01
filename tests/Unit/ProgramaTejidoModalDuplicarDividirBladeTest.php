@@ -54,7 +54,7 @@ class ProgramaTejidoModalDuplicarDividirBladeTest extends TestCase
         // Dentro de duplicarTelar, antes de abrir, el unico await que no es el
         // Promise.all debe ser el re-resolve condicional del grupo.
         $inicio = strpos($content, 'async function duplicarTelar(row)');
-        $cuerpo = substr($content, $inicio, strpos($content, 'const resultado = await Swal.fire(') - $inicio);
+        $cuerpo = substr($content, $inicio, strpos($content, 'const resultado = await window.notify.form(') - $inicio);
         $awaits = preg_match_all('/await (?!Promise\.all)/', $cuerpo);
         $this->assertSame(1, $awaits, 'volvio a haber requests en serie antes de abrir el modal');
     }
@@ -65,7 +65,8 @@ class ProgramaTejidoModalDuplicarDividirBladeTest extends TestCase
         $content = file_get_contents($path);
 
         // Antes: width 100% y el tope de 1600px aplicado en didOpen, un paso despues.
-        $this->assertStringContainsString("width: 'min(100%, 1600px)'", $content);
+        // Ahora el tope va en la clase del <dialog> (.ui-dialogo--3xl = 1600px).
+        $this->assertStringContainsString("width: '3xl'", $content);
         $this->assertStringNotContainsString("popup.style.maxWidth = '1600px'", $content);
     }
 }

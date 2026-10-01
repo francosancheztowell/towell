@@ -4,14 +4,10 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        <x-navbar.button-create onclick="openModuloModal('createModal')" hoverBg="hover:bg-green-200" />
-        <x-navbar.button-edit id="btn-top-edit" onclick="handleTopEdit('editModal')" :disabled="true" iconColor="text-blue-400" hoverBg="hover:bg-blue-200"/>
-        <button id="btn-top-sync" type="button" onclick="handleSyncPermisos()" disabled
-            class="p-2 rounded-full transition hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed w-9 h-9 flex items-center justify-center"
-            title="Sincronizar Permisos">
-            <i class="fa-solid fa-sync text-purple-600 text-lg"></i>
-        </button>
-        <x-navbar.button-delete id="btn-top-delete" onclick="handleTopDelete()" :disabled="true" iconColor="text-red-500" hoverBg="hover:bg-red-200"/>
+        <flux:button variant="primary" icon="plus" class="min-h-touch" onclick="openModuloModal('createModal')">Nuevo</flux:button>
+        <flux:button id="btn-top-edit" icon="pencil-square" class="min-h-touch" onclick="handleTopEdit('editModal')" disabled>Editar</flux:button>
+        <flux:button id="btn-top-sync" icon="arrow-path" class="min-h-touch" onclick="handleSyncPermisos()" disabled>Sincronizar permisos</flux:button>
+        <flux:button id="btn-top-delete" variant="danger" icon="trash" class="min-h-touch" onclick="handleTopDelete()" disabled>Eliminar</flux:button>
     </div>
 @endsection
 
@@ -19,23 +15,12 @@
         <div class="container mx-auto px-4 py-6 te">
             @if($errors->any())
                 <script>
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        html: '<ul class="text-left list-disc list-inside">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>',
-                        confirmButtonText: 'Aceptar'
-                    });
+                    notify.html('<ul class="text-left list-disc list-inside">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>', 'Error', 'error');
                 </script>
             @endif
             @if(session('success'))
                 <script>
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Éxito',
-                        text: '{{ session('success') }}',
-                        confirmButtonText: 'Aceptar',
-                        timer: 3000
-                    });
+                    notify.success('{{ session('success') }}');
                 </script>
             @endif
 
@@ -93,31 +78,25 @@
                 @method('DELETE')
             </form>
 
-            <!-- Modal Crear -->
-                    <!-- Modal Crear -->
-        <div id="createModal" class="fixed inset-0 bg-gray-400/10 hidden z-50 items-center justify-center">
-                <div class="bg-white rounded-lg shadow-2xl w-full max-w-3xl mx-4 transform transition-all">
-                    <div class="bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-4 rounded-t-lg">
-                        <h2 class="text-xl font-bold flex items-center gap-2">
-                            <i class="fa-solid fa-plus-circle"></i>
-                            Nuevo Módulo
-                        </h2>
-                    </div>
-
-                    <form action="{{ route('configuracion.utileria.modulos.store') }}" method="POST" enctype="multipart/form-data" class="p-6">
+            {{-- <dialog> nativo con el aspecto de los demás diálogos (.ui-dialogo, utils/dialogo.ts).
+                 Esc, foco y fondo los da el navegador; Cancelar cierra con formmethod="dialog". --}}
+            <dialog id="createModal" data-dialog-nativo aria-labelledby="createModal-titulo"
+                    class="ui-dialogo ui-dialogo--xl ui-dialogo--formulario">
+                <form action="{{ route('configuracion.utileria.modulos.store') }}" method="POST" enctype="multipart/form-data" class="ui-dialogo__cuerpo">
+                    <h2 id="createModal-titulo" class="ui-dialogo__titulo">Nuevo módulo</h2>
                         @csrf
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Orden <span class="text-red-500">*</span></label>
-                                <input type="text" id="createOrden" name="orden" required readonly class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Se calculará automáticamente">
+                                <label class="block mb-1">Orden <span class="text-red-500">*</span></label>
+                                <input type="text" id="createOrden" name="orden" required readonly class="bg-zinc-100" placeholder="Se calculará automáticamente">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Nombre del Módulo <span class="text-red-500">*</span></label>
-                                <input type="text" name="modulo" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Ej: Configuración, Tejido">
+                                <label class="block mb-1">Nombre del Módulo <span class="text-red-500">*</span></label>
+                                <input type="text" name="modulo" required autofocus placeholder="Ej: Configuración, Tejido">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Nivel <span class="text-red-500">*</span></label>
-                                <select name="Nivel" id="createNivel" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <label class="block mb-1">Nivel <span class="text-red-500">*</span></label>
+                                <select name="Nivel" id="createNivel" required>
                                     <option value="">Seleccionar</option>
                                     <option value="1">Nivel 1 (Principal)</option>
                                     <option value="2">Nivel 2 (Submódulo)</option>
@@ -125,8 +104,8 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Dependencia</label>
-                                <select name="Dependencia" id="createDependencia" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                                <label class="block mb-1">Dependencia</label>
+                                <select name="Dependencia" id="createDependencia">
                                     <option value="">Seleccionar dependencia</option>
                                 </select>
                                 <p id="createDependenciaHelp" class="text-xs text-gray-500 mt-1">Selecciona primero el nivel</p>
@@ -135,8 +114,8 @@
                                  permisos quedan obligados a buscarse por nombre, que esta repetido
                                  en SYSRoles. Asi nacio el bug de Utileria (188 sin Ruta vs 67). --}}
                             <div class="md:col-span-2">
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Ruta</label>
-                                <input type="text" name="Ruta" id="createRuta" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Ej: /tejido/invtelas">
+                                <label class="block mb-1">Ruta</label>
+                                <input type="text" name="Ruta" id="createRuta" placeholder="Ej: /tejido/invtelas">
                                 <p class="text-xs text-gray-500 mt-1">URL de la pantalla, empezando con <code>/</code>. Sin ella el módulo no se puede resolver por ruta y los permisos dependen del nombre.</p>
                             </div>
                         </div>
@@ -144,73 +123,61 @@
                         <div class="mt-4 grid grid-cols-2 md:grid-cols-5 gap-4">
                             @php($permLabels = ['acceso' => 'Acceso','crear' => 'Crear','modificar' => 'Modificar','eliminar' => 'Eliminar','reigstrar' => 'Registrar'])
                             @foreach($permLabels as $name => $label)
-                                <label class="flex items-center">
-                                    <input type="checkbox" class="rounded border-gray-300 text-green-600 focus:ring-green-500" name="{{ $name }}" value="1" {{ $name==='acceso' ? 'checked' : '' }}>
-                                    <span class="ml-2 text-sm font-medium text-gray-700">{{ $label }}</span>
+                                <label class="flex items-center min-h-touch">
+                                    <input type="checkbox" name="{{ $name }}" value="1" {{ $name==='acceso' ? 'checked' : '' }}>
+                                    <span class="ml-2">{{ $label }}</span>
                                 </label>
                             @endforeach
                         </div>
 
                         <div class="mt-4">
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Imagen (opcional)</label>
-                            <input type="file" name="imagen_archivo" accept="image/*" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                            <label class="block mb-1">Imagen (opcional)</label>
+                            <input type="file" name="imagen_archivo" accept="image/*" class="block w-full text-sm text-zinc-600 file:mr-3 file:min-h-touch file:rounded-lg file:border file:border-zinc-200 file:bg-white file:px-4 file:font-medium file:text-zinc-800 hover:file:bg-zinc-50">
                             <p class="text-xs text-gray-500 mt-1">Formatos: JPG, PNG, GIF. Máximo: 2MB</p>
                         </div>
 
-                        <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-                            <button type="button" onclick="closeModuloModal('createModal')" class="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium">
-                                <i class="fa-solid fa-times mr-1"></i> Cancelar
-                            </button>
-                            <button type="submit" class="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium">
-                                <i class="fa-solid fa-check mr-1"></i> Guardar
-                            </button>
+                        <div class="ui-dialogo__botones">
+                            <button type="submit" formmethod="dialog" formnovalidate class="ui-dialogo__boton ui-dialogo__boton--secundario">Cancelar</button>
+                            <button type="submit" class="ui-dialogo__boton ui-dialogo__boton--primario">Guardar</button>
                         </div>
-                    </form>
-                </div>
-            </div>
+                </form>
+            </dialog>
 
-            <!-- Modal Editar -->
-                    <!-- Modal Editar -->
-                <!-- Modal Editar -->
-        <div id="editModal" class="fixed inset-0 bg-gray-900/50 hidden z-50 items-center justify-center">
-                <div class="bg-white rounded-lg shadow-2xl w-full max-w-3xl mx-4 transform transition-all">
-                    <div class="bg-gradient-to-r from-yellow-600 to-yellow-500 text-white px-6 py-4 rounded-t-lg">
-                        <h2 class="text-xl font-bold flex items-center gap-2">
-                            <i class="fa-solid fa-edit"></i>
-                            Editar Módulo
-                        </h2>
-                    </div>
-
-                    <form id="editForm" action="#" method="POST" enctype="multipart/form-data" class="p-6">
+            {{-- <dialog> nativo con el aspecto de los demás diálogos (.ui-dialogo, utils/dialogo.ts).
+                 Esc, foco y fondo los da el navegador; Cancelar cierra con formmethod="dialog". --}}
+            <dialog id="editModal" data-dialog-nativo aria-labelledby="editModal-titulo"
+                    class="ui-dialogo ui-dialogo--xl ui-dialogo--formulario">
+                <form id="editForm" action="#" method="POST" enctype="multipart/form-data" class="ui-dialogo__cuerpo">
+                    <h2 id="editModal-titulo" class="ui-dialogo__titulo">Editar módulo</h2>
                         @csrf
                         @method('PUT')
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Orden <span class="text-red-500">*</span></label>
-                                <input type="text" id="editOrden" name="orden" required readonly class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                                <label class="block mb-1">Orden <span class="text-red-500">*</span></label>
+                                <input type="text" id="editOrden" name="orden" required readonly class="bg-zinc-100">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Nombre del Módulo <span class="text-red-500">*</span></label>
-                                <input type="text" id="editModulo" name="modulo" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                                <label class="block mb-1">Nombre del Módulo <span class="text-red-500">*</span></label>
+                                <input type="text" id="editModulo" name="modulo" required autofocus>
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Nivel <span class="text-red-500">*</span></label>
-                                <select id="editNivel" name="Nivel" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                                <label class="block mb-1">Nivel <span class="text-red-500">*</span></label>
+                                <select id="editNivel" name="Nivel" required>
                                     <option value="1">Nivel 1 (Principal)</option>
                                     <option value="2">Nivel 2 (Submódulo)</option>
                                     <option value="3">Nivel 3 (Submódulo)</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Dependencia</label>
-                                <select id="editDependencia" name="Dependencia" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500">
+                                <label class="block mb-1">Dependencia</label>
+                                <select id="editDependencia" name="Dependencia">
                                     <option value="">Seleccionar dependencia</option>
                                 </select>
                                 <p id="editDependenciaHelp" class="text-xs text-gray-500 mt-1">Selecciona primero el nivel</p>
                             </div>
                             <div class="md:col-span-2">
-                                <label class="block text-sm font-semibold text-gray-700 mb-2">Ruta</label>
-                                <input type="text" id="editRuta" name="Ruta" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500" placeholder="Ej: /tejido/invtelas">
+                                <label class="block mb-1">Ruta</label>
+                                <input type="text" id="editRuta" name="Ruta" placeholder="Ej: /tejido/invtelas">
                                 <p class="text-xs text-gray-500 mt-1">URL de la pantalla, empezando con <code>/</code>. Los módulos sin ruta no se pueden resolver con <code>moduleNameForRoute()</code>.</p>
                             </div>
                         </div>
@@ -218,38 +185,30 @@
                         <div class="mt-4 grid grid-cols-2 md:grid-cols-5 gap-4">
                             @php($permLabels = ['acceso' => 'Acceso','crear' => 'Crear','modificar' => 'Modificar','eliminar' => 'Eliminar','reigstrar' => 'Registrar'])
                             @foreach($permLabels as $name => $label)
-                                <label class="flex items-center">
-                                    <input type="checkbox" id="edit_{{ $name }}" class="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500" name="{{ $name }}" value="1">
-                                    <span class="ml-2 text-sm font-medium text-gray-700">{{ $label }}</span>
+                                <label class="flex items-center min-h-touch">
+                                    <input type="checkbox" id="edit_{{ $name }}" name="{{ $name }}" value="1">
+                                    <span class="ml-2">{{ $label }}</span>
                                 </label>
                             @endforeach
                         </div>
 
                         <div class="mt-4">
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Reemplazar Imagen (opcional)</label>
-                            <input type="file" name="imagen_archivo" accept="image/*" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                            <label class="block mb-1">Reemplazar Imagen (opcional)</label>
+                            <input type="file" name="imagen_archivo" accept="image/*" class="block w-full text-sm text-zinc-600 file:mr-3 file:min-h-touch file:rounded-lg file:border file:border-zinc-200 file:bg-white file:px-4 file:font-medium file:text-zinc-800 hover:file:bg-zinc-50">
                         </div>
 
-                        <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-                            <button type="button" onclick="closeModuloModal('editModal')" class="px-5 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium">
-                                <i class="fa-solid fa-times mr-1"></i> Cancelar
-                            </button>
-                            <button type="submit" class="px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition font-medium">
-                                <i class="fa-solid fa-save mr-1"></i> Actualizar
-                            </button>
+                        <div class="ui-dialogo__botones">
+                            <button type="submit" formmethod="dialog" formnovalidate class="ui-dialogo__boton ui-dialogo__boton--secundario">Cancelar</button>
+                            <button type="submit" class="ui-dialogo__boton ui-dialogo__boton--primario">Actualizar</button>
                         </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+                </form>
+            </dialog>
 
         <style>
             tbody tr { transition: all 0.15s ease; }
             tbody tr:hover { background-color: #eff6ff !important; }
             tbody tr[aria-selected="true"] { background-color: #dbeafe !important; box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.5); }
             tbody tr[aria-selected="true"] td:first-child { border-left: 4px solid #3b82f6; }
-            @keyframes modalFadeIn { from { opacity: 0; transform: scale(0.95);} to { opacity: 1; transform: scale(1);} }
-            #createModal > div, #editModal > div { animation: modalFadeIn 0.2s ease-out; }
         </style>
 
 <script>
@@ -447,12 +406,11 @@
                 selectedRow = row; selectedKey = row.dataset.key || null; row.setAttribute('aria-selected','true'); updateTopButtonsState();
             }
 
-            function openModuloModal(modalId) { const el=document.getElementById(modalId); el.classList.remove('hidden'); el.classList.add('flex'); document.body.style.overflow='hidden'; }
-            function closeModuloModal(modalId) { const el=document.getElementById(modalId); el.classList.add('hidden'); el.classList.remove('flex'); document.body.style.overflow='auto'; }
+            function openModuloModal(modalId) { document.getElementById(modalId).showModal(); }
 
             function handleTopEdit() {
                 if (!selectedRow || !selectedKey) {
-                    Swal.fire({icon: 'warning', title: 'Selecciona un módulo', text: 'Debes seleccionar un módulo de la tabla para editarlo', confirmButtonText: 'Entendido'});
+                    notify.alert('Debes seleccionar un módulo de la tabla para editarlo', 'Selecciona un módulo', 'warning');
                     return;
                 }
                 const nivel = selectedRow.dataset.nivel || '1';
@@ -478,17 +436,17 @@
 
             function handleTopDelete() {
                 if (!selectedKey) {
-                    Swal.fire({icon: 'warning', title: 'Selecciona un módulo', text: 'Debes seleccionar un módulo de la tabla para eliminarlo', confirmButtonText: 'Entendido'});
+                    notify.alert('Debes seleccionar un módulo de la tabla para eliminarlo', 'Selecciona un módulo', 'warning');
                     return;
                 }
-                Swal.fire({
+                notify.confirm({
                     title: '¿Eliminar módulo?',
                     text: 'Esta acción no se puede deshacer',
-                    icon: 'warning', showCancelButton: true,
-                    confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280',
-                    confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar'
-                }).then((result) => {
-                    if (result.isConfirmed) {
+                    icon: 'warning',
+                    confirmColor: '#dc2626',
+                    confirmText: 'Sí, eliminar', cancelText: 'Cancelar'
+                }).then((ok) => {
+                    if (ok) {
                         const form = document.getElementById('globalDeleteForm');
                         form.action = destroyUrl.replace('PLACEHOLDER', encodeURIComponent(selectedKey));
                         form.submit();
@@ -498,28 +456,21 @@
 
             function handleSyncPermisos() {
                 if (!selectedKey) {
-                    Swal.fire({icon: 'warning', title: 'Selecciona un módulo', text: 'Debes seleccionar un módulo de la tabla para sincronizar sus permisos', confirmButtonText: 'Entendido'});
+                    notify.alert('Debes seleccionar un módulo de la tabla para sincronizar sus permisos', 'Selecciona un módulo', 'warning');
                     return;
                 }
 
-                Swal.fire({
+                notify.confirm({
                     title: '¿Sincronizar permisos?',
                     text: 'Se actualizarán los permisos de todos los usuarios para este módulo',
                     icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonColor: '#8b5cf6',
-                    cancelButtonColor: '#6b7280',
-                    confirmButtonText: 'Sí, sincronizar',
-                    cancelButtonText: 'Cancelar'
-                }).then((result) => {
-                    if (result.isConfirmed) {
+                    confirmColor: '#8b5cf6',
+                    confirmText: 'Sí, sincronizar',
+                    cancelText: 'Cancelar'
+                }).then((ok) => {
+                    if (ok) {
                         // Mostrar loading
-                        Swal.fire({
-                            title: 'Sincronizando...',
-                            text: 'Por favor espera',
-                            allowOutsideClick: false,
-                            didOpen: () => { Swal.showLoading(); }
-                        });
+                        notify.loading('Sincronizando...');
 
                         // Hacer petición AJAX
                         fetch(`{{ url('configuracion/utileria/modulos') }}/${selectedKey}/sincronizar-permisos`, {
@@ -531,42 +482,21 @@
                         })
                         .then(response => response.json())
                         .then(data => {
+                            notify.close();
                             if (data.success) {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Éxito',
-                                    text: data.message,
-                                    confirmButtonText: 'Aceptar',
-                                    timer: 3000
-                                });
+                                notify.success(data.message);
                             } else {
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Error',
-                                    text: data.message || 'Error al sincronizar permisos',
-                                    confirmButtonText: 'Aceptar'
-                                });
+                                notify.alert(data.message || 'Error al sincronizar permisos', 'Error', 'error');
                             }
                         })
                         .catch(error => {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: 'Error de conexión al sincronizar permisos',
-                                confirmButtonText: 'Aceptar'
-                            });
+                            notify.close();
+                            notify.alert('Error de conexión al sincronizar permisos', 'Error', 'error');
                             console.error('Error:', error);
                         });
                     }
                 });
             }
-
-            window.onclick = function(event) {
-                if (event.target.id === 'createModal' || event.target.id === 'editModal') { closeModuloModal(event.target.id); }
-            }
-            document.addEventListener('keydown', function(event) {
-                if (event.key === 'Escape') { closeModuloModal('createModal'); closeModuloModal('editModal'); }
-            });
 
             updateTopButtonsState();
         </script>

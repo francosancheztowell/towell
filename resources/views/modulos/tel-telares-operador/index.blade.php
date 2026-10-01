@@ -378,18 +378,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function handleTopDelete() {
         if (!selectedKey) return;
-        const result = await Swal.fire({
+        const confirmado = await notify.confirm({
             title: '¿Estás seguro?',
             text: '¿Quieres eliminar este operador?',
             icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar'
+            confirmColor: '#d33',
+            confirmText: 'Sí, eliminar',
+            cancelText: 'Cancelar'
         });
         
-        if (result.isConfirmed) {
+        if (confirmado) {
             try {
                 const response = await fetch(destroyUrl.replace('PLACEHOLDER', encodeURIComponent(selectedKey)), {
                     method: 'DELETE',
@@ -414,27 +412,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         selectedRow.remove();
                     }
                     clearSelection();
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Éxito',
-                        text: data.message || 'Operador eliminado correctamente',
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
+                    notify.success(data.message || 'Operador eliminado correctamente');
                 } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.message || 'Error al eliminar el operador'
-                    });
+                    notify.alert(data.message || 'Error al eliminar el operador', 'Error', 'error');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error de conexión',
-                    text: 'No se pudo eliminar el operador. Intenta de nuevo.'
-                });
+                notify.alert('No se pudo eliminar el operador. Intenta de nuevo.', 'Error de conexión', 'error');
             }
         }
     }
@@ -516,17 +500,15 @@ document.addEventListener('DOMContentLoaded', function() {
         openEditModal(key, numero, nombre, telar, turno, salon, supervisor);
     }
     function deleteOperator(key) {
-        Swal.fire({
+        notify.confirm({
             title: '¿Estás seguro?',
             text: '¿Quieres eliminar este operador?',
             icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar'
-        }).then((result) => {
-            if (result.isConfirmed) {
+            confirmColor: '#d33',
+            confirmText: 'Sí, eliminar',
+            cancelText: 'Cancelar'
+        }).then((ok) => {
+            if (ok) {
                 document.getElementById('deleteForm-' + key).submit();
             }
         });
@@ -825,20 +807,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const telaresCheckboxes = document.querySelectorAll('.telar-checkbox:checked');
             
             if (!empSel.value || !nombre.value || !turno.value || !salon.value) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Campos incompletos',
-                    text: 'Por favor completa todos los campos requeridos'
-                });
+                notify.alert('Por favor completa todos los campos requeridos', 'Campos incompletos', 'error');
                 return false;
             }
             
             if (telaresCheckboxes.length === 0) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Selecciona telares',
-                    text: 'Debes seleccionar al menos un telar'
-                });
+                notify.alert('Debes seleccionar al menos un telar', 'Selecciona telares', 'error');
                 return false;
             }
 
@@ -883,27 +857,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Cerrar modal y limpiar formulario
                     closeModal('createModal');
                     
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Éxito',
-                        text: result.message || `Se crearon ${telaresSeleccionados.length} registro(s) correctamente`,
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
+                    notify.success(result.message || `Se crearon ${telaresSeleccionados.length} registro(s) correctamente`);
                 } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: result.message || 'Error al crear los registros'
-                    });
+                    notify.alert(result.message || 'Error al crear los registros', 'Error', 'error');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error de conexión',
-                    text: 'No se pudieron crear los registros. Intenta de nuevo.'
-                });
+                notify.alert('No se pudieron crear los registros. Intenta de nuevo.', 'Error de conexión', 'error');
             }
         });
     }
@@ -922,11 +882,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const actionUrl = editForm.getAttribute('action');
             if (!actionUrl) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'URL de acción no válida'
-                });
+                notify.alert('URL de acción no válida', 'Error', 'error');
                 return;
             }
             
@@ -962,27 +918,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Cerrar modal
                     closeModal('editModal');
                     
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Éxito',
-                        text: result.message || 'Operador actualizado correctamente',
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
+                    notify.success(result.message || 'Operador actualizado correctamente');
                 } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: result.message || 'Error al actualizar el operador'
-                    });
+                    notify.alert(result.message || 'Error al actualizar el operador', 'Error', 'error');
                 }
             } catch (error) {
                 console.error('Error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error de conexión',
-                    text: 'No se pudo actualizar el operador. Intenta de nuevo.'
-                });
+                notify.alert('No se pudo actualizar el operador. Intenta de nuevo.', 'Error de conexión', 'error');
             }
         });
     }

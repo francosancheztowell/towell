@@ -2,9 +2,9 @@
  * Mensaje del servidor dentro de un error de window.http (HttpError trae el JSON en `data`).
  *
  * Los módulos del bundle de la grilla usan los globales http/notify de bootstrap.js en vez de
- * importar utils/http.ts: importarlo arrastra sweetalert2 (vía sesion.ts → notifications.ts),
- * que toca el DOM al evaluarse y rompe tests/Js/programa-tejido-bundle.test.ts. Por eso aquí
- * no se usa `instanceof HttpError`.
+ * importar utils/http.ts: importarlo arrastraba sweetalert2 (vía sesion.ts → notifications.ts),
+ * que tocaba el DOM al evaluarse y rompía tests/Js/programa-tejido-bundle.test.ts. Por eso aquí
+ * no se usa `instanceof HttpError`. sweetalert2 ya se retiró (2026-10): la restricción sobra.
  */
 export function mensajeDelServidor(err: unknown, porDefecto: string): string {
     const data = (err as { data?: unknown } | null | undefined)?.data;

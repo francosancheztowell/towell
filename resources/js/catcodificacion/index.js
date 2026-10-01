@@ -130,16 +130,12 @@ import { openLMatModal } from './lmat-modal';
 
     // showToast global de bootstrap.js (siempre definido: app.js corre antes que este @vite).
     const showToast = window.showToast;
+    const notify = window.notify;
 
     /**
      * Muestra el modal de formulario de codificación al hacer clic en el botón de la navbar.
      */
     function mostrarAlertaNavbar() {
-        if (typeof Swal === 'undefined') {
-            showToast('SweetAlert2 no está cargado.', 'warning');
-            return;
-        }
-
         // Obtener el registro seleccionado si existe
         const registroSeleccionado = state.selectedRowIndex !== null && state.selectedRowIndex !== undefined
             ? state.filtered[state.selectedRowIndex]
@@ -155,7 +151,7 @@ import { openLMatModal } from './lmat-modal';
         const actLmat = registroSeleccionado?.ActualizaLmat === true || registroSeleccionado?.ActualizaLmat === 1 || registroSeleccionado?.ActualizaLmat === '1';
         const bomId = registroSeleccionado?.BomId || '';
 
-        Swal.fire({
+        notify.form({
             title: 'Peso Muestra',
             html: `
                 <div class="text-left space-y-4">
@@ -189,7 +185,7 @@ import { openLMatModal } from './lmat-modal';
                                 id="swal-telar"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 focus:outline-none"
                                 placeholder="Los trae del cat codificados"
-                                value="${telar}"
+                                value="${escapeHtml(telar)}"
                                 readonly
                                 title="solo para visualización"
                             >
@@ -201,7 +197,7 @@ import { openLMatModal } from './lmat-modal';
                                 id="swal-articulo"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 focus:outline-none"
                                 placeholder="De cat codificados"
-                                value="${articulo}"
+                                value="${escapeHtml(articulo)}"
                                 readonly
                                 title="solo para visualización"
                             >
@@ -259,13 +255,10 @@ import { openLMatModal } from './lmat-modal';
                     </div>
                 </div>
             `,
-            width: '600px',
-            showCancelButton: true,
-            confirmButtonText: 'Guardar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#3b82f6',
-            cancelButtonColor: '#6b7280',
-            didOpen: () => {
+            width: 'xl',
+            confirmText: 'Guardar',
+            cancelText: 'Cancelar',
+            didOpen: (root) => {
                 // Habilitar/bloquear campo Lista Mat según checkbox Act Lmat (siempre visible)
                 const actLmatCheckbox = document.getElementById('swal-act-lmat');
                 const listaMatInputRef = document.getElementById('swal-lista-mat');
@@ -290,7 +283,7 @@ import { openLMatModal } from './lmat-modal';
                 }
 
                 function actualizarBotonGuardar() {
-                    const confirmBtn = Swal.getConfirmButton();
+                    const confirmBtn = root.closest('dialog')?.querySelector('button[type="submit"]');
                     if (!confirmBtn) return;
                     const actLmatChecked = actLmatCheckbox && actLmatCheckbox.checked;
                     const bomIdVal = listaMatInputRef && listaMatInputRef.value ? listaMatInputRef.value.trim() : '';
@@ -456,7 +449,7 @@ import { openLMatModal } from './lmat-modal';
                     aplicarModoOrdenTejido(false);
                 }
             },
-            preConfirm: () => {
+            preConfirm: (ctx) => {
                 const ordenTejido = document.getElementById('swal-orden-tejido')?.value.trim() || '';
                 const pesoMuestraRaw = document.getElementById('swal-peso-muestra')?.value?.trim();
                 const pesoMuestra = pesoMuestraRaw === '' || pesoMuestraRaw === undefined
@@ -470,7 +463,7 @@ import { openLMatModal } from './lmat-modal';
                 // Validaciones básicas
                 if (!ordenTejido) {
                     const usarFila = document.getElementById('swal-usar-fila-seleccionada')?.checked;
-                    Swal.showValidationMessage(
+                    ctx.error(
                         usarFila
                             ? 'La fila seleccionada no tiene Orden Tejido o el catálogo no devolvió datos.'
                             : 'Seleccione una orden en proceso'
@@ -478,21 +471,21 @@ import { openLMatModal } from './lmat-modal';
                     return false;
                 }
                 if (pesoMuestra !== null && (Number.isNaN(pesoMuestra) || pesoMuestra < 0)) {
-                    Swal.showValidationMessage('Peso Muestra debe ser un número mayor o igual a 0');
+                    ctx.error('Peso Muestra debe ser un número mayor o igual a 0');
                     return false;
                 }
                 // Se valida sobre el texto, no sobre el float: 8.6 * 10 no da 86 exacto
                 // y un redondeo aquí rechazaría valores buenos.
                 if (alturaRizoRaw !== '' && !/^\d+(\.\d)?$/.test(alturaRizoRaw)) {
-                    Swal.showValidationMessage('Altura Rizo admite solo un decimal y no acepta negativos (ej. 1.1, 8.6)');
+                    ctx.error('Altura Rizo admite solo un decimal y no acepta negativos (ej. 1.1, 8.6)');
                     return false;
                 }
                 if (alturaRizoRaw !== '' && parseFloat(alturaRizoRaw) > 10) {
-                    Swal.showValidationMessage('Altura Rizo debe estar entre 0 y 10');
+                    ctx.error('Altura Rizo debe estar entre 0 y 10');
                     return false;
                 }
                 if (actLmat && (!bomId || bomId.trim() === '')) {
-                    Swal.showValidationMessage('Lista L Mat (BomId) es obligatoria cuando Act Lmat está activo');
+                    ctx.error('Lista L Mat (BomId) es obligatoria cuando Act Lmat está activo');
                     return false;
                 }
 
@@ -504,18 +497,10 @@ import { openLMatModal } from './lmat-modal';
                     bomId
                 };
             }
-        }).then(async (result) => {
-            if (result.isConfirmed && result.value) {
-                const datos = result.value;
+        }).then(async (datos) => {
+            if (datos) {
                 try {
-                    Swal.fire({
-                        title: 'Guardando...',
-                        text: 'Por favor espera',
-                        allowOutsideClick: false,
-                        didOpen: () => {
-                            Swal.showLoading();
-                        }
-                    });
+                    notify.loading('Guardando...');
 
                     const resp = await fetch('/planeacion/codificacion/api/actualizar-peso-muestra-lmat', {
                         method: 'POST',
@@ -535,7 +520,7 @@ import { openLMatModal } from './lmat-modal';
 
                     const json = await resp.json();
 
-                    Swal.close();
+                    notify.close();
 
                     if (!json.s) {
                         showToast(json.e || 'Error al guardar los datos', 'error');
@@ -549,7 +534,7 @@ import { openLMatModal } from './lmat-modal';
                     // Recargar tabla con datos frescos (nocache + caché limpiada en backend)
                     await loadData(true);
                 } catch (error) {
-                    Swal.close();
+                    notify.close();
                     showToast('Error al guardar: ' + (error.message || 'Error desconocido'), 'error');
                     console.error('Error al guardar:', error);
                 }
@@ -1105,14 +1090,14 @@ import { openLMatModal } from './lmat-modal';
 
     async function filtrarCodificacion() {
         await ensureFullData();
-        Swal.fire({
+        notify.dialog({
+            titulo: 'Filtrar datos',
+            tono: null,
+            ancho: 'xl',
+            formulario: true,
+            botones: [{ texto: 'Cerrar', valor: 'cerrar', variante: 'secundario' }],
             html: `
                 <div class="text-left">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="text-base font-semibold text-gray-800">Filtrar datos</h2>
-                        <button type="button" id="btn-close-modal" class="text-gray-400 hover:text-red-500 text-xl">&times;</button>
-                    </div>
-
                     <div class="space-y-4">
                         <div class="rounded-lg border-2 border-amber-200 bg-amber-50 p-3">
                             <p class="text-sm font-semibold text-amber-900 mb-2">Acciones rápidas</p>
@@ -1165,15 +1150,12 @@ import { openLMatModal } from './lmat-modal';
                     </div>
                 </div>
             `,
-            showConfirmButton: false,
-            showCancelButton: false,
-            width: 580,
-            didOpen: () => {
+            alAbrir: () => {
                 const btnQuickOrdCompartida = document.getElementById('btn-quick-ordcompartida');
                 if (btnQuickOrdCompartida) {
                     btnQuickOrdCompartida.addEventListener('click', () => {
                         aplicarAccionRapidaOrdCompartida();
-                        Swal.close();
+                        notify.close();
                     });
                 }
 
@@ -1195,9 +1177,6 @@ import { openLMatModal } from './lmat-modal';
                     clearContainer?.classList.remove('hidden');
                 }
 
-                const closeBtn = document.getElementById('btn-close-modal');
-                closeBtn?.addEventListener('click', () => Swal.close());
-
                 document.getElementById('btn-add-filter')?.addEventListener('click', addFilterFromModal);
                 document.getElementById('btn-clear-filters')?.addEventListener('click', () => {
                     state.filtros = [];
@@ -1209,7 +1188,7 @@ import { openLMatModal } from './lmat-modal';
                     updateColumnHeaderIcons();
                     renderModalFilters();
                     updateFilterCount();
-                    Swal.close();
+                    notify.close();
                 });
 
                 const valorInput = document.getElementById('filtro-valor');
@@ -1384,7 +1363,7 @@ import { openLMatModal } from './lmat-modal';
         });
         const uniqueValues = Array.from(valueCounts.keys()).filter(Boolean).sort();
         if (uniqueValues.length === 0) {
-            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'info', title: 'Sin valores', text: 'No hay valores para filtrar en esta columna.' });
+            notify.info('No hay valores para filtrar en esta columna.');
             return;
         }
         const currentForColumn = (state.filtrosPorColumna || []).filter(f => f.column === columnField).map(f => f.value);
@@ -1403,14 +1382,12 @@ import { openLMatModal } from './lmat-modal';
         });
         html += '</div></div></div>';
 
-        Swal.fire({
+        notify.form({
             title: 'Filtrar columna',
             html: html,
-            showCancelButton: true,
-            confirmButtonText: 'Aplicar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#3b82f6',
-            width: '500px',
+            confirmText: 'Aplicar',
+            cancelText: 'Cancelar',
+            width: 'lg',
             didOpen: () => {
                 const search = document.getElementById('codificacionFilterSearch');
                 const container = document.getElementById('codificacionFilterCheckboxes');
@@ -1428,10 +1405,10 @@ import { openLMatModal } from './lmat-modal';
                 const checked = $$('.codificacion-filter-cb:checked').map(cb => cb.value);
                 return checked;
             }
-        }).then(result => {
-            if (!result.isConfirmed) return;
+        }).then(seleccion => {
+            if (seleccion === null) return;
             state.filtrosPorColumna = (state.filtrosPorColumna || []).filter(f => f.column !== columnField);
-            (result.value || []).forEach(v => {
+            (seleccion || []).forEach(v => {
                 state.filtrosPorColumna.push({ column: columnField, value: v });
             });
             aplicarFiltrosAND();
@@ -1684,29 +1661,23 @@ import { openLMatModal } from './lmat-modal';
             return;
         }
 
-        const confirm = await Swal.fire({
-            title: 'Revivir a programa de tejido',
+        const eleccion = await notify.dialog({
+            titulo: 'Revivir a programa de tejido',
             html: 'Se pondrá <strong>FechaFinaliza</strong> en <em>null</em> en codificación y se creará la orden en el programa (telar ' + escapeHtml(telar) + ').',
-            icon: 'question',
-            showCancelButton: true,
-            showDenyButton: true,
-            confirmButtonText: 'Al final de cola',
-            denyButtonText: 'Poner en proceso',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#d97706',
-            denyButtonColor: '#2563eb',
+            tono: 'question',
+            botones: [
+                { texto: 'Cancelar', valor: 'cancelar', variante: 'secundario' },
+                { texto: 'Poner en proceso', valor: 'en_proceso', variante: 'primario' },
+                { texto: 'Al final de cola', valor: 'final', variante: 'primario' },
+            ],
         });
 
-        if (confirm.isDismissed) return;
+        if (eleccion !== 'final' && eleccion !== 'en_proceso') return;
 
-        const enProceso = confirm.isDenied === true;
+        const enProceso = eleccion === 'en_proceso';
 
         try {
-            Swal.fire({
-                title: 'Procesando...',
-                allowOutsideClick: false,
-                didOpen: () => Swal.showLoading(),
-            });
+            notify.loading('Procesando...');
 
             const resp = await fetch('/planeacion/codificacion/api/revivir-programa', {
                 method: 'POST',
@@ -1722,7 +1693,7 @@ import { openLMatModal } from './lmat-modal';
             });
 
             const json = await resp.json().catch(() => ({}));
-            Swal.close();
+            notify.close();
 
             if (!json.s) {
                 const msg = json.e || json.message || 'Error al revivir la orden';
@@ -1735,7 +1706,7 @@ import { openLMatModal } from './lmat-modal';
 
             showToast('Orden creada en programa (Id ' + (json.d && json.d.programa_id ? json.d.programa_id : '') + ')', 'success');
         } catch (e) {
-            Swal.close();
+            notify.close();
             showToast(e.message || 'Error de red', 'error');
         }
     }
@@ -1764,18 +1735,14 @@ import { openLMatModal } from './lmat-modal';
         }
 
         try {
-            Swal.fire({
-                title: 'Cargando registros compartidos...',
-                allowOutsideClick: false,
-                didOpen: () => Swal.showLoading()
-            });
+            notify.loading('Cargando registros compartidos...');
 
             const resp = await fetch(`/planeacion/codificacion/api/registros-ord-compartida/${encodeURIComponent(ordCompartida)}`, {
                 headers: { 'Accept': 'application/json' }
             });
             const data = await resp.json();
 
-            Swal.close();
+            notify.close();
 
             if (!data.success || !Array.isArray(data.registros)) {
                 showToast(data.message || 'Error al cargar registros compartidos', 'error');
@@ -1828,16 +1795,9 @@ import { openLMatModal } from './lmat-modal';
 
             html += '</tbody></table></div></div>';
 
-            Swal.fire({
-                title: 'Registros compartidos',
-                html: html,
-                width: '880px',
-                showConfirmButton: true,
-                confirmButtonText: 'Cerrar',
-                confirmButtonColor: '#3b82f6'
-            });
+            notify.html(html, 'Registros compartidos', 'info');
         } catch (error) {
-            Swal.close();
+            notify.close();
             showToast(error.message || 'Error al cargar registros compartidos', 'error');
         }
     }
@@ -1880,14 +1840,7 @@ import { openLMatModal } from './lmat-modal';
 
         try {
             // Mostrar loading
-            Swal.fire({
-                title: 'Generando orden de cambio...',
-                text: 'Por favor espera',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
+            notify.loading('Generando orden de cambio...');
 
             // Llamar a la ruta de reimpresión
             const url = `/planeacion/programa-tejido/reimprimir-ordenes/${id}`;
@@ -1917,10 +1870,10 @@ import { openLMatModal } from './lmat-modal';
             document.body.removeChild(a);
             window.URL.revokeObjectURL(downloadUrl);
 
-            Swal.close();
+            notify.close();
             showToast('Orden reimpresa correctamente', 'success');
         } catch (error) {
-            Swal.close();
+            notify.close();
             showToast(error.message || 'Error al reimprimir la orden', 'error');
             console.error('Error al reimprimir orden:', error);
         }

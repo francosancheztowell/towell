@@ -1,26 +1,26 @@
 /** Utilería — piezas compartidas por Mover y Finalizar. */
 import { el, icono } from '../../urdido/comun/pagina.ts';
 import { HttpError } from '../../../utils/http.ts';
+import { notify } from '../../../utils/notifications.ts';
 
 type Icono = 'success' | 'error' | 'warning' | 'question';
 
 /**
- * Aviso modal con el color de botón de cada pantalla (verde en Finalizar, azul en Mover,
- * rojo en errores), igual que antes. notify.alert no deja elegir el color.
+ * Aviso tras procesar: cierra el modal "Procesando…". Con timer (éxito con cierre solo) es
+ * un toast; si no, un aviso modal. El color de botón por pantalla ya no aplica.
  */
-export function aviso(icon: Icono, title: string, text: string, confirmButtonColor?: string, timer?: number): Promise<unknown> {
-    return Swal.fire({ icon, title, text, ...(confirmButtonColor ? { confirmButtonColor } : {}), ...(timer ? { timer } : {}) });
+export function aviso(icon: Icono, title: string, text: string, _confirmButtonColor?: string, timer?: number): Promise<unknown> {
+    if (timer && icon === 'success') {
+        notify.close();
+        notify.success(text || title);
+        return Promise.resolve();
+    }
+    return notify.alert(text, title, icon);
 }
 
 /** Modal "Procesando…" mientras corre la petición. */
 export function procesando(text: string): void {
-    void Swal.fire({
-        title: 'Procesando...',
-        text,
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        didOpen: () => Swal.showLoading(),
-    });
+    void notify.loading(text);
 }
 
 /**

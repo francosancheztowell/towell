@@ -6,7 +6,8 @@
  *   al pasar el puntero o enfocar. Van debajo del navbar (no tapan Crear/Editar/Eliminar,
  *   HANDOFF 16 A4), en el mismo lugar que x-ui.flash, y duran lo mismo todos (UX-13). No usan el toast de SweetAlert2 porque comparte
  *   singleton con los modales y cerraba el que estuviera abierto.
- * - Modales (alert/validation/confirm/loading/close): SweetAlert2.
+ * - Modales (alert/validation/confirm/loading/close): <dialog> nativo con aspecto de Flux
+ *   (utils/dialogo.ts). Ya no usan SweetAlert2.
  *
  * Uso (en scripts inline de Blade, vía window.notify):
  *   notify.success('Guardado');
@@ -14,9 +15,11 @@
  *   if (await notify.confirm({ text: '¿Eliminar?' })) { ... }
  *   notify.validation(err.errors);   // errores 422 de Laravel
  */
-import Swal from 'sweetalert2';
-import type { SweetAlertIcon, SweetAlertResult } from 'sweetalert2';
+import { actualizarDialogo, cerrarDialogo, dialogo, type AnchoDialogo, type ContextoValidar, type OpcionesDialogo, type TonoDialogo } from './dialogo.ts';
 import { escapeHtml } from './format.ts';
+
+/** Mismos nombres que los íconos de SweetAlert2, para no tocar a los que llaman. */
+export type IconoAviso = 'success' | 'error' | 'warning' | 'info' | 'question';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -52,6 +55,8 @@ const STYLES = `
 .towell-toast--info{border-color:#2563eb}.towell-toast--info .towell-toast__icon{background:#2563eb}
 .towell-toast--warning{border-color:#d97706}.towell-toast--warning .towell-toast__icon{background:#d97706}
 .towell-toast--error{border-color:#dc2626}.towell-toast--error .towell-toast__icon{background:#dc2626}
+/* popover: el contenedor sube al top layer para no quedar bajo un <dialog> modal (utils/dialogo.ts). */
+.towell-toasts[popover]{inset:auto;top:calc(var(--pt-navbar-height,72px) + .75rem);right:1rem;margin:0;border:0;padding:0;background:transparent;color:inherit;overflow:visible;height:auto}
 @keyframes towell-toast-in{from{opacity:0;transform:translateY(-.5rem)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.towell-toast{animation:none}}
 `;
@@ -73,9 +78,21 @@ function container(): HTMLElement | null {
     el.className = 'towell-toasts';
     el.setAttribute('role', 'status');
     el.setAttribute('aria-live', 'polite');
+    el.setAttribute('popover', 'manual');
     document.body.appendChild(el);
 
     return el;
+}
+
+/** Re-muestra el popover para quedar encima del último <dialog> abierto (el top layer apila por orden). */
+function alFrente(root: HTMLElement): void {
+    if (typeof root.showPopover !== 'function') return;
+    try {
+        if (root.matches(':popover-open')) root.hidePopover();
+        root.showPopover();
+    } catch {
+        // Navegador sin popover: el z-index de siempre basta fuera de un <dialog>.
+    }
 }
 
 /** Muestra un toast y devuelve su elemento (null si todavía no hay <body>). */
@@ -124,6 +141,7 @@ export function toast(type: ToastType, message: unknown): HTMLElement | null {
     el.appendChild(text);
     el.appendChild(close);
     root.appendChild(el);
+    alFrente(root);
     start();
 
     return el;
@@ -133,10 +151,43 @@ export interface ConfirmOptions {
     title?: string;
     text?: string;
     html?: string | null;
-    icon?: SweetAlertIcon;
+    icon?: IconoAviso;
     confirmText?: string;
     cancelText?: string;
+    /** Compatibilidad con el confirmButtonColor de Swal: un color rojizo pinta el botón de peligro. */
     confirmColor?: string;
+}
+
+/** ¿El hex es rojizo? (#d33, #dc2626, #ef4444…) → botón de peligro. */
+export function esColorPeligro(color: string | undefined): boolean {
+    const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color ?? '')?.[1];
+    if (!hex) return false;
+    const full = hex.length === 3 ? [...hex].map((c) => c + c).join('') : hex;
+    const canal = (i: number): number => parseInt(full.slice(i, i + 2), 16);
+    const [r, g, b] = [canal(0), canal(2), canal(4)];
+    return r > g + 60 && r > b + 60;
+}
+
+const ACEPTAR = [{ texto: 'Aceptar', valor: 'ok' }];
+
+export interface FormOptions<T> {
+    title: string;
+    /** Campos del formulario. HTML de confianza: escapar con escapeHtml los datos del usuario/servidor. */
+    html: string;
+    confirmText?: string;
+    cancelText?: string;
+    /** Botón de confirmar rojo (acciones destructivas). */
+    danger?: boolean;
+    width?: AnchoDialogo;
+    icon?: IconoAviso;
+    /**
+     * Lee y valida los campos (como preConfirm de Swal). `ctx.error(msg)` o devolver false lo deja
+     * abierto con el mensaje; puede ser async (los botones se deshabilitan mientras corre).
+     * Lo que devuelva es el resultado de notify.form (undefined → true).
+     */
+    preConfirm?: (ctx: ContextoValidar) => T | false | Promise<T | false>;
+    /** Ya abierto: enganchar listeners, llenar selects, enfocar (como didOpen de Swal). */
+    didOpen?: (root: HTMLElement) => void;
 }
 
 export const notify = {
@@ -147,22 +198,25 @@ export const notify = {
     info: (msg: unknown) => toast('info', msg),
 
     // Alerta modal bloqueante (para errores que el usuario debe ver sí o sí).
-    alert(message: string, title = 'Aviso', icon: SweetAlertIcon = 'info'): Promise<SweetAlertResult> {
-        return Swal.fire({ icon, title, text: message });
+    async alert(message: string, title = 'Aviso', icon: IconoAviso = 'info'): Promise<void> {
+        await dialogo({ titulo: title, texto: message, tono: icon, botones: ACEPTAR });
+    },
+
+    /** Como alert, con HTML. El HTML debe venir armado por el código: escapar con escapeHtml todo dato del usuario o del servidor. */
+    async html(html: string, title = 'Aviso', icon: IconoAviso = 'info'): Promise<void> {
+        await dialogo({ titulo: title, html, tono: icon, botones: ACEPTAR });
     },
 
     // Muestra los errores de validación de Laravel (422) en una lista.
-    validation(errors: Record<string, string[] | string> | null | undefined, title = 'Revisa los datos'): Promise<SweetAlertResult> {
+    async validation(errors: Record<string, string[] | string> | null | undefined, title = 'Revisa los datos'): Promise<void> {
         const list = Object.values(errors || {}).flat();
 
-        return Swal.fire({
-            icon: 'warning',
-            title,
-            html: list.length
-                ? `<ul style="text-align:left;margin:0;padding-left:1.2rem">${list
-                      .map((e) => `<li>${escapeHtml(e)}</li>`)
-                      .join('')}</ul>`
-                : 'Hay errores en el formulario.',
+        await dialogo({
+            titulo: title,
+            tono: 'warning',
+            html: list.length ? `<ul>${list.map((e) => `<li>${escapeHtml(e)}</li>`).join('')}</ul>` : null,
+            texto: 'Hay errores en el formulario.',
+            botones: ACEPTAR,
         });
     },
 
@@ -174,34 +228,74 @@ export const notify = {
         icon = 'warning',
         confirmText = 'Sí',
         cancelText = 'Cancelar',
-        confirmColor = '#3085d6',
+        confirmColor,
     }: ConfirmOptions = {}): Promise<boolean> {
-        const res = await Swal.fire({
-            title,
-            icon,
-            ...(html ? { html } : { text }),
-            showCancelButton: true,
-            confirmButtonText: confirmText,
-            cancelButtonText: cancelText,
-            confirmButtonColor: confirmColor,
-            cancelButtonColor: '#6b7280',
+        const peligro = esColorPeligro(confirmColor);
+        const valor = await dialogo({
+            titulo: title,
+            texto: text,
+            html,
+            tono: (peligro && icon === 'warning' ? 'danger' : icon) as TonoDialogo,
+            botones: [
+                { texto: cancelText, valor: 'cancelar', variante: 'secundario' },
+                { texto: confirmText, valor: 'confirmar', variante: peligro ? 'peligro' : 'primario' },
+            ],
         });
 
-        return res.isConfirmed;
+        return valor === 'confirmar';
     },
 
-    // Loader modal bloqueante (p. ej. mientras se procesa una petición).
-    loading(title = 'Cargando...'): Promise<SweetAlertResult> {
-        return Swal.fire({
-            title,
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            didOpen: () => Swal.showLoading(),
-        });
+    // Loader modal bloqueante (p. ej. mientras se procesa una petición). Se cierra con notify.close().
+    async loading(title = 'Cargando...'): Promise<void> {
+        await dialogo({ titulo: title, tono: 'loading', cerrable: false });
     },
 
     close(): void {
-        Swal.close();
+        cerrarDialogo();
+    },
+
+    /** Cambia el título/texto del diálogo abierto (progreso de un loading). */
+    update(cambios: { title?: string; text?: string; html?: string }): void {
+        actualizarDialogo({ titulo: cambios.title, texto: cambios.text, html: cambios.html });
+    },
+
+    /**
+     * Formulario en diálogo (reemplaza los modales de SweetAlert2 con inputs + preConfirm).
+     * Devuelve lo que devolvió preConfirm, o null si se canceló.
+     */
+    async form<T = true>({
+        title,
+        html,
+        confirmText = 'Aceptar',
+        cancelText = 'Cancelar',
+        danger = false,
+        width = 'lg',
+        icon,
+        preConfirm,
+        didOpen,
+    }: FormOptions<T>): Promise<T | null> {
+        let datos: unknown = true;
+        const valor = await dialogo({
+            titulo: title,
+            html,
+            tono: icon ?? null,
+            formulario: true,
+            ancho: width,
+            botones: [
+                { texto: cancelText, valor: 'cancelar', variante: 'secundario' },
+                { texto: confirmText, valor: 'confirmar', variante: danger ? 'peligro' : 'primario', valida: true },
+            ],
+            validar: preConfirm ? (ctx) => preConfirm(ctx) : undefined,
+            alValidar: (d) => (datos = d === undefined ? true : d),
+            alAbrir: didOpen,
+        });
+
+        return valor === 'confirmar' ? (datos as T) : null;
+    },
+
+    /** Diálogo con botones libres (p. ej. tres opciones). Devuelve el `valor` del botón o null. */
+    dialog(opciones: OpcionesDialogo): Promise<string | null> {
+        return dialogo(opciones);
     },
 };
 
