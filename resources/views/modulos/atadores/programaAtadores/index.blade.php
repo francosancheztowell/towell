@@ -4,10 +4,15 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
-        {{-- Botón de Filtros --}}
-        <x-navbar.button-report id="btn-open-filters" title="Filtros" icon="fa-filter" text="Filtrar"
-            :moduleId="45" iconColor="text-white" hoverBg="hover:bg-green-600" class="text-white"
-            bg="bg-green-600" />
+        {{-- Estatus a la vista (antes en un modal): programa/index.ts pone aria-pressed y aplica.
+             Filtro por columna: clic derecho o mantener presionado en el encabezado, como antes. --}}
+        <flux:button.group>
+            @foreach ([['todos', 'list-bullet', 'Todos'], ['activo', 'play', 'Activo'], ['en-proceso', 'arrow-path', 'En proceso'], ['calificados', 'star', 'Calificados'], ['terminados', 'check-circle', 'Terminados'], ['autorizados', 'hand-thumb-up', 'Autorizado']] as [$clave, $icono, $texto])
+                <flux:button data-filtro="{{ $clave }}" aria-pressed="false" :icon="$icono" class="min-h-touch" :title="$texto" :aria-label="$texto">
+                    <span class="hidden xl:inline">{{ $texto }}</span>
+                </flux:button>
+            @endforeach
+        </flux:button.group>
 
         <x-navbar.button-create id="btnIniciarAtado" data-accion="iniciar-atado" disabled :moduleId="45"
             title="Iniciar Atado" text="Iniciar Atado" />
@@ -16,54 +21,9 @@
 @endsection
 
 @section('content')
-    {{-- Modal de Filtros --}}
-    <div id="modalFiltros" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
-        <div class="bg-white max-w-2xl w-full rounded-xl shadow-xl p-4 m-4">
-            <div class="flex items-center justify-between mb-2">
-                <p class="text-sm text-slate-500">Puedes elegir uno o varios filtros. Clic de nuevo para quitar.</p>
-                <button type="button" data-accion="cerrar-filtros" aria-label="Cerrar"
-                    class="text-slate-500 hover:text-slate-700 text-2xl leading-none">&times;</button>
-            </div>
-
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {{-- Fila 1: Ver Todos, Activo --}}
-                <button type="button" id="btn-filter-todos" data-filtro="todos"
-                    class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
-                    <i class="fa-solid fa-list text-2xl mb-2 block"></i>
-                    <div class="font-semibold text-sm">Ver Todos</div>
-                </button>
-                <button type="button" id="btn-filter-activo" data-filtro="activo"
-                    class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
-                    <i class="fa-solid fa-circle-dot text-2xl mb-2 block"></i>
-                    <div class="font-semibold text-sm">Activo</div>
-                </button>
-
-                {{-- Fila 2: En Proceso, Calificados, Terminados --}}
-                <button type="button" id="btn-filter-en-proceso" data-filtro="en-proceso"
-                    class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
-                    <i class="fa-solid fa-play-circle text-2xl mb-2 block"></i>
-                    <div class="font-semibold text-sm">En Proceso</div>
-                </button>
-                <button type="button" id="btn-filter-calificados" data-filtro="calificados"
-                    class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
-                    <i class="fa-solid fa-star text-2xl mb-2 block"></i>
-                    <div class="font-semibold text-sm">Calificados</div>
-                </button>
-                <button type="button" id="btn-filter-terminados" data-filtro="terminados"
-                    class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
-                    <i class="fa-solid fa-check-circle text-2xl mb-2 block"></i>
-                    <div class="font-semibold text-sm">Terminados</div>
-                </button>
-                <button type="button" id="btn-filter-autorizados" data-filtro="autorizados"
-                    class="filter-btn p-4 rounded-lg border-2 transition-all text-center bg-gray-50 border-gray-300 text-gray-700 hover:bg-gray-100">
-                    <i class="fa-solid fa-thumbs-up text-2xl mb-2 block"></i>
-                    <div class="font-semibold text-sm">Autorizado</div>
-                </button>
-            </div>
-        </div>
-    </div>
-
     @php
+        // Estatus → color de flux:badge. Las <template data-badge-estatus> de abajo los reusa el refresco de 15 s.
+        $coloresEstatus = ['Activo' => 'zinc', 'En Proceso' => 'blue', 'Terminado' => 'purple', 'Calificado' => 'yellow', 'Autorizado' => 'green'];
         $configPagina = [
             'rutas' => [
                 'programa' => route('atadores.programa'),
@@ -80,79 +40,30 @@
     @endphp
     <div class="container mx-auto px-4 py-4" id="programa-atadores" data-pagina='@json($configPagina)'>
 
-        <div class="overflow-auto rounded-lg shadow-md bg-white" style="max-height: calc(100vh - 7rem);">
-            <table class="min-w-full divide-y divide-gray-200 text-sm">
-                <thead id="atadoresTableHead" class="towell-acciones-zona bg-blue-500 sticky top-0 z-10">
-                    <tr>
-                        <th data-sort="fecha" data-column="fecha"
-                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
-                            role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar"> Fecha <span
-                                class="sort-icon ml-1 opacity-80">▲</span> </th>
-                        <th data-sort="estatus" data-column="estatus"
-                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
-                            role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar"> Estatus <span
-                                class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="turno" data-column="turno"
-                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
-                            role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar"> Turno <span
-                                class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="telar" data-column="telar"
-                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
-                            role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar"> Telar <span
-                                class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="tipo" data-column="tipo"
-                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
-                            role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar"> Tipo <span
-                                class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="julio" data-column="no-julio"
-                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
-                            role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar"> Julio <span
-                                class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="ubicacion" data-column="ubicacion"
-                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
-                            role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar"> Ubicación <span
-                                class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="metros" data-column="metros"
-                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
-                            role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar"> Metros <span
-                                class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="orden" data-column="no-orden"
-                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
-                            role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar"> Orden <span
-                                class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="tipo-atado" data-column="tipo-atado"
-                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
-                            role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar"> Tipo atado <span
-                                class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="cuenta" data-column="cuenta"
-                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
-                            role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar"> Cuenta <span
-                                class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="calibre" data-column="calibre"
-                            class="th-sortable hidden md:table-cell px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
-                            role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar"> Calibre <span
-                                class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="hilo" data-column="hilo"
-                            class="th-sortable hidden md:table-cell px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
-                            role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar"> Hilo <span
-                                class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="lote" data-column="lote"
-                            class="th-sortable hidden md:table-cell px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
-                            role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar"> Lote <span
-                                class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="no-prov" data-column="no-prov"
-                            class="th-sortable hidden md:table-cell px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
-                            role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar"> No. Prov. <span
-                                class="sort-icon ml-1 opacity-80"></span> </th>
-                        <th data-sort="hr-paro" data-column="hora-paro"
-                            class="th-sortable px-2 py-2 text-left text-sm font-medium text-white sticky top-0 bg-blue-500 cursor-pointer hover:bg-blue-600 select-none"
-                            role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar"> Hr. Paro <span
-                                class="sort-icon ml-1 opacity-80"></span> </th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200" id="tb-body">
+        {{-- flux:table + .tabla-cebra / .tabla-seleccionable (app.css). Orden y filtro por columna: programa/index.ts. --}}
+        <div class="rounded-lg shadow-md bg-white overflow-hidden">
+            <flux:table class="tabla-cebra tabla-seleccionable" container:class="max-h-[calc(100vh-7rem)] [&>ui-table-scroll-area]:min-h-0">
+                <flux:table.columns sticky id="atadoresTableHead" class="towell-acciones-zona bg-white">
+                        <flux:table.column data-sort="fecha" data-column="fecha" class="th-sortable cursor-pointer select-none" role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar">Fecha <span class="sort-icon ml-1 opacity-80">▲</span></flux:table.column>
+                        <flux:table.column data-sort="estatus" data-column="estatus" class="th-sortable cursor-pointer select-none" role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar">Estatus <span class="sort-icon ml-1 opacity-80"></span></flux:table.column>
+                        <flux:table.column data-sort="turno" data-column="turno" class="th-sortable cursor-pointer select-none" role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar">Turno <span class="sort-icon ml-1 opacity-80"></span></flux:table.column>
+                        <flux:table.column data-sort="telar" data-column="telar" class="th-sortable cursor-pointer select-none" role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar">Telar <span class="sort-icon ml-1 opacity-80"></span></flux:table.column>
+                        <flux:table.column data-sort="tipo" data-column="tipo" class="th-sortable cursor-pointer select-none" role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar">Tipo <span class="sort-icon ml-1 opacity-80"></span></flux:table.column>
+                        <flux:table.column data-sort="julio" data-column="no-julio" class="th-sortable cursor-pointer select-none" role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar">Julio <span class="sort-icon ml-1 opacity-80"></span></flux:table.column>
+                        <flux:table.column data-sort="ubicacion" data-column="ubicacion" class="th-sortable cursor-pointer select-none" role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar">Ubicación <span class="sort-icon ml-1 opacity-80"></span></flux:table.column>
+                        <flux:table.column data-sort="metros" data-column="metros" class="th-sortable cursor-pointer select-none" role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar">Metros <span class="sort-icon ml-1 opacity-80"></span></flux:table.column>
+                        <flux:table.column data-sort="orden" data-column="no-orden" class="th-sortable cursor-pointer select-none" role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar">Orden <span class="sort-icon ml-1 opacity-80"></span></flux:table.column>
+                        <flux:table.column data-sort="tipo-atado" data-column="tipo-atado" class="th-sortable cursor-pointer select-none" role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar">Tipo atado <span class="sort-icon ml-1 opacity-80"></span></flux:table.column>
+                        <flux:table.column data-sort="cuenta" data-column="cuenta" class="th-sortable cursor-pointer select-none" role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar">Cuenta <span class="sort-icon ml-1 opacity-80"></span></flux:table.column>
+                        <flux:table.column data-sort="calibre" data-column="calibre" class="th-sortable cursor-pointer select-none hidden md:table-cell" role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar">Calibre <span class="sort-icon ml-1 opacity-80"></span></flux:table.column>
+                        <flux:table.column data-sort="hilo" data-column="hilo" class="th-sortable cursor-pointer select-none hidden md:table-cell" role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar">Hilo <span class="sort-icon ml-1 opacity-80"></span></flux:table.column>
+                        <flux:table.column data-sort="lote" data-column="lote" class="th-sortable cursor-pointer select-none hidden md:table-cell" role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar">Lote <span class="sort-icon ml-1 opacity-80"></span></flux:table.column>
+                        <flux:table.column data-sort="no-prov" data-column="no-prov" class="th-sortable cursor-pointer select-none hidden md:table-cell" role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar">No. Prov. <span class="sort-icon ml-1 opacity-80"></span></flux:table.column>
+                        <flux:table.column data-sort="hr-paro" data-column="hora-paro" class="th-sortable cursor-pointer select-none" role="button" title="Clic para ordenar | Clic derecho o mantener presionado para filtrar">Hr. Paro <span class="sort-icon ml-1 opacity-80"></span></flux:table.column>
+                </flux:table.columns>
+                <flux:table.rows id="tb-body">
                     @forelse($inventarioTelares as $item)
-                        <tr class="table-row hover:bg-blue-100 cursor-pointer transition-colors duration-150"
+                        <flux:table.row class="table-row" aria-selected="false"
                             data-id="{{ $item->id }}"
                             data-fecha="{{ $item->fecha ? $item->fecha->format('Y-m-d') : '9999-99-99' }}"
                             data-estatus="{{ $item->status_proceso ?? 'Activo' }}" data-turno="{{ $item->turno ?? '' }}"
@@ -167,27 +78,19 @@
                             data-hilo="{{ $item->hilo ?? '' }}" data-lote="{{ $item->LoteProveedor ?? '' }}"
                             data-no-prov="{{ $item->NoProveedor ?? '' }}" data-hora-paro="{{ $item->horaParo ?? '' }}"
                             data-status="{{ $item->status_proceso ?? 'Activo' }}">
-                            <td class="px-2 py-2 whitespace-nowrap text-sm">
+                            <flux:table.cell>
                                 {{ $item->fecha ? $item->fecha->format('d/m/Y') : '-' }}
-                            </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-sm" data-status="{{ $item->status_proceso }}">
-                                <span class="px-1.5 py-0.5 rounded-full text-sm font-semibold
-                                            @if($item->status_proceso === 'Activo') bg-gray-200 text-gray-800
-                                            @elseif($item->status_proceso === 'En Proceso') bg-blue-200 text-blue-800
-                                            @elseif($item->status_proceso === 'Terminado') bg-purple-200 text-purple-800
-                                            @elseif($item->status_proceso === 'Calificado') bg-yellow-200 text-yellow-800
-                                            @elseif($item->status_proceso === 'Autorizado') bg-green-200 text-green-800
-                                            @endif">
-                                    {{ $item->status_proceso }}
-                                </span>
-                            </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-sm">
+                            </flux:table.cell>
+                            <flux:table.cell data-status="{{ $item->status_proceso }}">
+                                <flux:badge size="sm" inset="top bottom" :color="$coloresEstatus[$item->status_proceso] ?? 'zinc'">{{ $item->status_proceso }}</flux:badge>
+                            </flux:table.cell>
+                            <flux:table.cell>
                                 {{ $item->turno ?? '-' }}
-                            </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-sm">
+                            </flux:table.cell>
+                            <flux:table.cell>
                                 {{ $item->no_telar ?? '-' }}
-                            </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-sm">
+                            </flux:table.cell>
+                            <flux:table.cell>
                                 @php
                                     $tipo = $item->tipo ?? '-';
                                     if ($tipo === 'Rizo') {
@@ -199,53 +102,56 @@
                                     }
                                 @endphp
                                 {{ $tipo }}
-                            </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-sm">
+                            </flux:table.cell>
+                            <flux:table.cell>
                                 {{ collect([$item->no_julio ?? null, $item->no_julio2 ?? null, $item->no_julio3 ?? null, $item->no_julio4 ?? null])->filter()->implode(', ') ?: '-' }}
-                            </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-sm">
+                            </flux:table.cell>
+                            <flux:table.cell>
                                 {{ $item->localidad ?? '-' }}
-                            </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-sm">
+                            </flux:table.cell>
+                            <flux:table.cell>
                                 {{ ($item->metros === null || $item->metros === '') ? '-' : number_format((float) $item->metros, 2) }}
-                            </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-sm">
+                            </flux:table.cell>
+                            <flux:table.cell>
                                 {{ $item->no_orden ?? '-' }}
-                            </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-sm">
+                            </flux:table.cell>
+                            <flux:table.cell>
                                 {{ $item->tipo_atado ?? '-' }}
-                            </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-sm">
+                            </flux:table.cell>
+                            <flux:table.cell>
                                 {{ $item->cuenta ?? '-' }}
-                            </td>
-                            <td class="hidden md:table-cell px-2 py-2 whitespace-nowrap text-sm">
+                            </flux:table.cell>
+                            <flux:table.cell class="hidden md:table-cell">
                                 {{ ($item->calibre === null || $item->calibre === '') ? '-' : number_format((float) $item->calibre, 2) }}
-                            </td>
-                            <td class="hidden md:table-cell px-2 py-2 whitespace-nowrap text-sm">
+                            </flux:table.cell>
+                            <flux:table.cell class="hidden md:table-cell">
                                 {{ $item->hilo ?? '-' }}
-                            </td>
-                            <td class="hidden md:table-cell px-2 py-2 whitespace-nowrap text-sm">
+                            </flux:table.cell>
+                            <flux:table.cell class="hidden md:table-cell">
                                 {{ $item->LoteProveedor ?? '-' }}
-                            </td>
-                            <td class="hidden md:table-cell px-2 py-2 whitespace-nowrap text-sm">
+                            </flux:table.cell>
+                            <flux:table.cell class="hidden md:table-cell">
                                 {{ $item->NoProveedor ?? '-' }}
-                            </td>
-                            <td class="px-2 py-2 whitespace-nowrap text-sm">
+                            </flux:table.cell>
+                            <flux:table.cell>
                                 {{ $item->horaParo ?? '-' }}
-                            </td>
-                        </tr>
+                            </flux:table.cell>
+                        </flux:table.row>
                     @empty
-                        <tr>
-                            <td colspan="16" class="px-6 py-4 text-center text-sm text-gray-500">
+                        <flux:table.row>
+                            <flux:table.cell colspan="16" class="py-4 text-center">
                                 No hay datos disponibles en el inventario de telares
-                            </td>
-                        </tr>
+                            </flux:table.cell>
+                        </flux:table.row>
                     @endforelse
-                </tbody>
-            </table>
+                </flux:table.rows>
+            </flux:table>
         </div>
     </div>
 
+    @foreach ($coloresEstatus as $estatus => $color)
+        <template data-badge-estatus="{{ $estatus }}"><flux:badge size="sm" inset="top bottom" :color="$color">{{ $estatus }}</flux:badge></template>
+    @endforeach
     <template id="plantillaSinResultados">
         <tr class="no-results">
             <td colspan="16" class="px-6 py-4 text-center text-sm text-gray-500">

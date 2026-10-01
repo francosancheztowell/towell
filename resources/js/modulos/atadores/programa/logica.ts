@@ -8,19 +8,7 @@ export interface ContextoRol {
     filtroGlobalActivo: boolean;
 }
 
-export const CLASES_ESTATUS: Readonly<Record<string, string>> = {
-    Activo: 'bg-gray-200 text-gray-800',
-    'En Proceso': 'bg-blue-200 text-blue-800',
-    Terminado: 'bg-purple-200 text-purple-800',
-    Calificado: 'bg-yellow-200 text-yellow-800',
-    Autorizado: 'bg-green-200 text-green-800',
-};
-
-export function clasesBadge(status: string): string {
-    return `px-1.5 py-0.5 rounded-full text-sm font-semibold ${CLASES_ESTATUS[status] ?? ''}`;
-}
-
-/** ¿El estatus entra en la clave de filtro del modal? */
+/** ¿El estatus entra en la clave de filtro (botones de estatus del navbar)? */
 export function coincideEstatus(status: string, telar: string, filtro: string, ctx: Pick<ContextoRol, 'esTejedor' | 'telaresUsuario'>): boolean {
     switch (filtro) {
         case 'creados':

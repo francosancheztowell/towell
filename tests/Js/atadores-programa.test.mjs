@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
-  aplicarFiltro, atributoOrden, botonesActivos, clasesBadge, coincideEstatus, comparar,
+  aplicarFiltro, atributoOrden, botonesActivos, coincideEstatus, comparar,
   filaVisible, motivoNoIniciar, numeroOrden,
 } from '../../resources/js/modulos/atadores/programa/logica.ts'
 
@@ -57,15 +57,13 @@ test('filtros del modal: cuándo se navega y cuándo se filtra en el navegador',
   assert.deepEqual(aplicarFiltro('activo', ['activo'], false, base), { navegar: `${base}?filtro=todos` })
 })
 
-test('botones activos del modal', () => {
+test('botones de estatus activos', () => {
   assert.deepEqual(botonesActivos(['activo'], ctx), ['activo'])
   assert.deepEqual(botonesActivos([], { esSupervisor: true, filtroGlobalActivo: false }), ['calificados', 'activo', 'en-proceso'])
   assert.deepEqual(botonesActivos([], { esSupervisor: true, filtroGlobalActivo: true }), ['todos'])
 })
 
-test('badge y motivo para no iniciar', () => {
-  assert.match(clasesBadge('Autorizado'), /bg-green-200/)
-  assert.doesNotMatch(clasesBadge('<x>'), /undefined/)
+test('motivo para no iniciar', () => {
   assert.match(motivoNoIniciar('Activo', '', 'J', 'O'), /hora de paro/)
   assert.equal(motivoNoIniciar('Autorizado', '', 'J', 'O'), null, 'autorizado solo se consulta')
   assert.match(motivoNoIniciar('Activo', '08:00', '', 'O'), /No. Julio/)
