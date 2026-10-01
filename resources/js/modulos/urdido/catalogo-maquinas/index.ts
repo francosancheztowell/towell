@@ -164,7 +164,7 @@ onReady(() => {
         }
     });
     document.addEventListener('keydown', (ev) => {
-        if (ev.key !== 'Escape' || document.querySelector('.swal2-container')) return;
+        if (ev.key !== 'Escape' || document.querySelector('dialog.ui-dialogo[open]')) return;
         mostrar(MODAL_FORM, false);
         mostrar(MODAL_ELIMINAR, false);
     });

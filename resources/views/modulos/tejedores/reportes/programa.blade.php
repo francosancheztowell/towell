@@ -66,43 +66,39 @@
         const fechaIni = '{{ $fechaIni ?? '' }}' || hoy;
         const fechaFin = '{{ $fechaFin ?? '' }}' || hoy;
 
-        Swal.fire({
+        notify.form({
             title: 'Consultar en rango',
             html: `
                 <div class="text-left space-y-4">
                     <div>
                         <label for="swal_fecha_ini" class="block text-sm font-medium text-gray-700 mb-1">Fecha inicial</label>
-                        <input type="date" id="swal_fecha_ini" value="${fechaIni}" class="swal2-input w-full" style="margin: 0; width: 100%;">
+                        <input type="date" id="swal_fecha_ini" value="${fechaIni}" class="w-full">
                     </div>
                     <div>
                         <label for="swal_fecha_fin" class="block text-sm font-medium text-gray-700 mb-1">Fecha final</label>
-                        <input type="date" id="swal_fecha_fin" value="${fechaFin}" class="swal2-input w-full" style="margin: 0; width: 100%;">
+                        <input type="date" id="swal_fecha_fin" value="${fechaFin}" class="w-full">
                     </div>
                 </div>
             `,
             icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Consultar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#2563eb',
-            cancelButtonColor: '#6b7280',
-            focusConfirm: false,
-            preConfirm: () => {
+            confirmText: 'Consultar',
+            cancelText: 'Cancelar',
+            preConfirm: (ctx) => {
                 const fi = document.getElementById('swal_fecha_ini')?.value;
                 const ff = document.getElementById('swal_fecha_fin')?.value;
                 if (!fi || !ff) {
-                    Swal.showValidationMessage('Seleccione fecha inicial y final');
+                    ctx.error('Seleccione fecha inicial y final');
                     return false;
                 }
                 if (new Date(fi) > new Date(ff)) {
-                    Swal.showValidationMessage('La fecha inicial no puede ser mayor que la final');
+                    ctx.error('La fecha inicial no puede ser mayor que la final');
                     return false;
                 }
                 return { fecha_ini: fi, fecha_fin: ff };
             }
-        }).then((result) => {
-            if (result.isConfirmed && result.value) {
-                const params = new URLSearchParams(result.value);
+        }).then((valor) => {
+            if (valor) {
+                const params = new URLSearchParams(valor);
                 window.location.href = '{{ route("tejedores.reportes-tejedores.programa") }}?' + params.toString();
             }
         });

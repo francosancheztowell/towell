@@ -2,8 +2,6 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import axios, { AxiosError } from 'axios'
-// sweetalert2 inyecta su CSS al importarse si hay document: se carga antes del DOM falso.
-import 'sweetalert2'
 
 import { installFakeDom } from './utils-fake-dom.mjs'
 

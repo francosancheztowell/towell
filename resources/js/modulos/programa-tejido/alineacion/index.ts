@@ -186,15 +186,13 @@ function openFilterModal(columnField: string): void {
         + '<div class="mb-2 pb-2 border-b border-gray-200"><input type="text" id="alineacionFilterSearch" placeholder="Buscar..." aria-label="Buscar valor" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"></div>'
         + `<div id="alineacionFilterCheckboxes" class="space-y-1">${opciones}</div></div></div>`;
 
-    // Formulario con casillas y buscador: se queda en SweetAlert2 (mismo diseño).
-    void Swal.fire({
+    // Formulario con casillas y buscador.
+    void notify.form<string[]>({
         title: 'Filtrar columna',
         html,
-        showCancelButton: true,
-        confirmButtonText: 'Aplicar',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#3b82f6',
-        width: '500px',
+        confirmText: 'Aplicar',
+        cancelText: 'Cancelar',
+        width: 'md',
         didOpen: (popup) => {
             const search = popup.querySelector<HTMLInputElement>('#alineacionFilterSearch');
             const container = popup.querySelector('#alineacionFilterCheckboxes');
@@ -206,10 +204,10 @@ function openFilterModal(columnField: string): void {
             });
         },
         preConfirm: () => Array.from(document.querySelectorAll<HTMLInputElement>('.alineacion-filter-cb:checked'), (cb) => cb.value),
-    }).then((result) => {
-        if (!result.isConfirmed) return;
+    }).then((valores) => {
+        if (valores === null) return;
         estado.filters = estado.filters.filter((f) => f.column !== columnField)
-            .concat(((result.value as string[] | undefined) ?? []).map((value) => ({ column: columnField, value })));
+            .concat(valores.map((value) => ({ column: columnField, value })));
         renderTable();
     });
 }
@@ -220,21 +218,18 @@ function openPanelFijar(): void {
         + `<input type="checkbox" class="alineacion-fijar-cb w-4 h-4 text-amber-600 rounded border-gray-300" data-index="${idx}"${fijadas.has(idx) ? ' checked' : ''}>`
         + `<span class="text-sm text-gray-800">${escapeHtml(etiquetaColumna(idx))}</span></label>`).join('');
 
-    void Swal.fire({
+    void notify.form<number[]>({
         title: 'Fijar columnas',
         html: '<div class="text-left"><p class="text-sm text-gray-600 mb-3">Marca las columnas que quieres <strong>fijar</strong> (quedan a la izquierda al hacer scroll):</p>'
             + `<div class="max-h-80 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">${filas}</div></div>`,
-        showCancelButton: true,
-        confirmButtonText: 'Aplicar',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#3b82f6',
-        cancelButtonColor: '#6b7280',
-        width: '380px',
+        confirmText: 'Aplicar',
+        cancelText: 'Cancelar',
+        width: 'md',
         preConfirm: () => Array.from(document.querySelectorAll<HTMLInputElement>('.alineacion-fijar-cb:checked'), (cb) => parseInt(cb.dataset.index ?? '', 10))
             .filter((i) => !Number.isNaN(i)),
-    }).then((result) => {
-        if (!result.isConfirmed) return;
-        estado.pinnedColumns = ((result.value as number[] | undefined) ?? []).slice().sort((a, b) => a - b);
+    }).then((indices) => {
+        if (indices === null) return;
+        estado.pinnedColumns = indices.slice().sort((a, b) => a - b);
         updatePinnedPositions();
         updateColumnHeaderIcons();
     });

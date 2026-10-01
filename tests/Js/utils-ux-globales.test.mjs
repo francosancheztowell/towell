@@ -3,8 +3,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import Swal from 'sweetalert2'
-
 import { installFakeDom } from './utils-fake-dom.mjs'
 
 const document = installFakeDom()
@@ -97,7 +95,7 @@ test('días para liberar: misma validación que tenía el navbar', () => {
   assert.equal(dias.validarDias('-1'), 'Por favor ingrese un número válido')
   assert.equal(dias.validarDias('abc'), 'Por favor ingrese un número válido')
   assert.equal(dias.validarDias('1.2345'), 'Máximo 3 decimales permitidos')
-  assert.equal(dias.validarDias('5000'), 'Por favor ingrese un número válido', 'el max del input no corre dentro de Swal')
+  assert.equal(dias.validarDias('5000'), 'Por favor ingrese un número válido', 'el max del input no corre dentro del diálogo (novalidate)')
   assert.equal(dias.urlLiberar('/planeacion/muestras', '5.5'), '/planeacion/muestras/liberar-ordenes?dias=5.5')
 })
 
@@ -105,21 +103,28 @@ test('días para liberar: lee los datos del navbar y navega a liberar-ordenes', 
   const datos = document.body.appendChild(document.createElement('div'))
   datos.id = dias.ID_DATOS
   datos.dataset = { dias: '7.5', base: '/planeacion/muestras' }
-  document.createElement = ((crear) => (tag) => {
-    const el = crear(tag)
-    el.append = (...hijos) => hijos.forEach((h) => el.appendChild(h))
-    el.style = {}
-    return el
-  })(document.createElement.bind(document))
 
-  let opciones = null
-  Swal.fire = async (o) => {
-    opciones = o
-    return { isConfirmed: true, value: o.preConfirm() }
-  }
-  await dias.mostrarModalDiasLiberar()
+  const p = dias.mostrarModalDiasLiberar()
+  const dialogo = document.querySelector('dialog')
+  assert.equal(dialogo.querySelector('.ui-dialogo__titulo').textContent, 'Rango de días a considerar')
+  const contenido = dialogo.querySelector('.ui-dialogo__texto')
+  assert.match(contenido.innerHTML, /id="rangoDias"[^>]*value="7\.5"/)
+  assert.ok(dialogo.querySelector('form').hasAttribute('novalidate'), 'mensajes propios, no la burbuja nativa')
+  // El DOM falso no parsea innerHTML: se cuelga el input a mano.
+  const input = contenido.appendChild(document.createElement('input'))
+  input.id = 'rangoDias'
+  const enviar = () => dialogo.querySelector('form').dispatchEvent({ type: 'submit', preventDefault() {} })
 
-  assert.equal(opciones.title, 'Rango de días a considerar')
-  assert.equal(opciones.html.children[1].value, '7.5')
+  input.value = '1.2345'
+  enviar()
+  await new Promise((r) => setTimeout(r, 0))
+  assert.equal(dialogo.open, true)
+  assert.equal(dialogo.querySelector('.ui-dialogo__error').textContent, 'Máximo 3 decimales permitidos')
+  assert.equal(navegado, null)
+
+  input.value = '7.5'
+  enviar()
+  await p
+
   assert.equal(navegado, '/planeacion/muestras/liberar-ordenes?dias=7.5')
 })

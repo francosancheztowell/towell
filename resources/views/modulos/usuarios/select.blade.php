@@ -48,13 +48,8 @@
         @if (session('success'))
             <script>
                 document.addEventListener('DOMContentLoaded', () => {
-                    if (window.Swal) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: '¡Éxito!',
-                            text: @json(session('success')),
-                            confirmButtonColor: '#2563eb'
-                        });
+                    if (window.notify) {
+                        notify.success(@json(session('success')));
                     }
                 });
             </script>
@@ -382,19 +377,17 @@
     {{-- Confirmación de eliminación (SweetAlert si está disponible; fallback a confirm) --}}
     <script>
         function confirmarEliminacion(e) {
-            if (window.Swal) {
+            if (window.notify) {
                 e.preventDefault();
                 const form = e.target;
-                Swal.fire({
+                notify.confirm({
                     title: '¿Eliminar usuario?',
                     icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#dc2626',
-                    cancelButtonColor: '#2563eb',
-                    confirmButtonText: 'Sí, eliminar',
-                    cancelButtonText: 'Cancelar'
-                }).then((r) => {
-                    if (r.isConfirmed) form.submit();
+                    confirmColor: '#dc2626',
+                    confirmText: 'Sí, eliminar',
+                    cancelText: 'Cancelar'
+                }).then((ok) => {
+                    if (ok) form.submit();
                 });
                 return false;
             } else {
@@ -452,24 +445,14 @@
             })
             .then(data => {
                 if (data && data.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: '¡Éxito!',
-                        text: 'Usuario creado correctamente',
-                        confirmButtonColor: '#2563eb'
-                    }).then(() => {
+                    notify.alert('Usuario creado correctamente', '¡Éxito!', 'success').then(() => {
                         window.location.reload();
                     });
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'No se pudo crear el usuario',
-                    confirmButtonColor: '#2563eb'
-                });
+                notify.alert('No se pudo crear el usuario', 'Error', 'error');
             });
         });
 
@@ -591,8 +574,9 @@
                     opcionesAreas += `<option value="${area}" ${filtrosActivos.area === area ? 'selected' : ''}>${area}</option>`;
                 });
 
-                Swal.fire({
-                    title: 'Filtrar Usuarios',
+                let filtros = null;
+                notify.dialog({
+                    titulo: 'Filtrar Usuarios',
                     html: `
                         <div class="text-left">
                             <div class="mb-4">
@@ -600,7 +584,6 @@
                                 <input 
                                     type="text" 
                                     id="filtro_numero_empleado" 
-                                    class="swal2-input" 
                                     placeholder="Ej: 2045"
                                     value="${filtrosActivos.numero_empleado}"
                                     pattern="[0-9]*"
@@ -608,13 +591,13 @@
                             </div>
                             <div class="mb-4">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Área</label>
-                                <select id="filtro_area" class="swal2-input" style="display: block; width: 100%; padding: 0.5rem;">
+                                <select id="filtro_area" style="display: block; width: 100%; padding: 0.5rem;">
                                     ${opcionesAreas}
                                 </select>
                             </div>
                             <div class="mb-4">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Turno</label>
-                                <select id="filtro_turno" class="swal2-input" style="display: block; width: 100%; padding: 0.5rem;">
+                                <select id="filtro_turno" style="display: block; width: 100%; padding: 0.5rem;">
                                     <option value="">Todos los turnos</option>
                                     <option value="1" ${filtrosActivos.turno === '1' ? 'selected' : ''}>Turno 1</option>
                                     <option value="2" ${filtrosActivos.turno === '2' ? 'selected' : ''}>Turno 2</option>
@@ -624,45 +607,32 @@
                             </div>
                         </div>
                     `,
-                    width: '500px',
-                    showCancelButton: true,
-                    confirmButtonText: 'Aplicar Filtros',
-                    cancelButtonText: 'Limpiar',
-                    confirmButtonColor: '#2563eb',
-                    cancelButtonColor: '#6b7280',
-                    didOpen: () => {
-                        // Asegurar que los inputs tengan el estilo correcto
-                        const inputs = document.querySelectorAll('.swal2-input');
-                        inputs.forEach(input => {
-                            if (input.tagName === 'INPUT') {
-                                input.style.width = '100%';
-                                input.style.margin = '0';
-                            }
-                        });
-                    },
-                    preConfirm: () => {
+                    tono: null,
+                    formulario: true,
+                    ancho: 'md',
+                    botones: [
+                        { texto: 'Limpiar', valor: 'limpiar', variante: 'secundario' },
+                        { texto: 'Aplicar Filtros', valor: 'aplicar', variante: 'primario', valida: true }
+                    ],
+                    validar: () => {
                         return {
                             numero_empleado: document.getElementById('filtro_numero_empleado').value.trim(),
                             area: document.getElementById('filtro_area').value,
                             turno: document.getElementById('filtro_turno').value
                         };
-                    }
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        aplicarFiltros(result.value);
-                    } else if (result.dismiss === Swal.DismissReason.cancel) {
+                    },
+                    alValidar: (datos) => { filtros = datos; }
+                }).then((valor) => {
+                    if (valor === 'aplicar') {
+                        aplicarFiltros(filtros);
+                    } else if (valor === 'limpiar') {
                         // Limpiar filtros
                         aplicarFiltros({ numero_empleado: '', area: '', turno: '' });
                     }
                 });
             } catch (error) {
                 console.error('Error al abrir modal de filtros:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'No se pudo cargar el modal de filtros',
-                    confirmButtonColor: '#2563eb'
-                });
+                notify.alert('No se pudo cargar el modal de filtros', 'Error', 'error');
             }
         }
 

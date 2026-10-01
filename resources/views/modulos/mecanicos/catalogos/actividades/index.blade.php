@@ -151,7 +151,7 @@
             notify.success(message);
             return;
         }
-        Swal.fire({ icon: 'success', title: message, toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+        window.alert(message);
     }
 
     function toastError(message) {
@@ -159,7 +159,7 @@
             notify.error(message);
             return;
         }
-        Swal.fire({ icon: 'error', title: message });
+        window.alert(message);
     }
 
     async function confirmDelete(message) {
@@ -172,17 +172,7 @@
                 confirmColor: '#dc2626',
             });
         }
-        const result = await Swal.fire({
-            title: '¿Eliminar actividad?',
-            text: message,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc2626',
-            cancelButtonColor: '#6b7280',
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar',
-        });
-        return result.isConfirmed;
+        return window.confirm(`¿Eliminar actividad?\n${message}`);
     }
 
     tbody?.addEventListener('click', function (e) {

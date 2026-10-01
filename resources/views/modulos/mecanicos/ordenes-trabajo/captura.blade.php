@@ -278,36 +278,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return html;
     }
 
+    // options.timer ya no aplica: los toasts de notify duran lo mismo (UX-13).
     function notificar(icon, title, text = '', options = {}) {
-        if (window.Swal) {
-            Swal.fire({
-                icon,
-                title,
-                text: text || undefined,
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                showCloseButton: true,
-                timer: options.timer ?? 2800,
-                timerProgressBar: true,
-            });
+        const mensaje = text ? `${title}\n${text}` : title;
+        if (window.notify) {
+            (window.notify[icon] || window.notify.info)(mensaje);
             return;
         }
-        window.alert(text ? `${title}\n${text}` : title);
+        window.alert(mensaje);
     }
 
     async function confirmar(title, text) {
-        if (! window.Swal) return window.confirm(`${title}\n${text}`);
-        const result = await Swal.fire({
+        if (! window.notify) return window.confirm(`${title}\n${text}`);
+        return window.notify.confirm({
             icon: 'warning',
             title,
             text,
-            showCancelButton: true,
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cerrar',
-            confirmButtonColor: '#b91c1c',
+            confirmText: 'Sí, eliminar',
+            cancelText: 'Cerrar',
+            confirmColor: '#b91c1c',
         });
-        return result.isConfirmed;
     }
 
     function mensajeError(error) {
@@ -643,16 +633,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function finalizarOrden() {
-        const confirmacion = await Swal.fire({
+        const confirmacion = await notify.confirm({
             icon: 'question',
             title: '¿Finalizar orden?',
             html: `La orden <b>${escapeHtml(orden.Folio)}</b> pasará a <b>Finalizado</b> y ya no se podrá editar.<br>Después el tejedor podrá calificarla.`,
-            showCancelButton: true,
-            confirmButtonText: 'Sí, finalizar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#d97706',
+            confirmText: 'Sí, finalizar',
+            cancelText: 'Cancelar',
+            confirmColor: '#d97706',
         });
-        if (! confirmacion.isConfirmed) return;
+        if (! confirmacion) return;
 
         try {
             const result = await api(`${baseUrl}/${encodeURIComponent(orden.Folio)}/finalizar`, { method: 'POST' });
@@ -664,16 +653,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function autorizarOrden() {
-        const confirmacion = await Swal.fire({
+        const confirmacion = await notify.confirm({
             icon: 'question',
             title: '¿Autorizar orden?',
             html: `La orden <b>${escapeHtml(orden.Folio)}</b> quedará <b>autorizada</b> y en solo lectura.`,
-            showCancelButton: true,
-            confirmButtonText: 'Sí, autorizar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#16a34a',
+            confirmText: 'Sí, autorizar',
+            cancelText: 'Cancelar',
+            confirmColor: '#16a34a',
         });
-        if (! confirmacion.isConfirmed) return;
+        if (! confirmacion) return;
 
         try {
             const result = await api(`${baseUrl}/${encodeURIComponent(orden.Folio)}/autorizar`, { method: 'POST' });

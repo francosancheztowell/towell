@@ -28,7 +28,7 @@ class ProgramaTejidoJsGlobalsTest extends TestCase
 
     /** Las aporta otro script de la pagina, no este bundle. */
     private const DE_OTROS_SCRIPTS = [
-        'PTFilterEngine', 'PT_BOOT', 'Swal', 'showToast', 'toast',
+        'PTFilterEngine', 'PT_BOOT', 'notify', 'showToast', 'toast',
         'abrirModalActCalendarios', 'abrirModalMarbetes', 'abrirModalRepaso',
         'abrirModalRedboothProgramaTejido', 'openLinesModal', 'verDetallesGrupoBalanceo',
         'applyFilters', 'onFiltersApplied', 'columns', 'pinnedColumns',

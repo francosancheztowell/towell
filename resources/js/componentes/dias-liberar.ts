@@ -5,10 +5,11 @@
  * de components/navbar/sections/programa-tejido.blade.php sigue llamando a
  * window.mostrarModalDiasLiberar() (puente: lo llama otro archivo).
  */
-import Swal from 'sweetalert2';
+import { escapeHtml } from '../utils/format.ts';
+import { notify } from '../utils/notifications.ts';
 
 export const ID_DATOS = 'navbar-dias-liberar';
-/** Mismo tope que el max del input: dentro de Swal la validación nativa no corre. */
+/** Mismo tope que el max del input: dentro del diálogo la validación nativa no corre. */
 export const DIAS_MAX = 999.999;
 
 /** Mensaje de error o null si el valor sirve (0 a 999.999, hasta 3 decimales). */
@@ -33,45 +34,38 @@ export async function mostrarModalDiasLiberar(): Promise<void> {
     const diasActual = datos.dataset.dias || '10.999';
     const base = datos.dataset.base || '/planeacion/programa-tejido';
 
-    const contenido = document.createElement('div');
-    contenido.className = 'text-left';
-    const etiqueta = document.createElement('label');
-    etiqueta.htmlFor = 'rangoDias';
-    etiqueta.className = 'block text-sm font-medium text-gray-700 mb-2';
-    etiqueta.textContent = 'Ingrese el número de días (decimales permitidos, máx. 3)';
-    const input = document.createElement('input');
-    Object.assign(input, { type: 'number', id: 'rangoDias', step: '0.001', min: '0', max: '999.999', value: diasActual, placeholder: '10.999' });
-    input.className = 'swal2-input w-full';
-    input.style.margin = '0';
-    input.style.width = '100%';
-    contenido.append(etiqueta, input);
+    const html = `<div class="text-left">
+        <label for="rangoDias" class="block text-sm font-medium text-gray-700 mb-2">Ingrese el número de días (decimales permitidos, máx. 3)</label>
+        <input type="number" id="rangoDias" step="0.001" min="0" max="999.999" value="${escapeHtml(diasActual)}" placeholder="10.999" class="w-full">
+    </div>`;
+    const campo = (root: HTMLElement): HTMLInputElement | null => root.querySelector<HTMLInputElement>('#rangoDias');
 
-    const result = await Swal.fire({
+    const dias = await notify.form<string>({
         title: 'Rango de días a considerar',
-        html: contenido,
+        html,
         icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Aceptar',
-        cancelButtonText: 'Cancelar',
-        confirmButtonColor: '#22c55e',
-        cancelButtonColor: '#6b7280',
-        focusConfirm: false,
-        didOpen: () => {
-            input.focus();
-            input.select();
+        confirmText: 'Aceptar',
+        cancelText: 'Cancelar',
+        didOpen: (root) => {
+            // Mensajes propios (validarDias) en lugar de la burbuja nativa del max/step.
+            root.closest('form')?.setAttribute('novalidate', '');
+            const input = campo(root);
+            input?.focus();
+            input?.select();
         },
-        preConfirm: () => {
-            const error = validarDias(input.value);
+        preConfirm: (ctx) => {
+            const valor = campo(ctx.raiz)?.value ?? '';
+            const error = validarDias(valor);
             if (error) {
-                Swal.showValidationMessage(error);
+                ctx.error(error);
                 return false;
             }
 
-            return input.value;
+            return valor;
         },
     });
 
-    if (result.isConfirmed && typeof result.value === 'string') {
-        window.location.href = urlLiberar(base, result.value);
+    if (typeof dias === 'string') {
+        window.location.href = urlLiberar(base, dias);
     }
 }

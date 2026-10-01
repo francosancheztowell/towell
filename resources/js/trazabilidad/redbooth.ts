@@ -56,11 +56,11 @@ export class RedboothLauncher {
                 totalOrdenes: available.length,
             });
         } catch (error) {
-            await window.Swal?.fire({
-                icon: 'error',
-                title: 'No se pudo consultar Redbooth',
-                text: errorMessage(error, 'Ocurrió un error al buscar las órdenes del Flog.'),
-            });
+            await window.notify?.alert(
+                errorMessage(error, 'Ocurrió un error al buscar las órdenes del Flog.'),
+                'No se pudo consultar Redbooth',
+                'error',
+            );
         } finally {
             this.button.disabled = false;
             icon?.classList.remove('fa-circle-notch', 'fa-spin');

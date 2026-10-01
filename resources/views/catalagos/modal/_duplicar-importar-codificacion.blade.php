@@ -289,22 +289,15 @@ function eliminarFilaModalCodificacion(btn) {
             // Actualizar visibilidad de botones después de eliminar
             actualizarVisibilidadBotonesEliminar();
         } else {
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'No se puede eliminar',
-                    text: 'Debe haber al menos una fila',
-                    confirmButtonColor: '#3b82f6'
-                });
-            }
+            window.notify.alert('Debe haber al menos una fila', 'No se puede eliminar', 'warning');
         }
     }
 }
 
-function validarYCapturarDatosCodificacion() {
+function validarYCapturarDatosCodificacion(ctx) {
     const filas = document.querySelectorAll('#tabla-codificacion-body tr.fila-codificacion');
     if (filas.length === 0) {
-        Swal.showValidationMessage('Debe agregar al menos una fila');
+        ctx.error('Debe agregar al menos una fila');
         return false;
     }
 
@@ -352,7 +345,7 @@ function validarYCapturarDatosCodificacion() {
     });
 
     if (hayErrores) {
-        Swal.showValidationMessage(mensajeError);
+        ctx.error(mensajeError);
         return false;
     }
 
@@ -360,6 +353,13 @@ function validarYCapturarDatosCodificacion() {
         modo: modoActualCodificacion,
         datos: datos
     };
+}
+
+// Escape para los valores del servidor que van en atributos value="".
+function escAttrCodificacion(valor) {
+    return String(valor ?? '').replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    })[c]);
 }
 
 function generarHTMLModalCodificacion(registroOriginal = null) {
@@ -599,7 +599,7 @@ function generarHTMLModalCodificacion(registroOriginal = null) {
                             <td id="columna-orden-trabajo" class="px-3 py-2 celda-orden-trabajo" style="display: none;">
                                 <input type="text"
                                        name="orden_trabajo[]"
-                                       value="${ordenTrabajoInicial}"
+                                       value="${escAttrCodificacion(ordenTrabajoInicial)}"
                                        class="input-orden-trabajo w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                                        placeholder="Orden de trabajo"
                                        onblur="autocompletarDesdeCatCodificados(this)">
@@ -617,14 +617,14 @@ function generarHTMLModalCodificacion(registroOriginal = null) {
                             <td class="px-3 py-2">
                                 <input type="text"
                                        name="clave_mod[]"
-                                       value="${claveModInicial}"
+                                       value="${escAttrCodificacion(claveModInicial)}"
                                        class="input-clave-mod w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                                        placeholder="Clave mod">
                             </td>
                             <td class="px-3 py-2">
                                 <input type="text"
                                        name="clave_ax[]"
-                                       value="${claveAxInicial}"
+                                       value="${escAttrCodificacion(claveAxInicial)}"
                                        class="input-clave-ax w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                                        placeholder="Clave AX"
                                        onblur="autocompletarNombreDesdeFlogs(this)">
@@ -634,7 +634,7 @@ function generarHTMLModalCodificacion(registroOriginal = null) {
                             <td class="px-3 py-2">
                                 <input type="text"
                                        name="tamano[]"
-                                       value="${tamanoInicial}"
+                                       value="${escAttrCodificacion(tamanoInicial)}"
                                        class="input-tamano w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                                        placeholder="Tamaño"
                                        onblur="autocompletarNombreDesdeFlogs(this)">
@@ -642,7 +642,7 @@ function generarHTMLModalCodificacion(registroOriginal = null) {
                             <td class="px-3 py-2">
                                 <input type="text"
                                        name="nombre[]"
-                                       value="${nombreInicial}"
+                                       value="${escAttrCodificacion(nombreInicial)}"
                                        class="input-nombre w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                                        placeholder="Nombre (se completa automáticamente)">
                             </td>
@@ -690,18 +690,18 @@ async function abrirModalDuplicarImportarCodificacion(registroId) {
     // Resetear modo a duplicar
     modoActualCodificacion = 'duplicar';
 
-    const resultado = await Swal.fire({
+    const datos = await window.notify.form({
+        title: 'Duplicar / importar codificación',
         html: generarHTMLModalCodificacion(registroOriginal),
-        width: 1200,
-        showCancelButton: true,
-        confirmButtonText: 'Crear',
-        cancelButtonText: 'Cancelar',
-        buttonsStyling: false,
-        customClass: {
-            confirmButton: 'swal-confirm-btn inline-flex justify-center px-6 py-3 text-base font-semibold rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500',
-            cancelButton: 'ml-2 inline-flex justify-center px-6 py-3 text-base font-semibold rounded-md text-gray-700 bg-white hover:bg-gray-50 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300'
-        },
-        didOpen: () => {
+        width: '2xl',
+        confirmText: 'Crear',
+        cancelText: 'Cancelar',
+        didOpen: (root) => {
+            // Enter en las celdas no crea los registros (como antes): solo el botón Crear envía.
+            root.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && e.target instanceof HTMLInputElement) e.preventDefault();
+            });
+
             // Actualizar estado del toggle switch (inicia en 'duplicar')
             modoActualCodificacion = 'duplicar';
             setModoActualCodificacion('duplicar');
@@ -712,16 +712,14 @@ async function abrirModalDuplicarImportarCodificacion(registroId) {
             // Asegurar que el botón de eliminar esté oculto si solo hay una fila
             actualizarVisibilidadBotonesEliminar();
         },
-        preConfirm: () => {
-            return validarYCapturarDatosCodificacion();
+        preConfirm: (ctx) => {
+            return validarYCapturarDatosCodificacion(ctx);
         }
     });
 
-    if (!resultado.isConfirmed) {
+    if (!datos) {
         return;
     }
-
-    const datos = resultado.value;
 
     // Enviar datos al backend
     try {
@@ -744,14 +742,7 @@ async function abrirModalDuplicarImportarCodificacion(registroId) {
         const responseData = await response.json();
 
         if (response.ok && responseData.success) {
-            Swal.fire({
-                icon: 'success',
-                title: 'Éxito',
-                text: responseData.message || 'Registros creados correctamente',
-                confirmButtonColor: '#3b82f6',
-                timer: 2000,
-                showConfirmButton: false
-            });
+            window.notify.success(responseData.message || 'Registros creados correctamente');
 
             // Actualizar la tabla usando loadData() que recarga los datos sin recargar toda la página HTML
             // Esto es más eficiente que window.location.reload() porque solo actualiza los datos de la tabla
@@ -764,21 +755,11 @@ async function abrirModalDuplicarImportarCodificacion(registroId) {
                 window.location.reload();
             }
         } else {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: responseData.message || 'Error al crear los registros',
-                confirmButtonColor: '#dc2626'
-            });
+            window.notify.alert(responseData.message || 'Error al crear los registros', 'Error', 'error');
         }
     } catch (error) {
         console.error('Error al enviar datos:', error);
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Ocurrió un error al procesar la solicitud',
-            confirmButtonColor: '#dc2626'
-        });
+        window.notify.alert('Ocurrió un error al procesar la solicitud', 'Error', 'error');
     }
 }
 

@@ -5,6 +5,7 @@ namespace Tests\Concerns;
 use App\Models\Sistema\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -291,6 +292,18 @@ trait UsesSqlsrvSqlite
         if ($includeAuthTable) {
             $this->createAuthTable();
         }
+    }
+
+    /**
+     * Arranque típico de un test de Livewire sobre SQL Server simulado: sqlite como
+     * `sqlsrv` y conexión por defecto, tablas de usuarios/permisos y caché vacía.
+     */
+    protected function prepararSqlsrvConUsuarios(): void
+    {
+        $this->useSqlsrvSqlite();
+        config()->set('database.default', 'sqlsrv');
+        $this->createAuthTable();
+        Cache::flush();
     }
 
     protected function createAuthTable(): void

@@ -382,13 +382,7 @@ export function iniciarRedbooth(boot: RedboothBoot): void {
             currentData = { linked: false, programaId };
             selectValue(null, null);
             close();
-            // Mismo aviso de antes (botón "Aceptar"; notify.alert usa el texto por defecto).
-            void Swal.fire({
-                icon: 'success',
-                title: 'Vínculo eliminado',
-                text: 'El ID y nombre de Redbooth fueron eliminados de Programa Tejido y CatCodificados.',
-                confirmButtonText: 'Aceptar',
-            });
+            notify.success('El ID y nombre de Redbooth fueron eliminados de Programa Tejido y CatCodificados.');
         } catch (error) {
             const porDefecto = 'No se pudo eliminar el vínculo.';
             const msg = error instanceof HttpError ? ((error.data as { message?: string } | null)?.message || porDefecto) : mensajeDe(error, porDefecto);

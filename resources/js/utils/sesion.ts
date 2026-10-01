@@ -3,8 +3,8 @@
  * vengan de window.http o de Livewire. Antes solo 5 fetch lo manejaban y Livewire mostraba
  * su confirm() en inglés ("This page has expired").
  *
- * Toast nativo + recarga temporizada, no un modal de SweetAlert2: el catch del caller suele
- * cerrar o abrir otro Swal, lo que cerraría el aviso y recargaría al instante. Al recargar,
+ * Toast nativo + recarga temporizada, no un diálogo modal: el catch del caller suele
+ * cerrar o abrir otro diálogo, lo que cerraría el aviso y recargaría al instante. Al recargar,
  * el middleware auth lleva al login y bootstrap/app.php deja el flash de sesión expirada.
  *
  * Las llamadas con fetch crudo de los módulos no pasan por aquí: la receta de 19-xx los cambia a http.

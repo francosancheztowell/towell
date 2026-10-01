@@ -8,13 +8,7 @@
         @if (session('success'))
             <script>
                 document.addEventListener('DOMContentLoaded', () => {
-                    Swal.fire({
-                        icon: 'success',
-                        title: '¡ÉXITO!',
-                        text: @json(session('success')),
-                        confirmButtonColor: '#2563eb',
-                        confirmButtonText: 'Entendido'
-                    }).then(() => {
+                    notify.alert(@json(session('success')), '¡ÉXITO!', 'success').then(() => {
                         window.location.href = "{{ route('configuracion.usuarios.select') }}";
                     });
                 });
@@ -24,12 +18,7 @@
         @if (session('error'))
             <script>
                 document.addEventListener('DOMContentLoaded', () => {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Ocurrió un problema',
-                        text: @json(session('error')),
-                        confirmButtonColor: '#2563eb'
-                    });
+                    notify.alert(@json(session('error')), 'Ocurrió un problema', 'error');
                 });
             </script>
         @endif
@@ -38,15 +27,15 @@
             <script>
                 document.addEventListener('DOMContentLoaded', () => {
                     const errs = @json($errors->all());
-                    const list = '<ul style="text-align:left;margin-left:0.5rem;">' +
-                        errs.map(e => `<li>• ${e}</li>`).join('') +
-                        '</ul>';
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Revisa los campos',
-                        html: list,
-                        confirmButtonColor: '#2563eb'
+                    // Cada error va por textContent: el mensaje puede traer datos del usuario.
+                    const ul = document.createElement('ul');
+                    ul.style.cssText = 'text-align:left;margin-left:0.5rem;';
+                    errs.forEach(e => {
+                        const li = document.createElement('li');
+                        li.textContent = `• ${e}`;
+                        ul.appendChild(li);
                     });
+                    notify.html(ul.outerHTML, 'Revisa los campos', 'error');
                 });
             </script>
         @endif

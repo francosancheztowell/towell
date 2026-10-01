@@ -146,39 +146,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const file = fileInput.files[0];
         if (!file) {
-            Swal.fire({
-                title: 'Archivo requerido',
-                text: 'Por favor selecciona un archivo Excel',
-                icon: 'warning',
-                confirmButtonText: 'Entendido',
-                confirmButtonColor: '#3b82f6'
-            });
+            notify.alert('Por favor selecciona un archivo Excel', 'Archivo requerido', 'warning');
             return;
         }
 
         // Validar tipo de archivo
         const allowedTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
         if (!allowedTypes.includes(file.type)) {
-            Swal.fire({
-                title: 'Tipo de archivo inválido',
-                text: 'Por favor selecciona un archivo Excel válido (.xlsx o .xls)',
-                icon: 'error',
-                confirmButtonText: 'Entendido',
-                confirmButtonColor: '#ef4444'
-            });
+            notify.alert('Por favor selecciona un archivo Excel válido (.xlsx o .xls)', 'Tipo de archivo inválido', 'error');
             return;
         }
 
         // Validar tamaño (10MB)
         const maxSize = 10 * 1024 * 1024;
         if (file.size > maxSize) {
-            Swal.fire({
-                title: 'Archivo demasiado grande',
-                text: 'El archivo es demasiado grande. Máximo 10MB permitido.',
-                icon: 'error',
-                confirmButtonText: 'Entendido',
-                confirmButtonColor: '#ef4444'
-            });
+            notify.alert('El archivo es demasiado grande. Máximo 10MB permitido.', 'Archivo demasiado grande', 'error');
             return;
         }
 
@@ -271,13 +253,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         `;
 
-                    Swal.fire({
-                        title: titulo,
-                        html: htmlContent,
-                        icon: 'success',
-                        confirmButtonText: 'Continuar',
-                        confirmButtonColor: '#3b82f6'
-                    }).then(() => {
+                    notify.html(htmlContent, titulo, 'success').then(() => {
                         window.location.href = '/planeacion/programa-tejido';
                     });
                 }, 1000);
@@ -291,13 +267,7 @@ document.addEventListener('DOMContentLoaded', function() {
             progressBar.classList.remove('bg-blue-600');
             progressBar.classList.add('bg-red-600');
 
-            Swal.fire({
-                title: 'Error al procesar el archivo',
-                text: (error && error.message) ? error.message : 'Error desconocido',
-                icon: 'error',
-                confirmButtonText: 'Entendido',
-                confirmButtonColor: '#ef4444'
-            });
+            notify.alert((error && error.message) ? error.message : 'Error desconocido', 'Error al procesar el archivo', 'error');
 
             // Resetear botón
             uploadBtn.disabled = false;

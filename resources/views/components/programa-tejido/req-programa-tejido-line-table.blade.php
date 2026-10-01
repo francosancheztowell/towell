@@ -31,32 +31,32 @@
 
 <style>
 	/* Scrollbar delgado para el modal */
-	#swal2-html-container .overflow-x-auto::-webkit-scrollbar,
-	#swal2-html-container [style*="overflow-y: auto"]::-webkit-scrollbar {
+	.ui-dialogo .overflow-x-auto::-webkit-scrollbar,
+	.ui-dialogo [style*="overflow-y: auto"]::-webkit-scrollbar {
 		width: 6px;
 		height: 6px;
 	}
 
-	#swal2-html-container .overflow-x-auto::-webkit-scrollbar-track,
-	#swal2-html-container [style*="overflow-y: auto"]::-webkit-scrollbar-track {
+	.ui-dialogo .overflow-x-auto::-webkit-scrollbar-track,
+	.ui-dialogo [style*="overflow-y: auto"]::-webkit-scrollbar-track {
 		background: #f1f1f1;
 		border-radius: 3px;
 	}
 
-	#swal2-html-container .overflow-x-auto::-webkit-scrollbar-thumb,
-	#swal2-html-container [style*="overflow-y: auto"]::-webkit-scrollbar-thumb {
+	.ui-dialogo .overflow-x-auto::-webkit-scrollbar-thumb,
+	.ui-dialogo [style*="overflow-y: auto"]::-webkit-scrollbar-thumb {
 		background: #cbd5e1;
 		border-radius: 3px;
 	}
 
-	#swal2-html-container .overflow-x-auto::-webkit-scrollbar-thumb:hover,
-	#swal2-html-container [style*="overflow-y: auto"]::-webkit-scrollbar-thumb:hover {
+	.ui-dialogo .overflow-x-auto::-webkit-scrollbar-thumb:hover,
+	.ui-dialogo [style*="overflow-y: auto"]::-webkit-scrollbar-thumb:hover {
 		background: #989b9e;
 	}
 
 	/* Para Firefox */
-	#swal2-html-container .overflow-x-auto,
-	#swal2-html-container [style*="overflow-y: auto"] {
+	.ui-dialogo .overflow-x-auto,
+	.ui-dialogo [style*="overflow-y: auto"] {
 		scrollbar-width: thin;
 		scrollbar-color: #cbd5e1 #f1f1f1;
 	}

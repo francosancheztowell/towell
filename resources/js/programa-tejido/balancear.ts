@@ -1,4 +1,4 @@
-// Balanceo de órdenes compartidas (modal Swal + Gantt). Vivía inline en
+// Balanceo de órdenes compartidas (modal notify.form + Gantt). Vivía inline en
 // modulos/programa-tejido/balancear.blade.php (73 KB por carga, sin cache).
 // Las URL se escriben con la ruta de Programa y rutaSuperficie() las pasa a Muestras
 // (antes lo hacía el parche de window.fetch de index.js).
@@ -83,14 +83,14 @@ function setBalanceoPreviewLoading(show: boolean): void {
 // ==========================
 function getRowById(id: Ord): HTMLTableRowElement | null {
     const selector = `tr[data-registro-id="${CSS.escape(String(id))}"]`;
-    // Buscar primero en el modal de SweetAlert si existe
-    return document.querySelector('.swal2-html-container')?.querySelector<HTMLTableRowElement>(selector)
+    // Buscar primero en el modal de balanceo si existe
+    return document.querySelector('.balanceo-orden-body')?.querySelector<HTMLTableRowElement>(selector)
         ?? document.querySelector<HTMLTableRowElement>(selector);
 }
 
 function getInputById(id: Ord): HTMLInputElement | null {
     const selector = `.pedido-input[data-id="${CSS.escape(String(id))}"]`;
-    return document.querySelector('.swal2-html-container')?.querySelector<HTMLInputElement>(selector)
+    return document.querySelector('.balanceo-orden-body')?.querySelector<HTMLInputElement>(selector)
         ?? document.querySelector<HTMLInputElement>(selector);
 }
 
@@ -210,7 +210,7 @@ function updateBalanceoTotalVisualState(): void {
 }
 
 function syncBalanceoGuardarButtonState(): void {
-    const btn = document.querySelector('.swal2-popup.balanceo-orden-modal')?.querySelector<HTMLButtonElement>('.swal2-confirm');
+    const btn = document.querySelector('.balanceo-orden-modal')?.querySelector<HTMLButtonElement>('button[type="submit"]');
     if (!btn) return;
     const ok = isBalanceoTotalsBalanced();
     btn.disabled = !ok;
@@ -772,10 +772,11 @@ async function actualizarRegistrosBalanceo(registrosIds: Ord[]): Promise<void> {
 // ==========================
 // Guardar cambios
 // ==========================
-async function guardarCambiosPedido(ordCompartida: Ord): Promise<boolean> {
+/** `aviso` muestra el error en el modal (ctx.error de notify.form); devolver false lo deja abierto. */
+async function guardarCambiosPedido(ordCompartida: Ord, aviso: (mensaje: string) => void): Promise<boolean> {
     calcularTotalesYFechas(ordCompartida, true);
     if (!isBalanceoTotalsBalanced()) {
-        Swal.showValidationMessage('La suma de pedidos no coincide con el total del grupo. Revisa el mínimo por producción en el último telar o ajusta los demás telares.');
+        aviso('La suma de pedidos no coincide con el total del grupo. Revisa el mínimo por producción en el último telar o ajusta los demás telares.');
         return false;
     }
 
@@ -784,11 +785,11 @@ async function guardarCambiosPedido(ordCompartida: Ord): Promise<boolean> {
     const cambios = pedidoInputs().map((input) => ({ id: input.dataset.id, total_pedido: Math.round(Number(input.value) || 0), modo: 'total' }));
 
     if (cambios.length === 0) {
-        Swal.showValidationMessage('No hay filas de pedido para guardar');
+        aviso('No hay filas de pedido para guardar');
         return false;
     }
     if (!hasPedidoChanges()) {
-        Swal.showValidationMessage('No hay cambios para guardar');
+        aviso('No hay cambios para guardar');
         return false;
     }
 
@@ -806,17 +807,9 @@ async function guardarCambiosPedido(ordCompartida: Ord): Promise<boolean> {
         if (data.success) {
             lineasCache = {};
             delete gruposDataCache[String(ordCompartida)];
-            Swal.hideLoading();
 
-            // Aviso modal con cierre solo (reemplaza al modal de balanceo), como antes.
-            void Swal.fire({
-                icon: 'success',
-                title: 'Guardado',
-                text: data.message || 'Los cambios se guardaron correctamente',
-                confirmButtonColor: '#3b82f6',
-                timer: 2000,
-                showConfirmButton: false,
-            });
+            // Aviso con cierre solo; el modal de balanceo se cierra al devolver true.
+            notify.success(data.message || 'Los cambios se guardaron correctamente');
 
             if (Array.isArray(data.registros_ids) && data.registros_ids.length > 0) {
                 void actualizarRegistrosBalanceo(data.registros_ids);
@@ -824,10 +817,10 @@ async function guardarCambiosPedido(ordCompartida: Ord): Promise<boolean> {
             return true;
         }
 
-        Swal.showValidationMessage(data.message || 'Error al guardar los cambios');
+        aviso(data.message || 'Error al guardar los cambios');
         return false;
     } catch {
-        Swal.showValidationMessage('Error de conexión al guardar los cambios');
+        aviso('Error de conexión al guardar los cambios');
         return false;
     } finally {
         setBalanceoPreviewLoading(false);
@@ -916,31 +909,21 @@ function filaModal(reg: RegistroBalanceo, pedidoActualCrudo: number, esLider: bo
 
 const ESTILOS_MODAL = `
         <style>
-          /* Contenedor balanceo: ancho relativo al viewport (vw ≈ % del ancho pantalla); !important gana al width inline de SweetAlert2 */
+          /* Contenedor balanceo: ancho relativo al viewport (vw ≈ % del ancho pantalla); gana al max-width de .ui-dialogo--2xl */
           .balanceo-modal-content { max-width: 100%; }
-          .swal2-popup.balanceo-orden-modal {
-            width: min(98vw, 100%) !important;
-            max-width: min(98vw, 100%) !important;
-            padding: 0.5rem;
-            box-sizing: border-box;
-          }
+          .ui-dialogo.balanceo-orden-modal { width: min(98vw, 100%); max-width: min(98vw, 100%); }
+          .balanceo-orden-modal .ui-dialogo__cuerpo { padding: 0.5rem; gap: 0.75rem; }
           @media (min-width: 640px) {
-            .swal2-popup.balanceo-orden-modal {
-              width: min(96vw, 100%) !important;
-              max-width: min(96vw, 100%) !important;
-              padding: 0.75rem 1rem;
-            }
+            .ui-dialogo.balanceo-orden-modal { width: min(96vw, 100%); max-width: min(96vw, 100%); }
+            .balanceo-orden-modal .ui-dialogo__cuerpo { padding: 0.75rem 1rem; }
           }
           @media (min-width: 1024px) {
-            .swal2-popup.balanceo-orden-modal {
-              width: min(94vw, 100%) !important;
-              max-width: min(94vw, 100%) !important;
-              padding: 1rem 1.25rem;
-            }
+            .ui-dialogo.balanceo-orden-modal { width: min(94vw, 100%); max-width: min(94vw, 100%); }
+            .balanceo-orden-modal .ui-dialogo__cuerpo { padding: 1rem 1.25rem; }
           }
-          .swal2-html-container.balanceo-orden-body { overflow-x: hidden; overflow-y: auto; max-height: 88vh; padding: 0.5rem; }
-          @media (min-width: 640px) { .swal2-html-container.balanceo-orden-body { padding: 0.5rem 0.75rem; } }
-          @media (min-width: 1024px) { .swal2-html-container.balanceo-orden-body { max-height: 90vh; padding: 0.75rem 1rem; } }
+          .balanceo-orden-body { overflow-x: hidden; overflow-y: auto; max-height: 88vh; padding: 0.5rem; }
+          @media (min-width: 640px) { .balanceo-orden-body { padding: 0.5rem 0.75rem; } }
+          @media (min-width: 1024px) { .balanceo-orden-body { max-height: 90vh; padding: 0.75rem 1rem; } }
           /* Tabla: scroll horizontal, evitar que encabezados y números se apilen */
           .balanceo-tabla-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -2px; }
           .balanceo-tabla-wrap table { min-width: 620px; }
@@ -1111,7 +1094,7 @@ function enlazarEventosModal(cuerpo: HTMLElement, ordCompartida: Ord): void {
         if (!(e.target as Element | null)?.classList?.contains('pedido-input')) return;
         schedulePreview(ordCompartida);
         window.setTimeout(() => {
-            if (!document.querySelector('.swal2-popup')) return;
+            if (!document.querySelector('.balanceo-orden-modal')) return;
             calcularTotalesYFechas(ordCompartida, true);
             schedulePreview(ordCompartida);
         }, 0);
@@ -1145,13 +1128,7 @@ function prepararFechaObjetivo(registros: RegistroBalanceo[]): void {
 }
 
 async function verDetallesGrupoBalanceo(ordCompartida: Ord): Promise<void> {
-    void Swal.fire({
-        title: 'Cargando balanceo',
-        html: '<p class="text-sm text-gray-600">Obteniendo datos y líneas de programa…</p>',
-        allowOutsideClick: false,
-        showConfirmButton: false,
-        didOpen: () => Swal.showLoading(),
-    });
+    void notify.loading('Cargando balanceo');
 
     let registros: RegistroBalanceo[];
     try {
@@ -1159,17 +1136,11 @@ async function verDetallesGrupoBalanceo(ordCompartida: Ord): Promise<void> {
         await prefetchLineas(registros);
     } catch (err) {
         console.error(err);
-        // Botón azul como el resto del modal (notify.alert usa el color por defecto).
-        void Swal.fire({
-            icon: 'error',
-            title: 'No se pudo abrir el balanceo',
-            text: 'Revisa la conexión e inténtalo de nuevo.',
-            confirmButtonColor: '#3b82f6',
-        });
+        void notify.alert('Revisa la conexión e inténtalo de nuevo.', 'No se pudo abrir el balanceo', 'error');
         return;
     }
 
-    Swal.close();
+    notify.close();
     currentGanttRegistros = registros;
 
     const valoresActuales = valoresDeLaGrilla(registros);
@@ -1184,23 +1155,25 @@ async function verDetallesGrupoBalanceo(ordCompartida: Ord): Promise<void> {
     const leaderInfo = resolveBalanceoLeader(registros, valoresActuales);
     const filasHTML = registros.map((reg) => filaModal(reg, pedidoDe(reg), leaderInfo?.id === Number(reg.Id))).join('');
 
-    // Modal propio (tabla editable + Gantt): se queda en SweetAlert2, mismo diseño.
-    void Swal.fire({
+    // Modal propio (tabla editable + Gantt): formulario de notify con el guardado en preConfirm.
+    void notify.form({
         title: 'Balanceo de orden',
         html: contenidoModal(filasHTML, leaderInfo?.noTelarId || null, totales),
-        customClass: { popup: 'balanceo-orden-modal', htmlContainer: 'balanceo-orden-body' },
-        showCloseButton: true,
-        showConfirmButton: true,
-        showLoaderOnConfirm: true,
-        confirmButtonText: '<i class="fa-solid fa-save mr-2" aria-hidden="true"></i> Guardar',
-        confirmButtonColor: '#3b82f6',
-        showCancelButton: true,
-        cancelButtonText: 'Cancelar',
-        cancelButtonColor: '#6b7280',
-        preConfirm: () => guardarCambiosPedido(ordCompartida),
-        didOpen: () => {
-            const swalBody = document.querySelector<HTMLElement>('.swal2-html-container');
-            if (swalBody) enlazarEventosModal(swalBody, ordCompartida);
+        confirmText: 'Guardar',
+        cancelText: 'Cancelar',
+        width: '2xl',
+        preConfirm: (ctx) => guardarCambiosPedido(ordCompartida, ctx.error),
+        didOpen: (cuerpo) => {
+            cuerpo.classList.add('balanceo-orden-body');
+            const form = cuerpo.closest('form');
+            cuerpo.closest('dialog')?.classList.add('balanceo-orden-modal');
+            // Validación propia (guardarCambiosPedido), no la burbuja nativa del min de los pedidos.
+            form?.setAttribute('novalidate', '');
+            // Enter en un campo no guarda (los pedidos ya lo anulan en enlazarEventosModal).
+            cuerpo.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && (e.target as Element).matches('input')) e.preventDefault();
+            });
+            enlazarEventosModal(cuerpo, ordCompartida);
 
             void (async () => {
                 await renderGanttOrd(registros);
