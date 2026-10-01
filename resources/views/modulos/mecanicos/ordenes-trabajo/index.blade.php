@@ -166,7 +166,7 @@
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2 short:gap-x-4 short:gap-y-2">
                 <div>
                     <label for="cabecera-telar" class="mb-1 block text-xs font-medium text-gray-700">Máquina <span class="text-red-600">*</span></label>
-                    <input id="cabecera-telar" name="TelarId" maxlength="50" required placeholder="Ej. 201"
+                    <input id="cabecera-telar" name="TelarId" maxlength="10" required placeholder="Ej. 201"
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                 </div>
                 <div>
@@ -248,7 +248,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const state = {
         ordenes: [],
         parosTelar: [],
-        filtros: { estatus: '', fecha: '', buscar: '', folio: '', telar: '', folio_paro: '', orden: '', falla: '', turno: '', mecanico: '' },
+        // Por defecto solo las OT abiertas; el tejedor ve todas porque califica las Terminado.
+        filtros: { estatus: modoTejedor ? '' : 'Activo', fecha: '', buscar: '', folio: '', telar: '', folio_paro: '', orden: '', falla: '', turno: '', mecanico: '' },
         columnaMenu: null,
     };
     const cell = 'truncate border border-gray-200 px-0.5 py-1 text-center sm:px-1 sm:py-1.5 md:px-1.5 md:py-2 lg:px-2 short:py-1';
@@ -623,15 +624,20 @@ document.addEventListener('DOMContentLoaded', () => {
     function poblarSelectTelares() {
         const select = $('#select-telar-paro');
         select.innerHTML = '<option value="">Seleccione máquina</option>';
-        telaresCatalogo.forEach(({ id, label }) => {
-            const option = document.createElement('option');
-            option.value = id;
-            option.textContent = label;
-            select.appendChild(option);
+        // El catálogo ya viene ordenado por área: un <optgroup> por cada una.
+        const grupos = new Map();
+        telaresCatalogo.forEach(({ id, label, grupo }) => {
+            if (! grupos.has(grupo)) {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = grupo;
+                grupos.set(grupo, optgroup);
+                select.appendChild(optgroup);
+            }
+            grupos.get(grupo).appendChild(new Option(label, id));
         });
-        const otros = document.createElement('option');
-        otros.value = OPCION_OTROS;
-        otros.textContent = 'Otros';
+        const otros = document.createElement('optgroup');
+        otros.label = 'Otros';
+        otros.appendChild(new Option('Otros (escribir máquina)', OPCION_OTROS));
         select.appendChild(otros);
     }
 

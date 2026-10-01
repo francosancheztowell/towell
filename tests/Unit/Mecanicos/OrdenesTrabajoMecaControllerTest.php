@@ -240,6 +240,21 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
                 'Nombre' => 'Jacquard',
                 'Departamento' => 'Tejido',
             ],
+            [
+                'MaquinaId' => 'RECT10',
+                'Nombre' => 'MAQ RECTA 10',
+                'Departamento' => 'Costura',
+            ],
+            [
+                'MaquinaId' => 'RECT2',
+                'Nombre' => 'MAQ RECTA 2',
+                'Departamento' => 'Costura',
+            ],
+            [
+                'MaquinaId' => '299',
+                'Nombre' => 'Itema',
+                'Departamento' => 'Itema',
+            ],
         ]);
         DB::connection('sqlsrv')->table('dbo.ReqTelares')->insert([
             'NoTelarId' => '201',
@@ -249,9 +264,13 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
         $method = new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'catalogoTelares');
         $catalogo = $method->invoke(new OrdenesTrabajoMecaController);
 
+        // Agrupado por área y en orden natural; el nombre solo aparece si dice algo más que el ID o el área.
         $this->assertSame([
-            ['id' => 'WestPoint 2', 'label' => 'WestPoint 2'],
-            ['id' => '201', 'label' => '201 · Salón Jacquard'],
+            ['id' => 'RECT2', 'label' => 'RECT2 · MAQ RECTA 2', 'grupo' => 'Costura'],
+            ['id' => 'RECT10', 'label' => 'RECT10 · MAQ RECTA 10', 'grupo' => 'Costura'],
+            ['id' => 'WestPoint 2', 'label' => 'WestPoint 2 · West Point', 'grupo' => 'Engomado'],
+            ['id' => '299', 'label' => '299', 'grupo' => 'Itema'],
+            ['id' => '201', 'label' => '201 · Salón Jacquard', 'grupo' => 'Tejido'],
         ], $catalogo);
     }
 
@@ -400,6 +419,22 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
 
         $this->assertFalse($calificar->invoke($controller, $activa));
         $this->assertSame('Activo', $activa->fresh()->Estatus);
+    }
+
+    public function test_maquina_no_pasa_del_largo_de_la_columna_telar_id(): void
+    {
+        $controller = new OrdenesTrabajoMecaController;
+        $reglas = (new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'reglasCabecera'))->invoke($controller);
+        $mensajes = (new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'mensajesCabecera'))->invoke($controller);
+
+        $valida = fn (string $telar) => validator(['TelarId' => $telar, 'Falla' => 'X'], $reglas, $mensajes);
+
+        $this->assertTrue($valida('ELEV RASU')->passes());
+        $this->assertTrue($valida('1234567890')->passes());
+        $this->assertSame(
+            'La máquina no puede pasar de 10 caracteres.',
+            $valida('12345678901')->errors()->first('TelarId')
+        );
     }
 
     public function test_reglas_de_linea_exigen_comentarios(): void

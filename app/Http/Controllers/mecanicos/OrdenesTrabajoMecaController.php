@@ -887,7 +887,8 @@ class OrdenesTrabajoMecaController extends Controller
     private function reglasCabecera(): array
     {
         return [
-            'TelarId' => ['required', 'string', 'max:50'],
+            // MecOrdenTrabajoTable.TelarId es nvarchar(10).
+            'TelarId' => ['required', 'string', 'max:10'],
             'FolioParo' => ['nullable', 'string', 'max:30'],
             'Falla' => ['required', 'string', 'max:150'],
             'Comentarios' => ['nullable', 'string', 'max:500'],
@@ -905,6 +906,7 @@ class OrdenesTrabajoMecaController extends Controller
     private function mensajesCabecera(): array
     {
         return [
+            'TelarId.max' => 'La máquina no puede pasar de 10 caracteres.',
             'Orden.max' => 'La orden no puede pasar de 20 caracteres.',
             'Orden.regex' => 'La orden no puede llevar espacios.',
         ];
@@ -958,9 +960,10 @@ class OrdenesTrabajoMecaController extends Controller
 
     /**
      * Catálogo completo de máquinas (dbo.URDCatalogoMaquinas), sin filtrar
-     * por departamento ni asignación del usuario.
+     * por departamento ni asignación del usuario. `grupo` (Departamento) agrupa
+     * el select por área.
      *
-     * @return list<array{id: string, label: string}>
+     * @return list<array{id: string, label: string, grupo: string}>
      */
     private function catalogoTelares(): array
     {
@@ -972,20 +975,30 @@ class OrdenesTrabajoMecaController extends Controller
             ->select('MaquinaId', 'Nombre', 'Departamento')
             ->whereNotNull('MaquinaId')
             ->where('MaquinaId', '!=', '')
-            ->orderBy('Departamento')
-            ->orderBy('MaquinaId')
             ->get()
             ->map(function (URDCatalogoMaquina $maquina) use ($salones): array {
-                $maquinaId = trim((string) $maquina->MaquinaId);
+                $maquinaId = trim((string) $maquina->getAttribute('MaquinaId'));
+                $nombre = trim((string) $maquina->getAttribute('Nombre'));
+                $grupo = trim((string) $maquina->getAttribute('Departamento')) ?: 'Sin área';
                 $salon = trim((string) ($salones[$maquinaId] ?? ''));
+
+                // Los telares traen la marca como Nombre (igual al área): no aporta en la etiqueta.
+                $detalle = match (true) {
+                    $salon !== '' => "Salón {$salon}",
+                    $nombre !== '' && strcasecmp($nombre, $maquinaId) !== 0 && strcasecmp($nombre, $grupo) !== 0 => $nombre,
+                    default => '',
+                };
 
                 return [
                     'id' => $maquinaId,
-                    'label' => $salon !== '' ? "{$maquinaId} · Salón {$salon}" : $maquinaId,
+                    'label' => $detalle !== '' ? "{$maquinaId} · {$detalle}" : $maquinaId,
+                    'grupo' => $grupo,
                 ];
             })
             ->filter(fn (array $item): bool => $item['id'] !== '')
             ->unique('id')
+            // Orden natural: RECT2 antes que RECT10.
+            ->sort(fn (array $a, array $b): int => strnatcasecmp($a['grupo'], $b['grupo']) ?: strnatcasecmp($a['id'], $b['id']))
             ->values()
             ->all();
     }
