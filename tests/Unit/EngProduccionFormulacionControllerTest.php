@@ -204,6 +204,36 @@ class EngProduccionFormulacionControllerTest extends TestCase
         $this->assertSame(['TE-PD-ENF-1', 'TE-PD-ENF-2'], $payload['formulas']);
     }
 
+    /**
+     * Producción 30-sep: '741.18' (texto) y 90 (int) en el mismo INSERT de varias filas → SQL Server
+     * tipó la columna como int y tronó. sqlite no lo reproduce: se vigila que los bindings sean float.
+     */
+    public function test_insertar_lineas_manda_consumos_siempre_como_float(): void
+    {
+        $bindings = [];
+        DB::connection('sqlsrv')->listen(function ($q) use (&$bindings) {
+            if (str_starts_with($q->sql, 'insert into') && str_contains($q->sql, 'EngFormulacionLine')) {
+                $bindings = $q->bindings;
+            }
+        });
+
+        $metodo = new \ReflectionMethod(EngProduccionFormulacionController::class, 'insertarLineas');
+        $metodo->invoke($this->app->make(EngProduccionFormulacionController::class), [
+            ['ItemId' => 'AGUA', 'ConsumoTotal' => '741.18', 'ConsumoUnitario' => 0.82353333333333],
+            ['ItemId' => 'AE-014', 'ConsumoTotal' => 90, 'ConsumoUnitario' => '0.1'],
+            ['ItemId' => 'X', 'ConsumoTotal' => '', 'ConsumoUnitario' => null],
+        ], '01350', 2285);
+
+        $lineas = DB::connection('sqlsrv')->table('EngFormulacionLine')->orderBy('Id')->get();
+        $this->assertEquals([741.18, 90.0, null], $lineas->pluck('ConsumoTotal')->all());
+        $this->assertEquals([0.82353333333333, 0.1, null], $lineas->pluck('ConsumoUnit')->all());
+        foreach ([741.18, 90.0, 0.1] as $valor) {
+            $this->assertContains($valor, $bindings, "{$valor} debe ir como float, no como texto ni int");
+        }
+        $this->assertNotContains(90, $bindings, 'int 90 vuelve a tipar la columna como int', true);
+        $this->assertNotContains('741.18', $bindings, '', true);
+    }
+
     public function test_update_segundo_registro_no_sincroniza_bom_formula(): void
     {
         DB::connection('sqlsrv')->table('EngProgramaEngomado')->insert([
