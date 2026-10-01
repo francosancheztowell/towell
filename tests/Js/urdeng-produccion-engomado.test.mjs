@@ -4,11 +4,11 @@ import {
     calcularNeto,
     camposFaltantes,
     clavesRepetidas,
+    excedeBruto,
     etiquetaOficial,
     fechaCorta,
     filasAPropagar,
     horaActual,
-    limitarBruto,
     mensajesDuplicados,
     metrosParaPropagar,
     oficialNumero,
@@ -32,11 +32,11 @@ test('neto = bruto − tara; vacíos cuentan como 0 y puede quedar negativo', ()
     assert.equal(calcularNeto('abc', null), 0);
 });
 
-test('tope de Kg. Bruto: recorta al máximo con 2 decimales; sin máximo no toca', () => {
-    assert.equal(limitarBruto('2500', 2000), '2000.00');
-    assert.equal(limitarBruto('2000', 2000), '2000');
-    assert.equal(limitarBruto('', 2000), '');
-    assert.equal(limitarBruto('99999', null), '99999');
+test('tope de Kg. Bruto: solo detecta el exceso, no reescribe; sin máximo o vacío nunca excede', () => {
+    assert.equal(excedeBruto('2500', 2000), true);
+    assert.equal(excedeBruto('2000', 2000), false);
+    assert.equal(excedeBruto('', 2000), false);
+    assert.equal(excedeBruto('99999', null), false);
 });
 
 test('redondear y valor por columna', () => {

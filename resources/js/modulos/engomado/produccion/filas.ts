@@ -28,7 +28,7 @@ import {
     decimales,
 } from './guardado.ts';
 import { cerrarSelectoresCantidad, elegirNumero } from './temperaturas.ts';
-import { CAMPO_PRODUCCION, calcularNeto, fechaCorta, horaActual, parsearOficiales, redondear } from './logica.ts';
+import { CAMPO_PRODUCCION, calcularNeto, excedeBruto, fechaCorta, horaActual, parsearOficiales, redondear } from './logica.ts';
 import { validarFila } from './validacion.ts';
 
 interface Julio {
@@ -142,6 +142,11 @@ function alCambiarListo(check: HTMLInputElement): void {
         void notify.alert('Este registro ya fue enviado a AX y no se puede modificar.', 'No modificable', 'warning');
         return;
     }
+    if (listo && hayBrutoPendiente(registroId)) {
+        check.checked = false;
+        notify.warning('Kg. Bruto todavía se está guardando. Espera unos segundos y vuelve a marcar Listo.');
+        return;
+    }
     if (listo) {
         const fila = check.closest('tr');
         const faltan = fila ? validarFila(fila) : [];
@@ -156,14 +161,39 @@ function alCambiarListo(check: HTMLInputElement): void {
 
 // ─── Eventos de la tabla ─────────────────────────────────────────────────
 
-const pendientesBruto = new Map<string, number>();
 const ultimoBrutoEnviado = new Map<string, string>();
+/** Registros con Kg. Bruto esperando el autoguardado o en camino al servidor. */
+const pendientesBruto = new Map<string, number>();
+const brutoEnCamino = new Set<string>();
+/**
+ * Espera larga a propósito: quien captura teclea despacio y un guardado a media captura
+ * los frustraba. Mientras hay un guardado pendiente se bloquea Finalizar (y el "Listo" de esa fila).
+ */
+const ESPERA_AUTOGUARDADO_MS = 10_000;
+
+export function hayBrutoPendiente(registroId?: string): boolean {
+    if (registroId !== undefined) return pendientesBruto.has(registroId) || brutoEnCamino.has(registroId);
+    return pendientesBruto.size > 0 || brutoEnCamino.size > 0;
+}
+
+function actualizarBotonFinalizar(): void {
+    const btn = document.querySelector<HTMLButtonElement>('[data-accion="finalizar"]');
+    if (!btn) return;
+    const pendiente = hayBrutoPendiente();
+    btn.disabled = pendiente;
+    btn.classList.toggle('opacity-50', pendiente);
+    btn.title = pendiente ? 'Guardando Kg. Bruto… sal del campo o espera unos segundos' : 'Finalizar';
+}
 
 function enviarBruto(registroId: string, valor: string): void {
     // Evita el doble envío del mismo valor (debounce + blur).
     if (ultimoBrutoEnviado.get(registroId) === valor) return;
     ultimoBrutoEnviado.set(registroId, valor);
+    brutoEnCamino.add(registroId);
+    actualizarBotonFinalizar();
     void actualizarKgBruto(registroId, valor).then((guardado) => {
+        brutoEnCamino.delete(registroId);
+        actualizarBotonFinalizar();
         // Si falló, el mismo valor tiene que poder reenviarse (reintento al salir del campo).
         if (!guardado && ultimoBrutoEnviado.get(registroId) === valor) ultimoBrutoEnviado.delete(registroId);
     });
@@ -173,8 +203,13 @@ function cancelarPendienteBruto(registroId: string): void {
     const t = pendientesBruto.get(registroId);
     if (t !== undefined) window.clearTimeout(t);
     pendientesBruto.delete(registroId);
+    actualizarBotonFinalizar();
 }
 
+/**
+ * Kg. Bruto se autoguarda tras 10 s sin teclear (o al salir del campo / Enter).
+ * El autoguardado NO reescribe el input: hacerlo (12 → 12.00) movía el cursor a quien teclea despacio.
+ */
 function alEscribir(e: Event): void {
     const input = e.target as HTMLInputElement;
     quitarErrorVisual(input);
@@ -182,28 +217,30 @@ function alEscribir(e: Event): void {
     const nombre = input.dataset.field;
     if (!fila || (nombre !== 'kg_bruto' && nombre !== 'tara')) return;
 
-    const recortado = calcularNetoFila(fila);
-    const max = cfg().maxKgBruto;
-    if (nombre === 'kg_bruto' && recortado && input.value !== '' && max !== null) {
-        notify.warning(`Kg. Bruto máx. ${max.toFixed(0)}`);
-    }
+    const excede = calcularNetoFila(fila);
     if (nombre !== 'kg_bruto') return;
 
     const registroId = fila.dataset.registroId;
     if (!registroId) return;
     cancelarPendienteBruto(registroId);
-    if (!tieneOficial(registroId)) return;
+    // Si pasa el tope solo se marca en rojo; el aviso sale al salir del campo.
+    if (excede || !tieneOficial(registroId)) return;
 
-    const valor = input.value;
     pendientesBruto.set(
         registroId,
         window.setTimeout(() => {
             pendientesBruto.delete(registroId);
-            const formateado = redondear(valor, 2) || valor;
-            if (formateado !== valor) input.value = formateado;
-            enviarBruto(registroId, formateado);
-        }, 1000),
+            const valor = redondear(input.value, 2);
+            actualizarBotonFinalizar();
+            if (valor !== '') enviarBruto(registroId, valor);
+        }, ESPERA_AUTOGUARDADO_MS),
     );
+    actualizarBotonFinalizar();
+}
+
+function alTeclear(e: KeyboardEvent): void {
+    const input = e.target as HTMLInputElement;
+    if (e.key === 'Enter' && input.dataset.field === 'kg_bruto') input.blur();
 }
 
 function alSalir(e: FocusEvent): void {
@@ -217,6 +254,11 @@ function alSalir(e: FocusEvent): void {
         if (!tieneOficial(registroId)) return;
         const valor = redondear(input.value, 2);
         if (valor === '') return;
+        const max = cfg().maxKgBruto;
+        if (excedeBruto(valor, max)) {
+            notify.warning(`Kg. Bruto máx. ${max?.toFixed(0)}. Corrige el valor; no se guardó.`);
+            return;
+        }
         input.value = valor;
         enviarBruto(registroId, valor);
         return;
@@ -435,6 +477,7 @@ export function iniciarFilas(): void {
         cuerpo.addEventListener('input', alEscribir);
         cuerpo.addEventListener('change', alCambiar);
         cuerpo.addEventListener('focusout', alSalir);
+        cuerpo.addEventListener('keydown', alTeclear);
     }
 
     // Merma con/sin goma (fuera de la tabla).
