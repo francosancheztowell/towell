@@ -1,17 +1,9 @@
 @extends('layouts.app')
 @section('navbar-right')
 <div class="flex items-center gap-2">
-    <x-navbar.button-report
-    type="button"
-    id="btn-open-filters"
-    title="Filtros"
-    icon="fa-filter"
-    bg="bg-green-600"
-    iconColor="text-white"
-    text="Filtrar"
-    class="text-white"
-    module="Solicitudes"
-    />
+    {{-- Abre el <dialog> de filtros: Área y "terminados" cambian lo que se pide a la API, por eso
+         no son filtros de columna. --}}
+    <flux:button id="btn-open-filters" icon="funnel" class="min-h-touch">Filtrar</flux:button>
     <x-navbar.button-create
     type="button"
     id="btn-nuevo-paro"
@@ -19,9 +11,7 @@
     module="Solicitudes"
     />
 
-    <button type="button" id="btn-terminar-paro" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-md transition-colors whitespace-nowrap">
-        Terminar Paro
-    </button>
+    <flux:button id="btn-terminar-paro" variant="primary" color="zinc" icon="stop-circle" class="min-h-touch">Terminar Paro</flux:button>
 
 </div>
 @endsection
@@ -48,36 +38,26 @@
     <div class="bg-white">
         <div class="flex gap-4">
             <!-- Tabla -->
-            <div class="flex-1 overflow-auto max-h-[70vh] rounded-lg border border-gray-300">
-                <table class="w-full border-collapse text-sm min-w-full">
-                    <thead>
-                        <tr class="text-white text-center">
-                            {{-- Columna de selección: el radio da foco, teclado y estado accesible a la fila --}}
-                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap w-12">
-                                <span class="sr-only">Seleccionar paro</span>
-                            </th>
-                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Folio</th>
-                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Status</th>
-                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Fecha</th>
-                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Hora</th>
-                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Área</th>
-                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Máquina</th>
-                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Tipo Falla</th>
-                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Falla</th>
-                            <th scope="col" class="sticky top-0 z-10 bg-blue-500 px-2 py-2 font-semibold text-lg whitespace-nowrap">Usuario</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-paros" aria-busy="true">
-                        <!-- Los datos se cargarán dinámicamente aquí -->
-                        <tr>
-                            <td colspan="10" class="border border-gray-300 px-2 py-2 text-center text-gray-700">
+            {{-- flux:table + .tabla-cebra / .tabla-seleccionable (app.css). Filas: <template> de abajo. --}}
+            <div class="flex-1 rounded-lg shadow-sm overflow-hidden">
+                <flux:table class="tabla-cebra tabla-seleccionable" container:class="max-h-[70vh] [&>ui-table-scroll-area]:min-h-0">
+                    <flux:table.columns sticky class="bg-white">
+                        {{-- Columna de selección: el radio da foco, teclado y estado accesible a la fila --}}
+                        <flux:table.column class="w-12"><span class="sr-only">Seleccionar paro</span></flux:table.column>
+                        @foreach (['Folio', 'Status', 'Fecha', 'Hora', 'Área', 'Máquina', 'Tipo Falla', 'Falla', 'Usuario'] as $titulo)
+                            <flux:table.column align="center">{{ $titulo }}</flux:table.column>
+                        @endforeach
+                    </flux:table.columns>
+                    <flux:table.rows id="tbody-paros" aria-busy="true">
+                        <flux:table.row>
+                            <flux:table.cell colspan="10" class="text-center">
                                 <span role="status">
                                     <i class="fa-solid fa-spinner fa-spin mr-2" aria-hidden="true"></i>Cargando datos...
                                 </span>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                            </flux:table.cell>
+                        </flux:table.row>
+                    </flux:table.rows>
+                </flux:table>
             </div>
 
 
@@ -86,33 +66,28 @@
 </div>
 
 {{-- Filas que pinta resources/js/modulos/mantenimiento/solicitudes (textContent, sin innerHTML).
-     Las clases que el JS alterna viven aquí: Tailwind escanea el Blade, no los .ts (ver HANDOFF 19-08). --}}
-<template id="tpl-fila-paro"
-          data-clase-seleccionada="bg-blue-700 text-white"
-          data-clase-normal="hover:bg-gray-100 text-gray-900"
-          data-clase-activo="bg-blue-100 text-blue-800"
-          data-clase-terminado="bg-gray-100 text-gray-800">
-    <tr class="row-paro cursor-pointer hover:bg-gray-100 transition-colors">
-        <td class="px-2 py-2 text-center">
-            <input type="radio" name="paro-seleccionado" class="h-5 w-5 align-middle cursor-pointer accent-blue-700">
-        </td>
-        <td data-col="Folio" class="px-2 py-2 text-gray-900 text-lg text-center"></td>
-        <td class="px-2 py-2 text-lg text-center"><span data-col="Estatus" class="inline-flex items-center px-2.5 py-0.5 rounded text-sm font-medium"></span></td>
-        <td data-col="Fecha" class="px-2 py-2 text-gray-900 text-lg text-center"></td>
-        <td data-col="Hora" class="px-2 py-2 text-gray-900 text-lg text-center"></td>
-        <td data-col="Depto" class="px-2 py-2 text-gray-900 text-lg text-center"></td>
-        <td data-col="MaquinaId" class="px-2 py-2 text-gray-900 text-lg text-center"></td>
-        <td data-col="TipoFallaId" class="px-2 py-2 text-gray-900 text-lg text-center"></td>
-        <td data-col="Falla" class="px-2 py-2 text-gray-900 text-lg text-center"></td>
-        <td data-col="NomEmpl" class="px-2 py-2 text-gray-900 text-lg text-center"></td>
-    </tr>
+     Selección: el TS pone aria-selected y marca el radio; el color sale de .tabla-seleccionable.
+     Status: el TS clona el flux:badge de <template data-badge-paro> (activo / terminado). --}}
+<template id="tpl-fila-paro">
+    <flux:table.row class="row-paro" aria-selected="false">
+        <flux:table.cell align="center">
+            <input type="radio" name="paro-seleccionado" class="size-5 align-middle cursor-pointer accent-blue-700">
+        </flux:table.cell>
+        <flux:table.cell variant="strong" align="center" data-col="Folio"></flux:table.cell>
+        <flux:table.cell align="center" data-col="Estatus"></flux:table.cell>
+        @foreach (['Fecha', 'Hora', 'Depto', 'MaquinaId', 'TipoFallaId', 'Falla', 'NomEmpl'] as $col)
+            <flux:table.cell align="center" data-col="{{ $col }}"></flux:table.cell>
+        @endforeach
+    </flux:table.row>
 </template>
+<template data-badge-paro="activo"><flux:badge size="sm" inset="top bottom" color="blue"></flux:badge></template>
+<template data-badge-paro="terminado"><flux:badge size="sm" inset="top bottom" color="zinc"></flux:badge></template>
 <template id="tpl-fila-mensaje">
-    <tr>
-        <td colspan="10" class="border border-gray-300 px-2 py-2 text-center">
+    <flux:table.row>
+        <flux:table.cell colspan="10" class="text-center">
             <span role="status"><i class="fa-solid fa-spinner fa-spin mr-2 hidden" aria-hidden="true"></i></span>
-        </td>
-    </tr>
+        </flux:table.cell>
+    </flux:table.row>
 </template>
 
 {{-- Modal Filtros (estilo BPM). <dialog> nativo: aporta role="dialog", aria-modal,
