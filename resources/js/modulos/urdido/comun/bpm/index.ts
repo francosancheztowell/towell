@@ -5,7 +5,7 @@
  */
 import { notify } from '../../../../utils/notifications.ts';
 import { delegate, onReady, qs, qsa } from '../../../../utils/dom.ts';
-import { el, icono, leerDatos, rutaCon } from '../pagina.ts';
+import { filaSinResultados, leerDatos, rutaCon } from '../pagina.ts';
 import {
     alternar,
     camposAutollenado,
@@ -68,25 +68,7 @@ function iniciar(raiz: HTMLElement, cfg: ConfigBpm): void {
             if (ver) visibles++;
         }
 
-        cuerpo?.querySelector('tr.no-results')?.remove();
-        if (visibles === 0 && cuerpo) {
-            cuerpo.append(
-                el(
-                    'tr',
-                    { clase: 'no-results' },
-                    el(
-                        'td',
-                        { clase: 'px-4 py-6 text-center text-slate-500', attrs: { colspan: '11' } },
-                        el(
-                            'div',
-                            { clase: 'flex flex-col items-center gap-2' },
-                            icono('fa-solid fa-inbox text-4xl text-gray-300'),
-                            el('span', { clase: 'text-base font-medium', texto: mensajeSinResultados(filtros) }),
-                        ),
-                    ),
-                ),
-            );
-        }
+        filaSinResultados(cuerpo, 11, visibles === 0 ? mensajeSinResultados(filtros) : null);
     }
 
     function pintarBotonesFiltro(): void {

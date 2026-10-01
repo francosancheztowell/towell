@@ -13,7 +13,6 @@
             'rutas' => 'urd-actividades-bpm',
             'parametro' => 'urdActividadesBpm',
             'conMaquina' => true,
-            'thead' => 'bg-blue-600',
             'fondoModal' => 'bg-black/50',
             'cabeceraCrear' => 'bg-green-600',
             'cabeceraEditar' => 'bg-yellow-600',
@@ -24,15 +23,16 @@
             'rutas' => 'eng-actividades-bpm',
             'parametro' => 'engActividadesBpm',
             'conMaquina' => false,
-            'thead' => 'bg-gradient-to-r bg-blue-500',
             'fondoModal' => 'bg-gray-900/50',
             'cabeceraCrear' => 'bg-gradient-to-r from-green-600 to-green-500',
             'cabeceraEditar' => 'bg-gradient-to-r from-yellow-600 to-yellow-500',
         ],
     ][$variante];
 
-    $maquinas = ['MC' => ['Mc Coy', 'bg-blue-100 text-blue-800'], 'KM' => ['Karl Mayer 1', 'bg-purple-100 text-purple-800']];
+    $maquinas = ['MC' => ['Mc Coy', 'blue'], 'KM' => ['Karl Mayer 1', 'purple']];
     $conMaquina = $cfgVariante['conMaquina'];
+    // Engomado pagina en el servidor: ahí no hay filtros por columna (filtrarían una sola página).
+    $paginado = $items instanceof \Illuminate\Contracts\Pagination\Paginator;
     // Crear y Editar comparten campos; cambian cabecera, color de foco y botón.
     $modales = [
         'createModal' => ['titulo' => 'Nueva Actividad BPM', 'icono' => 'fa-plus-circle', 'cabecera' => $cfgVariante['cabeceraCrear'], 'foco' => 'focus:ring-green-500', 'accion' => route($cfgVariante['rutas'].'.store')],
@@ -54,6 +54,10 @@
 
 @section('navbar-right')
     <div class="flex items-center gap-2">
+        @unless($paginado)
+            <flux:button data-alternar-filtros="#actividadesBpmTable" aria-pressed="false" icon="funnel"
+                         class="min-h-touch min-w-touch" title="Filtrar por columna" aria-label="Filtrar por columna" />
+        @endunless
         <x-navbar.button-create
             :module="$cfgVariante['modulo']"
             data-actividades-accion="nueva"
@@ -78,55 +82,49 @@
 <div id="actividades-bpm-pagina" class="container mx-auto px-4 py-6" data-actividades-bpm='@json($configActividades)'>
     <!-- Tabla de Actividades -->
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="min-w-full text-sm">
-                <thead class="{{ $cfgVariante['thead'] }} text-white sticky top-0 z-10">
-                    <tr>
-                        <th class="px-4 py-3 text-left font-semibold w-24">Orden</th>
-                        <th class="px-4 py-3 text-left font-semibold">Actividad</th>
+        {{-- flux:table + piezas reutilizables (app.css). Selección: index.ts pone aria-selected.
+             Filtros por columna solo sin paginar (Urdido): en Engomado filtrarían una sola página. --}}
+        <flux:table id="actividadesBpmTable" class="tabla-cebra tabla-seleccionable" :data-filtros-columna="$paginado ? null : true">
+            <flux:table.columns sticky class="bg-white">
+                <flux:table.column class="w-24">Orden</flux:table.column>
+                <flux:table.column>Actividad</flux:table.column>
+                @if($conMaquina)
+                    <flux:table.column class="w-40">Máquina</flux:table.column>
+                @endif
+            </flux:table.columns>
+            <flux:table.rows>
+                @forelse($items as $item)
+                    <flux:table.row
+                        data-key="{{ $item->Id }}"
+                        data-orden="{{ $item->Orden ?? '' }}"
+                        data-actividad="{{ $item->Actividad }}"
+                        :data-maquina="$conMaquina ? ($item->Maquina ?? '') : null"
+                        aria-selected="false">
+                        <flux:table.cell variant="strong">{{ $item->Orden ?? '-' }}</flux:table.cell>
+                        <flux:table.cell>{{ $item->Actividad }}</flux:table.cell>
                         @if($conMaquina)
-                            <th class="px-4 py-3 text-left font-semibold w-40">Máquina</th>
+                            <flux:table.cell>
+                                @isset($maquinas[$item->Maquina])
+                                    <flux:badge size="sm" inset="top bottom" :color="$maquinas[$item->Maquina][1]">{{ $maquinas[$item->Maquina][0] }}</flux:badge>
+                                @endisset
+                            </flux:table.cell>
                         @endif
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($items as $item)
-                        <tr class="border-b border-gray-200 hover:bg-blue-50 transition-colors duration-150 cursor-pointer"
-                            data-key="{{ $item->Id }}"
-                            data-orden="{{ $item->Orden ?? '' }}"
-                            data-actividad="{{ $item->Actividad }}"
-                            @if($conMaquina) data-maquina="{{ $item->Maquina ?? '' }}" @endif
-                            aria-selected="false">
-                            <td class="px-4 py-3 align-middle font-medium text-gray-700">
-                                {{ $item->Orden ?? '-' }}
-                            </td>
-                            <td class="px-4 py-3 align-middle text-gray-800">
-                                {{ $item->Actividad }}
-                            </td>
-                            @if($conMaquina)
-                                <td class="px-4 py-3 align-middle">
-                                    @isset($maquinas[$item->Maquina])
-                                        <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold {{ $maquinas[$item->Maquina][1] }}">{{ $maquinas[$item->Maquina][0] }}</span>
-                                    @endisset
-                                </td>
+                    </flux:table.row>
+                @empty
+                    <flux:table.row>
+                        <flux:table.cell colspan="{{ $conMaquina ? 3 : 2 }}" class="py-8 text-center">
+                            <i class="fa-solid fa-inbox text-4xl mb-2 text-gray-300" aria-hidden="true"></i>
+                            <p class="text-lg">No se encontraron actividades</p>
+                            @if($q)
+                                <p class="text-sm mt-2">Intenta con otro término de búsqueda</p>
                             @endif
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="{{ $conMaquina ? 3 : 2 }}" class="px-4 py-8 text-center text-gray-500">
-                                <i class="fa-solid fa-inbox text-4xl mb-2 text-gray-300" aria-hidden="true"></i>
-                                <p class="text-lg">No se encontraron actividades</p>
-                                @if($q)
-                                    <p class="text-sm mt-2">Intenta con otro término de búsqueda</p>
-                                @endif
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                        </flux:table.cell>
+                    </flux:table.row>
+                @endforelse
+            </flux:table.rows>
+        </flux:table>
 
-        @if($items instanceof \Illuminate\Contracts\Pagination\Paginator && $items->hasPages())
+        @if($paginado && $items->hasPages())
             <div class="px-4 py-3 border-t border-gray-200 bg-gray-50">
                 {{ $items->links() }}
             </div>

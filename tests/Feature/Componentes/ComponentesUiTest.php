@@ -102,9 +102,8 @@ class ComponentesUiTest extends TestCase
     public function test_badge_spinner_y_skeleton(): void
     {
         $this->blade('<x-ui.badge tone="success" icon="fa-check">Liberada</x-ui.badge>')
-            ->assertSee('bg-success-soft', false)
+            ->assertSee('data-flux-badge', false)
             ->assertSee('fa-solid fa-check', false)
-            ->assertSee('text-caption', false)
             ->assertSee('Liberada');
 
         $this->blade('<x-ui.spinner size="sm" label="Guardando" />')

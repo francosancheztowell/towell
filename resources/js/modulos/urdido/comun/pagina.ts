@@ -71,3 +71,22 @@ export function el<K extends keyof HTMLElementTagNameMap>(
 export function icono(clases: string): HTMLElement {
     return el('i', { clase: clases, attrs: { 'aria-hidden': 'true' } });
 }
+
+/**
+ * Pone (o quita, con mensaje null) la fila "sin resultados" de un listado filtrado en cliente.
+ * Fila tr.no-results con td[colspan]: los filtros por columna (tabla-columnas.ts) no la tocan.
+ */
+export function filaSinResultados(cuerpo: HTMLTableSectionElement | null, columnas: number, mensaje: string | null): void {
+    cuerpo?.querySelector('tr.no-results')?.remove();
+    if (!cuerpo || mensaje === null) return;
+    cuerpo.append(
+        el('tr', { clase: 'no-results' },
+            el('td', { clase: 'px-4 py-6 text-center text-slate-500', attrs: { colspan: String(columnas) } },
+                el('div', { clase: 'flex flex-col items-center gap-2' },
+                    icono('fa-solid fa-inbox text-4xl text-gray-300'),
+                    el('span', { clase: 'text-base font-medium', texto: mensaje }),
+                ),
+            ),
+        ),
+    );
+}
