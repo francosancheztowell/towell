@@ -184,10 +184,10 @@
         </section>
         @endif
 
-        {{-- Tabla de renglones: table-fixed + padding/texto por breakpoint para que quepa sin min-width. --}}
+        {{-- Tabla de renglones: ancho natural (w-max) con scroll horizontal; Acciones queda fija a la derecha. --}}
         <section class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-            <div class="max-w-full overflow-auto overscroll-contain select-text" tabindex="0" aria-label="Tabla de intervenciones">
-                <table class="w-full table-fixed border-collapse text-[9px] leading-tight sm:text-[10px] md:text-xs lg:text-sm">
+            <div class="max-w-full overflow-x-auto overscroll-x-contain select-text" tabindex="0" aria-label="Tabla de intervenciones">
+                <table class="w-max min-w-full border-collapse whitespace-nowrap text-[9px] leading-tight sm:text-[10px] md:text-xs lg:text-sm">
                     <thead class="bg-gray-50 font-semibold text-gray-600">
                         <tr>
                             <th class="hidden truncate px-0.5 py-1 text-left sm:table-cell sm:px-1 md:px-1.5 md:py-1.5">Clave</th>
@@ -352,6 +352,73 @@ document.addEventListener('DOMContentLoaded', () => {
             && ! linea.NomTejedor;
     }
 
+    // puedeEliminar ya viene resuelto por estatus desde el servidor (supervisión elimina hasta antes de Autorizado).
+    function opcionesMenuLinea() {
+        const opciones = [];
+        if (! bloqueadaEdicion && ! puedeCalificar && puedeEditar) opciones.push('editar');
+        if (puedeEliminar) opciones.push('eliminar');
+        return opciones;
+    }
+
+    // Menú flotante en <body>: la tabla tiene overflow-auto y lo recortaría.
+    const menuLinea = document.createElement('div');
+    menuLinea.setAttribute('role', 'menu');
+    menuLinea.hidden = true;
+    menuLinea.className = 'fixed z-50 min-w-40 rounded-md border border-gray-200 bg-white py-1 text-sm shadow-lg';
+    document.body.appendChild(menuLinea);
+
+    function cerrarMenuLinea() {
+        menuLinea.hidden = true;
+        menuLinea.replaceChildren();
+    }
+
+    const ITEMS_MENU_LINEA = {
+        editar: { texto: 'Editar', icono: 'fa-pen', clases: 'text-gray-700 hover:bg-gray-100' },
+        eliminar: { texto: 'Eliminar', icono: 'fa-trash', clases: 'text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:text-gray-400 disabled:hover:bg-transparent' },
+    };
+
+    function itemMenuLinea(accion, lineaId, deshabilitado) {
+        const { texto, icono, clases } = ITEMS_MENU_LINEA[accion];
+        const boton = document.createElement('button');
+        boton.type = 'button';
+        boton.setAttribute('role', 'menuitem');
+        boton.dataset.action = accion;
+        boton.dataset.lineaId = lineaId;
+        boton.className = `flex w-full items-center gap-2 px-3 py-2 text-left transition ${clases}`;
+        if (deshabilitado) {
+            boton.disabled = true;
+            boton.title = deshabilitado;
+        }
+        const i = document.createElement('i');
+        i.className = `fas ${icono} w-4`;
+        boton.append(i, texto);
+        return boton;
+    }
+
+    function abrirMenuLinea(boton, lineaId) {
+        const unicoRenglon = (orden.lineas || []).length <= 1;
+        menuLinea.replaceChildren(...opcionesMenuLinea().map(accion => itemMenuLinea(
+            accion,
+            lineaId,
+            accion === 'eliminar' && unicoRenglon ? 'La orden debe conservar al menos un renglón' : ''
+        )));
+        menuLinea.hidden = false;
+
+        const r = boton.getBoundingClientRect();
+        const ancho = menuLinea.offsetWidth;
+        const alto = menuLinea.offsetHeight;
+        menuLinea.style.left = `${Math.max(8, Math.min(r.right - ancho, window.innerWidth - ancho - 8))}px`;
+        menuLinea.style.top = `${r.bottom + alto + 4 > window.innerHeight ? r.top - alto - 4 : r.bottom + 4}px`;
+        menuLinea.querySelector('button:not([disabled])')?.focus();
+    }
+
+    document.addEventListener('click', (event) => {
+        if (! menuLinea.hidden && ! menuLinea.contains(event.target) && ! event.target.closest('[data-action="menu"]')) cerrarMenuLinea();
+    });
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape') cerrarMenuLinea(); });
+    window.addEventListener('scroll', cerrarMenuLinea, true);
+    window.addEventListener('resize', cerrarMenuLinea);
+
     function renderLineas() {
         const lineas = orden.lineas || [];
         const totalLineas = $('#total-lineas');
@@ -377,17 +444,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? display(linea.NomTejedor || tejedorNombre)
                 : display(linea.NomTejedor);
 
-            // puedeEliminar ya viene resuelto por estatus desde el servidor (supervisión elimina hasta antes de Autorizado).
-            const botonEliminar = puedeEliminar && lineas.length > 1
-                ? `<button type="button" data-action="eliminar" data-linea-id="${linea.Id}" class="ml-1 rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-700 transition hover:bg-red-50">Eliminar</button>`
+            const botonMenu = opcionesMenuLinea().length
+                ? `<button type="button" data-action="menu" data-linea-id="${linea.Id}" aria-label="Acciones del renglón" aria-haspopup="menu" class="ml-1 inline-flex size-8 items-center justify-center rounded text-lg font-bold leading-none text-gray-600 transition hover:bg-gray-100">⋮</button>`
                 : '';
-            let acciones = botonEliminar;
+            let acciones = botonMenu || '<span class="text-gray-400">—</span>';
             if (puedeCalificar) {
-                acciones = `<button type="button" data-action="guardar-calificacion" data-linea-id="${linea.Id}" class="rounded border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-800 transition hover:bg-indigo-100">Guardar</button>${botonEliminar}`;
-            } else if (! bloqueadaEdicion && puedeEditar) {
-                acciones = `<button type="button" data-action="editar" data-linea-id="${linea.Id}" class="rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-100">Editar</button>${botonEliminar}`;
+                acciones = `<button type="button" data-action="guardar-calificacion" data-linea-id="${linea.Id}" class="rounded border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-800 transition hover:bg-indigo-100">Guardar</button>${botonMenu}`;
             }
-            acciones = acciones || '<span class="text-gray-400">—</span>';
 
             const td = 'truncate px-0.5 py-1 sm:px-1 md:px-1.5 md:py-1.5';
             return `
@@ -404,7 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="${td} text-center text-gray-700">${display(timeInputValue(linea.HoraInicial))}</td>
                 <td class="${td} text-center text-gray-700">${display(timeInputValue(linea.HoraFinal))}</td>
                 <td class="${td} text-center text-gray-700">${linea.TotalMinutos == null ? '—' : linea.TotalMinutos}</td>
-                <td class="${td} text-gray-700" title="${escapeHtml(linea.comentarios ?? '')}">${display(linea.comentarios)}</td>
+                <td class="${td} text-gray-700" title="${escapeHtml(linea.comentarios ?? '')}"><div class="max-w-48 truncate lg:max-w-64">${display(linea.comentarios)}</div></td>
                 <td class="${td} text-center text-gray-700">${califCell}</td>
                 <td class="hidden ${td} text-gray-700 md:table-cell">${cveCell}</td>
                 <td class="${td} text-gray-800" title="${escapeHtml(linea.NomTejedor ?? '')}">${nomCell}</td>
@@ -682,12 +745,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    lineasBody.addEventListener('click', async (event) => {
+    async function accionLinea(event) {
         const button = event.target.closest('[data-action]');
-        if (! button) return;
+        if (! button || button.disabled) return;
 
         const linea = (orden.lineas || []).find(item => Number(item.Id) === Number(button.dataset.lineaId));
         if (! linea) return;
+
+        if (button.dataset.action === 'menu') {
+            const yaAbierto = ! menuLinea.hidden && menuLinea.querySelector(`[data-linea-id="${linea.Id}"]`);
+            if (yaAbierto) cerrarMenuLinea(); else abrirMenuLinea(button, linea.Id);
+            return;
+        }
+
+        cerrarMenuLinea();
 
         if (button.dataset.action === 'guardar-calificacion') {
             await guardarCalificacionTejedor(linea.Id, button);
@@ -711,12 +782,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 await cargarOrden();
                 prepararCapturaInicial();
-                notificar('success', result.message);
             } catch (error) {
                 notificar('error', mensajeError(error));
             }
         }
-    });
+    }
+
+    lineasBody.addEventListener('click', accionLinea);
+    menuLinea.addEventListener('click', accionLinea);
 
     $('#linea-operador')?.addEventListener('change', () => {
         const clave = $('#linea-operador').value;
