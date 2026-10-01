@@ -377,14 +377,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? display(linea.NomTejedor || tejedorNombre)
                 : display(linea.NomTejedor);
 
-            let acciones = '<span class="text-gray-400">—</span>';
+            // puedeEliminar ya viene resuelto por estatus desde el servidor (supervisión elimina hasta antes de Autorizado).
+            const botonEliminar = puedeEliminar && lineas.length > 1
+                ? `<button type="button" data-action="eliminar" data-linea-id="${linea.Id}" class="ml-1 rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-700 transition hover:bg-red-50">Eliminar</button>`
+                : '';
+            let acciones = botonEliminar;
             if (puedeCalificar) {
-                acciones = `<button type="button" data-action="guardar-calificacion" data-linea-id="${linea.Id}" class="rounded border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-800 transition hover:bg-indigo-100">Guardar</button>`;
-            } else if (! bloqueadaEdicion && (puedeEditar || puedeEliminar)) {
-                acciones = `
-                    ${puedeEditar ? `<button type="button" data-action="editar" data-linea-id="${linea.Id}" class="rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-100">Editar</button>` : ''}
-                    ${puedeEliminar && lineas.length > 1 ? `<button type="button" data-action="eliminar" data-linea-id="${linea.Id}" class="ml-1 rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-700 transition hover:bg-red-50">Eliminar</button>` : ''}`;
+                acciones = `<button type="button" data-action="guardar-calificacion" data-linea-id="${linea.Id}" class="rounded border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-800 transition hover:bg-indigo-100">Guardar</button>${botonEliminar}`;
+            } else if (! bloqueadaEdicion && puedeEditar) {
+                acciones = `<button type="button" data-action="editar" data-linea-id="${linea.Id}" class="rounded border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 transition hover:bg-gray-100">Editar</button>${botonEliminar}`;
             }
+            acciones = acciones || '<span class="text-gray-400">—</span>';
 
             const td = 'truncate px-0.5 py-1 sm:px-1 md:px-1.5 md:py-1.5';
             return `
@@ -701,6 +704,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (! await confirmar('¿Eliminar renglón?', 'Esta intervención se quitará de la orden.')) return;
             try {
                 const result = await api(`${baseUrl}/${encodeURIComponent(orden.Folio)}/lineas/${linea.Id}`, { method: 'DELETE' });
+                if (result.orden?.Estatus && result.orden.Estatus !== orden.Estatus) {
+                    notificar('success', result.message);
+                    setTimeout(() => window.location.reload(), 900);
+                    return;
+                }
                 await cargarOrden();
                 prepararCapturaInicial();
                 notificar('success', result.message);

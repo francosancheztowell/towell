@@ -23,6 +23,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
@@ -112,7 +113,10 @@ class OrdenesTrabajoMecaController extends Controller
             'esSupervisor' => $permisos['puedeRegistrar'],
             'puedeCrear' => $permisos['puedeCrear'] && ! $modoTejedor && ! $bloqueadaEdicion,
             'puedeEditar' => $permisos['puedeModificar'] && ! $modoTejedor && ! $bloqueadaEdicion,
-            'puedeEliminar' => $permisos['puedeEliminar'] && ! $modoTejedor && ! $bloqueadaEdicion,
+            // En captura solo se eliminan renglones (la orden completa se elimina desde el índice).
+            'puedeEliminar' => $this->puedeEliminarLineasComoSupervisor()
+                ? ! $this->estatusBloqueaEliminarLinea($estatus)
+                : $permisos['puedeEliminar'] && ! $modoTejedor && ! $bloqueadaEdicion,
             'puedeRegistrar' => $permisos['puedeRegistrar'],
             'puedeFinalizar' => $this->puedeFinalizarComoMecanico() && $estatus === self::ESTATUS_ACTIVO,
             'puedeCalificar' => $this->puedeCalificarComoTejedor() && $estatus === self::ESTATUS_TERMINADO,
@@ -643,11 +647,7 @@ class OrdenesTrabajoMecaController extends Controller
 
     public function destroyLinea(string $folio, int $linea): JsonResponse
     {
-        if ($respuesta = $this->respuestaSinPermiso('eliminar', 'No tienes permiso para eliminar renglones.')) {
-            return $respuesta;
-        }
-
-        if ($respuesta = $this->respuestaSiTejedorNoPuedeMutar('Los tejedores no pueden eliminar renglones.')) {
+        if ($respuesta = $this->respuestaSinPermisoEliminarLinea()) {
             return $respuesta;
         }
 
@@ -663,10 +663,12 @@ class OrdenesTrabajoMecaController extends Controller
         }
 
         $orden = MecOrdenTrabajoModel::find($folio);
-        if ($orden && $this->estatusBloqueaEdicionMecanico((string) $orden->Estatus)) {
+        if ($orden && $this->estatusBloqueaEliminarLinea((string) $orden->Estatus)) {
             return response()->json([
                 'success' => false,
-                'error' => 'La orden ya no admite cambios en renglones (finalizada, calificada o autorizada).',
+                'error' => $this->puedeEliminarLineasComoSupervisor()
+                    ? 'La orden ya está autorizada; sus renglones no se pueden eliminar.'
+                    : 'La orden ya no admite cambios en renglones (finalizada, calificada o autorizada).',
             ], 422);
         }
 
@@ -677,12 +679,71 @@ class OrdenesTrabajoMecaController extends Controller
             ], 422);
         }
 
-        $registro->delete();
+        $pasoACalificado = DB::transaction(function () use ($registro, $orden): bool {
+            $registro->delete();
+
+            return $orden !== null && $this->calificarSiQuedaCompleta($orden);
+        });
 
         return response()->json([
             'success' => true,
-            'message' => 'Renglón eliminado correctamente.',
+            'message' => $pasoACalificado
+                ? 'Renglón eliminado. Los renglones restantes ya están calificados: la orden pasó a Calificado.'
+                : 'Renglón eliminado correctamente.',
+            'orden' => $orden?->fresh(),
         ]);
+    }
+
+    /**
+     * Mecánico con `eliminar` (orden Activa) o supervisor/Sistemas (cualquier estatus
+     * salvo Autorizado). El tejedor en modo solo-calificación nunca elimina.
+     */
+    private function respuestaSinPermisoEliminarLinea(): ?JsonResponse
+    {
+        if ($this->puedeEliminarLineasComoSupervisor()) {
+            return null;
+        }
+
+        return $this->respuestaSinPermiso('eliminar', 'No tienes permiso para eliminar renglones.')
+            ?? $this->respuestaSiTejedorNoPuedeMutar('Los tejedores no pueden eliminar renglones.');
+    }
+
+    /**
+     * Supervisores (permiso registrar) y el área Sistemas (Gate `admin`) corrigen
+     * renglones capturados por error aunque la orden ya esté finalizada o calificada.
+     */
+    private function puedeEliminarLineasComoSupervisor(): bool
+    {
+        return $this->puedeRegistrar() || Gate::allows('admin');
+    }
+
+    private function estatusBloqueaEliminarLinea(string $estatus): bool
+    {
+        if ($this->puedeEliminarLineasComoSupervisor()) {
+            return $estatus === self::ESTATUS_AUTORIZADO;
+        }
+
+        return $this->estatusBloqueaEdicionMecanico($estatus);
+    }
+
+    /**
+     * Al quitar el único renglón sin calificar de una orden Terminada, la orden
+     * queda igual que si el tejedor hubiera calificado el último: pasa a Calificado.
+     */
+    private function calificarSiQuedaCompleta(MecOrdenTrabajoModel $orden): bool
+    {
+        if ((string) $orden->getAttribute('Estatus') !== self::ESTATUS_TERMINADO) {
+            return false;
+        }
+
+        $orden->load('lineas');
+        if (! $this->todasLasLineasCalificadas($orden)) {
+            return false;
+        }
+
+        $orden->update(['Estatus' => self::ESTATUS_CALIFICADO]);
+
+        return true;
     }
 
     /**

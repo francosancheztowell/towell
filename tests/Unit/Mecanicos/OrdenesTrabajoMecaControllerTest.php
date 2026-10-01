@@ -356,6 +356,52 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
         $this->assertFalse($completas->invoke($controller, $orden));
     }
 
+    public function test_sistemas_elimina_renglones_en_cualquier_estatus_salvo_autorizado(): void
+    {
+        $user = new User;
+        $user->area = 'Sistemas';
+        $this->actingAs($user);
+        $bloquea = new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'estatusBloqueaEliminarLinea');
+        $controller = new OrdenesTrabajoMecaController;
+
+        foreach (['', 'Activo', 'Terminado', 'Calificado'] as $estatus) {
+            $this->assertFalse($bloquea->invoke($controller, $estatus), "Sistemas deberia eliminar en [{$estatus}].");
+        }
+        $this->assertTrue($bloquea->invoke($controller, 'Autorizado'));
+    }
+
+    public function test_mecanico_solo_elimina_renglones_con_la_orden_activa(): void
+    {
+        $user = new User;
+        $user->area = 'MANTENIMIENTO';
+        $this->actingAs($user);
+        $bloquea = new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'estatusBloqueaEliminarLinea');
+        $controller = new OrdenesTrabajoMecaController;
+
+        $this->assertFalse($bloquea->invoke($controller, 'Activo'));
+        foreach (['Terminado', 'Calificado', 'Autorizado'] as $estatus) {
+            $this->assertTrue($bloquea->invoke($controller, $estatus), "El mecanico no deberia eliminar en [{$estatus}].");
+        }
+    }
+
+    public function test_eliminar_el_unico_renglon_sin_calificar_pasa_la_orden_a_calificado(): void
+    {
+        $terminada = MecOrdenTrabajoModel::create(['Folio' => 'MEC00001', 'Estatus' => 'Terminado']);
+        $activa = MecOrdenTrabajoModel::create(['Folio' => 'MEC00002', 'Estatus' => 'Activo']);
+        DB::connection('sqlsrv')->table('MecOrdenTrabajoLine')->insert([
+            ['Folio' => 'MEC00001', 'Calificacion' => 4],
+            ['Folio' => 'MEC00002', 'Calificacion' => 4],
+        ]);
+        $calificar = new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'calificarSiQuedaCompleta');
+        $controller = new OrdenesTrabajoMecaController;
+
+        $this->assertTrue($calificar->invoke($controller, $terminada));
+        $this->assertSame('Calificado', $terminada->fresh()->Estatus);
+
+        $this->assertFalse($calificar->invoke($controller, $activa));
+        $this->assertSame('Activo', $activa->fresh()->Estatus);
+    }
+
     public function test_reglas_de_linea_exigen_comentarios(): void
     {
         $method = new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'reglasLinea');
