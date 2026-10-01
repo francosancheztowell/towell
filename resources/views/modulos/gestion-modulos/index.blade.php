@@ -13,16 +13,9 @@
 
 @section('content')
         <div class="container mx-auto px-4 py-6 te">
-            @if($errors->any())
-                <script>
-                    notify.html('<ul class="text-left list-disc list-inside">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>', 'Error', 'error');
-                </script>
-            @endif
-            @if(session('success'))
-                <script>
-                    notify.success('{{ session('success') }}');
-                </script>
-            @endif
+            {{-- Éxito, error y validación los pinta x-ui.flash (layout). Un <script> inline aquí
+                 corría antes que app.js (módulo diferido): notify no existía y, como el texto ya
+                 estaba en la vista, el flash tampoco lo repetía, así que no salía ningún aviso. --}}
 
             <div class="bg-white rounded-lg shadow-md overflow-hidden">
                 <div class="overflow-x-auto ">
