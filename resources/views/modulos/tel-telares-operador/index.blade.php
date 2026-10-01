@@ -323,6 +323,49 @@ document.addEventListener('DOMContentLoaded', function() {
         updateTopButtonsState();
     }
 
+    /** Una fila por empleado (agrupa sus telares y salones) con las clases de flux:table. Crear y editar. */
+    function filasDeOperadores(data) {
+        const groupedByEmpleado = data.reduce((acc, item) => {
+            const num = item.numero_empleado || '';
+            if (!acc[num]) acc[num] = [];
+            acc[num].push(item);
+            return acc;
+        }, {});
+        
+        return Object.values(groupedByEmpleado).map(registros => {
+            const primero = registros[0];
+            const telares = registros.map(r => r.NoTelarId).filter(Boolean).sort().join(', ');
+            const salones = [...new Set(registros.map(r => r.SalonTejidoId).filter(Boolean))].sort().join(', ');
+            
+            const tr = document.createElement('tr');
+            tr.className = 'row-selectable'; // cebra/hover/selección: .tabla-cebra/.tabla-seleccionable
+            tr.setAttribute('data-key', primero.Id);
+            tr.setAttribute('data-numero', primero.numero_empleado || '');
+            tr.setAttribute('data-nombre', primero.nombreEmpl || '');
+            tr.setAttribute('data-telar', telares);
+            tr.setAttribute('data-turno', primero.Turno || '');
+            tr.setAttribute('data-salon', salones);
+            tr.setAttribute('data-supervisor', primero.Supervisor ? '1' : '0');
+            tr.setAttribute('aria-selected', 'false');
+            
+            const supervisorCell = primero.Supervisor 
+                ? '<i class="fa-solid fa-check text-green-600" title="Sí"></i>' 
+                : '<span class="text-gray-400">—</span>';
+            
+            tr.innerHTML = `
+                <td class="py-3 px-3 text-sm font-medium text-zinc-800 border-t border-zinc-800/10">${escapeHtml(primero.numero_empleado || '')}</td>
+                <td class="py-3 px-3 text-sm text-zinc-500 border-t border-zinc-800/10">${escapeHtml(primero.nombreEmpl || '')}</td>
+                <td class="py-3 px-3 text-sm font-semibold text-blue-700 border-t border-zinc-800/10">${escapeHtml(telares)}</td>
+                <td class="py-3 px-3 text-sm text-zinc-500 border-t border-zinc-800/10">${escapeHtml(primero.Turno || '')}</td>
+                <td class="py-3 px-3 text-sm text-zinc-500 border-t border-zinc-800/10">${escapeHtml(salones)}</td>
+                <td class="py-3 px-3 text-sm text-center border-t border-zinc-800/10">${supervisorCell}</td>
+            `;
+            
+            tr.addEventListener('click', function() { selectRow(this); });
+            return tr;
+        });
+    }
+
     function handleTopEdit() {
         if (!selectedRow || !selectedKey) return;
         const numero = selectedRow.dataset.numero || '';
@@ -834,45 +877,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         const emptyRow = tbody.querySelector('tr:not(.row-selectable)');
                         if (emptyRow) emptyRow.remove();
                         
-                        const groupedByEmpleado = result.data.reduce((acc, item) => {
-                            const num = item.numero_empleado || '';
-                            if (!acc[num]) acc[num] = [];
-                            acc[num].push(item);
-                            return acc;
-                        }, {});
-                        
-                        Object.values(groupedByEmpleado).forEach(registros => {
-                            const primero = registros[0];
-                            const telares = registros.map(r => r.NoTelarId).filter(Boolean).sort().join(', ');
-                            const salones = [...new Set(registros.map(r => r.SalonTejidoId).filter(Boolean))].sort().join(', ');
-                            
-                            const tr = document.createElement('tr');
-                            tr.className = 'row-selectable'; // cebra/hover/selección: .tabla-cebra/.tabla-seleccionable
-                            tr.setAttribute('data-key', primero.Id);
-                            tr.setAttribute('data-numero', primero.numero_empleado || '');
-                            tr.setAttribute('data-nombre', primero.nombreEmpl || '');
-                            tr.setAttribute('data-telar', telares);
-                            tr.setAttribute('data-turno', primero.Turno || '');
-                            tr.setAttribute('data-salon', salones);
-                            tr.setAttribute('data-supervisor', primero.Supervisor ? '1' : '0');
-                            tr.setAttribute('aria-selected', 'false');
-                            
-                            const supervisorCell = primero.Supervisor 
-                                ? '<i class="fa-solid fa-check text-green-600" title="Sí"></i>' 
-                                : '<span class="text-gray-400">—</span>';
-                            
-                            tr.innerHTML = `
-                                <td class="py-3 px-3 text-sm font-medium text-zinc-800 border-t border-zinc-800/10">${escapeHtml(primero.numero_empleado || '')}</td>
-                                <td class="py-3 px-3 text-sm text-zinc-500 border-t border-zinc-800/10">${escapeHtml(primero.nombreEmpl || '')}</td>
-                                <td class="py-3 px-3 text-sm font-semibold text-blue-700 border-t border-zinc-800/10">${escapeHtml(telares)}</td>
-                                <td class="py-3 px-3 text-sm text-zinc-500 border-t border-zinc-800/10">${escapeHtml(primero.Turno || '')}</td>
-                                <td class="py-3 px-3 text-sm text-zinc-500 border-t border-zinc-800/10">${escapeHtml(salones)}</td>
-                                <td class="py-3 px-3 text-sm text-center border-t border-zinc-800/10">${supervisorCell}</td>
-                            `;
-                            
-                            tr.addEventListener('click', function() { selectRow(this); });
-                            tbody.insertBefore(tr, tbody.firstChild);
-                        });
+                        filasDeOperadores(result.data).forEach(tr => tbody.insertBefore(tr, tbody.firstChild));
                         
                     }
                     
@@ -950,45 +955,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         const emptyRow = tbody.querySelector('tr:not(.row-selectable)');
                         if (emptyRow) emptyRow.remove();
                         
-                        const groupedByEmpleado = result.data.reduce((acc, item) => {
-                            const num = item.numero_empleado || '';
-                            if (!acc[num]) acc[num] = [];
-                            acc[num].push(item);
-                            return acc;
-                        }, {});
-                        
-                        Object.values(groupedByEmpleado).forEach(registros => {
-                            const primero = registros[0];
-                            const telares = registros.map(r => r.NoTelarId).filter(Boolean).sort().join(', ');
-                            const salones = [...new Set(registros.map(r => r.SalonTejidoId).filter(Boolean))].sort().join(', ');
-                            
-                            const tr = document.createElement('tr');
-                            tr.className = 'row-selectable'; // cebra/hover/selección: .tabla-cebra/.tabla-seleccionable
-                            tr.setAttribute('data-key', primero.Id);
-                            tr.setAttribute('data-numero', primero.numero_empleado || '');
-                            tr.setAttribute('data-nombre', primero.nombreEmpl || '');
-                            tr.setAttribute('data-telar', telares);
-                            tr.setAttribute('data-turno', primero.Turno || '');
-                            tr.setAttribute('data-salon', salones);
-                            tr.setAttribute('data-supervisor', primero.Supervisor ? '1' : '0');
-                            tr.setAttribute('aria-selected', 'false');
-                            
-                            const supervisorCell = primero.Supervisor 
-                                ? '<i class="fa-solid fa-check text-green-600" title="Sí"></i>' 
-                                : '<span class="text-gray-400">—</span>';
-                            
-                            tr.innerHTML = `
-                                <td class="py-3 px-3 text-sm font-medium text-zinc-800 border-t border-zinc-800/10">${escapeHtml(primero.numero_empleado || '')}</td>
-                                <td class="py-3 px-3 text-sm text-zinc-500 border-t border-zinc-800/10">${escapeHtml(primero.nombreEmpl || '')}</td>
-                                <td class="py-3 px-3 text-sm font-semibold text-blue-700 border-t border-zinc-800/10">${escapeHtml(telares)}</td>
-                                <td class="py-3 px-3 text-sm text-zinc-500 border-t border-zinc-800/10">${escapeHtml(primero.Turno || '')}</td>
-                                <td class="py-3 px-3 text-sm text-zinc-500 border-t border-zinc-800/10">${escapeHtml(salones)}</td>
-                                <td class="py-3 px-3 text-sm text-center border-t border-zinc-800/10">${supervisorCell}</td>
-                            `;
-                            
-                            tr.addEventListener('click', function() { selectRow(this); });
-                            tbody.appendChild(tr);
-                        });
+                        filasDeOperadores(result.data).forEach(tr => tbody.appendChild(tr));
                     }
 
                     clearSelection();

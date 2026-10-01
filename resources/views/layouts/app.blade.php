@@ -7,7 +7,7 @@
     <style>
         /* .fa-spin ya no se redefine aquí: Font Awesome 7 (app.js) trae el suyo con sus
            variables --fa-animation-*; la copia local las ignoraba. */
-        /* Fondo compatible con iPad/Safari: rellena viewport y gradiente con prefijo WebKit */
+        /* Fondo compatible con iPad/Safari: rellena viewport y color sólido */
         html {
             min-height: 100vh;
             min-height: -webkit-fill-available;
@@ -15,21 +15,17 @@
         body {
             min-height: 100vh;
             min-height: -webkit-fill-available;
-            background: #93c5fd;
-            background: -webkit-linear-gradient(to bottom, #60a5fa, #93c5fd);
-            background: linear-gradient(to bottom, #60a5fa, #93c5fd);
+            background: #60a5fa;
         }
-        /* Mismo fondo en main para que en iPad el scroll muestre el gradiente */
+        /* Mismo fondo en main para que en iPad el scroll muestre el fondo */
         main.app-main {
-            background: #93c5fd;
-            background: -webkit-linear-gradient(to bottom, #60a5fa, #93c5fd);
-            background: linear-gradient(to bottom, #60a5fa, #93c5fd);
+            background: #60a5fa;
         }
 
     </style>
 </head>
 
-<body class="min-h-screen flex flex-col overflow-hidden h-screen bg-gradient-to-b from-blue-400 to-blue-200 relative" style="touch-action: manipulation; -webkit-touch-callout: none;">
+<body class="min-h-screen flex flex-col overflow-hidden h-screen bg-blue-400 relative" style="touch-action: manipulation; -webkit-touch-callout: none;">
     {{-- UX-05: sin user-select:none global (impedía copiar folios); solo el chrome lo lleva
          (app.css). touch-callout se queda: los long-press existentes dependen de él y no
          impide seleccionar. touch-action: manipulation quita el doble toque, no el pinch. --}}
