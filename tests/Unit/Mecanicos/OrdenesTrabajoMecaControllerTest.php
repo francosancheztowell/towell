@@ -438,7 +438,7 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
         );
     }
 
-    public function test_falla_es_opcional_y_tipo_de_falla_no_pasa_de_100_caracteres(): void
+    public function test_falla_es_opcional_y_tipo_de_falla_solo_acepta_las_opciones_del_select(): void
     {
         $controller = new OrdenesTrabajoMecaController;
         $reglas = (new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'reglasCabecera'))->invoke($controller);
@@ -448,10 +448,12 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
         $this->assertNotContains('required', $reglas['Falla']);
         $this->assertTrue(validator(['TelarId' => '201'], $reglas, $mensajes)->passes());
 
-        $this->assertTrue(validator(['TelarId' => '201', 'TipoFalla' => str_repeat('A', 100)], $reglas, $mensajes)->passes());
+        foreach (['Calidad', 'Eléctrica', 'Mecánica', 'Tiempo muerto'] as $tipo) {
+            $this->assertTrue(validator(['TelarId' => '201', 'TipoFalla' => $tipo], $reglas, $mensajes)->passes(), $tipo);
+        }
         $this->assertSame(
-            'El tipo de falla no puede pasar de 100 caracteres.',
-            validator(['TelarId' => '201', 'TipoFalla' => str_repeat('A', 101)], $reglas, $mensajes)->errors()->first('TipoFalla')
+            'Selecciona un tipo de falla válido.',
+            validator(['TelarId' => '201', 'TipoFalla' => 'Otra cosa'], $reglas, $mensajes)->errors()->first('TipoFalla')
         );
     }
 

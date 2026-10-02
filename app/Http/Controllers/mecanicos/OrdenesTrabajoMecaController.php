@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class OrdenesTrabajoMecaController extends Controller
@@ -55,6 +56,9 @@ class OrdenesTrabajoMecaController extends Controller
 
     private const HORAS_HISTORIAL_PAROS = 12;
 
+    /** Opciones del select "Tipo de falla" al crear una OT; el back solo acepta estas. */
+    public const TIPOS_FALLA = ['Calidad', 'Eléctrica', 'Mecánica', 'Tiempo muerto'];
+
     /**
      * Escala de calificación del renglón. La define CalificacionParoService
      * porque es la misma de ManFallasParos.Calidad (estrellas 1-5): la nota que
@@ -72,6 +76,7 @@ class OrdenesTrabajoMecaController extends Controller
 
         return view('modulos.mecanicos.ordenes-trabajo.index', [
             'telares' => $this->catalogoTelares(),
+            'tiposFalla' => self::TIPOS_FALLA,
             'operadores' => $this->operadoresMecanicos(),
             'esTejedor' => $this->esTejedor(),
             'modoTejedor' => $modoTejedor,
@@ -895,7 +900,7 @@ class OrdenesTrabajoMecaController extends Controller
             // MecOrdenTrabajoTable.TelarId es nvarchar(10).
             'TelarId' => ['required', 'string', 'max:10'],
             'FolioParo' => ['nullable', 'string', 'max:30'],
-            'TipoFalla' => ['nullable', 'string', 'max:100'],
+            'TipoFalla' => ['nullable', 'string', Rule::in(self::TIPOS_FALLA)],
             'Falla' => ['nullable', 'string', 'max:150'],
             'Comentarios' => ['nullable', 'string', 'max:500'],
             'FechaParo' => ['nullable', 'date'],
@@ -913,7 +918,7 @@ class OrdenesTrabajoMecaController extends Controller
     {
         return [
             'TelarId.max' => 'La máquina no puede pasar de 10 caracteres.',
-            'TipoFalla.max' => 'El tipo de falla no puede pasar de 100 caracteres.',
+            'TipoFalla.in' => 'Selecciona un tipo de falla válido.',
             'Orden.max' => 'La orden no puede pasar de 20 caracteres.',
             'Orden.regex' => 'La orden no puede llevar espacios.',
         ];

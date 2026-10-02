@@ -185,9 +185,13 @@
                 </div>
                 <div class="md:col-span-2">
                     <label for="cabecera-tipo-falla" class="mb-1 block text-xs font-medium text-gray-700">Tipo de falla</label>
-                    <input id="cabecera-tipo-falla" name="TipoFalla" maxlength="100"
-                        placeholder="Ej. Mecánica, eléctrica…"
-                        class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+                    <select id="cabecera-tipo-falla" name="TipoFalla"
+                        class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
+                        <option value="">Selecciona…</option>
+                        @foreach ($tiposFalla as $tipo)
+                            <option value="{{ $tipo }}">{{ $tipo }}</option>
+                        @endforeach
+                    </select>
                 </div>
                 <div class="md:col-span-2">
                     <label for="cabecera-falla" class="mb-1 block text-xs font-medium text-gray-700">Descripción de falla</label>
