@@ -330,7 +330,7 @@
 .ui-dialogo__boton {
     display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
     height: 3.5rem; padding: 0 1rem; border-radius: .5rem; border: 1px solid transparent;
-    font-size: var(--text-lg); font-weight: 600; cursor: pointer; transition: background-color .15s;
+    font-size: var(--text-lg); font-weight: 600; cursor: pointer;
 }
 .ui-dialogo__boton:focus-visible { outline: 2px solid var(--color-blue-500); outline-offset: 2px; }
 .ui-dialogo__boton--primario   { background: var(--color-blue-600); color: var(--color-white); }
@@ -346,6 +346,22 @@
 .ui-dialogo__textos { width: 100%; }
 .ui-dialogo__error { width: 100%; padding: .625rem .875rem; border-radius: .5rem; background: var(--color-red-50); color: var(--color-red-700); font-size: var(--text-sm); text-align: left; }
 .ui-dialogo[aria-busy='true'] .ui-dialogo__boton { opacity: .6; cursor: progress; }
+/* Microinteracción al presionar y botón ocupado (componentes/envio-cargando.ts): el spinner es
+   un ::before, así sirve igual en los <dialog> de las vistas y en los de notify.form. */
+.ui-dialogo__boton { transition: background-color .15s, transform .1s, box-shadow .15s; }
+.ui-dialogo__boton:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 10px -4px rgb(0 0 0 / .25); }
+.ui-dialogo__boton:active:not(:disabled) { transform: scale(.97); box-shadow: none; }
+[data-ocupado] { cursor: progress; }
+.ui-dialogo[aria-busy='true'] .ui-dialogo__boton[data-ocupado] { opacity: 1; }
+[data-ocupado]::before {
+    content: ''; flex: none; width: 1.1em; height: 1.1em; border-radius: 9999px;
+    border: 2px solid currentColor; border-right-color: transparent;
+    animation: loader-giro .7s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+    .ui-dialogo__boton:hover:not(:disabled), .ui-dialogo__boton:active:not(:disabled) { transform: none; }
+    [data-ocupado]::before { animation-duration: 1.6s; }
+}
 /* Formulario: título y campos a la izquierda; los campos toman el estilo de flux:input. */
 .ui-dialogo--formulario .ui-dialogo__cuerpo { align-items: stretch; text-align: left; gap: 1.25rem; }
 .ui-dialogo--formulario .ui-dialogo__icono { align-self: center; }

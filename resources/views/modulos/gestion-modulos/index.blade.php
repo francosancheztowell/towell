@@ -75,7 +75,7 @@
                  Esc, foco y fondo los da el navegador; Cancelar cierra con formmethod="dialog". --}}
             <dialog id="createModal" data-dialog-nativo aria-labelledby="createModal-titulo"
                     class="ui-dialogo ui-dialogo--xl ui-dialogo--formulario">
-                <form action="{{ route('configuracion.utileria.modulos.store') }}" method="POST" enctype="multipart/form-data" class="ui-dialogo__cuerpo">
+                <form data-envio-cargando action="{{ route('configuracion.utileria.modulos.store') }}" method="POST" enctype="multipart/form-data" class="ui-dialogo__cuerpo">
                     <h2 id="createModal-titulo" class="ui-dialogo__titulo">Nuevo módulo</h2>
                         @csrf
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -140,7 +140,7 @@
                  Esc, foco y fondo los da el navegador; Cancelar cierra con formmethod="dialog". --}}
             <dialog id="editModal" data-dialog-nativo aria-labelledby="editModal-titulo"
                     class="ui-dialogo ui-dialogo--xl ui-dialogo--formulario">
-                <form id="editForm" action="#" method="POST" enctype="multipart/form-data" class="ui-dialogo__cuerpo">
+                <form id="editForm" data-envio-cargando action="#" method="POST" enctype="multipart/form-data" class="ui-dialogo__cuerpo">
                     <h2 id="editModal-titulo" class="ui-dialogo__titulo">Editar módulo</h2>
                         @csrf
                         @method('PUT')
@@ -192,7 +192,7 @@
 
                         <div class="ui-dialogo__botones">
                             <button type="submit" formmethod="dialog" formnovalidate class="ui-dialogo__boton ui-dialogo__boton--secundario">Cancelar</button>
-                            <button type="submit" class="ui-dialogo__boton ui-dialogo__boton--primario">Actualizar</button>
+                            <button type="submit" data-texto-cargando="Actualizando…" class="ui-dialogo__boton ui-dialogo__boton--primario">Actualizar</button>
                         </div>
                 </form>
             </dialog>
