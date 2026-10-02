@@ -6,6 +6,7 @@ use App\Http\Controllers\Urdido\BPMUrdido\UrdBpmLineController;
 use App\Http\Controllers\Urdido\Configuracion\ActividadesBPMUrdido\UrdActividadesBpmController;
 use App\Http\Controllers\Urdido\Configuracion\CatalogosJulios\CatalogosUrdidoController;
 use App\Http\Controllers\Urdido\Configuracion\ModuloProduccionUrdidoController;
+use App\Http\Controllers\Urdido\ListaMaterialesController;
 use App\Http\Controllers\Urdido\ProgramaUrdido\EditarOrdenesProgramadasController;
 use App\Http\Controllers\Urdido\ProgramaUrdido\ProgramarUrdidoController;
 use App\Http\Controllers\Urdido\ReportesUrdidoController;
@@ -18,6 +19,10 @@ Route::get('/urdido/{moduloPrincipal?}', [UsuarioController::class, 'showSubModu
     ->name('urdido.index');
 
 Route::prefix('urdido')->name('urdido.')->group(function () {
+    // Lista de materiales (Urdbom): listado + CRUD en el componente Livewire Urdido\ListaMateriales
+    Route::get('/lmaturdido', [ListaMaterialesController::class, 'index'])
+        ->middleware('module.permission:acceso,205')->name('lista-materiales');
+
     // Reportes Urdido: selector + reportes individuales
     Route::get('/reportesurdido', [ReportesUrdidoController::class, 'index'])->name('reportes.urdido');
     Route::get('/reportesurdido/03-oee-urd-eng', [ReportesUrdidoController::class, 'reporte03Oee'])->name('reportes.urdido.03-oee');
@@ -71,19 +76,8 @@ Route::prefix('urdido')->name('urdido.')->group(function () {
     Route::get('/editar-ordenes-programadas', [EditarOrdenesProgramadasController::class, 'index'])->name('editar.ordenes.programadas');
 
     Route::get('/catalogos-julios', [CatalogosUrdidoController::class, 'catalogosJulios'])->name('catalogos.julios');
-    Route::post('/catalogos-julios', [CatalogosUrdidoController::class, 'storeJulio'])
-        ->middleware('module.permission:crear,37')->name('catalogos.julios.store'); // Catalogos Julios
-    Route::put('/catalogos-julios/{id}', [CatalogosUrdidoController::class, 'updateJulio'])
-        ->middleware('module.permission:modificar,37')->name('catalogos.julios.update'); // Catalogos Julios
-    Route::delete('/catalogos-julios/{id}', [CatalogosUrdidoController::class, 'destroyJulio'])
-        ->middleware('module.permission:eliminar,37')->name('catalogos.julios.destroy'); // Catalogos Julios
+    // Alta/edición/borrado de julios y máquinas: en los componentes Livewire Urdido\CatalogoJulios y CatalogoMaquinas.
     Route::get('/catalogo-maquinas', [CatalogosUrdidoController::class, 'catalogoMaquinas'])->name('catalogo.maquinas');
-    Route::post('/catalogo-maquinas', [CatalogosUrdidoController::class, 'storeMaquina'])
-        ->middleware('module.permission:crear,156')->name('catalogo.maquinas.store'); // Catalogos Maquinas
-    Route::put('/catalogo-maquinas/{maquinaId}', [CatalogosUrdidoController::class, 'updateMaquina'])
-        ->middleware('module.permission:modificar,156')->name('catalogo.maquinas.update'); // Catalogos Maquinas
-    Route::delete('/catalogo-maquinas/{maquinaId}', [CatalogosUrdidoController::class, 'destroyMaquina'])
-        ->middleware('module.permission:eliminar,156')->name('catalogo.maquinas.destroy'); // Catalogos Maquinas
 
     Route::get('/modulo-produccion-urdido', [ModuloProduccionUrdidoController::class, 'index'])->name('modulo.produccion.urdido');
     Route::get('/modulo-produccion-urdido/catalogos-julios', [ModuloProduccionUrdidoController::class, 'getCatalogosJulios'])->name('modulo.produccion.urdido.catalogos.julios');

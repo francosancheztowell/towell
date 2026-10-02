@@ -4,6 +4,9 @@ namespace App\Models\Urdido;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property float|null $Tara
+ */
 class UrdCatJulios extends Model
 {
     protected $connection = 'sqlsrv';

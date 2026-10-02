@@ -36,18 +36,9 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
     Route::get('/configuracion/catalogos-nucleos', [UrdEngNucleosController::class, 'index'])
         ->name('configuracion.catalogos-nucleos.legacy');
 
-    // Catálogo de Julios para Engomado
+    // Catálogo de Julios para Engomado (CRUD en el componente Livewire Urdido\CatalogoJulios, idrol 171)
     Route::get('/configuracion/catalogojulioseng', [CatalogosUrdidoController::class, 'catalogosJulios'])
         ->name('configuracion.catalogos.julios');
-    Route::post('/configuracion/catalogojulioseng', [CatalogosUrdidoController::class, 'storeJulio'])
-        ->middleware('module.permission:crear,171') // Catalogo Julios Eng
-        ->name('configuracion.catalogos.julios.store');
-    Route::put('/configuracion/catalogojulioseng/{id}', [CatalogosUrdidoController::class, 'updateJulio'])
-        ->middleware('module.permission:modificar,171') // Catalogo Julios Eng
-        ->name('configuracion.catalogos.julios.update');
-    Route::delete('/configuracion/catalogojulioseng/{id}', [CatalogosUrdidoController::class, 'destroyJulio'])
-        ->middleware('module.permission:eliminar,171') // Catalogo Julios Eng
-        ->name('configuracion.catalogos.julios.destroy');
 
     // Catálogo de Ubicaciones
     Route::get('/configuracion/catalogo-ubicaciones', [CatUbicacionesController::class, 'index'])

@@ -18,6 +18,11 @@
     @prop bool    $mostrarPie   Pie con conteo, tamaño de página y paginación (default true).
     @prop bool    $filtroArriba  El botón del embudo (filtros por columna) va en el navbar, con las
                     acciones, en vez de en la barra de la tabla.
+    @prop ?string $grupoCampo  Agrupado: cada fila de $filas es un grupo (ej. un folio) que se despliega
+                    con un clic y muestra sus filas de $hijos[valor de $grupoCampo]. El grupo no se
+                    selecciona; los hijos sí (y abren la edición con doble clic). Un grupo de un solo
+                    hijo no se despliega: el hijo se pinta directo.
+    @prop mixed   $hijos       Colección agrupada por $grupoCampo con las filas de cada grupo.
     Filtros por columna: las columnas con 'filtro' (ver ConTabla::columnas) llevan un input en
     una fila bajo el encabezado, oculta hasta pulsar el embudo; al ocultarla se limpian.
     Cebra y selección: .tabla-cebra / .tabla-seleccionable (app.css), las mismas de flux:table.
@@ -48,6 +53,8 @@
     'mostrarPie' => true,
     'fijarColumnas' => null,
     'filtroArriba' => false,
+    'grupoCampo' => null,
+    'hijos' => null,
 ])
 
 @php
@@ -67,6 +74,7 @@
      x-data="{
         verFiltros: false,
         visual: null,
+        abiertos: {},
         pending: 0,
         init() {
             this.visual = this.$wire.seleccionado;
@@ -83,7 +91,8 @@
             }
         },
         mover(evento, paso) {
-            const filas = [...this.$root.querySelectorAll('tr[data-fila]')];
+            // Solo las visibles: los hijos de un grupo cerrado no cuentan.
+            const filas = [...this.$root.querySelectorAll('tr[data-fila]')].filter(tr => tr.offsetParent);
             const actual = filas.indexOf(evento.target.closest('tr[data-fila]'));
             filas[Math.min(filas.length - 1, Math.max(0, actual + paso))]?.focus();
         }
@@ -176,7 +185,45 @@
                 </thead>
 
                 <flux:table.rows>
-                    @forelse ($filas as $fila)
+                    @forelse ($filas as $grupo)
+                        @php
+                            // Un grupo con un solo hijo no se despliega: el hijo va directo, como fila normal.
+                            $clave = $grupoCampo ? (string) data_get($grupo, $grupoCampo) : null;
+                            $deGrupo = $grupoCampo ? collect($hijos[$clave] ?? []) : collect([$grupo]);
+                            $desplegable = $grupoCampo && $deGrupo->count() > 1;
+                        @endphp
+                        @if ($desplegable)
+                            @php
+                                $jsClave = "'".addcslashes($clave, "\\'\n\r")."'";
+                                $alternar = "abiertos[{$jsClave}] = !abiertos[{$jsClave}]";
+                                $atributosGrupo = [
+                                    'x-on:click' => $alternar,
+                                    'x-on:keydown.enter.prevent' => $alternar,
+                                    'x-bind:aria-expanded' => "abiertos[{$jsClave}] ? 'true' : 'false'",
+                                ];
+                            @endphp
+                            {{-- Renglón del grupo: un clic despliega sus hijos. --}}
+                            <flux:table.row data-fila data-grupo tabindex="0"
+                                wire:key="grupo-{{ $filas->getPageName() }}-{{ $clave }}"
+                                x-on:keydown.arrow-down.prevent="mover($event, 1)"
+                                x-on:keydown.arrow-up.prevent="mover($event, -1)"
+                                class="cursor-pointer font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
+                                :attributes="new \Illuminate\View\ComponentAttributeBag($atributosGrupo)">
+                                @foreach ($columnas as $columna)
+                                    @php
+                                        $valor = isset($columna['valor']) ? ($columna['valor'])($grupo) : data_get($grupo, $columna['campo'] ?? '');
+                                    @endphp
+                                    <flux:table.cell class="{{ $columna['clase'] ?? '' }}" :align="$columna['alinear'] ?? 'start'">
+                                        @if ($loop->first)
+                                            <i class="fa-solid fa-chevron-right me-1.5 text-xs text-slate-400 transition-transform"
+                                               x-bind:class="abiertos[{{ $jsClave }}] && 'rotate-90'" aria-hidden="true"></i>
+                                        @endif
+                                        {{ filled($valor) ? $valor : '' }}
+                                    </flux:table.cell>
+                                @endforeach
+                            </flux:table.row>
+                        @endif
+                        @foreach ($deGrupo as $fila)
                         @php
                             $id = (string) $fila->getKey();
                             // Comillas simples: el attribute bag escapa " como \", y el HTML
@@ -190,6 +237,9 @@
                                 'wire:dblclick' => $alEditar ? "{$alEditar}({$jsId})" : null,
                                 'x-bind:aria-selected' => $seleccionInmediata ? "visual === {$jsId} ? 'true' : 'false'" : null,
                                 'aria-selected' => $seleccionInmediata ? null : ($seleccionado === $id ? 'true' : 'false'),
+                                // Hijo de un grupo: oculto hasta desplegar el grupo.
+                                'x-show' => $desplegable ? "abiertos[{$jsClave}]" : null,
+                                'x-cloak' => $desplegable ? '' : null,
                             ], fn ($valor) => $valor !== null);
                         @endphp
                         {{-- Color de cebra, hover y seleccionada: .tabla-cebra / .tabla-seleccionable por aria-selected. --}}
@@ -198,7 +248,7 @@
                             x-on:keydown.enter.prevent="$wire.{{ $alEditar ?? 'seleccionar' }}('{{ $id }}')"
                             x-on:keydown.arrow-down.prevent="mover($event, 1)"
                             x-on:keydown.arrow-up.prevent="mover($event, -1)"
-                            class="transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
+                            class="transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 {{ $desplegable ? 'bg-slate-200' : '' }}"
                             :attributes="new \Illuminate\View\ComponentAttributeBag($atributosFila)">
                             @foreach ($columnas as $columna)
                                 @php
@@ -207,11 +257,12 @@
                                         ? ($columna['valor'])($fila)
                                         : data_get($fila, $campo);
                                 @endphp
-                                <flux:table.cell class="{{ $columna['clase'] ?? '' }}" :align="$columna['alinear'] ?? 'start'">
+                                <flux:table.cell class="{{ $columna['clase'] ?? '' }} {{ $desplegable && $loop->first ? 'ps-8' : '' }}" :align="$columna['alinear'] ?? 'start'">
                                     {{ filled($valor) ? $valor : '—' }}
                                 </flux:table.cell>
                             @endforeach
                         </flux:table.row>
+                        @endforeach
                     @empty
                         <x-ui.table-empty :colspan="count($columnas)" :message="$vacio" :icon="$vacioIcono" />
                     @endforelse
