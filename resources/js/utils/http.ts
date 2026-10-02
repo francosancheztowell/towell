@@ -31,6 +31,10 @@ export interface HttpErrorDetail {
     status: number;
     url: string;
     method: string;
+    /** Código de axios (ERR_NETWORK, ECONNABORTED…): dice por qué no hubo respuesta. */
+    codigo?: string;
+    /** Cuánto esperó la petición antes de fallar. */
+    ms?: number;
 }
 
 export class HttpError extends Error {
@@ -98,6 +102,7 @@ function emitError(detail: HttpErrorDetail): void {
 }
 
 async function request<T>(method: string, url: string, run: () => Promise<AxiosResponse<T>>): Promise<T> {
+    const inicio = Date.now();
     try {
         const res = await run();
 
@@ -106,7 +111,14 @@ async function request<T>(method: string, url: string, run: () => Promise<AxiosR
         const error = normalizeError(err);
         // Una cancelación (AbortController) es intencional: no es un fallo que reportar.
         if (axios.isCancel(err)) throw error;
-        emitError({ status: error.status, url: stripQuery(url), method: method.toUpperCase() });
+        const codigo = record(err)?.code;
+        emitError({
+            status: error.status,
+            url: stripQuery(url),
+            method: method.toUpperCase(),
+            ...(typeof codigo === 'string' ? { codigo } : {}),
+            ms: Date.now() - inicio,
+        });
         if (esSesionExpirada(error.status)) sesionExpirada();
         throw error;
     }

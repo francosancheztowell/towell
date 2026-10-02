@@ -2,101 +2,35 @@
 
 namespace Tests\Feature;
 
-use App\Models\Sistema\Usuario;
-use Tests\Concerns\SiembraPermisos;
+use App\Http\Requests\Planeacion\DividirSaldoRequest;
+use App\Http\Requests\Planeacion\DuplicarTejidoRequest;
+use Illuminate\Support\Facades\Validator;
 use Tests\TestCase;
 
+/**
+ * Las reglas de Duplicar/Dividir ya no viajan por HTTP: el modal Livewire las aplica con
+ * DuplicarDividir::correr(). Aquí se fija que los campos obligatorios sigan siéndolo.
+ */
 class ProgramaTejidoFormRequestsTest extends TestCase
 {
-    use SiembraPermisos;
-
-    private function usuario(): Usuario
+    /** @return array<string, array{0: class-string, 1: array<string, mixed>, 2: string}> */
+    public static function faltantes(): array
     {
-        $u = new Usuario(['idusuario' => 1, 'nombre' => 'T', 'contrasenia' => 'x', 'numero_empleado' => '1', 'area' => 'X']);
-        $u->idusuario = 1;
-        $this->sembrarPermisos(1, [2 => 'Programa Tejido']);
-
-        return $u;
+        return [
+            'duplicar sin salón' => [DuplicarTejidoRequest::class, ['no_telar_id' => 'T01', 'destinos' => [['telar' => 'T02']]], 'salon_tejido_id'],
+            'duplicar sin telar' => [DuplicarTejidoRequest::class, ['salon_tejido_id' => 'S01', 'destinos' => [['telar' => 'T02']]], 'no_telar_id'],
+            'duplicar sin destinos' => [DuplicarTejidoRequest::class, ['salon_tejido_id' => 'S01', 'no_telar_id' => 'T01'], 'destinos'],
+            'dividir sin salón' => [DividirSaldoRequest::class, ['no_telar_id' => 'T01', 'destinos' => [['telar' => 'T02']]], 'salon_tejido_id'],
+            'dividir destino sin telar' => [DividirSaldoRequest::class, ['salon_tejido_id' => 'S01', 'no_telar_id' => 'T01', 'destinos' => [['salon_destino' => 'S01']]], 'destinos.0.telar'],
+        ];
     }
 
-    // --- DUPLICAR ---
-
-    public function test_duplicar_sin_salon_tejido_id_devuelve_422(): void
+    /** @dataProvider faltantes */
+    public function test_campo_obligatorio_falla_la_validacion(string $request, array $datos, string $campo): void
     {
-        $res = $this->actingAs($this->usuario())
-            ->postJson(route('programa-tejido.duplicar-telar'), [
-                'no_telar_id' => 'T01',
-                'destinos' => [['telar' => 'T02']],
-            ]);
+        $validador = Validator::make($datos, (new $request)->rules());
 
-        $res->assertUnprocessable();
-        $res->assertJsonValidationErrors(['salon_tejido_id']);
-    }
-
-    public function test_duplicar_sin_no_telar_id_devuelve_422(): void
-    {
-        $res = $this->actingAs($this->usuario())
-            ->postJson(route('programa-tejido.duplicar-telar'), [
-                'salon_tejido_id' => 'S01',
-                'destinos' => [['telar' => 'T02']],
-            ]);
-
-        $res->assertUnprocessable();
-        $res->assertJsonValidationErrors(['no_telar_id']);
-    }
-
-    public function test_duplicar_sin_destinos_devuelve_422(): void
-    {
-        $res = $this->actingAs($this->usuario())
-            ->postJson(route('programa-tejido.duplicar-telar'), [
-                'salon_tejido_id' => 'S01',
-                'no_telar_id' => 'T01',
-            ]);
-
-        $res->assertUnprocessable();
-        $res->assertJsonValidationErrors(['destinos']);
-    }
-
-    // --- DIVIDIR SALDO ---
-
-    public function test_dividir_saldo_sin_salon_devuelve_422(): void
-    {
-        $res = $this->actingAs($this->usuario())
-            ->postJson(route('programa-tejido.dividir-saldo'), [
-                'no_telar_id' => 'T01',
-                'destinos' => [['telar' => 'T02']],
-            ]);
-
-        $res->assertUnprocessable();
-        $res->assertJsonValidationErrors(['salon_tejido_id']);
-    }
-
-    public function test_dividir_saldo_destinos_telar_requerido(): void
-    {
-        $res = $this->actingAs($this->usuario())
-            ->postJson(route('programa-tejido.dividir-saldo'), [
-                'salon_tejido_id' => 'S01',
-                'no_telar_id' => 'T01',
-                'destinos' => [['salon_destino' => 'S01']], // sin 'telar'
-            ]);
-
-        $res->assertUnprocessable();
-        $res->assertJsonValidationErrors(['destinos.0.telar']);
-    }
-
-    // --- DIVIDIR TELAR ---
-
-    public function test_dividir_telar_sin_posicion_devuelve_422(): void
-    {
-        $res = $this->actingAs($this->usuario())
-            ->postJson(route('programa-tejido.dividir-telar'), [
-                'salon_tejido_id' => 'S01',
-                'no_telar_id' => 'T01',
-                'nuevo_telar' => 'T02',
-                // sin posicion_division
-            ]);
-
-        $res->assertUnprocessable();
-        $res->assertJsonValidationErrors(['posicion_division']);
+        $this->assertTrue($validador->fails());
+        $this->assertArrayHasKey($campo, $validador->errors()->toArray());
     }
 }

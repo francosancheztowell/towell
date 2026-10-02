@@ -7,6 +7,7 @@
  *
  * Un solo diálogo a la vez: abrir otro cierra el anterior (resuelve null), como hacía Swal.
  */
+import { liberar, marcarOcupado } from '../componentes/envio-cargando.ts';
 
 export type TonoDialogo = 'warning' | 'danger' | 'error' | 'success' | 'info' | 'question' | 'loading';
 
@@ -143,6 +144,7 @@ export function dialogo({
     };
 
     const fila = el('div', 'ui-dialogo__botones');
+    const elementos = new Map<BotonDialogo, HTMLButtonElement>();
     const enviar = async (b: BotonDialogo): Promise<void> => {
         if (!b.valida || !validar) {
             dialog.close(b.valor);
@@ -159,6 +161,9 @@ export function dialogo({
         };
         dialog.setAttribute('aria-busy', 'true');
         fila.querySelectorAll('button').forEach((x) => (x.disabled = true));
+        // Spinner en el botón que se presionó (CSS [data-ocupado]::before); el texto no cambia.
+        const presionado = elementos.get(b);
+        if (presionado) marcarOcupado(presionado, null);
         try {
             const datos = await validar(ctx);
             if (datos === false || fallo) return;
@@ -168,6 +173,7 @@ export function dialogo({
             mostrarError(e instanceof Error ? e.message : String(e));
         } finally {
             dialog.removeAttribute('aria-busy');
+            if (presionado) liberar(presionado);
             fila.querySelectorAll('button').forEach((x) => (x.disabled = false));
         }
     };
@@ -176,6 +182,7 @@ export function dialogo({
         const boton = el('button', `ui-dialogo__boton ui-dialogo__boton--${b.variante ?? 'primario'}`);
         boton.type = formulario && b.valida ? 'submit' : 'button';
         boton.textContent = b.texto;
+        elementos.set(b, boton);
         if (boton.type === 'button') boton.addEventListener('click', () => void enviar(b));
         fila.appendChild(boton);
     }

@@ -189,6 +189,28 @@ class BomMaterialesService
             ->exists();
     }
 
+    /**
+     * Líneas de AX BOM de varios BOMID, agrupadas por BOMID (sin espacios de más).
+     *
+     * @param  list<string>  $bomIds
+     * @return Collection<array-key, Collection<int, \stdClass>>
+     */
+    public function lineasBom(array $bomIds): Collection
+    {
+        // Lotes de 1000: SQL Server no acepta más de 2100 parámetros por consulta.
+        return collect(array_chunk($bomIds, 1000))
+            ->flatMap(fn (array $lote) => DB::connection(self::CONN)
+                ->table('BOM as b')
+                ->join('INVENTDIM as d', 'd.INVENTDIMID', '=', 'b.INVENTDIMID')
+                ->whereIn('b.BOMID', $lote)
+                ->where('b.DATAAREAID', self::DATAAREA)
+                ->where('d.DATAAREAID', self::DATAAREA)
+                ->orderBy('b.BOMID')
+                ->orderBy('b.LINENUM')
+                ->get(['b.BOMID', 'b.ITEMID', 'b.BOMQTY', 'd.CONFIGID', 'd.INVENTCOLORID']))
+            ->groupBy(fn ($r) => trim((string) $r->BOMID));
+    }
+
     public function getMaterialesUrdido(string $bomId): array
     {
         if (empty(trim($bomId))) {

@@ -79,7 +79,7 @@ class ProgramaTejidoRouteSurfaceTest extends TestCase
         $this->assertSame($esperado['totales'], $actual['totales']);
     }
 
-    public function test_las_197_rutas_bajo_planeacion_tienen_superficie_y_capacidad(): void
+    public function test_las_rutas_bajo_planeacion_tienen_superficie_y_capacidad(): void
     {
         $bajoPlaneacion = array_filter($this->inventario()['rutas'], fn ($r) => str_starts_with($r['uri'], 'planeacion'));
 
@@ -87,7 +87,9 @@ class ProgramaTejidoRouteSurfaceTest extends TestCase
         // PT-02 suma 2: lectura v2 de Programa y de Muestras (planeacion/*/v2/registros).
         // ERP-F0-08 (fase 08, main) quita 2 sin consumidor: codificacion-modelos/buscar y codificacion/api/recalcular-marbetes.
         // + 1: redirect /planeacion/catalogos/catalogoCodificacion (404 del menú, 2026-09-25).
-        $this->assertCount(196, $bajoPlaneacion);
+        // - 2: dividir-telar de Programa y Muestras (sin llamador; el modal Duplicar/Dividir es Livewire, 2026-10-02).
+        // - 4: POST duplicar-telar y dividir-saldo de Programa y Muestras (el modal llama la lógica sin HTTP, 2026-10-02).
+        $this->assertCount(190, $bajoPlaneacion);
         foreach ($bajoPlaneacion as $r) {
             $this->assertNotSame('', $r['capacidad'], "Sin capacidad: {$r['metodos']} {$r['uri']}");
         }

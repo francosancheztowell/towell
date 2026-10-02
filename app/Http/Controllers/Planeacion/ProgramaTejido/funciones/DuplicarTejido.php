@@ -10,18 +10,21 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UpdateHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
 
 class DuplicarTejido
 {
-    public static function duplicar(Request $request)
+    /**
+     * Recibe datos ya validados con DuplicarTejidoRequest::rules() (HTTP o Livewire).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public static function duplicar(array $data): JsonResponse
     {
         AuditoriaHelper::contexto('DUPLICAR');
-
-        $data = $request->validated();
 
         // El front manda el salon normalizado ('KM'); en BD se guarda canonico ('KARL MAYER').
         // Se normaliza UNA vez aqui para que las claves de los mapas batch, los where() y lo
@@ -62,8 +65,13 @@ class DuplicarTejido
             // Obtener registro específico o fallback al último del telar
             $original = null;
             if (! empty($registroIdOriginal)) {
-                $original = ReqProgramaTejido::find($registroIdOriginal);
-                if ($original && ($original->SalonTejidoId !== $salonOrigen || $original->NoTelarId !== $telarOrigen)) {
+                $original = ReqProgramaTejido::query()->lockForUpdate()->find($registroIdOriginal);
+                // Comparar normalizado (igual que Dividir): con 'SMITH'/'ITEMA' en BD o espacios del
+                // CHAR, la comparación cruda fallaba y se duplicaba el último del telar, no el elegido.
+                $mismoTelar = $original
+                    && TelarSalonResolver::normalizeSalon($original->SalonTejidoId, $original->NoTelarId) === $salonOrigen
+                    && TelarSalonResolver::normalizeTelar($original->NoTelarId) === TelarSalonResolver::normalizeTelar($telarOrigen);
+                if (! $mismoTelar) {
                     $original = null;
                 }
             }
@@ -79,6 +87,21 @@ class DuplicarTejido
                     'success' => false,
                     'message' => 'No se encontraron registros para duplicar',
                 ], 404);
+            }
+
+            // A otro salón solo si la clave modelo existe en Modelos para ese salón.
+            $pares = [];
+            foreach ($destinos as $d) {
+                if ($d['salon_destino'] !== $salonOrigen) {
+                    $pares[] = [$d['salon_destino'], ($d['tamano_clave'] ?? null) ?: ($tamanoClave ?: $original->TamanoClave)];
+                }
+            }
+            $claveFaltante = TejidoHelpers::claveFaltanteEnSalon($pares);
+            if ($claveFaltante !== null) {
+                DBFacade::rollBack();
+                ReqProgramaTejido::restoreObservers($dispatcher);
+
+                return response()->json(['success' => false, 'message' => $claveFaltante], 422);
             }
 
             // Determinar el OrdCompartida a usar (solo si vincular está activo)
@@ -274,9 +297,6 @@ class DuplicarTejido
                 $flogDestino = trim((string) ($destino['flog'] ?? $destino['FlogsId'] ?? $destino['flogs_id'] ?? ''));
                 $descripcionDestino = $destino['descripcion'] ?? null;
                 $custNameDestino = $destino['custName'] ?? null;
-
-                // DETECTAR si hay cambio REAL de clave modelo
-                $hayCambioClaveModelo = $tamanoClaveDestino && $tamanoClaveDestino !== $original->TamanoClave;
 
                 // IMPORTANTE: Si viene tamano_clave en el destino, SIEMPRE aplicar datos del modelo
                 // incluso si es igual al original, porque puede haber sido cambiado en el modal
@@ -574,7 +594,8 @@ class DuplicarTejido
                 $modelosParaObserver[] = $nuevo;
                 $totalDuplicados++;
 
-                // Guardar referencia para determinar el líder después (solo si vincular)
+                // Otro destino al mismo telar arranca donde termina este, no en la misma FechaInicio.
+                $ultimosMap[$salonDestinoFila.'|'.$telarDestino] = $nuevo;
             }
 
             if ($vincular && $ordCompartidaAVincular) {
@@ -648,10 +669,11 @@ class DuplicarTejido
         } catch (\Throwable $e) {
             DBFacade::rollBack();
             ReqProgramaTejido::restoreObservers($dispatcher);
+            report($e);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al duplicar el telar: '.$e->getMessage(),
+                'message' => 'Error al duplicar el telar. Intenta de nuevo; si persiste, avisa a Sistemas.',
             ], 500);
         }
     }
@@ -709,7 +731,7 @@ class DuplicarTejido
     /**
      * Aplica todos los datos del modelo codificado a un registro cuando cambia el tamano clave
      */
-    private static function aplicarDatosModeloCodificado(ReqProgramaTejido $nuevo, string $tamanoClave, string $salon): void
+    public static function aplicarDatosModeloCodificado(ReqProgramaTejido $nuevo, string $tamanoClave, string $salon): void
     {
         $datosModelo = TejidoHelpers::obtenerDatosModeloCodificadoArray($tamanoClave, $salon);
 

@@ -5,6 +5,10 @@ namespace App\Models\Urdido;
 use App\Models\Engomado\EngProgramaEngomado;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property string|null $Folio
+ * @property string|null $BomId
+ */
 class UrdProgramaUrdido extends Model
 {
     protected $connection = 'sqlsrv';

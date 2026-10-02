@@ -26,6 +26,8 @@ export default defineConfig({
     sourcemap: false,
     // Sin `minify`: vite 8 minifica con Oxc (nativo), más rápido y ~400 KB menos que esbuild.
     rolldownOptions: {
+      // El aviso PLUGIN_TIMINGS sale por el worker de pdf.js (?url, >1 MB); el build está bien.
+      checks: { pluginTimings: false },
       output: {
         // El worker de pdf.js (?url) sale como .js: Apache/Laragon no sirven .mjs con MIME de JS.
         assetFileNames: (asset) =>

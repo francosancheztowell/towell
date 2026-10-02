@@ -258,6 +258,47 @@ class TejidoHelpers
         return is_numeric($clean) ? (float) $clean : null;
     }
 
+    /**
+     * Saldo = Pedido × (1 + %seg/100) − Producción, despejado para el pedido: cada fila de
+     * Dividir captura saldo y su TotalPedido se deriva de él.
+     */
+    public static function pedidoDesdeSaldo(float $saldo, ReqProgramaTejido $registro): float
+    {
+        $produccion = (float) $registro->getAttribute('Produccion');
+        $porcentajeSegundos = max(0.0, (float) $registro->getAttribute('PorcentajeSegundos'));
+
+        return round(($saldo + $produccion) / (1 + $porcentajeSegundos / 100), 2);
+    }
+
+    /**
+     * Dividir/duplicar a otro salón exige que la clave modelo exista en ReqModelosCodificados
+     * para ese salón. Una consulta para todas las filas.
+     *
+     * @param  array<int, array{0: string, 1: ?string}>  $pares  [salón destino, TamanoClave]
+     * @return string|null mensaje para el 422, o null si todas existen
+     */
+    public static function claveFaltanteEnSalon(array $pares): ?string
+    {
+        if ($pares === []) {
+            return null;
+        }
+        $llave = fn ($salon, $clave) => TelarSalonResolver::normalizeSalon((string) $salon).'|'.mb_strtoupper(trim((string) $clave));
+
+        $existentes = ReqModelosCodificados::query()
+            ->whereIn('SalonTejidoId', array_merge(...array_map(fn ($p) => TelarSalonResolver::salonAliases($p[0]) ?: [$p[0]], $pares)))
+            ->whereIn('TamanoClave', array_map(fn ($p) => trim((string) $p[1]), $pares))
+            ->get(['SalonTejidoId', 'TamanoClave'])
+            ->mapWithKeys(fn ($m) => [$llave($m->getAttribute('SalonTejidoId'), $m->getAttribute('TamanoClave')) => true]);
+
+        foreach ($pares as [$salon, $clave]) {
+            if (trim((string) $clave) === '' || ! $existentes->has($llave($salon, $clave))) {
+                return "La clave modelo '".trim((string) $clave)."' no existe en Modelos para el salón {$salon}. Dala de alta antes de pasarla a ese salón.";
+            }
+        }
+
+        return null;
+    }
+
     public static function construirMaquinaConSalon(?string $maquinaBase, ?string $salon, $telar): string
     {
         $salonNorm = strtoupper(trim((string) $salon));

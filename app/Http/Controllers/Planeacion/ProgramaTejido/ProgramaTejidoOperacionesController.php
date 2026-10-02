@@ -5,16 +5,11 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido;
 use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DragAndDropTejido;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DuplicarTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\VincularTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\QueryHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
-use App\Http\Requests\Planeacion\DividirSaldoRequest;
-use App\Http\Requests\Planeacion\DividirTelarRequest;
-use App\Http\Requests\Planeacion\DuplicarTejidoRequest;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
@@ -29,7 +24,7 @@ use Illuminate\Support\Facades\Log as LogFacade;
  *              duplicar, dividir, vincular registros, desvincular. Regla: OrdCompartida agrupa
  *              registros vinculados; OrdCompartidaLider marca el líder del grupo.
  *
- * @dependencies DragAndDropTejido, DuplicarTejido, DividirTejido, VincularTejido, QueryHelpers
+ * @dependencies DragAndDropTejido, VincularTejido, QueryHelpers
  */
 class ProgramaTejidoOperacionesController extends Controller
 {
@@ -425,135 +420,6 @@ class ProgramaTejidoOperacionesController extends Controller
     public function moveToPosition(Request $request, int $id)
     {
         return DragAndDropTejido::mover($request, $id);
-    }
-
-    public function duplicarTelar(DuplicarTejidoRequest $request)
-    {
-        return DuplicarTejido::duplicar($request);
-    }
-
-    public function dividirTelar(DividirTelarRequest $request)
-    {
-        $salon = $request->input('salon_tejido_id');
-        $telar = $request->input('no_telar_id');
-        $posicionDivision = (int) $request->input('posicion_division');
-        $nuevoTelar = $request->input('nuevo_telar');
-        $nuevoSalon = $request->input('nuevo_salon') ?? $salon;
-
-        DBFacade::beginTransaction();
-        $dispatcher = ReqProgramaTejido::suppressObservers();
-
-        try {
-            $registros = ReqProgramaTejido::query()
-                ->salon($salon)
-                ->telar($telar)
-                ->orderBy('FechaInicio', 'asc')
-                ->lockForUpdate()
-                ->get();
-
-            if ($registros->count() < 2) {
-                DBFacade::rollBack();
-                ReqProgramaTejido::restoreObservers($dispatcher);
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Se requieren al menos 2 registros para dividir un telar',
-                ], 422);
-            }
-
-            if ($posicionDivision < 0 || $posicionDivision >= $registros->count()) {
-                DBFacade::rollBack();
-                ReqProgramaTejido::restoreObservers($dispatcher);
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'La posición de división está fuera del rango válido',
-                ], 422);
-            }
-
-            $registrosOriginales = $registros->take($posicionDivision);
-            $registrosNuevos = $registros->skip($posicionDivision);
-
-            // PT-PERF-02: una consulta de posiciones del destino, no una por fila movida. Si el
-            // destino es el mismo telar, cada fila libera su posición al moverse: ahí se queda
-            // la consulta por fila, que ve ese hueco.
-            $mismoTelar = (string) $nuevoSalon === (string) $salon && (string) $nuevoTelar === (string) $telar;
-            $reservarPosicion = $mismoTelar
-                ? fn (string $s, string $t) => TejidoHelpers::obtenerSiguientePosicionDisponible($s, $t)
-                : TejidoHelpers::reservadorDePosiciones([[(string) $nuevoSalon, (string) $nuevoTelar]]);
-
-            $idsActualizados = [];
-            foreach ($registrosNuevos as $registro) {
-                $registro->SalonTejidoId = $nuevoSalon;
-                $registro->NoTelarId = $nuevoTelar;
-                $registro->Posicion = $reservarPosicion((string) $nuevoSalon, (string) $nuevoTelar);
-                $registro->CambioHilo = 0;
-                $registro->Ultimo = 0;
-                $registro->EnProceso = 0;
-                $registro->UpdatedAt = now();
-                $registro->save();
-                // El dispatcher está apagado en este flujo: sincronizar telar/salón en CatCodificados a mano.
-                $this->sincronizarTelarCatCodificados($registro, $nuevoSalon, $nuevoTelar);
-                $idsActualizados[] = $registro->Id;
-            }
-
-            if ($registrosOriginales->count() > 0) {
-                $inicioOriginal = $registrosOriginales->first()->FechaInicio
-                    ? Carbon::parse($registrosOriginales->first()->FechaInicio)
-                    : now();
-                [$updatesOriginales, $detallesOriginales] = DateHelpers::recalcularFechasSecuencia($registrosOriginales, $inicioOriginal);
-                foreach ($updatesOriginales as $idU => $data) {
-                    DBFacade::table(ReqProgramaTejido::tableName())->where('Id', $idU)->update($data);
-                }
-            }
-
-            if ($registrosNuevos->count() > 0) {
-                $inicioNuevo = $registrosNuevos->first()->FechaInicio
-                    ? Carbon::parse($registrosNuevos->first()->FechaInicio)
-                    : now();
-                [$updatesNuevos, $detallesNuevos] = DateHelpers::recalcularFechasSecuencia($registrosNuevos, $inicioNuevo);
-                foreach ($updatesNuevos as $idU => $data) {
-                    DBFacade::table(ReqProgramaTejido::tableName())->where('Id', $idU)->update($data);
-                }
-            }
-
-            DBFacade::commit();
-
-            ReqProgramaTejido::restoreObservers($dispatcher);
-            if (! empty($idsActualizados)) {
-                ReqProgramaTejido::regenerarLineas(
-                    ReqProgramaTejido::whereIn('Id', $idsActualizados)->get()
-                );
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => "Telar dividido correctamente. Se movieron {$registrosNuevos->count()} registro(s) al nuevo telar.",
-                'registros_movidos' => count($idsActualizados),
-                'nuevo_telar' => $nuevoTelar,
-                'nuevo_salon' => $nuevoSalon,
-            ]);
-        } catch (\Throwable $e) {
-            DBFacade::rollBack();
-            ReqProgramaTejido::restoreObservers($dispatcher);
-            LogFacade::error('dividirTelar error', [
-                'salon' => $salon,
-                'telar' => $telar,
-                'posicion_division' => $posicionDivision,
-                'msg' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al dividir el telar: '.$e->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function dividirSaldo(DividirSaldoRequest $request)
-    {
-        return DividirTejido::dividir($request);
     }
 
     public function vincularRegistrosExistentes(Request $request)

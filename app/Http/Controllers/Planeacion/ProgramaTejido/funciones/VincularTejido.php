@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\OrdCompartidaHelper;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
-use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
@@ -100,37 +100,8 @@ class VincularTejido
                     'UpdatedAt' => now(),
                 ]);
 
-            // PASO 4: Asignar OrdCompartidaLider = 1 al registro con fecha inicio más antigua
-            // Obtener todos los registros con este OrdCompartida (incluyendo los que ya lo tenían)
-            $registrosConOrdCompartida = ReqProgramaTejido::where('OrdCompartida', $ordCompartidaAVincular)
-                ->get();
-
-            if ($registrosConOrdCompartida->count() > 0) {
-                // Ordenar por FechaInicio (más antigua primero)
-                $registrosOrdenados = $registrosConOrdCompartida->sortBy(function ($registro) {
-                    return $registro->FechaInicio ? Carbon::parse($registro->FechaInicio)->timestamp : PHP_INT_MAX;
-                });
-
-                // El primero es el líder (fecha más antigua)
-                $idLider = $registrosOrdenados->first()->Id;
-
-                // Quitar OrdCompartidaLider de todos
-                ReqProgramaTejido::where('OrdCompartida', $ordCompartidaAVincular)
-                    ->update([
-                        'OrdCompartidaLider' => null,
-                        'UpdatedAt' => now(),
-                    ]);
-
-                // Asignar OrdCompartidaLider = 1 solo al registro con fecha más antigua
-                ReqProgramaTejido::where('Id', $idLider)
-                    ->update([
-                        'OrdCompartidaLider' => 1,
-                        'UpdatedAt' => now(),
-                    ]);
-
-                // PASO 4.1: Actualizar OrdPrincipal con el ItemId del líder en todos los registros compartidos
-                self::actualizarOrdPrincipalPorOrdCompartida($ordCompartidaAVincular);
-            }
+            // PASO 4: líder = FechaInicio más antigua entre los que tienen NoProduccion (misma regla en todo PT).
+            OrdCompartidaHelper::recalcularLiderYOrdPrincipalPorOrdCompartida($ordCompartidaAVincular);
 
             // PASO 5: Actualizar OrdCompartida y OrdCompartidaLider en CatCodificados si NoProduccion y Programado están llenos
             // Obtener todos los registros vinculados con sus valores actualizados
@@ -265,29 +236,9 @@ class VincularTejido
                 });
 
                 if ($registrosRestantes->count() > 0) {
-                    // Ordenar por FechaInicio (más antigua primero)
-                    $registrosOrdenados = $registrosRestantes->sortBy(function ($registro) {
-                        return $registro->FechaInicio ? Carbon::parse($registro->FechaInicio)->timestamp : PHP_INT_MAX;
-                    });
-
-                    // Quitar OrdCompartidaLider de todos los registros restantes
                     $idsRestantes = $registrosRestantes->pluck('Id')->toArray();
-                    ReqProgramaTejido::whereIn('Id', $idsRestantes)
-                        ->update([
-                            'OrdCompartidaLider' => null,
-                            'UpdatedAt' => now(),
-                        ]);
-
-                    // Asignar OrdCompartidaLider = 1 al registro con fecha más antigua
-                    $idLider = $registrosOrdenados->first()->Id;
-                    ReqProgramaTejido::where('Id', $idLider)
-                        ->update([
-                            'OrdCompartidaLider' => 1,
-                            'UpdatedAt' => now(),
-                        ]);
-
-                    // Actualizar OrdPrincipal con el ItemId del líder en todos los registros compartidos
-                    self::actualizarOrdPrincipalPorOrdCompartida($ordCompartidaNormalizada);
+                    // Líder: FechaInicio más antigua entre los que tienen NoProduccion (misma regla en todo PT).
+                    OrdCompartidaHelper::recalcularLiderYOrdPrincipalPorOrdCompartida($ordCompartidaNormalizada);
 
                     $idsAfectados = array_merge($idsAfectados, $idsRestantes);
 
@@ -365,7 +316,7 @@ class VincularTejido
      * Query base CatCodificados por orden de tejido + telar (columnas dinámicas en BD).
      *
      * @param  bool  $omitirFiltroTelarSiVacio  Si true (p. ej. OrdPrincipal), no filtra por telar cuando viene vacío.
-     * @return array{0: \Illuminate\Database\Eloquent\Builder, 1: string, 2: array<int, string>}
+     * @return array{0: Builder, 1: string, 2: array<int, string>}
      */
     private static function buildCatCodificadosQueryOrdenTelar(string $noProduccion, string $noTelarId, bool $omitirFiltroTelarSiVacio = false): array
     {

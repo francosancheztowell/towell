@@ -43,7 +43,7 @@ class ProgramaTejidoMutacionesGuardsTest extends TestCase
         $src = $this->src('app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php');
 
         $this->assertStringContainsString(
-            "TelarSalonResolver::normalizeSalon(\$request->input('salon_tejido_id'), \$telarOrigen)",
+            "TelarSalonResolver::normalizeSalon(\$data['salon_tejido_id'], \$telarOrigen)",
             $src
         );
         $this->assertStringContainsString('no pertenece al telar indicado', $src);

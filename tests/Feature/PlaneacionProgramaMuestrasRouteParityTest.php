@@ -12,9 +12,6 @@ class PlaneacionProgramaMuestrasRouteParityTest extends TestCase
     {
         $pairs = [
             ['programa-tejido.balancear', 'muestras.balancear'],
-            ['programa-tejido.duplicar-telar', 'muestras.duplicar-telar'],
-            ['programa-tejido.dividir-telar', 'muestras.dividir-telar'],
-            ['programa-tejido.dividir-saldo', 'muestras.dividir-saldo'],
             ['programa-tejido.vincular-registros-existentes', 'muestras.vincular-registros-existentes'],
             ['programa-tejido.desvincular', 'muestras.desvincular'],
             ['programa-tejido.preview-fechas-balanceo', 'muestras.preview-fechas-balanceo'],

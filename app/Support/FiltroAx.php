@@ -37,10 +37,44 @@ final class FiltroAx
     }
 
     /**
+     * Folios (texto con ceros): "1-20" o "1..20" rango, "001*" comodín, "!5" excluye. Un número
+     * corto se rellena a 5 dígitos ("5" → "00005"), así no hay que teclear los ceros.
+     *
+     * @return Closure(Builder, list<string>): void
+     */
+    public static function folio(string $columna): Closure
+    {
+        // ponytail: relleno fijo a 5 dígitos, el largo de los folios de hoy; folios de otro largo se escriben completos.
+        $aFolio = fn (string $t): ?string => ($t = trim($t)) === '' ? null : (ctype_digit($t) ? str_pad($t, 5, '0', STR_PAD_LEFT) : $t);
+
+        return function (Builder $query, array $partes) use ($columna, $aFolio): void {
+            $partes = array_map(fn (string $p) => str_replace('-', '..', trim($p)), $partes);
+            $negadas = array_values(array_filter($partes, fn (string $p) => str_starts_with($p, '!')));
+            $comodines = array_filter($partes, fn (string $p) => str_contains($p, '*') && ! str_starts_with($p, '!'));
+            $positivas = array_values(array_diff($partes, $negadas, $comodines));
+
+            // Positivas y comodines suman (OR); las negadas restan (AND), como en AX.
+            if ($positivas !== [] || $comodines !== []) {
+                $query->where(function (Builder $o) use ($columna, $comodines, $positivas, $aFolio): void {
+                    foreach ($comodines as $p) {
+                        $o->orWhere($columna, 'like', str_replace('*', '%', $p));
+                    }
+                    if ($positivas !== []) {
+                        $o->orWhere(fn (Builder $q) => self::aplicar($q, $columna, $positivas, $aFolio));
+                    }
+                });
+            }
+            if ($negadas !== []) {
+                self::aplicar($query, $columna, $negadas, $aFolio);
+            }
+        };
+    }
+
+    /**
      * Traduce una parte a una condición, o null si no se entiende.
      *
-     * @param  callable(string): (int|float|null)  $aValor
-     * @return array{negada: bool, op: string, a: int|float|null, b?: int|float|null}|null
+     * @param  callable(string): (int|float|string|null)  $aValor
+     * @return array{negada: bool, op: string, a: int|float|string|null, b?: int|float|string|null}|null
      */
     public static function condicion(string $parte, callable $aValor): ?array
     {
@@ -62,8 +96,8 @@ final class FiltroAx
     /**
      * "a..b", "a.." o "..b". Un extremo escrito que no se entiende invalida el rango.
      *
-     * @param  callable(string): (int|float|null)  $aValor
-     * @return array{op: string, a: int|float|null, b: int|float|null}|null
+     * @param  callable(string): (int|float|string|null)  $aValor
+     * @return array{op: string, a: int|float|string|null, b: int|float|string|null}|null
      */
     private static function rango(string $parte, callable $aValor): ?array
     {
@@ -76,8 +110,8 @@ final class FiltroAx
     }
 
     /**
-     * @param  callable(string): (int|float|null)  $aValor
-     * @return array{op: string, a: int|float}|null
+     * @param  callable(string): (int|float|string|null)  $aValor
+     * @return array{op: string, a: int|float|string}|null
      */
     private static function comparacion(string $op, string $texto, callable $aValor): ?array
     {
@@ -120,7 +154,7 @@ final class FiltroAx
 
     /**
      * @param  list<string>  $partes
-     * @param  callable(string): (int|float|null)  $aValor
+     * @param  callable(string): (int|float|string|null)  $aValor
      */
     private static function aplicar(Builder $query, string $columna, array $partes, callable $aValor): void
     {
@@ -148,7 +182,7 @@ final class FiltroAx
         }
     }
 
-    /** @param  array{op: string, a: int|float|null, b?: int|float|null}  $c */
+    /** @param  array{op: string, a: int|float|string|null, b?: int|float|string|null}  $c */
     private static function una(Builder $query, string $columna, array $c): void
     {
         if ($c['op'] !== '..') {

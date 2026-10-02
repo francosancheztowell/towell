@@ -42,13 +42,6 @@ class ProgramaTejidoRouteContractTest extends TestCase
     public function test_programa_tejido_auxiliary_named_route_contract_remains_stable(): void
     {
         $this->assertRouteContract(
-            routeName: 'programa-tejido.salon-tejido-options',
-            expectedUri: 'programa-tejido/salon-tejido-options',
-            expectedMethods: ['GET', 'HEAD'],
-            expectedMiddleware: ['web', 'auth'],
-        );
-
-        $this->assertRouteContract(
             routeName: 'programa-tejido.registros-ord-compartida',
             expectedUri: 'planeacion/programa-tejido/registros-ord-compartida/{ordCompartida}',
             expectedMethods: ['GET', 'HEAD'],

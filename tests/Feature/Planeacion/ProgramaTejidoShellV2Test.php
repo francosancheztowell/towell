@@ -4,6 +4,7 @@ namespace Tests\Feature\Planeacion;
 
 use App\Livewire\Planeacion\ProgramaTejidoBoard;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Livewire;
 use Tests\Feature\Planeacion\Concerns\ConPermisosPlaneacion;
@@ -12,7 +13,8 @@ use Tests\TestCase;
 
 /**
  * PT 03 · shell Livewire v2 detrás de canary (PLANEACION_SHELL_V2 / _CANARY).
- * Apagado: la página es la legacy, sin rastro de v2 ni de Livewire. Encendido: el shell
+ * Apagado: la página es la legacy, sin rastro de v2; su único Livewire es el modal Duplicar/Dividir
+ * (la grilla sigue siendo HTML + index.js). Encendido: el shell
  * resuelve la superficie en mount() y la conserva en /livewire/update.
  */
 class ProgramaTejidoShellV2Test extends TestCase
@@ -46,7 +48,7 @@ class ProgramaTejidoShellV2Test extends TestCase
         return (string) $response->getContent();
     }
 
-    public function test_apagado_sirve_la_legacy_sin_assets_v2_ni_livewire(): void
+    public function test_apagado_sirve_la_legacy_sin_assets_v2_ni_grilla_livewire(): void
     {
         $this->canary('off', [999100]);
 
@@ -55,8 +57,9 @@ class ProgramaTejidoShellV2Test extends TestCase
             $this->assertStringContainsString('id="mainTable"', $html);
             $this->assertStringNotContainsString('programa-tejido-v2', $html, $ruta);
             $this->assertStringNotContainsString('data-pt-shell', $html, $ruta);
-            $this->assertStringNotContainsString('wire:', $html, $ruta);
-            $this->assertStringNotContainsString('livewire', strtolower($html), $ruta);
+            $this->assertStringNotContainsString('programa-tejido-board', $html, $ruta);
+            preg_match('#<table id="mainTable".*?</table>#s', $html, $tabla);
+            $this->assertStringNotContainsString('wire:', $tabla[0] ?? '', $ruta);
         }
     }
 
@@ -157,7 +160,7 @@ class ProgramaTejidoShellV2Test extends TestCase
     public function test_error_de_lectura_pinta_el_estado_de_error_y_avisa(): void
     {
         $this->canary('on');
-        \Illuminate\Support\Facades\Schema::connection('sqlsrv')->drop(config('planeacion.superficies.muestras.tabla'));
+        Schema::connection('sqlsrv')->drop(config('planeacion.superficies.muestras.tabla'));
 
         Livewire::actingAs($this->usuarioConPermisos([5 => self::TODAS]))
             ->test(ProgramaTejidoBoard::class, ['superficie' => 'muestras'])
