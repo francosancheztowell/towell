@@ -12,43 +12,46 @@ use App\Observers\ReqProgramaTejidoObserver;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
 
 class DividirTejido
 {
-    /** Valores v├ílidos en cat├ílogo */
+    /** Redondeo admitido al cuadrar Σ saldos contra el saldo a repartir. */
+    private const TOLERANCIA_SALDO = 0.5;
+
     /**
-     * Dividir un registro de telar entre m├║ltiples telares destino
-     * El registro original se mantiene pero con cantidad reducida
-     * Se crean nuevos registros con el saldo dividido
-     * Todos comparten el mismo OrdCompartida para identificarlos
+     * Dividir el SALDO pendiente de un registro entre varios telares. El destino 0 es el
+     * original (se queda con su saldo capturado y lo producido); los demás son filas nuevas.
+     * La suma de saldos capturados debe ser exactamente el SaldoPedido del original.
+     * Todos comparten OrdCompartida = NoProduccion del original.
      *
-     * @return JsonResponse
+     * Recibe datos ya validados con DividirSaldoRequest::rules() (HTTP o Livewire).
+     *
+     * @param  array<string, mixed>  $data
      */
-    public static function dividir(Request $request)
+    public static function dividir(array $data): JsonResponse
     {
         AuditoriaHelper::contexto('DIVIDIR');
 
         // El front manda 'KM'; en BD el salon es 'KARL MAYER'. Sin normalizar, la
         // comparacion contra el registro original falla y se divide otra fila.
-        $telarOrigen = $request->input('no_telar_id');
-        $salonOrigen = TelarSalonResolver::normalizeSalon($request->input('salon_tejido_id'), $telarOrigen);
-        $salonDestino = TelarSalonResolver::normalizeSalon($request->input('salon_destino') ?: $salonOrigen);
-        $destinos = $request->input('destinos', []);
-        $codArticulo = $request->input('cod_articulo');
-        $producto = $request->input('producto');
-        $hilo = $request->input('hilo');
-        $flog = $request->input('flog');
-        $aplicacion = $request->input('aplicacion');
-        $descripcion = $request->input('descripcion');
-        $custname = $request->input('custname');
-        $inventSizeId = $request->input('invent_size_id');
-        $registroIdOriginal = $request->input('registro_id_original');
+        $telarOrigen = (string) $data['no_telar_id'];
+        $salonOrigen = TelarSalonResolver::normalizeSalon($data['salon_tejido_id'], $telarOrigen);
+        $salonDestino = TelarSalonResolver::normalizeSalon(($data['salon_destino'] ?? null) ?: $salonOrigen);
+        $destinos = array_map(static function (array $d) use ($salonDestino) {
+            $d['salon_destino'] = TelarSalonResolver::normalizeSalon(($d['salon_destino'] ?? null) ?: $salonDestino, $d['telar'] ?? null);
+
+            return $d;
+        }, array_values($data['destinos'] ?? []));
+        $hilo = $data['hilo'] ?? null;
+        $aplicacion = $data['aplicacion'] ?? null;
+        $globales = self::globales($data);
+        $registroIdOriginal = $data['registro_id_original'] ?? null;
 
         // Redistribución solo si hay un grupo real (2+ registros); un OrdCompartida huérfano en una fila no aplica
-        $ordCompartidaExistente = $request->input('ord_compartida_existente');
+        $ordCompartidaExistente = $data['ord_compartida_existente'] ?? null;
         $esRedistribucion = false;
         if (! empty($ordCompartidaExistente) && $ordCompartidaExistente !== '0') {
             $esRedistribucion = ReqProgramaTejido::where('OrdCompartida', (int) $ordCompartidaExistente)->count() >= 2;
@@ -58,35 +61,26 @@ class DividirTejido
         $dispatcher = ReqProgramaTejido::suppressObservers();
 
         DBFacade::beginTransaction();
-        LogFacade::info('DividirTejido::dividir INICIO', ['salon' => $salonOrigen, 'telar' => $telarOrigen, 'destinos_count' => count($destinos)]);
 
         try {
-            // Si es redistribuci├│n, usar l├│gica diferente
             if ($esRedistribucion) {
-                LogFacade::info('DividirTejido: usando redistribuirGrupoExistente');
-
-                return self::redistribuirGrupoExistente($request, $ordCompartidaExistente, $destinos, $salonDestino, $hilo, $dispatcher);
+                return self::redistribuirGrupoExistente($data, (int) $ordCompartidaExistente, $destinos, $salonDestino, $hilo, $dispatcher);
             }
 
-            // Obtener el registro espec├¡fico a dividir:
+            // Obtener el registro específico a dividir, bloqueado hasta el commit (otro planeador
+            // dividiendo la misma fila leería el mismo saldo y lo repartiría dos veces):
             // 1) Si viene registro_id_original, usar ese.
-            // 2) Si no, usar el ├║ltimo del telar (fallback anterior).
+            // 2) Si no, usar el último del telar (fallback anterior).
             $registroOriginal = null;
             if (! empty($registroIdOriginal)) {
-                $registroOriginal = ReqProgramaTejido::find($registroIdOriginal);
+                $registroOriginal = ReqProgramaTejido::query()->lockForUpdate()->find($registroIdOriginal);
                 $mismoTelar = $registroOriginal
                     && TelarSalonResolver::normalizeSalon($registroOriginal->SalonTejidoId, $registroOriginal->NoTelarId) === $salonOrigen
                     && TelarSalonResolver::normalizeTelar($registroOriginal->NoTelarId) === TelarSalonResolver::normalizeTelar($telarOrigen);
 
                 // Antes caia al ultimo del telar: dividia una fila distinta a la que se pidio.
                 if (! $mismoTelar) {
-                    DBFacade::rollBack();
-                    ReqProgramaTejido::restoreObservers($dispatcher);
-
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'El registro a dividir no pertenece al telar indicado.',
-                    ], 404);
+                    return self::abortar($dispatcher, 'El registro a dividir no pertenece al telar indicado.', 404);
                 }
             } else {
                 // Sin registro_id_original (llamadas viejas): el ultimo del telar.
@@ -95,186 +89,62 @@ class DividirTejido
                     ->telar($telarOrigen)
                     ->whereIn('Ultimo', ReqProgramaTejido::VALORES_ULTIMO)
                     ->orderBy('FechaInicio', 'desc')
+                    ->lockForUpdate()
                     ->first()
                     ?? ReqProgramaTejido::query()
                         ->salon($salonOrigen)
                         ->telar($telarOrigen)
                         ->orderBy('FechaInicio', 'desc')
+                        ->lockForUpdate()
                         ->first();
             }
 
             if (! $registroOriginal) {
-                DBFacade::rollBack();
-                ReqProgramaTejido::restoreObservers($dispatcher);
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No se encontro el registro para dividir',
-                ], 404);
+                return self::abortar($dispatcher, 'No se encontro el registro para dividir', 404);
             }
 
             // OrdCompartida = NoProduccion del registro original (líder natural del grupo dividido)
             $nuevoOrdCompartida = OrdCompartidaHelper::obtenerOrdCompartidaDesdeRegistro($registroOriginal);
-
-            // El primer destino es el registro original (ya viene bloqueado en el modal)
-            // Los dem├ís destinos son los telares donde se dividir├í
-            $destinosNuevos = [];
-            // ⚡ MEJORA: Calcular cantidad original total desde SaldoPedido o TotalPedido
-            // Usar TotalPedido como base (es el pedido completo sin restar producción)
-            $totalPedidoOriginal = (float) ($registroOriginal->TotalPedido ?? 0);
-            $saldoPedidoOriginal = (float) ($registroOriginal->SaldoPedido ?? 0);
-            // Si no hay TotalPedido, usar SaldoPedido como fallback
-            $cantidadOriginalTotal = $totalPedidoOriginal > 0 ? $totalPedidoOriginal : $saldoPedidoOriginal;
-            $cantidadParaOriginal = 0;
-            $cantidadesNuevos = [];
-
-            // Procesar destinos: el primero es el original (mantener), los dem├ís son nuevos
-            $observacionesOriginal = null;
-            $porcentajeSegundosOriginal = null;
-
-            foreach ($destinos as $index => $destino) {
-                // Normalizar pedido (quitar comas de miles para que (float) no trunque: "1,000" -> 1000)
-                $rawPedido = isset($destino['pedido']) && $destino['pedido'] !== '' ? (string) $destino['pedido'] : '';
-                $pedidoDestino = $rawPedido !== '' ? (float) str_replace(',', '', $rawPedido) : 0;
-                $pedidoTempoDestino = $destino['pedido_tempo'] ?? null;
-                $observacionesDestino = $destino['observaciones'] ?? null;
-                $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
-                    ? (float) $destino['porcentaje_segundos']
-                    : null;
-
-                if ($index === 0) {
-                    // Primer registro = el original, se actualiza con la nueva cantidad
-                    $cantidadParaOriginal = $pedidoDestino;
-                    $observacionesOriginal = $observacionesDestino;
-                    $porcentajeSegundosOriginal = $porcentajeSegundosDestino;
-                } else {
-                    $salonDestinoItem = $destino['salon_destino'] ?? $salonDestino;
-                    // Nuevos registros a crear
-                    // ⚡ MEJORA: Incluir tamano_clave y otros campos específicos de cada destino
-                    $destinosNuevos[] = [
-                        'salon_destino' => $salonDestinoItem,
-                        'telar' => $destino['telar'],
-                        'pedido' => $pedidoDestino,
-                        'pedido_tempo' => $pedidoTempoDestino,
-                        'observaciones' => $observacionesDestino,
-                        'porcentaje_segundos' => $porcentajeSegundosDestino,
-                        'tamano_clave' => $destino['tamano_clave'] ?? null,
-                        'producto' => $destino['producto'] ?? null,
-                        'flog' => $destino['flog'] ?? null,
-                        'descripcion' => $destino['descripcion'] ?? null,
-                        'custName' => $destino['custName'] ?? null,
-                        'itemId' => $destino['itemId'] ?? null,
-                        'inventSizeId' => $destino['inventSizeId'] ?? null,
-                        // Incluir todos los campos técnicos del modelo
-                        'cuentaRizo' => $destino['cuentaRizo'] ?? null,
-                        'calibreRizo' => $destino['calibreRizo'] ?? null,
-                        'calibreRizo2' => $destino['calibreRizo2'] ?? null,
-                        'ancho' => $destino['ancho'] ?? null,
-                        'calibrePie' => $destino['calibrePie'] ?? null,
-                        'calibrePie2' => $destino['calibrePie2'] ?? null,
-                        'rasurado' => $destino['rasurado'] ?? null,
-                        'noTiras' => $destino['noTiras'] ?? null,
-                        'peine' => $destino['peine'] ?? null,
-                        'luchaje' => $destino['luchaje'] ?? null,
-                        'pesoCrudo' => $destino['pesoCrudo'] ?? null,
-                        'calibreTrama' => $destino['calibreTrama'] ?? null,
-                        'calibreTrama2' => $destino['calibreTrama2'] ?? null,
-                        'fibraTrama' => $destino['fibraTrama'] ?? null,
-                        'dobladilloId' => $destino['dobladilloId'] ?? null,
-                        'pasadasTrama' => $destino['pasadasTrama'] ?? null,
-                        'pasadasComb1' => $destino['pasadasComb1'] ?? null,
-                        'pasadasComb2' => $destino['pasadasComb2'] ?? null,
-                        'pasadasComb3' => $destino['pasadasComb3'] ?? null,
-                        'pasadasComb4' => $destino['pasadasComb4'] ?? null,
-                        'pasadasComb5' => $destino['pasadasComb5'] ?? null,
-                        'anchoToalla' => $destino['anchoToalla'] ?? null,
-                        'codColorTrama' => $destino['codColorTrama'] ?? null,
-                        'colorTrama' => $destino['colorTrama'] ?? null,
-                        'calibreComb1' => $destino['calibreComb1'] ?? null,
-                        'calibreComb12' => $destino['calibreComb12'] ?? null,
-                        'fibraComb1' => $destino['fibraComb1'] ?? null,
-                        'codColorComb1' => $destino['codColorComb1'] ?? null,
-                        'nombreCC1' => $destino['nombreCC1'] ?? null,
-                        'calibreComb2' => $destino['calibreComb2'] ?? null,
-                        'calibreComb22' => $destino['calibreComb22'] ?? null,
-                        'fibraComb2' => $destino['fibraComb2'] ?? null,
-                        'codColorComb2' => $destino['codColorComb2'] ?? null,
-                        'nombreCC2' => $destino['nombreCC2'] ?? null,
-                        'calibreComb3' => $destino['calibreComb3'] ?? null,
-                        'calibreComb32' => $destino['calibreComb32'] ?? null,
-                        'fibraComb3' => $destino['fibraComb3'] ?? null,
-                        'codColorComb3' => $destino['codColorComb3'] ?? null,
-                        'nombreCC3' => $destino['nombreCC3'] ?? null,
-                        'calibreComb4' => $destino['calibreComb4'] ?? null,
-                        'calibreComb42' => $destino['calibreComb42'] ?? null,
-                        'fibraComb4' => $destino['fibraComb4'] ?? null,
-                        'codColorComb4' => $destino['codColorComb4'] ?? null,
-                        'nombreCC4' => $destino['nombreCC4'] ?? null,
-                        'calibreComb5' => $destino['calibreComb5'] ?? null,
-                        'calibreComb52' => $destino['calibreComb52'] ?? null,
-                        'fibraComb5' => $destino['fibraComb5'] ?? null,
-                        'codColorComb5' => $destino['codColorComb5'] ?? null,
-                        'nombreCC5' => $destino['nombreCC5'] ?? null,
-                        'medidaPlano' => $destino['medidaPlano'] ?? null,
-                        'cuentaPie' => $destino['cuentaPie'] ?? null,
-                        'largoToalla' => $destino['largoToalla'] ?? null, // ⚡ MEJORA: LargoCrudo se obtiene de LargoToalla
-                        'aplicacion' => $destino['aplicacion'] ?? null,
-                    ];
-                    $cantidadesNuevos[] = $pedidoDestino;
-                }
+            // El original es quien cede saldo y da nombre al grupo: necesita NoProduccion. Las partes
+            // nuevas no (lo reciben al liberar). Sin esta guarda, where('OrdCompartida', null) se
+            // vuelve whereNull y el bloque del líder toca todas las filas sin grupo de la tabla.
+            if ($nuevoOrdCompartida === null) {
+                return self::abortar($dispatcher, 'No se puede dividir: el registro origen no tiene No. de producción. Libéralo primero.', 422);
             }
 
-            // ⚡ MEJORA: Ajustar cantidades - calcular correctamente el TotalPedido del registro original
-            // El TotalPedido del original debe ser: TotalPedido original - suma de pedidos nuevos
-            $sumaNuevos = array_sum($cantidadesNuevos);
-
-            // Si no se especificó cantidad para el original, calcularla restando los nuevos
-            if ($cantidadParaOriginal <= 0) {
-                $cantidadParaOriginal = max(0, $cantidadOriginalTotal - $sumaNuevos);
+            // Se reparte SOLO el saldo pendiente: Σ saldos capturados == SaldoPedido del original.
+            $saldos = array_map([self::class, 'saldoDe'], $destinos);
+            $error = self::sinPartes(array_slice($saldos, 1))
+                ?? self::descuadre($saldos, (float) ($registroOriginal->SaldoPedido ?? 0))
+                ?? TejidoHelpers::claveFaltanteEnSalon(self::paresOtroSalon(array_slice($destinos, 1), $salonOrigen, $registroOriginal->getAttribute('TamanoClave')));
+            if ($error !== null) {
+                return self::abortar($dispatcher, $error, 422);
             }
 
-            // Si tampoco hubo nuevos, mantener el total original en el registro base
-            if ($cantidadParaOriginal <= 0 && $sumaNuevos <= 0) {
-                $cantidadParaOriginal = $cantidadOriginalTotal;
-            }
-
-            // ⚡ MEJORA: Validar que la suma de original + nuevos no exceda el total original
-            $sumaTotal = $cantidadParaOriginal + $sumaNuevos;
-            if ($sumaTotal > $cantidadOriginalTotal) {
-                // Ajustar proporcionalmente si excede
-                $factor = $cantidadOriginalTotal / $sumaTotal;
-                $cantidadParaOriginal = max(0, round($cantidadParaOriginal * $factor));
-                foreach ($cantidadesNuevos as $idx => $cantidad) {
-                    $cantidadesNuevos[$idx] = max(0, round($cantidad * $factor));
-                    $destinosNuevos[$idx]['pedido'] = $cantidadesNuevos[$idx];
-                }
-                $sumaNuevos = array_sum($cantidadesNuevos);
-            }
+            $destinoOriginal = $destinos[0];
+            $destinosNuevos = array_slice($destinos, 1);
+            $saldosNuevos = array_slice($saldos, 1);
+            $porcentajeSegundosOriginal = self::porcentajeDe($destinoOriginal);
 
             $idsParaObserver = [];
             $registrosParaObserver = []; // Modelos con datos en memoria para generar ReqProgramaTejidoLine
             $totalDivididos = 0;
 
             // === PASO 1: Actualizar el registro original ===
+            // Conserva lo producido: TotalPedido = (saldo + Produccion) / (1 + %seg/100).
             $registroOriginal->OrdCompartida = $nuevoOrdCompartida;
-
-            // ⚡ MEJORA: Actualizar TotalPedido y SaldoPedido restando los pedidos de los nuevos registros
-            // TotalPedido = cantidad original - suma de pedidos nuevos
-            $registroOriginal->TotalPedido = $cantidadParaOriginal;
-
-            // SaldoPedido = TotalPedido - Produccion (si hay producci├│n)
-            $produccionOriginal = (float) ($registroOriginal->Produccion ?? 0);
-            $registroOriginal->SaldoPedido = max(0, $cantidadParaOriginal - $produccionOriginal);
-
-            // Actualizar PedidoTempo, Observaciones y PorcentajeSegundos del registro original
-            if ($pedidoTempoDestino !== null && $pedidoTempoDestino !== '') {
-                $registroOriginal->PedidoTempo = $pedidoTempoDestino;
-            }
-            if ($observacionesOriginal !== null && $observacionesOriginal !== '') {
-                $registroOriginal->Observaciones = StringTruncator::truncate('Observaciones', $observacionesOriginal);
-            }
             if ($porcentajeSegundosOriginal !== null) {
                 $registroOriginal->PorcentajeSegundos = $porcentajeSegundosOriginal;
+            }
+            $registroOriginal->SaldoPedido = $saldos[0];
+            $registroOriginal->TotalPedido = TejidoHelpers::pedidoDesdeSaldo($saldos[0], $registroOriginal);
+
+            // PedidoTempo y Observaciones del destino 0 (antes tomaba el pedido_tempo del ÚLTIMO destino)
+            if (($destinoOriginal['pedido_tempo'] ?? null) !== null && $destinoOriginal['pedido_tempo'] !== '') {
+                $registroOriginal->PedidoTempo = $destinoOriginal['pedido_tempo'];
+            }
+            if (($destinoOriginal['observaciones'] ?? null) !== null && $destinoOriginal['observaciones'] !== '') {
+                $registroOriginal->Observaciones = StringTruncator::truncate('Observaciones', $destinoOriginal['observaciones']);
             }
             // Ajustar Maquina al telar origen seleccionado
             $registroOriginal->Maquina = self::construirMaquina(
@@ -283,7 +153,7 @@ class DividirTejido
                 $telarOrigen
             );
 
-            // ===== FORZAR STD DESDE CAT├üLOGOS (SMITH/JACQUARD + Normal/Alta) =====
+            // ===== FORZAR STD DESDE CATÁLOGOS (SMITH/JACQUARD + Normal/Alta) =====
             TejidoHelpers::aplicarStdDesdeCatalogos($registroOriginal);
 
             $registroOriginal->UpdatedAt = now();
@@ -297,7 +167,7 @@ class DividirTejido
 
             }
 
-            // Recalcular f├│rmulas del registro original
+            // Recalcular fórmulas del registro original
             if ($registroOriginal->FechaInicio && $registroOriginal->FechaFinal) {
                 $formulas = self::calcularFormulasEficiencia($registroOriginal);
                 foreach ($formulas as $campo => $valor) {
@@ -315,406 +185,22 @@ class DividirTejido
 
             // PT-PERF-02: posiciones de todos los telares destino en una consulta, no una por destino.
             $reservarPosicion = TejidoHelpers::reservadorDePosiciones(array_map(
-                fn ($d) => [(string) ($d['salon_destino'] ?? $salonDestino), (string) $d['telar']],
+                fn ($d) => [(string) $d['salon_destino'], (string) $d['telar']],
                 $destinosNuevos
             ));
 
             // === PASO 2: Crear los nuevos registros para los telares destino ===
+            $inicioSiTelarVacio = $registroOriginal->FechaInicio ? Carbon::parse($registroOriginal->FechaInicio) : Carbon::now();
             foreach ($destinosNuevos as $destino) {
-                $telarDestino = $destino['telar'];
-                $pedidoDestino = $destino['pedido'];
-                $salonDestinoItem = $destino['salon_destino'] ?? $salonDestino;
-
-                // Obtener el ├║ltimo registro del telar destino para determinar fecha de inicio
-                $ultimoRegistroDestino = ReqProgramaTejido::query()
-                    ->salon($salonDestinoItem)
-                    ->telar($telarDestino)
-                    ->orderBy('FechaInicio', 'desc')
-                    ->first();
-
-                // Quitar Ultimo=1 del registro anterior del telar destino (si existe)
-                if ($ultimoRegistroDestino && $ultimoRegistroDestino->esUltimo()) {
-                    ReqProgramaTejido::where('Id', $ultimoRegistroDestino->Id)
-                        ->update(['Ultimo' => 0]);
-                }
-
-                // Determinar fecha de inicio
-                $fechaInicioBase = $ultimoRegistroDestino && $ultimoRegistroDestino->FechaFinal
-                    ? Carbon::parse($ultimoRegistroDestino->FechaFinal)
-                    : ($registroOriginal->FechaInicio
-                        ? Carbon::parse($registroOriginal->FechaInicio)
-                        : Carbon::now());
-
-                // Crear nuevo registro basado en el original
-                $nuevo = $registroOriginal->replicate();
-
-                // Campos b├ísicos
-                $nuevo->SalonTejidoId = $salonDestinoItem;
-                $nuevo->NoTelarId = $telarDestino;
-                $nuevo->EnProceso = 0;
-                $nuevo->Ultimo = 1;
-                $nuevo->CambioHilo = 0;
-                $nuevo->Produccion = null;
-                $nuevo->Programado = null;
-                $nuevo->NoProduccion = null;
-                $nuevo->ProgramarProd = null;   // Day Scheduling en null
-                $nuevo->SaldoMarbete = null;    // Saldo marbetes en null
-
-                // OrdCompartida - mismo n├║mero que el original para relacionarlos
-                $nuevo->OrdCompartida = $nuevoOrdCompartida;
-
-                // Cantidad del nuevo registro
-                // Los nuevos registros no tienen producci├│n a├║n, as├¡ que SaldoPedido = TotalPedido
-                $nuevo->TotalPedido = $pedidoDestino;
-                $nuevo->SaldoPedido = $pedidoDestino; // Sin producci├│n inicial
-
-                // Ajustar Maquina al telar destino (prefijo del sal├│n + n├║mero de telar)
-                $nuevo->Maquina = self::construirMaquina(
-                    $registroOriginal->Maquina ?? null,
-                    $salonDestinoItem,
-                    $telarDestino
-                );
-
-                // ⚡ MEJORA: Leer tamano_clave específico de cada destino (permite diferentes claves modelo por fila)
-                $tamanoClaveDestino = isset($destino['tamano_clave']) && $destino['tamano_clave'] !== null && $destino['tamano_clave'] !== ''
-                    ? trim((string) $destino['tamano_clave'])
-                    : null;
-                $productoDestino = isset($destino['producto']) && $destino['producto'] !== null && $destino['producto'] !== ''
-                    ? trim((string) $destino['producto'])
-                    : null;
-                $flogDestino = isset($destino['flog']) && $destino['flog'] !== null && $destino['flog'] !== ''
-                    ? trim((string) $destino['flog'])
-                    : null;
-                $descripcionDestino = isset($destino['descripcion']) && $destino['descripcion'] !== null && $destino['descripcion'] !== ''
-                    ? trim((string) $destino['descripcion'])
-                    : null;
-                $custnameDestino = isset($destino['custName']) && $destino['custName'] !== null && $destino['custName'] !== ''
-                    ? trim((string) $destino['custName'])
-                    : null;
-                $itemIdDestino = isset($destino['itemId']) && $destino['itemId'] !== null && $destino['itemId'] !== ''
-                    ? trim((string) $destino['itemId'])
-                    : null;
-                $inventSizeIdDestino = isset($destino['inventSizeId']) && $destino['inventSizeId'] !== null && $destino['inventSizeId'] !== ''
-                    ? trim((string) $destino['inventSizeId'])
-                    : null;
-
-                // ⚡ MEJORA: Usar valores específicos del destino si existen, sino usar valores globales
-                // IMPORTANTE: Si hay tamano_clave específico, usarlo (incluso si es diferente al original)
-                if ($tamanoClaveDestino) {
-                    $nuevo->TamanoClave = $tamanoClaveDestino;
-                }
-                if ($productoDestino) {
-                    $nuevo->NombreProducto = $productoDestino;
-                }
-                if ($flogDestino) {
-                    $nuevo->FlogsId = $flogDestino;
-                }
-                if ($descripcionDestino) {
-                    $nuevo->NombreProyecto = $descripcionDestino;
-                }
-                if ($custnameDestino) {
-                    $nuevo->CustName = $custnameDestino;
-                }
-                if ($itemIdDestino) {
-                    $nuevo->ItemId = $itemIdDestino;
-                }
-                if ($inventSizeIdDestino) {
-                    $nuevo->InventSizeId = $inventSizeIdDestino;
-                }
-
-                // Actualizar otros campos si se proporcionan (fallback a valores globales)
-                if (! $itemIdDestino && $codArticulo) {
-                    $nuevo->ItemId = $codArticulo;
-                }
-                if (! $productoDestino && $producto) {
-                    $nuevo->NombreProducto = $producto;
-                }
-                if (! $flogDestino && $flog) {
-                    $nuevo->FlogsId = $flog;
-                }
-                if (! $descripcionDestino && $descripcion) {
-                    $nuevo->NombreProyecto = $descripcion;
-                }
-                if (! $custnameDestino && $custname) {
-                    $nuevo->CustName = $custname;
-                }
-                if (! $inventSizeIdDestino && $inventSizeId) {
-                    $nuevo->InventSizeId = $inventSizeId;
-                }
-                if ($hilo) {
-                    $nuevo->FibraRizo = $hilo;
-                }
-                if ($aplicacion) {
-                    $nuevo->AplicacionId = $aplicacion;
-                }
-
-                // ⚡ MEJORA: Aplicar campos técnicos del modelo cuando hay tamano_clave específico diferente
-                // Si hay tamano_clave específico diferente, aplicar todos los campos técnicos del modelo
-                if ($tamanoClaveDestino && $tamanoClaveDestino !== $registroOriginal->TamanoClave) {
-                    // Aplicar modelo codificado con la clave modelo específica
-                    self::aplicarModeloCodificadoPorSalon($nuevo, $salonDestinoItem, $tamanoClaveDestino);
-
-                    // Aplicar campos técnicos desde los datos del destino (ya vienen del frontend)
-                    if (isset($destino['cuentaRizo']) && $destino['cuentaRizo'] !== null) {
-                        $nuevo->CuentaRizo = $destino['cuentaRizo'];
-                    }
-                    if (isset($destino['calibreRizo']) && $destino['calibreRizo'] !== null) {
-                        $nuevo->CalibreRizo = $destino['calibreRizo'];
-                    }
-                    if (isset($destino['calibreRizo2']) && $destino['calibreRizo2'] !== null) {
-                        $nuevo->CalibreRizo2 = $destino['calibreRizo2'];
-                    }
-                    if (isset($destino['ancho']) && $destino['ancho'] !== null) {
-                        $nuevo->Ancho = $destino['ancho'];
-                    }
-                    if (isset($destino['calibrePie']) && $destino['calibrePie'] !== null) {
-                        $nuevo->CalibrePie = $destino['calibrePie'];
-                    }
-                    if (isset($destino['calibrePie2']) && $destino['calibrePie2'] !== null) {
-                        $nuevo->CalibrePie2 = $destino['calibrePie2'];
-                    }
-                    if (isset($destino['rasurado']) && $destino['rasurado'] !== null) {
-                        $nuevo->Rasurado = $destino['rasurado'];
-                    }
-                    if (isset($destino['noTiras']) && $destino['noTiras'] !== null) {
-                        $nuevo->NoTiras = $destino['noTiras'];
-                    }
-                    if (isset($destino['peine']) && $destino['peine'] !== null) {
-                        $nuevo->Peine = $destino['peine'];
-                    }
-                    if (isset($destino['luchaje']) && $destino['luchaje'] !== null) {
-                        $nuevo->Luchaje = $destino['luchaje'];
-                    }
-                    if (isset($destino['pesoCrudo']) && $destino['pesoCrudo'] !== null) {
-                        $nuevo->PesoCrudo = $destino['pesoCrudo'];
-                    }
-                    // ⚡ CORRECCIÓN: CalibreTrama se invierte al aplicar desde el modelo
-                    // CalibreTrama del modelo -> CalibreTrama2 del registro
-                    // CalibreTrama2 del modelo -> CalibreTrama del registro
-                    // Pero si viene del destino directamente, usarlo tal cual
-                    if (isset($destino['calibreTrama']) && $destino['calibreTrama'] !== null) {
-                        $nuevo->CalibreTrama = $destino['calibreTrama'];
-                    }
-                    if (isset($destino['calibreTrama2']) && $destino['calibreTrama2'] !== null) {
-                        $nuevo->CalibreTrama2 = $destino['calibreTrama2'];
-                    }
-
-                    // ⚡ MEJORA: LargoCrudo se obtiene de LargoToalla del modelo o del destino
-                    if (isset($destino['largoToalla']) && $destino['largoToalla'] !== null) {
-                        $nuevo->LargoCrudo = (float) $destino['largoToalla'];
-                    }
-                    if (isset($destino['fibraTrama']) && $destino['fibraTrama'] !== null) {
-                        $nuevo->FibraTrama = $destino['fibraTrama'];
-                    }
-                    if (isset($destino['dobladilloId']) && $destino['dobladilloId'] !== null) {
-                        $nuevo->DobladilloId = $destino['dobladilloId'];
-                    }
-                    if (isset($destino['pasadasTrama']) && $destino['pasadasTrama'] !== null) {
-                        $nuevo->PasadasTrama = $destino['pasadasTrama'];
-                    }
-                    if (isset($destino['pasadasComb1']) && $destino['pasadasComb1'] !== null) {
-                        $nuevo->PasadasComb1 = $destino['pasadasComb1'];
-                    }
-                    if (isset($destino['pasadasComb2']) && $destino['pasadasComb2'] !== null) {
-                        $nuevo->PasadasComb2 = $destino['pasadasComb2'];
-                    }
-                    if (isset($destino['pasadasComb3']) && $destino['pasadasComb3'] !== null) {
-                        $nuevo->PasadasComb3 = $destino['pasadasComb3'];
-                    }
-                    if (isset($destino['pasadasComb4']) && $destino['pasadasComb4'] !== null) {
-                        $nuevo->PasadasComb4 = $destino['pasadasComb4'];
-                    }
-                    if (isset($destino['pasadasComb5']) && $destino['pasadasComb5'] !== null) {
-                        $nuevo->PasadasComb5 = $destino['pasadasComb5'];
-                    }
-                    if (isset($destino['anchoToalla']) && $destino['anchoToalla'] !== null) {
-                        $nuevo->AnchoToalla = $destino['anchoToalla'];
-                    }
-                    if (isset($destino['codColorTrama']) && $destino['codColorTrama'] !== null) {
-                        $nuevo->CodColorTrama = $destino['codColorTrama'];
-                    }
-                    if (isset($destino['colorTrama']) && $destino['colorTrama'] !== null) {
-                        $nuevo->ColorTrama = $destino['colorTrama'];
-                    }
-                    if (isset($destino['calibreComb1']) && $destino['calibreComb1'] !== null) {
-                        $nuevo->CalibreComb1 = $destino['calibreComb1'];
-                    }
-                    if (isset($destino['calibreComb12']) && $destino['calibreComb12'] !== null) {
-                        $nuevo->CalibreComb12 = $destino['calibreComb12'];
-                    }
-                    if (isset($destino['fibraComb1']) && $destino['fibraComb1'] !== null) {
-                        $nuevo->FibraComb1 = $destino['fibraComb1'];
-                    }
-                    if (isset($destino['codColorComb1']) && $destino['codColorComb1'] !== null) {
-                        $nuevo->CodColorComb1 = $destino['codColorComb1'];
-                    }
-                    if (isset($destino['nombreCC1']) && $destino['nombreCC1'] !== null) {
-                        $nuevo->NombreCC1 = $destino['nombreCC1'];
-                    }
-                    if (isset($destino['calibreComb2']) && $destino['calibreComb2'] !== null) {
-                        $nuevo->CalibreComb2 = $destino['calibreComb2'];
-                    }
-                    if (isset($destino['calibreComb22']) && $destino['calibreComb22'] !== null) {
-                        $nuevo->CalibreComb22 = $destino['calibreComb22'];
-                    }
-                    if (isset($destino['fibraComb2']) && $destino['fibraComb2'] !== null) {
-                        $nuevo->FibraComb2 = $destino['fibraComb2'];
-                    }
-                    if (isset($destino['codColorComb2']) && $destino['codColorComb2'] !== null) {
-                        $nuevo->CodColorComb2 = $destino['codColorComb2'];
-                    }
-                    if (isset($destino['nombreCC2']) && $destino['nombreCC2'] !== null) {
-                        $nuevo->NombreCC2 = $destino['nombreCC2'];
-                    }
-                    if (isset($destino['calibreComb3']) && $destino['calibreComb3'] !== null) {
-                        $nuevo->CalibreComb3 = $destino['calibreComb3'];
-                    }
-                    if (isset($destino['calibreComb32']) && $destino['calibreComb32'] !== null) {
-                        $nuevo->CalibreComb32 = $destino['calibreComb32'];
-                    }
-                    if (isset($destino['fibraComb3']) && $destino['fibraComb3'] !== null) {
-                        $nuevo->FibraComb3 = $destino['fibraComb3'];
-                    }
-                    if (isset($destino['codColorComb3']) && $destino['codColorComb3'] !== null) {
-                        $nuevo->CodColorComb3 = $destino['codColorComb3'];
-                    }
-                    if (isset($destino['nombreCC3']) && $destino['nombreCC3'] !== null) {
-                        $nuevo->NombreCC3 = $destino['nombreCC3'];
-                    }
-                    if (isset($destino['calibreComb4']) && $destino['calibreComb4'] !== null) {
-                        $nuevo->CalibreComb4 = $destino['calibreComb4'];
-                    }
-                    if (isset($destino['calibreComb42']) && $destino['calibreComb42'] !== null) {
-                        $nuevo->CalibreComb42 = $destino['calibreComb42'];
-                    }
-                    if (isset($destino['fibraComb4']) && $destino['fibraComb4'] !== null) {
-                        $nuevo->FibraComb4 = $destino['fibraComb4'];
-                    }
-                    if (isset($destino['codColorComb4']) && $destino['codColorComb4'] !== null) {
-                        $nuevo->CodColorComb4 = $destino['codColorComb4'];
-                    }
-                    if (isset($destino['nombreCC4']) && $destino['nombreCC4'] !== null) {
-                        $nuevo->NombreCC4 = $destino['nombreCC4'];
-                    }
-                    if (isset($destino['calibreComb5']) && $destino['calibreComb5'] !== null) {
-                        $nuevo->CalibreComb5 = $destino['calibreComb5'];
-                    }
-                    if (isset($destino['calibreComb52']) && $destino['calibreComb52'] !== null) {
-                        $nuevo->CalibreComb52 = $destino['calibreComb52'];
-                    }
-                    if (isset($destino['fibraComb5']) && $destino['fibraComb5'] !== null) {
-                        $nuevo->FibraComb5 = $destino['fibraComb5'];
-                    }
-                    if (isset($destino['codColorComb5']) && $destino['codColorComb5'] !== null) {
-                        $nuevo->CodColorComb5 = $destino['codColorComb5'];
-                    }
-                    if (isset($destino['nombreCC5']) && $destino['nombreCC5'] !== null) {
-                        $nuevo->NombreCC5 = $destino['nombreCC5'];
-                    }
-                    if (isset($destino['medidaPlano']) && $destino['medidaPlano'] !== null) {
-                        $nuevo->MedidaPlano = $destino['medidaPlano'];
-                    }
-                    if (isset($destino['cuentaPie']) && $destino['cuentaPie'] !== null) {
-                        $nuevo->CuentaPie = $destino['cuentaPie'];
-                    }
-                    // ⚡ MEJORA: LargoCrudo se obtiene de LargoToalla del destino o del modelo
-                    if (isset($destino['largoToalla']) && $destino['largoToalla'] !== null) {
-                        $nuevo->LargoCrudo = (float) $destino['largoToalla'];
-                    }
-                } elseif ($salonDestinoItem !== $salonOrigen) {
-                    // Si solo cambió de salón (sin cambiar clave modelo), aplicar modelo del nuevo salón
-                    self::aplicarModeloCodificadoPorSalon($nuevo, $salonDestinoItem);
-                }
-
-                // ===== FORZAR STD DESDE CAT├üLOGOS (SMITH/JACQUARD + Normal/Alta) =====
-                TejidoHelpers::aplicarStdDesdeCatalogos($nuevo);
-
-                // PedidoTempo, Observaciones y PorcentajeSegundos del destino
-                $pedidoTempoDestinoNuevo = $destino['pedido_tempo'] ?? null;
-                $observacionesDestino = $destino['observaciones'] ?? null;
-                $porcentajeSegundosDestino = $destino['porcentaje_segundos'] ?? null;
-                if ($pedidoTempoDestinoNuevo !== null && $pedidoTempoDestinoNuevo !== '') {
-                    $nuevo->PedidoTempo = $pedidoTempoDestinoNuevo;
-                }
-                if ($observacionesDestino !== null && $observacionesDestino !== '') {
-                    $nuevo->Observaciones = StringTruncator::truncate('Observaciones', $observacionesDestino);
-                }
-                if ($porcentajeSegundosDestino !== null && $porcentajeSegundosDestino !== '') {
-                    $nuevo->PorcentajeSegundos = (float) $porcentajeSegundosDestino;
-                }
-
-                // ===== FECHA INICIO: SIEMPRE la FechaFinal del ├║ltimo registro del telar destino =====
-                // NO hacer snap al calendario, usar exactamente la fecha final del ├║ltimo registro
-                $nuevo->FechaInicio = $fechaInicioBase->format('Y-m-d H:i:s');
-                $inicio = $fechaInicioBase->copy();
-
-                // ===== CALCULAR FECHA FINAL desde la fecha inicio exacta =====
-                $horasNecesarias = self::calcularHorasProd($nuevo);
-
-                $nuevo->FechaFinal = TejidoHelpers::resolverFechaFinal($inicio, $horasNecesarias, $nuevo->CalendarioId)->format('Y-m-d H:i:s');
-
-                // CambioHilo
-                if ($ultimoRegistroDestino) {
-                    $fibraRizoNuevo = trim((string) $nuevo->FibraRizo);
-                    $fibraRizoAnterior = trim((string) $ultimoRegistroDestino->FibraRizo);
-                    $nuevo->CambioHilo = ($fibraRizoNuevo !== $fibraRizoAnterior) ? '1' : '0';
-                }
-
-                // Calcular f├│rmulas
-                if ($nuevo->FechaInicio && $nuevo->FechaFinal) {
-                    $formulas = self::calcularFormulasEficiencia($nuevo);
-                    foreach ($formulas as $campo => $valor) {
-                        $nuevo->{$campo} = $valor;
-                    }
-                }
-
-                // Eliminar Repeticiones si existe (no es una columna de la tabla)
-                unset($nuevo->Repeticiones);
-
-                // Asignar posición consecutiva para este telar
-                $nuevo->Posicion = $reservarPosicion((string) $salonDestinoItem, (string) $telarDestino);
-
-                $nuevo->CreatedAt = now();
-                $nuevo->UpdatedAt = now();
-                $nuevo->save();
-
+                $nuevo = self::crearParte($registroOriginal, $destino, (int) $nuevoOrdCompartida, $inicioSiTelarVacio, $hilo, $aplicacion, $globales, $salonOrigen, $reservarPosicion);
                 $idsParaObserver[] = $nuevo->Id;
                 $registrosDatosParaRespuesta[(string) $nuevo->Id] = $nuevo->toArray();
                 $registrosParaObserver[] = $nuevo;
                 $totalDivididos++;
             }
 
-            // ===== ORDCOMPARTIDALIDER: Asignar al registro con fecha inicio más antigua =====
-            // Obtener todos los registros con este OrdCompartida (incluyendo el original)
-            $registrosConOrdCompartida = ReqProgramaTejido::where('OrdCompartida', $nuevoOrdCompartida)
-                ->get();
-
-            if ($registrosConOrdCompartida->count() > 0) {
-                // Ordenar por FechaInicio (más antigua primero)
-                $registrosOrdenados = $registrosConOrdCompartida->sortBy(function ($registro) {
-                    return $registro->FechaInicio ? Carbon::parse($registro->FechaInicio)->timestamp : PHP_INT_MAX;
-                });
-
-                // El primero es el líder (fecha más antigua)
-                $idLider = $registrosOrdenados->first()->Id;
-
-                // Quitar OrdCompartidaLider de todos
-                ReqProgramaTejido::where('OrdCompartida', $nuevoOrdCompartida)
-                    ->update([
-                        'OrdCompartidaLider' => null,
-                        'UpdatedAt' => now(),
-                    ]);
-
-                // Asignar OrdCompartidaLider = 1 solo al registro con fecha más antigua
-                ReqProgramaTejido::where('Id', $idLider)
-                    ->update([
-                        'OrdCompartidaLider' => 1,
-                        'UpdatedAt' => now(),
-                    ]);
-
-                // Actualizar OrdPrincipal con el ItemId del líder en todos los registros compartidos
-                VincularTejido::actualizarOrdPrincipalPorOrdCompartida($nuevoOrdCompartida);
-            }
+            // Líder: FechaInicio más antigua entre los que tienen NoProduccion (misma regla en todo PT).
+            OrdCompartidaHelper::recalcularLiderYOrdPrincipalPorOrdCompartida($nuevoOrdCompartida);
 
             // Asegurar que los registros divididos mantengan EnProceso=0 (dentro de la misma transacción)
             if (! empty($idsParaObserver)) {
@@ -803,20 +289,214 @@ class DividirTejido
             ]);
 
         } catch (\Throwable $e) {
-            DBFacade::rollBack();
-            ReqProgramaTejido::restoreObservers($dispatcher);
-            LogFacade::error('dividirTelar error', [
-                'salon' => $salonOrigen,
-                'telar' => $telarOrigen,
-                'msg' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            report($e);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al dividir el telar: '.$e->getMessage(),
-            ], 500);
+            return self::abortar($dispatcher, 'Error al dividir el telar. Intenta de nuevo; si persiste, avisa a Sistemas.', 500);
         }
+    }
+
+    /** Rollback + restaurar observers + JSON de error: toda salida temprana pasa por aquí. */
+    private static function abortar($dispatcher, string $mensaje, int $status): JsonResponse
+    {
+        DBFacade::rollBack();
+        ReqProgramaTejido::restoreObservers($dispatcher);
+
+        return response()->json(['success' => false, 'message' => $mensaje], $status);
+    }
+
+    /**
+     * Crea una parte nueva (dividir o redistribuir) al final de la cola del telar destino:
+     * réplica de $base sin producción, en el grupo $ord, con el saldo capturado y el
+     * TotalPedido derivado, fechas, fórmulas y posición. Guarda y la devuelve.
+     *
+     * @param  array<string, mixed>  $destino  con salon_destino ya normalizado
+     * @param  array<string, mixed>  $globales
+     * @param  callable(string, string): int  $reservarPosicion
+     */
+    private static function crearParte(ReqProgramaTejido $base, array $destino, int $ord, Carbon $inicioSiTelarVacio, $hilo, $aplicacion, array $globales, ?string $salonOrigen, callable $reservarPosicion): ReqProgramaTejido
+    {
+        $salon = (string) $destino['salon_destino'];
+        $telar = (string) $destino['telar'];
+        $ultimo = ReqProgramaTejido::query()->salon($salon)->telar($telar)->orderBy('FechaInicio', 'desc')->first();
+        if ($ultimo && $ultimo->esUltimo()) {
+            ReqProgramaTejido::where('Id', $ultimo->Id)->update(['Ultimo' => 0]);
+        }
+
+        $nuevo = $base->replicate();
+        $inicial = [
+            'SalonTejidoId' => $salon, 'NoTelarId' => $telar, 'EnProceso' => 0, 'Ultimo' => 1, 'CambioHilo' => 0,
+            'Produccion' => null, 'Programado' => null, 'NoProduccion' => null, 'ProgramarProd' => null, 'SaldoMarbete' => null,
+        ];
+        foreach ($inicial as $columna => $valor) {
+            $nuevo->setAttribute($columna, $valor); // sin fill(): no depende de $fillable
+        }
+        $nuevo->OrdCompartida = $ord;
+        $nuevo->SaldoPedido = self::saldoDe($destino);
+        $nuevo->Maquina = self::construirMaquina($base->Maquina ?? null, $salon, $telar);
+        $nuevo->FibraRizo = $hilo ?: $nuevo->FibraRizo;
+        if ($aplicacion) {
+            $nuevo->AplicacionId = $aplicacion;
+        }
+        self::aplicarDatosDestino($nuevo, $destino, $globales, $salonOrigen);
+        TejidoHelpers::aplicarStdDesdeCatalogos($nuevo);
+
+        $nuevo->PedidoTempo = self::textoDe($destino, 'pedido_tempo') ?? $nuevo->PedidoTempo;
+        $observaciones = self::textoDe($destino, 'observaciones');
+        $nuevo->Observaciones = $observaciones !== null ? StringTruncator::truncate('Observaciones', $observaciones) : $nuevo->Observaciones;
+        $nuevo->PorcentajeSegundos = self::porcentajeDe($destino) ?? $nuevo->PorcentajeSegundos;
+        // Parte nueva sin producción: TotalPedido = saldo / (1 + %seg/100).
+        $nuevo->TotalPedido = TejidoHelpers::pedidoDesdeSaldo(self::saldoDe($destino), $nuevo);
+
+        // Arranca donde termina el último del telar destino (sin snap al calendario).
+        $inicio = $ultimo && $ultimo->FechaFinal ? Carbon::parse($ultimo->FechaFinal) : $inicioSiTelarVacio->copy();
+        $nuevo->FechaInicio = $inicio->format('Y-m-d H:i:s');
+        $nuevo->FechaFinal = TejidoHelpers::resolverFechaFinal($inicio->copy(), self::calcularHorasProd($nuevo), $nuevo->CalendarioId)->format('Y-m-d H:i:s');
+        if ($ultimo) {
+            $nuevo->CambioHilo = trim((string) $nuevo->FibraRizo) !== trim((string) $ultimo->FibraRizo) ? '1' : '0';
+        }
+        foreach (self::calcularFormulasEficiencia($nuevo) as $campo => $valor) {
+            $nuevo->{$campo} = $valor;
+        }
+        unset($nuevo->Repeticiones); // no es columna de la tabla
+
+        $nuevo->Posicion = $reservarPosicion($salon, $telar);
+        $nuevo->CreatedAt = now();
+        $nuevo->UpdatedAt = now();
+        $nuevo->save();
+
+        return $nuevo;
+    }
+
+    /** Texto de la fila, o null si viene vacío. */
+    private static function textoDe(array $destino, string $llave): ?string
+    {
+        $valor = $destino[$llave] ?? null;
+
+        return $valor === null || $valor === '' ? null : (string) $valor;
+    }
+
+    /** Saldo capturado en la fila (sin separador de miles). Clientes viejos solo mandan 'pedido'. */
+    private static function saldoDe(array $destino): float
+    {
+        return TejidoHelpers::sanitizeNumber($destino['saldo'] ?? $destino['pedido'] ?? 0);
+    }
+
+    /**
+     * Datos de producto del modal (fallback cuando la fila no trae los suyos), con los
+     * nombres de llave de cada destino.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private static function globales(array $data): array
+    {
+        return [
+            'itemId' => $data['cod_articulo'] ?? null,
+            'producto' => $data['producto'] ?? null,
+            'flog' => $data['flog'] ?? null,
+            'descripcion' => $data['descripcion'] ?? null,
+            'custName' => $data['custname'] ?? null,
+            'inventSizeId' => $data['invent_size_id'] ?? null,
+        ];
+    }
+
+    /**
+     * Fila nueva: producto/flog/descripción/cliente/artículo de la fila (o los globales) y, si
+     * la clave cambia, TODOS los técnicos de Modelos en el servidor. Misma regla al dividir y al
+     * redistribuir un grupo (antes la redistribución ignoraba lo capturado en la fila).
+     *
+     * @param  array<string, mixed>  $destino  con salon_destino ya normalizado
+     * @param  array<string, mixed>  $globales
+     * @param  string|null  $salonOrigen  null = aplicar siempre el modelo del salón destino
+     */
+    private static function aplicarDatosDestino(ReqProgramaTejido $nuevo, array $destino, array $globales, ?string $salonOrigen): void
+    {
+        $columnas = [
+            'producto' => 'NombreProducto', 'flog' => 'FlogsId', 'descripcion' => 'NombreProyecto',
+            'custName' => 'CustName', 'itemId' => 'ItemId', 'inventSizeId' => 'InventSizeId',
+        ];
+        foreach ($columnas as $llave => $columna) {
+            $valor = trim((string) ($destino[$llave] ?? '')) ?: trim((string) ($globales[$llave] ?? ''));
+            if ($valor !== '') {
+                $nuevo->{$columna} = $valor;
+            }
+        }
+
+        $salon = (string) $destino['salon_destino'];
+        $clave = trim((string) ($destino['tamano_clave'] ?? ''));
+        if ($clave !== '' && $clave !== trim((string) $nuevo->getAttribute('TamanoClave'))) {
+            $nuevo->setAttribute('TamanoClave', $clave);
+            self::aplicarModeloCodificadoPorSalon($nuevo, $salon, $clave);
+            DuplicarTejido::aplicarDatosModeloCodificado($nuevo, $clave, $salon);
+        } elseif ($salonOrigen === null || $salon !== $salonOrigen) {
+            self::aplicarModeloCodificadoPorSalon($nuevo, $salon);
+        }
+    }
+
+    private static function porcentajeDe(array $destino): ?float
+    {
+        $valor = $destino['porcentaje_segundos'] ?? null;
+
+        return $valor === null || $valor === '' ? null : (float) $valor;
+    }
+
+    /**
+     * Dividir sin grupo: cada fila nueva tiene que recibir saldo (si no, cuadra pero crea un
+     * registro vacío o solo marca el original como grupo).
+     *
+     * @param  array<int, float>  $saldosNuevos
+     */
+    private static function sinPartes(array $saldosNuevos): ?string
+    {
+        if ($saldosNuevos === []) {
+            return 'Agrega al menos un telar con saldo para dividir.';
+        }
+
+        return min($saldosNuevos) <= 0 ? 'Cada telar nuevo necesita un saldo mayor a 0.' : null;
+    }
+
+    /**
+     * Mensaje 422 si algún saldo es negativo o si Σ saldos no cuadra con el saldo a repartir
+     * (tolerancia 0.5 por redondeo). Sin escalado proporcional ni faltante silencioso.
+     *
+     * @param  array<int, float>  $saldos
+     */
+    private static function descuadre(array $saldos, float $saldoARepartir): ?string
+    {
+        if ($saldos !== [] && min($saldos) < 0) {
+            return 'Los saldos no pueden ser negativos.';
+        }
+        $suma = array_sum($saldos);
+        if (abs($suma - $saldoARepartir) > self::TOLERANCIA_SALDO) {
+            return sprintf(
+                'La suma de saldos (%s) no cuadra con el saldo a repartir (%s). Diferencia: %s.',
+                number_format($suma, 2),
+                number_format($saldoARepartir, 2),
+                number_format($suma - $saldoARepartir, 2)
+            );
+        }
+
+        return null;
+    }
+
+    /**
+     * Pares [salón, clave modelo] de las filas que van a OTRO salón (regla: la clave debe
+     * existir en Modelos para ese salón).
+     *
+     * @param  array<int, array<string, mixed>>  $destinos  con salon_destino ya normalizado
+     * @return array<int, array{0: string, 1: ?string}>
+     */
+    private static function paresOtroSalon(array $destinos, string $salonOrigen, ?string $claveOriginal): array
+    {
+        $pares = [];
+        foreach ($destinos as $d) {
+            if ($d['salon_destino'] !== $salonOrigen) {
+                $clave = trim((string) ($d['tamano_clave'] ?? ''));
+                $pares[] = [$d['salon_destino'], $clave !== '' ? $clave : $claveOriginal];
+            }
+        }
+
+        return $pares;
     }
 
     /**
@@ -929,7 +609,7 @@ class DividirTejido
         if ($modelo->Luchaje !== null) {
             $registro->Luchaje = (float) $modelo->Luchaje;
         }
-        // Repeticiones no existe en la tabla ReqProgramaTejido, se elimina la asignaci├│n
+        // Repeticiones no existe en la tabla ReqProgramaTejido, se elimina la asignación
         // if ($modelo->Repeticiones !== null) {
         //     $registro->Repeticiones = (float) $modelo->Repeticiones;
         // }
@@ -972,43 +652,29 @@ class DividirTejido
     }
 
     /**
-     * Redistribuir cantidades en un grupo existente de OrdCompartida
-     * Actualiza registros existentes y crea nuevos si es necesario
+     * Redistribuir el saldo de un grupo OrdCompartida existente: actualiza las filas del grupo
+     * y crea las nuevas. Σ saldos del grupo antes == después (tolerancia 0.5).
+     *
+     * @param  array<string, mixed>  $data
+     * @param  array<int, array<string, mixed>>  $destinos  con salon_destino ya normalizado
      */
-    private static function redistribuirGrupoExistente(Request $request, $ordCompartida, $destinos, $salonDestino, $hilo = null, $dispatcher = null)
+    private static function redistribuirGrupoExistente(array $data, int $ordCompartida, array $destinos, string $salonDestino, $hilo, $dispatcher): JsonResponse
     {
-        $registroIdOriginal = $request->input('registro_id_original');
+        $registroIdOriginal = $data['registro_id_original'] ?? null;
 
         try {
-            // Obtener todos los registros del grupo
+            // Grupo bloqueado hasta el commit: el Σ de saldos "antes" no puede cambiar por debajo.
             $registrosExistentes = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
                 ->orderBy('FechaInicio')
+                ->lockForUpdate()
                 ->get();
 
             if ($registrosExistentes->isEmpty()) {
-                DBFacade::rollBack();
-                ReqProgramaTejido::restoreObservers($dispatcher);
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No se encontraron registros para el grupo OrdCompartida: '.$ordCompartida,
-                ], 404);
+                return self::abortar($dispatcher, 'No se encontraron registros para el grupo OrdCompartida: '.$ordCompartida, 404);
             }
 
-            // Calcular la duraci├│n total original (usaremos el primer registro como base)
             $primerRegistro = $registrosExistentes->first();
             $fechaInicioBase = $primerRegistro->FechaInicio ? Carbon::parse($primerRegistro->FechaInicio) : Carbon::now();
-
-            // Calcular cantidad total del grupo para proporciones
-            $cantidadTotalGrupo = $registrosExistentes->sum('TotalPedido');
-
-            // Calcular duraci├│n promedio por unidad (basado en el primer registro)
-            $fechaFinalPrimer = $primerRegistro->FechaFinal ? Carbon::parse($primerRegistro->FechaFinal) : null;
-            $duracionPrimerSegundos = ($fechaInicioBase && $fechaFinalPrimer)
-                ? abs($fechaFinalPrimer->getTimestamp() - $fechaInicioBase->getTimestamp())
-                : 0;
-            $cantidadPrimer = (float) ($primerRegistro->TotalPedido ?? 1);
-            $segundosPorUnidad = $cantidadPrimer > 0 ? $duracionPrimerSegundos / $cantidadPrimer : 0;
 
             $idsParaObserver = [];
             $registrosParaObserver = [];
@@ -1021,223 +687,95 @@ class DividirTejido
             $idsExistentes = $registrosExistentes->pluck('Id')->map(fn ($id) => (string) $id)->toArray();
 
             foreach ($destinos as $destino) {
-                $registroId = $destino['registro_id'] ?? '';
-                $esExistente = isset($destino['es_existente']) && $destino['es_existente'];
-                $esNuevo = isset($destino['es_nuevo']) && $destino['es_nuevo'];
+                $registroId = (string) ($destino['registro_id'] ?? '');
+                $esExistente = ! empty($destino['es_existente']);
 
-                if ($registroId && $esExistente && in_array((string) $registroId, $idsExistentes, true)) {
-                    $destinosPorId[$registroId] = $destino;
+                if ($registroId !== '' && $esExistente && in_array($registroId, $idsExistentes, true)) {
+                    $destinosPorId[(int) $registroId] = $destino;
                 } else {
                     $destinosNuevos[] = $destino;
                 }
             }
 
-            LogFacade::info('redistribuirGrupoExistente: clasificación destinos', [
-                'total_destinos' => count($destinos),
-                'destinos_existentes' => count($destinosPorId),
-                'destinos_nuevos' => count($destinosNuevos),
-                'ids_grupo' => $idsExistentes,
-            ]);
+            // Fila nueva sin telar o con saldo 0: no se crea. Si traía saldo, el cuadre la delata.
+            $destinosNuevos = array_values(array_filter(
+                $destinosNuevos,
+                fn ($d) => ! empty($d['telar']) && self::saldoDe($d) != 0.0
+            ));
+
+            $error = self::descuadre(
+                self::saldosRedistribuidos($registrosExistentes, $destinosPorId, $destinosNuevos),
+                (float) $registrosExistentes->sum(fn ($r) => (float) ($r->SaldoPedido ?? 0))
+            ) ?? TejidoHelpers::claveFaltanteEnSalon(self::paresOtroSalon(
+                $destinosNuevos,
+                TelarSalonResolver::normalizeSalon($primerRegistro->SalonTejidoId, $primerRegistro->NoTelarId),
+                $primerRegistro->getAttribute('TamanoClave')
+            ));
+            if ($error !== null) {
+                return self::abortar($dispatcher, $error, 422);
+            }
 
             // Actualizar registros existentes
             foreach ($registrosExistentes as $registro) {
-                $registroId = (string) $registro->Id;
-
-                if (isset($destinosPorId[$registroId])) {
-                    $destino = $destinosPorId[$registroId];
-                    $nuevaCantidad = (float) ($destino['pedido'] ?? 0);
-                    $pedidoTempoDestino = $destino['pedido_tempo'] ?? null;
-                    $observacionesDestino = $destino['observaciones'] ?? null;
-                    $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
-                        ? (float) $destino['porcentaje_segundos']
-                        : null;
-
-                    if ($nuevaCantidad > 0) {
-                        $registro->TotalPedido = $nuevaCantidad;
-                        $produccion = (float) ($registro->Produccion ?? 0);
-                        $registro->SaldoPedido = max(0, $nuevaCantidad - $produccion);
-
-                        // PedidoTempo, Observaciones y PorcentajeSegundos
-                        if ($pedidoTempoDestino !== null && $pedidoTempoDestino !== '') {
-                            $registro->PedidoTempo = $pedidoTempoDestino;
-                        }
-                        if ($observacionesDestino !== null && $observacionesDestino !== '') {
-                            $registro->Observaciones = StringTruncator::truncate('Observaciones', $observacionesDestino);
-                        }
-                        if ($porcentajeSegundosDestino !== null) {
-                            $registro->PorcentajeSegundos = $porcentajeSegundosDestino;
-                        }
-
-                        // Ajustar Maquina al telar (si se recibe telar en destino existente)
-                        $telarDestino = $destino['telar'] ?? $registro->NoTelarId;
-                        $salonDestinoItem = $registro->SalonTejidoId ?? $salonDestino;
-                        $registro->Maquina = self::construirMaquina(
-                            $registro->Maquina ?? null,
-                            $salonDestinoItem,
-                            $telarDestino
-                        );
-
-                        // ===== FORZAR STD DESDE CAT├üLOGOS (SMITH/JACQUARD + Normal/Alta) =====
-                        TejidoHelpers::aplicarStdDesdeCatalogos($registro);
-
-                        // ===== RECALCULAR FECHA FINAL desde la fecha inicio existente (sin cambiar fecha inicio) =====
-                        if (! empty($registro->FechaInicio)) {
-                            $inicio = Carbon::parse($registro->FechaInicio);
-                            $horasNecesarias = self::calcularHorasProd($registro);
-
-                            $registro->FechaFinal = TejidoHelpers::resolverFechaFinal($inicio, $horasNecesarias, $registro->CalendarioId)->format('Y-m-d H:i:s');
-                        }
-
-                        // Recalcular f├│rmulas
-                        if ($registro->FechaInicio && $registro->FechaFinal) {
-                            $formulas = self::calcularFormulasEficiencia($registro);
-                            foreach ($formulas as $campo => $valor) {
-                                $registro->{$campo} = $valor;
-                            }
-                        }
-
-                        $registro->UpdatedAt = now();
-                        $registro->save();
-                        $idsParaObserver[] = $registro->Id;
-                        $registrosParaObserver[] = $registro;
-                        $totalActualizados++;
-                    }
-                }
-            }
-
-            // PT-PERF-02: posiciones de todos los telares destino en una consulta, no una por destino.
-            $reservarPosicion = TejidoHelpers::reservadorDePosiciones(array_values(array_filter(array_map(
-                fn ($d) => [(string) ($d['salon_destino'] ?? $salonDestino), (string) ($d['telar'] ?? '')],
-                $destinosNuevos
-            ), fn ($par) => $par[1] !== '')));
-
-            // Crear nuevos registros
-            foreach ($destinosNuevos as $destino) {
-                $telarDestino = $destino['telar'] ?? '';
-                $pedidoDestino = (float) ($destino['pedido'] ?? 0);
-                if ($pedidoDestino <= 0) {
-                    $pedidoDestino = (float) ($destino['pedido_tempo'] ?? 0);
-                }
-                $pedidoTempoDestino = $destino['pedido_tempo'] ?? null;
-                $observacionesDestino = $destino['observaciones'] ?? null;
-                $porcentajeSegundosDestino = isset($destino['porcentaje_segundos']) && $destino['porcentaje_segundos'] !== null && $destino['porcentaje_segundos'] !== ''
-                    ? (float) $destino['porcentaje_segundos']
-                    : null;
-                $salonDestinoItem = $destino['salon_destino'] ?? $salonDestino;
-
-                if (empty($telarDestino) || $pedidoDestino <= 0) {
-                    LogFacade::warning('redistribuirGrupoExistente: destino nuevo descartado', [
-                        'telar' => $telarDestino,
-                        'pedido' => $destino['pedido'] ?? null,
-                        'pedido_tempo' => $destino['pedido_tempo'] ?? null,
-                    ]);
-
+                $destino = $destinosPorId[(int) $registro->Id] ?? null;
+                if ($destino === null || ! self::traeSaldo($destino)) {
                     continue;
                 }
 
-                // Obtener el ├║ltimo registro del telar destino
-                $ultimoRegistroDestino = ReqProgramaTejido::query()
-                    ->salon($salonDestinoItem)
-                    ->telar($telarDestino)
-                    ->orderBy('FechaInicio', 'desc')
-                    ->first();
+                $porcentajeSegundosDestino = self::porcentajeDe($destino);
+                if ($porcentajeSegundosDestino !== null) {
+                    $registro->PorcentajeSegundos = $porcentajeSegundosDestino;
+                }
+                $registro->SaldoPedido = self::saldoDe($destino);
+                $registro->TotalPedido = TejidoHelpers::pedidoDesdeSaldo(self::saldoDe($destino), $registro);
 
-                // Quitar Ultimo=1 del registro anterior del telar destino
-                if ($ultimoRegistroDestino && $ultimoRegistroDestino->esUltimo()) {
-                    ReqProgramaTejido::where('Id', $ultimoRegistroDestino->Id)
-                        ->update(['Ultimo' => 0]);
+                if (($destino['pedido_tempo'] ?? null) !== null && $destino['pedido_tempo'] !== '') {
+                    $registro->PedidoTempo = $destino['pedido_tempo'];
+                }
+                if (($destino['observaciones'] ?? null) !== null && $destino['observaciones'] !== '') {
+                    $registro->Observaciones = StringTruncator::truncate('Observaciones', $destino['observaciones']);
                 }
 
-                // Determinar fecha de inicio
-                $fechaInicioNuevo = $ultimoRegistroDestino && $ultimoRegistroDestino->FechaFinal
-                    ? Carbon::parse($ultimoRegistroDestino->FechaFinal)
-                    : $fechaInicioBase->copy();
-
-                // Crear nuevo registro basado en el primero del grupo
-                $nuevo = $primerRegistro->replicate();
-
-                // Campos b├ísicos
-                $nuevo->SalonTejidoId = $salonDestinoItem;
-                $nuevo->NoTelarId = $telarDestino;
-                $nuevo->EnProceso = 0;
-                $nuevo->Ultimo = 1;
-                $nuevo->CambioHilo = 0;
-                $nuevo->Produccion = null;
-                $nuevo->Programado = null;
-                $nuevo->NoProduccion = null;
-                $nuevo->ProgramarProd = null;   // Day Scheduling en null
-                $nuevo->SaldoMarbete = null;    // Saldo marbetes en null
-
-                // OrdCompartida - mismo n├║mero que el grupo
-                $nuevo->OrdCompartida = (int) $ordCompartida;
-
-                // Cantidad del nuevo registro
-                $nuevo->TotalPedido = $pedidoDestino;
-                $nuevo->SaldoPedido = $pedidoDestino;
-
-                // Ajustar Maquina al telar destino
-                $nuevo->Maquina = self::construirMaquina(
-                    $primerRegistro->Maquina ?? null,
-                    $salonDestinoItem,
-                    $telarDestino
+                // Ajustar Maquina al telar (si se recibe telar en destino existente)
+                $registro->Maquina = self::construirMaquina(
+                    $registro->Maquina ?? null,
+                    $registro->SalonTejidoId ?? $salonDestino,
+                    $destino['telar'] ?? $registro->NoTelarId
                 );
 
-                // Asignar hilo del request si se proporciona (antes de aplicar modelo codificado)
-                if ($hilo) {
-                    $nuevo->FibraRizo = $hilo;
+                // ===== FORZAR STD DESDE CATÁLOGOS (SMITH/JACQUARD + Normal/Alta) =====
+                TejidoHelpers::aplicarStdDesdeCatalogos($registro);
+
+                // ===== RECALCULAR FECHA FINAL desde la fecha inicio existente (sin cambiar fecha inicio) =====
+                if (! empty($registro->FechaInicio)) {
+                    $inicio = Carbon::parse($registro->FechaInicio);
+                    $horasNecesarias = self::calcularHorasProd($registro);
+
+                    $registro->FechaFinal = TejidoHelpers::resolverFechaFinal($inicio, $horasNecesarias, $registro->CalendarioId)->format('Y-m-d H:i:s');
                 }
 
-                self::aplicarModeloCodificadoPorSalon($nuevo, $salonDestinoItem);
-
-                // ===== FORZAR STD DESDE CAT├üLOGOS (SMITH/JACQUARD + Normal/Alta) =====
-                TejidoHelpers::aplicarStdDesdeCatalogos($nuevo);
-
-                // PedidoTempo, Observaciones y PorcentajeSegundos
-                if ($pedidoTempoDestino !== null && $pedidoTempoDestino !== '') {
-                    $nuevo->PedidoTempo = $pedidoTempoDestino;
-                }
-                if ($observacionesDestino !== null && $observacionesDestino !== '') {
-                    $nuevo->Observaciones = StringTruncator::truncate('Observaciones', $observacionesDestino);
-                }
-                if ($porcentajeSegundosDestino !== null) {
-                    $nuevo->PorcentajeSegundos = $porcentajeSegundosDestino;
-                }
-
-                // ===== FECHA INICIO: SIEMPRE la FechaFinal del ├║ltimo registro del telar destino =====
-                // NO hacer snap al calendario, usar exactamente la fecha final del ├║ltimo registro
-                $nuevo->FechaInicio = $fechaInicioNuevo->format('Y-m-d H:i:s');
-                $inicio = $fechaInicioNuevo->copy();
-
-                // ===== CALCULAR FECHA FINAL desde la fecha inicio exacta =====
-                $horasNecesarias = self::calcularHorasProd($nuevo);
-
-                $nuevo->FechaFinal = TejidoHelpers::resolverFechaFinal($inicio, $horasNecesarias, $nuevo->CalendarioId)->format('Y-m-d H:i:s');
-
-                // CambioHilo
-                if ($ultimoRegistroDestino) {
-                    $fibraRizoNuevo = trim((string) $nuevo->FibraRizo);
-                    $fibraRizoAnterior = trim((string) $ultimoRegistroDestino->FibraRizo);
-                    $nuevo->CambioHilo = ($fibraRizoNuevo !== $fibraRizoAnterior) ? '1' : '0';
-                }
-
-                // Calcular f├│rmulas
-                if ($nuevo->FechaInicio && $nuevo->FechaFinal) {
-                    $formulas = self::calcularFormulasEficiencia($nuevo);
-                    foreach ($formulas as $campo => $valor) {
-                        $nuevo->{$campo} = $valor;
+                if ($registro->FechaInicio && $registro->FechaFinal) {
+                    foreach (self::calcularFormulasEficiencia($registro) as $campo => $valor) {
+                        $registro->{$campo} = $valor;
                     }
                 }
 
-                // Eliminar Repeticiones si existe (no es una columna de la tabla)
-                unset($nuevo->Repeticiones);
+                $registro->UpdatedAt = now();
+                $registro->save();
+                $idsParaObserver[] = $registro->Id;
+                $registrosParaObserver[] = $registro;
+                $totalActualizados++;
+            }
 
-                // Asignar posición consecutiva para este telar
-                $nuevo->Posicion = $reservarPosicion((string) $salonDestinoItem, (string) $telarDestino);
+            // PT-PERF-02: posiciones de todos los telares destino en una consulta, no una por destino.
+            $reservarPosicion = TejidoHelpers::reservadorDePosiciones(array_map(
+                fn ($d) => [(string) $d['salon_destino'], (string) $d['telar']],
+                $destinosNuevos
+            ));
 
-                $nuevo->CreatedAt = now();
-                $nuevo->UpdatedAt = now();
-                $nuevo->save();
-
+            // Crear nuevos registros
+            foreach ($destinosNuevos as $destino) {
+                $nuevo = self::crearParte($primerRegistro, $destino, (int) $ordCompartida, $fechaInicioBase, $hilo, null, self::globales($data), null, $reservarPosicion);
                 $idsParaObserver[] = $nuevo->Id;
                 $registrosParaObserver[] = $nuevo;
                 $totalCreados++;
@@ -1280,29 +818,10 @@ class DividirTejido
                 $observerFormulas->recalcularFormulasProduccion($regFormulas);
             }
 
-            // ===== ORDCOMPARTIDALIDER: Asignar al registro con fecha inicio más antigua =====
+            // Líder: FechaInicio más antigua entre los que tienen NoProduccion (misma regla en todo PT).
+            OrdCompartidaHelper::recalcularLiderYOrdPrincipalPorOrdCompartida((int) $ordCompartida);
             $registrosConOrdCompartida = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
                 ->get();
-
-            if ($registrosConOrdCompartida->count() > 0) {
-                $registrosOrdenados = $registrosConOrdCompartida->sortBy(function ($registro) {
-                    return $registro->FechaInicio ? Carbon::parse($registro->FechaInicio)->timestamp : PHP_INT_MAX;
-                });
-
-                $idLider = $registrosOrdenados->first()->Id;
-
-                ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
-                    ->update([
-                        'OrdCompartidaLider' => null,
-                        'UpdatedAt' => now(),
-                    ]);
-
-                ReqProgramaTejido::where('Id', $idLider)
-                    ->update([
-                        'OrdCompartidaLider' => 1,
-                        'UpdatedAt' => now(),
-                    ]);
-            }
 
             // Usar $registrosConOrdCompartida (query fresca tras commit+reconnect) como fuente de verdad
             $registrosDatosParaRespuesta = [];
@@ -1317,7 +836,7 @@ class DividirTejido
             $idsNuevosCreados = array_values(array_filter($allGroupIds, fn ($nid) => $origId === null || $nid !== $origId));
 
             // Primer registro nuevo para redirigir
-            $primerNuevoCreado = $totalCreados > 0 && ! empty($idsParaObserver)
+            $primerNuevoCreado = $totalCreados > 0
                 ? $registrosConOrdCompartida->firstWhere('Id', end($idsParaObserver))
                 : $registrosConOrdCompartida->first();
 
@@ -1357,23 +876,39 @@ class DividirTejido
             ]);
 
         } catch (\Throwable $e) {
-            DBFacade::rollBack();
-            ReqProgramaTejido::restoreObservers($dispatcher);
-            LogFacade::error('redistribuirGrupoExistente error', [
-                'ord_compartida' => $ordCompartida,
-                'msg' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            report($e);
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al redistribuir el grupo: '.$e->getMessage(),
-            ], 500);
+            return self::abortar($dispatcher, 'Error al redistribuir el grupo. Intenta de nuevo; si persiste, avisa a Sistemas.', 500);
         }
     }
 
+    /** La fila trae saldo capturado (las existentes sin saldo conservan el suyo). */
+    private static function traeSaldo(array $destino): bool
+    {
+        $valor = $destino['saldo'] ?? $destino['pedido'] ?? null;
+
+        return $valor !== null && $valor !== '';
+    }
+
     /**
-     * Construye el valor de Maquina usando un prefijo del sal├│n o del valor base y el n├║mero de telar
+     * Saldos del grupo DESPUÉS de redistribuir: existentes (capturado o el que ya tenían) + nuevas.
+     *
+     * @param  Collection<int, ReqProgramaTejido>  $registros
+     * @return array<int, float>
+     */
+    private static function saldosRedistribuidos($registros, array $destinosPorId, array $destinosNuevos): array
+    {
+        $existentes = $registros->map(function ($r) use ($destinosPorId) {
+            $destino = $destinosPorId[(int) $r->Id] ?? null;
+
+            return $destino !== null && self::traeSaldo($destino) ? self::saldoDe($destino) : (float) ($r->SaldoPedido ?? 0);
+        })->all();
+
+        return array_values([...$existentes, ...array_map([self::class, 'saldoDe'], $destinosNuevos)]);
+    }
+
+    /**
+     * Construye el valor de Maquina usando un prefijo del salón o del valor base y el número de telar
      */
     private static function construirMaquina(?string $maquinaBase, ?string $salon, $telar): string
     {

@@ -17,7 +17,8 @@
 
 {{-- Permisos del módulo de la superficie para el menú contextual (Muestras = idrol 5). --}}
 @php
-  $moduloPT = ($superficie ?? \App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface::actual())->moduloPermiso();
+  $superficiePT = $superficie ?? \App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface::actual();
+  $moduloPT = $superficiePT->moduloPermiso();
   $canCrear = function_exists('userCan') ? userCan('crear', $moduloPT) : true;
   $canModificar = function_exists('userCan') ? userCan('modificar', $moduloPT) : true;
   $canEliminar = function_exists('userCan') ? userCan('eliminar', $moduloPT) : true;
@@ -96,7 +97,11 @@
   </button>
 </div>
 
-{{-- OJO: EL JS de duplicar/dividir NO VA AQUÍ (si lo incluyes aquí se imprime) --}}
+{{-- Modal Duplicar/Dividir (Livewire). Lo abre "Crear" del menú de la fila (duplicar.ts). Es lo
+     único Livewire de la grilla legacy: la tabla sigue siendo HTML + index.js. --}}
+@if($canCrear)
+  <livewire:planeacion.programa-tejido.duplicar-dividir :superficie="$superficiePT->value" />
+@endif
 
 {{-- ?v=filemtime obligatorio: .htaccess le pone un ano de expiracion al CSS y
      estos dos no pasan por Vite, asi que sin esto el navegador sigue sirviendo el

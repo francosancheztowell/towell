@@ -287,12 +287,6 @@ Route::post('/planeacion/programa-tejido/{id}/prioridad/mover', [ProgramaTejidoO
 Route::post('/planeacion/programa-tejido/{id}/verificar-cambio-telar', [ProgramaTejidoOperacionesController::class, 'verificarCambioTelar'])->name('programa-tejido.verificar-cambio-telar');
 Route::post('/planeacion/programa-tejido/{id}/cambiar-telar', [ProgramaTejidoOperacionesController::class, 'cambiarTelar'])
     ->middleware('module.permission:modificar,2')->name('programa-tejido.cambiar-telar'); // Programa Tejido
-Route::post('/planeacion/programa-tejido/duplicar-telar', [ProgramaTejidoOperacionesController::class, 'duplicarTelar'])
-    ->middleware('module.permission:crear,2')->name('programa-tejido.duplicar-telar'); // Programa Tejido
-Route::post('/planeacion/programa-tejido/dividir-telar', [ProgramaTejidoOperacionesController::class, 'dividirTelar'])
-    ->middleware('module.permission:crear,2')->name('programa-tejido.dividir-telar'); // Programa Tejido
-Route::post('/planeacion/programa-tejido/dividir-saldo', [ProgramaTejidoOperacionesController::class, 'dividirSaldo'])
-    ->middleware('module.permission:crear,2')->name('programa-tejido.dividir-saldo'); // Programa Tejido
 Route::post('/planeacion/programa-tejido/vincular-registros-existentes', [ProgramaTejidoOperacionesController::class, 'vincularRegistrosExistentes'])
     ->middleware('module.permission:modificar,2')->name('programa-tejido.vincular-registros-existentes'); // Programa Tejido
 Route::post('/planeacion/programa-tejido/{id}/desvincular', [ProgramaTejidoOperacionesController::class, 'desvincularRegistro'])
@@ -325,17 +319,9 @@ Route::post('/planeacion/muestras/recalcular-fechas', [ProgramaTejidoCalendarios
     ->middleware('module.permission:modificar,5')->name('muestras.recalcular-fechas'); // Muestras
 Route::get('/planeacion/req-programa-tejido-line', [ReqProgramaTejidoLineController::class, 'index'])->name('planeacion.req-programa-tejido-line');
 
-Route::get('/programa-tejido/salon-options', [ProgramaTejidoCatalogosController::class, 'getSalonTejidoOptions']);
-Route::get('/programa-tejido/salon-tejido-options', [ProgramaTejidoCatalogosController::class, 'getSalonTejidoOptions'])->name('programa-tejido.salon-tejido-options');
-Route::get('/programa-tejido/tamano-clave-by-salon', [ProgramaTejidoCatalogosController::class, 'getTamanoClaveBySalon']);
 Route::get('/programa-tejido/flogs-id-from-twflogs', [ProgramaTejidoCatalogosController::class, 'getFlogsIdFromTwFlogsTable']);
-Route::get('/programa-tejido/descripcion-by-idflog/{idflog}', [ProgramaTejidoCatalogosController::class, 'getDescripcionByIdFlog']);
-Route::get('/programa-tejido/flog-by-item', [ProgramaTejidoCatalogosController::class, 'getFlogByItem']);
 Route::get('/programa-tejido/calendario-id-options', [ProgramaTejidoCatalogosController::class, 'getCalendarioIdOptions']);
-Route::get('/programa-tejido/calendario-lineas/{calendarioId}', [ProgramaTejidoCatalogosController::class, 'getCalendarioLineas'])->name('programa-tejido.calendario-lineas');
 Route::get('/programa-tejido/aplicacion-id-options', [ProgramaTejidoCatalogosController::class, 'getAplicacionIdOptions']);
-Route::match(['get', 'post'], '/programa-tejido/datos-relacionados', [ProgramaTejidoCatalogosController::class, 'getDatosRelacionados']);
-Route::get('/programa-tejido/telares-by-salon', [ProgramaTejidoCatalogosController::class, 'getTelaresBySalon']);
 Route::get('/programa-tejido/telares-all', [ProgramaTejidoCatalogosController::class, 'getTelaresAll']);
 Route::get('/programa-tejido/hilos-options', [ProgramaTejidoCatalogosController::class, 'getHilosOptions']);
 Route::get('/programa-tejido/velocidad-std', [ProgramaTejidoCatalogosController::class, 'getVelocidadStd']);
@@ -371,12 +357,6 @@ Route::post('/planeacion/muestras/{id}/prioridad/mover', [ProgramaTejidoOperacio
 Route::post('/planeacion/muestras/{id}/verificar-cambio-telar', [ProgramaTejidoOperacionesController::class, 'verificarCambioTelar'])->name('muestras.verificar-cambio-telar');
 Route::post('/planeacion/muestras/{id}/cambiar-telar', [ProgramaTejidoOperacionesController::class, 'cambiarTelar'])
     ->middleware('module.permission:modificar,5')->name('muestras.cambiar-telar'); // Muestras
-Route::post('/planeacion/muestras/duplicar-telar', [ProgramaTejidoOperacionesController::class, 'duplicarTelar'])
-    ->middleware('module.permission:crear,5')->name('muestras.duplicar-telar'); // Muestras
-Route::post('/planeacion/muestras/dividir-telar', [ProgramaTejidoOperacionesController::class, 'dividirTelar'])
-    ->middleware('module.permission:crear,5')->name('muestras.dividir-telar'); // Muestras
-Route::post('/planeacion/muestras/dividir-saldo', [ProgramaTejidoOperacionesController::class, 'dividirSaldo'])
-    ->middleware('module.permission:crear,5')->name('muestras.dividir-saldo'); // Muestras
 Route::post('/planeacion/muestras/vincular-registros-existentes', [ProgramaTejidoOperacionesController::class, 'vincularRegistrosExistentes'])
     ->middleware('module.permission:modificar,5')->name('muestras.vincular-registros-existentes'); // Muestras
 Route::post('/planeacion/muestras/{id}/desvincular', [ProgramaTejidoOperacionesController::class, 'desvincularRegistro'])
@@ -405,17 +385,9 @@ Route::post('/planeacion/muestras/crear-repaso', [RepasoController::class, 'crea
     ->middleware('module.permission:crear,5')->name('muestras.crear-repaso'); // Muestras
 Route::get('/planeacion/muestras-line', [ReqProgramaTejidoLineController::class, 'index'])->name('planeacion.muestras-line');
 
-Route::get('/muestras/salon-options', [ProgramaTejidoCatalogosController::class, 'getSalonTejidoOptions']);
-Route::get('/muestras/salon-tejido-options', [ProgramaTejidoCatalogosController::class, 'getSalonTejidoOptions'])->name('muestras.salon-tejido-options');
-Route::get('/muestras/tamano-clave-by-salon', [ProgramaTejidoCatalogosController::class, 'getTamanoClaveBySalon']);
 Route::get('/muestras/flogs-id-from-twflogs', [ProgramaTejidoCatalogosController::class, 'getFlogsIdFromTwFlogsTable']);
-Route::get('/muestras/descripcion-by-idflog/{idflog}', [ProgramaTejidoCatalogosController::class, 'getDescripcionByIdFlog']);
-Route::get('/muestras/flog-by-item', [ProgramaTejidoCatalogosController::class, 'getFlogByItem']);
 Route::get('/muestras/calendario-id-options', [ProgramaTejidoCatalogosController::class, 'getCalendarioIdOptions']);
-Route::get('/muestras/calendario-lineas/{calendarioId}', [ProgramaTejidoCatalogosController::class, 'getCalendarioLineas'])->name('muestras.calendario-lineas');
 Route::get('/muestras/aplicacion-id-options', [ProgramaTejidoCatalogosController::class, 'getAplicacionIdOptions']);
-Route::match(['get', 'post'], '/muestras/datos-relacionados', [ProgramaTejidoCatalogosController::class, 'getDatosRelacionados']);
-Route::get('/muestras/telares-by-salon', [ProgramaTejidoCatalogosController::class, 'getTelaresBySalon']);
 Route::get('/muestras/telares-all', [ProgramaTejidoCatalogosController::class, 'getTelaresAll']);
 Route::get('/muestras/hilos-options', [ProgramaTejidoCatalogosController::class, 'getHilosOptions']);
 Route::get('/muestras/velocidad-std', [ProgramaTejidoCatalogosController::class, 'getVelocidadStd']);

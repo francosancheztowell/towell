@@ -37,6 +37,8 @@ function instalarDomDeMentira() {
 		createTextNode: () => el,
 		body: el, documentElement: el, head: el, readyState: 'loading', cookie: '',
 	}
+	g.addEventListener = noop
+	g.removeEventListener = noop
 	g.localStorage = store
 	g.sessionStorage = store
 	g.showToast = noop
@@ -87,7 +89,6 @@ test('el bundle se evalua sin errores y publica su superficie', async () => {
 
 	// Lo que la pagina necesita encontrar en window despues de la carga.
 	for (const nombre of [
-		'duplicarTelar',
 		'selectRow',
 		'deselectRow',
 		'updateTotales',

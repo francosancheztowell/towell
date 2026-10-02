@@ -2,9 +2,11 @@
 
 namespace Tests\Feature\Planeacion;
 
+use App\Livewire\Planeacion\ProgramaTejido\DuplicarDividir;
 use App\Models\Planeacion\ReqModelosCodificados;
 use Illuminate\Database\SQLiteConnection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Testing\TestResponse;
 use Tests\Feature\Planeacion\Concerns\ConPermisosPlaneacion;
 use Tests\Feature\Planeacion\Concerns\ProgramaTejidoFixtures;
 use Tests\TestCase;
@@ -43,9 +45,10 @@ class ProgramaTejidoDividirQueriesTest extends TestCase
     /** @return array{0: int, 1: array<int, array{0: string, 1: int}>} consultas y [telar, Posicion] de los nuevos */
     private function dividir(array $telaresDestino): array
     {
-        $destinos = [['telar' => '201', 'pedido' => '100']];
+        // El original (SaldoPedido 800) se queda con lo que no se reparte: Σ saldos == 800.
+        $destinos = [['telar' => '201', 'saldo' => (string) (800 - 100 * count($telaresDestino))]];
         foreach ($telaresDestino as $telar) {
-            $destinos[] = ['telar' => $telar, 'pedido' => '100'];
+            $destinos[] = ['telar' => $telar, 'saldo' => '100'];
         }
 
         $maxId = (int) DB::table('ReqProgramaTejido')->max('Id');
@@ -54,10 +57,7 @@ class ProgramaTejidoDividirQueriesTest extends TestCase
             $consultas++;
         });
 
-        $this->actingAs($this->usuarioConPermisos([2 => ['crear']]))
-            ->postJson('/planeacion/programa-tejido/dividir-saldo', [
-                'salon_tejido_id' => 'SMIT', 'no_telar_id' => '201', 'registro_id_original' => 1, 'destinos' => $destinos,
-            ])
+        $this->dividirSaldo(['salon_tejido_id' => 'SMIT', 'no_telar_id' => '201', 'registro_id_original' => 1, 'destinos' => $destinos])
             ->assertOk()
             ->assertJsonPath('success', true);
 
@@ -75,31 +75,6 @@ class ProgramaTejidoDividirQueriesTest extends TestCase
         $this->assertSame([['210', 2], ['211', 1], ['210', 4], ['210', 5], ['211', 2]], $nuevos);
     }
 
-    public function test_dividir_telar_consulta_las_posiciones_del_destino_una_sola_vez(): void
-    {
-        // Telar 201 tiene Id 1 (pos 1) y 2 (pos 2); se mueve desde el índice 0: ambas a 210.
-        $posiciones = 0;
-        DB::listen(function ($q) use (&$posiciones) {
-            if (str_contains($q->sql, '"Posicion" is not null')) {
-                $posiciones++;
-            }
-        });
-
-        $this->actingAs($this->usuarioConPermisos([2 => ['crear']]))
-            ->postJson('/planeacion/programa-tejido/dividir-telar', [
-                'salon_tejido_id' => 'SMIT', 'no_telar_id' => '201', 'posicion_division' => 0, 'nuevo_telar' => '210',
-            ])
-            ->assertOk();
-
-        // Antes: una consulta por fila movida (2 aquí).
-        $this->assertSame(1, $posiciones);
-
-        // Hallazgo (legacy, no se toca en 05): después de asignar 2 y 4, recalcularFechasSecuencia
-        // renumera SOLO las filas movidas (1..n) y pisa las del destino (Id 20 ya tiene la 1).
-        // En SQL Server el índice único (salón, telar, posición) lo rechazaría. Ver 05-SUMMARY.md.
-        $this->assertSame([1 => 1, 2 => 2], DB::table('ReqProgramaTejido')->whereIn('Id', [1, 2])->pluck('Posicion', 'Id')->map(fn ($p) => (int) $p)->all());
-    }
-
     public function test_consultas_por_destino(): void
     {
         [$uno] = $this->dividir(['210']);
@@ -115,4 +90,27 @@ class ProgramaTejidoDividirQueriesTest extends TestCase
     }
 
     private const MAX_CONSULTAS_POR_DESTINO = 8; // antes de PT-05: 9
+
+    public function test_original_sin_no_produccion_no_se_divide_ni_toca_otras_filas(): void
+    {
+        DB::table('ReqProgramaTejido')->where('Id', 1)->update(['NoProduccion' => null, 'OrdCompartida' => null]);
+        $antes = DB::table('ReqProgramaTejido')->orderBy('Id')->get()->toArray();
+
+        $this->dividirSaldo([
+            'salon_tejido_id' => 'SMIT', 'no_telar_id' => '201', 'registro_id_original' => 1,
+            'destinos' => [['telar' => '201', 'pedido' => '100'], ['telar' => '210', 'pedido' => '100']],
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false);
+
+        $this->assertEquals($antes, DB::table('ReqProgramaTejido')->orderBy('Id')->get()->toArray());
+    }
+
+    /** La lógica que corre el modal (ya no hay endpoint HTTP). */
+    private function dividirSaldo(array $payload): TestResponse
+    {
+        $this->actingAs($this->usuarioConPermisos([2 => ['crear']]));
+
+        return TestResponse::fromBaseResponse(DuplicarDividir::correr(true, $payload));
+    }
 }

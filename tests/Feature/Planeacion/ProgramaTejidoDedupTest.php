@@ -60,22 +60,6 @@ class ProgramaTejidoDedupTest extends TestCase
         $this->assertSame($antes, $this->listenersSaved());
     }
 
-    public function test_dividir_telar_rechazado_restaura_observers_y_cierra_la_transaccion(): void
-    {
-        $antes = $this->listenersSaved();
-
-        // Telar 204 tiene una sola fila → 422 temprano. Antes dejaba el modelo sin eventos
-        // y la transacción abierta.
-        $this->actingAs($this->usuarioConPermisos([2 => ['crear']]))
-            ->postJson('/planeacion/programa-tejido/dividir-telar', [
-                'salon_tejido_id' => 'SMIT', 'no_telar_id' => '204', 'posicion_division' => 0, 'nuevo_telar' => '299',
-            ])
-            ->assertStatus(422);
-
-        $this->assertSame($antes, $this->listenersSaved());
-        $this->assertSame(0, DB::connection('sqlsrv')->transactionLevel());
-    }
-
     public function test_es_ultimo_acepta_1_y_ul(): void
     {
         $r = new ReqProgramaTejido;
