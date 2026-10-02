@@ -33,6 +33,8 @@ class ListaMaterialesTest extends TestCase
             }
             $table->decimal('Cantidad', 18, 2)->nullable();
             $table->decimal('Porcentaje', 18, 2)->nullable();
+            $table->decimal('cump', 18, 4)->default(0);
+            $table->decimal('importe', 18, 4)->default(0);
         });
     }
 
