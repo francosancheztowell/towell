@@ -1,6 +1,10 @@
 @import 'tailwindcss';
 @import '../../vendor/livewire/flux/dist/flux.css';
 @import './programa-tejido/modals.css';
+/* Tom Select aquí y no en combobox.ts: @vite solo sube el CSS de imports de primer nivel, y
+   combobox suele llegar de segundo nivel (p. ej. catcodificacion → lmat-modal → combobox). */
+@import 'tom-select/dist/css/tom-select.default.css';
+@import '../js/utils/combobox.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -347,7 +351,9 @@
 .ui-dialogo--formulario .ui-dialogo__icono { align-self: center; }
 .ui-dialogo--formulario .ui-dialogo__titulo { font-size: var(--text-xl); line-height: var(--text-xl--line-height); }
 .ui-dialogo--formulario .ui-dialogo__texto { margin-top: 1rem; color: var(--color-zinc-700); white-space: normal; }
-.ui-dialogo :where(input:not([type='checkbox'], [type='radio'], [type='hidden'], [type='file']), select, textarea) {
+/* Fuera: Tom Select (su input interno se veía como un segundo campo) y .ui-dialogo-libre (modales
+   con diseño propio en Tailwind, p. ej. L.Mat de Codificación). */
+.ui-dialogo :where(input:not([type='checkbox'], [type='radio'], [type='hidden'], [type='file']), select, textarea):not(.ui-dialogo-libre *, .ts-wrapper *, .ts-dropdown *, .tomselected) {
     width: 100%; min-height: 2.75rem; padding: .5rem .75rem; border: 1px solid var(--color-zinc-200); border-radius: .5rem;
     background: var(--color-white); color: var(--color-zinc-800); font-size: var(--text-base); box-shadow: 0 1px 2px rgb(0 0 0 / .05);
 }

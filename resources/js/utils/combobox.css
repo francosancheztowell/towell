@@ -1,7 +1,7 @@
 /*
  * Tema del combobox (Tom Select): el mismo aspecto que tenían los filtros de
  * Trazabilidad y L.Mat con Select2 (34 px, borde slate, foco azul).
- * Se importa desde combobox.ts; no va en app.css.
+ * Se importa desde app.css (@vite no sube el CSS de imports de segundo nivel).
  */
 .ts-wrapper.combobox {
     width: 100%;

@@ -1279,7 +1279,7 @@ async function openLMatModal(context = {}) {
         cerrable: false,
         ancho: '2xl',
         html: `
-            <div class="text-left text-sm text-gray-800">
+            <div class="ui-dialogo-libre text-left text-sm text-gray-800">
                 <div class="mb-3 border-b border-gray-200 pb-3 text-center">
                     <div class="flex items-center justify-center gap-2">
                         <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${esActualizacionLMat ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'}">
