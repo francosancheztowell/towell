@@ -58,6 +58,7 @@
         @foreach ($board['lanes'] as $lane)
             @php
                 $paro = $lane['paro'] ?? null;
+                $desdeParo = $paro === null ? '' : trim(($paro['fecha'] ?? '').' '.($paro['hora'] ?? ''));
             @endphp
             <section class="program-board-lane{{ $paro ? ' is-paro' : '' }}" wire:key="lane-{{ $moduleMeta['value'] }}-{{ $lane['key'] }}">
                 <h2>
@@ -70,7 +71,7 @@
                             @if ($paro['total'] > 1)
                                 <span class="program-board-paro-count">{{ $paro['total'] }}</span>
                             @else
-                                @if ($paro['hora'] !== '')<span class="program-board-paro-meta">desde {{ $paro['hora'] }}</span>@endif
+                                @if ($desdeParo !== '')<span class="program-board-paro-meta">desde {{ $desdeParo }}</span>@endif
                                 @if ($paro['falla'] !== '')<span class="program-board-paro-meta">{{ $paro['falla'] }}</span>@endif
                             @endif
                         </span>
@@ -92,6 +93,7 @@
                                     $selected = $selectedOrderId === (int) $order['id'];
                                     $qualityInfo = $qualityMeta[$order['quality']] ?? null;
                                     $urdidoFinished = ! $moduleMeta['isUrdido'] && ($order['urdido_finished'] ?? false);
+                                    $tipo = strtolower((string) $order['type']);
                                 @endphp
                                 <tr class="program-board-order{{ $urdidoFinished ? ' is-urdido-finished' : '' }}"
                                     @if ($urdidoFinished) title="Urdido finalizado" @endif
@@ -112,7 +114,15 @@
                                         {{ $order['priority'] }}
                                     </td>
                                     <td>{{ $order['folio'] }}</td>
-                                    <td><span class="program-board-type {{ strtolower($order['type']) === 'rizo' ? 'is-rizo' : (strtolower($order['type']) === 'pie' ? 'is-pie' : '') }}">{{ $order['type'] ?: '—' }}</span></td>
+                                    <td>
+                                        @if ($tipo === 'rizo')
+                                            <flux:badge size="lg" color="rose">{{ $order['type'] }}</flux:badge>
+                                        @elseif ($tipo === 'pie')
+                                            <flux:badge size="lg" color="teal">{{ $order['type'] }}</flux:badge>
+                                        @else
+                                            {{ $order['type'] ?: '—' }}
+                                        @endif
+                                    </td>
                                     <td>{{ $order['size'] ?: '—' }}</td>
                                     <td>{{ $order['configuration'] ?: '—' }}</td>
                                     <td>{{ number_format($order['meters'], 0, '.', '') }}</td>

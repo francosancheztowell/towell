@@ -20,8 +20,7 @@ import TomSelect from 'tom-select/base';
 import clearButton from 'tom-select/plugins/clear_button/plugin.js';
 import dropdownInput from 'tom-select/plugins/dropdown_input/plugin.js';
 import removeButton from 'tom-select/plugins/remove_button/plugin.js';
-import 'tom-select/dist/css/tom-select.default.css';
-import './combobox.css';
+// CSS (Tom Select + combobox.css): en resources/css/app.css.
 
 import http from './http.ts';
 import {
