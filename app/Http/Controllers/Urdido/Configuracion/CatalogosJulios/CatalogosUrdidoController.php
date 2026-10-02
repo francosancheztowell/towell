@@ -98,12 +98,14 @@ class CatalogosUrdidoController extends Controller
                 'MaquinaId' => 'required|string|max:50|unique:URDCatalogoMaquinas,MaquinaId',
                 'Nombre' => 'nullable|string|max:100',
                 'Departamento' => 'nullable|string|max:50',
+                'Codificacion' => 'nullable|string|max:45',
             ]);
 
             URDCatalogoMaquina::create([
                 'MaquinaId' => $request->MaquinaId,
                 'Nombre' => $request->Nombre,
                 'Departamento' => $request->Departamento,
+                'Codificacion' => $request->Codificacion,
             ]);
 
             return response()->json([
@@ -129,6 +131,7 @@ class CatalogosUrdidoController extends Controller
                 'MaquinaId' => 'required|string|max:50',
                 'Nombre' => 'nullable|string|max:100',
                 'Departamento' => 'nullable|string|max:50',
+                'Codificacion' => 'nullable|string|max:45',
             ];
 
             // Si el MaquinaId cambió, validar que no exista
@@ -145,11 +148,13 @@ class CatalogosUrdidoController extends Controller
                     'MaquinaId' => $request->MaquinaId,
                     'Nombre' => $request->Nombre,
                     'Departamento' => $request->Departamento,
+                    'Codificacion' => $request->Codificacion,
                 ]);
             } else {
                 $maquina->update([
                     'Nombre' => $request->Nombre,
                     'Departamento' => $request->Departamento,
+                    'Codificacion' => $request->Codificacion,
                 ]);
             }
 

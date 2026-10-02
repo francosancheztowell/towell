@@ -22,7 +22,11 @@ test('máquina: id obligatorio, opcionales vacíos a null', () => {
     assert.equal(validarMaquina('', 'a', 'b').ok, false);
     assert.deepEqual(validarMaquina(' MC 1 ', ' ', 'Urdido '), {
         ok: true,
-        datos: { MaquinaId: 'MC 1', Nombre: null, Departamento: 'Urdido' },
+        datos: { MaquinaId: 'MC 1', Nombre: null, Departamento: 'Urdido', Codificacion: null },
+    });
+    assert.deepEqual(validarMaquina('MC 1', '', '', ' TOW-MACC1-URDI '), {
+        ok: true,
+        datos: { MaquinaId: 'MC 1', Nombre: null, Departamento: null, Codificacion: 'TOW-MACC1-URDI' },
     });
 });
 

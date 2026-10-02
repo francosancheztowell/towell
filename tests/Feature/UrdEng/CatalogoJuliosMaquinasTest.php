@@ -25,6 +25,7 @@ class CatalogoJuliosMaquinasTest extends TestCase
             $t->string('MaquinaId')->primary();
             $t->string('Nombre')->nullable();
             $t->string('Departamento')->nullable();
+            $t->string('Codificacion')->nullable();
         });
 
         $db = DB::connection('sqlsrv');
@@ -34,8 +35,8 @@ class CatalogoJuliosMaquinasTest extends TestCase
             ['Id' => 3, 'NoJulio' => '31', 'Tara' => 90, 'Departamento' => 'Engomado'],
         ]);
         $db->table('URDCatalogoMaquinas')->insert([
-            ['MaquinaId' => 'MC Coy 1', 'Nombre' => 'MC Coy 1', 'Departamento' => 'Urdido'],
-            ['MaquinaId' => 'KM-2', 'Nombre' => 'Karl Mayer', 'Departamento' => 'Urdido'],
+            ['MaquinaId' => 'MC Coy 1', 'Nombre' => 'MC Coy 1', 'Departamento' => 'Urdido', 'Codificacion' => null],
+            ['MaquinaId' => 'KM-2', 'Nombre' => 'Karl Mayer', 'Departamento' => 'Urdido', 'Codificacion' => 'TOW-KMURD-URDI'],
         ]);
     }
 
@@ -148,6 +149,8 @@ class CatalogoJuliosMaquinasTest extends TestCase
         $html = $this->actingAs($u)->get('/urdido/catalogo-maquinas?nombre=Karl')->assertOk()->getContent();
         $this->assertStringContainsString('data-maquina-id="KM-2"', $html);
         $this->assertStringNotContainsString('data-maquina-id="MC Coy 1"', $html);
+        $this->assertStringContainsString('data-codificacion="TOW-KMURD-URDI"', $html);
+        $this->assertStringContainsString('>TOW-KMURD-URDI</td>', $html);
         $this->assertStringContainsString('id="catalogo-maquinas"', $html);
 
         $this->actingAs($u)->postJson('/urdido/catalogo-maquinas', ['MaquinaId' => 'N-1', 'Nombre' => 'Nueva'])
@@ -155,9 +158,19 @@ class CatalogoJuliosMaquinasTest extends TestCase
         $this->actingAs($u)->postJson('/urdido/catalogo-maquinas', ['MaquinaId' => 'N-1'])
             ->assertStatus(422)->assertJsonStructure(['message', 'errors' => ['MaquinaId']]);
 
-        $this->actingAs($u)->putJson('/urdido/catalogo-maquinas/N-1', ['MaquinaId' => 'N-1', 'Nombre' => 'Otra', 'Departamento' => 'Urdido'])
+        $this->actingAs($u)->putJson('/urdido/catalogo-maquinas/N-1', ['MaquinaId' => 'N-1', 'Nombre' => 'Otra', 'Departamento' => 'Urdido', 'Codificacion' => 'TOW-N1-URDI'])
             ->assertOk();
         $this->assertSame('Otra', $db->table('URDCatalogoMaquinas')->where('MaquinaId', 'N-1')->value('Nombre'));
+        $this->assertSame('TOW-N1-URDI', $db->table('URDCatalogoMaquinas')->where('MaquinaId', 'N-1')->value('Codificacion'));
+        $this->actingAs($u)->putJson('/urdido/catalogo-maquinas/N-1', ['MaquinaId' => 'N-1', 'Codificacion' => str_repeat('X', 46)])
+            ->assertStatus(422)->assertJsonStructure(['errors' => ['Codificacion']]);
+
+        // Cambiar el ID recrea el registro: la codificación no se pierde.
+        $this->actingAs($u)->putJson('/urdido/catalogo-maquinas/N-1', ['MaquinaId' => 'N-2', 'Nombre' => 'Otra', 'Codificacion' => 'TOW-N1-URDI'])
+            ->assertOk();
+        $this->assertSame('TOW-N1-URDI', $db->table('URDCatalogoMaquinas')->where('MaquinaId', 'N-2')->value('Codificacion'));
+        $this->actingAs($u)->putJson('/urdido/catalogo-maquinas/N-2', ['MaquinaId' => 'N-1', 'Nombre' => 'Otra', 'Codificacion' => 'TOW-N1-URDI'])
+            ->assertOk();
         $this->actingAs($u)->putJson('/urdido/catalogo-maquinas/NO-EXISTE', ['MaquinaId' => 'NO-EXISTE'])->assertNotFound();
 
         $this->actingAs($u)->deleteJson('/urdido/catalogo-maquinas/N-1')->assertOk();

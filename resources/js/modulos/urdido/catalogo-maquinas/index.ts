@@ -68,6 +68,7 @@ onReady(() => {
                 MaquinaId: fila.dataset.maquinaId ?? '',
                 Nombre: fila.dataset.nombre ?? '',
                 Departamento: fila.dataset.departamento ?? '',
+                Codificacion: fila.dataset.codificacion ?? '',
             };
             for (const [id, valor] of Object.entries(valores)) {
                 const c = campo(id);
@@ -80,7 +81,12 @@ onReady(() => {
 
     const guardar = async (): Promise<void> => {
         if (ocupado) return;
-        const v = validarMaquina(campo('MaquinaId')?.value ?? '', campo('Nombre')?.value ?? '', campo('Departamento')?.value ?? '');
+        const v = validarMaquina(
+            campo('MaquinaId')?.value ?? '',
+            campo('Nombre')?.value ?? '',
+            campo('Departamento')?.value ?? '',
+            campo('Codificacion')?.value ?? '',
+        );
         if (!v.ok) {
             notify.error(v.mensaje);
             campo(v.campo)?.focus();

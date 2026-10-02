@@ -68,6 +68,7 @@
                         <th class="py-1 px-2 font-bold tracking-wider text-center">Máquina ID</th>
                         <th class="py-1 px-2 font-bold tracking-wider text-center">Nombre</th>
                         <th class="py-1 px-2 font-bold tracking-wider text-center">Departamento</th>
+                        <th class="py-1 px-2 font-bold tracking-wider text-center">Codificación</th>
                     </tr>
                 </thead>
                 <tbody id="maquinas-body" class="bg-white text-black">
@@ -79,14 +80,16 @@
                             data-maquina-id="{{ $maquina->MaquinaId }}"
                             data-nombre="{{ $maquina->Nombre ?? '' }}"
                             data-departamento="{{ $maquina->Departamento ?? '' }}"
+                            data-codificacion="{{ $maquina->Codificacion ?? '' }}"
                             data-id="{{ $maquina->MaquinaId }}">
                             <td class="py-2 px-4 ">{{ $maquina->MaquinaId }}</td>
                             <td class="py-2 px-4 ">{{ $maquina->Nombre ?? 'N/A' }}</td>
                             <td class="py-2 px-4 ">{{ $maquina->Departamento ?? 'N/A' }}</td>
+                            <td class="py-2 px-4 font-mono">{{ $maquina->Codificacion ?? 'N/A' }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="3" class="py-4 px-4 text-center text-gray-500">No hay máquinas registradas</td>
+                            <td colspan="4" class="py-4 px-4 text-center text-gray-500">No hay máquinas registradas</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -134,6 +137,14 @@
                             <input type="text" id="Departamento" name="Departamento" maxlength="50"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-all duration-200"
                                 placeholder="Ej: Urdido">
+                        </div>
+                        <div>
+                            <label for="Codificacion" class="block text-sm font-medium text-gray-700 mb-1">
+                                Codificación
+                            </label>
+                            <input type="text" id="Codificacion" name="Codificacion" maxlength="45"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hover:border-blue-400 transition-all duration-200"
+                                placeholder="Ej: TOW-MACC1-URDI">
                         </div>
                     </div>
                 </div>
