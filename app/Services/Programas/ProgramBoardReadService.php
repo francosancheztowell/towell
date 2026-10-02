@@ -51,7 +51,7 @@ class ProgramBoardReadService
 
     /**
      * @return array{
-     *   lanes:array<int, array{key:string,label:string,short:string,paro:array{folio:string,hora:string,falla:string,total:int,detalle:list<string>}|null,orders:array<int, array<string,mixed>>}>,
+     *   lanes:array<int, array{key:string,label:string,short:string,paro:array{folio:string,fecha:string,hora:string,falla:string,total:int,detalle:list<string>}|null,orders:array<int, array<string,mixed>>}>,
      *   summary:array{total:int,programado:int,en_proceso:int,parcial:int,metros:float}
      * }
      */
@@ -152,13 +152,13 @@ class ProgramBoardReadService
      * Mantenimiento guarda "Mc Coy 1", "KM1", "WestPoint 2"; los carriles dicen
      * "MC Coy 1", "Karl Mayer" (KM1), "West Point 2": se comparan sin espacios ni mayúsculas.
      *
-     * @return array<string, array{folio:string,hora:string,falla:string,total:int,detalle:list<string>}>
+     * @return array<string, array{folio:string,fecha:string,hora:string,falla:string,total:int,detalle:list<string>}>
      */
     private function parosActivos(): array
     {
         $paros = [];
         ManFallasParos::query()
-            ->select('Id', 'Folio', 'MaquinaId', 'Hora', 'Falla', 'TipoFallaId')
+            ->select('Id', 'Folio', 'MaquinaId', 'Fecha', 'Hora', 'Falla', 'TipoFallaId')
             ->where('Estatus', 'Activo')
             ->orderByDesc('Id')
             ->toBase()
@@ -166,14 +166,32 @@ class ProgramBoardReadService
             ->each(function (object $paro) use (&$paros): void {
                 $maquina = self::maquinaParo((string) $paro->MaquinaId);
                 $folio = trim((string) $paro->Folio);
+                $fecha = self::fechaParo($paro->Fecha ?? null);
                 $hora = substr(trim((string) $paro->Hora), 0, 5);
                 $falla = trim((string) ($paro->TipoFallaId ?: $paro->Falla));
-                $paros[$maquina] ??= ['folio' => $folio, 'hora' => $hora, 'falla' => $falla, 'total' => 0, 'detalle' => []];
+                $cuando = trim($fecha.' '.$hora);
+                $paros[$maquina] ??= ['folio' => $folio, 'fecha' => $fecha, 'hora' => $hora, 'falla' => $falla, 'total' => 0, 'detalle' => []];
                 $paros[$maquina]['total']++;
-                $paros[$maquina]['detalle'][] = trim("{$folio} · {$hora} · {$falla}", ' ·');
+                $paros[$maquina]['detalle'][] = trim("{$folio} · {$cuando} · {$falla}", ' ·');
             });
 
         return $paros;
+    }
+
+    private static function fechaParo(mixed $fecha): string
+    {
+        if ($fecha instanceof \DateTimeInterface) {
+            return $fecha->format('d/m/Y');
+        }
+
+        $valor = trim((string) $fecha);
+        if ($valor === '') {
+            return '';
+        }
+
+        $momento = strtotime($valor);
+
+        return $momento === false ? '' : date('d/m/Y', $momento);
     }
 
     private static function maquinaParo(string $maquina): string

@@ -75,7 +75,7 @@ class ProgramBoardReadServiceTest extends TestCase
 
         // ManFallasParos usa el prefijo dbo.: sqlite lo lee como esquema.
         DB::connection('sqlsrv')->statement("ATTACH DATABASE ':memory:' AS dbo");
-        DB::connection('sqlsrv')->statement('CREATE TABLE dbo.ManFallasParos (Id INTEGER PRIMARY KEY, Folio TEXT, Estatus TEXT, MaquinaId TEXT, Hora TEXT, Falla TEXT, TipoFallaId TEXT)');
+        DB::connection('sqlsrv')->statement('CREATE TABLE dbo.ManFallasParos (Id INTEGER PRIMARY KEY, Folio TEXT, Estatus TEXT, MaquinaId TEXT, Fecha TEXT, Hora TEXT, Falla TEXT, TipoFallaId TEXT)');
     }
 
     public function test_urdido_is_sorted_in_sql_and_grouped_by_machine(): void
@@ -133,18 +133,18 @@ class ProgramBoardReadServiceTest extends TestCase
 
         // Mantenimiento escribe "Mc Coy 1" y "KM1"; los carriles dicen "MC Coy 1" y "Karl Mayer".
         DB::connection('sqlsrv')->table('dbo.ManFallasParos')->insert([
-            ['Folio' => 'PF-0', 'Estatus' => 'Activo', 'MaquinaId' => 'MC COY 1', 'Hora' => '08:15:00', 'Falla' => null, 'TipoFallaId' => 'ELEC'],
-            ['Folio' => 'PF-1', 'Estatus' => 'Activo', 'MaquinaId' => 'Mc Coy 1', 'Hora' => '10:32:00', 'Falla' => 'Mecánica', 'TipoFallaId' => 'MEC'],
-            ['Folio' => 'PF-2', 'Estatus' => 'Activo', 'MaquinaId' => 'KM1', 'Hora' => '11:00:00', 'Falla' => '43', 'TipoFallaId' => null],
-            ['Folio' => 'PF-3', 'Estatus' => 'Terminado', 'MaquinaId' => 'Mc Coy 2', 'Hora' => '09:00:00', 'Falla' => 'x', 'TipoFallaId' => 'x'],
+            ['Folio' => 'PF-0', 'Estatus' => 'Activo', 'MaquinaId' => 'MC COY 1', 'Fecha' => '2026-10-01', 'Hora' => '08:15:00', 'Falla' => null, 'TipoFallaId' => 'ELEC'],
+            ['Folio' => 'PF-1', 'Estatus' => 'Activo', 'MaquinaId' => 'Mc Coy 1', 'Fecha' => '2026-10-02', 'Hora' => '10:32:00', 'Falla' => 'Mecánica', 'TipoFallaId' => 'MEC'],
+            ['Folio' => 'PF-2', 'Estatus' => 'Activo', 'MaquinaId' => 'KM1', 'Fecha' => '2026-10-02', 'Hora' => '11:00:00', 'Falla' => '43', 'TipoFallaId' => null],
+            ['Folio' => 'PF-3', 'Estatus' => 'Terminado', 'MaquinaId' => 'Mc Coy 2', 'Fecha' => '2026-10-02', 'Hora' => '09:00:00', 'Falla' => 'x', 'TipoFallaId' => 'x'],
         ]);
 
         $board = app(ProgramBoardReadService::class)->board(ProgramaModulo::Urdido);
 
         // Dos paros activos en MC Coy 1: manda el más reciente y se cuentan ambos.
         $this->assertSame([
-            'folio' => 'PF-1', 'hora' => '10:32', 'falla' => 'MEC', 'total' => 2,
-            'detalle' => ['PF-1 · 10:32 · MEC', 'PF-0 · 08:15 · ELEC'],
+            'folio' => 'PF-1', 'fecha' => '02/10/2026', 'hora' => '10:32', 'falla' => 'MEC', 'total' => 2,
+            'detalle' => ['PF-1 · 02/10/2026 10:32 · MEC', 'PF-0 · 01/10/2026 08:15 · ELEC'],
         ], $board['lanes'][0]['paro']);
         $this->assertNull($board['lanes'][1]['paro']);
         $this->assertSame('43', $board['lanes'][3]['paro']['falla']);

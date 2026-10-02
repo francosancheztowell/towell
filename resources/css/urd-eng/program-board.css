@@ -359,6 +359,20 @@ body.program-board-modal-open main.app-main {
     gap: .75rem;
 }
 
+/* Engomado: West Point 2 y 3 en filas (ancho completo) para que quepan todas las columnas. */
+.program-board:has(> .program-board-lanes.is-engomado) {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100dvh - var(--program-board-header-height, 72px) - 1.5rem);
+}
+
+.program-board-lanes.is-engomado {
+    flex: 1 1 auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(2, minmax(14rem, 1fr));
+    min-height: calc(100dvh - var(--program-board-header-height, 72px) - 1.5rem);
+}
+
 .program-board-lane {
     min-width: 0;
     background: white;
@@ -373,8 +387,50 @@ body.program-board-modal-open main.app-main {
 }
 
 .program-board-lanes.is-engomado .program-board-lane {
-    height: calc(100dvh - var(--program-board-header-height, 72px) - 1.5rem);
-    min-height: 25rem;
+    height: auto;
+    min-height: 0;
+}
+
+.program-board-lanes.is-engomado .program-board-table {
+    min-width: 0;
+    table-layout: fixed;
+    width: 100%;
+}
+
+.program-board-lanes.is-engomado .program-board-table th:nth-child(1) { width: 8%; }
+.program-board-lanes.is-engomado .program-board-table th:nth-child(2) { width: 6%; }
+.program-board-lanes.is-engomado .program-board-table th:nth-child(3) { width: 5%; }
+.program-board-lanes.is-engomado .program-board-table th:nth-child(4) { width: 12%; }
+.program-board-lanes.is-engomado .program-board-table th:nth-child(5) { width: 13%; }
+.program-board-lanes.is-engomado .program-board-table th:nth-child(6) { width: 8%; }
+.program-board-lanes.is-engomado .program-board-table th:nth-child(7) { width: 13%; }
+.program-board-lanes.is-engomado .program-board-table th:nth-child(8) { width: 12%; }
+.program-board-lanes.is-engomado .program-board-table th:nth-child(9) { width: 23%; }
+
+.program-board-lanes.is-engomado .program-board-table th:nth-child(2),
+.program-board-lanes.is-engomado .program-board-table td:nth-child(2),
+.program-board-lanes.is-engomado .program-board-table th:nth-child(3),
+.program-board-lanes.is-engomado .program-board-table td:nth-child(3) {
+    padding-left: .25rem;
+    padding-right: .25rem;
+}
+
+.program-board-lanes.is-engomado .program-board-table th,
+.program-board-lanes.is-engomado .program-board-table td {
+    overflow-wrap: anywhere;
+    vertical-align: middle;
+    white-space: normal;
+}
+
+.program-board-lanes.is-engomado .program-board-table select {
+    max-width: 100%;
+    min-width: 0;
+    width: 100%;
+}
+
+.program-board-lanes.is-engomado .program-board-observations-cell {
+    min-width: 0;
+    width: auto;
 }
 
 .program-board-lane > h2 {
@@ -420,7 +476,7 @@ body.program-board-modal-open main.app-main {
     border-left: 1px solid #fecaca;
     color: #7f1d1d;
     font-weight: 500;
-    max-width: 12rem;
+    max-width: 18rem;
     overflow: hidden;
     padding-left: .4rem;
     text-overflow: ellipsis;
@@ -547,23 +603,6 @@ body.program-board-modal-open main.app-main {
     background: #dbeafe;
 }
 
-.program-board-type {
-    background: #e5e7eb;
-    padding: .15rem .25rem;
-    border-radius: .2rem;
-    font-size: .65rem;
-}
-
-.program-board-type.is-rizo {
-    color: #e11d48;
-    background: #ffe4e6;
-}
-
-.program-board-type.is-pie {
-    color: #0f766e;
-    background: #ccfbf1;
-}
-
 .program-board-table select {
     border: 0;
     background-color: transparent;
@@ -679,9 +718,8 @@ nav:has(#program-board-navbar-controls) h1 {
         min-height: 0;
     }
 
-    /* ponytail: engomado tiene un solo carril, que use todo el alto tambien en tablets. */
     .program-board-lanes.is-engomado .program-board-lane {
-        height: calc(100dvh - var(--program-board-header-height, 72px) - 1.5rem);
+        height: auto;
         min-height: 0;
     }
 
@@ -701,6 +739,11 @@ nav:has(#program-board-navbar-controls) h1 {
 }
 
 @media (max-width: 900px) {
+    nav:has(#program-board-navbar-controls) > div > div {
+        height: auto;
+        min-height: 3.5rem;
+    }
+
     nav:has(#program-board-navbar-controls) > div > div > div:last-child {
         flex: 1 1 100%;
         justify-content: flex-end;
@@ -722,6 +765,52 @@ nav:has(#program-board-navbar-controls) h1 {
 
     .program-board-navbar-button {
         font-size: .75rem;
+    }
+}
+
+@media (max-width: 1023px) {
+    .program-board:has(> .program-board-lanes.is-engomado) {
+        min-height: 0;
+    }
+
+    .program-board-lanes.is-engomado {
+        grid-template-rows: none;
+        min-height: 0;
+    }
+
+    .program-board-lanes.is-engomado .program-board-lane {
+        height: min(70dvh, 28rem);
+        min-height: 16rem;
+    }
+
+    .program-board-lanes.is-engomado .program-board-table {
+        font-size: .8125rem;
+        min-width: 100%;
+        table-layout: auto;
+        width: max-content;
+    }
+
+    .program-board-lanes.is-engomado .program-board-table th {
+        width: auto;
+    }
+
+    .program-board-lanes.is-engomado .program-board-table select {
+        max-width: none;
+        min-width: 7.5rem;
+        width: auto;
+    }
+
+    .program-board-lanes.is-engomado .program-board-table th,
+    .program-board-lanes.is-engomado .program-board-table td {
+        overflow-wrap: normal;
+        padding: .35rem .4rem;
+        white-space: nowrap;
+    }
+
+    .program-board-lanes.is-engomado .program-board-observations-cell,
+    .program-board-lanes.is-engomado .program-board-observation {
+        min-width: 12rem;
+        white-space: normal;
     }
 }
 
