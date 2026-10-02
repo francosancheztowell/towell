@@ -6,6 +6,9 @@
         'resuelto' => 'bg-emerald-100 text-emerald-700',
         'ignorado' => 'bg-slate-200 text-slate-600',
     ];
+    $red = in_array($error->Origen, ['red', 'livewire'], true);
+    $porPagina = $eventos->countBy(fn ($e) => $e->Url ?: '—')->sortDesc();
+    $usuarios = $eventos->pluck('UsuarioId')->filter()->unique()->count();
 @endphp
 <div class="grid gap-3 lg:grid-cols-3">
     <section class="space-y-3 lg:col-span-2">
@@ -21,8 +24,23 @@
             <h2 class="mt-3 break-all text-lg font-bold text-slate-800">{{ $error->Clase }}</h2>
             <p class="mt-1 whitespace-pre-wrap break-words text-sm text-slate-700">{{ $error->Mensaje }}</p>
 
+            @if ($diagnostico)
+                <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    <span class="font-semibold"><i class="fa-solid fa-circle-info"></i> Qué significa:</span> {{ $diagnostico }}
+                </div>
+            @endif
+
+            @if ($eventos->isNotEmpty())
+                <p class="mt-3 flex flex-wrap items-center gap-1 text-sm text-slate-600">
+                    Afecta a <strong>{{ $usuarios }}</strong> {{ $usuarios === 1 ? 'usuario' : 'usuarios' }} en
+                    @foreach ($porPagina->take(4) as $pagina => $n)
+                        <span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs">{{ $pagina }} ×{{ $n }}</span>
+                    @endforeach
+                </p>
+            @endif
+
             <dl class="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
-                <div><dt class="text-xs font-semibold text-slate-500">Archivo</dt><dd class="break-all">{{ $error->Archivo ? $error->Archivo.':'.$error->Linea : '—' }}</dd></div>
+                <div><dt class="text-xs font-semibold text-slate-500">{{ $red ? 'Petición' : 'Archivo' }}</dt><dd class="break-all">{{ $error->Archivo ? $error->Archivo.':'.$error->Linea : '—' }}</dd></div>
                 <div><dt class="text-xs font-semibold text-slate-500">Ruta</dt><dd class="break-all">{{ $error->Ruta ?: '—' }}</dd></div>
                 <div><dt class="text-xs font-semibold text-slate-500">Ocurrencias</dt><dd>{{ number_format((int) $error->Ocurrencias) }}</dd></div>
                 <div><dt class="text-xs font-semibold text-slate-500">Primera vez</dt><dd>{{ $error->PrimeraVez?->format('d/m/Y H:i') }}</dd></div>
@@ -31,6 +49,21 @@
                     <dd>{{ $error->ResueltoEn ? $error->ResueltoEn->format('d/m/Y H:i').' · '.($error->ResueltoPorNombre ?? '#'.$error->ResueltoPor) : '—' }}</dd></div>
             </dl>
         </div>
+
+        @if ($causas->isNotEmpty())
+            <div class="rounded-xl border border-red-200 bg-white p-4 shadow-sm">
+                <h3 class="text-sm font-bold text-red-700">Causa en el servidor <span class="font-normal text-slate-400">(mismo usuario, ±10 s)</span></h3>
+                <ul class="mt-2 space-y-1 text-sm">
+                    @foreach ($causas as $causa)
+                        <li wire:key="causa-{{ $causa->Id }}">
+                            <a href="{{ route('admin.errores.show', $causa->Id) }}" class="font-semibold text-blue-600 hover:underline">#{{ $causa->Id }} {{ $causa->Clase }}</a>
+                            <span class="break-words text-slate-700">{{ \Illuminate\Support\Str::limit($causa->Mensaje, 160) }}</span>
+                            @if ($causa->Archivo)<span class="text-xs text-slate-400">{{ $causa->Archivo }}:{{ $causa->Linea }}</span>@endif
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
         <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <h3 class="border-b border-slate-100 bg-slate-50/60 px-4 py-2.5 text-sm font-bold text-slate-700">
@@ -51,11 +84,11 @@
                             @endif
                         </div>
                         @if ($evento->Url)
-                            <div class="mt-0.5 break-all text-xs text-slate-500">{{ $evento->Url }}</div>
+                            <div class="mt-0.5 break-all text-xs text-slate-500">{{ $red ? 'Página: ' : '' }}{{ $evento->Url }}</div>
                         @endif
                         @if ($evento->Traza)
-                            <details class="mt-1">
-                                <summary class="cursor-pointer text-xs font-semibold text-blue-600">Traza</summary>
+                            <details class="mt-1" @if ($red) open @endif>
+                                <summary class="cursor-pointer text-xs font-semibold text-blue-600">{{ $red ? 'Contexto' : 'Traza' }}</summary>
                                 <pre class="mt-1 max-h-72 overflow-auto rounded bg-slate-900 p-2 text-[11px] leading-snug text-slate-100">{{ $evento->Traza }}</pre>
                             </details>
                         @endif

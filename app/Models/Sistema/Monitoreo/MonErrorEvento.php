@@ -9,6 +9,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * dbo.SYSMonErrorEvento: una ocurrencia concreta de un SYSMonError (máx. N por huella y día).
+ *
+ * @property \Illuminate\Support\Carbon|null $Fecha
+ * @property int|null $UsuarioId
+ * @property int|null $Status
  */
 class MonErrorEvento extends Model
 {

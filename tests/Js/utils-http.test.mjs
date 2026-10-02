@@ -83,7 +83,8 @@ test('todo fallo emite towell:http-error con status, ruta sin query y método', 
   await assert.rejects(http.patch('/catalogo/5', {}, { adapter: adapter(404, { message: 'No existe' }) }))
   stop()
 
-  assert.deepEqual(events, [
+  assert.ok(events.every((e) => typeof e.ms === 'number'))
+  assert.deepEqual(events.map(({ status, url, method }) => ({ status, url, method })), [
     { status: 500, url: '/catalogo/5', method: 'DELETE' },
     { status: 404, url: '/catalogo/5', method: 'PATCH' },
   ])
@@ -98,7 +99,7 @@ test('un fallo de red se reporta con status 0 y mensaje genérico legible', asyn
   await assert.rejects(http.get('/lento', { adapter: network }), (err) => err.status === 0 && err.message === 'Network Error')
   stop()
 
-  assert.deepEqual(events, [{ status: 0, url: '/lento', method: 'GET' }])
+  assert.deepEqual(events.map(({ ms, ...e }) => e), [{ status: 0, url: '/lento', method: 'GET', codigo: 'ERR_NETWORK' }])
 })
 
 test('una petición cancelada no se reporta como error', async () => {

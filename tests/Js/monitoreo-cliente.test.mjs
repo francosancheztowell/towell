@@ -405,12 +405,29 @@ test('towell:http-error: reporta red caída y 5xx; ignora 4xx, telemetría y nav
   env.win.navigator.onLine = false
   http({ status: 0, url: '/api/otra', method: 'get' })
   await flush()
+  assert.equal(env.de('/error').length, 1, 'el status 0 espera a ver si la página se va')
+  await env.correrTimers()
 
   const cuerpos = env.de('/error').map((p) => p.body)
   assert.deepEqual(cuerpos.map((b) => [b.origen, b.mensaje, b.status, b.metodo]), [
     ['red', 'HTTP 500 POST /tejido/guardar', 500, 'POST'],
     ['red', 'HTTP 0 GET /api/lista', 0, 'GET'],
   ])
+})
+
+test('status 0 al salir de la página (navegación/recarga) no se reporta; si no, lleva contexto', async () => {
+  const env = entorno()
+  await arrancar(env)
+  const http = (detail) => env.win.dispatchEvent(new CustomEvent('towell:http-error', { detail }))
+  http({ status: 0, url: '/a', method: 'post', codigo: 'ERR_NETWORK', ms: 1200 })
+  await env.correrTimers()
+  const [cuerpo] = env.de('/error').map((p) => p.body)
+  assert.match(cuerpo.stack, /código: ERR_NETWORK\nesperó: 1200 ms\npestaña: visible/)
+
+  http({ status: 0, url: '/b', method: 'post' })
+  env.win.dispatchEvent(new Event('pagehide'))
+  await env.correrTimers()
+  assert.equal(env.de('/error').length, 1)
 })
 
 test('Livewire.hook request: reporta fallos 5xx con origen livewire', async () => {

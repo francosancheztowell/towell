@@ -11,7 +11,7 @@
 
 export type Post = (url: string, body: unknown) => Promise<unknown>
 
-type Fallo = { status: number, url?: string, method?: string }
+type Fallo = { status: number, url?: string, method?: string, codigo?: string, ms?: number }
 
 type LivewireHook = (name: 'request', callback: (request: {
   url?: string
@@ -257,13 +257,32 @@ export function iniciar(op: Opciones): Telemetria | null {
     const status = Number(f.status) || 0
     if (url.startsWith(BASE + '/') || (status > 0 && status < 500) || (status === 0 && nav.onLine === false)) return
     const metodo = f.method?.toUpperCase()
-    reportar({
-      origen,
-      mensaje: `${origen === 'livewire' ? 'Livewire' : 'HTTP'} ${status}${metodo ? ` ${metodo}` : ''} ${url}`.trim(),
-      fuente: url || undefined,
-      status,
-      metodo,
-    })
+    // Contexto del momento del fallo (va a la traza del evento): dice POR QUÉ no hubo respuesta.
+    const contexto = [
+      f.codigo && `código: ${f.codigo}`,
+      f.ms !== undefined && `esperó: ${f.ms} ms`,
+      `pestaña: ${visible() ? 'visible' : 'oculta'}`,
+      `sin tocar la pantalla: ${Math.floor((ahora() - ultimaInteraccion) / 1000)} s`,
+    ].filter(Boolean).join('\n')
+    const enviarlo = (): void => {
+      // Al salir o recargar, el navegador corta las peticiones en curso: no es una falla.
+      if (saliendo) return
+      reportar({
+        origen,
+        mensaje: `${origen === 'livewire' ? 'Livewire' : 'HTTP'} ${status}${metodo ? ` ${metodo}` : ''} ${url}`.trim(),
+        fuente: url || undefined,
+        status,
+        metodo,
+        stack: contexto,
+      })
+    }
+    // Sin respuesta (0, o el 503 que Livewire inventa cuando fetch truena): se espera a ver
+    // si la página se está yendo, porque el pagehide llega después del corte.
+    if (status === 0 || status === 503) {
+      win.setTimeout(enviarlo, 1500)
+    } else {
+      enviarlo()
+    }
   }
 
   const alError = (e: ErrorEvent): void => {

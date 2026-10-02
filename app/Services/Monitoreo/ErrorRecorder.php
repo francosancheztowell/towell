@@ -92,8 +92,9 @@ class ErrorRecorder
     {
         return $this->conCandado(function () use ($datos): ?int {
             $mensaje = $datos['mensaje'] !== '' ? $datos['mensaje'] : 'Error sin mensaje';
+            $red = in_array($datos['origen'], ['red', 'livewire'], true);
             $clase = match (true) {
-                $datos['origen'] === 'red' => 'HTTP '.($datos['status'] ?? 0),
+                $red => 'HTTP '.($datos['status'] ?? 0),
                 (bool) preg_match('/^([A-Z][A-Za-z]{2,40}(?:Error|Exception)):/', $mensaje, $m) => $m[1],
                 default => 'Error',
             };
@@ -101,8 +102,9 @@ class ErrorRecorder
             return $this->registrar([
                 'Origen' => $datos['origen'],
                 'Clase' => $clase,
-                'Mensaje' => $datos['origen'] === 'red' ? self::normalizar($mensaje) : $mensaje,
-                'Archivo' => $datos['fuente'],
+                // Red/Livewire: el endpoint legible, con los ids como {id} para agrupar.
+                'Mensaje' => $red ? self::sinIds($mensaje) : $mensaje,
+                'Archivo' => $red && $datos['fuente'] !== null ? self::sinIds($datos['fuente']) : $datos['fuente'],
                 'Linea' => $datos['linea'],
             ], $datos['status'], (string) ($datos['stack'] ?? ''), [
                 'Url' => $datos['url'],
@@ -119,6 +121,12 @@ class ErrorRecorder
     public static function huella(string $origen, string $clase, ?string $archivo, ?int $linea, string $mensaje): string
     {
         return sha1(implode('|', [$origen, $clase, (string) $archivo, (string) $linea, self::normalizar($mensaje)]));
+    }
+
+    /** `/usuarios/13/duplicar` → `/usuarios/{id}/duplicar` (números y uuids como segmento de ruta). */
+    public static function sinIds(string $ruta): string
+    {
+        return preg_replace('#(?<=/)(?:\d+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?=/|\s|$)#i', '{id}', $ruta) ?? $ruta;
     }
 
     /** Quita uuids, rutas absolutas, valores entre comillas y números. */

@@ -9,6 +9,7 @@ use App\Models\Sistema\Monitoreo\MonError;
 use App\Models\Sistema\Monitoreo\MonErrorEvento;
 use App\Services\Monitoreo\AuditoriaAdmin;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
@@ -89,6 +90,53 @@ class ErrorDetalle extends Component
             'error' => $error,
             'eventos' => $eventos,
             'estados' => MonError::ESTADOS,
+            'diagnostico' => self::diagnostico((string) $error->Origen, (int) substr((string) $error->Clase, 5)),
+            'causas' => $this->causasEnServidor($error, $eventos),
         ]);
+    }
+
+    /** Qué significa un fallo HTTP visto desde el navegador (el «por qué» que no trae el mensaje). */
+    public static function diagnostico(string $origen, int $status): ?string
+    {
+        if (! in_array($origen, ['red', 'livewire'], true)) {
+            return null;
+        }
+
+        return match (true) {
+            $status === 0 => 'La petición nunca recibió respuesta. Casi siempre es la red de la planta (la tablet perdió el Wi-Fi o apagó la pantalla a media petición) '
+                .'o el servidor cortó la conexión (Apache/PHP reiniciado, tiempo de espera agotado). En el contexto de cada evento: '
+                .'«ERR_NETWORK» con pocos ms = sin red; «ECONNABORTED» o muchos segundos = el servidor tardó demasiado; pestaña oculta = la tablet se durmió.',
+            $status === 503 && $origen === 'livewire' => 'Livewire no obtuvo respuesta (falló la red o el servidor no contestó). Mismo diagnóstico que un status 0.',
+            $status >= 500 => 'El servidor respondió con error. La causa real es el error PHP registrado en ese momento: aparece en «Causa en el servidor» si coincidió.',
+            default => null,
+        };
+    }
+
+    /**
+     * Errores PHP/5xx del mismo usuario en ±10 s de cada evento: el porqué de un 5xx visto desde el navegador.
+     *
+     * @param  Collection<int, MonErrorEvento>  $eventos
+     * @return Collection<int, MonErrorEvento>
+     */
+    private function causasEnServidor(MonError $error, Collection $eventos): Collection
+    {
+        $conUsuario = $eventos->filter(fn ($e) => $e->UsuarioId && (int) $e->Status >= 500);
+        if (! in_array($error->Origen, ['red', 'livewire'], true) || $conUsuario->isEmpty()) {
+            return new Collection;
+        }
+
+        $candidatos = MonErrorEvento::query()
+            ->select('SYSMonErrorEvento.Fecha', 'SYSMonErrorEvento.UsuarioId', 'e.Id', 'e.Clase', 'e.Mensaje', 'e.Archivo', 'e.Linea')
+            ->join('SYSMonError as e', 'e.Id', '=', 'SYSMonErrorEvento.ErrorId')
+            ->whereIn('e.Origen', ['php', 'http5xx'])
+            ->whereIn('SYSMonErrorEvento.UsuarioId', $conUsuario->pluck('UsuarioId')->unique()->values())
+            ->whereBetween('SYSMonErrorEvento.Fecha', [$conUsuario->min('Fecha')->copy()->subSeconds(10), $conUsuario->max('Fecha')->copy()->addSeconds(10)])
+            ->get();
+
+        // ponytail: cruce en PHP sobre ≤ 50 eventos; si crece, mover a un join por ventana.
+        return $candidatos
+            ->filter(fn ($c) => $conUsuario->contains(fn ($e) => $e->UsuarioId == $c->UsuarioId && abs($e->Fecha->diffInSeconds($c->Fecha)) <= 10))
+            ->unique('Id')
+            ->values();
     }
 }
