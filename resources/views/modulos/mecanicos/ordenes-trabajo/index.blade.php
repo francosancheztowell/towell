@@ -166,7 +166,7 @@
                         class="size-4 rounded border-blue-300 text-blue-600 focus:ring-blue-600">
                     Captura manual
                 </label>
-                <p id="ayuda-captura-manual" class="mt-2 text-xs text-blue-800">Seleccione una máquina para consultar los paros de las últimas 12 horas.</p>
+                <p id="ayuda-captura-manual" class="mt-2 text-xs text-blue-800">Seleccione una máquina para consultar los paros de las últimas 16 horas.</p>
             </div>
 
             <input id="cabecera-folio" type="hidden">
@@ -611,7 +611,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (! telarSeleccionado) {
             check.disabled = true;
             check.checked = false;
-            $('#ayuda-captura-manual').textContent = 'Seleccione una máquina para consultar los paros de las últimas 12 horas.';
+            $('#ayuda-captura-manual').textContent = 'Seleccione una máquina para consultar los paros de las últimas 16 horas.';
             return;
         }
 
@@ -625,8 +625,8 @@ document.addEventListener('DOMContentLoaded', () => {
         check.disabled = false;
         check.checked = manual;
         $('#ayuda-captura-manual').textContent = hayParos
-            ? 'Selecciona un folio de paro de las últimas 12 horas, o habilita la captura manual para editar falla, turno, fecha y hora.'
-            : 'No hay paros de las últimas 12 horas para esta máquina. La captura manual está habilitada.';
+            ? 'Selecciona un folio de paro de las últimas 16 horas, o habilita la captura manual para editar falla, turno, fecha y hora.'
+            : 'No hay paros de las últimas 16 horas para esta máquina. La captura manual está habilitada.';
     }
 
     /** Deja un select con una sola opción vacía (aviso) y bloqueado. */

@@ -54,7 +54,7 @@ class OrdenesTrabajoMecaController extends Controller
 
     private const ESTATUS_CANCELADO = 'Cancelado';
 
-    private const HORAS_HISTORIAL_PAROS = 12;
+    private const HORAS_HISTORIAL_PAROS = 16;
 
     /** Opciones del select "Tipo de falla" al crear una OT; el back solo acepta estas. */
     public const TIPOS_FALLA = ['Calidad', 'Eléctrica', 'Mecánica', 'Tiempo muerto'];
@@ -244,7 +244,7 @@ class OrdenesTrabajoMecaController extends Controller
     /**
      * Historial de paros elegibles de un telar para crear una OT.
      *
-     * Solo incluye paros de las últimas 12 horas. Un mismo paro puede originar
+     * Solo incluye paros de las últimas 16 horas. Un mismo paro puede originar
      * varias órdenes (una intervención puede requerir varios pases), así que no
      * se excluyen los folios ya vinculados a otra orden.
      */

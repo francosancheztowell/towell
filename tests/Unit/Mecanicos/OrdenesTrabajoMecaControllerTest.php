@@ -154,7 +154,7 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
         $this->assertSame("Observación inicial\nCierre registrado", $conDatos['ComentariosTexto']);
     }
 
-    public function test_historial_de_paros_solo_incluye_las_ultimas_12_horas(): void
+    public function test_historial_de_paros_solo_incluye_las_ultimas_16_horas(): void
     {
         DB::connection('sqlsrv')->table('dbo.ManFallasParos')->insert([
             [
@@ -174,7 +174,7 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
                 'Folio' => 'PARO-LIMITE',
                 'Estatus' => 'Activo',
                 'Fecha' => '2026-09-01',
-                'Hora' => '22:00:00',
+                'Hora' => '18:00:00',
                 'MaquinaId' => '201',
                 'Falla' => null,
                 'Descripcion' => null,
@@ -187,7 +187,7 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
                 'Folio' => 'PARO-VIEJO',
                 'Estatus' => 'Activo',
                 'Fecha' => '2026-09-01',
-                'Hora' => '21:59:00',
+                'Hora' => '17:59:00',
                 'MaquinaId' => '201',
                 'Falla' => null,
                 'Descripcion' => null,
@@ -208,7 +208,7 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
         $this->assertSame(['PARO-RECIENTE', 'PARO-LIMITE'], collect($payload['data'])->pluck('Folio')->all());
     }
 
-    public function test_historial_vacio_en_12_horas_permite_captura_manual(): void
+    public function test_historial_vacio_en_16_horas_permite_captura_manual(): void
     {
         DB::connection('sqlsrv')->table('dbo.ManFallasParos')->insert([
             'Folio' => 'PARO-VIEJO',
