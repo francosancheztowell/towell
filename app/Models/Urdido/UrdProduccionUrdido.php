@@ -4,13 +4,21 @@ namespace App\Models\Urdido;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property string $Folio
+ * @property float|null $KgNeto
+ * @property string|null $ImporteMP decimal(18,4): KgNeto × Σ(cump × %) del folio, ver CumpKardexService
+ */
 class UrdProduccionUrdido extends Model
 {
     protected $connection = 'sqlsrv';
+
     protected $table = 'UrdProduccionUrdido';
 
     protected $primaryKey = 'Id';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
 
     public $timestamps = false;
@@ -124,6 +132,3 @@ class UrdProduccionUrdido extends Model
         'FechaDefecto' => 'datetime',
     ];
 }
-
-
-
