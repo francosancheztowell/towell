@@ -28,6 +28,7 @@ class CatalogoMaquinasTest extends TestCase
             $t->string('MaquinaId')->primary();
             $t->string('Nombre')->nullable();
             $t->string('Departamento')->nullable();
+            $t->string('Codificacion')->nullable();
         });
         URDCatalogoMaquina::create(['MaquinaId' => 'KM-2', 'Nombre' => 'Karl Mayer', 'Departamento' => 'Urdido']);
     }
@@ -68,13 +69,16 @@ class CatalogoMaquinasTest extends TestCase
 
         // Editar sin cambiar el id
         $lw->call('abrirEdicion', 'KM-2')->assertSet('form.Nombre', 'Karl Mayer')
-            ->set('form.Nombre', 'KM')->call('guardar')->assertHasNoErrors();
+            ->set('form.Nombre', 'KM')->set('form.Codificacion', 'TOW-KMURD-URDI')->call('guardar')->assertHasNoErrors();
         $this->assertSame('KM', URDCatalogoMaquina::find('KM-2')->Nombre);
+        $lw->call('abrirEdicion', 'KM-2')->set('form.Codificacion', str_repeat('X', 46))->call('guardar')->assertHasErrors(['form.Codificacion']);
+        $lw->call('cerrar');
 
         // Cambiar el id: se borra el viejo y queda el nuevo
         $lw->call('abrirEdicion', 'KM-2')->set('form.MaquinaId', 'KM-3')->call('guardar')->assertHasNoErrors();
         $this->assertNull(URDCatalogoMaquina::find('KM-2'));
         $this->assertSame('KM', URDCatalogoMaquina::find('KM-3')->Nombre);
+        $this->assertSame('TOW-KMURD-URDI', URDCatalogoMaquina::find('KM-3')->Codificacion, 'Cambiar el ID no pierde la codificación.');
 
         $lw->set('seleccionado', 'KM-3')->call('eliminar');
         $this->assertSame(['MC Coy 1'], URDCatalogoMaquina::pluck('MaquinaId')->all());

@@ -30,14 +30,6 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
         $this->useSqlsrvSqlite();
         $this->createAuthTable();
         $this->createReporte03Tables();
-
-        $reportsRoot = storage_path('framework/testing/reports-urdido');
-
-        if (! is_dir($reportsRoot)) {
-            mkdir($reportsRoot, 0777, true);
-        }
-
-        config()->set('filesystems.disks.reports_urdido.root', $reportsRoot);
     }
 
     protected function tearDown(): void
@@ -335,12 +327,13 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
             'NomEmpl1' => 'Eng C',
         ]);
 
-        Excel::shouldReceive('store')
+        Excel::shouldReceive('store')->never();
+
+        Excel::shouldReceive('download')
             ->once()
-            ->withArgs(function ($export, $filename, $disk) {
+            ->withArgs(function ($export, $filename) {
                 $this->assertInstanceOf(ReportesUrdidoExport::class, $export);
-                $this->assertSame('03-0EE URD-ENG-2026.xlsx', $filename);
-                $this->assertSame('local', $disk);
+                $this->assertSame('reporte-urdido-20260310-20260312.xlsx', $filename);
 
                 $porFecha = $this->extractProperty($export, 'porFecha');
                 $defectosData = $this->extractProperty($export, 'defectosData');
@@ -364,16 +357,6 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
                 $this->assertSame('URD', $defectosData['calidad_rows'][0]['area']);
                 $this->assertSame('ENG', $defectosData['calidad_rows'][2]['area']);
                 $this->assertSame(5.0, $defectosData['calidad_rows'][1]['penalizar']);
-
-                return true;
-            })
-            ->andReturnTrue();
-
-        Excel::shouldReceive('download')
-            ->once()
-            ->withArgs(function ($export, $filename) {
-                $this->assertInstanceOf(ReportesUrdidoExport::class, $export);
-                $this->assertSame('reporte-urdido-20260310-20260312.xlsx', $filename);
 
                 return true;
             })

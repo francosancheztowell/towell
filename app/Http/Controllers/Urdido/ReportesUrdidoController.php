@@ -18,8 +18,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 
 // New import
@@ -525,60 +523,9 @@ class ReportesUrdidoController extends Controller
 
         $fechaIniCarbon = $this->parseReportDate($fechaIni);
         $fechaFinCarbon = $this->parseReportDate($fechaFin);
-        $filenameRed = 'Kaizen urd-eng '.$fechaFinCarbon->format('Y').'.xlsx';
         $filenameDownload = 'kaizen-urd-eng-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
-        $export = new KaizenExport($filasEngomado, $filasUrdido);
-
-        return $this->guardarReporteEnRed($export, $filenameRed, $filenameDownload, 'Kaizen');
-    }
-
-    /**
-     * Guarda el reporte en la ruta de red y devuelve la descarga.
-     * Usa config() para la ruta (compatible con config:cache en producción).
-     * Usa Log::error() para fallos (visible con LOG_LEVEL=error).
-     */
-    private function guardarReporteEnRed($export, string $filenameRed, string $filenameDownload, string $nombreReporte)
-    {
-        $rutaRed = config('filesystems.disks.reports_urdido.root')
-            ?? '\\\\192.168.2.11\\produccion\\PRODUCCION\\INDICADORES\\2026\\EFICIENCIAS 2026\\EFIC-CA UR-ENG 2026';
-        $sep = (PHP_OS_FAMILY === 'Windows') ? '\\' : '/';
-        $rutaArchivoRed = rtrim(str_replace(['/', '\\'], $sep, $rutaRed), $sep).$sep.$filenameRed;
-
-        try {
-            Excel::store($export, $filenameRed, 'local');
-            $tempPath = Storage::disk('local')->path($filenameRed);
-            $contenido = file_get_contents($tempPath);
-            Storage::disk('local')->delete($filenameRed);
-
-            $bytes = $contenido !== false ? @file_put_contents($rutaArchivoRed, $contenido) : false;
-
-            if ($bytes !== false) {
-                Log::info("Reporte {$nombreReporte} guardado en red", [
-                    'archivo' => $filenameRed,
-                    'ruta' => $rutaArchivoRed,
-                    'bytes' => $bytes,
-                ]);
-            } else {
-                $lastError = error_get_last();
-                Log::error("No se pudo guardar reporte {$nombreReporte} en ruta de red", [
-                    'archivo' => $filenameRed,
-                    'ruta' => $rutaArchivoRed,
-                    'os' => PHP_OS_FAMILY,
-                    'contenido_ok' => $contenido !== false,
-                    'php_error' => $lastError,
-                    'sugerencia' => 'Verifique REPORTS_URDIDO_PATH en .env, permisos de la ruta y que la red sea accesible.',
-                ]);
-            }
-        } catch (\Throwable $e) {
-            Log::error("Error al guardar reporte {$nombreReporte} en red", [
-                'ruta' => $rutaArchivoRed,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-        }
-
-        return Excel::download($export, $filenameDownload);
+        return Excel::download(new KaizenExport($filasEngomado, $filasUrdido), $filenameDownload);
     }
 
     /**
@@ -787,12 +734,9 @@ class ReportesUrdidoController extends Controller
 
         $fechaIniCarbon = $this->parseReportDate($fechaIni);
         $fechaFinCarbon = $this->parseReportDate($fechaFin);
-        $filenameRed = 'BPM Urdido '.$fechaFinCarbon->format('Y').'.xlsx';
         $filenameDownload = 'bpm-urdido-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
-        $export = new BpmUrdidoExport($filas);
-
-        return $this->guardarReporteEnRed($export, $filenameRed, $filenameDownload, 'BPM Urdido');
+        return Excel::download(new BpmUrdidoExport($filas), $filenameDownload);
     }
 
     /**
@@ -1146,12 +1090,9 @@ class ReportesUrdidoController extends Controller
         $fechaIniCarbon = $this->parseReportDate($fechaIni);
         $fechaFinCarbon = $this->parseReportDate($fechaFin);
 
-        $filenameRed = '03-0EE URD-ENG-'.$fechaFinCarbon->format('Y').'.xlsx';
         $filenameDownload = 'reporte-urdido-'.$fechaIniCarbon->format('Ymd').'-'.$fechaFinCarbon->format('Ymd').'.xlsx';
 
-        $export = new ReportesUrdidoExport($porFecha, $defectosData);
-
-        return $this->guardarReporteEnRed($export, $filenameRed, $filenameDownload, '03-OEE URD-ENG');
+        return Excel::download(new ReportesUrdidoExport($porFecha, $defectosData), $filenameDownload);
     }
 
     private function buildReporte03UrdidoQuery(string $fechaIni, string $fechaFin, bool $soloFinalizados): Builder

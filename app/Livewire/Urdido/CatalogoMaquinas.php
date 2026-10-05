@@ -22,7 +22,7 @@ class CatalogoMaquinas extends Component
 
     public const MODELO = URDCatalogoMaquina::class;
 
-    public const CAMPOS = ['MaquinaId', 'Nombre', 'Departamento'];
+    public const CAMPOS = ['MaquinaId', 'Nombre', 'Departamento', 'Codificacion'];
 
     public function mount(): void
     {
@@ -38,6 +38,7 @@ class CatalogoMaquinas extends Component
             ['campo' => 'MaquinaId', 'titulo' => 'Máquina ID', 'filtro' => true],
             ['campo' => 'Nombre', 'titulo' => 'Nombre', 'filtro' => true],
             ['campo' => 'Departamento', 'titulo' => 'Departamento', 'filtro' => true],
+            ['campo' => 'Codificacion', 'titulo' => 'Codificación', 'filtro' => true, 'clase' => 'font-mono'],
         ];
     }
 
@@ -54,10 +55,12 @@ class CatalogoMaquinas extends Component
                 Rule::unique('sqlsrv.URDCatalogoMaquinas', 'MaquinaId')->ignore($esAlta ? null : $this->editando, 'MaquinaId')],
             'form.Nombre' => ['nullable', 'string', 'max:100'],
             'form.Departamento' => ['nullable', 'string', 'max:50'],
+            'form.Codificacion' => ['nullable', 'string', 'max:45'],
         ], attributes: [
             'form.MaquinaId' => 'máquina ID',
             'form.Nombre' => 'nombre',
             'form.Departamento' => 'departamento',
+            'form.Codificacion' => 'codificación',
         ])['form']);
 
         if ($esAlta) {

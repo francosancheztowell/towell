@@ -96,8 +96,11 @@ class NuevoRequerimiento extends Component
         $this->dispatch('scroll-a-telar', numero: $numero);
     }
 
-    public function actualizarCantidad(int $telarIndex, int $rowIndex, float $cantidad): void
+    public function actualizarCantidad(int $telarIndex, int $rowIndex, float|string|null $cantidad): void
     {
+        // El input vacío llega como '' desde wire:change; se toma como 0.
+        $cantidad = is_numeric($cantidad) ? (float) $cantidad : 0.0;
+
         if (! isset($this->telares[$telarIndex]['rows'][$rowIndex])) {
             return;
         }

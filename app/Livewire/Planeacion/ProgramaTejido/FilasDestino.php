@@ -4,10 +4,17 @@ declare(strict_types=1);
 
 namespace App\Livewire\Planeacion\ProgramaTejido;
 
+use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
+use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DuplicarTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
+use App\Http\Requests\Planeacion\DividirSaldoRequest;
+use App\Http\Requests\Planeacion\DuplicarTejidoRequest;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Support\Planeacion\TelarSalonResolver;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Forma de las filas del diálogo Duplicar/Dividir y del payload que leen DividirTejido y
@@ -15,6 +22,15 @@ use Illuminate\Support\Collection;
  */
 final class FilasDestino
 {
+    /** Nombres legibles para los mensajes de validación (destinos.N.campo). */
+    private const ATRIBUTOS = [
+        'destinos.*.telar' => 'telar',
+        'destinos.*.pedido' => 'pedido',
+        'destinos.*.saldo' => 'saldo',
+        'destinos.*.porcentaje_segundos' => '% de segundas',
+        'destinos.*.observaciones' => 'observaciones',
+    ];
+
     private const TOLERANCIA_SALDO = 0.5;
 
     /**
@@ -270,5 +286,22 @@ final class FilasDestino
     public static function numero(float $valor): string
     {
         return rtrim(rtrim(number_format(round($valor, 2), 2, '.', ''), '0'), '.');
+    }
+
+    /**
+     * Normaliza cantidades, valida con las reglas del FormRequest y corre la lógica de
+     * Dividir/Duplicar sin HTTP (el modal es el único cliente; los tests la llaman directo).
+     *
+     * @param  array<string, mixed>  $payload
+     *
+     * @throws ValidationException
+     */
+    public static function correr(bool $dividir, array $payload): JsonResponse
+    {
+        $request = $dividir ? new DividirSaldoRequest : new DuplicarTejidoRequest;
+        $payload['destinos'] = $request::normalizarDestinos($payload['destinos'] ?? []);
+        $data = Validator::make($payload, $request->rules(), [], self::ATRIBUTOS)->validate();
+
+        return $dividir ? DividirTejido::dividir($data) : DuplicarTejido::duplicar($data);
     }
 }

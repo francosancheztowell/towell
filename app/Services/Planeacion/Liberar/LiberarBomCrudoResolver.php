@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Planeacion\Liberar;
 
+use App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -16,7 +18,7 @@ use Illuminate\Support\Facades\Log;
  *
  * Extraído de LiberarOrdenesController: misma query EXISTS, mismos filtros de
  * salón/talla y la misma precarga por lote. No unifica todavía
- * {@see \App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController::queryLmatDesdeTi}
+ * {@see CatCodificacionController::queryLmatDesdeTi}
  * (JOIN + limit 50, sin filtro de salón): eso es follow-up de BUG-007.
  */
 final class LiberarBomCrudoResolver
@@ -81,7 +83,7 @@ final class LiberarBomCrudoResolver
             });
         }
 
-        return $query->limit($limit)->get();
+        return $this->recordar(['fallback', $itemId, $term, $limit], fn () => $query->limit($limit)->get());
     }
 
     /**
@@ -109,13 +111,24 @@ final class LiberarBomCrudoResolver
             });
         }
 
-        $results = $query->limit($limit)->get();
+        $results = $this->recordar(['item', $itemId, $inventSizeId, $salon, $term, $limit], fn () => $query->limit($limit)->get());
 
         if ($results->isEmpty() && $allowFallback) {
             return $this->queryFallback($itemId, $term);
         }
 
         return $results;
+    }
+
+    /**
+     * Las búsquedas de BOM en AX tardan 2-3 s (EXISTS sobre BOMVERSION, sin índices que podamos
+     * agregar) y el autocompletado repite las mismas. El catálogo casi no cambia: 10 min.
+     *
+     * @param  list<string|int>  $partes
+     */
+    private function recordar(array $partes, callable $consulta): Collection
+    {
+        return Cache::remember('liberar:bom:'.md5(implode('|', $partes)), 600, $consulta);
     }
 
     /**

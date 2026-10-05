@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Planeacion;
 
-use App\Livewire\Planeacion\ProgramaTejido\DuplicarDividir;
+use App\Livewire\Planeacion\ProgramaTejido\FilasDestino;
 use App\Models\Planeacion\ReqModelosCodificados;
 use Illuminate\Database\SQLiteConnection;
 use Illuminate\Support\Facades\DB;
@@ -46,7 +46,7 @@ class ProgramaTejidoDividirSaldoTest extends TestCase
     {
         $this->actingAs($this->usuarioConPermisos([2 => ['crear']]));
         try {
-            $respuesta = DuplicarDividir::correr($ruta === 'dividir-saldo', $payload);
+            $respuesta = FilasDestino::correr($ruta === 'dividir-saldo', $payload);
         } catch (ValidationException $e) {
             $respuesta = response()->json(['errors' => $e->errors()], 422);
         }

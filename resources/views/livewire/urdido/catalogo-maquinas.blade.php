@@ -27,6 +27,7 @@
                     <flux:input wire:model="form.MaquinaId" label="Máquina ID" maxlength="50" required autofocus autocomplete="off" placeholder="Ej: MC Coy 1" />
                     <flux:input wire:model="form.Nombre" label="Nombre" maxlength="100" autocomplete="off" placeholder="Ej: MC Coy 1" />
                     <flux:input wire:model="form.Departamento" label="Departamento" maxlength="50" autocomplete="off" placeholder="Ej: Urdido" />
+                    <flux:input wire:model="form.Codificacion" label="Codificación" maxlength="45" autocomplete="off" placeholder="Ej: TOW-MACC1-URDI" />
                 </div>
 
                 <x-dialogo-botones />

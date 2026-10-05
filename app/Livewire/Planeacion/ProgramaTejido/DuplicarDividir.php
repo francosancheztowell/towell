@@ -4,15 +4,8 @@ declare(strict_types=1);
 
 namespace App\Livewire\Planeacion\ProgramaTejido;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DuplicarTejido;
-use App\Http\Requests\Planeacion\DividirSaldoRequest;
-use App\Http\Requests\Planeacion\DuplicarTejidoRequest;
 use App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface;
 use Illuminate\Contracts\View\View;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -29,15 +22,6 @@ use Livewire\Component;
 class DuplicarDividir extends Component
 {
     use AutocompletaClaveFlog;
-
-    /** Nombres legibles para los mensajes de validación (destinos.N.campo). */
-    private const ATRIBUTOS = [
-        'destinos.*.telar' => 'telar',
-        'destinos.*.pedido' => 'pedido',
-        'destinos.*.saldo' => 'saldo',
-        'destinos.*.porcentaje_segundos' => '% de segundas',
-        'destinos.*.observaciones' => 'observaciones',
-    ];
 
     /** Programa o Muestras: decide tabla y módulo de permiso. Llega en mount() y no cambia. */
     #[Locked]
@@ -251,7 +235,7 @@ class DuplicarDividir extends Component
         $payload = $dividir
             ? FilasDestino::payloadDividir($this->origen, $this->filas['dividir'], (int) $this->registroId, $this->esGrupo)
             : FilasDestino::payloadDuplicar($this->origen, $this->filas['duplicar'], (int) $this->registroId, $vincular);
-        $respuesta = self::correr($dividir, $payload);
+        $respuesta = FilasDestino::correr($dividir, $payload);
         $json = (array) $respuesta->getData(true);
         if ($respuesta->getStatusCode() < 400 && ! empty($json['success'])) {
             return $json;
@@ -261,23 +245,6 @@ class DuplicarDividir extends Component
         $this->aviso = trim((string) preg_replace('/\s+/', ' ', strip_tags((string) ($json['message'] ?? 'No se pudo guardar.'))));
 
         return null;
-    }
-
-    /**
-     * Normaliza cantidades, valida con las reglas del FormRequest y corre la lógica de
-     * Dividir/Duplicar sin HTTP (el modal es el único cliente; los tests la llaman directo).
-     *
-     * @param  array<string, mixed>  $payload
-     *
-     * @throws ValidationException
-     */
-    public static function correr(bool $dividir, array $payload): JsonResponse
-    {
-        $request = $dividir ? new DividirSaldoRequest : new DuplicarTejidoRequest;
-        $payload['destinos'] = $request::normalizarDestinos($payload['destinos'] ?? []);
-        $data = Validator::make($payload, $request->rules(), [], self::ATRIBUTOS)->validate();
-
-        return $dividir ? DividirTejido::dividir($data) : DuplicarTejido::duplicar($data);
     }
 
     public function cerrar(): void

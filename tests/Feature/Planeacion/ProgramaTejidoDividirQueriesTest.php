@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Planeacion;
 
-use App\Livewire\Planeacion\ProgramaTejido\DuplicarDividir;
+use App\Livewire\Planeacion\ProgramaTejido\FilasDestino;
 use App\Models\Planeacion\ReqModelosCodificados;
 use Illuminate\Database\SQLiteConnection;
 use Illuminate\Support\Facades\DB;
@@ -111,6 +111,6 @@ class ProgramaTejidoDividirQueriesTest extends TestCase
     {
         $this->actingAs($this->usuarioConPermisos([2 => ['crear']]));
 
-        return TestResponse::fromBaseResponse(DuplicarDividir::correr(true, $payload));
+        return TestResponse::fromBaseResponse(FilasDestino::correr(true, $payload));
     }
 }
