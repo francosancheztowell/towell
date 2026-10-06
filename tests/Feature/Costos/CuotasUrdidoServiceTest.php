@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Costos;
 
 use App\Models\Costos\CosCuotasReal;
+use App\Services\Costos\CostosJulio;
 use App\Services\Costos\CuotasUrdidoService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -41,6 +42,9 @@ class CuotasUrdidoServiceTest extends TestCase
             $t->date('Fecha')->nullable();
             $t->time('HoraInicial')->nullable();
             $t->time('HoraFinal')->nullable();
+            foreach (array_keys(CostosJulio::COLUMNAS) as $col) {
+                $t->decimal($col, 18, 4)->nullable();
+            }
         });
         Schema::connection('sqlsrv')->create('UrdProgramaUrdido', function (Blueprint $t) {
             $t->increments('Id');
@@ -156,6 +160,50 @@ class CuotasUrdidoServiceTest extends TestCase
         $this->assertSame(8.3333, $s->calcular(2026, 4, false, true)['MO'], 'Con paros: 1000 ÷ 120.');
     }
 
+    public function test_la_cuota_llega_a_cada_julio_y_suma_la_sabana(): void
+    {
+        $this->julios([
+            ['00001', 'Mc Coy 1', '2026-04-10', '10:00:00', '12:00:00'], // 120 min, 20 de paro dentro
+            ['00002', 'Mc Coy 2', '2026-04-11', '08:00:00', '09:00:00'], // 60 min, sin paro
+        ]);
+        $this->paros([['Mc Coy 1', 'Mecanico', '2026-04-10 11:00:00', '2026-04-10 11:20:00']]);
+        $this->movimientos = [(object) ['cuenta' => '702-002-000-0', 'centro' => '003', 'tipo' => 'MOD', 'total' => 1000]];
+        // Prorrateo fijo capturado a mano en la pantalla de Cuotas; maquila sin capturar.
+        CosCuotasReal::create(['Depto' => 'Urdido', 'Año' => 2026, 'Mes' => 4, 'ProrrateoFijo' => 0.5]);
+        $s = app(CuotasUrdidoService::class);
+
+        $r = $s->actualizar(2026, 4); // sin paros: cuota MO = 1000 ÷ (180 − 20) = 6.25
+
+        $this->assertSame(2, $r['Julios']);
+        $j = fn () => DB::connection('sqlsrv')->table('UrdProduccionUrdido')->orderBy('Folio')->get();
+        $this->assertSame([625.0, 375.0], $j()->pluck('MOD')->map(fn ($v) => (float) $v)->all(), '6.25 × (120 − 20) y 6.25 × 60: suman SabMO.');
+        $this->assertSame([50.0, 30.0], $j()->pluck('Pf')->map(fn ($v) => (float) $v)->all(), 'Prorrateo capturado × la misma base.');
+        $this->assertSame([0.0, 0.0], $j()->pluck('GtsV')->map(fn ($v) => (float) $v)->all());
+        $this->assertSame([null, null], $j()->pluck('Maquila')->all(), 'Cuota no capturada: queda vacío.');
+
+        $s->actualizar(2026, 4, false, true); // con paros: 1000 ÷ 180 sobre los minutos completos
+        $this->assertEqualsWithDelta(1000.0, $j()->sum('MOD'), 0.01);
+        $this->assertSame(666.6720, round((float) $j()->first()->MOD, 4), '5.5556 × 120.');
+
+        $this->assertSame(0, $s->actualizar(2026, 4, false, true)['Julios'], 'Sin cambios no reescribe.');
+    }
+
+    public function test_julios_encimados_reparten_la_sabana_completa(): void
+    {
+        // Captura encimada: dos julios de Mc Coy 1 al mismo tiempo y un paro dentro de ambos.
+        $this->julios([
+            ['00001', 'Mc Coy 1', '2026-04-10', '10:00:00', '11:00:00'],
+            ['00002', 'Mc Coy 1', '2026-04-10', '10:30:00', '11:30:00'],
+        ]);
+        $this->paros([['Mc Coy 1', 'Mecanico', '2026-04-10 10:40:00', '2026-04-10 10:50:00']]);
+        $this->movimientos = [(object) ['cuenta' => '702-002-000-0', 'centro' => '003', 'tipo' => 'MOD', 'total' => 777]];
+
+        $r = app(CuotasUrdidoService::class)->actualizar(2026, 4);
+
+        $this->assertSame(20.0, $r['MinParo'], 'El paro cae en los dos julios: 10 + 10.');
+        $this->assertEqualsWithDelta(777.0, DB::connection('sqlsrv')->table('UrdProduccionUrdido')->sum('MOD'), 0.01);
+    }
+
     /** @param list<array{0: string, 1: string, 2: string, 3: string, 4: string}> $julios folio, máquina, fecha, inicio, fin */
     private function julios(array $julios): void
     {
@@ -187,7 +235,7 @@ class CuotasUrdidoServiceTest extends TestCase
         $r = app(CuotasUrdidoService::class)->actualizarRango(2026, 4, 5);
 
         $this->assertFalse($r['completo']);
-        $this->assertSame('Urdido: 2 mes(es) calculado(s). Sin producción: Mayo. $25.00 de AX sin clasificar.', $r['texto']);
+        $this->assertSame('Urdido: 2 mes(es) calculado(s), 1 julio(s) actualizados. Sin producción: Mayo. $25.00 de AX sin clasificar.', $r['texto']);
         $this->assertSame(2, CosCuotasReal::count());
     }
 

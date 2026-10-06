@@ -8,6 +8,7 @@ use App\Models\Inventario\InvKardexMPConsol;
 use App\Models\Urdido\Urdbom;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
+use App\Support\ActualizacionPorId;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -31,7 +32,7 @@ class CumpKardexService
 {
     private const COLUMNA = ['MCCOY1' => 'MC1CU', 'MCCOY2' => 'MC2CU', 'MCCOY3' => 'MC3CU', 'KARLMAYER' => 'KMCU'];
 
-    /** Lo único que porId() escribe. */
+    /** Lo único que este servicio escribe. */
     private const ESCRIBIBLES = ['Urdbom' => ['cump', 'importe'], 'UrdProduccionUrdido' => ['ImporteMP']];
 
     /**
@@ -45,8 +46,8 @@ class CumpKardexService
         $c = $this->calcular($folios, $porFecha, $anterior, $existencia);
 
         DB::connection('sqlsrv')->transaction(function () use ($c) {
-            self::porId('Urdbom', $c['materiales']);
-            self::porId('UrdProduccionUrdido', array_map(fn ($v) => ['ImporteMP' => $v], $c['produccion']));
+            ActualizacionPorId::ejecutar('Urdbom', $c['materiales'], self::ESCRIBIBLES['Urdbom']);
+            ActualizacionPorId::ejecutar('UrdProduccionUrdido', array_map(fn ($v) => ['ImporteMP' => $v], $c['produccion']), self::ESCRIBIBLES['UrdProduccionUrdido']);
         });
 
         return ['materiales' => count($c['materiales']), 'produccion' => count($c['produccion'])];
@@ -152,35 +153,5 @@ class CumpKardexService
     private static function clave(?string $item, ?string $config, ?string $color): string
     {
         return strtoupper(trim((string) $item).'|'.trim((string) $config).'|'.trim((string) $color));
-    }
-
-    /**
-     * UPDATE … SET col = CASE Id WHEN ? THEN ? … END en lotes: la primera corrida toca ~8 mil julios y
-     * uno por fila no cabe en una petición. SQL crudo porque el query builder no arma CASE con bindings.
-     *
-     * @param  array<int, array<string, float>>  $valores  Id => [columna => valor]
-     */
-    private static function porId(string $tabla, array $valores): void
-    {
-        // Tabla y columnas van en el SQL (no admiten bindings): solo las de esta lista.
-        $permitidas = self::ESCRIBIBLES[$tabla] ?? throw new \InvalidArgumentException("Tabla no permitida: {$tabla}");
-
-        // ≤ 2100 parámetros de SQL Server: 2 columnas × 2 + 1 (IN) = 5 por fila.
-        foreach (array_chunk($valores, 300, true) as $lote) {
-            $sets = [];
-            $bindings = [];
-            foreach (array_keys(reset($lote)) as $col) {
-                in_array($col, $permitidas, true) || throw new \InvalidArgumentException("Columna no permitida: {$col}");
-                $sets[] = sprintf('[%s] = CASE [Id]%s END', $col, str_repeat(' WHEN ? THEN ?', count($lote)));
-                foreach ($lote as $id => $v) {
-                    array_push($bindings, $id, $v[$col]);
-                }
-            }
-            $ids = array_keys($lote);
-            DB::connection('sqlsrv')->update(
-                sprintf('UPDATE [%s] SET %s WHERE [Id] IN (%s)', $tabla, implode(', ', $sets), implode(',', array_fill(0, count($ids), '?'))),
-                [...$bindings, ...$ids],
-            );
-        }
     }
 }

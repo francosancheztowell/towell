@@ -46,9 +46,10 @@ class CuotasUrdidoService
     private const CUOTA = ['SabMO' => 'MO', 'SabGtosVariable' => 'GtosVariables', 'SabGtosFijos' => 'GtosFijos', 'SabMOI' => 'MOI'];
 
     /**
-     * Calcula y guarda (alta o reemplazo de las columnas calculadas).
+     * Calcula y guarda la cuota (alta o reemplazo de las columnas calculadas) y la lleva a los julios del mes
+     * (MOD, MOI, GtsV, GtsF, Pf, PV, Maquila de UrdProduccionUrdido, ver CostosJulio).
      *
-     * @return array<string, float|int|null> valores guardados + 'SinClasificar' (importe que no se pudo tipificar)
+     * @return array<string, float|int|null> valores guardados + 'SinClasificar' (importe que no se pudo tipificar) + 'Julios'
      */
     public function actualizar(int $año, int $mes, bool $paroTotal = false, bool $conParos = false): array
     {
@@ -56,12 +57,13 @@ class CuotasUrdidoService
         $sinClasificar = $valores['SinClasificar'];
         unset($valores['SinClasificar']);
 
-        $existente = CosCuotasReal::existente(self::DEPTO, $año, $mes);
-        $existente
-            ? $existente->update($valores)
-            : CosCuotasReal::create(['Depto' => self::DEPTO, 'Año' => $año, 'Mes' => $mes] + $valores);
+        $cuota = CosCuotasReal::existente(self::DEPTO, $año, $mes);
+        $cuota
+            ? $cuota->update($valores)
+            : $cuota = CosCuotasReal::create(['Depto' => self::DEPTO, 'Año' => $año, 'Mes' => $mes] + $valores);
+        $julios = CostosJulio::aplicar($this->julios($año, $mes), $this->paros($año, $mes, $paroTotal), $cuota, $conParos);
 
-        return $valores + ['SinClasificar' => $sinClasificar];
+        return $valores + ['SinClasificar' => $sinClasificar, 'Julios' => $julios];
     }
 
     /**
@@ -74,15 +76,17 @@ class CuotasUrdidoService
     {
         $sinProduccion = [];
         $sinClasificar = 0.0;
+        $julios = 0;
         foreach (range($desde, $hasta) as $mes) {
             $r = $this->actualizar($año, $mes, $paroTotal, $conParos);
             $sinClasificar += (float) $r['SinClasificar'];
+            $julios += (int) $r['Julios'];
             if ((float) $r['Minutos'] === 0.0) {
                 $sinProduccion[] = CosCuota::MESES[$mes];
             }
         }
 
-        $texto = 'Urdido: '.($hasta - $desde + 1).' mes(es) calculado(s).';
+        $texto = 'Urdido: '.($hasta - $desde + 1).' mes(es) calculado(s), '.number_format($julios).' julio(s) actualizados.';
         $texto .= $sinProduccion === [] ? '' : ' Sin producción: '.implode(', ', $sinProduccion).'.';
         $texto .= $sinClasificar === 0.0 ? '' : ' $'.number_format($sinClasificar, 2).' de AX sin clasificar.';
 
@@ -177,14 +181,14 @@ class CuotasUrdidoService
     /**
      * Julios urdidos en el mes con su máquina (la del folio en UrdProgramaUrdido), inicio y minutos limpios.
      *
-     * Cada uno: [maquina, inicio (timestamp o null), minutos].
+     * Cada uno: [id, maquina, inicio (timestamp o null), minutos].
      */
     public function julios(int $año, int $mes): Collection
     {
         $desde = sprintf('%04d-%02d-01', $año, $mes);
         $julios = UrdProduccionUrdido::query()
             ->whereBetween('Fecha', [$desde, date('Y-m-t', strtotime($desde))])
-            ->get(['Folio', 'Fecha', 'HoraInicial', 'HoraFinal'])
+            ->get(['Id', 'Folio', 'Fecha', 'HoraInicial', 'HoraFinal'])
             ->toBase();
         $maquinas = UrdProgramaUrdido::query()
             ->whereIn('Folio', $julios->pluck('Folio')->unique()->values()->all())
@@ -196,6 +200,7 @@ class CuotasUrdidoService
             $mediana = (float) (collect($min)->filter(fn ($m) => $m !== null)->median() ?? 0);
             foreach ($delFolio as $i => $j) {
                 $salida[] = [
+                    'id' => (int) $j->Id,
                     'maquina' => self::maquina($maquinas[$folio] ?? ''),
                     'inicio' => $j->HoraInicial === null ? null : self::instante($j->Fecha, $j->HoraInicial),
                     'minutos' => ($min[$i] === null || ($mediana > 0 && $min[$i] > 3 * $mediana)) ? $mediana : $min[$i],
@@ -208,14 +213,27 @@ class CuotasUrdidoService
 
     /**
      * Minutos de paro que ocurrieron durante un julio de su máquina (ver clase): los únicos que están
-     * dentro de Minutos. Paros y julios de una máquina se unen antes de cruzarlos (nada cuenta doble).
+     * dentro de Minutos. Los paros encimados de una máquina se unen (un paro no se cuenta dos veces en un julio).
      */
     public function minutosParo(int $año, int $mes, bool $total = false): float
     {
-        $desde = strtotime(sprintf('%04d-%02d-01', $año, $mes));
-        $hasta = strtotime(date('Y-m-t', $desde).' +1 day');
+        // Julio por julio, igual que el reparto (CostosJulio): así Minutos − MinParo = Σ de las bases de
+        // los julios y la sábana se reparte completa aunque haya julios encimados en una máquina.
+        $paros = $this->paros($año, $mes, $total);
 
-        $paros = ManFallasParos::query()
+        return (float) $this->julios($año, $mes)->sum(fn ($j) => CostosJulio::paroDurante($j, $paros[$j['maquina']] ?? []));
+    }
+
+    /**
+     * Paros cerrados del mes por máquina, recortados al mes y con los encimados unidos.
+     *
+     * @return array<string, list<array{0: int, 1: int}>>
+     */
+    public function paros(int $año, int $mes, bool $total = false): array
+    {
+        [$desde, $hasta] = self::limites($año, $mes);
+
+        return ManFallasParos::query()
             ->where('Depto', self::DEPTO)
             ->whereNotNull('FechaFin')->whereNotNull('HoraFin')
             ->where('Fecha', '<', date('Y-m-d', $hasta))
@@ -223,17 +241,16 @@ class CuotasUrdidoService
             ->when(! $total, fn ($q) => $q->where('TipoFallaId', '<>', 'Tiempo Muerto'))
             ->get(['MaquinaId', 'Fecha', 'Hora', 'FechaFin', 'HoraFin'])
             ->groupBy(fn ($p) => self::maquina($p->MaquinaId))
-            ->map(fn ($l) => $l->map(fn ($p) => [self::instante($p->Fecha, $p->Hora), self::instante($p->FechaFin, $p->HoraFin)])->all());
+            ->map(fn ($l) => Tramos::unir($l->map(fn ($p) => [self::instante($p->Fecha, $p->Hora), self::instante($p->FechaFin, $p->HoraFin)])->all(), $desde, $hasta))
+            ->all();
+    }
 
-        $julios = $this->julios($año, $mes)->filter(fn ($j) => $j['inicio'] !== null)->groupBy('maquina')
-            ->map(fn ($l) => $l->map(fn ($j) => [$j['inicio'], $j['inicio'] + (int) round($j['minutos'] * 60)])->all());
+    /** @return array{0: int, 1: int} [inicio del mes, inicio del mes siguiente) en timestamps */
+    private static function limites(int $año, int $mes): array
+    {
+        $desde = (int) strtotime(sprintf('%04d-%02d-01', $año, $mes));
 
-        $segundos = 0;
-        foreach ($paros as $maquina => $tramos) {
-            $segundos += Tramos::cruce(Tramos::unir($tramos, $desde, $hasta), Tramos::unir($julios[$maquina] ?? [], $desde, $hasta));
-        }
-
-        return $segundos / 60;
+        return [$desde, (int) strtotime(date('Y-m-t', $desde).' +1 day')];
     }
 
     /** Mismo nombre de máquina en paros (KM1, MC Coy 3) y en el programa (Karl Mayer, Mc Coy 3). */
