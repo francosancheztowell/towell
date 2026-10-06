@@ -10,6 +10,7 @@ use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
 use App\Support\Http\Concerns\HandlesApiErrors;
+use App\Support\Programas\ProgramaModulo;
 use App\Traits\ProduccionTrait;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -62,23 +63,6 @@ class ModuloProduccionUrdidoController extends Controller
     }
 
     // ─── helpers privados específicos de Urdido ──────────────────────
-
-    private function extractMcCoyNumber(?string $maquinaId): ?int
-    {
-        if (empty($maquinaId)) {
-            return null;
-        }
-
-        if (stripos($maquinaId, 'karl mayer') !== false) {
-            return 4;
-        }
-
-        if (preg_match('/mc\s*coy\s*(\d+)/i', $maquinaId, $matches)) {
-            return (int) $matches[1];
-        }
-
-        return null;
-    }
 
     /**
      * Hilos en la fila de produccion es una PROYECCION del plan de julios: es
@@ -275,7 +259,7 @@ class ModuloProduccionUrdidoController extends Controller
             return null;
         }
 
-        $mcCoyActual = $this->extractMcCoyNumber($orden->MaquinaId);
+        $mcCoyActual = ProgramaModulo::Urdido->laneNumber($orden->MaquinaId);
         $limitePorMaquina = 2;
 
         try {

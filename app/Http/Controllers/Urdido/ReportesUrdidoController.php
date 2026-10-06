@@ -13,6 +13,7 @@ use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Urdido\UrdBpmModel;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Services\Urdido\PanelControlKmService;
+use App\Support\Programas\ProgramaModulo;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -40,21 +41,6 @@ class ReportesUrdidoController extends Controller
         }
 
         return Carbon::parse($value)->startOfDay();
-    }
-
-    private function extractMcCoyNumber(?string $maquinaId): ?int
-    {
-        if (empty($maquinaId)) {
-            return null;
-        }
-        if (stripos($maquinaId, 'karl mayer') !== false) {
-            return 4;
-        }
-        if (preg_match('/mc\s*coy\s*(\d+)/i', $maquinaId, $matches)) {
-            return (int) $matches[1];
-        }
-
-        return null;
     }
 
     private function maquinaLabel(int $num): string
@@ -177,7 +163,7 @@ class ReportesUrdidoController extends Controller
         $totalKg = 0;
 
         foreach ($registros as $r) {
-            $mc = $this->extractMcCoyNumber($r->MaquinaId);
+            $mc = ProgramaModulo::Urdido->laneNumber($r->MaquinaId);
             $label = $mc !== null ? $this->maquinaLabel($mc) : 'Otros';
 
             if (! isset($porMaquina[$label])) {
@@ -441,7 +427,7 @@ class ReportesUrdidoController extends Controller
 
             $fecha = $r->Fecha ? (is_string($r->Fecha) ? $r->Fecha : $r->Fecha->format('Y-m-d')) : null;
             $carbon = $fecha ? Carbon::parse($fecha) : Carbon::now();
-            $mc = $this->extractMcCoyNumber($r->MaquinaId);
+            $mc = ProgramaModulo::Urdido->laneNumber($r->MaquinaId);
             $localidad = $mc !== null ? $this->maquinaLabel($mc) : 'Otros';
 
             $calibre = $r->Calibre ?? $r->Cuenta ?? '';
@@ -600,7 +586,7 @@ class ReportesUrdidoController extends Controller
         foreach ($registros as $r) {
             $folio = $r->Folio;
             if (! isset($porOrden[$folio])) {
-                $mc = $this->extractMcCoyNumber($r->MaquinaId);
+                $mc = ProgramaModulo::Urdido->laneNumber($r->MaquinaId);
                 $maqLabel = $mc !== null ? $this->maquinaLabel($mc) : ($r->MaquinaId ?? 'Otros');
                 $porOrden[$folio] = [
                     'maq' => $maqLabel,
@@ -978,7 +964,7 @@ class ReportesUrdidoController extends Controller
         $ordenMaquinas = ['MC1' => 1, 'MC2' => 2, 'MC3' => 3, 'KM' => 4, 'Otros' => 5];
         $porFecha = $this->buildReporte03DateBuckets($fechaIni, $fechaFin);
         foreach ($registros as $r) {
-            $mc = $this->extractMcCoyNumber($r->MaquinaId);
+            $mc = ProgramaModulo::Urdido->laneNumber($r->MaquinaId);
             $label = $mc !== null ? $this->maquinaLabel($mc) : 'Otros';
 
             $fecha = $this->normalizeReporte03DateKey($r->FechaReporte ?? null);
