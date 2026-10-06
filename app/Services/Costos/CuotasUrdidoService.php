@@ -45,6 +45,12 @@ class CuotasUrdidoService
 
     private const CUOTA = ['SabMO' => 'MO', 'SabGtosVariable' => 'GtosVariables', 'SabGtosFijos' => 'GtosFijos', 'SabMOI' => 'MOI'];
 
+    /** @var array<string, mixed> lecturas ya hechas en este cálculo (julios, reglas, sábana del rango) */
+    private array $memo = [];
+
+    /** @var list<int>|null meses de actualizarRango() en curso: la sábana de AX se lee de una vez para todos */
+    private ?array $rango = null;
+
     /**
      * Calcula y guarda la cuota (alta o reemplazo de las columnas calculadas) y la lleva a los julios del mes
      * (MOD, MOI, GtsV, GtsF, Pf, PV, Maquila de UrdProduccionUrdido, ver CostosJulio).
@@ -52,6 +58,16 @@ class CuotasUrdidoService
      * @return array<string, float|int|null> valores guardados + 'SinClasificar' (importe que no se pudo tipificar) + 'Julios'
      */
     public function actualizar(int $año, int $mes, bool $paroTotal = false, bool $conParos = false): array
+    {
+        try {
+            return $this->guardar($año, $mes, $paroTotal, $conParos);
+        } finally {
+            $this->rango === null && $this->memo = [];
+        }
+    }
+
+    /** @return array<string, float|int|null> */
+    private function guardar(int $año, int $mes, bool $paroTotal, bool $conParos): array
     {
         $valores = $this->calcular($año, $mes, $paroTotal, $conParos);
         $sinClasificar = $valores['SinClasificar'];
@@ -77,8 +93,13 @@ class CuotasUrdidoService
         $sinProduccion = [];
         $sinClasificar = 0.0;
         $julios = 0;
-        foreach (range($desde, $hasta) as $mes) {
-            $r = $this->actualizar($año, $mes, $paroTotal, $conParos);
+        $this->rango = range($desde, $hasta);
+        try {
+            $resultados = array_map(fn ($mes) => [$mes, $this->actualizar($año, $mes, $paroTotal, $conParos)], $this->rango);
+        } finally {
+            [$this->rango, $this->memo] = [null, []];
+        }
+        foreach ($resultados as [$mes, $r]) {
             $sinClasificar += (float) $r['SinClasificar'];
             $julios += (int) $r['Julios'];
             if ((float) $r['Minutos'] === 0.0) {
@@ -103,12 +124,10 @@ class CuotasUrdidoService
         $minutos = round($this->minutos($año, $mes), 4);
         $sab = array_fill_keys(self::TIPOS, 0.0);
         $sinClasificar = 0.0;
-        $reglas = null;
-
         foreach ($this->movimientos($año, $mes) as $m) {
             $tipo = strtoupper(trim((string) $m->tipo));
             if (! isset(self::TIPOS[$tipo])) {
-                $reglas ??= $this->reglas();
+                $reglas = $this->memo['reglas'] ??= $this->reglas();
                 $tipo = $reglas[trim((string) $m->cuenta).'|'.trim((string) $m->centro)] ?? self::tipoPorCuenta((string) $m->cuenta);
             }
             $tipo === null ? $sinClasificar += (float) $m->total : $sab[self::TIPOS[$tipo]] += (float) $m->total;
@@ -127,21 +146,27 @@ class CuotasUrdidoService
 
     /**
      * Movimientos del mes en los centros de urdido, por cuenta y tipo, de las dos empresas.
-     * Cada base va por separado: tienen distinta collation y no se pueden unir en SQL.
+     * Cada base va por separado: tienen distinta collation y no se pueden unir en SQL. Dentro de
+     * actualizarRango() se leen todos los meses del rango de una vez (la tabla de AX no tiene índices).
      *
      * @return Collection<int, \stdClass> cuenta, centro, tipo (CLASIFICACTA) y total
      */
     public function movimientos(int $año, int $mes): Collection
     {
-        return collect(self::BASES)->flatMap(fn (string $base) => DB::connection('sqlsrv_tow_pro')
-            ->table("{$base}.dbo.TWEXPORTATRANSACCIONES")
-            ->where('YEARDATE', $año)
-            ->where('MONTHDATE', CosCuota::MESES[$mes])
-            ->whereIn('DIMENSION2_', self::CENTROS)
-            ->groupBy('ACCOUNTNUM', 'DIMENSION2_', 'CLASIFICACTA')
-            ->select('ACCOUNTNUM as cuenta', 'DIMENSION2_ as centro', 'CLASIFICACTA as tipo')
-            ->selectRaw('SUM(AMOUNTMST) AS total') // agregado agrupado: el builder no lo expresa sin raw
-            ->get());
+        $meses = $this->rango !== null && in_array($mes, $this->rango, true) ? $this->rango : [$mes];
+        $porMes = $this->memo['sabana|'.$año.'|'.implode(',', $meses)] ??= collect(self::BASES)
+            ->flatMap(fn (string $base) => DB::connection('sqlsrv_tow_pro')
+                ->table("{$base}.dbo.TWEXPORTATRANSACCIONES")
+                ->where('YEARDATE', $año)
+                ->whereIn('MONTHDATE', array_map(fn ($m) => CosCuota::MESES[$m], $meses))
+                ->whereIn('DIMENSION2_', self::CENTROS)
+                ->groupBy('MONTHDATE', 'ACCOUNTNUM', 'DIMENSION2_', 'CLASIFICACTA')
+                ->select('MONTHDATE as mes', 'ACCOUNTNUM as cuenta', 'DIMENSION2_ as centro', 'CLASIFICACTA as tipo')
+                ->selectRaw('SUM(AMOUNTMST) AS total') // agregado agrupado: el builder no lo expresa sin raw
+                ->get())
+            ->groupBy(fn ($m) => trim((string) $m->mes));
+
+        return $porMes->get(CosCuota::MESES[$mes], collect());
     }
 
     /**
@@ -184,6 +209,11 @@ class CuotasUrdidoService
      * Cada uno: [id, maquina, inicio (timestamp o null), minutos].
      */
     public function julios(int $año, int $mes): Collection
+    {
+        return $this->memo['julios|'.$año.'|'.$mes] ??= $this->leerJulios($año, $mes);
+    }
+
+    private function leerJulios(int $año, int $mes): Collection
     {
         $desde = sprintf('%04d-%02d-01', $año, $mes);
         $julios = UrdProduccionUrdido::query()
