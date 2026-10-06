@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Urdido\ProgramaUrdido;
 
+use App\Http\Controllers\Concerns\PuedeEditarProgramaUrdEng;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\ProgramaUrdEng\Concerns\RespuestasErrorUrdEng;
 use App\Jobs\Programas\SendUrdidoQualityNotification;
@@ -22,27 +23,13 @@ use Illuminate\Validation\ValidationException;
 
 class ProgramarUrdidoController extends Controller
 {
+    use PuedeEditarProgramaUrdEng;
     use RespuestasErrorUrdEng;
 
     public function __construct(
         private readonly ProgramaPrioridadService $prioridadService,
         private readonly ProgramBoardActionService $boardActionService,
     ) {}
-
-    /**
-     * Verifica si el usuario puede editar: solo usuarios con puesto de Supervisor.
-     */
-    private function usuarioPuedeEditar(): bool
-    {
-        $usuario = Auth::user();
-        if (! $usuario) {
-            return false;
-        }
-
-        $puesto = trim($usuario->puesto ?? '');
-
-        return $puesto !== '' && stripos($puesto, 'supervisor') !== false;
-    }
 
     /**
      * Respuesta 403 si el usuario no puede modificar el programa; null si sí puede.

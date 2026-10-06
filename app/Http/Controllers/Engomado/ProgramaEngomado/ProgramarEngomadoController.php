@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Engomado\ProgramaEngomado;
 
+use App\Http\Controllers\Concerns\PuedeEditarProgramaUrdEng;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\ProgramaUrdEng\Concerns\RespuestasErrorUrdEng;
 use App\Models\Engomado\EngProduccionEngomado;
@@ -15,12 +16,12 @@ use DomainException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ProgramarEngomadoController extends Controller
 {
+    use PuedeEditarProgramaUrdEng;
     use RespuestasErrorUrdEng;
 
     /** Tope de filas por lote de actualizarPrioridades (un tablero activo tiene decenas). */
@@ -30,21 +31,6 @@ class ProgramarEngomadoController extends Controller
         private readonly ProgramaPrioridadService $prioridadService,
         private readonly ProgramBoardActionService $boardActionService,
     ) {}
-
-    /**
-     * Verifica si el usuario puede editar: solo usuarios con puesto de Supervisor.
-     */
-    private function usuarioPuedeEditar(): bool
-    {
-        $usuario = Auth::user();
-        if (! $usuario) {
-            return false;
-        }
-
-        $puesto = trim($usuario->puesto ?? '');
-
-        return $puesto !== '' && stripos($puesto, 'supervisor') !== false;
-    }
 
     /**
      * Mostrar el programa de engomado con el diseño clásico de tablas por máquina.

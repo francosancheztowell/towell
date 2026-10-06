@@ -5,6 +5,11 @@ namespace App\Models\Urdido;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $Id
+ * @property int $Orden
+ * @property string $Actividad
+ */
 class UrdActividadesBpmModel extends Model
 {
     use HasFactory;
@@ -12,9 +17,13 @@ class UrdActividadesBpmModel extends Model
     // protected $connection = 'sqlsrv'; // o 'ProdTowel'
 
     protected $table = 'UrdActividadesBPM';
+
     protected $primaryKey = 'Id';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -24,7 +33,7 @@ class UrdActividadesBpmModel extends Model
     ];
 
     protected $casts = [
-        'Id'    => 'integer',
+        'Id' => 'integer',
         'Orden' => 'integer',
     ];
 }
