@@ -264,7 +264,7 @@ async function prefetchLineas(registros: RegistroBalanceo[]): Promise<void> {
 // GANTT
 // ==========================
 function formatShort(d: Date): string {
-    return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit' });
 }
 
 function getCurrentInputsMap(): Record<string, DatosInput> {
@@ -301,8 +301,8 @@ function renderGanttGrid(dates: Date[], rows: FilaGantt[]): void {
 
     const isSmall = window.innerWidth <= 639;
     if (wrapper) {
-        const rowPx = isSmall ? 32 : 40;
-        const neededHeight = 42 + rows.length * rowPx + 32;
+        const rowPx = isSmall ? 32 : 52;
+        const neededHeight = rowPx + rows.length * rowPx + 4;
         const maxHeight = Math.round(window.innerHeight * (isSmall ? 0.55 : 0.7));
         wrapper.style.height = `${Math.min(neededHeight, maxHeight)}px`;
     }
@@ -313,7 +313,8 @@ function renderGanttGrid(dates: Date[], rows: FilaGantt[]): void {
     const grid = el('div', { clase: 'gantt-grid' },
         el('div', { clase: 'gantt-cell gantt-header gantt-label gantt-corner' }),
         ...dates.map((d) => el('div', { clase: 'gantt-cell gantt-header', texto: formatShort(d) })));
-    grid.style.gridTemplateColumns = `${labelCol} repeat(${dates.length}, ${dateCol})`;
+    // ponytail: las fechas se reparten el ancho (1fr); dateCol es solo el mínimo antes de caer a scroll
+    grid.style.gridTemplateColumns = `${labelCol} repeat(${dates.length}, minmax(${dateCol === '60px' ? '34px' : '30px'}, 1fr))`;
 
     rows.forEach((row, idx) => {
         grid.append(el('div', { clase: 'gantt-cell gantt-label', texto: row.label }));
@@ -332,7 +333,7 @@ function renderGanttGrid(dates: Date[], rows: FilaGantt[]): void {
 }
 
 function etiquetaGantt(reg: RegistroBalanceo): string {
-    return `Telar ${reg.NoTelarId || '-'} · ${reg.NombreProducto || ''}`.trim();
+    return `Telar ${reg.NoTelarId || '-'}`;
 }
 
 async function renderGanttOrd(registros: RegistroBalanceo[]): Promise<void> {
@@ -621,13 +622,17 @@ function actualizarPedidosDesdeTotal(totalInput: HTMLInputElement, ordCompartida
 // ==========================
 async function aplicarBalanceoAutomatico(ordCompartida: Ord): Promise<void> {
     const inputs = pedidoInputs();
-    if (inputs.length < 2) return;
+    if (inputs.length < 2) {
+        notify.warning('Se necesitan al menos 2 telares en la orden para balancear.');
+        return;
+    }
 
     const fechaInput = document.getElementById('fecha-fin-objetivo-balanceo') as HTMLInputElement | null;
     if (!fechaInput) return;
 
     const fechaFinObjetivo = fechaInput.value;
     if (!fechaFinObjetivo) {
+        notify.warning('Captura la Fecha Objetivo para poder balancear.');
         fechaInput.focus();
         return;
     }
@@ -674,6 +679,10 @@ async function aplicarBalanceoAutomatico(ordCompartida: Ord): Promise<void> {
         }
         if (data.advertencia_total) notify.warning(data.advertencia_total);
 
+        const antes = inputs.map((i) => i.value).join('|');
+        if (!Array.isArray(data.cambios) || data.cambios.length === 0) {
+            notify.info('No hay cambios que aplicar: los pedidos ya cumplen la fecha objetivo.');
+        }
         if (Array.isArray(data.cambios)) {
             // Bloquear recálculos intermedios para que cada input no reajuste al último
             adjustingPedidos = true;
@@ -687,6 +696,9 @@ async function aplicarBalanceoAutomatico(ordCompartida: Ord): Promise<void> {
             // El total disponible no cambia: calcularTotalesYFechas no debe redistribuir fuera de él.
             setLockedTotalBalanceo(totalObjetivo);
             adjustingPedidos = false;
+            if (data.cambios.length > 0 && antes === inputs.map((i) => i.value).join('|')) {
+                notify.info('El balanceo no modificó los pedidos: ya están balanceados para esa fecha.');
+            }
 
             calcularTotalesYFechas(ordCompartida);
             setTimeout(() => {
@@ -699,6 +711,7 @@ async function aplicarBalanceoAutomatico(ordCompartida: Ord): Promise<void> {
         }
     } catch (error) {
         console.error('Error al balancear:', error);
+        notify.error('No se pudo balancear. Intenta de nuevo.');
     } finally {
         setLoading(false);
     }
@@ -946,8 +959,8 @@ const ESTILOS_MODAL = `
           #gantt-ord-container { max-height: 75vh; overflow: auto; -webkit-overflow-scrolling: touch; min-height: 150px; }
           .gantt-grid {
             display: grid;
-            grid-auto-rows: minmax(36px, auto);
-            width: max-content;
+            grid-auto-rows: minmax(52px, auto);
+            width: 100%;
             min-width: 100%;
             column-gap: 0;
             row-gap: 0;
@@ -956,9 +969,12 @@ const ESTILOS_MODAL = `
           /* min-width: 0 evita que el contenido ensanche la cuadrícula; fechas respetan el ancho fijado en template */
           .gantt-cell {
             border: 1px solid #e5e7eb;
-            padding: 4px 4px;
-            font-size: 10px;
+            padding: 8px 2px;
+            font-size: 11px;
             line-height: 1.2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             text-align: center;
             min-width: 0;
             box-sizing: border-box;
@@ -969,6 +985,8 @@ const ESTILOS_MODAL = `
             font-weight: 600;
             background: #f3f4f6;
             text-align: left;
+            justify-content: flex-start;
+            font-size: 13px;
             position: sticky;
             left: 0;
             z-index: 21;
@@ -994,7 +1012,7 @@ function contenidoModal(filasHTML: string, noTelarPrincipal: string | null, tota
       <div class="balanceo-modal-content space-y-3 sm:space-y-4 text-left">
         ${ESTILOS_MODAL}
 
-        <div class="flex flex-col sm:flex-row sm:justify-end gap-2 items-stretch sm:items-end">
+        <div id="balanceo-barra-superior" class="flex flex-col sm:flex-row sm:justify-end gap-2 items-stretch sm:items-end mb-2">
           <div class="flex items-center gap-2 rounded-md bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 border border-amber-200 w-full sm:w-auto sm:mr-auto">
             <span>No telar principal es <strong id="balanceo-no-telar-principal">${escapeHtml(noTelarPrincipal || '-')}</strong></span>
           </div>
@@ -1007,7 +1025,7 @@ function contenidoModal(filasHTML: string, noTelarPrincipal: string | null, tota
             >
             <button type="button"
               id="btn-balancear-auto"
-              class="inline-flex items-center justify-center gap-1 rounded-md bg-blue-500 px-4 py-1 text-md font-medium text-white shadow-sm hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed">
+              class="inline-flex items-center justify-center gap-2 whitespace-nowrap min-w-[10rem] shrink-0 rounded-md bg-blue-500 px-6 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed">
               <i class="fa-solid fa-scale-balanced text-xs btn-balancear-icon" aria-hidden="true"></i>
               <span class="btn-balancear-label">Balancear</span>
             </button>
@@ -1016,7 +1034,7 @@ function contenidoModal(filasHTML: string, noTelarPrincipal: string | null, tota
 
         </div>
 
-        <div class="flex flex-col lg:flex-row gap-4 items-stretch">
+        <div class="flex flex-col lg:flex-row gap-4 items-stretch lg:items-start">
           <div class="w-full lg:w-5/12 min-w-0 flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white">
             <div class="balanceo-tabla-wrap overflow-x-auto">
               <table class="min-w-full">
@@ -1085,7 +1103,8 @@ function enlazarEventosModal(cuerpo: HTMLElement, ordCompartida: Ord): void {
             t.blur();
         }
     });
-    cuerpo.addEventListener('click', (e) => {
+    // En el dialog (no en cuerpo): la barra con el botón vive en el encabezado, fuera del cuerpo.
+    (cuerpo.closest('dialog') ?? cuerpo).addEventListener('click', (e) => {
         if ((e.target as Element).closest('#btn-balancear-auto')) void aplicarBalanceoAutomatico(ordCompartida);
     });
     // Al salir de un pedido: antes el onblur del input programaba el preview, y este listener
@@ -1169,6 +1188,10 @@ async function verDetallesGrupoBalanceo(ordCompartida: Ord): Promise<void> {
             cuerpo.closest('dialog')?.classList.add('balanceo-orden-modal');
             // Validación propia (guardarCambiosPedido), no la burbuja nativa del min de los pedidos.
             form?.setAttribute('novalidate', '');
+            // Barra (telar principal, fecha objetivo, Balancear) en el encabezado, encima del título.
+            const barra = cuerpo.querySelector('#balanceo-barra-superior');
+            const titulo = cuerpo.closest('dialog')?.querySelector('.ui-dialogo__titulo');
+            if (barra && titulo) titulo.before(barra);
             // Enter en un campo no guarda (los pedidos ya lo anulan en enlazarEventosModal).
             cuerpo.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && (e.target as Element).matches('input')) e.preventDefault();
