@@ -7,8 +7,11 @@ use App\Models\Engomado\CatUbicaciones;
 use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProduccionFormulacionModel;
 use App\Models\Engomado\EngProgramaEngomado;
+use App\Models\Sistema\SYSUsuario;
+use App\Models\Sistema\Usuario;
 use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProgramaUrdido;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -43,7 +46,7 @@ class ProduccionEngomadoTest extends TestCase
         ]);
     }
 
-    private function usuario(): \App\Models\Sistema\Usuario
+    private function usuario(): Usuario
     {
         return $this->usuarioCon(['Producción Engomado' => ['acceso', 'modificar'], 43 => ['acceso', 'modificar']]);
     }
@@ -141,6 +144,19 @@ class ProduccionEngomadoTest extends TestCase
         $this->assertStringNotContainsString('EngProgramaEngomado', $r->getContent());
     }
 
+    public function test_oficiales_son_de_urdido_o_engomado_con_permiso_crear(): void
+    {
+        $this->tablaDe(SYSUsuario::class, ['area']);
+        $usuario = $this->usuarioCon(['Producción Engomado' => ['acceso']]);
+        $this->sembrarOficiales('Producción Engomado');
+
+        $ids = $this->actingAs($usuario)->getJson(self::BASE.'/usuarios-engomado')
+            ->assertOk()
+            ->json('data.*.id');
+
+        $this->assertEqualsCanonicalizing([21, 22], $ids);
+    }
+
     public function test_usuarios_sin_tabla_responde_mensaje_generico(): void
     {
         $r = $this->actingAs($this->usuario())->getJson(self::BASE.'/usuarios-engomado')
@@ -173,7 +189,7 @@ class ProduccionEngomadoTest extends TestCase
             }
         };
 
-        $r = $controller->finalizar(\Illuminate\Http\Request::create('/x', 'POST', ['orden_id' => 1]));
+        $r = $controller->finalizar(Request::create('/x', 'POST', ['orden_id' => 1]));
 
         $this->assertSame(500, $r->getStatusCode());
         $this->assertSame('Error al finalizar la orden', $r->getData(true)['message']);

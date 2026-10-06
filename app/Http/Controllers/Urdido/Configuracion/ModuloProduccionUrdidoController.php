@@ -6,7 +6,6 @@ use App\Helpers\TurnoHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngProgramaEngomado;
 use App\Models\Mantenimiento\ManFallasParos;
-use App\Models\Sistema\SYSUsuario;
 use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProduccionUrdido;
 use App\Models\Urdido\UrdProgramaUrdido;
@@ -701,29 +700,7 @@ class ModuloProduccionUrdidoController extends Controller
             'No tiene acceso a este módulo.'
         );
 
-        try {
-            // Incluye usuarios con área Urdido y el idusuario indicado (p. ej. oficial que en prod no tiene área Urdido).
-            $idUsuarioExtraOficiales = 22;
-
-            $usuarios = SYSUsuario::select(['idusuario', 'numero_empleado', 'nombre', 'turno'])
-                ->where(function ($q) use ($idUsuarioExtraOficiales) {
-                    $q->where('area', 'Urdido')
-                        ->orWhere('idusuario', $idUsuarioExtraOficiales);
-                })
-                ->whereNotNull('numero_empleado')
-                ->orderBy('nombre')
-                ->get()
-                ->map(fn ($u) => [
-                    'id' => $u->idusuario,
-                    'numero_empleado' => $u->numero_empleado,
-                    'nombre' => $u->nombre,
-                    'turno' => $u->turno,
-                ]);
-
-            return response()->json(['success' => true, 'data' => $usuarios]);
-        } catch (\Throwable $e) {
-            return $this->apiErrorResponse($e, 'Error al obtener usuarios de Urdido', 'Error al obtener los usuarios de Urdido.');
-        }
+        return $this->usuariosOficiales();
     }
 
     public function finalizar(Request $request): JsonResponse
