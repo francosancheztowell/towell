@@ -34,22 +34,15 @@ class ProgramaTejidoCalendariosController extends Controller
 {
     public function getAllRegistrosJson()
     {
-        try {
-            $registros = ReqProgramaTejido::query()
-                ->orderBy('NoTelarId')
-                ->orderBy('Id')
-                ->get(['Id', 'NoTelarId', 'NombreProducto']);
+        $registros = ReqProgramaTejido::query()
+            ->orderBy('NoTelarId')
+            ->orderBy('Id')
+            ->get(['Id', 'NoTelarId', 'NombreProducto']);
 
-            return response()->json([
-                'success' => true,
-                'data' => $registros,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener los registros: '.$e->getMessage(),
-            ], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'data' => $registros,
+        ]);
     }
 
     public function actualizarCalendariosMasivo(Request $request)
@@ -239,13 +232,9 @@ class ProgramaTejidoCalendariosController extends Controller
     {
         AuditoriaHelper::contexto('RECALCULO');
 
-        try {
-            Artisan::call('programa-tejido:recalcular-fechas-produccion', ['--all' => true]);
-            $output = Artisan::output();
+        Artisan::call('programa-tejido:recalcular-fechas-produccion', ['--all' => true]);
+        $output = Artisan::output();
 
-            return response()->json(['ok' => true, 'message' => trim($output) ?: 'Recálculo completado.']);
-        } catch (\Throwable $e) {
-            return response()->json(['ok' => false, 'message' => 'Error: '.$e->getMessage()], 500);
-        }
+        return response()->json(['ok' => true, 'message' => trim($output) ?: 'Recálculo completado.']);
     }
 }
