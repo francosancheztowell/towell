@@ -175,6 +175,25 @@ class NuevoRequerimientoLivewireTest extends TestCase
         $this->assertSame(7.0, $resultado);
     }
 
+    public function test_actualizar_cantidad_vacia_se_toma_como_cero(): void
+    {
+        $lw = Livewire::test(NuevoRequerimiento::class)
+            ->call('abrirModal', '201')
+            ->set('modalCalibre', '20')
+            ->set('modalFibra', 'FIL')
+            ->set('modalCodColor', 'C1')
+            ->set('modalNombreColor', 'Rojo')
+            ->set('modalCantidad', 3)
+            ->call('agregarRequerimiento');
+
+        $telares = $lw->get('telares');
+        $telarIndex = collect($telares)->search(fn ($t) => ! empty($t['rows']));
+        $this->assertNotFalse($telarIndex);
+
+        $lw->call('actualizarCantidad', $telarIndex, 0, '')
+            ->assertSet("telares.$telarIndex.rows.0.cantidad", 0.0);
+    }
+
     public function test_eliminar_fila_remueve_row(): void
     {
         $componente = Livewire::test(NuevoRequerimiento::class);

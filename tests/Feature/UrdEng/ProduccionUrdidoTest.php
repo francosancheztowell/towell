@@ -115,6 +115,18 @@ class ProduccionUrdidoTest extends TestCase
         $this->assertStringNotContainsString('SYSUsuario', $r->getContent());
     }
 
+    public function test_oficiales_son_de_urdido_o_engomado_con_permiso_crear(): void
+    {
+        $usuario = $this->usuarioCon(['Producción Urdido' => ['acceso']], 'Urdido');
+        $this->sembrarOficiales('Producción Urdido');
+
+        $ids = $this->actingAs($usuario)->getJson(self::BASE.'/usuarios-urdido')
+            ->assertOk()
+            ->json('data.*.id');
+
+        $this->assertEqualsCanonicalizing([21, 22], $ids);
+    }
+
     public function test_actualizar_campo_error_interno_no_expone_la_excepcion(): void
     {
         DB::connection('sqlsrv')->getSchemaBuilder()->drop('UrdProduccionUrdido');

@@ -9,7 +9,7 @@ use Tests\TestCase;
 
 /**
  * Las reglas de Duplicar/Dividir ya no viajan por HTTP: el modal Livewire las aplica con
- * DuplicarDividir::correr(). Aquí se fija que los campos obligatorios sigan siéndolo.
+ * FilasDestino::correr(). Aquí se fija que los campos obligatorios sigan siéndolo.
  */
 class ProgramaTejidoFormRequestsTest extends TestCase
 {

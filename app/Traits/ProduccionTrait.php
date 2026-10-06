@@ -3,6 +3,7 @@
 namespace App\Traits;
 
 use App\Helpers\TurnoHelper;
+use App\Models\Sistema\SYSUsuario;
 use App\Models\Urdido\UrdCatJulios;
 use App\Support\Http\Concerns\HandlesApiErrors;
 use App\Support\Programas\ProgramaConfig;
@@ -32,6 +33,33 @@ trait ProduccionTrait
     abstract protected function getDepartamento(): string;
 
     abstract protected function getModuleNameForPermissions(): string;
+
+    /**
+     * Oficiales elegibles: área Urdido o Engomado y, además, permiso `crear`
+     * en el módulo de producción de este controller.
+     */
+    protected function usuariosOficiales(): JsonResponse
+    {
+        try {
+            $usuarios = SYSUsuario::select(['idusuario', 'numero_empleado', 'nombre', 'turno'])
+                ->whereIn('area', ['Urdido', 'Engomado'])
+                ->whereNotNull('numero_empleado')
+                ->whereHas('roles', fn ($q) => $q->where('crear', 1)
+                    ->whereHas('rol', fn ($r) => $r->where('modulo', $this->getModuleNameForPermissions())))
+                ->orderBy('nombre')
+                ->get()
+                ->map(fn ($u) => [
+                    'id' => $u->idusuario,
+                    'numero_empleado' => $u->numero_empleado,
+                    'nombre' => $u->nombre,
+                    'turno' => $u->turno,
+                ]);
+
+            return response()->json(['success' => true, 'data' => $usuarios]);
+        } catch (\Throwable $e) {
+            return $this->apiErrorResponse($e, 'Error al obtener oficiales', 'Error al obtener usuarios');
+        }
+    }
 
     /**
      * Límite superior de Kg. Neto en producción.

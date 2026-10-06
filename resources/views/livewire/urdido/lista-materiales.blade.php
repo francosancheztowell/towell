@@ -17,6 +17,9 @@
                 @if ($puede['crear'])
                     <flux:button icon="arrow-down-tray" class="min-h-touch" wire:click="abrirImportar">Crear desde urdido</flux:button>
                 @endif
+                @if ($puede['modificar'])
+                    <flux:button icon="calculator" class="min-h-touch" wire:click="abrirCostos">Calcular costos</flux:button>
+                @endif
             </x-tabla-acciones-crud>
         </x-slot:acciones>
     </x-tabla>
@@ -88,6 +91,35 @@
                 </div>
 
                 <x-dialogo-botones accion="importarDesdeUrdido" texto="Crear" />
+            </form>
+        </dialog>
+    @endif
+
+    {{-- Calcular costos: cump del kardex de MP por máquina del folio + importe. Los switches eligen el mes. --}}
+    @if ($calculandoCostos)
+        <dialog wire:key="urdbom-costos"
+                wire:ignore.self
+                x-data
+                x-init="$el.showModal()"
+                x-on:close="$wire.set('calculandoCostos', false)"
+                x-on:click="if ($event.target === $el) $el.close()"
+                aria-labelledby="urdbom-costos-titulo"
+                class="ui-dialogo ui-dialogo--formulario">
+            <form wire:submit="calcularCump" class="ui-dialogo__cuerpo" novalidate>
+                <flux:heading id="urdbom-costos-titulo" size="xl">Calcular costos</flux:heading>
+                <flux:text>Cump sale del kardex de MP (columna de la máquina del folio). El ImporteMP de cada julio en producción = KgNeto × Σ(Cump × %), y el importe del material = Cump × % × kilos netos del folio. ¿De qué mes del kardex se toma el costo y qué hacer si la máquina está en 0?</flux:text>
+
+                <div class="grid gap-4">
+                    <flux:switch wire:model.live="costos.porFecha" label="Usar el mes de producción del folio"
+                                 description="Fecha del primer julio urdido (sin producción, la fecha programada). Apagado: el último mes cargado en el kardex." />
+                    <flux:switch wire:model="costos.anterior" label="Si falta ese mes, usar el último anterior"
+                                 description="Apagado: solo el mes exacto; sin ese mes, el material no se toca."
+                                 :disabled="! $costos['porFecha']" />
+                    <flux:switch wire:model="costos.existencia" label="Si la máquina está en 0, usar el costo de existencia"
+                                 description="Toma EXISTENCIACU del mismo mes cuando AX no registra consumo de esa máquina. Apagado: queda en 0." />
+                </div>
+
+                <x-dialogo-botones accion="calcularCump" texto="Calcular" />
             </form>
         </dialog>
     @endif

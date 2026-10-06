@@ -172,6 +172,14 @@ class TelemetriaTest extends TestCase
         $this->assertSame('abc123def456', $errores->table('SYSMonErrorEvento')->value('VersionFront'));
     }
 
+    public function test_error_sin_mensaje_no_se_registra(): void
+    {
+        $this->comoTablet()->postJson('/telemetria/error', [])->assertNoContent();
+        $this->comoTablet()->postJson('/telemetria/error', ['mensaje' => '   ', 'origen' => 'js'])->assertNoContent();
+
+        $this->assertSame(0, DB::connection(Monitoreo::CONEXION_ERRORES)->table('SYSMonError')->count());
+    }
+
     public function test_sin_ruta_del_cliente_toma_la_de_su_vista_y_si_no_desconocida(): void
     {
         $errores = DB::connection(Monitoreo::CONEXION_ERRORES);

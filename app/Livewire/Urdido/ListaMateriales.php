@@ -9,6 +9,7 @@ use App\Livewire\Concerns\ConTabla;
 use App\Models\Urdido\Urdbom;
 use App\Models\Urdido\UrdProgramaUrdido;
 use App\Services\ProgramaUrdEng\BomMaterialesService;
+use App\Services\Urdido\CumpKardexService;
 use App\Support\FiltroAx;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +32,12 @@ class ListaMateriales extends Component
 
     /** @var array{desde?: string, hasta?: string, folio?: string} */
     public array $importar = [];
+
+    /** Modal "Calcular costos" abierto. */
+    public bool $calculandoCostos = false;
+
+    /** @var array{porFecha: bool, anterior: bool, existencia: bool} mes del kardex (el de producción o el último anterior) y respaldo EXISTENCIACU */
+    public array $costos = ['porFecha' => true, 'anterior' => true, 'existencia' => true];
 
     public function mount(): void
     {
@@ -113,7 +120,7 @@ class ListaMateriales extends Component
      * Lmat = BomId de la orden; Calibre/Config/Color/Cantidad = líneas de AX BOM con ese BOMID;
      * Porcentaje = parte de la cantidad dentro del BOM. Los folios que ya están en Urdbom se saltan.
      */
-    public function importarDesdeUrdido(BomMaterialesService $ax): void
+    public function importarDesdeUrdido(BomMaterialesService $ax, CumpKardexService $cump): void
     {
         abort_unless(userCan('crear', self::MODULO), 403);
 
@@ -162,6 +169,7 @@ class ListaMateriales extends Component
                 Urdbom::insert($lote);
             }
         });
+        $cump->actualizar(array_values(array_unique(array_column($filas, 'Folio'))));
 
         $this->importando = false;
         $folios = $ordenes->unique('Folio')->count() - $sinBom;
@@ -169,6 +177,26 @@ class ListaMateriales extends Component
             ? 'No hay órdenes nuevas en ese rango.'
             : "Se crearon {$folios} folio(s), ".count($filas).' material(es).'.($sinBom ? " {$sinBom} sin BOM en AX." : '');
         $this->dispatch('aviso', tipo: $folios > 0 ? 'success' : 'warning', texto: $texto);
+    }
+
+    public function abrirCostos(): void
+    {
+        abort_unless(userCan('modificar', self::MODULO), 403);
+
+        $this->costos = ['porFecha' => true, 'anterior' => true, 'existencia' => true];
+        $this->calculandoCostos = true;
+    }
+
+    /** Recalcula cump, importe de Urdbom e ImporteMP de los julios de producción (ver CumpKardexService). */
+    public function calcularCump(CumpKardexService $cump): void
+    {
+        abort_unless(userCan('modificar', self::MODULO), 403);
+
+        $n = $cump->actualizar(null, (bool) $this->costos['porFecha'], (bool) $this->costos['anterior'], (bool) $this->costos['existencia']);
+        $this->calculandoCostos = false;
+        $texto = $n === ['materiales' => 0, 'produccion' => 0] ? 'Los costos ya estaban al día.'
+            : "Se actualizaron {$n['materiales']} material(es) y {$n['produccion']} julio(s) de producción.";
+        $this->dispatch('aviso', tipo: 'success', texto: $texto);
     }
 
     public function render(): View

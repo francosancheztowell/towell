@@ -106,6 +106,31 @@ trait ModuloUrdEng
         return $usuario;
     }
 
+    /**
+     * Siembra SYSUsuario (hay que haber creado la tabla) para probar el select de oficiales.
+     * El rol de $modulo debe existir ya (lo crea usuarioCon). id => [area, ¿crear en $modulo?].
+     */
+    protected function sembrarOficiales(string $modulo): void
+    {
+        $db = DB::connection('sqlsrv');
+        $idrol = $db->table('SYSRoles')->where('modulo', $modulo)->value('idrol');
+        $db->table('SYSRoles')->insert(['idrol' => 900, 'modulo' => 'Otro módulo']);
+
+        $casos = [
+            // idusuario => [area, crear en el módulo, crear solo en otro módulo]
+            21 => ['Urdido', true, false],     // entra
+            22 => ['Engomado', true, false],   // entra (otra de las dos áreas)
+            23 => ['Urdido', false, false],    // sin crear: fuera
+            24 => ['Tejido', true, false],     // otra área: fuera
+            25 => ['Urdido', false, true],     // crear en otro módulo: fuera
+        ];
+        foreach ($casos as $id => [$area, $crear, $crearOtro]) {
+            $db->table('SYSUsuario')->insert(['idusuario' => $id, 'numero_empleado' => (string) (1000 + $id), 'nombre' => "Oficial $id", 'area' => $area]);
+            $db->table('SYSUsuariosRoles')->insert(['idrol' => $idrol, 'idusuario' => $id, 'acceso' => 1, 'crear' => (int) $crear]);
+            $db->table('SYSUsuariosRoles')->insert(['idrol' => 900, 'idusuario' => $id, 'acceso' => 1, 'crear' => (int) $crearOtro]);
+        }
+    }
+
     /** Número de queries que ejecuta $fn (PERF: número antes/después). */
     protected function contarQueries(callable $fn): int
     {

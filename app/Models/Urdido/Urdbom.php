@@ -11,7 +11,12 @@ use Illuminate\Database\Eloquent\Model;
  *
  * @property string|null $Folio
  * @property string|null $Calibre
- * @property int|null $Materiales  solo en el renglón agrupado por folio (COUNT), ver ListaMateriales
+ * @property string|null $Config
+ * @property string|null $Color
+ * @property string|null $Porcentaje decimal:2
+ * @property string $cump decimal:4
+ * @property string $importe decimal:4
+ * @property int|null $Materiales solo en el renglón agrupado por folio (COUNT), ver ListaMateriales
  */
 class Urdbom extends Model
 {

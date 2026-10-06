@@ -3,7 +3,17 @@
 namespace App\Models\Mantenimiento;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property string|null $Depto
+ * @property string|null $MaquinaId
+ * @property string|null $TipoFallaId
+ * @property Carbon|null $Fecha
+ * @property string|null $Hora
+ * @property Carbon|null $FechaFin
+ * @property string|null $HoraFin
+ */
 class ManFallasParos extends Model
 {
     protected $connection = 'sqlsrv';

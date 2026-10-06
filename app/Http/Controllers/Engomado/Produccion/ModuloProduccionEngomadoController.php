@@ -8,7 +8,6 @@ use App\Models\Engomado\CatUbicaciones;
 use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Engomado\EngProduccionFormulacionModel;
 use App\Models\Engomado\EngProgramaEngomado;
-use App\Models\Sistema\SYSUsuario;
 use App\Models\Urdido\UrdJuliosOrden;
 use App\Models\Urdido\UrdProgramaUrdido;
 use App\Support\Http\Concerns\HandlesApiErrors;
@@ -244,23 +243,7 @@ class ModuloProduccionEngomadoController extends Controller
 
     public function getUsuariosEngomado(): JsonResponse
     {
-        try {
-            $usuarios = SYSUsuario::select(['idusuario', 'numero_empleado', 'nombre', 'turno'])
-                ->where('area', 'Engomado')
-                ->whereNotNull('numero_empleado')
-                ->orderBy('nombre')
-                ->get()
-                ->map(fn ($u) => [
-                    'id' => $u->idusuario,
-                    'numero_empleado' => $u->numero_empleado,
-                    'nombre' => $u->nombre,
-                    'turno' => $u->turno,
-                ]);
-
-            return response()->json(['success' => true, 'data' => $usuarios]);
-        } catch (\Throwable $e) {
-            return $this->apiErrorResponse($e, 'Error al obtener usuarios de Engomado', 'Error al obtener usuarios');
-        }
+        return $this->usuariosOficiales();
     }
 
     public function actualizarCamposProduccion(Request $request): JsonResponse

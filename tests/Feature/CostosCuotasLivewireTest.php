@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Livewire\Costos\Cuotas;
 use App\Models\Costos\CosCuotasReal;
 use App\Models\Costos\CosCuotasSTD;
+use App\Services\Costos\CuotasUrdidoService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
@@ -388,5 +389,43 @@ class CostosCuotasLivewireTest extends TestCase
     public function test_una_llave_invalida_no_encuentra_nada(): void
     {
         $this->assertSame(0, CosCuotasReal::clave('no-es-una-llave')->count());
+    }
+
+    public function test_calcular_urdido_pide_crear_y_modificar(): void
+    {
+        $this->autenticar(['acceso', 'crear']);
+
+        Livewire::test(Cuotas::class)
+            ->assertDontSee('Calcular Urdido')
+            ->call('abrirCalculo')->assertForbidden();
+    }
+
+    public function test_calcular_urdido_corre_cada_mes_del_rango_con_el_modo_de_paros(): void
+    {
+        $this->autenticar();
+        $this->mock(CuotasUrdidoService::class)->shouldReceive('actualizarRango')->once()->with(2026, 4, 6, true, true)
+            ->andReturn(['completo' => false, 'texto' => 'Urdido: 3 mes(es) calculado(s). Sin producción: Junio.']);
+
+        Livewire::test(Cuotas::class)
+            ->assertSee('Calcular Urdido')
+            ->call('abrirCalculo')
+            ->assertSet('calculo.conParos', false)->assertSet('calculo.tiempoMuerto', false)
+            ->set('calculo.año', '2026')->set('calculo.desde', '4')->set('calculo.hasta', '6')->set('calculo.tiempoMuerto', true)->set('calculo.conParos', true)
+            ->call('calcularUrdido')
+            ->assertHasNoErrors()
+            ->assertSet('calculo', null)
+            ->assertSet('tabla', 'real')
+            ->assertDispatched('aviso', tipo: 'warning', texto: 'Urdido: 3 mes(es) calculado(s). Sin producción: Junio.');
+    }
+
+    public function test_calcular_urdido_valida_el_rango(): void
+    {
+        $this->autenticar();
+
+        Livewire::test(Cuotas::class)
+            ->call('abrirCalculo')
+            ->set('calculo.desde', '8')->set('calculo.hasta', '4')->set('calculo.conParos', 'quizá')
+            ->call('calcularUrdido')
+            ->assertHasErrors(['calculo.hasta', 'calculo.conParos']);
     }
 }

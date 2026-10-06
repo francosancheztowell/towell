@@ -123,7 +123,6 @@ class DividirTejido
 
             $destinoOriginal = $destinos[0];
             $destinosNuevos = array_slice($destinos, 1);
-            $saldosNuevos = array_slice($saldos, 1);
             $porcentajeSegundosOriginal = self::porcentajeDe($destinoOriginal);
 
             $idsParaObserver = [];
@@ -340,13 +339,33 @@ class DividirTejido
         self::aplicarDatosDestino($nuevo, $destino, $globales, $salonOrigen);
         TejidoHelpers::aplicarStdDesdeCatalogos($nuevo);
 
+        self::aplicarFila($nuevo, $destino);
+        // Parte nueva sin producción: TotalPedido = saldo / (1 + %seg/100).
+        $nuevo->TotalPedido = TejidoHelpers::pedidoDesdeSaldo(self::saldoDe($destino), $nuevo);
+
+        self::programarParte($nuevo, $ultimo, $inicioSiTelarVacio);
+        unset($nuevo->Repeticiones); // no es columna de la tabla
+
+        $nuevo->Posicion = $reservarPosicion($salon, $telar);
+        $nuevo->CreatedAt = now();
+        $nuevo->UpdatedAt = now();
+        $nuevo->save();
+
+        return $nuevo;
+    }
+
+    /** PedidoTempo, observaciones y %seg capturados en la fila (vacío = se queda el del original). */
+    private static function aplicarFila(ReqProgramaTejido $nuevo, array $destino): void
+    {
         $nuevo->PedidoTempo = self::textoDe($destino, 'pedido_tempo') ?? $nuevo->PedidoTempo;
         $observaciones = self::textoDe($destino, 'observaciones');
         $nuevo->Observaciones = $observaciones !== null ? StringTruncator::truncate('Observaciones', $observaciones) : $nuevo->Observaciones;
         $nuevo->PorcentajeSegundos = self::porcentajeDe($destino) ?? $nuevo->PorcentajeSegundos;
-        // Parte nueva sin producción: TotalPedido = saldo / (1 + %seg/100).
-        $nuevo->TotalPedido = TejidoHelpers::pedidoDesdeSaldo(self::saldoDe($destino), $nuevo);
+    }
 
+    /** Fechas (al final de la cola del telar destino), cambio de hilo y fórmulas de la parte nueva. */
+    private static function programarParte(ReqProgramaTejido $nuevo, ?ReqProgramaTejido $ultimo, Carbon $inicioSiTelarVacio): void
+    {
         // Arranca donde termina el último del telar destino (sin snap al calendario).
         $inicio = $ultimo && $ultimo->FechaFinal ? Carbon::parse($ultimo->FechaFinal) : $inicioSiTelarVacio->copy();
         $nuevo->FechaInicio = $inicio->format('Y-m-d H:i:s');
@@ -357,14 +376,6 @@ class DividirTejido
         foreach (self::calcularFormulasEficiencia($nuevo) as $campo => $valor) {
             $nuevo->{$campo} = $valor;
         }
-        unset($nuevo->Repeticiones); // no es columna de la tabla
-
-        $nuevo->Posicion = $reservarPosicion($salon, $telar);
-        $nuevo->CreatedAt = now();
-        $nuevo->UpdatedAt = now();
-        $nuevo->save();
-
-        return $nuevo;
     }
 
     /** Texto de la fila, o null si viene vacío. */

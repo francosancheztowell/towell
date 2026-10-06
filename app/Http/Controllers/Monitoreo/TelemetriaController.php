@@ -144,7 +144,9 @@ class TelemetriaController extends Controller
 
     public function error(TelemetriaRequest $request, ErrorRecorder $errores): Response
     {
-        if (! Monitoreo::activo()) {
+        // Sin mensaje no hay nada que agrupar ni que leer: el cliente nunca lo manda así, solo
+        // llega cuando la red cortó el cuerpo del POST (se registraba como "Error sin mensaje").
+        if (! Monitoreo::activo() || $request->texto('mensaje', 1000) === null) {
             return response()->noContent();
         }
 
