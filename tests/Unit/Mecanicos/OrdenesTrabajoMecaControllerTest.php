@@ -52,6 +52,7 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
             $table->string('Estatus')->nullable();
             $table->date('Fecha')->nullable();
             $table->string('TelarId')->nullable();
+            $table->string('TipoFalla')->nullable();
             $table->string('Falla')->nullable();
             $table->string('Orden')->nullable();
             $table->integer('Turno')->nullable();
@@ -153,7 +154,7 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
         $this->assertSame("Observación inicial\nCierre registrado", $conDatos['ComentariosTexto']);
     }
 
-    public function test_historial_de_paros_solo_incluye_las_ultimas_12_horas(): void
+    public function test_historial_de_paros_solo_incluye_las_ultimas_16_horas(): void
     {
         DB::connection('sqlsrv')->table('dbo.ManFallasParos')->insert([
             [
@@ -173,7 +174,7 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
                 'Folio' => 'PARO-LIMITE',
                 'Estatus' => 'Activo',
                 'Fecha' => '2026-09-01',
-                'Hora' => '22:00:00',
+                'Hora' => '18:00:00',
                 'MaquinaId' => '201',
                 'Falla' => null,
                 'Descripcion' => null,
@@ -186,7 +187,7 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
                 'Folio' => 'PARO-VIEJO',
                 'Estatus' => 'Activo',
                 'Fecha' => '2026-09-01',
-                'Hora' => '21:59:00',
+                'Hora' => '17:59:00',
                 'MaquinaId' => '201',
                 'Falla' => null,
                 'Descripcion' => null,
@@ -207,7 +208,7 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
         $this->assertSame(['PARO-RECIENTE', 'PARO-LIMITE'], collect($payload['data'])->pluck('Folio')->all());
     }
 
-    public function test_historial_vacio_en_12_horas_permite_captura_manual(): void
+    public function test_historial_vacio_en_16_horas_permite_captura_manual(): void
     {
         DB::connection('sqlsrv')->table('dbo.ManFallasParos')->insert([
             'Folio' => 'PARO-VIEJO',
@@ -240,6 +241,21 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
                 'Nombre' => 'Jacquard',
                 'Departamento' => 'Tejido',
             ],
+            [
+                'MaquinaId' => 'RECT10',
+                'Nombre' => 'MAQ RECTA 10',
+                'Departamento' => 'Costura',
+            ],
+            [
+                'MaquinaId' => 'RECT2',
+                'Nombre' => 'MAQ RECTA 2',
+                'Departamento' => 'Costura',
+            ],
+            [
+                'MaquinaId' => '299',
+                'Nombre' => 'Itema',
+                'Departamento' => 'Itema',
+            ],
         ]);
         DB::connection('sqlsrv')->table('dbo.ReqTelares')->insert([
             'NoTelarId' => '201',
@@ -249,9 +265,13 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
         $method = new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'catalogoTelares');
         $catalogo = $method->invoke(new OrdenesTrabajoMecaController);
 
+        // Agrupado por área y en orden natural; el nombre solo aparece si dice algo más que el ID o el área.
         $this->assertSame([
-            ['id' => 'WestPoint 2', 'label' => 'WestPoint 2'],
-            ['id' => '201', 'label' => '201 · Salón Jacquard'],
+            ['id' => 'RECT2', 'label' => 'RECT2 · MAQ RECTA 2', 'grupo' => 'Costura'],
+            ['id' => 'RECT10', 'label' => 'RECT10 · MAQ RECTA 10', 'grupo' => 'Costura'],
+            ['id' => 'WestPoint 2', 'label' => 'WestPoint 2 · West Point', 'grupo' => 'Engomado'],
+            ['id' => '299', 'label' => '299', 'grupo' => 'Itema'],
+            ['id' => '201', 'label' => '201 · Salón Jacquard', 'grupo' => 'Tejido'],
         ], $catalogo);
     }
 
@@ -354,6 +374,122 @@ class OrdenesTrabajoMecaControllerTest extends TestCase
             ->insert(['Folio' => 'MEC00001', 'Calificacion' => null]);
         $orden->load('lineas');
         $this->assertFalse($completas->invoke($controller, $orden));
+    }
+
+    public function test_sistemas_elimina_renglones_en_cualquier_estatus_salvo_autorizado(): void
+    {
+        $user = new User;
+        $user->area = 'Sistemas';
+        $this->actingAs($user);
+        $bloquea = new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'estatusBloqueaEliminarLinea');
+        $controller = new OrdenesTrabajoMecaController;
+
+        foreach (['', 'Activo', 'Terminado', 'Calificado'] as $estatus) {
+            $this->assertFalse($bloquea->invoke($controller, $estatus), "Sistemas deberia eliminar en [{$estatus}].");
+        }
+        $this->assertTrue($bloquea->invoke($controller, 'Autorizado'));
+    }
+
+    public function test_mecanico_solo_elimina_renglones_con_la_orden_activa(): void
+    {
+        $user = new User;
+        $user->area = 'MANTENIMIENTO';
+        $this->actingAs($user);
+        $bloquea = new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'estatusBloqueaEliminarLinea');
+        $controller = new OrdenesTrabajoMecaController;
+
+        $this->assertFalse($bloquea->invoke($controller, 'Activo'));
+        foreach (['Terminado', 'Calificado', 'Autorizado'] as $estatus) {
+            $this->assertTrue($bloquea->invoke($controller, $estatus), "El mecanico no deberia eliminar en [{$estatus}].");
+        }
+    }
+
+    public function test_eliminar_el_unico_renglon_sin_calificar_pasa_la_orden_a_calificado(): void
+    {
+        $terminada = MecOrdenTrabajoModel::create(['Folio' => 'MEC00001', 'Estatus' => 'Terminado']);
+        $activa = MecOrdenTrabajoModel::create(['Folio' => 'MEC00002', 'Estatus' => 'Activo']);
+        DB::connection('sqlsrv')->table('MecOrdenTrabajoLine')->insert([
+            ['Folio' => 'MEC00001', 'Calificacion' => 4],
+            ['Folio' => 'MEC00002', 'Calificacion' => 4],
+        ]);
+        $calificar = new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'calificarSiQuedaCompleta');
+        $controller = new OrdenesTrabajoMecaController;
+
+        $this->assertTrue($calificar->invoke($controller, $terminada));
+        $this->assertSame('Calificado', $terminada->fresh()->Estatus);
+
+        $this->assertFalse($calificar->invoke($controller, $activa));
+        $this->assertSame('Activo', $activa->fresh()->Estatus);
+    }
+
+    public function test_maquina_no_pasa_del_largo_de_la_columna_telar_id(): void
+    {
+        $controller = new OrdenesTrabajoMecaController;
+        $reglas = (new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'reglasCabecera'))->invoke($controller);
+        $mensajes = (new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'mensajesCabecera'))->invoke($controller);
+
+        $valida = fn (string $telar) => validator(['TelarId' => $telar, 'Falla' => 'X'], $reglas, $mensajes);
+
+        $this->assertTrue($valida('ELEV RASU')->passes());
+        $this->assertTrue($valida('1234567890')->passes());
+        $this->assertSame(
+            'La máquina no puede pasar de 10 caracteres.',
+            $valida('12345678901')->errors()->first('TelarId')
+        );
+    }
+
+    public function test_falla_es_opcional_y_tipo_de_falla_solo_acepta_las_opciones_del_select(): void
+    {
+        $controller = new OrdenesTrabajoMecaController;
+        $reglas = (new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'reglasCabecera'))->invoke($controller);
+        $mensajes = (new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'mensajesCabecera'))->invoke($controller);
+
+        $this->assertContains('nullable', $reglas['Falla']);
+        $this->assertNotContains('required', $reglas['Falla']);
+        $this->assertTrue(validator(['TelarId' => '201'], $reglas, $mensajes)->passes());
+
+        foreach (['Calidad', 'Eléctrica', 'Mecánica', 'Tiempo muerto'] as $tipo) {
+            $this->assertTrue(validator(['TelarId' => '201', 'TipoFalla' => $tipo], $reglas, $mensajes)->passes(), $tipo);
+        }
+        $this->assertSame(
+            'Selecciona un tipo de falla válido.',
+            validator(['TelarId' => '201', 'TipoFalla' => 'Otra cosa'], $reglas, $mensajes)->errors()->first('TipoFalla')
+        );
+    }
+
+    public function test_orden_no_vacia_acepta_tipo_o_descripcion_de_falla(): void
+    {
+        $method = new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'validarOrdenNoVacia');
+        $controller = new OrdenesTrabajoMecaController;
+
+        // No lanza excepción: basta con uno de los dos campos de falla.
+        $method->invoke($controller, ['TelarId' => '201', 'TipoFalla' => 'Mecánica', 'Falla' => null]);
+        $method->invoke($controller, ['TelarId' => '201', 'TipoFalla' => null, 'Falla' => 'Se rompió la lanzadera']);
+        $this->addToAssertionCount(2);
+
+        foreach ([
+            ['TelarId' => '201', 'TipoFalla' => '  ', 'Falla' => null],
+            ['TelarId' => '', 'TipoFalla' => 'Mecánica', 'Falla' => 'Rota'],
+        ] as $datos) {
+            try {
+                $method->invoke($controller, $datos);
+                $this->fail('Se esperaba ValidationException por orden vacía.');
+            } catch (ValidationException $exception) {
+                $this->assertSame(
+                    'La orden de trabajo no puede quedar vacía: captura la máquina y el tipo o la descripción de la falla.',
+                    $exception->errors()['Falla'][0]
+                );
+            }
+        }
+    }
+
+    public function test_normalizar_cabecera_deja_tipo_de_falla_vacio_en_null(): void
+    {
+        $method = new \ReflectionMethod(OrdenesTrabajoMecaController::class, 'normalizarCabecera');
+        $controller = new OrdenesTrabajoMecaController;
+
+        $this->assertNull($method->invoke($controller, ['TipoFalla' => '   '])['TipoFalla']);
+        $this->assertSame('Eléctrica', $method->invoke($controller, ['TipoFalla' => ' Eléctrica '])['TipoFalla']);
     }
 
     public function test_reglas_de_linea_exigen_comentarios(): void

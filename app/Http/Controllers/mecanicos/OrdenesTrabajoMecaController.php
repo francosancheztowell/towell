@@ -23,7 +23,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class OrdenesTrabajoMecaController extends Controller
@@ -52,7 +54,10 @@ class OrdenesTrabajoMecaController extends Controller
 
     private const ESTATUS_CANCELADO = 'Cancelado';
 
-    private const HORAS_HISTORIAL_PAROS = 12;
+    private const HORAS_HISTORIAL_PAROS = 16;
+
+    /** Opciones del select "Tipo de falla" al crear una OT; el back solo acepta estas. */
+    public const TIPOS_FALLA = ['Calidad', 'Eléctrica', 'Mecánica', 'Tiempo muerto'];
 
     /**
      * Escala de calificación del renglón. La define CalificacionParoService
@@ -71,6 +76,7 @@ class OrdenesTrabajoMecaController extends Controller
 
         return view('modulos.mecanicos.ordenes-trabajo.index', [
             'telares' => $this->catalogoTelares(),
+            'tiposFalla' => self::TIPOS_FALLA,
             'operadores' => $this->operadoresMecanicos(),
             'esTejedor' => $this->esTejedor(),
             'modoTejedor' => $modoTejedor,
@@ -112,7 +118,10 @@ class OrdenesTrabajoMecaController extends Controller
             'esSupervisor' => $permisos['puedeRegistrar'],
             'puedeCrear' => $permisos['puedeCrear'] && ! $modoTejedor && ! $bloqueadaEdicion,
             'puedeEditar' => $permisos['puedeModificar'] && ! $modoTejedor && ! $bloqueadaEdicion,
-            'puedeEliminar' => $permisos['puedeEliminar'] && ! $modoTejedor && ! $bloqueadaEdicion,
+            // En captura solo se eliminan renglones (la orden completa se elimina desde el índice).
+            'puedeEliminar' => $this->puedeEliminarLineasComoSupervisor()
+                ? ! $this->estatusBloqueaEliminarLinea($estatus)
+                : $permisos['puedeEliminar'] && ! $modoTejedor && ! $bloqueadaEdicion,
             'puedeRegistrar' => $permisos['puedeRegistrar'],
             'puedeFinalizar' => $this->puedeFinalizarComoMecanico() && $estatus === self::ESTATUS_ACTIVO,
             'puedeCalificar' => $this->puedeCalificarComoTejedor() && $estatus === self::ESTATUS_TERMINADO,
@@ -139,6 +148,7 @@ class OrdenesTrabajoMecaController extends Controller
             'folio_paro' => ['nullable', 'string', 'max:30'],
             'orden' => ['nullable', 'string', 'max:20'],
             'falla' => ['nullable', 'string', 'max:150'],
+            'tipo_falla' => ['nullable', 'string', 'max:100'],
             'turno' => ['nullable', 'string', 'max:5'],
             'mecanico' => ['nullable', 'string', 'max:150'],
         ]);
@@ -164,6 +174,7 @@ class OrdenesTrabajoMecaController extends Controller
             ->when(trim((string) ($datos['folio_paro'] ?? '')) !== '', fn ($query) => $query->where('FolioParo', 'like', $like($datos['folio_paro'])))
             ->when(trim((string) ($datos['orden'] ?? '')) !== '', fn ($query) => $query->where('Orden', 'like', $like($datos['orden'])))
             ->when(trim((string) ($datos['falla'] ?? '')) !== '', fn ($query) => $query->where('Falla', 'like', $like($datos['falla'])))
+            ->when(trim((string) ($datos['tipo_falla'] ?? '')) !== '', fn ($query) => $query->where('TipoFalla', 'like', $like($datos['tipo_falla'])))
             ->when(trim((string) ($datos['turno'] ?? '')) !== '', fn ($query) => $query->where('Turno', trim((string) $datos['turno'])))
             ->when($mecanico !== '', function ($query) use ($mecanico, $like) {
                 $query->whereExists(function ($exists) use ($mecanico, $like) {
@@ -179,6 +190,7 @@ class OrdenesTrabajoMecaController extends Controller
                         ->orWhere('TelarId', 'like', $like($buscar))
                         ->orWhere('FolioParo', 'like', $like($buscar))
                         ->orWhere('Falla', 'like', $like($buscar))
+                        ->orWhere('TipoFalla', 'like', $like($buscar))
                         ->orWhere('Orden', 'like', $like($buscar))
                         ->orWhereExists(function ($exists) use ($buscar, $like) {
                             $exists->selectRaw('1')
@@ -232,7 +244,7 @@ class OrdenesTrabajoMecaController extends Controller
     /**
      * Historial de paros elegibles de un telar para crear una OT.
      *
-     * Solo incluye paros de las últimas 12 horas. Un mismo paro puede originar
+     * Solo incluye paros de las últimas 16 horas. Un mismo paro puede originar
      * varias órdenes (una intervención puede requerir varios pases), así que no
      * se excluyen los folios ya vinculados a otra orden.
      */
@@ -407,6 +419,8 @@ class OrdenesTrabajoMecaController extends Controller
 
             // Fecha de creación del folio y estatus de flujo no se editan aquí.
             unset($datos['Fecha'], $datos['Estatus']);
+
+            $this->validarOrdenNoVacia($datos);
 
             $orden->update($datos);
             $orden->load(['lineas' => fn ($query) => $query->orderBy('Id')]);
@@ -643,11 +657,7 @@ class OrdenesTrabajoMecaController extends Controller
 
     public function destroyLinea(string $folio, int $linea): JsonResponse
     {
-        if ($respuesta = $this->respuestaSinPermiso('eliminar', 'No tienes permiso para eliminar renglones.')) {
-            return $respuesta;
-        }
-
-        if ($respuesta = $this->respuestaSiTejedorNoPuedeMutar('Los tejedores no pueden eliminar renglones.')) {
+        if ($respuesta = $this->respuestaSinPermisoEliminarLinea()) {
             return $respuesta;
         }
 
@@ -663,10 +673,12 @@ class OrdenesTrabajoMecaController extends Controller
         }
 
         $orden = MecOrdenTrabajoModel::find($folio);
-        if ($orden && $this->estatusBloqueaEdicionMecanico((string) $orden->Estatus)) {
+        if ($orden && $this->estatusBloqueaEliminarLinea((string) $orden->Estatus)) {
             return response()->json([
                 'success' => false,
-                'error' => 'La orden ya no admite cambios en renglones (finalizada, calificada o autorizada).',
+                'error' => $this->puedeEliminarLineasComoSupervisor()
+                    ? 'La orden ya está autorizada; sus renglones no se pueden eliminar.'
+                    : 'La orden ya no admite cambios en renglones (finalizada, calificada o autorizada).',
             ], 422);
         }
 
@@ -677,12 +689,71 @@ class OrdenesTrabajoMecaController extends Controller
             ], 422);
         }
 
-        $registro->delete();
+        $pasoACalificado = DB::transaction(function () use ($registro, $orden): bool {
+            $registro->delete();
+
+            return $orden !== null && $this->calificarSiQuedaCompleta($orden);
+        });
 
         return response()->json([
             'success' => true,
-            'message' => 'Renglón eliminado correctamente.',
+            'message' => $pasoACalificado
+                ? 'Renglón eliminado. Los renglones restantes ya están calificados: la orden pasó a Calificado.'
+                : 'Renglón eliminado correctamente.',
+            'orden' => $orden?->fresh(),
         ]);
+    }
+
+    /**
+     * Mecánico con `eliminar` (orden Activa) o supervisor/Sistemas (cualquier estatus
+     * salvo Autorizado). El tejedor en modo solo-calificación nunca elimina.
+     */
+    private function respuestaSinPermisoEliminarLinea(): ?JsonResponse
+    {
+        if ($this->puedeEliminarLineasComoSupervisor()) {
+            return null;
+        }
+
+        return $this->respuestaSinPermiso('eliminar', 'No tienes permiso para eliminar renglones.')
+            ?? $this->respuestaSiTejedorNoPuedeMutar('Los tejedores no pueden eliminar renglones.');
+    }
+
+    /**
+     * Supervisores (permiso registrar) y el área Sistemas (Gate `admin`) corrigen
+     * renglones capturados por error aunque la orden ya esté finalizada o calificada.
+     */
+    private function puedeEliminarLineasComoSupervisor(): bool
+    {
+        return $this->puedeRegistrar() || Gate::allows('admin');
+    }
+
+    private function estatusBloqueaEliminarLinea(string $estatus): bool
+    {
+        if ($this->puedeEliminarLineasComoSupervisor()) {
+            return $estatus === self::ESTATUS_AUTORIZADO;
+        }
+
+        return $this->estatusBloqueaEdicionMecanico($estatus);
+    }
+
+    /**
+     * Al quitar el único renglón sin calificar de una orden Terminada, la orden
+     * queda igual que si el tejedor hubiera calificado el último: pasa a Calificado.
+     */
+    private function calificarSiQuedaCompleta(MecOrdenTrabajoModel $orden): bool
+    {
+        if ((string) $orden->getAttribute('Estatus') !== self::ESTATUS_TERMINADO) {
+            return false;
+        }
+
+        $orden->load('lineas');
+        if (! $this->todasLasLineasCalificadas($orden)) {
+            return false;
+        }
+
+        $orden->update(['Estatus' => self::ESTATUS_CALIFICADO]);
+
+        return true;
     }
 
     /**
@@ -826,9 +897,11 @@ class OrdenesTrabajoMecaController extends Controller
     private function reglasCabecera(): array
     {
         return [
-            'TelarId' => ['required', 'string', 'max:50'],
+            // MecOrdenTrabajoTable.TelarId es nvarchar(10).
+            'TelarId' => ['required', 'string', 'max:10'],
             'FolioParo' => ['nullable', 'string', 'max:30'],
-            'Falla' => ['required', 'string', 'max:150'],
+            'TipoFalla' => ['nullable', 'string', Rule::in(self::TIPOS_FALLA)],
+            'Falla' => ['nullable', 'string', 'max:150'],
             'Comentarios' => ['nullable', 'string', 'max:500'],
             'FechaParo' => ['nullable', 'date'],
             'HoraParo' => ['nullable', 'date_format:H:i'],
@@ -844,6 +917,8 @@ class OrdenesTrabajoMecaController extends Controller
     private function mensajesCabecera(): array
     {
         return [
+            'TelarId.max' => 'La máquina no puede pasar de 10 caracteres.',
+            'TipoFalla.in' => 'Selecciona un tipo de falla válido.',
             'Orden.max' => 'La orden no puede pasar de 20 caracteres.',
             'Orden.regex' => 'La orden no puede llevar espacios.',
         ];
@@ -897,9 +972,10 @@ class OrdenesTrabajoMecaController extends Controller
 
     /**
      * Catálogo completo de máquinas (dbo.URDCatalogoMaquinas), sin filtrar
-     * por departamento ni asignación del usuario.
+     * por departamento ni asignación del usuario. `grupo` (Departamento) agrupa
+     * el select por área.
      *
-     * @return list<array{id: string, label: string}>
+     * @return list<array{id: string, label: string, grupo: string}>
      */
     private function catalogoTelares(): array
     {
@@ -911,20 +987,30 @@ class OrdenesTrabajoMecaController extends Controller
             ->select('MaquinaId', 'Nombre', 'Departamento')
             ->whereNotNull('MaquinaId')
             ->where('MaquinaId', '!=', '')
-            ->orderBy('Departamento')
-            ->orderBy('MaquinaId')
             ->get()
             ->map(function (URDCatalogoMaquina $maquina) use ($salones): array {
-                $maquinaId = trim((string) $maquina->MaquinaId);
+                $maquinaId = trim((string) $maquina->getAttribute('MaquinaId'));
+                $nombre = trim((string) $maquina->getAttribute('Nombre'));
+                $grupo = trim((string) $maquina->getAttribute('Departamento')) ?: 'Sin área';
                 $salon = trim((string) ($salones[$maquinaId] ?? ''));
+
+                // Los telares traen la marca como Nombre (igual al área): no aporta en la etiqueta.
+                $detalle = match (true) {
+                    $salon !== '' => "Salón {$salon}",
+                    $nombre !== '' && strcasecmp($nombre, $maquinaId) !== 0 && strcasecmp($nombre, $grupo) !== 0 => $nombre,
+                    default => '',
+                };
 
                 return [
                     'id' => $maquinaId,
-                    'label' => $salon !== '' ? "{$maquinaId} · Salón {$salon}" : $maquinaId,
+                    'label' => $detalle !== '' ? "{$maquinaId} · {$detalle}" : $maquinaId,
+                    'grupo' => $grupo,
                 ];
             })
             ->filter(fn (array $item): bool => $item['id'] !== '')
             ->unique('id')
+            // Orden natural: RECT2 antes que RECT10.
+            ->sort(fn (array $a, array $b): int => strnatcasecmp($a['grupo'], $b['grupo']) ?: strnatcasecmp($a['id'], $b['id']))
             ->values()
             ->all();
     }
@@ -953,7 +1039,7 @@ class OrdenesTrabajoMecaController extends Controller
 
     private function normalizarCabecera(array $datos): array
     {
-        foreach (['TelarId', 'FolioParo', 'Falla', 'Comentarios', 'Orden'] as $campo) {
+        foreach (['TelarId', 'FolioParo', 'TipoFalla', 'Falla', 'Comentarios', 'Orden'] as $campo) {
             if (array_key_exists($campo, $datos)) {
                 $valor = trim((string) ($datos[$campo] ?? ''));
                 $datos[$campo] = $valor !== '' ? $valor : null;
@@ -1301,18 +1387,20 @@ class OrdenesTrabajoMecaController extends Controller
     }
 
     /**
-     * Evita crear órdenes de trabajo “vacías” (sin telar ni descripción de falla).
+     * Evita órdenes de trabajo “vacías”: exige la máquina y al menos el tipo
+     * o la descripción de la falla (ambos son opcionales por separado).
      *
      * @param  array<string, mixed>  $datos
      */
     private function validarOrdenNoVacia(array $datos): void
     {
         $telar = trim((string) ($datos['TelarId'] ?? ''));
+        $tipoFalla = trim((string) ($datos['TipoFalla'] ?? ''));
         $falla = trim((string) ($datos['Falla'] ?? ''));
 
-        if ($telar === '' || $falla === '') {
+        if ($telar === '' || ($tipoFalla === '' && $falla === '')) {
             throw ValidationException::withMessages([
-                'Falla' => ['La orden de trabajo no puede quedar vacía: captura el telar y la descripción de la falla.'],
+                'Falla' => ['La orden de trabajo no puede quedar vacía: captura la máquina y el tipo o la descripción de la falla.'],
             ]);
         }
     }

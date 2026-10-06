@@ -78,8 +78,9 @@ Route::prefix('mecanicos/ordenes-trabajo')
             ->middleware('module.permission:eliminar,193')->name('destroy'); // Ordenes de Trabajo
         Route::post('/{folio}/lineas', [OrdenesTrabajoMecaController::class, 'storeLinea'])->middleware('module.permission:crear,193,auditar')->name('lineas.store'); // Ordenes de Trabajo
         Route::put('/{folio}/lineas/{linea}', [OrdenesTrabajoMecaController::class, 'updateLinea'])->middleware('module.permission:acceso,193,auditar')->name('lineas.update')->whereNumber('linea'); // Ordenes de Trabajo; tejedores califican sin modificar
+        // destroyLinea exige eliminar (mecánico, orden Activa) o registrar / área Sistemas (supervisión, hasta antes de Autorizado).
         Route::delete('/{folio}/lineas/{linea}', [OrdenesTrabajoMecaController::class, 'destroyLinea'])->whereNumber('linea')
-            ->middleware('module.permission:eliminar,193')->name('lineas.destroy'); // Ordenes de Trabajo
+            ->middleware('module.permission:acceso,193,auditar')->name('lineas.destroy'); // Ordenes de Trabajo
         Route::post('/{folio}/finalizar', [OrdenesTrabajoMecaController::class, 'finalizar'])
             ->middleware('module.permission:modificar,193')->name('finalizar'); // Ordenes de Trabajo
         // OrdenesTrabajoMecaController::autorizar ya exige puedeRegistrar() (userCan registrar).
