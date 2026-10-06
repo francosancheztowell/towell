@@ -1178,135 +1178,116 @@ class CodificacionController extends Controller
     /** Obtener salones y números de telar */
     public function getSalonesYTelares(): JsonResponse
     {
-        try {
-            // Usar Query Builder de Laravel
-            // Las columnas correctas son: TipoTelar (equivalente a SalonTejidoId) y NoTelar (equivalente a NoTelarId)
-            $data = DB::table('InvSecuenciaTelares')
-                ->select('TipoTelar', 'NoTelar')
-                ->whereNotNull('TipoTelar')
-                ->whereNotNull('NoTelar')
-                ->distinct()
-                ->orderBy('TipoTelar')
-                ->orderBy('NoTelar')
-                ->get();
+        // Usar Query Builder de Laravel
+        // Las columnas correctas son: TipoTelar (equivalente a SalonTejidoId) y NoTelar (equivalente a NoTelarId)
+        $data = DB::table('InvSecuenciaTelares')
+            ->select('TipoTelar', 'NoTelar')
+            ->whereNotNull('TipoTelar')
+            ->whereNotNull('NoTelar')
+            ->distinct()
+            ->orderBy('TipoTelar')
+            ->orderBy('NoTelar')
+            ->get();
 
-            // Agrupar por salón (TipoTelar)
-            $salones = [];
-            $telaresPorSalon = [];
-            $telaresITEMASMIT = []; // Agrupar telares de ITEMA y SMIT juntos
+        // Agrupar por salón (TipoTelar)
+        $salones = [];
+        $telaresPorSalon = [];
+        $telaresITEMASMIT = []; // Agrupar telares de ITEMA y SMIT juntos
 
-            foreach ($data as $item) {
-                // Acceder a las propiedades
-                $salon = $item->TipoTelar ?? null;
-                $telar = $item->NoTelar ?? null;
+        foreach ($data as $item) {
+            // Acceder a las propiedades
+            $salon = $item->TipoTelar ?? null;
+            $telar = $item->NoTelar ?? null;
 
-                // Validar que no sean null o vacíos
-                if (empty($salon) || empty($telar)) {
-                    continue;
-                }
-
-                // Convertir a string y limpiar
-                $salon = trim((string) $salon);
-                $telar = trim((string) $telar);
-
-                // Saltar si están vacíos después de trim
-                if ($salon === '' || $telar === '') {
-                    continue;
-                }
-
-                // Convertir telar a string para consistencia
-                $telarStr = (string) $telar;
-
-                // InvSecuenciaTelares guarda KM; el form y ReqModelosCodificados usan KARL MAYER.
-                $canon = TelarSalonResolver::normalizeSalon($salon, $telarStr);
-                if ($canon === 'KARL MAYER') {
-                    $salon = 'KARL MAYER';
-                }
-
-                // ITEMA se trata como SMIT - unificar ambos
-                if ($salon === 'ITEMA' || $salon === 'SMIT') {
-                    // Agrupar todos los telares de ITEMA y SMIT juntos bajo SMIT
-                    if (! in_array($telarStr, $telaresITEMASMIT, true)) {
-                        $telaresITEMASMIT[] = $telarStr;
-                    }
-                    // Agregar ITEMA a la lista de salones (se mostrará como ITEMA pero se manejará como SMIT)
-                    if ($salon === 'ITEMA' && ! in_array('ITEMA', $salones, true)) {
-                        $salones[] = 'ITEMA';
-                    }
-                    // También agregar SMIT si existe en la base de datos
-                    if ($salon === 'SMIT' && ! in_array('SMIT', $salones, true)) {
-                        $salones[] = 'SMIT';
-                    }
-                } else {
-                    // Otros salones normales
-                    if (! isset($telaresPorSalon[$salon])) {
-                        $telaresPorSalon[$salon] = [];
-                    }
-
-                    if (! in_array($telarStr, $telaresPorSalon[$salon], true)) {
-                        $telaresPorSalon[$salon][] = $telarStr;
-                    }
-
-                    // Agregar salón único
-                    if (! in_array($salon, $salones, true)) {
-                        $salones[] = $salon;
-                    }
-                }
+            // Validar que no sean null o vacíos
+            if (empty($salon) || empty($telar)) {
+                continue;
             }
 
-            // Asignar telares compartidos a SMIT e ITEMA (ITEMA se trata como SMIT)
-            if (! empty($telaresITEMASMIT)) {
-                sort($telaresITEMASMIT);
-                // Siempre asignar a SMIT
-                $telaresPorSalon['SMIT'] = $telaresITEMASMIT;
-                // Siempre asignar a ITEMA también (son los mismos telares)
-                $telaresPorSalon['ITEMA'] = $telaresITEMASMIT;
+            // Convertir a string y limpiar
+            $salon = trim((string) $salon);
+            $telar = trim((string) $telar);
+
+            // Saltar si están vacíos después de trim
+            if ($salon === '' || $telar === '') {
+                continue;
             }
 
-            if (! in_array('KARL MAYER', $salones, true)) {
-                $salones[] = 'KARL MAYER';
+            // Convertir telar a string para consistencia
+            $telarStr = (string) $telar;
+
+            // InvSecuenciaTelares guarda KM; el form y ReqModelosCodificados usan KARL MAYER.
+            $canon = TelarSalonResolver::normalizeSalon($salon, $telarStr);
+            if ($canon === 'KARL MAYER') {
+                $salon = 'KARL MAYER';
             }
-            $kmTelares = $telaresPorSalon['KARL MAYER'] ?? [];
-            foreach (['401', '402'] as $telarKm) {
-                if (! in_array($telarKm, $kmTelares, true)) {
-                    $kmTelares[] = $telarKm;
+
+            // ITEMA se trata como SMIT - unificar ambos
+            if ($salon === 'ITEMA' || $salon === 'SMIT') {
+                // Agrupar todos los telares de ITEMA y SMIT juntos bajo SMIT
+                if (! in_array($telarStr, $telaresITEMASMIT, true)) {
+                    $telaresITEMASMIT[] = $telarStr;
+                }
+                // Agregar ITEMA a la lista de salones (se mostrará como ITEMA pero se manejará como SMIT)
+                if ($salon === 'ITEMA' && ! in_array('ITEMA', $salones, true)) {
+                    $salones[] = 'ITEMA';
+                }
+                // También agregar SMIT si existe en la base de datos
+                if ($salon === 'SMIT' && ! in_array('SMIT', $salones, true)) {
+                    $salones[] = 'SMIT';
+                }
+            } else {
+                // Otros salones normales
+                if (! isset($telaresPorSalon[$salon])) {
+                    $telaresPorSalon[$salon] = [];
+                }
+
+                if (! in_array($telarStr, $telaresPorSalon[$salon], true)) {
+                    $telaresPorSalon[$salon][] = $telarStr;
+                }
+
+                // Agregar salón único
+                if (! in_array($salon, $salones, true)) {
+                    $salones[] = $salon;
                 }
             }
-            $telaresPorSalon['KARL MAYER'] = $kmTelares;
-
-            // Ordenar salones y telares
-            sort($salones);
-            foreach ($telaresPorSalon as $salon => $telares) {
-                if (is_array($telares)) {
-                    sort($telaresPorSalon[$salon]);
-                }
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'salones' => array_values($salones),
-                    'telaresPorSalon' => $telaresPorSalon,
-                ],
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('Error obteniendo salones y telares', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al obtener salones y telares: '.$e->getMessage(),
-                'debug' => config('app.debug') ? [
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                    'trace' => explode("\n", $e->getTraceAsString()),
-                ] : null,
-            ], 500);
         }
+
+        // Asignar telares compartidos a SMIT e ITEMA (ITEMA se trata como SMIT)
+        if (! empty($telaresITEMASMIT)) {
+            sort($telaresITEMASMIT);
+            // Siempre asignar a SMIT
+            $telaresPorSalon['SMIT'] = $telaresITEMASMIT;
+            // Siempre asignar a ITEMA también (son los mismos telares)
+            $telaresPorSalon['ITEMA'] = $telaresITEMASMIT;
+        }
+
+        if (! in_array('KARL MAYER', $salones, true)) {
+            $salones[] = 'KARL MAYER';
+        }
+        $kmTelares = $telaresPorSalon['KARL MAYER'] ?? [];
+        foreach (['401', '402'] as $telarKm) {
+            if (! in_array($telarKm, $kmTelares, true)) {
+                $kmTelares[] = $telarKm;
+            }
+        }
+        $telaresPorSalon['KARL MAYER'] = $kmTelares;
+
+        // Ordenar salones y telares
+        sort($salones);
+        foreach ($telaresPorSalon as $salon => $telares) {
+            if (is_array($telares)) {
+                sort($telaresPorSalon[$salon]);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'salones' => array_values($salones),
+                'telaresPorSalon' => $telaresPorSalon,
+            ],
+        ]);
     }
 
     /** Estadísticas - Optimizado para usar índices */
@@ -1341,54 +1322,41 @@ class CodificacionController extends Controller
      */
     public function getFlogsData(Request $request): JsonResponse
     {
-        try {
-            $itemId = trim($request->input('item_id', ''));
-            $inventSizeId = trim($request->input('invent_size_id', ''));
+        $itemId = trim($request->input('item_id', ''));
+        $inventSizeId = trim($request->input('invent_size_id', ''));
 
-            if (empty($itemId) || empty($inventSizeId)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'ItemId e InventSizeId son requeridos',
-                ], 400);
-            }
-
-            $flogs = DBFacade::connection('sqlsrv_ti')
-                ->table('dbo.TwFlogsItemLine as fil')
-                ->join('dbo.TwFlogsTable as ft', 'ft.IDFLOG', '=', 'fil.IDFLOG')
-                ->select('ft.IDFLOG', 'ft.NAMEPROYECT', 'ft.CUSTNAME')
-                ->whereRaw('LTRIM(RTRIM(fil.ITEMID)) = ?', [$itemId])
-                ->whereRaw('LTRIM(RTRIM(fil.INVENTSIZEID)) = ?', [$inventSizeId])
-                ->whereIn('ft.ESTADOFLOG', [3, 4, 5, 21])
-                ->orderByDesc('ft.IDFLOG')
-                ->first();
-
-            if (! $flogs) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'No se encontraron datos para la combinación de Clave AX y Tamaño',
-                ], 404);
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'idflog' => $flogs->IDFLOG ?? null,
-                    'nombre' => $flogs->NAMEPROYECT ?? '',
-                    'custname' => $flogs->CUSTNAME ?? '',
-                ],
-            ]);
-        } catch (\Exception $e) {
-            Log::error('CodificacionController::getFlogsData', [
-                'error' => $e->getMessage(),
-                'item_id' => $request->input('item_id'),
-                'invent_size_id' => $request->input('invent_size_id'),
-            ]);
-
+        if (empty($itemId) || empty($inventSizeId)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener datos: '.$e->getMessage(),
-            ], 500);
+                'message' => 'ItemId e InventSizeId son requeridos',
+            ], 400);
         }
+
+        $flogs = DBFacade::connection('sqlsrv_ti')
+            ->table('dbo.TwFlogsItemLine as fil')
+            ->join('dbo.TwFlogsTable as ft', 'ft.IDFLOG', '=', 'fil.IDFLOG')
+            ->select('ft.IDFLOG', 'ft.NAMEPROYECT', 'ft.CUSTNAME')
+            ->whereRaw('LTRIM(RTRIM(fil.ITEMID)) = ?', [$itemId])
+            ->whereRaw('LTRIM(RTRIM(fil.INVENTSIZEID)) = ?', [$inventSizeId])
+            ->whereIn('ft.ESTADOFLOG', [3, 4, 5, 21])
+            ->orderByDesc('ft.IDFLOG')
+            ->first();
+
+        if (! $flogs) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se encontraron datos para la combinación de Clave AX y Tamaño',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'idflog' => $flogs->IDFLOG ?? null,
+                'nombre' => $flogs->NAMEPROYECT ?? '',
+                'custname' => $flogs->CUSTNAME ?? '',
+            ],
+        ]);
     }
 
     /**
@@ -1557,136 +1525,124 @@ class CodificacionController extends Controller
      */
     public function duplicarImportar(Request $request): JsonResponse
     {
-        try {
-            $validator = Validator::make($request->all(), [
-                'registro_id_original' => 'required|integer|exists:ReqModelosCodificados,Id',
-                'modo' => 'required|in:duplicar,importar',
-                'datos' => 'required|array',
-                'datos.*.orden_trabajo' => 'required_if:modo,importar|string',
-                'datos.*.salon' => 'required|string',
-                'datos.*.clave_mod' => 'required|string',
-                'datos.*.clave_ax' => 'required|string',
-                'datos.*.nombre' => 'required|string',
-                'datos.*.tamano' => 'required|string',
-            ]);
+        $validator = Validator::make($request->all(), [
+            'registro_id_original' => 'required|integer|exists:ReqModelosCodificados,Id',
+            'modo' => 'required|in:duplicar,importar',
+            'datos' => 'required|array',
+            'datos.*.orden_trabajo' => 'required_if:modo,importar|string',
+            'datos.*.salon' => 'required|string',
+            'datos.*.clave_mod' => 'required|string',
+            'datos.*.clave_ax' => 'required|string',
+            'datos.*.nombre' => 'required|string',
+            'datos.*.tamano' => 'required|string',
+        ]);
 
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Error de validación',
-                    'errors' => $validator->errors(),
-                ], 422);
-            }
-
-            $registroOriginalId = $request->input('registro_id_original');
-            $modo = $request->input('modo');
-            $datos = $request->input('datos');
-
-            // Obtener el registro original
-            $registroOriginal = ReqModelosCodificados::find($registroOriginalId);
-            if (! $registroOriginal) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Registro original no encontrado',
-                ], 404);
-            }
-
-            $registrosCreados = [];
-            $columns = $this->getTableColumns('ReqModelosCodificados');
-            $lengths = $this->getColumnMaxLengths('ReqModelosCodificados');
-            $intColumns = $this->getIntColumns('ReqModelosCodificados');
-            $hasCustName = Schema::hasColumn('ReqModelosCodificados', 'CustName');
-            DB::beginTransaction();
-
-            try {
-                foreach ($datos as $dato) {
-                    if ($modo === 'importar') {
-                        $ordenTrabajo = trim((string) ($dato['orden_trabajo'] ?? ''));
-                        $catRegistro = $this->findCatCodificadoByOrden($ordenTrabajo);
-                        if (! $catRegistro) {
-                            DB::rollBack();
-
-                            return response()->json([
-                                'success' => false,
-                                'message' => "No se encontro CatCodificados para orden {$ordenTrabajo}",
-                            ], 404);
-                        }
-
-                        $data = $this->mapCatCodificadosToReq($catRegistro);
-
-                        $data['OrdenTejido'] = $ordenTrabajo;
-                        $data['SalonTejidoId'] = $dato['salon'] ?? $data['SalonTejidoId'];
-                        $data['TamanoClave'] = $dato['clave_mod'] ?? $data['TamanoClave'];
-                        $data['ItemId'] = $dato['clave_ax'] ?? $data['ItemId'];
-                        $data['InventSizeId'] = $dato['tamano'] ?? $data['InventSizeId'];
-                        $data['Nombre'] = $dato['nombre'] ?? $data['Nombre'];
-
-                        if (isset($dato['idflog']) && $dato['idflog'] !== '') {
-                            $data['FlogsId'] = $dato['idflog'];
-                        }
-                        if (isset($dato['custname']) && $dato['custname'] !== '') {
-                            $data['NombreProyecto'] = $dato['custname'];
-                            if ($hasCustName) {
-                                $data['CustName'] = $dato['custname'];
-                            }
-                        }
-
-                        $data = $this->normalizeDataForTable($data, $columns, $lengths, $intColumns);
-                        $nuevoRegistro = new ReqModelosCodificados;
-                        $nuevoRegistro->forceFill($data);
-                        $nuevoRegistro->save();
-                        $registrosCreados[] = $nuevoRegistro->Id;
-
-                        continue;
-                    }
-
-                    // Modo duplicar: Crear una copia del registro original
-                    $nuevoRegistro = $registroOriginal->replicate();
-
-                    // Actualizar solo los campos especificados
-                    $nuevoRegistro->SalonTejidoId = $this->truncateValueForColumn('SalonTejidoId', $dato['salon'], $lengths);
-                    $nuevoRegistro->TamanoClave = $this->truncateValueForColumn('TamanoClave', $dato['clave_mod'], $lengths);
-                    $nuevoRegistro->ItemId = $this->truncateValueForColumn('ItemId', $dato['clave_ax'], $lengths);
-                    $nuevoRegistro->Nombre = $this->truncateValueForColumn('Nombre', $dato['nombre'], $lengths);
-                    $nuevoRegistro->InventSizeId = $this->truncateValueForColumn('InventSizeId', $dato['tamano'], $lengths);
-
-                    // Si viene idflog y custname (modo duplicar), actualizarlos
-                    if (isset($dato['idflog'])) {
-                        $nuevoRegistro->FlogsId = $this->truncateValueForColumn('FlogsId', $dato['idflog'], $lengths);
-                    }
-                    if (isset($dato['custname']) && $dato['custname'] !== '') {
-                        $nuevoRegistro->NombreProyecto = $this->truncateValueForColumn('NombreProyecto', $dato['custname'], $lengths);
-                        if ($hasCustName) {
-                            $nuevoRegistro->CustName = $this->truncateValueForColumn('CustName', $dato['custname'], $lengths);
-                        }
-                    }
-
-                    $nuevoRegistro->save();
-                    $registrosCreados[] = $nuevoRegistro->Id;
-                }
-
-                DB::commit();
-                $this->clearCodificacionCache();
-
-                return response()->json([
-                    'success' => true,
-                    'message' => count($registrosCreados).' registro(s) creado(s) correctamente',
-                    'registros_ids' => $registrosCreados,
-                ]);
-            } catch (\Exception $e) {
-                DB::rollBack();
-                throw $e;
-            }
-        } catch (\Exception $e) {
-            Log::error('CodificacionController::duplicarImportar', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
+        if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al crear los registros: '.$e->getMessage(),
-            ], 500);
+                'message' => 'Error de validación',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $registroOriginalId = $request->input('registro_id_original');
+        $modo = $request->input('modo');
+        $datos = $request->input('datos');
+
+        // Obtener el registro original
+        $registroOriginal = ReqModelosCodificados::find($registroOriginalId);
+        if (! $registroOriginal) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Registro original no encontrado',
+            ], 404);
+        }
+
+        $registrosCreados = [];
+        $columns = $this->getTableColumns('ReqModelosCodificados');
+        $lengths = $this->getColumnMaxLengths('ReqModelosCodificados');
+        $intColumns = $this->getIntColumns('ReqModelosCodificados');
+        $hasCustName = Schema::hasColumn('ReqModelosCodificados', 'CustName');
+        DB::beginTransaction();
+
+        try {
+            foreach ($datos as $dato) {
+                if ($modo === 'importar') {
+                    $ordenTrabajo = trim((string) ($dato['orden_trabajo'] ?? ''));
+                    $catRegistro = $this->findCatCodificadoByOrden($ordenTrabajo);
+                    if (! $catRegistro) {
+                        DB::rollBack();
+
+                        return response()->json([
+                            'success' => false,
+                            'message' => "No se encontro CatCodificados para orden {$ordenTrabajo}",
+                        ], 404);
+                    }
+
+                    $data = $this->mapCatCodificadosToReq($catRegistro);
+
+                    $data['OrdenTejido'] = $ordenTrabajo;
+                    $data['SalonTejidoId'] = $dato['salon'] ?? $data['SalonTejidoId'];
+                    $data['TamanoClave'] = $dato['clave_mod'] ?? $data['TamanoClave'];
+                    $data['ItemId'] = $dato['clave_ax'] ?? $data['ItemId'];
+                    $data['InventSizeId'] = $dato['tamano'] ?? $data['InventSizeId'];
+                    $data['Nombre'] = $dato['nombre'] ?? $data['Nombre'];
+
+                    if (isset($dato['idflog']) && $dato['idflog'] !== '') {
+                        $data['FlogsId'] = $dato['idflog'];
+                    }
+                    if (isset($dato['custname']) && $dato['custname'] !== '') {
+                        $data['NombreProyecto'] = $dato['custname'];
+                        if ($hasCustName) {
+                            $data['CustName'] = $dato['custname'];
+                        }
+                    }
+
+                    $data = $this->normalizeDataForTable($data, $columns, $lengths, $intColumns);
+                    $nuevoRegistro = new ReqModelosCodificados;
+                    $nuevoRegistro->forceFill($data);
+                    $nuevoRegistro->save();
+                    $registrosCreados[] = $nuevoRegistro->Id;
+
+                    continue;
+                }
+
+                // Modo duplicar: Crear una copia del registro original
+                $nuevoRegistro = $registroOriginal->replicate();
+
+                // Actualizar solo los campos especificados
+                $nuevoRegistro->SalonTejidoId = $this->truncateValueForColumn('SalonTejidoId', $dato['salon'], $lengths);
+                $nuevoRegistro->TamanoClave = $this->truncateValueForColumn('TamanoClave', $dato['clave_mod'], $lengths);
+                $nuevoRegistro->ItemId = $this->truncateValueForColumn('ItemId', $dato['clave_ax'], $lengths);
+                $nuevoRegistro->Nombre = $this->truncateValueForColumn('Nombre', $dato['nombre'], $lengths);
+                $nuevoRegistro->InventSizeId = $this->truncateValueForColumn('InventSizeId', $dato['tamano'], $lengths);
+
+                // Si viene idflog y custname (modo duplicar), actualizarlos
+                if (isset($dato['idflog'])) {
+                    $nuevoRegistro->FlogsId = $this->truncateValueForColumn('FlogsId', $dato['idflog'], $lengths);
+                }
+                if (isset($dato['custname']) && $dato['custname'] !== '') {
+                    $nuevoRegistro->NombreProyecto = $this->truncateValueForColumn('NombreProyecto', $dato['custname'], $lengths);
+                    if ($hasCustName) {
+                        $nuevoRegistro->CustName = $this->truncateValueForColumn('CustName', $dato['custname'], $lengths);
+                    }
+                }
+
+                $nuevoRegistro->save();
+                $registrosCreados[] = $nuevoRegistro->Id;
+            }
+
+            DB::commit();
+            $this->clearCodificacionCache();
+
+            return response()->json([
+                'success' => true,
+                'message' => count($registrosCreados).' registro(s) creado(s) correctamente',
+                'registros_ids' => $registrosCreados,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
         }
     }
 }

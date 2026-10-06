@@ -448,178 +448,165 @@ class InventarioTelaresController extends Controller
      */
     public function destroy(Request $request): JsonResponse
     {
+        // Para DELETE, los datos pueden venir en el body o como query params
+        $noTelar = $request->input('no_telar') ?? $request->query('no_telar');
+        $tipo = $request->input('tipo') ?? $request->query('tipo');
+        $fecha = $request->input('fecha') ?? $request->query('fecha');
+        $turno = $request->input('turno') ?? $request->query('turno');
+
+        if (! $noTelar || ! $tipo || ! $fecha || ! $turno) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Faltan parámetros requeridos: no_telar, tipo, fecha, turno',
+            ], 422);
+        }
+
+        // Buscar registro por telar+tipo+fecha+turno
+        $registro = TejInventarioTelares::where('no_telar', $noTelar)
+            ->where('tipo', $tipo)
+            ->where('fecha', $fecha)
+            ->where('turno', $turno)
+            ->where('status', 'Activo')
+            ->first();
+
+        if (! $registro) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Registro no encontrado',
+            ], 404);
+        }
+
+        // Normalizar tipo para búsqueda
+        $tipoNormalizado = null;
+        if ($tipo) {
+            $tipoUpper = strtoupper(trim($tipo));
+            if ($tipoUpper === 'RIZO') {
+                $tipoNormalizado = 'Rizo';
+            } elseif ($tipoUpper === 'PIE') {
+                $tipoNormalizado = 'Pie';
+            } else {
+                $tipoNormalizado = $tipo;
+            }
+        }
+
+        // Registros programados: se permite eliminar sin importar el Status en UrdProgramaUrdido
+        // (antes se bloqueaba si el Status era diferente a "Programado", pero ya no hay restricción)
+
+        // 1) Eliminar reservas activas en InvTelasReservadas para este registro específico
+        // IMPORTANTE: Usar TejInventarioTelaresId para identificar el registro específico
+        $reservasEliminadas = 0;
         try {
-            // Para DELETE, los datos pueden venir en el body o como query params
-            $noTelar = $request->input('no_telar') ?? $request->query('no_telar');
-            $tipo = $request->input('tipo') ?? $request->query('tipo');
-            $fecha = $request->input('fecha') ?? $request->query('fecha');
-            $turno = $request->input('turno') ?? $request->query('turno');
+            // PRIORIDAD 1: Buscar por TejInventarioTelaresId (más preciso - identificación única)
+            $reservasPorId = InvTelasReservadas::where('TejInventarioTelaresId', $registro->id)
+                ->where('Status', 'Reservado')
+                ->get();
 
-            if (! $noTelar || ! $tipo || ! $fecha || ! $turno) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Faltan parámetros requeridos: no_telar, tipo, fecha, turno',
-                ], 422);
+            foreach ($reservasPorId as $reserva) {
+                $reserva->delete();
+                $reservasEliminadas++;
             }
 
-            // Buscar registro por telar+tipo+fecha+turno
-            $registro = TejInventarioTelares::where('no_telar', $noTelar)
-                ->where('tipo', $tipo)
-                ->where('fecha', $fecha)
-                ->where('turno', $turno)
-                ->where('status', 'Activo')
-                ->first();
+            // PRIORIDAD 2: Si no se encontraron por ID, buscar por Fecha y Turno (campos específicos)
+            if ($reservasEliminadas === 0) {
+                try {
+                    $fechaFormatoDB = Carbon::parse($fecha)->format('Y-m-d');
+                    $turnoIntDB = is_numeric($turno) ? (int) $turno : null;
 
-            if (! $registro) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Registro no encontrado',
-                ], 404);
-            }
-
-            // Normalizar tipo para búsqueda
-            $tipoNormalizado = null;
-            if ($tipo) {
-                $tipoUpper = strtoupper(trim($tipo));
-                if ($tipoUpper === 'RIZO') {
-                    $tipoNormalizado = 'Rizo';
-                } elseif ($tipoUpper === 'PIE') {
-                    $tipoNormalizado = 'Pie';
-                } else {
-                    $tipoNormalizado = $tipo;
-                }
-            }
-
-            // Registros programados: se permite eliminar sin importar el Status en UrdProgramaUrdido
-            // (antes se bloqueaba si el Status era diferente a "Programado", pero ya no hay restricción)
-
-            // 1) Eliminar reservas activas en InvTelasReservadas para este registro específico
-            // IMPORTANTE: Usar TejInventarioTelaresId para identificar el registro específico
-            $reservasEliminadas = 0;
-            try {
-                // PRIORIDAD 1: Buscar por TejInventarioTelaresId (más preciso - identificación única)
-                $reservasPorId = InvTelasReservadas::where('TejInventarioTelaresId', $registro->id)
-                    ->where('Status', 'Reservado')
-                    ->get();
-
-                foreach ($reservasPorId as $reserva) {
-                    $reserva->delete();
-                    $reservasEliminadas++;
-                }
-
-                // PRIORIDAD 2: Si no se encontraron por ID, buscar por Fecha y Turno (campos específicos)
-                if ($reservasEliminadas === 0) {
-                    try {
-                        $fechaFormatoDB = Carbon::parse($fecha)->format('Y-m-d');
-                        $turnoIntDB = is_numeric($turno) ? (int) $turno : null;
-
-                        if ($fechaFormatoDB && $turnoIntDB) {
-                            $reservasPorFechaTurno = InvTelasReservadas::where('NoTelarId', $noTelar)
-                                ->where('Status', 'Reservado')
-                                ->where('Fecha', $fechaFormatoDB)
-                                ->where('Turno', $turnoIntDB);
-
-                            if ($tipoNormalizado) {
-                                $reservasPorFechaTurno->where('Tipo', $tipoNormalizado);
-                            }
-
-                            $reservasEncontradas = $reservasPorFechaTurno->get();
-                            foreach ($reservasEncontradas as $reserva) {
-                                $reserva->delete();
-                                $reservasEliminadas++;
-                            }
-                        }
-                    } catch (\Exception $e) {
-                        // Si no se puede parsear la fecha/turno, continuar con siguiente método
-                    }
-                }
-
-                // PRIORIDAD 3: Si aún no se encontraron, buscar por ProdDate (comportamiento legacy)
-                if ($reservasEliminadas === 0) {
-                    try {
-                        $fechaProdDate = Carbon::parse($fecha)->format('Y-m-d');
-                        $reservasPorProdDate = InvTelasReservadas::where('NoTelarId', $noTelar)
+                    if ($fechaFormatoDB && $turnoIntDB) {
+                        $reservasPorFechaTurno = InvTelasReservadas::where('NoTelarId', $noTelar)
                             ->where('Status', 'Reservado')
-                            ->whereRaw('CONVERT(DATE, ProdDate) = ?', [$fechaProdDate]);
+                            ->where('Fecha', $fechaFormatoDB)
+                            ->where('Turno', $turnoIntDB);
 
                         if ($tipoNormalizado) {
-                            $reservasPorProdDate->where('Tipo', $tipoNormalizado);
+                            $reservasPorFechaTurno->where('Tipo', $tipoNormalizado);
                         }
 
-                        $reservasEncontradas = $reservasPorProdDate->get();
+                        $reservasEncontradas = $reservasPorFechaTurno->get();
                         foreach ($reservasEncontradas as $reserva) {
                             $reserva->delete();
                             $reservasEliminadas++;
                         }
-                    } catch (\Exception $e) {
-                        // Si no se puede parsear la fecha, ignorar
                     }
+                } catch (\Exception $e) {
+                    // Si no se puede parsear la fecha/turno, continuar con siguiente método
                 }
-            } catch (\Exception $e) {
-                Log::warning('Error al eliminar reservas en InvTelasReservadas', [
-                    'registro_id' => $registro->id ?? null,
-                    'no_telar' => $noTelar,
-                    'tipo' => $tipoNormalizado,
-                    'error' => $e->getMessage(),
-                ]);
             }
 
-            // 2) Eliminar el registro en tej_inventario_telares
-            $registro->delete();
-
-            // 3) Actualizar el campo Reservado del registro específico eliminado a false
-            // (aunque ya fue eliminado, esto es para consistencia si se restaura)
-            // También verificar si quedan más reservas activas para este telar y tipo
-            try {
-                // Actualizar el campo Reservado del registro específico a false
-                // (aunque el registro ya fue eliminado, esto es para consistencia)
-                // Nota: El registro ya fue eliminado, así que esto no tiene efecto práctico,
-                // pero es bueno para mantener la lógica consistente
-
-                // Verificar si quedan más reservas activas para este telar y tipo
-                // IMPORTANTE: Verificar por TejInventarioTelaresId para otros registros del mismo telar/tipo
-                $tieneOtrasReservas = InvTelasReservadas::where('NoTelarId', $noTelar)
-                    ->where('Status', 'Reservado')
-                    ->exists();
-
-                if (! $tieneOtrasReservas) {
-                    // No quedan reservas, actualizar todos los telares de este número y tipo
-                    // que aún estén activos y tengan Reservado = 1
-                    $telares = TejInventarioTelares::where('no_telar', $noTelar)
-                        ->where('status', 'Activo')
-                        ->where('Reservado', true);
+            // PRIORIDAD 3: Si aún no se encontraron, buscar por ProdDate (comportamiento legacy)
+            if ($reservasEliminadas === 0) {
+                try {
+                    $fechaProdDate = Carbon::parse($fecha)->format('Y-m-d');
+                    $reservasPorProdDate = InvTelasReservadas::where('NoTelarId', $noTelar)
+                        ->where('Status', 'Reservado')
+                        ->whereRaw('CONVERT(DATE, ProdDate) = ?', [$fechaProdDate]);
 
                     if ($tipoNormalizado) {
-                        $telares->where('tipo', $tipoNormalizado);
+                        $reservasPorProdDate->where('Tipo', $tipoNormalizado);
                     }
 
-                    $telares->update(['Reservado' => false]);
+                    $reservasEncontradas = $reservasPorProdDate->get();
+                    foreach ($reservasEncontradas as $reserva) {
+                        $reserva->delete();
+                        $reservasEliminadas++;
+                    }
+                } catch (\Exception $e) {
+                    // Si no se puede parsear la fecha, ignorar
                 }
-            } catch (\Exception $e) {
-                Log::warning('Error al actualizar campo Reservado después de eliminar', [
-                    'no_telar' => $noTelar,
-                    'tipo' => $tipoNormalizado,
-                    'error' => $e->getMessage(),
-                ]);
             }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Registro eliminado con éxito',
-                'reservas_eliminadas' => $reservasEliminadas,
-            ]);
         } catch (\Exception $e) {
-            Log::error('Error al eliminar inventario de telares', [
+            Log::warning('Error al eliminar reservas en InvTelasReservadas', [
+                'registro_id' => $registro->id ?? null,
+                'no_telar' => $noTelar,
+                'tipo' => $tipoNormalizado,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'request' => $request->all(),
             ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al eliminar: '.$e->getMessage(),
-            ], 500);
         }
+
+        // 2) Eliminar el registro en tej_inventario_telares
+        $registro->delete();
+
+        // 3) Actualizar el campo Reservado del registro específico eliminado a false
+        // (aunque ya fue eliminado, esto es para consistencia si se restaura)
+        // También verificar si quedan más reservas activas para este telar y tipo
+        try {
+            // Actualizar el campo Reservado del registro específico a false
+            // (aunque el registro ya fue eliminado, esto es para consistencia)
+            // Nota: El registro ya fue eliminado, así que esto no tiene efecto práctico,
+            // pero es bueno para mantener la lógica consistente
+
+            // Verificar si quedan más reservas activas para este telar y tipo
+            // IMPORTANTE: Verificar por TejInventarioTelaresId para otros registros del mismo telar/tipo
+            $tieneOtrasReservas = InvTelasReservadas::where('NoTelarId', $noTelar)
+                ->where('Status', 'Reservado')
+                ->exists();
+
+            if (! $tieneOtrasReservas) {
+                // No quedan reservas, actualizar todos los telares de este número y tipo
+                // que aún estén activos y tengan Reservado = 1
+                $telares = TejInventarioTelares::where('no_telar', $noTelar)
+                    ->where('status', 'Activo')
+                    ->where('Reservado', true);
+
+                if ($tipoNormalizado) {
+                    $telares->where('tipo', $tipoNormalizado);
+                }
+
+                $telares->update(['Reservado' => false]);
+            }
+        } catch (\Exception $e) {
+            Log::warning('Error al actualizar campo Reservado después de eliminar', [
+                'no_telar' => $noTelar,
+                'tipo' => $tipoNormalizado,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Registro eliminado con éxito',
+            'reservas_eliminadas' => $reservasEliminadas,
+        ]);
     }
 
     /**
@@ -630,265 +617,240 @@ class InventarioTelaresController extends Controller
      */
     public function verificarTurnosOcupados(Request $request): JsonResponse
     {
-        try {
-            $noTelar = $request->input('no_telar');
-            $tipo = $request->input('tipo');
-            $fecha = $request->input('fecha');
-            $registroIdExcluir = $request->input('registro_id_excluir'); // ID del registro que se está actualizando (excluir de la verificación)
+        $noTelar = $request->input('no_telar');
+        $tipo = $request->input('tipo');
+        $fecha = $request->input('fecha');
+        $registroIdExcluir = $request->input('registro_id_excluir'); // ID del registro que se está actualizando (excluir de la verificación)
 
-            if (! $noTelar || ! $tipo || ! $fecha) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Faltan parámetros requeridos: no_telar, tipo, fecha',
-                ], 422);
-            }
-
-            // Normalizar tipo
-            $tipoNormalizado = null;
-            if ($tipo) {
-                $tipoUpper = strtoupper(trim($tipo));
-                if ($tipoUpper === 'RIZO') {
-                    $tipoNormalizado = 'Rizo';
-                } elseif ($tipoUpper === 'PIE') {
-                    $tipoNormalizado = 'Pie';
-                } else {
-                    $tipoNormalizado = $tipo;
-                }
-            }
-
-            // Buscar registros activos para esta fecha, telar y tipo
-            $query = TejInventarioTelares::where('no_telar', $noTelar)
-                ->where('tipo', $tipoNormalizado)
-                ->where('fecha', $fecha)
-                ->where('status', 'Activo');
-
-            // Excluir el registro que se está actualizando (si se proporciona)
-            if ($registroIdExcluir) {
-                $query->where('id', '!=', $registroIdExcluir);
-            }
-
-            $registros = $query->get(['id', 'turno', 'Reservado', 'Programado']);
-
-            // Obtener los turnos ocupados (1, 2, 3)
-            // Cualquier registro existente en esa fecha y turno se considera ocupado
-            $turnosOcupados = [];
-            foreach ($registros as $registro) {
-                $turno = $registro->turno;
-                if ($turno) {
-                    $turnosOcupados[] = (int) $turno;
-                }
-            }
-
-            // Eliminar duplicados y ordenar
-            $turnosOcupados = array_unique($turnosOcupados);
-            sort($turnosOcupados);
-
-            return response()->json([
-                'success' => true,
-                'turnos_ocupados' => $turnosOcupados,
-                'turnos_disponibles' => array_values(array_diff([1, 2, 3], $turnosOcupados)),
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error al verificar turnos ocupados', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
+        if (! $noTelar || ! $tipo || ! $fecha) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al verificar turnos ocupados: '.$e->getMessage(),
-            ], 500);
+                'message' => 'Faltan parámetros requeridos: no_telar, tipo, fecha',
+            ], 422);
         }
+
+        // Normalizar tipo
+        $tipoNormalizado = null;
+        if ($tipo) {
+            $tipoUpper = strtoupper(trim($tipo));
+            if ($tipoUpper === 'RIZO') {
+                $tipoNormalizado = 'Rizo';
+            } elseif ($tipoUpper === 'PIE') {
+                $tipoNormalizado = 'Pie';
+            } else {
+                $tipoNormalizado = $tipo;
+            }
+        }
+
+        // Buscar registros activos para esta fecha, telar y tipo
+        $query = TejInventarioTelares::where('no_telar', $noTelar)
+            ->where('tipo', $tipoNormalizado)
+            ->where('fecha', $fecha)
+            ->where('status', 'Activo');
+
+        // Excluir el registro que se está actualizando (si se proporciona)
+        if ($registroIdExcluir) {
+            $query->where('id', '!=', $registroIdExcluir);
+        }
+
+        $registros = $query->get(['id', 'turno', 'Reservado', 'Programado']);
+
+        // Obtener los turnos ocupados (1, 2, 3)
+        // Cualquier registro existente en esa fecha y turno se considera ocupado
+        $turnosOcupados = [];
+        foreach ($registros as $registro) {
+            $turno = $registro->turno;
+            if ($turno) {
+                $turnosOcupados[] = (int) $turno;
+            }
+        }
+
+        // Eliminar duplicados y ordenar
+        $turnosOcupados = array_unique($turnosOcupados);
+        sort($turnosOcupados);
+
+        return response()->json([
+            'success' => true,
+            'turnos_ocupados' => $turnosOcupados,
+            'turnos_disponibles' => array_values(array_diff([1, 2, 3], $turnosOcupados)),
+        ]);
     }
 
     public function updateFecha(Request $request): JsonResponse
     {
-        try {
-            $noTelar = $request->input('no_telar');
-            $tipo = $request->input('tipo');
-            $fechaOriginal = $request->input('fecha_original');
-            $turnoOriginal = $request->input('turno');
-            $fechaNueva = $request->input('fecha_nueva');
-            $turnoNuevo = $request->input('turno_nuevo'); // Nuevo turno seleccionado
+        $noTelar = $request->input('no_telar');
+        $tipo = $request->input('tipo');
+        $fechaOriginal = $request->input('fecha_original');
+        $turnoOriginal = $request->input('turno');
+        $fechaNueva = $request->input('fecha_nueva');
+        $turnoNuevo = $request->input('turno_nuevo'); // Nuevo turno seleccionado
 
-            if (! $noTelar || ! $tipo || ! $fechaOriginal || ! $turnoOriginal || ! $fechaNueva) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Faltan parámetros requeridos: no_telar, tipo, fecha_original, turno, fecha_nueva',
-                ], 422);
-            }
-
-            // El turno del telar es ventana de reloj: sólo 1, 2 o 3. El turno 4 (comodín
-            // que cubre descansos) es atributo del empleado y no debe entrar aquí.
-            foreach (['turno' => $turnoOriginal, 'turno_nuevo' => $turnoNuevo] as $campo => $valor) {
-                if ($valor !== null && $valor !== '' && ! in_array((int) $valor, [1, 2, 3], true)) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => "Turno inválido en {$campo} (debe ser 1, 2 o 3)",
-                    ], 422);
-                }
-            }
-
-            // Buscar registro por telar+tipo+fecha+turno
-            $registro = TejInventarioTelares::where('no_telar', $noTelar)
-                ->where('tipo', $tipo)
-                ->where('fecha', $fechaOriginal)
-                ->where('turno', $turnoOriginal)
-                ->where('status', 'Activo')
-                ->first();
-
-            if (! $registro) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Registro no encontrado',
-                ], 404);
-            }
-
-            // Normalizar tipo para búsqueda
-            $tipoNormalizado = null;
-            if ($tipo) {
-                $tipoUpper = strtoupper(trim($tipo));
-                if ($tipoUpper === 'RIZO') {
-                    $tipoNormalizado = 'Rizo';
-                } elseif ($tipoUpper === 'PIE') {
-                    $tipoNormalizado = 'Pie';
-                } else {
-                    $tipoNormalizado = $tipo;
-                }
-            }
-
-            // Registros programados: se permite actualizar sin importar el Status en UrdProgramaUrdido
-            // (antes se bloqueaba si el Status era diferente a "Programado", pero ya no hay restricción)
-
-            $calibreRegistro = $registro->calibre ?? null;
-            $fechaOriginalFormato = Carbon::parse($fechaOriginal)->format('Y-m-d');
-            $noTelarNormalizado = (string) trim($noTelar);
-
-            // Si se proporciona turno_nuevo, validar que no esté ocupado
-            // Excluir el registro actual de la verificación
-            if ($turnoNuevo) {
-                $turnosOcupados = $this->verificarTurnosOcupadosInterno($noTelar, $tipoNormalizado, $fechaNueva, $registro->id);
-                if (in_array((int) $turnoNuevo, $turnosOcupados)) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => "El turno {$turnoNuevo} ya está ocupado para esta fecha",
-                    ], 400);
-                }
-            }
-
-            // 1) Actualizar la fecha y turno (si se proporciona) en el registro de tej_inventario_telares
-            $registro->fecha = $fechaNueva;
-            if ($turnoNuevo) {
-                $registro->turno = (int) $turnoNuevo;
-            }
-            $registro->save();
-
-            // 2) Actualizar FechaReq en UrdProgramaUrdido si existe registro
-            // IMPORTANTE: Usar no_orden (= Folio en UrdProgramaUrdido) como identificador primario
-            // para evitar conflictos cuando NoTelarId tiene múltiples telares (ej: "211,214,210")
-            $noOrdenRegistro = $registro->no_orden ?? null;
-            $fechaNuevaFormato = Carbon::parse($fechaNueva)->format('Y-m-d');
-
-            if ($noOrdenRegistro && trim($noOrdenRegistro) !== '') {
-                // Buscar por Folio (identificación exacta 1:1)
-                $programaUrdido = UrdProgramaUrdido::where('Folio', trim($noOrdenRegistro))->first();
-
-                if ($programaUrdido) {
-                    $noTelarIdStr = (string) trim($programaUrdido->NoTelarId ?? '');
-                    $telaresEnPrograma = array_map('trim', explode(',', $noTelarIdStr));
-
-                    // Solo actualizar FechaReq si NoTelarId tiene UN SOLO telar
-                    // Si tiene múltiples telares, NO actualizar porque afectaría a los demás
-                    if (count($telaresEnPrograma) <= 1) {
-                        $programaUrdido->FechaReq = $fechaNuevaFormato;
-                        $programaUrdido->save();
-
-                        Log::info('FechaReq actualizada en UrdProgramaUrdido (telar único)', [
-                            'Folio' => $programaUrdido->Folio,
-                            'NoTelarId' => $noTelarIdStr,
-                            'FechaReq_anterior' => $fechaOriginalFormato,
-                            'FechaReq_nueva' => $fechaNuevaFormato,
-                        ]);
-                    } else {
-                        Log::info('FechaReq NO actualizada en UrdProgramaUrdido: múltiples telares comparten el registro', [
-                            'Folio' => $programaUrdido->Folio,
-                            'NoTelarId' => $noTelarIdStr,
-                            'telares_count' => count($telaresEnPrograma),
-                            'telar_editado' => $noTelarNormalizado,
-                            'motivo' => 'Actualizar FechaReq afectaría a todos los telares del grupo',
-                        ]);
-                    }
-                }
-            }
-
-            // 2) Actualizar ProdDate, Fecha y Turno en InvTelasReservadas para este registro específico
-            // Convertir fecha nueva a formato datetime para ProdDate
-            try {
-                $fechaProdDate = Carbon::parse($fechaNueva)->format('Y-m-d H:i:s');
-                $fechaFormato = Carbon::parse($fechaNueva)->format('Y-m-d');
-
-                // Buscar reservas por TejInventarioTelaresId (más preciso)
-                $reservas = InvTelasReservadas::where('TejInventarioTelaresId', $registro->id)
-                    ->where('Status', 'Reservado');
-
-                // Si no se encuentran por ID, buscar por fecha original y turno original
-                if ($reservas->count() === 0) {
-                    $reservas = InvTelasReservadas::where('NoTelarId', $noTelar)
-                        ->where('Status', 'Reservado')
-                        ->where('Fecha', $fechaOriginal)
-                        ->where('Turno', $turnoOriginal);
-
-                    if ($tipoNormalizado) {
-                        $reservas->where('Tipo', $tipoNormalizado);
-                    }
-                }
-
-                // Actualizar ProdDate, Fecha y Turno en las reservas encontradas
-                $updateData = [
-                    'ProdDate' => $fechaProdDate,
-                    'Fecha' => $fechaFormato,
-                ];
-
-                if ($turnoNuevo) {
-                    $updateData['Turno'] = (int) $turnoNuevo;
-                }
-
-                $reservasEncontradas = $reservas->get();
-                foreach ($reservasEncontradas as $reserva) {
-                    $reserva->ProdDate = $fechaProdDate;
-                    $reserva->Fecha = $fechaFormato;
-                    if ($turnoNuevo) {
-                        $reserva->Turno = (int) $turnoNuevo;
-                    }
-                    $reserva->save();
-                }
-            } catch (\Exception $e) {
-                Log::warning('Error al actualizar ProdDate en InvTelasReservadas', [
-                    'no_telar' => $noTelar,
-                    'tipo' => $tipoNormalizado,
-                    'fecha_nueva' => $fechaNueva,
-                    'error' => $e->getMessage(),
-                ]);
-                // No fallar si no se puede actualizar InvTelasReservadas
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Fecha y turno actualizados con éxito',
-                'registro' => $registro,
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error al actualizar fecha de inventario de telares', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'request' => $request->all(),
-            ]);
-
+        if (! $noTelar || ! $tipo || ! $fechaOriginal || ! $turnoOriginal || ! $fechaNueva) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al actualizar fecha: '.$e->getMessage(),
-            ], 500);
+                'message' => 'Faltan parámetros requeridos: no_telar, tipo, fecha_original, turno, fecha_nueva',
+            ], 422);
         }
+
+        // El turno del telar es ventana de reloj: sólo 1, 2 o 3. El turno 4 (comodín
+        // que cubre descansos) es atributo del empleado y no debe entrar aquí.
+        foreach (['turno' => $turnoOriginal, 'turno_nuevo' => $turnoNuevo] as $campo => $valor) {
+            if ($valor !== null && $valor !== '' && ! in_array((int) $valor, [1, 2, 3], true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Turno inválido en {$campo} (debe ser 1, 2 o 3)",
+                ], 422);
+            }
+        }
+
+        // Buscar registro por telar+tipo+fecha+turno
+        $registro = TejInventarioTelares::where('no_telar', $noTelar)
+            ->where('tipo', $tipo)
+            ->where('fecha', $fechaOriginal)
+            ->where('turno', $turnoOriginal)
+            ->where('status', 'Activo')
+            ->first();
+
+        if (! $registro) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Registro no encontrado',
+            ], 404);
+        }
+
+        // Normalizar tipo para búsqueda
+        $tipoNormalizado = null;
+        if ($tipo) {
+            $tipoUpper = strtoupper(trim($tipo));
+            if ($tipoUpper === 'RIZO') {
+                $tipoNormalizado = 'Rizo';
+            } elseif ($tipoUpper === 'PIE') {
+                $tipoNormalizado = 'Pie';
+            } else {
+                $tipoNormalizado = $tipo;
+            }
+        }
+
+        // Registros programados: se permite actualizar sin importar el Status en UrdProgramaUrdido
+        // (antes se bloqueaba si el Status era diferente a "Programado", pero ya no hay restricción)
+
+        $calibreRegistro = $registro->calibre ?? null;
+        $fechaOriginalFormato = Carbon::parse($fechaOriginal)->format('Y-m-d');
+        $noTelarNormalizado = (string) trim($noTelar);
+
+        // Si se proporciona turno_nuevo, validar que no esté ocupado
+        // Excluir el registro actual de la verificación
+        if ($turnoNuevo) {
+            $turnosOcupados = $this->verificarTurnosOcupadosInterno($noTelar, $tipoNormalizado, $fechaNueva, $registro->id);
+            if (in_array((int) $turnoNuevo, $turnosOcupados)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "El turno {$turnoNuevo} ya está ocupado para esta fecha",
+                ], 400);
+            }
+        }
+
+        // 1) Actualizar la fecha y turno (si se proporciona) en el registro de tej_inventario_telares
+        $registro->fecha = $fechaNueva;
+        if ($turnoNuevo) {
+            $registro->turno = (int) $turnoNuevo;
+        }
+        $registro->save();
+
+        // 2) Actualizar FechaReq en UrdProgramaUrdido si existe registro
+        // IMPORTANTE: Usar no_orden (= Folio en UrdProgramaUrdido) como identificador primario
+        // para evitar conflictos cuando NoTelarId tiene múltiples telares (ej: "211,214,210")
+        $noOrdenRegistro = $registro->no_orden ?? null;
+        $fechaNuevaFormato = Carbon::parse($fechaNueva)->format('Y-m-d');
+
+        if ($noOrdenRegistro && trim($noOrdenRegistro) !== '') {
+            // Buscar por Folio (identificación exacta 1:1)
+            $programaUrdido = UrdProgramaUrdido::where('Folio', trim($noOrdenRegistro))->first();
+
+            if ($programaUrdido) {
+                $noTelarIdStr = (string) trim($programaUrdido->NoTelarId ?? '');
+                $telaresEnPrograma = array_map('trim', explode(',', $noTelarIdStr));
+
+                // Solo actualizar FechaReq si NoTelarId tiene UN SOLO telar
+                // Si tiene múltiples telares, NO actualizar porque afectaría a los demás
+                if (count($telaresEnPrograma) <= 1) {
+                    $programaUrdido->FechaReq = $fechaNuevaFormato;
+                    $programaUrdido->save();
+
+                    Log::info('FechaReq actualizada en UrdProgramaUrdido (telar único)', [
+                        'Folio' => $programaUrdido->Folio,
+                        'NoTelarId' => $noTelarIdStr,
+                        'FechaReq_anterior' => $fechaOriginalFormato,
+                        'FechaReq_nueva' => $fechaNuevaFormato,
+                    ]);
+                } else {
+                    Log::info('FechaReq NO actualizada en UrdProgramaUrdido: múltiples telares comparten el registro', [
+                        'Folio' => $programaUrdido->Folio,
+                        'NoTelarId' => $noTelarIdStr,
+                        'telares_count' => count($telaresEnPrograma),
+                        'telar_editado' => $noTelarNormalizado,
+                        'motivo' => 'Actualizar FechaReq afectaría a todos los telares del grupo',
+                    ]);
+                }
+            }
+        }
+
+        // 2) Actualizar ProdDate, Fecha y Turno en InvTelasReservadas para este registro específico
+        // Convertir fecha nueva a formato datetime para ProdDate
+        try {
+            $fechaProdDate = Carbon::parse($fechaNueva)->format('Y-m-d H:i:s');
+            $fechaFormato = Carbon::parse($fechaNueva)->format('Y-m-d');
+
+            // Buscar reservas por TejInventarioTelaresId (más preciso)
+            $reservas = InvTelasReservadas::where('TejInventarioTelaresId', $registro->id)
+                ->where('Status', 'Reservado');
+
+            // Si no se encuentran por ID, buscar por fecha original y turno original
+            if ($reservas->count() === 0) {
+                $reservas = InvTelasReservadas::where('NoTelarId', $noTelar)
+                    ->where('Status', 'Reservado')
+                    ->where('Fecha', $fechaOriginal)
+                    ->where('Turno', $turnoOriginal);
+
+                if ($tipoNormalizado) {
+                    $reservas->where('Tipo', $tipoNormalizado);
+                }
+            }
+
+            // Actualizar ProdDate, Fecha y Turno en las reservas encontradas
+            $updateData = [
+                'ProdDate' => $fechaProdDate,
+                'Fecha' => $fechaFormato,
+            ];
+
+            if ($turnoNuevo) {
+                $updateData['Turno'] = (int) $turnoNuevo;
+            }
+
+            $reservasEncontradas = $reservas->get();
+            foreach ($reservasEncontradas as $reserva) {
+                $reserva->ProdDate = $fechaProdDate;
+                $reserva->Fecha = $fechaFormato;
+                if ($turnoNuevo) {
+                    $reserva->Turno = (int) $turnoNuevo;
+                }
+                $reserva->save();
+            }
+        } catch (\Exception $e) {
+            Log::warning('Error al actualizar ProdDate en InvTelasReservadas', [
+                'no_telar' => $noTelar,
+                'tipo' => $tipoNormalizado,
+                'fecha_nueva' => $fechaNueva,
+                'error' => $e->getMessage(),
+            ]);
+            // No fallar si no se puede actualizar InvTelasReservadas
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Fecha y turno actualizados con éxito',
+            'registro' => $registro,
+        ]);
     }
 
     /**

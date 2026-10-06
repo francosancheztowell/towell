@@ -153,35 +153,26 @@ class CatCodificacionController extends Controller
      */
     public function ordenesEnProceso(Request $request): JsonResponse
     {
-        try {
-            $ordenes = ReqProgramaTejido::query()
-                ->ordenado()
-                ->get(['Id', 'NoProduccion', 'NoTelarId', 'SalonTejidoId', 'ItemId', 'NombreProducto'])
-                ->map(function ($r) {
-                    return [
-                        'id' => $r->Id,
-                        'noProduccion' => $r->NoProduccion !== null && $r->NoProduccion !== '' ? (string) $r->NoProduccion : null,
-                        'noTelarId' => $r->NoTelarId,
-                        'salonTejidoId' => $r->SalonTejidoId,
-                        'itemId' => $r->ItemId,
-                        'nombreProducto' => $r->NombreProducto,
-                    ];
-                })
-                ->filter(fn ($r) => $r['noProduccion'] !== null)
-                ->values();
+        $ordenes = ReqProgramaTejido::query()
+            ->ordenado()
+            ->get(['Id', 'NoProduccion', 'NoTelarId', 'SalonTejidoId', 'ItemId', 'NombreProducto'])
+            ->map(function ($r) {
+                return [
+                    'id' => $r->Id,
+                    'noProduccion' => $r->NoProduccion !== null && $r->NoProduccion !== '' ? (string) $r->NoProduccion : null,
+                    'noTelarId' => $r->NoTelarId,
+                    'salonTejidoId' => $r->SalonTejidoId,
+                    'itemId' => $r->ItemId,
+                    'nombreProducto' => $r->NombreProducto,
+                ];
+            })
+            ->filter(fn ($r) => $r['noProduccion'] !== null)
+            ->values();
 
-            return response()->json([
-                's' => true,
-                'd' => $ordenes,
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('CatCodificacionController::ordenesEnProceso', ['error' => $e->getMessage()]);
-
-            return response()->json([
-                's' => false,
-                'e' => $e->getMessage(),
-            ], 500);
-        }
+        return response()->json([
+            's' => true,
+            'd' => $ordenes,
+        ]);
     }
 
     /**
@@ -228,76 +219,64 @@ class CatCodificacionController extends Controller
      */
     public function getCatCodificadosPorOrden(string $ordenTejido): JsonResponse
     {
-        try {
-            $ordenTejido = trim($ordenTejido);
-            if ($ordenTejido === '') {
-                return response()->json(['s' => false, 'e' => 'Orden Tejido requerido'], 400);
-            }
+        $ordenTejido = trim($ordenTejido);
+        if ($ordenTejido === '') {
+            return response()->json(['s' => false, 'e' => 'Orden Tejido requerido'], 400);
+        }
 
-            $registro = CatCodificados::query()
-                ->where('OrdenTejido', $ordenTejido)
-                ->orderByDesc('Id')
-                ->first(['OrdenTejido', 'TelarId', 'ItemId', 'InventSizeId', 'Nombre', 'ClaveModelo', 'ActualizaLmat', 'PesoMuestra', 'AlturaRizo', 'BomId', 'BomName']);
+        $registro = CatCodificados::query()
+            ->where('OrdenTejido', $ordenTejido)
+            ->orderByDesc('Id')
+            ->first(['OrdenTejido', 'TelarId', 'ItemId', 'InventSizeId', 'Nombre', 'ClaveModelo', 'ActualizaLmat', 'PesoMuestra', 'AlturaRizo', 'BomId', 'BomName']);
 
-            if (! $registro) {
-                return response()->json([
-                    's' => true,
-                    'd' => null,
-                    'message' => 'No existe registro en CatCodificados para esta orden',
-                ]);
-            }
+        if (! $registro) {
+            return response()->json([
+                's' => true,
+                'd' => null,
+                'message' => 'No existe registro en CatCodificados para esta orden',
+            ]);
+        }
 
-            $actualizaLmat = $registro->ActualizaLmat === true || $registro->ActualizaLmat === 1 || $registro->ActualizaLmat === '1';
-            $pesoMuestra = $registro->PesoMuestra !== null && $registro->PesoMuestra !== '' ? (float) $registro->PesoMuestra : null;
-            $alturaRizo = $registro->AlturaRizo !== null && trim((string) $registro->AlturaRizo) !== '' ? trim((string) $registro->AlturaRizo) : null;
-            $bomId = $registro->BomId !== null ? (string) $registro->BomId : '';
-            $bomName = $registro->BomName !== null ? (string) $registro->BomName : '';
+        $actualizaLmat = $registro->ActualizaLmat === true || $registro->ActualizaLmat === 1 || $registro->ActualizaLmat === '1';
+        $pesoMuestra = $registro->PesoMuestra !== null && $registro->PesoMuestra !== '' ? (float) $registro->PesoMuestra : null;
+        $alturaRizo = $registro->AlturaRizo !== null && trim((string) $registro->AlturaRizo) !== '' ? trim((string) $registro->AlturaRizo) : null;
+        $bomId = $registro->BomId !== null ? (string) $registro->BomId : '';
+        $bomName = $registro->BomName !== null ? (string) $registro->BomName : '';
 
-            // LMAT: consultar en BD sqlsrv_ti (BOMTABLE + BOMVERSION) como en LiberarOrdenesController.
-            // Si no hay InventSizeId, no se filtra por tamaño y se devuelven todos los BOM del artículo.
-            $listaLmat = [];
-            $itemId = $registro->ItemId !== null ? trim((string) $registro->ItemId) : '';
-            $inventSizeId = $registro->InventSizeId !== null && trim((string) $registro->InventSizeId) !== ''
-                ? trim((string) $registro->InventSizeId) : null;
-            if ($itemId !== '') {
-                $listaLmat = $this->queryLmatDesdeTi($itemId, $inventSizeId);
-                // Si tenemos lista y el registro tenía BomId pero no BomName, rellenar BomName desde TI
-                if ($bomId !== '' && $bomName === '' && count($listaLmat) > 0) {
-                    foreach ($listaLmat as $item) {
-                        if (isset($item['bomId']) && (string) $item['bomId'] === $bomId) {
-                            $bomName = isset($item['bomName']) ? (string) $item['bomName'] : '';
-                            break;
-                        }
+        // LMAT: consultar en BD sqlsrv_ti (BOMTABLE + BOMVERSION) como en LiberarOrdenesController.
+        // Si no hay InventSizeId, no se filtra por tamaño y se devuelven todos los BOM del artículo.
+        $listaLmat = [];
+        $itemId = $registro->ItemId !== null ? trim((string) $registro->ItemId) : '';
+        $inventSizeId = $registro->InventSizeId !== null && trim((string) $registro->InventSizeId) !== ''
+            ? trim((string) $registro->InventSizeId) : null;
+        if ($itemId !== '') {
+            $listaLmat = $this->queryLmatDesdeTi($itemId, $inventSizeId);
+            // Si tenemos lista y el registro tenía BomId pero no BomName, rellenar BomName desde TI
+            if ($bomId !== '' && $bomName === '' && count($listaLmat) > 0) {
+                foreach ($listaLmat as $item) {
+                    if (isset($item['bomId']) && (string) $item['bomId'] === $bomId) {
+                        $bomName = isset($item['bomName']) ? (string) $item['bomName'] : '';
+                        break;
                     }
                 }
             }
-
-            return response()->json([
-                's' => true,
-                'd' => [
-                    'ordenTejido' => (string) $registro->OrdenTejido,
-                    'telarId' => $registro->TelarId !== null ? (string) $registro->TelarId : '',
-                    'itemId' => $registro->ItemId !== null ? (string) $registro->ItemId : '',
-                    'nombre' => $registro->Nombre ?? $registro->ClaveModelo ?? '',
-                    'actualizaLmat' => $actualizaLmat,
-                    'pesoMuestra' => $pesoMuestra,
-                    'alturaRizo' => $alturaRizo,
-                    'bomId' => $bomId,
-                    'bomName' => $bomName,
-                    'listaLmat' => $listaLmat,
-                ],
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('CatCodificacionController::getCatCodificadosPorOrden', [
-                'ordenTejido' => $ordenTejido ?? '',
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                's' => false,
-                'e' => $e->getMessage(),
-            ], 500);
         }
+
+        return response()->json([
+            's' => true,
+            'd' => [
+                'ordenTejido' => (string) $registro->OrdenTejido,
+                'telarId' => $registro->TelarId !== null ? (string) $registro->TelarId : '',
+                'itemId' => $registro->ItemId !== null ? (string) $registro->ItemId : '',
+                'nombre' => $registro->Nombre ?? $registro->ClaveModelo ?? '',
+                'actualizaLmat' => $actualizaLmat,
+                'pesoMuestra' => $pesoMuestra,
+                'alturaRizo' => $alturaRizo,
+                'bomId' => $bomId,
+                'bomName' => $bomName,
+                'listaLmat' => $listaLmat,
+            ],
+        ]);
     }
 
     /**
@@ -586,82 +565,69 @@ class CatCodificacionController extends Controller
      */
     public function registrosOrdCompartida(string $ordCompartida): JsonResponse
     {
-        try {
-            $ordCompartida = trim($ordCompartida);
-            if ($ordCompartida === '' || $ordCompartida === '0') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'OrdCompartida requerida',
-                    'registros' => [],
-                ], 400);
-            }
-
-            // Convertir a entero si es posible, sino buscar como string
-            $ordCompartidaInt = is_numeric($ordCompartida) ? (int) $ordCompartida : null;
-
-            $registros = CatCodificados::query()
-                ->where('OrdCompartida', $ordCompartidaInt ?? $ordCompartida)
-                ->orderBy('OrdCompartidaLider', 'desc') // Los líderes primero
-                ->orderBy('Id', 'asc')
-                ->get([
-                    'OrdenTejido',
-                    'TelarId',
-                    'Nombre',
-                    'ClaveModelo',
-                    'Cantidad',
-                    'Produccion',
-                    'Saldos',
-                    'TotalSegundas',
-                    'OrdCompartida',
-                    'OrdCompartidaLider',
-                ])
-                ->map(function ($registro) {
-                    return [
-                        'OrdenTejido' => $registro->OrdenTejido !== null ? (string) $registro->OrdenTejido : '',
-                        'TelarId' => $registro->TelarId !== null ? (string) $registro->TelarId : '',
-                        'Nombre' => $registro->Nombre ?? '',
-                        'ClaveModelo' => $registro->ClaveModelo ?? '',
-                        'Cantidad' => $registro->Cantidad !== null ? (string) $registro->Cantidad : '',
-                        'Produccion' => $registro->Produccion !== null ? (string) $registro->Produccion : '',
-                        'Saldos' => $registro->Saldos !== null ? (string) $registro->Saldos : '',
-                        'TotalSegundas' => $registro->TotalSegundas !== null ? (string) $registro->TotalSegundas : '',
-                        'OrdCompartida' => $registro->OrdCompartida,
-                        'OrdCompartidaLider' => $registro->OrdCompartidaLider,
-                    ];
-                })
-                ->values()
-                ->all();
-
-            // Verificar si hay algún registro con OrdCompartidaLider activo
-            $tieneLideres = false;
-            foreach ($registros as $registro) {
-                $esLider = $registro['OrdCompartidaLider'] === 1
-                    || $registro['OrdCompartidaLider'] === true
-                    || $registro['OrdCompartidaLider'] === '1';
-                if ($esLider) {
-                    $tieneLideres = true;
-                    break;
-                }
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => count($registros) > 0 ? 'Registros encontrados' : 'No se encontraron registros compartidos',
-                'registros' => $registros,
-                'tieneLideres' => $tieneLideres,
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('CatCodificacionController::registrosOrdCompartida', [
-                'ordCompartida' => $ordCompartida ?? '',
-                'error' => $e->getMessage(),
-            ]);
-
+        $ordCompartida = trim($ordCompartida);
+        if ($ordCompartida === '' || $ordCompartida === '0') {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al obtener registros compartidos: '.$e->getMessage(),
+                'message' => 'OrdCompartida requerida',
                 'registros' => [],
-            ], 500);
+            ], 400);
         }
+
+        // Convertir a entero si es posible, sino buscar como string
+        $ordCompartidaInt = is_numeric($ordCompartida) ? (int) $ordCompartida : null;
+
+        $registros = CatCodificados::query()
+            ->where('OrdCompartida', $ordCompartidaInt ?? $ordCompartida)
+            ->orderBy('OrdCompartidaLider', 'desc') // Los líderes primero
+            ->orderBy('Id', 'asc')
+            ->get([
+                'OrdenTejido',
+                'TelarId',
+                'Nombre',
+                'ClaveModelo',
+                'Cantidad',
+                'Produccion',
+                'Saldos',
+                'TotalSegundas',
+                'OrdCompartida',
+                'OrdCompartidaLider',
+            ])
+            ->map(function ($registro) {
+                return [
+                    'OrdenTejido' => $registro->OrdenTejido !== null ? (string) $registro->OrdenTejido : '',
+                    'TelarId' => $registro->TelarId !== null ? (string) $registro->TelarId : '',
+                    'Nombre' => $registro->Nombre ?? '',
+                    'ClaveModelo' => $registro->ClaveModelo ?? '',
+                    'Cantidad' => $registro->Cantidad !== null ? (string) $registro->Cantidad : '',
+                    'Produccion' => $registro->Produccion !== null ? (string) $registro->Produccion : '',
+                    'Saldos' => $registro->Saldos !== null ? (string) $registro->Saldos : '',
+                    'TotalSegundas' => $registro->TotalSegundas !== null ? (string) $registro->TotalSegundas : '',
+                    'OrdCompartida' => $registro->OrdCompartida,
+                    'OrdCompartidaLider' => $registro->OrdCompartidaLider,
+                ];
+            })
+            ->values()
+            ->all();
+
+        // Verificar si hay algún registro con OrdCompartidaLider activo
+        $tieneLideres = false;
+        foreach ($registros as $registro) {
+            $esLider = $registro['OrdCompartidaLider'] === 1
+                || $registro['OrdCompartidaLider'] === true
+                || $registro['OrdCompartidaLider'] === '1';
+            if ($esLider) {
+                $tieneLideres = true;
+                break;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => count($registros) > 0 ? 'Registros encontrados' : 'No se encontraron registros compartidos',
+            'registros' => $registros,
+            'tieneLideres' => $tieneLideres,
+        ]);
     }
 
     /**
