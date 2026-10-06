@@ -27,10 +27,6 @@ class TelBpmController extends Controller
 
     private const EST_CREADO = 'Creado';
 
-    private const EST_TERM = 'Terminado';
-
-    private const EST_AUTO = 'Autorizado';
-
     /** Listado con filtros; último primero (acceso controlado por rutas/menú) */
     public function index(Request $request)
     {

@@ -26,9 +26,6 @@ class BalancearTejido
      */
     private static array $calLinesCache = [];
 
-    /** gaps muy pequeños (ej. 2s entre :29:58 y :30:00) se ignoran */
-    private const SMALL_GAP_SECONDS = 5;
-
     // =========================================================
     // PREVIEW SOLO PARA EL MODAL (CALENDARIO)
     // =========================================================

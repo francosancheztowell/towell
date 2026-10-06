@@ -1077,7 +1077,7 @@ class ReportesUrdidoController extends Controller
             ];
         }
 
-        foreach ($porFecha as $f => &$datos) {
+        foreach ($porFecha as &$datos) {
             if (! isset($datos['engomado'])) {
                 $datos['engomado'] = ['WP2' => ['filas' => []], 'WP3' => ['filas' => []]];
             }
