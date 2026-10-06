@@ -28,30 +28,23 @@ class BaseDeDatosController extends Controller
 
     public function updateProductivo()
     {
-        try {
-            $request = request();
+        $request = request();
 
-            $request->validate([
-                'user_id' => 'required|integer|exists:SYSUsuario,idusuario',
-                'productivo' => 'required|integer|in:0,1',
-            ]);
+        $request->validate([
+            'user_id' => 'required|integer|exists:SYSUsuario,idusuario',
+            'productivo' => 'required|integer|in:0,1',
+        ]);
 
-            $usuario = SYSUsuario::findOrFail($request->user_id);
-            $usuario->Productivo = $request->productivo;
-            $usuario->save();
+        $usuario = SYSUsuario::findOrFail($request->user_id);
+        $usuario->Productivo = $request->productivo;
+        $usuario->save();
 
-            $estado = $request->productivo == 1 ? 'Productivo' : 'Prueba';
+        $estado = $request->productivo == 1 ? 'Productivo' : 'Prueba';
 
-            return response()->json([
-                'success' => true,
-                'message' => "Estado actualizado a '{$estado}' correctamente",
-                'estado' => $estado,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al actualizar el estado: '.$e->getMessage(),
-            ], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'message' => "Estado actualizado a '{$estado}' correctamente",
+            'estado' => $estado,
+        ]);
     }
 }
