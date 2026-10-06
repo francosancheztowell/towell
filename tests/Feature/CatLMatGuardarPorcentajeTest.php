@@ -301,6 +301,23 @@ class CatLMatGuardarPorcentajeTest extends TestCase
         ]);
     }
 
+    public function test_error_de_bd_responde_500_generico_sin_exponer_la_excepcion(): void
+    {
+        // Sin InventTable la consulta a AX falla; el handler central (sin try/catch en el
+        // controller) responde el 5xx con trace_id y sin el texto de la excepción.
+        Schema::connection('sqlsrv_ti')->dropIfExists('InventTable');
+        config()->set('app.debug', false);
+
+        $r = $this->actingAs($this->usuarioConPermisoCodificacion())
+            ->getJson(route('planeacion.lmat.calibres'))
+            ->assertStatus(500)
+            ->assertJsonPath('success', false)
+            ->assertJsonStructure(['message', 'trace_id']);
+
+        $this->assertStringNotContainsString('SQLSTATE', $r->getContent());
+        $this->assertStringNotContainsString('InventTable', $r->getContent());
+    }
+
     private function usuarioConPermisoCodificacion(): Usuario
     {
         $usuario = new Usuario(['nombre' => 'Codificación L.Mat']);

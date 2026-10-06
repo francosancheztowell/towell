@@ -17,7 +17,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class CatLMatController extends Controller
@@ -55,21 +54,15 @@ class CatLMatController extends Controller
      */
     public function getRegistroCatCodificadosPorOrden(string $orden): JsonResponse
     {
-        try {
-            $registro = CatCodificados::query()
-                ->where('OrdenTejido', trim($orden))
-                ->first();
+        $registro = CatCodificados::query()
+            ->where('OrdenTejido', trim($orden))
+            ->first();
 
-            if (! $registro) {
-                return response()->json(['success' => false, 'message' => 'No existe registro en CatCodificados para esta orden.'], 404);
-            }
-
-            return response()->json(['success' => true, 'data' => $registro]);
-        } catch (\Throwable $e) {
-            Log::error('CatLMatController::getRegistroCatCodificadosPorOrden', ['exception' => $e, 'orden' => $orden]);
-
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        if (! $registro) {
+            return response()->json(['success' => false, 'message' => 'No existe registro en CatCodificados para esta orden.'], 404);
         }
+
+        return response()->json(['success' => true, 'data' => $registro]);
     }
 
     /**
@@ -77,18 +70,12 @@ class CatLMatController extends Controller
      */
     public function getLmatPorOrden(string $orden): JsonResponse
     {
-        try {
-            $rows = CatLMat::query()
-                ->where('Orden', trim($orden))
-                ->orderBy('Id')
-                ->get();
+        $rows = CatLMat::query()
+            ->where('Orden', trim($orden))
+            ->orderBy('Id')
+            ->get();
 
-            return response()->json(['success' => true, 'data' => $rows]);
-        } catch (\Throwable $e) {
-            Log::error('CatLMatController::getLmatPorOrden', ['exception' => $e, 'orden' => $orden]);
-
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
+        return response()->json(['success' => true, 'data' => $rows]);
     }
 
     /**
@@ -179,303 +166,295 @@ class CatLMatController extends Controller
         $bomNameResultado = null;
         $actualizaLmatResultado = null;
 
-        try {
-            DB::connection('sqlsrv')->transaction(function () use ($data, &$updatedBom, &$bomIdResultado, &$bomNameResultado, &$actualizaLmatResultado) {
-                $orden = trim($data['orden']);
-                $salon = trim((string) ($data['salon'] ?? ''));
-                $nombreRaw = $data['nombre'] !== null && $data['nombre'] !== '' ? trim($data['nombre']) : null;
-                $descripRaw = $data['descrip'] !== null && $data['descrip'] !== '' ? trim($data['descrip']) : null;
-                $bomIdCat = $nombreRaw !== null
-                    ? StringTruncator::truncateToLength($nombreRaw, self::LIM_BOM_ID_CAT_CODIFICADOS)
-                    : null;
-                $bomNameCat = $descripRaw !== null
-                    ? StringTruncator::truncateToLength($descripRaw, self::LIM_BOM_NAME_CAT_CODIFICADOS)
-                    : null;
-                $nombreLMat = $nombreRaw !== null
-                    ? StringTruncator::truncateToLength($nombreRaw, self::LIM_NOMBRE_CAT_LMAT)
-                    : null;
-                $descripLMat = $descripRaw !== null
-                    ? StringTruncator::truncateToLength($descripRaw, self::LIM_DESCRIP_CAT_LMAT)
-                    : null;
-                $telarId = trim((string) ($data['telarId'] ?? ''));
-                $itemIdCrudo = isset($data['itemIdCrudo']) && $data['itemIdCrudo'] !== ''
-                    ? StringTruncator::truncateToLength(trim($data['itemIdCrudo']), 60)
-                    : null;
-                $inventSizeCrudo = isset($data['inventSizeCrudo']) && $data['inventSizeCrudo'] !== ''
-                    ? StringTruncator::truncateToLength(trim($data['inventSizeCrudo']), 60)
-                    : null;
-                $actualizaLmat = array_key_exists('actualizaLmat', $data)
-                    ? (bool) $data['actualizaLmat']
-                    : false;
+        DB::connection('sqlsrv')->transaction(function () use ($data, &$updatedBom, &$bomIdResultado, &$bomNameResultado, &$actualizaLmatResultado) {
+            $orden = trim($data['orden']);
+            $salon = trim((string) ($data['salon'] ?? ''));
+            $nombreRaw = $data['nombre'] !== null && $data['nombre'] !== '' ? trim($data['nombre']) : null;
+            $descripRaw = $data['descrip'] !== null && $data['descrip'] !== '' ? trim($data['descrip']) : null;
+            $bomIdCat = $nombreRaw !== null
+                ? StringTruncator::truncateToLength($nombreRaw, self::LIM_BOM_ID_CAT_CODIFICADOS)
+                : null;
+            $bomNameCat = $descripRaw !== null
+                ? StringTruncator::truncateToLength($descripRaw, self::LIM_BOM_NAME_CAT_CODIFICADOS)
+                : null;
+            $nombreLMat = $nombreRaw !== null
+                ? StringTruncator::truncateToLength($nombreRaw, self::LIM_NOMBRE_CAT_LMAT)
+                : null;
+            $descripLMat = $descripRaw !== null
+                ? StringTruncator::truncateToLength($descripRaw, self::LIM_DESCRIP_CAT_LMAT)
+                : null;
+            $telarId = trim((string) ($data['telarId'] ?? ''));
+            $itemIdCrudo = isset($data['itemIdCrudo']) && $data['itemIdCrudo'] !== ''
+                ? StringTruncator::truncateToLength(trim($data['itemIdCrudo']), 60)
+                : null;
+            $inventSizeCrudo = isset($data['inventSizeCrudo']) && $data['inventSizeCrudo'] !== ''
+                ? StringTruncator::truncateToLength(trim($data['inventSizeCrudo']), 60)
+                : null;
+            $actualizaLmat = array_key_exists('actualizaLmat', $data)
+                ? (bool) $data['actualizaLmat']
+                : false;
 
-                // 1) CatCodificados: BomId/BomName solo si BomId actual es ESTAND y Act L.Mat activo.
-                $q = CatCodificados::query()->where('OrdenTejido', $orden);
-                if ($telarId !== '') {
-                    $q->where('TelarId', $telarId);
-                }
-                $catCodificado = (clone $q)->first([
-                    'Luchaje',
-                    'CodigoDibujo',
-                    'BomId',
-                    'BomName',
-                    'ActualizaLmat',
-                    'Total',
-                    'PasadasTramaFondoC1',
-                    'PasadasComb1',
-                    'PasadasComb2',
-                    'PasadasComb3',
-                    'PasadasComb4',
-                    'PasadasComb5',
-                ]);
-                $bomIdActual = strtoupper(trim((string) ($catCodificado?->BomId ?? '')));
-                // KM no tiene L.Mat ESTAND: al liberar se le pone una genérica KM (…GEN…-K, …EST…-K)
-                // o ninguna, así que en KM siempre se puede reemplazar por la L.Mat propia de la orden.
-                $esEstand = str_starts_with($bomIdActual, 'ESTAND')
-                    || TelarSalonResolver::esKarlMayer($salon, $telarId);
-                $bomIdResultado = $catCodificado?->BomId;
-                $bomNameResultado = $catCodificado?->BomName;
-                $actualizaLmatResultado = $catCodificado?->ActualizaLmat;
+            // 1) CatCodificados: BomId/BomName solo si BomId actual es ESTAND y Act L.Mat activo.
+            $q = CatCodificados::query()->where('OrdenTejido', $orden);
+            if ($telarId !== '') {
+                $q->where('TelarId', $telarId);
+            }
+            $catCodificado = (clone $q)->first([
+                'Luchaje',
+                'CodigoDibujo',
+                'BomId',
+                'BomName',
+                'ActualizaLmat',
+                'Total',
+                'PasadasTramaFondoC1',
+                'PasadasComb1',
+                'PasadasComb2',
+                'PasadasComb3',
+                'PasadasComb4',
+                'PasadasComb5',
+            ]);
+            $bomIdActual = strtoupper(trim((string) ($catCodificado?->BomId ?? '')));
+            // KM no tiene L.Mat ESTAND: al liberar se le pone una genérica KM (…GEN…-K, …EST…-K)
+            // o ninguna, así que en KM siempre se puede reemplazar por la L.Mat propia de la orden.
+            $esEstand = str_starts_with($bomIdActual, 'ESTAND')
+                || TelarSalonResolver::esKarlMayer($salon, $telarId);
+            $bomIdResultado = $catCodificado?->BomId;
+            $bomNameResultado = $catCodificado?->BomName;
+            $actualizaLmatResultado = $catCodificado?->ActualizaLmat;
 
-                if ($esEstand) {
-                    $payloadCat = ['ActualizaLmat' => $actualizaLmat];
-                    if ($actualizaLmat) {
-                        $payloadCat['BomId'] = $bomIdCat;
-                        $payloadCat['BomName'] = $bomNameCat;
-                        $updatedBom = true;
-                        $bomIdResultado = $bomIdCat;
-                        $bomNameResultado = $bomNameCat;
-                    }
-                    $q->update($payloadCat);
-                    $actualizaLmatResultado = $actualizaLmat;
+            if ($esEstand) {
+                $payloadCat = ['ActualizaLmat' => $actualizaLmat];
+                if ($actualizaLmat) {
+                    $payloadCat['BomId'] = $bomIdCat;
+                    $payloadCat['BomName'] = $bomNameCat;
+                    $updatedBom = true;
+                    $bomIdResultado = $bomIdCat;
+                    $bomNameResultado = $bomNameCat;
                 }
+                $q->update($payloadCat);
+                $actualizaLmatResultado = $actualizaLmat;
+            }
 
-                // Las pasadas editables del modal pertenecen a la codificación de la orden.
-                // Solo se actualizan las claves presentes para no sobrescribir combinaciones ocultas.
-                $pasadasPermitidas = [
-                    'PasadasTramaFondoC1',
-                    'PasadasComb1',
-                    'PasadasComb2',
-                    'PasadasComb3',
-                    'PasadasComb4',
-                    'PasadasComb5',
-                ];
-                $pasadasPayload = [];
-                foreach ($pasadasPermitidas as $campoPasadas) {
-                    if (array_key_exists($campoPasadas, $data['pasadas'] ?? [])) {
-                        $pasadasPayload[$campoPasadas] = (int) $data['pasadas'][$campoPasadas];
-                    }
+            // Las pasadas editables del modal pertenecen a la codificación de la orden.
+            // Solo se actualizan las claves presentes para no sobrescribir combinaciones ocultas.
+            $pasadasPermitidas = [
+                'PasadasTramaFondoC1',
+                'PasadasComb1',
+                'PasadasComb2',
+                'PasadasComb3',
+                'PasadasComb4',
+                'PasadasComb5',
+            ];
+            $pasadasPayload = [];
+            foreach ($pasadasPermitidas as $campoPasadas) {
+                if (array_key_exists($campoPasadas, $data['pasadas'] ?? [])) {
+                    $pasadasPayload[$campoPasadas] = (int) $data['pasadas'][$campoPasadas];
                 }
-                if ($pasadasPayload !== []) {
-                    $totalReferencia = (int) floor((float) ($catCodificado?->Total ?? 0));
-                    if ($totalReferencia <= 0) {
-                        $totalReferencia = array_sum(array_map(
-                            static fn (string $campo): int => (int) ($catCodificado?->{$campo} ?? 0),
-                            $pasadasPermitidas,
-                        ));
-                    }
-                    $totalPasadas = array_sum(array_map(
-                        static fn (string $campo): int => $pasadasPayload[$campo]
-                            ?? (int) ($catCodificado?->{$campo} ?? 0),
+            }
+            if ($pasadasPayload !== []) {
+                $totalReferencia = (int) floor((float) ($catCodificado?->Total ?? 0));
+                if ($totalReferencia <= 0) {
+                    $totalReferencia = array_sum(array_map(
+                        static fn (string $campo): int => (int) ($catCodificado?->{$campo} ?? 0),
                         $pasadasPermitidas,
                     ));
-                    $minimoPasadas = (int) floor($totalReferencia * 0.70);
-                    $maximoPasadas = (int) floor($totalReferencia * 1.30);
-
-                    if ($totalReferencia > 0 && ($totalPasadas < $minimoPasadas || $totalPasadas > $maximoPasadas)) {
-                        throw ValidationException::withMessages([
-                            'pasadas' => "El total de Pasadas es {$totalPasadas}. Debe estar entre {$minimoPasadas} y {$maximoPasadas}.",
-                        ]);
-                    }
-
-                    $q->update($pasadasPayload);
                 }
-
-                // Karl Mayer: las pasadas de barra son el consumo de la barra. Solo reparten el
-                // peso entre las 4 barras, así que no aplica el rango ±30% contra Total.
-                $pasadasBarraPayload = [];
-                foreach (['PasadasBarra1', 'PasadasBarra2', 'PasadasBarra3', 'PasadasBarra4'] as $campoBarra) {
-                    if (array_key_exists($campoBarra, $data['pasadas'] ?? [])) {
-                        $pasadasBarraPayload[$campoBarra] = (int) $data['pasadas'][$campoBarra];
-                    }
-                }
-                if ($pasadasBarraPayload !== []) {
-                    $q->update($pasadasBarraPayload);
-                }
-
-                // Parámetros editables que alimentan las fórmulas del modal L.Mat.
-                // Se actualizan parcialmente para no borrar calibres de combinaciones ausentes.
-                $camposFormulaPermitidos = [
-                    'Largo',
-                    'TramaAnchoPeine',
-                    'CalibrePie2',
-                    'CalTramaFondoC1',
-                    'CalibreComb12',
-                    'CalibreComb22',
-                    'CalibreComb32',
-                    'CalibreComb42',
-                    'CalibreComb52',
-                    // Karl Mayer: calibre de fórmula por barra (el de catálogo CalibreBarraN no se toca).
-                    'CalibreBarra12',
-                    'CalibreBarra22',
-                    'CalibreBarra32',
-                    'CalibreBarra42',
-                ];
-                $formulaPayload = [];
-                foreach ($camposFormulaPermitidos as $campoFormula) {
-                    if (array_key_exists($campoFormula, $data['formula'] ?? [])) {
-                        $formulaPayload[$campoFormula] = (float) $data['formula'][$campoFormula];
-                    }
-                }
-                if ($formulaPayload !== []) {
-                    $q->update($formulaPayload);
-                }
-
-                // Fibra editable de las combinaciones C1..C5. Igual que pasadas/fórmula,
-                // solo se tocan las claves presentes para no borrar combinaciones ausentes.
-                $fibrasPayload = [];
-                foreach (['FibraComb1', 'FibraComb2', 'FibraComb3', 'FibraComb4', 'FibraComb5'] as $campoFibra) {
-                    if (! array_key_exists($campoFibra, $data['fibras'] ?? [])) {
-                        continue;
-                    }
-                    $valorFibra = trim((string) ($data['fibras'][$campoFibra] ?? ''));
-                    $fibrasPayload[$campoFibra] = $valorFibra === ''
-                        ? null
-                        : StringTruncator::truncateToLength($valorFibra, 50);
-                }
-                if ($fibrasPayload !== []) {
-                    $q->update($fibrasPayload);
-                }
-
-                // Combinaciones que el usuario dejo completamente vacias en el modal.
-                // Se limpia la combinacion entera; si no, CatCodificados conservaria
-                // calibre/pasadas viejos y la combinacion reaparecia al reabrir.
-                $combinacionesVacias = array_unique(array_map(
-                    static fn ($n): int => (int) $n,
-                    $data['combinacionesVacias'] ?? [],
+                $totalPasadas = array_sum(array_map(
+                    static fn (string $campo): int => $pasadasPayload[$campo]
+                        ?? (int) ($catCodificado?->{$campo} ?? 0),
+                    $pasadasPermitidas,
                 ));
-                $limpiezaPayload = [];
-                foreach ($combinacionesVacias as $n) {
-                    foreach (["FibraComb{$n}", "PasadasComb{$n}", "CalibreComb{$n}", "CalibreComb{$n}2", "CodColorC{$n}", "NomColorC{$n}"] as $columna) {
-                        $limpiezaPayload[$columna] = null;
-                    }
-                }
-                if ($limpiezaPayload !== []) {
-                    $q->update($limpiezaPayload);
+                $minimoPasadas = (int) floor($totalReferencia * 0.70);
+                $maximoPasadas = (int) floor($totalReferencia * 1.30);
+
+                if ($totalReferencia > 0 && ($totalPasadas < $minimoPasadas || $totalPasadas > $maximoPasadas)) {
+                    throw ValidationException::withMessages([
+                        'pasadas' => "El total de Pasadas es {$totalPasadas}. Debe estar entre {$minimoPasadas} y {$maximoPasadas}.",
+                    ]);
                 }
 
-                // Luchaje es editable en el modal (cambia la curva del pie): se guarda también en la codificación.
-                if (array_key_exists('luchaje', $data) && $data['luchaje'] !== null) {
-                    $q->update(['Luchaje' => (int) $data['luchaje']]);
-                }
+                $q->update($pasadasPayload);
+            }
 
-                // Luchaje / CodigoDibujo: del request o, si no vienen, de CatCodificados.
-                $luchaje = array_key_exists('luchaje', $data) && $data['luchaje'] !== null
-                    ? (int) $data['luchaje']
-                    : ($catCodificado?->Luchaje !== null ? (int) $catCodificado->Luchaje : null);
-                $codigoDibujoRaw = isset($data['codigoDibujo']) && trim((string) $data['codigoDibujo']) !== ''
-                    ? trim((string) $data['codigoDibujo'])
-                    : trim((string) ($catCodificado?->CodigoDibujo ?? ''));
-                $codigoDibujo = $codigoDibujoRaw !== ''
-                    ? StringTruncator::truncateToLength($codigoDibujoRaw, 30)
+            // Karl Mayer: las pasadas de barra son el consumo de la barra. Solo reparten el
+            // peso entre las 4 barras, así que no aplica el rango ±30% contra Total.
+            $pasadasBarraPayload = [];
+            foreach (['PasadasBarra1', 'PasadasBarra2', 'PasadasBarra3', 'PasadasBarra4'] as $campoBarra) {
+                if (array_key_exists($campoBarra, $data['pasadas'] ?? [])) {
+                    $pasadasBarraPayload[$campoBarra] = (int) $data['pasadas'][$campoBarra];
+                }
+            }
+            if ($pasadasBarraPayload !== []) {
+                $q->update($pasadasBarraPayload);
+            }
+
+            // Parámetros editables que alimentan las fórmulas del modal L.Mat.
+            // Se actualizan parcialmente para no borrar calibres de combinaciones ausentes.
+            $camposFormulaPermitidos = [
+                'Largo',
+                'TramaAnchoPeine',
+                'CalibrePie2',
+                'CalTramaFondoC1',
+                'CalibreComb12',
+                'CalibreComb22',
+                'CalibreComb32',
+                'CalibreComb42',
+                'CalibreComb52',
+                // Karl Mayer: calibre de fórmula por barra (el de catálogo CalibreBarraN no se toca).
+                'CalibreBarra12',
+                'CalibreBarra22',
+                'CalibreBarra32',
+                'CalibreBarra42',
+            ];
+            $formulaPayload = [];
+            foreach ($camposFormulaPermitidos as $campoFormula) {
+                if (array_key_exists($campoFormula, $data['formula'] ?? [])) {
+                    $formulaPayload[$campoFormula] = (float) $data['formula'][$campoFormula];
+                }
+            }
+            if ($formulaPayload !== []) {
+                $q->update($formulaPayload);
+            }
+
+            // Fibra editable de las combinaciones C1..C5. Igual que pasadas/fórmula,
+            // solo se tocan las claves presentes para no borrar combinaciones ausentes.
+            $fibrasPayload = [];
+            foreach (['FibraComb1', 'FibraComb2', 'FibraComb3', 'FibraComb4', 'FibraComb5'] as $campoFibra) {
+                if (! array_key_exists($campoFibra, $data['fibras'] ?? [])) {
+                    continue;
+                }
+                $valorFibra = trim((string) ($data['fibras'][$campoFibra] ?? ''));
+                $fibrasPayload[$campoFibra] = $valorFibra === ''
+                    ? null
+                    : StringTruncator::truncateToLength($valorFibra, 50);
+            }
+            if ($fibrasPayload !== []) {
+                $q->update($fibrasPayload);
+            }
+
+            // Combinaciones que el usuario dejo completamente vacias en el modal.
+            // Se limpia la combinacion entera; si no, CatCodificados conservaria
+            // calibre/pasadas viejos y la combinacion reaparecia al reabrir.
+            $combinacionesVacias = array_unique(array_map(
+                static fn ($n): int => (int) $n,
+                $data['combinacionesVacias'] ?? [],
+            ));
+            $limpiezaPayload = [];
+            foreach ($combinacionesVacias as $n) {
+                foreach (["FibraComb{$n}", "PasadasComb{$n}", "CalibreComb{$n}", "CalibreComb{$n}2", "CodColorC{$n}", "NomColorC{$n}"] as $columna) {
+                    $limpiezaPayload[$columna] = null;
+                }
+            }
+            if ($limpiezaPayload !== []) {
+                $q->update($limpiezaPayload);
+            }
+
+            // Luchaje es editable en el modal (cambia la curva del pie): se guarda también en la codificación.
+            if (array_key_exists('luchaje', $data) && $data['luchaje'] !== null) {
+                $q->update(['Luchaje' => (int) $data['luchaje']]);
+            }
+
+            // Luchaje / CodigoDibujo: del request o, si no vienen, de CatCodificados.
+            $luchaje = array_key_exists('luchaje', $data) && $data['luchaje'] !== null
+                ? (int) $data['luchaje']
+                : ($catCodificado?->Luchaje !== null ? (int) $catCodificado->Luchaje : null);
+            $codigoDibujoRaw = isset($data['codigoDibujo']) && trim((string) $data['codigoDibujo']) !== ''
+                ? trim((string) $data['codigoDibujo'])
+                : trim((string) ($catCodificado?->CodigoDibujo ?? ''));
+            $codigoDibujo = $codigoDibujoRaw !== ''
+                ? StringTruncator::truncateToLength($codigoDibujoRaw, 30)
+                : null;
+
+            // 2) CatLMat: reemplazar filas de esa Orden.
+            CatLMat::query()->where('Orden', $orden)->delete();
+
+            // Solo Karl Mayer tiene barras; en Jacquard/Smit Tipo queda NULL aunque llegue.
+            $esKarlMayer = TelarSalonResolver::esKarlMayer($salon, $telarId);
+
+            $now = Carbon::now();
+            $usuarioRegistro = Auth::check()
+                ? StringTruncator::truncateToLength(Auth::user()->nombre ?? 'Sistema', self::LIM_USUARIO_REGISTRO_CAT_LMAT)
+                : null;
+
+            foreach ($data['filas'] ?? [] as $f) {
+                $itemId = trim((string) $f['itemId']);
+                $qty = round((float) $f['qty'], 4);
+                $porcentaje = isset($f['porcentaje'])
+                    ? round((float) $f['porcentaje'], 2)
                     : null;
 
-                // 2) CatLMat: reemplazar filas de esa Orden.
-                CatLMat::query()->where('Orden', $orden)->delete();
+                $configId = trim((string) ($f['configId'] ?? ''));
+                $inventSizeId = preg_replace(
+                    '/\s+/',
+                    '',
+                    str_replace(' - ', '-', trim((string) ($f['inventSizeId'] ?? ''))),
+                ) ?? '';
+                $inventColorId = trim((string) ($f['inventColorId'] ?? ''));
+                $nombreColor = trim((string) ($f['nombreColor'] ?? ''));
+                $inventLocationId = trim((string) ($f['inventLocationId'] ?? ''));
 
-                // Solo Karl Mayer tiene barras; en Jacquard/Smit Tipo queda NULL aunque llegue.
-                $esKarlMayer = TelarSalonResolver::esKarlMayer($salon, $telarId);
+                CatLMat::create([
+                    'Orden' => StringTruncator::truncateToLength($orden, 60),
+                    'Salon' => $salon !== '' ? StringTruncator::truncateToLength($salon, 60) : null,
+                    'Nombre' => $nombreLMat,
+                    'Descrip' => $descripLMat,
+                    'PesoCrudo' => isset($data['pesoCrudo'])
+                        ? StringTruncator::truncateToLength((string) $data['pesoCrudo'], 60)
+                        : null,
+                    'ItemId' => StringTruncator::truncateToLength($itemId, 60),
+                    'ConfigId' => $configId !== ''
+                        ? StringTruncator::truncateToLength($configId, 60)
+                        : null,
+                    'InventSizeId' => $inventSizeId !== ''
+                        ? StringTruncator::truncateToLength($inventSizeId, 60)
+                        : null,
+                    'InventColorId' => $inventColorId !== ''
+                        ? StringTruncator::truncateToLength($inventColorId, 60)
+                        : null,
+                    'NombreColor' => $nombreColor !== ''
+                        ? StringTruncator::truncateToLength($nombreColor, 60)
+                        : null,
+                    'InventLocationId' => $inventLocationId !== ''
+                        ? StringTruncator::truncateToLength($inventLocationId, 60)
+                        : null,
+                    'Qty' => $qty,
+                    'Porcentaje' => $porcentaje,
+                    'ItemIdCrudo' => $itemIdCrudo,
+                    'InventSizeCrudo' => $inventSizeCrudo,
+                    'Luchaje' => $luchaje,
+                    'CodigoDibujo' => $codigoDibujo,
+                    'Tipo' => $esKarlMayer && isset($f['tipo']) ? (int) $f['tipo'] : null,
+                    'FechaRegistro' => $now->toDateString(),
+                    'HoraRegistro' => $now->format('H:i:s'),
+                    'UsuarioRegistro' => $usuarioRegistro,
+                ]);
 
-                $now = Carbon::now();
-                $usuarioRegistro = Auth::check()
-                    ? StringTruncator::truncateToLength(Auth::user()->nombre ?? 'Sistema', self::LIM_USUARIO_REGISTRO_CAT_LMAT)
-                    : null;
+                $claveMatriz = MatrizCalibreClave::tryFromArray([
+                    'Tipo' => $f['matrizTipo'] ?? null,
+                    'Calibre' => $f['matrizCalibre'] ?? null,
+                    'FibraId' => $f['matrizFibraId'] ?? null,
+                    'Cuenta' => $f['matrizCuenta'] ?? null,
+                ]);
 
-                foreach ($data['filas'] ?? [] as $f) {
-                    $itemId = trim((string) $f['itemId']);
-                    $qty = round((float) $f['qty'], 4);
-                    $porcentaje = isset($f['porcentaje'])
-                        ? round((float) $f['porcentaje'], 2)
-                        : null;
-
-                    $configId = trim((string) ($f['configId'] ?? ''));
-                    $inventSizeId = preg_replace(
-                        '/\s+/',
-                        '',
-                        str_replace(' - ', '-', trim((string) ($f['inventSizeId'] ?? ''))),
-                    ) ?? '';
-                    $inventColorId = trim((string) ($f['inventColorId'] ?? ''));
-                    $nombreColor = trim((string) ($f['nombreColor'] ?? ''));
-                    $inventLocationId = trim((string) ($f['inventLocationId'] ?? ''));
-
-                    CatLMat::create([
-                        'Orden' => StringTruncator::truncateToLength($orden, 60),
-                        'Salon' => $salon !== '' ? StringTruncator::truncateToLength($salon, 60) : null,
-                        'Nombre' => $nombreLMat,
-                        'Descrip' => $descripLMat,
-                        'PesoCrudo' => isset($data['pesoCrudo'])
-                            ? StringTruncator::truncateToLength((string) $data['pesoCrudo'], 60)
-                            : null,
-                        'ItemId' => StringTruncator::truncateToLength($itemId, 60),
-                        'ConfigId' => $configId !== ''
-                            ? StringTruncator::truncateToLength($configId, 60)
-                            : null,
-                        'InventSizeId' => $inventSizeId !== ''
-                            ? StringTruncator::truncateToLength($inventSizeId, 60)
-                            : null,
-                        'InventColorId' => $inventColorId !== ''
-                            ? StringTruncator::truncateToLength($inventColorId, 60)
-                            : null,
-                        'NombreColor' => $nombreColor !== ''
-                            ? StringTruncator::truncateToLength($nombreColor, 60)
-                            : null,
-                        'InventLocationId' => $inventLocationId !== ''
-                            ? StringTruncator::truncateToLength($inventLocationId, 60)
-                            : null,
-                        'Qty' => $qty,
-                        'Porcentaje' => $porcentaje,
-                        'ItemIdCrudo' => $itemIdCrudo,
-                        'InventSizeCrudo' => $inventSizeCrudo,
-                        'Luchaje' => $luchaje,
-                        'CodigoDibujo' => $codigoDibujo,
-                        'Tipo' => $esKarlMayer && isset($f['tipo']) ? (int) $f['tipo'] : null,
-                        'FechaRegistro' => $now->toDateString(),
-                        'HoraRegistro' => $now->format('H:i:s'),
-                        'UsuarioRegistro' => $usuarioRegistro,
+                if ($claveMatriz !== null) {
+                    $this->matrizCalibres->aprender($claveMatriz, [
+                        'ItemId' => $itemId,
+                        'ConfigId' => $configId,
+                        'InventSizeId' => $inventSizeId,
+                        'InventColorId' => $inventColorId,
                     ]);
-
-                    $claveMatriz = MatrizCalibreClave::tryFromArray([
-                        'Tipo' => $f['matrizTipo'] ?? null,
-                        'Calibre' => $f['matrizCalibre'] ?? null,
-                        'FibraId' => $f['matrizFibraId'] ?? null,
-                        'Cuenta' => $f['matrizCuenta'] ?? null,
-                    ]);
-
-                    if ($claveMatriz !== null) {
-                        $this->matrizCalibres->aprender($claveMatriz, [
-                            'ItemId' => $itemId,
-                            'ConfigId' => $configId,
-                            'InventSizeId' => $inventSizeId,
-                            'InventColorId' => $inventColorId,
-                        ]);
-                    }
                 }
-            });
+            }
+        });
 
-            return response()->json([
-                'success' => true,
-                'message' => 'L.Mat guardada correctamente.',
-                'updatedBom' => $updatedBom,
-                'bomId' => $bomIdResultado,
-                'bomName' => $bomNameResultado,
-                'actualizaLmat' => $actualizaLmatResultado,
-            ]);
-        } catch (ValidationException $e) {
-            throw $e;
-        } catch (\Throwable $e) {
-            Log::error('CatLMatController::guardarLmat', ['exception' => $e, 'orden' => $data['orden'] ?? null]);
-
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'message' => 'L.Mat guardada correctamente.',
+            'updatedBom' => $updatedBom,
+            'bomId' => $bomIdResultado,
+            'bomName' => $bomNameResultado,
+            'actualizaLmat' => $actualizaLmatResultado,
+        ]);
     }
 
     /**
@@ -490,39 +469,27 @@ class CatLMatController extends Controller
             return response()->json(['success' => true, 'data' => null]);
         }
 
-        try {
-            $ultima = CatLMat::query()
-                ->where('ItemIdCrudo', $itemIdCrudo)
-                ->where('InventSizeCrudo', $inventSizeCrudo)
-                ->orderByDesc('Id')
-                ->first(['Nombre', 'Descrip']);
+        $ultima = CatLMat::query()
+            ->where('ItemIdCrudo', $itemIdCrudo)
+            ->where('InventSizeCrudo', $inventSizeCrudo)
+            ->orderByDesc('Id')
+            ->first(['Nombre', 'Descrip']);
 
-            return response()->json(['success' => true, 'data' => $ultima]);
-        } catch (\Throwable $e) {
-            Log::error('CatLMatController::getUltimaLmat', ['exception' => $e, 'itemIdCrudo' => $itemIdCrudo]);
-
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
+        return response()->json(['success' => true, 'data' => $ultima]);
     }
 
     public function getCalibres(): JsonResponse
     {
-        try {
-            $items = DB::connection('sqlsrv_ti')
-                ->table('InventTable')
-                ->select('ItemId')
-                ->where('ItemGroupId', 'HILO DIREC')
-                ->where('DATAAREAID', 'PRO')
-                ->orderBy('ItemId')
-                ->distinct()
-                ->get();
+        $items = DB::connection('sqlsrv_ti')
+            ->table('InventTable')
+            ->select('ItemId')
+            ->where('ItemGroupId', 'HILO DIREC')
+            ->where('DATAAREAID', 'PRO')
+            ->orderBy('ItemId')
+            ->distinct()
+            ->get();
 
-            return response()->json(['success' => true, 'data' => $items]);
-        } catch (\Throwable $e) {
-            Log::error('CatLMatController::getCalibres', ['exception' => $e]);
-
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
+        return response()->json(['success' => true, 'data' => $items]);
     }
 
     /**
@@ -537,23 +504,17 @@ class CatLMatController extends Controller
             return response()->json(['success' => true, 'existe' => false]);
         }
 
-        try {
-            // Escapar comodines de LIKE de SQL Server ([, %, _) para comparar el valor literal.
-            $escapado = str_replace(['[', '%', '_'], ['[[]', '[%]', '[_]'], $nombre);
+        // Escapar comodines de LIKE de SQL Server ([, %, _) para comparar el valor literal.
+        $escapado = str_replace(['[', '%', '_'], ['[[]', '[%]', '[_]'], $nombre);
 
-            $existe = DB::connection('sqlsrv_ti')
-                ->table('BOMTABLE')
-                ->where('BOMID', 'like', '%'.$escapado.'%')
-                ->exists()
-                // También bloquear nombres ya usados localmente en CatLMat (aún no subidos a AX).
-                || CatLMat::query()->where('Nombre', $nombre)->exists();
+        $existe = DB::connection('sqlsrv_ti')
+            ->table('BOMTABLE')
+            ->where('BOMID', 'like', '%'.$escapado.'%')
+            ->exists()
+            // También bloquear nombres ya usados localmente en CatLMat (aún no subidos a AX).
+            || CatLMat::query()->where('Nombre', $nombre)->exists();
 
-            return response()->json(['success' => true, 'existe' => $existe]);
-        } catch (\Throwable $e) {
-            Log::error('CatLMatController::existeLmat', ['exception' => $e, 'nombre' => $nombre]);
-
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
+        return response()->json(['success' => true, 'existe' => $existe]);
     }
 
     public function getConfigs(Request $request): JsonResponse
@@ -563,23 +524,17 @@ class CatLMatController extends Controller
             return response()->json(['success' => false, 'message' => 'ItemId requerido'], 400);
         }
 
-        try {
-            // Configs del ItemId de la fila (cambia con el select de Artículos: JU-ENG-RI-C, trama, C1..C5).
-            $configs = DB::connection('sqlsrv_ti')
-                ->table('ConfigTable')
-                ->select('ConfigId')
-                ->where('ItemId', $itemId)
-                ->where('DATAAREAID', 'PRO')
-                ->where('TwVigente', 1)
-                ->orderBy('ConfigId')
-                ->get();
+        // Configs del ItemId de la fila (cambia con el select de Artículos: JU-ENG-RI-C, trama, C1..C5).
+        $configs = DB::connection('sqlsrv_ti')
+            ->table('ConfigTable')
+            ->select('ConfigId')
+            ->where('ItemId', $itemId)
+            ->where('DATAAREAID', 'PRO')
+            ->where('TwVigente', 1)
+            ->orderBy('ConfigId')
+            ->get();
 
-            return response()->json(['success' => true, 'data' => $configs]);
-        } catch (\Throwable $e) {
-            Log::error('CatLMatController::getConfigs', ['exception' => $e, 'itemId' => $itemId]);
-
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
+        return response()->json(['success' => true, 'data' => $configs]);
     }
 
     public function getTamanos(Request $request): JsonResponse
@@ -589,22 +544,16 @@ class CatLMatController extends Controller
             return response()->json(['success' => false, 'message' => 'ItemId requerido'], 400);
         }
 
-        try {
-            $tamanos = DB::connection('sqlsrv_ti')
-                ->table('InventSize')
-                ->select('InventSizeId', 'NAME')
-                ->where('ItemId', $itemId)
-                ->where('DATAAREAID', 'PRO')
-                ->where('TwVigente', 1)
-                ->orderBy('InventSizeId')
-                ->get();
+        $tamanos = DB::connection('sqlsrv_ti')
+            ->table('InventSize')
+            ->select('InventSizeId', 'NAME')
+            ->where('ItemId', $itemId)
+            ->where('DATAAREAID', 'PRO')
+            ->where('TwVigente', 1)
+            ->orderBy('InventSizeId')
+            ->get();
 
-            return response()->json(['success' => true, 'data' => $tamanos]);
-        } catch (\Throwable $e) {
-            Log::error('CatLMatController::getTamanos', ['exception' => $e, 'itemId' => $itemId]);
-
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
+        return response()->json(['success' => true, 'data' => $tamanos]);
     }
 
     public function getColores(Request $request): JsonResponse
@@ -615,28 +564,22 @@ class CatLMatController extends Controller
         }
         $inventColorId = trim((string) $request->query('inventColorId', ''));
 
-        try {
-            $query = DB::connection('sqlsrv_ti')
-                ->table('InventColor')
-                ->select('InventColorId', 'Name')
-                ->where('ItemId', $itemId)
-                ->where('DATAAREAID', 'PRO')
-                ->where('TwVigente', 1);
+        $query = DB::connection('sqlsrv_ti')
+            ->table('InventColor')
+            ->select('InventColorId', 'Name')
+            ->where('ItemId', $itemId)
+            ->where('DATAAREAID', 'PRO')
+            ->where('TwVigente', 1);
 
-            if ($inventColorId !== '') {
-                $query->where('InventColorId', $inventColorId);
-            }
-
-            $colores = $query
-                ->orderBy('InventColorId')
-                ->get();
-
-            return response()->json(['success' => true, 'data' => $colores]);
-        } catch (\Throwable $e) {
-            Log::error('CatLMatController::getColores', ['exception' => $e, 'itemId' => $itemId]);
-
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        if ($inventColorId !== '') {
+            $query->where('InventColorId', $inventColorId);
         }
+
+        $colores = $query
+            ->orderBy('InventColorId')
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $colores]);
     }
 
     public function getCatalogosMateriales(Request $request): JsonResponse
@@ -646,19 +589,10 @@ class CatLMatController extends Controller
             'itemIds.*' => ['required', 'string', 'max:60'],
         ]);
 
-        try {
-            return response()->json([
-                'success' => true,
-                'data' => $this->catalogosMateriales->obtener($validated['itemIds']),
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('CatLMatController::getCatalogosMateriales', [
-                'exception' => $e,
-                'itemIds' => $validated['itemIds'],
-            ]);
-
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'data' => $this->catalogosMateriales->obtener($validated['itemIds']),
+        ]);
     }
 
     /**
