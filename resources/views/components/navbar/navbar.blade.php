@@ -110,6 +110,7 @@
                     @include('components.navbar.sections.user-avatar')
                     @include('components.navbar.sections.user-modal')
                 </flux:dropdown>
+                @include('components.navbar.sections.user-device-editor')
             </div>
         </div>
     </div>
