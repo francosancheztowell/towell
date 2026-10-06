@@ -3,12 +3,14 @@
   "Swal.fire": 0,
   "toastr.": 0,
   "onclick=": 138,
-  "innerHTML =": 126,
+  "innerHTML =": 123,
   "X-CSRF-TOKEN": 44,
   "bg-opacity-": 0,
   "<script> inline en blade": 46,
   "SQL crudo con $interpolado": 8,
-  "getMessage() en response()->json": 82,
+  "getMessage() en response()->json": 49,
   "catch vacío": 13,
-  "duplicación %": 6.31
+  "try { en controllers": 426,
+  "catch genérico en controllers": 401,
+  "duplicación %": 6.23
 }

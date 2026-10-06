@@ -949,18 +949,6 @@ parameters:
 			path: app/Http/Controllers/Crudo/CrudoAuditController.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Engomado\\EngActividadesBpmModel\:\:\$Actividad\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Engomado/BPMEngomado/EngBpmLineController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Engomado\\EngActividadesBpmModel\:\:\$Orden\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Engomado/BPMEngomado/EngBpmLineController.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Engomado\\EngBpmModel\:\:\$Status\.$#'
 			identifier: property.notFound
 			count: 4
@@ -8267,18 +8255,6 @@ parameters:
 			identifier: argument.unresolvableType
 			count: 1
 			path: app/Http/Controllers/UrdEngomado/UrdEngNucleosController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Urdido\\UrdActividadesBpmModel\:\:\$Actividad\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Urdido/BPMUrdido/UrdBpmLineController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Urdido\\UrdActividadesBpmModel\:\:\$Orden\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Urdido/BPMUrdido/UrdBpmLineController.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Urdido\\UrdBpmModel\:\:\$Status\.$#'

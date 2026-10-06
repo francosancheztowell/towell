@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Urdido\ProgramaUrdido;
 
+use App\Http\Controllers\Concerns\PuedeEditarProgramaUrdEng;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\ProgramaUrdEng\Concerns\RespuestasErrorUrdEng;
 use App\Jobs\Programas\SendUrdidoQualityNotification;
@@ -22,27 +23,13 @@ use Illuminate\Validation\ValidationException;
 
 class ProgramarUrdidoController extends Controller
 {
+    use PuedeEditarProgramaUrdEng;
     use RespuestasErrorUrdEng;
 
     public function __construct(
         private readonly ProgramaPrioridadService $prioridadService,
         private readonly ProgramBoardActionService $boardActionService,
     ) {}
-
-    /**
-     * Verifica si el usuario puede editar: solo usuarios con puesto de Supervisor.
-     */
-    private function usuarioPuedeEditar(): bool
-    {
-        $usuario = Auth::user();
-        if (! $usuario) {
-            return false;
-        }
-
-        $puesto = trim($usuario->puesto ?? '');
-
-        return $puesto !== '' && stripos($puesto, 'supervisor') !== false;
-    }
 
     /**
      * Respuesta 403 si el usuario no puede modificar el programa; null si sí puede.
@@ -129,33 +116,6 @@ class ProgramarUrdidoController extends Controller
         ]);
     }
 
-    /**
-     * Extraer número de tarjeta (1-4) del campo MaquinaId.
-     * Mc Coy 1 -> 1, Mc Coy 2 -> 2, Mc Coy 3 -> 3, Karl Mayer -> 4.
-     */
-    private function extractMcCoyNumber(?string $maquinaId): ?int
-    {
-        if (empty($maquinaId)) {
-            return null;
-        }
-
-        $m = trim($maquinaId);
-
-        // Karl Mayer -> tarjeta 4
-        if (stripos($m, 'Karl Mayer') !== false) {
-            return 4;
-        }
-
-        // Buscar patrón "Mc Coy X" (case insensitive, permite espacios variables)
-        if (preg_match('/mc\s*coy\s*(\d+)/i', $m, $matches)) {
-            $num = (int) $matches[1];
-
-            return ($num >= 1 && $num <= 3) ? $num : null;
-        }
-
-        return null;
-    }
-
     private function createdAtFallback(object $orden): int
     {
         return $orden->CreatedAt?->timestamp ?? PHP_INT_MAX;
@@ -217,7 +177,7 @@ class ProgramarUrdidoController extends Controller
             ];
 
             foreach ($ordenesOrdenadas as $orden) {
-                $mcCoy = $this->extractMcCoyNumber($orden->MaquinaId);
+                $mcCoy = ProgramaModulo::Urdido->laneNumber($orden->MaquinaId);
 
                 // Solo incluir si el MC Coy es válido (1-4)
                 if ($mcCoy !== null && isset($ordenesPorMcCoy[$mcCoy])) {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Componentes;
 
+use App\Models\Sistema\Usuario;
 use Illuminate\Support\MessageBag;
 use Illuminate\Support\ViewErrorBag;
 use Tests\TestCase;
@@ -224,5 +225,19 @@ class ComponentesUiTest extends TestCase
         $this->assertStringNotContainsString('@keyframes fa-spin', $layout);
         $this->assertDoesNotMatchRegularExpression('/\.fa-spin\s*\{/', $layout);
         $this->assertStringContainsString('<x-ui.flash', $layout);
+    }
+
+    public function test_panel_del_menu_de_usuario_es_el_ultimo_hijo_del_dropdown(): void
+    {
+        // ui-dropdown (Flux) toma su lastElementChild como panel [popover]; cualquier elemento
+        // después del panel da "no [popover] overlay found" y el menú no abre.
+        config()->set('monitoreo.enabled', true);
+        $this->actingAs(new Usuario(['nombre' => 'Prueba', 'puesto' => 'Sistemas']));
+
+        $panel = preg_replace('/^(\s|<!--.*?-->)+/s', '', trim(view('components.navbar.sections.user-modal')->render()));
+        $this->assertMatchesRegularExpression('/^<div id="user-modal" popover=/', $panel);
+        $this->assertSame(1, preg_match_all('/<div id="user-modal"/', $panel));
+        // El menú muestra solo los datos del usuario, ya no el dispositivo.
+        $this->assertStringNotContainsString('device-name', $panel);
     }
 }

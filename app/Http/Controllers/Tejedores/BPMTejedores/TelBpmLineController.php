@@ -9,6 +9,7 @@ use App\Models\Tejedores\TelBpmLineModel;
 use App\Models\Tejedores\TelBpmModel;
 use App\Models\Tejedores\TelTelaresOperador;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class TelBpmLineController extends Controller
@@ -94,7 +95,7 @@ class TelBpmLineController extends Controller
         // Determinar si el usuario actual es Supervisor
         $esSupervisor = false;
         try {
-            $u = \Illuminate\Support\Facades\Auth::user();
+            $u = Auth::user();
             if ($u) {
                 $num = $u->numero_empleado ?? $u->cve ?? null;
                 if ($num) {
@@ -136,35 +137,31 @@ class TelBpmLineController extends Controller
             'Actividad' => ['nullable', 'string', 'max:100'], // opcional (por si el front lo manda)
         ]);
 
-        try {
-            // Leer valor actual para esta celda específica
-            $curr = DB::table('TelBPMLine')
-                ->where('Folio', $folio)
-                ->where('Orden', (int) $data['Orden'])
-                ->where('NoTelarId', (string) $data['NoTelarId'])
-                ->value('Valor');
+        // Leer valor actual para esta celda específica
+        $curr = DB::table('TelBPMLine')
+            ->where('Folio', $folio)
+            ->where('Orden', (int) $data['Orden'])
+            ->where('NoTelarId', (string) $data['NoTelarId'])
+            ->value('Valor');
 
-            $next = $this->nextValor($curr);
-            $actividad = $data['Actividad'] ?? TelActividadesBPM::where('Orden', (int) $data['Orden'])->value('Actividad');
+        $next = $this->nextValor($curr);
+        $actividad = $data['Actividad'] ?? TelActividadesBPM::where('Orden', (int) $data['Orden'])->value('Actividad');
 
-            DB::table('TelBPMLine')->updateOrInsert(
-                [
-                    'Folio' => $folio,
-                    'Orden' => (int) $data['Orden'],
-                    'NoTelarId' => (string) $data['NoTelarId'],
-                ],
-                [
-                    'Actividad' => $actividad,
-                    'SalonTejidoId' => $data['SalonTejidoId'] ?? null,
-                    'TurnoRecibe' => $data['TurnoRecibe'] ?? null,
-                    'Valor' => $next,
-                ]
-            );
+        DB::table('TelBPMLine')->updateOrInsert(
+            [
+                'Folio' => $folio,
+                'Orden' => (int) $data['Orden'],
+                'NoTelarId' => (string) $data['NoTelarId'],
+            ],
+            [
+                'Actividad' => $actividad,
+                'SalonTejidoId' => $data['SalonTejidoId'] ?? null,
+                'TurnoRecibe' => $data['TurnoRecibe'] ?? null,
+                'Valor' => $next,
+            ]
+        );
 
-            return response()->json(['ok' => true, 'valor' => $next]);
-        } catch (\Throwable $e) {
-            return response()->json(['ok' => false, 'msg' => $e->getMessage()], 500);
-        }
+        return response()->json(['ok' => true, 'valor' => $next]);
     }
 
     /** Actualizar comentarios del folio (guardados en TelBPM.Comentarios) */
@@ -188,18 +185,14 @@ class TelBpmLineController extends Controller
             }
         }
 
-        try {
-            $header->Comentarios = $valor;
-            $header->save();
+        $header->Comentarios = $valor;
+        $header->save();
 
-            $msg = $valor === null || $valor === ''
-                ? 'Comentarios actualizados.'
-                : 'Comentario guardado correctamente.';
+        $msg = $valor === null || $valor === ''
+            ? 'Comentarios actualizados.'
+            : 'Comentario guardado correctamente.';
 
-            return response()->json(['ok' => true, 'msg' => $msg]);
-        } catch (\Throwable $e) {
-            return response()->json(['ok' => false, 'msg' => $e->getMessage()], 500);
-        }
+        return response()->json(['ok' => true, 'msg' => $msg]);
     }
 
     /* ==================== Acciones de Estado ==================== */
@@ -289,7 +282,7 @@ class TelBpmLineController extends Controller
 
     private function getSupervisorInfo(string $accion): array
     {
-        $u = \Illuminate\Support\Facades\Auth::user();
+        $u = Auth::user();
         if (! $u) {
             throw new \RuntimeException('Usuario no autenticado.');
         }

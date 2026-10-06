@@ -108,6 +108,14 @@ enum ProgramaModulo: string
         };
     }
 
+    /** laneKey() como entero (Urdido: 1-3 Mc Coy, 4 Karl Mayer); null si la máquina no es de ninguna tarjeta. */
+    public function laneNumber(?string $machine): ?int
+    {
+        $key = $this->laneKey($machine);
+
+        return $key === null ? null : (int) $key;
+    }
+
     public function productionRouteName(): string
     {
         return match ($this) {

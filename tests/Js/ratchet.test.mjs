@@ -69,3 +69,14 @@ test('catch vacío cuenta solo cuerpos vacíos, no los que comentan o hacen algo
     try { a(); } catch (\\Throwable $e) { report($e); }`
   assert.equal(count(php), 4)
 })
+
+test('catch genérico en controllers cuenta Throwable/Exception, no los específicos', () => {
+  const count = METRICS['catch genérico en controllers'].count
+  const php = `
+    } catch (\Throwable $e) {
+    } catch (Exception $e) {
+    } catch (\Exception) {
+    } catch (ValidationException $e) {
+    } catch (\RuntimeException $e) {`
+  assert.equal(count(php), 3)
+})

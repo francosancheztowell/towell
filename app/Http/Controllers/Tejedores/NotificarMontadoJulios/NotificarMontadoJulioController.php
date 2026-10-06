@@ -54,66 +54,62 @@ class NotificarMontadoJulioController extends Controller
 
     public function notificar(Request $request)
     {
-        try {
-            $user = Auth::user();
-            $telaresOperador = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
-                ->pluck('NoTelarId')
-                ->toArray();
-            $horaActual = $this->horaParoValida($request->input('horaParo'))
-                ?? Carbon::now()->format('H:i:s');
-            $fecha = Carbon::now()->toDateString();
+        $user = Auth::user();
+        $telaresOperador = TelTelaresOperador::where('numero_empleado', $user->numero_empleado)
+            ->pluck('NoTelarId')
+            ->toArray();
+        $horaActual = $this->horaParoValida($request->input('horaParo'))
+            ?? Carbon::now()->format('H:i:s');
+        $fecha = Carbon::now()->toDateString();
 
-            if (! $request->id) {
-                return $this->notificarSinReserva($request, $telaresOperador, $horaActual, $fecha, $user);
-            }
-
-            $registro = TejInventarioTelares::where('id', $request->id)->where('Reservado', 1)->first();
-
-            if (! $registro || ! $this->telarAsignado($registro->no_telar, $telaresOperador)) {
-                return response()->json(['error' => 'No hay un julio reservado en ese telar'], 422);
-            }
-
-            if (trim((string) $registro->horaParo) !== '') {
-                return response()->json(['error' => 'Ese julio ya tiene hora de paro; vuelve a consultar el telar'], 422);
-            }
-
-            $esCompleto = trim((string) $registro->no_julio) !== ''
-                && trim((string) $registro->no_orden) !== '';
-
-            $registro->horaParo = $horaActual;
-            $registro->save();
-
-            $this->registrarNotificacionTejedor([
-                'telar' => $registro->no_telar,
-                'tipo' => $registro->tipo,
-                'hora' => $horaActual,
-                'NomEmpleado' => $user->nombre ?? $user->name ?? null,
-                'NoEmpleado' => $user->numero_empleado ?? null,
-                'Reserva' => $esCompleto ? 1 : 0,
-                'no_julio' => $esCompleto ? $registro->no_julio : 0,
-                'no_orden' => $esCompleto ? $registro->no_orden : 0,
-                'Fecha' => $fecha,
-            ], $esCompleto);
-
-            try {
-                $this->enviarNotificacionTelegram($registro, $user);
-            } catch (\Throwable $e) {
-                Log::warning('No se pudo enviar notificacion de atado de julio a Telegram', [
-                    'error' => $e->getMessage(),
-                    'telar' => $registro->no_telar ?? null,
-                    'orden' => $registro->no_orden ?? null,
-                    'julio' => $registro->no_julio ?? null,
-                ]);
-            }
-
-            return response()->json([
-                'success' => true,
-                'horaParo' => $horaActual,
-                'message' => 'Notificación registrada correctamente',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+        if (! $request->id) {
+            return $this->notificarSinReserva($request, $telaresOperador, $horaActual, $fecha, $user);
         }
+
+        $registro = TejInventarioTelares::where('id', $request->id)->where('Reservado', 1)->first();
+
+        if (! $registro || ! $this->telarAsignado($registro->no_telar, $telaresOperador)) {
+            return response()->json(['error' => 'No hay un julio reservado en ese telar'], 422);
+        }
+
+        if (trim((string) $registro->horaParo) !== '') {
+            return response()->json(['error' => 'Ese julio ya tiene hora de paro; vuelve a consultar el telar'], 422);
+        }
+
+        $esCompleto = trim((string) $registro->no_julio) !== ''
+            && trim((string) $registro->no_orden) !== '';
+
+        $registro->horaParo = $horaActual;
+        $registro->save();
+
+        $this->registrarNotificacionTejedor([
+            'telar' => $registro->no_telar,
+            'tipo' => $registro->tipo,
+            'hora' => $horaActual,
+            'NomEmpleado' => $user->nombre ?? $user->name ?? null,
+            'NoEmpleado' => $user->numero_empleado ?? null,
+            'Reserva' => $esCompleto ? 1 : 0,
+            'no_julio' => $esCompleto ? $registro->no_julio : 0,
+            'no_orden' => $esCompleto ? $registro->no_orden : 0,
+            'Fecha' => $fecha,
+        ], $esCompleto);
+
+        try {
+            $this->enviarNotificacionTelegram($registro, $user);
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo enviar notificacion de atado de julio a Telegram', [
+                'error' => $e->getMessage(),
+                'telar' => $registro->no_telar ?? null,
+                'orden' => $registro->no_orden ?? null,
+                'julio' => $registro->no_julio ?? null,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'horaParo' => $horaActual,
+            'message' => 'Notificación registrada correctamente',
+        ]);
     }
 
     /**

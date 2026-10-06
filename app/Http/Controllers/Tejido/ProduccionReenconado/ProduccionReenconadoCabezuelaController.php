@@ -234,7 +234,7 @@ class ProduccionReenconadoCabezuelaController extends Controller
         ];
 
         $validatedRows = [];
-        foreach ($rows as $i => $row) {
+        foreach ($rows as $row) {
             $validator = Validator::make($row, $rules);
             if ($validator->fails()) {
                 return back()->withErrors($validator)->withInput();

@@ -5,6 +5,11 @@ namespace App\Models\Engomado;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $Id
+ * @property int $Orden
+ * @property string $Actividad
+ */
 class EngActividadesBpmModel extends Model
 {
     use HasFactory;
@@ -12,9 +17,13 @@ class EngActividadesBpmModel extends Model
     // protected $connection = 'sqlsrv';
 
     protected $table = 'EngActividadesBPM';
+
     protected $primaryKey = 'Id';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -23,7 +32,7 @@ class EngActividadesBpmModel extends Model
     ];
 
     protected $casts = [
-        'Id'    => 'integer',
+        'Id' => 'integer',
         'Orden' => 'integer',
     ];
 }

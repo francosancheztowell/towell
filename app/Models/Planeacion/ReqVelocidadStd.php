@@ -40,14 +40,6 @@ class ReqVelocidadStd extends Model
         return 'Id';
     }
 
-    public static function obtenerTodos()
-    {
-        return self::orderBy('SalonTejidoId')
-            ->orderBy('NoTelarId')
-            ->orderBy('FibraId')
-            ->get();
-    }
-
     public static function buscar($salon = null, $telar = null, $fibra = null, $densidad = null)
     {
         $query = self::query();
@@ -68,35 +60,5 @@ class ReqVelocidadStd extends Model
             ->orderBy('NoTelarId')
             ->orderBy('FibraId')
             ->get();
-    }
-
-    public static function existeVelocidad($telar, $fibra, $densidad)
-    {
-        return self::where('NoTelarId', $telar)
-            ->where('FibraId', $fibra)
-            ->where('Densidad', $densidad)
-            ->exists();
-    }
-
-    public static function crearDesdeExcel($datos)
-    {
-        return self::create([
-            'SalonTejidoId' => $datos['salon'] ?? null,
-            'NoTelarId' => $datos['telar'] ?? null,
-            'FibraId' => $datos['fibra'] ?? null,
-            'Velocidad' => $datos['velocidad'] ?? null,
-            'Densidad' => $datos['densidad'] ?? 'Normal',
-        ]);
-    }
-
-    public function actualizarDesdeExcel($datos)
-    {
-        return $this->update([
-            'SalonTejidoId' => $datos['salon'] ?? $this->SalonTejidoId,
-            'NoTelarId' => $datos['telar'] ?? $this->NoTelarId,
-            'FibraId' => $datos['fibra'] ?? $this->FibraId,
-            'Velocidad' => $datos['velocidad'] ?? $this->Velocidad,
-            'Densidad' => $datos['densidad'] ?? $this->Densidad,
-        ]);
     }
 }

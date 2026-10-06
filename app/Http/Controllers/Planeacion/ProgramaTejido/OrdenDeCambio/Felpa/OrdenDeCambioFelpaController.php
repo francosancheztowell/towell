@@ -553,7 +553,6 @@ class OrdenDeCambioFelpaController extends Controller
      */
     protected function obtenerTodosLosRegistros($spreadsheet, string $horaActual): array
     {
-        /** @var Worksheet $worksheet */
         $worksheet = $this->generarTablaRegistro($spreadsheet);
 
         $ultimaFila = $worksheet->getHighestRow();

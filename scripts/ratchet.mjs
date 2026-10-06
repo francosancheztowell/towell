@@ -83,6 +83,18 @@ export const METRICS = {
     only: '.php',
     count: countRegex(/\bcatch\s*\([^)]*\)\s*\{\s*\}/g),
   },
+  // El handler de bootstrap/app.php ya responde el 5xx JSON con trace_id: un catch genérico
+  // en un controller casi siempre lo duplica (y filtra getMessage()). Solo bajan.
+  'try { en controllers': {
+    dirs: ['app/Http/Controllers'],
+    only: '.php',
+    count: countRegex(/^\s*try\s*\{/gm),
+  },
+  'catch genérico en controllers': {
+    dirs: ['app/Http/Controllers'],
+    only: '.php',
+    count: countRegex(/\bcatch\s*\(\s*\\?(?:Throwable|Exception)\b/g),
+  },
 }
 
 export const DUPLICACION = 'duplicación %'
