@@ -201,15 +201,6 @@ class CatCodificacionController extends Controller
                 'e' => 'Validación fallida',
                 'errors' => $e->errors(),
             ], 422);
-        } catch (\Throwable $e) {
-            Log::error('CatCodificacionController::revivirProgramaDesdeCat', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                's' => false,
-                'e' => $e->getMessage(),
-            ], 500);
         }
     }
 
@@ -409,16 +400,6 @@ class CatCodificacionController extends Controller
                 's' => false,
                 'e' => 'Validación fallida: '.implode(', ', $e->errors()),
             ], 422);
-        } catch (\Throwable $e) {
-            Log::error('CatCodificacionController::actualizarPesoMuestraLmat', [
-                'ordenTejido' => $request->input('ordenTejido', ''),
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                's' => false,
-                'e' => $e->getMessage(),
-            ], 500);
         }
     }
 
