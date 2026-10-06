@@ -60,6 +60,12 @@
             @if ($puede['crear'])
                 <flux:button icon="document-duplicate" class="min-h-touch" wire:click="duplicar" :disabled="$seleccionado === null">Duplicar</flux:button>
             @endif
+            @if ($tabla === 'real' && $puede['crear'] && $puede['modificar'])
+                <flux:button icon="arrow-right-circle" class="min-h-touch" :disabled="$seleccionado === null"
+                             x-on:click="notify.confirm({ title: '¿Poner como estándar?', text: 'Se copia la cuota real seleccionada a las cuotas estándar (mismo depto, año y mes). Si ya existe en estándar, se reemplaza. Sab. MOI y MOI no se copian.', confirmText: 'Sí, poner como estándar' }).then(ok => ok && $wire.ponerComoEstandar())">
+                    Poner como estándar
+                </flux:button>
+            @endif
             @if ($puede['eliminar'])
                 <flux:button variant="danger" icon="trash" class="min-h-touch" :disabled="$seleccionado === null"
                              x-on:click="notify.confirm({ title: '¿Eliminar la cuota?', text: 'Se borra la fila seleccionada. No se puede deshacer.', confirmText: 'Sí, eliminar', confirmColor: '#dc2626' }).then(ok => ok && $wire.eliminar())">
@@ -168,11 +174,20 @@
                 class="ui-dialogo ui-dialogo--formulario">
             <form wire:submit="calcularUrdido" class="ui-dialogo__cuerpo" novalidate>
                 <flux:heading id="calculo-titulo" size="xl">Calcular cuotas reales de Urdido</flux:heading>
-                <flux:text>
-                    Sab* = gastos de AX de los centros 003 y 005 (Towel + Textil). Minutos = julios urdidos en el mes;
-                    Min. paro = paros que ocurrieron durante esos julios. Reemplaza esas columnas de cada mes;
-                    prorrateos y maquila capturados se conservan.
-                </flux:text>
+                <flux:text>Por cada mes del rango hace dos cosas:</flux:text>
+                <ol class="list-decimal space-y-2 ps-5 text-sm text-zinc-600 dark:text-zinc-300">
+                    <li>
+                        <strong>Cuota real del mes.</strong> Sab* = gastos de AX de los centros 003 y 005 (Towel + Textil), por tipo
+                        (MOD, MOI, variables, fijos). Minutos = minutos de los julios urdidos en el mes; Min. paro = paros que
+                        ocurrieron durante esos julios. Cuota (MO, MOI, Gtos. variables, Gtos. fijos) = Sab ÷ minutos.
+                        Reemplaza esas columnas; prorrateos y maquila capturados se conservan.
+                    </li>
+                    <li>
+                        <strong>Costo de cada julio.</strong> Reescribe MOD, MOI, GtsV, GtsF, Pf, PV y Maquila de todos los julios
+                        producidos ese mes (producción de Urdido) = cuota × minutos del julio. Una cuota vacía deja el costo del julio en blanco.
+                        Los costos que ya tenían los julios de esos meses se sustituyen.
+                    </li>
+                </ol>
 
                 <div class="grid grid-cols-3 gap-4">
                     <flux:input wire:model="calculo.año" label="Año" inputmode="numeric" data-solo="entero" maxlength="4" class:input="tabular-nums" />

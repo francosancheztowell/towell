@@ -73,6 +73,46 @@ class CostosCuotasLivewireTest extends TestCase
             ->assertSet('tabla', 'std');
     }
 
+    public function test_poner_como_estandar_copia_la_real_y_reemplaza_si_ya_existe(): void
+    {
+        $this->autenticar();
+        CosCuotasReal::where('Mes', 1)->update(['SabMOI' => 5, 'MO' => 7]);
+
+        $c = Livewire::test(Cuotas::class)->set('tabla', 'real')->set('seleccionado', $this->llave(CosCuotasReal::class, 1));
+        $c->call('ponerComoEstandar');
+
+        $std = CosCuotasSTD::where('Mes', 1)->get();
+        $this->assertCount(1, $std);
+        $this->assertEquals(3000, $std[0]->Minutos);
+        $this->assertEquals(16.6667, $std[0]->GtosFijos);
+        $this->assertEquals(7, $std[0]->MO);
+
+        // Otra vez, con la real cambiada: reemplaza, no duplica.
+        CosCuotasReal::where('Mes', 1)->update(['Minutos' => 2500]);
+        $c->call('ponerComoEstandar');
+        $this->assertSame(1, CosCuotasSTD::where('Mes', 1)->count());
+        $this->assertEquals(2500, CosCuotasSTD::where('Mes', 1)->value('Minutos'));
+        $this->assertSame(2, CosCuotasReal::count(), 'la real no se toca');
+    }
+
+    public function test_poner_como_estandar_pide_crear_y_modificar(): void
+    {
+        $this->autenticar(['acceso', 'modificar']);
+
+        Livewire::test(Cuotas::class)->set('tabla', 'real')
+            ->set('seleccionado', $this->llave(CosCuotasReal::class, 1))
+            ->call('ponerComoEstandar')->assertForbidden();
+        $this->assertSame(1, CosCuotasSTD::count());
+    }
+
+    public function test_poner_como_estandar_solo_aplica_en_la_pestana_real(): void
+    {
+        $this->autenticar();
+        // En la pestaña estándar no hace nada, aunque haya una selección.
+        Livewire::test(Cuotas::class)->set('seleccionado', $this->llave(CosCuotasSTD::class, 9))->call('ponerComoEstandar');
+        $this->assertSame(1, CosCuotasSTD::count());
+    }
+
     public function test_badges_de_anio_filtran_y_cuentan(): void
     {
         $this->autenticar(['acceso']);

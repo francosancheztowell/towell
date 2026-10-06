@@ -314,6 +314,27 @@ class Cuotas extends Component
     }
 
     /**
+     * Copia la cuota real seleccionada a la estándar (mismo Depto, Año y Mes). Si ese mes ya
+     * existe en STD lo sobrescribe (la pantalla pide confirmar). SabMOI y MOI no se copian: STD no las tiene.
+     */
+    public function ponerComoEstandar(): void
+    {
+        abort_unless(userCan('crear', self::MODULO) && userCan('modificar', self::MODULO), 403);
+
+        $real = $this->tabla !== 'real' || $this->seleccionado === null ? null : CosCuotasReal::clave($this->seleccionado)->first();
+        if ($real === null) {
+            return;
+        }
+
+        $valores = $real->only([...CosCuota::LLAVE, ...CosCuotasSTD::columnasValor()]);
+        $existente = CosCuotasSTD::existente($real->Depto, $real->Año, $real->Mes);
+        CosCuotasSTD::guardarCuota($valores, null, $existente);
+
+        $mes = mb_strtolower(CosCuota::MESES[$real->Mes] ?? (string) $real->Mes);
+        $this->dispatch('aviso', tipo: 'success', texto: ($existente ? 'Estándar reemplazada' : 'Estándar creada')." con la cuota real de {$real->Depto} · {$mes} {$real->Año}.");
+    }
+
+    /**
      * Sin paginación (la tabla no muestra pie): una sola página con todo.
      * ponytail: tope de 1000 filas (~40 deptos × 2 años × 12 meses); si crece, volver a paginar.
      */
