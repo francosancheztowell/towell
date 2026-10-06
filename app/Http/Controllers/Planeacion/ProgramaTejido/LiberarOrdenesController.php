@@ -738,44 +738,58 @@ class LiberarOrdenesController extends Controller
         $term = trim((string) $request->query('term', ''));
         $allowFallback = filter_var($request->query('fallback', false), FILTER_VALIDATE_BOOLEAN);
 
-        // Si viene 'combinations', buscar múltiples combinaciones
-        if ($combinationsParam !== '') {
-            $pairs = $this->bomCrudoResolver->parsearCombinaciones($combinationsParam);
+        try {
+            // Si viene 'combinations', buscar múltiples combinaciones
+            if ($combinationsParam !== '') {
+                $pairs = $this->bomCrudoResolver->parsearCombinaciones($combinationsParam);
 
-            if ($pairs === []) {
+                if ($pairs === []) {
+                    return response()->json([
+                        'success' => true,
+                        'data' => [],
+                    ]);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'data' => $this->bomCrudoResolver->opcionesPorCombinaciones($pairs),
+                ]);
+            }
+
+            // Búsqueda individual (autocompletado). Sin ItemId no se busca nada:
+            // un L.Mat siempre pertenece al producto del renglón.
+            if ($itemId === '') {
                 return response()->json([
                     'success' => true,
                     'data' => [],
                 ]);
             }
 
+            $results = $this->bomCrudoResolver->buscarPorItem(
+                $itemId,
+                $inventSizeId,
+                $salon,
+                $term,
+                $allowFallback
+            );
+
             return response()->json([
                 'success' => true,
-                'data' => $this->bomCrudoResolver->opcionesPorCombinaciones($pairs),
+                'data' => $results,
             ]);
-        }
+        } catch (\Exception $e) {
+            Log::error('Error al obtener BOM y Nombre', [
+                'combinations' => $combinationsParam,
+                'item_id' => $itemId,
+                'invent_size_id' => $inventSizeId,
+                'error' => $e->getMessage(),
+            ]);
 
-        // Búsqueda individual (autocompletado). Sin ItemId no se busca nada:
-        // un L.Mat siempre pertenece al producto del renglón.
-        if ($itemId === '') {
             return response()->json([
-                'success' => true,
-                'data' => [],
-            ]);
+                'success' => false,
+                'message' => 'Error al buscar L.Mat.',
+            ], 500);
         }
-
-        $results = $this->bomCrudoResolver->buscarPorItem(
-            $itemId,
-            $inventSizeId,
-            $salon,
-            $term,
-            $allowFallback
-        );
-
-        return response()->json([
-            'success' => true,
-            'data' => $results,
-        ]);
     }
 
     /**
@@ -795,10 +809,22 @@ class LiberarOrdenesController extends Controller
             ]);
         }
 
-        return response()->json([
-            'success' => true,
-            'data' => $this->hilosCatalogo->mapaTipoHilo($itemIdsParam),
-        ]);
+        try {
+            return response()->json([
+                'success' => true,
+                'data' => $this->hilosCatalogo->mapaTipoHilo($itemIdsParam),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener TipoHilo', [
+                'item_ids' => $itemIdsParam,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener Tipo Hilo.',
+            ], 500);
+        }
     }
 
     /**
@@ -968,12 +994,19 @@ class LiberarOrdenesController extends Controller
      */
     public function obtenerCodigoDibujo(Request $request)
     {
-        return response()->json([
-            'success' => true,
-            'data' => $this->codigoDibujoResolver->mapearCombinaciones(
-                trim((string) $request->query('combinations', ''))
-            ),
-        ]);
+        try {
+            return response()->json([
+                'success' => true,
+                'data' => $this->codigoDibujoResolver->mapearCombinaciones(
+                    trim((string) $request->query('combinations', ''))
+                ),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener Código de Dibujo.',
+            ], 500);
+        }
     }
 
     /**
@@ -992,10 +1025,20 @@ class LiberarOrdenesController extends Controller
             return response()->json(['success' => false, 'message' => 'Clave AX y tamaño son obligatorios.'], 422);
         }
 
-        return response()->json([
-            'success' => true,
-            'data' => $this->flogSugerido->sugerir($itemId, $inventSizeId),
-        ]);
+        try {
+            return response()->json([
+                'success' => true,
+                'data' => $this->flogSugerido->sugerir($itemId, $inventSizeId),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('LiberarOrdenes::obtenerFlogSugerido', [
+                'itemId' => $itemId,
+                'inventSizeId' => $inventSizeId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json(['success' => false, 'message' => 'Error al buscar el flog en AX.'], 500);
+        }
     }
 
     /**
@@ -1006,9 +1049,20 @@ class LiberarOrdenesController extends Controller
      */
     public function obtenerOpcionesHilos()
     {
-        return response()->json([
-            'success' => true,
-            'data' => $this->hilosCatalogo->opciones(),
-        ]);
+        try {
+            return response()->json([
+                'success' => true,
+                'data' => $this->hilosCatalogo->opciones(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener opciones de hilos', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener opciones de hilos.',
+            ], 500);
+        }
     }
 }
