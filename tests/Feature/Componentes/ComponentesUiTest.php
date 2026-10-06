@@ -229,16 +229,15 @@ class ComponentesUiTest extends TestCase
 
     public function test_panel_del_menu_de_usuario_es_el_ultimo_hijo_del_dropdown(): void
     {
-        // ui-dropdown (Flux) toma su lastElementChild como panel [popover]; si el editor del
-        // dispositivo queda después, avisa "no [popover] overlay found" y el menú no abre.
+        // ui-dropdown (Flux) toma su lastElementChild como panel [popover]; cualquier elemento
+        // después del panel da "no [popover] overlay found" y el menú no abre.
         config()->set('monitoreo.enabled', true);
         $this->actingAs(new Usuario(['nombre' => 'Prueba', 'puesto' => 'Sistemas']));
 
-        $panel = trim(view('components.navbar.sections.user-modal')->render());
-        $this->assertStringNotContainsString('device-name-editor', $panel);
-        $this->assertMatchesRegularExpression('/^<div id="user-modal" popover=/', preg_replace("/^(\s|<!--.*?-->)+/s", '', $panel));
-
-        $editor = view('components.navbar.sections.user-device-editor')->render();
-        $this->assertStringContainsString('id="device-name-editor"', $editor);
+        $panel = preg_replace('/^(\s|<!--.*?-->)+/s', '', trim(view('components.navbar.sections.user-modal')->render()));
+        $this->assertMatchesRegularExpression('/^<div id="user-modal" popover=/', $panel);
+        $this->assertSame(1, preg_match_all('/<div id="user-modal"/', $panel));
+        // El menú muestra solo los datos del usuario, ya no el dispositivo.
+        $this->assertStringNotContainsString('device-name', $panel);
     }
 }

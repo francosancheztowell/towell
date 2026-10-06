@@ -1,38 +1,6 @@
 @php
     $usuario = Auth::user();
     $fotoUrl = function_exists('getFotoUsuarioUrl') ? getFotoUsuarioUrl($usuario->foto ?? null) : null;
-
-    // Información del dispositivo
-    $deviceInfo = function_exists('getDeviceInfo') ? getDeviceInfo() : [
-        'tipo' => [
-            'nombre' => 'Dispositivo',
-            'modelo' => '',
-            'icono' => 'fa-desktop',
-            'tipo' => 'desktop'
-        ],
-        'navegador' => [
-            'nombre' => 'Navegador',
-            'version' => '',
-            'icono' => 'fa-globe'
-        ],
-        'sistema' => [
-            'nombre' => 'Sistema',
-            'version' => '',
-            'icono' => 'fa-desktop'
-        ],
-        'ip' => function_exists('getClientIpv4') ? getClientIpv4() : request()->ip(),
-        'user_agent' => request()->userAgent() ?? ''
-    ];
-    $deviceId = function_exists('getDeviceIdentifier') ? getDeviceIdentifier() : 'N/A';
-    $deviceModel = $deviceInfo['tipo']['modelo'] ?? '';
-
-    // Nombre del dispositivo (MON-19): vive en SYSMonDispositivo, por la cookie towell_disp.
-    // Una lectura por índice único; si falla o el monitoreo está apagado, se usa el nombre detectado.
-    $monitoreoActivo = \App\Services\Monitoreo\Monitoreo::activo();
-    $dispUuid = \App\Services\Monitoreo\DispositivoService::uuid(request());
-    $nombreDispositivo = $monitoreoActivo && $dispUuid
-        ? (string) \App\Services\Monitoreo\Monitoreo::seguro('leer nombre de dispositivo', fn () => \App\Models\Sistema\Monitoreo\MonDispositivo::where('Uuid', $dispUuid)->value('Nombre'), '')
-        : '';
 @endphp
 
 {{-- Panel del flux:dropdown (navbar.blade.php): el popover lo posiciona y cierra Flux. --}}
@@ -80,57 +48,5 @@
                 <span>Admin</span>
             </a>
         @endcan
-
-        <!-- Información del dispositivo -->
-        <div class="mt-3 pt-3 border-t border-gray-100">
-            <!-- Header con nombre editable -->
-            <div class="flex items-center gap-2 mb-2">
-                <i class="fas {{ $deviceInfo['tipo']['icono'] }} text-blue-500"></i>
-                <div class="flex-1 min-w-0">
-                    <!-- Nombre del dispositivo (editable) -->
-                    <div class="flex items-center gap-1 group">
-                        {{-- resources/js/monitoreo/dispositivo.ts: edición y migración del nombre viejo de localStorage. --}}
-                        <span id="device-name"
-                              @class(['text-xs font-semibold text-gray-700 truncate', 'cursor-pointer hover:text-blue-600' => $monitoreoActivo])
-                              data-default="{{ $deviceInfo['tipo']['nombre'] }}"
-                              data-nombre="{{ $nombreDispositivo }}"
-                              data-llave-local="device_name_{{ $deviceId }}"
-                              @if($monitoreoActivo) title="Clic para editar nombre" @endif>
-                            {{ $nombreDispositivo !== '' ? $nombreDispositivo : $deviceInfo['tipo']['nombre'] }}
-                        </span>
-                        @if($monitoreoActivo)
-                            <button id="edit-device-name"
-                                    type="button"
-                                    class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-500 transition-opacity"
-                                    title="Editar nombre"
-                                    aria-label="Editar nombre del dispositivo">
-                                <i class="fas fa-pencil text-xs" aria-hidden="true"></i>
-                            </button>
-                        @endif
-                    </div>
-                    <!-- Modelo detectado -->
-                    @if($deviceModel)
-                        <span class="text-xs text-gray-500">{{ $deviceModel }}</span>
-                    @endif
-                </div>
-                <span class="px-2 py-0.5 bg-gray-100 rounded text-xs font-mono text-gray-600" title="ID de dispositivo">
-                    {{ $deviceId }}
-                </span>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2 text-xs">
-                <!-- Sistema operativo -->
-                <div class="flex items-center gap-1.5 text-gray-600">
-                    <i class="fab {{ $deviceInfo['sistema']['icono'] }} text-gray-400 w-3.5 text-center"></i>
-                    <span class="truncate">{{ $deviceInfo['sistema']['nombre'] }}@if($deviceInfo['sistema']['version']) {{ $deviceInfo['sistema']['version'] }}@endif</span>
-                </div>
-
-                <!-- IPv4 del dispositivo (IP pública desde el navegador si el servidor devuelve localhost) -->
-                <div class="flex items-center gap-1.5 text-gray-600">
-                    <i class="fas fa-network-wired text-gray-400 w-3.5 text-center"></i>
-                    <span id="device-ip-display" class="truncate" title="Dirección IPv4" data-server-ip="{{ $deviceInfo['ip'] }}">{{ $deviceInfo['ip'] }}</span>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
