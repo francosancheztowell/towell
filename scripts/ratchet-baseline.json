@@ -8,9 +8,9 @@
   "bg-opacity-": 0,
   "<script> inline en blade": 46,
   "SQL crudo con $interpolado": 8,
-  "getMessage() en response()->json": 58,
+  "getMessage() en response()->json": 56,
   "catch vacío": 13,
-  "try { en controllers": 432,
-  "catch genérico en controllers": 410,
+  "try { en controllers": 430,
+  "catch genérico en controllers": 408,
   "duplicación %": 6.24
 }
