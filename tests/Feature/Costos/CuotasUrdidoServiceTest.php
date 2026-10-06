@@ -204,6 +204,50 @@ class CuotasUrdidoServiceTest extends TestCase
         $this->assertEqualsWithDelta(777.0, DB::connection('sqlsrv')->table('UrdProduccionUrdido')->sum('MOD'), 0.01);
     }
 
+    public function test_el_rango_lee_la_sabana_una_vez_y_da_lo_mismo_que_mes_por_mes(): void
+    {
+        $this->julios([
+            ['00001', 'Mc Coy 1', '2026-04-10', '10:00:00', '11:00:00'],
+            ['00002', 'Mc Coy 1', '2026-05-10', '10:00:00', '12:00:00'],
+        ]);
+        $leidas = 0;
+        $this->movimientos = [(object) ['cuenta' => '702-002-000-0', 'centro' => '003', 'tipo' => 'Salarios', 'total' => 600]];
+        $this->reglas = ['702-002-000-0|003' => 'MOD'];
+        $this->partialMock(CuotasUrdidoService::class, function ($m) use (&$leidas) {
+            $m->shouldReceive('movimientos')->andReturnUsing(fn () => collect($this->movimientos));
+            $m->shouldReceive('reglas')->andReturnUsing(function () use (&$leidas) {
+                $leidas++;
+
+                return $this->reglas;
+            });
+        });
+
+        app(CuotasUrdidoService::class)->actualizarRango(2026, 4, 5);
+        $rango = CosCuotasReal::orderBy('Mes')->pluck('MO')->all();
+
+        $this->assertSame(1, $leidas, 'Las reglas de AX se leen una vez para todo el rango.');
+        app(CuotasUrdidoService::class)->actualizar(2026, 4);
+        app(CuotasUrdidoService::class)->actualizar(2026, 5);
+        $this->assertSame(['10.0000', '5.0000'], $rango, '600 ÷ 60 y 600 ÷ 120.');
+        $this->assertSame($rango, CosCuotasReal::orderBy('Mes')->pluck('MO')->all(), 'Mes por mes da lo mismo.');
+    }
+
+    public function test_reparto_de_muchos_julios_cruza_lotes_de_siete_columnas(): void
+    {
+        // 7 columnas × 2 + 1 = 15 parámetros por julio → 133 por lote; 300 julios = 3 UPDATE.
+        $this->julios(array_map(fn ($i) => [sprintf('%05d', $i), 'Mc Coy 1', '2026-04-'.str_pad((string) (1 + $i % 28), 2, '0', STR_PAD_LEFT), '10:00:00', '10:10:00'], range(1, 300)));
+        $this->movimientos = [(object) ['cuenta' => '702-002-000-0', 'centro' => '003', 'tipo' => 'MOD', 'total' => 3000]];
+
+        DB::connection('sqlsrv')->enableQueryLog();
+        $r = app(CuotasUrdidoService::class)->actualizar(2026, 4);
+
+        $this->assertSame(300, $r['Julios']);
+        $updates = collect(DB::connection('sqlsrv')->getQueryLog())->filter(fn ($q) => str_starts_with($q['query'], 'UPDATE [UrdProduccionUrdido]'));
+        $this->assertCount(3, $updates);
+        $this->assertEqualsWithDelta(3000.0, DB::connection('sqlsrv')->table('UrdProduccionUrdido')->sum('MOD'), 0.01);
+        $this->assertSame(0, DB::connection('sqlsrv')->table('UrdProduccionUrdido')->whereNull('MOD')->count());
+    }
+
     /** @param list<array{0: string, 1: string, 2: string, 3: string, 4: string}> $julios folio, máquina, fecha, inicio, fin */
     private function julios(array $julios): void
     {
