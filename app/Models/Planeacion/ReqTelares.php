@@ -115,32 +115,6 @@ class ReqTelares extends Model
     }
 
     /**
-     * Crear un nuevo telar desde datos de Excel
-     */
-    public static function crearDesdeExcel($datos)
-    {
-        return self::create([
-            'SalonTejidoId' => $datos['salon'] ?? null,
-            'NoTelarId' => $datos['telar'] ?? null,
-            'Nombre' => $datos['nombre'] ?? null,
-            'Grupo' => $datos['grupo'] ?? null,
-        ]);
-    }
-
-    /**
-     * Actualizar telar existente desde datos de Excel
-     */
-    public function actualizarDesdeExcel($datos)
-    {
-        return $this->update([
-            'SalonTejidoId' => $datos['salon'] ?? $this->SalonTejidoId,
-            'NoTelarId' => $datos['telar'] ?? $this->NoTelarId,
-            'Nombre' => $datos['nombre'] ?? $this->Nombre,
-            'Grupo' => $datos['grupo'] ?? $this->Grupo,
-        ]);
-    }
-
-    /**
      * Accessor para obtener el salón formateado
      */
     public function getSalonAttribute()

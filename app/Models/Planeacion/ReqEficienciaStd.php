@@ -64,17 +64,6 @@ class ReqEficienciaStd extends Model
     ];
 
     /**
-     * Obtener todas las eficiencias ordenadas por salón y telar
-     */
-    public static function obtenerTodos()
-    {
-        return self::orderBy('SalonTejidoId')
-            ->orderBy('NoTelarId')
-            ->orderBy('FibraId')
-            ->get();
-    }
-
-    /**
      * Buscar eficiencias por criterios específicos
      */
     public static function buscar($salon = null, $telar = null, $fibra = null, $densidad = null)
@@ -101,44 +90,6 @@ class ReqEficienciaStd extends Model
             ->orderBy('NoTelarId')
             ->orderBy('FibraId')
             ->get();
-    }
-
-    /**
-     * Verificar si existe una eficiencia con el mismo telar y fibra
-     */
-    public static function existeEficiencia($telar, $fibra)
-    {
-        return self::where('NoTelarId', $telar)
-            ->where('FibraId', $fibra)
-            ->exists();
-    }
-
-    /**
-     * Crear una nueva eficiencia desde datos de Excel
-     */
-    public static function crearDesdeExcel($datos)
-    {
-        return self::create([
-            'SalonTejidoId' => $datos['salon'] ?? null,
-            'NoTelarId' => $datos['telar'] ?? null,
-            'FibraId' => $datos['fibra'] ?? null,
-            'Eficiencia' => $datos['eficiencia'] ?? null,
-            'Densidad' => $datos['densidad'] ?? null,
-        ]);
-    }
-
-    /**
-     * Actualizar eficiencia existente desde datos de Excel
-     */
-    public function actualizarDesdeExcel($datos)
-    {
-        return $this->update([
-            'SalonTejidoId' => $datos['salon'] ?? $this->SalonTejidoId,
-            'NoTelarId' => $datos['telar'] ?? $this->NoTelarId,
-            'FibraId' => $datos['fibra'] ?? $this->FibraId,
-            'Eficiencia' => $datos['eficiencia'] ?? $this->Eficiencia,
-            'Densidad' => $datos['densidad'] ?? $this->Densidad,
-        ]);
     }
 
     /**
