@@ -25,6 +25,7 @@ use Livewire\Component;
  */
 class Cuotas extends Component
 {
+    use CalculaCuotasUrdido;
     use ConTabla;
 
     public const MODULO = 'Cuotas';

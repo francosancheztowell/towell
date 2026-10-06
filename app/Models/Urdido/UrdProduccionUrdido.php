@@ -3,10 +3,14 @@
 namespace App\Models\Urdido;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * @property string $Folio
+ * @property Carbon|string|null $Fecha
  * @property float|null $KgNeto
+ * @property string|null $HoraInicial
+ * @property string|null $HoraFinal
  * @property string|null $ImporteMP decimal(18,4): KgNeto × Σ(cump × %) del folio, ver CumpKardexService
  */
 class UrdProduccionUrdido extends Model

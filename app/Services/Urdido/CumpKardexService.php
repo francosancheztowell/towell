@@ -31,6 +31,9 @@ class CumpKardexService
 {
     private const COLUMNA = ['MCCOY1' => 'MC1CU', 'MCCOY2' => 'MC2CU', 'MCCOY3' => 'MC3CU', 'KARLMAYER' => 'KMCU'];
 
+    /** Lo único que porId() escribe. */
+    private const ESCRIBIBLES = ['Urdbom' => ['cump', 'importe'], 'UrdProduccionUrdido' => ['ImporteMP']];
+
     /**
      * Recalcula y guarda solo lo que cambia.
      *
@@ -159,19 +162,23 @@ class CumpKardexService
      */
     private static function porId(string $tabla, array $valores): void
     {
+        // Tabla y columnas van en el SQL (no admiten bindings): solo las de esta lista.
+        $permitidas = self::ESCRIBIBLES[$tabla] ?? throw new \InvalidArgumentException("Tabla no permitida: {$tabla}");
+
         // ≤ 2100 parámetros de SQL Server: 2 columnas × 2 + 1 (IN) = 5 por fila.
         foreach (array_chunk($valores, 300, true) as $lote) {
             $sets = [];
             $bindings = [];
             foreach (array_keys(reset($lote)) as $col) {
-                $sets[] = "[{$col}] = CASE [Id]".str_repeat(' WHEN ? THEN ?', count($lote)).' END';
+                in_array($col, $permitidas, true) || throw new \InvalidArgumentException("Columna no permitida: {$col}");
+                $sets[] = sprintf('[%s] = CASE [Id]%s END', $col, str_repeat(' WHEN ? THEN ?', count($lote)));
                 foreach ($lote as $id => $v) {
                     array_push($bindings, $id, $v[$col]);
                 }
             }
             $ids = array_keys($lote);
             DB::connection('sqlsrv')->update(
-                "UPDATE [{$tabla}] SET ".implode(', ', $sets).' WHERE [Id] IN ('.implode(',', array_fill(0, count($ids), '?')).')',
+                sprintf('UPDATE [%s] SET %s WHERE [Id] IN (%s)', $tabla, implode(', ', $sets), implode(',', array_fill(0, count($ids), '?'))),
                 [...$bindings, ...$ids],
             );
         }

@@ -48,6 +48,9 @@
 
         {{-- Acciones: se teletransportan al navbar. --}}
         <x-slot:acciones>
+            @if ($puede['crear'] && $puede['modificar'])
+                <flux:button icon="calculator" class="min-h-touch" wire:click="abrirCalculo">Calcular Urdido</flux:button>
+            @endif
             @if ($puede['crear'])
                 <flux:button variant="primary" color="blue" icon="plus" class="min-h-touch" wire:click="abrirAlta">Crear</flux:button>
             @endif
@@ -149,6 +152,50 @@
                                 wire:loading.attr="disabled" wire:target="guardar">Guardar</button>
                     @endif
                 </div>
+            </form>
+        </dialog>
+    @endif
+
+    {{-- Calcular Urdido: cuotas reales desde la sábana de AX, la producción y los paros. --}}
+    @if ($calculo !== null)
+        <dialog wire:key="cuota-calculo"
+                wire:ignore.self
+                x-data
+                x-init="$el.showModal()"
+                x-on:close="$wire.set('calculo', null)"
+                x-on:click="if ($event.target === $el) $el.close()"
+                aria-labelledby="calculo-titulo"
+                class="ui-dialogo ui-dialogo--formulario">
+            <form wire:submit="calcularUrdido" class="ui-dialogo__cuerpo" novalidate>
+                <flux:heading id="calculo-titulo" size="xl">Calcular cuotas reales de Urdido</flux:heading>
+                <flux:text>
+                    Sab* = gastos de AX de los centros 003 y 005 (Towel + Textil). Minutos = julios urdidos en el mes;
+                    Min. paro = paros que ocurrieron durante esos julios. Reemplaza esas columnas de cada mes;
+                    prorrateos y maquila capturados se conservan.
+                </flux:text>
+
+                <div class="grid grid-cols-3 gap-4">
+                    <flux:input wire:model="calculo.año" label="Año" inputmode="numeric" data-solo="entero" maxlength="4" class:input="tabular-nums" />
+                    <flux:select wire:model="calculo.desde" label="Desde">
+                        @foreach (\App\Models\Costos\CosCuota::MESES as $n => $nombre)
+                            <flux:select.option value="{{ $n }}">{{ $nombre }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                    <flux:select wire:model="calculo.hasta" label="Hasta">
+                        @foreach (\App\Models\Costos\CosCuota::MESES as $n => $nombre)
+                            <flux:select.option value="{{ $n }}">{{ $nombre }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </div>
+
+                <div class="grid gap-4">
+                    <flux:switch wire:model="calculo.conParos" label="Con paros"
+                                 description="Apagado (default): cuota = Sab ÷ (Minutos − Min. paro), solo el tiempo productivo. Encendido: cuota = Sab ÷ Minutos, el producto absorbe los paros." />
+                    <flux:switch wire:model="calculo.tiempoMuerto" label="Incluir tiempo muerto"
+                                 description="Apagado (default): paros mecánicos, eléctricos y demás. Encendido: también tiempo muerto (hay paros que quedaron abiertos por semanas)." />
+                </div>
+
+                <x-dialogo-botones accion="calcularUrdido" texto="Calcular" />
             </form>
         </dialog>
     @endif
