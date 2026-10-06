@@ -279,8 +279,44 @@ class CuotasUrdidoServiceTest extends TestCase
         $r = app(CuotasUrdidoService::class)->actualizarRango(2026, 4, 5);
 
         $this->assertFalse($r['completo']);
-        $this->assertSame('Urdido: 2 mes(es) calculado(s), 1 julio(s) actualizados. Sin producción: Mayo. $25.00 de AX sin clasificar.', $r['texto']);
+        $this->assertSame('Urdido: 2 mes(es) calculado(s), 1 julio(s) revisados, 1 con cambios. Sin producción: Mayo. $25.00 de AX sin clasificar.', $r['texto']);
         $this->assertSame(2, CosCuotasReal::count());
+    }
+
+    public function test_mes_sin_movimientos_en_ax_deja_cuota_y_julios_vacios_y_avisa(): void
+    {
+        DB::connection('sqlsrv')->table('UrdProduccionUrdido')->insert(
+            ['Folio' => '00001', 'Fecha' => '2026-04-10', 'HoraInicial' => '10:00:00', 'HoraFinal' => '11:00:00', 'MOD' => 5, 'GtsV' => 5],
+        );
+        $this->movimientos = [];
+
+        $r = app(CuotasUrdidoService::class)->actualizarRango(2026, 4, 4);
+
+        $cuota = CosCuotasReal::existente('Urdido', 2026, 4);
+        $this->assertEquals(60, $cuota->Minutos);
+        foreach (['SabMO', 'SabGtosVariable', 'SabGtosFijos', 'SabMOI', 'MO', 'GtosVariables', 'GtosFijos', 'MOI'] as $col) {
+            $this->assertNull($cuota->{$col}, "$col no debe quedar en cero");
+        }
+        $julio = DB::connection('sqlsrv')->table('UrdProduccionUrdido')->first();
+        $this->assertNull($julio->MOD);
+        $this->assertNull($julio->GtsV);
+        $this->assertFalse($r['completo']);
+        $this->assertStringContainsString('Sin movimientos en AX', $r['texto']);
+        $this->assertStringNotContainsString('Ya tenían', $r['texto']);
+    }
+
+    public function test_recalcular_un_mes_ya_calculado_avisa_que_ya_tenia_los_costos(): void
+    {
+        DB::connection('sqlsrv')->table('UrdProduccionUrdido')->insert(
+            ['Folio' => '00001', 'Fecha' => '2026-04-10', 'HoraInicial' => '10:00:00', 'HoraFinal' => '11:00:00'],
+        );
+        $this->movimientos = [(object) ['cuenta' => '702-002-000-0', 'centro' => '003', 'tipo' => 'MOD', 'total' => 100]];
+        $servicio = app(CuotasUrdidoService::class);
+
+        $servicio->actualizarRango(2026, 4, 4);
+        $r = $servicio->actualizarRango(2026, 4, 4);
+
+        $this->assertSame('Urdido: 1 mes(es) calculado(s), 1 julio(s) revisados, 0 con cambios. Ya tenían estos costos.', $r['texto']);
     }
 
     public function test_mes_sin_julios_deja_la_cuota_vacia(): void

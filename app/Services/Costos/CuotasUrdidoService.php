@@ -55,7 +55,7 @@ class CuotasUrdidoService
      * Calcula y guarda la cuota (alta o reemplazo de las columnas calculadas) y la lleva a los julios del mes
      * (MOD, MOI, GtsV, GtsF, Pf, PV, Maquila de UrdProduccionUrdido, ver CostosJulio).
      *
-     * @return array<string, float|int|null> valores guardados + 'SinClasificar' (importe que no se pudo tipificar) + 'Julios'
+     * @return array<string, float|int|null> valores guardados + 'SinClasificar' (importe que no se pudo tipificar) + 'Julios' (con cambios) y 'JuliosMes' (revisados)
      */
     public function actualizar(int $año, int $mes, bool $paroTotal = false, bool $conParos = false): array
     {
@@ -71,15 +71,17 @@ class CuotasUrdidoService
     {
         $valores = $this->calcular($año, $mes, $paroTotal, $conParos);
         $sinClasificar = $valores['SinClasificar'];
-        unset($valores['SinClasificar']);
+        $sinAx = $valores['SinAx'];
+        unset($valores['SinClasificar'], $valores['SinAx']);
 
         $cuota = CosCuotasReal::existente(self::DEPTO, $año, $mes);
         $cuota
             ? $cuota->update($valores)
             : $cuota = CosCuotasReal::create(['Depto' => self::DEPTO, 'Año' => $año, 'Mes' => $mes] + $valores);
-        $julios = CostosJulio::aplicar($this->julios($año, $mes), $this->paros($año, $mes, $paroTotal), $cuota, $conParos);
+        $delMes = $this->julios($año, $mes);
+        $julios = CostosJulio::aplicar($delMes, $this->paros($año, $mes, $paroTotal), $cuota, $conParos);
 
-        return $valores + ['SinClasificar' => $sinClasificar, 'Julios' => $julios];
+        return $valores + ['SinClasificar' => $sinClasificar, 'SinAx' => $sinAx, 'Julios' => $julios, 'JuliosMes' => $delMes->count()];
     }
 
     /**
@@ -90,9 +92,9 @@ class CuotasUrdidoService
      */
     public function actualizarRango(int $año, int $desde, int $hasta, bool $paroTotal = false, bool $conParos = false): array
     {
-        $sinProduccion = [];
+        $sinProduccion = $sinAx = [];
         $sinClasificar = 0.0;
-        $julios = 0;
+        $julios = $revisados = 0;
         $this->rango = range($desde, $hasta);
         try {
             $resultados = array_map(fn ($mes) => [$mes, $this->actualizar($año, $mes, $paroTotal, $conParos)], $this->rango);
@@ -102,16 +104,18 @@ class CuotasUrdidoService
         foreach ($resultados as [$mes, $r]) {
             $sinClasificar += (float) $r['SinClasificar'];
             $julios += (int) $r['Julios'];
-            if ((float) $r['Minutos'] === 0.0) {
-                $sinProduccion[] = CosCuota::MESES[$mes];
-            }
+            $revisados += (int) $r['JuliosMes'];
+            (float) $r['Minutos'] === 0.0 && $sinProduccion[] = CosCuota::MESES[$mes];
+            $r['SinAx'] && $sinAx[] = CosCuota::MESES[$mes];
         }
 
-        $texto = 'Urdido: '.($hasta - $desde + 1).' mes(es) calculado(s), '.number_format($julios).' julio(s) actualizados.';
+        $texto = 'Urdido: '.($hasta - $desde + 1).' mes(es) calculado(s), '.number_format($revisados).' julio(s) revisados, '.number_format($julios).' con cambios.';
+        $texto .= $julios === 0 && $revisados > 0 && $sinAx === [] ? ' Ya tenían estos costos.' : '';
         $texto .= $sinProduccion === [] ? '' : ' Sin producción: '.implode(', ', $sinProduccion).'.';
+        $texto .= $sinAx === [] ? '' : ' Sin movimientos en AX (cuota y costos de los julios quedan vacíos): '.implode(', ', $sinAx).'.';
         $texto .= $sinClasificar === 0.0 ? '' : ' $'.number_format($sinClasificar, 2).' de AX sin clasificar.';
 
-        return ['completo' => $sinProduccion === [] && $sinClasificar === 0.0, 'texto' => $texto];
+        return ['completo' => $sinProduccion === [] && $sinAx === [] && $sinClasificar === 0.0, 'texto' => $texto];
     }
 
     /**
@@ -124,7 +128,8 @@ class CuotasUrdidoService
         $minutos = round($this->minutos($año, $mes), 4);
         $sab = array_fill_keys(self::TIPOS, 0.0);
         $sinClasificar = 0.0;
-        foreach ($this->movimientos($año, $mes) as $m) {
+        $movimientos = $this->movimientos($año, $mes);
+        foreach ($movimientos as $m) {
             $tipo = strtoupper(trim((string) $m->tipo));
             if (! isset(self::TIPOS[$tipo])) {
                 $reglas = $this->memo['reglas'] ??= $this->reglas();
@@ -136,12 +141,14 @@ class CuotasUrdidoService
         $minParo = round($this->minutosParo($año, $mes, $paroTotal), 4);
         $base = $conParos ? $minutos : $minutos - $minParo; // sin paros: solo el tiempo productivo
         $valores = ['Minutos' => $minutos, 'MinParo' => $minParo];
+        // AX sin movimientos del mes (aún no exporta): gastos y cuotas vacíos, no en cero, para no costear en $0.
+        $sinAx = $movimientos->isEmpty();
         foreach ($sab as $col => $total) {
-            $valores[$col] = round($total, 4);
-            $valores[self::CUOTA[$col]] = $base > 0 ? round($total / $base, 4) : null;
+            $valores[$col] = $sinAx ? null : round($total, 4);
+            $valores[self::CUOTA[$col]] = $sinAx || $base <= 0 ? null : round($total / $base, 4);
         }
 
-        return $valores + ['SinClasificar' => round($sinClasificar, 2)];
+        return $valores + ['SinClasificar' => round($sinClasificar, 2), 'SinAx' => $sinAx];
     }
 
     /**
