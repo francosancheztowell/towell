@@ -10,7 +10,7 @@
   "SQL crudo con $interpolado": 8,
   "getMessage() en response()->json": 58,
   "catch vacío": 13,
-  "try { en controllers": 432,
-  "catch genérico en controllers": 410,
+  "try { en controllers": 427,
+  "catch genérico en controllers": 405,
   "duplicación %": 6.24
 }
