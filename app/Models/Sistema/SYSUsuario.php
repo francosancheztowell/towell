@@ -3,6 +3,7 @@
 namespace App\Models\Sistema;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SYSUsuario extends Model
 {
@@ -24,12 +25,12 @@ class SYSUsuario extends Model
         'enviarMensaje',
         'foto',
         'puesto',
-        'Productivo'
+        'Productivo',
     ];
 
     protected $casts = [
         'enviarMensaje' => 'boolean',
-        'Productivo' => 'integer'
+        'Productivo' => 'integer',
     ];
 
     public $timestamps = false;
@@ -37,22 +38,8 @@ class SYSUsuario extends Model
     /**
      * Relación con SYSUsuariosRoles
      */
-    public function roles()
+    public function roles(): HasMany
     {
         return $this->hasMany(SYSUsuariosRoles::class, 'idusuario', 'idusuario');
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -121,7 +121,7 @@ class CuotasUrdidoService
     /**
      * Solo lectura.
      *
-     * @return array<string, float|int|null>
+     * @return array<string, bool|float|int|null>
      */
     public function calcular(int $año, int $mes, bool $paroTotal = false, bool $conParos = false): array
     {

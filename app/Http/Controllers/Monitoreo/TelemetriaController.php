@@ -164,7 +164,7 @@ class TelemetriaController extends Controller
 
             $errores->capturarCliente([
                 'origen' => in_array($origen, ['js', 'livewire', 'red'], true) ? $origen : 'js',
-                'mensaje' => $request->texto('mensaje', 1000) ?? '',
+                'mensaje' => $request->texto('mensaje', 1000),
                 'fuente' => $request->soloPath('fuente', 300),
                 'linea' => $request->entero('linea', 0, 10000000),
                 'stack' => $request->texto('stack', ErrorRecorder::TRAZA_MAX),
