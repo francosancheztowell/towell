@@ -35,7 +35,8 @@ final class PaginacionCompat
         $porPagina = max(1, $porPagina);
         $pagina = max(1, $pagina ?? Paginator::resolveCurrentPage($nombrePagina));
 
-        $total = (clone $query)->toBase()->getCountForPagination();
+        $base = $query instanceof EloquentBuilder ? $query->toBase() : $query;
+        $total = (clone $base)->getCountForPagination();
         $hasta = $pagina * $porPagina;
 
         $items = $total > 0
