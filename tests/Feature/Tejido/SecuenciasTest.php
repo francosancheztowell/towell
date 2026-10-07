@@ -60,7 +60,13 @@ class SecuenciasTest extends TestCase
         return [self::IDROL[$modulo] => $todas, $modulo => $todas];
     }
 
-    #[DataProvider('variantes')]
+    /** @return array<string, array<int, mixed>> */
+    public static function variantes5(): array
+    {
+        return self::recortar(self::variantes(), 5);
+    }
+
+    #[DataProvider('variantes5')]
     public function test_vista_comun_con_config_y_sin_js_inline(string $url, string $modelo, string $llave, string $campo, string $modulo): void
     {
         $this->sembrar($modelo, $llave, $campo, 2);
@@ -78,7 +84,7 @@ class SecuenciasTest extends TestCase
         }
     }
 
-    #[DataProvider('variantes')]
+    #[DataProvider('variantes5')]
     public function test_sin_permiso_no_hay_acciones(string $url, string $modelo, string $llave, string $campo, string $modulo): void
     {
         $html = $this->actingAs($this->usuarioCon([$modulo => ['acceso']]))->get($url)->assertOk()->getContent();
@@ -125,7 +131,7 @@ class SecuenciasTest extends TestCase
         $this->assertStringNotContainsString(substr($tabla, 4), $r->getContent());
     }
 
-    #[DataProvider('variantes')]
+    #[DataProvider('variantes5')]
     public function test_orden_en_una_sola_sentencia(string $url, string $modelo, string $llave, string $campo, string $modulo): void
     {
         $this->sembrar($modelo, $llave, $campo, 30);

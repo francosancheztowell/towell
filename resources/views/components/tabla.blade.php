@@ -115,7 +115,7 @@
     @endif
     @if ($mostrarFiltros)
     {{-- Barra: buscador + filtros de la pantalla --}}
-    <div class="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-3 py-2.5">
+    <div data-tabla-barra class="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-3 py-2.5">
         <label class="relative min-w-0 flex-1 sm:max-w-xs">
             <span class="sr-only">{{ $buscarPlaceholder }}</span>
             <i class="fa-solid fa-magnifying-glass pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
@@ -274,7 +274,7 @@
     {{-- Pie: a la izquierda qué se está viendo, a la derecha cómo moverse. Sin él (mostrarPie=false)
          el componente debe traer todas las filas en una página. --}}
     @if ($mostrarPie)
-    <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-slate-100 bg-slate-50/60 px-3 py-2">
+    <div data-tabla-pie class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-slate-100 bg-slate-50/60 px-3 py-2">
         <div class="flex items-center gap-3 text-xs text-slate-500">
             <span>
                 @if ($filas->total() > 0)

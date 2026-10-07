@@ -3,6 +3,7 @@
 namespace Tests\Feature\UrdEng;
 
 use App\Models\Urdido\UrdCatJulios;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Feature\UrdEng\Concerns\ModuloUrdEng;
 use Tests\TestCase;
 
@@ -26,7 +27,7 @@ class ProduccionTraitErroresTest extends TestCase
         ];
     }
 
-    /** @dataProvider variantes */
+    #[DataProvider('variantes')]
     public function test_catalogo_de_julios_con_error_de_bd_no_expone_la_excepcion(string $url, string $modulo): void
     {
         // Sin la tabla UrdCatJulios la consulta falla con un QueryException que menciona SQL.

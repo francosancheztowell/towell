@@ -20,7 +20,7 @@ class PanelAccesoTest extends TestCase
     use PreparaMonitoreo;
     use SiembraPanel;
 
-    private const RUTAS = ['/admin', '/admin/sesiones', '/admin/navegacion', '/admin/rendimiento', '/admin/errores', '/admin/accesos'];
+    private const RUTAS = ['/admin', '/admin/en-linea', '/admin/sesiones', '/admin/navegacion', '/admin/rendimiento', '/admin/errores', '/admin/accesos'];
 
     protected function setUp(): void
     {

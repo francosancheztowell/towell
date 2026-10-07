@@ -64,6 +64,13 @@ final class ModulosRutaTest extends TestCase
                 $table->integer('registrar')->default(0);
             });
         }
+        // index() cuenta usuarios con acceso por módulo (Usuario = dbo.SYSUsuario). Sin la
+        // tabla, index() cae al catch y redirige a sí mismo: followingRedirects no termina.
+        DB::connection('sqlsrv')->statement("ATTACH DATABASE ':memory:' AS dbo");
+        $schema->create('dbo.SYSUsuario', function (Blueprint $table) {
+            $table->increments('idusuario');
+            $table->string('nombre')->nullable();
+        });
     }
 
     protected function tearDown(): void
@@ -112,8 +119,8 @@ final class ModulosRutaTest extends TestCase
         );
         $this->assertStringContainsString(
             'data-ruta=',
-            $blade,
-            'La fila de la tabla debe exponer data-ruta para poder rellenar el modal de edicion.'
+            file_get_contents(resource_path('views/modulos/gestion-modulos/_nodo.blade.php')),
+            'El nodo del arbol debe exponer data-ruta para poder rellenar el modal de edicion.'
         );
     }
 

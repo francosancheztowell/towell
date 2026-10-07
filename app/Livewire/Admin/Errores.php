@@ -72,8 +72,11 @@ class Errores extends Component
             $query->orderByDesc('UltimaVez');
         }
 
+        $filas = $this->paginar($query);
+
         return view('livewire.admin.errores', [
-            'filas' => $this->paginar($query),
+            'filas' => $filas,
+            'barras' => Resumen::barrasPorError(collect($filas->items())->pluck('Id')),
             'estados' => MonError::ESTADOS,
             'origenes' => self::ORIGENES,
         ]);

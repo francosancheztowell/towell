@@ -36,7 +36,7 @@ class SYSRoles extends Model
         'imagen',
         'Dependencia',
         'Nivel',
-        'Ruta'
+        'Ruta',
     ];
 
     protected $casts = [
@@ -46,10 +46,11 @@ class SYSRoles extends Model
         'eliminar' => 'integer',
         'reigstrar' => 'integer',
         'created_at' => 'datetime',
-        'updated_at' => 'datetime'
+        'updated_at' => 'datetime',
     ];
 
     const CREATED_AT = 'created_at';
+
     const UPDATED_AT = 'updated_at';
 
     /**
@@ -74,7 +75,8 @@ class SYSRoles extends Model
 
     /**
      * Obtener submódulos de un módulo específico
-     * @param string $ordenPadre - Orden del módulo padre (ejemplo: '100', '200', '300')
+     *
+     * @param  string  $ordenPadre  - Orden del módulo padre (ejemplo: '100', '200', '300')
      */
     public static function getSubmodulos($ordenPadre)
     {
@@ -107,7 +109,7 @@ class SYSRoles extends Model
      */
     public function esSubmodulo()
     {
-        return $this->Nivel > 1 && !is_null($this->Dependencia);
+        return $this->Nivel > 1 && ! is_null($this->Dependencia);
     }
 
     /**
@@ -115,9 +117,9 @@ class SYSRoles extends Model
      */
     public static function getModulosJerarquicos()
     {
-        return self::orderBy('Dependencia', 'ASC')
-            ->orderBy('Nivel', 'ASC')
-            ->orderBy('orden', 'ASC')
+        return self::orderBy('Dependencia')
+            ->orderBy('Nivel')
+            ->orderBy('orden')
             ->get();
     }
 
@@ -137,8 +139,8 @@ class SYSRoles extends Model
     public static function getSubmodulosPorDependencia($dependencia)
     {
         return self::where('Dependencia', $dependencia)
-            ->orderBy('Nivel', 'ASC')
-            ->orderBy('orden', 'ASC')
+            ->orderBy('Nivel')
+            ->orderBy('orden')
             ->get();
     }
 
@@ -163,7 +165,7 @@ class SYSRoles extends Model
                 // Módulo principal
                 $estructura[$modulo->orden] = [
                     'modulo' => $modulo,
-                    'submodulos' => []
+                    'submodulos' => [],
                 ];
             } else {
                 // Submódulo - encontrar el padre
@@ -254,7 +256,7 @@ class SYSRoles extends Model
      */
     public function scopeConPermisosUsuario($query, $idusuario)
     {
-        return $query->whereHas('permisosUsuario', function($q) use ($idusuario) {
+        return $query->whereHas('permisosUsuario', function ($q) use ($idusuario) {
             $q->where('idusuario', $idusuario)->where('acceso', true);
         });
     }

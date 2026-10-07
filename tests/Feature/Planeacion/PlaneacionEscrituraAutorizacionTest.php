@@ -48,7 +48,13 @@ class PlaneacionEscrituraAutorizacionTest extends TestCase
         ];
     }
 
-    #[DataProvider('rutasCerradas')]
+    /** @return array<string, array<int, mixed>> */
+    public static function rutasCerradas3(): array
+    {
+        return self::recortar(self::rutasCerradas(), 3);
+    }
+
+    #[DataProvider('rutasCerradas3')]
     public function test_la_ruta_declara_su_permiso_de_modulo(string $ruta, string $_metodo, string $middleware): void
     {
         $route = Route::getRoutes()->getByName($ruta);
@@ -58,7 +64,13 @@ class PlaneacionEscrituraAutorizacionTest extends TestCase
         $this->assertContains($middleware, $route->gatherMiddleware());
     }
 
-    #[DataProvider('rutasCerradas')]
+    /** @return array<string, array<int, mixed>> */
+    public static function rutasCerradas2(): array
+    {
+        return self::recortar(self::rutasCerradas(), 2);
+    }
+
+    #[DataProvider('rutasCerradas2')]
     public function test_sin_permiso_responde_403(string $ruta, string $metodo): void
     {
         $this->actingAs($this->usuarioConPermisos([]))

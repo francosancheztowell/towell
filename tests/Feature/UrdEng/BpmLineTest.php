@@ -91,7 +91,13 @@ class BpmLineTest extends TestCase
         $this->assertSame(['Urd 11', 'Urd 12'], DB::connection('sqlsrv')->table('UrdBPMLine')->orderBy('Orden')->pluck('Actividad')->all());
     }
 
-    #[DataProvider('variantes')]
+    /** @return array<string, array<int, mixed>> */
+    public static function variantes4(): array
+    {
+        return self::recortar(self::variantes(), 4);
+    }
+
+    #[DataProvider('variantes4')]
     public function test_vista_y_toggle(string $variante, string $controller, string $folio, string $tabla): void
     {
         $prefijo = $variante === 'urdido' ? '/urd-bpm-line/' : '/eng-bpm-line/';

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Towell** is a Laravel 12 web application for production and business planning management in the textile industry. It manages modules for planning (planeación), weaving (tejido), warping (urdido), sizing (engomado), tying (atadores), weavers (tejedores), maintenance, and configuration — with a granular role-based permission system per module.
+**Towell** is a Laravel 13 web application for production and business planning management in the textile industry. It manages modules for planning (planeación), weaving (tejido), warping (urdido), sizing (engomado), tying (atadores), weavers (tejedores), maintenance, and configuration — with a granular role-based permission system per module.
 
 ## Commands
 

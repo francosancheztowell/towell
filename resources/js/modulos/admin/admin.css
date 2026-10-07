@@ -1,0 +1,140 @@
+/*
+ * Panel /admin (monitoreo): tema propio, oscuro por defecto y claro opcional.
+ * Solo vive bajo .admin-shell; el resto de la app no carga este archivo.
+ * Las vistas usan los tokens con la sintaxis de Tailwind v4: bg-(--adm-panel), text-(--adm-ink-2)…
+ */
+
+.admin-shell {
+    --adm-bg: #fafafa;
+    --adm-rail: #f4f4f5;
+    --adm-panel: #ffffff;
+    --adm-hover: #f4f4f5;
+    --adm-line: #e4e4e7;
+    --adm-line-strong: #d4d4d8;
+    --adm-ink: #18181b;
+    --adm-ink-2: #52525b;
+    --adm-ink-3: #71717a;
+    --adm-accent: #6d28d9;
+    --adm-accent-solid: #7c3aed;
+    --adm-accent-soft: rgb(124 58 237 / 0.09);
+    --adm-err: #e11d48;
+    --adm-err-soft: rgb(225 29 72 / 0.08);
+    --adm-warn: #b45309;
+    --adm-warn-soft: rgb(217 119 6 / 0.1);
+    --adm-ok: #047857;
+    --adm-ok-soft: rgb(5 150 105 / 0.1);
+    --adm-info: #0369a1;
+    --adm-bar: #d4d4d8;
+    --adm-shadow: 0 1px 2px rgb(24 24 27 / 0.04), 0 4px 12px -4px rgb(24 24 27 / 0.06);
+
+    /* Flux (botones primary, switch, navlist actual) toma el acento del panel. */
+    --color-accent: var(--adm-accent-solid);
+    --color-accent-content: var(--adm-accent);
+    --color-accent-foreground: #ffffff;
+
+    color-scheme: light;
+    font-feature-settings: 'cv11', 'ss01';
+}
+
+.admin-shell.dark {
+    --adm-bg: #09090b;
+    --adm-rail: #0c0c0f;
+    --adm-panel: #18181b;
+    --adm-hover: #222227;
+    --adm-line: #27272a;
+    --adm-line-strong: #3f3f46;
+    --adm-ink: #f4f4f5;
+    --adm-ink-2: #a1a1aa;
+    --adm-ink-3: #8a8a94;
+    --adm-accent: #b59cff;
+    --adm-accent-solid: #7c3aed;
+    --adm-accent-soft: rgb(139 92 246 / 0.16);
+    --adm-err: #fb7185;
+    --adm-err-soft: rgb(244 63 94 / 0.14);
+    --adm-warn: #fbbf24;
+    --adm-warn-soft: rgb(245 158 11 / 0.13);
+    --adm-ok: #34d399;
+    --adm-ok-soft: rgb(16 185 129 / 0.13);
+    --adm-info: #38bdf8;
+    --adm-bar: #2e2e34;
+    --adm-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -8px rgb(0 0 0 / 0.5);
+
+    --color-accent: #8b5cf6;
+    --color-accent-content: var(--adm-accent);
+
+    color-scheme: dark;
+}
+
+/* Superficies del navegador: selección, foco, scroll, cifras tabulares. */
+.admin-shell ::selection { background: var(--adm-accent-soft); color: var(--adm-ink); }
+.admin-shell :focus-visible { outline: 2px solid var(--adm-accent); outline-offset: 2px; }
+.admin-shell { scrollbar-color: var(--adm-line-strong) transparent; scrollbar-width: thin; }
+.admin-shell .tabular-nums, .admin-shell td, .admin-shell [data-cifra] { font-variant-numeric: tabular-nums; }
+.admin-shell .adm-mono { font-family: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Consolas, monospace; font-size: 0.8125em; }
+
+/* Punto vivo de "en línea": un latido, solo si el usuario no pidió menos movimiento. */
+.adm-vivo { position: relative; display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 9999px; background: var(--adm-ok); }
+@media (prefers-reduced-motion: no-preference) {
+    .adm-vivo::after {
+        content: ''; position: absolute; inset: 0; border-radius: inherit; background: var(--adm-ok);
+        animation: adm-latido 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+    }
+}
+@keyframes adm-latido { from { transform: scale(1); opacity: 0.55; } to { transform: scale(2.8); opacity: 0; } }
+
+/* Barras por hora (x-admin.barras): llenas en el color del componente; la hora en curso, a tope
+   y las anteriores un punto abajo, para que "ahora" se lea sin etiqueta. */
+.adm-barras rect { fill: var(--adm-bar); opacity: 0.6; }
+.adm-barras rect[data-lleno] { fill: currentColor; opacity: 0.78; }
+.adm-barras rect[data-ahora] { opacity: 1; }
+.adm-barras rect[data-lleno]:hover { opacity: 1; }
+
+/* Lectura al pasar sobre una barra (index.ts): una sola etiqueta flotante, con los tokens del panel. */
+.adm-lectura {
+    position: fixed; z-index: 60; pointer-events: none; padding: 0.375rem 0.625rem; border-radius: 0.5rem;
+    border: 1px solid var(--adm-line-strong); background: var(--adm-panel); color: var(--adm-ink);
+    font-size: 0.75rem; line-height: 1.1rem; white-space: nowrap; box-shadow: var(--adm-shadow);
+    font-variant-numeric: tabular-nums; transform: translate(-50%, calc(-100% - 10px));
+    opacity: 0; transition: opacity 120ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.adm-lectura[data-visible] { opacity: 1; }
+
+/*
+ * x-tabla dentro del panel. x-tabla es de toda la app (encabezado azul, selección azul, cebra);
+ * aquí se viste con los tokens del panel sin tocar su marcado más que con data-tabla-*.
+ */
+.admin-shell .tabla-pantalla {
+    border-color: var(--adm-line); background: var(--adm-panel); box-shadow: none; border-radius: 0.75rem;
+}
+.admin-shell [data-tabla-barra], .admin-shell [data-tabla-pie] {
+    background: transparent; border-color: var(--adm-line);
+}
+.admin-shell .tabla-pantalla input:not([type='checkbox'], [type='radio']),
+.admin-shell .tabla-pantalla select,
+.admin-shell [data-adm-control] {
+    background-color: var(--adm-bg); border-color: var(--adm-line); color: var(--adm-ink);
+}
+.admin-shell .tabla-pantalla input::placeholder, .admin-shell [data-adm-control]::placeholder { color: var(--adm-ink-3); }
+.admin-shell .tabla-pantalla input:focus, .admin-shell .tabla-pantalla select:focus, .admin-shell [data-adm-control]:focus {
+    border-color: var(--adm-accent); box-shadow: 0 0 0 3px var(--adm-accent-soft); outline: none;
+}
+.admin-shell [data-flux-table] thead th {
+    background-color: var(--adm-panel); color: var(--adm-ink-3); border-bottom-color: var(--adm-line);
+    font-size: 0.75rem; font-weight: 600; letter-spacing: 0.01em;
+}
+.admin-shell [data-flux-table] tbody td { color: var(--adm-ink-2); border-color: var(--adm-line); }
+.admin-shell [data-flux-table] tbody tr > td:first-child { color: var(--adm-ink); }
+.admin-shell .tabla-cebra tbody > tr:nth-child(even of :not([hidden], [data-filtro-col-oculta])) { background-color: transparent; }
+.admin-shell .tabla-seleccionable tbody > tr:not([aria-selected='true']):hover { background-color: var(--adm-hover); }
+.admin-shell .tabla-seleccionable tbody > tr[aria-selected='true'] { background-color: var(--adm-accent-soft); }
+.admin-shell .tabla-seleccionable tbody > tr[aria-selected='true'] > td { color: var(--adm-ink); }
+.admin-shell [data-tabla-pie], .admin-shell [data-tabla-pie] span { color: var(--adm-ink-3); }
+.admin-shell [data-tabla-pie] .font-bold { color: var(--adm-ink); }
+.admin-shell [data-tabla-pie] nav button, .admin-shell [data-tabla-pie] nav span[aria-disabled] {
+    background: transparent; border-color: var(--adm-line); color: var(--adm-ink-2);
+}
+.admin-shell [data-tabla-pie] nav button:hover { background: var(--adm-hover); border-color: var(--adm-line-strong); color: var(--adm-ink); }
+.admin-shell [data-tabla-pie] nav span[aria-current='page'] { background: var(--adm-accent-solid); border-color: var(--adm-accent-solid); color: #fff; }
+.admin-shell [data-tabla-pie] nav span[aria-disabled] { opacity: 0.4; }
+.admin-shell .tabla-pantalla td[colspan] i { color: var(--adm-line-strong); }
+.admin-shell .tabla-pantalla td[colspan] p { color: var(--adm-ink-2); }

@@ -78,7 +78,13 @@ class BpmTest extends TestCase
         $this->assertStringContainsString("'variante' => 'engomado'", $fuente);
     }
 
-    #[DataProvider('variantes')]
+    /** @return array<string, array<int, mixed>> */
+    public static function variantes1(): array
+    {
+        return self::recortar(self::variantes(), 1);
+    }
+
+    #[DataProvider('variantes1')]
     public function test_store_con_error_no_expone_la_excepcion(string $url): void
     {
         // Sin tabla de folios: FolioHelper lanza (SQLSTATE ... no such table) dentro del try de store().
@@ -90,7 +96,13 @@ class BpmTest extends TestCase
                 && ! str_contains($m, 'SQLSTATE') && ! str_contains($m, 'SSYSFoliosSecuencias'));
     }
 
-    #[DataProvider('variantes')]
+    /** @return array<string, array<int, mixed>> */
+    public static function variantes2(): array
+    {
+        return self::recortar(self::variantes(), 2);
+    }
+
+    #[DataProvider('variantes2')]
     public function test_update_y_destroy(string $url, string $tabla): void
     {
         // destroy se gatea por id de módulo (35 Urd, 41 Eng), no en modo auditar.

@@ -4,6 +4,7 @@ use App\Http\Controllers\Configuracion\BaseDeDatosController;
 use App\Http\Controllers\Configuracion\ConfiguracionController;
 use App\Http\Controllers\Configuracion\DepartamentosController;
 use App\Http\Controllers\Configuracion\MensajesController;
+use App\Http\Controllers\Configuracion\ModuloPermisosController;
 use App\Http\Controllers\Configuracion\SecuenciaFoliosController;
 use App\Http\Controllers\ModulosController;
 use App\Http\Controllers\UsuarioController;
@@ -43,8 +44,6 @@ Route::prefix('configuracion')->name('configuracion.')->group(function () use (
             ->middleware("module.permission:crear,{$usuarios}")->name('store');
         Route::post('/{id}/duplicar', [UsuarioController::class, 'duplicar'])
             ->middleware("module.permission:crear,{$usuarios}")->name('duplicar');
-        Route::get('/{id}/qr', [UsuarioController::class, 'showQR'])
-            ->middleware("module.permission:acceso,{$usuarios}")->name('qr');
         Route::get('/{id}/edit', [UsuarioController::class, 'edit'])
             ->middleware("module.permission:modificar,{$usuarios}")->name('edit');
         Route::put('/{id}', [UsuarioController::class, 'update'])
@@ -57,7 +56,7 @@ Route::prefix('configuracion')->name('configuracion.')->group(function () use (
     });
 
     Route::prefix('utileria')->name('utileria.')->group(function () use (
-        $utileria, $modulos, $cargarPlaneacion
+        $utileria, $modulos, $cargarPlaneacion, $usuarios
     ) {
         Route::get('/', [UsuarioController::class, 'showSubModulosNivel3'])
             ->defaults('moduloPadre', '909')
@@ -66,7 +65,7 @@ Route::prefix('configuracion')->name('configuracion.')->group(function () use (
             ->name('index');
 
         Route::prefix('modulos')->name('modulos.')->controller(ModulosController::class)
-            ->group(function () use ($modulos) {
+            ->group(function () use ($modulos, $usuarios) {
                 Route::get('/', 'index')
                     ->middleware("module.permission:acceso,{$modulos}")->name('index');
                 Route::post('/', 'store')
@@ -77,6 +76,12 @@ Route::prefix('configuracion')->name('configuracion.')->group(function () use (
                     ->middleware("module.permission:eliminar,{$modulos}")->name('destroy');
                 Route::post('/{id}/sincronizar-permisos', 'sincronizarPermisos')->whereNumber('id')
                     ->middleware("module.permission:modificar,{$modulos}")->name('sincronizar.permisos');
+                // Permisos de todos los usuarios en un modulo. Cambiarlos es editar usuarios,
+                // asi que pide lo mismo que configuracion.usuarios.permisos.update.
+                Route::get('/{id}/permisos', [ModuloPermisosController::class, 'index'])->whereNumber('id')
+                    ->middleware("module.permission:acceso,{$modulos}")->name('permisos');
+                Route::put('/{id}/permisos', [ModuloPermisosController::class, 'update'])->whereNumber('id')
+                    ->middleware("module.permission:modificar,{$usuarios}")->name('permisos.update');
             });
 
         Route::get('/cargarplaneacion', [ConfiguracionController::class, 'cargarPlaneacion'])
