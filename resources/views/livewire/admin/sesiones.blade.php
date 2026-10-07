@@ -9,17 +9,15 @@
              vacio-icono="fa-clock-rotate-left"
              buscar-placeholder="Buscar usuario, número, dispositivo o IP…">
         <x-slot:filtros>
-            <select wire:model.live="abiertas" aria-label="Filtrar sesiones abiertas" class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-8 text-sm text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 sm:max-w-[12rem] sm:flex-none">
-                <option value="">Abiertas y cerradas</option>
-                <option value="abiertas">Solo abiertas</option>
-                <option value="cerradas">Solo cerradas</option>
-            </select>
+            <flux:select wire:model.live="abiertas" size="sm" aria-label="Filtrar sesiones abiertas" class="sm:w-52">
+                <flux:select.option value="">Abiertas y cerradas</flux:select.option>
+                <flux:select.option value="abiertas">Solo abiertas</flux:select.option>
+                <flux:select.option value="cerradas">Solo cerradas</flux:select.option>
+            </flux:select>
             @include('livewire.admin.partials.fechas')
             @if ($dispositivo !== '')
-                <button type="button" wire:click="$set('dispositivo', '')"
-                        class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-600 hover:bg-red-50 hover:text-red-600">
-                    <i class="fa-solid fa-xmark"></i> Dispositivo #{{ $dispositivo }}
-                </button>
+                <flux:button size="sm" variant="ghost" icon:trailing="x-mark" wire:click="$set('dispositivo', '')"
+                             aria-label="Quitar el filtro del dispositivo #{{ $dispositivo }}">Dispositivo #{{ $dispositivo }}</flux:button>
             @endif
         </x-slot:filtros>
     </x-tabla>

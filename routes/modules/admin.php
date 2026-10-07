@@ -12,7 +12,8 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('admin')->name('admin.')->middleware('can:admin')->group(function () {
     $host = 'modulos.admin.panel';
 
-    Route::view('/', $host, ['componente' => 'admin.en-linea', 'titulo' => 'En línea'])->name('index');
+    Route::view('/', $host, ['componente' => 'admin.resumen', 'titulo' => 'Resumen'])->name('index');
+    Route::view('/en-linea', $host, ['componente' => 'admin.en-linea', 'titulo' => 'En línea'])->name('en-linea');
     Route::view('/sesiones', $host, ['componente' => 'admin.sesiones', 'titulo' => 'Sesiones'])->name('sesiones');
     Route::view('/navegacion', $host, ['componente' => 'admin.navegacion', 'titulo' => 'Navegación'])->name('navegacion');
     Route::view('/rendimiento', $host, ['componente' => 'admin.rendimiento', 'titulo' => 'Rendimiento'])->name('rendimiento');

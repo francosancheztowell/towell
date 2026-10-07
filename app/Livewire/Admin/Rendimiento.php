@@ -35,7 +35,7 @@ class Rendimiento extends Component
 
     public function render(): View
     {
-        $datos = Cache::remember(self::CACHE, 300, fn (): array => $this->calcular());
+        $datos = self::datos();
         $umbrales = [
             'ServidorMs' => (int) config('monitoreo.umbrales.servidor_ms', 800),
             'CargaMs' => (int) config('monitoreo.umbrales.carga_ms', 3000),
@@ -61,8 +61,18 @@ class Rendimiento extends Component
         ]);
     }
 
+    /**
+     * Percentiles por ruta, cacheados 5 min (los usa también el Resumen).
+     *
+     * @return array{calculadoEn: string, rutas: array<string, array<string, mixed>>}
+     */
+    public static function datos(): array
+    {
+        return Cache::remember(self::CACHE, 300, fn (): array => self::calcular());
+    }
+
     /** @return array{calculadoEn: string, rutas: array<string, array<string, mixed>>} */
-    private function calcular(): array
+    private static function calcular(): array
     {
         $hoy = now();
         $semana = [$hoy->copy()->subDays(7), $hoy];

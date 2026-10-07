@@ -9,12 +9,12 @@
              vacio-icono="fa-door-open"
              buscar-placeholder="Buscar número, usuario, IP o motivo…">
         <x-slot:filtros>
-            <select wire:model.live="tipo" aria-label="Filtrar por tipo" class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-8 text-sm text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 sm:max-w-[12rem] sm:flex-none">
-                <option value="">Tipo: todos</option>
+            <flux:select wire:model.live="tipo" size="sm" aria-label="Filtrar por tipo" class="sm:w-52">
+                <flux:select.option value="">Tipo: todos</flux:select.option>
                 @foreach ($tipos as $t)
-                    <option value="{{ $t }}">{{ str_replace('_', ' ', $t) }}</option>
+                    <flux:select.option :value="$t">{{ str_replace('_', ' ', $t) }}</flux:select.option>
                 @endforeach
-            </select>
+            </flux:select>
             @include('livewire.admin.partials.fechas')
         </x-slot:filtros>
     </x-tabla>
