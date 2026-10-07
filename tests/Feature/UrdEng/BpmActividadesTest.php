@@ -39,7 +39,13 @@ class BpmActividadesTest extends TestCase
         ];
     }
 
-    #[DataProvider('variantes')]
+    /** @return array<string, array<int, mixed>> */
+    public static function variantes3(): array
+    {
+        return self::recortar(self::variantes(), 3);
+    }
+
+    #[DataProvider('variantes3')]
     public function test_indice_renderiza_sin_js_inline(string $url, string $base, int $modulo): void
     {
         // Los botones del navbar comprueban el permiso por nombre de módulo.

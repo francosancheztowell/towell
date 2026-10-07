@@ -7,7 +7,7 @@ use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Sistema\Usuario;
 use App\Services\Planeacion\CatCodificados\Excel\CatCodificadosExcelHeaderMapper;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -30,7 +30,7 @@ class CatCodificadosExcelImportTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withoutMiddleware(VerifyCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
 
         config()->set('database.default', 'sqlite');
         config()->set('database.connections.sqlite.database', ':memory:');

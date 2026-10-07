@@ -6,7 +6,7 @@ namespace Tests\Feature\Tejedores;
 
 use App\Http\Middleware\EnsureModulePermission;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
@@ -27,7 +27,7 @@ class TelBpmLineToggleTest extends TestCase
         $this->useSqlsrvSqlite();
         config()->set('database.default', 'sqlsrv');
         $this->createAuthTable();
-        $this->withoutMiddleware([ValidateCsrfToken::class, EnsureModulePermission::class]);
+        $this->withoutMiddleware([PreventRequestForgery::class, EnsureModulePermission::class]);
         $this->actingAs($this->createUsuario(), 'web');
 
         Schema::connection('sqlsrv')->create('TelBPM', function (Blueprint $table) {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Atadores;
 
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
@@ -68,7 +69,7 @@ class OeeVerificarErroresTest extends TestCase
     public function test_despachar_sin_archivo_no_muestra_la_ruta(): void
     {
         $this->usarArchivo('/ruta/secreta/OEE_ATADORES.xlsx');
-        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
 
         $respuesta = $this->postJson(route('atadores.reportes.oee.despachar'), ['fecha_ini' => '2026-09-21', 'fecha_fin' => '2026-09-27'])
             ->assertStatus(422);

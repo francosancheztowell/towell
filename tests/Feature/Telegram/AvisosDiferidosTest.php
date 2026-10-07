@@ -11,7 +11,7 @@ use App\Models\Sistema\SYSMensaje;
 use App\Models\Tejido\TejTrama;
 use App\Services\Tejido\InventarioTrama\RequerimientoStatusService;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -157,7 +157,7 @@ class AvisosDiferidosTest extends TestCase
     private function prepararMontadoDeJulio(): void
     {
         $this->createAuthTable();
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
         $schema = Schema::connection('sqlsrv');
 
         $schema->create('TelTelaresOperador', function (Blueprint $table) {
