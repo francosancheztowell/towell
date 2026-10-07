@@ -29,6 +29,23 @@ jobs:
 
       - run: npm ci
 
+      # El build importa vendor/livewire/flux/dist/flux.css (resources/css/app.css): sin vendor
+      # este job fallaba siempre. --no-scripts: aquí no se arranca Laravel, solo hacen falta archivos.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, sqlite3, gd, zip, intl, bcmath
+          coverage: none
+
+      - name: Cache de composer
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+
       - name: Tipos
         run: npm run typecheck
 
