@@ -118,12 +118,6 @@
                                 </div>
 
                                 <div class="flex items-center gap-2 ml-4 flex-shrink-0">
-                                    <a href="{{ route('configuracion.usuarios.qr', $u->idusuario) }}"
-                                       class="inline-flex items-center px-3 py-2 text-sm font-medium text-purple-700 bg-purple-100 hover:bg-purple-200 rounded-lg transition-colors"
-                                       title="Ver código QR">
-                                        <i class="fas fa-qrcode mr-1"></i>
-                                        QR
-                                    </a>
                                     <a href="{{ route('configuracion.usuarios.edit', $u->idusuario) }}"
                                        class="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-lg transition-colors">
                                         <i class="fas fa-edit mr-1"></i>

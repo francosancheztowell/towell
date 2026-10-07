@@ -152,21 +152,6 @@ class UsuarioController extends Controller
     }
 
     /**
-     * Mostrar QR de un usuario
-     */
-    public function showQR(int $idusuario)
-    {
-        $usuario = $this->usuarioRepository->findById($idusuario);
-
-        if (! $usuario) {
-            return redirect()->route('configuracion.usuarios.select')
-                ->with('error', 'Usuario no encontrado');
-        }
-
-        return view('modulos.usuarios.qr', compact('usuario'));
-    }
-
-    /**
      * Mostrar formulario de edición de usuario
      */
     public function edit(int $id)
