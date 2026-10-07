@@ -30,6 +30,15 @@ return [
 
     'disks' => [
 
+        // Laravel 13 sirve por defecto el disco 'local' en /storage si la app no lo declara, y
+        // no deja dos discos servidos en la misma URL: /storage es de 'public'. Sin 'serve'.
+        'local' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private'),
+            'throw' => false,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
