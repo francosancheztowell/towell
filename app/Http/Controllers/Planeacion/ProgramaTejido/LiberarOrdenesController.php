@@ -194,6 +194,9 @@ class LiberarOrdenesController extends Controller
                 ->sort()
                 ->values()
                 ->toArray());
+            if ($hilosOptions === []) {
+                Cache::forget('liberar_ordenes.hilos_options'); // AX sin filas por un momento: no dejar el select vacío 1 h
+            }
 
             return view('modulos.programa-tejido.liberar-ordenes.index', compact('registros', 'dias', 'hilosOptions'));
         } catch (\Throwable $e) {
