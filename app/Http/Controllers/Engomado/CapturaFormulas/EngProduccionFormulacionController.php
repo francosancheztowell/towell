@@ -75,21 +75,7 @@ class EngProduccionFormulacionController extends Controller
             }
             $foliosPrograma = $foliosProgramaQuery->get(['Folio', 'Cuenta', 'Calibre', 'RizoPie', 'BomFormula', 'BomEng', 'Status']);
 
-            // Generar folio sugerido
-            $year = date('Y');
-            $prefix = "ENG-FORM-{$year}-";
-            $lastRecord = EngProduccionFormulacionModel::where('Folio', 'like', $prefix.'%')
-                ->orderBy('Folio', 'desc')
-                ->first();
-
-            if ($lastRecord) {
-                $lastNumber = (int) substr($lastRecord->Folio, strlen($prefix));
-                $nextNumber = $lastNumber + 1;
-            } else {
-                $nextNumber = 1;
-            }
-
-            $folioSugerido = $prefix.str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+            $folioSugerido = $this->folioSugerido();
         } catch (\Exception $e) {
             $items = collect([]);
             $limitado = false;
@@ -108,6 +94,18 @@ class EngProduccionFormulacionController extends Controller
         }
 
         return view('modulos.engomado.captura-formula.index', compact('items', 'limitado', 'foliosPrograma', 'folioSugerido', 'folioFiltro', 'ordenIdProduccion'));
+    }
+
+    /** Siguiente folio ENG-FORM-<año>-NNNN según el último registrado del año. */
+    private function folioSugerido(): string
+    {
+        $prefix = 'ENG-FORM-'.date('Y').'-';
+        $lastRecord = EngProduccionFormulacionModel::where('Folio', 'like', $prefix.'%')
+            ->orderBy('Folio', 'desc')
+            ->first();
+        $nextNumber = $lastRecord ? (int) substr($lastRecord->Folio, strlen($prefix)) + 1 : 1;
+
+        return $prefix.str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
     }
 
     public function store(Request $request)
