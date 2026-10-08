@@ -15,11 +15,13 @@ final class PvVsOcReportRepository
     /**
      * Dimensiones por las que filtra y agrupa la pestaña Compara. La semana y el código de color
      * quedan fuera a propósito: ninguna vista los usa y multiplicaban las filas (~262k líneas vs ~66k combos).
+     * La cuenta del cliente (CUSTACCOUNT) también: un mismo cliente tiene varias cuentas y el
+     * reporte debe sumarlo en una sola fila por nombre.
      *
      * @var list<string>
      */
     public const DIMENSIONES = [
-        'TEXTIL', 'TIPOPEDIDO', 'CUSTACCOUNT', 'CUSTNAME', 'ITEMID', 'ITEMNAME',
+        'TEXTIL', 'TIPOPEDIDO', 'CUSTNAME', 'ITEMID', 'ITEMNAME',
         'LINEA', 'INVENTSIZEID', 'INVENTCOLORTXT', 'ANIO', 'MES',
     ];
 

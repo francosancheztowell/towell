@@ -22,7 +22,7 @@ const allColumns = () => new Set(METRICS.map(([key]) => key));
 const DESGLOSES = [['empresa', 'Empresa'], ['tipo', 'Tipo de pedido'], ['cliente', 'Cliente'], ['articulo', 'Artículo']];
 
 const DETAIL_LEVELS = [
-    ['empresa'], ['tipo'], [(item) => `${item.clienteCodigo} ${item.cliente}`],
+    ['empresa'], ['tipo'], ['cliente'],
     [(item) => `${item.articuloCodigo} ${item.articulo} · ${item.linea} · ${item.tamano} · ${item.color}`],
 ];
 
@@ -83,7 +83,7 @@ const decodePayload = ({ sf, nf, series, dict, rows }) => rows.map((row) => {
     const record = {
         anio: field.anio, mes: field.mes,
         empresa: normalizeEmpresa(field.empresa), tipo: field.tipo,
-        clienteCodigo: field.cve, cliente: field.nombreCte,
+        cliente: field.nombreCte,
         articuloCodigo: field.artCode, articulo: field.artName,
         linea: field.config, tamano: field.tamano, color: field.colorName,
     };
@@ -96,7 +96,7 @@ const decodePayload = ({ sf, nf, series, dict, rows }) => rows.map((row) => {
         mes: record.mes,
         empresa: record.empresa,
         tipo: record.tipo,
-        cliente: `${record.clienteCodigo} ${record.cliente}`,
+        cliente: record.cliente,
         tamano: record.tamano,
         articulo: `${record.articuloCodigo} ${record.articulo}`,
     };

@@ -35,7 +35,7 @@ final class VentasDatosController extends Controller
     {
         $this->autorizar();
 
-        $gzip = Cache::flexible('ventas:compara:v5', self::CACHE_TTL, fn (): string => $builder->build());
+        $gzip = Cache::flexible('ventas:compara:v6', self::CACHE_TTL, fn (): string => $builder->build());
 
         return response($gzip, 200, [
             'Content-Type' => 'application/json',
