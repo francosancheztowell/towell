@@ -79,7 +79,7 @@ class OperadoresBpm
         $turno = SYSUsuario::query()->where('numero_empleado', 'like', '%'.$sinCeros.'%')
             ->orderByDesc('Productivo')->orderByDesc('idusuario')->get(['numero_empleado', 'turno'])->first($mismo('turno'))->turno
             ?? TelTelaresOperador::query()->where('numero_empleado', 'like', '%'.$sinCeros.'%')
-                ->orderByDesc('Id')->get(['numero_empleado', 'Turno'])->first($mismo('Turno'))->Turno;
+                ->orderByDesc('Id')->get(['numero_empleado', 'Turno'])->first($mismo('Turno'))?->Turno;
 
         return $turno !== null ? (string) $turno : null;
     }

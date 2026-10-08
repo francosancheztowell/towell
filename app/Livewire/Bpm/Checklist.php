@@ -13,6 +13,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
@@ -23,6 +24,7 @@ class Checklist extends Component
 {
     use ConAreaBpm;
 
+    #[Locked]
     public string $folio;
 
     /** Solo Tejedores guarda comentarios (TelBPM.Comentarios, 150). */
@@ -99,9 +101,11 @@ class Checklist extends Component
 
         return view('livewire.bpm.checklist', [
             'encabezado' => $encabezado,
-            'actividades' => $lineas->unique('Orden')->values(),
+            // Fila = Orden + Actividad: en Urdido / Engomado el Orden es nullable y se repite.
+            'actividades' => $lineas->unique($fila = fn ($l) => $l->Orden.'|'.$l->Actividad)->values(),
+            'fila' => $fila,
             'columnas' => $lineas->pluck($columna)->unique()->sort(SORT_NATURAL)->values(),
-            'celdas' => $lineas->groupBy('Orden')->map(fn (Collection $g) => $g->keyBy($columna)),
+            'celdas' => $lineas->groupBy($fila)->map(fn (Collection $g) => $g->keyBy($columna)),
             'columna' => $columna,
             'maquina' => $this->area->porTelar() ? null : (URDCatalogoMaquina::where('MaquinaId', $maquinaId = $lineas->first()?->getAttribute('MaquinaId'))->value('Nombre') ?? $maquinaId),
             'editable' => $encabezado->Status === 'Creado',

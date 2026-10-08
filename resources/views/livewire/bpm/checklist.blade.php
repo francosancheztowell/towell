@@ -47,13 +47,13 @@
             </flux:table.columns>
             <flux:table.rows>
                 @forelse ($actividades as $actividad)
-                    <flux:table.row wire:key="act-{{ $actividad->Orden }}">
+                    <flux:table.row wire:key="act-{{ $loop->index }}">
                         <flux:table.cell sticky variant="strong" class="bg-inherit whitespace-normal">
                             <span class="me-1 text-zinc-400">{{ $loop->iteration }}</span>{{ $actividad->Actividad }}
                         </flux:table.cell>
                         @foreach ($columnas as $col)
                             @php
-                                $linea = $celdas[$actividad->Orden][$col] ?? null;
+                                $linea = $celdas[$fila($actividad)][$col] ?? null;
                                 [$icono, $color, $etiqueta] = $area->marcas()[(string) $linea?->Valor] ?? $area->marcas()[array_key_first($area->marcas())];
                             @endphp
                             <flux:table.cell align="center" class="py-1!">

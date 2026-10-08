@@ -7,6 +7,7 @@ use App\Livewire\Admin\Errores;
 use App\Livewire\Admin\Rendimiento;
 use App\Services\Monitoreo\PanelConsultas;
 use Illuminate\Support\Facades\Cache;
+use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Livewire;
 use Tests\Feature\Monitoreo\Concerns\PreparaMonitoreo;
 use Tests\Feature\Monitoreo\Concerns\SiembraPanel;
@@ -159,7 +160,7 @@ class PanelRendimientoErroresTest extends TestCase
     {
         $id = $this->error();
 
-        $this->expectException(\Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException::class);
+        $this->expectException(CannotUpdateLockedPropertyException::class);
         Livewire::actingAs($this->admin)->test(ErrorDetalle::class, ['errorId' => $id])->set('errorId', $id + 1);
     }
 }

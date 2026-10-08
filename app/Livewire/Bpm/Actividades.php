@@ -10,6 +10,7 @@ use App\Support\Bpm\AreaBpm;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
@@ -23,6 +24,7 @@ class Actividades extends Component
 
     private const MAQUINAS = ['MC' => 'MC Coy', 'KM' => 'Karl Mayer'];
 
+    #[Locked]
     public AreaBpm $area;
 
     public function mount(AreaBpm $area): void

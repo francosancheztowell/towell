@@ -8,10 +8,13 @@ use App\Http\Middleware\EnsureModulePermission;
 use App\Services\Tejedores\OperadoresBpm;
 use App\Support\Bpm\AreaBpm;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Locked;
 
 /** Área y permisos de los componentes BPM (folios y checklist). */
 trait ConAreaBpm
 {
+    /** Locked: si el cliente pudiera cambiarla, saltaría a otra área sin pasar por el acceso de mount(). */
+    #[Locked]
     public AreaBpm $area;
 
     /** eliminar y registrar (autorizar / rechazar) se exigen, igual que en las rutas de antes. */

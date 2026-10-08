@@ -15,10 +15,12 @@ use App\Models\Tejedores\TelTelaresOperador;
 use App\Models\Urdido\UrdActividadesBpmModel;
 use App\Models\Urdido\UrdBpmLineModel;
 use App\Models\Urdido\UrdBpmModel;
+use App\Services\Tejedores\OperadoresBpm;
 use App\Support\Bpm\AreaBpm;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\UsesSqlsrvSqlite;
@@ -138,6 +140,35 @@ class BpmTest extends TestCase
         Livewire::test(Checklist::class, ['area' => $area, 'folio' => $folio])->call('autorizar');
         $encabezado = $encabezado->fresh();
         $this->assertSame(['Autorizado', '100', 'Usuario prueba'], [$encabezado->Status, $encabezado->CveEmplAutoriza, $encabezado->{$area->columnaAutoriza()}]);
+    }
+
+    public function test_el_cliente_no_puede_cambiar_de_area_ni_de_folio(): void
+    {
+        $this->actingAs($this->usuarioCon([35 => ['acceso']]));
+
+        $this->expectException(CannotUpdateLockedPropertyException::class);
+        Livewire::test(Folios::class, ['area' => AreaBpm::Urdido])->set('area', AreaBpm::Tejedores);
+    }
+
+    public function test_actividades_con_orden_repetido_o_nulo_se_ven_todas(): void
+    {
+        $db = DB::connection('sqlsrv');
+        $db->table('UrdBPM')->insert(['Folio' => 'BU009', 'Status' => 'Creado', 'Fecha' => now()]);
+        $db->table('UrdBPMLine')->insert([
+            ['Folio' => 'BU009', 'Orden' => null, 'Actividad' => 'Sin orden A', 'Valor' => '0'],
+            ['Folio' => 'BU009', 'Orden' => null, 'Actividad' => 'Sin orden B', 'Valor' => '0'],
+        ]);
+        $this->actingAs($this->usuarioCon([35 => ['acceso']]));
+
+        Livewire::test(Checklist::class, ['area' => AreaBpm::Urdido, 'folio' => 'BU009'])
+            ->assertSee('Sin orden A')->assertSee('Sin orden B')
+            ->assertSeeHtml('wire:click="marcar('.UrdBpmLineModel::where('Actividad', 'Sin orden B')->value('Id').')"');
+    }
+
+    public function test_turno_de_un_empleado_sin_turno_es_null(): void
+    {
+        $this->assertNull(app(OperadoresBpm::class)->turno('999'));
+        $this->assertSame('3', app(OperadoresBpm::class)->turno('202'), '0202 en SYSUsuario es el 202');
     }
 
     public function test_marca_cicla_y_tejedores_tiene_mantenimiento(): void
