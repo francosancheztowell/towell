@@ -29,7 +29,6 @@ class OeeVerificarErroresTest extends TestCase
 
     protected function tearDown(): void
     {
-        putenv('OEE_ATADORES_FILE_PATH');
         if ($this->archivo && is_file($this->archivo)) {
             unlink($this->archivo);
         }
@@ -38,9 +37,7 @@ class OeeVerificarErroresTest extends TestCase
 
     private function usarArchivo(string $ruta): void
     {
-        putenv('OEE_ATADORES_FILE_PATH='.$ruta);
-        $_ENV['OEE_ATADORES_FILE_PATH'] = $ruta;
-        $_SERVER['OEE_ATADORES_FILE_PATH'] = $ruta;
+        config(['oee.atadores_file_path' => $ruta]);
     }
 
     public function test_rango_que_cruza_anios_iso_es_422_con_el_mensaje_de_la_regla(): void
