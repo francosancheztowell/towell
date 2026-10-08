@@ -30,17 +30,18 @@ final class VentasDatosController extends Controller
     private const CACHE_NAVEGADOR = 'private, max-age=300';
 
     /**
-     * Plan vs Pedido vs Real de un año (~10k combos), o de todos si no se manda `anio`. El navegador
-     * pide primero el más reciente para pintar rápido y luego los demás. Se guarda ya comprimido y se
-     * sirve con Content-Encoding: gzip.
+     * Plan vs Pedido vs Real de un año (~10k combos). El navegador pide primero el más reciente para
+     * pintar rápido y luego los demás. Se guarda ya comprimido y se sirve con Content-Encoding: gzip.
+     * Solo se aceptan los años que devuelve comparaAnios(): así la cache tiene a lo más una entrada
+     * por año real y nadie la llena pidiendo años inventados.
      */
-    public function compara(Request $request, PvVsOcPayloadBuilder $builder): Response
+    public function compara(Request $request, PvVsOcPayloadBuilder $builder, PvVsOcReportRepository $repository): Response
     {
         $this->autorizar();
 
         $anio = $request->query('anio');
-        if ($anio !== null && (! is_string($anio) || preg_match('/^\d{4}$/', $anio) !== 1)) {
-            abort(422, 'El año debe tener 4 dígitos.');
+        if (! is_string($anio) || ! in_array($anio, $this->anios($repository), true)) {
+            abort(422, 'Año no disponible en Compara.');
         }
 
         $gzip = Cache::flexible("ventas:compara:v9:{$anio}", self::CACHE_TTL, fn (): string => $builder->build($anio));
@@ -57,9 +58,13 @@ final class VentasDatosController extends Controller
     {
         $this->autorizar();
 
-        $anios = Cache::flexible('ventas:compara:v9:anios', self::CACHE_TTL, fn (): array => $repository->anios());
+        return response()->json(['anios' => $this->anios($repository)], 200, ['Cache-Control' => self::CACHE_NAVEGADOR]);
+    }
 
-        return response()->json(['anios' => $anios], 200, ['Cache-Control' => self::CACHE_NAVEGADOR]);
+    /** @return list<string> */
+    private function anios(PvVsOcReportRepository $repository): array
+    {
+        return Cache::flexible('ventas:compara:v9:anios', self::CACHE_TTL, fn (): array => $repository->anios());
     }
 
     /**

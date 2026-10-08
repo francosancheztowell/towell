@@ -49,3 +49,5 @@ Known failing on base: `tests/Js/tejido-cortes-eficiencia.test.mjs` (RPM 750 vs 
   - Read-only prod check: combinado('2026') 11803 combos, O_QTY 8,599,257.01 = SUM(QTY) WHERE YearCreado=2026; anios() 0.36s.
 - [x] T5 Agent filter in Compara: NOMBREAGENTE (present in all three tables) added as dimension + multi-select filter "Agente"; payload/cache v9. — inline
   - Evidence: 8 Compara tests pass; pint, typecheck, build, ratchet ok. Prod read-only: 2026 = 11804 rows (was 11803), 267 KB gz, 3.6s cold.
+- [x] T6 Review follow-ups: compara endpoint only accepts years from comparaAnios() (bounded cache; no-year/all-years variant removed → 422). Blank-year concern checked: 0 rows without ANIO in Pronostico (23,821) and Ventas (141,101); YearCreado has 0 nulls. — inline
+  - Evidence: 9 Compara tests pass (new: unknown year and missing year → 422, not cached); pint, phpstan ok.

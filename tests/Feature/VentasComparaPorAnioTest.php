@@ -105,6 +105,17 @@ class VentasComparaPorAnioTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_endpoint_compara_solo_acepta_anios_con_datos_y_no_los_cachea(): void
+    {
+        $usuario = $this->usuarioConAcceso();
+
+        $this->actingAs($usuario)->get(route('ventas.datos.compara', ['anio' => '1999']))->assertStatus(422);
+        $this->actingAs($usuario)->get(route('ventas.datos.compara'))->assertStatus(422);
+
+        $this->assertFalse(Cache::has('ventas:compara:v9:1999'));
+        $this->assertFalse(Cache::has('ventas:compara:v9:'));
+    }
+
     public function test_endpoint_de_anios(): void
     {
         $this->actingAs($this->usuarioConAcceso())
