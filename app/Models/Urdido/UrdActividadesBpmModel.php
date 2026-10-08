@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $Id
  * @property int $Orden
  * @property string $Actividad
+ * @property string|null $Maquina
  */
 class UrdActividadesBpmModel extends Model
 {

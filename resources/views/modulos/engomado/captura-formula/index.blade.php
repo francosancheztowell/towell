@@ -180,6 +180,12 @@
             </flux:table.rows>
         </flux:table>
     </div>
+    @if($limitado)
+        <p class="mt-2 text-caption text-gray-600">
+            Se muestran las {{ $items->count() }} fórmulas más recientes.
+            <a href="{{ request()->fullUrlWithQuery(['todos' => 1]) }}" class="text-primary underline">Ver todo el historial</a>
+        </p>
+    @endif
 
     <!-- Modal Crear/Editar/Ver -->
     <div id="createModal" class="hidden fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="create_modal_title">

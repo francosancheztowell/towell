@@ -26,7 +26,7 @@ trait ConCrud
         abort_unless(userCan('crear', $this->modulo()), 403);
 
         $this->resetValidation();
-        $this->form = array_fill_keys(static::CAMPOS, '');
+        $this->form = array_fill_keys($this->campos(), '');
         $this->editando = '';
     }
 
@@ -40,7 +40,7 @@ trait ConCrud
         }
 
         $this->resetValidation();
-        $this->form = array_map(fn ($v) => (string) $v, $this->buscar($id)->only(static::CAMPOS));
+        $this->form = array_map(fn ($v) => (string) $v, $this->buscar($id)->only($this->campos()));
         $this->seleccionado = $this->editando = $id;
     }
 
@@ -81,6 +81,12 @@ trait ConCrud
     protected function vaciosANull(array $datos): array
     {
         return array_map(fn ($v) => $v === '' ? null : $v, $datos);
+    }
+
+    /** Campos del formulario; se sobrescribe si dependen del componente (ej. Actividades BPM por área). */
+    protected function campos(): array
+    {
+        return static::CAMPOS;
     }
 
     protected function buscar(string $id): Model

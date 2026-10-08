@@ -21,6 +21,7 @@ class VistasSinJsInlineTest extends TestCase
                 __DIR__.'/../../../resources/views/modulos/urdido',
                 __DIR__.'/../../../resources/views/modulos/engomado',
                 __DIR__.'/../../../resources/views/catalogosurdido',
+                __DIR__.'/../../../resources/views/livewire/bpm',
             ]);
 
         $casos = [];

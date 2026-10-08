@@ -56,8 +56,8 @@ class PanelRendimientoErroresTest extends TestCase
 
     public function test_rendimiento_compara_semanas_y_resalta_lentas(): void
     {
-        $this->vistas('pantalla.lenta', 'ServidorMs', [900, 900, 900]);
-        $this->vistas('pantalla.lenta', 'ServidorMs', [450, 450], 10);
+        $this->vistas('pantalla.lenta', 'ServidorMs', array_fill(0, Rendimiento::MIN_MUESTRAS, 900));
+        $this->vistas('pantalla.lenta', 'ServidorMs', array_fill(0, Rendimiento::MIN_MUESTRAS, 450), 10);
         $this->vistas('pantalla.rapida', 'ServidorMs', [100, 100]);
         $this->vistas('pantalla.rapida', 'ServidorMs', [100], 10);
         $this->vistas('solo.previa', 'ServidorMs', [100], 10);
@@ -66,7 +66,7 @@ class PanelRendimientoErroresTest extends TestCase
             ->assertSee('pantalla.lenta')
             ->assertSee('+100%')
             ->assertSee('pantalla.rapida')
-            ->assertSee('0%')
+            ->assertSee('pocas muestras') // pantalla.rapida: 2 y 1 vistas, sin Δ%
             ->assertDontSee('solo.previa')
             ->assertViewHas('filas', fn ($filas) => $filas->first()['ruta'] === 'pantalla.lenta' && $filas->first()['lenta'] === true);
 

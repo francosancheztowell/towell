@@ -4,7 +4,22 @@ namespace App\Models\Tejedores;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property string $Folio
+ * @property Carbon|null $Fecha
+ * @property string|null $CveEmplRec
+ * @property string|null $NombreEmplRec
+ * @property string|null $TurnoRecibe
+ * @property string|null $CveEmplEnt
+ * @property string|null $NombreEmplEnt
+ * @property string|null $TurnoEntrega
+ * @property string|null $CveEmplAutoriza
+ * @property string|null $Status
+ * @property string|null $NomEmplAutoriza
+ * @property string|null $Comentarios
+ */
 class TelBpmModel extends Model
 {
     use HasFactory;
@@ -13,9 +28,13 @@ class TelBpmModel extends Model
     // protected $connection = 'sqlsrv'; // o 'ProdTowel'
 
     protected $table = 'TelBPM';
+
     protected $primaryKey = 'Folio';
+
     public $incrementing = false;      // PK string
+
     protected $keyType = 'string';
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -34,13 +53,6 @@ class TelBpmModel extends Model
     ];
 
     protected $casts = [
-        'Fecha' => 'datetime',   
+        'Fecha' => 'datetime',
     ];
-
-    /** Relaciones */
-    public function lines()
-    {
-        return $this->hasMany(TelBpmLineModel::class, 'Folio', 'Folio')
-                    ->orderBy('Orden'); // si Orden viene nulo, las coloca al final
-    }
 }

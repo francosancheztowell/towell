@@ -22,6 +22,9 @@ class Rendimiento extends Component
 
     public const CACHE = 'mon:panel:rendimiento';
 
+    /** Vistas mínimas por semana para mostrar el Δ% semana contra semana. */
+    public const MIN_MUESTRAS = 30;
+
     #[Url(except: '')]
     public string $buscar = '';
 
