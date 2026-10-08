@@ -114,6 +114,11 @@ class MantenimientoParosApiTest extends TestCase
         ]);
     }
 
+    private function maquinaUrdido(string $id = 'MC1', string $depto = 'Urdido'): void
+    {
+        DB::table('URDCatalogoMaquinas')->insert(['MaquinaId' => $id, 'Nombre' => $id, 'Departamento' => $depto]);
+    }
+
     private function paro(array $datos = []): int
     {
         return (int) DB::table('dbo.ManFallasParos')->insertGetId(array_merge([
@@ -222,6 +227,7 @@ class MantenimientoParosApiTest extends TestCase
     public function test_store_crea_el_paro_con_datos_del_catalogo_y_folio(): void
     {
         $fallaId = $this->falla();
+        $this->maquinaUrdido();
         $this->entrar(['nombre' => 'Operador Uno', 'numero_empleado' => '555']);
 
         $this->postJson(route('api.mantenimiento.paros.store'), [
@@ -238,6 +244,7 @@ class MantenimientoParosApiTest extends TestCase
     public function test_store_rechaza_duplicado_activo_validacion_y_falla_inexistente(): void
     {
         $fallaId = $this->falla();
+        $this->maquinaUrdido();
         $this->paro(['MaquinaId' => 'MC1', 'TipoFallaId' => 'MECANICO']);
         $this->entrar();
 
@@ -251,6 +258,63 @@ class MantenimientoParosApiTest extends TestCase
             ->assertStatus(422)->assertJsonPath('success', false);
 
         $this->assertSame(1, ManFallasParos::count());
+    }
+
+    public function test_departamentos_sin_maquinas_no_se_ofrecen(): void
+    {
+        foreach (['Mantenimiento', 'Sistemas', 'Contabilidad', 'Directivos', 'Planeacion', 'Trama'] as $depto) {
+            DB::table('dbo.SysDepartamentos')->insert(['Depto' => $depto]);
+        }
+        $this->entrar();
+
+        $this->getJson(route('api.mantenimiento.departamentos'))->assertJsonPath('data', ['Engomado', 'Tejedores', 'Urdido']);
+        // La pantalla recibe la misma lista en la página, sin pedirla.
+        $this->get(route('mantenimiento.nuevo-paro'))->assertOk()->assertSee('"departamentos":["Engomado","Tejedores","Urdido"]', false);
+        // Los reportes sí ven todas las áreas.
+        $this->assertContains('Sistemas', $this->getJson(route('api.mantenimiento.departamentos.catalogo-filtros'))->json('data'));
+    }
+
+    public function test_store_valida_que_departamento_maquina_y_falla_sean_coherentes(): void
+    {
+        DB::table('dbo.SysDepartamentos')->insert(['Depto' => 'Sistemas']);
+        $urdido = $this->falla('MECANICO', 'Urdido');
+        $engomado = $this->falla('MECANICO', 'Engomado', 'Gomas');
+        $calidad = $this->falla('CALIDAD', 'Calidad', 'Mancha');
+        $this->maquinaUrdido('MC1');
+        $this->maquinaUrdido('WP2', 'Engomado');
+        $this->entrar();
+        $url = route('api.mantenimiento.paros.store');
+
+        // Departamento que no reporta paros.
+        $this->postJson($url, ['depto' => 'Sistemas', 'maquina' => 'MC1', 'falla_id' => $urdido])
+            ->assertStatus(422)->assertJsonPath('errors.depto.0', 'Ese departamento no puede reportar paros.');
+        // Máquina de otro departamento, e inventada.
+        $this->postJson($url, ['depto' => 'Urdido', 'maquina' => 'WP2', 'falla_id' => $urdido])
+            ->assertStatus(422)->assertJsonPath('errors.maquina.0', 'Esa máquina no pertenece al departamento elegido.');
+        $this->postJson($url, ['depto' => 'Urdido', 'maquina' => 'XX9', 'falla_id' => $urdido])->assertStatus(422);
+        // Falla del catálogo de otro departamento.
+        $this->postJson($url, ['depto' => 'Urdido', 'maquina' => 'MC1', 'falla_id' => $engomado])
+            ->assertStatus(422)->assertJsonPath('errors.falla_id.0', 'Esa falla no corresponde al departamento elegido.');
+        $this->assertSame(0, ManFallasParos::count());
+
+        // Las fallas de Calidad se pueden reportar desde cualquier departamento.
+        $this->postJson($url, ['depto' => 'Urdido', 'maquina' => 'MC1', 'falla_id' => $calidad])->assertOk();
+        $this->assertSame(1, ManFallasParos::count());
+    }
+
+    /** Sin token de Telegram no sale ningún aviso: la respuesta no debe afirmar que sí. */
+    public function test_store_no_afirma_telegram_si_no_hay_a_quien_avisar(): void
+    {
+        $fallaId = $this->falla();
+        $this->maquinaUrdido();
+        $this->entrar();
+
+        $this->postJson(route('api.mantenimiento.paros.store'), ['depto' => 'Urdido', 'maquina' => 'MC1', 'falla_id' => $fallaId])
+            ->assertOk()
+            ->assertJsonPath('data.notificacion_enviada', false)
+            ->assertJsonMissing(['message' => 'Paro reportado correctamente y notificación enviada a Telegram']);
+
+        $this->assertFalse((bool) ManFallasParos::firstOrFail()->Enviado);
     }
 
     public function test_index_filtra_por_area_alcance_y_depto(): void

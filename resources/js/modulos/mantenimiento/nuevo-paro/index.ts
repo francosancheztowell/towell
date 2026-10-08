@@ -1,13 +1,13 @@
 /**
  * Reportar paro (19-08). Antes: <script> inline de nuevo-paro/index.blade.php.
- * Cascada departamento → máquina → tipo de falla → falla/descripción, con la OT sugerida.
- * Se usa en piso desde tablet: mismos textos y mismo orden de habilitación.
+ * Cascada departamento → máquina → tipo de falla → falla (una sola lista "Falla — Descripción"),
+ * con la OT sugerida. Se usa en piso desde tablet: mismos textos y mismo orden de habilitación.
  */
-import { http } from '../../../utils/http.ts';
+import { HttpError, http } from '../../../utils/http.ts';
 import { notify } from '../../../utils/notifications.ts';
 import { leerDatos, mensajeError, ocultarBotonParo, rutaCon, soloPlaceholder } from '../comun/pagina.ts';
 import type { RespuestaApi } from '../comun/pagina.ts';
-import { relojLocal } from '../comun/fechas.ts';
+import { fechaCorta, relojLocal } from '../comun/fechas.ts';
 import {
     departamentoDelArea,
     departamentoParaOrden,
@@ -30,13 +30,24 @@ interface ConfigNuevoParo {
         nuevoParo: string;
     };
     areaUsuario: string | null;
+    /** Departamentos que pueden reportar, ya filtrados por el servidor (sin petición extra). */
+    departamentos: string[];
 }
 
 const TXT_SIN_DEPTO = 'Seleccione primero un departamento';
 const TXT_SIN_MAQUINA = 'Seleccione primero una máquina';
 const TXT_SIN_TIPO = 'Seleccione primero un tipo de falla';
 
-type Campo = 'depto' | 'maquina' | 'tipo_falla' | 'falla' | 'descripcion';
+type Campo = 'depto' | 'maquina' | 'tipo_falla' | 'falla' | 'orden_trabajo' | 'obs';
+
+/** Campo del formulario al que apunta cada clave de error del servidor. */
+const CAMPO_DEL_SERVIDOR: Record<string, Campo> = {
+    depto: 'depto',
+    maquina: 'maquina',
+    falla_id: 'falla',
+    orden_trabajo: 'orden_trabajo',
+    obs: 'obs',
+};
 
 function iniciar(): void {
     const raiz = document.getElementById('pagina-nuevo-paro');
@@ -49,32 +60,46 @@ function iniciar(): void {
     const selMaquina = $<HTMLSelectElement>('maquina');
     const selTipo = $<HTMLSelectElement>('tipo_falla');
     const selFalla = $<HTMLSelectElement>('falla');
-    const selDescripcion = $<HTMLSelectElement>('descripcion');
     const inputOrden = $<HTMLInputElement>('orden_trabajo');
-    const inputFecha = $<HTMLInputElement>('fecha');
-    const inputHora = $<HTMLInputElement>('hora');
+    const textoFecha = $('fecha');
+    const textoHora = $('hora');
     const inputObs = $<HTMLTextAreaElement>('obs');
     const btnReportar = $<HTMLButtonElement>('btn-aceptar');
+    const estado = $('estado-formulario');
 
-    // Regiones aria-live: los errores de carga se anuncian y se ven bajo el campo.
+    const controles: Record<Campo, HTMLElement> = {
+        depto: selDepto,
+        maquina: selMaquina,
+        tipo_falla: selTipo,
+        falla: selFalla,
+        orden_trabajo: inputOrden,
+        obs: inputObs,
+    };
+    // Regiones aria-live: los errores (de carga y de validación) se anuncian y se ven bajo el campo.
     const regionesError: Record<Campo, HTMLElement | null> = {
         depto: $('error-depto'),
         maquina: $('error-maquina'),
         tipo_falla: $('error-tipo-falla'),
         falla: $('error-falla'),
-        descripcion: $('error-descripcion'),
+        orden_trabajo: $('error-orden-trabajo'),
+        obs: $('error-obs'),
     };
     // Ayudas visibles: dicen qué falta para habilitar cada campo bloqueado.
     const cascada: Array<{ campo: Campo; control: HTMLSelectElement; ayuda: HTMLElement | null }> = [
         { campo: 'maquina', control: selMaquina, ayuda: $('ayuda-maquina') },
         { campo: 'tipo_falla', control: selTipo, ayuda: $('ayuda-tipo-falla') },
         { campo: 'falla', control: selFalla, ayuda: $('ayuda-falla') },
-        { campo: 'descripcion', control: selDescripcion, ayuda: $('ayuda-descripcion') },
     ];
+
+    const anunciar = (texto: string): void => {
+        estado.textContent = texto;
+    };
 
     const errorCarga = (campo: Campo, mensaje = ''): void => {
         const region = regionesError[campo];
         if (region) region.textContent = mensaje;
+        if (mensaje) controles[campo].setAttribute('aria-invalid', 'true');
+        else controles[campo].removeAttribute('aria-invalid');
     };
 
     const refrescarAyudas = (): void => {
@@ -90,10 +115,14 @@ function iniciar(): void {
     const marcarCargando = (select: HTMLSelectElement): void => {
         select.dataset.cargando = '1';
         select.disabled = true;
+        select.setAttribute('aria-busy', 'true');
         soloPlaceholder(select, 'Cargando...');
+        anunciar('Cargando opciones…');
     };
     const terminarCarga = (select: HTMLSelectElement): void => {
         delete select.dataset.cargando;
+        select.removeAttribute('aria-busy');
+        anunciar('');
     };
     const reiniciar = (select: HTMLSelectElement, texto: string): void => {
         select.disabled = true;
@@ -107,10 +136,17 @@ function iniciar(): void {
         const limpio = sinEspacios(inputOrden.value);
         if (limpio !== inputOrden.value) inputOrden.value = limpio;
         ordenManual = inputOrden.value !== '';
+        errorCarga('orden_trabajo');
     });
     const limpiarOrdenSugerida = (): void => {
         if (!ordenManual) inputOrden.value = '';
     };
+
+    // Elegir un valor limpia el error de ese campo.
+    for (const campo of ['depto', 'maquina', 'tipo_falla', 'falla'] as const) {
+        controles[campo].addEventListener('change', () => errorCarga(campo));
+    }
+    inputObs.addEventListener('input', () => errorCarga('obs'));
 
     form.addEventListener('change', refrescarAyudas);
 
@@ -118,8 +154,8 @@ function iniciar(): void {
     // quedar abierta horas, así que el reloj se mantiene al día.
     const actualizarReloj = (): void => {
         const { fecha, hora } = relojLocal();
-        inputFecha.value = fecha;
-        inputHora.value = hora;
+        textoFecha.textContent = fechaCorta(fecha);
+        textoHora.textContent = hora;
     };
     actualizarReloj();
     window.setInterval(actualizarReloj, 30000);
@@ -163,59 +199,48 @@ function iniciar(): void {
         refrescarAyudas();
     }
 
-    async function cargarDepartamentos(): Promise<void> {
+    function cargarDepartamentos(): void {
         errorCarga('depto');
-        try {
-            const r = await http.get<RespuestaApi<string[]>>(cfg!.rutas.departamentos);
-            const departamentos = r.data ?? [];
-            soloPlaceholder(selDepto, 'Seleccione un departamento');
-            departamentos.forEach((d) => selDepto.add(new Option(d, d)));
+        const departamentos = cfg!.departamentos ?? [];
+        soloPlaceholder(selDepto, 'Seleccione un departamento');
+        departamentos.forEach((d) => selDepto.add(new Option(d, d)));
+        if (departamentos.length === 0) errorCarga('depto', 'No hay departamentos disponibles para reportar paros.');
 
-            const propio = departamentoDelArea(departamentos, cfg!.areaUsuario);
-            if (propio) {
-                selDepto.value = propio;
-                void cargarMaquinas(propio);
-                void cargarTiposFalla(propio);
-            }
-        } catch (err) {
-            soloPlaceholder(selDepto, 'Error al cargar departamentos');
-            errorCarga('depto', mensajeError(err, 'No se pudieron cargar los departamentos.'));
+        const propio = departamentoDelArea(departamentos, cfg!.areaUsuario);
+        if (propio) {
+            selDepto.value = propio;
+            void cargarMaquinas(propio);
+            void cargarTiposFalla(propio);
         }
         refrescarAyudas();
     }
 
+    /** "Falla — Descripción" por Id del catálogo; sin descripción, solo la falla. */
+    const etiquetasDeFallas = (fallas: Falla[]): Array<[string, string]> => {
+        const descripcion = new Map(opcionesDeFallas(fallas).descripciones);
+        return opcionesDeFallas(fallas).fallas.map(([id, falla]) => [id, descripcion.has(id) ? `${falla} — ${descripcion.get(id)}` : falla]);
+    };
+
     async function cargarFallas(departamento: string, tipo: string): Promise<void> {
         errorCarga('falla');
-        errorCarga('descripcion');
         marcarCargando(selFalla);
-        marcarCargando(selDescripcion);
         const vigente = nuevaVuelta('fallas');
         try {
             const url = rutaCon(cfg!.rutas.fallasPorTipo, { __DEPTO__: departamento, __TIPO__: tipo });
             const r = await http.get<RespuestaApi<Falla[]>>(url);
             if (!vigente()) return;
-            const opciones = opcionesDeFallas(r.data ?? []);
+            const opciones = etiquetasDeFallas(r.data ?? []);
 
             soloPlaceholder(selFalla, 'Seleccione una falla');
-            opciones.fallas.forEach(([id, texto]) => selFalla.add(new Option(texto, id)));
-            selFalla.disabled = opciones.fallas.length === 0;
-
-            if (opciones.descripciones.length > 0) {
-                soloPlaceholder(selDescripcion, 'Seleccione una descripción');
-                opciones.descripciones.forEach(([id, texto]) => selDescripcion.add(new Option(texto, id)));
-                selDescripcion.disabled = false;
-            } else {
-                reiniciar(selDescripcion, 'No hay descripciones disponibles');
-            }
+            opciones.forEach(([id, texto]) => selFalla.add(new Option(texto, id)));
+            selFalla.disabled = opciones.length === 0;
+            if (opciones.length === 0) errorCarga('falla', 'No hay fallas registradas para este tipo.');
         } catch (err) {
             if (!vigente()) return;
             reiniciar(selFalla, 'Error al cargar fallas');
-            reiniciar(selDescripcion, 'Error al cargar descripciones');
             errorCarga('falla', mensajeError(err, 'No se pudieron cargar las fallas de este tipo.'));
-            errorCarga('descripcion', 'No se pudieron cargar las descripciones de este tipo.');
         }
         terminarCarga(selFalla);
-        terminarCarga(selDescripcion);
         refrescarAyudas();
     }
 
@@ -251,7 +276,8 @@ function iniciar(): void {
             } else {
                 selMaquina.append(...maquinas.map(opcion));
             }
-            selMaquina.disabled = false;
+            selMaquina.disabled = maquinas.length === 0;
+            if (maquinas.length === 0) errorCarga('maquina', 'Este departamento no tiene máquinas asignadas a su usuario.');
         } catch (err) {
             if (!vigente()) return;
             reiniciar(selMaquina, 'Error al cargar máquinas');
@@ -294,7 +320,6 @@ function iniciar(): void {
             void cargarTiposFalla(departamento);
             selTipo.disabled = true;
             selTipo.value = '';
-            reiniciar(selDescripcion, TXT_SIN_TIPO);
             limpiarOrdenSugerida();
             reiniciar(selFalla, TXT_SIN_TIPO);
         } else {
@@ -302,7 +327,6 @@ function iniciar(): void {
             nuevaVuelta('tipos');
             reiniciar(selMaquina, TXT_SIN_DEPTO);
             selTipo.disabled = true;
-            selDescripcion.disabled = true;
             selFalla.disabled = true;
         }
     });
@@ -312,15 +336,14 @@ function iniciar(): void {
         nuevaVuelta('orden');
         limpiarOrdenSugerida();
         if (selMaquina.value) {
-            selTipo.disabled = false;
+            // Si los tipos aún están cargando, el combo se abre cuando terminen.
+            selTipo.disabled = selTipo.dataset.cargando === '1';
             selTipo.value = '';
-            reiniciar(selDescripcion, TXT_SIN_TIPO);
             reiniciar(selFalla, TXT_SIN_TIPO);
             void cargarOrdenTrabajo(departamentoOrden(), selMaquina.value);
         } else {
             selTipo.disabled = true;
             selTipo.value = '';
-            selDescripcion.disabled = true;
             selFalla.value = '';
             selFalla.disabled = true;
         }
@@ -328,40 +351,87 @@ function iniciar(): void {
 
     selTipo.addEventListener('change', () => {
         selFalla.value = '';
-        selDescripcion.value = '';
         if (selDepto.value && selTipo.value) {
             void cargarFallas(selDepto.value, selTipo.value);
         } else {
             nuevaVuelta('fallas');
-            selFalla.disabled = true;
-            reiniciar(selDescripcion, TXT_SIN_TIPO);
+            reiniciar(selFalla, TXT_SIN_TIPO);
         }
     });
 
-    // Falla y Descripción comparten valor (el Id del catálogo): sincronizar es copiar.
-    const sincronizar = (origen: HTMLSelectElement, destino: HTMLSelectElement): void => {
-        destino.value = origen.value;
-        if (origen.value && selDepto.value && selMaquina.value && !inputOrden.value) {
+    selFalla.addEventListener('change', () => {
+        if (selFalla.value && selDepto.value && selMaquina.value && !inputOrden.value) {
             void cargarOrdenTrabajo(departamentoOrden(), selMaquina.value);
         }
-    };
-    selFalla.addEventListener('change', () => sincronizar(selFalla, selDescripcion));
-    selDescripcion.addEventListener('change', () => sincronizar(selDescripcion, selFalla));
+    });
 
     refrescarAyudas();
-    void cargarDepartamentos();
+    cargarDepartamentos();
+
+    /** Marca el error bajo el campo y manda el foco al primero (orden visual del formulario). */
+    const mostrarErrores = (errores: Partial<Record<Campo, string>>): void => {
+        const orden: Campo[] = ['depto', 'maquina', 'tipo_falla', 'falla', 'orden_trabajo', 'obs'];
+        let primero: Campo | null = null;
+        for (const campo of orden) {
+            const mensaje = errores[campo];
+            if (!mensaje) continue;
+            errorCarga(campo, mensaje);
+            primero ??= campo;
+        }
+        if (primero) controles[primero].focus();
+    };
+
+    /** Lo mínimo para poder enviar; el servidor es quien valida de verdad. */
+    const faltantes = (): Partial<Record<Campo, string>> => {
+        const f: Partial<Record<Campo, string>> = {};
+        if (!selDepto.value) f.depto = 'Selecciona un departamento.';
+        if (!selMaquina.value) f.maquina = 'Selecciona una máquina.';
+        if (!selTipo.value) f.tipo_falla = 'Selecciona un tipo de falla.';
+        if (!selFalla.value) f.falla = 'Selecciona una falla.';
+        return f;
+    };
+
+    // Enlaces que navegan (Cancelar, Ver solicitudes): spinner al tocar, para que se vea que respondió.
+    const enlacesCarga = Array.from(raiz.querySelectorAll<HTMLAnchorElement>('a[data-carga]'));
+    for (const enlace of enlacesCarga) {
+        enlace.addEventListener('click', (ev) => {
+            if (ev.defaultPrevented || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.button !== 0) return;
+            enlace.querySelector('[data-spinner]')?.classList.remove('hidden');
+            enlace.setAttribute('aria-busy', 'true');
+            anunciar('Cargando la página…');
+        });
+    }
+    // Al volver con "atrás" el navegador restaura la página tal cual: los spinners no deben quedar girando.
+    window.addEventListener('pageshow', (ev) => {
+        if (!ev.persisted) return;
+        for (const enlace of enlacesCarga) {
+            enlace.querySelector('[data-spinner]')?.classList.add('hidden');
+            enlace.removeAttribute('aria-busy');
+        }
+        anunciar('');
+    });
 
     let enviando = false;
-    const textoBoton = btnReportar.textContent ?? 'Reportar';
+    const textoAceptar = document.getElementById('texto-aceptar');
+    const textoBoton = textoAceptar?.textContent ?? 'Reportar';
     const bloquear = (si: boolean): void => {
         enviando = si;
         btnReportar.disabled = si;
-        btnReportar.textContent = si ? 'Enviando...' : textoBoton;
+        btnReportar.querySelector('[data-spinner]')?.classList.toggle('hidden', !si);
+        if (textoAceptar) textoAceptar.textContent = si ? 'Enviando...' : textoBoton;
+        form.setAttribute('aria-busy', String(si));
+        anunciar(si ? 'Enviando el reporte…' : '');
     };
 
     form.addEventListener('submit', async (ev) => {
         ev.preventDefault();
         if (enviando) return;
+
+        const faltan = faltantes();
+        if (Object.keys(faltan).length > 0) {
+            mostrarErrores(faltan);
+            return;
+        }
         bloquear(true);
 
         // Fecha y hora no viajan: las estampa el servidor. La falla va como Id del
@@ -376,18 +446,28 @@ function iniciar(): void {
         };
 
         try {
-            const r = await http.post<RespuestaApi<{ folio?: string }>>(cfg!.rutas.guardar, payload);
+            const r = await http.post<RespuestaApi<{ folio?: string; notificacion_enviada?: boolean }>>(cfg!.rutas.guardar, payload);
             const folio = r.data?.folio || '—';
-            // Siempre a Solicitudes: document.referrer llevaba a cualquier parte.
-            // Como antes: el aviso con el folio se va solo a los 6 s (o al tocar Aceptar).
-            await Promise.race([
-                notify.alert(`Folio: ${folio}. ${r.message ?? ''}`.trim(), 'Reportado correctamente', 'success'),
-                new Promise((listo) => window.setTimeout(listo, 6000)),
-            ]);
+            // Siempre a Solicitudes. El aviso con el folio espera a que el usuario lo
+            // cierre: un temporizador no le da tiempo a un lector de pantalla (WCAG 2.2.1).
+            // Sin aviso por Telegram el reporte sí quedó, pero el operador debe avisar a mano.
+            const sinAviso = r.data?.notificacion_enviada === false;
+            await notify.alert(`Folio: ${folio}. ${r.message ?? ''}`.trim(), 'Reportado correctamente', sinAviso ? 'warning' : 'success');
             window.location.href = cfg!.rutas.solicitudes;
         } catch (err) {
             bloquear(false);
-            void notify.alert(mensajeError(err, 'Error al reportar el paro. Por favor, intenta nuevamente.'), 'Error', 'error');
+            const delServidor: Partial<Record<Campo, string>> = {};
+            if (err instanceof HttpError && err.errors) {
+                for (const [clave, mensajes] of Object.entries(err.errors)) {
+                    const campo = CAMPO_DEL_SERVIDOR[clave];
+                    if (campo && mensajes[0]) delServidor[campo] = mensajes[0];
+                }
+            }
+            if (Object.keys(delServidor).length > 0) {
+                mostrarErrores(delServidor);
+            } else {
+                void notify.alert(mensajeError(err, 'Error al reportar el paro. Por favor, intenta nuevamente.'), 'Error', 'error');
+            }
         }
     });
 }

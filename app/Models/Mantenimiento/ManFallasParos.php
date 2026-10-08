@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
 /**
+ * @property int $Id
+ * @property string|null $Folio
+ * @property string|null $Estatus
  * @property string|null $Depto
  * @property string|null $MaquinaId
  * @property string|null $TipoFallaId

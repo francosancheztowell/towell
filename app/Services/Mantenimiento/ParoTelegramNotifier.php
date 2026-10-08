@@ -20,14 +20,16 @@ use Throwable;
  */
 final class ParoTelegramNotifier
 {
-    public function notifyCreated(ManFallasParos $stop): void
+    /** @return bool true si el aviso quedó encolado; false si no hay a quién ni cómo avisar */
+    public function notifyCreated(ManFallasParos $stop): bool
     {
-        $this->dispatch($stop, $this->buildCreatedMessage($stop), 'alta');
+        return $this->dispatch($stop, $this->buildCreatedMessage($stop), 'alta');
     }
 
-    public function notifyClosed(ManFallasParos $stop, ?string $closedBy = null): void
+    /** @return bool true si el aviso quedó encolado; false si no hay a quién ni cómo avisar */
+    public function notifyClosed(ManFallasParos $stop, ?string $closedBy = null): bool
     {
-        $this->dispatch($stop, $this->buildClosedMessage($stop, $closedBy), 'cierre');
+        return $this->dispatch($stop, $this->buildClosedMessage($stop, $closedBy), 'cierre');
     }
 
     public function buildCreatedMessage(ManFallasParos $stop): string
@@ -81,8 +83,9 @@ final class ParoTelegramNotifier
     /**
      * Envía a los destinatarios del módulo que corresponda al tipo de falla.
      * Nunca lanza: el paro ya está guardado y una falla externa no debe revertirlo.
+     * Devuelve si el mensaje quedó encolado, para que la respuesta no afirme un envío que no ocurrió.
      */
-    private function dispatch(ManFallasParos $stop, string $message, string $evento): void
+    private function dispatch(ManFallasParos $stop, string $message, string $evento): bool
     {
         try {
             $botToken = trim((string) config('services.telegram.bot_token'));
@@ -92,7 +95,7 @@ final class ParoTelegramNotifier
                     'evento' => $evento,
                 ]);
 
-                return;
+                return false;
             }
 
             $module = $this->moduleForFailureType((string) $stop->TipoFallaId);
@@ -103,7 +106,7 @@ final class ParoTelegramNotifier
                     'tipo_falla' => $stop->TipoFallaId,
                 ]);
 
-                return;
+                return false;
             }
 
             $chatIds = SYSMensaje::getChatIdsPorModulo($module);
@@ -114,7 +117,7 @@ final class ParoTelegramNotifier
                     'modulo' => $module,
                 ]);
 
-                return;
+                return false;
             }
 
             // A la cola, no defer(): en el Apache de producción defer() no suelta la
@@ -126,6 +129,8 @@ final class ParoTelegramNotifier
                 'Telegram rechazó una notificación de paro.',
                 ['paro_id' => $stop->Id, 'evento' => $evento],
             ));
+
+            return true;
         } catch (Throwable $exception) {
             Log::error('No fue posible notificar el paro por Telegram.', [
                 'paro_id' => $stop->Id,
@@ -134,6 +139,8 @@ final class ParoTelegramNotifier
                 'exception' => $exception::class,
                 'message' => $exception->getMessage(),
             ]);
+
+            return false;
         }
     }
 

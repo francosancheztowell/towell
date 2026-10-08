@@ -4,6 +4,11 @@ namespace App\Models\Urdido;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property string $MaquinaId
+ * @property string|null $Nombre
+ * @property string|null $Departamento
+ */
 class URDCatalogoMaquina extends Model
 {
     protected $connection = 'sqlsrv';

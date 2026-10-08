@@ -7,10 +7,13 @@ use Illuminate\Database\Eloquent\Model;
 class CatTipoFalla extends Model
 {
     protected $connection = 'sqlsrv';
+
     protected $table = 'CatTipoFalla';
 
     protected $primaryKey = 'TipoFallaId';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     public $timestamps = false;
@@ -35,4 +38,3 @@ class CatTipoFalla extends Model
         return $this->hasMany(ManFallasParos::class, 'TipoFallaId', 'TipoFallaId');
     }
 }
-

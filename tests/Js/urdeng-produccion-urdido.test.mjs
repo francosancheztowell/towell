@@ -90,8 +90,9 @@ test('campos faltantes: mismos textos y orden que la vista anterior', () => {
     for (const campo of camposFaltantes(vacia, true, 700)) assert.ok(SELECTOR_CAMPO[campo], campo);
 });
 
-test('campos faltantes: Vueltas obligatoria en toda orden; Diámetro solo Karl Mayer; 0 cuenta como faltante', () => {
-    assert.deepEqual(camposFaltantes({ ...filaCompleta, vueltas: '' }, false, 700), ['Vueltas']);
+test('campos faltantes: Vueltas y Diámetro solo se exigen en Karl Mayer; 0 cuenta como faltante', () => {
+    assert.deepEqual(camposFaltantes({ ...filaCompleta, vueltas: '', diametro: '' }, false, 700), []);
+    assert.deepEqual(camposFaltantes({ ...filaCompleta, vueltas: '', diametro: '' }, true, 700), ['Vueltas', 'Diámetro']);
     assert.deepEqual(camposFaltantes({ ...filaCompleta, vueltas: '0', diametro: '0.00' }, true, 700), ['Vueltas', 'Diámetro']);
     assert.deepEqual(camposFaltantes({ ...filaCompleta, vueltas: '12.5', diametro: '80' }, true, 700), []);
 });
