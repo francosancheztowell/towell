@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Ventas;
 
 use App\Http\Controllers\Controller;
+use App\Repositories\Ventas\PvVsOcReportRepository;
 use App\Services\Ventas\PvVsOcPayloadBuilder;
 use App\Services\Ventas\VentasHistoricasPayloadBuilder;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
 
@@ -28,20 +30,41 @@ final class VentasDatosController extends Controller
     private const CACHE_NAVEGADOR = 'private, max-age=300';
 
     /**
-     * Plan vs Pedido vs Real de todos los años (~48k combos). Se guarda ya comprimido y se sirve
-     * con Content-Encoding: gzip: ~0.9 MB por la red en lugar de ~5 MB de JSON.
+     * Plan vs Pedido vs Real de un año (~10k combos). El navegador pide primero el más reciente para
+     * pintar rápido y luego los demás. Se guarda ya comprimido y se sirve con Content-Encoding: gzip.
+     * Solo se aceptan los años que devuelve comparaAnios(): así la cache tiene a lo más una entrada
+     * por año real y nadie la llena pidiendo años inventados.
      */
-    public function compara(PvVsOcPayloadBuilder $builder): Response
+    public function compara(Request $request, PvVsOcPayloadBuilder $builder, PvVsOcReportRepository $repository): Response
     {
         $this->autorizar();
 
-        $gzip = Cache::flexible('ventas:compara:v5', self::CACHE_TTL, fn (): string => $builder->build());
+        $anio = $request->query('anio');
+        if (! is_string($anio) || ! in_array($anio, $this->anios($repository), true)) {
+            abort(422, 'Año no disponible en Compara.');
+        }
+
+        $gzip = Cache::flexible("ventas:compara:v9:{$anio}", self::CACHE_TTL, fn (): string => $builder->build($anio));
 
         return response($gzip, 200, [
             'Content-Type' => 'application/json',
             'Content-Encoding' => 'gzip',
             'Cache-Control' => self::CACHE_NAVEGADOR,
         ]);
+    }
+
+    /** Años disponibles en Compara, del más reciente al más antiguo: { anios: ["2026", "2025", …] }. */
+    public function comparaAnios(PvVsOcReportRepository $repository): JsonResponse
+    {
+        $this->autorizar();
+
+        return response()->json(['anios' => $this->anios($repository)], 200, ['Cache-Control' => self::CACHE_NAVEGADOR]);
+    }
+
+    /** @return list<string> */
+    private function anios(PvVsOcReportRepository $repository): array
+    {
+        return Cache::flexible('ventas:compara:v9:anios', self::CACHE_TTL, fn (): array => $repository->anios());
     }
 
     /**

@@ -28,6 +28,16 @@ class TwHistPedidosModel extends Model
 
     protected $guarded = ['*'];
 
+    /**
+     * Fecha de creación del pedido. Los reportes de Ventas filtran y agrupan el Pedido por estas
+     * columnas y no por ANIO/MES/SEMANAWM (Plan y Real siguen con ANIO/MES).
+     */
+    public const COLUMNA_ANIO = 'YearCreado';
+
+    public const COLUMNA_MES = 'MonthCreado';
+
+    public const COLUMNA_SEMANA = 'WeekCreado';
+
     public function save(array $options = []): bool
     {
         throw new RuntimeException('TwHistPedidosModel es de solo lectura: dbo.TwHistoricosPedidos no admite escrituras.');

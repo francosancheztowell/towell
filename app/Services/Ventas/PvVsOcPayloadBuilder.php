@@ -14,7 +14,7 @@ final class PvVsOcPayloadBuilder
      *
      * @var list<string>
      */
-    private const SF = ['empresa', 'tipo', 'cve', 'nombreCte', 'artCode', 'artName', 'config', 'tamano', 'colorName', 'anio', 'mes'];
+    private const SF = ['empresa', 'tipo', 'nombreCte', 'artCode', 'artName', 'config', 'tamano', 'colorName', 'agente', 'anio', 'mes'];
 
     /**
      * Medidas de cada serie, en el orden de PvVsOcReportRepository::MEDIDAS.
@@ -36,15 +36,16 @@ final class PvVsOcPayloadBuilder
      * JSON comprimido con gzip, listo para servirse con Content-Encoding: gzip (el navegador lo
      * descomprime solo). Shape: { v, sf, nf, series, dict, rows, meta }; cada fila son los índices
      * al diccionario de sf seguidos de nf × series. Las filas se serializan al vuelo para no
-     * sostener todo el arreglo en memoria.
+     * sostener todo el arreglo en memoria. Con $anio solo trae ese año; cada payload lleva su
+     * propio diccionario, así que se decodifican de forma independiente.
      */
-    public function build(): string
+    public function build(?string $anio = null): string
     {
         $dict = [];
         $indice = [];
         $rows = '';
 
-        foreach ($this->repository->combinado() as $fila) {
+        foreach ($this->repository->combinado($anio) as $fila) {
             $row = [];
             foreach (PvVsOcReportRepository::DIMENSIONES as $columna) {
                 $valor = trim((string) ($fila->{$columna} ?? ''));
@@ -60,7 +61,7 @@ final class PvVsOcPayloadBuilder
 
         $encode = static fn (mixed $valor): string => json_encode($valor, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 
-        $json = '{"v":5'
+        $json = '{"v":9'
             .',"sf":'.$encode(self::SF)
             .',"nf":'.$encode(self::NF)
             .',"series":'.$encode(array_keys(self::SERIES))
