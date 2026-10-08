@@ -679,10 +679,14 @@ class ModuloProduccionUrdidoController extends Controller
         }
     }
 
-    /** Con la fila ya marcada lista, Vueltas/Diámetro siguen editables pero no se pueden dejar vacíos. */
+    /** Con la fila ya marcada lista en Karl Mayer, Vueltas/Diámetro siguen editables pero no se pueden dejar vacíos. */
     private function jsonIfVaciaCampoObligatorioEnListo(UrdProduccionUrdido $registro, string $campo, mixed $valor): ?JsonResponse
     {
         if (! in_array($campo, ['Vueltas', 'Diametro']) || (int) $registro->getAttribute('Finalizar') !== 1 || (float) $valor > 0) {
+            return null;
+        }
+
+        if (! $this->esKarlMayerElFolio((string) $registro->Folio)) {
             return null;
         }
 
@@ -692,20 +696,30 @@ class ModuloProduccionUrdidoController extends Controller
         ], 422);
     }
 
+    /** Vueltas y Diámetro solo son obligatorios en Karl Mayer; en MC Coy 1, 2 y 3 son opcionales. */
     protected function camposRequeridosExtra($registro): array
     {
-        $faltan = [];
-        if (! ((float) $registro->Vueltas > 0)) {
-            $faltan[] = 'Vueltas es requerido';
+        if (! $this->esKarlMayerElFolio((string) $registro->Folio)) {
+            return [];
         }
 
-        $destino = UrdProgramaUrdido::where('Folio', $registro->Folio)->value('SalonTejidoId')
-            ?: EngProgramaEngomado::where('Folio', $registro->Folio)->value('SalonTejidoId');
-        if (stripos($destino ?? '', 'karl') !== false && ! ((float) $registro->Diametro > 0)) {
+        $faltan = [];
+        if (! ((float) $registro->Vueltas > 0)) {
+            $faltan[] = 'Vueltas es requerido (Karl Mayer)';
+        }
+        if (! ((float) $registro->Diametro > 0)) {
             $faltan[] = 'Diámetro es requerido (Karl Mayer)';
         }
 
         return $faltan;
+    }
+
+    private function esKarlMayerElFolio(string $folio): bool
+    {
+        $destino = UrdProgramaUrdido::where('Folio', $folio)->value('SalonTejidoId')
+            ?: EngProgramaEngomado::where('Folio', $folio)->value('SalonTejidoId');
+
+        return stripos($destino ?? '', 'karl') !== false;
     }
 
     public function getUsuariosUrdido(): JsonResponse
@@ -794,7 +808,7 @@ class ModuloProduccionUrdidoController extends Controller
                 ], 422);
             }
 
-            // Vueltas es obligatoria en toda orden; Diámetro solo en Karl Mayer.
+            // Vueltas y Diámetro son obligatorios solo en Karl Mayer.
             $destino = $orden->SalonTejidoId;
             if (! $destino) {
                 $engomado = EngProgramaEngomado::where('Folio', $orden->Folio)->first();
@@ -802,24 +816,22 @@ class ModuloProduccionUrdidoController extends Controller
             }
             $isKarlMayer = stripos($destino ?? '', 'karl') !== false;
 
-            $registrosSinKM = UrdProduccionUrdido::where('Folio', $orden->Folio)
-                ->whereNotNull('HoraInicial')
-                ->whereNotNull('HoraFinal')
-                ->where(function ($q) use ($isKarlMayer) {
-                    $q->whereNull('Vueltas')->orWhere('Vueltas', '<=', 0);
-                    if ($isKarlMayer) {
-                        $q->orWhereNull('Diametro')->orWhere('Diametro', '<=', 0);
-                    }
-                })
-                ->count();
+            if ($isKarlMayer) {
+                $registrosSinKM = UrdProduccionUrdido::where('Folio', $orden->Folio)
+                    ->whereNotNull('HoraInicial')
+                    ->whereNotNull('HoraFinal')
+                    ->where(function ($q) {
+                        $q->whereNull('Vueltas')->orWhere('Vueltas', '<=', 0)
+                            ->orWhereNull('Diametro')->orWhere('Diametro', '<=', 0);
+                    })
+                    ->count();
 
-            if ($registrosSinKM > 0) {
-                $campos = $isKarlMayer ? 'Vueltas o Diámetro' : 'Vueltas';
-
-                return response()->json([
-                    'success' => false,
-                    'error' => "No se puede finalizar: hay {$registrosSinKM} registro(s) sin {$campos}.",
-                ], 422);
+                if ($registrosSinKM > 0) {
+                    return response()->json([
+                        'success' => false,
+                        'error' => "No se puede finalizar: hay {$registrosSinKM} registro(s) sin Vueltas o Diámetro. Estos campos son obligatorios para Karl Mayer.",
+                    ], 422);
+                }
             }
 
             // Las filas se pre-crean como esqueleto desde el plan de julios

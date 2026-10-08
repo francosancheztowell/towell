@@ -179,16 +179,28 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
         $this->assertSame(1, (int) DB::connection('sqlsrv')->table('UrdProduccionUrdido')->where('Id', 20)->value('Finalizar'));
     }
 
-    /** Vueltas es obligatoria tambien en MC Coy: sin ella la orden no se finaliza. */
-    public function test_finalizar_rechaza_fila_corrida_sin_vueltas_en_mc_coy(): void
+    /** En MC Coy 1, 2 y 3 Vueltas es opcional: la orden se finaliza sin ella. */
+    public function test_finalizar_acepta_fila_corrida_sin_vueltas_en_mc_coy(): void
     {
         [$controller] = $this->escenarioConRegistroIncompleto(conCaptura: false);
         DB::connection('sqlsrv')->table('UrdProduccionUrdido')->where('Id', 20)->update(['Vueltas' => null]);
 
         $response = $controller->finalizar(Request::create('/f', 'POST', ['orden_id' => 1]));
 
+        $this->assertTrue($response->getData(true)['success']);
+    }
+
+    /** Karl Mayer sí las exige: sin Vueltas o Diámetro la orden no se finaliza. */
+    public function test_finalizar_rechaza_fila_corrida_sin_vueltas_o_diametro_en_karl_mayer(): void
+    {
+        [$controller] = $this->escenarioConRegistroIncompleto(conCaptura: false);
+        DB::connection('sqlsrv')->table('UrdProgramaUrdido')->where('Id', 1)->update(['SalonTejidoId' => 'Karl Mayer']);
+        DB::connection('sqlsrv')->table('UrdProduccionUrdido')->where('Id', 20)->update(['Vueltas' => 15, 'Diametro' => null]);
+
+        $response = $controller->finalizar(Request::create('/f', 'POST', ['orden_id' => 1]));
+
         $this->assertSame(422, $response->getStatusCode());
-        $this->assertStringContainsString('sin Vueltas', $response->getData(true)['error']);
+        $this->assertStringContainsString('sin Vueltas o Diámetro', $response->getData(true)['error']);
         $this->assertSame('En Proceso', DB::connection('sqlsrv')->table('UrdProgramaUrdido')->where('Id', 1)->value('Status'));
     }
 

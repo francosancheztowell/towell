@@ -132,10 +132,12 @@ export function camposFaltantes(f: CamposFila, esKarlMayer: boolean, max: number
         if (max !== null && !Number.isNaN(neto) && neto > max) faltan.push(NETO_EXCEDE);
     }
     if (vacio(f.metros)) faltan.push('Metros');
-    // 0 también falta: el servidor exige > 0 al marcar listo y al finalizar.
-    const sinValor = (v: string | undefined): boolean => !(parseFloat(v ?? '') > 0);
-    if (sinValor(f.vueltas)) faltan.push('Vueltas');
-    if (esKarlMayer && sinValor(f.diametro)) faltan.push('Diámetro');
+    // Solo Karl Mayer las exige (en MC Coy son opcionales). 0 también falta: el servidor pide > 0.
+    if (esKarlMayer) {
+        const sinValor = (v: string | undefined): boolean => !(parseFloat(v ?? '') > 0);
+        if (sinValor(f.vueltas)) faltan.push('Vueltas');
+        if (sinValor(f.diametro)) faltan.push('Diámetro');
+    }
     return faltan;
 }
 
