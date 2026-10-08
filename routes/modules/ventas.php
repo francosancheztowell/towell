@@ -18,5 +18,6 @@ Route::view('/ventas', 'modulos.ventas.dashboard-pv-vs-oc.index')->name('ventas.
 
 Route::controller(VentasDatosController::class)->prefix('ventas/datos')->name('ventas.datos.')->group(function () {
     Route::get('/compara', 'compara')->name('compara');
+    Route::get('/compara/anios', 'comparaAnios')->name('compara.anios');
     Route::get('/historico', 'historico')->name('historico');
 });

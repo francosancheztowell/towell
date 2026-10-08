@@ -4,6 +4,7 @@
     class="ventas-pvoc-dashboard"
     data-ventas-pvoc-dashboard
     data-compara-url="{{ route('ventas.datos.compara') }}"
+    data-compara-anios-url="{{ route('ventas.datos.compara.anios') }}"
 >
     <div class="pvoc-content">
         <div class="pvoc-tabs" role="tablist" aria-label="Vistas del dashboard">

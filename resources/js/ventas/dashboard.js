@@ -103,6 +103,9 @@ const decodePayload = ({ sf, nf, series, dict, rows }) => rows.map((row) => {
     return record;
 });
 
+/** Un año de Compara: cada payload trae su propio diccionario, así que se decodifica por separado. */
+const fetchYear = async (root, anio) => decodePayload(await http.get(root.dataset.comparaUrl, { params: { anio } }));
+
 /** Aviso de error en lugar del "Cargando…" de cada contenedor. */
 const showLoadError = (containers, message) => containers.forEach((container) => {
     container.innerHTML = `<div class="ventas-pvoc-alert" role="alert"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> <span>${escapeHtml(message)}</span></div>`;
@@ -192,17 +195,50 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
     bindFilterPanel(root);
     mountVentasHistoricas(root, (container) => showLoadError([container], 'No se pudieron cargar las ventas históricas. Intenta nuevamente en unos minutos.'));
 
+    // Primero la lista de años y solo el más reciente: con eso se pinta; los demás llegan en segundo plano.
     let records;
+    let allYears;
     try {
-        records = decodePayload(await http.get(root.dataset.comparaUrl));
+        ({ anios: allYears } = await http.get(root.dataset.comparaAniosUrl));
+        allYears = allYears.map(String);
+        records = allYears.length ? await fetchYear(root, allYears[0]) : [];
     } catch (error) {
         console.error('No se pudo cargar el dashboard de Ventas.', error);
         showLoadError(root.querySelectorAll('[data-pvoc-table]'), 'No se pudo cargar la información de Ventas. Intenta nuevamente en unos minutos.');
         return;
     }
 
-    // El payload trae todos los años; de entrada (y al limpiar) se filtra el más reciente.
-    const latestYear = records.reduce((max, record) => (String(record.anio) > max ? String(record.anio) : max), '');
+    // De entrada (y al limpiar) se filtra el año más reciente.
+    const latestYear = allYears[0] ?? '';
+    const loadedYears = new Set(allYears.slice(0, 1));
+    const failedYears = new Set();
+    const loading = new Map();
+    let warnedYearFailure = false;
+
+    /** Pide un año una sola vez (el fondo y una vista que lo necesita comparten la misma promesa). */
+    const loadYear = (year) => {
+        if (!loading.has(year)) {
+            loading.set(year, fetchYear(root, year).then((chunk) => {
+                chunk.forEach((record) => records.push(record));
+                loadedYears.add(year);
+            }).catch((error) => {
+                console.error(`No se pudo cargar el año ${year} de Ventas.`, error);
+                failedYears.add(year);
+                if (!warnedYearFailure) {
+                    warnedYearFailure = true;
+                    window.notify?.warning('No se pudieron cargar todos los años de Ventas; se muestran los que ya están cargados.');
+                }
+            }));
+        }
+        return loading.get(year);
+    };
+
+    /** Años que el filtro actual necesita y aún no llegan (sin selección de año = todos). */
+    const missingYears = () => {
+        const selected = state.filters.anio;
+        const needed = selected.size ? allYears.filter((year) => selected.has(year)) : allYears;
+        return needed.filter((year) => !loadedYears.has(year) && !failedYears.has(year));
+    };
     const defaultFilters = () => {
         const filters = emptyFilters();
         if (latestYear) filters.anio.add(latestYear);
@@ -256,7 +292,8 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
 
     const renderFilters = () => {
         const fields = FILTERS.map(({ key, label, multi, format }) => {
-            const values = [...new Set(records.map((record) => filterValue(record, key)))].sort();
+            // Los años se conocen desde el inicio; el resto de opciones crece conforme llegan los años.
+            const values = key === 'anio' ? [...allYears].sort() : [...new Set(records.map((record) => filterValue(record, key)))].sort();
             if (multi) {
                 return createMultiSelect({ label, values, format, selected: state.filters[key], onChange: renderTables }).element;
             }
@@ -395,10 +432,22 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
     };
 
     /** Solo lo llaman los filtros (y Limpiar): tocar un filtro también suelta la fila seleccionada. */
+    let renderToken = 0;
     const renderTables = () => {
+        const token = ++renderToken;
         Object.keys(TABLES).forEach((panel) => clearRowSelection(tableContainer(panel)));
-        Object.keys(TABLES).forEach(renderTable);
         syncFilterCount();
+
+        // Si el filtro pide un año que aún no llega, se muestra "Cargando…" y se pinta al recibirlo.
+        const missing = missingYears();
+        if (missing.length) {
+            Object.keys(TABLES).forEach((panel) => {
+                tableContainer(panel).innerHTML = '<div class="pvoc-loading" role="status"><i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i><span>Cargando años restantes…</span></div>';
+            });
+            Promise.all(missing.map(loadYear)).then(() => { if (token === renderToken) renderTables(); });
+            return;
+        }
+        Object.keys(TABLES).forEach(renderTable);
     };
 
     Object.keys(TABLES).forEach((panel) => {
@@ -464,4 +513,21 @@ document.querySelectorAll('[data-ventas-pvoc-dashboard]').forEach(async (root) =
     renderFilters();
     renderTables();
     expandTo('analisis', 1);
+
+    // Resto de años en segundo plano, del más reciente al más antiguo. Las tablas no se repintan: solo
+    // cambian las opciones de los filtros, y no mientras el usuario tiene un desplegable abierto.
+    const refreshFilters = () => {
+        if (root.querySelector('.pvoc-multi-panel:not([hidden])')) {
+            setTimeout(refreshFilters, 1000);
+            return;
+        }
+        renderFilters();
+    };
+    (async () => {
+        for (const year of allYears) {
+            if (loadedYears.has(year)) continue;
+            await loadYear(year);
+            refreshFilters();
+        }
+    })();
 });

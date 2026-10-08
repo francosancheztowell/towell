@@ -41,13 +41,17 @@ final class PvVsOcReportRepository
 
     /**
      * Plan, Pedido y Real ya cruzados por combinación de dimensiones: una fila por combo con las
-     * columnas P_QTY … R_AMOUNTNETO. Todos los años de una vez (el filtro de año vive en el navegador).
-     * Las tres tablas son heaps sin índices en SQL Server 2008 R2; agrupar en SQL sigue siendo mucho
-     * más barato que pasar cada línea a PHP.
+     * columnas P_QTY … R_AMOUNTNETO. Con $anio solo ese año (el navegador pide el más reciente primero
+     * y los demás en segundo plano); sin él, todos. Las tres tablas son heaps sin índices en SQL Server
+     * 2008 R2; agrupar en SQL sigue siendo mucho más barato que pasar cada línea a PHP.
+     *
+     * SQL crudo porque el ORM no expresa el UNION ALL de tres tablas con GROUP BY externo; el año
+     * va como binding y se filtra en cada SELECT interno, antes de agrupar.
      */
-    public function combinado(): LazyCollection
+    public function combinado(?string $anio = null): LazyCollection
     {
         $dimensiones = implode(', ', self::DIMENSIONES);
+        $where = $anio === null ? '' : ' WHERE ANIO = ?';
 
         // Cada tabla se agrupa por separado (menos filas que cruzar) y cada serie llena solo sus
         // columnas; el GROUP BY externo junta los tres resultados en una fila por combo.
@@ -61,7 +65,7 @@ final class PvVsOcReportRepository
                 }
             }
             $fuentes[] = "SELECT {$dimensiones}, ".implode(', ', $columnas)
-                .' FROM '.(new $modelo)->getTable()." GROUP BY {$dimensiones}";
+                .' FROM '.(new $modelo)->getTable().$where." GROUP BY {$dimensiones}";
             foreach (self::MEDIDAS as $medida) {
                 $sumas[] = "SUM({$serie}_{$medida}) AS {$serie}_{$medida}";
             }
@@ -70,7 +74,30 @@ final class PvVsOcReportRepository
         $sql = "SELECT {$dimensiones}, ".implode(', ', $sumas)
             .' FROM ('.implode(' UNION ALL ', $fuentes).') combos'
             ." GROUP BY {$dimensiones}";
+        $bindings = $anio === null ? [] : array_fill(0, count(self::SERIES), $anio);
 
-        return LazyCollection::make(fn () => yield from DB::connection((new TwHistVtasModel)->getConnectionName())->cursor($sql));
+        return LazyCollection::make(fn () => yield from DB::connection((new TwHistVtasModel)->getConnectionName())->cursor($sql, $bindings));
+    }
+
+    /**
+     * Años con datos en alguna de las tres series, del más reciente al más antiguo, como texto.
+     * SQL crudo por el mismo motivo que combinado(): UNION de tres tablas sin relación en el ORM.
+     * UNION (sin ALL) ya quita duplicados entre tablas.
+     *
+     * @return list<string>
+     */
+    public function anios(): array
+    {
+        $sql = implode(' UNION ', array_map(
+            static fn (string $modelo): string => 'SELECT DISTINCT ANIO FROM '.(new $modelo)->getTable(),
+            array_values(self::SERIES),
+        )).' ORDER BY ANIO DESC';
+
+        $anios = array_map(
+            static fn (object $fila): string => trim((string) $fila->ANIO),
+            DB::connection((new TwHistVtasModel)->getConnectionName())->select($sql),
+        );
+
+        return array_values(array_unique(array_filter($anios, static fn (string $anio): bool => $anio !== '')));
     }
 }
