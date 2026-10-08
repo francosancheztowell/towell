@@ -132,10 +132,10 @@ export function camposFaltantes(f: CamposFila, esKarlMayer: boolean, max: number
         if (max !== null && !Number.isNaN(neto) && neto > max) faltan.push(NETO_EXCEDE);
     }
     if (vacio(f.metros)) faltan.push('Metros');
-    if (esKarlMayer) {
-        if (vacio(f.vueltas)) faltan.push('Vueltas');
-        if (vacio(f.diametro)) faltan.push('Diámetro');
-    }
+    // 0 también falta: el servidor exige > 0 al marcar listo y al finalizar.
+    const sinValor = (v: string | undefined): boolean => !(parseFloat(v ?? '') > 0);
+    if (sinValor(f.vueltas)) faltan.push('Vueltas');
+    if (esKarlMayer && sinValor(f.diametro)) faltan.push('Diámetro');
     return faltan;
 }
 

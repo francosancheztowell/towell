@@ -7297,7 +7297,7 @@ parameters:
 			path: app/Http/Controllers/Urdido/Configuracion/ModuloProduccionUrdidoController.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Urdido\\UrdProduccionUrdido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Urdido\\UrdProduccionUrdido\>\:\:\$Metros1\.$#'
+			message: '#^Access to an undefined property App\\Models\\Urdido\\UrdProduccionUrdido\:\:\$Metros1\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Http/Controllers/Urdido/Configuracion/ModuloProduccionUrdidoController.php

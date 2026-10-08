@@ -888,6 +888,8 @@ trait ProduccionTrait
                     $camposFaltantes[] = 'Kg Neto no puede ser mayor a '.$maxNeto.' kg';
                 }
 
+                $camposFaltantes = array_merge($camposFaltantes, $this->camposRequeridosExtra($registro));
+
                 if (! empty($camposFaltantes)) {
                     return response()->json([
                         'success' => false,
@@ -939,6 +941,12 @@ trait ProduccionTrait
     /**
      * Hook llamado al desmarcar Finalizar. Sobreescribir en subclases si aplica.
      */
+    /** Requeridos propios del departamento al marcar listo (p. ej. Vueltas/Diámetro en Karl Mayer). */
+    protected function camposRequeridosExtra($registro): array
+    {
+        return [];
+    }
+
     protected function onRegistroDesmarcado($registro): void
     {
         // por defecto no hace nada

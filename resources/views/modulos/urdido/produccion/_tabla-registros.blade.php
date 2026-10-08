@@ -43,8 +43,8 @@
                         <th class="py-1"></th>
                         <th class="py-1"></th>
                         <th class="py-1"></th>
-                        @if($isKarlMayer ?? false)
                         <th class="py-1"></th>
+                        @if($isKarlMayer ?? false)
                         <th class="py-1"></th>
                         @endif
                         <th colspan="4" class="py-1 text-center bg-blue-700">Roturas</th>
@@ -76,10 +76,10 @@
                         <th class="py-2 px-1 md:px-1 text-center font-semibold bg-blue-700 text-[10px] md:text-xs w-12 md:w-10 lg:w-12 h-10 md:h-12 relative align-bottom">
                             <span class="absolute bottom-0 left-1/2 whitespace-nowrap" style="transform: translateX(-50%) rotate(-45deg); transform-origin: left bottom;">Transf.</span>
                         </th>
-                        @if($isKarlMayer ?? false)
                         <th class="py-2 px-1 md:px-1 text-center font-semibold bg-emerald-700 text-[10px] md:text-xs w-16 md:w-14 lg:w-16 h-10 md:h-12 relative align-bottom">
                             <span class="absolute bottom-0 left-1/2 whitespace-nowrap" style="transform: translateX(-50%) rotate(-45deg); transform-origin: left bottom;">Vueltas</span>
                         </th>
+                        @if($isKarlMayer ?? false)
                         <th class="py-2 px-1 md:px-1 text-center font-semibold bg-emerald-700 text-[10px] md:text-xs w-16 md:w-14 lg:w-16 h-10 md:h-12 relative align-bottom">
                             <span class="absolute bottom-0 left-1/2 whitespace-nowrap" style="transform: translateX(-50%) rotate(-45deg); transform-origin: left bottom;">Diámetro</span>
                         </th>
@@ -481,7 +481,6 @@
                             </div>
                         </td>
 
-                        @if($isKarlMayer ?? false)
                         {{-- Vueltas --}}
                         <td class="px-1 md:px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-16 md:w-14 lg:w-16">
                             <input
@@ -495,6 +494,7 @@
                                 placeholder="0"
                             >
                         </td>
+                        @if($isKarlMayer ?? false)
                         {{-- Diametro --}}
                         <td class="px-1 md:px-1 py-1 md:py-1.5 text-center whitespace-nowrap w-16 md:w-14 lg:w-16">
                             <input
@@ -514,7 +514,7 @@
                             @endfor
                         @else
                             <tr>
-                                <td colspan="{{ ($hasFinalizarPermission ? 15 : 14) + (($isKarlMayer ?? false) ? 2 : 0) }}" class="px-2 py-4 text-center text-gray-500 italic">
+                                <td colspan="{{ ($hasFinalizarPermission ? 16 : 15) + (($isKarlMayer ?? false) ? 1 : 0) }}" class="px-2 py-4 text-center text-gray-500 italic">
                                     No hay registros para generar.
                                     @if(isset($julios) && $julios->count() > 0)
                                         <br>Total calculado: {{ $totalRegistros }} | Cantidad de julios: {{ $julios->count() }}
