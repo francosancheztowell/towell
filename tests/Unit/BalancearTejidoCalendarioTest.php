@@ -256,7 +256,6 @@ class BalancearTejidoCalendarioTest extends TestCase
 
         $ref = new \ReflectionClass(CalendarioProduccion::class);
         $prop = $ref->getProperty('lineasCache');
-        $prop->setAccessible(true);
         $prop->setValue(null, [$calId => $lines]);
     }
 
@@ -341,7 +340,6 @@ class BalancearTejidoCalendarioTest extends TestCase
         // El método es private, lo invocamos vía Reflection
         $ref = new \ReflectionClass(BalancearTejido::class);
         $method = $ref->getMethod('calcularHorasDisponiblesHastaFecha');
-        $method->setAccessible(true);
 
         $horasCalculadas = $method->invoke(null, $calId, $inicio, $fin);
 

@@ -124,7 +124,6 @@ class ProduccionUrdidoCicloJuliosTest extends TestCase
         $orden = UrdProgramaUrdido::find(1);
 
         $g = new \ReflectionMethod($controller, 'getJuliosForOrder');
-        $g->setAccessible(true);
         $julios = $g->invoke($controller, $orden);
 
         $total = 0;
@@ -133,7 +132,6 @@ class ProduccionUrdidoCicloJuliosTest extends TestCase
         }
 
         $m = new \ReflectionMethod($controller, 'ensureProductionRecordsExist');
-        $m->setAccessible(true);
         $m->invoke($controller, $orden, $julios, $total);
     }
 

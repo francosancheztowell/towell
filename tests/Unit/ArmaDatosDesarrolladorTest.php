@@ -39,7 +39,6 @@ class ArmaDatosDesarrolladorTest extends TestCase
     private function llamar(string $metodo, ...$args)
     {
         $m = (new ReflectionClass($this->sujeto))->getMethod($metodo);
-        $m->setAccessible(true);
 
         return $m->invoke($this->sujeto, ...$args);
     }

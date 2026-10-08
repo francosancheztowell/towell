@@ -41,7 +41,6 @@ class ReqEficienciaStd extends Model
     /**
      * Campos que deben ser tratados como fechas
      */
-    protected $dates = [];
 
     /**
      * Indica si el modelo debe usar timestamps automáticos

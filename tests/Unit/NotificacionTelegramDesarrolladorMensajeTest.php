@@ -19,7 +19,6 @@ class NotificacionTelegramDesarrolladorMensajeTest extends TestCase
         $clase = new ReflectionClass(NotificacionTelegramDesarrolladorService::class);
         $servicio = new NotificacionTelegramDesarrolladorService;
         $metodo = $clase->getMethod('construirMensajeProcesoCompletado');
-        $metodo->setAccessible(true);
 
         return $metodo->invoke($servicio, $validated, new ReqProgramaTejido, $codigoDibujo);
     }

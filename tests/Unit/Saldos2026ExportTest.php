@@ -67,10 +67,8 @@ class Saldos2026ExportTest extends TestCase
         $reflection = new ReflectionClass($export);
 
         $loadTemplateWorkbook = $reflection->getMethod('loadTemplateWorkbook');
-        $loadTemplateWorkbook->setAccessible(true);
 
         $fillSaldosSheet = $reflection->getMethod('fillSaldosSheet');
-        $fillSaldosSheet->setAccessible(true);
 
         $spreadsheet = $loadTemplateWorkbook->invoke($export);
         $sheet = $spreadsheet->getSheetByName('SALDOS 2026');

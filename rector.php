@@ -17,7 +17,7 @@ use Rector\ValueObject\PhpVersion;
 // Uso: vendor/bin/rector process <carpeta> --dry-run, revisar diff, aplicar esa carpeta.
 return RectorConfig::configure()
     ->withPaths([__DIR__.'/app/Http/Controllers'])
-    ->withPhpVersion(PhpVersion::PHP_82)
+    ->withPhpVersion(PhpVersion::PHP_85)
     ->withRules([
         RemoveUnusedPrivateMethodRector::class,
         RemoveUnusedPrivateClassConstantRector::class,

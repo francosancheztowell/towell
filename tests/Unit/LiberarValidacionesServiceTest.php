@@ -237,7 +237,6 @@ class LiberarValidacionesServiceTest extends TestCase
         // SQLite: listar columnas de una tabla inexistente no lanza, solo devuelve [].
         // Se ceba el cache para entrar al query y forzar el catch (timeout/AX en prod).
         $cache = new \ReflectionProperty(LiberarValidacionesService::class, 'columnListingCache');
-        $cache->setAccessible(true);
         $cache->setValue($servicio, [
             'CatCodificados' => ['OrdenTejido', 'TelarId'],
         ]);

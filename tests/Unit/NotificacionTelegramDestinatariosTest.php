@@ -105,7 +105,6 @@ class NotificacionTelegramDestinatariosTest extends TestCase
     {
         $procesar = $this->app->make(ProcesarMuestrasDesarrolladorService::class);
         $propiedad = new ReflectionProperty($procesar, 'telegramService');
-        $propiedad->setAccessible(true);
 
         return $propiedad->getValue($procesar);
     }

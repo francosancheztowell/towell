@@ -535,7 +535,6 @@ class Reporte03OeeFechaFinalizaTest extends TestCase
     {
         $reflection = new \ReflectionClass($export);
         $property = $reflection->getProperty($propertyName);
-        $property->setAccessible(true);
 
         return $property->getValue($export);
     }

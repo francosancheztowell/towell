@@ -22,9 +22,9 @@ class ProgramaTejidoImportParseFloatTest extends TestCase
     {
         return [
             'coma como separador de miles' => ['1,234', 1234.0],
-            'decimal con punto'            => ['1234.5', 1234.5],
+            'decimal con punto' => ['1234.5', 1234.5],
             'formato europeo (regla sanitizeNumber: coma se elimina)' => ['1.234,56', 1.23456],
-            'cadena vacia retorna null'    => ['', null],
+            'cadena vacia retorna null' => ['', null],
         ];
     }
 
@@ -53,8 +53,7 @@ class ProgramaTejidoImportParseFloatTest extends TestCase
     private function parseFloat(string $clase, $valor): ?float
     {
         $method = new ReflectionMethod($clase, 'parseFloat');
-        $method->setAccessible(true);
 
-        return $method->invoke(new $clase(), $valor);
+        return $method->invoke(new $clase, $valor);
     }
 }

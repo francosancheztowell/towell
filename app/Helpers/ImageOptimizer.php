@@ -53,7 +53,6 @@ class ImageOptimizer
             $newDimensions = self::calculateDimensions($width, $height, $maxSize);
             $resized = imagecreatetruecolor($newDimensions['width'], $newDimensions['height']);
             if (! $resized) {
-                imagedestroy($image);
                 throw new Exception('No se pudo crear la imagen redimensionada.');
             }
             imagecopyresampled(
@@ -62,12 +61,10 @@ class ImageOptimizer
                 $newDimensions['width'], $newDimensions['height'],
                 $width, $height
             );
-            imagedestroy($image);
             $image = $resized;
         }
 
         $saved = self::saveImage($image, $destPath, $extension);
-        imagedestroy($image);
 
         if (! $saved) {
             throw new Exception('No se pudo guardar la imagen optimizada.');
@@ -105,7 +102,6 @@ class ImageOptimizer
             $newDimensions = self::calculateDimensions($width, $height, $maxSize);
             $resized = imagecreatetruecolor($newDimensions['width'], $newDimensions['height']);
             if (! $resized) {
-                imagedestroy($image);
 
                 return false;
             }
@@ -115,12 +111,10 @@ class ImageOptimizer
                 $newDimensions['width'], $newDimensions['height'],
                 $width, $height
             );
-            imagedestroy($image);
             $image = $resized;
         }
 
         $saved = self::saveImage($image, $filePath, $extension);
-        imagedestroy($image);
 
         return $saved;
     }

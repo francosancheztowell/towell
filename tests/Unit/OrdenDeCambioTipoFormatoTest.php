@@ -17,7 +17,6 @@ class OrdenDeCambioTipoFormatoTest extends TestCase
     private function tipoFormato(array $atributos): string
     {
         $metodo = new ReflectionMethod(OrdenDeCambioFelpaController::class, 'determinarTipoFormatoDesdeBD');
-        $metodo->setAccessible(true);
 
         $registro = (new ReqProgramaTejido)->forceFill($atributos);
 

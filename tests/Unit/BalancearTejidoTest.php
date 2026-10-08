@@ -721,7 +721,6 @@ class BalancearTejidoTest extends TestCase
     private function invokeAjustarPedidosAlTotalObjetivo(array $nuevosPedidosById, array $registrosArray, float $totalObjetivo): array
     {
         $method = new \ReflectionMethod(BalancearTejido::class, 'ajustarPedidosAlTotalObjetivo');
-        $method->setAccessible(true);
 
         /** @var array{nuevos_pedidos: array, advertencia_total: ?string, total_diferencia_vs_objetivo: ?float} */
         return $method->invoke(null, $nuevosPedidosById, $registrosArray, $totalObjetivo);

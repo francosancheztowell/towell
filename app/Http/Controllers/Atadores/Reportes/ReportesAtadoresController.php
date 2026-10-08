@@ -351,11 +351,11 @@ class ReportesAtadoresController extends Controller
 
     /**
      * Resuelve la ruta del archivo OEE_ATADORES.xlsx.
-     * Prioridad: env OEE_ATADORES_FILE_PATH > share de red configurado en filesystems.reports_atadores.
+     * Prioridad: config oee.atadores_file_path (env OEE_ATADORES_FILE_PATH) > share de red configurado en filesystems.reports_atadores.
      */
     private function oeeAtadoresFilePath(): string
     {
-        $envPath = env('OEE_ATADORES_FILE_PATH');
+        $envPath = config('oee.atadores_file_path');
         if (is_string($envPath) && $envPath !== '') {
             return $envPath;
         }
@@ -461,7 +461,7 @@ class ReportesAtadoresController extends Controller
 
     private function bootOeeQueueWorker(): void
     {
-        $queueConnection = (string) config('queue.default', env('QUEUE_CONNECTION', 'sync'));
+        $queueConnection = (string) config('queue.default', 'sync');
         if ($queueConnection === 'sync') {
             return;
         }

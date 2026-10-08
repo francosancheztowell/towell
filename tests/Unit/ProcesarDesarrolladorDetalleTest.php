@@ -58,7 +58,6 @@ class ProcesarDesarrolladorDetalleTest extends TestCase
     {
         $reflection = new ReflectionClass($this->service());
         $method = $reflection->getMethod('aplicarDetalleDesdeRequest');
-        $method->setAccessible(true);
 
         return $method->invoke($this->service(), $detallePayload, $validated);
     }
@@ -148,7 +147,6 @@ class ProcesarDesarrolladorDetalleTest extends TestCase
         $service = $this->service();
         $reflection = new ReflectionClass($service);
         $method = $reflection->getMethod('actualizarModeloDestinoSiCorresponde');
-        $method->setAccessible(true);
 
         $method->invoke(
             $service,

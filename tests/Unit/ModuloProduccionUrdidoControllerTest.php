@@ -304,7 +304,6 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
 
         $controller = new ModuloProduccionUrdidoController;
         $metodo = new \ReflectionMethod($controller, 'ensureProductionRecordsExist');
-        $metodo->setAccessible(true);
         $orden = UrdProgramaUrdido::find(5);
         $julios = UrdJuliosOrden::where('Folio', '00077')->get();
 
@@ -371,7 +370,6 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
     {
         $controller = new ModuloProduccionUrdidoController;
         $metodo = new \ReflectionMethod($controller, 'ensureProductionRecordsExist');
-        $metodo->setAccessible(true);
         $metodo->invoke(
             $controller,
             UrdProgramaUrdido::find($ordenId),

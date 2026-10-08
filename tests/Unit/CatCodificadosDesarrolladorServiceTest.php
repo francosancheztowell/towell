@@ -314,7 +314,6 @@ class CatCodificadosDesarrolladorServiceTest extends TestCase
 
         $reflection = new ReflectionClass($service);
         $method = $reflection->getMethod('actualizarCatCodificados');
-        $method->setAccessible(true);
 
         /** @var CatCodificados|null $registro */
         $registro = $method->invoke(

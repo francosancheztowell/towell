@@ -22,7 +22,6 @@ class ProcesarMuestrasEliminarRegistroTest extends TestCase
     {
         $metodo = (new ReflectionClass(ProcesarMuestrasDesarrolladorService::class))
             ->getMethod('eliminarRegistroMuestra');
-        $metodo->setAccessible(true);
 
         return $metodo;
     }

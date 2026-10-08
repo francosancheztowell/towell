@@ -19,7 +19,6 @@ class ProcesarMuestrasPasadasTest extends TestCase
         $clase = new ReflectionClass(ProcesarMuestrasDesarrolladorService::class);
         $servicio = $clase->newInstanceWithoutConstructor();
         $metodo = $clase->getMethod('buildPasadasPayload');
-        $metodo->setAccessible(true);
 
         return $metodo->invoke($servicio, $pasadas, $ordenData);
     }

@@ -20,7 +20,6 @@ class ProcesarDesarrolladorFechasTest extends TestCase
         $clase = new ReflectionClass(ProcesarDesarrolladorService::class);
         $servicio = $clase->newInstanceWithoutConstructor();
         $metodo = $clase->getMethod('buildFechasArranqueFinalizaPayload');
-        $metodo->setAccessible(true);
 
         return $metodo->invoke($servicio, $horaInicio, $horaFinal);
     }
