@@ -43,7 +43,7 @@ final class VentasDatosController extends Controller
             abort(422, 'El año debe tener 4 dígitos.');
         }
 
-        $gzip = Cache::flexible("ventas:compara:v7:{$anio}", self::CACHE_TTL, fn (): string => $builder->build($anio));
+        $gzip = Cache::flexible("ventas:compara:v8:{$anio}", self::CACHE_TTL, fn (): string => $builder->build($anio));
 
         return response($gzip, 200, [
             'Content-Type' => 'application/json',
@@ -57,7 +57,7 @@ final class VentasDatosController extends Controller
     {
         $this->autorizar();
 
-        $anios = Cache::flexible('ventas:compara:v7:anios', self::CACHE_TTL, fn (): array => $repository->anios());
+        $anios = Cache::flexible('ventas:compara:v8:anios', self::CACHE_TTL, fn (): array => $repository->anios());
 
         return response()->json(['anios' => $anios], 200, ['Cache-Control' => self::CACHE_NAVEGADOR]);
     }

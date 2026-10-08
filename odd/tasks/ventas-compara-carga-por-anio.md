@@ -42,3 +42,8 @@ Known failing on base: `tests/Js/tejido-cortes-eficiencia.test.mjs` (RPM 750 vs 
 - 419s were the cached bootstrap/cache/config.php: after `php artisan config:clear`, full `php artisan test` = 1 failed / 2769 passed (failing test not identified; rerun interrupted by user).
 - RDD (cec5e9c8 + doc): granted, reviewed (reliability), approved and acknowledged. Advisory: no JS test for year loader; all-years endpoint untested; bg load doesn't repaint (by design: renderTables waits on missing years).
 - Next: push/PR is the user's decision. Deploy needs `php artisan route:clear` (new route).
+
+## T4 Pedido by creation date (added after PR)
+- [x] T4 Pedido series (TwHistoricosPedidos) groups/filters by YearCreado/MonthCreado instead of ANIO/MES; Plan and Real keep ANIO/MES (user decision). New columns exist only in Pedidos (checked INFORMATION_SCHEMA). Payload/cache v8. — inline
+  - Evidence: VentasComparaPorAnioTest 8 pass (new test: pedido placed by creation date); pint, phpstan ok.
+  - Read-only prod check: combinado('2026') 11803 combos, O_QTY 8,599,257.01 = SUM(QTY) WHERE YearCreado=2026; anios() 0.36s.

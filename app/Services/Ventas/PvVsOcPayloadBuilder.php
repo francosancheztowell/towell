@@ -61,7 +61,7 @@ final class PvVsOcPayloadBuilder
 
         $encode = static fn (mixed $valor): string => json_encode($valor, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 
-        $json = '{"v":7'
+        $json = '{"v":8'
             .',"sf":'.$encode(self::SF)
             .',"nf":'.$encode(self::NF)
             .',"series":'.$encode(array_keys(self::SERIES))

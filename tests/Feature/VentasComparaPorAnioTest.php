@@ -39,6 +39,7 @@ class VentasComparaPorAnioTest extends TestCase
         }
 
         // 2026: una venta real y un plan del mismo combo; 2025: un pedido; 2024 solo existe en pedidos.
+        // Los pedidos traen un ANIO distinto a propósito: Compara los ubica por YearCreado/MonthCreado.
         $this->insertar(TwHistPronosModel::class, '2026', 10);
         $this->insertar(TwHistVtasModel::class, '2026', 4);
         $this->insertar(TwHistPedidosModel::class, '2025', 7);
@@ -54,6 +55,17 @@ class VentasComparaPorAnioTest extends TestCase
         $this->assertEquals(10, $filas[0]->P_QTY);
         $this->assertEquals(4, $filas[0]->R_QTY);
         $this->assertEquals(0, $filas[0]->O_QTY);
+    }
+
+    public function test_el_pedido_se_ubica_por_su_fecha_de_creacion(): void
+    {
+        $filas = app(PvVsOcReportRepository::class)->combinado('2025')->all();
+
+        $this->assertCount(1, $filas);
+        $this->assertSame('2025', trim((string) $filas[0]->ANIO));
+        $this->assertSame('3', trim((string) $filas[0]->MES));
+        $this->assertEquals(7, $filas[0]->O_QTY);
+        $this->assertSame([], app(PvVsOcReportRepository::class)->combinado('1999')->all());
     }
 
     public function test_combinado_sin_anio_trae_todos(): void
@@ -77,13 +89,13 @@ class VentasComparaPorAnioTest extends TestCase
         $payload->assertOk()->assertHeader('Content-Encoding', 'gzip');
         $json = json_decode((string) gzdecode($payload->getContent()), true);
 
-        $this->assertSame(7, $json['v']);
+        $this->assertSame(8, $json['v']);
         $this->assertCount(1, $json['rows']);
         $this->assertContains('2025', $json['dict']);
         $this->assertNotContains('2026', $json['dict']);
 
-        $this->assertTrue(Cache::has('ventas:compara:v7:2025'));
-        $this->assertFalse(Cache::has('ventas:compara:v7:2026'));
+        $this->assertTrue(Cache::has('ventas:compara:v8:2025'));
+        $this->assertFalse(Cache::has('ventas:compara:v8:2026'));
     }
 
     public function test_endpoint_compara_rechaza_un_anio_invalido(): void
@@ -111,12 +123,17 @@ class VentasComparaPorAnioTest extends TestCase
 
     private function crearTabla(string $tabla): void
     {
-        Schema::connection(self::CONEXION)->create($tabla, function (Blueprint $table): void {
+        Schema::connection(self::CONEXION)->create($tabla, function (Blueprint $table) use ($tabla): void {
             foreach (PvVsOcReportRepository::DIMENSIONES as $dimension) {
                 $table->string($dimension)->nullable();
             }
             foreach (PvVsOcReportRepository::MEDIDAS as $medida) {
                 $table->decimal($medida, 18, 2)->default(0);
+            }
+            if ($tabla === (new TwHistPedidosModel)->getTable()) {
+                $table->string(TwHistPedidosModel::COLUMNA_ANIO)->nullable();
+                $table->string(TwHistPedidosModel::COLUMNA_MES)->nullable();
+                $table->string(TwHistPedidosModel::COLUMNA_SEMANA)->nullable();
             }
         });
     }
@@ -128,6 +145,13 @@ class VentasComparaPorAnioTest extends TestCase
         $fila['ANIO'] = $anio;
         $fila['MES'] = '3';
         $fila['QTY'] = $cantidad;
+        if ($modelo === TwHistPedidosModel::class) {
+            $fila['ANIO'] = '1999';
+            $fila['MES'] = '12';
+            $fila[TwHistPedidosModel::COLUMNA_ANIO] = $anio;
+            $fila[TwHistPedidosModel::COLUMNA_MES] = '3';
+            $fila[TwHistPedidosModel::COLUMNA_SEMANA] = '10';
+        }
 
         DB::connection(self::CONEXION)->table((new $modelo)->getTable())->insert($fila);
     }

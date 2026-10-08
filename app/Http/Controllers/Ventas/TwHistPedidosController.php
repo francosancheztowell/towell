@@ -29,7 +29,7 @@ final class TwHistPedidosController extends Controller
         $anio = (int) ($validated['anio'] ?? now()->year);
 
         $registros = TwHistPedidosModel::query()
-            ->where('ANIO', $anio)
+            ->where(TwHistPedidosModel::COLUMNA_ANIO, $anio)
             ->get();
 
         return response()->json([

@@ -40,6 +40,16 @@ final class PvVsOcReportRepository
     ];
 
     /**
+     * Dimensiones que una serie toma de otra columna. El Pedido se ubica en el año/mes en que se creó
+     * (YearCreado/MonthCreado); Plan y Real siguen con ANIO/MES.
+     *
+     * @var array<string, array<string, string>>
+     */
+    private const COLUMNAS_POR_SERIE = [
+        'O' => ['ANIO' => TwHistPedidosModel::COLUMNA_ANIO, 'MES' => TwHistPedidosModel::COLUMNA_MES],
+    ];
+
+    /**
      * Plan, Pedido y Real ya cruzados por combinación de dimensiones: una fila por combo con las
      * columnas P_QTY … R_AMOUNTNETO. Con $anio solo ese año (el navegador pide el más reciente primero
      * y los demás en segundo plano); sin él, todos. Las tres tablas son heaps sin índices en SQL Server
@@ -51,7 +61,6 @@ final class PvVsOcReportRepository
     public function combinado(?string $anio = null): LazyCollection
     {
         $dimensiones = implode(', ', self::DIMENSIONES);
-        $where = $anio === null ? '' : ' WHERE ANIO = ?';
 
         // Cada tabla se agrupa por separado (menos filas que cruzar) y cada serie llena solo sus
         // columnas; el GROUP BY externo junta los tres resultados en una fila por combo.
@@ -64,8 +73,15 @@ final class PvVsOcReportRepository
                     $columnas[] = ($otra === $serie ? "SUM({$medida})" : '0')." AS {$otra}_{$medida}";
                 }
             }
-            $fuentes[] = "SELECT {$dimensiones}, ".implode(', ', $columnas)
-                .' FROM '.(new $modelo)->getTable().$where." GROUP BY {$dimensiones}";
+            $origen = array_map(fn (string $dimension): string => $this->columna($serie, $dimension), self::DIMENSIONES);
+            $select = array_map(
+                static fn (string $columna, string $dimension): string => $columna === $dimension ? $columna : "{$columna} AS {$dimension}",
+                $origen,
+                self::DIMENSIONES,
+            );
+            $where = $anio === null ? '' : ' WHERE '.$this->columna($serie, 'ANIO').' = ?';
+            $fuentes[] = 'SELECT '.implode(', ', $select).', '.implode(', ', $columnas)
+                .' FROM '.(new $modelo)->getTable().$where.' GROUP BY '.implode(', ', $origen);
             foreach (self::MEDIDAS as $medida) {
                 $sumas[] = "SUM({$serie}_{$medida}) AS {$serie}_{$medida}";
             }
@@ -88,10 +104,12 @@ final class PvVsOcReportRepository
      */
     public function anios(): array
     {
-        $sql = implode(' UNION ', array_map(
-            static fn (string $modelo): string => 'SELECT DISTINCT ANIO FROM '.(new $modelo)->getTable(),
-            array_values(self::SERIES),
-        )).' ORDER BY ANIO DESC';
+        $fuentes = [];
+        foreach (self::SERIES as $serie => $modelo) {
+            $columna = $this->columna($serie, 'ANIO');
+            $fuentes[] = 'SELECT DISTINCT '.($columna === 'ANIO' ? $columna : "{$columna} AS ANIO").' FROM '.(new $modelo)->getTable();
+        }
+        $sql = implode(' UNION ', $fuentes).' ORDER BY ANIO DESC';
 
         $anios = array_map(
             static fn (object $fila): string => trim((string) $fila->ANIO),
@@ -99,5 +117,11 @@ final class PvVsOcReportRepository
         );
 
         return array_values(array_unique(array_filter($anios, static fn (string $anio): bool => $anio !== '')));
+    }
+
+    /** Columna de la tabla de la serie que alimenta una dimensión (el Pedido usa su fecha de creación). */
+    private function columna(string $serie, string $dimension): string
+    {
+        return self::COLUMNAS_POR_SERIE[$serie][$dimension] ?? $dimension;
     }
 }
