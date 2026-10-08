@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\Mantenimiento\MantenimientoParosController;
+use App\Http\Controllers\Mantenimiento\ParosCatalogoController;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Tests\Concerns\UsesSqlsrvSqlite;
@@ -112,7 +112,7 @@ class MantenimientoParosControllerTest extends TestCase
             ],
         ]);
 
-        $controller = new MantenimientoParosController;
+        $controller = app(ParosCatalogoController::class);
         $response = $controller->maquinas('Calidad');
         $payload = $response->getData(true);
 
@@ -160,7 +160,7 @@ class MantenimientoParosControllerTest extends TestCase
             ],
         ]);
 
-        $controller = new MantenimientoParosController;
+        $controller = app(ParosCatalogoController::class);
         $response = $controller->ordenTrabajo('Calidad', 'T-99');
         $payload = $response->getData(true);
 

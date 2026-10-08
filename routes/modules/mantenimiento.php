@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\Mantenimiento\CatalogosFallasController;
 use App\Http\Controllers\Mantenimiento\ManOperadoresMantenimientoController;
-use App\Http\Controllers\Mantenimiento\MantenimientoParosController;
+use App\Http\Controllers\Mantenimiento\ParosCatalogoController;
+use App\Http\Controllers\Mantenimiento\ParosCierreController;
+use App\Http\Controllers\Mantenimiento\ParosController;
 use App\Http\Controllers\Mantenimiento\ReportesMantenimientoController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
@@ -18,7 +20,7 @@ Route::get('/mantenimiento/{moduloPrincipal?}', [UsuarioController::class, 'show
 
 Route::view('/mantenimiento/solicitudes', 'modulos.mantenimiento.reporte-fallos-paros.index')->name('mantenimiento.solicitudes');
 
-Route::get('/mantenimiento/nuevo-paro', [MantenimientoParosController::class, 'nuevoParo'])->name('mantenimiento.nuevo-paro');
+Route::get('/mantenimiento/nuevo-paro', [ParosController::class, 'nuevoParo'])->name('mantenimiento.nuevo-paro');
 Route::view('/mantenimiento/finalizar-paro', 'modulos.mantenimiento.finalizar-paro.index')->name('mantenimiento.finalizar-paro');
 Route::view('/mantenimiento/reporte-fallos-paros', 'modulos.mantenimiento.reporte-fallos-paros.index')->name('mantenimiento.reporte-fallos-paros');
 
@@ -28,25 +30,25 @@ Route::get('/mantenimiento/catalogodefallas', [CatalogosFallasController::class,
 // Catálogo de Operadores (listado + CRUD en el componente Livewire CatalogoOperadores, idrol 53)
 Route::get('/mantenimiento/operadores-mantenimiento', [ManOperadoresMantenimientoController::class, 'index'])->name('mantenimiento.operadores-mantenimiento.index');
 
-Route::get('/api/mantenimiento/departamentos', [MantenimientoParosController::class, 'departamentos'])
+Route::get('/api/mantenimiento/departamentos', [ParosCatalogoController::class, 'departamentos'])
     ->name('api.mantenimiento.departamentos');
-Route::get('/api/mantenimiento/departamentos/catalogo-filtros', [MantenimientoParosController::class, 'departamentosCatalogoFiltros'])
+Route::get('/api/mantenimiento/departamentos/catalogo-filtros', [ParosCatalogoController::class, 'departamentosCatalogoFiltros'])
     ->name('api.mantenimiento.departamentos.catalogo-filtros');
-Route::get('/api/mantenimiento/maquinas/{departamento}', [MantenimientoParosController::class, 'maquinas'])
+Route::get('/api/mantenimiento/maquinas/{departamento}', [ParosCatalogoController::class, 'maquinas'])
     ->name('api.mantenimiento.maquinas');
-Route::get('/api/mantenimiento/tipos-falla/{departamento}', [MantenimientoParosController::class, 'tiposFalla'])
+Route::get('/api/mantenimiento/tipos-falla/{departamento}', [ParosCatalogoController::class, 'tiposFalla'])
     ->name('api.mantenimiento.tipos-falla');
-Route::get('/api/mantenimiento/fallas/{departamento}/{tipoFallaId?}', [MantenimientoParosController::class, 'fallas'])
+Route::get('/api/mantenimiento/fallas/{departamento}/{tipoFallaId?}', [ParosCatalogoController::class, 'fallas'])
     ->name('api.mantenimiento.fallas');
-Route::get('/api/mantenimiento/orden-trabajo/{departamento}/{maquina}', [MantenimientoParosController::class, 'ordenTrabajo'])
+Route::get('/api/mantenimiento/orden-trabajo/{departamento}/{maquina}', [ParosCatalogoController::class, 'ordenTrabajo'])
     ->name('api.mantenimiento.orden-trabajo');
-Route::get('/api/mantenimiento/operadores', [MantenimientoParosController::class, 'operadores'])
+Route::get('/api/mantenimiento/operadores', [ParosCierreController::class, 'operadores'])
     ->name('api.mantenimiento.operadores');
-Route::post('/api/mantenimiento/paros', [MantenimientoParosController::class, 'store'])
+Route::post('/api/mantenimiento/paros', [ParosController::class, 'store'])
     ->name('api.mantenimiento.paros.store');
-Route::get('/api/mantenimiento/paros', [MantenimientoParosController::class, 'index'])
+Route::get('/api/mantenimiento/paros', [ParosController::class, 'index'])
     ->name('api.mantenimiento.paros.index');
-Route::get('/api/mantenimiento/paros/{id}', [MantenimientoParosController::class, 'show'])
+Route::get('/api/mantenimiento/paros/{id}', [ParosController::class, 'show'])
     ->name('api.mantenimiento.paros.show');
-Route::put('/api/mantenimiento/paros/{id}/finalizar', [MantenimientoParosController::class, 'finalizar'])
+Route::put('/api/mantenimiento/paros/{id}/finalizar', [ParosCierreController::class, 'finalizar'])
     ->name('api.mantenimiento.paros.finalizar');

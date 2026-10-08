@@ -23,7 +23,7 @@ use App\Models\Sistema\Usuario;
  *  - El paro ya estaba cerrado cuando el mecánico finaliza la orden
  *    → OrdenesTrabajoMecaController::finalizar llama a calificarOrden().
  *  - La orden ya existe y el paro se cierra después
- *    → MantenimientoParosController::finalizar llama a propagarAOrdenesDelParo().
+ *    → ParosCierreController::finalizar llama a propagarAOrdenesDelParo().
  *
  * Cuando la orden es de captura manual (sin FolioParo) no hay nada que heredar y
  * el tejedor la califica a mano, como siempre.
@@ -233,7 +233,7 @@ class CalificacionParoService
 
     /**
      * Las columnas de estatus son NVARCHAR con colación case-insensitive: se
-     * comparan igual que en MantenimientoParosController::finalizar.
+     * comparan igual que en ParosCierreController::finalizar.
      */
     private function estatusEs(mixed $estatus, string $esperado): bool
     {
