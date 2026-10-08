@@ -1,17 +1,15 @@
 <?php
 
-namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
+namespace App\Services\Planeacion\ProgramaTejido;
 
 use App\Helpers\AuditoriaHelper;
 use App\Helpers\StringTruncator;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
-use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
+use App\Support\Planeacion\NumeroPrograma;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
@@ -27,11 +25,13 @@ class DividirTejido
      * La suma de saldos capturados debe ser exactamente el SaldoPedido del original.
      * Todos comparten OrdCompartida = NoProduccion del original.
      *
-     * Recibe datos ya validados con DividirSaldoRequest::rules() (HTTP o Livewire).
+     * Recibe datos ya validados con DividirSaldoRequest::rules() (los valida FilasDestino).
+     * Devuelve el resultado para la grilla; un error trae success=false, message y status.
      *
      * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
      */
-    public static function dividir(array $data): JsonResponse
+    public static function dividir(array $data): array
     {
         AuditoriaHelper::contexto('DIVIDIR');
 
@@ -116,7 +116,7 @@ class DividirTejido
             $saldos = array_map([self::class, 'saldoDe'], $destinos);
             $error = self::sinPartes(array_slice($saldos, 1))
                 ?? self::descuadre($saldos, (float) ($registroOriginal->SaldoPedido ?? 0))
-                ?? TejidoHelpers::claveFaltanteEnSalon(self::paresOtroSalon(array_slice($destinos, 1), $salonOrigen, $registroOriginal->getAttribute('TamanoClave')));
+                ?? CatalogoModelos::claveFaltanteEnSalon(self::paresOtroSalon(array_slice($destinos, 1), $salonOrigen, $registroOriginal->getAttribute('TamanoClave')));
             if ($error !== null) {
                 return self::abortar($dispatcher, $error, 422);
             }
@@ -136,7 +136,7 @@ class DividirTejido
                 $registroOriginal->PorcentajeSegundos = $porcentajeSegundosOriginal;
             }
             $registroOriginal->SaldoPedido = $saldos[0];
-            $registroOriginal->TotalPedido = TejidoHelpers::pedidoDesdeSaldo($saldos[0], $registroOriginal);
+            $registroOriginal->TotalPedido = self::pedidoDesdeSaldo($saldos[0], $registroOriginal);
 
             // PedidoTempo y Observaciones del destino 0 (antes tomaba el pedido_tempo del ÚLTIMO destino)
             if (($destinoOriginal['pedido_tempo'] ?? null) !== null && $destinoOriginal['pedido_tempo'] !== '') {
@@ -153,7 +153,7 @@ class DividirTejido
             );
 
             // ===== FORZAR STD DESDE CATÁLOGOS (SMITH/JACQUARD + Normal/Alta) =====
-            TejidoHelpers::aplicarStdDesdeCatalogos($registroOriginal);
+            EstandaresTelar::aplicarStdDesdeCatalogos($registroOriginal);
 
             $registroOriginal->UpdatedAt = now();
 
@@ -162,7 +162,7 @@ class DividirTejido
                 $inicio = Carbon::parse($registroOriginal->FechaInicio);
                 $horasNecesarias = self::calcularHorasProd($registroOriginal);
 
-                $registroOriginal->FechaFinal = TejidoHelpers::resolverFechaFinal($inicio, $horasNecesarias, $registroOriginal->CalendarioId)->format('Y-m-d H:i:s');
+                $registroOriginal->FechaFinal = CalendarioProduccion::resolverFechaFinal($inicio, $horasNecesarias, $registroOriginal->CalendarioId)->format('Y-m-d H:i:s');
 
             }
 
@@ -183,7 +183,7 @@ class DividirTejido
             $registrosDatosParaRespuesta = [];
 
             // PT-PERF-02: posiciones de todos los telares destino en una consulta, no una por destino.
-            $reservarPosicion = TejidoHelpers::reservadorDePosiciones(array_map(
+            $reservarPosicion = PosicionesTelar::reservador(array_map(
                 fn ($d) => [(string) $d['salon_destino'], (string) $d['telar']],
                 $destinosNuevos
             ));
@@ -259,7 +259,7 @@ class DividirTejido
 
             $registrosDatos = $registrosDatosParaRespuesta;
 
-            return response()->json([
+            return [
                 'success' => true,
                 'message' => "Registro dividido correctamente. OrdCompartida: {$nuevoOrdCompartida}. Se crearon/actualizaron {$totalDivididos} registro(s).",
                 'registros_divididos' => $totalDivididos,
@@ -285,7 +285,7 @@ class DividirTejido
                 'salon_destino' => $primerNuevoCreado?->SalonTejidoId,
                 'telar_destino' => $primerNuevoCreado?->NoTelarId,
                 'modo' => 'dividir',
-            ]);
+            ];
 
         } catch (\Throwable $e) {
             report($e);
@@ -294,13 +294,17 @@ class DividirTejido
         }
     }
 
-    /** Rollback + restaurar observers + JSON de error: toda salida temprana pasa por aquí. */
-    private static function abortar($dispatcher, string $mensaje, int $status): JsonResponse
+    /**
+     * Rollback + restaurar observers + resultado de error: toda salida temprana pasa por aquí.
+     *
+     * @return array{success: false, message: string, status: int}
+     */
+    private static function abortar($dispatcher, string $mensaje, int $status): array
     {
         DBFacade::rollBack();
         ReqProgramaTejido::restoreObservers($dispatcher);
 
-        return response()->json(['success' => false, 'message' => $mensaje], $status);
+        return ['success' => false, 'message' => $mensaje, 'status' => $status];
     }
 
     /**
@@ -337,11 +341,11 @@ class DividirTejido
             $nuevo->AplicacionId = $aplicacion;
         }
         self::aplicarDatosDestino($nuevo, $destino, $globales, $salonOrigen);
-        TejidoHelpers::aplicarStdDesdeCatalogos($nuevo);
+        EstandaresTelar::aplicarStdDesdeCatalogos($nuevo);
 
         self::aplicarFila($nuevo, $destino);
         // Parte nueva sin producción: TotalPedido = saldo / (1 + %seg/100).
-        $nuevo->TotalPedido = TejidoHelpers::pedidoDesdeSaldo(self::saldoDe($destino), $nuevo);
+        $nuevo->TotalPedido = self::pedidoDesdeSaldo(self::saldoDe($destino), $nuevo);
 
         self::programarParte($nuevo, $ultimo, $inicioSiTelarVacio);
         unset($nuevo->Repeticiones); // no es columna de la tabla
@@ -369,7 +373,7 @@ class DividirTejido
         // Arranca donde termina el último del telar destino (sin snap al calendario).
         $inicio = $ultimo && $ultimo->FechaFinal ? Carbon::parse($ultimo->FechaFinal) : $inicioSiTelarVacio->copy();
         $nuevo->FechaInicio = $inicio->format('Y-m-d H:i:s');
-        $nuevo->FechaFinal = TejidoHelpers::resolverFechaFinal($inicio->copy(), self::calcularHorasProd($nuevo), $nuevo->CalendarioId)->format('Y-m-d H:i:s');
+        $nuevo->FechaFinal = CalendarioProduccion::resolverFechaFinal($inicio->copy(), self::calcularHorasProd($nuevo), $nuevo->CalendarioId)->format('Y-m-d H:i:s');
         if ($ultimo) {
             $nuevo->CambioHilo = trim((string) $nuevo->FibraRizo) !== trim((string) $ultimo->FibraRizo) ? '1' : '0';
         }
@@ -386,10 +390,22 @@ class DividirTejido
         return $valor === null || $valor === '' ? null : (string) $valor;
     }
 
+    /**
+     * Saldo = Pedido × (1 + %seg/100) − Producción, despejado para el pedido: cada fila de
+     * Dividir captura saldo y su TotalPedido se deriva de él.
+     */
+    private static function pedidoDesdeSaldo(float $saldo, ReqProgramaTejido $registro): float
+    {
+        $produccion = (float) $registro->getAttribute('Produccion');
+        $porcentajeSegundos = max(0.0, (float) $registro->getAttribute('PorcentajeSegundos'));
+
+        return round(($saldo + $produccion) / (1 + $porcentajeSegundos / 100), 2);
+    }
+
     /** Saldo capturado en la fila (sin separador de miles). Clientes viejos solo mandan 'pedido'. */
     private static function saldoDe(array $destino): float
     {
-        return TejidoHelpers::sanitizeNumber($destino['saldo'] ?? $destino['pedido'] ?? 0);
+        return NumeroPrograma::sanitizeNumber($destino['saldo'] ?? $destino['pedido'] ?? 0);
     }
 
     /**
@@ -517,9 +533,9 @@ class DividirTejido
      */
     private static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
-        return TejidoHelpers::calcularFormulasEficienciaPorContexto(
+        return FormulasEficiencia::calcularFormulasEficienciaPorContexto(
             $programa,
-            TejidoHelpers::FORMULAS_CTX_PEDIDO_INHERIT,
+            FormulasEficiencia::FORMULAS_CTX_PEDIDO_INHERIT,
             fn (?string $tamanoClave, ?string $salonTejidoId) => self::obtenerModeloCodificadoPorSalon($tamanoClave, $salonTejidoId)
         );
     }
@@ -669,7 +685,7 @@ class DividirTejido
      * @param  array<string, mixed>  $data
      * @param  array<int, array<string, mixed>>  $destinos  con salon_destino ya normalizado
      */
-    private static function redistribuirGrupoExistente(array $data, int $ordCompartida, array $destinos, string $salonDestino, $hilo, $dispatcher): JsonResponse
+    private static function redistribuirGrupoExistente(array $data, int $ordCompartida, array $destinos, string $salonDestino, $hilo, $dispatcher): array
     {
         $registroIdOriginal = $data['registro_id_original'] ?? null;
 
@@ -717,7 +733,7 @@ class DividirTejido
             $error = self::descuadre(
                 self::saldosRedistribuidos($registrosExistentes, $destinosPorId, $destinosNuevos),
                 (float) $registrosExistentes->sum(fn ($r) => (float) ($r->SaldoPedido ?? 0))
-            ) ?? TejidoHelpers::claveFaltanteEnSalon(self::paresOtroSalon(
+            ) ?? CatalogoModelos::claveFaltanteEnSalon(self::paresOtroSalon(
                 $destinosNuevos,
                 TelarSalonResolver::normalizeSalon($primerRegistro->SalonTejidoId, $primerRegistro->NoTelarId),
                 $primerRegistro->getAttribute('TamanoClave')
@@ -738,7 +754,7 @@ class DividirTejido
                     $registro->PorcentajeSegundos = $porcentajeSegundosDestino;
                 }
                 $registro->SaldoPedido = self::saldoDe($destino);
-                $registro->TotalPedido = TejidoHelpers::pedidoDesdeSaldo(self::saldoDe($destino), $registro);
+                $registro->TotalPedido = self::pedidoDesdeSaldo(self::saldoDe($destino), $registro);
 
                 if (($destino['pedido_tempo'] ?? null) !== null && $destino['pedido_tempo'] !== '') {
                     $registro->PedidoTempo = $destino['pedido_tempo'];
@@ -755,14 +771,14 @@ class DividirTejido
                 );
 
                 // ===== FORZAR STD DESDE CATÁLOGOS (SMITH/JACQUARD + Normal/Alta) =====
-                TejidoHelpers::aplicarStdDesdeCatalogos($registro);
+                EstandaresTelar::aplicarStdDesdeCatalogos($registro);
 
                 // ===== RECALCULAR FECHA FINAL desde la fecha inicio existente (sin cambiar fecha inicio) =====
                 if (! empty($registro->FechaInicio)) {
                     $inicio = Carbon::parse($registro->FechaInicio);
                     $horasNecesarias = self::calcularHorasProd($registro);
 
-                    $registro->FechaFinal = TejidoHelpers::resolverFechaFinal($inicio, $horasNecesarias, $registro->CalendarioId)->format('Y-m-d H:i:s');
+                    $registro->FechaFinal = CalendarioProduccion::resolverFechaFinal($inicio, $horasNecesarias, $registro->CalendarioId)->format('Y-m-d H:i:s');
                 }
 
                 if ($registro->FechaInicio && $registro->FechaFinal) {
@@ -779,7 +795,7 @@ class DividirTejido
             }
 
             // PT-PERF-02: posiciones de todos los telares destino en una consulta, no una por destino.
-            $reservarPosicion = TejidoHelpers::reservadorDePosiciones(array_map(
+            $reservarPosicion = PosicionesTelar::reservador(array_map(
                 fn ($d) => [(string) $d['salon_destino'], (string) $d['telar']],
                 $destinosNuevos
             ));
@@ -856,7 +872,7 @@ class DividirTejido
                 ? $registrosConOrdCompartida->firstWhere('Id', $origId)
                 : $registrosConOrdCompartida->first();
 
-            return response()->json([
+            return [
                 'success' => true,
                 'message' => "Redistribución completada. Actualizados: {$totalActualizados}, Nuevos: {$totalCreados}.",
                 'registros_divididos' => $totalActualizados + $totalCreados,
@@ -884,7 +900,7 @@ class DividirTejido
                 'salon_destino' => $primerNuevoCreado?->SalonTejidoId,
                 'telar_destino' => $primerNuevoCreado?->NoTelarId,
                 'modo' => 'dividir',
-            ]);
+            ];
 
         } catch (\Throwable $e) {
             report($e);
@@ -923,15 +939,15 @@ class DividirTejido
      */
     private static function construirMaquina(?string $maquinaBase, ?string $salon, $telar): string
     {
-        return TejidoHelpers::construirMaquinaConSalon($maquinaBase, $salon, $telar);
+        return TelarSalonResolver::construirMaquina($maquinaBase, $salon, $telar);
     }
 
     /**
-     * Calcular horas de producción necesarias (delegado a TejidoHelpers con callback por salón)
+     * Calcular horas de producción necesarias (HorasProduccion con callback por salón)
      */
     private static function calcularHorasProd(ReqProgramaTejido $p): float
     {
-        return TejidoHelpers::calcularHorasProd(
+        return HorasProduccion::calcularHorasProd(
             $p,
             fn (?string $k, ?string $s) => self::obtenerModeloCodificadoPorSalon($k, $s)
         );

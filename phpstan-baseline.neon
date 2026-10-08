@@ -4186,469 +4186,469 @@ parameters:
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$AnchoToalla\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CalibrePie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CalibrePie2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CalibreRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CalibreRizo2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CalibreTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CalibreTrama2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CodColorTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$ColorTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CuentaPie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$CuentaRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$FibraPie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$FibraTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$LargoToalla\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Luchaje\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$MedidaPlano\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$NoTiras\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$Peine\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$PesoCrudo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Ancho\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$AnchoToalla\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$AplicacionId\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibrePie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibrePie2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreRizo2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreTrama2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CambioHilo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ColorTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CreatedAt\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaPie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaRizo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CustName\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EntregaCte\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EntregaPT\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$EntregaProduc\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraPie\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraRizo\.$#'
 			identifier: property.notFound
 			count: 5
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraTrama\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FlogsId\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$InventSizeId\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ItemId\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$LargoCrudo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Luchaje\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Maquina\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$MedidaPlano\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTiras\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreProducto\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreProyecto\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Observaciones\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$OrdCompartida\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PedidoTempo\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Peine\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PesoCrudo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PorcentajeSegundos\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ProgramarProd\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SaldoPedido\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TamanoClave\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TotalPedido\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$UpdatedAt\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$EntregaCte\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$EntregaPT\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$EntregaProduc\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$Maquina\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$Observaciones\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$OrdCompartida\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$PedidoTempo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$PorcentajeSegundos\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$ProgramarProd\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$SaldoPedido\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$TotalPedido\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$UpdatedAt\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Left side of && is always true\.$#'
 			identifier: booleanAnd.leftAlwaysTrue
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Strict comparison using \!\=\= between mixed~\(0\|0\.0\|''''\|''0''\|array\{\}\|false\|null\) and ''0'' will always evaluate to true\.$#'
 			identifier: notIdentical.alwaysTrue
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Using nullsafe property access on non\-nullable type App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Variable \$idsParaObserver in empty\(\) always exists and is not falsy\.$#'
 			identifier: empty.variable
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DividirTejido.php
 
 		-
 			message: '#^Offset ''detalles'' on array\{detalles\: array\<int, array\<string, mixed\>\>, idsAfectados\: list\<int\>, updates\: array\<int, array\<string, mixed\>\>\} on left side of \?\? always exists and is not nullable\.$#'
@@ -4672,703 +4672,703 @@ parameters:
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$AnchoToalla\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$AplicacionId\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreBarra1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreBarra12\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreBarra2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreBarra22\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreBarra3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreBarra32\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreBarra4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreBarra42\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb1\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb12\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb2\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb22\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb3\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb32\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb4\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb42\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb5\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreComb52\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibrePie\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibrePie2\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreRizo\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreRizo2\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreTrama\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CalibreTrama2\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CambioHilo\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CategoriaCalidad\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorBarra1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorBarra2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorBarra3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorBarra4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb1\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb2\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb3\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb4\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorComb5\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CodColorTrama\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ColorBarra1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ColorBarra2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ColorBarra3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ColorBarra4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ColorTrama\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CreatedAt\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaBarra1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaBarra2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaBarra3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaBarra4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaPie\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CuentaRizo\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$CustName\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$DobladilloId\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaCreacion\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaModificacion\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraBarra1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraBarra2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraBarra3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraBarra4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb1\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb2\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb3\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb4\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraComb5\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraRizo\.$#'
 			identifier: property.notFound
 			count: 4
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FibraTrama\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FlogsId\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$HoraCreacion\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$HoraModificacion\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$InventSizeId\.$#'
 			identifier: property.notFound
 			count: 4
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ItemId\.$#'
 			identifier: property.notFound
 			count: 4
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$LargoCrudo\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Luchaje\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Maquina\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$MedidaPlano\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoProduccion\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NoTiras\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC1\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC2\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC3\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC4\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreCC5\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreProducto\.$#'
 			identifier: property.notFound
 			count: 3
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$NombreProyecto\.$#'
 			identifier: property.notFound
 			count: 4
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Observaciones\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$OrdCompartida\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$OrdCompartidaLider\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasBarra1\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasBarra2\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasBarra3\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasBarra4\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasComb1\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasComb2\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasComb3\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasComb4\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasComb5\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PasadasTrama\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PedidoTempo\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Peine\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PesoCrudo\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$PorcentajeSegundos\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Produccion\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Programado\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$ProgramarProd\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Rasurado\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$Repeticiones\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SaldoMarbete\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$SaldoPedido\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TamanoClave\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$TotalPedido\.$#'
 			identifier: property.notFound
 			count: 5
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$UpdatedAt\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$UsuarioCrea\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$UsuarioModifica\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$OrdCompartida\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqProgramaTejido\>\:\:\$TamanoClave\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Strict comparison using \!\=\= between mixed and null will always evaluate to true\.$#'
 			identifier: notIdentical.alwaysTrue
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Strict comparison using \!\=\= between mixed~\(0\|0\.0\|''''\|''0''\|array\{\}\|false\|null\) and '''' will always evaluate to true\.$#'
 			identifier: notIdentical.alwaysTrue
 			count: 4
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Strict comparison using \=\=\= between mixed and null will always evaluate to false\.$#'
 			identifier: identical.alwaysFalse
 			count: 1
-			path: app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php
+			path: app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqProgramaTejido\:\:\$FechaFinaliza\.$#'

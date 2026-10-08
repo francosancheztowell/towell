@@ -128,4 +128,33 @@ final class CatalogoModelos
             ?? (clone $qBase)->whereRaw('UPPER(TamanoClave) LIKE ?', [$tamUpper.'%'])->select($selectCols)->first()
             ?? (clone $qBase)->whereRaw('UPPER(TamanoClave) LIKE ?', ['%'.$tamUpper.'%'])->select($selectCols)->first();
     }
+
+    /**
+     * Dividir/duplicar a otro salón exige que la clave modelo exista en ReqModelosCodificados
+     * para ese salón. Una consulta para todas las filas.
+     *
+     * @param  array<int, array{0: string, 1: ?string}>  $pares  [salón destino, TamanoClave]
+     * @return string|null mensaje para el 422, o null si todas existen
+     */
+    public static function claveFaltanteEnSalon(array $pares): ?string
+    {
+        if ($pares === []) {
+            return null;
+        }
+        $llave = fn ($salon, $clave) => TelarSalonResolver::normalizeSalon((string) $salon).'|'.mb_strtoupper(trim((string) $clave));
+
+        $existentes = ReqModelosCodificados::query()
+            ->whereIn('SalonTejidoId', array_merge(...array_map(fn ($p) => TelarSalonResolver::salonAliases($p[0]) ?: [$p[0]], $pares)))
+            ->whereIn('TamanoClave', array_map(fn ($p) => trim((string) $p[1]), $pares))
+            ->get(['SalonTejidoId', 'TamanoClave'])
+            ->mapWithKeys(fn ($m) => [$llave($m->getAttribute('SalonTejidoId'), $m->getAttribute('TamanoClave')) => true]);
+
+        foreach ($pares as [$salon, $clave]) {
+            if (trim((string) $clave) === '' || ! $existentes->has($llave($salon, $clave))) {
+                return "La clave modelo '".trim((string) $clave)."' no existe en Modelos para el salón {$salon}. Dala de alta antes de pasarla a ese salón.";
+            }
+        }
+
+        return null;
+    }
 }

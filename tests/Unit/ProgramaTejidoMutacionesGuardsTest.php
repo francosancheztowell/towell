@@ -21,7 +21,7 @@ class ProgramaTejidoMutacionesGuardsTest extends TestCase
 
     public function test_duplicar_restaura_observers_en_cada_salida(): void
     {
-        $src = $this->src('app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php');
+        $src = $this->src('app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php');
 
         // Cada rollBack() debe ir seguido de restoreObservers(): si no, el dispatcher
         // queda desconectado para el resto del request.
@@ -34,13 +34,13 @@ class ProgramaTejidoMutacionesGuardsTest extends TestCase
 
     public function test_duplicar_vincular_mete_el_origen_al_grupo(): void
     {
-        $src = $this->src('app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php');
+        $src = $this->src('app/Services/Planeacion/ProgramaTejido/DuplicarTejido.php');
         $this->assertStringContainsString('$original->OrdCompartida = $ordCompartidaAVincular;', $src);
     }
 
     public function test_dividir_normaliza_salon_y_no_cae_a_otra_fila(): void
     {
-        $src = $this->src('app/Http/Controllers/Planeacion/ProgramaTejido/funciones/DividirTejido.php');
+        $src = $this->src('app/Services/Planeacion/ProgramaTejido/DividirTejido.php');
 
         $this->assertStringContainsString(
             "TelarSalonResolver::normalizeSalon(\$data['salon_tejido_id'], \$telarOrigen)",
