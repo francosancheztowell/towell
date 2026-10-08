@@ -22,11 +22,11 @@ import {
     valorLinea,
 } from '../../resources/js/modulos/tejido/cortes-eficiencia/comun/logica.ts';
 
-test('RPM: tope 650 en los telares 401/402 y 500 en el resto; eficiencia 0..100', () => {
-    assert.equal(maxRpm(401), 650);
-    assert.equal(maxRpm(402), 650);
+test('RPM: tope 750 en los telares 401/402 y 500 en el resto; eficiencia 0..100', () => {
+    assert.equal(maxRpm(401), 750);
+    assert.equal(maxRpm(402), 750);
     assert.equal(maxRpm(201), 500);
-    assert.equal(limitarValor('700', 'rpm', 401), 650);
+    assert.equal(limitarValor('800', 'rpm', 401), 750);
     assert.equal(limitarValor('700', 'rpm', 201), 500);
     assert.equal(limitarValor('-5', 'rpm', 201), 0);
     assert.equal(limitarValor('abc', 'eficiencia', 201), 0);

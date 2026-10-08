@@ -149,7 +149,7 @@
                                             <input type="number"
                                                 class="valor-input rpm-input w-full px-2 py-1 border border-gray-200 rounded text-sm text-gray-900 text-center focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
                                                 data-telar="{{ $telar }}" data-horario="{{ $h }}" data-type="rpm" value="0" min="0"
-                                                max="{{ in_array($telar, [401, 402]) ? 650 : 500 }}" placeholder="0"
+                                                max="{{ in_array($telar, [401, 402]) ? 800 : 500 }}" placeholder="0"
                                                 aria-label="RPM telar {{ $telar }} horario {{ $h }}">
                                         </td>
                                         <!-- EF -->

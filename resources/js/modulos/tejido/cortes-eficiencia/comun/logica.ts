@@ -8,7 +8,7 @@ export type TipoValor = 'rpm' | 'eficiencia';
 export type Horario = 1 | 2 | 3;
 export const HORARIOS: readonly Horario[] = [1, 2, 3];
 
-/** Telares con tope de 650 RPM; el resto, 500. */
+/** Telares con tope de 800 RPM; el resto, 500. */
 const TELARES_RPM_ALTA = [401, 402];
 
 /** Línea de TejEficienciaLine tal como la manda y la devuelve el controller. */
@@ -39,7 +39,7 @@ export function parsePct(valor: unknown): number | null {
 }
 
 export function maxRpm(telar: number): number {
-    return TELARES_RPM_ALTA.includes(telar) ? 650 : 500;
+    return TELARES_RPM_ALTA.includes(telar) ? 800 : 500;
 }
 
 export function maxValor(tipo: TipoValor, telar: number): number {
