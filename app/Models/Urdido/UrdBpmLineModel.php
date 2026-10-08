@@ -5,6 +5,16 @@ namespace App\Models\Urdido;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $Id
+ * @property string $Folio
+ * @property int|null $Orden
+ * @property string|null $Actividad
+ * @property string|null $Valor
+ * @property string|null $TurnoRecibe
+ * @property string|null $MaquinaId
+ * @property string|null $Departamento
+ */
 class UrdBpmLineModel extends Model
 {
     use HasFactory;
@@ -12,9 +22,13 @@ class UrdBpmLineModel extends Model
     // protected $connection = 'sqlsrv'; // o 'ProdTowel'
 
     protected $table = 'UrdBPMLine';
+
     protected $primaryKey = 'Id';  // En tu grid aparece Id
+
     public $incrementing = true;
+
     protected $keyType = 'int';
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -28,19 +42,7 @@ class UrdBpmLineModel extends Model
     ];
 
     protected $casts = [
-        'Id'    => 'integer',
+        'Id' => 'integer',
         'Orden' => 'integer',
     ];
-
-    /** Pertenece al encabezado por Folio */
-    public function header()
-    {
-        return $this->belongsTo(UrdBpmModel::class, 'Folio', 'Folio');
-    }
-
-    /** Scope: todas las líneas de un folio */
-    public function scopeByFolio($q, string $folio)
-    {
-        return $q->where('Folio', $folio)->orderBy('Orden');
-    }
 }

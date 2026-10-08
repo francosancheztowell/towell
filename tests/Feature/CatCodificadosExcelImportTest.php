@@ -2,10 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Sistema\Usuario;
 use App\Services\Planeacion\CatCodificados\Excel\CatCodificadosExcelHeaderMapper;
+use App\Support\Planeacion\CatCodificados\CatCodificadosCache;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\UploadedFile;
@@ -258,7 +258,7 @@ class CatCodificadosExcelImportTest extends TestCase
     {
         $importId = 'cancel-test-import';
 
-        Cache::put(CatCodificacionController::progressCacheKey($importId), [
+        Cache::put(CatCodificadosCache::progressCacheKey($importId), [
             'status' => 'processing',
             'total_rows' => 50,
             'processed_rows' => 10,
@@ -288,8 +288,8 @@ class CatCodificadosExcelImportTest extends TestCase
         $response->assertJsonPath('data.status', 'cancelled');
         $response->assertJsonPath('data.deleted_jobs', 1);
 
-        $this->assertTrue(Cache::get(CatCodificacionController::cancellationCacheKey($importId)));
-        $this->assertSame('cancelled', Cache::get(CatCodificacionController::progressCacheKey($importId))['status']);
+        $this->assertTrue(Cache::get(CatCodificadosCache::cancellationCacheKey($importId)));
+        $this->assertSame('cancelled', Cache::get(CatCodificadosCache::progressCacheKey($importId))['status']);
         $this->assertDatabaseCount('jobs', 0);
     }
 

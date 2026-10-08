@@ -57,13 +57,8 @@ class RutasDestructivasPermisoTest extends TestCase
      */
     public static function rutasDeAutorizacion(): array
     {
+        // Los BPM autorizan desde Livewire (App\Livewire\Bpm\Checklist), sin ruta: ver tests/Feature/Bpm/BpmTest.
         return [
-            'eng-bpm-line autorizar' => ['eng-bpm-line.autorizar'],
-            'eng-bpm-line rechazar' => ['eng-bpm-line.rechazar'],
-            'urd-bpm-line autorizar' => ['urd-bpm-line.autorizar'],
-            'urd-bpm-line rechazar' => ['urd-bpm-line.rechazar'],
-            'tel-bpm autorizar' => ['tel-bpm.authorize'],
-            'tel-bpm rechazar' => ['tel-bpm.reject'],
             'ordenes de trabajo autorizar' => ['mecanicos.ordenes-trabajo.autorizar'],
         ];
     }

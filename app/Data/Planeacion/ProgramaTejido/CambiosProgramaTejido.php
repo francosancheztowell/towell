@@ -8,7 +8,7 @@ use App\Http\Requests\Planeacion\ProgramaTejido\ActualizarProgramaTejidoRequest;
 
 /**
  * Edición inline ya validada (PT-05). Los nombres de campo son los del payload legacy
- * (snake_case): el mapeo a columnas vive en UpdateTejido::aplicarCambios(). Solo trae
+ * (snake_case): el mapeo a columnas vive en EdicionProgramaTejido::aplicarCambios(). Solo trae
  * los campos presentes: "ausente" y "null" significan cosas distintas.
  */
 final readonly class CambiosProgramaTejido

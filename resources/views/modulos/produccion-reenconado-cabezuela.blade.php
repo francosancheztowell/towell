@@ -111,6 +111,12 @@
             </flux:table.rows>
         </flux:table>
     </div>
+    @if($limitado ?? false)
+        <p class="mt-2 text-caption text-gray-600">
+            Se muestran los {{ $registros->count() }} registros más recientes.
+            <a href="{{ request()->fullUrlWithQuery(['todos' => 1]) }}" class="text-primary underline">Ver todo</a>
+        </p>
+    @endif
 </div>
 
 <div id="modalNuevo" class="fixed inset-0 z-50 hidden items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="modal-title">

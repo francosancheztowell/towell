@@ -5,11 +5,11 @@ namespace Tests\Unit\Helpers;
 use App\Helpers\FolioHelper;
 use App\Http\Controllers\mecanicos\OrdenesTrabajoMecaController;
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\CrearOrdenKarlMayerController;
-use App\Http\Controllers\Tejedores\BPMTejedores\TelBpmController;
 use App\Livewire\Mecanicos\VerificaMaquina\Index as VerificaMaquinaIndex;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\ProgramaUrdEng\CrearOrdenesService;
 use App\Services\Tejido\InventarioTrama\NuevoRequerimientoService;
+use App\Support\Bpm\AreaBpm;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -212,7 +212,7 @@ class FoliosCaracterizacionTest extends TestCase
     }
 
     // ---------------------------------------------------------------
-    // BPM Tejedores: TelBpmController::generarFolio()
+    // BPM Tejedores: AreaBpm::siguienteFolio() (antes TelBpmController::generarFolio())
     // ---------------------------------------------------------------
 
     private function crearTablaTelBpm(string ...$folios): void
@@ -227,7 +227,7 @@ class FoliosCaracterizacionTest extends TestCase
 
     private function folioBpm(): string
     {
-        return $this->invocarPrivado(new TelBpmController, 'generarFolio');
+        return AreaBpm::Tejedores->siguienteFolio();
     }
 
     public function test_bpm_sin_secuencia_la_crea_sembrada_con_el_maximo_de_telbpm(): void

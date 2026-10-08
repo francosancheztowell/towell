@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
 use App\Helpers\AuditoriaHelper;
 use App\Helpers\StringTruncator;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\OrdCompartidaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
+use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -104,7 +104,7 @@ class DividirTejido
             }
 
             // OrdCompartida = NoProduccion del registro original (líder natural del grupo dividido)
-            $nuevoOrdCompartida = OrdCompartidaHelper::obtenerOrdCompartidaDesdeRegistro($registroOriginal);
+            $nuevoOrdCompartida = OrdCompartida::obtenerOrdCompartidaDesdeRegistro($registroOriginal);
             // El original es quien cede saldo y da nombre al grupo: necesita NoProduccion. Las partes
             // nuevas no (lo reciben al liberar). Sin esta guarda, where('OrdCompartida', null) se
             // vuelve whereNull y el bloque del líder toca todas las filas sin grupo de la tabla.
@@ -199,7 +199,7 @@ class DividirTejido
             }
 
             // Líder: FechaInicio más antigua entre los que tienen NoProduccion (misma regla en todo PT).
-            OrdCompartidaHelper::recalcularLiderYOrdPrincipalPorOrdCompartida($nuevoOrdCompartida);
+            OrdCompartida::recalcularLiderYOrdPrincipalPorOrdCompartida($nuevoOrdCompartida);
 
             // Asegurar que los registros divididos mantengan EnProceso=0 (dentro de la misma transacción)
             if (! empty($idsParaObserver)) {
@@ -830,7 +830,7 @@ class DividirTejido
             }
 
             // Líder: FechaInicio más antigua entre los que tienen NoProduccion (misma regla en todo PT).
-            OrdCompartidaHelper::recalcularLiderYOrdPrincipalPorOrdCompartida((int) $ordCompartida);
+            OrdCompartida::recalcularLiderYOrdPrincipalPorOrdCompartida((int) $ordCompartida);
             $registrosConOrdCompartida = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
                 ->get();
 

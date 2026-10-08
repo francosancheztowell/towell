@@ -2,11 +2,10 @@
 
 namespace Tests\Unit;
 
-use App\Http\Controllers\Planeacion\Alineacion\AlineacionController;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
-use ReflectionMethod;
+use App\Services\Planeacion\Alineacion\AlineacionItemsService;
 use Tests\TestCase;
 
 class AlineacionControllerTest extends TestCase
@@ -230,8 +229,6 @@ class AlineacionControllerTest extends TestCase
      */
     private function mapear(ReqProgramaTejido $program, array $catPorOrden = [], array $modelosPorClave = []): array
     {
-        $method = new ReflectionMethod(AlineacionController::class, 'mapearProgramaTejidoAItem');
-
-        return $method->invoke(new AlineacionController, $program, $catPorOrden, [], $modelosPorClave);
+        return (new AlineacionItemsService)->mapearItem($program, $catPorOrden, [], $modelosPorClave);
     }
 }

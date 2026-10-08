@@ -2,76 +2,34 @@
 
 namespace App\Observers;
 
-use App\Helpers\AuditoriaHelper;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
-use App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController;
-use App\Models\Planeacion\Catalogos\CatCodificados;
-use App\Models\Planeacion\ReqAplicaciones;
-use App\Models\Planeacion\ReqMatrizHilos;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Models\Planeacion\ReqProgramaTejidoLine;
+use App\Services\Planeacion\ProgramaTejido\FormulasEficiencia;
+use App\Services\Planeacion\ProgramaTejido\FormulasProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\GeneradorLineasDiarias;
+use App\Services\Planeacion\ProgramaTejido\HorasProduccion;
+use App\Services\Planeacion\ProgramaTejido\SincronizadorCatCodificados;
+use App\Support\ColumnasDeTabla;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
-use Carbon\CarbonPeriod;
-use DateTimeInterface;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Throwable;
 
+/**
+ * Adaptador del evento saved de ReqProgramaTejido. Orquesta, en este orden:
+ *  1. líneas diarias ({@see GeneradorLineasDiarias}) si cambió algún campo relevante;
+ *  2. sincronización a CatCodificados ({@see SincronizadorCatCodificados});
+ *  3. recálculo de las fórmulas de producción si cambió algún input
+ *     (cálculo en {@see FormulasProgramaTejido}).
+ *
+ * Varios flujos usan saveQuietly() y llaman a mano a regenerateLinesFor(),
+ * sincronizarCatCodificados() o recalcularFormulasProduccion(): sus firmas se mantienen.
+ */
 class ReqProgramaTejidoObserver
 {
-    /** Cache en memoria para ReqAplicaciones */
-    private static array $aplicacionesCache = [];
-
-    /** Cache en memoria para ReqMatrizHilos */
-    private static array $matrizHilosCache = [];
-
-    /** Cache en memoria para Schema::getColumnListing, por nombre de tabla */
-    private static array $columnListingCache = [];
-
     /** Ya se reportó en este proceso que el maestro de pesos no se puede leer */
     private static bool $maestroPesosIlegibleAvisado = false;
-
-    /**
-     * Vaciar los caches estaticos.
-     *
-     * Son static, asi que dentro de un mismo proceso PHP sobreviven a todo. En la suite eso
-     * es una trampa: un test que crea su propia 'CatCodificados' con menos columnas deja
-     * cacheada ESA lista y el siguiente test ve su UPDATE filtrado a cero por
-     * array_intersect_key(), sin error. Pasaba aislado y fallaba en suite.
-     * Tests\TestCase::setUp() llama a esto para que no le vuelva a pasar a nadie.
-     */
-    public static function flushCaches(): void
-    {
-        self::$aplicacionesCache = [];
-        self::$matrizHilosCache = [];
-        self::$columnListingCache = [];
-        self::$maestroPesosIlegibleAvisado = false;
-    }
-
-    private static function avisarMaestroPesosIlegible(Throwable $e): void
-    {
-        // Una vez por proceso y a lo más una por hora entre procesos (cron cada 30 min, workers).
-        if (self::$maestroPesosIlegibleAvisado || ! Cache::add('pt:observer:maestro_pesos_ilegible', 1, 3600)) {
-            self::$maestroPesosIlegibleAvisado = true;
-
-            return;
-        }
-        self::$maestroPesosIlegibleAvisado = true;
-
-        Log::error('ReqProgramaTejidoObserver::obtenerPesoRolloMaestro error', [
-            'message' => 'Maestro ReqPesosRollosTejido no legible: se usa el respaldo de 41.5 kg. '.$e->getMessage(),
-        ]);
-        report($e);
-    }
-
-    private const FACTOR_PESO = 1000.0;
-
-    private const DENSIDAD_HILO = 0.59;
-
-    private const FACTOR_RETORCIDO = 1.0162;
 
     private const CAMPOS_RELEVANTES = [
         'FechaInicio', 'FechaFinal',
@@ -87,33 +45,6 @@ class ReqProgramaTejidoObserver
         'PasadasComb3', 'CalibreComb32',
         'PasadasComb4', 'CalibreComb42',
         'PasadasComb5', 'CalibreComb52',
-    ];
-
-    /**
-     * Mapeo de campos a sincronizar desde ReqProgramaTejido hacia CatCodificados.
-     * Llave: nombre del campo en ReqProgramaTejido
-     * Valor: nombre de la columna en CatCodificados
-     *
-     * La sincronización ocurre solo cuando el campo cambió (wasChanged/isDirty) y la fila
-     * en CatCodificados existe (busca por OrdenTejido = NoProduccion). Funciona para
-     * cualquier flujo que use Eloquent save() — incluyendo Balanceo, UpdateTejido,
-     * Dividir/Duplicar, etc.
-     */
-    private const CAMPOS_SYNC_CAT_CODIFICADOS = [
-        'TamanoClave' => 'ClaveModelo',
-        'ItemId' => 'ItemId',
-        'TotalPedido' => 'Pedido',
-        'SaldoPedido' => 'Saldos',
-        'Produccion' => 'Produccion',
-        // ProduccionMarbetes NO se sincroniza: en ReqProgramaTejido son piezas y en
-        // CatCodificados son marbetes (lo alimenta el proceso externo). Distinta unidad.
-        'FlogsId' => 'FlogsId',
-        'NombreProyecto' => 'NombreProyecto',
-        'PesoCrudo' => 'P_crudo',
-        // La fila en CatCodificados se localiza por OrdenTejido + TelarId al liberar/editar:
-        // si la orden se mueve de telar o salón, CatCodificados debe seguirla.
-        'NoTelarId' => 'TelarId',
-        'SalonTejidoId' => 'Departamento',
     ];
 
     /**
@@ -133,6 +64,36 @@ class ReqProgramaTejidoObserver
     public const CAMPOS_RECALC_FORMULA = [
         'TamanoClave', 'InventSizeId', 'PesoCrudo', 'NoTiras', 'LargoCrudo', 'SaldoPedido', 'TotalPedido', 'Produccion',
     ];
+
+    private readonly FormulasProgramaTejido $formulas;
+
+    private readonly GeneradorLineasDiarias $generador;
+
+    private readonly SincronizadorCatCodificados $sincronizador;
+
+    public function __construct()
+    {
+        // Se instancia con `new` en varios flujos (y vía el contenedor como observer): sin dependencias.
+        $this->formulas = new FormulasProgramaTejido;
+        $this->generador = new GeneradorLineasDiarias($this->formulas);
+        $this->sincronizador = new SincronizadorCatCodificados;
+    }
+
+    /**
+     * Vaciar los caches estaticos (columnas, aplicaciones, matriz de hilos, aviso del maestro).
+     *
+     * Son static, asi que dentro de un mismo proceso PHP sobreviven a todo. En la suite eso
+     * es una trampa: un test que crea su propia 'CatCodificados' con menos columnas deja
+     * cacheada ESA lista y el siguiente test ve su UPDATE filtrado a cero por
+     * array_intersect_key(), sin error. Pasaba aislado y fallaba en suite.
+     * Tests\TestCase::setUp() llama a esto para que no le vuelva a pasar a nadie.
+     */
+    public static function flushCaches(): void
+    {
+        ColumnasDeTabla::flush();
+        GeneradorLineasDiarias::flushCaches();
+        self::$maestroPesosIlegibleAvisado = false;
+    }
 
     public function saved(ReqProgramaTejido $programa): void
     {
@@ -157,7 +118,16 @@ class ReqProgramaTejidoObserver
      */
     private function debeRecalcularFormulas(ReqProgramaTejido $programa): bool
     {
-        foreach (self::CAMPOS_RECALC_FORMULA as $campo) {
+        return $this->algunCampoCambio($programa, self::CAMPOS_RECALC_FORMULA);
+    }
+
+    /**
+     * @param  list<string>  $campos
+     */
+    private function algunCampoCambio(ReqProgramaTejido $programa, array $campos): bool
+    {
+        foreach ($campos as $campo) {
+            // wasChanged() aplica post-save (producción); isDirty() permite tests sin ciclo save()
             if ($programa->wasChanged($campo) || $programa->isDirty($campo)) {
                 return true;
             }
@@ -172,7 +142,7 @@ class ReqProgramaTejidoObserver
      * No escribe SaldoMarbete/NoMarbete.
      *
      * Público para poder llamarse desde flujos con saveQuietly() (UpdateTejido, etc.) o desde
-     * scripts de mantenimiento masivo.
+     * scripts de mantenimiento masivo. Nunca lanza: devuelve false si no recalculó.
      */
     public function recalcularFormulasProduccion(ReqProgramaTejido $programa): bool
     {
@@ -199,12 +169,12 @@ class ReqProgramaTejidoObserver
             //  - El ajuste ÷2 en PzasRollo/MtsRollo aplica a felpa nominal Y a tamaños "FEL".
             //  - Karl Mayer no se rige por felpa: ni peso 90 ni ajuste ×2 / ÷2.
             $esKarlMayer = TelarSalonResolver::esKarlMayer($programa->SalonTejidoId ?? null, $programa->NoTelarId ?? null);
-            $esFelpaNominal = ! $esKarlMayer && $this->esTamanoFelpa($programa);
-            $aplicaAjusteFel = ! $esKarlMayer && ($esFelpaNominal || $this->esFelpaInventSize($programa));
-            $pesoRollo = $this->obtenerPesoRolloMaestro($programa, $esFelpaNominal, $esKarlMayer);
+            $esFelpaNominal = ! $esKarlMayer && $this->formulas->esTamanoFelpa($programa);
+            $aplicaAjusteFel = ! $esKarlMayer && ($esFelpaNominal || $this->formulas->esFelpaInventSize($programa));
+            $pesoRollo = $this->formulas->pesoRolloSinMaestro($programa, $esFelpaNominal, $esKarlMayer)
+                ?? $this->obtenerPesoRolloMaestro($programa);
 
-            // === CADENA DE FÓRMULAS ===
-            $repeticiones = (int) ((($pesoRollo / $pCrudo) / $tiras) * 1000); // TRUNC
+            $repeticiones = $this->formulas->repeticiones($pesoRollo, $pCrudo, $tiras);
             if ($repeticiones <= 0) {
                 Log::info('ReqProgramaTejidoObserver: skip recalc (Repeticiones <= 0)', [
                     'id' => $programa->Id,
@@ -216,111 +186,17 @@ class ReqProgramaTejidoObserver
                 return false;
             }
 
-            $pzasRollo = (float) round($repeticiones * $tiras, 0);
-            $mtsRollo = $largo > 0 ? (float) (($largo * $repeticiones) / 100) : null;
-
-            // Ajuste FEL: ÷2 en PzasRollo y MtsRollo (igual que LiberarOrdenesController)
-            if ($aplicaAjusteFel) {
-                $pzasRollo = (float) round($pzasRollo / 2);
-                if ($mtsRollo !== null) {
-                    $mtsRollo = (float) ($mtsRollo / 2);
-                }
-            }
-
-            $totalRollos = ($totalPedido > 0 && $pzasRollo > 0)
-                ? (float) ceil($totalPedido / $pzasRollo)
-                : null;
-            $totalPzas = ($totalRollos !== null && $pzasRollo > 0)
-                ? (float) round($totalRollos * $pzasRollo, 0)
-                : null;
-
-            // SaldoMarbete / NoMarbete NO se tocan aquí: los mantiene el proceso externo
-            // (NoMarbete = TotalRollos − ProduccionMarbetes conforme se imprimen marbetes).
-            // El cron de 30 min pasa por aquí; si escribiera marbetes pisaba el pendiente.
-
-            // === UPDATE directo (evita recursión del observer) ===
-            $tabla = $programa->getTable();
-            $connection = $programa->getConnection();
-            $updateRpt = [
-                'Repeticiones' => $repeticiones,
-                'PzasRollo' => $pzasRollo,
-                'MtsRollo' => $mtsRollo,
-                'TotalRollos' => $totalRollos,
-                'TotalPzas' => $totalPzas,
-                'RollosProgramados' => $totalRollos,
-                'UpdatedAt' => Carbon::now(),
-            ];
-            // Solo columnas físicas de la superficie (PT-02, hallazgo 1): MuestrasPrograma no tiene
-            // RollosProgramados hasta que se aplique database/sql/pt_muestras_produccion.sql, y
-            // antes el UPDATE entero fallaba y se perdían las 5 fórmulas. Si el listado sale vacío
-            // se manda completo: que falle ruidoso, no que se filtre a nada.
-            $columnasRpt = self::columnasDeTabla($tabla);
-            if ($columnasRpt !== []) {
-                $updateRpt = array_intersect_key($updateRpt, array_flip($columnasRpt));
-            }
-
-            // Cabecera y CatCodificados en una sola transacción (PT-02, hallazgo 5): antes la
-            // cabecera quedaba recalculada aunque CatCodificados fallara.
-            [$afectadasRpt, $afectadasCat, $noProduccion] = $connection->transaction(function () use (
-                $connection, $tabla, $programa, $updateRpt, $repeticiones, $pzasRollo, $mtsRollo, $totalRollos, $totalPzas
-            ): array {
-                $afectadasRpt = $connection->table($tabla)
-                    ->where('Id', $programa->Id)
-                    ->update($updateRpt);
-
-                // SQL Server puede devolver una cantidad de filas afectadas poco confiable cuando hay
-                // triggers. Confirmar el valor realmente persistido antes de copiarlo a CatCodificados.
-                $totalRollosPersistido = $connection->table($tabla)
-                    ->where('Id', $programa->Id)
-                    ->value('TotalRollos');
-
-                $totalRollosCoincide = $totalRollos === null
-                    ? $totalRollosPersistido === null
-                    : $totalRollosPersistido !== null
-                        && abs((float) $totalRollosPersistido - $totalRollos) < 0.001;
-
-                if (! $totalRollosCoincide) {
-                    throw new \RuntimeException('No se confirmó TotalRollos en ReqProgramaTejido.');
-                }
-
-                // Sincronizar las mismas fórmulas a CatCodificados (si existe la fila)
-                // Mismo criterio que LiberarOrdenesController: OrdenTejido + TelarId. Solo por OrdenTejido
-                // se pisaban filas de otros telares cuando un folio se reparte entre varios.
-                $noProduccion = trim((string) ($programa->NoProduccion ?? ''));
-                $afectadasCat = 0;
-                if ($noProduccion !== '') {
-                    $queryCat = $connection->table((new CatCodificados)->getTable())->where('OrdenTejido', $noProduccion);
-                    $telar = trim((string) ($programa->NoTelarId ?? ''));
-                    if ($telar !== '') {
-                        $queryCat->where('TelarId', $telar);
-                    }
-                    $updateCat = [
-                        'Repeticiones' => $repeticiones,
-                        'PzasRollo' => $pzasRollo,
-                        'MtsRollo' => $mtsRollo,
-                        'TotalRollos' => $totalRollos,
-                        'TotalPzas' => $totalPzas,
-                        'FechaModificacion' => Carbon::now()->format('Y-m-d'),
-                        'HoraModificacion' => Carbon::now()->format('H:i:s'),
-                    ];
-                    $usuario = AuditoriaHelper::obtenerUsuarioActual();
-                    if (! empty($usuario)) {
-                        $updateCat['UsuarioModifica'] = $usuario;
-                    }
-                    $afectadasCat = $queryCat->update($updateCat);
-                }
-
-                return [$afectadasRpt, $afectadasCat, $noProduccion];
-            });
+            $resultados = $this->formulas->cadenaProduccion($repeticiones, $tiras, $largo, $totalPedido, $aplicaAjusteFel);
+            [$afectadasRpt, $afectadasCat] = $this->persistirFormulasProduccion($programa, $resultados);
 
             Log::info('ReqProgramaTejidoObserver: fórmulas recalculadas', [
                 'id' => $programa->Id,
-                'NoProduccion' => $noProduccion ?: null,
+                'NoProduccion' => trim((string) ($programa->NoProduccion ?? '')) ?: null,
                 'esFelpaNominal' => $esFelpaNominal,
                 'aplicaAjusteFel' => $aplicaAjusteFel,
                 'pesoRollo_usado' => $pesoRollo,
                 'inputs' => compact('pCrudo', 'tiras', 'largo', 'totalPedido'),
-                'resultados' => compact('repeticiones', 'pzasRollo', 'mtsRollo', 'totalRollos', 'totalPzas'),
+                'resultados' => $resultados,
                 'filas_RPT_afectadas' => $afectadasRpt,
                 'filas_CAT_afectadas' => $afectadasCat,
             ]);
@@ -341,203 +217,137 @@ class ReqProgramaTejidoObserver
     }
 
     /**
-     * Determina si el registro corresponde a felpa por su InventSizeId (contiene "FEL").
+     * UPDATE directo de la cabecera (evita recursión del observer) y de CatCodificados, en una
+     * sola transacción (PT-02, hallazgo 5: antes la cabecera quedaba recalculada aunque
+     * CatCodificados fallara). SaldoMarbete / NoMarbete NO se tocan: los mantiene el proceso
+     * externo; el cron de 30 min pasa por aquí y si los escribiera pisaba el pendiente.
+     *
+     * @param  array{repeticiones: int, pzasRollo: float, mtsRollo: float|null, totalRollos: float|null, totalPzas: float|null}  $resultados
+     * @return array{0: int, 1: int} filas afectadas en la cabecera y en CatCodificados
      */
-    private function esFelpaInventSize(ReqProgramaTejido $programa): bool
+    private function persistirFormulasProduccion(ReqProgramaTejido $programa, array $resultados): array
     {
-        $inv = strtoupper(trim((string) ($programa->InventSizeId ?? '')));
-
-        return $inv !== '' && strpos($inv, 'FEL') !== false;
-    }
-
-    /**
-     * Felpa nominal: TamanoClave o NombreProducto contienen "FELPA"
-     * (misma regla que LiberarOrdenesController::esTamanoFelpa).
-     */
-    private function esTamanoFelpa(ReqProgramaTejido $programa): bool
-    {
-        $tk = trim((string) ($programa->TamanoClave ?? ''));
-        if ($tk !== '' && stripos($tk, 'FELPA') !== false) {
-            return true;
-        }
-        $nombre = trim((string) ($programa->NombreProducto ?? ''));
-
-        return $nombre !== '' && stripos($nombre, 'FELPA') !== false;
-    }
-
-    /**
-     * Obtiene el PesoRollo a usar en la fórmula (mismo orden que LiberarOrdenesController):
-     *   - Karl Mayer: 27.5 kg
-     *   - Felpa nominal (FELPA en clave/nombre): 90 kg fijo
-     *   - Resto: InventSizeId exacto en ReqPesosRollosTejido → "FEL" (si el tamaño contiene FEL) → "DEF" → 41.5
-     */
-    private function obtenerPesoRolloMaestro(ReqProgramaTejido $programa, bool $esFelpaNominal, bool $esKarlMayer = false): float
-    {
-        // El PesoRollo guardado gana sobre el maestro: es el que el usuario capturó al liberar y con el
-        // que se calcularon las Repeticiones que quedaron en CatCodificados. Ignorarlo desalinea ambas tablas.
-        $pesoGuardado = $programa->PesoRollo ?? null;
-        if ($pesoGuardado !== null && is_numeric($pesoGuardado) && (float) $pesoGuardado > 0.0) {
-            return (float) $pesoGuardado;
-        }
-
-        // Karl Mayer va antes que felpa: es su peso estándar, y el capturado ya ganó arriba.
-        if ($esKarlMayer) {
-            return LiberarOrdenesController::PESO_ROLLO_KG_KARL_MAYER;
-        }
-
-        if ($esFelpaNominal) {
-            return 90.0;
-        }
-
-        $inventSizeId = trim((string) ($programa->InventSizeId ?? ''));
+        $tabla = $programa->getTable();
         $connection = $programa->getConnection();
+        $totalRollos = $resultados['totalRollos'];
+        $updateRpt = [
+            'Repeticiones' => $resultados['repeticiones'],
+            'PzasRollo' => $resultados['pzasRollo'],
+            'MtsRollo' => $resultados['mtsRollo'],
+            'TotalRollos' => $totalRollos,
+            'TotalPzas' => $resultados['totalPzas'],
+            'RollosProgramados' => $totalRollos,
+            'UpdatedAt' => Carbon::now(),
+        ];
+        // Solo columnas físicas de la superficie (PT-02, hallazgo 1): MuestrasPrograma no tiene
+        // RollosProgramados hasta que se aplique database/sql/pt_muestras_produccion.sql, y
+        // antes el UPDATE entero fallaba y se perdían las 5 fórmulas. Si el listado sale vacío
+        // se manda completo: que falle ruidoso, no que se filtre a nada.
+        $columnasRpt = ColumnasDeTabla::de($tabla);
+        if ($columnasRpt !== []) {
+            $updateRpt = array_intersect_key($updateRpt, array_flip($columnasRpt));
+        }
 
-        $buscarPorInventSize = function (string $key) use ($connection): ?float {
-            try {
-                $valor = $connection->table('ReqPesosRolloTejido')
-                    ->where('InventSizeId', trim($key))
-                    ->whereNotNull('PesoRollo')
-                    ->orderByDesc('FechaModificacion')
-                    ->orderByDesc('Id')
-                    ->value('PesoRollo');
+        return $connection->transaction(function () use ($connection, $tabla, $programa, $updateRpt, $resultados, $totalRollos): array {
+            $afectadasRpt = $connection->table($tabla)
+                ->where('Id', $programa->Id)
+                ->update($updateRpt);
 
-                return ($valor !== null && is_numeric($valor)) ? (float) $valor : null;
-            } catch (Throwable $e) {
-                // PT-02, hallazgo 6: antes "tabla ilegible" y "sin fila" daban null por igual y se
-                // caía a 41.5 kg sin aviso. Se conserva el respaldo (no cambia ningún número en
-                // planta) pero ya no en silencio: error + report(), una vez por proceso para no
-                // inundar el log del cron. Tabla singular 'ReqPesosRolloTejido', igual que el modelo
-                // (D-1 resuelto: el plural no existe en ProdTowel).
-                self::avisarMaestroPesosIlegible($e);
+            // SQL Server puede devolver una cantidad de filas afectadas poco confiable cuando hay
+            // triggers. Confirmar el valor realmente persistido antes de copiarlo a CatCodificados.
+            $totalRollosPersistido = $connection->table($tabla)
+                ->where('Id', $programa->Id)
+                ->value('TotalRollos');
 
-                return null;
+            $totalRollosCoincide = $totalRollos === null
+                ? $totalRollosPersistido === null
+                : $totalRollosPersistido !== null
+                    && abs((float) $totalRollosPersistido - $totalRollos) < 0.001;
+
+            if (! $totalRollosCoincide) {
+                throw new \RuntimeException('No se confirmó TotalRollos en ReqProgramaTejido.');
             }
-        };
 
+            return [$afectadasRpt, $this->sincronizador->propagarFormulas($connection, $programa, $resultados)];
+        });
+    }
+
+    /**
+     * PesoRollo del maestro ReqPesosRolloTejido (mismo orden que LiberarOrdenesController):
+     * InventSizeId exacto → "FEL" (si el tamaño contiene FEL) → "DEF" → 41.5.
+     * El guardado, Karl Mayer y felpa nominal ya los resolvió FormulasProgramaTejido::pesoRolloSinMaestro.
+     */
+    private function obtenerPesoRolloMaestro(ReqProgramaTejido $programa): float
+    {
+        $inventSizeId = trim((string) ($programa->InventSizeId ?? ''));
+        $claves = [];
         if (! empty($inventSizeId)) {
-            $pr = $buscarPorInventSize($inventSizeId);
+            $claves[] = $inventSizeId;
+            if (stripos($inventSizeId, 'FEL') !== false) {
+                $claves[] = 'FEL';
+            }
+        }
+        $claves[] = 'DEF';
+
+        foreach ($claves as $clave) {
+            $pr = $this->buscarPesoRollo($programa, $clave);
             if ($pr !== null) {
                 return $pr;
             }
-
-            if (stripos($inventSizeId, 'FEL') !== false) {
-                $pr = $buscarPorInventSize('FEL');
-                if ($pr !== null) {
-                    return $pr;
-                }
-            }
         }
 
-        $pr = $buscarPorInventSize('DEF');
+        return 41.5;
+    }
 
-        return $pr ?? 41.5;
+    private function buscarPesoRollo(ReqProgramaTejido $programa, string $key): ?float
+    {
+        try {
+            $valor = $programa->getConnection()->table('ReqPesosRolloTejido')
+                ->where('InventSizeId', trim($key))
+                ->whereNotNull('PesoRollo')
+                ->orderByDesc('FechaModificacion')
+                ->orderByDesc('Id')
+                ->value('PesoRollo');
+
+            return ($valor !== null && is_numeric($valor)) ? (float) $valor : null;
+        } catch (Throwable $e) {
+            // PT-02, hallazgo 6: antes "tabla ilegible" y "sin fila" daban null por igual y se
+            // caía a 41.5 kg sin aviso. Se conserva el respaldo (no cambia ningún número en
+            // planta) pero ya no en silencio: error + report(), una vez por proceso para no
+            // inundar el log del cron. Tabla singular 'ReqPesosRolloTejido', igual que el modelo
+            // (D-1 resuelto: el plural no existe en ProdTowel).
+            self::avisarMaestroPesosIlegible($e);
+
+            return null;
+        }
+    }
+
+    private static function avisarMaestroPesosIlegible(Throwable $e): void
+    {
+        // Una vez por proceso y a lo más una por hora entre procesos (cron cada 30 min, workers).
+        if (self::$maestroPesosIlegibleAvisado || ! Cache::add('pt:observer:maestro_pesos_ilegible', 1, 3600)) {
+            self::$maestroPesosIlegibleAvisado = true;
+
+            return;
+        }
+        self::$maestroPesosIlegibleAvisado = true;
+
+        Log::error('ReqProgramaTejidoObserver::obtenerPesoRolloMaestro error', [
+            'message' => 'Maestro ReqPesosRollosTejido no legible: se usa el respaldo de 41.5 kg. '.$e->getMessage(),
+        ]);
+        report($e);
     }
 
     /**
      * Sincroniza campos editados de ReqProgramaTejido hacia CatCodificados (cuando existe la fila).
-     * Se busca por OrdenTejido = NoProduccion. Solo escribe los campos que efectivamente cambiaron.
      *
      * Público porque algunos flujos (UpdateTejido, importaciones, etc.) usan saveQuietly() que NO
      * dispara observers — esos pueden llamar este método explícitamente tras el save para mantener
-     * CatCodificados sincronizado.
+     * CatCodificados sincronizado. Nunca lanza.
      */
     public function sincronizarCatCodificados(ReqProgramaTejido $programa): void
     {
-        try {
-            $noProduccion = trim((string) ($programa->NoProduccion ?? ''));
-            if ($noProduccion === '') {
-                return;
-            }
-
-            // Detectar qué campos del mapeo cambiaron en este save.
-            $cambios = [];
-            foreach (self::CAMPOS_SYNC_CAT_CODIFICADOS as $campoRpt => $campoCat) {
-                if ($programa->wasChanged($campoRpt)) {
-                    $cambios[$campoCat] = $programa->{$campoRpt};
-                }
-            }
-
-            if (empty($cambios)) {
-                return;
-            }
-
-            // Aplicar AuditoriaHelper-like: fecha/hora/usuario de modificación si las columnas existen.
-            $now = Carbon::now();
-            $cambios['FechaModificacion'] = $now->format('Y-m-d');
-            $cambios['HoraModificacion'] = $now->format('H:i:s');
-            try {
-                $usuario = AuditoriaHelper::obtenerUsuarioActual();
-                if (! empty($usuario)) {
-                    $cambios['UsuarioModifica'] = $usuario;
-                }
-            } catch (Throwable) {
-                // Si el helper no está disponible, omitir UsuarioModifica.
-            }
-
-            $tabla = (new CatCodificados)->getTable();
-            $connection = $programa->getConnection();
-
-            // Filtrar cambios a solo columnas que existen en la tabla CatCodificados
-            // (defensa por si una columna se renombró en SQL Server).
-            $columnasExistentes = self::columnasDeTabla($tabla);
-            if ($columnasExistentes === []) {
-                // PT-02, hallazgo 5: tabla ilegible ≠ "nada que sincronizar". Antes se saltaba sin log.
-                Log::error('ReqProgramaTejidoObserver::sincronizarCatCodificados error', [
-                    'programa_id' => $programa->Id ?? null,
-                    'message' => "Sin columnas legibles en {$tabla}: CatCodificados no se sincronizó.",
-                ]);
-
-                return;
-            }
-            $cambiosFiltrados = array_intersect_key($cambios, array_flip($columnasExistentes));
-
-            if (empty(array_diff_key($cambiosFiltrados, ['FechaModificacion' => 1, 'HoraModificacion' => 1, 'UsuarioModifica' => 1]))) {
-                // Si quedaron solo los campos de auditoría tras el filtro, no vale la pena actualizar.
-                return;
-            }
-
-            // Se acota al telar del registro, igual que LiberarOrdenesController::actualizarCatCodificados.
-            // Sin este filtro el update masivo por OrdenTejido escribía los datos de un telar en las
-            // filas de los otros: hay órdenes repartidas en dos telares y cada una tiene sus propias
-            // métricas. Si el registro no trae telar se conserva el update masivo, que es el caso de
-            // Balanceo (varias filas de la misma orden sin telar propio).
-            $noTelarId = trim((string) ($programa->NoTelarId ?? ''));
-
-            $query = $connection->table($tabla)->where('OrdenTejido', $noProduccion);
-            if ($noTelarId !== '' && in_array('TelarId', $columnasExistentes, true)) {
-                $query->where('TelarId', $noTelarId);
-            }
-
-            $afectadas = $query->update($cambiosFiltrados);
-
-            Log::info('ReqProgramaTejidoObserver: CatCodificados sincronizado', [
-                'orden' => $noProduccion,
-                'telar' => $noTelarId !== '' ? $noTelarId : 'todos',
-                'filas_afectadas' => $afectadas,
-                'campos_solicitados' => array_keys($cambios),
-                'campos_actualizados' => array_keys($cambiosFiltrados),
-            ]);
-        } catch (Throwable $e) {
-            Log::error('ReqProgramaTejidoObserver::sincronizarCatCodificados error', [
-                'programa_id' => $programa->Id ?? null,
-                'message' => $e->getMessage(),
-            ]);
-            report($e);
-        }
-    }
-
-    /**
-     * Columnas de una tabla con cache estático (mismo patrón que $aplicacionesCache).
-     * La metadata de la tabla no cambia durante el request; en workers persistentes
-     * (queue/octane) el cache se refresca por proceso.
-     */
-    private static function columnasDeTabla(string $tabla): array
-    {
-        if (! isset(self::$columnListingCache[$tabla])) {
-            self::$columnListingCache[$tabla] = Schema::getColumnListing($tabla);
-        }
-
-        return self::$columnListingCache[$tabla];
+        $this->sincronizador->sincronizarCambios($programa);
     }
 
     /**
@@ -557,287 +367,17 @@ class ReqProgramaTejidoObserver
 
     private function shouldRegenerateLines(ReqProgramaTejido $programa): bool
     {
-        if ($programa->wasRecentlyCreated) {
-            return true;
-        }
-        foreach (self::CAMPOS_RELEVANTES as $campo) {
-            // wasChanged() aplica post-save (producción); isDirty() permite tests sin ciclo save()
-            if ($programa->wasChanged($campo) || $programa->isDirty($campo)) {
-                return true;
-            }
-        }
-
-        return false;
+        return $programa->wasRecentlyCreated || $this->algunCampoCambio($programa, self::CAMPOS_RELEVANTES);
     }
 
-    private function generarLineasDiarias(ReqProgramaTejido $programa, bool $relanzar = false)
+    private function generarLineasDiarias(ReqProgramaTejido $programa, bool $relanzar = false): void
     {
         try {
             if (! $programa->Id || $programa->Id <= 0) {
                 return;
             }
 
-            $formulas = $this->calcularFormulasEficiencia($programa);
-            if (! empty($formulas)) {
-                foreach ($formulas as $key => $value) {
-                    $programa->{$key} = $value;
-                }
-                $formulasParaGuardar = [];
-                foreach ($formulas as $key => $value) {
-                    if (in_array($key, $programa->getFillable()) || in_array($key, ['StdToaHra', 'PesoGRM2', 'DiasEficiencia', 'StdDia', 'ProdKgDia', 'StdHrsEfect', 'ProdKgDia2', 'HorasProd', 'DiasJornada'])) {
-                        if ($value !== null && is_numeric($value)) {
-                            $formulasParaGuardar[$key] = (float) $value;
-                        } elseif ($value === null) {
-                            $formulasParaGuardar[$key] = null;
-                        } else {
-                            $formulasParaGuardar[$key] = is_numeric($value) ? (float) $value : $value;
-                        }
-                    }
-                }
-                // Mismo criterio que recalcularFormulasProduccion: solo columnas físicas de la
-                // superficie. Ahora que un fallo aquí se relanza (hallazgo 4), una columna que la
-                // tabla no tiene no debe tumbar la regeneración de líneas.
-                $columnasFormulas = self::columnasDeTabla(ReqProgramaTejido::tableName());
-                if ($columnasFormulas !== []) {
-                    $formulasParaGuardar = array_intersect_key($formulasParaGuardar, array_flip($columnasFormulas));
-                }
-                if (! empty($formulasParaGuardar)) {
-                    $programa->getConnection()->table(ReqProgramaTejido::tableName())
-                        ->where('Id', $programa->Id)
-                        ->update($formulasParaGuardar);
-                }
-            }
-
-            $inicio = null;
-            $fin = null;
-
-            try {
-                if (! empty($programa->FechaInicio)) {
-                    $inicio = Carbon::parse($programa->FechaInicio);
-                }
-                if (! empty($programa->FechaFinal)) {
-                    $fin = Carbon::parse($programa->FechaFinal);
-                }
-            } catch (Throwable) {
-                return;
-            }
-
-            if (! $inicio || ! $fin || $fin->lte($inicio)) {
-                return;
-            }
-
-            $totalSegundos = $fin->diffInSeconds($inicio, absolute: true);
-            $totalHoras = $totalSegundos / 3600.0;
-
-            $totalPzas = (float) ($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
-            $pesoCrudo = (float) ($programa->PesoCrudo ?? 0);
-
-            $inicioPeriodo = $inicio->copy()->startOfDay();
-            $finPeriodo = $fin->copy()->startOfDay();
-            $diasTotales = $inicioPeriodo->diffInDays($finPeriodo) + 1;
-
-            $periodo = CarbonPeriod::create()
-                ->setStartDate($inicioPeriodo)
-                ->setRecurrences($diasTotales)
-                ->setDateInterval('1 day');
-
-            $horasPorDia = [];
-
-            foreach ($periodo as $index => $dia) {
-                if (! $dia instanceof Carbon) {
-                    if ($dia instanceof DateTimeInterface) {
-                        $dia = Carbon::instance($dia);
-                    } else {
-                        $dia = Carbon::parse($dia);
-                    }
-                }
-
-                $diaNormalizado = $dia->copy()->startOfDay();
-                $esPrimerDia = ($index === 0);
-                $esUltimoDia = ($diaNormalizado->toDateString() === $finPeriodo->toDateString());
-                if (! $esUltimoDia) {
-                    $diaFinComparacion = $fin->copy()->startOfDay();
-                    $esUltimoDia = ($diaNormalizado->toDateString() === $diaFinComparacion->toDateString());
-                }
-
-                if ($esPrimerDia && $esUltimoDia) {
-                    $segundosDiferencia = $fin->timestamp - $inicio->timestamp;
-                    $fraccion = $segundosDiferencia / 86400;
-                } elseif ($esPrimerDia) {
-                    $hora = $inicio->hour;
-                    $minuto = $inicio->minute;
-                    $segundo = $inicio->second;
-                    $segundosDesdeMedianoche = ($hora * 3600) + ($minuto * 60) + $segundo;
-                    $segundosRestantes = 86400 - $segundosDesdeMedianoche;
-                    $fraccion = $segundosRestantes / 86400;
-                } elseif ($esUltimoDia) {
-                    $realInicio = $diaNormalizado;
-                    $realFin = $fin;
-                    $segundos = $realFin->diffInSeconds($realInicio, false);
-                    if ($segundos < 0) {
-                        $segundos = abs($segundos);
-                    }
-                    $fraccion = $segundos / 86400;
-                } else {
-                    $fraccion = 1.0;
-                }
-
-                if ($fraccion <= 0) {
-                    $horasPorDia[$diaNormalizado->toDateString()] = 0.0;
-
-                    continue;
-                }
-
-                $horasDia = $fraccion * 24.0;
-                $horasPorDia[$diaNormalizado->toDateString()] = $horasDia;
-            }
-
-            $horasReferencia = $totalHoras;
-
-            $stdHrEfectivo = ($horasReferencia > 0) ? ($totalPzas / $horasReferencia) : 0.0;
-
-            $prodKgDia = ($stdHrEfectivo > 0 && $pesoCrudo > 0) ? ($stdHrEfectivo * $pesoCrudo) / 1000.0 : 0.0;
-
-            $diffDias = $totalSegundos / 86400.0;
-            $stdHrsEfectCalc = ($diffDias > 0) ? (($totalPzas / $diffDias) / 24.0) : 0.0;
-            $prodKgDia2Calc = ($pesoCrudo > 0 && $stdHrsEfectCalc > 0)
-                ? ((($pesoCrudo * $stdHrsEfectCalc) * 24.0) / 1000.0)
-                : 0.0;
-
-            if ($horasReferencia <= 0 || $totalPzas <= 0) {
-                return;
-            }
-
-            // Usar la misma conexión que el programa (evita conflictos de visibilidad/auditoría en SQL Server)
-            $connection = $programa->getConnection();
-            $tableLine = ReqProgramaTejidoLine::tableName();
-
-            $lineasParaInsertar = [];
-
-            foreach ($periodo as $index => $dia) {
-                if (! $dia instanceof Carbon) {
-                    if ($dia instanceof DateTimeInterface) {
-                        $dia = Carbon::instance($dia);
-                    } else {
-                        $dia = Carbon::parse($dia);
-                    }
-                }
-                $diaNormalizado = $dia->copy()->startOfDay();
-
-                $horasDia = $horasPorDia[$diaNormalizado->toDateString()] ?? 0.0;
-                $fraccion = $horasDia > 0 ? ($horasDia / 24.0) : 0.0;
-
-                if ($fraccion > 0) {
-                    $pzasDia = $stdHrEfectivo * $horasDia;
-                    $kilosBase = ($prodKgDia2Calc > 0 && $stdHrsEfectCalc > 0)
-                        ? (($pzasDia * $prodKgDia2Calc) / ($stdHrsEfectCalc * 24))
-                        : (($prodKgDia > 0) ? ($prodKgDia / 24) * $horasDia : 0);
-
-                    $factorAplicacion = null;
-                    if ($programa->AplicacionId) {
-                        $aplicacionId = (string) $programa->AplicacionId;
-                        // Usar caché en memoria para evitar consultas repetidas
-                        if (! isset(self::$aplicacionesCache[$aplicacionId])) {
-                            $aplicacionData = ReqAplicaciones::where('AplicacionId', $aplicacionId)->first();
-                            self::$aplicacionesCache[$aplicacionId] = $aplicacionData;
-                        } else {
-                            $aplicacionData = self::$aplicacionesCache[$aplicacionId];
-                        }
-                        if ($aplicacionData) {
-                            $factorAplicacion = (float) $aplicacionData->Factor;
-                        }
-                    }
-
-                    $trama = $this->calcularTrama($programa, $pzasDia);
-                    $combinacion1 = $this->calcularCombinacion($programa, 1, $pzasDia);
-                    $combinacion2 = $this->calcularCombinacion($programa, 2, $pzasDia);
-                    $combinacion3 = $this->calcularCombinacion($programa, 3, $pzasDia);
-                    $combinacion4 = $this->calcularCombinacion($programa, 4, $pzasDia);
-                    $combinacion5 = $this->calcularCombinacion($programa, 5, $pzasDia);
-                    $pie = $this->calcularPie($programa, $pzasDia);
-
-                    $componentesParaRizo = ($pie ?? 0)
-                        + ($combinacion3 ?? 0)
-                        + ($combinacion2 ?? 0)
-                        + ($combinacion1 ?? 0)
-                        + ($trama ?? 0)
-                        + ($combinacion4 ?? 0);
-
-                    $rizo = max(0.0, $kilosBase - $componentesParaRizo);
-
-                    $kilosDia = $rizo + $componentesParaRizo;
-
-                    $aplicacionValor = null;
-                    if ($factorAplicacion !== null && $kilosDia > 0) {
-                        $aplicacionValor = $factorAplicacion * $kilosDia;
-                    }
-
-                    $mtsRizo = $this->calcularMtsRizo($programa, $rizo);
-                    $mtsPie = $this->calcularMtsPie($programa, $pie);
-
-                    $lineasParaInsertar[] = [
-                        'ProgramaId' => (int) $programa->Id,
-                        'Fecha' => $dia->toDateString(),
-                        'Cantidad' => round($pzasDia, 6),
-                        'Kilos' => round($kilosDia, 6),
-                        'Aplicacion' => $aplicacionValor !== null ? round($aplicacionValor, 6) : null,
-                        'Trama' => $trama !== null ? round($trama, 6) : null,
-                        'Combina1' => $combinacion1 !== null ? round($combinacion1, 6) : null,
-                        'Combina2' => $combinacion2 !== null ? round($combinacion2, 6) : null,
-                        'Combina3' => $combinacion3 !== null ? round($combinacion3, 6) : null,
-                        'Combina4' => $combinacion4 !== null ? round($combinacion4, 6) : null,
-                        'Combina5' => $combinacion5 !== null ? round($combinacion5, 6) : null,
-                        'Pie' => $pie !== null ? round($pie, 6) : null,
-                        'Rizo' => round($rizo, 6),
-                        'MtsRizo' => $mtsRizo !== null ? round($mtsRizo, 6) : null,
-                        'MtsPie' => $mtsPie !== null ? round($mtsPie, 6) : null,
-                    ];
-                }
-            }
-
-            // Determinar la conexión para insertar las líneas.
-            // pdo_sqlsrv/ODBC puede no ver registros recién insertados en la misma sesión
-            // (incluso dentro de la misma transacción), así que probamos varias estrategias.
-            $connParaInsert = $connection;
-
-            // Si el modelo fue save()-ado exitosamente (exists=true, Id>0), confiar en él
-            // e intentar el insert directamente sin verificar EXISTS.
-            // Si no tiene exists=true, verificar visibilidad como safety net.
-            if (! $programa->exists) {
-                $parentExists = $connection->table(ReqProgramaTejido::tableName())
-                    ->where('Id', $programa->Id)
-                    ->exists();
-
-                if (! $parentExists) {
-                    $parentExists = DB::table(ReqProgramaTejido::tableName())
-                        ->where('Id', $programa->Id)
-                        ->exists();
-                    if ($parentExists) {
-                        $connParaInsert = DB::connection();
-                    } else {
-                        Log::warning('ReqProgramaTejidoObserver::generarLineasDiarias: registro padre no visible, omitiendo líneas', [
-                            'programa_id' => $programa->Id,
-                        ]);
-
-                        return;
-                    }
-                }
-            }
-
-            // ===== Transacción: DELETE + INSERT atómicos.
-            //      Antes, si el proceso moría tras el DELETE, la pista quedaba con 0 líneas (silenciosamente).
-            //      Ahora cualquier fallo entre el DELETE y el último chunk revierte todo. =====
-            $connParaInsert->transaction(function () use ($connParaInsert, $tableLine, $programa, $lineasParaInsertar): void {
-                $connParaInsert->table($tableLine)->where('ProgramaId', $programa->Id)->delete();
-
-                if (! empty($lineasParaInsertar)) {
-                    $chunks = array_chunk($lineasParaInsertar, 500);
-                    foreach ($chunks as $chunk) {
-                        $connParaInsert->table($tableLine)->insert($chunk);
-                    }
-                }
-            });
-
+            $this->generador->generar($programa, $this->calcularFormulasEficiencia($programa));
         } catch (Throwable $e) {
             // PT-02, hallazgo 4: ya no es un warning perdido. Con $relanzar (hay transacción que
             // revertir) el save reporta el fallo y la cabecera vuelve atrás; sin él, error +
@@ -856,71 +396,12 @@ class ReqProgramaTejidoObserver
         }
     }
 
-    private function calcularTrama(ReqProgramaTejido $programa, float $pzasDia): ?float
-    {
-        $pasadasTrama = $this->resolveField($programa, ['PasadasTrama'], 'float');
-        $calibreTrama = $this->resolveField($programa, ['CalibreTrama2'], 'float');
-        $anchoToalla = $this->resolveField($programa, ['AnchoToalla'], 'float');
-
-        if ($pasadasTrama <= 0 || $calibreTrama <= 0 || $anchoToalla <= 0) {
-            return null;
-        }
-        $trama = ((((0.59 * ((($pasadasTrama * 1.001) * $anchoToalla) / 100.0)) / $calibreTrama) * $pzasDia) / 1000.0);
-
-        return $trama > 0 ? $trama : null;
-    }
-
-    private function calcularCombinacion(ReqProgramaTejido $programa, int $numero, float $pzasDia): ?float
-    {
-        try {
-            $candidatesPasadas = ["PasadasComb{$numero}", "Pasadas_C{$numero}", "PASADAS_C{$numero}"];
-            $candidatesCalibre = ["CalibreComb{$numero}2", "CalibreComb{$numero}"];
-
-            $pasadas = $this->resolveField($programa, $candidatesPasadas, 'float');
-            $calibre = $this->resolveField($programa, $candidatesCalibre, 'float');
-            $anchoToalla = $this->resolveField($programa, ['AnchoToalla', 'Ancho'], 'float');
-
-            if ($pasadas <= 0 || $calibre <= 0 || $anchoToalla <= 0) {
-                return null;
-            }
-
-            $comb = ((((0.59 * ((($pasadas * 1.001) * $anchoToalla) / 100.0)) / $calibre) * $pzasDia) / 1000.0);
-
-            return $comb > 0 ? $comb : null;
-        } catch (Throwable $e) {
-            return null;
-        }
-    }
-
-    private function calcularPie(ReqProgramaTejido $programa, float $pzasDia): ?float
-    {
-        try {
-            $largo = $this->resolveField($programa, ['LargoCrudo'], 'float');
-            $medidaPlano = $this->resolveField($programa, ['MedidaPlano'], 'float');
-            $calibrePie = $this->resolveField($programa, ['CalibrePie2'], 'float');
-            $cuentaPie = $this->resolveField($programa, ['CuentaPie'], 'float');
-            $noTiras = $this->resolveField($programa, ['NoTiras'], 'float');
-
-            if ($largo <= 0 || $noTiras <= 0 || $calibrePie <= 0 || $cuentaPie <= 0) {
-                return null;
-            }
-
-            $baseLongitud = ($largo + $medidaPlano) / 100.0;
-            $ajuste = $baseLongitud * 1.055;
-            $numerador = $ajuste * 0.00059;
-            $divisor = (0.00059 * 1.0) / (0.00059 / $calibrePie);
-            if ($divisor == 0.0) {
-                return null;
-            }
-            $fraccionCuenta = ($cuentaPie - 32.0) / $noTiras;
-            $pie = ($numerador / $divisor) * $fraccionCuenta * $pzasDia;
-
-            return $pie > 0 ? $pie : null;
-        } catch (Throwable $e) {
-            return null;
-        }
-    }
-
+    /**
+     * Fórmulas de eficiencia (StdToaHra, DiasEficiencia, StdDia, ...) de FormulasEficiencia, con
+     * el StdToaHra guardado en BD como anterior (solo se recalcula si cambia la velocidad).
+     *
+     * @return array<string, mixed>
+     */
     private function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
         $stdToaHraAnteriorRaw = DB::table(ReqProgramaTejido::tableName())
@@ -928,7 +409,7 @@ class ReqProgramaTejidoObserver
             ->value('StdToaHra');
         $stdToaHraAnterior = $stdToaHraAnteriorRaw !== null ? (float) $stdToaHraAnteriorRaw : 0;
 
-        $modeloParams = TejidoHelpers::obtenerModeloParams($programa);
+        $modeloParams = HorasProduccion::obtenerModeloParams($programa);
 
         $checkVelocidadCambio = function () use ($programa) {
             return [
@@ -938,7 +419,7 @@ class ReqProgramaTejidoObserver
             ];
         };
 
-        return TejidoHelpers::calcularFormulasEficiencia(
+        return FormulasEficiencia::calcularFormulasEficiencia(
             $programa,
             $modeloParams,
             false, // includeEntregaCte
@@ -947,127 +428,5 @@ class ReqProgramaTejidoObserver
             $stdToaHraAnterior,
             $checkVelocidadCambio
         );
-    }
-
-    private function calcularMtsRizo(ReqProgramaTejido $programa, ?float $rizo): ?float
-    {
-        try {
-
-            if ($rizo === null || $rizo <= 0) {
-                return null;
-            }
-
-            $cuentaRizo = $this->resolveField($programa, ['CuentaRizo'], 'float');
-            if ($cuentaRizo <= 0) {
-                return null;
-            }
-
-            $hilo = $this->resolveField($programa, ['FibraRizo'], 'string');
-            if (empty($hilo)) {
-                return null;
-            }
-
-            // Usar caché en memoria para evitar consultas repetidas
-            if (! isset(self::$matrizHilosCache[$hilo])) {
-                $matrizHilo = ReqMatrizHilos::where('Hilo', $hilo)->first();
-                self::$matrizHilosCache[$hilo] = $matrizHilo;
-            } else {
-                $matrizHilo = self::$matrizHilosCache[$hilo];
-            }
-
-            if (! $matrizHilo) {
-                return null;
-            }
-
-            $n1 = null;
-            $n2 = null;
-
-            if ($matrizHilo->N1 !== null && $matrizHilo->N1 !== '' && is_numeric($matrizHilo->N1)) {
-                $n1 = (float) $matrizHilo->N1;
-            }
-
-            if ($matrizHilo->N2 !== null && $matrizHilo->N2 !== '' && is_numeric($matrizHilo->N2)) {
-                $n2 = (float) $matrizHilo->N2;
-            }
-
-            if ($n1 === null || $n1 <= 0) {
-                if ($matrizHilo->Calibre !== null && $matrizHilo->Calibre !== '' && is_numeric($matrizHilo->Calibre)) {
-                    $n1 = (float) $matrizHilo->Calibre;
-                }
-            }
-
-            if ($n2 === null || $n2 <= 0) {
-                if ($matrizHilo->Calibre2 !== null && $matrizHilo->Calibre2 !== '' && is_numeric($matrizHilo->Calibre2)) {
-                    $n2 = (float) $matrizHilo->Calibre2;
-                }
-            }
-
-            if ($n1 <= 0 || $n2 <= 0) {
-                return null;
-            }
-
-            $valorRizo1 = (($n1 * ($rizo * self::FACTOR_PESO)) / self::DENSIDAD_HILO) / 2;
-            $valorRizo2 = (($n2 * ($rizo * self::FACTOR_PESO)) / self::DENSIDAD_HILO) / 2;
-
-            $mtsRizo = (($valorRizo1 + $valorRizo2) / $cuentaRizo) * self::FACTOR_RETORCIDO;
-
-            return $mtsRizo > 0 ? $mtsRizo : null;
-        } catch (Throwable $e) {
-            return null;
-        }
-    }
-
-    private function calcularMtsPie(ReqProgramaTejido $programa, ?float $pie): ?float
-    {
-        try {
-            if ($pie === null || $pie <= 0) {
-                return null;
-            }
-
-            $calibrePie = $this->resolveField($programa, ['CalibrePie2'], 'float');
-            $cuentaPie = $this->resolveField($programa, ['CuentaPie'], 'float');
-
-            if ($calibrePie <= 0 || $cuentaPie <= 0) {
-                return null;
-            }
-
-            $mtsPie = (((($calibrePie * ($pie * self::FACTOR_PESO)) / self::DENSIDAD_HILO) / $cuentaPie) * self::FACTOR_RETORCIDO);
-
-            return $mtsPie > 0 ? $mtsPie : null;
-        } catch (Throwable) {
-            return null;
-        }
-    }
-
-    private function resolveField(ReqProgramaTejido $programa, array $candidates, string $type = 'float')
-    {
-        $casters = [
-            'float' => static function ($val) {
-                return is_numeric($val) ? (float) $val : 0.0;
-            },
-            'int' => static function ($val) {
-                return is_numeric($val) ? (int) $val : 0;
-            },
-            'string' => static function ($val) {
-                return (string) $val;
-            },
-        ];
-        $defaults = ['float' => 0.0, 'int' => 0, 'string' => ''];
-        $caster = $casters[$type] ?? $casters['float'];
-        $default = $defaults[$type] ?? 0.0;
-
-        foreach ($candidates as $c) {
-            if (! isset($programa->{$c})) {
-                continue;
-            }
-            $val = $programa->{$c};
-            if ($val === null || $val === '') {
-                continue;
-            }
-
-            return $caster($val);
-        }
-
-        return $default;
     }
 }

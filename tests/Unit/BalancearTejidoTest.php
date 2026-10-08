@@ -2,10 +2,13 @@
 
 namespace Tests\Unit;
 
+use App\Actions\Planeacion\ProgramaTejido\RecalcularRegistroPorProduccion;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
+use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Models\Planeacion\ReqProgramaTejidoLine;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
@@ -99,8 +102,8 @@ class BalancearTejidoTest extends TestCase
 
         // PT-02: el observer ya no se traga los fallos (hallazgos 4 y 5 de PT-01); estas tablas
         // existen en live y el fixture las necesita para no depender del catch silencioso.
-        $this->createTablaDesdeModelo(\App\Models\Planeacion\ReqProgramaTejidoLine::class);
-        $this->createTablaDesdeModelo(\App\Models\Planeacion\Catalogos\CatCodificados::class);
+        $this->createTablaDesdeModelo(ReqProgramaTejidoLine::class);
+        $this->createTablaDesdeModelo(CatCodificados::class);
     }
 
     protected function tearDown(): void
@@ -588,6 +591,75 @@ class BalancearTejidoTest extends TestCase
         $this->assertTrue($result['success'], json_encode($result));
         $this->assertArrayHasKey('cambios', $result);
         $this->assertCount(1, $result['cambios']);
+    }
+
+    /**
+     * Caracterización de recalcularRegistroPorProduccion (lo usa recalcular-fechas-produccion):
+     * snap del inicio al calendario, fin por horas de calendario, HorasProd y cascada al siguiente.
+     */
+    public function test_recalcular_registro_por_produccion_fija_fechas_y_cascada(): void
+    {
+        $calId = $this->crearCalendarioFijo();
+        $this->makeModelo();
+        // La cascada (SecuenciaFechasTelar) escribe CambioHilo en los posteriores.
+        Schema::connection('sqlsrv')->table('ReqProgramaTejido', function (Blueprint $table) {
+            $table->integer('CambioHilo')->nullable();
+        });
+
+        $primero = $this->makeReg([
+            'OrdCompartida' => 90, 'NoTelarId' => '07', 'Posicion' => 1, 'TamanoClave' => 'TEST-TOA',
+            'CalendarioId' => $calId, 'FechaInicio' => '2026-03-02 03:00:00', 'FechaFinal' => '2026-03-02 04:00:00',
+            'SaldoPedido' => 3000, 'TotalPedido' => 3000,
+        ]);
+        $segundo = $this->makeReg([
+            'OrdCompartida' => 91, 'NoTelarId' => '07', 'Posicion' => 2, 'TamanoClave' => 'TEST-TOA', 'Ultimo' => '1',
+            'CalendarioId' => $calId, 'FechaInicio' => '2026-03-02 05:00:00', 'FechaFinal' => '2026-03-02 06:00:00',
+            'SaldoPedido' => 1000, 'TotalPedido' => 1000,
+        ]);
+
+        $this->assertTrue($this->recalcularPorProduccion(ReqProgramaTejido::find($primero->Id)));
+
+        $p = ReqProgramaTejido::find($primero->Id);
+        $s = ReqProgramaTejido::find($segundo->Id);
+        $this->assertSame('2026-03-02 06:00:00', (string) $p->getRawOriginal('FechaInicio'));
+        $this->assertSame('2026-03-09 18:25:16', (string) $p->getRawOriginal('FechaFinal'));
+        $this->assertEqualsWithDelta(124.41, (float) $p->HorasProd, 0.0001);
+        $this->assertSame('2026-03-09 18:25:16', (string) $s->getRawOriginal('FechaInicio'));
+        $this->assertSame('2026-03-12 11:53:28', (string) $s->getRawOriginal('FechaFinal'));
+    }
+
+    public function test_recalcular_registro_por_produccion_sin_fecha_inicio_devuelve_false(): void
+    {
+        $reg = $this->makeReg(['FechaInicio' => null]);
+
+        $this->assertFalse($this->recalcularPorProduccion($reg));
+    }
+
+    private function recalcularPorProduccion(ReqProgramaTejido $registro): bool
+    {
+        return RecalcularRegistroPorProduccion::ejecutar($registro);
+    }
+
+    private function crearCalendarioFijo(): string
+    {
+        config()->set('planeacion.req_calendario_line_table', 'ReqCalendarioLine');
+        Schema::connection('sqlsrv')->create('ReqCalendarioLine', function (Blueprint $table) {
+            $table->increments('Id');
+            $table->string('CalendarioId')->nullable();
+            $table->string('FechaInicio')->nullable();
+            $table->string('FechaFin')->nullable();
+        });
+        $base = Carbon::parse('2026-03-01');
+        for ($d = 0; $d < 60; $d++) {
+            $day = $base->copy()->addDays($d);
+            ReqCalendarioLine::query()->insert([
+                'CalendarioId' => 'CAL-FIJO',
+                'FechaInicio' => $day->format('Y-m-d 06:00:00'),
+                'FechaFin' => $day->format('Y-m-d 22:00:00'),
+            ]);
+        }
+
+        return 'CAL-FIJO';
     }
 
     public function test_clear_calendario_lines_cache_es_idempotente(): void

@@ -2,260 +2,48 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\helper;
 
-/**
- * @file TejidoHelpers.php
- *
- * @description API canónica para cálculos del módulo Programa Tejido: HorasProd, fórmulas de
- *              eficiencia, parámetros de modelo codificado, snap al calendario. Usado por
- *              BalancearTejido, DuplicarTejido, DividirTejido, UpdateTejido.
- *
- * @dependencies ReqProgramaTejido, ReqModelosCodificados, ReqCalendarioLine, ReqEficienciaStd, ReqVelocidadStd
- */
-
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
-use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqEficienciaStd;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqVelocidadStd;
+use App\Services\Planeacion\ProgramaTejido\CalendarioProduccion;
+use App\Services\Planeacion\ProgramaTejido\CatalogoModelos;
+use App\Services\Planeacion\ProgramaTejido\Edicion\ClaveModelo;
+use App\Services\Planeacion\ProgramaTejido\EntregasPrograma;
+use App\Services\Planeacion\ProgramaTejido\EstandaresTelar;
+use App\Services\Planeacion\ProgramaTejido\FormulasEficiencia;
+use App\Services\Planeacion\ProgramaTejido\HorasProduccion;
+use App\Services\Planeacion\ProgramaTejido\PosicionesTelar;
+use App\Support\Planeacion\NumeroPrograma;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
-use Carbon\Exceptions\InvalidFormatException;
-use Illuminate\Support\Facades\Log;
 
+/**
+ * Helpers de Programa Tejido para los controllers (Balancear, Duplicar, Dividir, Update...).
+ *
+ * @deprecated La lógica vive en FormulasEficiencia, HorasProduccion, EntregasPrograma,
+ *             EstandaresTelar, CalendarioProduccion, PosicionesTelar, CatalogoModelos,
+ *             NumeroPrograma y TelarSalonResolver; el código nuevo va directo
+ *             a ellas. Aquí solo quedan los helpers propios de dividir/duplicar.
+ *             ponytail: adaptador temporal, retirar al migrar consumidores (los de
+ *             app/Http/Controllers y los tests que aún llaman a TejidoHelpers).
+ */
 class TejidoHelpers
 {
     /** Duración por defecto cuando se crea/duplica un registro sin fechas calculadas */
-    public const DEFAULT_DURACION_DIAS = 30;
+    public const DEFAULT_DURACION_DIAS = CalendarioProduccion::DEFAULT_DURACION_DIAS;
 
     /** Duración por defecto para registros de tipo REPASO */
-    public const DEFAULT_DURACION_REPASO_HORAS = 12;
+    public const DEFAULT_DURACION_REPASO_HORAS = CalendarioProduccion::DEFAULT_DURACION_REPASO_HORAS;
 
-    /** Cache por-request para obtenerDatosModeloCodificadoArray (clave: 'salon|tamanoClave') */
-    private static array $datosModeloArrayCache = [];
+    public const FORMULAS_CTX_BALANCEAR = FormulasEficiencia::FORMULAS_CTX_BALANCEAR;
 
-    /**
-     * Construccion de Jacquard/Smit: rizo, pie, trama y las cinco combinaciones.
-     * Karl Mayer no teje nada de esto.
-     */
-    private const CONSTRUCCION_STD = [
-        'CuentaRizo', 'CalibreRizo', 'CalibreRizo2', 'FibraRizo',
-        'CuentaPie', 'CalibrePie', 'CalibrePie2', 'FibraPie', 'CodColorCtaPie', 'NombreCPie',
-        'CalibreTrama', 'CalibreTrama2', 'FibraTrama', 'PasadasTrama', 'CodColorTrama', 'ColorTrama',
-        'PasadasComb1', 'CalibreComb1', 'CalibreComb12', 'FibraComb1', 'CodColorComb1', 'NombreCC1',
-        'PasadasComb2', 'CalibreComb2', 'CalibreComb22', 'FibraComb2', 'CodColorComb2', 'NombreCC2',
-        'PasadasComb3', 'CalibreComb3', 'CalibreComb32', 'FibraComb3', 'CodColorComb3', 'NombreCC3',
-        'PasadasComb4', 'CalibreComb4', 'CalibreComb42', 'FibraComb4', 'CodColorComb4', 'NombreCC4',
-        'PasadasComb5', 'CalibreComb5', 'CalibreComb52', 'FibraComb5', 'CodColorComb5', 'NombreCC5',
-    ];
+    public const FORMULAS_CTX_PEDIDO_INHERIT = FormulasEficiencia::FORMULAS_CTX_PEDIDO_INHERIT;
 
-    /** Construccion de Karl Mayer: cuatro barras. Ningun otro salon las usa. */
-    private const CONSTRUCCION_KM = [
-        'CuentaBarra1',
-        'CalibreBarra1',
-        'CalibreBarra12',
-        'CodColorBarra1',
-        'ColorBarra1',
-        'FibraBarra1',
-        'PasadasBarra1',
-        'CuentaBarra2',
-        'CalibreBarra2',
-        'CalibreBarra22',
-        'CodColorBarra2',
-        'ColorBarra2',
-        'FibraBarra2',
-        'PasadasBarra2',
-        'CuentaBarra3',
-        'CalibreBarra3',
-        'CalibreBarra32',
-        'CodColorBarra3',
-        'ColorBarra3',
-        'FibraBarra3',
-        'PasadasBarra3',
-        'CuentaBarra4',
-        'CalibreBarra4',
-        'CalibreBarra42',
-        'CodColorBarra4',
-        'ColorBarra4',
-        'FibraBarra4',
-        'PasadasBarra4',
-    ];
-
-    /**
-     * Deja en null la construccion que no corresponde al salon del registro.
-     *
-     * Karl Mayer teje con cuatro barras: rizo, pie, trama y C1-C5 no aplican. Al reves,
-     * Jacquard/Smit no usan barras. Sin esto, cambiar la clave modelo arrastra la
-     * construccion del modelo anterior en las columnas que el nuevo salon no escribe.
-     */
+    /** @see ClaveModelo::limpiarConstruccionSegunSalon() */
     public static function limpiarConstruccionSegunSalon(ReqProgramaTejido $registro): void
     {
-        $km = TelarSalonResolver::esKarlMayer(
-            $registro->SalonTejidoId ?? null,
-            $registro->NoTelarId ?? null
-        );
-
-        foreach ($km ? self::CONSTRUCCION_STD : self::CONSTRUCCION_KM as $columna) {
-            $registro->{$columna} = null;
-        }
-    }
-
-    /**
-     * Calcular la siguiente posición disponible para un telar específico
-     * La posición es consecutiva por telar: 1, 2, 3, 4, etc.
-     */
-    public static function obtenerSiguientePosicionDisponible(string $salonTejidoId, string $noTelarId): int
-    {
-        // Obtener todas las posiciones existentes para este telar, ordenadas
-        $posicionesExistentes = ReqProgramaTejido::query()
-            ->where('SalonTejidoId', $salonTejidoId)
-            ->where('NoTelarId', $noTelarId)
-            ->whereNotNull('Posicion')
-            ->orderBy('Posicion', 'asc')
-            // ponytail: UPDLOCK sobre las filas del telar serializa a dos inserts que
-            // pelean por la misma posicion. Un telar vacio no deja rango que bloquear;
-            // si eso llega a chocar, hace falta un lock por telar (tabla o app lock).
-            ->lockForUpdate()
-            ->pluck('Posicion')
-            ->toArray();
-
-        // Si no hay posiciones existentes, empezar en 1
-        if (empty($posicionesExistentes)) {
-            return 1;
-        }
-
-        // Buscar el primer hueco en la secuencia
-        $posicionEsperada = 1;
-        foreach ($posicionesExistentes as $posicionExistente) {
-            if ($posicionExistente == $posicionEsperada) {
-                $posicionEsperada++;
-            } else {
-                // Encontramos un hueco, usar esa posición
-                return $posicionEsperada;
-            }
-        }
-
-        // Si no hay huecos, la siguiente posición es la última + 1
-        return $posicionEsperada;
-    }
-
-    /**
-     * PT-PERF-02: lo mismo que llamar obtenerSiguientePosicionDisponible() una vez por fila
-     * nueva, pero con UNA consulta (mismo filtro exacto y mismo UPDLOCK) por salón. Devuelve
-     * un reservador: cada llamada da el primer hueco del telar y lo marca ocupado, igual que
-     * hacía la consulta al ver la fila recién guardada.
-     *
-     * @param  list<array{0: string, 1: string}>  $telares  pares [salón, telar] destino
-     * @return \Closure(string, string): int
-     */
-    public static function reservadorDePosiciones(array $telares): \Closure
-    {
-        // SQL Server compara sin mayúsculas ni espacios finales: la llave del mapa también.
-        $llave = fn ($salon, $telar) => mb_strtoupper(rtrim((string) $salon)).'|'.mb_strtoupper(rtrim((string) $telar));
-
-        $porSalon = [];
-        foreach ($telares as [$salon, $telar]) {
-            $porSalon[(string) $salon][(string) $telar] = true;
-        }
-
-        $ocupadas = [];
-        foreach ($porSalon as $salon => $telaresSalon) {
-            $filas = ReqProgramaTejido::query()
-                ->where('SalonTejidoId', $salon)
-                ->whereIn('NoTelarId', array_map('strval', array_keys($telaresSalon)))
-                ->whereNotNull('Posicion')
-                ->lockForUpdate()
-                ->get(['NoTelarId', 'Posicion']);
-            foreach ($filas as $fila) {
-                $ocupadas[$llave($salon, $fila->NoTelarId)][(int) $fila->Posicion] = true;
-            }
-        }
-
-        return function (string $salon, string $telar) use (&$ocupadas, $llave): int {
-            $k = $llave($salon, $telar);
-            $posicion = 1;
-            while (isset($ocupadas[$k][$posicion])) {
-                $posicion++;
-            }
-            $ocupadas[$k][$posicion] = true;
-
-            return $posicion;
-        };
-    }
-
-    /**
-     * Recalcular las posiciones de los registros de un telar de forma consecutiva
-     * Reasigna posiciones 1, 2, 3, 4... a todos los registros del telar ordenados por Posicion actual
-     */
-    public static function recalcularPosicionesPorTelar(string $salonTejidoId, string $noTelarId): void
-    {
-        // Obtener todos los registros del telar ordenados por Posicion actual
-        $registros = ReqProgramaTejido::query()
-            ->salon($salonTejidoId)
-            ->telar($noTelarId)
-            ->whereNotNull('Posicion')
-            ->orderBy('Posicion', 'asc')
-            ->orderBy('FechaInicio', 'asc') // Fallback por si hay registros sin Posicion
-            ->get();
-
-        if ($registros->isEmpty()) {
-            return;
-        }
-
-        // Reasignar posiciones de forma consecutiva (1, 2, 3, 4...)
-        $nuevaPosicion = 1;
-        foreach ($registros as $registro) {
-            if ($registro->Posicion != $nuevaPosicion) {
-                $registro->Posicion = $nuevaPosicion;
-                $registro->saveQuietly(); // Usar saveQuietly para evitar triggers
-            }
-            $nuevaPosicion++;
-        }
-
-        // También actualizar registros que no tienen Posicion
-        $registrosSinPosicion = ReqProgramaTejido::query()
-            ->salon($salonTejidoId)
-            ->telar($noTelarId)
-            ->whereNull('Posicion')
-            ->orderBy('FechaInicio', 'asc')
-            ->get();
-
-        foreach ($registrosSinPosicion as $registro) {
-            $registro->Posicion = $nuevaPosicion;
-            $registro->saveQuietly();
-            $nuevaPosicion++;
-        }
-    }
-
-    public static function sanitizeNumber($value): float
-    {
-        if ($value === null) {
-            return 0.0;
-        }
-        if (is_numeric($value)) {
-            return (float) $value;
-        }
-
-        $clean = str_replace([',', ' '], '', (string) $value);
-
-        return is_numeric($clean) ? (float) $clean : 0.0;
-    }
-
-    public static function sanitizeNullableNumber($value): ?float
-    {
-        if ($value === null) {
-            return null;
-        }
-        if ($value === '') {
-            return null;
-        }
-        if (is_numeric($value)) {
-            return (float) $value;
-        }
-
-        $clean = str_replace([',', ' '], '', (string) $value);
-
-        return is_numeric($clean) ? (float) $clean : null;
+        ClaveModelo::limpiarConstruccionSegunSalon($registro);
     }
 
     /**
@@ -299,97 +87,66 @@ class TejidoHelpers
         return null;
     }
 
+    /**
+     * Indica si el producto es un repaso (NombreProducto empieza con REPASO).
+     * Para repasos con saldo bajo se usa duración mínima de medio día en lugar de 30 días.
+     */
+    public static function esRepaso($programaOrNombre): bool
+    {
+        return CalendarioProduccion::esRepaso($programaOrNombre);
+    }
+
+    // ===== Delegados (ponytail: adaptador temporal, retirar al migrar consumidores) =====
+
+    public static function obtenerSiguientePosicionDisponible(string $salonTejidoId, string $noTelarId): int
+    {
+        return PosicionesTelar::siguienteDisponible($salonTejidoId, $noTelarId);
+    }
+
+    /** @param  list<array{0: string, 1: string}>  $telares */
+    public static function reservadorDePosiciones(array $telares): \Closure
+    {
+        return PosicionesTelar::reservador($telares);
+    }
+
+    public static function recalcularPosicionesPorTelar(string $salonTejidoId, string $noTelarId): void
+    {
+        PosicionesTelar::recalcular($salonTejidoId, $noTelarId);
+    }
+
+    public static function sanitizeNumber($value): float
+    {
+        return NumeroPrograma::sanitizeNumber($value);
+    }
+
+    public static function sanitizeNullableNumber($value): ?float
+    {
+        return NumeroPrograma::sanitizeNullableNumber($value);
+    }
+
     public static function construirMaquinaConSalon(?string $maquinaBase, ?string $salon, $telar): string
     {
-        $salonNorm = strtoupper(trim((string) $salon));
-        $prefijo = null;
-
-        if ($salonNorm !== '') {
-            if (preg_match('/SMI(T)?/i', $salonNorm)) {
-                $prefijo = 'SMI';
-            } elseif (preg_match('/JAC/i', $salonNorm)) {
-                $prefijo = 'JAC';
-            } elseif (preg_match('/KARL\s*MAYER|^KM$/i', $salonNorm)) {
-                // Sin esto, al mover una orden a Karl Mayer se conservaba el prefijo del salon
-                // anterior ('SMI 401') y resolverTipoTelarStd, que lee la maquina antes que el
-                // salon, le buscaba los STD de SMITH.
-                $prefijo = 'KM';
-            }
-        }
-
-        if (! $prefijo && $maquinaBase && preg_match('/^([A-Za-z]+)/', trim($maquinaBase), $matches)) {
-            $prefijo = $matches[1];
-        }
-
-        if (! $prefijo && $salonNorm !== '') {
-            $prefijo = substr($salonNorm, 0, 4);
-            $prefijo = rtrim($prefijo, '0123456789');
-        }
-
-        if (! $prefijo) {
-            $prefijo = 'TEL';
-        }
-
-        return trim($prefijo).' '.trim((string) $telar);
+        return TelarSalonResolver::construirMaquina($maquinaBase, $salon, $telar);
     }
 
-    /**
-     * Calcula horas de producción a partir de un ReqProgramaTejido.
-     * API canónica para Balancear, Duplicar, Dividir, Update.
-     *
-     * @param  callable|null  $obtenerModeloCallback  (string $tamanoClave, string $salonTejidoId) => ReqModelosCodificados|null
-     */
-    /**
-     * FechaFinal a partir de un inicio y las horas de producción (PT-DUP-02). Era el mismo
-     * árbol copiado 6 veces (UpdateTejido, DividirTejido ×4, DuplicarTejido):
-     * horas <= 0 → inicio + DEFAULT_DURACION_DIAS; si no, finDesdeHoras().
-     * Las políticas de horas <= 0 / saldo < 0 de Balancear, DateHelpers y el calendario
-     * masivo NO son esta: esos usan solo finDesdeHoras() (ver 05-SUMMARY.md, divergencias).
-     */
     public static function resolverFechaFinal(Carbon $inicio, float $horas, ?string $calendarioId): Carbon
     {
-        if ($horas <= 0) {
-            return $inicio->copy()->addDays(self::DEFAULT_DURACION_DIAS);
-        }
-
-        return self::finDesdeHoras($inicio, $horas, $calendarioId);
+        return CalendarioProduccion::resolverFechaFinal($inicio, $horas, $calendarioId);
     }
 
-    /**
-     * Consume las horas sobre las líneas del calendario; sin calendario, o si sus líneas se
-     * acaban, en tiempo continuo (segundos redondeados, igual que todas las copias previas).
-     */
     public static function finDesdeHoras(Carbon $inicio, float $horas, ?string $calendarioId): Carbon
     {
-        $fin = ! empty($calendarioId)
-            ? BalancearTejido::calcularFechaFinalDesdeInicio($calendarioId, $inicio, $horas)
-            : null;
+        return CalendarioProduccion::finDesdeHoras($inicio, $horas, $calendarioId);
+    }
 
-        return $fin ?? $inicio->copy()->addSeconds((int) round($horas * 3600));
+    public static function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio, ?array $lines = null): ?Carbon
+    {
+        return CalendarioProduccion::snapInicioAlCalendario($calendarioId, $fechaInicio, $lines);
     }
 
     public static function calcularHorasProd(ReqProgramaTejido $programa, ?callable $obtenerModeloCallback = null): float
     {
-        $vel = (float) ($programa->VelocidadSTD ?? 0);
-        $efic = (float) ($programa->EficienciaSTD ?? 0);
-        $cantidad = self::sanitizeNumber($programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0);
-
-        $stdKm = self::stdToaHraKarlMayer($programa);
-        if ($stdKm !== null) {
-            return $cantidad > 0 ? $cantidad / $stdKm : 0.0;
-        }
-
-        $m = self::obtenerModeloParams($programa, $obtenerModeloCallback);
-
-        return self::calcularHorasProdFromParams(
-            $vel,
-            $efic,
-            $cantidad,
-            (float) ($m['no_tiras'] ?? 0),
-            (float) ($m['total'] ?? 0),
-            (float) ($m['luchaje'] ?? 0),
-            (float) ($m['repeticiones'] ?? 0)
-        );
+        return HorasProduccion::calcularHorasProd($programa, $obtenerModeloCallback);
     }
 
     public static function calcularHorasProdFromParams(
@@ -401,70 +158,17 @@ class TejidoHelpers
         float $luchaje,
         float $repeticiones
     ): float {
-        if ($efic > 1) {
-            $efic = $efic / 100;
-        }
-
-        $stdToaHra = 0.0;
-        if ($noTiras > 0 && $total > 0 && $luchaje > 0 && $repeticiones > 0 && $vel > 0) {
-            $parte1 = $total;
-            $parte2 = (($luchaje * 0.5) / 0.0254) / $repeticiones;
-            $den = ($parte1 + $parte2) / $vel;
-            if ($den > 0) {
-                $stdToaHra = ($noTiras * 60) / $den;
-            }
-        }
-
-        if ($stdToaHra > 0 && $efic > 0 && $cantidad > 0) {
-            return $cantidad / ($stdToaHra * $efic);
-        }
-
-        return 0.0;
+        return HorasProduccion::calcularHorasProdFromParams($vel, $efic, $cantidad, $noTiras, $total, $luchaje, $repeticiones);
     }
 
-    /**
-     * Karl Mayer no se estima por pasadas/velocidad: su estandar es la meta fija de kg/dia
-     * por telar (crudo.fixed_daily_kilos, la misma del andon), sin eficiencia.
-     * Piezas/hora = (kgDia * 1000 / PesoCrudo) / 24. Null si no es KM o falta PesoCrudo
-     * (en ese caso sigue la formula de pasadas como JAC/SMIT).
-     */
     public static function stdToaHraKarlMayer(ReqProgramaTejido $programa): ?float
     {
-        $telar = trim((string) ($programa->NoTelarId ?? ''));
-        if (! TelarSalonResolver::esKarlMayer($programa->SalonTejidoId ?? null, $telar)) {
-            return null;
-        }
-
-        $kgDia = (float) (config('crudo.fixed_daily_kilos')[$telar] ?? 600.0);
-        $pesoCrudo = (float) ($programa->PesoCrudo ?? 0);
-        if ($kgDia <= 0 || $pesoCrudo <= 0) {
-            return null;
-        }
-
-        return ($kgDia * 1000 / $pesoCrudo) / 24;
-    }
-
-    /**
-     * Indica si el producto es un repaso (NombreProducto empieza con REPASO).
-     * Para repasos con saldo bajo se usa duración mínima de medio día en lugar de 30 días.
-     */
-    public static function esRepaso($programaOrNombre): bool
-    {
-        $nombre = is_object($programaOrNombre)
-            ? trim((string) ($programaOrNombre->NombreProducto ?? ''))
-            : trim((string) $programaOrNombre);
-
-        return $nombre !== '' && strtoupper(substr($nombre, 0, 6)) === 'REPASO';
+        return HorasProduccion::stdToaHraKarlMayer($programa);
     }
 
     public static function resolverDiasEntrega(ReqProgramaTejido $programa): int
     {
-        $aplicacion = trim((string) ($programa->AplicacionId ?? ''));
-        if ($aplicacion === '' || strtoupper($aplicacion) === 'NA') {
-            return 12;
-        }
-
-        return 16;
+        return EntregasPrograma::resolverDiasEntrega($programa);
     }
 
     public static function calcularFormulasEficiencia(
@@ -476,614 +180,60 @@ class TejidoHelpers
         ?float $stdToaHraAnterior = null,
         ?callable $checkVelocidadCambio = null
     ): array {
-        $formulas = [];
-
-        try {
-            $vel = (float) ($programa->VelocidadSTD ?? 0);
-            $eficRaw = $programa->getAttribute('EficienciaSTD') ?? $programa->EficienciaSTD ?? 0;
-            $efic = $eficRaw !== null ? (float) $eficRaw : 0;
-            $cantidadRaw = $programa->SaldoPedido ?? $programa->Produccion ?? $programa->TotalPedido ?? 0;
-            $cantidad = $cantidadRaw !== null ? (float) $cantidadRaw : 0;
-            $pesoCrudoRaw = $programa->PesoCrudo ?? 0;
-            $pesoCrudo = $pesoCrudoRaw !== null ? (float) $pesoCrudoRaw : 0;
-
-            if ($efic > 1) {
-                $efic = $efic / 100;
-            }
-
-            $inicio = Carbon::parse($programa->FechaInicio);
-            $fin = Carbon::parse($programa->FechaFinal);
-            $diffSeg = abs($fin->getTimestamp() - $inicio->getTimestamp());
-            $diffDias = $diffSeg / 86400;
-
-            $noTiras = (float) ($modeloParams['no_tiras'] ?? 0);
-            $total = (float) ($modeloParams['total'] ?? 0);
-            $luchaje = (float) ($modeloParams['luchaje'] ?? 0);
-            $repeticiones = (float) ($modeloParams['repeticiones'] ?? 0);
-
-            // Lógica especial para Observer: preservar StdToaHra anterior si no hay cambios significativos
-            $stdToaHra = 0.0;
-            $velParaCalculo = $vel;
-
-            if ($stdToaHraAnterior !== null && $checkVelocidadCambio !== null) {
-                $velocidadInfo = $checkVelocidadCambio();
-                $velocidadCambio = $velocidadInfo['cambio'] ?? false;
-                $velocidadOriginal = (float) ($velocidadInfo['original'] ?? 0);
-                $velocidadNueva = (float) ($velocidadInfo['nueva'] ?? 0);
-
-                $velParaCalculo = $velocidadCambio && $velocidadNueva > 0 ? $velocidadNueva : $vel;
-                $stdToaHra = $stdToaHraAnterior;
-
-                $debeRecalcular = ($stdToaHraAnterior <= 0) ||
-                    ($velocidadCambio && $velocidadOriginal > 0 && $velocidadNueva > 0 && $velocidadOriginal !== $velocidadNueva) ||
-                    (! $velocidadCambio && $velocidadOriginal > 0 && $velocidadNueva > 0 && $velocidadOriginal !== $velocidadNueva && abs($velocidadOriginal - $velocidadNueva) > 0.1);
-
-                if ($debeRecalcular && $noTiras > 0 && $total > 0 && $luchaje > 0 && $velParaCalculo > 0) {
-                    $repeticionesCalc = $repeticiones > 0 ? $repeticiones : 1;
-                    $parte1 = $total;
-                    $parte2 = (($luchaje * 0.5) / 0.0254) / $repeticionesCalc;
-                    $den = ($parte1 + $parte2) / $velParaCalculo;
-                    if ($den > 0) {
-                        $stdToaHra = ($noTiras * 60) / $den;
-                        $formulas['StdToaHra'] = (float) round($stdToaHra, 2);
-                    }
-                } elseif ($stdToaHraAnterior > 0 && ! $debeRecalcular) {
-                    $formulas['StdToaHra'] = (float) round($stdToaHraAnterior, 2);
-                    $stdToaHra = $stdToaHraAnterior;
-                }
-            } else {
-                // Lógica normal: calcular siempre
-                if ($noTiras > 0 && $total > 0 && $luchaje > 0 && $repeticiones > 0 && $vel > 0) {
-                    $parte1 = $total;
-                    $parte2 = (($luchaje * 0.5) / 0.0254) / $repeticiones;
-                    $den = ($parte1 + $parte2) / $vel;
-                    if ($den > 0) {
-                        $stdToaHra = ($noTiras * 60) / $den;
-                        $formulas['StdToaHra'] = (float) round($stdToaHra, 2);
-                    }
-                }
-            }
-
-            $stdToaHraParaCalculos = isset($formulas['StdToaHra']) ? $formulas['StdToaHra'] : $stdToaHra;
-
-            // Karl Mayer: meta fija kg/dia sin eficiencia, reemplaza el estandar de pasadas.
-            $stdKm = self::stdToaHraKarlMayer($programa);
-            if ($stdKm !== null) {
-                $stdToaHraParaCalculos = $stdKm;
-                $formulas['StdToaHra'] = (float) round($stdKm, 2);
-                $efic = 1.0;
-            }
-
-            $largoToalla = (float) ($programa->LargoToalla ?? 0);
-            $anchoToalla = (float) ($programa->AnchoToalla ?? 0);
-            if ($pesoCrudo > 0 && $largoToalla > 0 && $anchoToalla > 0) {
-                $formulas['PesoGRM2'] = (float) round(($pesoCrudo * 10000) / ($largoToalla * $anchoToalla), 2);
-            }
-
-            if ($diffDias > 0) {
-                $formulas['DiasEficiencia'] = (float) round($diffDias, 2);
-            }
-
-            $stdDia = 0;
-            if ($stdToaHraParaCalculos > 0 && $efic > 0) {
-                $stdDia = $stdToaHraParaCalculos * $efic * 24;
-                $formulas['StdDia'] = (float) round($stdDia, 2);
-
-                if ($pesoCrudo > 0) {
-                    $formulas['ProdKgDia'] = (float) round(($stdDia * $pesoCrudo) / 1000, 2);
-                }
-            }
-
-            $horasProd = 0;
-            if ($stdToaHraParaCalculos > 0 && $efic > 0) {
-                $horasProd = $cantidad / ($stdToaHraParaCalculos * $efic);
-                $formulas['HorasProd'] = (float) round($horasProd, 2);
-            }
-
-            if ($horasProd > 0) {
-                $formulas['DiasJornada'] = (float) round($horasProd / 24, 2);
-            }
-
-            if ($diffDias > 0) {
-                $stdHrsEfect = ($cantidad / $diffDias) / 24;
-                $formulas['StdHrsEfect'] = (float) round($stdHrsEfect, 2);
-
-                if ($pesoCrudo > 0) {
-                    $formulas['ProdKgDia2'] = (float) round((($pesoCrudo * $stdHrsEfect) * 24) / 1000, 2);
-                }
-            }
-
-            if ($includeEntregaCte || $includePTvsCte) {
-                $diasEntrega = self::resolverDiasEntrega($programa);
-                $entregaCteCalculada = null;
-                $entregaPT = null;
-                if (! empty($programa->FechaFinal)) {
-                    try {
-                        $fechaFinal = Carbon::parse($programa->FechaFinal);
-                        $entregaCteCalculada = $fechaFinal->copy()->addDays($diasEntrega);
-
-                        if ($includeEntregaCte) {
-                            $formulas['EntregaCte'] = $entregaCteCalculada->format('Y-m-d H:i:s');
-                        }
-
-                        $entregaPT = $fechaFinal->copy()->day(15);
-                        $formulas['EntregaPT'] = $entregaPT->format('Y-m-d');
-                    } catch (InvalidFormatException $e) {
-                        // FechaFinal inválida o no se puede calcular entrega PT
-                    } catch (\Throwable $e) {
-                        Log::warning('TejidoHelpers: Error al calcular fecha PT', [
-                            'error' => $e->getMessage(),
-                            'programa_id' => $programa->Id ?? null,
-                        ]);
-                    }
-                }
-
-                if (! $entregaPT && ! empty($programa->EntregaPT)) {
-                    try {
-                        $entregaPT = Carbon::parse($programa->EntregaPT);
-                    } catch (InvalidFormatException $e) {
-                        $entregaPT = null;
-                    } catch (\Throwable $e) {
-                        Log::warning('TejidoHelpers: Error al parsear EntregaPT', [
-                            'error' => $e->getMessage(),
-                            'programa_id' => $programa->Id ?? null,
-                        ]);
-                        $entregaPT = null;
-                    }
-                }
-
-                if ($entregaPT) {
-                    $formulas['EntregaProduc'] = $entregaPT->copy()->subDays($diasEntrega)->format('Y-m-d');
-                }
-
-                if ($includePTvsCte && $entregaPT) {
-                    $entregaCteParaCalcular = $entregaCteCalculada;
-
-                    if (! $entregaCteParaCalcular && $fallbackEntregaCteFromProgram && ! empty($programa->EntregaCte)) {
-                        $entregaCteParaCalcular = Carbon::parse($programa->EntregaCte);
-                    }
-
-                    if ($entregaCteParaCalcular) {
-                        $diferenciaDias = $entregaCteParaCalcular->diffInDays($entregaPT, false);
-                        $formulas['PTvsCte'] = (float) round($diferenciaDias, 2);
-                    }
-                }
-            }
-
-        } catch (\Throwable $e) {
-            Log::warning('TejidoHelpers: Error al calcular fórmulas de eficiencia', [
-                'error' => $e->getMessage(),
-                'programa_id' => $programa->Id ?? null,
-            ]);
-        }
-
-        return $formulas;
+        return FormulasEficiencia::calcularFormulasEficiencia(
+            $programa,
+            $modeloParams,
+            $includeEntregaCte,
+            $includePTvsCte,
+            $fallbackEntregaCteFromProgram,
+            $stdToaHraAnterior,
+            $checkVelocidadCambio
+        );
     }
 
-    public static function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio, ?array $lines = null): ?Carbon
-    {
-        $calendarioId = trim((string) $calendarioId);
-        if ($calendarioId === '') {
-            return null;
-        }
-
-        if ($lines !== null) {
-            return self::snapInicioEnLineas($fechaInicio, $lines);
-        }
-
-        $linea = ReqCalendarioLine::where('CalendarioId', $calendarioId)
-            ->where('FechaFin', '>', $fechaInicio->format('Y-m-d H:i:s'))
-            ->orderBy('FechaInicio')
-            ->first();
-
-        if (! $linea) {
-            return null;
-        }
-
-        $ini = Carbon::parse($linea->FechaInicio);
-        $fin = Carbon::parse($linea->FechaFin);
-
-        if ($fechaInicio->gte($ini) && $fechaInicio->lt($fin)) {
-            return $fechaInicio->copy();
-        }
-
-        return $ini->copy();
-    }
-
-    private static function snapInicioEnLineas(Carbon $fechaInicio, array $lines): ?Carbon
-    {
-        if (empty($lines)) {
-            return null;
-        }
-
-        $inicioTs = $fechaInicio->getTimestamp();
-        foreach ($lines as $line) {
-            $finTs = $line['fin_ts'] ?? null;
-            if ($finTs === null || $finTs <= $inicioTs) {
-                continue;
-            }
-
-            $ini = $line['ini'] ?? null;
-            $fin = $line['fin'] ?? null;
-            if (! $ini || ! $fin) {
-                continue;
-            }
-
-            if ($fechaInicio->gte($ini) && $fechaInicio->lt($fin)) {
-                return $fechaInicio->copy();
-            }
-
-            return $ini->copy();
-        }
-
-        return null;
-    }
-
-    public static function aplicarStdDesdeCatalogos(ReqProgramaTejido $p): void
-    {
-        $tipoTelar = self::resolverTipoTelarStd($p->Maquina ?? null, $p->SalonTejidoId ?? null);
-        $telar = trim((string) ($p->NoTelarId ?? ''));
-        $fibraId = trim((string) ($p->FibraRizo ?? ''));
-        $densidad = self::resolverDensidadStd($p->Densidad ?? null);
-
-        if ($telar === '' || $fibraId === '') {
-            return;
-        }
-
-        $velRow = self::buscarStdVelocidad($tipoTelar, $telar, $fibraId, $densidad);
-        $efiRow = self::buscarStdEficiencia($tipoTelar, $telar, $fibraId, $densidad);
-
-        $oldVel = $p->VelocidadSTD ?? null;
-        $oldEfi = $p->EficienciaSTD ?? null;
-
-        if ($velRow) {
-            $p->VelocidadSTD = (float) $velRow->Velocidad;
-        }
-
-        if ($efiRow) {
-            $efi = (float) $efiRow->Eficiencia;
-            if ($efi > 1) {
-                $efi = $efi / 100;
-            }
-            $p->EficienciaSTD = round($efi, 2);
-        }
-    }
-
-    public static function resolverTipoTelarStd(?string $maquina, ?string $salonTejidoId): string
-    {
-        $m = strtoupper(trim((string) $maquina));
-        $s = strtoupper(trim((string) $salonTejidoId));
-
-        if ($m !== '') {
-            if (str_contains($m, 'SMI')) {
-                return 'SMITH';
-            }
-            if (str_contains($m, 'JAC')) {
-                return 'JACQUARD';
-            }
-            if (str_contains($m, 'KARL') || $m === 'KM' || str_starts_with($m, 'KM ')) {
-                return 'KM';
-            }
-        }
-
-        if ($s === 'SMIT' || $s === 'SMITH') {
-            return 'SMITH';
-        }
-        if ($s === 'JAC' || $s === 'JACQ' || $s === 'JACQUARD') {
-            return 'JACQUARD';
-        }
-        if ($s === 'KM' || $s === 'KARL MAYER') {
-            return 'KM';
-        }
-
-        return $s !== '' ? $s : 'SMITH';
-    }
-
-    public static function resolverDensidadStd(?string $densidad): string
-    {
-        if ($densidad !== null && $densidad !== '') {
-            $d = trim((string) $densidad);
-            if (strcasecmp($d, 'Alta') === 0) {
-                return 'Alta';
-            }
-            if (strcasecmp($d, 'Normal') === 0) {
-                return 'Normal';
-            }
-        }
-
-        return 'Normal';
-    }
-
-    public static function buscarStdVelocidad(string $tipoTelar, string $telar, string $fibraId, string $densidad): ?ReqVelocidadStd
-    {
-        // Los catalogos STD se capturan con el salon escrito a mano (velocidadCreate.blade.php
-        // es un input libre), asi que se buscan por todos los alias: 'KM' y 'KARL MAYER'
-        // apuntan a la misma fila, igual que 'SMIT'/'SMITH'/'ITEMA'.
-        $q = ReqVelocidadStd::query()
-            ->whereIn('SalonTejidoId', TelarSalonResolver::salonAliases($tipoTelar) ?: [$tipoTelar])
-            ->where('NoTelarId', $telar)
-            ->where('FibraId', $fibraId);
-
-        $row = (clone $q)->where('Densidad', $densidad)->orderBy('Id', 'desc')->first();
-        if ($row) {
-            return $row;
-        }
-
-        $rowNull = (clone $q)->whereNull('Densidad')->orderBy('Id', 'desc')->first();
-        if ($rowNull) {
-            return $rowNull;
-        }
-
-        return (clone $q)->orderBy('Id', 'desc')->first();
-    }
-
-    public static function buscarStdEficiencia(string $tipoTelar, string $telar, string $fibraId, string $densidad): ?ReqEficienciaStd
-    {
-        $q = ReqEficienciaStd::query()
-            ->whereIn('SalonTejidoId', TelarSalonResolver::salonAliases($tipoTelar) ?: [$tipoTelar])
-            ->where('NoTelarId', $telar)
-            ->where('FibraId', $fibraId);
-
-        $row = (clone $q)->where('Densidad', $densidad)->orderBy('Id', 'desc')->first();
-        if ($row) {
-            return $row;
-        }
-
-        $rowNull = (clone $q)->whereNull('Densidad')->orderBy('Id', 'desc')->first();
-        if ($rowNull) {
-            return $rowNull;
-        }
-
-        return (clone $q)->orderBy('Id', 'desc')->first();
-    }
-
-    /**
-     * Búsqueda canónica de modelo codificado por TamanoClave y SalonTejidoId
-     * Busca en 3 niveles: exacto → prefijo → contains
-     * Normaliza espacios múltiples
-     *
-     * @param  string  $tamanoClave  Clave a buscar
-     * @param  string|null  $salonTejidoId  Salón opcional
-     * @param  array  $selectCols  Columnas a seleccionar
-     */
-    public static function obtenerModeloPorTamanoClave(
-        string $tamanoClave,
-        ?string $salonTejidoId = null,
-        array $selectCols = ['*']
-    ): ?ReqModelosCodificados {
-        $tam = trim($tamanoClave);
-        if ($tam === '') {
-            return null;
-        }
-
-        $tam = preg_replace('/\s+/', ' ', $tam);
-
-        $qBase = ReqModelosCodificados::query();
-
-        if ($salonTejidoId !== null && $salonTejidoId !== '') {
-            $salones = TelarSalonResolver::salonAliases($salonTejidoId);
-            if (! empty($salones)) {
-                $qBase->whereRaw(
-                    'LTRIM(RTRIM([SalonTejidoId])) IN ('.implode(',', array_fill(0, count($salones), '?')).')',
-                    $salones
-                );
-            }
-        }
-
-        $modelo = (clone $qBase)
-            ->whereRaw("REPLACE(UPPER(LTRIM(RTRIM(TamanoClave))), '  ', ' ') = ?", [strtoupper($tam)])
-            ->select($selectCols)
-            ->first();
-
-        if ($modelo) {
-            return $modelo;
-        }
-
-        $modelo = (clone $qBase)
-            ->whereRaw('UPPER(TamanoClave) LIKE ?', [strtoupper($tam).'%'])
-            ->select($selectCols)
-            ->first();
-
-        if ($modelo) {
-            return $modelo;
-        }
-
-        $modelo = (clone $qBase)
-            ->whereRaw('UPPER(TamanoClave) LIKE ?', ['%'.strtoupper($tam).'%'])
-            ->select($selectCols)
-            ->first();
-
-        return $modelo;
-    }
-
-    /**
-     * Obtener parámetros del modelo codificado por salón
-     *
-     * @param  callable|null  $obtenerModeloCallback  Función para obtener el modelo (opcional, para usar obtenerModeloCodificadoPorSalon)
-     */
-    public static function obtenerModeloParams(ReqProgramaTejido $programa, ?callable $obtenerModeloCallback = null): array
-    {
-        $noTiras = (float) ($programa->NoTiras ?? 0);
-        $luchaje = (float) ($programa->Luchaje ?? 0);
-        $rep = (float) ($programa->Repeticiones ?? 0);
-
-        $key = trim((string) ($programa->TamanoClave ?? ''));
-        if ($key === '') {
-            return [
-                'total' => 0.0,
-                'no_tiras' => $noTiras,
-                'luchaje' => $luchaje,
-                'repeticiones' => $rep,
-            ];
-        }
-
-        $modelo = null;
-        if ($obtenerModeloCallback !== null) {
-            $salonTejidoId = $programa->getAttribute('SalonTejidoId');
-            $salonParaCallback = $salonTejidoId !== null && $salonTejidoId !== '' ? (string) $salonTejidoId : null;
-            $modelo = $obtenerModeloCallback($key, $salonParaCallback);
-        } else {
-            // Fallback: buscar directamente sin salón
-            $modelo = ReqModelosCodificados::where('TamanoClave', $key)->first();
-        }
-
-        if (! $modelo) {
-            return [
-                'total' => 0.0,
-                'no_tiras' => $noTiras,
-                'luchaje' => $luchaje,
-                'repeticiones' => $rep,
-            ];
-        }
-
-        return [
-            'total' => (float) ($modelo->Total ?? 0),
-            'no_tiras' => $noTiras > 0 ? $noTiras : (float) ($modelo->NoTiras ?? 0),
-            'luchaje' => $luchaje > 0 ? $luchaje : (float) ($modelo->Luchaje ?? 0),
-            'repeticiones' => $rep > 0 ? $rep : (float) ($modelo->Repeticiones ?? 0),
-        ];
-    }
-
-    /** Balanceo: includeEntregaCte + includePTvsCte, sin fallback EntregaCte desde programa. */
-    public const FORMULAS_CTX_BALANCEAR = 'balancear';
-
-    /** Duplicar, dividir, update: mismos dos includes, con fallback EntregaCte desde programa. */
-    public const FORMULAS_CTX_PEDIDO_INHERIT = 'pedido_inherit';
-
-    /**
-     * Fórmulas de eficiencia con flags unificados según contexto de negocio.
-     *
-     * @param  callable(string, ?string): (ReqModelosCodificados|null)|null  $obtenerModeloCallback
-     */
     public static function calcularFormulasEficienciaPorContexto(
         ReqProgramaTejido $programa,
         string $contexto,
         ?callable $obtenerModeloCallback = null
     ): array {
-        try {
-            $m = self::obtenerModeloParams($programa, $obtenerModeloCallback);
-            if ($contexto === self::FORMULAS_CTX_BALANCEAR) {
-                return self::calcularFormulasEficiencia($programa, $m, true, true, false);
-            }
-
-            return self::calcularFormulasEficiencia($programa, $m, true, true, true);
-        } catch (\InvalidArgumentException $e) {
-            if ($contexto === self::FORMULAS_CTX_BALANCEAR) {
-                Log::error('BalancearTejido: Parámetros inválidos para fórmulas', [
-                    'error' => $e->getMessage(),
-                    'programa_id' => $programa->Id ?? null,
-                ]);
-            } else {
-                Log::warning('TejidoHelpers: Parámetros inválidos para fórmulas', [
-                    'context' => $contexto,
-                    'error' => $e->getMessage(),
-                    'programa_id' => $programa->Id ?? null,
-                ]);
-            }
-
-            return [];
-        } catch (\Throwable $e) {
-            if ($contexto === self::FORMULAS_CTX_BALANCEAR) {
-                Log::warning('BalancearTejido: Error al calcular fórmulas', [
-                    'error' => $e->getMessage(),
-                    'programa_id' => $programa->Id ?? null,
-                ]);
-            } else {
-                Log::warning('TejidoHelpers: Error al calcular fórmulas', [
-                    'context' => $contexto,
-                    'error' => $e->getMessage(),
-                    'programa_id' => $programa->Id ?? null,
-                ]);
-            }
-
-            return [];
-        }
+        return FormulasEficiencia::calcularFormulasEficienciaPorContexto($programa, $contexto, $obtenerModeloCallback);
     }
 
-    /**
-     * Obtiene todos los datos del modelo codificado como array, con cache por-request y field-mapping.
-     * Reemplaza la implementación privada de DuplicarTejido::getDatosModeloCodificado().
-     * Busca en 3 niveles: exacto → prefijo → contains.
-     * Mapea PasadasTramaFondoC1 → PasadasTrama, FibraTramaFondoC1 → FibraTrama.
-     *
-     * @param  string  $tamanoClave  Clave de modelo
-     * @param  string  $salon  SalonTejidoId para filtrar
-     * @return array|null Array de campos del modelo o null si no se encuentra
-     */
+    public static function obtenerModeloParams(ReqProgramaTejido $programa, ?callable $obtenerModeloCallback = null): array
+    {
+        return HorasProduccion::obtenerModeloParams($programa, $obtenerModeloCallback);
+    }
+
+    public static function aplicarStdDesdeCatalogos(ReqProgramaTejido $p): void
+    {
+        EstandaresTelar::aplicarStdDesdeCatalogos($p);
+    }
+
+    public static function resolverTipoTelarStd(?string $maquina, ?string $salonTejidoId): string
+    {
+        return EstandaresTelar::resolverTipoTelarStd($maquina, $salonTejidoId);
+    }
+
+    public static function buscarStdVelocidad(string $tipoTelar, string $telar, string $fibraId, string $densidad): ?ReqVelocidadStd
+    {
+        return EstandaresTelar::buscarStdVelocidad($tipoTelar, $telar, $fibraId, $densidad);
+    }
+
+    public static function buscarStdEficiencia(string $tipoTelar, string $telar, string $fibraId, string $densidad): ?ReqEficienciaStd
+    {
+        return EstandaresTelar::buscarStdEficiencia($tipoTelar, $telar, $fibraId, $densidad);
+    }
+
+    public static function obtenerModeloPorTamanoClave(
+        string $tamanoClave,
+        ?string $salonTejidoId = null,
+        array $selectCols = ['*']
+    ): ?ReqModelosCodificados {
+        return CatalogoModelos::porTamanoClave($tamanoClave, $salonTejidoId, $selectCols);
+    }
+
     public static function obtenerDatosModeloCodificadoArray(string $tamanoClave, string $salon): ?array
     {
-        $cacheKey = $salon.'|'.$tamanoClave;
-        if (array_key_exists($cacheKey, self::$datosModeloArrayCache)) {
-            return self::$datosModeloArrayCache[$cacheKey];
-        }
-
-        $selectCols = [
-            'TamanoClave', 'SalonTejidoId', 'FlogsId', 'NombreProyecto', 'InventSizeId', 'ItemId', 'Nombre',
-            'AnchoToalla', 'LargoToalla', 'CuentaPie', 'MedidaPlano', 'PesoCrudo',
-            'NoTiras', 'Luchaje', 'Repeticiones', 'Total', 'CalibreTrama', 'CalibreTrama2',
-            'FibraId', 'CalibreRizo', 'CalibreRizo2', 'CuentaRizo', 'CalibrePie', 'CalibrePie2',
-            'Peine', 'Rasurado', 'CodColorTrama', 'ColorTrama', 'DobladilloId',
-            'PasadasTramaFondoC1', 'FibraTramaFondoC1',
-            'PasadasComb1', 'PasadasComb2', 'PasadasComb3', 'PasadasComb4', 'PasadasComb5',
-            'CalibreComb1', 'CalibreComb12', 'FibraComb1', 'CodColorC1', 'NomColorC1',
-            'CalibreComb2', 'CalibreComb22', 'FibraComb2', 'CodColorC2', 'NomColorC2',
-            'CalibreComb3', 'CalibreComb32', 'FibraComb3', 'CodColorC3', 'NomColorC3',
-            'CalibreComb4', 'CalibreComb42', 'FibraComb4', 'CodColorC4', 'NomColorC4',
-            'CalibreComb5', 'CalibreComb52', 'FibraComb5', 'CodColorC5', 'NomColorC5',
-            // Karl Mayer: cuatro barras en vez de rizo/pie/C1-C5.
-            'CuentaBarra1', 'CalibreBarra1', 'CalibreBarra12', 'CodColorBarra1', 'ColorBarra1', 'FibraBarra1', 'PasadasBarra1',
-            'CuentaBarra2', 'CalibreBarra2', 'CalibreBarra22', 'CodColorBarra2', 'ColorBarra2', 'FibraBarra2', 'PasadasBarra2',
-            'CuentaBarra3', 'CalibreBarra3', 'CalibreBarra32', 'CodColorBarra3', 'ColorBarra3', 'FibraBarra3', 'PasadasBarra3',
-            'CuentaBarra4', 'CalibreBarra4', 'CalibreBarra42', 'CodColorBarra4', 'ColorBarra4', 'FibraBarra4', 'PasadasBarra4',
-        ];
-
-        $tam = trim($tamanoClave);
-        if ($tam !== '') {
-            $tam = preg_replace('/\s+/', ' ', $tam);
-        }
-
-        $qBase = ReqModelosCodificados::query();
-        $salones = TelarSalonResolver::salonAliases($salon);
-        if (! empty($salones)) {
-            $qBase->whereRaw(
-                'LTRIM(RTRIM([SalonTejidoId])) IN ('.implode(',', array_fill(0, count($salones), '?')).')',
-                $salones
-            );
-        } else {
-            $qBase->where('SalonTejidoId', $salon);
-        }
-
-        $datos = (clone $qBase)
-            ->whereRaw("REPLACE(UPPER(LTRIM(RTRIM(TamanoClave))), '  ', ' ') = ?", [strtoupper($tam)])
-            ->select($selectCols)
-            ->first();
-
-        if (! $datos) {
-            $datos = (clone $qBase)
-                ->whereRaw('UPPER(TamanoClave) LIKE ?', [strtoupper($tam).'%'])
-                ->select($selectCols)
-                ->first();
-        }
-
-        if (! $datos) {
-            $datos = (clone $qBase)
-                ->whereRaw('UPPER(TamanoClave) LIKE ?', ['%'.strtoupper($tam).'%'])
-                ->select($selectCols)
-                ->first();
-        }
-
-        if ($datos) {
-            $resultado = $datos->toArray();
-            $resultado['PasadasTrama'] = $resultado['PasadasTramaFondoC1'] ?? null;
-            $resultado['FibraTrama'] = $resultado['FibraTramaFondoC1'] ?? $resultado['FibraId'] ?? null;
-            unset($resultado['PasadasTramaFondoC1'], $resultado['FibraTramaFondoC1']);
-            self::$datosModeloArrayCache[$cacheKey] = $resultado;
-
-            return $resultado;
-        }
-
-        self::$datosModeloArrayCache[$cacheKey] = null;
-
-        return null;
+        return CatalogoModelos::datosArray($tamanoClave, $salon);
     }
 }

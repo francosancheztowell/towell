@@ -1,7 +1,5 @@
 <?php
 
-use App\Http\Controllers\Tejedores\BPMTejedores\TelBpmController;
-use App\Http\Controllers\Tejedores\BPMTejedores\TelBpmLineController;
 use App\Http\Controllers\Tejedores\Configuracion\CatalogoCalibres\CatalogoCalibresController;
 use App\Http\Controllers\Tejedores\Configuracion\TelaresOperador\TelTelaresOperadorController;
 use App\Http\Controllers\Tejedores\Desarrolladores\TelDesarrolladoresController;
@@ -11,7 +9,6 @@ use App\Http\Controllers\Tejedores\NotificarMontadoJulios\NotificarMontadoJulioC
 use App\Http\Controllers\Tejedores\NotificarMontadoRollo\NotificarMontRollosController;
 use App\Http\Controllers\Tejedores\Reportes\ReportesDesarrolladoresController;
 use App\Http\Controllers\Tejedores\Reportes\ReportesTejedoresController;
-use App\Http\Controllers\Tejedores\TelActividadesBPMController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -26,12 +23,10 @@ Route::prefix('tejedores')->name('tejedores.')->group(function () {
         ->name('configurar');
 
     Route::get('/configurar/telaresxoperador', [TelTelaresOperadorController::class, 'index'])->name('configurar.telares-operador');
-    Route::get('/configurar/actividadestejedores', [TelActividadesBPMController::class, 'index'])->name('configurar.actividades');
 
     // Catalogo de calibres de desarrolladores (listado + CRUD en el componente Livewire CatalogoCalibres)
     Route::get('/configurar/catalogo-calibres', [CatalogoCalibresController::class, 'index'])->name('configurar.catalogo-calibres');
 
-    Route::get('/bpmtejedores', [TelBpmController::class, 'index'])->name('bpm');
     Route::redirect('/bpm', '/tejedores/bpmtejedores', 301);
 
     Route::get('/desarrolladores', [TelDesarrolladoresController::class, 'index'])->name('desarrolladores');
@@ -67,21 +62,6 @@ Route::prefix('tejedores')->group(function () {
     Route::redirect('/notificar-mont-rollos/datos-produccion', '/tejedores/cortadoderollo/datos-produccion', 301);
 });
 
-// Legacy URL: mantener rutas tel-bpm.* pero no mostrar el listado por /tel-bpm
-// (La ruta real de navegación es /tejedores/bpmtejedores)
-// IMPORTANTE: Solo redirect para GET, no para POST/PUT/DELETE (para que funcione el resource)
-Route::get('/tel-bpm', function () {
-    return redirect('/tejedores/bpmtejedores', 301);
-});
-
-Route::resource('tel-actividades-bpm', TelActividadesBPMController::class)
-    ->middlewareFor('store', 'module.permission:crear,173') // Actividades Tejedores
-    ->middlewareFor('update', 'module.permission:modificar,173') // Actividades Tejedores
-    ->middlewareFor('destroy', 'module.permission:eliminar,173') // Actividades Tejedores
-    ->only(['index', 'store', 'update', 'destroy'])
-    ->parameters(['tel-actividades-bpm' => 'telActividadesBPM'])
-    ->names('tel-actividades-bpm');
-
 Route::resource('tel-telares-operador', TelTelaresOperadorController::class)
     ->middlewareFor('store', 'module.permission:crear,143') // Telares x Operador
     ->middlewareFor('update', 'module.permission:modificar,143') // Telares x Operador
@@ -94,30 +74,6 @@ Route::get('/tel-telares-operador/api/salones-y-telares', [TelTelaresOperadorCon
     ->name('tel-telares-operador.api.salones-y-telares');
 
 Route::get('/telaresPorOperador', [TelTelaresOperadorController::class, 'index'])->name('telaresPorOperador');
-Route::get('/ActividadesBPM', [TelActividadesBPMController::class, 'index'])->name('ActividadesBPM');
-
-// Ruta de depuración ANTES del resource para que no la capture tel-bpm/{folio}
-Route::get('tel-bpm/log-debug', [TelBpmController::class, 'logDebug'])->name('tel-bpm.log-debug');
-
-Route::resource('tel-bpm', TelBpmController::class)
-    ->middlewareFor('store', 'module.permission:crear,47,auditar') // BPM Tejedores
-    ->middlewareFor('update', 'module.permission:modificar,47,auditar') // BPM Tejedores
-    ->middlewareFor('destroy', 'module.permission:eliminar,47') // BPM Tejedores
-    ->only(['index', 'show', 'store', 'update', 'destroy'])
-    ->parameters(['tel-bpm' => 'folio'])
-    ->names('tel-bpm');
-
-Route::patch('tel-bpm/{folio}/terminar', [TelBpmLineController::class, 'finish'])->middleware('module.permission:modificar,47,auditar')->name('tel-bpm.finish'); // BPM Tejedores
-// Visto bueno de supervision: 'registrar' es la convencion del repo para autorizar
-// (ver app/Livewire/Mecanicos/VerificaMaquina/Show.php:177). TelBpmLineController no valida nada.
-Route::patch('tel-bpm/{folio}/autorizar', [TelBpmLineController::class, 'authorizeDoc'])
-    ->middleware('module.permission:registrar,47')->name('tel-bpm.authorize'); // BPM Tejedores
-Route::patch('tel-bpm/{folio}/rechazar', [TelBpmLineController::class, 'reject'])
-    ->middleware('module.permission:registrar,47')->name('tel-bpm.reject'); // BPM Tejedores
-
-Route::get('tel-bpm/{folio}/lineas', [TelBpmLineController::class, 'index'])->name('tel-bpm-line.index');
-Route::post('tel-bpm/{folio}/lineas/toggle', [TelBpmLineController::class, 'toggle'])->middleware('module.permission:modificar,47,auditar')->name('tel-bpm-line.toggle'); // BPM Tejedores
-Route::post('tel-bpm/{folio}/lineas/comentarios', [TelBpmLineController::class, 'updateComentarios'])->middleware('module.permission:modificar,47,auditar')->name('tel-bpm-line.comentarios'); // BPM Tejedores
 
 Route::controller(InventarioTelaresController::class)
     ->prefix('inventario-telares')->name('inventario.telares.modulo.')->group(function () {

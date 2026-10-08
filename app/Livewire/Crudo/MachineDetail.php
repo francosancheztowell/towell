@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Livewire\Crudo;
 
 use App\Contracts\Crudo\CrudoDashboardProvider;
-use App\Http\Controllers\Planeacion\Alineacion\AlineacionController;
 use App\Services\Crudo\CrudoAccess;
 use App\Services\Crudo\CrudoParosHistoryService;
 use App\Services\Crudo\CrudoProductionTargetService;
 use App\Services\Crudo\CrudoStatusResolver;
+use App\Services\Planeacion\Alineacion\AlineacionItemsService;
 use App\Support\Crudo\CrudoDefectTurnShare;
 use App\Support\Crudo\ResolvesCrudoPeriod;
 use Illuminate\Contracts\View\View;
@@ -51,7 +51,7 @@ class MachineDetail extends Component
 
     /**
      * Las columnas de Planeación > Alineación, en su mismo orden y con sus mismas etiquetas
-     * (llaves de AlineacionController::$columnas). El modal las pinta como la fila de la tabla.
+     * (llaves de AlineacionItemsService::COLUMNAS). El modal las pinta como la fila de la tabla.
      */
     public const COLUMNAS_ALINEACION = [
         'NoTelarId' => 'Telar', 'NoProduccion' => 'No. Orden', 'FechaCambio' => 'Fecha de cambio',
@@ -237,7 +237,7 @@ class MachineDetail extends Component
         }
 
         try {
-            $items = app(AlineacionController::class)->obtenerItemsAlineacion();
+            $items = app(AlineacionItemsService::class)->obtenerItems();
         } catch (Throwable $exception) {
             report($exception);
 

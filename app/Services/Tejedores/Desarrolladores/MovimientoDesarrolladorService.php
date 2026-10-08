@@ -2,10 +2,10 @@
 
 namespace App\Services\Tejedores\Desarrolladores;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\VincularTejido;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
+use App\Actions\Planeacion\ProgramaTejido\ActualizarOrdPrincipal;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\SecuenciaFechasTelar;
 use Carbon\Carbon;
 use DomainException;
 use Exception;
@@ -151,7 +151,7 @@ class MovimientoDesarrolladorService
 
                 ReqProgramaTejido::unsetEventDispatcher();
 
-                [$updates] = DateHelpers::recalcularFechasSecuencia($ordenados, $inicioOriginal, true);
+                [$updates] = SecuenciaFechasTelar::recalcular($ordenados, $inicioOriginal);
 
                 if (! empty($updates)) {
                     $idsActualizar = array_keys($updates);
@@ -191,7 +191,7 @@ class MovimientoDesarrolladorService
                             ReqProgramaTejido::query()->where('OrdCompartida', $ordCompartida)->update(['OrdCompartidaLider' => null]);
                             $nuevoLider->OrdCompartidaLider = 1;
                             $nuevoLider->saveQuietly();
-                            VincularTejido::actualizarOrdPrincipalPorOrdCompartida($ordCompartida);
+                            ActualizarOrdPrincipal::ejecutar($ordCompartida);
                         }
                     }
                 }
@@ -377,7 +377,7 @@ class MovimientoDesarrolladorService
             ? Carbon::parse($primeroConFecha->FechaInicio)
             : Carbon::now();
 
-        [$updates] = DateHelpers::recalcularFechasSecuencia($registros->values(), $inicioOriginal, true);
+        [$updates] = SecuenciaFechasTelar::recalcular($registros->values(), $inicioOriginal);
 
         if (empty($updates)) {
             return;
@@ -453,7 +453,7 @@ class MovimientoDesarrolladorService
         $todosLosRegistros->splice($posicionAjustada, 0, [$registroMovido]);
         $registrosReordenados = $todosLosRegistros->values();
 
-        [$updates] = DateHelpers::recalcularFechasSecuencia($registrosReordenados, $inicioOriginal, true);
+        [$updates] = SecuenciaFechasTelar::recalcular($registrosReordenados, $inicioOriginal);
 
         if (! empty($updates)) {
             $idsActualizar = array_keys($updates);

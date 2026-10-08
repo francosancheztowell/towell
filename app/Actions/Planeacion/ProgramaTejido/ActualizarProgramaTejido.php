@@ -7,15 +7,14 @@ namespace App\Actions\Planeacion\ProgramaTejido;
 use App\Data\Planeacion\ProgramaTejido\CambiosProgramaTejido;
 use App\Helpers\AuditoriaHelper;
 use App\Helpers\StringTruncator;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\UpdateTejido;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
-use Illuminate\Http\JsonResponse;
+use App\Services\Planeacion\ProgramaTejido\EdicionProgramaTejido;
+use App\Support\Planeacion\NumeroPrograma;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Edición inline v2 (PT-05 · PT-MUT-01). Reusa la lógica de campos, fechas y derivados de
- * UpdateTejido; lo que cambia frente al legacy:
+ * EdicionProgramaTejido (la misma del PUT legacy); lo que cambia frente al legacy:
  * - la fila se lee con lockForUpdate dentro de la transacción (dos PUT a la misma fila ya
  *   no se pisan: CR-05 del lado del servidor);
  * - velocidad_std/eficiencia_std recalculan duración, FechaFinal y cascada (CR-03);
@@ -35,20 +34,18 @@ final class ActualizarProgramaTejido
 
             $fechaFinalAntes = (string) ($registro->FechaFinal ?? '');
             $horasProdAntes = (float) ($registro->HorasProd ?? 0);
-            $cantidadAntes = TejidoHelpers::sanitizeNumber($registro->SaldoPedido ?? $registro->Produccion ?? $registro->TotalPedido ?? 0);
+            $cantidadAntes = NumeroPrograma::sanitizeNumber($registro->SaldoPedido ?? $registro->Produccion ?? $registro->TotalPedido ?? 0);
 
-            $flags = UpdateTejido::aplicarCambios($registro, $cambios->campos);
-            if ($flags instanceof JsonResponse) {
-                throw new MutacionRechazada($flags);
-            }
+            // Un rechazo de negocio sale como MutacionRechazada: la transacción se revierte.
+            $flags = EdicionProgramaTejido::aplicarCambios($registro, $cambios->campos);
             if ($cambios->cambiaStd()) {
                 $flags['afectaDuracion'] = true;
                 $flags['afectaFormulas'] = true;
             }
 
-            UpdateTejido::recalcularDerivados($registro, $flags, $horasProdAntes, $cantidadAntes);
+            EdicionProgramaTejido::recalcularDerivados($registro, $flags, $horasProdAntes, $cantidadAntes);
             StringTruncator::truncateModelAttributes($registro);
-            UpdateTejido::persistir($registro, $flags, $fechaFinalAntes, estricto: true);
+            EdicionProgramaTejido::persistir($registro, $flags, $fechaFinalAntes, estricto: true);
 
             return $registro->fresh();
         });

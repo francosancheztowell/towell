@@ -1,0 +1,60 @@
+{
+    "detalles": [
+        {
+            "CalendarioId": "CAL SEQ",
+            "CambioHilo_nuevo": "0",
+            "EnProceso_nuevo": 1,
+            "FechaFinal_nueva": "2026-09-13 09:00:00",
+            "FechaInicio_nueva": "2026-09-13 06:00:00",
+            "HorasProd_calc": null,
+            "Id": 21,
+            "NoTelar": "201",
+            "Posicion": 1,
+            "Ultimo_nuevo": "0"
+        },
+        {
+            "CalendarioId": "CAL SEQ",
+            "CambioHilo_nuevo": "0",
+            "EnProceso_nuevo": 0,
+            "FechaFinal_nueva": "2026-09-13 11:00:00",
+            "FechaInicio_nueva": "2026-09-13 09:00:00",
+            "HorasProd_calc": null,
+            "Id": 22,
+            "NoTelar": "201",
+            "Posicion": 2,
+            "Ultimo_nuevo": "1"
+        }
+    ],
+    "updates": {
+        "21": {
+            "CambioHilo": "0",
+            "DiasEficiencia": 0.13,
+            "EnProceso": 1,
+            "EntregaCte": "2026-09-25 09:00:00",
+            "EntregaPT": "2026-09-15",
+            "EntregaProduc": "2026-09-03",
+            "FechaFinal": "2026-09-13 09:00:00",
+            "FechaInicio": "2026-09-13 06:00:00",
+            "PTvsCte": -10.0,
+            "Posicion": 1,
+            "StdHrsEfect": 16.67,
+            "Ultimo": "0",
+            "UpdatedAt": "2026-09-10 08:00:00"
+        },
+        "22": {
+            "CambioHilo": "0",
+            "DiasEficiencia": 0.08,
+            "EnProceso": 0,
+            "EntregaCte": "2026-09-25 11:00:00",
+            "EntregaPT": "2026-09-15",
+            "EntregaProduc": "2026-09-03",
+            "FechaFinal": "2026-09-13 11:00:00",
+            "FechaInicio": "2026-09-13 09:00:00",
+            "PTvsCte": -10.0,
+            "Posicion": 2,
+            "StdHrsEfect": 25.0,
+            "Ultimo": "1",
+            "UpdatedAt": "2026-09-10 08:00:00"
+        }
+    }
+}

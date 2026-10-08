@@ -41,7 +41,8 @@ final class EnsureModulePermission
         }
 
         if ($modo !== null && trim($modo) === self::MODO_AUDITAR) {
-            $this->registrarDenegacion($request, $action, $module);
+            $ruta = $request->route()?->getName() ?? $request->route()?->uri() ?? $request->path();
+            self::registrarDenegacion($request->method().' '.$ruta, $action, $module);
 
             return $next($request);
         }
@@ -55,12 +56,12 @@ final class EnsureModulePermission
         abort(Response::HTTP_FORBIDDEN, $message);
     }
 
-    private function registrarDenegacion(Request $request, string $action, string $module): void
+    /** También lo usan los componentes Livewire en modo auditar (no pasan por el router). */
+    public static function registrarDenegacion(string $ruta, string $action, string $module): void
     {
         try {
             $usuario = Auth::user();
-            $ruta = $request->route()?->getName() ?? $request->route()?->uri() ?? $request->path();
-            $llave = 'authz_auditar:'.sha1(implode('|', [Auth::id() ?? 'anonimo', $request->method(), $ruta, $action, $module]));
+            $llave = 'authz_auditar:'.sha1(implode('|', [Auth::id() ?? 'anonimo', $ruta, $action, $module]));
 
             if (! Cache::add($llave, 1, self::DEDUPLICAR_SEGUNDOS)) {
                 return;
@@ -69,8 +70,8 @@ final class EnsureModulePermission
             app(AccesoService::class)->registrar('authz_denegaria', [
                 'UsuarioId' => Auth::id() !== null ? (int) Auth::id() : null,
                 'NumeroEmpleado' => data_get($usuario, 'numero_empleado'),
-                'Motivo' => $action.' · '.$module.' · '.$request->method().' '.$ruta,
-            ], $request);
+                'Motivo' => $action.' · '.$module.' · '.$ruta,
+            ]);
         } catch (Throwable) {
             // Auditar nunca bloquea: si falla la caché o el registro, la request sigue.
         }

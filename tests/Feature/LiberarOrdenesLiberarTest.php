@@ -9,6 +9,7 @@ use App\Services\Planeacion\Liberar\LiberarFlogSugeridoService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\Concerns\UsesSqlsrvSqlite;
@@ -729,6 +730,8 @@ class LiberarOrdenesLiberarTest extends TestCase
             }
 
             // Instancia nueva: los caches del controlador son por request, no entre requests.
+            // El catálogo de hilos se cachea 1 h entre requests: se limpia para contar igual las dos veces.
+            Cache::flush();
             (new LiberarOrdenesController)->index(Request::create('/liberar-ordenes', 'GET', ['dias' => 10.999]));
 
             return count(DB::connection('sqlsrv')->getQueryLog())

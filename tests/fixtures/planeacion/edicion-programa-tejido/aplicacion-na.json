@@ -1,0 +1,13 @@
+{
+    "flags": {
+        "afectaCalendario": false,
+        "afectaDuracion": false,
+        "afectaFormulas": false,
+        "afectaAplicacion": true,
+        "fechaFinalManual": false,
+        "editoAncho": false
+    },
+    "cambios": {
+        "AplicacionId": null
+    }
+}

@@ -4,10 +4,9 @@ namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
 use App\Helpers\AuditoriaHelper;
 use App\Helpers\StringTruncator;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\OrdCompartidaHelper;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UpdateHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -130,7 +129,7 @@ class DuplicarTejido
                     // OrdCompartida = NoProduccion del registro origen (líder natural)
                     // Si origen no tiene NoProduccion, queda null y los duplicados se crearán sin
                     // OrdCompartida; el recálculo de líder se omite más abajo.
-                    $ordCompartidaAVincular = OrdCompartidaHelper::obtenerOrdCompartidaDesdeRegistro($original);
+                    $ordCompartidaAVincular = OrdCompartida::obtenerOrdCompartidaDesdeRegistro($original);
                 }
 
                 // El origen tambien es parte del grupo: sin esto queda fuera de su propio
@@ -449,7 +448,7 @@ class DuplicarTejido
                 }
 
                 // Aplicar TipoPedido basado en las primeras 2 letras del Flog (CE, RS, etc.)
-                UpdateHelpers::applyFlogYTipoPedido($nuevo, $nuevo->FlogsId);
+                $nuevo->asignarFlog($nuevo->FlogsId);
 
                 // CustName y CategoriaCalidad (NAC): desde mapa pre-cargado en batch
                 if (! empty($nuevo->FlogsId)) {
@@ -599,7 +598,7 @@ class DuplicarTejido
             }
 
             if ($vincular && $ordCompartidaAVincular) {
-                OrdCompartidaHelper::recalcularLiderYOrdPrincipalPorOrdCompartida((int) $ordCompartidaAVincular);
+                OrdCompartida::recalcularLiderYOrdPrincipalPorOrdCompartida((int) $ordCompartidaAVincular);
             }
 
             // Generar líneas diarias DENTRO de la transacción (antes del commit) para que la FK

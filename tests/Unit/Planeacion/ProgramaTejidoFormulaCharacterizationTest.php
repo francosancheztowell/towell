@@ -5,7 +5,8 @@ namespace Tests\Unit\Planeacion;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
-use ReflectionMethod;
+use App\Services\Planeacion\ProgramaTejido\ConsumosLineaDiaria;
+use App\Services\Planeacion\ProgramaTejido\MetrosHiloLineaDiaria;
 use Tests\TestCase;
 
 /**
@@ -92,14 +93,16 @@ class ProgramaTejidoFormulaCharacterizationTest extends TestCase
 
     public function test_consumos_de_linea_diaria_del_observer(): void
     {
-        $observer = new ReqProgramaTejidoObserver;
+        // Las fórmulas de consumo salieron del observer a ConsumosLineaDiaria y MetrosHiloLineaDiaria (mismos valores).
+        $formulas = new ConsumosLineaDiaria;
         $p = $this->programa([
             'PasadasTrama' => 20, 'CalibreTrama2' => 12, 'AnchoToalla' => 50,
             'PasadasComb1' => 10, 'CalibreComb12' => 16,
             'LargoCrudo' => 70, 'MedidaPlano' => 5, 'CalibrePie2' => 10, 'CuentaPie' => 60, 'NoTiras' => 2,
         ]);
 
-        $llamar = fn (string $metodo, ...$args) => (new ReflectionMethod($observer, $metodo))->invoke($observer, ...$args);
+        $metros = new MetrosHiloLineaDiaria;
+        $llamar = fn (string $metodo, ...$args) => ($metodo === 'calcularMtsPie' ? $metros : $formulas)->{$metodo}(...$args);
 
         $this->assertEqualsWithDelta(0.04921583333333332, $llamar('calcularTrama', $p, 100.0), self::DELTA);
         $this->assertEqualsWithDelta(0.018455937499999995, $llamar('calcularCombinacion', $p, 1, 100.0), self::DELTA);

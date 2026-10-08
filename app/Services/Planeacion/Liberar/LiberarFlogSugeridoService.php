@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Planeacion\Liberar;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UpdateHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -168,7 +167,7 @@ final class LiberarFlogSugeridoService
                 return 'El flog "'.$flogsId.'" no existe o no está vigente en AX.';
             }
 
-            UpdateHelpers::applyFlogYTipoPedido($registro, $flogsId);
+            $registro->asignarFlog($flogsId);
 
             $registro->NombreProyecto = trim((string) ($cabecera->NAMEPROYECT ?? '')) ?: $registro->NombreProyecto;
             $registro->CustName = trim((string) ($cabecera->CUSTNAME ?? '')) ?: $registro->CustName;

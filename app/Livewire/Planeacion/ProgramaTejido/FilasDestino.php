@@ -6,10 +6,10 @@ namespace App\Livewire\Planeacion\ProgramaTejido;
 
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DuplicarTejido;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Http\Requests\Planeacion\DividirSaldoRequest;
 use App\Http\Requests\Planeacion\DuplicarTejidoRequest;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Support\Planeacion\NumeroPrograma;
 use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
@@ -125,7 +125,7 @@ final class FilasDestino
     /** Regla 3 sin producción: saldo = pedido × (1 + %seg/100). */
     public static function saldoDuplicar(mixed $pedido, mixed $porcSeg): string
     {
-        return self::numero(TejidoHelpers::sanitizeNumber($pedido) * (1 + TejidoHelpers::sanitizeNumber($porcSeg) / 100));
+        return self::numero(NumeroPrograma::sanitizeNumber($pedido) * (1 + NumeroPrograma::sanitizeNumber($porcSeg) / 100));
     }
 
     /**
@@ -150,9 +150,9 @@ final class FilasDestino
      */
     public static function pedidoDerivado(array $fila): float
     {
-        $porcSeg = max(0.0, TejidoHelpers::sanitizeNumber($fila['porcSeg']));
+        $porcSeg = max(0.0, NumeroPrograma::sanitizeNumber($fila['porcSeg']));
 
-        return round((TejidoHelpers::sanitizeNumber($fila['saldo']) + (float) $fila['produccion']) / (1 + $porcSeg / 100), 2);
+        return round((NumeroPrograma::sanitizeNumber($fila['saldo']) + (float) $fila['produccion']) / (1 + $porcSeg / 100), 2);
     }
 
     /**
@@ -163,7 +163,7 @@ final class FilasDestino
      */
     public static function cuadre(array $filas, float $disponible): array
     {
-        $saldos = array_map(fn ($f) => TejidoHelpers::sanitizeNumber($f['saldo']), $filas);
+        $saldos = array_map(fn ($f) => NumeroPrograma::sanitizeNumber($f['saldo']), $filas);
         $asignado = round(array_sum($saldos), 2);
         $diferencia = round($asignado - $disponible, 2);
 
@@ -241,7 +241,7 @@ final class FilasDestino
      */
     private static function filaUtil(array $f): bool
     {
-        return $f['existente'] || trim((string) $f['telar']) !== '' || TejidoHelpers::sanitizeNumber($f['saldo']) != 0.0;
+        return $f['existente'] || trim((string) $f['telar']) !== '' || NumeroPrograma::sanitizeNumber($f['saldo']) != 0.0;
     }
 
     /**

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Livewire\Planeacion\ProgramaTejido;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqAplicaciones;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqTelares;
 use App\Services\Planeacion\Liberar\LiberarFlogSugeridoService;
+use App\Services\Planeacion\ProgramaTejido\CatalogoModelos;
 use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -81,7 +81,7 @@ final class CatalogosDestino
      */
     public static function datosClave(string $clave, string $salon): ?array
     {
-        $modelo = TejidoHelpers::obtenerDatosModeloCodificadoArray($clave, $salon);
+        $modelo = CatalogoModelos::datosArray($clave, $salon);
         if ($modelo === null) {
             return null;
         }

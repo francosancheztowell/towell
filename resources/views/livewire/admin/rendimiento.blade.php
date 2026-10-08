@@ -3,9 +3,11 @@
     $celda = function (array $metrica, int $umbral): array {
         $actual = $metrica['actual'] ?? null;
         $previa = $metrica['previa'] ?? null;
-        $delta = $actual && $previa && $previa['p95'] > 0 ? (int) round(100 * ($actual['p95'] - $previa['p95']) / $previa['p95']) : null;
+        // Con menos de MIN_MUESTRAS en alguna semana el Δ% es ruido (0-8 vistas daban +200%): no se muestra.
+        $pocas = $actual && $previa && min($actual['n'], $previa['n']) < \App\Livewire\Admin\Rendimiento::MIN_MUESTRAS;
+        $delta = $actual && $previa && ! $pocas && $previa['p95'] > 0 ? (int) round(100 * ($actual['p95'] - $previa['p95']) / $previa['p95']) : null;
 
-        return [$actual, $previa, $delta, $actual && $actual['p95'] > $umbral];
+        return [$actual, $previa, $delta, $actual && $actual['p95'] > $umbral, $pocas];
     };
     $grupos = ['ServidorMs' => 'Servidor', 'CargaMs' => 'Carga en navegador'];
 @endphp
@@ -46,7 +48,7 @@
                         </flux:table.cell>
                         @foreach ($grupos as $metrica => $titulo)
                             @php
-                                [$actual, $previa, $delta, $excede] = $celda($fila[$metrica], $umbrales[$metrica]);
+                                [$actual, $previa, $delta, $excede, $pocas] = $celda($fila[$metrica], $umbrales[$metrica]);
                                 $ancho = $actual ? min(100, round(50 * $actual['p95'] / max(1, $umbrales[$metrica]))) : 0;
                             @endphp
                             <flux:table.cell>
@@ -55,6 +57,8 @@
                                         <span @class(['font-semibold tabular-nums', 'text-(--adm-err)' => $excede, 'text-(--adm-ink)' => ! $excede])>{{ number_format($actual['p95']) }} ms</span>
                                         @if ($delta !== null)
                                             <span @class(['text-caption tabular-nums', 'text-(--adm-err)' => $delta > 10, 'text-(--adm-ok)' => $delta < -10, 'text-(--adm-ink-3)' => abs($delta) <= 10])>{{ $delta > 0 ? '+' : '' }}{{ $delta }}%</span>
+                                        @elseif ($pocas)
+                                            <span class="text-caption text-(--adm-ink-3)" title="Menos de {{ \App\Livewire\Admin\Rendimiento::MIN_MUESTRAS }} vistas en alguna de las dos semanas">pocas muestras</span>
                                         @else
                                             <span class="text-caption text-(--adm-ink-3)">nuevo</span>
                                         @endif

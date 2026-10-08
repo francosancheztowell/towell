@@ -1,0 +1,28 @@
+{
+    "otro-salon": {
+        "status": 422,
+        "body": {
+            "success": false,
+            "message": "La clave modelo \"OTRA-1\" no existe en el salón actual (JACQUARD), pero se encontró en el salón: SMIT",
+            "tipo": "alerta",
+            "salon_encontrado": "SMIT"
+        }
+    },
+    "no-existe": {
+        "status": 422,
+        "body": {
+            "success": false,
+            "message": "La clave modelo \"NADA-9\" no existe en Modelos Codificados",
+            "tipo": "error"
+        }
+    },
+    "orden-cerrada": {
+        "status": 422,
+        "body": {
+            "success": false,
+            "code": "orden_cerrada_ax",
+            "field": "no_produccion",
+            "message": "La orden 36708 ya está cerrada en AX y no puede asignarse como No. Producción."
+        }
+    }
+}
