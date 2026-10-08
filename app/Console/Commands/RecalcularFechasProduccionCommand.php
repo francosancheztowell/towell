@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Actions\Planeacion\ProgramaTejido\RecalcularRegistroPorProduccion;
 use App\Helpers\AuditoriaHelper;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
 use Illuminate\Console\Command;
@@ -77,7 +77,7 @@ class RecalcularFechasProduccionCommand extends Command
                     if (! $refreshed) {
                         continue;
                     }
-                    if (BalancearTejido::recalcularRegistroPorProduccion($refreshed)) {
+                    if (RecalcularRegistroPorProduccion::ejecutar($refreshed)) {
                         $ok++;
                     } else {
                         $fail++;

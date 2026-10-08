@@ -27,9 +27,9 @@
 
 namespace App\Http\Controllers\Planeacion\Utilerias;
 
+use App\Actions\Planeacion\ProgramaTejido\ActualizarOrdPrincipal;
 use App\Helpers\AuditoriaHelper;
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\VincularTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
@@ -286,7 +286,7 @@ class FinalizarOrdenesController extends Controller
 
             // 1f) Actualizar OrdPrincipal para todas las OrdCompartida afectadas
             foreach (array_keys($ordCompartidasVistas) as $ordComp) {
-                VincularTejido::actualizarOrdPrincipalPorOrdCompartida((int) $ordComp);
+                ActualizarOrdPrincipal::ejecutar((int) $ordComp);
             }
 
             // 1g) Asignar EnProceso=1 al primer restante en telares que lo perdieron

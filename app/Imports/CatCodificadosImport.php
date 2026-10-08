@@ -3,9 +3,9 @@
 namespace App\Imports;
 
 use App\Exceptions\ImportCancelledException;
-use App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Services\Planeacion\CatCodificados\Excel\CatCodificadosExcelRowMapper;
+use App\Support\Planeacion\CatCodificados\CatCodificadosCache;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -111,7 +111,7 @@ class CatCodificadosImport implements SkipsEmptyRows, ToCollection, WithChunkRea
                     'cancelled' => $this->isCancelled(),
                 ], 3600);
 
-                CatCodificacionController::clearCache();
+                CatCodificadosCache::clearCache();
             },
         ];
     }
@@ -208,7 +208,7 @@ class CatCodificadosImport implements SkipsEmptyRows, ToCollection, WithChunkRea
 
                 $insertBatch[] = $entry['payload'];
                 $insertMeta[] = $entry;
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $this->pushError($entry['fila'], $e->getMessage());
             }
         }
@@ -220,7 +220,7 @@ class CatCodificadosImport implements SkipsEmptyRows, ToCollection, WithChunkRea
         try {
             DB::table($table)->insert($insertBatch);
             $created += count($insertBatch);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             Log::warning('CatCodificadosImport batch insert fallback', [
                 'error' => $e->getMessage(),
                 'rows' => count($insertBatch),
@@ -230,7 +230,7 @@ class CatCodificadosImport implements SkipsEmptyRows, ToCollection, WithChunkRea
                 try {
                     DB::table($table)->insert($entry['payload']);
                     $created++;
-                } catch (\Throwable $rowException) {
+                } catch (Throwable $rowException) {
                     $this->pushError($entry['fila'], $rowException->getMessage());
                 }
             }
@@ -335,7 +335,7 @@ class CatCodificadosImport implements SkipsEmptyRows, ToCollection, WithChunkRea
             return false;
         }
 
-        return Cache::get(CatCodificacionController::cancellationCacheKey($this->importId), false) === true;
+        return Cache::get(CatCodificadosCache::cancellationCacheKey($this->importId), false) === true;
     }
 
     protected function throwIfCancelled(): void

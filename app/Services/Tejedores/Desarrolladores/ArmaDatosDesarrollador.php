@@ -3,11 +3,10 @@
 namespace App\Services\Tejedores\Desarrolladores;
 
 use App\Helpers\TelDesarrolladoresHelper;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\QueryHelpers;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Tejedores\TelTelaresOperador;
+use App\Services\Planeacion\ProgramaTejido\EstandaresTelar;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Exception;
@@ -281,11 +280,10 @@ trait ArmaDatosDesarrollador
             return;
         }
 
-        [$nuevaEficiencia, $nuevaVelocidad] = QueryHelpers::resolverStdSegunTelar(
+        [$nuevaEficiencia, $nuevaVelocidad] = EstandaresTelar::resolverStdSegunTelar(
             $programaOrigen,
             $modeloDestino,
-            $contextoDestino['telarDestino'],
-            $contextoDestino['salonDestino']
+            $contextoDestino['telarDestino']
         );
 
         if (! is_null($nuevaEficiencia)) {
@@ -295,7 +293,7 @@ trait ArmaDatosDesarrollador
             $programaOrigen->VelocidadSTD = (float) $nuevaVelocidad;
         }
 
-        $programaOrigen->Maquina = TejidoHelpers::construirMaquinaConSalon(
+        $programaOrigen->Maquina = TelarSalonResolver::construirMaquina(
             $programaOrigen->Maquina ?? null,
             $contextoDestino['salonDestino'],
             $contextoDestino['telarDestino']

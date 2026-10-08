@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\CalendarioProduccion;
 use Carbon\Carbon;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
@@ -248,13 +249,13 @@ class BalancearTejidoCalendarioTest extends TestCase
      */
     private function inyectarLineasCache(string $calId, array $lines): void
     {
-        // getCalendarioLines usa un static array $calLinesCache.
-        // Lo poblamos llamando al método público clearCalendarioLinesCache primero,
+        // Las líneas se cachean en CalendarioProduccion::$lineasCache (static).
+        // Lo limpiamos con el método público de BalancearTejido primero,
         // luego inyectando vía Reflection.
         BalancearTejido::clearCalendarioLinesCache();
 
-        $ref = new \ReflectionClass(BalancearTejido::class);
-        $prop = $ref->getProperty('calLinesCache');
+        $ref = new \ReflectionClass(CalendarioProduccion::class);
+        $prop = $ref->getProperty('lineasCache');
         $prop->setAccessible(true);
         $prop->setValue(null, [$calId => $lines]);
     }

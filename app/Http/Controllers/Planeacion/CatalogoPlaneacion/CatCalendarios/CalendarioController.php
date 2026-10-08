@@ -10,13 +10,10 @@ use App\Http\Requests\Planeacion\Catalogos\ExcelCatalogoRequest;
 use App\Http\Requests\Planeacion\Catalogos\LineaCalendarioRequest;
 use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqCalendarioTab;
-use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\Calendarios\CalendarioService;
-use App\Services\Planeacion\Calendarios\FormulasCalendario;
 use App\Services\Planeacion\Calendarios\RecalcularProgramasCalendario;
 use App\Services\Planeacion\Calendarios\TurnosCalendario;
 use App\Support\Http\Concerns\HandlesApiErrors;
-use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -235,34 +232,6 @@ class CalendarioController extends Controller
         } catch (\Throwable $e) {
             return $this->apiErrorResponse($e, "Recálculo manual {$calendarioId}", 'Error interno del servidor durante el recálculo');
         }
-    }
-
-    // ============================================================
-    // PUENTE 19-06b: App\Actions\Planeacion\ProgramaTejido\CambiarCalendario (PT) hace
-    // `new CalendarioController` y llama estos tres. HANDOFF: que use FormulasCalendario.
-    // ============================================================
-
-    public function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
-    {
-        return $this->formulas()->snapInicio($calendarioId, $fechaInicio);
-    }
-
-    public function calcularHorasProd(ReqProgramaTejido $p): float
-    {
-        return $this->formulas()->horasProd($p);
-    }
-
-    /** @return array<string, float|string> */
-    public function calcularFormulasDependientesDeFechas(ReqProgramaTejido $p, Carbon $inicio, Carbon $fin, float $horasProd): array
-    {
-        return $this->formulas()->dependientesDeFechas($p, $inicio, $fin, $horasProd);
-    }
-
-    private ?FormulasCalendario $formulas = null;
-
-    private function formulas(): FormulasCalendario
-    {
-        return $this->formulas ??= new FormulasCalendario;
     }
 
     private function ampliarLimites(): void

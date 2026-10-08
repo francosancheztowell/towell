@@ -1,0 +1,20 @@
+{
+    "flags": {
+        "afectaCalendario": true,
+        "afectaDuracion": true,
+        "afectaFormulas": true,
+        "afectaAplicacion": false,
+        "fechaFinalManual": false,
+        "editoAncho": true
+    },
+    "cambios": {
+        "NoProduccion": null,
+        "NoTiras": null,
+        "AnchoToalla": null,
+        "Ancho": null,
+        "FibraRizo": null,
+        "CalendarioId": null,
+        "ProgramarProd": null,
+        "Peine": null
+    }
+}

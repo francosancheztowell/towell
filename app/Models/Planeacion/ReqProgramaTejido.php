@@ -21,6 +21,18 @@ use Illuminate\Database\Eloquent\Model;
  * @property mixed $FechaFinal
  * @property mixed $HorasProd
  * @property mixed $Reprogramar
+ * @property string|null $FlogsId
+ * @property string|null $TipoPedido
+ * @property mixed $TamanoClave
+ * @property mixed $NoProduccion
+ * @property mixed $TotalPedido
+ * @property mixed $SaldoPedido
+ * @property mixed $AplicacionId
+ * @property mixed $AnchoToalla
+ * @property mixed $DiasEficiencia
+ * @property mixed $StdHrsEfect
+ * @property mixed $ProdKgDia2
+ * @property mixed $PesoGRM2
  */
 class ReqProgramaTejido extends Model
 {
@@ -386,6 +398,18 @@ class ReqProgramaTejido extends Model
             $valor = '1';
         }
         $this->attributes['Ultimo'] = $valor;
+    }
+
+    /**
+     * Asigna el Flog y deriva TipoPedido de sus 2 primeras letras en mayúsculas.
+     * Flog vacío (o '0') limpia ambos; con menos de 2 caracteres TipoPedido queda null.
+     */
+    public function asignarFlog(?string $flog): void
+    {
+        $this->FlogsId = $flog ?: null;
+        $this->TipoPedido = ($this->FlogsId && strlen($this->FlogsId) >= 2)
+            ? strtoupper(substr($this->FlogsId, 0, 2))
+            : null;
     }
 
     /**

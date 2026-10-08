@@ -294,6 +294,34 @@ class ProgramaTejidoMutacionesV2Test extends TestCase
         $this->assertEquals($antes, $despues, 'v2 debe revertir todo');
     }
 
+    /**
+     * Caracterización (grupo 5/14): fija fechas y fórmulas dependientes que deja el cambio
+     * de calendario, para quitar el puente CalendarioController → FormulasCalendario sin
+     * mover valores. Las Id 2 y 3 son del mismo telar: la 3 se encadena y pasa por snapInicio.
+     */
+    public function test_calendarios_v2_fija_fechas_y_formulas_dependientes(): void
+    {
+        $this->sembrarCalendario();
+        $this->modo('calendarios', 'on');
+
+        // Ids 1 y 3 sin HorasProd ni modelo: horasProd() da 0 y cuentan como error.
+        $this->como()->postJson('/planeacion/programa-tejido/actualizar-calendarios-masivo', ['calendario_id' => 'CAL2', 'registros_ids' => [1, 2, 3]])
+            ->assertOk()->assertJsonPath('success', true)->assertJsonPath('data.errores', 2);
+
+        $campos = ['Id', 'CalendarioId', 'FechaInicio', 'FechaFinal', 'HorasProd', 'DiasEficiencia', 'StdHrsEfect', 'ProdKgDia2', 'DiasJornada', 'EntregaCte', 'PTvsCte'];
+        $filas = DB::table('ReqProgramaTejido')->whereIn('Id', [1, 2, 3])->orderBy('Id')->get($campos)
+            ->map(fn ($f) => (array) $f)->keyBy('Id')->all();
+
+        $this->assertSame(['CAL2', '2026-09-01 06:30:00', '2026-09-03 18:00:00'], [$filas[1]['CalendarioId'], $filas[1]['FechaInicio'], $filas[1]['FechaFinal']]);
+        $this->assertSame(['CAL2', '2026-09-01 06:30:00', '2026-09-02 06:30:00'], [$filas[3]['CalendarioId'], $filas[3]['FechaInicio'], $filas[3]['FechaFinal']]);
+        $this->assertEquals([
+            'Id' => 2, 'CalendarioId' => 'CAL2',
+            'FechaInicio' => '2026-09-03 18:00:00', 'FechaFinal' => '2026-09-04 12:00:00',
+            'HorasProd' => 10.0, 'DiasEficiencia' => 0.75, 'StdHrsEfect' => 27.78, 'ProdKgDia2' => 300.0,
+            'DiasJornada' => 0.4167, 'EntregaCte' => '2026-09-16 12:00:00', 'PTvsCte' => null,
+        ], $filas[2]);
+    }
+
     public function test_calendarios_v2_validacion_con_el_cuerpo_legacy(): void
     {
         $this->modo('calendarios', 'on');

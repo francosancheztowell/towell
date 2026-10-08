@@ -59,7 +59,7 @@ class ProgramaTejidoMutacionesGuardsTest extends TestCase
     {
         $this->assertStringContainsString(
             '->lockForUpdate()',
-            $this->src('app/Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php')
+            $this->src('app/Services/Planeacion/ProgramaTejido/PosicionesTelar.php')
         );
     }
 

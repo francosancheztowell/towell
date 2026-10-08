@@ -1,0 +1,89 @@
+{
+    "detalles": [
+        {
+            "CambioHilo_nuevo": "1",
+            "FechaFinal_nueva": "2026-09-05 14:00:00",
+            "FechaInicio_nueva": "2026-09-04 10:00:00",
+            "HorasProd_calc": null,
+            "Id": 2,
+            "NoTelar": "201",
+            "Ultimo_nuevo": "0"
+        },
+        {
+            "CambioHilo_nuevo": "0",
+            "FechaFinal_nueva": "2026-09-05 23:59:59",
+            "FechaInicio_nueva": "2026-09-05 14:00:00",
+            "HorasProd_calc": null,
+            "Id": 6,
+            "NoTelar": "201",
+            "Ultimo_nuevo": "0"
+        },
+        {
+            "CambioHilo_nuevo": "1",
+            "FechaFinal_nueva": "2026-09-07 02:14:59",
+            "FechaInicio_nueva": "2026-09-05 23:59:59",
+            "HorasProd_calc": null,
+            "Id": 7,
+            "NoTelar": "201",
+            "Ultimo_nuevo": "1"
+        }
+    ],
+    "filas": [
+        {
+            "CambioHilo": null,
+            "DiasEficiencia": null,
+            "EntregaCte": null,
+            "EntregaPT": null,
+            "EntregaProduc": null,
+            "FechaFinal": "2026-09-03 18:00:00",
+            "FechaInicio": "2026-09-01 06:30:00",
+            "HorasProd": null,
+            "Id": 1,
+            "PTvsCte": null,
+            "StdHrsEfect": null,
+            "Ultimo": "0"
+        },
+        {
+            "CambioHilo": "1",
+            "DiasEficiencia": 1.17,
+            "EntregaCte": "2026-09-17 14:00:00",
+            "EntregaPT": "2026-09-15",
+            "EntregaProduc": "2026-09-03",
+            "FechaFinal": "2026-09-05 14:00:00",
+            "FechaInicio": "2026-09-04 10:00:00",
+            "HorasProd": 20.0,
+            "Id": 2,
+            "PTvsCte": -2.0,
+            "StdHrsEfect": 17.86,
+            "Ultimo": "0"
+        },
+        {
+            "CambioHilo": "0",
+            "DiasEficiencia": 0.42,
+            "EntregaCte": "2026-09-17 23:59:59",
+            "EntregaPT": "2026-09-15",
+            "EntregaProduc": "2026-09-03",
+            "FechaFinal": "2026-09-05 23:59:59",
+            "FechaInicio": "2026-09-05 14:00:00",
+            "HorasProd": null,
+            "Id": 6,
+            "PTvsCte": -2.0,
+            "StdHrsEfect": -0.1,
+            "Ultimo": "0"
+        },
+        {
+            "CambioHilo": "1",
+            "DiasEficiencia": 1.09,
+            "EntregaCte": "2026-09-19 02:14:59",
+            "EntregaPT": "2026-09-15",
+            "EntregaProduc": "2026-09-03",
+            "FechaFinal": "2026-09-07 02:14:59",
+            "FechaInicio": "2026-09-05 23:59:59",
+            "HorasProd": null,
+            "Id": 7,
+            "PTvsCte": -4.0,
+            "StdHrsEfect": 11.43,
+            "Ultimo": "1"
+        }
+    ]
+}

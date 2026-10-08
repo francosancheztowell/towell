@@ -1,0 +1,60 @@
+{
+    "duracion": {
+        "FechaFinal": "2026-09-01 16:00:00",
+        "DiasEficiencia": 0.42,
+        "StdHrsEfect": 90.0,
+        "ProdKgDia2": 972.0,
+        "EntregaCte": "2026-09-17 16:00:00",
+        "EntregaPT": "2026-09-15 00:00:00",
+        "EntregaProduc": "2026-08-30 00:00:00",
+        "PTvsCte": -2.0
+    },
+    "duracion-en-proceso": {
+        "FechaFinal": "2026-09-10 20:00:00",
+        "DiasEficiencia": 0.42,
+        "StdHrsEfect": 90.0,
+        "ProdKgDia2": 972.0,
+        "EntregaCte": "2026-09-26 20:00:00",
+        "EntregaPT": "2026-09-15 00:00:00",
+        "EntregaProduc": "2026-08-30 00:00:00",
+        "PTvsCte": -11.0
+    },
+    "duracion-fallback-proporcional": {
+        "FechaFinal": "2026-09-01 11:00:00",
+        "DiasEficiencia": 0.21,
+        "StdHrsEfect": 90.0,
+        "ProdKgDia2": 972.0,
+        "EntregaCte": "2026-09-17 11:00:00",
+        "EntregaPT": "2026-09-15 00:00:00",
+        "EntregaProduc": "2026-08-30 00:00:00",
+        "PTvsCte": -2.0
+    },
+    "solo-calendario": {
+        "FechaFinal": "2026-09-01 16:00:00",
+        "DiasEficiencia": 0.42,
+        "StdHrsEfect": 90.0,
+        "ProdKgDia2": 972.0
+    },
+    "fecha-final-manual": {
+        "DiasEficiencia": 4.0,
+        "StdHrsEfect": 9.38,
+        "ProdKgDia2": 101.25,
+        "EntregaCte": "2026-09-21 06:00:00",
+        "EntregaPT": "2026-09-15 00:00:00",
+        "EntregaProduc": "2026-08-30 00:00:00",
+        "PTvsCte": -6.0
+    },
+    "solo-formulas-sin-inicio": {
+        "DiasEficiencia": 7.17,
+        "StdHrsEfect": 5.23,
+        "ProdKgDia2": 56.51,
+        "EntregaCte": "2026-09-19 06:00:00",
+        "EntregaPT": "2026-09-15 00:00:00",
+        "EntregaProduc": "2026-08-30 00:00:00",
+        "PTvsCte": -4.0
+    },
+    "ancho": {
+        "PesoGRM2": 1250.0
+    },
+    "nada": []
+}

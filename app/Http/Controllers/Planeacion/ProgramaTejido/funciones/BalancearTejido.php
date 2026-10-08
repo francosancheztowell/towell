@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
+use App\Actions\Planeacion\ProgramaTejido\ActualizarOrdPrincipal;
+use App\Actions\Planeacion\ProgramaTejido\RecalcularRegistroPorProduccion;
 use App\Helpers\AuditoriaHelper;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
-use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
+use App\Services\Planeacion\ProgramaTejido\CalendarioProduccion;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,15 +18,6 @@ use Illuminate\Support\Facades\Log;
 
 class BalancearTejido
 {
-    /**
-     * Líneas de calendario parseadas en memoria por request/proceso.
-     * En workers persistentes (p. ej. Octane) puede desactualizarse si se editan calendarios en BD;
-     * llamar clearCalendarioLinesCache() tras modificar ReqCalendarioLine.
-     *
-     * @var array<string, list<array{ini: Carbon, fin: Carbon, ini_ts: int, fin_ts: int}>>
-     */
-    private static array $calLinesCache = [];
-
     // =========================================================
     // PREVIEW SOLO PARA EL MODAL (CALENDARIO)
     // =========================================================
@@ -399,7 +391,7 @@ class BalancearTejido
             if ($ordCompartida > 0) {
                 // Balancear pedidos/fechas no debe reasignar la orden lider del grupo.
                 // Solo sincronizamos OrdPrincipal usando el lider ya persistido.
-                VincularTejido::actualizarOrdPrincipalPorOrdCompartida($ordCompartida);
+                ActualizarOrdPrincipal::ejecutar($ordCompartida);
             }
 
             DB::commit();
@@ -512,59 +504,19 @@ class BalancearTejido
     // =========================================================
 
     /**
-     * Snap $inicio al calendario y calcula $fin según HorasProd del registro.
-     * Lógica EnProceso/saldo-negativo queda en los callers; este método recibe
-     * el inicio ya resuelto y solo aplica snap + cálculo de fin.
+     * Snap + fin según HorasProd (vive en RecalcularRegistroPorProduccion).
      *
-     * @param  Carbon  $inicio  Inicio candidato (cursor, FechaInicio parseada, etc.)
-     * @param  ReqProgramaTejido  $r  Registro con SaldoPedido, CalendarioId, etc.
-     * @param  bool  $aplicarSnap  Si false (EnProceso), omite snap al calendario.
      * @return array{0:Carbon, 1:Carbon, 2:float} [$inicio, $fin, $horasNecesarias]
      */
     public static function resolverInicioFin(Carbon $inicio, ReqProgramaTejido $r, bool $aplicarSnap = true): array
     {
-        if ($aplicarSnap && ! empty($r->CalendarioId)) {
-            $snap = self::snapInicioAlCalendario($r->CalendarioId, $inicio);
-            if ($snap) {
-                $inicio = $snap;
-            }
-        }
-
-        $horasNecesarias = TejidoHelpers::calcularHorasProd($r);
-
-        if ($horasNecesarias <= 0) {
-            $fin = TejidoHelpers::esRepaso($r)
-                ? $inicio->copy()->addHours(TejidoHelpers::DEFAULT_DURACION_REPASO_HORAS)
-                : $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS);
-
-            return [$inicio, $fin, 0.0];
-        }
-
-        $fin = TejidoHelpers::finDesdeHoras($inicio, $horasNecesarias, $r->CalendarioId);
-
-        return [$inicio, $fin, $horasNecesarias];
+        return RecalcularRegistroPorProduccion::resolverInicioFin($inicio, $r, $aplicarSnap);
     }
 
+    /** @return array{0: ?Carbon, 1: ?Carbon, 2: float} */
     private static function calcularInicioFinExactos(ReqProgramaTejido $r): array
     {
-        if (empty($r->FechaInicio)) {
-            return [null, null, 0.0];
-        }
-
-        $esEnProceso = (bool) $r->EnProceso;
-        $inicio = $esEnProceso ? Carbon::now() : Carbon::parse($r->FechaInicio);
-
-        // Saldo negativo: FechaFin = now() si EnProceso, si no el mismo día que FechaInicio
-        $saldo = TejidoHelpers::sanitizeNumber($r->SaldoPedido ?? $r->Produccion ?? $r->TotalPedido ?? 0);
-        if ($saldo < 0) {
-            $fin = $esEnProceso
-                ? Carbon::now()
-                : Carbon::parse($r->FechaInicio)->copy()->endOfDay();
-
-            return [$inicio, $fin, 0.0];
-        }
-
-        return self::resolverInicioFin($inicio, $r, ! $esEnProceso);
+        return RecalcularRegistroPorProduccion::calcularInicioFinExactos($r);
     }
 
     // =========================================================
@@ -700,169 +652,32 @@ class BalancearTejido
         ];
     }
 
-    /**
-     * Recalcular fechas y fórmulas de un registro por cambios en Produccion/SaldoPedido.
-     * EnProceso=1: usa now() como inicio y actualiza FechaInicio en BD.
-     * Para usar cuando un proceso externo actualice Produccion/SaldoPedido vía SQL directo.
-     */
-    public static function recalcularRegistroPorProduccion(ReqProgramaTejido $registro): bool
-    {
-        if (empty($registro->FechaInicio)) {
-            return false;
-        }
-
-        [$inicio, $fin, $horas] = self::calcularInicioFinExactos($registro);
-        if (! $inicio || ! $fin) {
-            return false;
-        }
-
-        $registro->FechaInicio = $inicio->format('Y-m-d H:i:s');
-        $registro->FechaFinal = $fin->format('Y-m-d H:i:s');
-        if ($horas > 0) {
-            $registro->HorasProd = $horas;
-        }
-
-        $formulas = self::calcularFormulasEficiencia($registro);
-        foreach ($formulas as $k => $v) {
-            $registro->{$k} = $v;
-        }
-
-        $registro->saveQuietly();
-
-        // regenerarLineas() bypassa el guard shouldRegenerateLines() (ver docblock).
-        // Pasamos $registro (no fresh()) porque la instancia en memoria ya tiene las fechas recalculadas.
-        ReqProgramaTejido::regenerarLineas([$registro]);
-
-        // El update SQL externo + saveQuietly() nunca dispararon el observer: recalcular
-        // marbetes (TotalRollos/SaldoMarbete/NoMarbete) con la fila refetcheada (valores
-        // finales en BD). recalcularFormulasProduccion trae try/catch y logging propios.
-        $registroRefreshed = ReqProgramaTejido::find($registro->Id);
-        if ($registroRefreshed) {
-            (new ReqProgramaTejidoObserver)->recalcularFormulasProduccion($registroRefreshed);
-        }
-
-        // recalcularFormulasProduccion solo toca campos de marbete, no fechas:
-        // la instancia refetcheada sigue siendo válida para la cascada.
-        if (! $registro->esUltimo() && $registroRefreshed) {
-            DateHelpers::cascadeFechas($registroRefreshed);
-        }
-
-        return true;
-    }
-
     // =========================================================
     // Calendario (misma lógica, pero con cache)
     // =========================================================
 
     /**
-     * Motor de iteración sobre líneas activas de calendario.
-     * Avanza $cursor línea por línea y delega la lógica de consumo al callback.
+     * Motor de iteración sobre líneas activas de calendario (vive en CalendarioProduccion).
      *
-     * El callback recibe ($disponibles, $ini, $fin) y retorna [$usar, $continuar]:
-     *   - $usar:      segundos que el cursor debe avanzar dentro de esta línea
-     *   - $continuar: true = seguir iterando, false = detener
-     *
-     * Retorna [$cursor, $linesExhausted]:
-     *   - $linesExhausted = true  → no quedaron líneas suficientes
-     *   - $linesExhausted = false → detenido por callback o maxIter
-     *
-     * @param  array<array{ini:Carbon,fin:Carbon,fin_ts:int}>  $lines
-     * @param  Carbon  $cursor  Inicio de iteración (se modifica en lugar)
-     * @param  callable  $procesarSegmento  (int $disp, Carbon $ini, Carbon $fin): array{int,bool}
      * @return array{0:Carbon, 1:bool}
      */
     public static function iterarLineasActivas(array $lines, Carbon $cursor, callable $procesarSegmento): array
     {
-        $idx = 0;
-        $iter = 0;
-        $maxIter = 200000;
-
-        while ($iter < $maxIter) {
-            $iter++;
-            $cursorTs = $cursor->getTimestamp();
-
-            // Saltar líneas ya vencidas
-            while ($idx < count($lines) && $lines[$idx]['fin_ts'] <= $cursorTs) {
-                $idx++;
-            }
-
-            if ($idx >= count($lines)) {
-                return [$cursor, true]; // líneas agotadas
-            }
-
-            $ini = $lines[$idx]['ini'];
-            $fin = $lines[$idx]['fin'];
-
-            // Gap antes de la línea: saltar al inicio
-            if ($cursor->lt($ini)) {
-                $cursor = $ini->copy();
-
-                continue;
-            }
-
-            // Línea ya superada
-            if ($cursor->gte($fin)) {
-                $idx++;
-
-                continue;
-            }
-
-            $disponibles = (int) ($fin->getTimestamp() - $cursorTs);
-            if ($disponibles <= 0) {
-                $cursor = $fin->copy();
-
-                continue;
-            }
-
-            [$usar, $continuar] = $procesarSegmento($disponibles, $ini, $fin);
-            $cursor->addSeconds((int) max(0, $usar));
-
-            if ($cursor->gte($fin)) {
-                $idx++;
-            }
-
-            if (! $continuar) {
-                return [$cursor, false]; // detenido por callback
-            }
-        }
-
-        return [$cursor, false]; // maxIter alcanzado
+        return CalendarioProduccion::iterarLineasActivas($lines, $cursor, $procesarSegmento);
     }
 
     private static function snapInicioAlCalendario(string $calendarioId, Carbon $fechaInicio): ?Carbon
     {
-        $lines = self::getCalendarioLines($calendarioId);
-
-        return TejidoHelpers::snapInicioAlCalendario($calendarioId, $fechaInicio, $lines);
+        return CalendarioProduccion::snapInicioAlCalendario($calendarioId, $fechaInicio, CalendarioProduccion::lineas($calendarioId));
     }
 
     /**
-     * FechaFinal recorriendo líneas reales del calendario.
-     * Retorna null si las líneas se agotan antes de consumir todas las horas
+     * FechaFinal recorriendo líneas reales del calendario; null si se agotan
      * (el caller aplica el fallback continuo).
      */
     public static function calcularFechaFinalDesdeInicio(string $calendarioId, Carbon $fechaInicio, float $horasNecesarias): ?Carbon
     {
-        $segundosRestantes = (int) round(max(0, $horasNecesarias) * 3600);
-        if ($segundosRestantes === 0) {
-            return $fechaInicio->copy();
-        }
-
-        $lines = self::getCalendarioLines($calendarioId);
-        $cursor = $fechaInicio->copy();
-
-        [$cursor, $linesExhausted] = self::iterarLineasActivas(
-            $lines,
-            $cursor,
-            function (int $disponibles) use (&$segundosRestantes): array {
-                $usar = min($disponibles, $segundosRestantes);
-                $segundosRestantes -= (int) $usar;
-
-                return [(int) $usar, $segundosRestantes > 0];
-            }
-        );
-
-        return $linesExhausted ? null : $cursor;
+        return CalendarioProduccion::calcularFechaFinalDesdeInicio($calendarioId, $fechaInicio, $horasNecesarias);
     }
 
     // =========================================================
@@ -885,75 +700,16 @@ class BalancearTejido
     // =========================================================
     public static function clearCalendarioLinesCache(): void
     {
-        self::$calLinesCache = [];
+        CalendarioProduccion::limpiarCache();
     }
 
     private static function warmCachesFromProgramas($programas): void
     {
         $calIds = [];
         foreach ($programas as $p) {
-            $calId = trim((string) ($p->CalendarioId ?? ''));
-            if ($calId !== '') {
-                $calIds[] = $calId;
-            }
+            $calIds[] = $p->CalendarioId ?? '';
         }
-        self::warmCalendarios($calIds);
-    }
-
-    private static function warmCalendarios(array $calIds): void
-    {
-        $calIds = array_values(array_unique(array_filter(array_map(fn ($x) => trim((string) $x), $calIds))));
-        if (empty($calIds)) {
-            return;
-        }
-
-        $missing = [];
-        foreach ($calIds as $id) {
-            if ($id !== '' && ! isset(self::$calLinesCache[$id])) {
-                $missing[] = $id;
-                self::$calLinesCache[$id] = []; // inicializa para evitar doble carga
-            }
-        }
-        if (empty($missing)) {
-            return;
-        }
-
-        $rows = ReqCalendarioLine::query()
-            ->whereIn('CalendarioId', $missing)
-            ->orderBy('CalendarioId')
-            ->orderBy('FechaInicio')
-            ->get(['CalendarioId', 'FechaInicio', 'FechaFin']);
-
-        foreach ($rows as $row) {
-            $calId = trim((string) $row->CalendarioId);
-            if ($calId === '') {
-                continue;
-            }
-
-            $ini = Carbon::parse($row->FechaInicio);
-            $fin = Carbon::parse($row->FechaFin);
-
-            self::$calLinesCache[$calId][] = [
-                'ini' => $ini,
-                'fin' => $fin,
-                'ini_ts' => $ini->getTimestamp(),
-                'fin_ts' => $fin->getTimestamp(),
-            ];
-        }
-    }
-
-    private static function getCalendarioLines(string $calendarioId): array
-    {
-        $calendarioId = trim((string) $calendarioId);
-        if ($calendarioId === '') {
-            return [];
-        }
-
-        if (! isset(self::$calLinesCache[$calendarioId])) {
-            self::warmCalendarios([$calendarioId]);
-        }
-
-        return self::$calLinesCache[$calendarioId] ?? [];
+        CalendarioProduccion::precargar($calIds);
     }
 
     public static function balancearAutomatico(Request $request): JsonResponse
@@ -1380,7 +1136,7 @@ class BalancearTejido
             return $segundos / 3600.0;
         }
 
-        $lines = self::getCalendarioLines($calendarioId);
+        $lines = CalendarioProduccion::lineas($calendarioId);
         if (empty($lines)) {
             return $segundos / 3600.0;
         }

@@ -23,6 +23,7 @@ use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -32,9 +33,6 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class LiberarOrdenesController extends Controller
 {
     use HandlesApiErrors;
-
-    /** Alias público para Blade/observer. Fuente: {@see LiberarMarbetesCalculator::PESO_ROLLO_KG_KARL_MAYER}. */
-    public const PESO_ROLLO_KG_KARL_MAYER = LiberarMarbetesCalculator::PESO_ROLLO_KG_KARL_MAYER;
 
     public function __construct(
         private readonly LiberarMarbetesCalculator $marbetesCalculator = new LiberarMarbetesCalculator,
@@ -177,8 +175,9 @@ class LiberarOrdenesController extends Controller
                     : null;
             });
 
-            // Obtener opciones de hilos para el select desde INVENTTABLE (TwTipoHiloId)
-            $hilosOptions = DB::connection('sqlsrv_ti')
+            // Obtener opciones de hilos para el select desde INVENTTABLE (TwTipoHiloId).
+            // El DISTINCT recorre todo INVENTTABLE de AX y el catálogo casi no cambia: 1 h en caché.
+            $hilosOptions = Cache::remember('liberar_ordenes.hilos_options', 3600, fn () => DB::connection('sqlsrv_ti')
                 ->table('INVENTTABLE')
                 ->select('TwTipoHiloId')
                 ->whereNotNull('TwTipoHiloId')
@@ -194,7 +193,7 @@ class LiberarOrdenesController extends Controller
                 ->unique()
                 ->sort()
                 ->values()
-                ->toArray();
+                ->toArray());
 
             return view('modulos.programa-tejido.liberar-ordenes.index', compact('registros', 'dias', 'hilosOptions'));
         } catch (\Throwable $e) {

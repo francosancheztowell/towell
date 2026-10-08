@@ -6,6 +6,7 @@ use App\Models\Planeacion\ReqEficienciaStd;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqVelocidadStd;
+use App\Services\Planeacion\ProgramaTejido\EstandaresTelar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -70,43 +71,13 @@ class QueryHelpers
             ->first();
     }
 
+    /**
+     * ponytail: adaptador temporal, retirar al migrar consumidores
+     * (MoverOrdenesController, ProgramaTejidoOperacionesController). $nuevoSalon nunca se usó.
+     */
     public static function resolverStdSegunTelar(ReqProgramaTejido $registro, ?ReqModelosCodificados $modeloDestino, string $nuevoTelar, string $nuevoSalon): array
     {
-        $fibra = $registro->FibraRizo
-            ?? $registro->FibraTrama
-            ?? ($modeloDestino->FibraRizo ?? null)
-            ?? ($modeloDestino->FibraId ?? null);
-
-        $calibreTrama = $registro->CalibreTrama
-            ?? $registro->CalibreTrama2
-            ?? ($modeloDestino->CalibreTrama ?? null)
-            ?? ($modeloDestino->CalibreTrama2 ?? null);
-
-        $densidad = ($calibreTrama !== null && (float) $calibreTrama > 40) ? 'Alta' : 'Normal';
-
-        $eficiencia = null;
-        $velocidad = null;
-
-        if ($fibra) {
-            $eficiencia = ReqEficienciaStd::where('NoTelarId', $nuevoTelar)
-                ->where('FibraId', $fibra)
-                ->where('Densidad', $densidad)
-                ->value('Eficiencia');
-
-            $velocidad = ReqVelocidadStd::where('NoTelarId', $nuevoTelar)
-                ->where('FibraId', $fibra)
-                ->where('Densidad', $densidad)
-                ->value('Velocidad');
-        }
-
-        if (is_null($velocidad) && $modeloDestino && ! is_null($modeloDestino->VelocidadSTD)) {
-            $velocidad = (float) $modeloDestino->VelocidadSTD;
-        }
-
-        return [
-            $eficiencia ?? $registro->EficienciaSTD,
-            $velocidad ?? $registro->VelocidadSTD,
-        ];
+        return EstandaresTelar::resolverStdSegunTelar($registro, $modeloDestino, $nuevoTelar);
     }
 
     public static function getEficienciaVelocidadStd(string $fibraId, string $noTelar, float $calibreTrama): array

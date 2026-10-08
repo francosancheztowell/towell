@@ -465,7 +465,7 @@
                 'flogs' => url('/programa-tejido/flogs-id-from-twflogs'),
             ],
             'columnas' => $columns,
-            'pesoKarlMayer' => (string) \App\Http\Controllers\Planeacion\ProgramaTejido\LiberarOrdenesController::PESO_ROLLO_KG_KARL_MAYER,
+            'pesoKarlMayer' => (string) \App\Services\Planeacion\Liberar\LiberarMarbetesCalculator::PESO_ROLLO_KG_KARL_MAYER,
         ];
         @endphp
         {{-- Valores del servidor para resources/js/modulos/programa-tejido/liberar-ordenes (receta 19-00 §2). --}}

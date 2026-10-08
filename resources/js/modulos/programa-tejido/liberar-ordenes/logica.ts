@@ -19,7 +19,7 @@ export interface ConfigLiberar {
         flogs: string;
     };
     columnas: ColumnaLiberar[];
-    /** Peso de rollo estándar de Karl Mayer (LiberarOrdenesController::PESO_ROLLO_KG_KARL_MAYER). */
+    /** Peso de rollo estándar de Karl Mayer (LiberarMarbetesCalculator::PESO_ROLLO_KG_KARL_MAYER). */
     pesoKarlMayer: string;
 }
 

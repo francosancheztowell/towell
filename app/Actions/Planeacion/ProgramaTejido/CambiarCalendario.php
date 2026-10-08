@@ -6,10 +6,10 @@ namespace App\Actions\Planeacion\ProgramaTejido;
 
 use App\Data\Planeacion\ProgramaTejido\CambioCalendario;
 use App\Helpers\AuditoriaHelper;
-use App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatCalendarios\CalendarioController;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Observers\ReqProgramaTejidoObserver;
+use App\Services\Planeacion\Calendarios\FormulasCalendario;
+use App\Services\Planeacion\ProgramaTejido\CalendarioProduccion;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -24,7 +24,7 @@ use Throwable;
  *   transacción y relanzando, y cualquier fila que truene revierte TODO (CR-02.3).
  *
  * Igual en las dos (divergencias documentadas en 05-SUMMARY.md, no se corrigen aquí): las
- * fórmulas salen de CalendarioController (12 días / 4 decimales, WR-10) y solo se encadenan
+ * fórmulas salen de FormulasCalendario (12 días / 4 decimales, WR-10) y solo se encadenan
  * las filas elegidas de cada telar (CR-02.2). EnProceso conserva su FechaInicio.
  */
 final class CambiarCalendario
@@ -87,7 +87,8 @@ final class CambiarCalendario
                     'EnProceso',
                 ]);
 
-            $calendarioController = new CalendarioController;
+            // Instancia por corrida: su caché de modelos no sobrevive entre cambios.
+            $formulas = new FormulasCalendario;
             $prevFin = null;
             $prevTelar = null;
 
@@ -118,7 +119,7 @@ final class CambiarCalendario
                                 $inicio = $prevFin->copy();
                             }
                         }
-                        $snap = $calendarioController->snapInicioAlCalendario($calendarioId, $inicio);
+                        $snap = $formulas->snapInicio($calendarioId, $inicio);
                         if ($snap && ! $snap->equalTo($inicio)) {
                             $inicio = $snap;
                         }
@@ -126,7 +127,7 @@ final class CambiarCalendario
 
                     $horas = (float) ($p->HorasProd ?? 0);
                     if ($horas <= 0) {
-                        $horas = $calendarioController->calcularHorasProd($p);
+                        $horas = $formulas->horasProd($p);
                         if ($horas > 0) {
                             $p->HorasProd = $horas;
                         }
@@ -137,7 +138,7 @@ final class CambiarCalendario
                         continue;
                     }
 
-                    $fin = TejidoHelpers::finDesdeHoras($inicio, $horas, $calendarioId);
+                    $fin = CalendarioProduccion::finDesdeHoras($inicio, $horas, $calendarioId);
                     if ($fin->lt($inicio)) {
                         $fin = $inicio->copy();
                     }
@@ -165,7 +166,7 @@ final class CambiarCalendario
                     }
                     $p->FechaFinal = $finStr;
 
-                    $deps = $calendarioController->calcularFormulasDependientesDeFechas($p, $inicio, $fin, $horas);
+                    $deps = $formulas->dependientesDeFechas($p, $inicio, $fin, $horas);
                     foreach ($deps as $campo => $valor) {
                         $p->{$campo} = $valor;
                     }

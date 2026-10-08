@@ -100,6 +100,49 @@ final class TelarSalonResolver
         return self::normalizeSalon($salon, $telar) === 'KARL MAYER';
     }
 
+    /**
+     * Maquina del programa ('SMI 304', 'JAC 201', 'KM 401'): prefijo por salon; si el salon no
+     * lo dice, el de la maquina base; si no, las primeras letras del salon; si no, 'TEL'.
+     */
+    public static function construirMaquina(?string $maquinaBase, ?string $salon, $telar): string
+    {
+        $salonNorm = strtoupper(trim((string) $salon));
+
+        $prefijo = self::prefijoMaquinaPorSalon($salonNorm)
+            ?: self::prefijoDeMaquina($maquinaBase)
+            ?: rtrim(substr($salonNorm, 0, 4), '0123456789')
+            ?: 'TEL';
+
+        return trim($prefijo).' '.trim((string) $telar);
+    }
+
+    private static function prefijoMaquinaPorSalon(string $salonNorm): ?string
+    {
+        if (preg_match('/SMI(T)?/i', $salonNorm)) {
+            return 'SMI';
+        }
+        if (preg_match('/JAC/i', $salonNorm)) {
+            return 'JAC';
+        }
+        // Sin esto, al mover una orden a Karl Mayer se conservaba el prefijo del salon
+        // anterior ('SMI 401') y resolverTipoTelarStd, que lee la maquina antes que el
+        // salon, le buscaba los STD de SMITH.
+        if (preg_match('/KARL\s*MAYER|^KM$/i', $salonNorm)) {
+            return 'KM';
+        }
+
+        return null;
+    }
+
+    private static function prefijoDeMaquina(?string $maquinaBase): ?string
+    {
+        if ($maquinaBase && preg_match('/^([A-Za-z]+)/', trim($maquinaBase), $matches)) {
+            return $matches[1];
+        }
+
+        return null;
+    }
+
     /** Salones canonicos conocidos; dar de alta uno nuevo empieza aqui y en normalizeSalon(). */
     public static function salonesCanonicos(): array
     {

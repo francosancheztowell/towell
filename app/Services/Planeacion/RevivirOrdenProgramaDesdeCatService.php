@@ -2,9 +2,11 @@
 
 namespace App\Services\Planeacion;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\CalendarioProduccion;
+use App\Services\Planeacion\ProgramaTejido\CatalogoModelos;
+use App\Services\Planeacion\ProgramaTejido\FormulasEficiencia;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -104,9 +106,9 @@ class RevivirOrdenProgramaDesdeCatService
                     $programa->EnProceso = true;
                 }
 
-                $formulas = TejidoHelpers::calcularFormulasEficienciaPorContexto(
+                $formulas = FormulasEficiencia::calcularFormulasEficienciaPorContexto(
                     $programa,
-                    TejidoHelpers::FORMULAS_CTX_PEDIDO_INHERIT
+                    FormulasEficiencia::FORMULAS_CTX_PEDIDO_INHERIT
                 );
                 if ($formulas !== []) {
                     $formulasParaGuardar = [];
@@ -184,7 +186,7 @@ class RevivirOrdenProgramaDesdeCatService
             $inicio = Carbon::now();
         }
 
-        $fin = $inicio->copy()->addDays(TejidoHelpers::DEFAULT_DURACION_DIAS);
+        $fin = $inicio->copy()->addDays(CalendarioProduccion::DEFAULT_DURACION_DIAS);
 
         return [$inicio, $fin];
     }
@@ -207,7 +209,7 @@ class RevivirOrdenProgramaDesdeCatService
 
         $tamano = trim((string) ($c->ClaveModelo ?? ''));
 
-        $maquina = TejidoHelpers::construirMaquinaConSalon(null, $salonNorm, $telarNorm);
+        $maquina = TelarSalonResolver::construirMaquina(null, $salonNorm, $telarNorm);
 
         $base = [
             'CreatedAt' => $ahora,
@@ -314,7 +316,7 @@ class RevivirOrdenProgramaDesdeCatService
         ];
 
         if ($tamano !== '') {
-            $datosModelo = TejidoHelpers::obtenerDatosModeloCodificadoArray($tamano, $salonNorm);
+            $datosModelo = CatalogoModelos::datosArray($tamano, $salonNorm);
             if (is_array($datosModelo)) {
                 foreach (['AnchoToalla', 'LargoToalla'] as $campoModelo) {
                     if (

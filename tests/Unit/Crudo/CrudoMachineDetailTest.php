@@ -6,9 +6,9 @@ namespace Tests\Unit\Crudo;
 
 use App\Contracts\Crudo\CrudoDashboardProvider;
 use App\Contracts\Crudo\CrudoFlogProvider;
-use App\Http\Controllers\Planeacion\Alineacion\AlineacionController;
 use App\Livewire\Crudo\MachineDetail;
 use App\Livewire\Crudo\MachineFlogSummary;
+use App\Services\Planeacion\Alineacion\AlineacionItemsService;
 use Carbon\Carbon;
 use DateTimeImmutable;
 use Livewire\Attributes\Computed;
@@ -526,10 +526,10 @@ final class CrudoMachineDetailTest extends TestCase
     }
 
     /** @param list<array<string, mixed>>|\Throwable $items */
-    private function fakeAlineacion(array|\Throwable $items): FakeAlineacionController
+    private function fakeAlineacion(array|\Throwable $items): FakeAlineacionItemsService
     {
-        $fake = new FakeAlineacionController($items);
-        $this->app->instance(AlineacionController::class, $fake);
+        $fake = new FakeAlineacionItemsService($items);
+        $this->app->instance(AlineacionItemsService::class, $fake);
 
         return $fake;
     }
@@ -1071,14 +1071,14 @@ final class FakeCrudoDashboardProviderForDetail implements CrudoDashboardProvide
     }
 }
 
-final class FakeAlineacionController extends AlineacionController
+final class FakeAlineacionItemsService extends AlineacionItemsService
 {
     public int $llamadas = 0;
 
     /** @param list<array<string, mixed>>|\Throwable $items */
     public function __construct(private array|\Throwable $items) {}
 
-    public function obtenerItemsAlineacion(): array
+    public function obtenerItems(): array
     {
         $this->llamadas++;
         if ($this->items instanceof \Throwable) {

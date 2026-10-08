@@ -1,24 +1,19 @@
 <?php
 
-namespace App\Http\Controllers\Planeacion\ProgramaTejido\helper;
+namespace App\Services\Planeacion\ProgramaTejido;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\VincularTejido;
+use App\Actions\Planeacion\ProgramaTejido\ActualizarOrdPrincipal;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log as LogFacade;
 
 /**
- * @file OrdCompartidaHelper.php
- *
- * @description Helper para operaciones con OrdCompartida. El valor de OrdCompartida se deriva
- *              del NoProduccion del registro líder del grupo (no es un contador sintético).
- *
- * @dependencies ReqProgramaTejido
- *
- * @relatedFiles DuplicarTejido.php, VincularTejido.php, DividirTejido.php
+ * Operaciones con OrdCompartida (antes Controllers/.../helper/OrdCompartidaHelper). El valor
+ * de OrdCompartida se deriva del NoProduccion del registro líder del grupo (no es un contador
+ * sintético). Lo usan VincularTejido, DividirTejido y DuplicarTejido.
  */
-class OrdCompartidaHelper
+final class OrdCompartida
 {
     /**
      * Deriva el OrdCompartida desde el NoProduccion del registro líder propuesto.
@@ -74,22 +69,7 @@ class OrdCompartidaHelper
                 return self::compararPorFechaInicio($a, $b);
             }
 
-            $fechaCreacionA = self::combinarFechaCreacion($a);
-            $fechaCreacionB = self::combinarFechaCreacion($b);
-
-            if ($fechaCreacionA && $fechaCreacionB && ! $fechaCreacionA->equalTo($fechaCreacionB)) {
-                return $fechaCreacionA->lt($fechaCreacionB) ? -1 : 1;
-            }
-
-            if ($fechaCreacionA && ! $fechaCreacionB) {
-                return -1;
-            }
-
-            if (! $fechaCreacionA && $fechaCreacionB) {
-                return 1;
-            }
-
-            return self::compararPorPedidoDesc($a, $b);
+            return self::compararFechas(self::combinarFechaCreacion($a), self::combinarFechaCreacion($b), $a, $b);
         })->first();
     }
 
@@ -140,7 +120,7 @@ class OrdCompartidaHelper
                 'UpdatedAt' => now(),
             ]);
 
-        VincularTejido::actualizarOrdPrincipalPorOrdCompartida($ordCompartida);
+        ActualizarOrdPrincipal::ejecutar($ordCompartida);
 
         return (int) $lider->Id;
     }
@@ -182,15 +162,21 @@ class OrdCompartidaHelper
         $inicioA = ! empty($a->FechaInicio) ? Carbon::parse($a->FechaInicio) : null;
         $inicioB = ! empty($b->FechaInicio) ? Carbon::parse($b->FechaInicio) : null;
 
-        if ($inicioA && $inicioB && ! $inicioA->equalTo($inicioB)) {
-            return $inicioA->lt($inicioB) ? -1 : 1;
+        return self::compararFechas($inicioA, $inicioB, $a, $b);
+    }
+
+    /** Fecha más temprana primero; sin fecha al final; empate (o ambas sin fecha) por pedido desc. */
+    private static function compararFechas(?Carbon $fechaA, ?Carbon $fechaB, ReqProgramaTejido $a, ReqProgramaTejido $b): int
+    {
+        if ($fechaA && $fechaB && ! $fechaA->equalTo($fechaB)) {
+            return $fechaA->lt($fechaB) ? -1 : 1;
         }
 
-        if ($inicioA && ! $inicioB) {
+        if ($fechaA && ! $fechaB) {
             return -1;
         }
 
-        if (! $inicioA && $inicioB) {
+        if (! $fechaA && $fechaB) {
             return 1;
         }
 
