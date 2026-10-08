@@ -39,3 +39,6 @@ Known failing on base: `tests/Js/tejido-cortes-eficiencia.test.mjs` (RPM 750 vs 
   new tests/Feature/VentasComparaPorAnioTest.php 7 pass. Full `php artisan test`: 675 failed / 2095 passed, but
   failures are environmental (419 CSRF, reproduces on base with UsuarioDuplicarTest; stale bootstrap/cache/config.php).
 - Ran `php artisan route:clear` (stale gitignored bootstrap/cache/routes-v7.php hid the new route).
+- 419s were the cached bootstrap/cache/config.php: after `php artisan config:clear`, full `php artisan test` = 1 failed / 2769 passed (failing test not identified; rerun interrupted by user).
+- RDD (cec5e9c8 + doc): granted, reviewed (reliability), approved and acknowledged. Advisory: no JS test for year loader; all-years endpoint untested; bg load doesn't repaint (by design: renderTables waits on missing years).
+- Next: push/PR is the user's decision. Deploy needs `php artisan route:clear` (new route).
