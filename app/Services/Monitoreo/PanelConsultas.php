@@ -2,6 +2,7 @@
 
 namespace App\Services\Monitoreo;
 
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -126,5 +127,32 @@ final class PanelConsultas
         }
 
         return intdiv($minutos, 60).' h '.str_pad((string) ($minutos % 60), 2, '0', STR_PAD_LEFT).' min';
+    }
+
+    /**
+     * Cuenta fechas por hora: $horas cubetas, la última es la hora en curso.
+     * En PHP y no con GROUP BY: DATEADD/DATEDIFF de SQL Server no corre en el sqlite de los
+     * tests. ponytail: trae una fecha por fila; si las vistas del día pasan de ~50 mil, agrupar en SQL.
+     *
+     * @param  iterable<\DateTimeInterface|string|null>  $fechas
+     * @return list<int>
+     */
+    public static function porHora(iterable $fechas, int $horas = 24): array
+    {
+        $cubetas = array_fill(0, $horas, 0);
+        $horaActual = now()->startOfHour();
+
+        foreach ($fechas as $fecha) {
+            if ($fecha === null || $fecha === '') {
+                continue;
+            }
+            $atras = (int) floor(Carbon::parse($fecha)->startOfHour()->diffInHours($horaActual));
+            $indice = $horas - 1 - $atras;
+            if ($indice >= 0 && $indice < $horas) {
+                $cubetas[$indice]++;
+            }
+        }
+
+        return $cubetas;
     }
 }

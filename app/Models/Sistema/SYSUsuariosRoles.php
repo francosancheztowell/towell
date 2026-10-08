@@ -3,6 +3,7 @@
 namespace App\Models\Sistema;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SYSUsuariosRoles extends Model
 {
@@ -12,6 +13,7 @@ class SYSUsuariosRoles extends Model
 
     // La tabla no tiene una columna 'id' como PK, usa clave compuesta (idusuario, idrol)
     protected $primaryKey = null;
+
     public $incrementing = false;
 
     protected $fillable = [
@@ -22,7 +24,7 @@ class SYSUsuariosRoles extends Model
         'modificar',
         'eliminar',
         'registrar',
-        'assigned_at'
+        'assigned_at',
     ];
 
     protected $casts = [
@@ -31,7 +33,7 @@ class SYSUsuariosRoles extends Model
         'modificar' => 'integer',
         'eliminar' => 'integer',
         'registrar' => 'integer',
-        'assigned_at' => 'datetime'
+        'assigned_at' => 'datetime',
     ];
 
     public $timestamps = false;
@@ -47,7 +49,8 @@ class SYSUsuariosRoles extends Model
     /**
      * Relación con Usuario
      */
-    public function usuario()
+    /** @return BelongsTo<Usuario, $this> */
+    public function usuario(): BelongsTo
     {
         return $this->belongsTo(Usuario::class, 'idusuario', 'idusuario');
     }
@@ -76,16 +79,3 @@ class SYSUsuariosRoles extends Model
         return $query->where('idrol', $idrol);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

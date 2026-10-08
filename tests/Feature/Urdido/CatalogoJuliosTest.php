@@ -6,10 +6,10 @@ namespace Tests\Feature\Urdido;
 
 use App\Livewire\Urdido\CatalogoJulios;
 use App\Models\Urdido\UrdCatJulios;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
@@ -46,7 +46,7 @@ class CatalogoJuliosTest extends TestCase
         ];
     }
 
-    /** @dataProvider pantallas */
+    #[DataProvider('pantallas')]
     public function test_cada_pantalla_monta_su_departamento(string $url, string $dep, int $idrol): void
     {
         $this->autenticarCon($idrol, ['acceso']);

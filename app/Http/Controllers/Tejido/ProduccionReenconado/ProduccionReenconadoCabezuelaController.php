@@ -17,14 +17,18 @@ class ProduccionReenconadoCabezuelaController extends Controller
 {
     use HandlesApiErrors;
 
-    public function index()
+    public function index(Request $request)
     {
+        // Cada fila son 14 celdas flux: por default solo las 100 más recientes; ?todos=1 sube a 1000.
+        $todos = $request->boolean('todos');
+        $limite = $todos ? 1000 : 100;
         $registros = TejProduccionReenconado::orderByDesc('Date')
             ->orderByDesc('Folio')
-            ->limit(300)
+            ->limit($limite)
             ->get();
+        $limitado = ! $todos && $registros->count() >= $limite;
 
-        return view('modulos.produccion-reenconado-cabezuela', compact('registros'));
+        return view('modulos.produccion-reenconado-cabezuela', compact('registros', 'limitado'));
     }
 
     public function getCalibres()

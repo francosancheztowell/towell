@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\UrdEng;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Finder\Finder;
 use Tests\TestCase;
 
@@ -20,6 +21,7 @@ class VistasSinJsInlineTest extends TestCase
                 __DIR__.'/../../../resources/views/modulos/urdido',
                 __DIR__.'/../../../resources/views/modulos/engomado',
                 __DIR__.'/../../../resources/views/catalogosurdido',
+                __DIR__.'/../../../resources/views/livewire/bpm',
             ]);
 
         $casos = [];
@@ -30,7 +32,7 @@ class VistasSinJsInlineTest extends TestCase
         return $casos;
     }
 
-    /** @dataProvider vistas */
+    #[DataProvider('vistas')]
     public function test_sin_script_inline_ni_handlers_on(string $ruta): void
     {
         $fuente = (string) file_get_contents($ruta);

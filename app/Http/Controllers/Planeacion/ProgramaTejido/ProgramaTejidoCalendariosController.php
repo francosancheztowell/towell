@@ -156,7 +156,7 @@ class ProgramaTejidoCalendariosController extends Controller
         try {
             $registro = $accion->ejecutar(Reprogramacion::desdeRequest($request, $id));
         } catch (MutacionRechazada $e) {
-            return $e->respuesta;
+            return response()->json($e->cuerpo, $e->status);
         } catch (ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,

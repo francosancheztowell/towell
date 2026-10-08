@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Atadores;
 
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\Concerns\UsesSqlsrvSqlite;
@@ -23,7 +23,7 @@ trait EsquemaAtadores
         $this->useSqlsrvSqlite();
         config()->set('database.default', 'sqlsrv');
         $this->createAuthTable();
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
 
         $schema = Schema::connection('sqlsrv');
         DB::connection('sqlsrv')->statement("ATTACH DATABASE ':memory:' AS dbo");

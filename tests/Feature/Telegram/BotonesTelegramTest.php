@@ -6,12 +6,13 @@ namespace Tests\Feature\Telegram;
 
 use App\Models\Sistema\SYSMensaje;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Testing\TestResponse;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
@@ -31,7 +32,7 @@ class BotonesTelegramTest extends TestCase
         config()->set('services.telegram.bot_token', 'TOKEN');
         DB::connection('sqlsrv')->statement("ATTACH DATABASE ':memory:' AS dbo");
         $this->createAuthTable();
-        $this->withoutMiddleware(ValidateCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
         $this->actingAs($this->createUsuario(), 'web');
 
         Schema::connection('sqlsrv')->create('dbo.SYSMensajes', function (Blueprint $table) {
@@ -108,7 +109,7 @@ class BotonesTelegramTest extends TestCase
             ->assertJsonPath('message', 'Reporte: no se pudo enviar por Telegram (0 de 3 destinatarios)');
     }
 
-    private function postImagenCortes(): \Illuminate\Testing\TestResponse
+    private function postImagenCortes(): TestResponse
     {
         return $this->post('/modulo-cortes-de-eficiencia/visualizar/notificar-telegram-imagen', [
             'imagen' => UploadedFile::fake()->image('corte.png', 20, 20),

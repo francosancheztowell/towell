@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\ProgramaUrdEng;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -28,9 +29,7 @@ class ProgramaBoardVistasTest extends TestCase
         return array_combine(self::VISTAS, array_map(fn (string $v): array => [$v], self::VISTAS));
     }
 
-    /**
-     * @dataProvider vistas
-     */
+    #[DataProvider('vistas')]
     public function test_vista_sin_js_inline_y_accesible(string $vista): void
     {
         $fuente = (string) file_get_contents(resource_path('views/'.$vista));

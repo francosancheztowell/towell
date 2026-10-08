@@ -1,9 +1,6 @@
 <?php
 
-use App\Http\Controllers\Engomado\BPMEngomado\EngBpmController;
-use App\Http\Controllers\Engomado\BPMEngomado\EngBpmLineController;
 use App\Http\Controllers\Engomado\CapturaFormulas\EngProduccionFormulacionController;
-use App\Http\Controllers\Engomado\Configuracion\ActividadesBPMEngomado\EngActividadesBpmController;
 use App\Http\Controllers\Engomado\Configuracion\CatUbicacionesController;
 use App\Http\Controllers\Engomado\Produccion\CalificarJuliosController;
 use App\Http\Controllers\Engomado\Produccion\ModuloProduccionEngomadoController;
@@ -27,10 +24,6 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
         ->where('moduloPadre', '404')
         ->name('configuracion');
 
-    Route::get('/configuracion/actividadesbpmengomado', [EngActividadesBpmController::class, 'index'])
-        ->name('configuracion.actividades-bpm');
-    Route::get('/configuracion/actividades-bpm', [EngActividadesBpmController::class, 'index'])
-        ->name('configuracion.actividades-bpm.legacy');
     Route::get('/configuracion/catalogodenucleos', [UrdEngNucleosController::class, 'index'])
         ->name('configuracion.catalogos-nucleos');
     Route::get('/configuracion/catalogos-nucleos', [UrdEngNucleosController::class, 'index'])
@@ -104,31 +97,6 @@ Route::prefix('engomado')->name('engomado.')->group(function () {
     Route::get('/captura-formula', [EngProduccionFormulacionController::class, 'index'])->name('captura-formula.legacy');
 });
 
-Route::resource('eng-actividades-bpm', EngActividadesBpmController::class)
-    ->middlewareFor('store', 'module.permission:crear,164') // Actividades BPM Engomado
-    ->middlewareFor('update', 'module.permission:modificar,164') // Actividades BPM Engomado
-    ->middlewareFor('destroy', 'module.permission:eliminar,164') // Actividades BPM Engomado
-    ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
-    ->parameters(['eng-actividades-bpm' => 'engActividadesBpm'])
-    ->names('eng-actividades-bpm');
-
-Route::resource('eng-bpm', EngBpmController::class)
-    ->middlewareFor('store', 'module.permission:crear,41,auditar') // BPM (Buenas Practicas Manufactura) Eng
-    ->middlewareFor('update', 'module.permission:modificar,41,auditar') // BPM (Buenas Practicas Manufactura) Eng
-    ->middlewareFor('destroy', 'module.permission:eliminar,41') // BPM (Buenas Practicas Manufactura) Eng
-    ->only(['index', 'store', 'update', 'destroy'])
-    ->parameters(['eng-bpm' => 'id'])
-    ->names('eng-bpm');
-
-Route::get('eng-bpm-line/{folio}', [EngBpmLineController::class, 'index'])->name('eng-bpm-line.index');
-Route::post('eng-bpm-line/{folio}/toggle', [EngBpmLineController::class, 'toggleActividad'])->middleware('module.permission:modificar,41,auditar')->name('eng-bpm-line.toggle'); // BPM (Buenas Practicas Manufactura) Eng
-Route::patch('eng-bpm-line/{folio}/terminar', [EngBpmLineController::class, 'terminar'])->middleware('module.permission:modificar,41,auditar')->name('eng-bpm-line.terminar'); // BPM (Buenas Practicas Manufactura) Eng
-// Visto bueno de supervision: 'registrar' es la convencion del repo para autorizar
-// (ver app/Livewire/Mecanicos/VerificaMaquina/Show.php:177). EngBpmLineController no valida nada.
-Route::patch('eng-bpm-line/{folio}/autorizar', [EngBpmLineController::class, 'autorizar'])
-    ->middleware('module.permission:registrar,41')->name('eng-bpm-line.autorizar'); // BPM (Buenas Practicas Manufactura) Eng
-Route::patch('eng-bpm-line/{folio}/rechazar', [EngBpmLineController::class, 'rechazar'])
-    ->middleware('module.permission:registrar,41')->name('eng-bpm-line.rechazar'); // BPM (Buenas Practicas Manufactura) Eng
 // Rutas específicas ANTES del resource para evitar conflictos
 Route::get('eng-formulacion/validar-folio', [EngProduccionFormulacionController::class, 'validarFolio'])->name('eng-formulacion.validar-folio');
 Route::get('eng-formulacion/by-id', [EngProduccionFormulacionController::class, 'getFormulacionById'])->name('eng-formulacion.by-id');

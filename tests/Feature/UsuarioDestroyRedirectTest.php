@@ -6,7 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\Sistema\Usuario;
 use App\Repositories\UsuarioRepository;
-use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Mockery;
 use Tests\Concerns\SiembraPermisos;
 use Tests\TestCase;
@@ -24,7 +24,7 @@ final class UsuarioDestroyRedirectTest extends TestCase
 
     public function test_borrar_usuario_inexistente_redirige_al_listado_con_error(): void
     {
-        $this->withoutMiddleware(VerifyCsrfToken::class);
+        $this->withoutMiddleware(PreventRequestForgery::class);
 
         $repo = Mockery::mock(UsuarioRepository::class);
         $repo->shouldReceive('findById')->with(999)->once()->andReturn(null);

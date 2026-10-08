@@ -7,6 +7,7 @@ use App\Livewire\Admin\Errores;
 use App\Livewire\Admin\Rendimiento;
 use App\Services\Monitoreo\PanelConsultas;
 use Illuminate\Support\Facades\Cache;
+use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Livewire;
 use Tests\Feature\Monitoreo\Concerns\PreparaMonitoreo;
 use Tests\Feature\Monitoreo\Concerns\SiembraPanel;
@@ -56,8 +57,8 @@ class PanelRendimientoErroresTest extends TestCase
 
     public function test_rendimiento_compara_semanas_y_resalta_lentas(): void
     {
-        $this->vistas('pantalla.lenta', 'ServidorMs', [900, 900, 900]);
-        $this->vistas('pantalla.lenta', 'ServidorMs', [450, 450], 10);
+        $this->vistas('pantalla.lenta', 'ServidorMs', array_fill(0, Rendimiento::MIN_MUESTRAS, 900));
+        $this->vistas('pantalla.lenta', 'ServidorMs', array_fill(0, Rendimiento::MIN_MUESTRAS, 450), 10);
         $this->vistas('pantalla.rapida', 'ServidorMs', [100, 100]);
         $this->vistas('pantalla.rapida', 'ServidorMs', [100], 10);
         $this->vistas('solo.previa', 'ServidorMs', [100], 10);
@@ -66,7 +67,7 @@ class PanelRendimientoErroresTest extends TestCase
             ->assertSee('pantalla.lenta')
             ->assertSee('+100%')
             ->assertSee('pantalla.rapida')
-            ->assertSee('0%')
+            ->assertSee('pocas muestras') // pantalla.rapida: 2 y 1 vistas, sin Δ%
             ->assertDontSee('solo.previa')
             ->assertViewHas('filas', fn ($filas) => $filas->first()['ruta'] === 'pantalla.lenta' && $filas->first()['lenta'] === true);
 
@@ -159,7 +160,7 @@ class PanelRendimientoErroresTest extends TestCase
     {
         $id = $this->error();
 
-        $this->expectException(\Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException::class);
+        $this->expectException(CannotUpdateLockedPropertyException::class);
         Livewire::actingAs($this->admin)->test(ErrorDetalle::class, ['errorId' => $id])->set('errorId', $id + 1);
     }
 }

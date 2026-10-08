@@ -6,8 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Engomado\EngFormulacionLineModel;
 use App\Models\Engomado\EngProduccionFormulacionModel;
 use App\Models\Engomado\EngProgramaEngomado;
-use App\Models\Sistema\SYSUsuario;
-use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\ProgramaUrdEng\BomMaterialesService;
 use App\Support\Http\Concerns\HandlesApiErrors;
 use Illuminate\Http\Request;
@@ -21,6 +19,8 @@ class EngProduccionFormulacionController extends Controller
 
     /** Columnas por fila de EngFormulacionLine en insertarLineas() (límite de 2100 parámetros de SQL Server). */
     private const COLUMNAS_LINEA = 9;
+
+    private const LIMITE_FILAS = 300;
 
     public function __construct(
         private BomMaterialesService $bomMaterialesService
@@ -46,11 +46,18 @@ class EngProduccionFormulacionController extends Controller
                         });
                 });
             }
+            // Sin folio se traían las ~2,200 fórmulas (p95 de 6 s en producción). El filtro por columna
+            // es del cliente, así que ?todos=1 recupera el historial completo.
+            $limitado = empty($folioFiltro) && ! $request->boolean('todos');
+            if ($limitado) {
+                $itemsQuery->take(self::LIMITE_FILAS);
+            }
             $items = $itemsQuery->get()->map(function ($item) use ($folioFiltro) {
                 $item->folio_resuelto = $this->resolveFormulacionFolio($item, $folioFiltro);
 
                 return $item;
             });
+            $limitado = $limitado && $items->count() >= self::LIMITE_FILAS;
 
             // Adjuntar el Status del programa engomado a cada formulación
             // ponytail: la tabla entera (~1000 filas) sale más barata que un whereIn con cientos
@@ -59,10 +66,6 @@ class EngProduccionFormulacionController extends Controller
             $items = $items->each(function ($item) use ($programaStatuses) {
                 $item->programa_status = $programaStatuses->get($item->folio_resuelto ?? '');
             });
-            $usuarios = SYSUsuario::orderBy('nombre', 'asc')->get();
-            $maquinas = URDCatalogoMaquina::where('Departamento', 'Engomado')
-                ->orderBy('Nombre', 'asc')
-                ->get();
 
             // Obtener folios de EngProgramaEngomado con Status diferente de 'Finalizado'
             $foliosProgramaQuery = EngProgramaEngomado::where('Status', '!=', 'Finalizado')
@@ -72,25 +75,10 @@ class EngProduccionFormulacionController extends Controller
             }
             $foliosPrograma = $foliosProgramaQuery->get(['Folio', 'Cuenta', 'Calibre', 'RizoPie', 'BomFormula', 'BomEng', 'Status']);
 
-            // Generar folio sugerido
-            $year = date('Y');
-            $prefix = "ENG-FORM-{$year}-";
-            $lastRecord = EngProduccionFormulacionModel::where('Folio', 'like', $prefix.'%')
-                ->orderBy('Folio', 'desc')
-                ->first();
-
-            if ($lastRecord) {
-                $lastNumber = (int) substr($lastRecord->Folio, strlen($prefix));
-                $nextNumber = $lastNumber + 1;
-            } else {
-                $nextNumber = 1;
-            }
-
-            $folioSugerido = $prefix.str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+            $folioSugerido = $this->folioSugerido();
         } catch (\Exception $e) {
             $items = collect([]);
-            $usuarios = collect([]);
-            $maquinas = collect([]);
+            $limitado = false;
             $foliosPrograma = collect([]);
             $folioSugerido = 'ENG-FORM-'.date('Y').'-0001';
             $folioFiltro = $request->query('folio');
@@ -105,7 +93,19 @@ class EngProduccionFormulacionController extends Controller
             }
         }
 
-        return view('modulos.engomado.captura-formula.index', compact('items', 'usuarios', 'maquinas', 'foliosPrograma', 'folioSugerido', 'folioFiltro', 'ordenIdProduccion'));
+        return view('modulos.engomado.captura-formula.index', compact('items', 'limitado', 'foliosPrograma', 'folioSugerido', 'folioFiltro', 'ordenIdProduccion'));
+    }
+
+    /** Siguiente folio ENG-FORM-<año>-NNNN según el último registrado del año. */
+    private function folioSugerido(): string
+    {
+        $prefix = 'ENG-FORM-'.date('Y').'-';
+        $lastRecord = EngProduccionFormulacionModel::where('Folio', 'like', $prefix.'%')
+            ->orderBy('Folio', 'desc')
+            ->first();
+        $nextNumber = $lastRecord ? (int) substr($lastRecord->Folio, strlen($prefix)) + 1 : 1;
+
+        return $prefix.str_pad((string) $nextNumber, 4, '0', STR_PAD_LEFT);
     }
 
     public function store(Request $request)

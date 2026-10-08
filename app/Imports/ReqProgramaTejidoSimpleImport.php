@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Imports;
 
 use App\Helpers\AuditoriaHelper;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\PosicionesTelar;
 use Carbon\Carbon;
 use DateTimeInterface;
 use Illuminate\Support\Facades\DB;
@@ -353,7 +353,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithBatchInserts, WithCh
                     }
 
                     // Obtener siguiente posición disponible desde BD
-                    $siguientePosicion = TejidoHelpers::obtenerSiguientePosicionDisponible($salonTejidoId, $noTelarId);
+                    $siguientePosicion = PosicionesTelar::siguienteDisponible($salonTejidoId, $noTelarId);
 
                     // Verificar si ya asignamos posiciones para este telar en este batch
                     if (! isset(self::$posicionesCachePorTelar[$cacheKey])) {
@@ -469,7 +469,7 @@ class ReqProgramaTejidoSimpleImport implements ToModel, WithBatchInserts, WithCh
 
         $isPercent = str_contains($s, '%');
         $s = str_replace(['%', ' '], '', $s);
-        // Coma = separador de MILES, no decimal (misma regla que TejidoHelpers::sanitizeNumber):
+        // Coma = separador de MILES, no decimal (misma regla que NumeroPrograma::sanitizeNumber):
         // "1,234" => 1234 (antes str_replace(',', '.') lo convertía en 1.234 y corrompía
         // PesoCrudo/pedidos, explotando Repeticiones = (PesoRollo/PesoCrudo)/Tiras*1000).
         // El decimal legítimo llega con punto ("1234.5"); un "1.234,56" europeo queda 1.23456

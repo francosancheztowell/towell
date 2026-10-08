@@ -45,6 +45,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectUsersTo('/produccionProceso');
         $middleware->redirectGuestsTo('/login');
 
+        // Tema del panel /admin ('claro' u 'oscuro'): lo escribe el navegador y el layout lo lee
+        // para pintar el tema desde el servidor, sin parpadeo. No es dato sensible.
+        $middleware->encryptCookies(except: ['towell_admin_tema']);
+
         // Middleware para establecer contexto de SQL Server antes de queries
         // Esto permite que los triggers capturen informacion del usuario
         $middleware->web(append: [

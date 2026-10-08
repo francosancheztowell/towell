@@ -3,6 +3,7 @@
 namespace Tests\Feature\UrdEng;
 
 use Illuminate\Support\Carbon;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Feature\UrdEng\Concerns\ModuloUrdEng;
 use Tests\TestCase;
 
@@ -57,7 +58,7 @@ class ReportesUrdEngTest extends TestCase
         ];
     }
 
-    /** @dataProvider reportesConRango */
+    #[DataProvider('reportesConRango')]
     public function test_sin_fechas_pinta_el_modal_de_rango_con_hoy(string $url, string $ruta, ?string $checkbox): void
     {
         $html = $this->actingAs($this->usuarioCon([], 'Urdido'))->get($url)->assertOk()->getContent();
@@ -110,7 +111,7 @@ class ReportesUrdEngTest extends TestCase
         ];
     }
 
-    /** @dataProvider resumenes */
+    #[DataProvider('resumenes')]
     public function test_resumen_sin_fechas_tiene_modal_y_no_graficas(string $url, string $modal, string $canvas, string $titulo): void
     {
         $html = $this->actingAs($this->usuarioCon([], 'Urdido'))->get($url)->assertOk()->getContent();
@@ -122,7 +123,13 @@ class ReportesUrdEngTest extends TestCase
         $this->assertSame(['datos' => []], $this->jsonDeAtributo($html, 'data-reporte-resumen'));
     }
 
-    /** @dataProvider resumenes */
+    /** @return array<string, array<int, mixed>> */
+    public static function resumenes3(): array
+    {
+        return self::recortar(self::resumenes(), 3);
+    }
+
+    #[DataProvider('resumenes3')]
     public function test_resumen_con_datos_pasa_las_semanas_al_bundle(string $url, string $modal, string $canvas): void
     {
         $this->actingAs($this->usuarioCon([], 'Urdido'));

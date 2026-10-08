@@ -1,9 +1,6 @@
 <?php
 
 use App\Http\Controllers\PDFController;
-use App\Http\Controllers\Urdido\BPMUrdido\UrdBpmController;
-use App\Http\Controllers\Urdido\BPMUrdido\UrdBpmLineController;
-use App\Http\Controllers\Urdido\Configuracion\ActividadesBPMUrdido\UrdActividadesBpmController;
 use App\Http\Controllers\Urdido\Configuracion\CatalogosJulios\CatalogosUrdidoController;
 use App\Http\Controllers\Urdido\Configuracion\ModuloProduccionUrdidoController;
 use App\Http\Controllers\Urdido\ListaMaterialesController;
@@ -49,10 +46,6 @@ Route::prefix('urdido')->name('urdido.')->group(function () {
     Route::redirect('/bpmbuenaspracticasmanufacturaurd', '/urd-bpm', 301);
     Route::redirect('/bpm', '/urd-bpm', 301);
 
-    Route::get('/configuracion/actividadesbpmurdido', [UrdActividadesBpmController::class, 'index'])
-        ->name('configuracion.actividades-bpm');
-    Route::get('/configuracion/actividades-bpm', [UrdActividadesBpmController::class, 'index'])
-        ->name('configuracion.actividades-bpm.legacy');
     Route::get('/configuracion/catalogosjulios', [CatalogosUrdidoController::class, 'catalogosJulios'])
         ->name('configuracion.catalogos-julios');
 
@@ -96,32 +89,3 @@ Route::prefix('urdido')->name('urdido.')->group(function () {
     Route::post('/modulo-produccion-urdido/marcar-listo', [ModuloProduccionUrdidoController::class, 'marcarListo'])->middleware('module.permission:modificar,154,auditar')->name('modulo.produccion.urdido.marcar.listo'); // Producción Urdido
     Route::get('/modulo-produccion-urdido/pdf', [PDFController::class, 'generarPDFUrdidoEngomado'])->name('modulo.produccion.urdido.pdf');
 });
-
-Route::resource('urd-actividades-bpm', UrdActividadesBpmController::class)
-    ->middlewareFor('store', 'module.permission:crear,144') // Actividades BPM Urdido
-    ->middlewareFor('update', 'module.permission:modificar,144') // Actividades BPM Urdido
-    ->middlewareFor('destroy', 'module.permission:eliminar,144') // Actividades BPM Urdido
-    ->only(['index', 'create', 'store', 'edit', 'update', 'destroy'])
-    ->parameters(['urd-actividades-bpm' => 'urdActividadesBpm'])
-    ->names('urd-actividades-bpm');
-
-// Crear/editar el documento BPM es captura de turno: 12 personas tienen 'acceso' y no 'crear',
-// y la vista no esconde el boton. Solo se gatea el borrado, igual que eng-bpm y tel-bpm;
-// crear/editar quedan en modo auditar (SEC-05) para medirlo antes de decidir.
-Route::resource('urd-bpm', UrdBpmController::class)
-    ->middlewareFor('store', 'module.permission:crear,35,auditar') // BPM (Buenas Practicas Manufactura) Urd
-    ->middlewareFor('update', 'module.permission:modificar,35,auditar') // BPM (Buenas Practicas Manufactura) Urd
-    ->middlewareFor('destroy', 'module.permission:eliminar,35') // BPM (Buenas Practicas Manufactura) Urd
-    ->only(['index', 'store', 'update', 'destroy'])
-    ->parameters(['urd-bpm' => 'id'])
-    ->names('urd-bpm');
-
-Route::get('urd-bpm-line/{folio}', [UrdBpmLineController::class, 'index'])->name('urd-bpm-line.index');
-Route::post('urd-bpm-line/{folio}/toggle', [UrdBpmLineController::class, 'toggleActividad'])->middleware('module.permission:modificar,35,auditar')->name('urd-bpm-line.toggle'); // BPM (Buenas Practicas Manufactura) Urd
-Route::patch('urd-bpm-line/{folio}/terminar', [UrdBpmLineController::class, 'terminar'])->middleware('module.permission:modificar,35,auditar')->name('urd-bpm-line.terminar'); // BPM (Buenas Practicas Manufactura) Urd
-// Visto bueno de supervision: 'registrar' es la convencion del repo para autorizar
-// (ver app/Livewire/Mecanicos/VerificaMaquina/Show.php:177). UrdBpmLineController no valida nada.
-Route::patch('urd-bpm-line/{folio}/autorizar', [UrdBpmLineController::class, 'autorizar'])
-    ->middleware('module.permission:registrar,35')->name('urd-bpm-line.autorizar'); // BPM (Buenas Practicas Manufactura) Urd
-Route::patch('urd-bpm-line/{folio}/rechazar', [UrdBpmLineController::class, 'rechazar'])
-    ->middleware('module.permission:registrar,35')->name('urd-bpm-line.rechazar'); // BPM (Buenas Practicas Manufactura) Urd

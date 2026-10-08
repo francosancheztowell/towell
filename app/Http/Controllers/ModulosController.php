@@ -6,6 +6,7 @@ use App\Helpers\ImageOptimizer;
 use App\Models\Sistema\SYSRoles;
 use App\Models\Sistema\SYSUsuario;
 use App\Models\Sistema\SYSUsuariosRoles;
+use App\Models\Sistema\Usuario;
 use App\Services\ModuloService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,14 +28,21 @@ class ModulosController extends Controller
     public function index()
     {
         try {
-            // Obtener todos los módulos y módulos principales para selects
-            $modulos = SYSRoles::orderBy('orden', 'ASC')->get();
-            $modulosPrincipales = SYSRoles::where('Nivel', 1)
-                ->whereNull('Dependencia')
-                ->orderBy('orden', 'ASC')
-                ->get();
+            // orden es texto: en SQL '1000' cae junto a '100' y '104-10' antes de '104-2'.
+            // Natural deja cada submódulo debajo de su padre (100, 101, 104, 104-1, 104-2, 104-10, 105…).
+            $modulos = SYSRoles::all()->sortBy('orden', SORT_NATURAL)->values();
 
-            return view('modulos.gestion-modulos.index', compact('modulos', 'modulosPrincipales'));
+            // Usuarios con acceso por módulo, para el árbol. GROUP BY con COUNT: el ORM no lo expresa sin raw.
+            $conAcceso = SYSUsuariosRoles::where('acceso', 1)
+                ->whereHas('usuario')
+                ->groupBy('idrol')
+                ->selectRaw('idrol, COUNT(*) AS total')
+                ->pluck('total', 'idrol');
+            $totalUsuarios = Usuario::count();
+            // Mismo permiso que pide la ruta configuracion.utileria.modulos.permisos.update (idrol 59 = Usuarios).
+            $puedeEditarPermisos = userCan('modificar', 59);
+
+            return view('modulos.gestion-modulos.index', compact('modulos', 'conAcceso', 'totalUsuarios', 'puedeEditarPermisos'));
         } catch (\Exception $e) {
             Log::error('Error al cargar módulos: '.$e->getMessage());
 
@@ -198,7 +206,7 @@ class ModulosController extends Controller
                 $mensaje .= " y permisos actualizados para {$permisosActualizados} usuario(s)";
             }
 
-            return redirect()->route($this->getModulosIndexRoute())
+            return redirect()->route($this->getModulosIndexRoute(), ['modulo' => $modulo->idrol])
                 ->with('success', $mensaje)
                 ->with('show_sweetalert', true);
 
@@ -288,7 +296,7 @@ class ModulosController extends Controller
             // Limpiar cache de modulos para todos los usuarios
             $this->limpiarCacheTodosUsuarios();
 
-            return redirect()->route($this->getModulosIndexRoute())
+            return redirect()->route($this->getModulosIndexRoute(), ['modulo' => $modulo->idrol])
                 ->with('success', 'Modulo actualizado correctamente')
                 ->with('show_sweetalert', true);
 

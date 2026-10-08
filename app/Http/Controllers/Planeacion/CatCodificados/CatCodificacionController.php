@@ -12,6 +12,7 @@ use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\CatCodificados\Excel\CatCodificadosExcelHeaderMapper;
 use App\Services\Planeacion\RevivirOrdenProgramaDesdeCatService;
 use App\Services\Planeacion\SaldoMarbeteCodificacionService;
+use App\Support\Planeacion\CatCodificados\CatCodificadosCache;
 use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -611,28 +612,20 @@ class CatCodificacionController extends Controller
         ]);
     }
 
-    /**
-     * Invalidar cache de getAllFast
-     */
+    // ponytail: adaptador temporal, retirar al migrar consumidores (la lógica vive en CatCodificadosCache)
     public static function clearCache(?int $id = null): void
     {
-        if ($id !== null) {
-            Cache::forget("catcodificacion_fast_id_{$id}");
-        }
-        Cache::forget('catcodificacion_fast_all');
-        Cache::forget('catcodificacion_fast_recientes');
-        Cache::forget('catcodificacion_estimated_count');
-        Cache::forget('catcodificacion_total');
+        CatCodificadosCache::clearCache($id);
     }
 
     public static function progressCacheKey(string $id): string
     {
-        return 'excel_import_progress:'.$id;
+        return CatCodificadosCache::progressCacheKey($id);
     }
 
     public static function cancellationCacheKey(string $id): string
     {
-        return 'excel_import_cancelled:'.$id;
+        return CatCodificadosCache::cancellationCacheKey($id);
     }
 
     /**

@@ -41,4 +41,16 @@ abstract class TestCase extends BaseTestCase
             });
         }
     }
+
+    /**
+     * Deja los primeros $n argumentos de cada caso de un data provider. PHPUnit 12 avisa
+     * (y la corrida sale con 1) si un caso trae mas argumentos de los que el test recibe.
+     *
+     * @param  array<array-key, array<int, mixed>>  $casos
+     * @return array<array-key, array<int, mixed>>
+     */
+    protected static function recortar(array $casos, int $n): array
+    {
+        return array_map(fn (array $caso) => array_slice($caso, 0, $n), $casos);
+    }
 }

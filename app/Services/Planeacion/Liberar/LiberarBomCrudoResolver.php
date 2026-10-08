@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Planeacion\Liberar;
 
-use App\Http\Controllers\Planeacion\CatCodificados\CatCodificacionController;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Database\Query\Builder;
@@ -17,9 +16,10 @@ use Illuminate\Support\Facades\Log;
  * Resolución de L.Mat CRUDO (BOMTABLE + BOMVERSION en sqlsrv_ti) al liberar.
  *
  * Extraído de LiberarOrdenesController: misma query EXISTS, mismos filtros de
- * salón/talla y la misma precarga por lote. No unifica todavía
- * {@see CatCodificacionController::queryLmatDesdeTi}
- * (JOIN + limit 50, sin filtro de salón): eso es follow-up de BUG-007.
+ * salón/talla y la misma precarga por lote. No unifica todavía la consulta
+ * privada queryLmatDesdeTi del controller de Catálogo de Codificados
+ * (JOIN + limit 50, sin filtro de salón): eso es follow-up de BUG-007; si se
+ * comparte, va a un repositorio AX sobre sqlsrv_ti, no a este servicio.
  */
 final class LiberarBomCrudoResolver
 {

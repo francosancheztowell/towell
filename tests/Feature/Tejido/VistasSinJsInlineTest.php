@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Tejido;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Finder\Finder;
 use Tests\TestCase;
 
@@ -34,7 +35,7 @@ class VistasSinJsInlineTest extends TestCase
         return $casos;
     }
 
-    /** @dataProvider vistas */
+    #[DataProvider('vistas')]
     public function test_sin_script_inline_ni_handlers_on(string $ruta): void
     {
         $fuente = (string) file_get_contents($ruta);
@@ -44,7 +45,7 @@ class VistasSinJsInlineTest extends TestCase
         $this->assertStringNotContainsString('csrf_token()', $fuente, 'http ya manda el CSRF (19-00-RECETA §2).');
     }
 
-    /** @dataProvider vistas */
+    #[DataProvider('vistas')]
     public function test_texto_minimo_12px_y_sin_h1_propio(string $ruta): void
     {
         $fuente = (string) file_get_contents($ruta);

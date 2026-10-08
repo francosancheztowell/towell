@@ -6,6 +6,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DuplicarTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Sistema\Usuario;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 /**
@@ -101,7 +102,7 @@ class ProgramaTejidoBalanceoIntegrationTest extends TestCase
             'BalancearTejido debe delegar en TejidoHelpers::FORMULAS_CTX_BALANCEAR'
         );
 
-        $helpersPath = app_path('Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php');
+        $helpersPath = app_path('Services/Planeacion/ProgramaTejido/FormulasEficiencia.php');
         $this->assertStringContainsString(
             'true, true, false',
             file_get_contents($helpersPath),
@@ -123,7 +124,7 @@ class ProgramaTejidoBalanceoIntegrationTest extends TestCase
             'DuplicarTejido debe delegar en TejidoHelpers::FORMULAS_CTX_PEDIDO_INHERIT'
         );
 
-        $helpersPath = app_path('Http/Controllers/Planeacion/ProgramaTejido/helper/TejidoHelpers.php');
+        $helpersPath = app_path('Services/Planeacion/ProgramaTejido/FormulasEficiencia.php');
         $this->assertStringContainsString(
             'true, true, true',
             file_get_contents($helpersPath),
@@ -169,7 +170,7 @@ class ProgramaTejidoBalanceoIntegrationTest extends TestCase
         ];
 
         foreach ($rutasEsperadas as $ruta) {
-            $route = \Illuminate\Support\Facades\Route::getRoutes()->getByName($ruta);
+            $route = Route::getRoutes()->getByName($ruta);
             $this->assertNotNull($route, "Ruta debe existir: {$ruta}");
         }
     }

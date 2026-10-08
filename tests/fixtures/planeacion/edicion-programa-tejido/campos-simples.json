@@ -1,0 +1,29 @@
+{
+    "flags": {
+        "afectaCalendario": true,
+        "afectaDuracion": true,
+        "afectaFormulas": true,
+        "afectaAplicacion": true,
+        "fechaFinalManual": true,
+        "editoAncho": true
+    },
+    "cambios": {
+        "NoProduccion": "777",
+        "AplicacionId": "AP2",
+        "TotalPedido": 1500.0,
+        "SaldoPedido": 1400.0,
+        "EficienciaSTD": null,
+        "AnchoToalla": 48.0,
+        "Ancho": 48.0,
+        "CalendarioId": "CAL-1",
+        "ProgramarProd": "2026-09-01 00:00:00",
+        "FlogsId": "rs-55",
+        "TipoPedido": "RS",
+        "NombreProyecto": null,
+        "EntregaProduc": "2026-10-01 00:00:00",
+        "EntregaPT": "2026-10-02 08:30:00",
+        "EntregaCte": null,
+        "PTvsCte": 3.0,
+        "FechaFinal": "2026-10-05 12:00:00"
+    }
+}

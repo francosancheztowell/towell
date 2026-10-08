@@ -4,7 +4,22 @@ namespace App\Models\Engomado;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property int $Id
+ * @property string $Folio
+ * @property Carbon|null $Fecha
+ * @property string|null $CveEmplRec
+ * @property string|null $NombreEmplRec
+ * @property string|null $TurnoRecibe
+ * @property string|null $CveEmplEnt
+ * @property string|null $NombreEmplEnt
+ * @property string|null $TurnoEntrega
+ * @property string|null $CveEmplAutoriza
+ * @property string|null $Status
+ * @property string|null $NomEmplAutoriza
+ */
 class EngBpmModel extends Model
 {
     use HasFactory;
@@ -12,9 +27,13 @@ class EngBpmModel extends Model
     // protected $connection = 'sqlsrv'; // o 'ProdTowel'
 
     protected $table = 'EngBPM';
+
     protected $primaryKey = 'Id';
+
     public $incrementing = true;
+
     protected $keyType = 'int';
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -32,21 +51,7 @@ class EngBpmModel extends Model
     ];
 
     protected $casts = [
-        'Id'    => 'integer',
+        'Id' => 'integer',
         'Fecha' => 'datetime',
     ];
-
-    /** Relaciones */
-    public function lines()
-    {
-        // Relación por Folio (FK en EngBPMLine)
-        return $this->hasMany(EngBpmLineModel::class, 'Folio', 'Folio')
-                    ->orderBy('Orden');
-    }
-
-    /** Scopes útiles */
-    public function scopeStatus($q, ?string $status)
-    {
-        return $status ? $q->where('Status', $status) : $q;
-    }
 }

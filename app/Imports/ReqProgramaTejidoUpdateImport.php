@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Imports;
 
 use App\Helpers\AuditoriaHelper;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\DateHelpers;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Observers\ReqProgramaTejidoObserver;
+use App\Services\Planeacion\ProgramaTejido\PosicionesTelar;
+use App\Services\Planeacion\ProgramaTejido\SecuenciaFechasTelar;
 use Carbon\Carbon;
 use DateTimeInterface;
 use Illuminate\Support\Collection;
@@ -16,6 +18,7 @@ use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class ReqProgramaTejidoUpdateImport implements ToCollection, WithChunkReading, WithHeadingRow
 {
@@ -428,7 +431,7 @@ class ReqProgramaTejidoUpdateImport implements ToCollection, WithChunkReading, W
             return;
         }
 
-        $observer = new \App\Observers\ReqProgramaTejidoObserver;
+        $observer = new ReqProgramaTejidoObserver;
 
         foreach ($this->registrosAfectadosChunk as $id => $info) {
             try {
@@ -479,7 +482,7 @@ class ReqProgramaTejidoUpdateImport implements ToCollection, WithChunkReading, W
         // Detectar ANTES del save si cambió un input de fórmulas: tras el refetch al final
         // del chunk, isDirty()/wasChanged() ya no reflejan el cambio real.
         $cambioFormula = false;
-        foreach (\App\Observers\ReqProgramaTejidoObserver::CAMPOS_RECALC_FORMULA as $campo) {
+        foreach (ReqProgramaTejidoObserver::CAMPOS_RECALC_FORMULA as $campo) {
             if ($registro->isDirty($campo)) {
                 $cambioFormula = true;
                 break;
@@ -536,7 +539,7 @@ class ReqProgramaTejidoUpdateImport implements ToCollection, WithChunkReading, W
         }
 
         // Recalcular fechas para todos los registros del telar
-        [$updates] = DateHelpers::recalcularFechasSecuencia($todosRegistrosTelar, $inicioOriginal, true);
+        [$updates] = SecuenciaFechasTelar::recalcular($todosRegistrosTelar, $inicioOriginal);
 
         // Escrituras atómicas por telar: el bump Posicion + 10000 seguido de updates fila por
         // fila dejaría las posiciones corruptas permanentemente si el proceso muere a media
@@ -570,7 +573,7 @@ class ReqProgramaTejidoUpdateImport implements ToCollection, WithChunkReading, W
                 }
 
                 // Asegurarse de que EnProceso esté en el array de actualización
-                // DateHelpers::recalcularFechasSecuencia ya debería incluir esto
+                // SecuenciaFechasTelar::recalcular ya debería incluir esto
                 if (! isset($dataU['EnProceso'])) {
                     // Si no está, significa que no es el primer registro, así que debe ser 0
                     $dataU['EnProceso'] = 0;
@@ -603,7 +606,7 @@ class ReqProgramaTejidoUpdateImport implements ToCollection, WithChunkReading, W
                     self::$posicionesCachePorTelar[$cacheKey] = [];
                 }
 
-                $siguientePosicion = \App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers::obtenerSiguientePosicionDisponible($salonTejidoId, $noTelarId);
+                $siguientePosicion = PosicionesTelar::siguienteDisponible($salonTejidoId, $noTelarId);
 
                 while (in_array($siguientePosicion, self::$posicionesCachePorTelar[$cacheKey], true)) {
                     $siguientePosicion++;
@@ -666,7 +669,7 @@ class ReqProgramaTejidoUpdateImport implements ToCollection, WithChunkReading, W
         }
         $isPercent = str_contains($s, '%');
         $s = str_replace(['%', ' '], '', $s);
-        // Coma = separador de MILES, no decimal (misma regla que TejidoHelpers::sanitizeNumber):
+        // Coma = separador de MILES, no decimal (misma regla que NumeroPrograma::sanitizeNumber):
         // "1,234" => 1234 (antes str_replace(',', '.') lo convertía en 1.234 y corrompía
         // PesoCrudo/pedidos, explotando Repeticiones = (PesoRollo/PesoCrudo)/Tiras*1000).
         // El decimal legítimo llega con punto ("1234.5"); un "1.234,56" europeo queda 1.23456
@@ -707,7 +710,7 @@ class ReqProgramaTejidoUpdateImport implements ToCollection, WithChunkReading, W
             if (is_numeric($value)) {
                 $n = (float) $value;
                 if ($n > 0 && $n < 100000) {
-                    $dt = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($n);
+                    $dt = Date::excelToDateTimeObject($n);
 
                     return Carbon::instance($dt)->format('Y-m-d H:i:s');
                 }
@@ -859,7 +862,7 @@ class ReqProgramaTejidoUpdateImport implements ToCollection, WithChunkReading, W
             if (is_numeric($value)) {
                 $n = (float) $value;
                 if ($n > 0 && $n < 100000) {
-                    $dt = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($n);
+                    $dt = Date::excelToDateTimeObject($n);
 
                     return Carbon::instance($dt)->format('Y-m-d');
                 }

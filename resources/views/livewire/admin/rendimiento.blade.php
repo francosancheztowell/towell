@@ -3,83 +3,86 @@
     $celda = function (array $metrica, int $umbral): array {
         $actual = $metrica['actual'] ?? null;
         $previa = $metrica['previa'] ?? null;
-        $delta = $actual && $previa && $previa['p95'] > 0 ? (int) round(100 * ($actual['p95'] - $previa['p95']) / $previa['p95']) : null;
+        // Con menos de MIN_MUESTRAS en alguna semana el Δ% es ruido (0-8 vistas daban +200%): no se muestra.
+        $pocas = $actual && $previa && min($actual['n'], $previa['n']) < \App\Livewire\Admin\Rendimiento::MIN_MUESTRAS;
+        $delta = $actual && $previa && ! $pocas && $previa['p95'] > 0 ? (int) round(100 * ($actual['p95'] - $previa['p95']) / $previa['p95']) : null;
 
-        return [$actual, $previa, $delta, $actual && $actual['p95'] > $umbral];
+        return [$actual, $previa, $delta, $actual && $actual['p95'] > $umbral, $pocas];
     };
+    $grupos = ['ServidorMs' => 'Servidor', 'CargaMs' => 'Carga en navegador'];
 @endphp
-<div class="space-y-3">
-    <div class="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-        <label class="relative min-w-0 flex-1 sm:max-w-xs">
-            <span class="sr-only">Buscar ruta</span>
-            <i class="fa-solid fa-magnifying-glass pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
-            <input type="search" wire:model.live.debounce.300ms="buscar" placeholder="Buscar ruta…"
-                   class="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
-        </label>
-        <label class="inline-flex items-center gap-2 text-sm text-slate-600">
-            <input type="checkbox" wire:model.live="soloLentas" class="rounded border-slate-300 text-blue-600 focus:ring-blue-200">
-            Solo lentas (servidor &gt; {{ $umbrales['ServidorMs'] }} ms o carga &gt; {{ $umbrales['CargaMs'] }} ms, p95)
-        </label>
-        <span class="ms-auto text-xs text-slate-400">Calculado {{ $calculadoEn }}</span>
-        <button type="button" wire:click="recalcular" class="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50">
-            <i class="fa-solid fa-rotate" wire:loading.class="fa-spin" wire:target="recalcular"></i> Recalcular
-        </button>
+<div class="space-y-4">
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div class="w-full sm:w-72">
+            <flux:input wire:model.live.debounce.300ms="buscar" icon="magnifying-glass" size="sm" clearable placeholder="Buscar ruta" aria-label="Buscar ruta" />
+        </div>
+        <flux:switch wire:model.live="soloLentas" label="Solo lentas" align="left" />
+        <span class="text-caption text-(--adm-ink-3)">p95 sobre {{ number_format($umbrales['ServidorMs']) }} ms en servidor o {{ number_format($umbrales['CargaMs']) }} ms en carga</span>
+        <span class="ms-auto text-caption text-(--adm-ink-3)">Calculado {{ $calculadoEn }}</span>
+        <flux:button size="sm" icon="arrow-path" wire:click="recalcular" wire:target="recalcular">Recalcular</flux:button>
         @if ($pulse)
-            <a href="{{ url(config('pulse.path')) }}" class="rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700">
-                <i class="fa-solid fa-heart-pulse"></i> Pulse (queries lentas)
-            </a>
+            <flux:button size="sm" variant="ghost" icon="heart" :href="url(config('pulse.path'))">Pulse</flux:button>
         @endif
     </div>
 
-    <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table class="min-w-full text-sm">
-            <thead class="bg-blue-600 text-white">
-                <tr>
-                    <th scope="col" rowspan="2" class="px-4 py-2 text-left font-semibold">Ruta</th>
-                    <th scope="colgroup" colspan="3" class="border-l border-blue-500 px-4 py-1.5 text-center font-semibold">Servidor (ms)</th>
-                    <th scope="colgroup" colspan="3" class="border-l border-blue-500 px-4 py-1.5 text-center font-semibold">Carga en navegador (ms)</th>
-                </tr>
-                <tr class="text-xs">
-                    @foreach (['Servidor', 'Carga'] as $grupo)
-                        <th scope="col" class="border-l border-blue-500 px-3 py-1 text-right font-semibold">n</th>
-                        <th scope="col" class="px-3 py-1 text-right font-semibold">p50</th>
-                        <th scope="col" class="px-3 py-1 text-right font-semibold">p95 · vs sem. previa</th>
-                    @endforeach
-                </tr>
-            </thead>
-            <tbody>
+    <div class="tabla-pantalla overflow-x-auto border">
+        <flux:table>
+            <flux:table.columns>
+                <flux:table.column>Ruta</flux:table.column>
+                @foreach ($grupos as $metrica => $titulo)
+                    <flux:table.column class="w-56">{{ $titulo }} · p95</flux:table.column>
+                    <flux:table.column align="end" class="hidden w-20 lg:table-cell">p50</flux:table.column>
+                @endforeach
+                <flux:table.column align="end" class="w-16">Vistas</flux:table.column>
+            </flux:table.columns>
+            <flux:table.rows>
                 @forelse ($filas as $fila)
-                    <tr wire:key="ruta-{{ md5($fila['ruta']) }}" @class(['border-b border-slate-100', 'bg-red-50' => $fila['lenta'], 'odd:bg-white even:bg-slate-50/60' => ! $fila['lenta']])>
-                        <td class="px-4 py-2 font-medium text-slate-700">
-                            @if ($fila['lenta']) <i class="fa-solid fa-triangle-exclamation text-red-500" title="Lenta"></i> @endif
-                            {{ $fila['ruta'] }}
-                        </td>
-                        @foreach (['ServidorMs', 'CargaMs'] as $metrica)
-                            @php [$actual, $previa, $delta, $excede] = $celda($fila[$metrica], $umbrales[$metrica]); @endphp
-                            <td class="border-l border-slate-100 px-3 py-2 text-right text-slate-500">{{ $actual['n'] ?? '—' }}</td>
-                            <td class="px-3 py-2 text-right text-slate-700">{{ $actual ? number_format($actual['p50']) : '—' }}</td>
-                            <td @class(['whitespace-nowrap px-3 py-2 text-right', 'font-bold text-red-600' => $excede, 'text-slate-700' => ! $excede])>
-                                {{ $actual ? number_format($actual['p95']) : '—' }}
-                                @if ($delta !== null)
-                                    <span @class(['ms-1 text-xs', 'text-red-500' => $delta > 10, 'text-emerald-600' => $delta < -10, 'text-slate-400' => abs($delta) <= 10])>
-                                        {{ $delta > 0 ? '+' : '' }}{{ $delta }}%
-                                    </span>
-                                @elseif ($actual)
-                                    <span class="ms-1 text-xs text-slate-400">nuevo</span>
+                    <flux:table.row :key="'ruta-'.md5($fila['ruta'])">
+                        <flux:table.cell class="max-w-0">
+                            <span class="flex min-w-0 items-center gap-2">
+                                @if ($fila['lenta'])
+                                    <flux:icon.exclamation-triangle variant="micro" class="size-4 shrink-0 text-(--adm-err)" aria-label="Lenta" />
                                 @endif
-                            </td>
+                                <span class="adm-mono truncate text-(--adm-ink)" title="{{ $fila['ruta'] }}">{{ $fila['ruta'] }}</span>
+                            </span>
+                        </flux:table.cell>
+                        @foreach ($grupos as $metrica => $titulo)
+                            @php
+                                [$actual, $previa, $delta, $excede, $pocas] = $celda($fila[$metrica], $umbrales[$metrica]);
+                                $ancho = $actual ? min(100, round(50 * $actual['p95'] / max(1, $umbrales[$metrica]))) : 0;
+                            @endphp
+                            <flux:table.cell>
+                                @if ($actual)
+                                    <span class="flex items-baseline justify-between gap-2">
+                                        <span @class(['font-semibold tabular-nums', 'text-(--adm-err)' => $excede, 'text-(--adm-ink)' => ! $excede])>{{ number_format($actual['p95']) }} ms</span>
+                                        @if ($delta !== null)
+                                            <span @class(['text-caption tabular-nums', 'text-(--adm-err)' => $delta > 10, 'text-(--adm-ok)' => $delta < -10, 'text-(--adm-ink-3)' => abs($delta) <= 10])>{{ $delta > 0 ? '+' : '' }}{{ $delta }}%</span>
+                                        @elseif ($pocas)
+                                            <span class="text-caption text-(--adm-ink-3)" title="Menos de {{ \App\Livewire\Admin\Rendimiento::MIN_MUESTRAS }} vistas en alguna de las dos semanas">pocas muestras</span>
+                                        @else
+                                            <span class="text-caption text-(--adm-ink-3)">nuevo</span>
+                                        @endif
+                                    </span>
+                                    {{-- Barra contra el umbral: la marca a la mitad es el umbral. --}}
+                                    <span class="relative mt-1.5 block h-1 rounded-full bg-(--adm-hover)" aria-hidden="true">
+                                        <span @class(['absolute inset-y-0 start-0 rounded-full', 'bg-(--adm-err)' => $excede, 'bg-(--adm-ink-3)' => ! $excede]) style="width: {{ $ancho }}%"></span>
+                                        <span class="absolute -inset-y-0.5 start-1/2 w-px bg-(--adm-line-strong)"></span>
+                                    </span>
+                                @else
+                                    <span class="text-(--adm-ink-3)">—</span>
+                                @endif
+                            </flux:table.cell>
+                            <flux:table.cell align="end" class="hidden tabular-nums lg:table-cell">{{ $actual ? number_format($actual['p50']) : '—' }}</flux:table.cell>
                         @endforeach
-                    </tr>
+                        <flux:table.cell align="end" class="tabular-nums">{{ number_format($fila['ServidorMs']['actual']['n'] ?? $fila['CargaMs']['actual']['n'] ?? 0) }}</flux:table.cell>
+                    </flux:table.row>
                 @empty
-                    <tr>
-                        <td colspan="7" class="px-4 py-14 text-center">
-                            <i class="fa-solid fa-gauge-high text-3xl text-slate-300"></i>
-                            <p class="mt-3 font-semibold text-slate-600">Sin vistas medidas en los últimos 7 días.</p>
-                        </td>
-                    </tr>
+                    <flux:table.row>
+                        <flux:table.cell colspan="6" class="py-14! text-center text-sm text-(--adm-ink-2)">Sin vistas medidas en los últimos 7 días.</flux:table.cell>
+                    </flux:table.row>
                 @endforelse
-            </tbody>
-        </table>
+            </flux:table.rows>
+        </flux:table>
     </div>
-    <p class="text-xs text-slate-400">Percentil de rango más cercano sobre SYSMonVista. «n» = vistas medidas de la semana. Rojo: p95 por encima del umbral.</p>
+    <p class="text-caption text-(--adm-ink-3)">Percentil de rango más cercano sobre SYSMonVista, últimos 7 días contra los 7 previos. La marca de cada barra es el umbral.</p>
 </div>

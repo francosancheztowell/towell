@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Planeacion\Calendarios;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\CalendarioProduccion;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
  *
  * Por cada telar afectado, en orden (FechaInicio, Id): el primero conserva su inicio; los demás
  * arrancan donde terminó el anterior y se ajustan al primer instante hábil del calendario. La
- * fecha final sale de las horas de producción sobre el calendario (BalancearTejido) y solo se
+ * fecha final sale de las horas de producción sobre el calendario (CalendarioProduccion) y solo se
  * recalculan las fórmulas que dependen de las fechas. Se guarda sin eventos
  * (ReqProgramaTejido::suppressObservers, HANDOFF PT-05 B1) y se restauran al final.
  */
@@ -170,7 +170,7 @@ final class RecalcularProgramasCalendario
             return null;
         }
 
-        $fin = BalancearTejido::calcularFechaFinalDesdeInicio($calendarioId, $inicio, $horas)
+        $fin = CalendarioProduccion::calcularFechaFinalDesdeInicio($calendarioId, $inicio, $horas)
             ?? $inicio->copy()->addSeconds((int) round($horas * 3600));
         if ($fin->lt($inicio)) {
             $fin = $inicio->copy();

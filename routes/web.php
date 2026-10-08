@@ -11,6 +11,7 @@ Route::middleware(['auth'])->group(function () {
     require __DIR__.'/modules/tejedores.php';
     require __DIR__.'/modules/urdido.php';
     require __DIR__.'/modules/engomado.php';
+    require __DIR__.'/modules/bpm.php';
     require __DIR__.'/modules/atadores.php';
     require __DIR__.'/modules/programa-urd-eng.php';
     require __DIR__.'/modules/configuracion.php';

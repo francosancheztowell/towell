@@ -7,15 +7,20 @@ use App\Http\Controllers\Controller;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class SaldosController extends Controller
 {
     public function index()
     {
-        $registros = $this->query()->get();
-        $registros = $registros->concat($this->fetchFinalizadosEnGrupos($registros));
-        $registros = $this->preprocesarGrupos($registros);
+        // El reporte no tiene filtros ni datos por usuario: se cachea 5 min para todos.
+        $registros = Cache::remember('tejido.saldos2026.registros', 300, function () {
+            $registros = $this->query()->get();
+            $registros = $registros->concat($this->fetchFinalizadosEnGrupos($registros));
+
+            return $this->preprocesarGrupos($registros);
+        });
 
         return view('modulos.tejido.reportes.saldos-2026', compact('registros'));
     }
@@ -220,21 +225,25 @@ class SaldosController extends Controller
         return ReqProgramaTejido::query()
             ->whereNotNull('NoProduccion')
             ->where('NoProduccion', '!=', '')
-            ->leftJoin(DB::raw('(
-                SELECT TamanoClave, Tolerancia, CodigoDibujo, FlogsId, Clave, Obs,
-                       TipoRizo, AlturaRizo,
-                       Comb1, Obs1, Comb2, Obs2, Comb3, Obs3, Comb4, Obs4,
-                       MedidaCenefa, MedIniRizoCenefa
-                FROM (
-                    SELECT TamanoClave, Tolerancia, CodigoDibujo, FlogsId, Clave, Obs,
+            // OUTER APPLY con TOP 1 por fila (usa el índice por TamanoClave / OrdenTejido) en lugar de
+            // ROW_NUMBER() sobre todo ReqModelosCodificados y dos subconsultas escalares a CatCodificados.
+            // Mismo resultado: el último Id por TamanoClave y el último Id por OrdenTejido.
+            ->fromRaw(ReqProgramaTejido::tableName().'
+                OUTER APPLY (
+                    SELECT TOP 1 Tolerancia, CodigoDibujo, FlogsId, Clave, Obs,
                            TipoRizo, AlturaRizo,
                            Comb1, Obs1, Comb2, Obs2, Comb3, Obs3, Comb4, Obs4,
-                           MedidaCenefa, MedIniRizoCenefa,
-                           ROW_NUMBER() OVER (PARTITION BY TamanoClave ORDER BY Id DESC) AS rn
-                    FROM dbo.ReqModelosCodificados
-                ) AS ranked
-                WHERE rn = 1
-            ) AS rmc'), 'rmc.TamanoClave', '=', 'ReqProgramaTejido.TamanoClave')
+                           MedidaCenefa, MedIniRizoCenefa
+                    FROM dbo.ReqModelosCodificados m
+                    WHERE m.TamanoClave = ReqProgramaTejido.TamanoClave
+                    ORDER BY m.Id DESC
+                ) AS rmc
+                OUTER APPLY (
+                    SELECT TOP 1 cc.NoMarbete, cc.TotalRollos
+                    FROM dbo.CatCodificados cc
+                    WHERE cc.OrdenTejido = ReqProgramaTejido.NoProduccion
+                    ORDER BY cc.Id DESC
+                ) AS cc')
             ->orderBy('SalonTejidoId')
             ->orderBy('NoTelarId')
             ->orderBy('Posicion')
@@ -242,7 +251,7 @@ class SaldosController extends Controller
                 'ReqProgramaTejido.Id', 'SalonTejidoId', 'NoTelarId', 'FechaInicio', 'NoExisteBase', 'NoProduccion',
                 'EnProceso', 'OrdCompartida', 'OrdCompartidaLider',
                 DB::raw('(SELECT TOP 1 r2.NoProduccion FROM dbo.ReqProgramaTejido r2 WHERE r2.OrdCompartida = ReqProgramaTejido.OrdCompartida AND r2.OrdCompartidaLider = 1) AS OrdenLider'),
-                DB::raw('(SELECT TOP 1 cc.NoMarbete FROM dbo.CatCodificados cc WHERE cc.OrdenTejido = ReqProgramaTejido.NoProduccion ORDER BY cc.Id DESC) AS NoMarbete'),
+                DB::raw('cc.NoMarbete AS NoMarbete'),
                 'FechaCreacion', 'EntregaCte',
                 'Programado', 'Prioridad', 'NombreProducto', 'ReqProgramaTejido.TamanoClave', 'ReqProgramaTejido.InventSizeId',
                 'ItemId', 'ReqProgramaTejido.FlogsId', 'EntregaProduc', 'TotalPedido', 'Peine', 'Ancho', 'LargoCrudo', 'PesoCrudo', 'Luchaje',
@@ -251,7 +260,7 @@ class SaldosController extends Controller
                 'CuentaPie', 'CalibrePie2', 'FibraPie',
                 'Rasurado', 'NoTiras', 'PzasRollo', 'Repeticiones',
                 // Rollos programados: se jala de CatCodificados (último por OrdenTejido), no de ReqProgramaTejido.
-                DB::raw('(SELECT TOP 1 cc.TotalRollos FROM dbo.CatCodificados cc WHERE cc.OrdenTejido = ReqProgramaTejido.NoProduccion ORDER BY cc.Id DESC) AS TotalRollos'),
+                DB::raw('cc.TotalRollos AS TotalRollos'),
                 'Produccion', 'SaldoPedido',
                 'ReqProgramaTejido.Observaciones',
                 // Campos de ReqModelosCodificados

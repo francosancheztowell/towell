@@ -6,6 +6,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\UsesSqlsrvSqlite;
 use Tests\TestCase;
 
@@ -82,7 +83,7 @@ class ResolverFechaFinalShadowTest extends TestCase
         return $casos;
     }
 
-    /** @dataProvider matriz */
+    #[DataProvider('matriz')]
     public function test_resolver_fecha_final_es_identico_a_la_forma_a(?string $cal, string $ini, float $h): void
     {
         $inicio = Carbon::parse($ini);
@@ -93,7 +94,7 @@ class ResolverFechaFinalShadowTest extends TestCase
         );
     }
 
-    /** @dataProvider matriz */
+    #[DataProvider('matriz')]
     public function test_fin_desde_horas_es_identico_al_nucleo_de_las_otras_formas(?string $cal, string $ini, float $h): void
     {
         if ($h <= 0) {

@@ -111,7 +111,7 @@ class ProgramaTejidoController extends Controller
         try {
             $registro = $accion->ejecutar(CambiosProgramaTejido::desdeRequest($request, $id));
         } catch (MutacionRechazada $e) {
-            return $e->respuesta;
+            return response()->json($e->cuerpo, $e->status);
         } catch (ModelNotFoundException $e) {
             throw $e;
         } catch (\Throwable $e) {

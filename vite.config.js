@@ -61,8 +61,6 @@ export default defineConfig({
         entrada('resources/js/catcodificacion/index'),
         entrada('resources/js/lmat-lista/index'),
         entrada('resources/js/programa-tejido/index'),
-        'resources/js/programa-urd-eng/reservar-programar.ts',
-        'resources/js/usuarios/qr.ts',
         ...entradasDeModulos(),
       ])],
       refresh: true,

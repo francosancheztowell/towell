@@ -1,0 +1,13 @@
+{
+    "flags": {
+        "afectaCalendario": false,
+        "afectaDuracion": false,
+        "afectaFormulas": false,
+        "afectaAplicacion": false,
+        "fechaFinalManual": false,
+        "editoAncho": false
+    },
+    "cambios": {
+        "TamanoClave": null
+    }
+}

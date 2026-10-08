@@ -6,6 +6,7 @@ use App\Models\Engomado\CatDefectosUrdEng;
 use App\Models\Engomado\EngProduccionEngomado;
 use App\Models\Urdido\UrdProduccionUrdido;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Feature\UrdEng\Concerns\ModuloUrdEng;
 use Tests\TestCase;
 
@@ -42,7 +43,13 @@ class CalificarJuliosTest extends TestCase
         ];
     }
 
-    /** @dataProvider variantes */
+    /** @return array<string, array<int, mixed>> */
+    public static function variantes1(): array
+    {
+        return self::recortar(self::variantes(), 1);
+    }
+
+    #[DataProvider('variantes1')]
     public function test_lista_julios_y_defectos(string $sufijo): void
     {
         $this->actingAs($this->usuarioCon(['Producción Engomado' => ['acceso', 'modificar']]))
@@ -60,7 +67,7 @@ class CalificarJuliosTest extends TestCase
         $this->assertSame(['9', '10'], array_column($r->json('julios'), 'NoJulio'));
     }
 
-    /** @dataProvider variantes */
+    #[DataProvider('variantes1')]
     public function test_sin_folio_es_422_y_no_500(string $sufijo): void
     {
         $this->actingAs($this->usuarioCon(['Producción Engomado' => ['acceso']]))
@@ -68,7 +75,7 @@ class CalificarJuliosTest extends TestCase
             ->assertStatus(422);
     }
 
-    /** @dataProvider variantes */
+    #[DataProvider('variantes')]
     public function test_califica_y_limpia(string $sufijo, string $tabla, int $id): void
     {
         $usuario = $this->usuarioCon(['Producción Engomado' => ['acceso', 'modificar']]);
@@ -87,7 +94,7 @@ class CalificarJuliosTest extends TestCase
         $this->assertNull(DB::connection('sqlsrv')->table($tabla)->where('Id', $id)->value('ClaveDefecto'));
     }
 
-    /** @dataProvider variantes */
+    #[DataProvider('variantes1')]
     public function test_no_encontrado_es_404_con_mensaje_propio(string $sufijo): void
     {
         $this->actingAs($this->usuarioCon(['Producción Engomado' => ['acceso', 'modificar']]))
@@ -97,7 +104,7 @@ class CalificarJuliosTest extends TestCase
             ->assertJsonStructure(['message', 'trace_id']);
     }
 
-    /** @dataProvider variantes */
+    #[DataProvider('variantes')]
     public function test_sin_modificar_es_403(string $sufijo, string $tabla, int $id): void
     {
         $this->actingAs($this->usuarioCon(['Producción Engomado' => ['acceso']]))

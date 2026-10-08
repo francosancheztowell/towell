@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Planeacion\ProgramaTejido;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UtilityHelpers;
 use App\Models\Planeacion\OrdColProgramaTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Support\Planeacion\ProgramaTejido\ColumnasGrillaProgramaTejido;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Query\Builder;
@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Log;
  *
  * Solo lectura: query builder base (sin modelos hidratados, sin observers, sin escrituras).
  * Columnas, filtros y orden salen de allowlists por superficie: las columnas de la grilla
- * (UtilityHelpers::getTableColumns) menos las que la superficie no tiene físicamente
+ * (ColumnasGrillaProgramaTejido::todas) menos las que la superficie no tiene físicamente
  * (config planeacion.superficies.<s>.columnas_ausentes). Nunca se interpola input en SQL.
  */
 final class ProgramaTejidoReadService
@@ -180,7 +180,7 @@ final class ProgramaTejidoReadService
     public function columnasPermitidas(ProgramaTejidoSurface $superficie): array
     {
         $ausentes = (array) config("planeacion.superficies.{$superficie->value}.columnas_ausentes", []);
-        $campos = array_column(UtilityHelpers::getTableColumns(), 'field');
+        $campos = array_column(ColumnasGrillaProgramaTejido::todas(), 'field');
 
         return array_values(array_unique(array_diff(['Id', ...$campos], $ausentes)));
     }
@@ -221,7 +221,7 @@ final class ProgramaTejidoReadService
                 'superficie' => $superficie->value,
                 'capacidades' => $superficie->capacidades(),
                 'columnas' => array_values(array_filter(
-                    UtilityHelpers::getTableColumns(),
+                    ColumnasGrillaProgramaTejido::todas(),
                     fn (array $c) => in_array($c['field'], $columnas, true)
                 )),
                 'pagina' => $pagina,

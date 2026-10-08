@@ -2,14 +2,12 @@
 
 namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\OrdCompartidaHelper;
-use App\Models\Planeacion\Catalogos\CatCodificados;
+use App\Actions\Planeacion\ProgramaTejido\ActualizarOrdPrincipal;
 use App\Models\Planeacion\ReqProgramaTejido;
-use Illuminate\Database\Eloquent\Builder;
+use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class VincularTejido
@@ -55,7 +53,7 @@ class VincularTejido
         // OrdCompartida = NoProduccion del primer registro seleccionado (líder propuesto).
         // El líder DEBE tener NoProduccion; los demás registros pueden o no tenerlo
         // y conservan su propio NoProduccion (solo se sobrescribe OrdCompartida).
-        $ordCompartidaAVincular = OrdCompartidaHelper::obtenerOrdCompartidaDesdeRegistro($primerRegistro);
+        $ordCompartidaAVincular = OrdCompartida::obtenerOrdCompartidaDesdeRegistro($primerRegistro);
         if ($ordCompartidaAVincular === null) {
             return response()->json([
                 'success' => false,
@@ -101,7 +99,7 @@ class VincularTejido
                 ]);
 
             // PASO 4: líder = FechaInicio más antigua entre los que tienen NoProduccion (misma regla en todo PT).
-            OrdCompartidaHelper::recalcularLiderYOrdPrincipalPorOrdCompartida($ordCompartidaAVincular);
+            OrdCompartida::recalcularLiderYOrdPrincipalPorOrdCompartida($ordCompartidaAVincular);
 
             // PASO 5: Actualizar OrdCompartida y OrdCompartidaLider en CatCodificados si NoProduccion y Programado están llenos
             // Obtener todos los registros vinculados con sus valores actualizados
@@ -238,7 +236,7 @@ class VincularTejido
                 if ($registrosRestantes->count() > 0) {
                     $idsRestantes = $registrosRestantes->pluck('Id')->toArray();
                     // Líder: FechaInicio más antigua entre los que tienen NoProduccion (misma regla en todo PT).
-                    OrdCompartidaHelper::recalcularLiderYOrdPrincipalPorOrdCompartida($ordCompartidaNormalizada);
+                    OrdCompartida::recalcularLiderYOrdPrincipalPorOrdCompartida($ordCompartidaNormalizada);
 
                     $idsAfectados = array_merge($idsAfectados, $idsRestantes);
 
@@ -313,52 +311,6 @@ class VincularTejido
     }
 
     /**
-     * Query base CatCodificados por orden de tejido + telar (columnas dinámicas en BD).
-     *
-     * @param  bool  $omitirFiltroTelarSiVacio  Si true (p. ej. OrdPrincipal), no filtra por telar cuando viene vacío.
-     * @return array{0: Builder, 1: string, 2: array<int, string>}
-     */
-    private static function buildCatCodificadosQueryOrdenTelar(string $noProduccion, string $noTelarId, bool $omitirFiltroTelarSiVacio = false): array
-    {
-        $modelo = new CatCodificados;
-        $table = $modelo->getTable();
-
-        // Cache estático del listado de columnas (introspección INFORMATION_SCHEMA costosa en SQL Server).
-        // La estructura de la tabla no cambia entre llamadas del mismo request.
-        static $columnsCache = [];
-        if (! isset($columnsCache[$table])) {
-            $columnsCache[$table] = Schema::getColumnListing($table);
-        }
-        $columns = $columnsCache[$table];
-
-        $query = CatCodificados::query();
-        $hasKeyFilter = false;
-
-        if (in_array('OrdenTejido', $columns, true)) {
-            $query->where('OrdenTejido', $noProduccion);
-            $hasKeyFilter = true;
-        } elseif (in_array('NumOrden', $columns, true)) {
-            $query->where('NumOrden', $noProduccion);
-            $hasKeyFilter = true;
-        }
-
-        $aplicarTelar = ! $omitirFiltroTelarSiVacio || $noTelarId !== '';
-        if ($aplicarTelar) {
-            if (in_array('TelarId', $columns, true)) {
-                $query->where('TelarId', $noTelarId);
-            } elseif (in_array('NoTelarId', $columns, true)) {
-                $query->where('NoTelarId', $noTelarId);
-            }
-        }
-
-        if (! $hasKeyFilter) {
-            $query->where('NoProduccion', $noProduccion);
-        }
-
-        return [$query, $table, $columns];
-    }
-
-    /**
      * Actualiza OrdCompartida y OrdCompartidaLider en CatCodificados basándose en los valores de ReqProgramaTejido
      * Solo si NoProduccion y Programado están llenos
      */
@@ -373,7 +325,7 @@ class VincularTejido
             }
 
             $noTelarId = trim((string) ($registro->NoTelarId ?? ''));
-            [$query, $table] = array_slice(self::buildCatCodificadosQueryOrdenTelar($noProduccion, $noTelarId), 0, 2);
+            [$query, $table] = array_slice(ActualizarOrdPrincipal::queryCatCodificadosOrdenTelar($noProduccion, $noTelarId), 0, 2);
             $registroCodificado = $query->first();
 
             if (! $registroCodificado) {
@@ -423,7 +375,7 @@ class VincularTejido
             }
 
             $noTelarId = trim((string) ($registro->NoTelarId ?? ''));
-            [$query, $table] = array_slice(self::buildCatCodificadosQueryOrdenTelar($noProduccion, $noTelarId), 0, 2);
+            [$query, $table] = array_slice(ActualizarOrdPrincipal::queryCatCodificadosOrdenTelar($noProduccion, $noTelarId), 0, 2);
             $registroCodificado = $query->first();
 
             if ($registroCodificado) {
@@ -438,82 +390,6 @@ class VincularTejido
             LogFacade::warning('Error al limpiar OrdCompartida en CatCodificados', [
                 'registro_id' => $registro->Id ?? null,
                 'no_produccion' => $noProduccion !== '' ? $noProduccion : null,
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    /**
-     * Actualiza OrdPrincipal con el ItemId del líder en todos los registros que comparten el mismo OrdCompartida.
-     * OrdPrincipal = ItemId (Clave AX) del registro líder.
-     * Función pública estática para poder ser llamada desde otras clases (DividirTejido, etc.)
-     */
-    public static function actualizarOrdPrincipalPorOrdCompartida(int $ordCompartida): void
-    {
-        try {
-            // Obtener el registro líder (OrdCompartidaLider = 1)
-            $lider = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
-                ->where('OrdCompartidaLider', 1)
-                ->first(['Id', 'ItemId']);
-
-            if (! $lider || empty($lider->ItemId)) {
-                // Si no hay líder o no tiene ItemId, no actualizar OrdPrincipal
-                return;
-            }
-
-            $itemIdLider = trim((string) $lider->ItemId);
-            if ($itemIdLider === '') {
-                return;
-            }
-
-            // Actualizar OrdPrincipal con el ItemId del líder en TODOS los registros con este OrdCompartida
-            ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
-                ->update([
-                    'OrdPrincipal' => $itemIdLider,
-                    'UpdatedAt' => now(),
-                ]);
-
-            // También actualizar en CatCodificados para todos los registros con este OrdCompartida.
-            // Incluir OrdCompartidaLider para saber cuál es el líder en cada iteración.
-            $registrosCompartidos = ReqProgramaTejido::where('OrdCompartida', $ordCompartida)
-                ->get(['Id', 'NoProduccion', 'NoTelarId', 'OrdCompartidaLider']);
-
-            foreach ($registrosCompartidos as $registro) {
-                if ($registro && $registro->NoProduccion) {
-                    $noProduccion = trim((string) $registro->NoProduccion);
-                    $noTelarId = trim((string) ($registro->NoTelarId ?? ''));
-
-                    if ($noProduccion !== '') {
-                        [$query, $table, $columns] = self::buildCatCodificadosQueryOrdenTelar($noProduccion, $noTelarId, true);
-                        $registroCodificado = $query->first();
-                        if ($registroCodificado) {
-                            $updateData = [];
-                            if (in_array('OrdPrincipal', $columns, true)) {
-                                $updateData['OrdPrincipal'] = $itemIdLider;
-                            }
-                            // Sincronizar OrdCompartida y OrdCompartidaLider para no perder el seguimiento.
-                            if (in_array('OrdCompartida', $columns, true)) {
-                                $updateData['OrdCompartida'] = $ordCompartida;
-                            }
-                            if (in_array('OrdCompartidaLider', $columns, true)) {
-                                $esLider = $registro->OrdCompartidaLider === 1
-                                    || $registro->OrdCompartidaLider === true
-                                    || $registro->OrdCompartidaLider === '1';
-                                $updateData['OrdCompartidaLider'] = $esLider ? 1 : null;
-                            }
-                            if (! empty($updateData)) {
-                                DBFacade::table($table)
-                                    ->where('Id', $registroCodificado->Id)
-                                    ->update($updateData);
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (\Throwable $e) {
-            // Loggear error pero no fallar la operación principal
-            LogFacade::warning('Error al actualizar OrdPrincipal por OrdCompartida', [
-                'ord_compartida' => $ordCompartida,
                 'error' => $e->getMessage(),
             ]);
         }

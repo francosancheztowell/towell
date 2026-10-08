@@ -42,11 +42,16 @@ final class InsercionEnBloques
             return $m->getAttributes();
         }, $filas);
 
-        $porBloque = max(1, min(self::MAX_FILAS, intdiv(self::MAX_PARAMETROS, count($valores[0]))));
-        foreach (array_chunk($valores, $porBloque) as $bloque) {
+        foreach (array_chunk($valores, self::filasPorBloque(count($valores[0]))) as $bloque) {
             $modelo::query()->toBase()->insert($bloque);
         }
 
         return count($valores);
+    }
+
+    /** Filas por INSERT … VALUES con $columnas columnas, dentro de 2 100 parámetros y 1 000 filas. */
+    public static function filasPorBloque(int $columnas): int
+    {
+        return max(1, min(self::MAX_FILAS, intdiv(self::MAX_PARAMETROS, max(1, $columnas))));
     }
 }

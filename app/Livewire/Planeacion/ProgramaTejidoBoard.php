@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Livewire\Planeacion;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\UtilityHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Services\Planeacion\ProgramaTejido\ProgramaTejidoReadService;
 use App\Services\Planeacion\ProgramaTejido\ProgramaTejidoSurface;
 use App\Services\Planeacion\ProgramaTejido\ShellV2;
+use App\Support\Planeacion\ProgramaTejido\ColumnasGrillaProgramaTejido;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -81,7 +81,7 @@ class ProgramaTejidoBoard extends Component
     {
         return view('livewire.planeacion.programa-tejido-board', [
             'registros' => $this->registros(),
-            'columns' => UtilityHelpers::getTableColumns(),
+            'columns' => ColumnasGrillaProgramaTejido::todas(),
             'hiddenFields' => $this->ocultas,
         ]);
     }

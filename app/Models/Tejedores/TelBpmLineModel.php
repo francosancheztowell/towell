@@ -5,6 +5,16 @@ namespace App\Models\Tejedores;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property int $Id
+ * @property string $Folio
+ * @property int|null $Orden
+ * @property string|null $Actividad
+ * @property string|null $Valor
+ * @property string|null $TurnoRecibe
+ * @property string|null $NoTelarId
+ * @property string|null $SalonTejidoId
+ */
 class TelBpmLineModel extends Model
 {
     use HasFactory;
@@ -14,8 +24,11 @@ class TelBpmLineModel extends Model
     protected $table = 'TelBPMLine';
 
     protected $primaryKey = 'Id';
+
     public $incrementing = true;
+
     protected $keyType = 'integer';
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -31,16 +44,4 @@ class TelBpmLineModel extends Model
     protected $casts = [
         'Orden' => 'integer',
     ];
-
-    /** Relaciones */
-    public function header()
-    {
-        return $this->belongsTo(TelBpmModel::class, 'Folio', 'Folio');
-    }
-
-    /** Scopes útiles */
-    public function scopeByFolio($q, string $folio)
-    {
-        return $q->where('Folio', $folio)->orderBy('Orden');
-    }
 }

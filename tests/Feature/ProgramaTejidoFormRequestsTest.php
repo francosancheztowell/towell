@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Requests\Planeacion\DividirSaldoRequest;
 use App\Http\Requests\Planeacion\DuplicarTejidoRequest;
 use Illuminate\Support\Facades\Validator;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -25,7 +26,7 @@ class ProgramaTejidoFormRequestsTest extends TestCase
         ];
     }
 
-    /** @dataProvider faltantes */
+    #[DataProvider('faltantes')]
     public function test_campo_obligatorio_falla_la_validacion(string $request, array $datos, string $campo): void
     {
         $validador = Validator::make($datos, (new $request)->rules());

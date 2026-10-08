@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace App\Services\Planeacion\Calendarios;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqCalendarioLine;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\CalendarioProduccion;
+use App\Services\Planeacion\ProgramaTejido\HorasProduccion;
+use App\Support\Planeacion\NumeroPrograma;
 use Carbon\Carbon;
 
 /**
  * Fórmulas de un programa de tejido que dependen del calendario (antes, métodos públicos de
- * CalendarioController que también usa CambiarCalendario de Programa Tejido).
+ * CalendarioController). La usan RecalcularProgramasCalendario y CambiarCalendario de Programa Tejido.
  */
 final class FormulasCalendario
 {
@@ -20,7 +22,7 @@ final class FormulasCalendario
     private array $modelos = [];
 
     /**
-     * Líneas del calendario en el formato de TejidoHelpers::snapInicioAlCalendario (ordenadas por
+     * Líneas del calendario en el formato de CalendarioProduccion::snapInicioAlCalendario (ordenadas por
      * inicio): se leen una vez por recálculo en lugar de una consulta por programa.
      *
      * @return list<array{ini: Carbon, fin: Carbon, fin_ts: int}>
@@ -45,21 +47,21 @@ final class FormulasCalendario
      */
     public function snapInicio(string $calendarioId, Carbon $fechaInicio, ?array $lineas = null): ?Carbon
     {
-        return TejidoHelpers::snapInicioAlCalendario($calendarioId, $fechaInicio, $lineas);
+        return CalendarioProduccion::snapInicioAlCalendario($calendarioId, $fechaInicio, $lineas);
     }
 
     public function horasProd(ReqProgramaTejido $p): float
     {
-        $cantidad = TejidoHelpers::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
+        $cantidad = NumeroPrograma::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
 
-        $stdKm = TejidoHelpers::stdToaHraKarlMayer($p);
+        $stdKm = HorasProduccion::stdToaHraKarlMayer($p);
         if ($stdKm !== null) {
             return $cantidad > 0 ? $cantidad / $stdKm : 0.0;
         }
 
         $m = $this->parametrosModelo($p);
 
-        return TejidoHelpers::calcularHorasProdFromParams(
+        return HorasProduccion::calcularHorasProdFromParams(
             (float) ($p->VelocidadSTD ?? 0),
             (float) ($p->EficienciaSTD ?? 0),
             $cantidad,
@@ -84,7 +86,7 @@ final class FormulasCalendario
             $out['DiasEficiencia'] = (float) round($diffDias, 4);
         }
 
-        $cantidad = TejidoHelpers::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
+        $cantidad = NumeroPrograma::sanitizeNumber($p->SaldoPedido ?? $p->Produccion ?? $p->TotalPedido ?? 0);
         if ($diffDias > 0 && $cantidad > 0) {
             $stdHrsEfect = ($cantidad / $diffDias) / 24;
             $out['StdHrsEfect'] = (float) round($stdHrsEfect, 4);
