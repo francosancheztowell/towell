@@ -75,7 +75,7 @@ test('tieneOficial: vacío y "Sin oficiales" no cuentan', () => {
 
 const filaCompleta = {
     fecha: '2026-09-25', oficial: '1001', hInicio: '06:00', hFin: '07:00', noJulio: '12',
-    kgBruto: '300', tara: '50', kgNeto: '250', metros: '12000', vueltas: '', diametro: '',
+    kgBruto: '300', tara: '50', kgNeto: '250', metros: '12000', vueltas: '15', diametro: '',
 };
 
 test('campos faltantes: fila completa no tiene faltantes (sin Karl Mayer)', () => {
@@ -88,6 +88,12 @@ test('campos faltantes: mismos textos y orden que la vista anterior', () => {
         'Fecha', 'Oficial', 'H. Inicio', 'H. Fin', 'No. Julio', 'Kg. Bruto', 'Tara', 'Metros', 'Vueltas', 'Diámetro',
     ]);
     for (const campo of camposFaltantes(vacia, true, 700)) assert.ok(SELECTOR_CAMPO[campo], campo);
+});
+
+test('campos faltantes: Vueltas obligatoria en toda orden; Diámetro solo Karl Mayer; 0 cuenta como faltante', () => {
+    assert.deepEqual(camposFaltantes({ ...filaCompleta, vueltas: '' }, false, 700), ['Vueltas']);
+    assert.deepEqual(camposFaltantes({ ...filaCompleta, vueltas: '0', diametro: '0.00' }, true, 700), ['Vueltas', 'Diámetro']);
+    assert.deepEqual(camposFaltantes({ ...filaCompleta, vueltas: '12.5', diametro: '80' }, true, 700), []);
 });
 
 test('campos faltantes: neto negativo o excedido', () => {

@@ -107,6 +107,7 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
                 'NoJulio' => 'J1',
                 'KgBruto' => 120,
                 'KgNeto' => 100,
+                'Vueltas' => 15,
                 'Finalizar' => 0,
             ],
             [
@@ -118,6 +119,7 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
                 'NoJulio' => 'J2',
                 'KgBruto' => 115,
                 'KgNeto' => 95,
+                'Vueltas' => 15,
                 'Finalizar' => 0,
             ],
         ]);
@@ -177,6 +179,19 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
         $this->assertSame(1, (int) DB::connection('sqlsrv')->table('UrdProduccionUrdido')->where('Id', 20)->value('Finalizar'));
     }
 
+    /** Vueltas es obligatoria tambien en MC Coy: sin ella la orden no se finaliza. */
+    public function test_finalizar_rechaza_fila_corrida_sin_vueltas_en_mc_coy(): void
+    {
+        [$controller] = $this->escenarioConRegistroIncompleto(conCaptura: false);
+        DB::connection('sqlsrv')->table('UrdProduccionUrdido')->where('Id', 20)->update(['Vueltas' => null]);
+
+        $response = $controller->finalizar(Request::create('/f', 'POST', ['orden_id' => 1]));
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertStringContainsString('sin Vueltas', $response->getData(true)['error']);
+        $this->assertSame('En Proceso', DB::connection('sqlsrv')->table('UrdProgramaUrdido')->where('Id', 1)->value('Status'));
+    }
+
     /** Pero una fila CON captura y sin horas no se tira sin confirmacion. */
     public function test_finalizar_pide_confirmacion_antes_de_descartar_registros_incompletos(): void
     {
@@ -224,7 +239,7 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
             [
                 'Id' => 20, 'Folio' => '00099', 'Fecha' => '2026-05-10',
                 'HoraInicial' => '06:00', 'HoraFinal' => '07:00',
-                'NoJulio' => 'J1', 'KgBruto' => 120, 'KgNeto' => 100, 'Finalizar' => 0, 'AX' => 0,
+                'NoJulio' => 'J1', 'KgBruto' => 120, 'KgNeto' => 100, 'Vueltas' => 15, 'Finalizar' => 0, 'AX' => 0,
             ],
             [
                 // esqueleto = sin julio/peso/roturas, aunque el trait ya le puso
@@ -234,6 +249,7 @@ class ModuloProduccionUrdidoControllerTest extends TestCase
                 'NoJulio' => $conCaptura ? 'J2' : null,
                 'KgBruto' => $conCaptura ? 118 : null,
                 'KgNeto' => $conCaptura ? 98 : null,
+                'Vueltas' => null,
                 'Finalizar' => 0,
                 'AX' => $axEnIncompleto ? 1 : 0,
             ],

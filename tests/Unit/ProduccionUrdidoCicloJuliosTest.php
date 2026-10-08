@@ -185,7 +185,7 @@ class ProduccionUrdidoCicloJuliosTest extends TestCase
     {
         DB::connection('sqlsrv')->table('UrdProduccionUrdido')->where('Id', $id)->update([
             'HoraInicial' => '06:00', 'HoraFinal' => '07:00',
-            'NoJulio' => $julio, 'KgBruto' => 300, 'Tara' => 50, 'KgNeto' => 250,
+            'NoJulio' => $julio, 'KgBruto' => 300, 'Tara' => 50, 'KgNeto' => 250, 'Vueltas' => 15,
         ]);
     }
 

@@ -3,9 +3,12 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\BalancearTejido;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DuplicarTejido;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Sistema\Usuario;
+use App\Services\Planeacion\ProgramaTejido\DividirTejido;
+use App\Services\Planeacion\ProgramaTejido\DuplicarTejido;
+use App\Services\Planeacion\ProgramaTejido\FormulasEficiencia;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -87,49 +90,74 @@ class ProgramaTejidoBalanceoIntegrationTest extends TestCase
         $response->assertJsonValidationErrors(['cambios.0.total_pedido']);
     }
 
-    /**
-     * Verifica que calcularFormulasEficiencia usa params correctos (centralizado en TejidoHelpers).
-     */
-    public function test_calcular_formulas_usa_include_pt_vs_cte_true(): void
+    /** Sin FechaFinal y con EntregaPT/EntregaCte guardadas: solo pedido_inherit usa el fallback. */
+    private function programaConEntregasGuardadas(): ReqProgramaTejido
     {
-        $reflection = new \ReflectionMethod(BalancearTejido::class, 'calcularFormulasEficiencia');
-        $this->assertTrue($reflection->isPrivate(), 'calcularFormulasEficiencia debe ser privado');
+        $programa = new ReqProgramaTejido;
+        $programa->FechaInicio = '2026-10-01 06:30:00';
+        $programa->FechaFinal = null;
+        $programa->EntregaPT = '2026-10-15';
+        $programa->EntregaCte = '2026-10-20 00:00:00';
 
-        $balancearPath = app_path('Http/Controllers/Planeacion/ProgramaTejido/funciones/BalancearTejido.php');
-        $this->assertStringContainsString(
-            'FORMULAS_CTX_BALANCEAR',
-            file_get_contents($balancearPath),
-            'BalancearTejido debe delegar en TejidoHelpers::FORMULAS_CTX_BALANCEAR'
-        );
-
-        $helpersPath = app_path('Services/Planeacion/ProgramaTejido/FormulasEficiencia.php');
-        $this->assertStringContainsString(
-            'true, true, false',
-            file_get_contents($helpersPath),
-            'Contexto balancear: calcularFormulasEficiencia(..., true, true, false)'
-        );
+        return $programa;
     }
 
-    /**
-     * Verifica que DuplicarTejido usa contexto pedido_inherit (fallbackEntregaCte=true vía TejidoHelpers).
-     */
-    public function test_duplicar_usa_fallback_entrega_cte_true(): void
+    private function programaConFechaFinal(): ReqProgramaTejido
     {
-        $path = app_path('Http/Controllers/Planeacion/ProgramaTejido/funciones/DuplicarTejido.php');
-        $content = file_get_contents($path);
+        $programa = new ReqProgramaTejido;
+        $programa->FechaInicio = '2026-10-01 06:30:00';
+        $programa->FechaFinal = '2026-10-20 08:00:00';
 
-        $this->assertStringContainsString(
-            'FORMULAS_CTX_PEDIDO_INHERIT',
-            $content,
-            'DuplicarTejido debe delegar en TejidoHelpers::FORMULAS_CTX_PEDIDO_INHERIT'
+        return $programa;
+    }
+
+    /** Invoca el calcularFormulasEficiencia (privado o público) de la clase de operación. */
+    private function formulasDe(string $clase, ReqProgramaTejido $programa): array
+    {
+        return (new \ReflectionMethod($clase, 'calcularFormulasEficiencia'))->invoke(null, $programa);
+    }
+
+    public function test_balancear_no_usa_fallback_entrega_cte(): void
+    {
+        $formulas = FormulasEficiencia::calcularFormulasEficienciaPorContexto(
+            $this->programaConEntregasGuardadas(),
+            FormulasEficiencia::FORMULAS_CTX_BALANCEAR
         );
 
-        $helpersPath = app_path('Services/Planeacion/ProgramaTejido/FormulasEficiencia.php');
-        $this->assertStringContainsString(
-            'true, true, true',
-            file_get_contents($helpersPath),
-            'Contexto pedido_inherit: calcularFormulasEficiencia(..., true, true, true)'
+        $this->assertArrayNotHasKey('EntregaCte', $formulas);
+        $this->assertArrayNotHasKey('PTvsCte', $formulas);
+        $this->assertSame('2026-10-03', $formulas['EntregaProduc']);
+    }
+
+    public function test_pedido_inherit_usa_fallback_entrega_cte(): void
+    {
+        $formulas = FormulasEficiencia::calcularFormulasEficienciaPorContexto(
+            $this->programaConEntregasGuardadas(),
+            FormulasEficiencia::FORMULAS_CTX_PEDIDO_INHERIT
         );
+
+        $this->assertArrayNotHasKey('EntregaCte', $formulas);
+        $this->assertEqualsWithDelta(-5.0, $formulas['PTvsCte'], 0.001);
+    }
+
+    public function test_ambos_contextos_calculan_entrega_cte_y_pt_vs_cte_desde_fecha_final(): void
+    {
+        foreach ([FormulasEficiencia::FORMULAS_CTX_BALANCEAR, FormulasEficiencia::FORMULAS_CTX_PEDIDO_INHERIT] as $ctx) {
+            $formulas = FormulasEficiencia::calcularFormulasEficienciaPorContexto($this->programaConFechaFinal(), $ctx);
+
+            // Sin AplicacionId: 12 días de entrega.
+            $this->assertSame('2026-11-01 08:00:00', $formulas['EntregaCte'], $ctx);
+            $this->assertSame('2026-10-15', $formulas['EntregaPT'], $ctx);
+            $this->assertEqualsWithDelta(-17.0, $formulas['PTvsCte'], 0.001, $ctx);
+        }
+    }
+
+    /** Balancear, Duplicar y Dividir pasan su contexto: se ve en el fallback de EntregaCte. */
+    public function test_operaciones_usan_su_contexto(): void
+    {
+        $this->assertArrayNotHasKey('PTvsCte', $this->formulasDe(BalancearTejido::class, $this->programaConEntregasGuardadas()));
+        $this->assertEqualsWithDelta(-5.0, $this->formulasDe(DuplicarTejido::class, $this->programaConEntregasGuardadas())['PTvsCte'], 0.001);
+        $this->assertEqualsWithDelta(-5.0, $this->formulasDe(DividirTejido::class, $this->programaConEntregasGuardadas())['PTvsCte'], 0.001);
     }
 
     /**

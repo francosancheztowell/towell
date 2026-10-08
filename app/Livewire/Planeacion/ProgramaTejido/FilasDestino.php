@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace App\Livewire\Planeacion\ProgramaTejido;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DuplicarTejido;
 use App\Http\Requests\Planeacion\DividirSaldoRequest;
 use App\Http\Requests\Planeacion\DuplicarTejidoRequest;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\DividirTejido;
+use App\Services\Planeacion\ProgramaTejido\DuplicarTejido;
 use App\Support\Planeacion\NumeroPrograma;
 use App\Support\Planeacion\TelarSalonResolver;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -293,10 +292,11 @@ final class FilasDestino
      * Dividir/Duplicar sin HTTP (el modal es el único cliente; los tests la llaman directo).
      *
      * @param  array<string, mixed>  $payload
+     * @return array<string, mixed> el resultado; un error trae success=false, message y status
      *
      * @throws ValidationException
      */
-    public static function correr(bool $dividir, array $payload): JsonResponse
+    public static function correr(bool $dividir, array $payload): array
     {
         $request = $dividir ? new DividirSaldoRequest : new DuplicarTejidoRequest;
         $payload['destinos'] = $request::normalizarDestinos($payload['destinos'] ?? []);

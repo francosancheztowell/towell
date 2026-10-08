@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\Planeacion\ProgramaTejido\funciones\DividirTejido;
 use App\Models\Planeacion\ReqProgramaTejido;
+use App\Services\Planeacion\ProgramaTejido\DividirTejido;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;

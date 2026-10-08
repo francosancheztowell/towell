@@ -272,12 +272,9 @@ final class SecuenciaFechasTelar
     /** Repasos: medio día; resto: 30 días. */
     private static function finPorDefecto(ReqProgramaTejido $r, Carbon $nuevoInicio): Carbon
     {
-        $nombre = trim((string) ($r->NombreProducto ?? ''));
-        $esRepaso = $nombre !== '' && strtoupper(substr($nombre, 0, 6)) === 'REPASO';
-
-        return $esRepaso
-            ? $nuevoInicio->copy()->addHours(12)
-            : $nuevoInicio->copy()->addDays(30);
+        return CalendarioProduccion::esRepaso($r)
+            ? $nuevoInicio->copy()->addHours(CalendarioProduccion::DEFAULT_DURACION_REPASO_HORAS)
+            : $nuevoInicio->copy()->addDays(CalendarioProduccion::DEFAULT_DURACION_DIAS);
     }
 
     private static function conFechas(ReqProgramaTejido $r, Carbon $inicio, Carbon $fin): ReqProgramaTejido

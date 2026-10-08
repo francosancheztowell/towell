@@ -1,15 +1,14 @@
 <?php
 
-namespace App\Http\Controllers\Planeacion\ProgramaTejido\funciones;
+namespace App\Services\Planeacion\ProgramaTejido;
 
 use App\Helpers\AuditoriaHelper;
 use App\Helpers\StringTruncator;
-use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Services\Planeacion\ProgramaTejido\OrdCompartida;
+use App\Services\Planeacion\ProgramaTejido\Edicion\ClaveModelo;
+use App\Support\Planeacion\NumeroPrograma;
 use App\Support\Planeacion\TelarSalonResolver;
 use Carbon\Carbon;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB as DBFacade;
 use Illuminate\Support\Facades\Log as LogFacade;
@@ -17,11 +16,13 @@ use Illuminate\Support\Facades\Log as LogFacade;
 class DuplicarTejido
 {
     /**
-     * Recibe datos ya validados con DuplicarTejidoRequest::rules() (HTTP o Livewire).
+     * Recibe datos ya validados con DuplicarTejidoRequest::rules() (los valida FilasDestino).
+     * Devuelve el resultado para la grilla; un error trae success=false, message y status.
      *
      * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
      */
-    public static function duplicar(array $data): JsonResponse
+    public static function duplicar(array $data): array
     {
         AuditoriaHelper::contexto('DUPLICAR');
 
@@ -41,7 +42,7 @@ class DuplicarTejido
             return $d;
         }, $data['destinos']);
 
-        $pedidoGlobal = TejidoHelpers::sanitizeNullableNumber($data['pedido'] ?? null);
+        $pedidoGlobal = NumeroPrograma::sanitizeNullableNumber($data['pedido'] ?? null);
         $inventSizeId = $data['invent_size_id'] ?? null;
         $tamanoClave = $data['tamano_clave'] ?? null;
         $codArticulo = $data['cod_articulo'] ?? null;
@@ -82,10 +83,11 @@ class DuplicarTejido
                 DBFacade::rollBack();
                 ReqProgramaTejido::restoreObservers($dispatcher);
 
-                return response()->json([
+                return [
                     'success' => false,
                     'message' => 'No se encontraron registros para duplicar',
-                ], 404);
+                    'status' => 404,
+                ];
             }
 
             // A otro salón solo si la clave modelo existe en Modelos para ese salón.
@@ -95,12 +97,12 @@ class DuplicarTejido
                     $pares[] = [$d['salon_destino'], ($d['tamano_clave'] ?? null) ?: ($tamanoClave ?: $original->TamanoClave)];
                 }
             }
-            $claveFaltante = TejidoHelpers::claveFaltanteEnSalon($pares);
+            $claveFaltante = CatalogoModelos::claveFaltanteEnSalon($pares);
             if ($claveFaltante !== null) {
                 DBFacade::rollBack();
                 ReqProgramaTejido::restoreObservers($dispatcher);
 
-                return response()->json(['success' => false, 'message' => $claveFaltante], 422);
+                return ['success' => false, 'message' => $claveFaltante, 'status' => 422];
             }
 
             // Determinar el OrdCompartida a usar (solo si vincular está activo)
@@ -118,10 +120,11 @@ class DuplicarTejido
                         DBFacade::rollBack();
                         ReqProgramaTejido::restoreObservers($dispatcher);
 
-                        return response()->json([
+                        return [
                             'success' => false,
                             'message' => "El OrdCompartida {$ordCompartidaExistente} no existe en la base de datos.",
-                        ], 404);
+                            'status' => 404,
+                        ];
                     }
                     // Usar OrdCompartida existente
                     $ordCompartidaAVincular = (int) $ordCompartidaExistente;
@@ -212,7 +215,7 @@ class DuplicarTejido
                 $tcFila = $destino['tamano_clave'] ?? null;
                 if ($tcFila && trim($tcFila) !== '') {
                     $salonFila = ! empty($destino['salon_destino']) ? $destino['salon_destino'] : $salonDestino;
-                    TejidoHelpers::obtenerDatosModeloCodificadoArray($tcFila, $salonFila);
+                    CatalogoModelos::datosArray($tcFila, $salonFila);
                 }
             }
 
@@ -266,7 +269,7 @@ class DuplicarTejido
                 $nuevo->Ultimo = 1;
                 $nuevo->CambioHilo = 0;
 
-                $nuevo->Maquina = TejidoHelpers::construirMaquinaConSalon($original->Maquina ?? null, $salonDestinoFila, $telarDestino);
+                $nuevo->Maquina = TelarSalonResolver::construirMaquina($original->Maquina ?? null, $salonDestinoFila, $telarDestino);
 
                 // Limpiar campos que siempre deben resetearse en duplicación
                 $nuevo->Produccion = null;
@@ -394,7 +397,7 @@ class DuplicarTejido
                     $nuevo->Maquina = StringTruncator::truncate('Maquina', $destino['maquina']);
                 } else {
                     // Construir Maquina si no viene
-                    $nuevo->Maquina = TejidoHelpers::construirMaquinaConSalon($original->Maquina ?? null, $salonDestinoFila, $telarDestino);
+                    $nuevo->Maquina = TelarSalonResolver::construirMaquina($original->Maquina ?? null, $salonDestinoFila, $telarDestino);
                 }
 
                 // TamanoClave: priorizar valor del destino (fila)
@@ -487,22 +490,22 @@ class DuplicarTejido
 
                 // ===== TotalPedido / SaldoPedido =====
                 // TotalPedido = pedido (sin % de segundas)
-                $pedidoDestino = ($pedidoDestinoRaw !== null && $pedidoDestinoRaw !== '') ? TejidoHelpers::sanitizeNumber($pedidoDestinoRaw) : null;
+                $pedidoDestino = ($pedidoDestinoRaw !== null && $pedidoDestinoRaw !== '') ? NumeroPrograma::sanitizeNumber($pedidoDestinoRaw) : null;
 
                 if ($pedidoDestino !== null) {
                     $nuevo->TotalPedido = $pedidoDestino;
                 } elseif ($pedidoGlobal !== null) {
                     $nuevo->TotalPedido = $pedidoGlobal;
                 } elseif (! empty($original->TotalPedido)) {
-                    $nuevo->TotalPedido = TejidoHelpers::sanitizeNumber($original->TotalPedido);
+                    $nuevo->TotalPedido = NumeroPrograma::sanitizeNumber($original->TotalPedido);
                 } elseif (! empty($original->SaldoPedido)) {
-                    $nuevo->TotalPedido = TejidoHelpers::sanitizeNumber($original->SaldoPedido);
+                    $nuevo->TotalPedido = NumeroPrograma::sanitizeNumber($original->SaldoPedido);
                 } else {
                     $nuevo->TotalPedido = 0;
                 }
 
                 // SaldoPedido = saldo (con % de segundas aplicado)
-                $saldoDestino = ($saldoDestinoRaw !== null && $saldoDestinoRaw !== '') ? TejidoHelpers::sanitizeNumber($saldoDestinoRaw) : null;
+                $saldoDestino = ($saldoDestinoRaw !== null && $saldoDestinoRaw !== '') ? NumeroPrograma::sanitizeNumber($saldoDestinoRaw) : null;
 
                 if ($saldoDestino !== null) {
                     $nuevo->SaldoPedido = $saldoDestino;
@@ -516,7 +519,7 @@ class DuplicarTejido
                 // IMPORTANTE: Si NO se aplicaron datos del modelo, aplicar desde catálogos
                 // Si se aplicaron, ya se aplicaron desde el modelo codificado
                 if (! $aplicarDatosModelo) {
-                    TejidoHelpers::aplicarStdDesdeCatalogos($nuevo);
+                    EstandaresTelar::aplicarStdDesdeCatalogos($nuevo);
                 }
 
                 // ===== FECHA INICIO: SIEMPRE la FechaFinal del último registro del telar destino =====
@@ -525,18 +528,18 @@ class DuplicarTejido
                 $inicio = $fechaInicioBase->copy();
 
                 // ===== CALCULAR FECHA FINAL desde la fecha inicio exacta =====
-                $horasNecesarias = TejidoHelpers::calcularHorasProd($nuevo);
+                $horasNecesarias = HorasProduccion::calcularHorasProd($nuevo);
 
                 // fallback proporcional si por alguna razón horas=0 pero existe HorasProd en original
                 if ($horasNecesarias <= 0 && ! empty($original->HorasProd)) {
-                    $cantOrig = TejidoHelpers::sanitizeNumber($original->SaldoPedido ?? $original->TotalPedido ?? 0);
-                    $cantNew = TejidoHelpers::sanitizeNumber($nuevo->SaldoPedido ?? $nuevo->TotalPedido ?? 0);
+                    $cantOrig = NumeroPrograma::sanitizeNumber($original->SaldoPedido ?? $original->TotalPedido ?? 0);
+                    $cantNew = NumeroPrograma::sanitizeNumber($nuevo->SaldoPedido ?? $nuevo->TotalPedido ?? 0);
                     if ($cantOrig > 0 && $cantNew > 0) {
                         $horasNecesarias = (float) $original->HorasProd * ($cantNew / $cantOrig);
                     }
                 }
 
-                $nuevo->FechaFinal = TejidoHelpers::resolverFechaFinal($inicio, $horasNecesarias, $nuevo->CalendarioId)->format('Y-m-d H:i:s');
+                $nuevo->FechaFinal = CalendarioProduccion::resolverFechaFinal($inicio, $horasNecesarias, $nuevo->CalendarioId)->format('Y-m-d H:i:s');
 
                 if (! empty($nuevo->FechaFinal) && ! empty($nuevo->FechaInicio)) {
                     if (Carbon::parse($nuevo->FechaFinal)->lt(Carbon::parse($nuevo->FechaInicio))) {
@@ -638,7 +641,7 @@ class DuplicarTejido
 
             // Mensaje y respuesta según si es vincular o duplicar
             if ($vincular) {
-                return response()->json([
+                return [
                     'success' => true,
                     'message' => "Telar vinculado correctamente. Se crearon {$totalDuplicados} registro(s) con OrdCompartida: {$ordCompartidaAVincular}.",
                     'modo' => 'vincular',
@@ -650,9 +653,9 @@ class DuplicarTejido
                     'registros_datos' => $registrosDatos,
                     'salon_destino' => $primer?->SalonTejidoId,
                     'telar_destino' => $primer?->NoTelarId,
-                ]);
+                ];
             } else {
-                return response()->json([
+                return [
                     'success' => true,
                     'message' => "Telar duplicado correctamente. Se crearon {$totalDuplicados} registro(s).",
                     'modo' => 'duplicar',
@@ -662,7 +665,7 @@ class DuplicarTejido
                     'registros_datos' => $registrosDatos,
                     'salon_destino' => $primer?->SalonTejidoId,
                     'telar_destino' => $primer?->NoTelarId,
-                ]);
+                ];
             }
 
         } catch (\Throwable $e) {
@@ -670,10 +673,11 @@ class DuplicarTejido
             ReqProgramaTejido::restoreObservers($dispatcher);
             report($e);
 
-            return response()->json([
+            return [
                 'success' => false,
                 'message' => 'Error al duplicar el telar. Intenta de nuevo; si persiste, avisa a Sistemas.',
-            ], 500);
+                'status' => 500,
+            ];
         }
     }
 
@@ -698,9 +702,9 @@ class DuplicarTejido
      */
     public static function calcularFormulasEficiencia(ReqProgramaTejido $programa): array
     {
-        return TejidoHelpers::calcularFormulasEficienciaPorContexto(
+        return FormulasEficiencia::calcularFormulasEficienciaPorContexto(
             $programa,
-            TejidoHelpers::FORMULAS_CTX_PEDIDO_INHERIT
+            FormulasEficiencia::FORMULAS_CTX_PEDIDO_INHERIT
         );
     }
 
@@ -732,7 +736,7 @@ class DuplicarTejido
      */
     public static function aplicarDatosModeloCodificado(ReqProgramaTejido $nuevo, string $tamanoClave, string $salon): void
     {
-        $datosModelo = TejidoHelpers::obtenerDatosModeloCodificadoArray($tamanoClave, $salon);
+        $datosModelo = CatalogoModelos::datosArray($tamanoClave, $salon);
 
         if (! $datosModelo) {
             LogFacade::warning('DuplicarTejido: No se encontraron datos para el modelo', [
@@ -873,6 +877,6 @@ class DuplicarTejido
         }
 
         // Karl Mayer solo teje barras: rizo, pie, trama y C1-C5 se van en null (y al reves).
-        TejidoHelpers::limpiarConstruccionSegunSalon($nuevo);
+        ClaveModelo::limpiarConstruccionSegunSalon($nuevo);
     }
 }

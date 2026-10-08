@@ -7,8 +7,8 @@
 Planeación · Tejido · Urdido · Engomado · Atadores · Tejedores · Mantenimiento · Calidad · Ventas
 
 [![CI](https://github.com/francosancheztowell/towell/actions/workflows/frontend-checks.yml/badge.svg?branch=main)](https://github.com/francosancheztowell/towell/actions/workflows/frontend-checks.yml)
-![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?logo=php&logoColor=white)
-![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?logo=laravel&logoColor=white)
+![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?logo=php&logoColor=white)
+![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
 ![Livewire](https://img.shields.io/badge/Livewire-4-FB70A9?logo=livewire&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
@@ -72,7 +72,7 @@ flowchart LR
         UI["Blade + Livewire 4<br/>TypeScript (Vite)"]
     end
 
-    subgraph App["Laravel 12"]
+    subgraph App["Laravel 13"]
         R["Rutas por dominio<br/>routes/modules/*"]
         G["Gates de permisos<br/>module.permission"]
         C["Controllers / Livewire"]
@@ -125,7 +125,7 @@ resources/js/
 
 | Capa | Tecnología |
 |---|---|
-| Backend | PHP 8.2+, Laravel 12, Livewire 4, Laravel Pulse |
+| Backend | PHP 8.3+, Laravel 13, Livewire 4, Laravel Pulse |
 | Base de datos | SQL Server (`pdo_sqlsrv`), compatible con 2008 R2 |
 | Frontend | Blade, TypeScript, Vite 6, Tailwind CSS 4, Tom Select, SweetAlert2, Chart.js, SortableJS |
 | Reportes | maatwebsite/excel, dompdf, pdfjs-dist y html2canvas-pro (carga bajo demanda) |
@@ -134,7 +134,7 @@ resources/js/
 
 ## Inicio rápido
 
-**Requisitos:** PHP 8.2+ con `pdo_sqlsrv`, `sqlsrv`, `mbstring`, `xml`, `curl`, `zip` y `gd`; Composer 2; Node.js 20+ (el CI usa 24); SQL Server.
+**Requisitos:** PHP 8.3+ con `pdo_sqlsrv`, `sqlsrv`, `mbstring`, `xml`, `curl`, `zip` y `gd`; Composer 2; Node.js 20+ (el CI usa 24); SQL Server.
 
 ```bash
 git clone https://github.com/francosancheztowell/towell.git

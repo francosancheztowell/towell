@@ -228,16 +228,15 @@ class DuplicarDividir extends Component
     /**
      * Valida con las reglas del FormRequest y corre la misma lógica que el endpoint.
      *
-     * @return array<string, mixed>|null el JSON del endpoint, o null con $aviso puesto
+     * @return array<string, mixed>|null el resultado, o null con $aviso puesto
      */
     private function ejecutar(bool $dividir, bool $vincular): ?array
     {
         $payload = $dividir
             ? FilasDestino::payloadDividir($this->origen, $this->filas['dividir'], (int) $this->registroId, $this->esGrupo)
             : FilasDestino::payloadDuplicar($this->origen, $this->filas['duplicar'], (int) $this->registroId, $vincular);
-        $respuesta = FilasDestino::correr($dividir, $payload);
-        $json = (array) $respuesta->getData(true);
-        if ($respuesta->getStatusCode() < 400 && ! empty($json['success'])) {
+        $json = FilasDestino::correr($dividir, $payload);
+        if (! empty($json['success'])) {
             return $json;
         }
 

@@ -46,7 +46,8 @@ class ProgramaTejidoDividirSaldoTest extends TestCase
     {
         $this->actingAs($this->usuarioConPermisos([2 => ['crear']]));
         try {
-            $respuesta = FilasDestino::correr($ruta === 'dividir-saldo', $payload);
+            $resultado = FilasDestino::correr($ruta === 'dividir-saldo', $payload);
+            $respuesta = response()->json($resultado, $resultado['status'] ?? 200);
         } catch (ValidationException $e) {
             $respuesta = response()->json(['errors' => $e->errors()], 422);
         }

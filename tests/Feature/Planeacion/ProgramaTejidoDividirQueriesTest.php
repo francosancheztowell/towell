@@ -111,6 +111,8 @@ class ProgramaTejidoDividirQueriesTest extends TestCase
     {
         $this->actingAs($this->usuarioConPermisos([2 => ['crear']]));
 
-        return TestResponse::fromBaseResponse(FilasDestino::correr(true, $payload));
+        $resultado = FilasDestino::correr(true, $payload);
+
+        return TestResponse::fromBaseResponse(response()->json($resultado, $resultado['status'] ?? 200));
     }
 }
