@@ -47,3 +47,5 @@ Known failing on base: `tests/Js/tejido-cortes-eficiencia.test.mjs` (RPM 750 vs 
 - [x] T4 Pedido series (TwHistoricosPedidos) groups/filters by YearCreado/MonthCreado instead of ANIO/MES; Plan and Real keep ANIO/MES (user decision). New columns exist only in Pedidos (checked INFORMATION_SCHEMA). Payload/cache v8. — inline
   - Evidence: VentasComparaPorAnioTest 8 pass (new test: pedido placed by creation date); pint, phpstan ok.
   - Read-only prod check: combinado('2026') 11803 combos, O_QTY 8,599,257.01 = SUM(QTY) WHERE YearCreado=2026; anios() 0.36s.
+- [x] T5 Agent filter in Compara: NOMBREAGENTE (present in all three tables) added as dimension + multi-select filter "Agente"; payload/cache v9. — inline
+  - Evidence: 8 Compara tests pass; pint, typecheck, build, ratchet ok. Prod read-only: 2026 = 11804 rows (was 11803), 267 KB gz, 3.6s cold.

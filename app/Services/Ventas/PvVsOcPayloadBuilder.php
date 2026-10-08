@@ -14,7 +14,7 @@ final class PvVsOcPayloadBuilder
      *
      * @var list<string>
      */
-    private const SF = ['empresa', 'tipo', 'nombreCte', 'artCode', 'artName', 'config', 'tamano', 'colorName', 'anio', 'mes'];
+    private const SF = ['empresa', 'tipo', 'nombreCte', 'artCode', 'artName', 'config', 'tamano', 'colorName', 'agente', 'anio', 'mes'];
 
     /**
      * Medidas de cada serie, en el orden de PvVsOcReportRepository::MEDIDAS.
@@ -61,7 +61,7 @@ final class PvVsOcPayloadBuilder
 
         $encode = static fn (mixed $valor): string => json_encode($valor, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 
-        $json = '{"v":8'
+        $json = '{"v":9'
             .',"sf":'.$encode(self::SF)
             .',"nf":'.$encode(self::NF)
             .',"series":'.$encode(array_keys(self::SERIES))

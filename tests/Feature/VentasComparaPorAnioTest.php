@@ -89,13 +89,13 @@ class VentasComparaPorAnioTest extends TestCase
         $payload->assertOk()->assertHeader('Content-Encoding', 'gzip');
         $json = json_decode((string) gzdecode($payload->getContent()), true);
 
-        $this->assertSame(8, $json['v']);
+        $this->assertSame(9, $json['v']);
         $this->assertCount(1, $json['rows']);
         $this->assertContains('2025', $json['dict']);
         $this->assertNotContains('2026', $json['dict']);
 
-        $this->assertTrue(Cache::has('ventas:compara:v8:2025'));
-        $this->assertFalse(Cache::has('ventas:compara:v8:2026'));
+        $this->assertTrue(Cache::has('ventas:compara:v9:2025'));
+        $this->assertFalse(Cache::has('ventas:compara:v9:2026'));
     }
 
     public function test_endpoint_compara_rechaza_un_anio_invalido(): void

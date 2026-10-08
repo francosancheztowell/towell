@@ -13,6 +13,7 @@ const FILTERS = [
     { key: 'empresa', label: 'Empresa' },
     { key: 'tipo', label: 'Tipo', multi: true },
     { key: 'cliente', label: 'Cliente', multi: true },
+    { key: 'agente', label: 'Agente', multi: true },
     { key: 'tamano', label: 'Tamaño', multi: true },
     { key: 'articulo', label: 'Artículo', multi: true },
 ];
@@ -85,7 +86,7 @@ const decodePayload = ({ sf, nf, series, dict, rows }) => rows.map((row) => {
         empresa: normalizeEmpresa(field.empresa), tipo: field.tipo,
         cliente: field.nombreCte,
         articuloCodigo: field.artCode, articulo: field.artName,
-        linea: field.config, tamano: field.tamano, color: field.colorName,
+        linea: field.config, tamano: field.tamano, color: field.colorName, agente: field.agente,
     };
     series.forEach((serie, serieIndex) => {
         const offset = sf.length + serieIndex * nf.length;
@@ -97,6 +98,7 @@ const decodePayload = ({ sf, nf, series, dict, rows }) => rows.map((row) => {
         empresa: record.empresa,
         tipo: record.tipo,
         cliente: record.cliente,
+        agente: record.agente,
         tamano: record.tamano,
         articulo: `${record.articuloCodigo} ${record.articulo}`,
     };

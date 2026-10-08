@@ -22,7 +22,7 @@ final class PvVsOcReportRepository
      */
     public const DIMENSIONES = [
         'TEXTIL', 'TIPOPEDIDO', 'CUSTNAME', 'ITEMID', 'ITEMNAME',
-        'LINEA', 'INVENTSIZEID', 'INVENTCOLORTXT', 'ANIO', 'MES',
+        'LINEA', 'INVENTSIZEID', 'INVENTCOLORTXT', 'NOMBREAGENTE', 'ANIO', 'MES',
     ];
 
     /** @var list<string> */
