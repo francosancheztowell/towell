@@ -141,20 +141,6 @@ class TrazabilidadStructureTest extends TestCase
         $this->assertStringNotContainsString('data-tab=', $result);
     }
 
-    public function test_sales_card_is_only_a_coming_soon_placeholder(): void
-    {
-        $sales = file_get_contents(resource_path('views/modulos/trazabilidad/resumen/_ventas.blade.php'));
-
-        $this->assertStringContainsString('Próximamente', $sales);
-        $this->assertStringNotContainsString('$resumen', $sales);
-        $this->assertStringNotContainsString('<table', $sales);
-        $this->assertStringNotContainsString('detalle=', $sales);
-        $this->assertStringNotContainsString(
-            'ventas',
-            file_get_contents(resource_path('js/trazabilidad/detail-loader.ts')),
-        );
-    }
-
     public function test_each_summary_card_has_its_detail_destination(): void
     {
         $base = resource_path('views/modulos/trazabilidad/resumen');

@@ -52,30 +52,27 @@ class TrazabilidadFilterOptionsService
                 ->values();
         };
 
-        $withoutFilters = ! $filters->hasAny();
         // ponytail: TTL fijo en vez de versionar con MAX(Id): cada fila nueva del ETL
         // invalidaba las 3 facetas y el siguiente usuario pagaba ~570ms de scan.
         // 15 min de catálogo ligeramente viejo a cambio de que la página abra en ~120ms.
         // Si se necesita al instante: Cache::forget desde el proceso que carga la tabla.
-        $remember = static fn (string $key, callable $callback): mixed => Cache::remember(
-            $key,
+        // La clave son solo los filtros que acotan la faceta (todos menos el suyo): con un
+        // Flog elegido, la lista de Flogs es la misma que sin filtros y no se vuelve a
+        // consultar en cada render de Livewire (medido 240 ms; artículos 359 ms).
+        $remember = static fn (string $key, string $except, callable $callback): mixed => Cache::remember(
+            'traza_opt_'.$key.':'.md5((string) json_encode(array_diff_key($filters->toArray(), [$except => true]))),
             now()->addMinutes(15),
             $callback
         );
 
         return [
-            'flog' => $withoutFilters
-                ? $remember('traza_opt_flog', fn (): Collection => $facet('Flogs', 'flog'))
-                : $facet('Flogs', 'flog'),
-            'articulo' => $withoutFilters
-                ? $remember(
-                    'traza_opt_articulo_combo',
-                    fn (): Collection => $combo('Articulo', 'NombreArticulo', 'articulo')
-                )
-                : $combo('Articulo', 'NombreArticulo', 'articulo'),
-            'tamano' => $withoutFilters
-                ? $remember('traza_opt_tamano', fn (): Collection => $facet('Tamano', 'tamano'))
-                : $facet('Tamano', 'tamano'),
+            'flog' => $remember('flog', 'flog', fn (): Collection => $facet('Flogs', 'flog')),
+            'articulo' => $remember(
+                'articulo_combo',
+                'articulo',
+                fn (): Collection => $combo('Articulo', 'NombreArticulo', 'articulo')
+            ),
+            'tamano' => $remember('tamano', 'tamano', fn (): Collection => $facet('Tamano', 'tamano')),
         ];
     }
 

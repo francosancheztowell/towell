@@ -7,6 +7,7 @@ namespace App\Livewire\Trazabilidad;
 use App\Services\Trazabilidad\TrazabilidadFilterOptionsService;
 use App\Services\Trazabilidad\TrazabilidadProduccionService;
 use App\Services\Trazabilidad\TrazabilidadResumenService;
+use App\Services\Trazabilidad\TrazabilidadVentasService;
 use App\ValueObjects\Trazabilidad\TrazabilidadFilters;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\On;
@@ -36,16 +37,20 @@ class Index extends Component
 
     private TrazabilidadProduccionService $production;
 
+    private TrazabilidadVentasService $sales;
+
     public function boot(
         TrazabilidadFilterOptionsService $filterOptions,
         TrazabilidadResumenService $summary,
         TrazabilidadProduccionService $production,
+        TrazabilidadVentasService $sales,
     ): void {
         $this->authorizeAccess();
 
         $this->filterOptions = $filterOptions;
         $this->summary = $summary;
         $this->production = $production;
+        $this->sales = $sales;
     }
 
     public function mount(): void
@@ -109,6 +114,11 @@ class Index extends Component
             'opcionesTamano' => $options['tamano'],
             'resumenFlog' => $hasFilter ? $this->summary->build($filterValues, $summaryValues, $tableProgress) : null,
             'tablaAvancePedido' => $tableProgress,
+            'ventas' => $hasFilter ? $this->sales->resumen(
+                $summaryValues['flogs']->all(),
+                $filters->articulo,
+                $filters->tamano,
+            ) : null,
         ]);
     }
 
