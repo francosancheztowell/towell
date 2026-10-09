@@ -16,6 +16,12 @@ use Illuminate\Support\Carbon;
  * @property string|null $Hora
  * @property Carbon|null $FechaFin
  * @property string|null $HoraFin
+ * @property string|null $Falla
+ * @property string|null $Descripcion
+ * @property string|null $OrdenTrabajo
+ * @property int|null $Turno
+ * @property string|null $Obs
+ * @property string|null $ObsCierre
  */
 class ManFallasParos extends Model
 {

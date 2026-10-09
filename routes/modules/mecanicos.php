@@ -3,7 +3,16 @@
 use App\Http\Controllers\mecanicos\Catalogos\MecActividadesController;
 use App\Http\Controllers\mecanicos\MecReportesController;
 use App\Http\Controllers\mecanicos\MecVerificaMaquinaController;
-use App\Http\Controllers\mecanicos\OrdenesTrabajoMecaController;
+use App\Http\Controllers\mecanicos\OrdenesTrabajo\ActualizarOrdenTrabajoController;
+use App\Http\Controllers\mecanicos\OrdenesTrabajo\AutorizarOrdenTrabajoController;
+use App\Http\Controllers\mecanicos\OrdenesTrabajo\ConsultaOrdenesTrabajoController;
+use App\Http\Controllers\mecanicos\OrdenesTrabajo\CrearOrdenTrabajoController;
+use App\Http\Controllers\mecanicos\OrdenesTrabajo\EliminarOrdenTrabajoController;
+use App\Http\Controllers\mecanicos\OrdenesTrabajo\FinalizarOrdenTrabajoController;
+use App\Http\Controllers\mecanicos\OrdenesTrabajo\Lineas\ActualizarLineaController;
+use App\Http\Controllers\mecanicos\OrdenesTrabajo\Lineas\CrearLineaController;
+use App\Http\Controllers\mecanicos\OrdenesTrabajo\Lineas\EliminarLineaController;
+use App\Http\Controllers\mecanicos\OrdenesTrabajo\VistaOrdenesTrabajoController;
 use App\Http\Controllers\UsuarioController;
 use Illuminate\Support\Facades\Route;
 
@@ -65,27 +74,24 @@ Route::get('/mecanicos/reportes/{moduloPadre?}', [UsuarioController::class, 'sho
 Route::prefix('mecanicos/ordenes-trabajo')
     ->as('mecanicos.ordenes-trabajo.')
     ->group(function (): void {
-        Route::get('/', [OrdenesTrabajoMecaController::class, 'index'])->name('index');
-        Route::get('/registros', [OrdenesTrabajoMecaController::class, 'registros'])->name('registros');
-        Route::get('/paros-activos', [OrdenesTrabajoMecaController::class, 'parosActivos'])->name('paros-activos');
-        Route::get('/paros-historial', [OrdenesTrabajoMecaController::class, 'parosHistorial'])->name('paros-historial');
-        Route::post('/', [OrdenesTrabajoMecaController::class, 'store'])->middleware('module.permission:crear,193,auditar')->name('store'); // Ordenes de Trabajo
-        Route::get('/{folio}/captura', [OrdenesTrabajoMecaController::class, 'captura'])->name('captura');
-        Route::get('/{folio}/refacciones', [OrdenesTrabajoMecaController::class, 'refacciones'])->name('refacciones');
-        Route::get('/{folio}', [OrdenesTrabajoMecaController::class, 'show'])->name('show');
-        Route::put('/{folio}', [OrdenesTrabajoMecaController::class, 'update'])->middleware('module.permission:modificar,193,auditar')->name('update'); // Ordenes de Trabajo
-        Route::delete('/{folio}', [OrdenesTrabajoMecaController::class, 'destroy'])
+        Route::get('/', [VistaOrdenesTrabajoController::class, 'index'])->name('index');
+        Route::get('/registros', [ConsultaOrdenesTrabajoController::class, 'registros'])->name('registros');
+        Route::get('/paros-historial', [ConsultaOrdenesTrabajoController::class, 'parosHistorial'])->name('paros-historial');
+        Route::post('/', CrearOrdenTrabajoController::class)->middleware('module.permission:crear,193,auditar')->name('store'); // Ordenes de Trabajo
+        Route::get('/{folio}/captura', [VistaOrdenesTrabajoController::class, 'captura'])->name('captura');
+        Route::get('/{folio}', [ConsultaOrdenesTrabajoController::class, 'show'])->name('show');
+        Route::put('/{folio}', ActualizarOrdenTrabajoController::class)->middleware('module.permission:modificar,193,auditar')->name('update'); // Ordenes de Trabajo
+        Route::delete('/{folio}', EliminarOrdenTrabajoController::class)
             ->middleware('module.permission:eliminar,193')->name('destroy'); // Ordenes de Trabajo
-        Route::post('/{folio}/lineas', [OrdenesTrabajoMecaController::class, 'storeLinea'])->middleware('module.permission:crear,193,auditar')->name('lineas.store'); // Ordenes de Trabajo
-        Route::put('/{folio}/lineas/{linea}', [OrdenesTrabajoMecaController::class, 'updateLinea'])->middleware('module.permission:acceso,193,auditar')->name('lineas.update')->whereNumber('linea'); // Ordenes de Trabajo; tejedores califican sin modificar
-        // destroyLinea exige eliminar (mecánico, orden Activa) o registrar / área Sistemas (supervisión, hasta antes de Autorizado).
-        Route::delete('/{folio}/lineas/{linea}', [OrdenesTrabajoMecaController::class, 'destroyLinea'])->whereNumber('linea')
+        Route::post('/{folio}/lineas', CrearLineaController::class)->middleware('module.permission:crear,193,auditar')->name('lineas.store'); // Ordenes de Trabajo
+        Route::put('/{folio}/lineas/{linea}', ActualizarLineaController::class)->middleware('module.permission:acceso,193,auditar')->name('lineas.update')->whereNumber('linea'); // Ordenes de Trabajo; tejedores califican sin modificar
+        // EliminarLineaController exige eliminar (mecánico, orden Activa) o registrar / área Sistemas (supervisión, hasta antes de Autorizado).
+        Route::delete('/{folio}/lineas/{linea}', EliminarLineaController::class)->whereNumber('linea')
             ->middleware('module.permission:acceso,193,auditar')->name('lineas.destroy'); // Ordenes de Trabajo
-        Route::post('/{folio}/finalizar', [OrdenesTrabajoMecaController::class, 'finalizar'])
-            ->middleware('module.permission:modificar,193')->name('finalizar'); // Ordenes de Trabajo
-        // OrdenesTrabajoMecaController::autorizar ya exige puedeRegistrar() (userCan registrar).
-        // La ruta decia 'modificar': se alinea con el controller.
-        Route::post('/{folio}/autorizar', [OrdenesTrabajoMecaController::class, 'autorizar'])
+        // finalizar acepta modificar (mecánico) o registrar (supervisor); lo decide OrdenTrabajoAcceso::puedeFinalizar().
+        Route::post('/{folio}/finalizar', FinalizarOrdenTrabajoController::class)
+            ->middleware('module.permission:acceso,193')->name('finalizar'); // Ordenes de Trabajo
+        Route::post('/{folio}/autorizar', AutorizarOrdenTrabajoController::class)
             ->middleware('module.permission:registrar,193')->name('autorizar'); // Ordenes de Trabajo
     });
 

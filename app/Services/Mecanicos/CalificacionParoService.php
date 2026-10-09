@@ -21,7 +21,7 @@ use App\Models\Sistema\Usuario;
  * desde ambos lados y este servicio es la única definición de la regla:
  *
  *  - El paro ya estaba cerrado cuando el mecánico finaliza la orden
- *    → OrdenesTrabajoMecaController::finalizar llama a calificarOrden().
+ *    → FinalizarOrdenTrabajoController llama a calificarOrden().
  *  - La orden ya existe y el paro se cierra después
  *    → ParosCierreController::finalizar llama a propagarAOrdenesDelParo().
  *
@@ -98,7 +98,7 @@ class CalificacionParoService
      * Reparte la calificación de un paro recién cerrado entre sus órdenes abiertas.
      *
      * Un mismo paro puede originar varias órdenes a propósito (una intervención
-     * puede requerir varios pases; ver OrdenesTrabajoMecaController::parosHistorial),
+     * puede requerir varios pases; ver ConsultaOrdenesTrabajoController::parosHistorial),
      * así que se recorren todas. Las que ya están Calificadas, Autorizadas o
      * Canceladas quedan fuera: su calificación ya está cerrada.
      *

@@ -63,6 +63,18 @@ class RutasDestructivasPermisoTest extends TestCase
         ];
     }
 
+    /**
+     * Finalizar lo hace el mecanico (modificar) o el supervisor (registrar); el router no
+     * puede exigir solo modificar o el supervisor ve el boton y recibe 403.
+     */
+    public function test_finalizar_orden_de_trabajo_no_exige_solo_modificar(): void
+    {
+        $ruta = Route::getRoutes()->getByName('mecanicos.ordenes-trabajo.finalizar');
+
+        $this->assertNotNull($ruta);
+        $this->assertSame([['acceso', '193']], $this->gatesDe($ruta));
+    }
+
     #[DataProvider('rutasDeAutorizacion')]
     public function test_autorizar_y_rechazar_exigen_registrar(string $nombreRuta): void
     {

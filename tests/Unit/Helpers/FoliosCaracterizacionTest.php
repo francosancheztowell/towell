@@ -3,7 +3,7 @@
 namespace Tests\Unit\Helpers;
 
 use App\Helpers\FolioHelper;
-use App\Http\Controllers\mecanicos\OrdenesTrabajoMecaController;
+use App\Http\Controllers\mecanicos\OrdenesTrabajo\CrearOrdenTrabajoController;
 use App\Http\Controllers\ProgramaUrdEng\ReservarProgramar\CrearOrdenKarlMayerController;
 use App\Livewire\Mecanicos\VerificaMaquina\Index as VerificaMaquinaIndex;
 use App\Models\Planeacion\ReqProgramaTejido;
@@ -281,7 +281,7 @@ class FoliosCaracterizacionTest extends TestCase
 
     private function asegurarSecuenciaMecanicos(string $origen): void
     {
-        $objeto = $origen === 'ot' ? new OrdenesTrabajoMecaController : new VerificaMaquinaIndex;
+        $objeto = $origen === 'ot' ? app(CrearOrdenTrabajoController::class) : new VerificaMaquinaIndex;
 
         $this->invocarPrivado($objeto, 'asegurarSecuenciaFolios');
     }

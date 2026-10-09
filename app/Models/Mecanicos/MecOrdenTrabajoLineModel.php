@@ -5,6 +5,20 @@ namespace App\Models\Mecanicos;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $Id
+ * @property string $Folio
+ * @property string|null $CveOperador
+ * @property string|null $NomOperador
+ * @property bool|null $Ajusto
+ * @property bool|null $Reparo
+ * @property bool|null $Cambio
+ * @property bool|null $Lubrico
+ * @property bool|null $FaltaRefacc
+ * @property string|null $HoraInicial
+ * @property string|null $HoraFinal
+ * @property int|null $Calificacion
+ */
 class MecOrdenTrabajoLineModel extends Model
 {
     protected $connection = 'sqlsrv';

@@ -217,7 +217,6 @@
                 <div>
                     <label for="cabecera-orden" class="mb-1 block text-xs font-medium text-gray-700"># Orden</label>
                     <input id="cabecera-orden" name="Orden" maxlength="20"
-                        oninput="this.value = this.value.replace(/\s+/g, '')"
                         class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                 </div>
                 <div>
@@ -246,7 +245,6 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const baseUrl = @json(url('/mecanicos/ordenes-trabajo'));
-    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || @json(csrf_token());
     const turnoSugerido = @json((string) $turnoSugerido);
     const fechaSugerida = @json($fechaSugerida);
     const horaSugerida = @json($horaSugerida);
@@ -351,42 +349,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function api(url, options = {}) {
-        if (window.http) {
-            const method = (options.method || 'GET').toLowerCase();
-            try {
-                const payload = method === 'get'
-                    ? await window.http.get(url)
-                    : await window.http[method](url, options.data);
-                if (payload?.success === false) {
-                    const error = new Error(payload.error || 'No se pudo completar la solicitud.');
-                    error.payload = payload;
-                    throw error;
-                }
-                return payload;
-            } catch (error) {
-                error.payload = error.payload || error.data || {};
+        const method = (options.method || 'GET').toLowerCase();
+        try {
+            const payload = method === 'get'
+                ? await window.http.get(url)
+                : await window.http[method](url, options.data);
+            if (payload?.success === false) {
+                const error = new Error(payload.error || 'No se pudo completar la solicitud.');
+                error.payload = payload;
                 throw error;
             }
-        }
-
-        const headers = { Accept: 'application/json', ...(options.headers || {}) };
-        if (options.method && options.method !== 'GET') headers['X-CSRF-TOKEN'] = csrfToken;
-        if (options.data !== undefined) headers['Content-Type'] = 'application/json';
-
-        const response = await fetch(url, {
-            method: options.method || 'GET',
-            headers,
-            body: options.data !== undefined ? JSON.stringify(options.data) : undefined,
-        });
-
-        const payload = await response.json().catch(() => ({}));
-        if (! response.ok || payload.success === false) {
-            const error = new Error(payload.error || 'No se pudo completar la solicitud.');
-            error.payload = payload;
+            return payload;
+        } catch (error) {
+            error.payload = error.payload || error.data || {};
             throw error;
         }
-
-        return payload;
     }
 
     function obtenerFiltros() {
@@ -827,10 +804,10 @@ document.addEventListener('DOMContentLoaded', () => {
         button.textContent = 'Guardando…';
 
         try {
-            const result = await api(baseUrl, {
-                method: 'POST',
-                data: Object.fromEntries(new FormData($('#form-cabecera')).entries()),
-            });
+            // El check va deshabilitado en "Otros" y FormData omite los controles deshabilitados.
+            const data = Object.fromEntries(new FormData($('#form-cabecera')).entries());
+            data.CapturaManual = $('#check-captura-manual').checked ? '1' : '0';
+            const result = await api(baseUrl, { method: 'POST', data });
             window.location.assign(`${baseUrl}/${encodeURIComponent(result.data.Folio)}/captura`);
         } catch (error) {
             notificar('error', mensajeError(error));
@@ -871,6 +848,9 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#btn-cerrar-filtros')?.addEventListener('click', cerrarPanelFiltros);
 
     $('#btn-nueva-orden')?.addEventListener('click', abrirNuevaOrden);
+    $('#cabecera-orden').addEventListener('input', (event) => {
+        event.target.value = event.target.value.replace(/\s+/g, '');
+    });
     $('#select-depto-paro').addEventListener('change', onDeptoParoChange);
     $('#select-telar-paro').addEventListener('change', onTelarParoChange);
     $('#select-paro-folio').addEventListener('change', aplicarParoSeleccionado);

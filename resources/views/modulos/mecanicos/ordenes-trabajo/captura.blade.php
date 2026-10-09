@@ -19,19 +19,8 @@
         'Terminado' => 'Finalizado',
         default => $estatusActual,
     };
-    $modoTejedor = $modoTejedor ?? ($esTejedor && ! ($puedeEditar ?? false));
-    $puedeRegistrar = $puedeRegistrar ?? $esSupervisor;
-    $puedeCrear = $puedeCrear ?? false;
-    $puedeEditar = $puedeEditar ?? false;
-    $puedeEliminar = $puedeEliminar ?? false;
-    $puedeFinalizar = $puedeFinalizar ?? false;
-    $puedeCalificar = $puedeCalificar ?? false;
-    $puedeAutorizar = $puedeAutorizar ?? false;
-    $bloqueadaEdicion = $bloqueadaEdicion ?? in_array($estatusActual, ['Terminado', 'Calificado', 'Autorizado'], true);
-    $turnoSugerido = (int) ($turnoSugerido ?? \App\Helpers\TurnoHelper::getTurnoActual());
-    $fechaSugerida = $fechaSugerida ?? now('America/Mexico_City')->toDateString();
-    $nombrePrimerMecanico = trim((string) optional($orden->lineas)->first(
-        fn ($linea) => trim((string) ($linea->NomOperador ?? '')) !== ''
+    $nombrePrimerMecanico = trim((string) $orden->lineas->first(
+        fn ($linea) => trim((string) $linea->NomOperador) !== ''
     )?->NomOperador) ?: '—';
 @endphp
 <div class="w-full p-3 sm:p-4 lg:p-5 short:p-2">
@@ -47,12 +36,12 @@
                         <span class="inline-flex rounded-full px-3 py-1.5 text-xs font-bold {{ $badgeClases }}">{{ $badgeLabel }}</span>
                         @if ($puedeCalificar)
                             <span class="inline-flex rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700">
-                                {{ ($esSupervisor ?? false) && ! ($modoTejedor ?? false) ? 'Calificar intervenciones' : 'Modo tejedor · calificar' }}
+                                {{ $esSupervisor && ! $modoTejedor ? 'Calificar intervenciones' : 'Modo tejedor · calificar' }}
                             </span>
                         @endif
                     </div>
                     <div class="flex flex-wrap items-center justify-end gap-2">
-                        @if (! $bloqueadaEdicion && ! ($modoTejedor ?? false) && ($puedeEditar || $puedeCrear))
+                        @if (! $bloqueadaEdicion && ! $modoTejedor && ($puedeEditar || $puedeCrear))
                             <button id="btn-guardar-linea" type="submit" form="form-linea"
                                 class="inline-flex min-h-11 items-center justify-center rounded-md bg-gray-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60 sm:text-base">
                                 Guardar intervención
@@ -115,7 +104,7 @@
             </div>
         </section>
 
-        @if (! $bloqueadaEdicion && ! ($modoTejedor ?? false) && ($puedeEditar || $puedeCrear))
+        @if (! $bloqueadaEdicion && ! $modoTejedor && ($puedeEditar || $puedeCrear))
         {{-- Formulario de captura (mecánico / supervisor) --}}
         <section id="seccion-captura" class="rounded-lg border border-gray-200 bg-white p-3 shadow-sm short:p-2">
             <form id="form-linea" class="space-y-3 short:space-y-2">
@@ -128,7 +117,7 @@
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                             <option value="">Seleccione</option>
                             @foreach ($operadores as $operador)
-                                <option value="{{ $operador->CveEmpl }}">{{ $operador->CveEmpl }} · {{ $operador->NomEmpl }}@if ($operador->Turno) (T{{ $operador->Turno }}) @endif</option>
+                                <option value="{{ $operador['CveEmpl'] }}">{{ $operador['CveEmpl'] }} · {{ $operador['NomEmpl'] }}@if ($operador['Turno']) (T{{ $operador['Turno'] }}) @endif</option>
                             @endforeach
                         </select>
                         {{-- El nombre viaja junto con la clave: el select ya muestra ambos. --}}
@@ -139,7 +128,7 @@
                         <select id="linea-turno" name="Turno"
                             class="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-base outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900">
                             @foreach ([1, 2, 3, 4] as $turno)
-                                <option value="{{ $turno }}" @selected($turno === $turnoSugerido)>Turno {{ $turno }}@if ($turno === 4) @endif</option>
+                                <option value="{{ $turno }}" @selected($turno === $turnoSugerido)>Turno {{ $turno }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -219,7 +208,7 @@
             </div>
         </section>
 
-        @include('modulos.mecanicos.ordenes-trabajo._refacciones', ['refacciones' => $refacciones ?? null])
+        @include('modulos.mecanicos.ordenes-trabajo._refacciones')
     </div>
 </div>
 @endsection
@@ -232,18 +221,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const operadores = @json($operadores);
     const operadoresPorClave = new Map(operadores.map(operador => [String(operador.CveEmpl), operador]));
     let orden = @json($orden);
-    const puedeCrear = @json($puedeCrear ?? false);
-    const puedeEditar = @json($puedeEditar ?? false);
-    const puedeEliminar = @json($puedeEliminar ?? false);
-    const puedeCalificar = @json($puedeCalificar ?? false);
-    const puedeFinalizar = @json($puedeFinalizar ?? false);
-    const puedeAutorizar = @json($puedeAutorizar ?? false);
+    const puedeEditar = @json($puedeEditar);
+    const puedeEliminar = @json($puedeEliminar);
+    const puedeCalificar = @json($puedeCalificar);
     const bloqueada = @json($bloqueada);
-    const bloqueadaEdicion = @json($bloqueadaEdicion ?? false);
-    const tejedorCve = @json($tejedorCve);
-    const tejedorNombre = @json($tejedorNombre);
-    const capturaCve = @json($usuarioCapturaCve ?? '');
-    const capturaNombre = @json($usuarioCapturaNombre ?? '');
+    const bloqueadaEdicion = @json($bloqueadaEdicion);
+    // El usuario en sesión es el tejedor que califica y el mecánico que captura.
+    const tejedorCve = @json($usuarioCve);
+    const tejedorNombre = @json($usuarioNombre);
+    const capturaCve = tejedorCve;
+    const capturaNombre = tejedorNombre;
     const turnoSugerido = @json($turnoSugerido);
     const fechaSugerida = @json($fechaSugerida);
 
@@ -283,8 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return html;
     }
 
-    // options.timer ya no aplica: los toasts de notify duran lo mismo (UX-13).
-    function notificar(icon, title, text = '', options = {}) {
+    function notificar(icon, title, text = '') {
         const mensaje = text ? `${title}\n${text}` : title;
         if (window.notify) {
             (window.notify[icon] || window.notify.info)(mensaje);
@@ -308,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function mensajeError(error) {
         const errors = error?.payload?.errors || {};
         const validationMessages = Object.values(errors).flat().filter(Boolean);
-        return validationMessages[0] || error?.payload?.error || 'Ocurrió un error inesperado.';
+        return validationMessages[0] || error?.payload?.error || error?.payload?.message || 'Ocurrió un error inesperado.';
     }
 
     async function api(url, options = {}) {
@@ -416,11 +402,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderLineas() {
         const lineas = orden.lineas || [];
-        const totalLineas = $('#total-lineas');
-        if (totalLineas) {
-            totalLineas.textContent = `${lineas.length} ${lineas.length === 1 ? 'renglón' : 'renglones'}`;
-        }
-
         if (! lineas.length) {
             lineasBody.innerHTML = '<tr><td colspan="17" class="px-4 py-10 text-center text-sm text-gray-500">No hay renglones capturados.</td></tr>';
             return;
@@ -503,9 +484,6 @@ document.addEventListener('DOMContentLoaded', () => {
         aplicarTurno(linea.Turno);
         aplicarFecha(linea.Fecha);
         $('#linea-comentarios').value = linea.comentarios || '';
-        if ($('#linea-calificacion')) $('#linea-calificacion').value = linea.Calificacion ?? '';
-        if ($('#linea-cve-tejedor')) $('#linea-cve-tejedor').value = linea.CveTejedor || '';
-        if ($('#linea-nom-tejedor')) $('#linea-nom-tejedor').value = linea.NomTejedor || '';
         $('#btn-guardar-linea').textContent = lineaSinCaptura(linea) ? 'Guardar primer renglón' : 'Guardar cambios';
         if (lineaSinCaptura(linea)) {
             aplicarUsuarioCaptura();
@@ -681,7 +659,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const select = lineasBody.querySelector(`select[data-calificacion-linea="${lineaId}"]`);
         const calificacion = select?.value;
         if (! calificacion) {
-            notificar('warning', 'Selecciona una calificación del 1 al 10.');
+            notificar('warning', 'Selecciona una calificación del 1 al 5.');
             return;
         }
 
@@ -804,13 +782,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (! bloqueadaEdicion && ! puedeCalificar && puedeEditar) prepararCapturaInicial();
 
     if (bloqueada) {
-        notificar('success', 'Orden autorizada', 'Esta orden quedó en solo lectura.', { timer: 4000 });
+        notificar('success', 'Orden autorizada', 'Esta orden quedó en solo lectura.');
     } else if (puedeCalificar) {
-        notificar('info', 'Calificar intervenciones', 'Elige 1–10 en cada renglón y guarda. Cuando todos estén calificados, la orden pasará a Calificado.', { timer: 5000 });
+        notificar('info', 'Calificar intervenciones', 'Elige 1–5 en cada renglón y guarda. Cuando todos estén calificados, la orden pasará a Calificado.');
     } else if (orden.Estatus === 'Terminado') {
-        notificar('info', 'Orden finalizada', 'Pendiente de calificación del tejedor.', { timer: 4000 });
+        notificar('info', 'Orden finalizada', 'Pendiente de calificación del tejedor.');
     } else if (orden.Estatus === 'Calificado') {
-        notificar('info', 'Orden calificada', 'El supervisor puede autorizarla.', { timer: 4000 });
+        notificar('info', 'Orden calificada', 'El supervisor puede autorizarla.');
     }
 });
 </script>
