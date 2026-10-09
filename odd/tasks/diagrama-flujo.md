@@ -47,3 +47,11 @@ We want the same look, but declarative (nodes/edges as config), interactive, and
 
 ## Next step
 Visual check at /dev/ui-kit#flujo; then choose data source and module.
+
+## Review (RDD)
+- Range b7549db5..73908864: medium risk, consent granted, 1-lens review approved and acknowledged (review-ba792cd5dc03366d).
+- Advisory follow-ups (non-blocking):
+  - [ ] F1 Fixture: MP/MPBB → PTE edges attribute all three pretejido splits to A-PTE-JACQ; split into per-target edges.
+  - [ ] F2 Renderer has no tests (hover dimming, callbacks, keyboard, destruir).
+  - [ ] F3 `validar` should reject non-finite/negative coords and sizes.
+  - [ ] F4 Tooltip top position is not clamped.
