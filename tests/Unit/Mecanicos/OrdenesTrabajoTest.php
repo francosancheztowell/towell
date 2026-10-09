@@ -301,7 +301,7 @@ class OrdenesTrabajoTest extends TestCase
         $this->assertSame('Comentario manual', $datos['Comentarios']);
     }
 
-    public function test_origen_desde_paro_conserva_fecha_de_paro_sin_pisar_la_de_creacion(): void
+    public function test_origen_desde_paro_toma_maquina_falla_y_fecha_del_paro(): void
     {
         DB::connection('sqlsrv')->table('dbo.ManFallasParos')->insert([
             'Folio' => 'PARO-201-A',
@@ -325,8 +325,7 @@ class OrdenesTrabajoTest extends TestCase
             'Falla' => 'texto cliente',
         ], false);
 
-        // La Fecha de la orden (día del folio) la pone el controller al crear, no el origen.
-        $this->assertSame('2026-01-01', $datos['Fecha']);
+        // La fecha de la orden (día del folio) la fija OrdenesTrabajoHttpTest al crear.
         $this->assertSame('2026-08-20', $datos['FechaParo']);
         $this->assertSame('201', $datos['TelarId']);
         $this->assertSame('M-01 — Falla mecánica', $datos['Falla']);
