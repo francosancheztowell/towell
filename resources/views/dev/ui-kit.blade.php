@@ -21,7 +21,7 @@
     $secciones = [
         'tokens' => 'Tokens', 'botones' => 'Botones', 'badges' => 'Badges', 'campos' => 'Campos',
         'modal' => 'Modal', 'tabla' => 'Tabla', 'filtros' => 'Filtros', 'vacios' => 'Vacíos',
-        'carga' => 'Carga', 'avisos' => 'Avisos', 'pt' => 'Modales de PT',
+        'carga' => 'Carga', 'avisos' => 'Avisos', 'flujo' => 'Diagrama de flujo', 'pt' => 'Modales de PT',
     ];
     $maquinas = [
         ['id' => 'KM-01', 'tipo' => 'Urdidora', 'estado' => 'Activa'],
@@ -268,6 +268,18 @@ flash: el layout ya monta <x-ui.flash>; basta con redirect()->with("error", "…
         <x-ui.alert type="info">Contenido libre en el slot</x-ui.alert>
     @endcomponent
 
+    @component('dev.ui-kit.seccion', ['id' => 'flujo', 'titulo' => 'Diagrama de flujo · montarDiagramaFlujo'])
+        @slot('descripcion')Ejemplo estático: flujo de almacenes del Kardex de agosto 2026. Pasa el cursor o enfoca con Tab para resaltar conexiones; clic o Enter abre el detalle. Código: <code>resources/js/componentes/diagrama-flujo/</code>.@endslot
+        @slot('codigo')
+@verbatim
+import { montarDiagramaFlujo } from '../componentes/diagrama-flujo/index.ts'
+const h = montarDiagramaFlujo(contenedor, { ancho, alto, nodos, aristas, secciones }, { onNodo, onArista })
+h.actualizar(otroDiagrama); h.destruir()
+@endverbatim
+        @endslot
+        <div id="kitDiagramaFlujo"></div>
+    @endcomponent
+
     @component('dev.ui-kit.seccion', ['id' => 'pt', 'titulo' => 'Compatibilidad · modales de Programa Tejido'])
         @slot('descripcion')Los tres usos reales de x-ui.modal-base (parciales de PT incluidos tal cual). Sus datos vienen de PT, así que aquí pueden abrir vacíos o con aviso de error; lo que se comprueba es abrir/cerrar con el JS de PT.@endslot
         <div class="flex flex-wrap gap-2">
@@ -301,3 +313,7 @@ flash: el layout ya monta <x-ui.flash>; basta con redirect()->with("error", "…
 @include('modulos.programa-tejido.modal.repaso')
 @include('modulos.programa-tejido.modal.marbetes')
 @endsection
+
+@push('scripts')
+    @vite('resources/js/modulos/dev/ui-kit/index.ts')
+@endpush
