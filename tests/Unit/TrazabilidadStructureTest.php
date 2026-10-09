@@ -148,6 +148,7 @@ class TrazabilidadStructureTest extends TestCase
         $this->assertStringContainsString('detalle="flogs"', file_get_contents($base.'/_flog.blade.php'));
         $this->assertStringContainsString('detalle="produccion"', file_get_contents($base.'/_avance.blade.php'));
         $this->assertStringContainsString('detalle="trazabilidad"', file_get_contents($base.'/_trazabilidad.blade.php'));
+        $this->assertStringContainsString("'ventas'", file_get_contents($base.'/_ventas.blade.php'));
         $this->assertStringContainsString(
             'data-resumen-detalle="{{ $detalle }}"',
             file_get_contents(resource_path('views/components/trazabilidad/tarjeta.blade.php')),

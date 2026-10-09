@@ -25,6 +25,7 @@ class TrazabilidadPermisosTest extends TestCase
         '/trazabilidad/detalles/matriz?flog=F-1',
         '/trazabilidad/detalles/produccion?flog=F-1',
         '/trazabilidad/detalles/flog?flog=F-1',
+        '/trazabilidad/detalles/ventas?flog=F-1',
         '/trazabilidad/opciones/flog',
         '/trazabilidad/redbooth?flog=F-1',
         '/trazabilidad/flog-archivo?file=a.jpg',

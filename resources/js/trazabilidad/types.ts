@@ -1,4 +1,4 @@
-export type DetailType = 'flogs' | 'trazabilidad' | 'produccion';
+export type DetailType = 'flogs' | 'trazabilidad' | 'produccion' | 'ventas';
 
 export interface TrazabilidadFilters {
     flog: string;

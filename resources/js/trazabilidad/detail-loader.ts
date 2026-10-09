@@ -26,6 +26,7 @@ const TITLES: Record<DetailType, string> = {
     flogs: 'Flog',
     trazabilidad: 'Trazabilidad',
     produccion: 'Programa tejido',
+    ventas: 'Ventas',
 };
 
 export class DetailLoader {

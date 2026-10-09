@@ -11,6 +11,7 @@ Route::prefix('trazabilidad')->name('trazabilidad.')->middleware('module.permiss
     Route::get('/detalles/matriz', [TrazabilidadDetailController::class, 'matrix'])->name('details.matrix');
     Route::get('/detalles/produccion', [TrazabilidadDetailController::class, 'production'])->name('details.production');
     Route::get('/detalles/flog', [TrazabilidadDetailController::class, 'flog'])->name('details.flog');
+    Route::get('/detalles/ventas', [TrazabilidadDetailController::class, 'sales'])->name('details.sales');
     Route::get('/opciones/flog', [TrazabilidadController::class, 'opcionesFlog'])->name('opciones.flog');
     Route::get('/redbooth', [TrazabilidadController::class, 'redbooth'])->name('redbooth');
     Route::get('/flog-archivo', [TrazabilidadController::class, 'flogArchivo'])->name('flog-archivo');

@@ -6,9 +6,11 @@ namespace App\Http\Controllers\Trazabilidad;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Trazabilidad\TrazabilidadDetailRequest;
+use App\Services\Trazabilidad\TrazabilidadFilterOptionsService;
 use App\Services\Trazabilidad\TrazabilidadFlogsService;
 use App\Services\Trazabilidad\TrazabilidadMatrixService;
 use App\Services\Trazabilidad\TrazabilidadProduccionService;
+use App\Services\Trazabilidad\TrazabilidadVentasService;
 use Illuminate\Http\JsonResponse;
 
 final class TrazabilidadDetailController extends Controller
@@ -17,6 +19,8 @@ final class TrazabilidadDetailController extends Controller
         private readonly TrazabilidadMatrixService $matrix,
         private readonly TrazabilidadProduccionService $production,
         private readonly TrazabilidadFlogsService $flogs,
+        private readonly TrazabilidadFilterOptionsService $filterOptions,
+        private readonly TrazabilidadVentasService $sales,
     ) {}
 
     public function matrix(TrazabilidadDetailRequest $request): JsonResponse
@@ -134,6 +138,28 @@ final class TrazabilidadDetailController extends Controller
         return $this->detailResponse('flog', $html, [
             'estado' => $data['estado'],
             'lineas' => count($data['lineas']),
+        ], $startedAt);
+    }
+
+    public function sales(TrazabilidadDetailRequest $request): JsonResponse
+    {
+        $startedAt = hrtime(true);
+        $filters = $request->filters();
+        abort_unless($filters->hasAny(), 422, 'Selecciona al menos un filtro.');
+
+        // Los mismos Flogs que usa la tarjeta (las facetas salen de caché).
+        $flogs = $this->filterOptions->summaryValues($filters, $this->filterOptions->build($filters))['flogs']->all();
+        $data = $this->sales->detalle($flogs, $filters->flog, $filters->articulo, $filters->tamano);
+        // Referencia de la curva: el pedido de AX (null si AX no responde).
+        $pedido = $data ? ($this->flogs->facturacion($flogs, $filters->articulo, $filters->tamano)['pedido'] ?? null) : null;
+
+        $html = view('modulos.trazabilidad._ventas_detalle', [
+            'ventas' => $data,
+            'pedido' => $pedido,
+        ])->render();
+
+        return $this->detailResponse('sales', $html, [
+            'facturas' => count($data['facturas'] ?? []),
         ], $startedAt);
     }
 

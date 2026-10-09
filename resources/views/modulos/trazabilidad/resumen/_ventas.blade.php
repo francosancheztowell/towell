@@ -4,7 +4,7 @@
     $monto = static fn (float $valor): string => number_format($valor, 0);
 @endphp
 
-<x-trazabilidad.tarjeta titulo="Ventas">
+<x-trazabilidad.tarjeta titulo="Ventas" :detalle="filled($ventas['clientes'] ?? null) ? 'ventas' : null">
     @if ($ventas === null)
         <div class="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
             <flux:icon.exclamation-triangle class="size-7 text-zinc-300" />

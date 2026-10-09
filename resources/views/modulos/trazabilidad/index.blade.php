@@ -26,6 +26,7 @@
                     'trazabilidad' => route('trazabilidad.details.matrix'),
                     'produccion' => route('trazabilidad.details.production'),
                     'flogs' => route('trazabilidad.details.flog'),
+                    'ventas' => route('trazabilidad.details.sales'),
                 ],
             ],
         ];
