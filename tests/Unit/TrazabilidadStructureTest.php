@@ -227,7 +227,7 @@ class TrazabilidadStructureTest extends TestCase
         $service = file_get_contents(app_path('Services/Trazabilidad/TrazabilidadResumenService.php'));
 
         $this->assertStringContainsString("['dot']", $card);
-        $this->assertStringContainsString('$this->matrixService->areasFijas', $service);
+        $this->assertStringContainsString('$this->matrixService->areasPara(', $service);
         $this->assertStringContainsString("['fechaInicio']", $card);
         $this->assertStringContainsString("['fechaFin']", $card);
         $this->assertStringContainsString('round((float) ($fila->piezas ?? 0), 0)', $service);

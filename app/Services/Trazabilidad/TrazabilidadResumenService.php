@@ -126,7 +126,7 @@ class TrazabilidadResumenService
     {
         $totales = $filas->groupBy(fn ($fila) => trim((string) $fila->NombreAlmacen));
 
-        return collect($this->matrixService->areasFijas)
+        return collect($this->matrixService->areasPara($totales->keys()))
             ->map(function (array $area) use ($totales) {
                 $registros = $totales->get($area['nombre'], collect());
 

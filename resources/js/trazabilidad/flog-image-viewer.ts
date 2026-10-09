@@ -1,4 +1,4 @@
-import { errorMessage, eventElement, queryElement } from './dom';
+import { eventElement, queryElement } from './dom';
 
 interface ViewerState {
     src: string;
@@ -12,6 +12,8 @@ interface ViewerState {
     dragStartY: number;
     panStartX: number;
     panStartY: number;
+    /** Se arrastró la imagen: el click que sigue al pointerup no cierra el visor. */
+    ignorarClic: boolean;
 }
 
 export class FlogImageViewer {
@@ -27,6 +29,7 @@ export class FlogImageViewer {
         dragStartY: 0,
         panStartX: 0,
         panStartY: 0,
+        ignorarClic: false,
     };
 
     private readonly result: HTMLElement;
@@ -111,6 +114,10 @@ export class FlogImageViewer {
         const target = eventElement(event);
         if (!target) return;
 
+        // Al soltar un arrastre fuera de la imagen, el click llega al stage y lo cerraría.
+        const trasArrastre = this.state.ignorarClic;
+        this.state.ignorarClic = false;
+
         if (target.closest('[data-modal-flog-close]')) {
             this.close();
             return;
@@ -128,12 +135,13 @@ export class FlogImageViewer {
             return;
         }
         if (target.closest('[data-flog-download]')) {
-            void this.download();
+            this.download();
             return;
         }
         if (
-            target.classList.contains('modal-flog-imagen__backdrop')
-            || (target.closest('[data-flog-stage]') && target.tagName !== 'IMG')
+            !trasArrastre
+            && (target.classList.contains('modal-flog-imagen__backdrop')
+                || (target.closest('[data-flog-stage]') && target.tagName !== 'IMG'))
         ) {
             this.close();
         }
@@ -180,6 +188,8 @@ export class FlogImageViewer {
         if (!this.state.dragging) return;
 
         this.state.dragging = false;
+        this.state.ignorarClic = this.state.panX !== this.state.panStartX
+            || this.state.panY !== this.state.panStartY;
         this.stage()?.classList.remove('is-dragging');
     }
 
@@ -262,25 +272,18 @@ export class FlogImageViewer {
         if (label) label.textContent = `${percentage}%`;
     }
 
-    private async download(): Promise<void> {
+    private download(): void {
         if (!this.state.src) return;
 
-        try {
-            const response = await fetch(this.state.src, { credentials: 'same-origin' });
-            if (!response.ok) throw new Error('No se pudo obtener la imagen.');
-
-            const url = URL.createObjectURL(await response.blob());
-            const anchor = document.createElement('a');
-            anchor.href = url;
-            anchor.download = this.fileName();
-            document.body.appendChild(anchor);
-            anchor.click();
-            anchor.remove();
-            URL.revokeObjectURL(url);
-            window.notify?.success('Descarga iniciada');
-        } catch (error) {
-            window.notify?.error(errorMessage(error, 'No se pudo descargar la imagen.'));
-        }
+        // ponytail: descarga nativa con <a download>, sin pedir la imagen por JS. La imagen
+        // ya se está viendo, así que la sesión está viva. Si src es de otro origen, el
+        // navegador ignora `download` y la abre en vez de bajarla.
+        const anchor = document.createElement('a');
+        anchor.href = this.state.src;
+        anchor.download = this.fileName();
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
     }
 
     private fileName(): string {

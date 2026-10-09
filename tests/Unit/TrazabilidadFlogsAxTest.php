@@ -144,4 +144,36 @@ class TrazabilidadFlogsAxTest extends TestCase
         $this->assertNull($servicio->facturacion(['SIN-LINEAS']));
         $this->assertNull($servicio->facturacion([]));
     }
+
+    public function test_con_ax_caido_no_reintenta_durante_un_minuto(): void
+    {
+        $servicio = new TrazabilidadFlogsService;
+
+        // AX caído: la conexión apunta a un archivo SQLite que no existe y no conecta.
+        config()->set('database.connections.sqlsrv_ti.database', storage_path('framework/testing/ax-inexistente.sqlite'));
+        DB::purge('sqlsrv_ti');
+        $this->assertNull($servicio->facturacion(['FL-1']));
+
+        // AX vuelve con datos, pero durante el minuto no se reintenta: sigue "—".
+        $this->axEnMemoriaConLinea('FL-2');
+        $this->assertNull($servicio->facturacion(['FL-2']));
+
+        // Pasado el minuto vuelve a consultar y ya trae las cifras.
+        $this->travel(61)->seconds();
+        $this->assertSame(10.0, $servicio->facturacion(['FL-2'])['pedido'] ?? null);
+    }
+
+    /** Vuelve a la base en memoria (solo vive durante el test) con una línea del Flog dado. */
+    private function axEnMemoriaConLinea(string $flog): void
+    {
+        config()->set('database.connections.sqlsrv_ti', ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']);
+        DB::purge('sqlsrv_ti');
+        $conn = DB::connection('sqlsrv_ti');
+        $conn->statement("ATTACH DATABASE ':memory:' AS dbo");
+        $conn->statement('CREATE TABLE dbo."TwFlogsItemLine" ("IDFLOG", "ITEMID", "INVENTSIZEID", "INVENTCOLORID", "ESTADOLINEA", "INVENTQTY", "FACTURADO", "PORENTREGAR")');
+        $conn->table('dbo.TwFlogsItemLine')->insert([
+            'IDFLOG' => $flog, 'ITEMID' => 'A', 'INVENTSIZEID' => 'MB', 'INVENTCOLORID' => 'C1',
+            'ESTADOLINEA' => 0, 'INVENTQTY' => 10, 'FACTURADO' => 0, 'PORENTREGAR' => 10,
+        ]);
+    }
 }

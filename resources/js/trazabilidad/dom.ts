@@ -5,14 +5,14 @@ export function queryElement<T extends Element>(
     return root.querySelector<T>(selector);
 }
 
+/**
+ * Elemento HTML que recibió el evento. Un toque sobre el icono de un botón Flux
+ * llega desde el <svg>/<path>: se sube al elemento HTML que lo contiene.
+ */
 export function eventElement(event: Event): HTMLElement | null {
-    return event.target instanceof HTMLElement ? event.target : null;
-}
+    const target = event.target instanceof Element ? event.target : null;
 
-export function isOpen(element: HTMLElement | null): boolean {
-    return element !== null
-        && !element.classList.contains('hidden')
-        && element.style.display !== 'none';
+    return target instanceof HTMLElement ? target : (target?.closest('svg')?.parentElement ?? null);
 }
 
 export function errorMessage(error: unknown, fallback: string): string {

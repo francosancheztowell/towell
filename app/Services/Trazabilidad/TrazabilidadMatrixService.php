@@ -23,6 +23,7 @@ final class TrazabilidadMatrixService
      */
     public array $areasFijas = [
         ['nombre' => 'Crudo',              'text' => '#475569', 'dot' => '#94a3b8', 'tint' => '#eef2f7'],
+        ['nombre' => 'Rasurado Crudo',     'text' => '#57534e', 'dot' => '#a8a29e', 'tint' => '#f5f5f4'],
         ['nombre' => 'Rollos Teñido',      'text' => '#1e40af', 'dot' => '#60a5fa', 'tint' => '#dbeafe'],
         ['nombre' => 'Acabado',            'text' => '#0d9488', 'dot' => '#2dd4bf', 'tint' => '#d3f5ee'],
         ['nombre' => 'Desengome',          'text' => '#155e75', 'dot' => '#22d3ee', 'tint' => '#cffafe'],
@@ -34,10 +35,36 @@ final class TrazabilidadMatrixService
         ['nombre' => 'Recep Maq Toalla',   'text' => '#92400e', 'dot' => '#fbbf24', 'tint' => '#fef3c7'],
         ['nombre' => 'Recep Maq Bata',     'text' => '#9a3412', 'dot' => '#fb923c', 'tint' => '#ffedd5'],
         ['nombre' => 'Recep Maq Bordado',  'text' => '#9f1239', 'dot' => '#fb7185', 'tint' => '#ffe4e6'],
+        ['nombre' => 'Recep Maq Estampado', 'text' => '#0369a1', 'dot' => '#38bdf8', 'tint' => '#e0f2fe'],
+        ['nombre' => 'Recep Maq Peg Eti',  'label' => 'Recep Maq Pega Etiqueta', 'text' => '#991b1b', 'dot' => '#f87171', 'tint' => '#fee2e2'],
         ['nombre' => 'Segundas',           'text' => '#9d174d', 'dot' => '#f472b6', 'tint' => '#fce7f3'],
         ['nombre' => 'Felpas Prod Term', 'label' => 'Felpas Prod Term', 'text' => '#854d0e', 'dot' => '#eab308', 'tint' => '#fef9c3'],
         ['nombre' => 'Ent Prod Term',      'label' => 'Entrada Prod Term', 'text' => '#065f46', 'dot' => '#34d399', 'tint' => '#d1fae5'],
     ];
+
+    /**
+     * Áreas fijas más las que traiga la BD y no estén en la lista: van al final, en gris,
+     * para que un área nueva del ETL no desaparezca sin aviso de la matriz y del resumen.
+     *
+     * @param  iterable<mixed>  $nombres  NombreAlmacen presentes en los datos.
+     * @return array<int, array<string, string>>
+     */
+    public function areasPara(iterable $nombres): array
+    {
+        $nuevas = collect($nombres)
+            ->map(static fn (mixed $nombre): string => trim((string) $nombre))
+            ->filter()
+            ->unique()
+            ->diff(array_column($this->areasFijas, 'nombre'))
+            ->sort()
+            ->map(static fn (string $nombre): array => [
+                'nombre' => $nombre, 'text' => '#475569', 'dot' => '#94a3b8', 'tint' => '#f1f5f9',
+            ])
+            ->values()
+            ->all();
+
+        return [...$this->areasFijas, ...$nuevas];
+    }
 
     /**
      * Construye la matriz de piezas a partir de los filtros activos.
@@ -120,7 +147,7 @@ final class TrazabilidadMatrixService
         $detallePorArea = [];
 
         foreach ($detalleRaw as $fila) {
-            $area = $fila->NombreAlmacen ?? '';
+            $area = trim((string) ($fila->NombreAlmacen ?? ''));
             $pos = $posFecha[$claveFecha($fila->Fecha)] ?? null;
             if ($pos === null) {
                 continue;
@@ -141,7 +168,7 @@ final class TrazabilidadMatrixService
         }
 
         $numCols = count($fechas);
-        $areas = collect($this->areasFijas)->map(function ($area) use ($valoresPorArea, $detallePorArea, $numCols, $decimales) {
+        $areas = collect($this->areasPara(array_keys($valoresPorArea)))->map(function ($area) use ($valoresPorArea, $detallePorArea, $numCols, $decimales) {
             $valores = [];
             for ($c = 0; $c < $numCols; $c++) {
                 $valores[$c] = isset($valoresPorArea[$area['nombre']][$c])

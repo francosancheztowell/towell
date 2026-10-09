@@ -1,9 +1,10 @@
 <div id="trazabilidad-livewire" class="space-y-4" data-trazabilidad-livewire>
-    <flux:card size="sm" class="!p-3 md:!p-4">
-        <form wire:submit.prevent class="flex flex-col gap-3 md:flex-row md:items-end">
-            <div class="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-3">
-                <flux:field>
-                    <flux:label for="filtro-flog">Flog</flux:label>
+    <flux:card size="sm" class="!p-2">
+        <form wire:submit.prevent class="flex flex-col gap-2 md:flex-row md:items-center">
+            <div class="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-3">
+                {{-- Etiqueta a la izquierda: una sola fila, la barra ocupa la mitad de alto. --}}
+                <div class="flex min-w-0 items-center gap-2">
+                    <flux:label for="filtro-flog" class="shrink-0">Flog</flux:label>
                     {{-- Solo viaja el Flog seleccionado: el resto se busca por AJAX. --}}
                     <select id="filtro-flog" class="filtro-select"
                             data-livewire-filter="flog"
@@ -13,10 +14,10 @@
                             <option value="{{ $flog }}" selected>{{ $flog }}</option>
                         @endif
                     </select>
-                </flux:field>
+                </div>
 
-                <flux:field>
-                    <flux:label for="filtro-articulo">Artículo</flux:label>
+                <div class="flex min-w-0 items-center gap-2">
+                    <flux:label for="filtro-articulo" class="shrink-0">Artículo</flux:label>
                     <select id="filtro-articulo" class="filtro-select" data-livewire-filter="articulo">
                         <option value="">Todos</option>
                         @foreach ($opcionesArticulo as $option)
@@ -25,21 +26,21 @@
                             </option>
                         @endforeach
                     </select>
-                </flux:field>
+                </div>
 
-                <flux:field>
-                    <flux:label for="filtro-tamano">Tamaño</flux:label>
+                <div class="flex min-w-0 items-center gap-2">
+                    <flux:label for="filtro-tamano" class="shrink-0">Tamaño</flux:label>
                     <select id="filtro-tamano" class="filtro-select" data-livewire-filter="tamano">
                         <option value="">Todos</option>
                         @foreach ($opcionesTamano as $option)
                             <option value="{{ $option }}" @selected($tamano === (string) $option)>{{ $option }}</option>
                         @endforeach
                     </select>
-                </flux:field>
+                </div>
             </div>
 
             <flux:button type="button" wire:click="restablecer" variant="ghost" icon="arrow-uturn-left"
-                         class="min-h-touch self-start md:self-auto" :disabled="! $hayFiltro">
+                         class="min-h-touch self-end md:self-auto" :disabled="! $hayFiltro">
                 Restablecer
             </flux:button>
         </form>

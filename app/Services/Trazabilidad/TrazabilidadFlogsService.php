@@ -42,6 +42,10 @@ class TrazabilidadFlogsService
         'SIMULACIONVTAS', 'SIMULACIONDISENO',
     ];
 
+    // ponytail: con AX caído, cada cambio de filtro esperaba el timeout de conexión. Un minuto
+    // sin reintentar: la tarjeta muestra "—" al instante y después vuelve a probar sola.
+    private const AX_CAIDO_TTL = 60;
+
     private const FLOG_IMAGEN_UNC_ROOT = '\\\\192.168.2.11\\ImagenFlog\\';
 
     /**
@@ -140,6 +144,11 @@ class TrazabilidadFlogsService
 
         $clave = self::CACHE_PREFIX.'_fact2_'.app()->environment().'_'.md5(implode("\0", [...$flogs, '|', $articulo, $tamano]));
 
+        $claveCaido = self::CACHE_PREFIX.'_ax_caido_'.app()->environment();
+        if (Cache::has($claveCaido)) {
+            return null;
+        }
+
         try {
             // ponytail: mismo techo de 10 min que el detalle; olvidar() no limpia esta clave.
             return Cache::remember($clave, self::CACHE_TTL, function () use ($flogs, $articulo, $tamano): ?array {
@@ -179,6 +188,7 @@ class TrazabilidadFlogsService
             });
         } catch (Throwable $exception) {
             // La tarjeta muestra "—": que AX no responda no puede tirar la pantalla.
+            Cache::put($claveCaido, true, self::AX_CAIDO_TTL);
             Log::warning('No se pudo consultar la facturación del Flog en TI.', [
                 'flogs' => count($flogs),
                 'error_type' => $this->clasificarError($exception),
