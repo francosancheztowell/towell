@@ -7,8 +7,10 @@ use App\Helpers\TurnoHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Sistema\SYSMensaje;
+use App\Models\Sistema\SYSUsuario;
 use App\Models\Tejido\TejMarcas;
 use App\Models\Tejido\TejMarcasLine;
+use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\Telegram\TelegramEnvio;
 use App\Support\Http\Concerns\HandlesApiErrors;
 use Dompdf\Dompdf;
@@ -68,7 +70,7 @@ class MarcasController extends Controller
             // Turno del capturista: el Turno del folio es la ventana de reloj a la que
             // pertenecen las marcas; quien las captura puede ser de otro turno (el 4
             // cubre descansos). Se muestra aparte para no mover la produccion de columna.
-            $turnosCapturista = \App\Models\Sistema\SYSUsuario::query()
+            $turnosCapturista = SYSUsuario::query()
                 ->whereIn('numero_empleado', $marcas->pluck('numero_empleado')->filter()->unique()->all())
                 ->pluck('turno', 'numero_empleado');
 
@@ -400,7 +402,7 @@ class MarcasController extends Controller
                 ->orderBy('NoTelarId')
                 ->get();
 
-            $marca->turno_capturista = \App\Models\Sistema\SYSUsuario::query()
+            $marca->turno_capturista = SYSUsuario::query()
                 ->where('numero_empleado', $marca->numero_empleado)
                 ->value('turno');
 
@@ -923,16 +925,11 @@ class MarcasController extends Controller
                 });
         } catch (\Exception $e) {
             try {
-                return DB::table('InvSecuenciaTelares')
+                return URDCatalogoMaquina::query()
+                    ->whereNotNull('Secuencia')
                     ->orderBy('Secuencia', 'asc')
-                    ->selectRaw('NoTelar as NoTelarId')
-                    ->get()
-                    ->map(function ($row) {
-                        return (object) [
-                            'NoTelarId' => $row->NoTelarId,
-                            'SalonId' => null,
-                        ];
-                    });
+                    ->pluck('MaquinaId')
+                    ->map(fn (string $telar) => (object) ['NoTelarId' => $telar, 'SalonId' => null]);
             } catch (\Exception $e2) {
                 return collect([]);
             }

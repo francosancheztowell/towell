@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Planeacion\CatalogoPlaneacion;
 
+use App\Models\Urdido\URDCatalogoMaquina;
+
 /**
  * Configuración de los catálogos de Planeación que comparten el CRUD en TS (19-06b):
  * formulario (campos), filtros y textos. La vista la pinta con catalagos/comun/modales y la pasa
@@ -39,16 +41,12 @@ final class CatalogosPlaneacionVista
             'endpoint' => route('planeacion.telares.store', absolute: false),
             'llave' => 'uid',
             'campos' => [
-                ['nombre' => 'SalonTejidoId', 'etiqueta' => 'Salón', 'tipo' => 'text', 'requerido' => true, 'maxlength' => 20, 'placeholder' => 'Jacquard / Smith'],
+                ['nombre' => 'SalonTejidoId', 'etiqueta' => 'Salón', 'tipo' => 'select', 'requerido' => true, 'opciones' => URDCatalogoMaquina::DEPARTAMENTOS_TELARES],
                 ['nombre' => 'NoTelarId', 'etiqueta' => 'Telar', 'tipo' => 'text', 'requerido' => true, 'maxlength' => 10, 'placeholder' => '200, 300'],
-                ['nombre' => 'Nombre', 'etiqueta' => 'Nombre', 'tipo' => 'text', 'maxlength' => 30, 'placeholder' => 'JAC 200', 'ancho' => 'completo'],
-                ['nombre' => 'Grupo', 'etiqueta' => 'Grupo', 'tipo' => 'text', 'maxlength' => 30, 'placeholder' => 'Prueba / Jacquard Smith', 'ancho' => 'completo'],
             ],
             'filtros' => [
-                self::filtroTexto('salon', 'SalonTejidoId', 'Salón', 'Jacquard / Smith'),
+                self::filtroTexto('salon', 'SalonTejidoId', 'Salón', 'Jacquard / Itema / Smith / Karl Mayer'),
                 self::filtroTexto('telar', 'NoTelarId', 'Telar', '200'),
-                self::filtroTexto('nombre', 'Nombre', 'Nombre', 'JAC 200'),
-                self::filtroTexto('grupo', 'Grupo', 'Grupo', 'Prueba'),
             ],
             'textos' => self::textos('Telar', 'el telar'),
         ];

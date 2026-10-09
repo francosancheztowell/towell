@@ -6,7 +6,7 @@ namespace App\Services\Mecanicos;
 
 use App\Models\Mecanicos\MecActividadesModel;
 use App\Models\Mecanicos\MecVerificaMaquinaLineModel;
-use App\Models\Planeacion\ReqTelares;
+use App\Models\Urdido\URDCatalogoMaquina;
 use Carbon\Carbon;
 use InvalidArgumentException;
 
@@ -178,15 +178,15 @@ final class ReporteEstadoMaquinaService
      */
     private function salonesConTelares(): array
     {
-        $telares = ReqTelares::query()
-            ->orderBy('SalonTejidoId')
-            ->orderBy('NoTelarId')
-            ->get(['NoTelarId', 'Nombre', 'SalonTejidoId']);
+        $telares = URDCatalogoMaquina::query()
+            ->telares()
+            ->get(['MaquinaId', 'Departamento'])
+            ->sortBy(fn (URDCatalogoMaquina $t) => $t->salon().'|'.$t->MaquinaId);
 
         $agrupados = [];
 
         foreach ($telares as $telar) {
-            $salon = trim((string) $telar->SalonTejidoId);
+            $salon = $telar->salon();
             if ($salon === '') {
                 $salon = 'Sin salón';
             }
@@ -200,8 +200,8 @@ final class ReporteEstadoMaquinaService
             }
 
             $agrupados[$salon]['telares'][] = [
-                'id' => (string) $telar->NoTelarId,
-                'nombre' => (string) $telar->Nombre,
+                'id' => $telar->MaquinaId,
+                'nombre' => $telar->nombreTelar(),
             ];
         }
 

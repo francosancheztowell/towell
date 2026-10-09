@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Imports\ReqModelosCodificadosImport;
 use App\Models\Planeacion\Catalogos\CatCodificados;
 use App\Models\Planeacion\ReqModelosCodificados;
+use App\Models\Urdido\URDCatalogoMaquina;
 use App\Support\Planeacion\TelarSalonResolver;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -1178,16 +1179,15 @@ class CodificacionController extends Controller
     /** Obtener salones y números de telar */
     public function getSalonesYTelares(): JsonResponse
     {
-        // Usar Query Builder de Laravel
-        // Las columnas correctas son: TipoTelar (equivalente a SalonTejidoId) y NoTelar (equivalente a NoTelarId)
-        $data = DB::table('InvSecuenciaTelares')
-            ->select('TipoTelar', 'NoTelar')
-            ->whereNotNull('TipoTelar')
-            ->whereNotNull('NoTelar')
-            ->distinct()
-            ->orderBy('TipoTelar')
-            ->orderBy('NoTelar')
-            ->get();
+        // Telares con secuencia de inventario (antes InvSecuenciaTelares, sin Karl Mayer).
+        // TipoTelar conserva los valores de esa tabla: JACQUARD / ITEMA / SMIT.
+        $data = URDCatalogoMaquina::query()
+            ->telares()
+            ->whereNotNull('Secuencia')
+            ->get(['Departamento', 'MaquinaId'])
+            ->map(fn (URDCatalogoMaquina $m) => (object) ['TipoTelar' => $m->tipoTelar(), 'NoTelar' => trim($m->MaquinaId)])
+            ->sortBy(fn ($t) => $t->TipoTelar.'|'.$t->NoTelar)
+            ->values();
 
         // Agrupar por salón (TipoTelar)
         $salones = [];
@@ -1275,10 +1275,8 @@ class CodificacionController extends Controller
 
         // Ordenar salones y telares
         sort($salones);
-        foreach ($telaresPorSalon as $salon => $telares) {
-            if (is_array($telares)) {
-                sort($telaresPorSalon[$salon]);
-            }
+        foreach (array_keys($telaresPorSalon) as $salon) {
+            sort($telaresPorSalon[$salon]);
         }
 
         return response()->json([

@@ -7,7 +7,7 @@ namespace App\Livewire\Planeacion\ProgramaTejido;
 use App\Models\Planeacion\ReqAplicaciones;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Models\Planeacion\ReqTelares;
+use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\Planeacion\Liberar\LiberarFlogSugeridoService;
 use App\Services\Planeacion\ProgramaTejido\CatalogoModelos;
 use App\Support\Planeacion\TelarSalonResolver;
@@ -50,12 +50,11 @@ final class CatalogosDestino
     /** @return array<string, list<string>> salón canónico => telares ordenados */
     public static function telares(): array
     {
-        return Cache::remember('pt-duplicar:telares', self::SEGUNDOS_CACHE, fn () => ReqTelares::query()
-            ->whereNotNull('NoTelarId')
-            ->where('NoTelarId', '!=', '')
-            ->get(['SalonTejidoId', 'NoTelarId'])
-            ->groupBy(fn ($t) => TelarSalonResolver::normalizeSalon($t->getAttribute('SalonTejidoId'), $t->getAttribute('NoTelarId')))
-            ->map(fn ($g) => $g->map(fn ($t) => trim((string) $t->getAttribute('NoTelarId')))->unique()
+        return Cache::remember('pt-duplicar:telares', self::SEGUNDOS_CACHE, fn () => URDCatalogoMaquina::query()
+            ->telares()
+            ->get(['Departamento', 'MaquinaId'])
+            ->groupBy(fn (URDCatalogoMaquina $t) => TelarSalonResolver::normalizeSalon($t->salon(), $t->MaquinaId))
+            ->map(fn ($g) => $g->map(fn (URDCatalogoMaquina $t) => trim($t->MaquinaId))->unique()
                 ->sortBy(fn ($t) => TelarSalonResolver::telarSortKey($t))->values()->all())
             ->all());
     }

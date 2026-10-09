@@ -28,9 +28,10 @@ trait EsquemaAtadores
         $schema = Schema::connection('sqlsrv');
         DB::connection('sqlsrv')->statement("ATTACH DATABASE ':memory:' AS dbo");
 
-        $schema->create('dbo.ReqTelares', function (Blueprint $t) {
+        $schema->create('URDCatalogoMaquinas', function (Blueprint $t) {
             $t->increments('Id');
-            $t->string('NoTelarId')->nullable();
+            $t->string('MaquinaId');
+            $t->string('Departamento')->nullable();
         });
 
         $schema->create('AtaMontadoTelas', function (Blueprint $t) {

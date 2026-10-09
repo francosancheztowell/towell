@@ -5,15 +5,18 @@ namespace App\Http\Controllers\Planeacion\CatalogoPlaneacion\CatTelares;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Planeacion\Catalogos\ExcelCatalogoRequest;
 use App\Http\Requests\Planeacion\Catalogos\TelarRequest;
-use App\Imports\ReqTelaresImport;
-use App\Models\Planeacion\ReqTelares;
+use App\Imports\TelaresImport;
+use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\Planeacion\Catalogos\ImportarExcelCatalogo;
 use App\Support\Http\Concerns\HandlesApiErrors;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
-/** Catálogo de Telares. Llave de ruta: "Salon_Telar". */
+/**
+ * Catálogo de Telares: las máquinas de URDCatalogoMaquinas cuyo Departamento es un salón de
+ * telares (Jacquard, Itema, Smith, Karl Mayer). Llave de ruta: el número de telar (MaquinaId).
+ */
 class CatalagoTelarController extends Controller
 {
     use HandlesApiErrors;
@@ -21,7 +24,13 @@ class CatalagoTelarController extends Controller
     public function index(Request $request): View
     {
         try {
-            $telares = ReqTelares::buscar($request->salon, $request->telar, $request->nombre, $request->grupo);
+            $telares = URDCatalogoMaquina::query()
+                ->telares()
+                ->when($request->salon, fn ($q, $salon) => $q->where('Departamento', 'like', "%{$salon}%"))
+                ->when($request->telar, fn ($q, $telar) => $q->where('MaquinaId', 'like', "%{$telar}%"))
+                ->orderBy('Departamento')
+                ->orderBy('MaquinaId')
+                ->get(['MaquinaId', 'Departamento']);
 
             return view('catalagos.catalagoTelares', ['telares' => $telares, 'noResults' => $telares->isEmpty()]);
         } catch (\Throwable $e) {
@@ -35,7 +44,7 @@ class CatalagoTelarController extends Controller
     public function procesarExcel(ExcelCatalogoRequest $request, ImportarExcelCatalogo $importar): JsonResponse
     {
         try {
-            $stats = $importar->importar(new ReqTelaresImport, $request->file('archivo_excel'));
+            $stats = $importar->importar(new TelaresImport, $request->file('archivo_excel'));
 
             return response()->json([
                 'success' => true,
@@ -50,60 +59,83 @@ class CatalagoTelarController extends Controller
     public function store(TelarRequest $request): JsonResponse
     {
         try {
-            $datos = $request->validated();
-            if (ReqTelares::existeTelar($datos['SalonTejidoId'], $datos['NoTelarId'])) {
-                return response()->json(['success' => false, 'message' => 'Ya existe un telar con el mismo salón y número'], 422);
-            }
-            $nombre = ($datos['Nombre'] ?? null) ?: ReqTelares::nombreSugerido($datos['SalonTejidoId'], $datos['NoTelarId']);
-            ReqTelares::create(['Nombre' => $nombre, 'Grupo' => $datos['Grupo'] ?? null] + $datos);
+            $departamento = (string) URDCatalogoMaquina::departamentoDeSalon($request->validated('SalonTejidoId'));
+            $telar = trim((string) $request->validated('NoTelarId'));
 
-            return response()->json(['success' => true, 'message' => "Telar '{$nombre}' creado exitosamente"]);
+            if ($error = $this->numeroOcupado($telar)) {
+                return response()->json(['success' => false, 'message' => $error], 422);
+            }
+
+            $nuevo = URDCatalogoMaquina::create([
+                'MaquinaId' => $telar,
+                'Nombre' => $departamento,
+                'Departamento' => $departamento,
+                'Codificacion' => URDCatalogoMaquina::codificacionTelar($departamento, $telar),
+            ]);
+
+            return response()->json(['success' => true, 'message' => "Telar '{$nuevo->nombreTelar()}' creado exitosamente"]);
         } catch (\Throwable $e) {
             return $this->apiErrorResponse($e, 'Crear telar', 'Error al crear el telar.');
         }
     }
 
-    public function update(TelarRequest $request, string $uniqueId): JsonResponse
+    /** Solo cambia el salón: el número de telar es la llave que usan paros, órdenes de trabajo y BPM. */
+    public function update(TelarRequest $request, string $telar): JsonResponse
     {
         try {
-            if (strrpos($uniqueId, '_') === false) {
-                return response()->json(['success' => false, 'message' => 'ID de telar inválido'], 400);
-            }
-            $telar = ReqTelares::porLlave($uniqueId);
-            if (! $telar) {
+            $registro = $this->telar($telar);
+            if (! $registro) {
                 return response()->json(['success' => false, 'message' => 'Telar no encontrado'], 404);
             }
-
-            $datos = $request->validated();
-            $cambiaLlave = $datos['SalonTejidoId'] !== $telar->SalonTejidoId || $datos['NoTelarId'] !== $telar->NoTelarId;
-            if ($cambiaLlave && ReqTelares::existeTelar($datos['SalonTejidoId'], $datos['NoTelarId'])) {
-                return response()->json(['success' => false, 'message' => 'Ya existe otro telar con ese Salón/Telar'], 422);
+            if (trim((string) $request->validated('NoTelarId')) !== $registro->MaquinaId) {
+                return response()->json(['success' => false, 'message' => 'El número de telar no se puede cambiar: da de baja el telar y da de alta el nuevo.'], 422);
             }
-            $nombre = ($datos['Nombre'] ?? null) ?: ReqTelares::nombreSugerido($datos['SalonTejidoId'], $datos['NoTelarId']);
-            $telar->update(['Nombre' => $nombre, 'Grupo' => $datos['Grupo'] ?? null] + $datos);
 
-            return response()->json(['success' => true, 'message' => "Telar '{$nombre}' actualizado exitosamente"]);
+            $departamento = (string) URDCatalogoMaquina::departamentoDeSalon($request->validated('SalonTejidoId'));
+            $cambios = ['Departamento' => $departamento];
+            // El Nombre de los telares es su salón; si alguien le puso otro, se respeta.
+            if ($registro->Nombre === $registro->Departamento) {
+                $cambios['Nombre'] = $departamento;
+            }
+            $registro->update($cambios);
+
+            return response()->json(['success' => true, 'message' => "Telar '{$registro->nombreTelar()}' actualizado exitosamente"]);
         } catch (\Throwable $e) {
             return $this->apiErrorResponse($e, 'Actualizar telar', 'Error al actualizar el telar.');
         }
     }
 
-    public function destroy(string $uniqueId): JsonResponse
+    public function destroy(string $telar): JsonResponse
     {
         try {
-            if (strrpos($uniqueId, '_') === false) {
-                return response()->json(['success' => false, 'message' => 'ID de telar inválido'], 400);
-            }
-            $telar = ReqTelares::porLlave($uniqueId);
-            if (! $telar) {
+            $registro = $this->telar($telar);
+            if (! $registro) {
                 return response()->json(['success' => false, 'message' => 'Telar no encontrado'], 404);
             }
-            $nombre = $telar->Nombre;
-            $telar->delete();
+            $nombre = $registro->nombreTelar();
+            $registro->delete();
 
             return response()->json(['success' => true, 'message' => "Telar '{$nombre}' eliminado exitosamente"]);
         } catch (\Throwable $e) {
             return $this->apiErrorResponse($e, 'Eliminar telar', 'Error al eliminar el telar.');
         }
+    }
+
+    private function telar(string $telar): ?URDCatalogoMaquina
+    {
+        return URDCatalogoMaquina::query()->telares()->where('MaquinaId', trim($telar))->first();
+    }
+
+    /** El número ya existe en el catálogo de máquinas (como telar o como máquina de otra área). */
+    private function numeroOcupado(string $telar): ?string
+    {
+        $existente = URDCatalogoMaquina::query()->where('MaquinaId', $telar)->first(['MaquinaId', 'Departamento']);
+        if (! $existente) {
+            return null;
+        }
+
+        return in_array($existente->Departamento, URDCatalogoMaquina::DEPARTAMENTOS_TELARES, true)
+            ? 'Ya existe un telar con ese número'
+            : "El número {$telar} ya es una máquina de {$existente->Departamento} en el Catálogo de Máquinas";
     }
 }

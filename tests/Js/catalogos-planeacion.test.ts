@@ -12,7 +12,7 @@ import {
   rangoInvalido,
   type FiltroCatalogo,
 } from '../../resources/js/modulos/catalogos-planeacion/comun/logica.ts'
-import { nombreDesde, procesarTelar } from '../../resources/js/modulos/catalogos-planeacion/telares/logica.ts'
+import { resumenTelar } from '../../resources/js/modulos/catalogos-planeacion/telares/logica.ts'
 import { procesarAplicacion } from '../../resources/js/modulos/catalogos-planeacion/aplicaciones/logica.ts'
 import { procesarHilo } from '../../resources/js/modulos/catalogos-planeacion/matriz-hilos/logica.ts'
 import { procesarPeso, validarPeso } from '../../resources/js/modulos/catalogos-planeacion/pesos-rollos/logica.ts'
@@ -74,12 +74,8 @@ test('faltanteObligatorio usa la etiqueta y numeroONull limpia números', () => 
   assert.equal(numeroONull('abc'), null)
 })
 
-test('Telares: nombre sugerido como el servidor (makeName) y se completa si viene vacío', () => {
-  assert.equal(nombreDesde('Jacquard', '200'), 'JAC 200')
-  assert.equal(nombreDesde('SMITH', '305'), 'Smith 305')
-  assert.equal(nombreDesde('itema', '7'), 'ITE 7')
-  assert.equal(procesarTelar({ SalonTejidoId: 'JACQUARD', NoTelarId: '201', Nombre: '' }).Nombre, 'JAC 201')
-  assert.equal(procesarTelar({ SalonTejidoId: 'JACQUARD', NoTelarId: '201', Nombre: 'Mío' }).Nombre, 'Mío')
+test('Telares: resumen para confirmar la baja', () => {
+  assert.equal(resumenTelar({ SalonTejidoId: 'Jacquard', NoTelarId: '201' }), 'Salón: Jacquard · Telar: 201')
 })
 
 test('Aplicaciones: Factor vacío no se envía', () => {

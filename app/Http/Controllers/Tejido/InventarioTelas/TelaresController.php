@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\Tejido\InventarioTelas;
 
 use App\Http\Controllers\Controller;
+use App\Models\Urdido\URDCatalogoMaquina;
 use Illuminate\Support\Facades\DB;
 
 class TelaresController extends Controller
 {
     /**
      * Inventario de telares Jacquard (vista)
-     * Ordenado por la tabla InvSecuenciaTelares
+     * Ordenado por URDCatalogoMaquinas.Secuencia
      */
     public function inventarioJacquard()
     {
@@ -32,7 +33,7 @@ class TelaresController extends Controller
 
     /**
      * Inventario de telares Itema (vista)
-     * Ordenado por la tabla InvSecuenciaTelares (ITEMA/SMIT)
+     * Ordenado por URDCatalogoMaquinas.Secuencia (Itema/Smith)
      */
     public function inventarioItema()
     {
@@ -59,7 +60,7 @@ class TelaresController extends Controller
     /**
      * Inventario de telares Karl Mayer (vista)
      *
-     * InvSecuenciaTelares no tiene renglones KARL MAYER (solo ITEMA/JACQUARD/SMIT),
+     * Los telares Karl Mayer no tienen Secuencia en URDCatalogoMaquinas,
      * asi que la secuencia sale vacia y se completa con los telares del
      * departamento en ReqProgramaTejido (401, 402, ...).
      */
@@ -478,15 +479,22 @@ class TelaresController extends Controller
     }
 
     /**
-     * Obtener secuencia de telares desde la tabla InvSecuenciaTelares.
-     * Devuelve un array de NoTelar ordenado por Secuencia.
+     * Telares con secuencia de inventario (URDCatalogoMaquinas.Secuencia), ordenados por ella.
+     * $tipos usa los valores de la antigua InvSecuenciaTelares: JACQUARD / ITEMA / SMIT / KARL MAYER.
      */
     private function getSecuenciaTelares(array $tipos): array
     {
-        return DB::table('InvSecuenciaTelares')
-            ->whereIn('TipoTelar', $tipos)
+        $departamentos = array_map(fn (string $tipo) => match ($tipo) {
+            'SMIT' => 'Smith',
+            'KARL MAYER' => 'Karl Mayer',
+            default => ucfirst(strtolower($tipo)),
+        }, $tipos);
+
+        return URDCatalogoMaquina::query()
+            ->whereIn('Departamento', $departamentos)
+            ->whereNotNull('Secuencia')
             ->orderBy('Secuencia')
-            ->pluck('NoTelar')
+            ->pluck('MaquinaId')
             ->toArray();
     }
 

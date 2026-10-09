@@ -2,11 +2,11 @@
 
 namespace Tests\Feature\CatalogosPlaneacion;
 
+use App\Models\Planeacion\Catalogos\CatMatrizCalibres;
 use App\Models\Planeacion\Catalogos\ReqPesosRollosTejido;
 use App\Models\Planeacion\ReqAplicaciones;
 use App\Models\Planeacion\ReqMatrizHilos;
 use App\Models\Planeacion\ReqProgramaTejidoLine;
-use App\Models\Planeacion\ReqTelares;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Feature\CatalogosPlaneacion\Concerns\CatalogosFixtures;
 use Tests\TestCase;
@@ -69,25 +69,6 @@ class CatalogosSimplesTest extends TestCase
         $pesos = $this->get('/planeacion/catalogos/pesos-rollos')->assertOk()->getContent();
         $this->assertStringNotContainsString('data-accion-catalogo="subir-excel"', $pesos);
         $this->assertStringContainsString('data-accion-catalogo="agregar"', $pesos);
-    }
-
-    public function test_telares_crud(): void
-    {
-        $this->postJson('/planeacion/telares', ['SalonTejidoId' => 'JACQUARD', 'NoTelarId' => '201', 'Nombre' => '', 'Grupo' => 'A'])
-            ->assertOk()->assertJson(['success' => true, 'message' => "Telar 'JAC 201' creado exitosamente"]);
-        $this->postJson('/planeacion/telares', ['SalonTejidoId' => 'JACQUARD', 'NoTelarId' => '201'])
-            ->assertStatus(422)->assertJson(['success' => false, 'message' => 'Ya existe un telar con el mismo salón y número']);
-
-        $this->putJson('/planeacion/telares/JACQUARD_201', ['SalonTejidoId' => 'JACQUARD', 'NoTelarId' => '202', 'Nombre' => 'Mío'])
-            ->assertOk()->assertJson(['success' => true]);
-        $this->assertSame('Mío', ReqTelares::where('NoTelarId', '202')->value('Nombre'));
-        $this->putJson('/planeacion/telares/JACQUARD_999', ['SalonTejidoId' => 'JACQUARD', 'NoTelarId' => '1'])
-            ->assertNotFound()->assertJson(['success' => false, 'message' => 'Telar no encontrado']);
-        $this->putJson('/planeacion/telares/SINGUION', ['SalonTejidoId' => 'JACQUARD', 'NoTelarId' => '1'])
-            ->assertStatus(400);
-
-        $this->deleteJson('/planeacion/telares/JACQUARD_202')->assertOk()->assertJson(['success' => true]);
-        $this->assertSame(0, ReqTelares::count());
     }
 
     public function test_aplicaciones_crud_y_factor_recalcula_lineas(): void
@@ -175,7 +156,7 @@ class CatalogosSimplesTest extends TestCase
             ->assertStatus(422)->assertJson(['success' => false])->assertJsonValidationErrors('Cuenta');
         $this->postJson('/planeacion/catalogos/matrizcalibres', ['Tipo' => 'rizo', 'Calibre' => 12, 'FibraId' => 'ALG', 'Cuenta' => '3040'] + $salida)
             ->assertOk()->assertJson(['success' => true, 'message' => 'Registro creado exitosamente'])->assertJsonPath('data.Tipo', 'RIZO');
-        $id = \App\Models\Planeacion\Catalogos\CatMatrizCalibres::value('Id');
+        $id = CatMatrizCalibres::value('Id');
 
         $this->getJson('/planeacion/lmat/api/matriz-calibre?tipo=rizo&calibre=12&fibraId=ALG&cuenta=3040')
             ->assertOk()->assertJson(['success' => true, 'found' => true]);

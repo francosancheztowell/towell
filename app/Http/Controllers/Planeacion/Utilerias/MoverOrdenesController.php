@@ -33,7 +33,7 @@ use App\Http\Controllers\Planeacion\ProgramaTejido\helper\QueryHelpers;
 use App\Http\Controllers\Planeacion\ProgramaTejido\helper\TejidoHelpers;
 use App\Models\Planeacion\ReqModelosCodificados;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Models\Planeacion\ReqTelares;
+use App\Models\Urdido\URDCatalogoMaquina;
 use App\Observers\ReqProgramaTejidoObserver;
 use App\Services\Tejedores\Desarrolladores\MovimientoDesarrolladorService;
 use App\Support\Http\Concerns\HandlesApiErrors;
@@ -54,14 +54,12 @@ class MoverOrdenesController extends Controller
     public function getTelares(): JsonResponse
     {
         try {
-            $telares = ReqTelares::query()
-                ->select('SalonTejidoId', 'NoTelarId')
-                ->whereNotNull('NoTelarId')
-                ->where('NoTelarId', '!=', '')
-                ->get()
-                ->map(function ($t) {
-                    $telar = TelarSalonResolver::normalizeTelar($t->NoTelarId);
-                    $salon = TelarSalonResolver::normalizeSalon($t->SalonTejidoId, $telar);
+            $telares = URDCatalogoMaquina::query()
+                ->telares()
+                ->get(['Departamento', 'MaquinaId'])
+                ->map(function (URDCatalogoMaquina $t) {
+                    $telar = TelarSalonResolver::normalizeTelar($t->MaquinaId);
+                    $salon = TelarSalonResolver::normalizeSalon($t->salon(), $telar);
 
                     return [
                         'salon' => $salon,

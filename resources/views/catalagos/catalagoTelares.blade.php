@@ -21,25 +21,22 @@
                         <th scope="col" class="py-1 px-2 font-bold tracking-wider text-center">Salón</th>
                         <th scope="col" class="py-1 px-2 font-bold tracking-wider text-center">Telar</th>
                         <th scope="col" class="py-1 px-2 font-bold tracking-wider text-center">Nombre</th>
-                        <th scope="col" class="py-1 px-2 font-bold tracking-wider text-center">Grupo</th>
                     </tr>
                 </thead>
                 <tbody id="telares-body" class="bg-white text-black" data-catalogo-filas>
                     @foreach ($telares as $t)
                         @php
-                            $uid = $t->SalonTejidoId . '_' . $t->NoTelarId;
-                            $valores = ['uid' => $uid, 'SalonTejidoId' => $t->SalonTejidoId, 'NoTelarId' => $t->NoTelarId, 'Nombre' => $t->Nombre, 'Grupo' => $t->Grupo];
+                            $valores = ['uid' => $t->MaquinaId, 'SalonTejidoId' => $t->Departamento, 'NoTelarId' => $t->MaquinaId];
                         @endphp
-                        <tr data-fila data-id="{{ $uid }}" data-valores='@json($valores)' tabindex="0" aria-selected="false"
+                        <tr data-fila data-id="{{ $t->MaquinaId }}" data-valores='@json($valores)' tabindex="0" aria-selected="false"
                             class="text-center hover:bg-blue-50 transition cursor-pointer aria-selected:bg-blue-500 aria-selected:text-white aria-selected:hover:bg-blue-500">
-                            <td class="py-2 px-4">{{ $t->SalonTejidoId }}</td>
-                            <td class="py-2 px-4">{{ $t->NoTelarId }}</td>
-                            <td class="py-2 px-4">{{ $t->Nombre }}</td>
-                            <td class="py-2 px-4">{{ $t->Grupo ?? 'N/A' }}</td>
+                            <td class="py-2 px-4">{{ $t->Departamento }}</td>
+                            <td class="py-2 px-4">{{ $t->MaquinaId }}</td>
+                            <td class="py-2 px-4">{{ $t->nombreTelar() }}</td>
                         </tr>
                     @endforeach
                     <tr data-catalogo-sin-coincidencias hidden>
-                        <td colspan="4" class="text-center py-8 text-gray-500">
+                        <td colspan="3" class="text-center py-8 text-gray-500">
                             <i class="fas fa-search text-4xl mb-2" aria-hidden="true"></i><br>No se encontraron resultados
                         </td>
                     </tr>

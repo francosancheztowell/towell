@@ -6,7 +6,6 @@ namespace App\Http\Controllers\ProgramaUrdEng\ReservarProgramar;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\ProgramaUrdEng\Concerns\RespuestasErrorUrdEng;
-use App\Models\Planeacion\ReqTelares;
 use App\Models\Tejido\TejInventarioTelares;
 use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\ProgramaUrdEng\InventarioTelaresService;
@@ -66,43 +65,6 @@ class ReservarProgramarController extends Controller
         return view('modulos.programa_urd_eng.programacion-requerimientos', [
             'telaresSeleccionados' => $telares,
             'opcionesUrdido' => $maquinasUrdido,
-        ]);
-    }
-
-    /**
-     * Obtener el grupo (Destino) de la tabla ReqTelares por NoTelarId.
-     * Uso: GET ?notelarid=XXX o ?notelarid=XXX&salon_tejido_id=YYY
-     */
-    public function getGrupoByTelar(Request $request): JsonResponse
-    {
-        $request->validate([
-            'notelarid' => ['required', 'string', 'max:50'],
-            'salon_tejido_id' => ['nullable', 'string', 'max:50'],
-        ]);
-
-        $query = ReqTelares::where('NoTelarId', $request->input('notelarid'));
-
-        if ($request->filled('salon_tejido_id')) {
-            $query->where('SalonTejidoId', $request->input('salon_tejido_id'));
-        }
-
-        $telar = $query->first();
-
-        if (! $telar) {
-            return response()->json([
-                'success' => true,
-                'grupo' => null,
-                'message' => 'No se encontró telar en ReqTelares',
-            ]);
-        }
-
-        $grupo = $telar->Grupo !== null && trim((string) $telar->Grupo) !== ''
-            ? trim((string) $telar->Grupo)
-            : null;
-
-        return response()->json([
-            'success' => true,
-            'grupo' => $grupo,
         ]);
     }
 

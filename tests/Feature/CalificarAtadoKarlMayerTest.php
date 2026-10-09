@@ -30,9 +30,10 @@ class CalificarAtadoKarlMayerTest extends TestCase
         $schema = Schema::connection('sqlsrv');
         DB::connection('sqlsrv')->statement("ATTACH DATABASE ':memory:' AS dbo");
 
-        $schema->create('dbo.ReqTelares', function (Blueprint $table) {
+        $schema->create('URDCatalogoMaquinas', function (Blueprint $table) {
             $table->increments('Id');
-            $table->string('NoTelarId')->nullable();
+            $table->string('MaquinaId');
+            $table->string('Departamento')->nullable();
         });
 
         $schema->create('AtaMontadoTelas', function (Blueprint $table) {

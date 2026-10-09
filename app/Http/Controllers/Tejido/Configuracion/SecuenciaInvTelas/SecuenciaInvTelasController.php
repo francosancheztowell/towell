@@ -3,13 +3,19 @@
 namespace App\Http\Controllers\Tejido\Configuracion\SecuenciaInvTelas;
 
 use App\Http\Controllers\Controller;
-use App\Models\Inventario\InvSecuenciaTelares;
+use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\Tejido\OrdenSecuencia;
 use App\Support\Http\Concerns\HandlesApiErrors;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
+/**
+ * Secuencia del inventario de telas = URDCatalogoMaquinas.Secuencia de cada telar.
+ * "Alta" pone la secuencia a un telar del catálogo y "eliminar" se la quita; el telar
+ * (y su salón) se administra en el Catálogo de Máquinas.
+ */
 class SecuenciaInvTelasController extends Controller
 {
     use HandlesApiErrors;
@@ -17,8 +23,12 @@ class SecuenciaInvTelasController extends Controller
     public function index()
     {
         try {
-            $registros = InvSecuenciaTelares::orderBy('Secuencia', 'asc')
-                ->get();
+            $registros = URDCatalogoMaquina::query()
+                ->telares()
+                ->whereNotNull('Secuencia')
+                ->orderBy('Secuencia', 'asc')
+                ->get(['Id', 'MaquinaId', 'Departamento', 'Secuencia'])
+                ->map(fn (URDCatalogoMaquina $t) => $this->fila($t));
 
             return view('modulos.tejido.secuencia.inv-telas', compact('registros'));
         } catch (\Exception $e) {
@@ -33,32 +43,28 @@ class SecuenciaInvTelasController extends Controller
         try {
             $validated = $request->validate([
                 'NoTelar' => 'required|integer',
-                'TipoTelar' => 'required|string|max:50',
                 'Secuencia' => 'nullable|integer',
-                'Observaciones' => 'nullable|string|max:500',
             ]);
 
-            // Calcular siguiente secuencia si no se proporciona o es 0
-            $secuencia = $validated['Secuencia'] ?? 0;
-            if ($secuencia <= 0) {
-                $maxSecuencia = InvSecuenciaTelares::max('Secuencia') ?? 0;
-                $secuencia = $maxSecuencia + 1;
+            $telar = $this->telar((string) $validated['NoTelar']);
+            if (! $telar) {
+                return $this->apiClientErrorResponse('El telar '.$validated['NoTelar'].' no existe en el Catálogo de Máquinas', 422);
             }
 
-            $registro = InvSecuenciaTelares::create([
-                'NoTelar' => $validated['NoTelar'],
-                'TipoTelar' => $validated['TipoTelar'],
-                'Secuencia' => $secuencia,
-                'Observaciones' => $validated['Observaciones'] ?? null,
-                'Created_At' => now(),
-            ]);
+            // Siguiente secuencia si no se proporciona o es 0
+            $secuencia = $validated['Secuencia'] ?? 0;
+            if ($secuencia <= 0) {
+                $secuencia = (URDCatalogoMaquina::max('Secuencia') ?? 0) + 1;
+            }
+
+            $telar->update(['Secuencia' => $secuencia]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Registro creado exitosamente',
-                'data' => $registro,
+                'data' => $this->fila($telar),
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación',
@@ -72,29 +78,29 @@ class SecuenciaInvTelasController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            $registro = InvSecuenciaTelares::findOrFail($id);
+            $registro = URDCatalogoMaquina::where('Id', $id)->firstOrFail();
 
             $validated = $request->validate([
                 'NoTelar' => 'required|integer',
-                'TipoTelar' => 'required|string|max:50',
                 'Secuencia' => 'required|integer',
-                'Observaciones' => 'nullable|string|max:500',
             ]);
 
-            $registro->update([
-                'NoTelar' => $validated['NoTelar'],
-                'TipoTelar' => $validated['TipoTelar'],
-                'Secuencia' => $validated['Secuencia'],
-                'Observaciones' => $validated['Observaciones'] ?? null,
-                'Updated_At' => now(),
-            ]);
+            // Cambiar el número de telar pasa la secuencia a ese telar.
+            $telar = $this->telar((string) $validated['NoTelar']);
+            if (! $telar) {
+                return $this->apiClientErrorResponse('El telar '.$validated['NoTelar'].' no existe en el Catálogo de Máquinas', 422);
+            }
+            if ($telar->Id !== $registro->Id) {
+                $registro->update(['Secuencia' => null]);
+            }
+            $telar->update(['Secuencia' => $validated['Secuencia']]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Registro actualizado exitosamente',
-                'data' => $registro,
+                'data' => $this->fila($telar),
             ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error de validación',
@@ -110,8 +116,7 @@ class SecuenciaInvTelasController extends Controller
     public function destroy($id)
     {
         try {
-            $registro = InvSecuenciaTelares::findOrFail($id);
-            $registro->delete();
+            URDCatalogoMaquina::where('Id', $id)->firstOrFail()->update(['Secuencia' => null]);
 
             return response()->json([
                 'success' => true,
@@ -137,13 +142,30 @@ class SecuenciaInvTelasController extends Controller
                 'orden.*.Secuencia' => 'required|integer|min:1',
             ]);
 
-            OrdenSecuencia::actualizar(InvSecuenciaTelares::class, 'Id', 'Secuencia', $validated['orden'], ['Updated_At' => now()]);
+            OrdenSecuencia::actualizar(URDCatalogoMaquina::class, 'Id', 'Secuencia', $validated['orden']);
 
             return response()->json(['success' => true, 'message' => 'Orden actualizado']);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return response()->json(['success' => false, 'message' => 'Datos inválidos', 'errors' => $e->errors()], 422);
         } catch (\Throwable $e) {
             return $this->apiErrorResponse($e, 'Error al actualizar orden Secuencia Inv Telas', 'Error al actualizar el orden');
         }
+    }
+
+    private function telar(string $noTelar): ?URDCatalogoMaquina
+    {
+        return URDCatalogoMaquina::query()->telares()->where('MaquinaId', $noTelar)->first();
+    }
+
+    /** Fila con las columnas que espera la vista (las de la antigua InvSecuenciaTelares). */
+    private function fila(URDCatalogoMaquina $t): object
+    {
+        return (object) [
+            'Id' => $t->Id,
+            'NoTelar' => $t->MaquinaId,
+            'TipoTelar' => $t->tipoTelar(),
+            'Secuencia' => $t->Secuencia,
+            'Observaciones' => null,
+        ];
     }
 }

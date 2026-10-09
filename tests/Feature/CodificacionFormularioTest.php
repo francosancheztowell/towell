@@ -284,18 +284,20 @@ class CodificacionFormularioTest extends TestCase
 
     public function test_salones_api_incluye_karl_mayer_aunque_la_secuencia_diga_km(): void
     {
-        $schema = Schema::connection(config('database.default'));
-        if (! $schema->hasTable('InvSecuenciaTelares')) {
-            $schema->create('InvSecuenciaTelares', function (Blueprint $table) {
-                $table->string('TipoTelar')->nullable();
-                $table->string('NoTelar')->nullable();
+        $schema = Schema::connection('sqlsrv');
+        if (! $schema->hasTable('URDCatalogoMaquinas')) {
+            $schema->create('URDCatalogoMaquinas', function (Blueprint $table) {
+                $table->increments('Id');
+                $table->string('MaquinaId');
+                $table->string('Departamento')->nullable();
                 $table->integer('Secuencia')->nullable();
             });
         }
 
-        DB::table('InvSecuenciaTelares')->insert([
-            ['TipoTelar' => 'KM', 'NoTelar' => '401', 'Secuencia' => 1],
-            ['TipoTelar' => 'JACQUARD', 'NoTelar' => '201', 'Secuencia' => 2],
+        DB::connection('sqlsrv')->table('URDCatalogoMaquinas')->insert([
+            ['Departamento' => 'Karl Mayer', 'MaquinaId' => '401', 'Secuencia' => 1],
+            ['Departamento' => 'Jacquard', 'MaquinaId' => '201', 'Secuencia' => 2],
+            ['Departamento' => 'Urdido', 'MaquinaId' => 'MC1', 'Secuencia' => 3],
         ]);
 
         $json = $this->getJson('/planeacion/catalogos/codificacion-modelos/salones-telares')

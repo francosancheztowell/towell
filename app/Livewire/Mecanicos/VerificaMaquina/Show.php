@@ -7,7 +7,7 @@ namespace App\Livewire\Mecanicos\VerificaMaquina;
 use App\Models\Mecanicos\MecActividadesModel;
 use App\Models\Mecanicos\MecVerificaMaquinaLineModel;
 use App\Models\Mecanicos\MecVerificaMaquinaModel;
-use App\Models\Planeacion\ReqTelares;
+use App\Models\Urdido\URDCatalogoMaquina;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Renderless;
@@ -211,14 +211,14 @@ class Show extends Component
      */
     private function telaresCatalogo(): array
     {
-        return Cache::remember(self::CACHE_KEY_TELARES, self::CACHE_TTL, fn () => ReqTelares::query()
-            ->orderBy('NoTelarId')
-            ->get(['NoTelarId', 'Nombre', 'SalonTejidoId'])
-            ->map(fn ($telar) => [
-                'NoTelarId' => (string) $telar->NoTelarId,
-                'Nombre' => (string) $telar->Nombre,
-                // ponytail: trim aquí para que el filtro exacto de Alpine no esconda telares con espacios en BD.
-                'SalonTejidoId' => trim((string) $telar->SalonTejidoId),
+        return Cache::remember(self::CACHE_KEY_TELARES, self::CACHE_TTL, fn () => URDCatalogoMaquina::query()
+            ->telares()
+            ->orderBy('MaquinaId')
+            ->get(['MaquinaId', 'Departamento'])
+            ->map(fn (URDCatalogoMaquina $telar) => [
+                'NoTelarId' => $telar->MaquinaId,
+                'Nombre' => $telar->nombreTelar(),
+                'SalonTejidoId' => $telar->salon(),
             ])
             ->all());
     }

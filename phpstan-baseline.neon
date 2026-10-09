@@ -1759,24 +1759,6 @@ parameters:
 			path: app/Http/Controllers/Planeacion/CatLMat/CatLMatController.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqTelares\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/CatalogoPlaneacion/CatTelares/CatalagoTelarController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqTelares\:\:\$Nombre\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/CatalogoPlaneacion/CatTelares/CatalagoTelarController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqTelares\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/CatalogoPlaneacion/CatTelares/CatalagoTelarController.php
-
-		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\:\:\$ClaveModelo\.$#'
 			identifier: property.notFound
 			count: 1
@@ -1833,12 +1815,6 @@ parameters:
 		-
 			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqModelosCodificados\|Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\Planeacion\\ReqModelosCodificados\>\:\:\$Clave\.$#'
 			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/CatalogoPlaneacion/ModelosCodificados/CodificacionController.php
-
-		-
-			message: '#^Call to function is_array\(\) with list\<non\-empty\-string\> will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
 			count: 1
 			path: app/Http/Controllers/Planeacion/CatalogoPlaneacion/ModelosCodificados/CodificacionController.php
 
@@ -6619,18 +6595,6 @@ parameters:
 			path: app/Http/Controllers/Planeacion/Utilerias/MoverOrdenesController.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqTelares\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/Utilerias/MoverOrdenesController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqTelares\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/Planeacion/Utilerias/MoverOrdenesController.php
-
-		-
 			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects \(callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: App\\Models\\Planeacion\\ReqProgramaTejido\)\|\(callable\(stdClass, int\)\: App\\Models\\Planeacion\\ReqProgramaTejido\), Closure\(App\\Models\\Planeacion\\ReqProgramaTejido, int\)\: App\\Models\\Planeacion\\ReqProgramaTejido given\.$#'
 			identifier: argument.type
 			count: 1
@@ -6659,12 +6623,6 @@ parameters:
 			identifier: notIdentical.alwaysTrue
 			count: 2
 			path: app/Http/Controllers/ProgramaUrdEng/ReservarProgramar/CrearOrdenKarlMayerController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqTelares\:\:\$Grupo\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/ProgramaUrdEng/ReservarProgramar/ReservarProgramarController.php
 
 		-
 			message: '#^Dead catch \- Throwable is never thrown in the try block\.$#'
@@ -7591,120 +7549,6 @@ parameters:
 			path: app/Http/Controllers/mecanicos/Catalogos/MecActividadesController.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Mantenimiento\\ManFallasParos\:\:\$ComentariosTexto\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Mantenimiento\\ManFallasParos\:\:\$Descripcion\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Mantenimiento\\ManFallasParos\:\:\$Falla\.$#'
-			identifier: property.notFound
-			count: 3
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Mantenimiento\\ManFallasParos\:\:\$FallaTexto\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Mantenimiento\\ManFallasParos\:\:\$Folio\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Mantenimiento\\ManFallasParos\:\:\$Turno\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Mecanicos\\MecOrdenTrabajoLineModel\:\:\$Ajusto\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Mecanicos\\MecOrdenTrabajoLineModel\:\:\$Cambio\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Mecanicos\\MecOrdenTrabajoLineModel\:\:\$FaltaRefacc\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Mecanicos\\MecOrdenTrabajoLineModel\:\:\$Lubrico\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Mecanicos\\MecOrdenTrabajoLineModel\:\:\$Reparo\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Mecanicos\\MecOrdenTrabajoModel\:\:\$Estatus\.$#'
-			identifier: property.notFound
-			count: 8
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Mecanicos\\MecOrdenTrabajoModel\:\:\$FolioParo\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$Calificacion\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
-			message: '#^Method App\\Http\\Controllers\\mecanicos\\OrdenesTrabajoMecaController\:\:calcularTotalMinutos\(\) never returns int so it can be removed from the return type\.$#'
-			identifier: return.unusedType
-			count: 1
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
-			message: '#^Method App\\Http\\Controllers\\mecanicos\\OrdenesTrabajoMecaController\:\:calcularTotalMinutos\(\) should return int\|null but returns float\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
-			message: '#^Method App\\Http\\Controllers\\mecanicos\\OrdenesTrabajoMecaController\:\:operadoresMecanicos\(\) should return Illuminate\\Support\\Collection\<int, object\> but returns Illuminate\\Support\\Collection\<int, object\{CveEmpl\: string, NomEmpl\: string, Turno\: int\|null, Depto\: string\}&stdClass\>\.$#'
-			identifier: return.type
-			count: 1
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
-			message: '#^Parameter \#1 \$boolean of function abort_unless expects bool, App\\Models\\Mecanicos\\MecOrdenTrabajoModel\|null given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
-			message: '#^Parameter \#1 \$linea of method App\\Http\\Controllers\\mecanicos\\OrdenesTrabajoMecaController\:\:lineaSinCaptura\(\) expects App\\Models\\Mecanicos\\MecOrdenTrabajoLineModel, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
-			path: app/Http/Controllers/mecanicos/OrdenesTrabajoMecaController.php
-
-		-
 			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
 			identifier: function.alreadyNarrowedType
 			count: 1
@@ -8300,24 +8144,6 @@ parameters:
 
 		-
 			message: '#^Access to an undefined property App\\Models\\Mecanicos\\MecVerificaMaquinaModel\:\:\$TurnoRecibe\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Livewire/Mecanicos/VerificaMaquina/Show.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqTelares\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Livewire/Mecanicos/VerificaMaquina/Show.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqTelares\:\:\$Nombre\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Livewire/Mecanicos/VerificaMaquina/Show.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqTelares\:\:\$SalonTejidoId\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Livewire/Mecanicos/VerificaMaquina/Show.php
@@ -9217,24 +9043,6 @@ parameters:
 			path: app/Services/Mecanicos/ReporteEstadoMaquinaService.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqTelares\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Mecanicos/ReporteEstadoMaquinaService.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqTelares\:\:\$Nombre\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Mecanicos/ReporteEstadoMaquinaService.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqTelares\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Mecanicos/ReporteEstadoMaquinaService.php
-
-		-
 			message: '#^Offset decimal\-int\-string on array\<string, int\|string\|null\> on left side of \?\? does not exist\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
@@ -9973,25 +9781,7 @@ parameters:
 			path: app/Services/ProgramaUrdEng/BomMaterialesService.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Urdido\\URDCatalogoMaquina\:\:\$Departamento\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/ProgramaUrdEng/BomMaterialesService.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Urdido\\URDCatalogoMaquina\:\:\$Nombre\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/ProgramaUrdEng/BomMaterialesService.php
-
-		-
 			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Engomado\\EngAnchoBalonaCuenta\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
-			count: 1
-			path: app/Services/ProgramaUrdEng/BomMaterialesService.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Urdido\\URDCatalogoMaquina\>\:\:map\(\) contains unresolvable type\.$#'
 			identifier: argument.unresolvableType
 			count: 1
 			path: app/Services/ProgramaUrdEng/BomMaterialesService.php

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories\Crudo;
 
 use App\Contracts\Crudo\CrudoReadRepository;
+use App\Models\Urdido\URDCatalogoMaquina;
 use DateInterval;
 use DateTimeImmutable;
 use Illuminate\Database\ConnectionInterface;
@@ -250,38 +251,31 @@ final class SqlServerCrudoReadRepository implements CrudoReadRepository
      */
     private function fetchMachines(): array
     {
-        // Un solo LEFT JOIN en vez de 2 queries. Si InvSecuenciaTelares llegara a tener
-        // más de una fila por telar (fan-out), nos quedamos con la primera y no
-        // duplicamos el telar en el catálogo.
+        // Catálogo único (URDCatalogoMaquinas): el salón es el Departamento y la secuencia
+        // vive en la misma fila. Salón y nombre salen como los daba ReqTelares (KM, "JAC 201").
         $rows = $this->catalog()
-            ->table($this->table('machines').' as m')
-            ->leftJoin($this->table('sequence').' as s', 's.NoTelar', '=', 'm.NoTelarId')
-            ->whereIn('m.SalonTejidoId', config('crudo.catalog_salons', []))
-            ->orderBy('m.SalonTejidoId')
-            ->orderBy('m.NoTelarId')
-            ->get([
-                'm.SalonTejidoId',
-                'm.NoTelarId',
-                'm.Nombre',
-                'm.Grupo',
-                's.Secuencia',
-            ]);
+            ->table($this->table('machines'))
+            ->whereIn('Departamento', config('crudo.catalog_salons', []))
+            ->get(['MaquinaId', 'Departamento', 'Secuencia']);
 
         $machines = [];
         foreach ($rows as $row) {
-            $telar = trim((string) $row->NoTelarId);
+            $telar = trim((string) $row->MaquinaId);
             if ($telar === '' || isset($machines[$telar])) {
                 continue;
             }
 
+            $salon = URDCatalogoMaquina::salonDe($row->Departamento);
             $machines[$telar] = [
                 'telar' => $telar,
-                'name' => trim((string) ($row->Nombre ?? '')) ?: 'Telar '.$telar,
-                'salon' => trim((string) ($row->SalonTejidoId ?? '')),
-                'group' => trim((string) ($row->Grupo ?? '')),
+                'name' => URDCatalogoMaquina::nombreTelarDe($salon, $telar),
+                'salon' => $salon,
+                'group' => '',
                 'sequence' => $row->Secuencia !== null ? (int) $row->Secuencia : null,
             ];
         }
+
+        uasort($machines, fn (array $a, array $b): int => [$a['salon'], $a['telar']] <=> [$b['salon'], $b['telar']]);
 
         return array_values($machines);
     }

@@ -34,7 +34,6 @@ Route::prefix('programa-urd-eng')->name('programa.urd.eng.')->middleware($puedeA
     ->group(function () use ($puedeCrear, $puedeModificar, $puedeEliminar) {
         Route::get('/reservar-programar', [ReservarProgramarController::class, 'index'])->name('reservar.programar');
         Route::get('/programacion-requerimientos', [ReservarProgramarController::class, 'programacionRequerimientos'])->name('programacion.requerimientos');
-        Route::get('/programacion-requerimientos/grupo-by-telar', [ReservarProgramarController::class, 'getGrupoByTelar'])->name('programacion.requerimientos.grupo.by.telar');
         Route::get('/creacion-ordenes', [ReservarProgramarController::class, 'creacionOrdenes'])->name('creacion.ordenes');
         Route::get('/karl-mayer', [ReservarProgramarController::class, 'karlMayer'])->name('karl.mayer');
 

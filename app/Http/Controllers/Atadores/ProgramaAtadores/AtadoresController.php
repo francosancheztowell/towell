@@ -14,9 +14,9 @@ use App\Models\Atadores\AtaMaquinasModel;
 use App\Models\Atadores\AtaMontadoActividadesModel;
 use App\Models\Atadores\AtaMontadoMaquinasModel;
 use App\Models\Atadores\AtaMontadoTelasModel;
-use App\Models\Planeacion\ReqTelares;
 use App\Models\Sistema\SYSMensaje;
 use App\Models\Tejido\TejInventarioTelares;
+use App\Models\Urdido\URDCatalogoMaquina;
 use App\Services\Atadores\ChecklistAtado;
 use App\Services\Atadores\ProgramaAtadoresListado;
 use App\Support\Http\Concerns\HandlesApiErrors;
@@ -413,11 +413,10 @@ class AtadoresController extends Controller
         $comentarios = $esKm ? collect() : AtaComentariosModel::orderBy('Nota1')->get();
 
         // Catálogo de telares de la planta, para el select "Telar" del panel de Devolución.
-        $telaresCatalogo = ReqTelares::orderBy('NoTelarId')
-            ->pluck('NoTelarId')
-            ->filter()
-            ->unique()
-            ->values();
+        $telaresCatalogo = URDCatalogoMaquina::query()
+            ->telares()
+            ->orderBy('MaquinaId')
+            ->pluck('MaquinaId');
 
         return view(
             'modulos.atadores.calificar-atadores.index',

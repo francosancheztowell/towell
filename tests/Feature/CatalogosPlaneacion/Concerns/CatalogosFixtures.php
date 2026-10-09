@@ -11,7 +11,6 @@ use App\Models\Planeacion\ReqEficienciaStd;
 use App\Models\Planeacion\ReqMatrizHilos;
 use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Planeacion\ReqProgramaTejidoLine;
-use App\Models\Planeacion\ReqTelares;
 use App\Models\Planeacion\ReqVelocidadStd;
 use Illuminate\Support\Facades\DB;
 use Tests\Concerns\UsesSqlsrvSqlite;
@@ -37,7 +36,7 @@ trait CatalogosFixtures
         DB::connection('sqlsrv')->statement("ATTACH DATABASE ':memory:' AS dbo");
         $this->createAuthTable();
 
-        foreach ([ReqTelares::class, ReqAplicaciones::class, ReqEficienciaStd::class, ReqVelocidadStd::class,
+        foreach ([ReqAplicaciones::class, ReqEficienciaStd::class, ReqVelocidadStd::class,
             ReqMatrizHilos::class, CatMatrizCalibres::class, ReqPesosRollosTejido::class,
             ReqCalendarioLine::class, ReqProgramaTejidoLine::class] as $modelo) {
             $this->createTablaDesdeModelo($modelo);
@@ -45,6 +44,8 @@ trait CatalogosFixtures
         $this->createTablaDesdeModelo(ReqProgramaTejido::class, ['UpdatedAt', 'CreatedAt']);
         // La llave de ReqCalendarioTab es texto (createTablaDesdeModelo la haría autoincremental).
         $this->createTablaDbo('ReqCalendarioTab', ['CalendarioId' => 'TEXT PRIMARY KEY', 'Nombre' => 'TEXT']);
+        // Catálogo de Telares = URDCatalogoMaquinas (llave de texto, Id IDENTITY aparte).
+        DB::connection('sqlsrv')->statement('CREATE TABLE "URDCatalogoMaquinas" ("Id" INTEGER PRIMARY KEY AUTOINCREMENT, "MaquinaId" TEXT NOT NULL UNIQUE, "Nombre" TEXT, "Departamento" TEXT, "Codificacion" TEXT, "Secuencia" INTEGER)');
 
         $this->actingAs($this->createUsuario(), 'web');
         foreach (self::MODULOS as $modulo => $idrol) {

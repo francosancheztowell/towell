@@ -4,14 +4,13 @@ namespace Tests\Feature\Tejido;
 
 use App\Models\Inventario\InvSecuenciaCorteEf;
 use App\Models\Inventario\InvSecuenciaMarcas;
-use App\Models\Inventario\InvSecuenciaTelares;
 use App\Models\Inventario\InvSecuenciaTrama;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Feature\Tejido\Concerns\ModuloTejido;
 use Tests\TestCase;
 
-/** Las 4 secuencias de Tejido (19-02 p1.1): vista común, SEC-07 y orden en un UPDATE por bloque. */
+/** Secuencias de Tejido (19-02 p1.1): vista común, SEC-07 y orden en un UPDATE por bloque. Inv Telas: SecuenciaInvTelasTest. */
 class SecuenciasTest extends TestCase
 {
     use ModuloTejido;
@@ -20,7 +19,6 @@ class SecuenciasTest extends TestCase
     public static function variantes(): array
     {
         return [
-            'inv-telas' => ['/tejido/secuencia-inv-telas', InvSecuenciaTelares::class, 'Id', 'Secuencia', 'Secuencia Inv Telas', ['NoTelar' => 205, 'TipoTelar' => 'ITEMA', 'Secuencia' => 9, 'Observaciones' => null]],
             'inv-trama' => ['/tejido/secuencia-inv-trama', InvSecuenciaTrama::class, 'Id', 'Secuencia', 'Secuencia Inv Trama', ['NoTelar' => 205, 'TipoTelar' => 'ITEMA', 'Secuencia' => 9]],
             'corte-eficiencia' => ['/tejido/configurar/secuenciacortedeeficiencia', InvSecuenciaCorteEf::class, 'NoTelarId', 'Orden', 'Secuencia Corte de Eficiencia', ['NoTelarId' => 205, 'SalonTejidoId' => 'ITEMA', 'Orden' => null]],
             'marcas-finales' => ['/tejido/configurar/secuenciamarcasfinales', InvSecuenciaMarcas::class, 'NoTelarId', 'Orden', 'Secuencia Marcas Finales', ['NoTelarId' => 205, 'SalonTejidoId' => 'ITEMA', 'Orden' => null]],
@@ -32,7 +30,6 @@ class SecuenciasTest extends TestCase
         parent::setUp();
         $this->withoutVite();
         $this->prepararSqlite();
-        $this->tablaTejido(InvSecuenciaTelares::class, ['Created_At', 'Updated_At']);
         $this->tablaTejido(InvSecuenciaTrama::class);
         $this->tablaTejido(InvSecuenciaCorteEf::class);
         $this->tablaTejido(InvSecuenciaMarcas::class);

@@ -22,8 +22,7 @@ return [
     'tables' => [
         'headers' => env('CRUDO_HEADERS_TABLE', 'dbo.TWCRUDOTABLE'),
         'lines' => env('CRUDO_LINES_TABLE', 'dbo.TWCRUDOLINE'),
-        'machines' => env('CRUDO_MACHINES_TABLE', 'dbo.ReqTelares'),
-        'sequence' => env('CRUDO_SEQUENCE_TABLE', 'dbo.InvSecuenciaTelares'),
+        'machines' => env('CRUDO_MACHINES_TABLE', 'dbo.URDCatalogoMaquinas'),
         'paros' => env('CRUDO_PAROS_TABLE', 'dbo.ManFallasParos'),
         'ordenes_trabajo' => env('CRUDO_OT_TABLE', 'dbo.MecOrdenTrabajoTable'),
         'ordenes_trabajo_lineas' => env('CRUDO_OT_LINES_TABLE', 'dbo.MecOrdenTrabajoLine'),
@@ -117,9 +116,10 @@ return [
         'JACQUARD' => 'Jacquard',
         'SMITH' => 'Smith',
         'SMIT' => 'Smith',
+        'ITEMA' => 'Smith', // Itema y Smith son un solo salón.
     ],
 
-    'catalog_salons' => ['KM', 'Jacquard', 'Smith'],
+    'catalog_salons' => ['KM', 'Karl Mayer', 'Jacquard', 'Smith', 'Itema'],
 
     /*
     |--------------------------------------------------------------------------

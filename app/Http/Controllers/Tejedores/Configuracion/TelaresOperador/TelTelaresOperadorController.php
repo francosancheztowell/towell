@@ -4,10 +4,11 @@ namespace App\Http\Controllers\Tejedores\Configuracion\TelaresOperador;
 
 use App\Http\Controllers\Controller;
 use App\Models\Planeacion\ReqProgramaTejido;
-use App\Models\Planeacion\ReqTelares;
 use App\Models\Sistema\SYSUsuario;
 use App\Models\Tejedores\TelTelaresOperador;
+use App\Models\Urdido\URDCatalogoMaquina;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class TelTelaresOperadorController extends Controller
@@ -85,8 +86,15 @@ class TelTelaresOperadorController extends Controller
                 'VelocidadSTD' => null,
             ]);
 
-        // Fallback a ReqTelares si el programa está vacío
-        $telares = $telaresPrograma->isNotEmpty() ? $telaresPrograma : ReqTelares::obtenerTodos();
+        // Fallback al catálogo de telares si el programa está vacío
+        $telares = $telaresPrograma->isNotEmpty() ? $telaresPrograma : $this->telaresCatalogo()
+            ->map(fn (URDCatalogoMaquina $t) => (object) [
+                'SalonTejidoId' => $t->salon(),
+                'NoTelarId' => $t->MaquinaId,
+                'Nombre' => $t->nombreTelar(),
+                'Grupo' => null,
+                'VelocidadSTD' => null,
+            ]);
 
         $usuarios = SYSUsuario::select('numero_empleado', 'nombre', 'turno')
             ->orderByRaw('CASE WHEN ISNUMERIC(numero_empleado) = 1 THEN CAST(numero_empleado AS INT) ELSE 999999 END ASC')
@@ -216,7 +224,7 @@ class TelTelaresOperadorController extends Controller
             ->filter()
             ->unique()
             ->values();
-        $telaresCatalogo = ReqTelares::obtenerTodos()->keyBy(fn ($telar) => (string) $telar->NoTelarId);
+        $telaresCatalogo = $this->telaresCatalogo()->keyBy(fn (URDCatalogoMaquina $telar) => $telar->MaquinaId);
         $telaresInvalidos = $telaresSeleccionados
             ->reject(fn ($telar) => $telaresCatalogo->has($telar))
             ->values()
@@ -323,5 +331,15 @@ class TelTelaresOperadorController extends Controller
 
         return redirect()->route('tel-telares-operador.index')
             ->with('success', "Operador {$numeroEmpleado} eliminado correctamente.");
+    }
+
+    /** @return Collection<int, URDCatalogoMaquina> ordenados por salón y telar, como ReqTelares::obtenerTodos() */
+    private function telaresCatalogo(): Collection
+    {
+        return URDCatalogoMaquina::query()
+            ->telares()
+            ->get(['MaquinaId', 'Departamento'])
+            ->sortBy(fn (URDCatalogoMaquina $t) => $t->salon().'|'.$t->MaquinaId)
+            ->values();
     }
 }

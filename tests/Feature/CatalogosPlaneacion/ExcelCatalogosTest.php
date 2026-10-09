@@ -4,7 +4,6 @@ namespace Tests\Feature\CatalogosPlaneacion;
 
 use App\Models\Planeacion\ReqAplicaciones;
 use App\Models\Planeacion\ReqEficienciaStd;
-use App\Models\Planeacion\ReqTelares;
 use App\Models\Planeacion\ReqVelocidadStd;
 use Illuminate\Http\UploadedFile;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -35,17 +34,6 @@ class ExcelCatalogosTest extends TestCase
         (new Xlsx($libro))->save($ruta);
 
         return new UploadedFile($ruta, 'catalogo.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
-    }
-
-    public function test_telares_crea_y_actualiza(): void
-    {
-        ReqTelares::create(['SalonTejidoId' => 'JACQUARD', 'NoTelarId' => '201', 'Nombre' => 'Viejo', 'Grupo' => 'Z']);
-        $archivo = $this->excel([['Salon', 'Telar', 'Nombre', 'Grupo'], ['JACQUARD', '201', 'JAC 201', 'A'], ['SMITH', '305', 'Smith 305', 'B']]);
-
-        $this->post('/planeacion/telares/excel', ['archivo_excel' => $archivo], ['Accept' => 'application/json'])
-            ->assertOk()->assertJson(['success' => true]);
-        $this->assertSame(2, ReqTelares::count());
-        $this->assertSame('B', ReqTelares::where('NoTelarId', '305')->value('Grupo'));
     }
 
     public function test_eficiencia_importa_con_densidad_por_defecto(): void

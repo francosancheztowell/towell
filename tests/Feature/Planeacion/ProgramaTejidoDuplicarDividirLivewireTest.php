@@ -6,9 +6,11 @@ use App\Livewire\Planeacion\ProgramaTejido\CatalogosDestino;
 use App\Livewire\Planeacion\ProgramaTejido\DuplicarDividir;
 use App\Models\Planeacion\ReqAplicaciones;
 use App\Models\Planeacion\ReqModelosCodificados;
-use App\Models\Planeacion\ReqTelares;
+use App\Models\Urdido\URDCatalogoMaquina;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\SQLiteConnection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
 use Tests\Feature\Planeacion\Concerns\ConPermisosPlaneacion;
 use Tests\Feature\Planeacion\Concerns\ProgramaTejidoFixtures;
@@ -29,21 +31,26 @@ class ProgramaTejidoDuplicarDividirLivewireTest extends TestCase
         parent::setUp();
         $this->prepararSuperficies();
         $this->sembrarFixtures();
-        // Primero una tabla dbo.*: adjunta el esquema dbo que usan ReqTelares y ReqAplicaciones.
+        // Primero una tabla dbo.*: adjunta el esquema dbo que usa ReqAplicaciones.
         $this->createTablaDbo('ReqCalendarioLine', ['CalendarioId' => 'text', 'FechaInicio' => 'text', 'FechaFin' => 'text']);
-        foreach ([ReqModelosCodificados::class, ReqTelares::class, ReqAplicaciones::class] as $modelo) {
+        foreach ([ReqModelosCodificados::class, ReqAplicaciones::class] as $modelo) {
             $this->createTablaDesdeModelo($modelo);
         }
+        Schema::connection('sqlsrv')->create((new URDCatalogoMaquina)->getTable(), function (Blueprint $t): void {
+            $t->string('MaquinaId')->primary();
+            $t->string('Departamento')->nullable();
+        });
 
         // DividirTejido hace DB::reconnect() tras el commit: se reconecta al mismo PDO en memoria.
         $pdo = DB::connection('sqlsrv')->getPdo();
         DB::extend('sqlsrv', fn (array $config) => new SQLiteConnection($pdo, ':memory:', '', $config));
 
         DB::table('ReqProgramaTejido')->whereIn('Id', [1, 3, 4])->update(['TamanoClave' => 'CLV-1']);
-        DB::table('dbo.ReqTelares')->insert([
-            ['SalonTejidoId' => 'SMIT', 'NoTelarId' => '201'],
-            ['SalonTejidoId' => 'SMITH', 'NoTelarId' => '210'],
-            ['SalonTejidoId' => 'JACQUARD', 'NoTelarId' => '205'],
+        DB::table('URDCatalogoMaquinas')->insert([
+            ['Departamento' => 'Itema', 'MaquinaId' => '201'],
+            ['Departamento' => 'Smith', 'MaquinaId' => '210'],
+            ['Departamento' => 'Jacquard', 'MaquinaId' => '205'],
+            ['Departamento' => 'Urdido', 'MaquinaId' => 'MC1'],
         ]);
     }
 

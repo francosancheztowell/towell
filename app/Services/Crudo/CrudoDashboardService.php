@@ -510,7 +510,6 @@ final readonly class CrudoDashboardService
         $key = 'crudo:machine-catalog:'.sha1(json_encode([
             config('crudo.connections.catalog'),
             config('crudo.tables.machines'),
-            config('crudo.tables.sequence'),
             config('crudo.catalog_salons'),
         ], JSON_THROW_ON_ERROR));
 

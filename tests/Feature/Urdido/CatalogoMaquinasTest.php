@@ -29,8 +29,9 @@ class CatalogoMaquinasTest extends TestCase
             $t->string('Nombre')->nullable();
             $t->string('Departamento')->nullable();
             $t->string('Codificacion')->nullable();
+            $t->integer('Secuencia')->nullable();
         });
-        URDCatalogoMaquina::create(['MaquinaId' => 'KM-2', 'Nombre' => 'Karl Mayer', 'Departamento' => 'Urdido']);
+        URDCatalogoMaquina::create(['MaquinaId' => 'KM-2', 'Nombre' => 'Karl Mayer', 'Departamento' => 'Urdido', 'Secuencia' => 4]);
     }
 
     public function test_sin_acceso_devuelve_403(): void
@@ -79,6 +80,7 @@ class CatalogoMaquinasTest extends TestCase
         $this->assertNull(URDCatalogoMaquina::find('KM-2'));
         $this->assertSame('KM', URDCatalogoMaquina::find('KM-3')->Nombre);
         $this->assertSame('TOW-KMURD-URDI', URDCatalogoMaquina::find('KM-3')->Codificacion, 'Cambiar el ID no pierde la codificación.');
+        $this->assertSame(4, URDCatalogoMaquina::find('KM-3')->Secuencia, 'Cambiar el ID no pierde la secuencia del inventario.');
 
         $lw->set('seleccionado', 'KM-3')->call('eliminar');
         $this->assertSame(['MC Coy 1'], URDCatalogoMaquina::pluck('MaquinaId')->all());

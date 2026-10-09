@@ -38,11 +38,10 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
         config()->set('crudo.connections.catalog', 'crudo_test_catalog');
         config()->set('crudo.tables.headers', 'TWCRUDOTABLE');
         config()->set('crudo.tables.lines', 'TWCRUDOLINE');
-        config()->set('crudo.tables.machines', 'ReqTelares');
-        config()->set('crudo.tables.sequence', 'InvSecuenciaTelares');
+        config()->set('crudo.tables.machines', 'URDCatalogoMaquinas');
         config()->set('crudo.tables.paros', 'ManFallasParos');
         config()->set('crudo.tables.programs', 'ReqProgramaTejido');
-        config()->set('crudo.catalog_salons', ['Jacquard', 'Smith', 'KM']);
+        config()->set('crudo.catalog_salons', ['KM', 'Karl Mayer', 'Jacquard', 'Smith', 'Itema']);
         config()->set('crudo.data_area_id', 'pro');
         config()->set('planeacion.programa_tejido_table', 'ReqProgramaTejido');
 
@@ -178,18 +177,9 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
 
     public function test_it_combines_machine_catalog_with_visual_sequence(): void
     {
-        DB::connection('crudo_test_catalog')->table('ReqTelares')->insert([
-            [
-                'SalonTejidoId' => 'Jacquard',
-                'NoTelarId' => '201',
-                'Nombre' => 'JAC 201',
-                'Grupo' => 'Jacquard Smith',
-            ],
-        ]);
-        DB::connection('crudo_test_catalog')->table('InvSecuenciaTelares')->insert([
-            'NoTelar' => '201',
-            'TipoTelar' => 'JACQUARD',
-            'Secuencia' => 7,
+        DB::connection('crudo_test_catalog')->table('URDCatalogoMaquinas')->insert([
+            ['MaquinaId' => '201', 'Nombre' => 'Jacquard', 'Departamento' => 'Jacquard', 'Secuencia' => 7],
+            ['MaquinaId' => 'MC1', 'Nombre' => 'Mc Coy 1', 'Departamento' => 'Urdido', 'Secuencia' => null],
         ]);
 
         $machines = (new SqlServerCrudoReadRepository)->machines();
@@ -197,28 +187,27 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
         $this->assertCount(1, $machines);
         $this->assertSame('201', $machines[0]['telar']);
         $this->assertSame('JAC 201', $machines[0]['name']);
+        $this->assertSame('Jacquard', $machines[0]['salon']);
         $this->assertSame(7, $machines[0]['sequence']);
     }
 
-    public function test_it_does_not_duplicate_a_machine_when_the_sequence_join_fans_out(): void
+    /** Salón y nombre como los daba ReqTelares: Itema y Smith son el salón Smith; Karl Mayer es KM. */
+    public function test_it_keeps_the_salon_and_name_of_the_old_catalog(): void
     {
-        DB::connection('crudo_test_catalog')->table('ReqTelares')->insert([
-            [
-                'SalonTejidoId' => 'Jacquard',
-                'NoTelarId' => '201',
-                'Nombre' => 'JAC 201',
-                'Grupo' => 'Jacquard Smith',
-            ],
-        ]);
-        DB::connection('crudo_test_catalog')->table('InvSecuenciaTelares')->insert([
-            ['NoTelar' => '201', 'TipoTelar' => 'JACQUARD', 'Secuencia' => 7],
-            ['NoTelar' => '201', 'TipoTelar' => 'OTRO', 'Secuencia' => 99],
+        DB::connection('crudo_test_catalog')->table('URDCatalogoMaquinas')->insert([
+            ['MaquinaId' => '401', 'Nombre' => 'Karl Mayer', 'Departamento' => 'Karl Mayer', 'Secuencia' => null],
+            ['MaquinaId' => '305', 'Nombre' => 'Smith', 'Departamento' => 'Smith', 'Secuencia' => 18],
+            ['MaquinaId' => '300', 'Nombre' => 'Itema', 'Departamento' => 'Itema', 'Secuencia' => 31],
+            ['MaquinaId' => '201', 'Nombre' => 'Jacquard', 'Departamento' => 'Jacquard', 'Secuencia' => 1],
         ]);
 
         $machines = (new SqlServerCrudoReadRepository)->machines();
 
-        $this->assertCount(1, $machines);
-        $this->assertSame('201', $machines[0]['telar']);
+        $this->assertSame(
+            [['201', 'Jacquard', 'JAC 201'], ['401', 'KM', 'KM 401'], ['300', 'Smith', 'Smith 300'], ['305', 'Smith', 'Smith 305']],
+            array_map(fn (array $m): array => [$m['telar'], $m['salon'], $m['name']], $machines),
+        );
+        $this->assertNull($machines[1]['sequence']);
     }
 
     public function test_it_reads_active_stops_from_every_department(): void
@@ -333,17 +322,12 @@ final class SqlServerCrudoReadRepositoryTest extends TestCase
             $table->string('UNUSED')->nullable();
         });
 
-        Schema::connection('crudo_test_catalog')->create('ReqTelares', function (Blueprint $table): void {
-            $table->string('SalonTejidoId');
-            $table->string('NoTelarId');
-            $table->string('Nombre');
-            $table->string('Grupo');
-        });
-
-        Schema::connection('crudo_test_catalog')->create('InvSecuenciaTelares', function (Blueprint $table): void {
-            $table->string('NoTelar');
-            $table->string('TipoTelar');
-            $table->integer('Secuencia');
+        Schema::connection('crudo_test_catalog')->create('URDCatalogoMaquinas', function (Blueprint $table): void {
+            $table->increments('Id');
+            $table->string('MaquinaId');
+            $table->string('Nombre')->nullable();
+            $table->string('Departamento')->nullable();
+            $table->integer('Secuencia')->nullable();
         });
 
         Schema::connection('crudo_test_catalog')->create('ManFallasParos', function (Blueprint $table): void {

@@ -67,9 +67,11 @@ class CatalogoMaquinas extends Component
             URDCatalogoMaquina::create($datos);
         } elseif ($datos['MaquinaId'] !== $this->editando) {
             // La llave es el MaquinaId: cambiarlo es borrar y crear (como antes), en una sola transacción.
+            // La Secuencia (inventario de telas) no está en el formulario: se conserva.
             DB::connection('sqlsrv')->transaction(function () use ($datos) {
-                $this->buscar((string) $this->editando)->delete();
-                URDCatalogoMaquina::create($datos);
+                $anterior = $this->buscar((string) $this->editando);
+                $anterior->delete();
+                URDCatalogoMaquina::create($datos + ['Secuencia' => $anterior->getAttribute('Secuencia')]);
             });
         } else {
             $this->buscar((string) $this->editando)->update($datos);
