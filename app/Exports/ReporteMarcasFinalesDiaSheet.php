@@ -275,7 +275,7 @@ class ReporteMarcasFinalesDiaSheet implements WithEvents, WithStyles, WithTitle
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FF0000']],
             ]);
 
-            // F: vel (velocidad de ReqTelares, fondo amarillo)
+            // F: vel (velocidad de la orden en proceso en Planeación, fondo amarillo)
             $sheet->setCellValue("F{$row}", $velocidad > 0 ? $velocidad : '');
             $sheet->getStyle("F{$row}")->applyFromArray([
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFF00']],

@@ -333,7 +333,7 @@ class TelTelaresOperadorController extends Controller
             ->with('success', "Operador {$numeroEmpleado} eliminado correctamente.");
     }
 
-    /** @return Collection<int, URDCatalogoMaquina> ordenados por salón y telar, como ReqTelares::obtenerTodos() */
+    /** @return Collection<int, URDCatalogoMaquina> ordenados por salón y telar */
     private function telaresCatalogo(): Collection
     {
         return URDCatalogoMaquina::query()

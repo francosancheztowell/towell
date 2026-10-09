@@ -8473,30 +8473,6 @@ parameters:
 			path: app/Models/Planeacion/ReqProgramaTejidoLine.php
 
 		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqTelares\:\:\$Grupo\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/Planeacion/ReqTelares.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqTelares\:\:\$NoTelarId\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Models/Planeacion/ReqTelares.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqTelares\:\:\$Nombre\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Models/Planeacion/ReqTelares.php
-
-		-
-			message: '#^Access to an undefined property App\\Models\\Planeacion\\ReqTelares\:\:\$SalonTejidoId\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Models/Planeacion/ReqTelares.php
-
-		-
 			message: '#^Unsafe usage of new static\(\)\.$#'
 			identifier: new.static
 			count: 1

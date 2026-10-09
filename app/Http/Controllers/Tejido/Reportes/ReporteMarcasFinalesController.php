@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers\Tejido\Reportes;
 
+use App\Exports\ReporteMarcasFinalesExport;
 use App\Http\Controllers\Controller;
-use App\Models\Planeacion\ReqTelares;
+use App\Models\Planeacion\ReqProgramaTejido;
 use App\Models\Tejido\TejMarcasLine;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -73,12 +74,18 @@ class ReporteMarcasFinalesController extends Controller
         ]);
     }
 
+    /**
+     * Velocidad de la orden en proceso de cada telar (Planeación). Con más de una en proceso,
+     * gana la más reciente. Es la velocidad de hoy: un día pasado se calcula con ella.
+     */
     private function obtenerVelocidadesPorTelar(): Collection
     {
-        return ReqTelares::query()
+        return ReqProgramaTejido::query()
+            ->enProceso()
             ->whereNotNull('NoTelarId')
-            ->pluck('VelocidadSTD', 'NoTelarId')
-            ->map(fn ($vel) => (float) ($vel ?? 0));
+            ->orderBy('Id')
+            ->get(['NoTelarId', 'VelocidadSTD'])
+            ->mapWithKeys(fn (ReqProgramaTejido $p) => [(int) $p->NoTelarId => (float) ($p->VelocidadSTD ?? 0)]);
     }
 
     private function obtenerDiasConDatos(string $fechaIni, string $fechaFin): Collection
@@ -221,7 +228,7 @@ class ReporteMarcasFinalesController extends Controller
 
         $velocidadesPorTelar = $this->obtenerVelocidadesPorTelar();
 
-        $export = new \App\Exports\ReporteMarcasFinalesExport($datosPorDia, $velocidadesPorTelar);
+        $export = new ReporteMarcasFinalesExport($datosPorDia, $velocidadesPorTelar);
 
         $filename = 'EFICIENCIAS_'.$fechaIniFormateada.'_'.$fechaFinFormateada.'.xlsx';
 
