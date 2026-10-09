@@ -1,9 +1,10 @@
 <div id="trazabilidad-livewire" class="space-y-4" data-trazabilidad-livewire>
     <flux:card size="sm" class="!p-2">
-        <form wire:submit.prevent class="flex flex-col gap-2 md:flex-row md:items-center">
+        <form wire:submit.prevent class="flex flex-col gap-2 min-[900px]:flex-row min-[900px]:items-center">
             <div class="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-3">
-                {{-- Etiqueta a la izquierda: una sola fila, la barra ocupa la mitad de alto. --}}
-                <div class="flex min-w-0 items-center gap-2">
+                {{-- Desde 900 px, etiqueta a la izquierda y una sola fila. Más angosto (iPad vertical) no cabe:
+                     la etiqueta va arriba y Restablecer baja a su propia fila. --}}
+                <div class="flex min-w-0 flex-col gap-1 min-[900px]:flex-row min-[900px]:items-center min-[900px]:gap-2">
                     <flux:label for="filtro-flog" class="shrink-0">Flog</flux:label>
                     {{-- Solo viaja el Flog seleccionado: el resto se busca por AJAX. --}}
                     <select id="filtro-flog" class="filtro-select"
@@ -16,7 +17,7 @@
                     </select>
                 </div>
 
-                <div class="flex min-w-0 items-center gap-2">
+                <div class="flex min-w-0 flex-col gap-1 min-[900px]:flex-row min-[900px]:items-center min-[900px]:gap-2">
                     <flux:label for="filtro-articulo" class="shrink-0">Artículo</flux:label>
                     <select id="filtro-articulo" class="filtro-select" data-livewire-filter="articulo">
                         <option value="">Todos</option>
@@ -28,7 +29,7 @@
                     </select>
                 </div>
 
-                <div class="flex min-w-0 items-center gap-2">
+                <div class="flex min-w-0 flex-col gap-1 min-[900px]:flex-row min-[900px]:items-center min-[900px]:gap-2">
                     <flux:label for="filtro-tamano" class="shrink-0">Tamaño</flux:label>
                     <select id="filtro-tamano" class="filtro-select" data-livewire-filter="tamano">
                         <option value="">Todos</option>
@@ -40,7 +41,7 @@
             </div>
 
             <flux:button type="button" wire:click="restablecer" variant="ghost" icon="arrow-uturn-left"
-                         class="min-h-touch self-end md:self-auto" :disabled="! $hayFiltro">
+                         class="min-h-touch self-end min-[900px]:self-auto" :disabled="! $hayFiltro">
                 Restablecer
             </flux:button>
         </form>
